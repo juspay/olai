@@ -274,9 +274,9 @@ export interface HeadEntries {
  * {@link Directory}, and a directory is what its suite drives. `./chat/order.ts`
  * exports its accumulator because the transcript's ORDER is the whole of what
  * that module answers; here it is only what a reading holds when there IS one —
- * the absent state, and what the manifest makes of it, are the directory's — so
- * a suite over the fold alone would be a suite over the half that cannot see
- * them.
+ * the absent state, and what {@link Directory.standing} makes of it, are the
+ * directory's — so a suite over the fold alone would be a suite over the half
+ * that cannot see them.
  */
 interface Held {
   readonly paths: ReadonlyArray<string>
@@ -453,8 +453,8 @@ const SERVED_FILES: CollectionFoldOptions<string, Head, Held> = {
 
 /** The empty directory, minted once each: what every reading answers with while
  *  the fold holds no accumulator, so a memo below settles rather than reporting
- *  a new empty answer per frame. The manifest is what says WHY it is empty
- *  (the header's three states). */
+ *  a new empty answer per frame. {@link Directory.standing} is what says WHY it
+ *  is empty (the header's three states). */
 const NO_PATHS: ReadonlyArray<string> = []
 const NO_BROKEN: ReadonlyMap<string, BrokenFile> = new Map()
 

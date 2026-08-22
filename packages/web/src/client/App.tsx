@@ -114,8 +114,8 @@ export default function App() {
    * existing, which could only ever be true once a directory had loaded, and is
    * now a page each pane waits for where its own `Reading…` line is. The one
    * reader that genuinely needs all THREE states is the `Switch` below, which
-   * has to tell "still reading" from "never loaded"; it names the state, which
-   * folding is what this is and that reader is not doing.
+   * has to tell "still reading" from "never loaded"; it names the state
+   * itself, because folding is what this is and that reader is not folding.
    *
    * NEITHER OF THEM DECIDES ANYTHING, and that is `manifest-fold-skew`'s
    * change: this used to read the manifest cell's own `Manifest | undefined`

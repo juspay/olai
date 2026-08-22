@@ -537,23 +537,17 @@ test("...and a delta is the same proof as a snapshot", () => {
   // connected to a store with no snapshot, which publishes no head) and the
   // revision's heads reached it as a delta. Nothing here is about WHICH frame
   // carried them — what this tab holds is the proof.
+  //
+  // The empty seed in the middle is the GUARD on the rule, which is why it is
+  // asserted rather than merely arranged: it is the PATHS that outrank the
+  // cell, not the fold's mere presence, and a fold seeded from a store with no
+  // snapshot holds an accumulator with no path in it.
   const directory = live()
   directory.never()
   directory.snapshot([])
   expect(directory.standing()).toBe("never")
   directory.delta([["house.olai", directory.wrote(1)]])
   expect(directory.standing()).toBe("loaded")
-  directory.stop()
-})
-
-test("...and a directory that never loaded still says so while this tab holds nothing", () => {
-  // The guard on the rule above, and the reason it is the PATHS and not the
-  // fold's mere presence: a fold seeded from a store with no snapshot holds an
-  // accumulator with no path in it, which is not proof of anything.
-  const directory = live()
-  directory.never()
-  directory.snapshot([])
-  expect(directory.standing()).toBe("never")
   directory.stop()
 })
 
