@@ -602,8 +602,11 @@ export const surface = defineSurface({
        *  survey by ONE statement, on every revision AND on the server's
        *  thirty-second sweep, and a derivation is a fresh object every time. So
        *  without this a healthy repository framed every open tab twice a minute
-       *  saying `repo` — which is what restarted Auto-commit's quiet window on
-       *  a frame nobody typed (`web/src/client/commit/auto.ts`). */
+       *  saying `repo` — which is what restarted the quiet window on a frame
+       *  nobody typed, back when that window lived in a browser tab. It is the
+       *  server's now, and re-arms on a reading that says something new
+       *  rather than on a frame (`@olai/format`'s `armedOn`), so this is the
+       *  wire staying quiet rather than the loop's only defence. */
       equals: sameGit,
     },
     /**

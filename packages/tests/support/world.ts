@@ -141,13 +141,12 @@ export const BACKSTOP_TIMEOUT = 90_000;
 export const STEER_DEADLINE_TIMEOUT = 45_000;
 
 /**
- * Per-step budget for the one change only the client's AUTO-COMMIT QUIET WINDOW
- * can deliver: a flurry of edits stopping, and what was waiting recording
- * itself.
+ * Per-step budget for the one change only the SERVER's quiet window can
+ * deliver: writes stopping, and what was waiting recording itself.
  *
  * A fifth axis, on the same argument as the third and the fourth. There is
- * exactly one way to see a flurry recorded and it is to stop editing and wait
- * out `@olai/web`'s own window (`commit/flurry.ts`'s `QUIET_MS`, fifteen
+ * exactly one way to see a flurry recorded and it is to stop writing and wait
+ * out the window the server keeps (`@olai/format`'s `QUIET_MS`, fifteen
  * seconds — the number is a claim about the product, not about this suite, so
  * it is not shortened to suit a test), and folding that wait into
  * `HYDRATION_TIMEOUT` would make every first paint in the suite wait on it.
