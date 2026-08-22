@@ -50,10 +50,13 @@ export { defaultWorkers, WORKER_CAP, workerCount } from "./parallelism.js";
 export const spawnFingerprint = (opts: {
   readonly stored: boolean;
   readonly agent: boolean;
+  readonly opencode: boolean;
   readonly kolu: boolean;
   readonly git?: string;
 }): string =>
-  `stored=${opts.stored ? 1 : 0},agent=${opts.agent ? 1 : 0},kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}`;
+  `stored=${opts.stored ? 1 : 0},agent=${opts.agent ? 1 : 0},opencode=${
+    opts.opencode ? 1 : 0
+  },kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}`;
 
 /** Cucumber numbers workers from 0. Unset means this process is the only
  *  one — a serial run, or a unit test. Used to name the per-worker temp

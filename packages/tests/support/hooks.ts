@@ -111,6 +111,25 @@ const FAKE_AGENT = path.resolve(
 const FAKE_KOLU_DIR = path.resolve(import.meta.dirname, "..", "agent", "kolu");
 
 /**
+ * The directory holding a fake `opencode`, put on a spawned server's
+ * `OLAI_AGENT_PATH` when — and only when — a scenario asks for one.
+ *
+ * WHICH AGENTS A SERVER FINDS IS A PROPERTY OF THE SCENARIO, for the fake
+ * kolu's reason and a sharper version of it: the roster decides whether the
+ * panel ASKS which agent, so a developer with the real opencode installed would
+ * otherwise run a different suite than a CI lane does — one where every chat
+ * scenario opens on a picker.
+ *
+ * It is the agent search path rather than `PATH` because that is the variable
+ * olai probes with, and because the default has to be "nothing": every other
+ * scenario spawns with `OLAI_AGENT_PATH` set to the EMPTY string, which finds
+ * no agent anywhere and leaves the roster as the one `OLAI_ACP_AGENT` names —
+ * a roster of one, which is what every olai in the world is running today and
+ * the state the rest of this suite is written against.
+ */
+const FAKE_OPENCODE_DIR = path.resolve(import.meta.dirname, "..", "agent", "opencode");
+
+/**
  * A `git` that is found and cannot work, put FIRST on the PATH of a server a
  * `@git:broken` scenario spawns — same argument as the kolu above: whether git
  * works is a property of the scenario rather than of the machine the run is on,
@@ -121,6 +140,12 @@ const BROKEN_GIT_DIR = path.resolve(import.meta.dirname, "..", "bin", "broken-gi
 /** `@kolu`: this scenario's host is running kolu, so its session should be
  *  handed kolu's terminals alongside olai's own tools. */
 const KOLU_TAG = "@kolu";
+
+/** `@opencode`: this scenario's machine HAS opencode, so its server's roster is
+ *  two agents and the panel asks which one a conversation is with. Untagged,
+ *  the agent search path is empty and the roster is the scripted Claude-shaped
+ *  agent alone — see {@link FAKE_OPENCODE_DIR}. */
+const OPENCODE_TAG = "@opencode";
 
 /** `@wire`: this scenario asks what the SERVER SENT rather than what the page
  *  drew, so every websocket frame the tab is delivered is kept for it
@@ -428,6 +453,10 @@ interface Spawn {
    *  "this host is running kolu". Otherwise the one on PATH reaches no daemon,
    *  which detection must refuse. */
   readonly kolu?: boolean;
+  /** `true` puts a fake `opencode` on the agent search path, so this server's
+   *  roster is two agents. Otherwise that path is EMPTY and the roster is the
+   *  scripted agent alone — see {@link FAKE_OPENCODE_DIR}. */
+  readonly opencode?: boolean;
   /** Absent is `--no-commit`, which is what every scenario but the git ones
    *  wants. Present drops the opt-out and says which of the three git
    *  situations this server is being started into. */
@@ -475,6 +504,13 @@ const startServerChild = async (
         // state the same way rather than through a hole in the harness.
         OLAI_ACP_AGENT: spawnOptions.agent === false ? "" : FAKE_AGENT,
         ...(spawnOptions.stored === true ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
+        // WHERE OLAI LOOKS FOR AGENTS, and by default nowhere: the empty
+        // string is "look on no path at all", so a developer's own opencode
+        // cannot decide a scenario. `@opencode` is what puts one there.
+        OLAI_AGENT_PATH: spawnOptions.opencode === true ? FAKE_OPENCODE_DIR : "",
+        ...(spawnOptions.opencode === true && spawnOptions.stored === true
+          ? { OLAI_FAKE_OPENCODE_STORED: "yes" }
+          : {}),
         // FIRST, so a real kolu on the developer's PATH does not decide a
         // scenario. Which one this is, is the tag's business — and the broken
         // git goes ahead of even that, for exactly the same reason.
@@ -646,6 +682,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       port,
       stored: world.storedSessions,
       agent: world.hasAgent,
+      opencode: world.hasOpencode,
       kolu: world.hasKolu,
       stateRoot: scratchState(world.scratch()),
       ...(world.gitMode === undefined ? {} : { git: world.gitMode }),
@@ -940,6 +977,9 @@ Before(
       (tag) => tag.name === NO_AGENT_TAG,
     );
     this.hasKolu = scenario.pickle.tags.some((tag) => tag.name === KOLU_TAG);
+    this.hasOpencode = scenario.pickle.tags.some(
+      (tag) => tag.name === OPENCODE_TAG,
+    );
     this.gitMode = scenario.pickle.tags.flatMap((tag) => {
       const asked = GIT_TAG.exec(tag.name);
       return asked === null ? [] : [asked[1] as GitMode];
@@ -967,11 +1007,21 @@ Before(
           `server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
+    // ... and the same for the roster, for the same reason: which agents a
+    // server offers decides whether its panel asks, and a shared corpus server
+    // is answering that for every other scenario in the run too.
+    if (this.hasOpencode && !writes) {
+      throw new Error(
+        `${OPENCODE_TAG} decides which agents its server finds, so the scenario must own ` +
+          `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
+      );
+    }
 
     if (writes) {
       const spawnOptions = {
         stored: this.storedSessions,
         agent: this.hasAgent,
+        opencode: this.hasOpencode,
         kolu: this.hasKolu,
         ...(this.gitMode === undefined ? {} : { git: this.gitMode }),
       };
