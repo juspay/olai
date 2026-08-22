@@ -22,24 +22,15 @@
  *                   hover, because the pointer is still over the cell that was
  *                   just clicked.
  *
- * Either of the first two makes the cell a LINK — the day has something to
- * show, whether the reader wrote it or the set did.
- *
- * A day with neither used to be INERT — pressing it could only mean "write
- * something here", and this pane wrote nothing. The editing ops arrived, and
- * the roadmap's own ruling with them: a bare day is now the creation
- * affordance for that day's NOTE. Pressing one mints the note where the
- * vault's own convention keeps them (the server reads it off the newest
- * existing daily note — `docDay` in the edit surface) and lands in its
- * editor. It still LOOKS like a quiet number, because a month of empty days
- * is not thirty invitations; the affordance is the hover, the cursor and the
- * label.
+ * EVERY cell is a LINK to `/d/<date>`. A day with neither mark still goes
+ * somewhere: the page that says so, honestly, rather than a click that writes
+ * a file. Creating that day's note is the day page's (`../day/DayMint.tsx`),
+ * not this cell's — a day is the smallest target in the app, and a navigation
+ * gesture must not mint.
  *
  * The box is the same size in every state, so the month does not jump about as
  * a reader moves through it.
  */
-
-import { Show } from "solid-js"
 
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
@@ -55,8 +46,9 @@ import { dayNumber } from "./month.ts"
  *  Its HEIGHT is the one thing that changes with the pointer: a target below
  *  48rem (../touch.ts), the compact 1.75rem row above it. A day is the
  *  smallest target in this app and the one a finger is likeliest to miss into
- *  the day beside it. */
-const BOX = `flex ${TARGET} relative items-center justify-center rounded-lg border ` +
+ *  the day beside it. `w-full` so the hit area is the grid cell, not the
+ *  number. */
+const BOX = `flex ${TARGET} relative w-full items-center justify-center rounded-lg border ` +
   "text-xs tabular-nums no-underline md:min-h-6"
 
 /** The dot, as the pseudo-element it has to be — it sits UNDER the number
@@ -95,15 +87,10 @@ export function Day(props: {
   readonly today: boolean
   /** This is the day the open page is of. */
   readonly open: boolean
-  /** Mint this day's note — what pressing a BARE day means now that documents
-   *  are writable. The calendar owns the write; the cell only says which day
-   *  was pressed. */
-  readonly mint: (date: string) => void
 }) {
   /** The cell has SOMETHING to show — from the set, or from a file somebody
-   *  wrote. It is what decides the ink, the hover and the link; which of the
-   *  two marks is drawn is decided separately, because that is the part a
-   *  reader is being told. */
+   *  wrote. It is what decides the ink and the weight; every cell is a link
+   *  regardless, because an empty day still has a page. */
   const live = (): boolean => props.dated || props.noted
 
   /**
@@ -117,15 +104,17 @@ export function Day(props: {
    * and nothing else. The two facts are already on the element for the browser
    * tests; this is the same two facts for the reader who cannot see them.
    *
-   * Only a LIVE cell says it. An inert day has no mark to name and is not a
-   * link — there is nothing to announce but the number it already is.
+   * A quiet day says only the date. It is a link, not a creation affordance,
+   * so there is nothing else to announce.
    */
   const said = (): string =>
-    `${props.date}, ${
-      props.dated
-        ? props.noted ? "has a note and dated nodes" : "has dated nodes"
-        : "has a note"
-    }`
+    live()
+      ? `${props.date}, ${
+        props.dated
+          ? props.noted ? "has a note and dated nodes" : "has dated nodes"
+          : "has a note"
+      }`
+      : props.date
 
   // One decision per CSS property, so the marks stack the way the reference
   // does rather than the way the stylesheet happened to be sorted. Today and
@@ -139,7 +128,7 @@ export function Day(props: {
       : live()
       ? "text-ink"
       : "text-muted"
-  const ground = (): string => props.open ? "bg-ink" : live() ? "hover:bg-rule" : ""
+  const ground = (): string => props.open ? "bg-ink" : "hover:bg-rule"
   const ring = (): string =>
     props.today ? "border-accent" : props.open ? "border-ink" : "border-transparent"
 
@@ -165,34 +154,15 @@ export function Day(props: {
       data-today={String(props.today)}
       data-open={String(props.open)}
     >
-      <Show
-        when={live()}
-        fallback={
-          <button
-            type="button"
-            // The quiet number it always was, with the affordance on approach:
-            // a month of empty days must not read as thirty invitations, and
-            // the hover, the cursor and the label are what say "pressable".
-            class={`${look()} w-full cursor-pointer border-dashed bg-transparent hover:border-rule hover:text-ink`}
-            data-testid={TESTID.calendarMint}
-            aria-label={`${props.date}, no note yet — create this day's note`}
-            title={`create ${props.date}'s note`}
-            onClick={() => props.mint(props.date)}
-          >
-            {dayNumber(props.date)}
-          </button>
-        }
+      <Link
+        route={{ kind: "day", date: props.date }}
+        class={look()}
+        title={props.date}
+        label={said()}
+        current={props.open}
       >
-        <Link
-          route={{ kind: "day", date: props.date }}
-          class={look()}
-          title={props.date}
-          label={said()}
-          current={props.open}
-        >
-          {dayNumber(props.date)}
-        </Link>
-      </Show>
+        {dayNumber(props.date)}
+      </Link>
     </div>
   )
 }

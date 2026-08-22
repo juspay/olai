@@ -425,7 +425,7 @@ export const TESTID = {
   /** The path box itself — a relative `.md` path, committed with Enter. */
   newDocumentPath: "new-document-path",
   /** Why creating one did not happen — a refusal, verbatim, drawn by the same
-   *  `Refused` line `documentSaid` and `calendarSaid` are. */
+   *  `Refused` line `documentSaid` and `dayMintSaid` are. */
   newDocumentSaid: "new-document-said",
   /** The sidebar's way to a brand-new OUTLINE — `create_outline`'s own door,
    *  beside the document's above (`parity-create-outline`). */
@@ -629,15 +629,15 @@ export const TESTID = {
   calendarDay: "calendar-day",
   calendarPrev: "calendar-prev",
   calendarNext: "calendar-next",
-  /** The button a BARE day is — no node, no note — which mints that day's
-   *  note. Inside the `calendarDay` cell, so `data-date` rides one level up. */
-  calendarMint: "calendar-mint",
-  /** What minting had to say when it was refused — the ops layer's words,
-   *  under the grid. */
-  calendarSaid: "calendar-said",
   /** One day, as a page. `data-date` is the day it turned out to be, which
    *  `/today` does not spell. */
   dayPage: "day-page",
+  /** The day page's way to a note that does not exist yet — shown on any day
+   *  without a note, entries or not. The calendar cell never writes. */
+  dayMint: "day-mint",
+  /** Why minting one did not happen — the ops layer's words, beside the
+   *  button. */
+  dayMintSaid: "day-mint-said",
   /** The nodes of one outline dated that day; `data-file` is which. The same
    *  name on the agenda, which draws the same group under the same heading
    *  rule — one widget, so a scenario asks for it one way. */

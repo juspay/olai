@@ -275,6 +275,7 @@ export function PageView() {
                     date={open().date}
                     groups={day()?.groups ?? []}
                     notes={day()?.notes ?? []}
+                    noted={open().notes.length > 0}
                     today={today()}
                   />
                 )}

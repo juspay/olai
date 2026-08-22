@@ -624,13 +624,12 @@ export const CALENDAR = selector(TESTID.calendar);
 export const CALENDAR_DAY = selector(TESTID.calendarDay);
 export const CALENDAR_PREV = selector(TESTID.calendarPrev);
 export const CALENDAR_NEXT = selector(TESTID.calendarNext);
-/** The button a BARE day is — no node, no note — which mints that day's note.
- *  Inside the `calendarDay` cell, so `data-date` rides one level up. */
-export const CALENDAR_MINT = selector(TESTID.calendarMint);
-/** What minting had to say when it was refused, under the grid. */
-export const CALENDAR_SAID = selector(TESTID.calendarSaid);
 /** One day, as a page: `/d/<date>` and `/today`. */
 export const DAY_PAGE = selector(TESTID.dayPage);
+/** The day page's + day note — shown on any day without a note. */
+export const DAY_MINT = selector(TESTID.dayMint);
+/** Why minting one did not happen, beside the button. */
+export const DAY_MINT_SAID = selector(TESTID.dayMintSaid);
 export const DAY_GROUP = selector(TESTID.dayGroup);
 export const DAY_EMPTY = selector(TESTID.dayEmpty);
 /** The agenda: the same dates read forward. `data-date` is the day it was
@@ -2076,8 +2075,8 @@ export class OlaiWorld extends World {
     );
   }
 
-  /** The link a day cell is when it has something to show — and the empty
-   *  locator it is when it has not, which is the assertion an inert day is. */
+  /** The link a day cell always is — every day goes to `/d/<date>`, empty
+   *  or not. */
   dayLink(date: string): Locator {
     return this.calendarDay(date).locator("a");
   }

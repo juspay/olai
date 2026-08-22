@@ -21,12 +21,14 @@
  * somebody WROTE about the day, and what the set says was ON it — and a reader
  * who keeps a daily file was previously shown only the second.
  *
- * A day with neither says so and offers nothing to press. Creating one is a
- * WRITE, and this pane writes nothing — that arrives with the editing ops; an
- * empty day promising a thing it cannot do would be worse than an empty day.
- * A day that has a note and no dated nodes is NOT that day: it says nothing
- * about being empty, because it is not — the reader is looking at what they
- * wrote on it.
+ * A day with neither says so. Creating the note is this page's — an explicit
+ * **+ day note** (./DayMint.tsx), shown on any day that does not already have
+ * one, entries or not. The calendar cell never writes: every day is a link
+ * here, and a misclick on the smallest target must not mint a file to trash.
+ *
+ * A day that has a note and no dated nodes is NOT that empty day: it says
+ * nothing about being empty, because it is not — the reader is looking at what
+ * they wrote on it.
  *
  * ## What a FILTER does to both halves
  *
@@ -44,6 +46,11 @@
  * What is left is the answer and only the answer; clearing the box brings the
  * day back whole.
  *
+ * The mint button does NOT follow the note into hiding. A filter that emptied
+ * the drawn notes of a day that HAS one would otherwise offer to create a file
+ * the directory already holds; {@link DayPage}'s `noted` is the unfiltered
+ * fact, so the button is absent once the note exists, filter or not.
+ *
  * What this page does still decide is its own SENTENCE. "Nothing is on this
  * day" is a claim about the DAY, where "the query found none of it" is a claim
  * about the query and the bar's to make ("no matches") — so it is drawn on
@@ -58,14 +65,21 @@ import { unfiltered } from "../filter/why.ts"
 import { PAGE_TITLE } from "../look.ts"
 import { TESTID } from "../testids.ts"
 import { DayGroups } from "./DayGroups.tsx"
+import { DayMint } from "./DayMint.tsx"
 import { DayNote } from "./DayNote.tsx"
 
 export function DayPage(props: {
   readonly date: string
   readonly groups: ReadonlyArray<DayGroup>
   /** The documents named for this date, in path order — none, one, or the two
-   *  a vault mid-migration has. */
+   *  a vault mid-migration has. A FILTERED day arrives with none, for the
+   *  reason the header gives; that is what is DRAWN, not whether a note
+   *  exists. */
   readonly notes: ReadonlyArray<string>
+  /** Whether the directory already has a note for this day — the unfiltered
+   *  fact, so a query that hid the prose cannot offer to mint a file that is
+   *  already there. */
+  readonly noted: boolean
   /** Today, so a page can say which day it is rather than only which date. */
   readonly today: string
 }) {
@@ -82,6 +96,9 @@ export function DayPage(props: {
             <span class="text-sm text-accent">today</span>
           </Show>
         </div>
+        <Show when={!props.noted}>
+          <DayMint date={props.date} />
+        </Show>
       </header>
 
       {/* The written half, first — and a filtered day arrives with none, for
