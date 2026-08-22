@@ -55,12 +55,6 @@ const pref = createPreference(AUTOCOMMIT_KEY, boolCodec(OFF))
 export const autoCommit: Accessor<boolean> = () =>
   pinnedCommit(pinned()) ?? pref.value()
 
-/** What this browser would say if nothing were pinned — what the row goes back
- *  to when the server stops pinning, and what is written when somebody picks.
- *  Its own accessor because a frozen row must never draw over a stored choice
- *  it is not allowed to change. */
-export const storedAutoCommit: Accessor<boolean> = pref.value
-
 /** Persist on change — `pref.set` writes `olai.git.autocommit`. Nothing calls
  *  it while the row is pinned: a read-only control has no gesture. */
 export const setAutoCommit = (value: boolean): void => pref.set(value)

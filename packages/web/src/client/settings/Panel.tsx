@@ -68,7 +68,7 @@ import { autoPause } from "../commit/pause.ts"
 import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
 import { outlinesHidden, setOutlinesHidden } from "./hiddenOutlines.ts"
-import { pinned, pinnedCommit, pinnedPush, setBy } from "./pinned.ts"
+import { commitFrozen, commitSetBy, pushFrozen, pushSetBy } from "./pinned.ts"
 import { QUIET_MS } from "../commit/flurry.ts"
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
@@ -209,6 +209,29 @@ export function Panel(props: {
         pref="git-commit"
         hint={commitHint()}
         setBy={commitSetBy()}
+        under={
+          /* THE ONE GESTURE THAT STARTS THE LOOP AGAIN when this row is frozen.
+             A refused commit or push stops Auto-commit and nothing clears that
+             on olai's own initiative (`../commit/auto.ts`); where the row is
+             this browser's, turning it off and on again is what a person does.
+             A pinned row has no toggle to flip, so the stop would be permanent
+             and silent — which is the one failure a loop nobody watches may
+             not have.
+
+             Drawn ONLY while it is frozen AND stopped: a button offering to
+             resume a loop that is running is a control with nothing to do, and
+             on a live row there is already a gesture. */
+          <Show when={commitFrozen() && autoPause.said() !== null}>
+            <button
+              type="button"
+              class={`${TARGET} rounded-full border border-rule px-3 text-xs text-ink hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:min-h-0 md:py-1`}
+              data-testid={TESTID.prefsResume}
+              onClick={() => autoPause.resume()}
+            >
+              Resume auto-commit
+            </button>
+          </Show>
+        }
       >
         <Segmented
           choices={COMMIT_CHOICES}
@@ -217,27 +240,6 @@ export function Panel(props: {
           frozen={commitFrozen()}
         />
       </Row>
-
-      {/* THE ONE GESTURE THAT STARTS THE LOOP AGAIN when this row is frozen.
-          A refused commit or push stops Auto-commit and nothing clears that on
-          olai's own initiative (`../commit/auto.ts`); where the row is this
-          browser's, turning it off and on again is what a person does. A pinned
-          row has no toggle to flip, so the stop would be permanent and silent —
-          which is the one failure mode a loop nobody watches may not have.
-
-          Drawn ONLY while it is frozen AND stopped: a button offering to resume
-          a loop that is running is a control with nothing to do, and on a live
-          row there is already a gesture. */}
-      <Show when={commitFrozen() && autoPause.said() !== null}>
-        <button
-          type="button"
-          class={`${TARGET} self-start rounded-full border border-rule px-3 text-xs text-ink hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:min-h-0 md:py-1`}
-          data-testid={TESTID.prefsResume}
-          onClick={() => autoPause.resume()}
-        >
-          Resume auto-commit
-        </button>
-      </Show>
 
       <Row
         label="Git push"
@@ -344,23 +346,3 @@ const pushHint = (): string =>
     ? "A commit from this browser is pushed after it is recorded."
     : "A commit from here waits. Push it from the panel."
 
-/**
- * ── what the server pinned ─────────────────────────────────────────────
- *
- * Whether each git row is the server's, and the line that says so. Read off the
- * ONE pin (`./pinned.ts`) rather than asked twice, so a row cannot be drawn
- * frozen while its control is still live — or the other way round, which is the
- * one that would let a browser overrule a team's policy by pressing a chip.
- */
-const commitFrozen = (): boolean => pinnedCommit(pinned()) !== null
-const pushFrozen = (): boolean => pinnedPush(pinned()) !== null
-
-const commitSetBy = (): string | null => {
-  const mode = pinned().commit
-  return mode === null ? null : setBy("commit", mode)
-}
-
-const pushSetBy = (): string | null => {
-  const mode = pinned().push
-  return mode === null ? null : setBy("push", mode)
-}

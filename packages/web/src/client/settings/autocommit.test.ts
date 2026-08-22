@@ -4,12 +4,7 @@ import { parseBool } from "../preference.ts"
 
 import { NO_PIN } from "@olai/format"
 
-import {
-  AUTOCOMMIT_KEY,
-  autoCommit,
-  setAutoCommit,
-  storedAutoCommit,
-} from "./autocommit.ts"
+import { AUTOCOMMIT_KEY, autoCommit, setAutoCommit } from "./autocommit.ts"
 import { setPinned } from "./pinned.ts"
 
 test("the key is namespaced to this browser's git preferences", () => {
@@ -104,7 +99,6 @@ test("a pin is worn, not written — the browser's own pick comes back", () => {
     setAutoCommit(true)
     setPinned({ commit: "manual", push: null })
     expect(autoCommit()).toBe(false)
-    expect(storedAutoCommit()).toBe(true)
     expect(store.get(AUTOCOMMIT_KEY)).toBe("true")
 
     setPinned(NO_PIN)

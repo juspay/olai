@@ -44,7 +44,6 @@ import {
   COMMIT_MODES,
   type CommitMode,
   type GitPin,
-  PUSH_DEFAULT,
   PUSH_MODES,
   type PushMode,
 } from "@olai/format"
@@ -54,7 +53,7 @@ import { Flag } from "effect/unstable/cli"
 /**
  * What `--commit` says for itself on one face.
  *
- * Exported because it is the thing worth ASSERTING: `./commits.test.ts` holds
+ * Exported because it is the thing worth ASSERTING: `./gitPolicy.test.ts` holds
  * that both faces name every mode and the default, and that the only clause
  * that differs between them is the door. Reading it back off the built flag
  * would mean reaching into the CLI library's internals to check our own
@@ -78,11 +77,14 @@ export const commitsSaid = (face: CommitFace): string =>
   `off — olai never touches git in this directory. ${PINS}`
 
 /** ... and what `--push` says, which needs no face at all: there is one push
- *  verb, it takes nothing, and nobody has a second door to it. */
+ *  verb, it takes nothing, and nobody has a second door to it. It governs the
+ *  BROWSERS only — olai's own `--commit=auto` commits are not pushed, because
+ *  one network round trip per write is not a thing this flag was ruled to
+ *  build (docs/running.md#the-git-policy). */
 export const pushSaid = (): string =>
-  `whether a commit made here is pushed to the branch's upstream: off — it ` +
-  `waits for the Push button (the default); auto — a commit is followed by ` +
-  `the push. ${PINS}`
+  `whether a commit made in a browser is pushed to the branch's upstream: ` +
+  `off — it waits for the Push button (the default); auto — a commit is ` +
+  `followed by the push. ${PINS}`
 
 /** The clause both sentences end with. Spelled once, because it is one fact
  *  about giving either flag and two copies of it is one place for it to be
@@ -142,8 +144,10 @@ export const gitFlags = (face: CommitFace) => ({
  * whose preferences depend on how the operator likes to type.
  *
  * `null` on either half is nobody having said, which is what leaves that
- * browser preference alone. What the SERVER then does about it is
- * `commitModeOf` / `pushModeOf` (`@olai/format`), which fill the defaults in.
+ * browser preference alone. What the SERVER then does about `commit` is
+ * `commitModeOf` (`@olai/format`), which fills the default in; `push` has no
+ * such reader here, because this server has no push of its own — that flag
+ * states what the BROWSERS do with a commit they made, and nothing else.
  */
 export const gitPin = (
   chosen: CommitMode | null,
@@ -154,4 +158,3 @@ export const gitPin = (
 /** The defaults, re-exported beside the flags that decline to apply them — so a
  *  reader of this file can see what "nobody said" comes to without going two
  *  packages down. */
-export { COMMIT_DEFAULT, PUSH_DEFAULT }

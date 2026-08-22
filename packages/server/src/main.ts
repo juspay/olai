@@ -30,7 +30,7 @@ import { Argument, Command, Flag } from "effect/unstable/cli"
 
 import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
-import { gitFlags, gitPin } from "./commits.ts"
+import { gitFlags, gitPin } from "./gitPolicy.ts"
 import { serve } from "./serve.ts"
 
 /** The directory of outlines the server operates on. */
@@ -38,7 +38,7 @@ const directory = Argument.directory("directory", { mustExist: true }).pipe(
   Argument.withDescription("the directory of outlines, read recursively"),
 )
 
-/** `--commit` / `--no-commit` / `--push` — `./commits.ts`, which owns the mode
+/** `--commit` / `--no-commit` / `--push` — `./gitPolicy.ts`, which owns the mode
  *  tables, the defaults it declines to apply, why `--no-commit` wins, and why
  *  the sentence names both doors this face actually has. */
 const webGit = gitFlags("web")

@@ -76,9 +76,6 @@ export const COMMIT_DEFAULT: CommitMode = "manual"
 export const PUSH_MODES = ["off", "auto"] as const
 export type PushMode = (typeof PUSH_MODES)[number]
 
-/** What `--push` means when nobody gave it. */
-export const PUSH_DEFAULT: PushMode = "off"
-
 /**
  * WHAT THE OPERATOR PINNED, and `null` for each half nobody pinned.
  *
@@ -111,14 +108,20 @@ export type GitPin = typeof GitPin.Type
  *  a page holds before it has heard anything. */
 export const NO_PIN: GitPin = { commit: null, push: null }
 
-/** What the server actually DOES about commits, from what it was told — so
- *  "nobody said" and "somebody said manual" are one answer downstream and the
- *  default is spelled in exactly one place. */
+/**
+ * What the server actually DOES about commits, from what it was told — so
+ * "nobody said" and "somebody said manual" are one answer downstream and the
+ * default is spelled in exactly one place.
+ *
+ * There is NO `pushModeOf` beside it, and the asymmetry is the truth rather
+ * than an omission: this server has no push of its own to govern. `--commit`
+ * decides something olai does unasked (a commit per write, under `auto`);
+ * `--push` decides only what the BROWSERS do with a commit they made, which is
+ * `web/src/client/settings/pinned.ts`'s to read. A `pushModeOf` here would
+ * describe a behaviour nothing has.
+ */
 export const commitModeOf = (pin: GitPin): CommitMode =>
   pin.commit ?? COMMIT_DEFAULT
-
-/** ... and the same for pushing. */
-export const pushModeOf = (pin: GitPin): PushMode => pin.push ?? PUSH_DEFAULT
 
 /**
  * What git is doing for the served directory, for the git indicator in the app

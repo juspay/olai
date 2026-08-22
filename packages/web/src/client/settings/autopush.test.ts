@@ -4,7 +4,7 @@ import { parseBool } from "../preference.ts"
 
 import { NO_PIN } from "@olai/format"
 
-import { AUTOPUSH_KEY, autoPush, setAutoPush, storedAutoPush } from "./autopush.ts"
+import { AUTOPUSH_KEY, autoPush, setAutoPush } from "./autopush.ts"
 import { setPinned } from "./pinned.ts"
 
 test("the key is namespaced to this browser's git preferences", () => {
@@ -61,7 +61,6 @@ test("a pinned --push overrules this browser without overwriting it", () => {
     setAutoPush(false)
     setPinned({ commit: null, push: "auto" })
     expect(autoPush()).toBe(true)
-    expect(storedAutoPush()).toBe(false)
 
     setAutoPush(true)
     setPinned({ commit: null, push: "off" })

@@ -15,7 +15,7 @@
  *
  * TWO MODULES rather than one, and the seam is the wire. This one holds the
  * value and the rules over it and imports nothing from the connection, so the
- * preferences it gates stay unit-testable with the pin set by hand; `./pin.ts`
+ * preferences it gates stay unit-testable with the pin set by hand; `./followPin.ts`
  * beside it is the subscription that feeds it, started once from `main.tsx`
  * like every other document-lifetime follower.
  *
@@ -34,7 +34,7 @@ import {
   type PushMode,
 } from "@olai/format"
 
-/** The pin in force, and the one way it is written — see `./pin.ts` for who
+/** The pin in force, and the one way it is written — see `./followPin.ts` for who
  *  writes it. `createRoot` because this outlives every component that reads it,
  *  which is the shape `../pins/pinning.ts` already keeps app-wide state in. */
 const [pin, setPin] = createRoot(() => createSignal<GitPin>(NO_PIN))
@@ -43,7 +43,7 @@ const [pin, setPin] = createRoot(() => createSignal<GitPin>(NO_PIN))
  *  server that pinned nothing. */
 export const pinned: Accessor<GitPin> = pin
 
-/** Told what the server said. Called by `./pin.ts`, and by a test that wants a
+/** Told what the server said. Called by `./followPin.ts`, and by a test that wants a
  *  pinned panel without a server. */
 export const setPinned = (value: GitPin): void => {
   setPin(value)
@@ -69,6 +69,33 @@ export const pinnedCommit = (pin: GitPin): boolean | null =>
 /** ... and the same for `--push`, which has only the two values the row has. */
 export const pinnedPush = (pin: GitPin): boolean | null =>
   pin.push === null ? null : pin.push === "auto"
+
+/**
+ * ── the readings, so nobody re-derives one ─────────────────────────────
+ *
+ * WHETHER EACH ROW IS THE SERVER'S, as one accessor each. Three surfaces ask —
+ * the preferences panel (which draws the row read-only), the commit pill and
+ * the commit panel (whose paused sentence names the gesture a frozen row
+ * actually has) — and the derivation was spelled at all three. A duplicated
+ * derivation is one computation kept in N copies: the fourth reader gets it
+ * subtly wrong, and a row drawn frozen whose control was still live would be a
+ * team's policy quietly not applying.
+ */
+export const commitFrozen = (): boolean => pinnedCommit(pinned()) !== null
+export const pushFrozen = (): boolean => pinnedPush(pinned()) !== null
+
+/** WHO set each row, in the words the panel prints — `null` where nobody did.
+ *  Here beside {@link commitFrozen} rather than in the panel, so "is it frozen"
+ *  and "what does it say" cannot come apart: both are read off the same pin. */
+export const commitSetBy = (): string | null => {
+  const mode = pinned().commit
+  return mode === null ? null : setBy("commit", mode)
+}
+
+export const pushSetBy = (): string | null => {
+  const mode = pinned().push
+  return mode === null ? null : setBy("push", mode)
+}
 
 /**
  * WHO SET THIS ROW, in the words the panel prints under it.

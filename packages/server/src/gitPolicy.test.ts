@@ -31,18 +31,10 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import {
-  COMMIT_DEFAULT,
-  COMMIT_MODES,
-  commitModeOf,
-  NO_PIN,
-  PUSH_DEFAULT,
-  PUSH_MODES,
-  pushModeOf,
-} from "@olai/format"
+import { COMMIT_DEFAULT, COMMIT_MODES, commitModeOf, NO_PIN, PUSH_MODES } from "@olai/format"
 import { COMMIT_BUTTON, commitDoors, COMMIT_TOOL } from "@olai/ops"
 import { BOOT_TIMEOUT, startWeb } from "./child.testlib.ts"
-import { commitsSaid, gitPin, pushSaid } from "./commits.ts"
+import { commitsSaid, gitPin, pushSaid } from "./gitPolicy.ts"
 import { served } from "./serve.testlib.ts"
 
 // ── what the flags come to between them ────────────────────────────────
@@ -58,7 +50,6 @@ import { served } from "./serve.testlib.ts"
 test("no flag at all pins nothing, and the server still commits manually", () => {
   expect(gitPin(null, false, null)).toEqual(NO_PIN)
   expect(commitModeOf(gitPin(null, false, null))).toBe(COMMIT_DEFAULT)
-  expect(pushModeOf(gitPin(null, false, null))).toBe(PUSH_DEFAULT)
 })
 
 /**
@@ -81,7 +72,6 @@ test("each mode passes through when it is the only thing said", () => {
   }
   for (const mode of PUSH_MODES) {
     expect(gitPin(null, false, mode).push).toBe(mode)
-    expect(pushModeOf(gitPin(null, false, mode))).toBe(mode)
   }
 })
 

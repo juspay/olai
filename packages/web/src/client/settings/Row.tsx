@@ -40,6 +40,12 @@ export function Row(props: {
    *  case. Its presence is what makes the row read-only, so a row that says it
    *  is pinned and a row that behaves as if it is cannot come apart. */
   readonly setBy?: string | null
+  /** Anything this row needs UNDER its sentences — today the one thing: Resume,
+   *  which starts a stopped Auto-commit again on a row the server has frozen.
+   *  A slot rather than a sibling in the panel, because a control that belongs
+   *  to a row and is only associated with it by adjacency is a control the next
+   *  row inserted above will silently steal. */
+  readonly under?: JSX.Element
   readonly children: JSX.Element
 }) {
   const setBy = (): string | null => props.setBy ?? null
@@ -82,6 +88,9 @@ export function Row(props: {
             {said()}
           </p>
         )}
+      </Show>
+      <Show when={props.under}>
+        <div class="mt-2">{props.under}</div>
       </Show>
     </div>
   )

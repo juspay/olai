@@ -76,7 +76,7 @@ import {
   MARK,
   newsSays,
 } from "./said.ts"
-import { pinned, pinnedCommit } from "../settings/pinned.ts"
+import { commitFrozen } from "../settings/pinned.ts"
 import { Panel } from "./Panel.tsx"
 import { desktop } from "../layout/media.ts"
 import { LAYER } from "../layer.ts"
@@ -100,10 +100,6 @@ export function Commit() {
   /** Why the loop stopped, or `null` — the arm the words and the chip both
    *  ask about, through the union's own accessor (`./auto.ts`). */
   const paused = () => pausedIn(auto())
-  /** Whether the Git commit preference is the SERVER's — which decides which
-   *  gesture the pause sentence names, and nothing else about this pill
-   *  (`../settings/pinned.ts`). */
-  const frozen = () => pinnedCommit(pinned()) !== null
   // Whether the panel is up, where it goes, and the ways it shuts
   // (`../popover.ts`, shared with the preferences at the other end of the bar).
   // It used to be `note/expand.ts` — the row note's "open until you click
@@ -120,7 +116,7 @@ export function Commit() {
   /** One reading of the sentence for the two places it has to be: the tip a
    *  pointer opens, and the label everything else gets. */
   const said = () =>
-    explain(face(), commit.pending(), commit.git(), paused(), frozen())
+    explain(face(), commit.pending(), commit.git(), paused(), commitFrozen())
 
   /**
    * How long ago the last commit was, for the one face that has one — and `""`

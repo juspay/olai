@@ -35,10 +35,6 @@ const pref = createPreference(AUTOPUSH_KEY, boolCodec(OFF))
  *  it gave one, and this browser's otherwise. */
 export const autoPush: Accessor<boolean> = () => pinnedPush(pinned()) ?? pref.value()
 
-/** What this browser would say if nothing were pinned — see
- *  `./autocommit.ts`'s `storedAutoCommit`. */
-export const storedAutoPush: Accessor<boolean> = pref.value
-
 /** Persist on change — `pref.set` writes `olai.git.autopush`. */
 export const setAutoPush = (value: boolean): void => pref.set(value)
 

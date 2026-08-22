@@ -59,7 +59,7 @@ import { Others } from "./Others.tsx"
 import { Outlines } from "./Outlines.tsx"
 import { canRecord } from "./record.ts"
 import { createSelection } from "./selection.ts"
-import { pinned, pinnedCommit } from "../settings/pinned.ts"
+import { commitFrozen } from "../settings/pinned.ts"
 import type { Commit } from "./state.ts"
 import { TESTID } from "../testids.ts"
 import { Unpushed } from "./Unpushed.tsx"
@@ -113,10 +113,6 @@ export function Panel(props: {
    *  `NothingToCommit`, which is a correct answer to a question nobody meant to
    *  ask. */
   const nothingTicked = () => selection.paths()?.length === 0
-
-  /** Whether the Git commit preference is the SERVER's — which decides only
-   *  which gesture the paused line names (`../settings/pinned.ts`). */
-  const frozen = () => pinnedCommit(pinned()) !== null
 
   /** Whether Auto-commit would record this list on its own — the loop's own
    *  gate, read off the value it publishes (`./auto.ts`). */
@@ -218,7 +214,7 @@ export function Panel(props: {
           nowhere else to put them (`./said.ts`). */}
       <Show when={pausedIn(props.auto()) !== null}>
         <p class="text-xs text-alarm" data-testid={TESTID.commitAutoPaused}>
-          ⚠ {autoStopped(frozen())}
+          ⚠ {autoStopped(commitFrozen())}
         </p>
       </Show>
 
