@@ -675,14 +675,12 @@ test("read_subtree refuses an outline the set could not load", async () => {
   await withTools(
     { "plan.olai": PLAN, "torn.olai": "{ not a record" },
     async ({ client }) => {
-      // It is LISTED — the directory serves it — carrying its own errors beside
-      // the zero and the empty root list that say nobody read it.
+      // It is LISTED — the directory serves it — carrying its own errors and
+      // nothing else: a count and a root list are what a parse produces.
       const listed = (await call(client, "list_outlines", {})).structured["outlines"] as
         ReadonlyArray<Record<string, unknown>>
       expect(listed.find((one) => one["file"] === "torn.olai")).toEqual({
         file: "torn.olai",
-        nodes: 0,
-        roots: [],
         unreadable: [expect.any(String)],
       })
 
@@ -891,7 +889,7 @@ test("read_document refuses a path the set does not hold, with the closest one",
  * the wire, which is where the PR body claims it.
  *
  * The listing's half of this is pinned in `@olai/ops`' table walk (the torn
- * row carries `unreadable` beside an empty title and a zero). The READ's half
+ * row is `{file, unreadable}` — the outline listing's twin). The READ's half
  * could only be asserted at the walk before now, because that walk answers a
  * `Result` and the table test discharges it with an `orDie` — a refusal there
  * is a throw, not an answer. This is the arm as an agent meets it: `isError`
@@ -908,14 +906,12 @@ test("a document the set could not read is refused, not answered empty", async (
   await withTools(
     { ...VAULT, "torn.md": "whatever the bytes were" },
     async ({ client }) => {
-      // It is LISTED — the directory serves it — carrying its errors beside the
-      // empty title and the zero that say nobody read it.
+      // It is LISTED — the directory serves it — carrying its errors and
+      // nothing else: a title and a size are what a read produces.
       const listed = (await call(client, "list_documents", {})).structured["documents"] as
         ReadonlyArray<Record<string, unknown>>
       expect(listed.find((one) => one["file"] === "torn.md")).toEqual({
         file: "torn.md",
-        title: "",
-        bytes: 0,
         unreadable: [expect.any(String)],
       })
 
