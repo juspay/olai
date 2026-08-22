@@ -69,7 +69,12 @@
  * question is real — a page bound to a replaced server must know — but the
  * framework reserves `system/identity` for it and answers it out of every
  * surface, process id included, so an app that declares its own is declaring a
- * second answer to a question already answered (juspay/kolu#2133).
+ * second answer to a question already answered (juspay/kolu#2133). Who is
+ * LOOKING is a different question and is not a member either: it is per HTTP
+ * request (`@olai/identity`'s `identityOf`, served at `GET /olai/who`), because a cell
+ * would be one value for the process and this value is one value for the
+ * request. The websocket cannot see it today (kolu's `serveSurfaceApp`
+ * owns the upgrade).
  *
  * One more is GIT, and it is a cell with two verbs beside it rather than a
  * member: a `pending` cell — what is waiting to be committed, and what is
@@ -1294,6 +1299,10 @@ export { ours, type Press } from "./press.ts"
  *  inside this package, where its one caller is, because an export of it is a
  *  way to ask the traversal guard a question and ignore the allowlist. */
 export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
+
+/** Who is looking, as the HTTP door both ends spell — see {@link ./who.ts}.
+ *  Not a member: the value is per request. */
+export { WHO_PATH, Who } from "./who.ts"
 
 /** What a served `.html` is answered with, how tall it says it is, and which
  *  page of this vault it says a reader clicked — the other contract between the

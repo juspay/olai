@@ -18,6 +18,7 @@
  * pipe the chat panel's agent reads its refusals through.
  */
 
+import { DEFAULT_IDENTITY_HEADERS } from "@olai/identity"
 import { codec, make as makeOps, type Store as OutlineStore, TOOLS } from "@olai/ops"
 import * as Store from "@olai/store"
 import { expect, test } from "bun:test"
@@ -93,6 +94,7 @@ const withRoute = <A>(
       host: listenOn.host,
       port: 0,
       allowedOrigins: [],
+      identity: DEFAULT_IDENTITY_HEADERS,
       mcp: { transport, token: TOKEN },
       resync: Effect.void,
     }))

@@ -24,6 +24,7 @@
  */
 
 import { adapterFrom, AGENT_ENV, whyNoAgent } from "@olai/chat"
+import type { IdentityHeaders } from "@olai/identity"
 import { type CommitMode, make as makeOps, TOOLS } from "@olai/ops"
 import { Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
@@ -49,6 +50,9 @@ export interface ServeOptions {
   readonly clientDist: string
   /** Browser origins allowed to open the websocket, beyond same-origin. */
   readonly allowedOrigins: ReadonlyArray<string>
+  /** Which request headers name the signed-in person — see
+   *  `@olai/identity`. */
+  readonly identity: IdentityHeaders
   /** How writes reach git — `--commit=off | manual | auto`, `manual` by
    *  default. See `@olai/ops`'s `Options`. */
   readonly commits: CommitMode

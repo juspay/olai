@@ -50,6 +50,32 @@ What it does not cover:
 
 Put it behind a reverse proxy or `tailscale serve` and the browser's origin will not be the `Host` it forwards, so name the origins you are serving from in `OLAI_ALLOWED_ORIGINS` (comma-separated); the websocket refuses the rest.
 
+### Who is looking
+
+A reverse proxy in front of olai can say who made the request. olai trusts **one configurable pair of header names** — a login, and optionally an email — and the header bar **always** draws who is looking as an icon, top right, in the same chip as prefs: **anonymous** when the header is absent (direct access, a local `just run`), the gravatar when a login is present, or that the door failed. The words are the tooltip. Absence is a face, not a missing chip.
+
+Default wiring is `tailscale serve`'s `Tailscale-User-Login` for both (that header is the email). The same pair covers other proxies — one feature, not one per proxy:
+
+| Proxy | login | email |
+|---|---|---|
+| `tailscale serve` (default) | `Tailscale-User-Login` | `Tailscale-User-Login` |
+| Caddy + oauth2-proxy | `X-Auth-Request-User` | `X-Auth-Request-Email` |
+| Caddy + caddy-security (`inject headers with claims`) | `X-Token-User-Nick` (or `-Name`) | `X-Token-User-Email` |
+| Authelia | `Remote-User` | `Remote-Email` |
+| Pomerium (`pass_identity_headers`) | `X-Pomerium-Claim-User` | `X-Pomerium-Claim-Email` |
+
+Pomerium's `X-Pomerium-Jwt-Assertion` is a signed JWT, not a login; point the pair at the claim headers.
+
+```sh
+# Authelia in front, for example
+OLAI_IDENTITY_LOGIN_HEADER=Remote-User
+OLAI_IDENTITY_EMAIL_HEADER=Remote-Email
+```
+
+`OLAI_IDENTITY_LOGIN_HEADER` unset is `Tailscale-User-Login`. `OLAI_IDENTITY_EMAIL_HEADER` unset is the login header; **empty** is no email claim (generic gravatar). The same reading is the attribution a later capture door will record.
+
+**Trust.** These headers are only meaningful when the proxy is the only way in: olai bound to loopback or the tailnet, **and the proxy stripping client-supplied copies of the same names**. Anything that can reach the port can send them — the same bargain the rest of the unauthenticated listener already takes. Do not expose this port to the internet.
+
 ### Logging
 
 It says what it is doing on stdout, one line per event, quietly: the address it bound, the agent it started, and anything that went wrong. `--log-level debug` turns on the rest, including everything the agent itself writes.

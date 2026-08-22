@@ -845,6 +845,51 @@ const retitle = (file: string, id: string, title: string): void =>
 
 const SECTIONS = {
   /**
+   * WHO YOU ARE (`who-you-are`): the header's identity icon under a
+   * simulated Tailscale-User-Login, and the anonymous icon when the
+   * header is absent. Reef (the default) and pitch, because the chip
+   * sits on ink and the two invert it.
+   */
+  "who-you-are": async (page) => {
+    const headerShot = async (target: Page, name: string) => {
+      const header = target.locator('[data-testid="app-header"]')
+      await header.waitFor()
+      const box = await header.boundingBox()
+      if (box === null) throw new Error("the app header has no box")
+      await shot(target, name, { clip: box })
+    }
+
+    const none = page.locator('[data-testid="identity"][data-who="none"]')
+    await none.waitFor({ state: "attached" })
+    await headerShot(page, "absent-reef")
+    await wearTheme(page, "pitch")
+    await none.waitFor({ state: "attached" })
+    await headerShot(page, "absent-pitch")
+
+    const browser = page.context().browser()
+    if (browser === null) throw new Error("the page has no browser")
+    const signed = await browser.newContext({
+      extraHTTPHeaders: { "Tailscale-User-Login": "ada@example.com" },
+      viewport: { width: WIDE, height: 720 },
+    })
+    const tab = await signed.newPage()
+    await tab.goto(`${BASE}/house.olai`)
+    await tab.locator('[data-testid="identity"][data-who="yes"]').waitFor()
+    const picture = tab.locator('[data-testid="identity"] img')
+    await picture.waitFor()
+    await tab.waitForFunction(() => {
+      const img = document.querySelector('[data-testid="identity"] img')
+      return img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0
+    })
+    await headerShot(tab, "signed-in-reef")
+    await wearTheme(tab, "pitch")
+    await tab.locator('[data-testid="identity"][data-who="yes"]').waitFor()
+    await picture.waitFor()
+    await headerShot(tab, "signed-in-pitch")
+    await signed.close()
+  },
+
+  /**
    * DURATIONS (`duration-values`): `created:1h` answered by the header's box,
    * and the refusal that teaches the four units when a reader reaches for a
    * fifth.
