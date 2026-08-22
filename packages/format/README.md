@@ -148,11 +148,11 @@ It is never a text diff, and that is the format paying for itself in the other d
 |---|---|
 | `Site` | not a read at all — the `{file, line}` under all of them, `src/node.ts` |
 | `Found` | every read. One node SITUATED — id, title, a `Site`, mark, ancestor titles, the edges it writes, and the `custom` properties it carries |
-| `OutlineSummary`, `OutlineAnswer` | `list_outlines` — a count and the top-level titles, per file |
+| `OutlineSummary`, `OutlineAnswer` | `list_outlines` — a count and the top-level titles, per file; or, for a file that did not parse, its errors and nothing else |
 | `Detail`, `NodeAnswer` | `read_node` — the record, its tags, its children, its stamps, and a placement from both ends (`mirrors`, `placed`) |
 | `Subtree`, `OutlineRoots`, `SubtreeAnswer` | `read_subtree` — nested, and saying where a walk stopped. THREE arms, because the read takes two kinds of subject: a node walked, a whole OUTLINE walked (`{file, roots}` — every top-level node in it, each walked, each with its own `truncated`, and a placement at the top level is not one of them), and the id the set does not hold |
 | `SearchHit`, `SearchAnswer` | `search_nodes` and the ⌘K palette |
-| `DocumentSummary`, `DocumentAnswer` | `list_documents` — every served `.md` with the line it opens with, what it weighs, and the properties its frontmatter writes |
+| `DocumentSummary`, `DocumentAnswer` | `list_documents` — every served `.md` with the line it opens with, what it weighs, and the properties its frontmatter writes; or, for a file that could not be read, its errors and nothing else |
 | `DocumentRequest`, `DocumentBody` | `read_document` — one body, whole and verbatim |
 | `Pinned`, `Shelf` | the `pins` cell — the rows of `Pins.olai`, each with the node its address names and what that node is called at this revision (`shelf.ts`). The one shape here that is a READING rather than an answer to a request: nobody asks for it, the server sends it when it changed |
 | `InboxHeld` | the `inbox` cell — how many top-level captures still await processing (`inbox.ts`). The shelf's twin, one integer over |
@@ -160,9 +160,16 @@ It is never a text diff, and that is the format paying for itself in the other d
 | `HomesRequest`, `HomesAnswer` | `nodes.homes` — WHERE these ids are, and which of these files this directory has READ (served, and not among the ones that would not parse — never "declares a record", which would read an emptied outline as unreadable and keep its folds for good). The other read that carries no node: the browser's fold memory asks it about what it has collapsed, so a node that was archived keeps its fold under the file it moved to and a node that is gone stops being remembered. It is not the row above with a `file` on it — that one FOLLOWS a mirror chain, because a backtick means the node a reader would be shown, and this one is the plain record lookup, because a fold is of a record |
 
 
-`OutlineSummary`'s torn-file row is FLAT and knowingly so: `unreadable` beside a `nodes: 0` and a `roots: []` — a count nobody counted and a claim that the outline is about nothing, on the one file where neither could be known. Every field reads honestly alone; what is untrue is the combination, held apart by a convention a reader has to know. Splitting it into two arms, so the dependent facts exist only on the arm that grounds them the way `NodeAnswer` already does, was written and reviewed on this branch and then reverted: it changes what `list_outlines` answers, and that is the human's ruling to make. A roadmap question, not a defect.
+`OutlineSummary` is a UNION, and the second arm is the file that did not parse.
+It used to be flat, with an optional `unreadable` beside a `nodes: 0` and a
+`roots: []` — a count nobody counted and a claim that the outline is about
+nothing, on the one file where neither could be known. Every field read honestly
+alone; the untruth was in the combination, held apart by a convention a reader
+had to know. The dependent facts now exist only on the arm that grounds them
+(ruled 2026-08-22: `{file, unreadable}`), which is also what the neighbouring
+`Missing` already does for a `read_node` of an id the set does not hold.
 
-The document pair shares no atom with the four above it, and that used to be the `md-second-class` asymmetry in one line. What can be said about one is its path, its title, its size and — when it wrote any — the properties its frontmatter holds. The title is READ OFF THE FACE the decode built rather than derived again here, so this listing, a search hit, a palette row and the page's own heading say one name; the properties are that face's too, omitted when empty, the same map a search hit carries and the document page draws. Its torn-file row is flat for `OutlineSummary`'s reason and written to match it, so one ruling fixes both. And `DocumentBody` has no `{ missing }` arm on purpose: an id is guessed at and worth answering, a path is not — a typo gets the near miss, which only a refusal can carry.
+The document pair shares no atom with the four above it, and that used to be the `md-second-class` asymmetry in one line. What can be said about one is its path, its title, its size and — when it wrote any — the properties its frontmatter holds. The title is READ OFF THE FACE the decode built rather than derived again here, so this listing, a search hit, a palette row and the page's own heading say one name; the properties are that face's too, omitted when empty, the same map a search hit carries and the document page draws. Its torn-file row is the same two-arm shape `OutlineSummary` now is — `{file, unreadable}` — so one listing answering a torn file one way and the other listing answering it another cannot come apart. And `DocumentBody` has no `{ missing }` arm on purpose: an id is guessed at and worth answering, a path is not — a typo gets the near miss, which only a refusal can carry.
 
 Plus what each one ASKS — `NodeRequest`, `SubtreeRequest`, `SearchRequest`, `DocumentRequest` — and the two numbers an omitted field MEANS, `DEFAULT_SEARCH_LIMIT` and `DEFAULT_SUBTREE_DEPTH`, which are here because the agent-facing prose beside each request quotes them.
 

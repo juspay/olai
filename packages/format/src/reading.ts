@@ -171,32 +171,40 @@ export type Found = typeof Found.Type
  * choose a file, nothing that would make listing a directory cost what reading
  * it does.
  *
- * **The torn-file row is a FLAT shape, and knowingly so.** A file that did not
- * parse carries `unreadable` beside a `nodes` and a `roots` filled in with `0`
- * and `[]` — a count nobody counted, and a claim that the outline is about
- * nothing, on the one file where neither could be known. Each field reads
- * honestly alone; what is untrue is the combination, held apart by a convention
- * a reader has to know: *if `unreadable` is here, disbelieve the two above it.*
+ * **TWO ARMS, and the file that did not parse is the second one.** It used to
+ * be one flat shape with an optional `unreadable` beside a `nodes` and a
+ * `roots` filled in with `0` and `[]` — a count nobody counted and a claim
+ * that the outline is about nothing, on the one file where neither could be
+ * known. Each field read honestly alone; the untruth lived in the combination,
+ * held apart by a convention a reader had to know: *if `unreadable` is here,
+ * disbelieve the two above it.* An agent that read `nodes` and did not think
+ * to look further was told an unparseable outline was an empty one.
  *
- * Splitting it into two arms — so the dependent facts exist only on the arm
- * that grounds them, which is what {@link NodeAnswer} already does for an id
- * the set does not hold — was written, reviewed and then REVERTED on this
- * branch, because it changes what `list_outlines` answers and that is a ruling
- * the human has not made. It is a roadmap question, not a defect, and this
- * comment is here so the next reader does not rediscover it as one.
+ * So the dependent facts exist only on the arm that grounds them. Ruled
+ * 2026-08-22: a torn file answers `{file, unreadable}`. It is also the shape
+ * this module's own neighbour already uses for the same kind of news —
+ * {@link Missing} is how a read of an id the set does not hold answers — and
+ * a listing spelling it as an optional field was the asymmetry saying which of
+ * the two was thought through.
  */
-export const OutlineSummary = Schema.Struct({
-  file: Schema.String,
-  /** Regular nodes in it. Mirrors are placements, not nodes, so they do not
-   *  inflate the count. */
-  nodes: Schema.Int,
-  /** Its top-level titles, in order — what the outline is ABOUT, in the space
-   *  a listing has. */
-  roots: Schema.Array(Schema.String),
-  /** Present, and the whole of what can be said about it, when the file did
-   *  not parse: its nodes are not loaded, so it has neither count nor roots. */
-  unreadable: Schema.optionalKey(Schema.Array(Schema.String)),
-})
+export const OutlineSummary = Schema.Union([
+  Schema.Struct({
+    file: Schema.String,
+    /** Regular nodes in it. Mirrors are placements, not nodes, so they do not
+     *  inflate the count. */
+    nodes: Schema.Int,
+    /** Its top-level titles, in order — what the outline is ABOUT, in the space
+     *  a listing has. */
+    roots: Schema.Array(Schema.String),
+  }),
+  Schema.Struct({
+    file: Schema.String,
+    /** Why it did not parse, in the validator's own words — and the whole of
+     *  what can be said about the file, which is why it is the only other
+     *  field. */
+    unreadable: Schema.Array(Schema.String),
+  }),
+])
 export type OutlineSummary = typeof OutlineSummary.Type
 
 /**
@@ -239,48 +247,52 @@ export type OutlineAnswer = typeof OutlineAnswer.Type
  * in, and a listing of twenty paths with their opening lines says which file
  * to read.
  *
- * **The unreadable row is a FLAT shape, exactly as {@link OutlineSummary}'s
- * is**, and knowingly so for the same reason: a document the set could not
- * read carries `unreadable` beside a `title` and a `bytes` filled in with `""`
- * and `0` — a name nobody read and a size nobody measured. The convention a
- * reader has to know is the one next door: *if `unreadable` is here,
- * disbelieve the two above it.* It is written to MATCH rather than to improve
- * on it, because the two-arm shape is a ruling the human has not made
- * ({@link OutlineSummary} records where that stands), and one listing answering
- * a torn file one way and the other listing answering it another would be the
- * inconsistency that ruling is waiting to remove from both at once.
+ * **TWO ARMS, matching {@link OutlineSummary}.** A document the set could not
+ * read used to carry `unreadable` beside a `title` and a `bytes` filled in
+ * with `""` and `0` — a name nobody read and a size nobody measured, the same
+ * convention a listing of outlines used to ask a reader to know. The ruling
+ * that split the outline row ({@link OutlineSummary}) is the ruling that
+ * splits this one: one listing answering a torn file one way and the other
+ * listing answering it another would be the inconsistency that ruling removed
+ * from both at once.
  */
-export const DocumentSummary = Schema.Struct({
-  file: Schema.String,
-  /** What the document is CALLED — its first line with the heading marks off,
-   *  and its filename when the body has no line to be named by. The document's
-   *  own face answers it (`./document.ts`), so this listing, the browser's rows
-   *  and a search hit all say the same name. */
-  title: Schema.String,
-  /** Its text's size in bytes, as UTF-8 — what a caller decides with before
-   *  asking for the whole of it. It is the size of the text `read_document`
-   *  would answer with, which is the file's own size for a file that is valid
-   *  UTF-8 and every `.md` anything here wrote. A file that is NOT can read
-   *  larger than it is on disk, because the bytes the decoder could not read
-   *  became replacement characters before this counted them — the number stays
-   *  true to the text you will be handed, which is the one this field is for. */
-  bytes: Schema.Int,
-  /**
-   * The named facts the file writes about itself — a `.md`'s YAML frontmatter,
-   * the same open map a search hit carries as `props` and a node's `custom`.
-   *
-   * OMITTED when the document wrote none, and for a file that could not be
-   * read: an empty map is nothing ({@link ./write.ts}'s `nothing`), and a
-   * listing of twenty files should not grow twenty `{}`s to say so. Present,
-   * the keys are in the file's canonical order, the same order a hit and the
-   * page's own run draw.
-   */
-  props: Schema.optionalKey(Custom),
-  /** Present, and the whole of what can be said about it, when the file could
-   *  not be read: its text is not loaded, so it has neither a line to be named
-   *  by nor a size that was measured. */
-  unreadable: Schema.optionalKey(Schema.Array(Schema.String)),
-})
+export const DocumentSummary = Schema.Union([
+  Schema.Struct({
+    file: Schema.String,
+    /** What the document is CALLED — its first line with the heading marks off,
+     *  and its filename when the body has no line to be named by. The document's
+     *  own face answers it (`./document.ts`), so this listing, the browser's rows
+     *  and a search hit all say the same name. */
+    title: Schema.String,
+    /** Its text's size in bytes, as UTF-8 — what a caller decides with before
+     *  asking for the whole of it. It is the size of the text `read_document`
+     *  would answer with, which is the file's own size for a file that is valid
+     *  UTF-8 and every `.md` anything here wrote. A file that is NOT can read
+     *  larger than it is on disk, because the bytes the decoder could not read
+     *  became replacement characters before this counted them — the number stays
+     *  true to the text you will be handed, which is the one this field is for. */
+    bytes: Schema.Int,
+    /**
+     * The named facts the file writes about itself — a `.md`'s YAML frontmatter,
+     * the same open map a search hit carries as `props` and a node's `custom`.
+     *
+     * OMITTED when the document wrote none: an empty map is nothing
+     * ({@link ./write.ts}'s `nothing`), and a listing of twenty files should
+     * not grow twenty `{}`s to say so. Present, the keys are in the file's
+     * canonical order, the same order a hit and the page's own run draw. A
+     * file that could not be read is the other arm, and carries no `props`:
+     * nobody read the block.
+     */
+    props: Schema.optionalKey(Custom),
+  }),
+  Schema.Struct({
+    file: Schema.String,
+    /** Why it could not be read, in the validator's own words — and the whole
+     *  of what can be said about the file, which is why it is the only other
+     *  field. */
+    unreadable: Schema.Array(Schema.String),
+  }),
+])
 export type DocumentSummary = typeof DocumentSummary.Type
 
 /** The whole listing, in the envelope it travels in — {@link OutlineAnswer}'s

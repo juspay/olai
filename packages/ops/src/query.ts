@@ -987,20 +987,14 @@ export const outlines = (
    */
   // ANNOTATED, so the row literals below are checked against the floor: a
   // field dropped from `OutlineSummary` fails HERE rather than only at the
-  // table-driven decode. That is independent of what the rows hold, which is
-  // why it survives the revert of the two-arm shape.
+  // table-driven decode.
   return outlinePaths(set).map((file): OutlineSummary => {
     const errors = broken.get(file)
-    // The zero and the empty list are what a file that did not parse gets, and
-    // {@link OutlineSummary} says why that is held rather than settled.
-    if (errors !== undefined) {
-      return {
-        file,
-        nodes: 0,
-        roots: [],
-        unreadable: errors.map(errorLine),
-      }
-    }
+    // The whole of what can be said about it, and nothing more: a count and a
+    // root list are what a PARSE produces, so a file that did not parse has
+    // neither rather than having them filled in with a zero and an empty list.
+    // The floor's own arm, and the reason it has two.
+    if (errors !== undefined) return { file, unreadable: errors.map(errorLine) }
     // No entry at all is an outline holding no nodes of its own.
     const own = nodesOf(derived, file).filter(isRegular)
     return {
@@ -1037,11 +1031,11 @@ export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
   // `DocumentSummary` fails HERE rather than only at the table-driven decode.
   return markdownIn(set).map((entry): DocumentSummary => {
     const errors = broken.get(entry.path)
-    // The empty title and the zero are what a file that could not be read
-    // gets, and {@link DocumentSummary} says why that is held rather than
-    // settled — it is `OutlineSummary`'s convention, matched on purpose.
+    // The whole of what can be said about it, and nothing more — matching
+    // {@link outlines}: a title and a size are what a READ produces, so a file
+    // that could not be read has neither rather than an empty name and a zero.
     if (errors !== undefined) {
-      return { file: entry.path, title: "", bytes: 0, unreadable: errors.map(errorLine) }
+      return { file: entry.path, unreadable: errors.map(errorLine) }
     }
     // The TITLE is the document's own now rather than this listing's reading of
     // its text: it is a field of the face the decode built (`@olai/format`'s
