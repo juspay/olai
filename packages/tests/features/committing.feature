@@ -261,6 +261,11 @@ Feature: Committing on purpose
     And olai has recorded 1 commit here
     And the repository is clean
     And the commit pill says 0 unpushed
+    # ... and the promise is GONE with the list it was about. The policy has not
+    # changed and neither has the repository, so a promise made out of those two
+    # alone would still be on screen over nothing at all.
+    When I open the commit panel
+    Then the panel promises nothing
     And there should be no page errors
 
   Scenario: The window alone records, and the commits wait to be pushed
