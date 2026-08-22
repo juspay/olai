@@ -86,6 +86,37 @@ test("a path the ops layer will refuse is completed and passed on all the same",
   expect(meantAt("outline", "/etc/passwd")).toEqual({ file: "/etc/passwd.olai" })
 })
 
+// ...EXCEPT where completing would erase the refusal itself. Every registered
+// suffix begins with a dot, so `..` glued to `.olai` is `...olai` — an
+// ordinary filename the planner accepts, where before it said "no `..`". These
+// go to the wire as they were typed, so the paragraph goes on answering for
+// them and names what the person actually wrote.
+test("a last segment that names a place, not a file, is not completed at all", () => {
+  expect(meantAt("outline", "..")).toEqual({ file: ".." })
+  expect(meantAt("outline", ".")).toEqual({ file: "." })
+  expect(meantAt("outline", "foo/..")).toEqual({ file: "foo/.." })
+  expect(meantAt("document", "foo/.")).toEqual({ file: "foo/." })
+  // A trailing separator is the same case: the person typed a FOLDER, and
+  // `notes/.olai` is a hidden file the planner would have taken.
+  expect(meantAt("outline", "notes/")).toEqual({ file: "notes/" })
+  expect(meantAt("document", " ..  ")).toEqual({ file: ".." })
+})
+
+// A TRAILING DOT is a name, and is completed like any other — the same reading
+// `plan v1.2` gets. `Foo.` names a file, oddly; `..` names a place, and that
+// is the whole of the difference.
+test("a name that merely ends in a dot is still a name", () => {
+  expect(meantAt("outline", "Foo.")).toEqual({ file: "Foo..olai" })
+  expect(meantAt("outline", "notes/plan..")).toEqual({ file: "notes/plan...olai" })
+})
+
+// And a name that BEGINS with a dot is an ordinary hidden file: the store
+// prunes dot-DIRECTORIES, not dot-files, so this is a file the sidebar lists.
+test("a name that begins with a dot is a file, and takes the suffix", () => {
+  expect(meantAt("outline", ".plan")).toEqual({ file: ".plan.olai" })
+  expect(meantAt("document", "notes/.scratch")).toEqual({ file: "notes/.scratch.md" })
+})
+
 // TOTAL OVER ANY TEXT A BOX HOLDS. An empty box is not a refusal and not a
 // file: it is a person who has not typed anything, which the box used to decide
 // for itself in a second `trim()` beside this one.

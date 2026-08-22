@@ -72,12 +72,28 @@ Feature: Starting a new outline from the sidebar
     When I create the outline "../escape" from the sidebar
     Then the outline creation is refused saying "`../escape.olai` is not a relative"
 
+  Scenario: A path that names a PLACE reaches the planner as it was typed
+    # Every suffix begins with a dot, so completing `..` would make `...olai`
+    # — an ordinary filename the planner takes, where it used to say "no
+    # `..`". The completion declines those, and the paragraph goes on naming
+    # what was actually typed.
+    When I create the outline ".." from the sidebar
+    Then the outline creation is refused saying "`..` is not a relative `.olai` path"
+    When I create the outline "." from the sidebar
+    Then the outline creation is refused saying "`.` is not a relative `.olai` path"
+    When I create the outline "notes/" from the sidebar
+    Then the outline creation is refused saying "`notes/` is not a relative `.olai` path"
+    And the outline list does not link to "...olai"
+
   Scenario: A name carrying the other kind's suffix is the box's own refusal
     # The one verdict this side makes for itself, because it is about WHICH
     # DOOR you are at — a question the ops layer never sees, since what reaches
     # it is one completed path. Short words, and it says what to type instead.
     When I create the outline "notes.md" from the sidebar
     Then the outline creation is refused saying "`notes.md` is a document, not an outline — type `notes` to make `notes.olai`."
+    # The other half of advice that ends "type `notes`": the box still holds
+    # what was typed, so there is something to edit into it.
+    And the new outline box still holds "notes.md"
     And the address is "/house.olai"
 
   Scenario: Escape puts the box away and writes nothing

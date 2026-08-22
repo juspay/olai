@@ -136,6 +136,11 @@ Feature: Documents become writable
     Then the document open is "notes/wiring.md"
     And the document editor is open
     And the page has not reloaded
+    # The sidebar lists the completed name, the way the outline door's twin
+    # asserts its row: what was minted is a file of this directory, not just a
+    # page that opened.
+    When I expand the folder "notes"
+    Then the documents listed are "finishes.md, kitchen-sink.md, notes/palette.md, notes/wiring.md"
     And there should be no page errors
 
   @scratch:good
@@ -143,6 +148,7 @@ Feature: Documents become writable
     Given I open the app
     When I create the document "house.olai" from the sidebar
     Then the document creation is refused saying "`house.olai` is an outline, not a document — type `house` to make `house.md`."
+    And the new document box still holds "house.olai"
 
   # A DOCUMENT IS NOT A MOUNT, and these three are the difference. Going from
   # one document to another keeps the same page on screen — same route kind,
