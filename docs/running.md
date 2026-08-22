@@ -169,6 +169,14 @@ The module fills `package` from the flake for the host platform. The packaged bi
 
 Set, it REPLACES the search path rather than adding to it — including when it is set to the empty string, which is "look nowhere". The other variable is `OLAI_ACP_AGENT`: it points the Claude side at a different ACP executable, and setting it to the empty string turns the chat panel off entirely (nothing is probed, and the panel says so rather than disappearing). Both are [chat.md](chat.md)'s, which says what the panel does with each.
 
+**And the agent olai spawns inherits olai's environment — not yours.** Finding an agent is only half of starting one. A chat agent is a child of this process, so the variables it reads are the ones the *unit* was given. An agent whose config resolves a provider key out of the environment (opencode's `"apiKey": "{env:JUSPAY_API_KEY}"` is the shape) finds nothing unless olai itself was started with that key — and what that looks like in the panel is nothing at all: the agent takes the prompt, answers that the turn is over, and streams no error anywhere. Olai names it rather than drawing it as an ordinary turn — a notice saying the agent ended the turn without saying anything and to check its provider key, with the banner left up ([chat.md](chat.md)). `environmentFile` is where the key goes (Linux only; launchd has no equivalent, and the module refuses the option there rather than quietly ignoring it):
+
+```nix
+  services.olai.environmentFile = "${config.home.homeDirectory}/.config/olai/env";
+```
+
+Keep that file out of the nix store and `chmod 600`, one `NAME=value` per line. It is read when the unit starts, so a new key needs `systemctl --user restart olai`.
+
 On Linux the unit is `Restart=always` / `RestartSec=1s` / `SuccessExitStatus=130`. A stray `kill -TERM` of the main pid is a successful exit that systemd still brings back; a `systemctl --user stop olai` is a systemd stop, which `Restart=` never overrides. On macOS the agent is `KeepAlive.SuccessfulExit=false` and `Crashed=true` — a 130 exit already restarts there, because launchd treats non-zero as unsuccessful. The 2026-08-20 incident (an outside SIGTERM, `on-failure` + `SuccessExitStatus=130`, hours of dark ledger) is [the RCA](RCA/2026-08-20-olai-service-sigterm.md).
 
 ## The git policy

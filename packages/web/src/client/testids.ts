@@ -1029,9 +1029,24 @@ export const TESTID = {
   /** Drawn beside the model while a turn is running. Beside, not instead:
    *  what it runs on and whether it is running are two facts. */
   chatWorking: "chat-working",
+  /** The strip between the transcript and the box while the panel is busy —
+   *  a turn running, or an agent starting. Its WORDS are the assertion: the
+   *  header's `chatWorking` says the same fact in the chrome, and this says it
+   *  where a person who has just pressed enter is looking. */
+  chatBusy: "chat-busy",
   chatSessions: "chat-sessions",
   chatSessionList: "chat-session-list",
   chatSession: "chat-session",
+  /** The heading over one agent's rows in the chats list. Drawn only where
+   *  more than one agent has conversations here — one agent is a heading over
+   *  the whole list. */
+  chatSessionAgent: "chat-session-agent",
+  /** One agent in the chats list that could not be asked what it has stored,
+   *  with its reason. Its OWN name and not the whole call's refusal
+   *  (`chatSessionsRefused`): "the list could not be fetched" and "one of
+   *  several agents is broken" are two states, and the second leaves every
+   *  other agent's conversations on the screen. */
+  chatSessionUnreachable: "chat-session-unreachable",
   /** The strip under the header naming an MCP server this conversation was
    *  meant to have and did not. Absent — not empty — on a healthy session.
    *  One `chatMissingServer` inside it per server. */

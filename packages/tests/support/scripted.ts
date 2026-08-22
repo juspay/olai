@@ -94,10 +94,29 @@ export const speaking = (emit: (message: unknown) => void, prefix: string) => {
   }
 }
 
-/** The file a scenario touches to let a held turn go on. A dot-file, which the
- *  store's walk prunes, so waiting for one is not itself an edit — and ONE
- *  name, because the step definition that writes it serves both agents. */
-export const RELEASE = ".agent-release"
+/**
+ * THE MARKERS a scenario and a scripted agent talk through.
+ *
+ * Dot-files, which the store's walk prunes, so touching one is not itself an
+ * edit — and NAMED HERE, all of them, because each is a contract between a file
+ * that writes it (a step definition) and one or two that read it (the scripted
+ * agents), and a name spelled twice in files that never meet is the copy this
+ * module's header is about. A typo on either side does not fail: it makes the
+ * scenario quietly not hold, and a race scenario that holds nothing passes for
+ * the wrong reason.
+ */
+export const MARKER = {
+  /** Let a held turn — or a held open — go on. */
+  release: ".agent-release",
+  /** Make the next `session/load` sit on the wire. */
+  holdLoad: ".agent-hold-load",
+  /** ... and the next session OPEN, whichever verb asked for it: the window
+   *  between picking an agent and having a conversation. */
+  holdOpen: ".agent-hold-open",
+} as const
+
+/** The release marker, by its old name — {@link MARKER}'s `release`. */
+export const RELEASE = MARKER.release
 
 /** Long enough that a slow machine is not the reason a scenario fails, short
  *  enough that a scenario which forgot to release fails on its own assertion

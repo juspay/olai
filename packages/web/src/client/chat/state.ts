@@ -51,10 +51,10 @@ import {
   type ChatEntry,
   type ChatState,
   type OpFailure,
-  type SessionInfo,
+  type Listed,
   UsageFailure,
 } from "@olai/surface"
-import { type Accessor, createEffect, createSignal, on } from "solid-js"
+import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
 
 import { olai } from "../wire.ts"
 import { type Call, run } from "../run.ts"
@@ -66,21 +66,25 @@ import { forget, remember } from "./previews.ts"
  * What asking for the stored conversations answered.
  *
  * TWO ARMS, because there are two answers and they were one: a refused list —
- * an agent that is not running, one that keeps no conversations, a verb that
- * never reached it — resolved to `[]`, which the picker drew as "no stored
- * conversations". That is a sentence about the agent's disk, and it was being
- * used to report that we never got to look at it.
+ * chat switched off, a call that never reached the server — resolved to `[]`,
+ * which the picker drew as "no stored conversations". That is a sentence about
+ * somebody's disk, and it was being used to report that we never got to look at
+ * it.
  *
  * The reason travels WITH the refusal rather than being left on the panel's
  * `refused` signal: the click that asked was on the picker, so the picker is
  * where the answer belongs, and one refusal drawn in two places is one a
  * reader learns to skip in both.
+ *
+ * THE SAME DISTINCTION ONE LAYER IN. The list spans every installed agent now,
+ * so "could not ask" is usually a fact about ONE OF THEM rather than about the
+ * call — and it travels inside the listed answer ({@link Listed}'s
+ * `unreachable`), for the same reason and with the same consequence: an agent
+ * that is broken is named, and the other's conversations are still on the
+ * screen. This arm is what is left, which is the whole call failing.
  */
 export type Sessions =
-  | {
-    readonly _tag: "listed"
-    readonly sessions: ReadonlyArray<SessionInfo>
-  }
+  | ({ readonly _tag: "listed" } & Listed)
   | {
     readonly _tag: "refused"
     readonly failure: OpFailure
@@ -171,7 +175,10 @@ export interface Chat {
    *  {@link Chat.newSession} — a boot that stopped to ask has not asked for a
    *  new conversation. */
   readonly chooseAgent: (agent: string) => void
-  readonly loadSession: (id: string) => void
+  /** Move to a stored conversation — WITH the agent whose it is, which the
+   *  row carries. The list spans every installed agent, so this is a change of
+   *  agent as often as it is a change of conversation. */
+  readonly loadSession: (agent: string, id: string) => void
   /** Try the OPEN the agent refused again. It takes no argument, and that is
    *  the same rule { Chat.resend} follows: the SERVER holds which one was
    *  asked for, because a boot picks its own conversation and a browser naming
@@ -218,7 +225,7 @@ export const createChatState = (): Accessor<ChatState> => {
 }
 
 export const createChat = (): Chat => {
-  const state = createChatState()
+  const served = createChatState()
   const transcript = olai.collections.transcript.use()
   const [refused, setRefused] = createSignal<OpFailure | null>(null)
 
@@ -230,6 +237,65 @@ export const createChat = (): Chat => {
   // {@link ./order.ts} is where that shape is argued and where the reader's
   // half of it lives with it.
   const rows = createRows(transcript.fold)
+
+  /**
+   * A VERB THAT OPENS A CONVERSATION IS IN FLIGHT — this tab's own reading,
+   * true from the click rather than from the server's first frame.
+   *
+   * The three doors that open one (`+ new`, the picker's answer, a stored
+   * conversation) each start a subprocess or a replay, and none of them is
+   * instant. The server says `booting` the moment it begins, but that word has
+   * to travel: between the click and the frame carrying it, the cell still
+   * reads `idle` — so the panel looked FINISHED for the first frames of the
+   * longest wait it has, which is exactly when somebody presses the thing
+   * again.
+   *
+   * THIS TAB'S, deliberately, like the picker's own question one level up
+   * (`./Panel.tsx`): it is a person part-way through a gesture. A second tab
+   * has no business being told this one clicked something, and the moment the
+   * server has an opinion the server's is what everyone sees.
+   *
+   * It is a COUNT rather than a flag because the doors can be pressed in
+   * sequence, and a second answer coming back must not clear a first that is
+   * still in flight.
+   */
+  const [starting, setStarting] = createSignal(0)
+
+  /**
+   * Where the conversation stands, with this tab's own press folded in.
+   *
+   * The override is ONE-WAY and it is the narrow one: a panel the server calls
+   * `idle` while a press of ours is in flight is a panel that is starting.
+   * Every other state is the server's and passes straight through — `thinking`
+   * is a turn we would be lying about, `gone` is a process this tab cannot see,
+   * and `off` is a machine with no agent at all.
+   */
+  const state: Accessor<ChatState> = createMemo((): ChatState => {
+    const now = served()
+    return starting() > 0 && now.status === "idle" ? { ...now, status: "booting" } : now
+  })
+
+  // ... and this tab's guess lives only until the SERVER has one. The moment
+  // the served status is anything but `idle`, the server has taken the story
+  // over — it says `booting` itself, or the open finished, or the agent went —
+  // and a press still counted here would be a fiction outliving its cause. It
+  // is also the bound on the one way the count could stick: a call that never
+  // settles never runs its `done`.
+  createEffect(
+    on(() => served().status, (status) => {
+      if (status !== "idle") setStarting(0)
+    }, { defer: true }),
+  )
+
+  /** A verb that opens a conversation: the panel says so from the click, and
+   *  stops saying it when the call comes back — however it went. `max(0, …)`
+   *  because the effect above can zero the count while a call is still in
+   *  flight, and a negative one would report `booting` for every later press
+   *  that ended. */
+  const opens = (effect: Call<unknown>) => {
+    setStarting((held) => held + 1)
+    verb(effect, () => setStarting((held) => Math.max(0, held - 1)))
+  }
 
   /** Every verb the same way: clear the last refusal, run, and keep whatever
    *  this one refuses with. A verb that SUCCEEDS says nothing — the transcript
@@ -311,10 +377,12 @@ export const createChat = (): Chat => {
       }),
     resend: (id) => verb(olai.procedures.chat.resend({ id })),
     cancel: () => verb(olai.procedures.chat.cancel()),
-    newSession: (agent) => verb(olai.procedures.chat.newSession({ agent })),
-    chooseAgent: (agent) => verb(olai.procedures.chat.chooseAgent({ agent })),
-    loadSession: (id) => verb(olai.procedures.chat.loadSession({ id })),
-    reopen: () => verb(olai.procedures.chat.reopen()),
+    // The three doors that OPEN a conversation, and the fourth that reopens
+    // a refused one. Each says so from the click ({@link opens}).
+    newSession: (agent) => opens(olai.procedures.chat.newSession({ agent })),
+    chooseAgent: (agent) => opens(olai.procedures.chat.chooseAgent({ agent })),
+    loadSession: (agent, id) => opens(olai.procedures.chat.loadSession({ agent, id })),
+    reopen: () => opens(olai.procedures.chat.reopen()),
     answer: (id, answers, done) =>
       verb(olai.procedures.chat.answer({ id, answers }), done),
     decline: (id, done) => verb(olai.procedures.chat.decline({ id }), done),
@@ -323,7 +391,7 @@ export const createChat = (): Chat => {
         run(
           olai.procedures.chat.sessions(),
           (failure) => resolve({ _tag: "refused", failure }),
-          (sessions) => resolve({ _tag: "listed", sessions }),
+          (listed) => resolve({ _tag: "listed", ...listed }),
         )
       }),
   }
