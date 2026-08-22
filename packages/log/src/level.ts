@@ -1,0 +1,88 @@
+/**
+ * The minimum level this process will emit — one knob, one env edge.
+ *
+ * `OLAI_LOG` already picks the FACE (logfmt vs pretty). The LEVEL used to be
+ * Effect's CLI `--log-level` alone, which a systemd unit cannot raise without
+ * rewriting argv, and which the 2026-08-22 silent-send journal never had a way
+ * to turn on: six restarts, zero chat debug. `OLAI_LOG_LEVEL` is the instance
+ * fact that fills that hole, the same kind of pin `--commit` is — read once,
+ * for the running process, not per browser.
+ *
+ * **Precedence:** when the env var is set, it wins. When it is unset (or
+ * empty), this layer is empty and Effect's `--log-level` applies — including
+ * its default `info`. That is what keeps `olai web --log-level warn` quiet,
+ * and what lets a systemd unit raise the level without rewriting argv.
+ *
+ * Quiet stays the default (`info`), so a relayed agent stderr chunk — by
+ * volume the loudest thing olai emits — is still off until asked for. The
+ * verbs remain Effect's; this file only answers "how quiet".
+ */
+
+import { Layer, References } from "effect"
+
+/** The variable, spelled once. */
+export const LEVEL_ENV_VAR = "OLAI_LOG_LEVEL"
+
+/** Effect's own spelling of a minimum level — what {@link References.MinimumLogLevel} takes. */
+export type Minimum = "Debug" | "Info" | "Warn" | "Error"
+
+const NAMED = {
+  debug: "Debug",
+  info: "Info",
+  warn: "Warn",
+  error: "Error",
+} as const satisfies Readonly<Record<string, Minimum>>
+
+/** The four levels an operator is expected to type, matching Effect's names. */
+export const LEVELS = Object.keys(NAMED) as ReadonlyArray<keyof typeof NAMED>
+
+export type LevelName = keyof typeof NAMED
+
+/** Latch for the once-per-process invalid-`OLAI_LOG_LEVEL` diagnostic. */
+let warnedInvalidOlaiLogLevel = false
+
+/**
+ * Clears the invalid-`OLAI_LOG_LEVEL` latch so a test can assert the one-line-once
+ * diagnostic without depending on suite order.
+ */
+export const resetInvalidOlaiLogLevelWarning = (): void => {
+  warnedInvalidOlaiLogLevel = false
+}
+
+/**
+ * The minimum level the env var names, or `null` when it does not name one.
+ * Unset and empty are `null` (no override — `--log-level` / Effect's default
+ * remain). An unrecognised value is ignored (with one diagnostic) and treated
+ * as `Info`, because the operator DID set the knob, just misspelled it.
+ */
+export const levelFor = (
+  raw: string | undefined = process.env[LEVEL_ENV_VAR],
+): Minimum | null => {
+  if (raw === undefined || raw === "") return null
+  const named = raw.toLowerCase() as LevelName
+  const level = NAMED[named]
+  if (level !== undefined) return level
+  if (!warnedInvalidOlaiLogLevel) {
+    warnedInvalidOlaiLogLevel = true
+    console.error(
+      `@olai/log: ignoring ${LEVEL_ENV_VAR}=${JSON.stringify(raw)}; expected ${
+        LEVELS.map((name) => `"${name}"`).join(", ")
+      }`,
+    )
+  }
+  return "Info"
+}
+
+/**
+ * Provide Effect's minimum level from {@link levelFor}. Empty when the env
+ * var is unset, so an explicit `--log-level` still reaches the handler.
+ * Set, it is innermost and wins.
+ */
+export const atLevel = (
+  raw: string | undefined = process.env[LEVEL_ENV_VAR],
+): Layer.Layer<never> => {
+  const level = levelFor(raw)
+  return level === null
+    ? Layer.empty
+    : Layer.succeed(References.MinimumLogLevel, level)
+}

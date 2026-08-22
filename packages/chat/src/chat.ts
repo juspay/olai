@@ -879,7 +879,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             return undeliverable(key, prompt, { gone: "refused", why: CANCELLED_UNDER_IT })
           }
         }
-        yield* begin(agent, key, prompt)
+        yield* begin(agent, at.row.id, key, prompt)
       }))
 
     /**
@@ -965,6 +965,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      */
     const begin = (
       agent: AcpAgent.Agent,
+      agentId: string,
       key: string,
       prompt: string,
     ): Effect.Effect<void> =>
@@ -972,6 +973,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         /** A turn was ALREADY running when this one started, which is what a
          *  mid-turn message is for an agent that cannot steer. */
         const alongside = turns.busy
+        if (alongside) {
+          yield* Effect.logInfo("message queued behind a running turn").pipe(
+            Effect.annotateLogs({
+              agent: agentId,
+              ...(state.session === null ? {} : { session: state.session.id }),
+            }),
+          )
+        }
         const ticket = turns.open()
         // The rows go first, and the order is the point. A dead agent's rows
         // are deliberately left where they are, so this turn is starting over a
@@ -1402,7 +1411,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               // A warning rather than an error: the panel is already showing
               // this, and the next prompt retries the boot exactly as a crash
               // does. Nothing has stopped.
-              yield* Effect.logWarning(outcome.failure.message)
+              yield* Effect.logWarning(outcome.failure.message).pipe(
+                Effect.annotateLogs({ agent: chosen.id }),
+              )
               // The same distinction the session verbs make, at the other place
               // a conversation is opened: an agent that ANSWERED the open with
               // a no is running, and a boot that never reached one is not.
