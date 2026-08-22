@@ -117,10 +117,9 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 }
 
 // The sink is stdout: a person watching a server looks there, and nothing else
-// in this process owns it. The LEVEL is `OLAI_LOG_LEVEL` (default info), read
-// at the one env edge and provided here so a systemd unit can raise it without
-// rewriting argv — the same kind of instance fact `--commit` is. Inner relative
-// to Effect CLI's `--log-level`, so the env is what production actually has.
+// in this process owns it. The LEVEL is provided on the `web` handler above —
+// innermost, so it wins over Effect CLI's `--log-level` default. Providing it
+// again here would be a second answer the CLI would overwrite.
 NodeRuntime.runMain(
   Command.run(olai, { version: "0.1.0" }).pipe(
     Effect.scoped,
@@ -128,12 +127,7 @@ NodeRuntime.runMain(
     // layerHttpServices carries the static file layer's (the file-response
     // platform and ETags).
     Effect.provide(
-      Layer.mergeAll(
-        NodeServices.layer,
-        NodeHttpServer.layerHttpServices,
-        toStdout,
-        atLevel(),
-      ),
+      Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices, toStdout),
     ),
   ),
 )

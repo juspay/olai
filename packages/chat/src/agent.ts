@@ -336,6 +336,25 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     // line it will ever emit. Session is added per line, once one is open.
     const say = yield* Effect.annotateLogs(emitter, { agent: options.id })
 
+    /** What this agent's leg wants on the `_meta` of the two calls that OPEN a
+     *  conversation — spread into both, and EMPTY for an agent that asks for
+     *  nothing. Spelled once because `session/new` and `session/load` have to
+     *  agree: the Claude adapter reads the subscription off whichever of them
+     *  made the session, and sending it at `new` alone is a bug this file has
+     *  already had. */
+    const openMeta = options.leg.rawMessages === null
+      ? {}
+      : { _meta: options.leg.rawMessages.openMeta }
+
+    // The spawn/handshake takes its own permit, so two callers racing a cold
+    // start share one subprocess rather than each getting their own.
+    const booting = yield* Semaphore.make(1)
+    // ... and the memory takes its own, for the reason {@link note} gives.
+    const remembering = yield* Semaphore.make(1)
+
+    let live: Live | null = null
+    let session: string | null = null
+
     /** Annotations that belong on a lifecycle line: the session when we have
      *  one, plus whatever the event itself carries. */
     const about = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
@@ -343,10 +362,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       ...(session === null ? {} : { session }),
       ...extra,
     })
-
-    /** Emit a line from a callback, with the session in force right now. */
+    /** The annotated line, for a fiber (`yield*`) and a callback (`tell`) alike. */
+    const lifecycle = (
+      line: Effect.Effect<void>,
+      extra: Record<string, unknown> = {},
+    ): Effect.Effect<void> => Effect.annotateLogs(line, about(extra))
     const tell = (line: Effect.Effect<void>, extra: Record<string, unknown> = {}): void => {
-      say(Effect.annotateLogs(line, about(extra)))
+      say(lifecycle(line, extra))
     }
 
     /** The agent's stderr since this subprocess started, capped so a chatty
@@ -366,24 +388,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       for (const line of during.split("\n")) tell(Effect.logWarning(line))
     }
 
-    /** What this agent's leg wants on the `_meta` of the two calls that OPEN a
-     *  conversation — spread into both, and EMPTY for an agent that asks for
-     *  nothing. Spelled once because `session/new` and `session/load` have to
-     *  agree: the Claude adapter reads the subscription off whichever of them
-     *  made the session, and sending it at `new` alone is a bug this file has
-     *  already had. */
-    const openMeta = options.leg.rawMessages === null
-      ? {}
-      : { _meta: options.leg.rawMessages.openMeta }
-
-    // The spawn/handshake takes its own permit, so two callers racing a cold
-    // start share one subprocess rather than each getting their own.
-    const booting = yield* Semaphore.make(1)
-    // ... and the memory takes its own, for the reason {@link note} gives.
-    const remembering = yield* Semaphore.make(1)
-
-    let live: Live | null = null
-    let session: string | null = null
     let stopped = false
     /** A cancel that arrived before the prompt was on the wire. Remembered so
      *  every cancelled turn ends the same way, whichever half of the handshake
@@ -972,13 +976,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // arrives later, and logging "spawned" for a command that never ran
         // is the silent-send class of lie — a line that says the process is
         // up when the next line is the ENOENT.
-        yield* Effect.logInfo("chat agent spawned").pipe(
-          Effect.annotateLogs(
-            about({
-              command: options.command,
-              args: options.args.join(" "),
-            }),
-          ),
+        yield* lifecycle(
+          Effect.logInfo("chat agent spawned"),
+          { command: options.command, args: options.args.join(" ") },
         )
         return {
           child,
@@ -1138,9 +1138,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       Effect.gen(function*() {
         session = id
         emit({ _tag: "session", id, title })
-        yield* Effect.logInfo("conversation opened").pipe(
-          Effect.annotateLogs(about({ how })),
-        )
+        yield* lifecycle(Effect.logInfo("conversation opened"), { how })
         yield* note(
           // The model is a fact ABOUT a conversation, so it travels with one:
           // coming back into the conversation we remember keeps what it was
@@ -1504,9 +1502,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // is for the operator, not a transcript.
           const from = stderrBuf.length
           const started = Date.now()
-          yield* Effect.logInfo("prompt sent").pipe(
-            Effect.annotateLogs(about({ bytes: text.length })),
-          )
+          yield* lifecycle(Effect.logInfo("prompt sent"), { bytes: text.length })
           // A TURN THE AGENT REFUSES fails like any other request and needs
           // nothing said about it here: `refused` means the agent answered, so
           // the caller already has what it needs to end the turn without
@@ -1526,14 +1522,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           const duration = `${Date.now() - started}ms`
           if (outcome._tag === "Failure") {
             dumpStderr(from)
-            yield* Effect.logWarning("turn failed").pipe(
-              Effect.annotateLogs(about({ error: outcome.failure.why, duration })),
+            yield* lifecycle(
+              Effect.logWarning("turn failed"),
+              { error: outcome.failure.why, duration },
             )
             return yield* Effect.fail(outcome.failure)
           }
           const stopReason = (outcome.success as PromptResponse).stopReason
-          yield* Effect.logInfo("turn ended").pipe(
-            Effect.annotateLogs(about({ stopReason, duration })),
+          yield* lifecycle(
+            Effect.logInfo("turn ended"),
+            { stopReason, duration },
           )
           return stopReason
         })
