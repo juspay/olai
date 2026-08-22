@@ -86,9 +86,13 @@ import { Flag } from "effect/unstable/cli"
  *
  * `manual` is the default and the point of the whole thing: a write lands on
  * disk and WAITS, and a commit is something somebody asks for — which is what
- * makes a train of thought one commit instead of a dozen. `auto` is the old
- * behaviour, one commit per op, for a headless serve with nobody there to ask.
- * `off` is a directory whose history is somebody else's job.
+ * makes a train of thought one commit instead of a dozen. `auto` is the QUIET
+ * WINDOW, which makes the same promise without anybody asking: everything
+ * waiting records itself once writes stop arriving for the span
+ * (`@olai/format`'s `QUIET_MS`, read below rather than spelled), whoever made
+ * them and with no browser open. It used to be one commit per op, which is the
+ * dozen this mode's neighbour exists to prevent — that door is retired. `off`
+ * is a directory whose history is somebody else's job.
  *
  * The last clause is the PIN, and it is on both flags' sentences because it is
  * the thing an operator most needs to know before typing one: giving the flag
