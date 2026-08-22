@@ -15,7 +15,15 @@
 import { NO_PIN } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { pinnedCommit, pinnedPush, setBy } from "./pinned.ts"
+import {
+  commitFrozen,
+  commitSetBy,
+  pinnedCommit,
+  pinnedPush,
+  pushFrozen,
+  pushSetBy,
+  setPinned,
+} from "./pinned.ts"
 
 test("nothing pinned leaves both rows to the browser", () => {
   expect(pinnedCommit(NO_PIN)).toBeNull()
@@ -41,11 +49,33 @@ test("a pinned --push says which way its row is frozen", () => {
 })
 
 /** The two halves are independent, so an operator who ruled on committing has
- *  not silently ruled on pushing as well. */
+ *  not silently ruled on pushing. */
 test("pinning one row leaves the other one live", () => {
   const commitOnly = { commit: "auto", push: null } as const
   expect(pinnedCommit(commitOnly)).toBe(true)
   expect(pinnedPush(commitOnly)).toBeNull()
+})
+
+/** WHETHER A ROW IS FROZEN and WHAT IT SAYS are read off the one pin, so they
+ *  cannot come apart — a row drawn frozen whose line named a flag nobody gave
+ *  is the failure this pairing exists to make unspellable. */
+test("a row is frozen exactly when it has something to say about who set it", () => {
+  try {
+    setPinned(NO_PIN)
+    expect(commitFrozen()).toBe(false)
+    expect(commitSetBy()).toBeNull()
+    expect(pushFrozen()).toBe(false)
+    expect(pushSetBy()).toBeNull()
+
+    setPinned({ commit: "auto", push: null })
+    expect(commitFrozen()).toBe(true)
+    expect(commitSetBy()).not.toBeNull()
+    // ... and the other row is untouched by it.
+    expect(pushFrozen()).toBe(false)
+    expect(pushSetBy()).toBeNull()
+  } finally {
+    setPinned(NO_PIN)
+  }
 })
 
 /**
@@ -55,9 +85,19 @@ test("pinning one row leaves the other one live", () => {
  * while the flag is the thing they hand whoever runs the instance.
  */
 test("the line names the flag that set the row, and says a browser cannot", () => {
-  expect(setBy("commit", "auto")).toContain("--commit=auto")
-  expect(setBy("push", "off")).toContain("--push=off")
-  for (const said of [setBy("commit", "off"), setBy("push", "auto")]) {
-    expect(said).toContain("cannot be changed")
+  try {
+    setPinned({ commit: "auto", push: "off" })
+    expect(commitSetBy()).toContain("--commit=auto")
+    expect(pushSetBy()).toContain("--push=off")
+    for (const said of [commitSetBy(), pushSetBy()]) {
+      expect(said).toContain("cannot be changed")
+    }
+    // `--no-commit` reaches here as the flag it IS — one flag, two spellings,
+    // and nothing on the wire remembers which one was typed.
+    setPinned({ commit: "off", push: "auto" })
+    expect(commitSetBy()).toContain("--commit=off")
+    expect(pushSetBy()).toContain("--push=auto")
+  } finally {
+    setPinned(NO_PIN)
   }
 })

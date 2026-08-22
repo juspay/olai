@@ -117,6 +117,6 @@ export const pushSetBy = (): string | null => {
  * says so. Nothing on the wire remembers which one was typed, deliberately: a
  * pin that carried its own spelling would be a second thing to keep true.
  */
-export const setBy = (flag: "commit" | "push", mode: CommitMode | PushMode): string =>
+const setBy = (flag: "commit" | "push", mode: CommitMode | PushMode): string =>
   `Set by the server: --${flag}=${mode}. This is the instance's policy, so it ` +
   `is the same in every browser and cannot be changed from one.`
