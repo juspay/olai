@@ -33,10 +33,10 @@ import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/u
 
 /** The chip's value of one identity — the login, what to call them, and
  *  the picture the ladder resolved (or none, which is the silhouette). */
-export const shown = (who: Identity, avatar: string | null): Who => ({
+export const shown = (who: Identity, template: string | null): Who => ({
   login: who.login,
   name: who.name,
-  picture: pictureOf(who, avatar),
+  picture: pictureOf(who, template),
 })
 
 export const whoRoute = (identity: IdentityConfig) =>
@@ -48,6 +48,8 @@ export const whoRoute = (identity: IdentityConfig) =>
       if (who === null) {
         return Effect.succeed(HttpServerResponse.empty({ status: 204 }))
       }
-      return Effect.orDie(HttpServerResponse.json(shown(who, identity.avatar)))
+      return Effect.orDie(
+        HttpServerResponse.json(shown(who, identity.avatarTemplate)),
+      )
     },
   )

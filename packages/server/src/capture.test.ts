@@ -399,7 +399,7 @@ test(
             name: null,
             picture: null,
           },
-          avatar: null,
+          avatarTemplate: null,
         },
       },
       async (url) => {

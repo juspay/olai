@@ -20,20 +20,21 @@ import { avatarTemplate } from "./picture.ts"
 export interface IdentityConfig {
   /** Which headers this server trusts for who is looking. */
   readonly headers: IdentityHeaders
-  /** The avatar URL template, or `null` — the ladder's second rung. */
-  readonly avatar: string | null
+  /** The avatar URL template, or `null` — the ladder's second rung.
+   *  A TEMPLATE, not a URL: `{login}` is where the login goes. */
+  readonly avatarTemplate: string | null
 }
 
 /** What an unconfigured olai behind `tailscale serve` reads: Tailscale's
  *  own header names, and no template. */
 export const DEFAULT_IDENTITY_CONFIG: IdentityConfig = {
   headers: DEFAULT_IDENTITY_HEADERS,
-  avatar: null,
+  avatarTemplate: null,
 }
 
 /** What this process was started with. Read on demand, not at import, so
  *  what a process was started with is what it serves. */
 export const identityConfig = (): IdentityConfig => ({
   headers: identityHeaders(),
-  avatar: avatarTemplate(),
+  avatarTemplate: avatarTemplate(),
 })

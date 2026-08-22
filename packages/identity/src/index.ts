@@ -6,6 +6,13 @@
  * ({@link ./config.ts}) are four folds. HTTP is not here: `GET /olai/who`
  * is `@olai/server`'s door over {@link identityOf}, and the path lives in
  * `@olai/surface` the way `/media` does.
+ *
+ * WHAT CROSSES THE PACKAGE BOUNDARY, and no more. The environment variable
+ * names, the placeholder a template spells the login as, and the email
+ * guard are this package's own vocabulary: they are read HERE, once, into
+ * {@link identityConfig}, and a second package reaching for one of them
+ * would be a second place that decides how a deployment is wired. Each is
+ * exported from its own module for the tests that pin it.
  */
 
 export {
@@ -16,22 +23,9 @@ export {
 export {
   DEFAULT_IDENTITY_HEADERS,
   DEFAULT_LOGIN_HEADER,
-  DEFAULT_NAME_HEADER,
-  DEFAULT_PICTURE_HEADER,
-  EMAIL_ENV,
-  identityHeaders,
   identityOf,
-  LOGIN_ENV,
-  NAME_ENV,
-  PICTURE_ENV,
   type Identity,
   type IdentityHeaders,
 } from "./identity.ts"
-export { GRAVATAR_ORIGIN, gravatarOf } from "./gravatar.ts"
-export {
-  AVATAR_ENV,
-  avatarTemplate,
-  LOGIN_PLACEHOLDER,
-  looksLikeEmail,
-  pictureOf,
-} from "./picture.ts"
+export { gravatarOf } from "./gravatar.ts"
+export { pictureOf } from "./picture.ts"

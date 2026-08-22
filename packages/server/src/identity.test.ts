@@ -33,7 +33,7 @@ const authelia: IdentityConfig = {
     name: "Remote-Name",
     picture: null,
   },
-  avatar: null,
+  avatarTemplate: null,
 }
 
 test("the door hands over the picture the ladder resolved, not a rule", () => {
@@ -126,7 +126,7 @@ test("a login that is not an address draws no picture, and still someone", async
 
 test("an avatar template pictures that same login, with no API and no token", async () => {
   await withServing(
-    { root: served(), identity: { ...DEFAULT_IDENTITY_CONFIG, avatar: GITHUB } },
+    { root: served(), identity: { ...DEFAULT_IDENTITY_CONFIG, avatarTemplate: GITHUB } },
     async (url) => {
       const answer = await get(url, WHO_PATH, {
         "Tailscale-User-Login": "srid",
