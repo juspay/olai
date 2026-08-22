@@ -63,6 +63,7 @@ import type {
   Delivery,
   FileDiff,
   OpFailure,
+  Saying,
   Spawned,
   ToolEntry,
   ToolStatus,
@@ -72,9 +73,55 @@ import type {
 export interface Change {
   readonly upserts: ReadonlyArray<readonly [string, ChatEntry]>
   readonly removes: ReadonlyArray<string>
+  /**
+   * TEXT ADDED TO A ROW THAT IS ALREADY THERE — what a chunk of a streaming
+   * answer is, said as the thing it is rather than as the row it grew.
+   *
+   * The upserts above carry rows WHOLE, which is what a row is and what a late
+   * joiner has to be handed. A streaming answer is not a sequence of rows: it
+   * is one row and six hundred pieces, and publishing the whole of it once per
+   * piece puts the sum of its prefixes on the wire — quadratic in the length
+   * of the answer, and the defect this field exists to be the absence of
+   * (`transcript-stream-quadratic`; {@link @olai/surface}'s `Saying` carries
+   * the measurement).
+   *
+   * INTENT, not delivery. What is here is the fact — this text belongs at that
+   * offset of that row — and nothing about keys, frames or clocks. Who turns it
+   * into wire is {@link ./cadence.ts}, which is also the one thing that knows a
+   * row's true text is HERE all along: every whole upsert this class publishes
+   * carries the row complete, appends and all, so a row always supersedes its
+   * own pieces and nothing has to be reassembled to be right.
+   */
+  readonly appends: ReadonlyArray<Saying>
 }
 
-const EMPTY: Change = { upserts: [], removes: [] }
+const EMPTY: Change = { upserts: [], removes: [], appends: [] }
+
+/**
+ * Whether a change says anything at all.
+ *
+ * HERE, beside the type, because it is a fact about a `Change` and the day the
+ * type grew a third thing to carry is exactly the day a caller asking about
+ * two of them stopped being right — which is what happened: a guard that asked
+ * only about rows dropped every chunk of every streaming answer, and the
+ * paragraph appeared whole when the turn ended. One reader of one shape rather
+ * than a list of fields re-spelled wherever somebody publishes.
+ */
+export const says = (change: Change): boolean =>
+  change.upserts.length > 0 || change.removes.length > 0 || change.appends.length > 0
+
+/**
+ * Whether a change speaks for any ROW — as against carrying only text added to
+ * one.
+ *
+ * The other half of {@link says}, and here for its reason: two of a `Change`'s
+ * three fields are the ones that name rows, and a caller spelling that
+ * partition itself is a caller the next field misroutes. It is what
+ * {@link ./cadence.ts} asks to decide whether a row has superseded the pieces of
+ * itself — a question about rows, so it is asked in the rows' own words.
+ */
+export const movesRows = (change: Change): boolean =>
+  change.upserts.length > 0 || change.removes.length > 0
 
 /**
  * An entry without the fields `#put` DERIVES, ready to be written back.
@@ -170,6 +217,7 @@ const toolKey = (id: string): string => `tool:${id}`
 const both = (first: Change, second: Change): Change => ({
   upserts: [...first.upserts, ...second.upserts],
   removes: [...first.removes, ...second.removes],
+  appends: [...first.appends, ...second.appends],
 })
 
 export class Transcript {
@@ -277,7 +325,7 @@ export class Transcript {
     this.#named.clear()
     this.#open = null
     this.#seq = 0
-    return { upserts: [], removes }
+    return { ...EMPTY, removes }
   }
 
   /** A row that stands on its own. */
@@ -425,8 +473,18 @@ export class Transcript {
     const open = this.#open
     const current = open === null ? undefined : this.#entries.get(open)
     if (open !== null && current?.kind === kind) {
-      return this.#put(open, { ...contentOf(current), text: `${current.text}${text}` })
+      // THE PIECE GOES OUT; THE WHOLE IS KEPT. The row here grows by the chunk
+      // — it is the transcript's own copy and every later publish of this row
+      // reads it — and what is REPORTED is the chunk and where it belongs
+      // ({@link Change.appends}). Reporting the row instead is the same text
+      // published once per token, which is quadratic in the length of the
+      // answer and is what this line stopped doing.
+      const at = current.text.length
+      this.#write(open, { ...contentOf(current), text: `${current.text}${text}` })
+      return { ...EMPTY, appends: [{ of: open, at, text }] }
     }
+    // A row that is not there yet is WRITTEN, whole and with its first chunk in
+    // it: there is nothing on the far end to append to. It costs one chunk.
     const closed = this.#close()
     this.#open = this.#next(kind)
     return both(closed, this.#put(this.#open, { kind, text }))
@@ -767,6 +825,19 @@ export class Transcript {
     key: string,
     entry: RowContent,
   ): Change {
+    return { ...EMPTY, upserts: [[key, this.#write(key, entry)]] }
+  }
+
+  /** The write itself, answering with the row as it now stands — and the one
+   *  place a row is stored, which is what makes the derivations above a
+   *  property rather than a habit.
+   *
+   *  It is split from {@link #put} for exactly one caller: {@link #grow}'s
+   *  append path, which has to WRITE the row (the transcript keeps every row
+   *  whole) and must not PUBLISH it (what goes out is the piece). Splitting the
+   *  publish off the write is what lets those two be different answers without
+   *  a second way of deriving a row's fields. */
+  #write(key: string, entry: RowContent): ChatEntry {
     const existing = this.#entries.get(key)
     const derived = {
       id: key,
@@ -780,6 +851,6 @@ export class Transcript {
       entry.kind === "tool" && this.#stranded.has(key),
     )
     this.#entries.set(key, next)
-    return { upserts: [[key, next]], removes: [] }
+    return next
   }
 }

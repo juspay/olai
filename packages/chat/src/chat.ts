@@ -101,7 +101,7 @@ import * as Context from "./context.ts"
 import type { AgentEvent } from "./events.ts"
 import * as Listings from "./listings.ts"
 import * as Memory from "./memory.ts"
-import { type Change, Transcript } from "./transcript.ts"
+import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
 
 export type { ToolServer } from "./agent.ts"
@@ -129,8 +129,13 @@ export interface Options {
   readonly tools: () => AcpAgent.ToolServer | null
   /** Publish the state cell. Called on every change; the surface dedups. */
   readonly onState: (state: ChatState) => void
-  /** Publish transcript changes: upserts by key, and removes for a session
-   *  that was replaced. */
+  /** Publish transcript changes — ALL THREE of the things one carries: rows
+   *  upserted by key, removes for a session that was replaced, and the text
+   *  APPENDED to a row already there, which is what a chunk of a streaming
+   *  answer is and moves no row at all ({@link ./transcript.ts}, and `says` for
+   *  the question "does this change say anything"). Naming two of the three is
+   *  what this comment used to do and what the guard below used to ask, and it
+   *  cost every token of every answer. */
   readonly onTranscript: (change: Change) => void
 }
 
@@ -508,8 +513,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *  {@link EVIDENCE} calls `shown`. Read by {@link begin}. */
     let shown = 0
 
+    /** A change that says nothing is not published — asked of the change
+     *  itself ({@link ./transcript.ts}'s `says`) rather than by naming its
+     *  fields here. This line used to name two of the three, which meant every
+     *  chunk of every streaming answer was dropped and the paragraph appeared,
+     *  whole, when the turn ended. */
     const publish = (change: Change) => {
-      if (change.upserts.length === 0 && change.removes.length === 0) return
+      if (!says(change)) return
       options.onTranscript(change)
     }
 

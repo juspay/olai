@@ -41,6 +41,10 @@
  *   picture      answer with an `image` block, which the panel cannot draw
  *   lose         refuse every `session/list` from here on
  *   flood        say more than fits, so scrolling is a thing that can be tested
+ *   stream [slow]  a five-paragraph answer, five characters a chunk — a real
+ *                model's shape, for measuring what streaming one costs the
+ *                wire. `slow` paces the chunks the way a model does, which is
+ *                what makes the FRAME count mean something
  *   hold         start a tool call and STOP there, until released
  *   abandon      announce a tool call, never report on it, and END THE TURN
  *                anyway — alive and idle afterwards, which `crash` is not. It
@@ -640,6 +644,71 @@ const useTool = async (
 
 // ── turns ──────────────────────────────────────────────────────────────
 
+/** How many characters of the answer ride in one notification — the size a
+ *  model's own tokens arrive at, and the size the defect was measured at. */
+const CHUNK = 5
+
+/** Milliseconds between chunks under `stream slow` — about fifteen milliseconds
+ *  a token, which puts a 634-chunk answer at roughly ten seconds. That is a
+ *  fast model rather than a slow one, and it is the right end to measure from:
+ *  the faster the tokens, the more frames an uncoalesced wire sends. */
+const PACE = 15
+
+/** FIVE PARAGRAPHS of ordinary prose, deterministic and 3,180 bytes — the
+ *  answer `stream` streams. Written out rather than generated so two runs of
+ *  the driver, against two worktrees, measure the same bytes. */
+const ANSWER = [
+  "The cabinets are the part of this that has to be decided first, " +
+  "because everything else in the room is measured off them. A run along " +
+  "the north wall gives you the longest uninterrupted counter, and the " +
+  "window stays where it is. Anything else you do to the room has to be " +
+  "drawn after that line is fixed, which is the whole reason it is fixed " +
+  "first and not last. The depth is the only number worth arguing about, " +
+  "and the answer is the standard one, because every appliance in the " +
+  "catalogue is built to it. Going deeper buys you a shelf you cannot " +
+  "reach across and a counter you cannot wipe without leaning.",
+  "The alternative is an island, which reads better in a drawing than it " +
+  "does in a kitchen this size: two people cannot pass behind a chair, " +
+  "and the chairs are the whole point of an island. So the island is out, " +
+  "and what it was for — somewhere to sit that is not the table — moves " +
+  "to the end of the run, where a shallow overhang and two stools do the " +
+  "same job and cost a tenth as much. It also leaves the floor clear, " +
+  "which is the thing you notice every day and the thing no drawing ever " +
+  "shows. A kitchen you can walk through is worth more than a kitchen you " +
+  "can photograph.",
+  "That leaves the appliances. The oven wants to be near the sink and not " +
+  "near the door; the fridge wants to be near the door and not near the " +
+  "oven. Those two wants are the same wall, so one of them loses, and it " +
+  "should be the fridge: a fridge is opened for ten seconds and an oven " +
+  "is worked at for an hour, and the hour is the one worth arranging the " +
+  "room around. The dishwasher is not a choice at all — it goes beside " +
+  "the sink, on the side your good hand is on, and there is no second " +
+  "opinion about it. The bin goes under the sink, for the same reason and " +
+  "with the same lack of argument. Everything else — the kettle, the " +
+  "toaster, the thing that makes the bread — lives on the counter and can " +
+  "be moved by hand, so none of it is a decision anybody has to make " +
+  "today.",
+  "The lighting follows the counter rather than the ceiling. One line of " +
+  "it under the upper cabinets, one over the sink, and nothing in the " +
+  "middle of the room at all — a room lit from its edges reads as bigger " +
+  "than the same room lit from its centre, and this room needs all the " +
+  "help it can get. The switch for the under-cabinet run goes by the " +
+  "door, not by the counter, because the person who wants it on is the " +
+  "person walking in, and they are carrying something in both hands. Put " +
+  "it at the height everything else in the house is at, and nobody will " +
+  "ever have to look for it.",
+  "None of this is expensive except the cabinets, which is the usual " +
+  "shape of a kitchen: the joinery is the project and everything else is " +
+  "shopping. If the budget has to give somewhere, it gives on the " +
+  "appliances, which can be replaced one at a time later on, and never on " +
+  "the run along the north wall. That run is the room, and everything the " +
+  "room is asked to do for the next twenty years is asked of it. Buy the " +
+  "doors you want the first time; the handles can wait, and so can the " +
+  "tiles. What you cannot do later is move the wall the run is on, or the " +
+  "window that decides where the light falls on it, and those two are the " +
+  "whole of what a kitchen is.",
+].join("\n\n")
+
 const say = (text: string): void => {
   notify("session/update", {
     sessionId,
@@ -978,6 +1047,38 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // the absence of a word, which is the only shape of that claim a streaming
     // panel can be asked for without waiting to see whether more arrives.
     say(`servers: [${servers.join(" ")}]`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  /**
+   * A REAL ANSWER, streamed the way a language model streams one — a few
+   * characters per notification, hundreds of them, into one paragraph.
+   *
+   * The instrument for `transcript-stream-quadratic`, and the reason it is
+   * exact rather than approximate: what that node is about is the RATIO between
+   * an answer's own bytes and the bytes its delivery costs, so a driver
+   * measuring it has to send a known number of bytes in a known number of
+   * chunks. Five paragraphs and five characters a chunk is the shape that was
+   * measured on kolu-bot (3,218 bytes as 643 chunks averaging five), reproduced
+   * here so the before and the after are numbers of one session.
+   *
+   * `flood` is next door and is NOT this: it sends forty big chunks so that
+   * something overflows a pane. This one sends six hundred small ones so that
+   * something is quadratic.
+   */
+  if (verb === "stream") {
+    // `stream slow` PACES them, which is the honest shape and the one a film
+    // shows: a model's tokens arrive over seconds, and what a coalescing wire
+    // costs in FRAMES is a function of how long the answer took rather than of
+    // how many chunks it came in. Bare `stream` sends the same bytes as fast
+    // as a pipe will take them, which is the harsher case for bytes and the
+    // uninteresting one for frames.
+    const pace = argument === "slow" ? PACE : 0
+    for (let at = 0; at < ANSWER.length; at += CHUNK) {
+      say(ANSWER.slice(at, at + CHUNK))
+      if (pace > 0) await sleep(pace)
+    }
     respond(id, { stopReason: "end_turn" })
     return
   }

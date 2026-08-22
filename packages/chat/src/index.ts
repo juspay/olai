@@ -14,7 +14,13 @@
  *   - `Change` is exported because the surface collection is seeded from the
  *     transcript this package keeps, and a caller that publishes what changed
  *     has to be able to name it. The `Transcript` itself is NOT exported —
- *     nothing above this line writes rows, it only forwards what came out.
+ *     nothing above this line writes rows, it only forwards what came out;
+ *   - {@link cadence} is the other half of that change — what a row that is
+ *     still GROWING costs the wire. A caller publishes changes through it
+ *     instead of straight onto the collection, and what comes back is frames
+ *     on a clock ({@link ./cadence.ts}). Exported for the same reason `Change`
+ *     is: the composition root is what owns a socket, so the cadence has to be
+ *     nameable there.
  *
  * `agent.ts` is deliberately NOT exported. Nothing above this line should be
  * able to spell `session/update`.
@@ -24,3 +30,4 @@ export { type Adapter, AGENT_ENV, whyNoAgent } from "./adapter.ts"
 export { type Installed, roster } from "./agents/roster.ts"
 export { type Chat, make, type Options, type ToolServer } from "./chat.ts"
 export type { Change } from "./transcript.ts"
+export { type Cadence, cadence, type Frame, type Pieces } from "./cadence.ts"
