@@ -77,10 +77,21 @@ test("@own-scratch on a @corpus: scenario is refused", () => {
   );
 });
 
-test("two corpus tags on one scenario are refused", () => {
+test("two DIFFERENT corpora on one scenario are refused", () => {
   expect(() => requestOf(tags("@scratch:good", "@corpus:chat"))).toThrow(
     /one corpus/,
   );
+});
+
+// A feature's own `@corpus:` reaches every scenario in it, so a scenario in
+// that feature needing a server of its own — because it writes, or because it
+// is STARTED differently — can only say so by adding `@scratch:` beside it.
+// That is one corpus in two words, and the scratch is the specific one.
+test("its feature's corpus, asked for as a scratch, is one corpus and a private copy", () => {
+  expect(requestOf(tags("@corpus:good", "@scratch:good"))).toEqual({
+    corpus: "good",
+    mode: "own",
+  });
 });
 
 test("PIN (restart): a shared scratch may not be restarted", () => {

@@ -52,27 +52,45 @@ Put it behind a reverse proxy or `tailscale serve` and the browser's origin will
 
 ### Who is looking
 
-A reverse proxy in front of olai can say who made the request. olai trusts **one configurable pair of header names** — a login, and optionally an email — and the header bar **always** draws who is looking as an icon, top right, in the same chip as prefs: **anonymous** when the header is absent (direct access, a local `just run`), the gravatar when a login is present, or that the door failed. The words are the tooltip. Absence is a face, not a missing chip.
+A reverse proxy in front of olai can say who made the request. olai trusts **one configurable family of header names** — a login, and optionally an email, a display name and a picture — and the header bar **always** draws who is looking as an icon, top right, in the same chip as prefs: **anonymous** when no login came (direct access, a local `just run`), the person when one did, or that the door failed. The words are the tooltip, and they say the display name with the login beside it (`Sridhar Ratnakumar (srid@github)`) — on a shared vault, which account this is is the whole question. Absence is a face, not a missing chip.
 
-Default wiring is `tailscale serve`'s `Tailscale-User-Login` for both (that header is the email). The same pair covers other proxies — one feature, not one per proxy:
+Default wiring is `tailscale serve`'s own four headers. **The login is not necessarily an email**: on a Google, Microsoft or Okta tailnet `Tailscale-User-Login` *is* the address, which is why the email claim defaults to the same header — but on a GitHub- or passkey-backed one it reads `srid@github`, which is Tailscale's spelling of that account and not an address anybody can hash. The same family covers other proxies — one feature, not one per proxy:
 
-| Proxy | login | email |
-|---|---|---|
-| `tailscale serve` (default) | `Tailscale-User-Login` | `Tailscale-User-Login` |
-| Caddy + oauth2-proxy | `X-Auth-Request-User` | `X-Auth-Request-Email` |
-| Caddy + caddy-security (`inject headers with claims`) | `X-Token-User-Nick` (or `-Name`) | `X-Token-User-Email` |
-| Authelia | `Remote-User` | `Remote-Email` |
-| Pomerium (`pass_identity_headers`) | `X-Pomerium-Claim-User` | `X-Pomerium-Claim-Email` |
+| Proxy | login | email | name | picture |
+|---|---|---|---|---|
+| `tailscale serve` (default) | `Tailscale-User-Login` | `Tailscale-User-Login` | `Tailscale-User-Name` | `Tailscale-User-Profile-Pic` |
+| Caddy + oauth2-proxy | `X-Auth-Request-User` | `X-Auth-Request-Email` | `X-Auth-Request-Preferred-Username` | — (use a template) |
+| Caddy + caddy-security (`inject headers with claims`) | `X-Token-User-Nick` (or `-Name`) | `X-Token-User-Email` | `X-Token-User-Name` | `X-Token-User-Picture` |
+| Authelia | `Remote-User` | `Remote-Email` | `Remote-Name` | — (use a template) |
+| Pomerium (`pass_identity_headers`) | `X-Pomerium-Claim-User` | `X-Pomerium-Claim-Email` | `X-Pomerium-Claim-Name` | `X-Pomerium-Claim-Picture` |
 
-Pomerium's `X-Pomerium-Jwt-Assertion` is a signed JWT, not a login; point the pair at the claim headers.
+Pomerium's `X-Pomerium-Jwt-Assertion` is a signed JWT, not a login; point the family at the claim headers.
 
 ```sh
 # Authelia in front, for example
 OLAI_IDENTITY_LOGIN_HEADER=Remote-User
 OLAI_IDENTITY_EMAIL_HEADER=Remote-Email
+OLAI_IDENTITY_NAME_HEADER=Remote-Name
+OLAI_IDENTITY_PICTURE_HEADER=            # Authelia sends none — empty is off
 ```
 
-`OLAI_IDENTITY_LOGIN_HEADER` unset is `Tailscale-User-Login`. `OLAI_IDENTITY_EMAIL_HEADER` unset is the login header; **empty** is no email claim (generic gravatar). The same reading is the attribution a later capture door will record.
+Each variable unset is the Tailscale name in the table's first row (`OLAI_IDENTITY_EMAIL_HEADER` unset is the *login* header, since that is what a Tailscale login often is); each one **empty** turns that claim off. The login is the only one that makes somebody present — the rest are claims about them, and any of them may be missing. The same reading is the attribution the capture door records.
+
+#### The picture, and where it comes from
+
+Four rungs, in order, and the first one that answers wins:
+
+1. **The picture header**, when the proxy sends one — `tailscale serve` injects the IdP's own avatar, which is the best picture of a person anybody here has.
+2. **An avatar URL template**, `OLAI_IDENTITY_AVATAR_TEMPLATE`, with `{login}` where the login goes. This is the answer for a proxy that hands over a *username*: GitHub serves every user's avatar, unauthenticated, at `https://github.com/<user>.png`, so a Caddy + GitHub-OAuth deployment (whose `X-Auth-Request-User` is the GitHub username) needs no API and no token.
+3. **The gravatar of the email claim**, and only when that claim really looks like an address — which is what stops `srid@github` from hashing into a picture of nobody.
+4. **Nothing**, which is the silhouette, drawn by the page itself with no request to anywhere.
+
+```sh
+# A GitHub-backed tailnet, or Caddy + oauth2-proxy against GitHub
+OLAI_IDENTITY_AVATAR_TEMPLATE='https://github.com/{login}.png'
+```
+
+The picture is a remote `<img>` on the app page, and **whose host that is belongs to whoever deployed this olai** — an IdP's avatar host, the template's host (`github.com` redirects to `avatars.githubusercontent.com`), or gravatar. None of them is knowable when the page is built, so the page's content policy admits `https:` images: still no `http:`, no `data:`, no wildcard, and the `src` can only ever be what this server's own `GET /olai/who` answered. Sealed `/media` pages carry their own, stricter, policy and are unaffected.
 
 **Trust.** These headers are only meaningful when the proxy is the only way in: olai bound to loopback or the tailnet, **and the proxy stripping client-supplied copies of the same names**. Anything that can reach the port can send them — the same bargain the rest of the unauthenticated listener already takes. Do not expose this port to the internet.
 
