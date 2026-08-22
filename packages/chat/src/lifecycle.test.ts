@@ -81,8 +81,12 @@ const withAgent = async (
     await body(agent, run)
   } finally {
     await run(agent.stop)
-    // The emitter forks; exit and stderr land on another fiber.
-    await Effect.runPromise(Effect.sleep("40 millis"))
+    // The emitter forks; exit lands on another fiber. Under the full suite
+    // a fixed sleep was losing the race, so wait for the line itself.
+    const deadline = Date.now() + 2_000
+    while (Date.now() < deadline && findSaid(said, "chat agent exited") === undefined) {
+      await Effect.runPromise(Effect.sleep("20 millis"))
+    }
   }
   return said
 }
