@@ -15,8 +15,9 @@
  * outline is the inbox that still await processing, found by name over the
  * SET's paths — the same list capture walks — so an empty or torn shallowest
  * file is the file the door names, not a deeper one that still holds records.
- * Nested children and placements do not count, and a done row does not: the
- * badge is what is left to process, not every capture the file has ever held.
+ * Nested children and placements do not count, a done row does not, and a
+ * bare-bullet header whose every descendant is finished does not: the badge
+ * is what is left to process, not every capture the file has ever held.
  */
 
 import { expect, test } from "bun:test"
@@ -116,6 +117,53 @@ test("a done row does not count — the badge is what still awaits processing", 
       `{"id":"c","ord":"a2","title":"wipe the bench","done":true}`,
     ].join("\n"),
   })).toEqual(NO_INBOX)
+})
+
+test("a finished branch does not count — a bare-bullet header whose every task is done is not awaiting", () => {
+  // The Inbox's Deferrals root: unmarked, 10/10 done underneath. #348 counted
+  // it because a bullet counts; a finished branch is not awaiting processing.
+  expect(heldOf({
+    "Inbox.olai": [
+      `{"id":"h","ord":"a0","title":"Deferrals"}`,
+      `{"id":"a","parent":"h","ord":"a0","title":"one","done":true}`,
+      `{"id":"b","parent":"h","ord":"a1","title":"two","done":"2026-08-22T16:00:00-04:00"}`,
+    ].join("\n"),
+  })).toEqual(NO_INBOX)
+})
+
+test("a header holding one todo still counts, even two levels down", () => {
+  expect(heldOf({
+    "Inbox.olai": [
+      `{"id":"h","ord":"a0","title":"Deferrals"}`,
+      `{"id":"g","parent":"h","ord":"a0","title":"a group"}`,
+      `{"id":"t","parent":"g","ord":"a0","title":"still to do","todo":true}`,
+      `{"id":"d","parent":"h","ord":"a1","title":"already done","done":true}`,
+    ].join("\n"),
+  })).toEqual({ count: 1 })
+})
+
+test("a header holding a bullet leaf still counts — that line is unprocessed", () => {
+  expect(heldOf({
+    "Inbox.olai": [
+      `{"id":"h","ord":"a0","title":"Deferrals"}`,
+      `{"id":"d","parent":"h","ord":"a0","title":"already done","done":true}`,
+      `{"id":"b","parent":"h","ord":"a1","title":"an unprocessed line"}`,
+    ].join("\n"),
+  })).toEqual({ count: 1 })
+})
+
+test("a leaf bullet root still counts, and a todo root still counts even when every child is done", () => {
+  expect(heldOf({
+    "Inbox.olai": `{"id":"a","ord":"a0","title":"buy the walnut stain"}`,
+  })).toEqual({ count: 1 })
+
+  expect(heldOf({
+    "Inbox.olai": [
+      `{"id":"t","ord":"a0","title":"the remodel","todo":true}`,
+      `{"id":"a","parent":"t","ord":"a0","title":"demo","done":true}`,
+      `{"id":"b","parent":"t","ord":"a1","title":"paint","done":true}`,
+    ].join("\n"),
+  })).toEqual({ count: 1 })
 })
 
 test("two answers that say the same number are the same reading", () => {

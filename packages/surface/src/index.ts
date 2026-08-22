@@ -712,7 +712,8 @@ export const surface = defineSurface({
     /**
      * HOW FULL THE INBOX IS — the top-level regular nodes of whichever
      * outline `inboxIn` names that still await processing
-     * (`@olai/format`'s {@link InboxHeld}). A done row does not count.
+     * (`@olai/format`'s {@link InboxHeld}). A done row does not count,
+     * and neither does a finished branch.
      *
      * A CELL, and for `pins`' reason: the count is a fact about the
      * directory, not about who is asking or what they are looking at, so
