@@ -51,14 +51,14 @@
  * run off the left of a phone sheet.
  */
 
-import { Show } from "solid-js"
+import { createMemo, Show } from "solid-js"
 
 import { agentIn, type ChatState } from "@olai/surface"
 
 import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import { AgentMark } from "./AgentMark.tsx"
-import { busyIn } from "./busy.ts"
+import { type Busy, busyIn } from "./busy.ts"
 import { LIVE_DOT } from "./live.ts"
 import { Sessions } from "./Sessions.tsx"
 import type { Chat } from "./state.ts"
@@ -72,6 +72,9 @@ export function Header(props: {
   readonly onNew: () => void
 }) {
   const state = () => props.chat.state()
+  /** What the panel is busy with ({@link ./busy.ts}), asked once: two slots on
+   *  this line read it, and it is the same answer for both. */
+  const doing = createMemo(() => busyIn(state()))
 
   return (
     <header class="relative flex shrink-0 items-center gap-2 border-b border-rule/70 px-3 py-2">
@@ -104,7 +107,9 @@ export function Header(props: {
           <Show
             when={state().model}
             fallback={
-              <Show when={statusWord(state())}>{(word) => <span>{word()}</span>}</Show>
+              <Show when={statusWord(state().status, doing())}>
+                {(word) => <span>{word()}</span>}
+              </Show>
             }
           >
             {(model) => <span data-testid={TESTID.chatModel}>{model()}</span>}
@@ -127,15 +132,15 @@ export function Header(props: {
               A turn stopped on a question is still a turn in flight, so this is
               the same slot with the true word in it: "working…" while it is the
               agent's move, "waiting on you" while it is yours. */}
-          <Show when={turnIn(state())}>
-            {(doing) => (
+          <Show when={turnIn(doing())}>
+            {(turn) => (
               <span
                 class="flex items-center gap-1 text-doing"
                 data-testid={TESTID.chatWorking}
                 aria-live="polite"
               >
                 <span class={LIVE_DOT} aria-hidden="true" />
-                {doing() === "waiting" ? "waiting on you" : "working…"}
+                {turn() === "waiting" ? "waiting on you" : "working…"}
               </span>
             )}
           </Show>
@@ -172,25 +177,26 @@ export function Header(props: {
 /** A turn in flight, and which kind — or `undefined`, which is what `<Show>`
  *  takes. A BOOT is not one: it has the word below, in the slot beside this
  *  one, and saying it twice would be the same word beside itself. */
-const turnIn = (state: ChatState): "working" | "waiting" | undefined => {
-  const busy = busyIn(state)
-  return busy === null || busy.kind === "starting" ? undefined : busy.kind
-}
+const turnIn = (doing: Busy | null): "working" | "waiting" | undefined =>
+  doing === null || doing.kind === "starting" ? undefined : doing.kind
 
-/** What to say before the agent has named a model — the cell's own states, `off`
- *  included: the panel draws without an agent, and the header is where a reader
- *  looks first for why it is not doing anything.
+/**
+ * What to say before the agent has named a model.
  *
- *  NOTHING while a turn is in flight, because the live cue beside this one is
- *  already saying it: with no model named, "working…" used to be drawn here and
- *  there, twice on one line. */
-const statusWord = (state: ChatState): string | undefined =>
-  turnIn(state) !== undefined
-    ? undefined
-    : state.status === "off"
-    ? "not configured"
-    : state.status === "booting"
-    ? "starting…"
-    : state.status === "gone"
-    ? "not running"
-    : "ready"
+ * The BUSY states are read off the one decision rather than re-derived from the
+ * status — "booting means starting" is exactly the sentence `./busy.ts` was
+ * pulled out to own — and a turn in flight says nothing here at all, because
+ * the live cue in the slot beside this one is already saying it. With no model
+ * named, "working…" used to be drawn here and there, twice on one line.
+ *
+ * What is left is the three states that are not busy, and the panel draws
+ * without an agent in all of them: the header is where a reader looks first for
+ * why nothing is happening.
+ */
+const statusWord = (
+  status: ChatState["status"],
+  doing: Busy | null,
+): string | undefined => {
+  if (doing !== null) return doing.kind === "starting" ? "starting…" : undefined
+  return status === "off" ? "not configured" : status === "gone" ? "not running" : "ready"
+}

@@ -275,46 +275,59 @@ interface Undelivered {
 }
 
 /**
- * What a person can SEE the agent do — prose, tool frames, questions.
+ * WHAT EACH KIND OF FRAME IS EVIDENCE OF — the one table two questions are
+ * answered from.
  *
- * Everything a turn produces that lands on the transcript as something to look
- * at. It is the narrower of the two counts below and it is the one that answers
- * the question the panel is really asked: *did that turn produce anything?* A
- * turn that ends having said none of these has said nothing, whatever else went
- * over the wire, and the panel used to draw exactly that — nothing — over the
- * message somebody had just sent ({@link begin}).
+ * Two things ask "has the agent said anything since I looked", and they are not
+ * the same question. Exactly one frame kind separates them, and getting that
+ * one wrong is the bug this table was written for:
  *
- * A `model` announcement is deliberately not one: it arrives when a SESSION
- * opens as readily as when a turn starts. Nor is a `trouble`, a `gone` or a
- * `sessionOver`, which are things said ABOUT the agent by this process.
+ *   - **`shown`** is what a person can SEE — prose, tool frames, questions.
+ *     {@link begin} asks it of a turn at both of its endings: *did these words
+ *     produce anything?* A turn that ends having shown none of these has said
+ *     nothing, whatever else went over the wire, and the panel used to draw
+ *     exactly that — nothing — over the message somebody had just sent.
+ *   - **`arrived`** is anything that could only have come from the other end of
+ *     the pipe, drawn or not. {@link cancel} asks it of a turn it has told to
+ *     stop: *is this process still alive down there?* A zero-token usage frame
+ *     answers that — something is reading its input and reporting — and answers
+ *     nothing at all about the first question. It IS the auth-failure signature:
+ *     opencode with no provider key sends a lone `usage_update {used:0}` and
+ *     then a SUCCESSFUL `end_turn`, so the one frame that arrived was the one
+ *     that meant nothing had. One count serving both meant a message that never
+ *     reached a model was neither marked unsent nor spoken about.
+ *   - **`neither`** is everything olai says ABOUT the agent rather than
+ *     anything the agent said: a boot that failed, a process that exited, a
+ *     session that ended. A `model` announcement is one of these too — it
+ *     arrives when a SESSION opens as readily as when a turn starts.
+ *
+ * A RECORD over the closed vocabulary rather than two sets, because
+ * {@link ./events.ts} is closed on purpose and this is a question every member
+ * has to answer. Sets are opt-in: a member added later would default to
+ * `neither` in silence, and the two ways that goes wrong are a turn accused of
+ * silence for something it drew, and a silent turn nobody is told about. The
+ * record makes a new member fail to compile until somebody answers.
  */
-const SHOWN: ReadonlySet<AgentEvent["_tag"]> = new Set([
-  "said",
-  "tool",
-  "asked",
-])
-
-/**
- * ... and everything that could only have come from THE OTHER END OF THE PIPE,
- * whether or not it is drawn — the same three, plus the usage report.
- *
- * TWO SETS RATHER THAN ONE, because two questions were being asked of one
- * count and exactly one of them wanted usage in it:
- *
- *   - **{@link cancel}** asks *is this agent still alive down there* about a
- *     turn it has told to stop. A zero-token usage frame is an answer: the
- *     process is reading its input and reporting. So it counts here.
- *   - **{@link begin}** asks *did these words produce anything a person can
- *     see*, of a turn that failed and of a turn that succeeded. A usage frame
- *     is not an answer to that, and counting it as one is precisely the
- *     auth-failure signature: opencode with no provider key sends a lone
- *     `usage_update {used:0}` and then a SUCCESSFUL `end_turn`, so the one
- *     frame that arrived was the one that meant nothing had.
- *
- * One counter serving both meant a message that never reached a model was
- * neither marked unsent nor spoken about.
- */
-const ARRIVED: ReadonlySet<AgentEvent["_tag"]> = new Set([...SHOWN, "usage"])
+const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "neither" } = {
+  said: "shown",
+  tool: "shown",
+  asked: "shown",
+  usage: "arrived",
+  // A replay is the agent saying what it said BEFORE this turn, so it is
+  // evidence the pipe is alive and evidence of nothing about these words.
+  userSaid: "arrived",
+  replayStarted: "arrived",
+  replayEnded: "arrived",
+  askSettled: "neither",
+  commands: "neither",
+  servers: "neither",
+  model: "neither",
+  session: "neither",
+  sessionTitled: "neither",
+  sessionOver: "neither",
+  gone: "neither",
+  trouble: "neither",
+}
 
 /**
  * What a turn that produced nothing is told to a person.
@@ -531,10 +544,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // arrived since I looked — and a monotonic counter answers that with no
       // clock to read and nothing to reset. {@link cancel} asks the wide one
       // about an agent that was told to stop; {@link begin} asks the narrow one
-      // about a turn, either way it ended. Two counters because the two
-      // questions want opposite answers about a usage frame ({@link ARRIVED}).
-      if (ARRIVED.has(event._tag)) heard++
-      if (SHOWN.has(event._tag)) shown++
+      // about a turn, either way it ended. ONE lookup on the path every frame
+      // of every conversation takes ({@link EVIDENCE}).
+      const evidence = EVIDENCE[event._tag]
+      if (evidence !== "neither") heard++
+      if (evidence === "shown") shown++
       switch (event._tag) {
         case "said":
           publish(transcript.say(event.text))
@@ -853,10 +867,21 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       },
       aside: (row) =>
         Effect.gen(function*() {
+          // THE SAME RULE {@link using} KEEPS, because it is the same hazard
+          // and this is the other place a subprocess is started: an agent
+          // spawned after `stop` has run is one nothing will ever kill, and
+          // `stop` does not know about a probe. A question about stored
+          // conversations is not worth a stray process, so it is refused.
+          if (closing) {
+            return yield* new AcpAgent.AgentGone({
+              gone: "unreachable",
+              why: "the server is shutting down",
+            })
+          }
           const probe = yield* spawn(row, () => {})
-          // STOPPED whichever way the question went. A probe left running is a
-          // subprocess nothing will ever talk to — the exact thing the one-agent
-          // rule exists to prevent, reintroduced by the question about it.
+          // STOPPED whichever way the question went, INTERRUPTION included. A
+          // probe left running is the same stray process one line up, arrived
+          // at from the other direction.
           return yield* Effect.ensuring(probe.sessions, probe.stop)
         }),
       now: () => Date.now(),
@@ -908,12 +933,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       attachments: ReadonlyArray<string>,
       context: ReadonlyArray<NodeContext>,
     ): Effect.Effect<void, OpFailure> =>
-      // BEHIND WHATEVER IS OPENING A CONVERSATION ({@link opening}), which is
-      // what makes "the words are on screen from the moment you send them" and
-      // "a replay empties the transcript" stop contradicting each other. The
-      // permit covers the ROW as well as the delivery, deliberately: a row
-      // written before the replay is a row the replay takes away.
-      opening.withPermit(Effect.gen(function*() {
+      Effect.gen(function*() {
         const said = text.trim()
         // A picture on its own IS a message — "what is this" with a
         // screenshot under it is the usual way of asking — and so is a node on
@@ -925,30 +945,40 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // A path is not authority: it arrived over the wire, and the only ones
         // that mean anything are the ones this conversation wrote. The check
         // and what it says when it fails belong to the directory's own module.
-        for (const path of attachments) yield* files.claim(path)
-
-        // The user's own message goes in FIRST and from the server, so both
-        // tabs see it and a send that fails does not leave one behind. What
-        // the ROW carries is the file NAMES: the tmp path is for the agent,
-        // and a reader wants to see which picture went with which message.
-        const row = transcript.user(said, {
-          ...(attachments.length === 0
-            ? {}
-            : { attachments: attachments.map(Attachments.nameOf) }),
-          // The nodes as the set answered for them, in the row rather than
-          // only in the prompt: what the message was ABOUT is part of what
-          // was said, so it survives a reload and reaches the other tab like
-          // everything else here.
-          ...(context.length === 0 ? {} : { context }),
-        })
-        publish(row.change)
+        //
+        // OUTSIDE the permit below and all at once: each claim is a
+        // `realpath`, nothing is written by one, and a conversation being
+        // opened has no business queueing behind somebody else's filesystem.
+        yield* Effect.forEach(attachments, files.claim, { concurrency: "unbounded" })
 
         const prompt = Attachments.promptWith(
           Context.promptWith(said, context),
           attachments,
         )
-        yield* deliver(row.key, prompt)
-      }))
+        // BEHIND WHATEVER IS OPENING A CONVERSATION ({@link opening}), which is
+        // what makes "the words are on screen from the moment you send them"
+        // and "a replay empties the transcript" stop contradicting each other.
+        // The permit covers the ROW as well as the delivery, deliberately: a
+        // row written before the replay is a row the replay takes away.
+        yield* opening.withPermit(Effect.gen(function*() {
+          // The user's own message goes in FIRST and from the server, so both
+          // tabs see it and a send that fails does not leave one behind. What
+          // the ROW carries is the file NAMES: the tmp path is for the agent,
+          // and a reader wants to see which picture went with which message.
+          const row = transcript.user(said, {
+            ...(attachments.length === 0
+              ? {}
+              : { attachments: attachments.map(Attachments.nameOf) }),
+            // The nodes as the set answered for them, in the row rather than
+            // only in the prompt: what the message was ABOUT is part of what
+            // was said, so it survives a reload and reaches the other tab like
+            // everything else here.
+            ...(context.length === 0 ? {} : { context }),
+          })
+          publish(row.change)
+          yield* deliver(row.key, prompt)
+        }))
+      })
 
     /**
      * Get one prompt to the agent NOW, whatever it is doing — and, when that
@@ -1149,9 +1179,22 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // with no clock to read.
         const quietSince = shown
 
-        /** Nothing a person can see has arrived since this turn was asked for.
-         *  A function rather than a value because it is read at the END of the
-         *  turn, and `shown` moves throughout it. */
+        /**
+         * Nothing a person can see has arrived since this turn was asked for.
+         *
+         * A function rather than a value because it is read at the END of the
+         * turn, and `shown` moves throughout it.
+         *
+         * IT IS THE CONVERSATION'S COUNT, not this turn's, and it cannot be
+         * anything else: a frame names no turn on any wire olai speaks, so
+         * which of two turns in flight drew a row is not a fact this end has.
+         * What that costs is one direction only, which is why it is the right
+         * approximation: a turn that really was silent while a sibling was
+         * talking goes unremarked (nothing is claimed), and a turn that drew
+         * something is never accused of silence. The panel only ever holds two
+         * turns for an agent that queues a mid-turn message rather than
+         * steering it, and it errs towards saying nothing.
+         */
         const quiet = (): boolean => shown === quietSince
 
         const running = yield* Effect.forkDetach(
@@ -1186,7 +1229,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               // that undelivered would contradict the answer sitting above it.
               // What has changed is that "did it arrive" is now answerable —
               // by the turn's own silence, and by `Gone` where it is not.
-              if (shown === quietSince) markUndelivered(key, prompt, outcome.failure.gone)
+              if (quiet()) markUndelivered(key, prompt, outcome.failure.gone)
               // WHETHER THERE IS STILL AN AGENT, which is a different question
               // from whether the turn ran and is answered by the same value: a
               // turn the agent REFUSED is a turn that ended — the process is

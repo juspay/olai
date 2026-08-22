@@ -59,7 +59,16 @@
  * click. Pressing it a second time would do nothing at all.
  */
 
-import { createMemo, createSignal, For, Match, onCleanup, Show, Switch } from "solid-js"
+import {
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  onCleanup,
+  Show,
+  Switch,
+  untrack,
+} from "solid-js"
 
 import { dismissOn } from "../dismiss.ts"
 import { AgentMark } from "./AgentMark.tsx"
@@ -70,7 +79,7 @@ import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import type { Chat, Sessions as Answer } from "./state.ts"
 import { whenOf } from "./when.ts"
-import type { OpFailure, Unreachable } from "@olai/surface"
+import type { OpFailure, SessionInfo, Unreachable } from "@olai/surface"
 
 /**
  * The picker is a small state machine, and it is ONE signal because it is one
@@ -86,10 +95,14 @@ import type { OpFailure, Unreachable } from "@olai/surface"
  * arrive as `[]` and be drawn as "no stored conversations" — a claim about the
  * agent's disk, standing in for never having reached it.
  *
- * The SAME distinction now lives inside the listed arm as well, because the
- * list spans every installed agent: one of them being unaskable is a fact about
- * that agent rather than about the call, so it is drawn beside the others'
- * conversations instead of instead of them.
+ * The SAME distinction now lives INSIDE the listed arm, because the list spans
+ * every installed agent: one of them being unaskable is a fact about that agent
+ * rather than about the call, so it is drawn beside the others' conversations
+ * rather than instead of them, and it has a name of its own. That is where the
+ * server puts every reason it has — the verb cannot fail for an agent any more.
+ * What is left in the REFUSED arm is the call itself not landing, which no
+ * scenario can drive from a browser (a dropped socket, a server that went) and
+ * which must still not be drawn as an empty list.
  */
 type Picker = { readonly _tag: "shut" } | { readonly _tag: "asking" } | Answer
 
@@ -140,24 +153,36 @@ export function Sessions(props: { readonly chat: Chat }) {
     })
   }
 
-  const current = () => props.chat.state().session?.id ?? null
+  /** Which conversation the panel is IN. A memo, not a plain read: three
+   *  things per row ask it, and each of those would otherwise be its own
+   *  subscription to the whole chat cell — recomputing the same id on every
+   *  usage frame of every turn, for every row in the list. */
+  const current = createMemo(() => props.chat.state().session?.id ?? null)
 
   /**
    * The answer, arranged for a reader ({@link ./grouped.ts}).
    *
    * The roster is the panel's own, so the groups come in the order the agent
    * picker offers them in rather than in the order somebody last typed
-   * something. A MEMO because three things read it — whether there is anything
-   * at all, the list itself, and whether there is more than one group, which is
-   * what the headings turn on — and regrouping the list once per row drawn is a
-   * quadratic answer to a question with one answer.
+   * something — and it is read UNTRACKED, which is the whole point of the memo
+   * being one. The roster changes once, when the server starts; the chat cell
+   * it lives on changes several times a turn (usage, model, questions). Tracked,
+   * every one of those would rebuild the group objects, and `<For>` diffs by
+   * reference — so the entire list would be torn down and re-rendered under
+   * somebody's cursor while they were reading it. The list is asked for afresh
+   * every time it opens, so there is nothing to lose by not following it.
    */
   const groups = createMemo((): ReadonlyArray<Grouped> => {
     const answer = picker()
     return answer._tag === "listed"
-      ? groupedByAgent(answer.sessions, props.chat.state().roster)
+      ? groupedByAgent(answer.sessions, untrack(() => props.chat.state().roster))
       : []
   })
+
+  /** Whether the groups are worth a heading each. ONE agent on the machine is a
+   *  heading over the whole list, saying what the panel's own header already
+   *  says — the picker's own rule, read at the other door. */
+  const headed = createMemo(() => groups().length > 1)
 
   /** The agents that could not be asked at all. Beside the rows rather than
    *  instead of them: one broken agent must not take the other's conversations
@@ -167,9 +192,9 @@ export function Sessions(props: { readonly chat: Chat }) {
     return answer._tag === "listed" ? answer.unreachable : []
   }
 
-  /** What a person reads for that agent ({@link ./grouped.ts}) — the same
-   *  lookup the headings go through. */
-  const named = (agent: string): string => nameOf(props.chat.state().roster, agent)
+  /** What a person reads for that agent ({@link ./grouped.ts}). */
+  const named = (agent: string): string =>
+    nameOf(untrack(() => props.chat.state().roster), agent)
 
   return (
     <>
@@ -239,7 +264,7 @@ export function Sessions(props: { readonly chat: Chat }) {
                             own header already says. The same shape as the
                             picker's own rule — one installed agent is not a
                             choice. */}
-                        <Show when={groups().length > 1}>
+                        <Show when={headed()}>
                           <li
                             class="flex items-center gap-1.5 px-2 pt-2 pb-1 text-[0.625rem] text-muted"
                             data-testid={TESTID.chatSessionAgent}
@@ -251,45 +276,17 @@ export function Sessions(props: { readonly chat: Chat }) {
                         </Show>
                         <For each={group.sessions}>
                           {(session) => (
-                            <li>
-                              <button
-                                type="button"
-                                class="flex w-full items-baseline gap-2 rounded px-2 py-1 text-left text-xs hover:bg-rule"
-                                data-testid={TESTID.chatSession}
-                                data-session-id={session.id}
-                                data-agent={session.agent}
-                                data-current={session.id === current()}
-                                disabled={session.id === current()}
-                                onClick={() => {
-                                  setPicker({ _tag: "shut" })
-                                  // WITH the agent the row carries: this may be
-                                  // the one the panel is not talking to, and
-                                  // the id means nothing to the other.
-                                  props.chat.loadSession(session.agent, session.id)
-                                }}
-                              >
-                                <span
-                                  class={`min-w-0 flex-1 truncate ${
-                                    session.id === current() ? "text-accent" : ""
-                                  }`}
-                                >
-                                  {session.title ?? session.id}
-                                </span>
-                                {/* The stamp does not shrink and the title
-                                    does: two rows that share a title (a
-                                    `/clear` leaves a pair) differ in nothing
-                                    else, so the one thing that tells them apart
-                                    may not be the thing a long title pushes off
-                                    the end. */}
-                                <Show when={whenOf(session.updatedAt)}>
-                                  {(at) => (
-                                    <span class="shrink-0 font-mono text-[0.625rem] text-muted">
-                                      {at()}
-                                    </span>
-                                  )}
-                                </Show>
-                              </button>
-                            </li>
+                            <Row
+                              session={session}
+                              current={session.id === current()}
+                              onPick={() => {
+                                setPicker({ _tag: "shut" })
+                                // WITH the agent the row carries: this may be
+                                // the one the panel is not talking to, and the
+                                // id means nothing to the other.
+                                props.chat.loadSession(session.agent, session.id)
+                              }}
+                            />
                           )}
                         </For>
                       </>
@@ -303,7 +300,7 @@ export function Sessions(props: { readonly chat: Chat }) {
                   {(agent) => (
                     <li
                       class="px-2 py-1 text-xs text-muted"
-                      data-testid={TESTID.chatSessionsRefused}
+                      data-testid={TESTID.chatSessionUnreachable}
                       data-agent={agent.agent}
                     >
                       {named(agent.agent)} could not be asked — {agent.why}
@@ -316,6 +313,51 @@ export function Sessions(props: { readonly chat: Chat }) {
         </ul>
       </Show>
     </>
+  )
+}
+
+/**
+ * ONE stored conversation, as a row.
+ *
+ * Its own component because the list around it grew a grouping layer and this
+ * did not change at all: nested inside, the button that a person actually
+ * clicks sat eight elements deep, so the loop over groups and the thing a row
+ * IS could not be read on one screen. It takes what it draws and what to do
+ * about a click, and knows nothing about groups, pickers or agents.
+ */
+function Row(props: {
+  readonly session: SessionInfo
+  /** Whether this is the conversation the panel is already in. Passed rather
+   *  than looked up, so the row does not need the cell. */
+  readonly current: boolean
+  readonly onPick: () => void
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        class="flex w-full items-baseline gap-2 rounded px-2 py-1 text-left text-xs hover:bg-rule"
+        data-testid={TESTID.chatSession}
+        data-session-id={props.session.id}
+        data-agent={props.session.agent}
+        data-current={props.current}
+        // Loading the conversation you are already in would throw away a
+        // transcript to replace it with the same one.
+        disabled={props.current}
+        onClick={() => props.onPick()}
+      >
+        <span class={`min-w-0 flex-1 truncate ${props.current ? "text-accent" : ""}`}>
+          {props.session.title ?? props.session.id}
+        </span>
+        {/* The stamp does not shrink and the title does: two rows that share a
+            title (a `/clear` leaves a pair) differ in nothing else, so the one
+            thing that tells them apart may not be the thing a long title pushes
+            off the end. */}
+        <Show when={whenOf(props.session.updatedAt)}>
+          {(at) => <span class="shrink-0 font-mono text-[0.625rem] text-muted">{at()}</span>}
+        </Show>
+      </button>
+    </li>
   )
 }
 

@@ -50,7 +50,7 @@
 import type { Listed, SessionInfo } from "@olai/surface"
 import { Effect, Semaphore } from "effect"
 
-import type { AgentGone } from "./agent.ts"
+import { type AgentGone, newestFirst } from "./agent.ts"
 import type { Installed } from "./agents/roster.ts"
 import type { Stored } from "./events.ts"
 
@@ -128,29 +128,45 @@ export const make = (where: Where): Effect.Effect<Listings> =>
     /** One agent started at a time. A click on `chats` must not be a reason to
      *  start every agent on the machine at once. */
     const oneAtATime = yield* Semaphore.make(1)
-    const kept = new Map<string, Kept>()
+    const answers = new Map<string, Kept>()
+
+    /** Write one down, with the moment it was true. */
+    const keep = (agent: string, sessions: ReadonlyArray<SessionInfo>): void => {
+      answers.set(agent, { at: where.now(), sessions })
+    }
 
     /** That agent's answer if it is still worth reusing — `null` for one never
      *  asked and for one asked too long ago, which are the same thing to a
      *  caller: go and ask. */
     const fresh = (agent: string): ReadonlyArray<SessionInfo> | null => {
-      const had = kept.get(agent)
+      const had = answers.get(agent)
       if (had === undefined) return null
       return where.now() - had.at < KEEP_FOR_MS ? had.sessions : null
     }
 
-    /** One agent's answer, in the rows the picker draws. */
-    const rowsOf = (row: Installed, stored: ReadonlyArray<Stored>): ReadonlyArray<SessionInfo> =>
-      stored.map((entry): SessionInfo => ({
+    /** One agent answered, in the rows the picker draws. */
+    const found = (row: Installed, stored: ReadonlyArray<Stored>): Listed => ({
+      sessions: stored.map((entry): SessionInfo => ({
         id: entry.id,
         agent: row.id,
         title: entry.title,
         updatedAt: entry.updatedAt,
-      }))
+      })),
+      unreachable: [],
+    })
 
+    /** ... and the other thing one row's answer can be. Named beside its
+     *  sibling because the two are the arms of one question, and a literal
+     *  written out at each of four sites is four places to keep in step. */
     const couldNotAsk = (row: Installed, gone: AgentGone): Listed => ({
       sessions: [],
       unreachable: [{ agent: row.id, why: gone.why }],
+    })
+
+    /** An answer this process already had. */
+    const kept = (sessions: ReadonlyArray<SessionInfo>): Listed => ({
+      sessions,
+      unreachable: [],
     })
 
     /** What one row has stored, whichever way it has to be asked. */
@@ -159,35 +175,41 @@ export const make = (where: Where): Effect.Effect<Listings> =>
         const live = where.running(row)
         if (live !== null) {
           return Effect.match(live, {
-            onSuccess: (stored) => ({ sessions: rowsOf(row, stored), unreachable: [] }),
+            onSuccess: (stored) => found(row, stored),
             onFailure: (gone) => couldNotAsk(row, gone),
           })
         }
         const had = fresh(row.id)
-        if (had !== null) return Effect.succeed({ sessions: had, unreachable: [] })
+        if (had !== null) return Effect.succeed(kept(had))
         return oneAtATime.withPermit(Effect.gen(function*() {
-          // Read AGAIN under the permit: several rows queueing on one click
-          // would otherwise each have decided to ask before the first of them
-          // answered.
+          // Read AGAIN under the permit: two tabs opening the picker at once
+          // would otherwise both have decided to ask before either answered,
+          // and the second would start a second subprocess for the answer the
+          // first is about to write down.
           const now = fresh(row.id)
-          if (now !== null) return { sessions: now, unreachable: [] }
+          if (now !== null) return kept(now)
           const asked = yield* Effect.result(where.aside(row))
           if (asked._tag === "Failure") return couldNotAsk(row, asked.failure)
-          const sessions = rowsOf(row, asked.success)
+          const answer = found(row, asked.success)
           // ONLY A SUCCESS IS KEPT: a refusal held for fifteen seconds is an
           // agent that stays broken on screen after it has been mended.
-          kept.set(row.id, { at: where.now(), sessions })
-          return { sessions, unreachable: [] }
+          keep(row.id, answer.sessions)
+          return answer
         }))
       })
 
     return {
+      // UNBOUNDED, and the permit is what serializes: the only expensive
+      // thing here is a cold start, and that is one at a time whichever order
+      // the rows are asked in. Held to one, the agent already running and every
+      // cached answer would queue behind whichever subprocess is starting — a
+      // click on `chats` costing the sum rather than the maximum.
       all: Effect.map(
-        Effect.forEach(where.roster, storedBy, { concurrency: 1 }),
+        Effect.forEach(where.roster, storedBy, { concurrency: "unbounded" }),
         asOneList,
       ),
       forget: (agent) => {
-        kept.delete(agent)
+        answers.delete(agent)
       },
     }
   })
@@ -201,10 +223,10 @@ export const make = (where: Where): Effect.Effect<Listings> =>
  * belongs to is on the row ({@link SessionInfo}), which is what lets the panel
  * group them again for drawing without the sort having to know it will.
  *
- * AN UNDATED ROW SORTS LAST, never first, which is the rule
- * {@link ./agent.ts}'s own sort makes for one agent's list: an agent that gave
- * no timestamp has said nothing about when, and reading that as "just now"
- * would put it above every conversation that did say.
+ * IT IS {@link ./agent.ts}'s OWN COMPARATOR, imported rather than restated:
+ * one agent's list is sorted there, this merge is sorted here, and the two
+ * answers are what a boot adopts and what a person clicks. They must not be
+ * able to disagree about which of two identical-looking rows is the newest.
  *
  * The UNREACHABLE keep the roster's order, which is the order they were asked
  * in — there is nothing else to sort them by, and a list of refusals that
@@ -214,8 +236,6 @@ export const make = (where: Where): Effect.Effect<Listings> =>
  * agent, and the one a reader is most likely to reach for.
  */
 export const asOneList = (answers: ReadonlyArray<Listed>): Listed => ({
-  sessions: answers
-    .flatMap((answer) => answer.sessions)
-    .sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")),
+  sessions: answers.flatMap((answer) => answer.sessions).sort(newestFirst),
   unreachable: answers.flatMap((answer) => answer.unreachable),
 })

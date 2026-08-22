@@ -950,8 +950,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 title: entry.title ?? null,
                 updatedAt: entry.updatedAt ?? null,
               }))
-              // An entry the agent gave no timestamp sorts LAST, not first.
-              .sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")),
+              .sort(newestFirst),
         )
         : Effect.succeed([])
 
@@ -1305,9 +1304,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     /** The subprocess, and nothing about a conversation. Its own step because
      *  the two things a caller can want are genuinely different: {@link boot}
-     *  wants the panel IN a conversation, and {@link onProcess} wants only
-     *  somebody to talk to — because what it does next either says which
-     *  conversation itself, or is a question about no conversation at all. */
+     *  wants the panel IN a conversation, and {@link opening} and
+     *  {@link listing} want only somebody to talk to — because what each does
+     *  next either says which conversation itself, or is a question about no
+     *  conversation at all. */
     const bringUpProcess = Effect.gen(function*() {
       if (stopped) return yield* shuttingDown()
       const started = live ?? (yield* start())
@@ -1317,7 +1317,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     /**
      * The boot itself, WITHOUT the permit — so that a caller which has to hold
-     * that permit across more than a boot can ({@link onProcess}).
+     * that permit across more than a boot can ({@link opening}).
      *
      * Split from {@link boot} rather than duplicated, because the thing being
      * serialized is not "booting" but OPENING A CONVERSATION, and there are two
@@ -1381,30 +1381,47 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * and the initial boot has always behaved this way; what was missing is
      * that a picker-driven open released the permit before doing its work.
      *
-     * THREE VERBS TAKE IT, not two. The two that open a conversation say which
-     * one themselves, which is why they must not let `bringUp` pick one first.
-     * {@link Agent.sessions} wants no conversation at all: LISTING is a
-     * question, not a visit, and it is asked of agents this panel is not
-     * talking to ({@link ./listings.ts}) — an agent started to answer it and
-     * stopped again must not enter, replay and REMEMBER a conversation on the
-     * way past, which is exactly what booting into one would do.
+     * BOTH CALLERS ARE VERBS THAT OPEN ONE, and they say which one themselves
+     * — which is why they must not let `bringUp` pick a different one first
+     * (the boot's adopted conversation, replayed in full, only to be replaced).
+     * That was invisible while the process was always already up by the time
+     * anybody pressed anything; an agent that is started when a conversation
+     * needs it ({@link ./chat.ts}) reaches this cold every time somebody picks
+     * one.
      */
-    const onProcess = <A>(
+    const opening = <A>(
       use: (at: Live) => Effect.Effect<A, AgentGone>,
     ): Effect.Effect<A, AgentGone> =>
       booting.withPermit(
         Effect.gen(function*() {
-          // THE PROCESS, not a conversation. Both callers open one of their own
-          // in the next breath, and `bringUp` would open a DIFFERENT one first
-          // — the boot's adopted conversation, replayed in full — only to
-          // replace it. That was invisible while the process was always already
-          // up by the time anybody pressed anything; an agent that is started
-          // when a conversation needs it ({@link ./chat.ts}) reaches this cold
-          // every time somebody picks one.
           yield* bringUpProcess
           return yield* onLive(use)
         }),
       )
+
+    /**
+     * ... and the LISTING, which wants the same process and holds the permit
+     * for no longer than starting one.
+     *
+     * A different rule, and the difference is the whole reason it is not spelled
+     * {@link opening}: {@link Agent.sessions} opens nothing, so "one open at a
+     * time" is not what it needs. What it needs is "one COLD START at a time",
+     * which is `bringUpProcess` and nothing after it. Held across the round
+     * trip as well, it would serialize the picker against any open of this
+     * agent in flight — press `chats` while a conversation is replaying and the
+     * list waits out the replay, which is a question about stored conversations
+     * queueing behind a conversation.
+     *
+     * It must not BOOT, though, which is the half it shares with the verbs
+     * above: a listing is a question, not a visit, and it is asked of agents
+     * this panel is not talking to at all ({@link ./listings.ts}). An agent
+     * started to answer it and stopped again must not enter, replay and
+     * REMEMBER a conversation on the way past.
+     */
+    const listing = <A>(
+      use: (at: Live) => Effect.Effect<A, AgentGone>,
+    ): Effect.Effect<A, AgentGone> =>
+      Effect.flatMap(booting.withPermit(bringUpProcess), () => onLive(use))
 
     /** ... and the ones that also need a conversation to act IN. */
     const withSession = <A>(
@@ -1543,7 +1560,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       prompt,
       steer,
       cancel,
-      newSession: onProcess((at) =>
+      newSession: opening((at) =>
         Effect.gen(function*() {
           session = null
           // BEFORE the break, so the question is settled on the row it is
@@ -1554,7 +1571,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         })
       ),
       loadSession: (id: string) =>
-        onProcess((at) =>
+        opening((at) =>
           Effect.gen(function*() {
             if (!at.canLoad) {
               return yield* new AgentGone({
@@ -1575,11 +1592,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             yield* load(at, id, wanted?.title ?? null, modelFor(id))
           })
         ),
-      // THE PROCESS, not a conversation — see {@link onProcess}. This used to
-      // boot into one, which was invisible while the only thing that ever asked
+      // THE PROCESS, not a conversation, and the permit only for as long as
+      // starting one — see {@link listing}. This used to boot into a
+      // conversation, which was invisible while the only thing that ever asked
       // was a panel already in one, and is not invisible now that an agent is
       // started to answer this and stopped again.
-      sessions: onProcess(storedFor),
+      sessions: listing(storedFor),
       answer: (id, answers) =>
         Effect.suspend(() => {
           const took = questions.answer(id, answers)
@@ -1820,6 +1838,25 @@ const detailOf = (input: unknown, output: unknown): string | undefined => {
   if (output !== undefined && output !== null) parts.push(JSON.stringify(output, null, 2))
   return parts.length === 0 ? undefined : parts.join("\n\n")
 }
+
+/**
+ * NEWEST FIRST, and an entry the agent gave no timestamp sorts LAST.
+ *
+ * One comparator because two consumers depend on the same answer and must not
+ * be able to disagree about it: this file's sort is what a boot picks the
+ * conversation to adopt from ({@link adopt}), and {@link ./listings.ts}'s merge
+ * is what the picker draws. Change the tie-break in one — fall back to the id
+ * for two `/clear` siblings sharing a stamp, stop coercing `null` to `""` —
+ * and the conversation the panel comes back to and the row a person clicks stop
+ * agreeing about which of two identical-looking rows is the newest.
+ *
+ * The undated rule is the load-bearing half: an agent that gave no timestamp
+ * has said nothing about when, and reading that as "just now" would put it over
+ * every conversation that did say — including, at a boot, over the one this
+ * directory was actually in.
+ */
+export const newestFirst = (a: Stored, b: Stored): number =>
+  (b.updatedAt ?? "").localeCompare(a.updatedAt ?? "")
 
 /**
  * WHICH stored conversation the panel opens in, out of the ones this directory

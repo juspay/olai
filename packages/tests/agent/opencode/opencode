@@ -86,7 +86,7 @@
 import { existsSync, rmSync } from "node:fs";
 
 import { readMessages } from "../../support/ndjson.ts";
-import { emitter, released, speaking } from "../../support/scripted.ts";
+import { emitter, MARKER, released, speaking } from "../../support/scripted.ts";
 
 /** The wire, and what an agent puts on it — the transport this file shares with
  *  the other scripted agent ({@link ../../support/scripted.ts}). What is NOT
@@ -116,7 +116,7 @@ const STORED = process.env.OLAI_FAKE_OPENCODE_STORED ?? "";
  *  is removed as it is read, so one arming holds one open and the retry behind
  *  it is not held too. */
 const holdingOpen = (): boolean => {
-  const marker = `${cwd}/.agent-hold-open`;
+  const marker = `${cwd}/${MARKER.holdOpen}`;
   if (!existsSync(marker)) return false;
   rmSync(marker, { force: true });
   return true;

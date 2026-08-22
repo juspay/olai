@@ -23,6 +23,7 @@ import { NEAR } from "@olai/web/src/client/chat/near.ts";
 import { selector, TESTID, type TestId } from "@olai/web/src/client/testids.ts";
 
 import { retypedAndTaken } from "../support/atonce.ts";
+import { MARKER } from "../support/scripted.ts";
 import { saysThat } from "../support/said.ts";
 
 import {
@@ -81,9 +82,9 @@ import {
   CHAT_SEND,
   CHAT_SESSION,
   CHAT_SESSION_AGENT,
+  CHAT_SESSION_UNREACHABLE,
   CHAT_SESSION_LIST,
   CHAT_SESSIONS,
-  CHAT_SESSIONS_REFUSED,
   CHAT_SPAWN,
   CHAT_SPAWN_WORKING,
   CHAT_STRIP,
@@ -233,7 +234,7 @@ When("I send the chat message", async function (this: OlaiWorld) {
  *  clock, so "mid-turn" is a state the scenario ENDS rather than one it races.
  *  A dot-file: the store's walk prunes those, so this is not an edit. */
 When("the agent is released", async function (this: OlaiWorld) {
-  fs.writeFileSync(path.join(this.scratch(), ".agent-release"), "");
+  fs.writeFileSync(path.join(this.scratch(), MARKER.release), "");
 });
 
 /** Ask the next `session/load` of `an older conversation` to hold a last
@@ -269,7 +270,7 @@ When(
  *  That stretch is the one in which the panel is between conversations, which
  *  is the only window a second open can be started in. */
 When("the next conversation load will hang", function (this: OlaiWorld) {
-  fs.writeFileSync(path.join(this.scratch(), ".agent-hold-load"), "");
+  fs.writeFileSync(path.join(this.scratch(), MARKER.holdLoad), "");
 });
 
 /** ... and the same for the FIRST open of a freshly picked agent, which is the
@@ -278,7 +279,7 @@ When("the next conversation load will hang", function (this: OlaiWorld) {
  *  anything to type into. On a laptop that is a second or two and nobody can
  *  aim at it; here it lasts until the scenario says when. */
 When("the next agent boot will hang", function (this: OlaiWorld) {
-  fs.writeFileSync(path.join(this.scratch(), ".agent-hold-open"), "");
+  fs.writeFileSync(path.join(this.scratch(), MARKER.holdOpen), "");
 });
 
 /** ...and it stops refusing, so `try again` has something to succeed at. */
@@ -2085,14 +2086,21 @@ Then("the chat says nothing went wrong", async function (this: OlaiWorld) {
   assert.strictEqual(await this.page.locator(CHAT_TROUBLE).count(), 0);
 });
 
+/** ONE AGENT of the several installed could not be asked — a different claim
+ *  from the one above, and the whole reason it has a locator of its own: this
+ *  one leaves every other agent's conversations on the screen, and the picker
+ *  did not refuse. Named by the agent, so a list with two broken agents in it
+ *  is two assertions rather than one ambiguous locator. */
 Then(
-  "the picker refuses, saying {string}",
-  async function (this: OlaiWorld, reason: string) {
-    const refused = this.page.locator(CHAT_SESSIONS_REFUSED);
-    await refused.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  "the picker says {string} could not be asked, with {string}",
+  async function (this: OlaiWorld, agent: string, reason: string) {
+    const line = this.page.locator(
+      `${CHAT_SESSION_UNREACHABLE}${attr("data-agent", agent)}`,
+    );
+    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.ok(
-      oneLine(await refused.innerText()).includes(reason),
-      `the picker to give the reason "${reason}"`,
+      oneLine(await line.innerText()).includes(reason),
+      `the picker to give "${agent}"'s own reason, "${reason}"`,
     );
   },
 );

@@ -54,7 +54,7 @@ import {
   type Listed,
   UsageFailure,
 } from "@olai/surface"
-import { type Accessor, createEffect, createSignal, on } from "solid-js"
+import { type Accessor, createEffect, createMemo, createSignal, on } from "solid-js"
 
 import { olai } from "../wire.ts"
 import { type Call, run } from "../run.ts"
@@ -270,16 +270,31 @@ export const createChat = (): Chat => {
    * is a turn we would be lying about, `gone` is a process this tab cannot see,
    * and `off` is a machine with no agent at all.
    */
-  const state: Accessor<ChatState> = () => {
+  const state: Accessor<ChatState> = createMemo((): ChatState => {
     const now = served()
     return starting() > 0 && now.status === "idle" ? { ...now, status: "booting" } : now
-  }
+  })
+
+  // ... and this tab's guess lives only until the SERVER has one. The moment
+  // the served status is anything but `idle`, the server has taken the story
+  // over — it says `booting` itself, or the open finished, or the agent went —
+  // and a press still counted here would be a fiction outliving its cause. It
+  // is also the bound on the one way the count could stick: a call that never
+  // settles never runs its `done`.
+  createEffect(
+    on(() => served().status, (status) => {
+      if (status !== "idle") setStarting(0)
+    }, { defer: true }),
+  )
 
   /** A verb that opens a conversation: the panel says so from the click, and
-   *  stops saying it when the call comes back — however it went. */
+   *  stops saying it when the call comes back — however it went. `max(0, …)`
+   *  because the effect above can zero the count while a call is still in
+   *  flight, and a negative one would report `booting` for every later press
+   *  that ended. */
   const opens = (effect: Call<unknown>) => {
     setStarting((held) => held + 1)
-    verb(effect, () => setStarting((held) => held - 1))
+    verb(effect, () => setStarting((held) => Math.max(0, held - 1)))
   }
 
   /** Every verb the same way: clear the last refusal, run, and keep whatever

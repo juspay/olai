@@ -883,6 +883,10 @@ export const CHAT_SESSION = selector(TESTID.chatSession);
 /** The heading over one agent's rows in the chats list. Drawn only where more
  *  than one agent has conversations here. */
 export const CHAT_SESSION_AGENT = selector(TESTID.chatSessionAgent);
+/** One agent in that list that could not be asked what it has stored. Its own
+ *  selector and not the whole call's refusal, because the two are two states:
+ *  this one leaves every other agent's conversations on the screen. */
+export const CHAT_SESSION_UNREACHABLE = selector(TESTID.chatSessionUnreachable);
 export const CHAT_TRANSCRIPT = selector(TESTID.chatTranscript);
 export const CHAT_MISSING = selector(TESTID.chatMissing);
 export const CHAT_MISSING_SERVER = selector(TESTID.chatMissingServer);

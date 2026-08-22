@@ -390,8 +390,8 @@ Feature: Choosing an agent
     When I choose the agent "claude"
     And I ask the agent "lose"
     And I open the session picker
-    # Named, in its own words.
-    Then the picker refuses, saying "the conversation store is unreadable"
+    # Named, in its own words, as ONE agent's trouble.
+    Then the picker says "claude" could not be asked, with "the conversation store is unreadable"
     # ... and the other agent's are still there, which is the half a refusal
     # about the whole call would have taken away.
     And the chats list shows "an opencode conversation" under the agent "opencode"
