@@ -159,7 +159,49 @@ LABEL=after bash wire.sh
 
 `wire.ts` / `wire.sh` are the same kind of thing as `evidence.ts` one section up — not part of the suite, never run by `just e2e` — and they answer the question a screenshot cannot: how many bytes a session cost, and down which of the two wires. It opens the app, opens a saved page of a megabyte, rewrites it three times while it is on screen and then opens a note, counting every websocket frame the tab was delivered and every byte fetched off `/media/`.
 
-That is `SESSION=preview`, the first of THREE. `SESSION=pages` walks an ordinary reading session over a generated vault, which is how `vault-in-browser`'s trade — a small first frame against a round trip per navigation — landed as a number. `SESSION=filter` counts ASKS rather than bytes: it opens a narrowed outline over a 90,000-node vault, picks thirty rows and ticks them off, and reports how many times the page asked the matcher what its filter selects. That third one is the instrument `reactivity-after-the-flip` §3.5 was measured with, and it is what said the coalescing that finding asked for could not help — the ask was already one per published revision, and this gesture's revisions are a procedure round trip apart (the edits go out one at a time through the editor's queue), which is further apart than any window the filter could honestly hold. It is then the ACCEPTANCE TEST for the fix that did work ([../../docs/brainstorming/filter-rides-the-page.md](../../docs/brainstorming/filter-rides-the-page.md)): the narrowing is a stream over the page now, so the gesture costs the matcher nothing at all. The counter knows BOTH spellings of the ask — the old `search.matching` procedure and the new `narrowing` subscribe — because `ROOT=` is the whole point of the driver and the two worktrees it measures are on either side of that change.
+That is `SESSION=preview`, the first of FOUR. `SESSION=pages` walks an ordinary reading session over a generated vault, which is how `vault-in-browser`'s trade — a small first frame against a round trip per navigation — landed as a number. `SESSION=filter` counts ASKS rather than bytes: it opens a narrowed outline over a 90,000-node vault, picks thirty rows and ticks them off, and reports how many times the page asked the matcher what its filter selects. That third one is the instrument `reactivity-after-the-flip` §3.5 was measured with, and it is what said the coalescing that finding asked for could not help — the ask was already one per published revision, and this gesture's revisions are a procedure round trip apart (the edits go out one at a time through the editor's queue), which is further apart than any window the filter could honestly hold. It is then the ACCEPTANCE TEST for the fix that did work ([../../docs/brainstorming/filter-rides-the-page.md](../../docs/brainstorming/filter-rides-the-page.md)): the narrowing is a stream over the page now, so the gesture costs the matcher nothing at all. The counter knows BOTH spellings of the ask — the old `search.matching` procedure and the new `narrowing` subscribe — because `ROOT=` is the whole point of the driver and the two worktrees it measures are on either side of that change.
+
+`SESSION=chat` is the FOURTH, and it counts a second number the other three do
+not: **frames** as well as bytes. It asks the scripted agent for a
+five-paragraph answer — 3,180 bytes, 634 chunks of five characters, the shape a
+model's own tokens arrive in — and reports what one turn cost. Two things make
+it a different instrument from the three above rather than a fourth session of
+the same one.
+
+The first is that it needs an AGENT, and it is the only session that does:
+
+```bash
+AGENT=$PWD/agent/fake-acp-agent.ts SESSION=chat bash wire.sh
+```
+
+`support/serve.sh` wires `AGENT` through as the served server's
+`OLAI_ACP_AGENT` (and pins `OLAI_AGENT_PATH=` empty, so which agents the driver
+finds is a property of the driver and never of the laptop it runs on). Without
+it the panel comes up with no agent to send to, and the driver says so and stops
+rather than waiting out a timeout on an attribute.
+
+The second is `DELAY=`, and it is the whole reason the session exists in this
+shape. `transcript-stream-quadratic` is TWO defects, and only one of them is
+bytes: a subscription whose transport acknowledges each frame carries one
+publish per round trip, so the cost of a streamed answer is chunks × RTT and
+does not move when the link gets fatter. None of that is visible on a loopback
+socket, where a round trip is a hundred microseconds — which is exactly why it
+shipped. `DELAY=125` puts a relay in front of the server that holds every chunk
+for that many milliseconds in each direction (`delay.ts`), so a round trip
+through it costs twice that and the numbers on the other side are the numbers a
+reader in another country gets:
+
+```bash
+AGENT=$PWD/agent/fake-acp-agent.ts SESSION=chat DELAY=125 bash wire.sh
+```
+
+The session asks the agent twice — once paced the way a model paces its tokens
+(`stream slow`), once as fast as the pipe will take them — and each mark reports
+three times as well as the counts: when the AGENT finished (the panel's own cell
+going idle, which is not queued behind the answer), when the ANSWER finished
+arriving, and the gap between them. On loopback those two are the same instant.
+On a link with distance in it they are not, and that gap is what a reader
+experiences as an answer being typed out that was finished a minute ago.
 
 `ROOT=` is the knob it exists for: the driver imports nothing of olai, so pointing it at a second worktree measures THAT branch's server through the same session, and the two numbers are comparable. That is how `preview-body-not-shipped`'s were taken — a previewed page's body used to cross the socket as well as the route, so the same session read 3.9 MB on the socket before and about 50 kB after (which is the note, and only the note).
 

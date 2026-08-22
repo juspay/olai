@@ -23,10 +23,26 @@ const [lastAgentText, setLastAgentText] = createSignal<string | undefined>(
 /** Last agent prose the open panel has seen, or `undefined` if none yet. */
 export const lastAgentPreview: Accessor<string | undefined> = lastAgentText
 
+/**
+ * As much of an answer as a pill can ever draw.
+ *
+ * The face is 72 characters ({@link previewText}); this is the length of text
+ * that CANNOT change what those 72 are, whatever the whitespace in it collapses
+ * to. It matters because the answer this is handed grows while a turn runs, so
+ * flattening the whole of it is the answer walked once per frame of itself —
+ * which is quadratic in an answer's length, for a line nobody can read past
+ * the first sentence of.
+ */
+const ENOUGH = 512
+
 /** Remember plain text for the minimized face. Empty strings are ignored. */
 export const rememberAgentText = (text: string | undefined): void => {
   if (text === undefined) return
-  const flat = text.replace(/\s+/g, " ").trim()
+  const flatten = (words: string) => words.replace(/\s+/g, " ").trim()
+  // The head, and the whole of it only when the head says nothing — which for
+  // prose means half a kilobyte of pure whitespace, and is here so that the
+  // clamp cannot be the reason a pill goes blank.
+  const flat = flatten(text.slice(0, ENOUGH)) || flatten(text)
   if (flat === "") return
   setLastAgentText(flat)
 }

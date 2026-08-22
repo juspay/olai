@@ -44,11 +44,20 @@ olai_port_free() {
 # answers, and leave the pid in `$OLAI_SERVER` and the bound address in
 # `$OLAI_URL` for the caller.
 #
-# `OLAI_ACP_AGENT=` empty: a driver is not a chat scenario, and an agent it
-# never speaks to is a process spawned for nothing. `OLAI_DIST_DIR` is the
-# client that `just build-client` wrote into that same worktree — the one thing
-# a driver has to be pointed at, and the one thing that makes `root` a knob
-# rather than a constant.
+# `OLAI_ACP_AGENT=` empty by default: most drivers are not chat scenarios, and
+# an agent one never speaks to is a process spawned for nothing. A driver that
+# IS about the conversation names one in `AGENT` — the scripted agent, whose
+# whole point is that a turn is deterministic — and gets it verbatim.
+#
+# `OLAI_AGENT_PATH=` empty: WHICH agents a driver's server finds is a property
+# of the driver and never of the laptop it runs on. The empty string is "look on
+# no path at all", so the roster is exactly what `AGENT` names — one — and a
+# developer with Claude Code installed does not get a panel that opens on a
+# picker while a lane gets one that does not. It is the same switch the suite's
+# own harness spawns every server with (`support/hooks.ts`).
+# `OLAI_DIST_DIR` is the client that `just build-client` wrote into that same
+# worktree — the one thing a driver has to be pointed at, and the one thing that
+# makes `root` a knob rather than a constant.
 #
 # `PORT` if set is passed through as `--port`; unset is 0, which is the
 # default and the right one.
@@ -66,7 +75,8 @@ olai_serve() {
   # (`evidence.sh` calls this in a loop). Unset rather than empty: callers
   # run `set -u` and should die naming the miss if we return without setting.
   unset OLAI_URL
-  OLAI_DIST_DIR="$root/packages/web/dist" OLAI_ACP_AGENT= \
+  OLAI_DIST_DIR="$root/packages/web/dist" OLAI_ACP_AGENT="${AGENT:-}" \
+    OLAI_AGENT_PATH= \
     OLAI_PORT_FILE="$port_file" \
     bun "$root/packages/server/src/main.ts" web "$vault" --port "$port" \
     > "$log" 2>&1 &

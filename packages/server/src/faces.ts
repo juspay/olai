@@ -125,10 +125,11 @@ import { type ExposeMap, exposeFace, type FaceExposure } from "@kolu/surface/exp
  * per-file projection of it would make an agent ask N times to learn whether to
  * commit once.
  *
- * Everything else is omitted, and two of them on purpose rather than by
- * oversight: `chat` and `transcript` are the human's session and the human's
- * conversation. An agent that is not ours has no business watching either, and
- * the internal one watching its own state is a feedback loop.
+ * Everything else is omitted, and three of them on purpose rather than by
+ * oversight: `chat`, `transcript` and `saying` are the human's session and the
+ * human's conversation — the last of them being that conversation's open row
+ * as it is still being said. An agent that is not ours has no business watching
+ * any of them, and the internal one watching its own state is a feedback loop.
  */
 export const MCP: ExposeMap<typeof surface.spec> = {
   outlines: "resource",
@@ -240,6 +241,10 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   pins: "resource",
   inbox: "resource",
   transcript: "resource",
+  // ...and the pieces of the row still being said, which is the same
+  // conversation delivered cheaply and belongs to exactly the face the
+  // conversation does (@olai/surface's `Saying`).
+  saying: "resource",
   errors: "resource",
   manifest: "resource",
   chat: "resource",

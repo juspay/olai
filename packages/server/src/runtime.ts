@@ -116,7 +116,9 @@ import {
 } from "@kolu/surface/server"
 import { Duration, Effect, Result, type Scope, Stream, SubscriptionRef } from "effect"
 
-import type { Change, Chat } from "@olai/chat"
+import { cadence } from "@olai/chat"
+
+import type { Cadence, Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
 import * as Bodies from "./bodies.ts"
 import { contextFor } from "./context.ts"
@@ -152,13 +154,17 @@ const NEVER = (): void => {}
  *  collections are published by the same two statements in the same order, and
  *  one spelling of them is one place for that order to be decided — a third
  *  collection is a line rather than a loop nobody re-reads. Structural in what
- *  it writes to, so it is the CHANGE it knows about and not the surface. */
+ *  it writes to, so it is the CHANGE it knows about and not the surface.
+ *
+ *  It takes the two fields it WRITES rather than a whole revision, which is
+ *  what lets the chat's own frames come through the same door: a directory
+ *  revision carries the set it settled on as well, and this has never read it. */
 const apply = <T>(
   collection: {
     upsert: (key: string, value: T) => void
     remove: (key: string) => void
   } | undefined,
-  change: CollectionChange<T>,
+  change: Pick<CollectionChange<T>, "upserts" | "removes">,
 ): void => {
   for (const [key, entry] of change.upserts) collection?.upsert(key, entry)
   for (const key of change.removes) collection?.remove(key)
@@ -410,6 +416,35 @@ export const bind = (
      *  is exactly the moment there is nobody subscribed to hear it, and `held`
      *  above has it. */
     let published: SurfaceRuntime<typeof surface.spec>["ctx"] | null = null
+
+    /**
+     * WHAT A GROWING ROW COSTS THE WIRE — the transcript's changes, turned
+     * into frames on a clock ({@link @olai/chat}'s `cadence`, which argues the
+     * whole thing).
+     *
+     * HERE rather than in `../serve.ts`, beside the two collections it writes,
+     * because what it decides is a delivery question and this is the module
+     * that owns every other one: which member a fact lands on, in what order,
+     * and what a new subscriber is seeded with. The chat knows only that it
+     * published a change.
+     *
+     * ROWS BEFORE PIECES, and that is the whole of what the ordering has to
+     * promise: a row's upsert carries its text whole and supersedes every piece
+     * of it, so the removes must not reach a reader first — the join is
+     * idempotent either way, but only this order never shows a paragraph
+     * getting shorter while somebody is reading it.
+     */
+    const saying: Cadence = cadence({
+      onFrame: (frame) => {
+        const collections = published?.collections
+        apply(collections?.transcript, frame.rows)
+        apply(collections?.saying, frame.pieces)
+      },
+    })
+    // A window still open when this runtime closes is a piece nothing will ever
+    // be published to. Registered here, beside the thing it stops, rather than
+    // left to a timer that would fire into a closed surface.
+    yield* Effect.addFinalizer(() => Effect.sync(() => saying.stop()))
 
     /** The two git cells, once their connectors have been handed them. Held
      *  rather than reached for through `ctx` because the commit procedure has to
@@ -816,6 +851,33 @@ export const bind = (
           upsert: () => {},
           remove: () => {},
         },
+        /**
+         * The pieces of the row still being said — everything the cadence has
+         * PUT on the wire and not taken off again ({@link @olai/chat}'s
+         * `cadence`).
+         *
+         * IT OVERLAPS THE ROW ABOVE, and that is the point of it rather than
+         * something it gets away with. The transcript hands a new subscriber
+         * the row's text WHOLE, so most of what this hands them is characters
+         * they already have — and the join drops those, because a piece that
+         * ends inside its row's own text adds nothing (`@olai/surface`'s
+         * `Saying`).
+         *
+         * What it is FOR is the gap between the two reads. A tab subscribes to
+         * the two members one after the other, and a piece published in
+         * between belongs to neither: it is past the text the row snapshot
+         * carried, and it was on the wire before this member's stream opened.
+         * Seeded empty, that piece is text nobody ever hands over, and the
+         * paragraph is short a word until the row is published whole at the
+         * end of it. Seeded with what is live, there is no gap to fall into —
+         * which is why this is a read of the pieces that are OUT rather than
+         * an empty map with a comment about idempotence over it.
+         */
+        saying: {
+          readAll: () => new Map(saying.onWire()),
+          upsert: () => {},
+          remove: () => {},
+        },
       },
       /**
        * A poll-shape stream is three things and the framework wires them into
@@ -1082,12 +1144,12 @@ export const bind = (
       bound: runtime,
       publish: {
         state: (state) => runtime.ctx.cells.chat.set(state),
-        transcript: (change) => {
-          for (const key of change.removes) runtime.ctx.collections.transcript.remove(key)
-          for (const [key, entry] of change.upserts) {
-            runtime.ctx.collections.transcript.upsert(key, entry)
-          }
-        },
+        // Through the CADENCE, never straight onto the collection: a row that
+        // grows reaches the wire as pieces on a clock rather than as itself
+        // once per token (`transcript-stream-quadratic`). What comes back out
+        // is a frame, and {@link apply} writes it in the one order that
+        // never shows a paragraph getting shorter.
+        transcript: (change) => saying.publish(change),
       },
     }
   })

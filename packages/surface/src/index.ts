@@ -195,6 +195,7 @@ import {
   OpFailure,
   Conversation,
   Listed,
+  Saying,
   SessionInfo,
   Unreachable,
 } from "./chat.ts"
@@ -839,6 +840,31 @@ export const surface = defineSurface({
       schema: ChatEntry,
       verbs: ["keys", "get", "deltas"],
     },
+    /**
+     * THE ROW THAT IS STILL BEING SAID, in pieces — the transcript's second
+     * member and the reason a streaming answer costs the wire the answer
+     * ({@link ./chat.ts}'s `Saying`, which argues the whole thing).
+     *
+     * A SECOND MEMBER rather than a second delivery of the first, and the
+     * argument is the one the header above makes about events: the two carry
+     * different facts. `transcript` carries ROWS, whole, and answers a late
+     * joiner with the conversation; this carries the PIECES of the one row
+     * still growing, which nobody needs a history of — a reader that missed
+     * them has the text in the row. So the expensive promise is kept once, by
+     * the member that has to keep it, and the cheap frames are cheap.
+     *
+     * `deltas` and nothing else. There is no key here anybody looks up: a
+     * piece is found by the row it names, off the frames as they arrive, and
+     * `keys`/`get` would be two verbs offered to nobody. Read-only on the
+     * wire for `transcript`'s reason, one step sharper — this is not even
+     * something that happened, it is how something that is happening is
+     * being delivered.
+     */
+    saying: {
+      keySchema: Schema.String,
+      schema: Saying,
+      verbs: ["deltas"],
+    },
   },
   /**
    * THE TWO DATE READINGS THE SIDEBAR DRAWS — the shown month's dots, and how
@@ -1358,6 +1384,10 @@ export {
   RefusalEntry,
   Conversation,
   Listed,
+  Saying,
+  sayingEnd,
+  sayingKey,
+  SAYING_MS,
   SessionInfo,
   Spawned,
   Talking,
