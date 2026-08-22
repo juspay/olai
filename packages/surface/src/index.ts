@@ -1281,6 +1281,7 @@ export const surface = defineSurface({
 export {
   AgentChoice,
   AgentEntry,
+  agentIn,
   Ask,
   AskAnswer,
   AskChoice,
@@ -1307,6 +1308,7 @@ export {
   RefusalEntry,
   SessionInfo,
   Spawned,
+  Talking,
   ToolEntry,
   ToolStatus,
   Unopened,

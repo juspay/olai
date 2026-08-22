@@ -40,6 +40,8 @@
 
 import { Show } from "solid-js"
 
+import { agentIn } from "@olai/surface"
+
 import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import { AgentMark } from "./AgentMark.tsx"
@@ -73,7 +75,7 @@ export function Header(props: {
               bound, which is before the conversation opens — the panel is
               talking to somebody while it starts, and saying who is the point
               of the line. */}
-          <Show when={state().agent}>
+          <Show when={agentIn(state())}>
             {(agent) => (
               <span
                 class="flex items-center gap-1"
@@ -127,7 +129,7 @@ export function Header(props: {
           way: raising the question is exactly what it does, and it is the way
           out of a panel with no conversation in it. */}
       <Show when={state().status !== "off"}>
-        <Show when={state().agent}>
+        <Show when={agentIn(state())}>
           <Sessions chat={props.chat} />
         </Show>
         <button

@@ -81,5 +81,5 @@ export const faceOf = (state: ChatState): Face => {
   if (state.status === "off") return { kind: "no-agent" }
   const unopened = state.unopened
   if (unopened !== null && state.status !== "gone") return { kind: "unopened", unopened }
-  return state.choosing ? { kind: "choose" } : { kind: "conversation" }
+  return state.talking?.kind === "asking" ? { kind: "choose" } : { kind: "conversation" }
 }

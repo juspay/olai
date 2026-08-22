@@ -61,9 +61,6 @@
  * always made.
  */
 
-import { accessSync, constants, statSync } from "node:fs"
-import { delimiter, join } from "node:path"
-
 import { type Adapter, adapterFrom, AGENT_ENV } from "../adapter.ts"
 import { CLAUDE } from "./claude.ts"
 import type { Leg } from "./leg.ts"
@@ -171,45 +168,31 @@ const searchPath = (): string => process.env[AGENT_PATH_ENV] ?? process.env["PAT
  * The first runnable file of that name on a search path, spelled absolutely, or
  * `null`.
  *
- * `which` without the subprocess, and it answers the same question a shell
- * would: entries in order, first hit wins. Two departures from a shell, both
- * deliberate:
+ * `which`, and the runtime already has one: this is a NAMED WRAPPER over
+ * `Bun.which`, which is the same question asked of the same PATH by the same
+ * process that will do the spawning. The twenty lines this replaced walked the
+ * path, stat'd each candidate and asked `access(X_OK)` — a hand-rolled copy of
+ * a built-in, with its own edge cases to get right.
  *
- *   - **an EMPTY entry is skipped.** POSIX reads `""` in a PATH as the current
- *     directory, and this process's current directory is somebody's vault — so
- *     honouring that would let a file dropped beside a person's outlines decide
- *     which agent olai starts. A trailing `:` is a typo far more often than it
- *     is a request.
- *   - **it must be a FILE.** `access(X_OK)` says yes to a directory named
- *     `opencode`, and spawning one fails in a sentence about EACCES rather than
- *     about a roster.
+ * THE EDGE CASES ARE STILL PINNED, in this module's own tests, and that is not
+ * belt-and-braces: what they assert is not "Bun works" but that the answers
+ * olai DEPENDS on are the answers it gives.
  *
- * Exported for its own test: it is the line that decides what a machine is
- * offered, and reaching it through a real PATH is not how anybody should have
- * to check it.
+ *   - **an EMPTY entry finds nothing.** POSIX reads `""` in a PATH as the
+ *     current directory, and this process's current directory is somebody's
+ *     vault — so honouring it would let a file dropped beside a person's
+ *     outlines decide which agent olai starts. A trailing `:` is a typo far
+ *     more often than it is a request.
+ *   - **a DIRECTORY of the right name is not an agent**, and neither is a file
+ *     the permissions will not run: either would fail at the spawn, in a
+ *     sentence about EACCES rather than about a roster.
+ *
+ * A wrapper rather than the call inline because those are the two properties,
+ * and a test naming `Bun.which` would be a test about Bun rather than about
+ * what olai offers a person.
  */
-export const onPath = (name: string, search: string): string | null => {
-  for (const entry of search.split(delimiter)) {
-    if (entry === "") continue
-    const at = join(entry, name)
-    if (runnable(at)) return at
-  }
-  return null
-}
-
-/** A file that exists and can be executed. Every way of failing to be one — it
- *  is not there, it is a directory, the permissions say no, the path is not
- *  readable at all — is the same answer to the same question, so they are one
- *  `catch`: this agent is not installed here. */
-const runnable = (at: string): boolean => {
-  try {
-    if (!statSync(at).isFile()) return false
-    accessSync(at, constants.X_OK)
-    return true
-  } catch {
-    return false
-  }
-}
+export const onPath = (name: string, search: string): string | null =>
+  Bun.which(name, { PATH: search })
 
 /**
  * The agent a memory that names none is about ({@link ../memory.ts}).

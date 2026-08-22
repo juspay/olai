@@ -96,7 +96,7 @@
  * fight over one box.
  */
 
-import { ATTACHMENT_EXTENSIONS } from "@olai/surface"
+import { agentIn, ATTACHMENT_EXTENSIONS } from "@olai/surface"
 import { batch, createEffect, createMemo, createSignal, on, Show } from "solid-js"
 
 import type { Written } from "../complete/trigger.ts"
@@ -762,7 +762,10 @@ export function Composer(props: {
             Only while a turn RUNS, because that is the only time it is true —
             an idle agent takes what you type at once either way — and that is
             also the moment somebody is deciding whether to say it. */}
-        <Show when={props.chat.state().status === "thinking" && !props.chat.state().steers}>
+        <Show
+          when={props.chat.state().status === "thinking" &&
+            agentIn(props.chat.state())?.steers === false}
+        >
           <span
             class="font-mono text-[0.6875rem] text-muted"
             data-testid={TESTID.chatQueues}

@@ -108,7 +108,7 @@ describe("two faces claiming one body", () => {
 describe("the question about which agent", () => {
   /** Two agents and nobody has said which. The server only ever sets this with
    *  no conversation open. */
-  const ASKING: ChatState = { ...LIVE, choosing: true }
+  const ASKING: ChatState = { ...LIVE, talking: { kind: "asking" } }
 
   test("is the body when the panel is asking", () => {
     expect(faceOf(ASKING)).toEqual({ kind: "choose" })
@@ -122,7 +122,7 @@ describe("the question about which agent", () => {
     // `choosing` cannot be true with an empty roster (there is no chat at all),
     // and a precedence stated only in the writer is one a reader can meet in
     // the other order.
-    expect(faceOf({ ...CHAT_OFF, choosing: true })).toEqual({ kind: "no-agent" })
+    expect(faceOf({ ...CHAT_OFF, talking: { kind: "asking" } })).toEqual({ kind: "no-agent" })
   })
 
   test("a refusal outranks it — that one is about a live agent", () => {

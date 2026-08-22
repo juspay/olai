@@ -86,6 +86,7 @@ import {
   type NodeContext,
   type OpFailure,
   type SessionInfo,
+  type Talking,
 } from "@olai/surface"
 import { BusyFailure, UsageFailure } from "@olai/format"
 import { Effect, Fiber, Semaphore } from "effect"
@@ -349,11 +350,20 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     /** The conversation's own tmp directory, for pictures pasted into it.
      *  Emptied when a conversation is left and when the chat stops. */
     const files = Attachments.make()
-    /** WHO a roster row is, as the browser hears it: the picker's rows, and —
-     *  once one is chosen — the name and mark beside the model in the header.
-     *  The ADAPTER and the LEG stay on this side of the wire, because a browser
-     *  that knew what to spawn would be a browser that could ask for it. */
+    /** WHO a roster row is, as the browser hears it: the picker's rows. The
+     *  ADAPTER and the LEG stay on this side of the wire, because a browser that
+     *  knew what to spawn would be a browser that could ask for it. */
     const said = (row: Installed): AgentChoice => ({ id: row.id, name: row.name })
+
+    /** ... and as the panel's own `talking`, which carries one thing more: what
+     *  a message sent mid-turn will DO, which is a fact about this agent and is
+     *  read where the composer says it. */
+    const bound = (row: Installed): Talking => ({
+      kind: "agent",
+      id: row.id,
+      name: row.name,
+      steers: row.leg.steering !== null,
+    })
 
     // The cell's own default, with the two fields that differ: an agent is
     // being started, and the roster is this machine's. Restating the others
@@ -586,13 +596,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           yield* already.agent.stop
         }
         move({
-          agent: said(row),
-          // The composer says what a mid-turn message will do, and that is a
-          // property of the agent rather than of the panel — see
-          // {@link ChatState.steers}.
-          steers: row.leg.steering !== null,
-          // A question that has been answered is not still being asked.
-          choosing: false,
+          // WHO, and — because it is one member — no longer a question that
+          // could still be being asked while it names somebody.
+          talking: bound(row),
           session: null,
           model: null,
           usage: null,
@@ -1329,7 +1335,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               // rather than `booting`, because nothing is happening — this is
               // a state that has settled, and it settles until somebody presses
               // something.
-              move({ status: "idle", choosing: true })
+              move({ status: "idle", talking: { kind: "asking" } })
               return
             }
             const outcome = yield* Effect.result(

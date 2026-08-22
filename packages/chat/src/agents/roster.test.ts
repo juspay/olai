@@ -9,7 +9,10 @@
  *
  * {@link onPath} gets its own tests against a real directory, because what it
  * is about is the disk: a file that is not executable, a directory with the
- * right name, an empty PATH entry.
+ * right name, an empty PATH entry. It is one line over `Bun.which` and the
+ * tests are still here deliberately — what they assert is not that Bun works
+ * but that the answers olai DEPENDS on are the ones it gives, which is a claim
+ * about this feature rather than about that function.
  */
 
 import { describe, expect, test } from "bun:test"
@@ -133,17 +136,17 @@ describe("finding an executable on a search path", () => {
     expect(onPath("adirectory", second)).toBeNull()
   })
 
-  test("an empty entry is skipped rather than read as the served directory", () => {
+  test("an empty entry finds nothing rather than the served directory", () => {
     // POSIX would read `""` as the current directory, which here is somebody's
     // vault: a file dropped beside their outlines must not decide which agent
-    // olai starts. Asserted from the process's OWN cwd, which is this
-    // repository — an entry that was honoured would find whatever is in it.
-    runnable(process.cwd(), "olai-roster-probe")
+    // olai starts. Asserted from the process's OWN cwd — an entry that was
+    // honoured would find what is sitting in it.
+    const probe = runnable(process.cwd(), "olai-roster-probe")
     try {
       expect(onPath("olai-roster-probe", "")).toBeNull()
       expect(onPath("olai-roster-probe", `${delimiter}${delimiter}${first}`)).toBeNull()
     } finally {
-      rmSync(join(process.cwd(), "olai-roster-probe"))
+      rmSync(probe)
     }
   })
 
