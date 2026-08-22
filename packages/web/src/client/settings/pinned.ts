@@ -23,6 +23,12 @@
  * every connection and is forgotten with the tab — which is also what makes
  * unpinning safe: the browser's own stored preference was never overwritten, so
  * a server restarted without the flag hands each reader their own choice back.
+ *
+ * The SENTENCE lives here too, beside the rule rather than with the other row
+ * hints in `./Panel.tsx` — and that is deliberate. Every other hint is read off
+ * a value this browser owns; this one is read off the same pin the freezing is
+ * read off, and splitting them would let a row be drawn frozen while its line
+ * named a flag nobody gave.
  */
 
 import { type Accessor, createRoot, createSignal } from "solid-js"

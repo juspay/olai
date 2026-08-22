@@ -270,8 +270,8 @@ export function Panel(props: {
         olai open in, and are never sent to the server.
         <Show when={commitFrozen() || pushFrozen()}>
           {" "}
-          The rows marked 🔒 are the exception: this server was started with a
-          git policy, so those are its answer for everybody and not yours.
+          The git rows are the exception: this server was started with a git
+          policy, so those are its answer for everybody and not yours.
         </Show>
       </p>
     </section>

@@ -49,6 +49,12 @@ export function Row(props: {
   readonly children: JSX.Element
 }) {
   const setBy = (): string | null => props.setBy ?? null
+  /** So the CONTROLS carry the reason, not only the page. A frozen segment is
+   *  `aria-disabled` and keeps its focus (`./Segmented.tsx` says why), and a
+   *  reader who tabs onto one has to be told why it will not move — which is
+   *  the sentence below, and it is two elements away in document order. One per
+   *  row, and there is one panel in the document. */
+  const saidId = (): string => `prefs-set-by-${props.pref}`
 
   return (
     <div
@@ -67,6 +73,10 @@ export function Row(props: {
           class="flex min-w-0 flex-wrap items-center gap-1"
           role="group"
           aria-label={props.label}
+          // The controls carry the reason too — see {@link saidId}. Absent on
+          // every row this browser owns, because a `describedby` pointing at
+          // nothing is a promise the page does not keep.
+          aria-describedby={setBy() === null ? undefined : saidId()}
         >
           {props.children}
         </div>
@@ -74,17 +84,18 @@ export function Row(props: {
       <p class="mt-1.5 text-xs leading-relaxed text-muted" data-testid={TESTID.prefsHint}>
         {props.hint}
       </p>
-      {/* WHO set it, when it is not this browser. A lock glyph AND the words,
-          because nothing in this app is a symbol alone; the glyph is
-          decorative, so it is hidden from the sentence a screen reader
-          reads. */}
+      {/* WHO set it, when it is not this browser — the WORDS and nothing else.
+          What says so at a glance is the control beside it, drawn dim and
+          inert; a glyph would be a second claim to keep true, and the only
+          lock in this font's reach is an emoji, which is the one thing the
+          chrome here has none of. */}
       <Show when={setBy()}>
         {(said) => (
           <p
+            id={saidId()}
             class="mt-1 text-xs leading-relaxed text-muted"
             data-testid={TESTID.prefsSetBy}
           >
-            <span aria-hidden="true">🔒 </span>
             {said()}
           </p>
         )}
