@@ -27,15 +27,26 @@ const REMEMBERS_NOTHING: Memory = {
 
 let cwd = ""
 const wasState = process.env["XDG_STATE_HOME"]
+const wasPath = process.env["PATH"]
+const wasPadi = process.env["PADI_SOCKET"]
 
 beforeEach(() => {
   cwd = mkdtempSync(join(tmpdir(), "olai-lifecycle-"))
   process.env["XDG_STATE_HOME"] = cwd
+  // A live kolu on PATH makes session/new wait on a probe; these tests are
+  // about the journal, not terminals. process.execPath is absolute, so the
+  // fixture still starts.
+  process.env["PATH"] = ""
+  delete process.env["PADI_SOCKET"]
 })
 
 afterEach(() => {
   if (wasState === undefined) delete process.env["XDG_STATE_HOME"]
   else process.env["XDG_STATE_HOME"] = wasState
+  if (wasPath === undefined) delete process.env["PATH"]
+  else process.env["PATH"] = wasPath
+  if (wasPadi === undefined) delete process.env["PADI_SOCKET"]
+  else process.env["PADI_SOCKET"] = wasPadi
   rmSync(cwd, { recursive: true, force: true })
 })
 
@@ -115,7 +126,7 @@ describe("chat lifecycle lines", () => {
     expect(exited?.annotations.agent).toBe("opencode")
 
     expect(findSaid(said, "lifecycle-agent: started")).toBeUndefined()
-  })
+  }, 15_000)
 
   test("OLAI_LOG_LEVEL=debug (the collector's Debug) shows the agent's stderr", async () => {
     const said = await withAgent("Debug", async (agent, run) => {
@@ -126,7 +137,7 @@ describe("chat lifecycle lines", () => {
     const stderr = findSaid(said, "lifecycle-agent: started")
     expect(stderr?.level).toBe("Debug")
     expect(stderr?.annotations.agent).toBe("opencode")
-  })
+  }, 15_000)
 
   test("a failed turn is WARN with the error verbatim, and the agent's stderr with it", async () => {
     const said = await withAgent("Info", async (agent, run) => {
@@ -149,7 +160,7 @@ describe("chat lifecycle lines", () => {
     expect(stderr?.annotations.session).toBe("sess-1")
     // Spawn-time stderr stays DEBUG, so it is off at info.
     expect(findSaid(said, "lifecycle-agent: started")).toBeUndefined()
-  })
+  }, 15_000)
 })
 
 describe("a message that queues behind a running turn", () => {
@@ -198,5 +209,5 @@ describe("a message that queues behind a running turn", () => {
     expect(queued?.level).toBe("Info")
     expect(queued?.annotations.agent).toBe("opencode")
     expect(queued?.annotations.session).toBe("sess-1")
-  })
+  }, 15_000)
 })
