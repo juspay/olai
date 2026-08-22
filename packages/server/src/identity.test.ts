@@ -1,23 +1,29 @@
 /**
- * The chip's door: `GET /olai/who` over a real listener.
+ * Who is looking, over a real listener: `GET /olai/who` and `who.get`.
  *
  * The person is `@olai/identity`'s and so is the picture ladder. This file
- * drives the HTTP adapter, because the chip's "mocked header" is a property
- * of the serving stack, not of the parse: what a proxy actually injects
- * reaches the door as headers, and what the browser is handed is one JSON
- * object with the picture ALREADY RESOLVED. {@link shown} is that mapping.
+ * drives both doors, because the chip's "mocked header" is a property of
+ * the serving stack, not of the parse: what a proxy actually injects
+ * reaches the upgrade as headers, and what the browser is handed is one
+ * JSON object with the picture ALREADY RESOLVED. {@link shown} is that
+ * mapping. The HTTP door stays for a share sheet; the procedure is what
+ * a tab that is already connected asks.
  */
 
+import { createSurfaceSocket } from "@kolu/surface-app/connect"
+import { SURFACE_WS_PATH } from "@kolu/surface-app"
 import {
   DEFAULT_IDENTITY_CONFIG,
   gravatarOf,
   type IdentityConfig,
 } from "@olai/identity"
-import { WHO_PATH } from "@olai/surface"
+import { surface, WHO_PATH, type Who } from "@olai/surface"
 import { expect, test } from "bun:test"
+import { Effect } from "effect"
 import * as fs from "node:fs"
 import * as http from "node:http"
 import * as path from "node:path"
+import { WebSocket as WsClient } from "ws"
 
 import { shown } from "./identity.ts"
 import { served, withServing } from "./serve.testlib.ts"
@@ -174,6 +180,85 @@ test("a request with no login is nobody", async () => {
     const answer = await get(url, WHO_PATH)
     expect(answer.status).toBe(204)
     expect(answer.body).toBe("")
+  })
+})
+
+/** A real websocket, dialled the way a tab does, with the headers a proxy
+ *  would have stamped on the upgrade. */
+const withWhoSocket = (
+  headers: Record<string, string> | undefined,
+  body: (ask: () => Promise<Who | null>) => Promise<void>,
+  identity?: IdentityConfig,
+): Promise<void> =>
+  withServing({ root: served(), identity }, async (url) => {
+    const socket = await createSurfaceSocket({
+      group: surface.group,
+      url: `${url.replace("http://", "ws://")}${SURFACE_WS_PATH}`,
+      retired: () => {},
+      connect: (target) =>
+        new WsClient(
+          target,
+          headers === undefined ? undefined : { headers },
+        ) as unknown as WebSocket,
+    })
+    try {
+      await body(() =>
+        Effect.runPromise(
+          socket.link.dispatch.unary("surface/who/get", {}) as Effect.Effect<
+            Who | null
+          >,
+        ),
+      )
+    } finally {
+      await socket.dispose()
+    }
+  })
+
+test("a tab with no login is nobody, and did not have to GET /olai/who", async () => {
+  await withWhoSocket(undefined, async (ask) => {
+    expect(await ask()).toBeNull()
+  })
+})
+
+test("a mocked Tailscale-User-Login on the upgrade is this connection's who", async () => {
+  await withWhoSocket(
+    { "Tailscale-User-Login": ADA },
+    async (ask) => {
+      expect(await ask()).toEqual({
+        login: ADA,
+        name: null,
+        picture: gravatarOf(ADA),
+      })
+    },
+  )
+})
+
+test("the upgrade's identity is per connection, not a process cell", async () => {
+  await withServing({ root: served() }, async (url) => {
+    const socket = await createSurfaceSocket({
+      group: surface.group,
+      url: `${url.replace("http://", "ws://")}${SURFACE_WS_PATH}`,
+      retired: () => {},
+      connect: (target) =>
+        new WsClient(target, {
+          headers: { "Tailscale-User-Login": ADA },
+        }) as unknown as WebSocket,
+    })
+    try {
+      expect(
+        await Effect.runPromise(
+          socket.link.dispatch.unary("surface/who/get", {}) as Effect.Effect<
+            Who | null
+          >,
+        ),
+      ).toEqual({ login: ADA, name: null, picture: gravatarOf(ADA) })
+      // A later HTTP request that carries no header is still nobody: the
+      // upgrade did not write a process-wide cell.
+      const door = await get(url, WHO_PATH)
+      expect(door.status).toBe(204)
+    } finally {
+      await socket.dispose()
+    }
   })
 })
 

@@ -12,7 +12,12 @@
 
 import { expect, test } from "bun:test"
 
-import { identityOf, type IdentityHeaders } from "./identity.ts"
+import {
+  DEFAULT_IDENTITY_HEADERS,
+  headerNamesOf,
+  identityOf,
+  type IdentityHeaders,
+} from "./identity.ts"
 
 const ADA = "ada@example.com"
 
@@ -128,6 +133,29 @@ test("Pomerium claim headers are the same family under other words", () => {
     name: null,
     picture: "https://avatars.example/ada.png",
   })
+})
+
+test("the allowlist names each header once, and drops a claim that is off", () => {
+  // Tailscale's login IS the email claim, so the two names collide: listing
+  // both would take the bind down (kolu#2196 refuses a repeated wire header).
+  expect(headerNamesOf(DEFAULT_IDENTITY_HEADERS)).toEqual([
+    "Tailscale-User-Login",
+    "Tailscale-User-Name",
+    "Tailscale-User-Profile-Pic",
+  ])
+  expect(headerNamesOf(AUTHELIA)).toEqual([
+    "Remote-User",
+    "Remote-Email",
+    "Remote-Name",
+  ])
+  expect(
+    headerNamesOf({
+      login: "Remote-User",
+      email: null,
+      name: null,
+      picture: null,
+    }),
+  ).toEqual(["Remote-User"])
 })
 
 test("a config that named no header for a claim carries none of it", () => {

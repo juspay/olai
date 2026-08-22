@@ -46,12 +46,13 @@
  */
 
 import { serveSurfaceApp, type SurfaceAppListenFailed } from "@kolu/surface-app/serve"
-import type { IdentityConfig } from "@olai/identity"
+import { headerNamesOf, type IdentityConfig } from "@olai/identity"
 import { codeOf, type Emit, emitter } from "@olai/log"
+import { ASSET_PREFIX } from "@olai/surface"
 import { Effect, Layer, type Scope } from "effect"
 
 import { BROWSER_FACE } from "./faces.ts"
-import { whoRoute } from "./identity.ts"
+import { CurrentWho, whoOf, whoRoute } from "./identity.ts"
 import { MANIFEST } from "./manifest.ts"
 import { captureRoute } from "./capture.ts"
 import { mcpRoute } from "./mcp/route.ts"
@@ -147,6 +148,10 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     // what this listener must never fall back to.
     expose: BROWSER_FACE,
     clientDist: options.clientDist,
+    // The same spelling the build took — `@olai/surface`'s ASSET_PREFIX, so a
+    // vault file under `assets/` is a page rather than a miss under the
+    // immutable prefix. One constant, both processes.
+    assetPrefix: ASSET_PREFIX,
     // What is in the manifest is `./manifest.ts`; that it is served at
     // `/manifest.webmanifest`, beside a `no-store` shell, immutable hashed
     // assets, a 404 on an asset miss and the SPA fallback that makes
@@ -169,6 +174,13 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     host: options.host,
     port,
     allowedOrigins: options.allowedOrigins,
+    // The identity headers this process trusts — unique, so a login that
+    // doubles as the email claim is named once (a repeated name is a bind
+    // defect upstream). Empty-by-default on the seam; naming them HERE is
+    // the app saying the proxy in front owns them.
+    upgradeHeaders: headerNamesOf(options.identity.headers),
+    services: (connection) =>
+      Layer.succeed(CurrentWho)(whoOf(connection.headers, options.identity)),
     onEvent: (event) => report(event, say),
   })
 
