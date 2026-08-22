@@ -157,6 +157,22 @@ const NO_AGENT_TAG = "@no-agent";
  */
 const GIT_TAG = /^@git:(repo|none|broken)$/;
 
+/**
+ * `@pin:commit=<mode>` / `@pin:push=<mode>`: this scenario's server was started
+ * with a git POLICY, so every browser draws those two preference rows read-only
+ * with the flag named (`vault-level-settings`).
+ *
+ * A TAG rather than a step for the reason `@git:` is one: it decides how the
+ * server is STARTED, and the whole point of a pin is that a page knows before
+ * anybody presses anything. Both may be given; each is independent, which is
+ * what lets a scenario pin one row and leave the other live.
+ *
+ * It requires a `@git:` tag beside it, and the Before hook says so: without one
+ * the server is started `--no-commit`, which is `--commit=off` under another
+ * name and would quietly win over whatever the tag asked for.
+ */
+const PIN_TAG = /^@pin:(commit|push)=([a-z]+)$/;
+
 /** The screen a scenario is read on, and the pointer it is read with.
  *
  *  A `@phone` scenario gets a handset: 390×844 CSS pixels (an iPhone 13's, and
@@ -432,6 +448,10 @@ interface Spawn {
    *  wants. Present drops the opt-out and says which of the three git
    *  situations this server is being started into. */
   readonly git?: GitMode;
+  /** The git POLICY, when the scenario pinned one — see {@link PIN_TAG}. Each
+   *  half is absent when that flag was not asked for, because "nobody gave the
+   *  flag" is exactly what leaves the preference row live in a browser. */
+  readonly pin?: { readonly commit?: string; readonly push?: string };
   /** Private XDG cache root this child may write to. Required: a spawn
    *  that inherited the host's would share a cache (and a padi) with every
    *  other worker. HOME is not overridden — see `isolateEnv`. */
@@ -462,6 +482,15 @@ const startServerChild = async (
       "127.0.0.1",
       ...(fixedPort === undefined ? [] : ["--port", String(fixedPort)]),
       ...(spawnOptions.git === undefined ? ["--no-commit"] : []),
+      // The git POLICY, when the scenario asked for one — see `PIN_TAG`. Each
+      // flag is passed only where a value was given, because giving it at all
+      // is what freezes that row in every browser.
+      ...(spawnOptions.pin?.commit === undefined
+        ? []
+        : ["--commit", spawnOptions.pin.commit]),
+      ...(spawnOptions.pin?.push === undefined
+        ? []
+        : ["--push", spawnOptions.pin.push]),
     ];
     const child = spawn(bin, argv, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -649,6 +678,10 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       kolu: world.hasKolu,
       stateRoot: scratchState(world.scratch()),
       ...(world.gitMode === undefined ? {} : { git: world.gitMode }),
+      // ... and the same git POLICY, for the same reason: a restart that came
+      // back unpinned would hand the open page its preferences back, which is a
+      // different server rather than the same one restarted.
+      ...(Object.keys(world.gitPin).length === 0 ? {} : { pin: world.gitPin }),
     },
   );
   if (started.baseUrl !== world.baseUrl) {
@@ -944,6 +977,23 @@ Before(
       const asked = GIT_TAG.exec(tag.name);
       return asked === null ? [] : [asked[1] as GitMode];
     })[0];
+    this.gitPin = Object.fromEntries(
+      scenario.pickle.tags.flatMap((tag) => {
+        const asked = PIN_TAG.exec(tag.name);
+        return asked === null ? [] : [[asked[1]!, asked[2]!] as const];
+      }),
+    );
+    const pinned = Object.keys(this.gitPin).length > 0;
+    // A pinned server without a `@git:` tag is started `--no-commit`, which is
+    // `--commit=off` under another name and would quietly beat whatever the pin
+    // asked for. Said here rather than left to an assertion, which would fail
+    // about a preference row instead of about the tag.
+    if (pinned && this.gitMode === undefined) {
+      throw new Error(
+        "@pin: states this server's git policy, so the scenario must say which " +
+          "git situation it is in too: add @git:repo (or none/broken).",
+      );
+    }
     // A shared corpus server serves every other scenario too, so whether it
     // commits — and into what — is not this one's to choose. Same rule as
     // `@kolu`, and said here rather than left to an assertion that would fail
@@ -974,6 +1024,7 @@ Before(
         agent: this.hasAgent,
         kolu: this.hasKolu,
         ...(this.gitMode === undefined ? {} : { git: this.gitMode }),
+        ...(pinned ? { pin: this.gitPin } : {}),
       };
       const ownCopy = async (): Promise<void> => {
         const own = await scratchServerFor(asked.corpus, spawnOptions);

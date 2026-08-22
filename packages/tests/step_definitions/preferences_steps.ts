@@ -37,7 +37,9 @@ import {
   PREFS_HINT,
   PREFS_PANEL,
   PREFS_ROW,
+  PREFS_RESUME,
   PREFS_SCOPE,
+  PREFS_SET_BY,
   PREFS_TRIGGER,
   SIDEBAR_BODY,
   SIDEBAR_TOGGLE,
@@ -574,6 +576,167 @@ Then(
       stored,
       asGit(state) === "on" ? "true" : "false",
       `this browser keeps "${stored}" under ${AUTOPUSH_KEY}`,
+    );
+  },
+);
+
+// ── a git policy the SERVER pinned ─────────────────────────────────────
+//
+// The one thing on this panel that can stop being this browser's
+// (`vault-level-settings`). Started with `--commit` or `--push`, the instance
+// has stated a policy for everybody looking at the directory, so the row is
+// drawn in that state, read-only, naming the flag. Never hidden: a policy a
+// reader cannot see is one they cannot ask anybody about.
+
+/** Which of the two rows a scenario names, in the words the panel uses. */
+const asGitRow = (label: string): "git-commit" | "git-push" => {
+  if (label === "Git commit") return "git-commit";
+  if (label === "Git push") return "git-push";
+  throw new Error(`the pinnable rows are "Git commit" and "Git push", not "${label}"`);
+};
+
+Then(
+  "the {string} row is the server's, set by {string}",
+  async function (this: OlaiWorld, label: string, flag: string) {
+    const pref = asGitRow(label);
+    await showPreferences(this.page);
+    const it = row(this, pref);
+    await it.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal(
+      await it.getAttribute("data-pinned"),
+      "true",
+      `the ${label} row is not drawn as the server's`,
+    );
+    const said = await it.locator(PREFS_SET_BY).innerText();
+    assert.ok(
+      said.includes(flag),
+      `the ${label} row says "${said}", which does not name ${JSON.stringify(flag)}`,
+    );
+  },
+);
+
+/** Every segment still on screen — a pinned row shows what it is set to AND
+ *  what it could have been — and none of them pressable. */
+Then(
+  "the {string} row cannot be changed from this browser",
+  async function (this: OlaiWorld, label: string) {
+    const pref = asGitRow(label);
+    await showPreferences(this.page);
+    const choices = row(this, pref).locator(PREFS_CHOICE);
+    const count = await choices.count();
+    assert.ok(count > 1, `the ${label} row draws ${count} choices, so it hides one`);
+    for (let at = 0; at < count; at += 1) {
+      assert.equal(
+        await choices.nth(at).getAttribute("aria-disabled"),
+        "true",
+        `segment ${at} of the ${label} row is still pressable`,
+      );
+    }
+  },
+);
+
+Then(
+  "the {string} row is this browser's",
+  async function (this: OlaiWorld, label: string) {
+    const pref = asGitRow(label);
+    await showPreferences(this.page);
+    const it = row(this, pref);
+    await it.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.equal(
+      await it.getAttribute("data-pinned"),
+      null,
+      `the ${label} row is drawn as the server's`,
+    );
+    assert.equal(
+      await it.locator(PREFS_SET_BY).count(),
+      0,
+      `the ${label} row names a server that did not set it`,
+    );
+  },
+);
+
+Then(
+  "the {string} row is set to {string}",
+  async function (this: OlaiWorld, label: string, value: string) {
+    const pref = asGitRow(label);
+    await showPreferences(this.page);
+    const inForce = row(this, pref)
+      .locator(PREFS_CHOICE)
+      .and(this.page.locator('[aria-pressed="true"]'));
+    assert.equal(
+      await inForce.getAttribute("data-value"),
+      asGit(value),
+      `the ${label} row is not set to "${value}"`,
+    );
+  },
+);
+
+// ── Resume, which a pinned row is the only reason for ──────────────────
+
+Then(
+  "the preferences offer to resume auto-commit",
+  async function (this: OlaiWorld) {
+    await showPreferences(this.page);
+    await this.page
+      .locator(PREFS_RESUME)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the preferences do not offer to resume auto-commit",
+  async function (this: OlaiWorld) {
+    await showPreferences(this.page);
+    assert.equal(
+      await this.page.locator(PREFS_RESUME).count(),
+      0,
+      "the preferences offer to resume a loop that is not stopped",
+    );
+  },
+);
+
+When("I resume auto-commit", async function (this: OlaiWorld) {
+  await showPreferences(this.page);
+  const resume = this.page.locator(PREFS_RESUME);
+  await resume.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await this.press(resume);
+});
+
+/** THE FENCE FOR A PIN THAT WROTE. A pinned row is worn over what this browser
+ *  chose, never onto it — so a server restarted without the flag hands each
+ *  reader their own pick back rather than leaving everybody on the team's. */
+Then(
+  "this browser has never been asked about auto-commit",
+  async function (this: OlaiWorld) {
+    const stored = await this.stored(AUTOCOMMIT_KEY);
+    assert.equal(
+      stored,
+      null,
+      `this browser keeps "${stored}" under ${AUTOCOMMIT_KEY}, so the pin wrote`,
+    );
+  },
+);
+
+Then(
+  "this browser has never been asked about auto-push",
+  async function (this: OlaiWorld) {
+    const stored = await this.stored(AUTOPUSH_KEY);
+    assert.equal(
+      stored,
+      null,
+      `this browser keeps "${stored}" under ${AUTOPUSH_KEY}, so the pin wrote`,
+    );
+  },
+);
+
+Then(
+  "the preferences panel says two rows are the server's",
+  async function (this: OlaiWorld) {
+    await showPreferences(this.page);
+    const said = await this.page.locator(PREFS_SCOPE).innerText();
+    assert.ok(
+      said.includes("this server was started with a git policy"),
+      `the panel says "${said}", which does not name the pinned rows as the exception`,
     );
   },
 );

@@ -5,8 +5,19 @@
 let
   cfg = config.services.olai;
 
+  # `--commit=X` / `--push=X` only where a value was actually chosen. `null` is
+  # the default on both, and it is not the same as passing the mode olai would
+  # have defaulted to: giving the flag PINS that preference row read-only in
+  # every browser looking at this instance, and saying nothing leaves each
+  # reader their own (docs/running.md, `vault-level-settings`). A module that
+  # helpfully passed `--commit=manual` because that is the default would freeze
+  # a control on every single-user deployment.
+  gitArgs = lib.optionals (cfg.commit != null) [ "--commit" cfg.commit ]
+    ++ lib.optionals (cfg.push != null) [ "--push" cfg.push ];
+
   # Pure argv for both supervisors. The package bakes OLAI_DIST_DIR (the
-  # browser bundle); host/port/dataDir are the only service knobs.
+  # browser bundle); host/port/dataDir and the git policy are the only service
+  # knobs.
   webArgs = [
     (lib.getExe cfg.package)
     "web"
@@ -15,7 +26,7 @@ let
     (toString cfg.port)
     "--host"
     cfg.host
-  ];
+  ] ++ gitArgs;
 in
 {
   options.services.olai = {
@@ -41,6 +52,45 @@ in
       type = lib.types.str;
       default = "127.0.0.1";
       description = "Address to listen on. olai has no auth; keep this loopback (or behind Tailscale).";
+    };
+
+    commit = lib.mkOption {
+      type = lib.types.nullOr (lib.types.enum [ "off" "manual" "auto" ]);
+      default = null;
+      example = "auto";
+      description = ''
+        When olai git-commits writes, as this instance's POLICY.
+
+        null (the default) passes no flag: the server commits manually, and
+        each browser keeps its own live "Git commit" preference — which is what
+        a single-user deployment wants.
+
+        Setting it PINS the preference. The server tells every browser which
+        flag it was started with, and they draw that row read-only, naming it,
+        so auto-commit is the same for everyone looking at this directory
+        rather than whichever browser's preference happens to be set. Never
+        hidden and never overridable from a browser.
+
+        manual — a write lands on disk and waits for the Commit button or the
+        agent's commit tool. auto — every write commits itself, and browsers
+        also record what is waiting once the edits stop. off — olai never
+        touches git in this directory (the same as --no-commit).
+      '';
+    };
+
+    push = lib.mkOption {
+      type = lib.types.nullOr (lib.types.enum [ "off" "auto" ]);
+      default = null;
+      example = "off";
+      description = ''
+        Whether a commit made in a browser is pushed to the branch's upstream,
+        as this instance's policy — null (the default) leaves each browser its
+        own "Git push" preference, and a value pins that row read-only in all
+        of them, exactly as `commit` above does.
+
+        Two values and not three: a branch that is not pushed on its own is
+        pushed by the Push button, so there is no third thing to be.
+      '';
     };
 
     port = lib.mkOption {

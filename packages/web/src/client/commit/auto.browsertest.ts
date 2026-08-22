@@ -22,6 +22,7 @@ import { expect, test } from "bun:test"
 import { type Accessor, createRoot, createSignal } from "solid-js"
 
 import { type Auto, createAuto, pausedIn } from "./auto.ts"
+import { createPause } from "./pause.ts"
 import { afterCommit } from "./record.ts"
 import type { Attempt, Commit, PushAttempt } from "./state.ts"
 
@@ -159,6 +160,11 @@ const loop = async (
       alone: around.alone ?? (() => true),
       commit: around.commit ?? it.commit,
       quiet: QUIET,
+      // ITS OWN pause (`./pause.ts`). The app's is a module-level value,
+      // because the Resume button that clears it is on the preferences panel
+      // while the loop is on the header's pill — which in one test process
+      // would carry a refusal from one case straight into the next.
+      pause: createPause(),
     })
   })
   try {

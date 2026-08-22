@@ -1,14 +1,26 @@
 /**
  * What this browser is set to, in one place.
  *
- * Everything on it is CLIENT-LOCAL and that is the panel's whole subject
+ * Nearly everything on it is CLIENT-LOCAL and that is the panel's subject
  * (`docs/architecture.md`): a pick is stored in this browser, carried to the
  * other tabs of it by the `storage` event, and never sent — so two machines
  * reading the same outlines are entitled to disagree, and the served directory
- * neither knows nor cares. There is no wire here, no cell, and nothing to
- * commit. That is the deliberate difference from kolu's settings popover, whose
- * shape this adopts: its rows read and write wire singletons, because its
- * preferences are the server's.
+ * neither knows nor cares. That is the deliberate difference from kolu's
+ * settings popover, whose shape this adopts: its rows read and write wire
+ * singletons, because its preferences are the server's.
+ *
+ * **The two GIT rows are the one exception, and only when an operator asks for
+ * it** (`vault-level-settings`). Started with `--commit` or `--push`, the
+ * server has stated a policy for everybody looking at this directory — in a
+ * team deployment auto-push is not a thing one colleague's browser gets to
+ * decide for the branch — and the pinned row is drawn in that state, read-only,
+ * naming the flag that set it. Never hidden: a policy a reader cannot see is
+ * one they cannot ask anybody about. Nothing is SENT even then; the pin arrives
+ * on the git cell, which this panel READS and never writes, and what this
+ * browser had stored is left exactly as it was for the day the flag goes away.
+ * Theme, font, size, notes, done and hidden outlines are untouched by any of
+ * it — those are personal view choices and there is nothing about them for a
+ * server to have an opinion on.
  *
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
@@ -46,16 +58,21 @@
  * worse than two words for one. This is the surface; that is the mechanism.
  */
 
+import { Show } from "solid-js"
+
 import { type Anchor, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
 import { autoCommit, setAutoCommit } from "./autocommit.ts"
 import { autoPush, setAutoPush } from "./autopush.ts"
+import { autoPause } from "../commit/pause.ts"
 import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
 import { outlinesHidden, setOutlinesHidden } from "./hiddenOutlines.ts"
+import { pinned, pinnedCommit, pinnedPush, setBy } from "./pinned.ts"
 import { QUIET_MS } from "../commit/flurry.ts"
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
+import { TARGET } from "../touch.ts"
 import { TESTID } from "../testids.ts"
 import { FontSelect } from "../theme/FontSelect.tsx"
 import { currentTypeface } from "../theme/fontState.ts"
@@ -185,30 +202,75 @@ export function Panel(props: {
         />
       </Row>
 
-      {/* The two git rows, in the order the two verbs happen in. */}
-      <Row label="Git commit" pref="git-commit" hint={commitHint()}>
+      {/* The two git rows, in the order the two verbs happen in — and the two
+          the server is allowed to have pinned (`./pinned.ts`). */}
+      <Row
+        label="Git commit"
+        pref="git-commit"
+        hint={commitHint()}
+        setBy={commitSetBy()}
+      >
         <Segmented
           choices={COMMIT_CHOICES}
           value={autoCommit() ? "on" : "off"}
           onPick={(value) => setAutoCommit(value === "on")}
+          frozen={commitFrozen()}
         />
       </Row>
 
-      <Row label="Git push" pref="git-push" hint={pushHint()}>
+      {/* THE ONE GESTURE THAT STARTS THE LOOP AGAIN when this row is frozen.
+          A refused commit or push stops Auto-commit and nothing clears that on
+          olai's own initiative (`../commit/auto.ts`); where the row is this
+          browser's, turning it off and on again is what a person does. A pinned
+          row has no toggle to flip, so the stop would be permanent and silent —
+          which is the one failure mode a loop nobody watches may not have.
+
+          Drawn ONLY while it is frozen AND stopped: a button offering to resume
+          a loop that is running is a control with nothing to do, and on a live
+          row there is already a gesture. */}
+      <Show when={commitFrozen() && autoPause.said() !== null}>
+        <button
+          type="button"
+          class={`${TARGET} self-start rounded-full border border-rule px-3 text-xs text-ink hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:min-h-0 md:py-1`}
+          data-testid={TESTID.prefsResume}
+          onClick={() => autoPause.resume()}
+        >
+          Resume auto-commit
+        </button>
+      </Show>
+
+      <Row
+        label="Git push"
+        pref="git-push"
+        hint={pushHint()}
+        setBy={pushSetBy()}
+      >
         <Segmented
           choices={PUSH_CHOICES}
           value={autoPush() ? "on" : "off"}
           onPick={(value) => setAutoPush(value === "on")}
+          frozen={pushFrozen()}
         />
       </Row>
 
       {/* One sentence for the whole panel, because it is one fact about every
           row on it and repeating it per row would be three copies of the
           doctrine. It is here at all because "where did this go" is exactly
-          what a person wonders about a setting they just changed. */}
+          what a person wonders about a setting they just changed.
+
+          The pinned rows are named as the exception rather than left to
+          contradict it, and only when there IS one: on the ordinary serve this
+          sentence is exactly as true as it ever was, and a caveat about a
+          feature nobody is using is a caveat that teaches a reader to stop
+          believing the sentence. */}
       <p class="border-t border-rule pt-3 text-xs text-muted" data-testid={TESTID.prefsScope}>
         These are this browser's. They are stored here, reach every tab you have
         olai open in, and are never sent to the server.
+        <Show when={commitFrozen() || pushFrozen()}>
+          {" "}
+          The rows marked 🔒 are the exception: this server was started with a
+          git policy, so those are its answer for everybody and not yours.
+        </Show>
       </p>
     </section>
   )
@@ -272,11 +334,33 @@ const commitHint = (): string =>
   autoCommit()
     ? `What is waiting records itself when edits stop arriving for ${QUIET_SECONDS} ` +
       "seconds, so a burst of work is one commit — including writes an agent " +
-      "made. A commit or a push git refuses pauses it until you set this Off " +
-      "and back On."
+      `made. A commit or a push git refuses pauses it until ${
+        commitFrozen() ? "you press Resume" : "you set this Off and back On"
+      }.`
     : "A write waits. Record it with the Commit button, in the pill."
 
 const pushHint = (): string =>
   autoPush()
     ? "A commit from this browser is pushed after it is recorded."
     : "A commit from here waits. Push it from the panel."
+
+/**
+ * ── what the server pinned ─────────────────────────────────────────────
+ *
+ * Whether each git row is the server's, and the line that says so. Read off the
+ * ONE pin (`./pinned.ts`) rather than asked twice, so a row cannot be drawn
+ * frozen while its control is still live — or the other way round, which is the
+ * one that would let a browser overrule a team's policy by pressing a chip.
+ */
+const commitFrozen = (): boolean => pinnedCommit(pinned()) !== null
+const pushFrozen = (): boolean => pinnedPush(pinned()) !== null
+
+const commitSetBy = (): string | null => {
+  const mode = pinned().commit
+  return mode === null ? null : setBy("commit", mode)
+}
+
+const pushSetBy = (): string | null => {
+  const mode = pinned().push
+  return mode === null ? null : setBy("push", mode)
+}

@@ -20,10 +20,24 @@
  * Off for a browser that has never been asked: today's behaviour, a write waits
  * and the pill's Commit records it. The circuit is `../preference.ts`; the
  * trigger and the stop are `../commit/auto.ts`.
+ *
+ * **The SERVER may overrule it**, and that is `vault-level-settings`: started
+ * with `--commit`, the instance has stated a policy for everybody looking at
+ * this directory, so {@link autoCommit} answers with the pin and the panel
+ * draws that row read-only (`./pinned.ts`). The GATE IS HERE, on the accessor,
+ * rather than at each reader — the loop, the panel's promise line and the
+ * preference row all ask this one question, and a pin honoured in the drawing
+ * but not in the loop would be a frozen control lying about what the browser
+ * is doing.
+ *
+ * What is STORED is untouched by a pin. The person's own choice is still in
+ * this browser exactly as they left it, so a server restarted without the flag
+ * hands it straight back rather than leaving everyone on the team's setting.
  */
 
 import type { Accessor } from "solid-js"
 
+import { pinned, pinnedCommit } from "./pinned.ts"
 import { boolCodec, createPreference } from "../preference.ts"
 
 export const AUTOCOMMIT_KEY = "olai.git.autocommit"
@@ -36,10 +50,19 @@ const OFF = false
  *  in how it is stored. */
 const pref = createPreference(AUTOCOMMIT_KEY, boolCodec(OFF))
 
-/** Whether this browser records a finished flurry on its own. */
-export const autoCommit: Accessor<boolean> = pref.value
+/** Whether a finished flurry records itself here — the server's answer where it
+ *  gave one, and this browser's otherwise. */
+export const autoCommit: Accessor<boolean> = () =>
+  pinnedCommit(pinned()) ?? pref.value()
 
-/** Persist on change — `pref.set` writes `olai.git.autocommit`. */
+/** What this browser would say if nothing were pinned — what the row goes back
+ *  to when the server stops pinning, and what is written when somebody picks.
+ *  Its own accessor because a frozen row must never draw over a stored choice
+ *  it is not allowed to change. */
+export const storedAutoCommit: Accessor<boolean> = pref.value
+
+/** Persist on change — `pref.set` writes `olai.git.autocommit`. Nothing calls
+ *  it while the row is pinned: a read-only control has no gesture. */
 export const setAutoCommit = (value: boolean): void => pref.set(value)
 
 /** Follow it for as long as this document lives — the same shape as

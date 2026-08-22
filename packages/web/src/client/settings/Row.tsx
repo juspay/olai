@@ -12,9 +12,17 @@
  *
  * The label is the hero and the hint recedes, because attention belongs on the
  * control. Nothing here is hover-only and nothing is a colour alone.
+ *
+ * A row can also be PINNED, which is a fourth part and not a fifth state of the
+ * hint: the hint still says what the choice in force means — that sentence is
+ * true however the choice got there — and a line under it says WHO set it and
+ * that this browser cannot. Two sentences rather than one long one, because
+ * they answer two different questions and only the second one is unusual;
+ * folding the source into the hint would make every reading of every row a
+ * search for whether this is one of the pinned ones.
  */
 
-import type { JSX } from "solid-js"
+import { type JSX, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 
@@ -28,10 +36,22 @@ export function Row(props: {
   readonly hint: string
   /** Which preference this is, for a scenario that has to find one row. */
   readonly pref: string
+  /** WHO set this row, when it was not this browser — `null` for the ordinary
+   *  case. Its presence is what makes the row read-only, so a row that says it
+   *  is pinned and a row that behaves as if it is cannot come apart. */
+  readonly setBy?: string | null
   readonly children: JSX.Element
 }) {
+  const setBy = (): string | null => props.setBy ?? null
+
   return (
-    <div data-testid={TESTID.prefsRow} data-pref={props.pref}>
+    <div
+      data-testid={TESTID.prefsRow}
+      data-pref={props.pref}
+      // The state as an attribute, so a scenario asserts that this row is
+      // frozen rather than inferring it from a colour or a sentence.
+      data-pinned={setBy() === null ? undefined : "true"}
+    >
       {/* Wraps rather than clips: the theme row's control is a strip of chips, and
           a panel narrow enough to be a phone's has to put them under the label
           instead of off the edge. */}
@@ -48,6 +68,21 @@ export function Row(props: {
       <p class="mt-1.5 text-xs leading-relaxed text-muted" data-testid={TESTID.prefsHint}>
         {props.hint}
       </p>
+      {/* WHO set it, when it is not this browser. A lock glyph AND the words,
+          because nothing in this app is a symbol alone; the glyph is
+          decorative, so it is hidden from the sentence a screen reader
+          reads. */}
+      <Show when={setBy()}>
+        {(said) => (
+          <p
+            class="mt-1 text-xs leading-relaxed text-muted"
+            data-testid={TESTID.prefsSetBy}
+          >
+            <span aria-hidden="true">🔒 </span>
+            {said()}
+          </p>
+        )}
+      </Show>
     </div>
   )
 }

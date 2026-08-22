@@ -282,7 +282,11 @@ export const explain = (
    *  about the directory, which is why it is a clause on every face rather
    *  than a ninth one. Same argument as {@link alsoUnpushed}. */
   paused: string | null = null,
-): string => alsoPaused(alsoUnpushed(sentence(face, pending, git), pending), paused)
+  /** Whether the Git commit preference is the SERVER's, which is the only thing
+   *  that changes here: it decides which gesture the pause sentence names. */
+  frozen: boolean = false,
+): string =>
+  alsoPaused(alsoUnpushed(sentence(face, pending, git), pending), paused, frozen)
 
 const sentence = (face: Face, pending: Pending, git: GitState): string => {
   switch (face) {
@@ -338,10 +342,26 @@ const alsoUnpushed = (said: string, pending: Pending): string => {
  *  `aria-label`, and in full in the panel. */
 export const AUTO_PAUSED = "auto-commit paused"
 
-/** The one gesture that starts the loop again, spelled once for both sentences
- *  below: the header and the panel drifting on how to restart it is the one
- *  sentence a reader cannot work out for themselves. */
-const RESUME = "Turn Auto-commit off and on again in preferences to resume."
+/**
+ * The one gesture that starts the loop again, spelled once for both sentences
+ * below: the header and the panel drifting on how to restart it is the one
+ * sentence a reader cannot work out for themselves.
+ *
+ * TWO gestures now, and which one a reader has depends on whether the operator
+ * PINNED this deployment's git policy (`vault-level-settings`). An unpinned Git
+ * commit row is this browser's, and turning it off and on again is the person
+ * saying they have dealt with whatever git said. A pinned row has no toggle to
+ * flip, so it carries a Resume button instead — one gesture either way, and the
+ * sentence names the one that is actually on the panel.
+ *
+ * A PARAMETER rather than a read of the pin, because this module is the WORDS
+ * and nothing else: every sentence in it is a function of what it is handed, so
+ * a test can ask for either without a server.
+ */
+const resumeGesture = (frozen: boolean): string =>
+  frozen
+    ? "Press Resume in preferences to start it again."
+    : "Turn Auto-commit off and on again in preferences to resume."
 
 /**
  * ... and the sentence the HEADER carries, which is git's own words plus that
@@ -358,11 +378,12 @@ const RESUME = "Turn Auto-commit off and on again in preferences to resume."
  * of its own down there, beside the verb that produced it, and one paragraph
  * printed twice in one popover is a popover nobody reads either copy of.
  */
-const autoSays = (paused: string): string =>
-  `auto-commit is paused — ${paused}. ${RESUME}`
+const autoSays = (paused: string, frozen: boolean): string =>
+  `auto-commit is paused — ${paused}. ${resumeGesture(frozen)}`
 
 /** ... and the PANEL's line, which does not repeat git — see {@link autoSays}. */
-export const AUTO_STOPPED = `auto-commit is paused, and what git said is below. ${RESUME}`
+export const autoStopped = (frozen: boolean): string =>
+  `auto-commit is paused, and what git said is below. ${resumeGesture(frozen)}`
 
 /** What an ARMED loop is about to do with what the panel is listing. Drawn only
  *  while it is really going to happen, so it is a promise rather than a
@@ -371,8 +392,8 @@ export const AUTO_ARMED =
   "Auto-commit will record all of this as one commit once the edits stop."
 
 /** The pause, on whatever sentence the face produced — see {@link explain}. */
-const alsoPaused = (said: string, paused: string | null): string =>
-  paused === null ? said : `${said} · ${autoSays(paused)}`
+const alsoPaused = (said: string, paused: string | null, frozen: boolean): string =>
+  paused === null ? said : `${said} · ${autoSays(paused, frozen)}`
 
 /** How much is waiting, in words — the same tally the pill draws as a number,
  *  so the sentence and the label cannot disagree. */

@@ -2,7 +2,10 @@ import { expect, test } from "bun:test"
 
 import { parseBool } from "../preference.ts"
 
-import { AUTOPUSH_KEY, autoPush, setAutoPush } from "./autopush.ts"
+import { NO_PIN } from "@olai/format"
+
+import { AUTOPUSH_KEY, autoPush, setAutoPush, storedAutoPush } from "./autopush.ts"
+import { setPinned } from "./pinned.ts"
 
 test("the key is namespaced to this browser's git preferences", () => {
   expect(AUTOPUSH_KEY).toBe("olai.git.autopush")
@@ -37,5 +40,53 @@ test("a pick is remembered under olai.git.autopush", () => {
     expect(store.get(AUTOPUSH_KEY)).toBe("false")
   } finally {
     delete g.localStorage
+  }
+})
+
+/** ── what the server pinned ─────────────────────────────────────────────
+ *
+ *  `--push`, and the argument is `./autocommit.test.ts`'s one door over and
+ *  sharper: whether a branch is pushed is the least personal thing on this
+ *  panel, and in a team deployment it is not one colleague's browser's to
+ *  decide. The stored pick is worn over, never written. */
+test("a pinned --push overrules this browser without overwriting it", () => {
+  const store = new Map<string, string>()
+  const g = globalThis as Record<string, unknown>
+  g.localStorage = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => void store.set(key, value),
+    removeItem: (key: string) => void store.delete(key),
+  }
+  try {
+    setAutoPush(false)
+    setPinned({ commit: null, push: "auto" })
+    expect(autoPush()).toBe(true)
+    expect(storedAutoPush()).toBe(false)
+
+    setAutoPush(true)
+    setPinned({ commit: null, push: "off" })
+    expect(autoPush()).toBe(false)
+    expect(store.get(AUTOPUSH_KEY)).toBe("true")
+
+    setPinned(NO_PIN)
+    expect(autoPush()).toBe(true)
+  } finally {
+    setPinned(NO_PIN)
+    delete g.localStorage
+  }
+})
+
+/** A commit pinned alone leaves this row this browser's, so an operator who
+ *  ruled on committing has not silently ruled on pushing to a shared branch. */
+test("pinning --commit alone leaves Git push to the browser", () => {
+  setAutoPush(false)
+  setPinned({ commit: "auto", push: null })
+  try {
+    expect(autoPush()).toBe(false)
+    setAutoPush(true)
+    expect(autoPush()).toBe(true)
+  } finally {
+    setAutoPush(false)
+    setPinned(NO_PIN)
   }
 })

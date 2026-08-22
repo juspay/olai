@@ -21,7 +21,7 @@ import { expect, test } from "bun:test"
 
 import {
   AUTO_PAUSED,
-  AUTO_STOPPED,
+  autoStopped,
   because,
   DETAIL,
   explain,
@@ -199,7 +199,28 @@ test("the sentence a stopped loop leaves says how to start it again", () => {
   // line says it too, so the two cannot drift on it.
   const said = explain("committed", surveyed(READY), GIT_OFF, "no upstream")
   expect(said).toContain("off and on again")
-  expect(AUTO_STOPPED).toContain("off and on again")
+  expect(autoStopped(false)).toContain("off and on again")
+})
+
+/**
+ * ... and it names the gesture the reader ACTUALLY HAS.
+ *
+ * A server started with `--commit` freezes the Git commit row read-only in
+ * every browser (`vault-level-settings`), so there is no toggle to turn off and
+ * on again — that row carries a Resume button instead. A sentence still naming
+ * the dance would send somebody after a control that is on screen and inert,
+ * which is worse than saying nothing: a loop that stopped and cannot be
+ * restarted is the one failure Auto-commit may never have.
+ */
+test("a frozen row is told to press Resume instead, on both sentences", () => {
+  const frozen = explain("committed", surveyed(READY), GIT_OFF, "no upstream", true)
+  expect(frozen).toContain("Resume")
+  expect(frozen).not.toContain("off and on again")
+  expect(autoStopped(true)).toContain("Resume")
+  expect(autoStopped(true)).not.toContain("off and on again")
+  // Both still carry git's own account of what happened / point at it.
+  expect(frozen).toContain("no upstream")
+  expect(autoStopped(true)).toContain("what git said is below")
 })
 
 test("a phone is interrupted by a stopped loop, on a face that is otherwise quiet", () => {

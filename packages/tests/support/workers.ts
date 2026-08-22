@@ -52,8 +52,14 @@ export const spawnFingerprint = (opts: {
   readonly agent: boolean;
   readonly kolu: boolean;
   readonly git?: string;
+  /** The git POLICY this server was started with — `--commit` / `--push`, and
+   *  `null` for the flag nobody gave. Part of the key because a pinned server
+   *  draws every browser's preference panel differently, so a scenario about a
+   *  live toggle may not reuse one. */
+  readonly pin?: { readonly commit?: string; readonly push?: string };
 }): string =>
-  `stored=${opts.stored ? 1 : 0},agent=${opts.agent ? 1 : 0},kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}`;
+  `stored=${opts.stored ? 1 : 0},agent=${opts.agent ? 1 : 0},kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}` +
+  `,commit=${opts.pin?.commit ?? "-"},push=${opts.pin?.push ?? "-"}`;
 
 /** Cucumber numbers workers from 0. Unset means this process is the only
  *  one — a serial run, or a unit test. Used to name the per-worker temp
