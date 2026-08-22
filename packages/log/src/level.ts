@@ -8,6 +8,11 @@
  * fact that fills that hole, the same kind of pin `--commit` is — read once,
  * for the running process, not per browser.
  *
+ * **Precedence:** when the env var is set, it wins. When it is unset (or
+ * empty), this layer is empty and Effect's `--log-level` applies — including
+ * its default `info`. That is what keeps `olai web --log-level warn` quiet,
+ * and what lets a systemd unit raise the level without rewriting argv.
+ *
  * Quiet stays the default (`info`), so a relayed agent stderr chunk — by
  * volume the loudest thing olai emits — is still off until asked for. The
  * verbs remain Effect's; this file only answers "how quiet".
@@ -45,12 +50,15 @@ export const resetInvalidOlaiLogLevelWarning = (): void => {
 }
 
 /**
- * The minimum level this process was started with. Unset and empty are `Info`.
- * An unrecognised value is ignored (with one diagnostic) rather than treated
- * as a fifth level.
+ * The minimum level the env var names, or `null` when it does not name one.
+ * Unset and empty are `null` (no override — `--log-level` / Effect's default
+ * remain). An unrecognised value is ignored (with one diagnostic) and treated
+ * as `Info`, because the operator DID set the knob, just misspelled it.
  */
-export const levelFor = (raw: string | undefined = process.env[LEVEL_ENV_VAR]): Minimum => {
-  if (raw === undefined || raw === "") return "Info"
+export const levelFor = (
+  raw: string | undefined = process.env[LEVEL_ENV_VAR],
+): Minimum | null => {
+  if (raw === undefined || raw === "") return null
   const named = raw.toLowerCase() as LevelName
   const level = NAMED[named]
   if (level !== undefined) return level
@@ -66,10 +74,15 @@ export const levelFor = (raw: string | undefined = process.env[LEVEL_ENV_VAR]): 
 }
 
 /**
- * Provide Effect's minimum level from {@link levelFor}, read when the layer is
- * built so a composition root that calls this at boot pins the env it was
- * started with.
+ * Provide Effect's minimum level from {@link levelFor}. Empty when the env
+ * var is unset, so an explicit `--log-level` still reaches the handler.
+ * Set, it is innermost and wins.
  */
 export const atLevel = (
   raw: string | undefined = process.env[LEVEL_ENV_VAR],
-): Layer.Layer<never> => Layer.succeed(References.MinimumLogLevel, levelFor(raw))
+): Layer.Layer<never> => {
+  const level = levelFor(raw)
+  return level === null
+    ? Layer.empty
+    : Layer.succeed(References.MinimumLogLevel, level)
+}

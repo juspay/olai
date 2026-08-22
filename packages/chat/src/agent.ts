@@ -373,16 +373,26 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     /** The agent's stderr since this subprocess started, capped so a chatty
      *  one cannot grow the journal's dump without bound. Dumped at WARN when
-     *  a turn fails — that is where opencode writes its JSON-RPC errors. */
+     *  a turn fails — that is where opencode writes its JSON-RPC errors.
+     *
+     *  `stderrWritten` is the bytes appended since spawn, including what the
+     *  cap has trimmed off the left. A turn snapshots that counter, not
+     *  `stderrBuf.length`: once the cap bites, the length is stuck at the cap
+     *  and a slice from there is empty — no dump, at the diagnosis moment. */
     let stderrBuf = ""
+    let stderrWritten = 0
     const STDERR_CAP = 32 * 1024
     const takeStderr = (chunk: string): void => {
       const text = chunk.trimEnd()
-      stderrBuf = `${stderrBuf}${stderrBuf === "" || stderrBuf.endsWith("\n") ? "" : "\n"}${text}`
+      const sep = stderrBuf === "" || stderrBuf.endsWith("\n") ? "" : "\n"
+      stderrBuf = `${stderrBuf}${sep}${text}`
+      stderrWritten += sep.length + text.length
       if (stderrBuf.length > STDERR_CAP) stderrBuf = stderrBuf.slice(-STDERR_CAP)
       tell(Effect.logDebug(text))
     }
-    const dumpStderr = (from: number): void => {
+    const dumpStderr = (fromWritten: number): void => {
+      const origin = stderrWritten - stderrBuf.length
+      const from = Math.max(0, fromWritten - origin)
       const during = stderrBuf.slice(from).trim()
       if (during === "") return
       // ONE line, even when the agent wrote several: a newline in a logfmt
@@ -785,11 +795,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       announced = id
       const name = modelNameIn(labels, id)
       if (name === null) {
-        say(
-          Effect.annotateLogs(
-            Effect.logWarning("the agent is running a model its picker does not offer"),
-            { model: id },
-          ),
+        tell(
+          Effect.logWarning("the agent is running a model its picker does not offer"),
+          { model: id },
         )
       }
       // The CLI is the only source that ever reports a `/model`, so this is the
@@ -821,6 +829,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           catch: (cause) => notStarted(reasonOf(cause)),
         })
         stderrBuf = ""
+        stderrWritten = 0
 
         /**
          * The same refusal, arriving the way it actually arrives.
@@ -1502,10 +1511,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             )
           }
           // Size, never content: a prompt is somebody's words and the journal
-          // is for the operator, not a transcript.
-          const from = stderrBuf.length
+          // is for the operator, not a transcript. UTF-8 bytes, not UTF-16
+          // code units — `text.length` would under-count anything non-ASCII.
+          const from = stderrWritten
           const started = Date.now()
-          yield* lifecycle(Effect.logInfo("prompt sent"), { bytes: text.length })
+          yield* lifecycle(Effect.logInfo("prompt sent"), {
+            bytes: Buffer.byteLength(text),
+          })
           // A TURN THE AGENT REFUSES fails like any other request and needs
           // nothing said about it here: `refused` means the agent answered, so
           // the caller already has what it needs to end the turn without

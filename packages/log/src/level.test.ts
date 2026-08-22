@@ -4,7 +4,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, References } from "effect"
 
 import { collector, findSaid } from "./lines.testlib.ts"
 import {
@@ -13,9 +13,9 @@ import {
   resetInvalidOlaiLogLevelWarning,
 } from "./level.ts"
 
-test("unset and empty are Info", () => {
-  expect(levelFor(undefined)).toBe("Info")
-  expect(levelFor("")).toBe("Info")
+test("unset and empty are no override", () => {
+  expect(levelFor(undefined)).toBeNull()
+  expect(levelFor("")).toBeNull()
 })
 
 test("the four names are case-insensitive", () => {
@@ -79,4 +79,30 @@ test("OLAI_LOG_LEVEL=debug lets the debug line through", async () => {
 test("OLAI_LOG_LEVEL=warn drops info as well as debug", async () => {
   const said = await saidThrough("warn")
   expect(said).toEqual([])
+})
+
+test("unset does not override an explicit --log-level (Warn still drops Info)", async () => {
+  const { layer, said } = collector()
+  await Effect.gen(function*() {
+    yield* Effect.logInfo("serving")
+  }).pipe(
+    Effect.provide(layer),
+    Effect.provide(atLevel(undefined)),
+    Effect.provideService(References.MinimumLogLevel, "Warn"),
+    Effect.runPromise,
+  )
+  expect(said).toEqual([])
+})
+
+test("a set OLAI_LOG_LEVEL wins over an outer Warn", async () => {
+  const { layer, said } = collector()
+  await Effect.gen(function*() {
+    yield* Effect.logInfo("serving")
+  }).pipe(
+    Effect.provide(layer),
+    Effect.provide(atLevel("info")),
+    Effect.provideService(References.MinimumLogLevel, "Warn"),
+    Effect.runPromise,
+  )
+  expect(findSaid(said, "serving")?.level).toBe("Info")
 })

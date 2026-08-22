@@ -121,7 +121,9 @@ Two knobs, both environment variables, both facts of the running instance rather
 | variable | what it picks | default |
 |---|---|---|
 | `OLAI_LOG` | the face: `logfmt` or `pretty` | pretty on a TTY, logfmt everywhere a machine reads (piped, systemd, tests) |
-| `OLAI_LOG_LEVEL` | the minimum level: `debug`, `info`, `warn`, `error` | `info` |
+| `OLAI_LOG_LEVEL` | the minimum level: `debug`, `info`, `warn`, `error` | unset — Effect's `--log-level` applies, default `info` |
+
+**When `OLAI_LOG_LEVEL` is set, it wins.** When it is unset, `olai web --log-level warn` quiets Info, as Effect's CLI always did. A systemd unit cannot pass that flag without rewriting argv, which is why the env var exists. Setting both is env-wins, not a merge.
 
 `OLAI_LOG_LEVEL=debug` turns on the rest, including everything the agent itself writes to its stderr — which is where opencode dumps JSON-RPC errors. A failed turn already surfaces that stderr at `warn`, so a silent send is diagnosable from the journal at the default level; debug is the live feed.
 

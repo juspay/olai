@@ -879,7 +879,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             return undeliverable(key, prompt, { gone: "refused", why: CANCELLED_UNDER_IT })
           }
         }
-        yield* begin(agent, key, prompt)
+        yield* begin(agent, at.row.id, key, prompt)
       }))
 
     /**
@@ -965,6 +965,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      */
     const begin = (
       agent: AcpAgent.Agent,
+      agentId: string,
       key: string,
       prompt: string,
     ): Effect.Effect<void> =>
@@ -975,7 +976,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         if (alongside) {
           yield* Effect.logInfo("message queued behind a running turn").pipe(
             Effect.annotateLogs({
-              agent: talking?.row.id,
+              agent: agentId,
               ...(state.session === null ? {} : { session: state.session.id }),
             }),
           )
@@ -1410,7 +1411,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               // A warning rather than an error: the panel is already showing
               // this, and the next prompt retries the boot exactly as a crash
               // does. Nothing has stopped.
-              yield* Effect.logWarning(outcome.failure.message)
+              yield* Effect.logWarning(outcome.failure.message).pipe(
+                Effect.annotateLogs({ agent: chosen.id }),
+              )
               // The same distinction the session verbs make, at the other place
               // a conversation is opened: an agent that ANSWERED the open with
               // a no is running, and a boot that never reached one is not.

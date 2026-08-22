@@ -84,11 +84,14 @@ const web = Command.make("web", {
     // same road out rather than exiting from under those finalizers.
     yield* faulted
   }).pipe(
-    // Innermost: Effect CLI's `--log-level` otherwise wins with its Info
-    // default and a systemd `OLAI_LOG_LEVEL=debug` would silently not apply.
+    // Innermost only when the env var is set (empty layer otherwise), so
+    // `olai web --log-level warn` still quiets Info, and a systemd
+    // `OLAI_LOG_LEVEL=debug` still raises it.
     Effect.provide(atLevel()),
   )).pipe(
-    Command.withDescription("serve a directory of outlines in the browser"),
+    Command.withDescription(
+      "serve a directory of outlines in the browser. OLAI_LOG_LEVEL (debug|info|warn|error) sets the minimum log level and wins when set; when unset, --log-level applies (default info)",
+    ),
   )
 
 const olai = Command.make("olai").pipe(
@@ -117,9 +120,8 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 }
 
 // The sink is stdout: a person watching a server looks there, and nothing else
-// in this process owns it. The LEVEL is provided on the `web` handler above —
-// innermost, so it wins over Effect CLI's `--log-level` default. Providing it
-// again here would be a second answer the CLI would overwrite.
+// in this process owns it. The LEVEL is provided on the `web` handler above:
+// OLAI_LOG_LEVEL when set, otherwise Effect's `--log-level` (default info).
 NodeRuntime.runMain(
   Command.run(olai, { version: "0.1.0" }).pipe(
     Effect.scoped,

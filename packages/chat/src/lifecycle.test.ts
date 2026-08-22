@@ -66,7 +66,11 @@ const options = () => ({
 /** Run `body` against one agent, with a collecting logger at `minimum`. */
 const withAgent = async (
   minimum: "Debug" | "Info",
-  body: (agent: Agent, run: Run) => Promise<void>,
+  body: (
+    agent: Agent,
+    run: Run,
+    said: ReadonlyArray<Logged>,
+  ) => Promise<void>,
 ): Promise<ReadonlyArray<Logged>> => {
   const { layer, said } = collector()
   const run: Run = (effect) =>
@@ -78,7 +82,7 @@ const withAgent = async (
     )
   const agent = await run(make(options()))
   try {
-    await body(agent, run)
+    await body(agent, run, said)
   } finally {
     await run(agent.stop)
     // The emitter forks; exit lands on another fiber. Under the full suite
@@ -164,6 +168,48 @@ describe("chat lifecycle lines", () => {
     expect(stderr?.annotations.session).toBe("sess-1")
     // Spawn-time stderr stays DEBUG, so it is off at info.
     expect(findSaid(said, "lifecycle-agent: started")).toBeUndefined()
+  }, 15_000)
+
+  test("bytes is UTF-8, not UTF-16 code units", async () => {
+    const text = "café"
+    expect(text.length).toBe(4)
+    expect(Buffer.byteLength(text)).toBe(5)
+    const said = await withAgent("Info", async (agent, run) => {
+      await run(agent.boot)
+      await run(agent.prompt(text))
+    })
+    expect(findSaid(said, "prompt sent")?.annotations.bytes).toBe(5)
+    expect(JSON.stringify(findSaid(said, "prompt sent")?.annotations)).not.toContain("café")
+  }, 15_000)
+
+  test("a failed turn still dumps stderr after the 32KB cap has bitten", async () => {
+    const said = await withAgent("Info", async (agent, run) => {
+      await run(agent.boot)
+      await run(agent.prompt("pad"))
+      const outcome = await run(Effect.result(agent.prompt("fail")))
+      expect(outcome._tag).toBe("Failure")
+      await Effect.runPromise(Effect.sleep("40 millis"))
+    })
+    const stderr = findSaid(said, "lifecycle-agent: json-rpc boom")
+    expect(stderr?.level).toBe("Warn")
+    expect(stderr?.annotations.session).toBe("sess-1")
+  }, 15_000)
+
+  test("a crash while a session is open logs the exit code", async () => {
+    const said = await withAgent("Info", async (agent, run, lines) => {
+      await run(agent.boot)
+      await run(Effect.result(agent.prompt("crash")))
+      // Wait HERE, before stop() nulls the session the exit handler reads.
+      const deadline = Date.now() + 2_000
+      while (Date.now() < deadline && findSaid(lines, "chat agent exited") === undefined) {
+        await Effect.runPromise(Effect.sleep("20 millis"))
+      }
+    })
+    const exited = findSaid(said, "chat agent exited")
+    expect(exited?.level).toBe("Info")
+    expect(exited?.annotations.code).toBe(7)
+    expect(exited?.annotations.session).toBe("sess-1")
+    expect(exited?.annotations.agent).toBe("opencode")
   }, 15_000)
 })
 

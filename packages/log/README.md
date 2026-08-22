@@ -28,19 +28,23 @@ Effect's, used the way [kolu's own logger](https://github.com/juspay/kolu) docum
 | `logWarning` | degraded but recoverable — bound off loopback, a connection that failed, a boot the next prompt will retry |
 | `logError` | a failure something stops for |
 
-**Quiet by default.** Effect's minimum level is `Info`, so `logDebug` is off until asked for. `OLAI_LOG_LEVEL` is the instance knob — the same kind of fact `--commit` is, read at the one env edge, default `info`. A systemd unit raises it without rewriting argv; the home-manager module's `logLevel` option sets it.
+**Quiet by default.** Effect's minimum level is `Info`, so `logDebug` is off until asked for. `OLAI_LOG_LEVEL` is the instance knob — the same kind of fact `--commit` is, read at the one env edge. A systemd unit raises it without rewriting argv; the home-manager module's `logLevel` option sets it.
+
+**Precedence:** set, `OLAI_LOG_LEVEL` wins. Unset, Effect's `--log-level` applies (default `info`). That is how `olai web --log-level warn` stays quiet, and how a unit file raises debug without rewriting ExecStart.
 
 ```sh
 OLAI_LOG_LEVEL=debug olai web ~/outlines
+olai web ~/outlines --log-level warn   # only when OLAI_LOG_LEVEL is unset
 ```
 
 | value | what you get |
 |---|---|
-| unset / `info` | lifecycle: the address bound, a conversation opened, a prompt sent, a turn that ended or failed, the agent process coming and going |
+| unset | `--log-level`, else `info` — lifecycle: the address bound, a conversation opened, a prompt sent, a turn that ended or failed, the agent process coming and going |
+| `info` | the same, pinned, even if `--log-level` says otherwise |
 | `debug` | the rest, including every chunk of the agent's own stderr |
 | `warn` / `error` | quieter still |
 
-Effect's CLI `--log-level` still exists; `OLAI_LOG_LEVEL` is what production actually has a way to set. The two faces (`OLAI_LOG`) are a different question and stay a different variable.
+The two faces (`OLAI_LOG`) are a different question and stay a different variable.
 
 ## The format
 

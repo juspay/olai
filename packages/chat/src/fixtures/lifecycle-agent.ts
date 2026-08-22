@@ -7,6 +7,8 @@
  *
  * Prompt text:
  *   fail       — JSON-RPC error, after writing to stderr
+ *   pad        — 33KB of stderr then end_turn (the cap is 32KB)
+ *   crash      — exit 7 after the session is open
  *   queue-wait — end_turn after 250ms, so a second prompt can queue
  *   anything else — end_turn immediately
  */
@@ -54,6 +56,14 @@ process.stdin.on("data", (chunk: string) => {
           process.stderr.write("lifecycle-agent: json-rpc boom\n")
           refuse(message.id, "the model said no")
           continue
+        }
+        if (text === "pad") {
+          process.stderr.write(`${"x".repeat(33 * 1024)}\n`)
+          respond(message.id, { stopReason: "end_turn" })
+          continue
+        }
+        if (text === "crash") {
+          process.exit(7)
         }
         if (text === "queue-wait") {
           setTimeout(() => respond(message.id, { stopReason: "end_turn" }), 250)
