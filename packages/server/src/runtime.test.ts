@@ -226,10 +226,6 @@ test("a reader watching a head is told the file moved, and no body is read", () 
         const get = wired.bound.handlers["surface/heads/get"]
         if (get === undefined) throw new Error("the heads collection has no `get`")
 
-        // The snapshot frame is the barrier: taking it says the subscription is
-        // open. Fork-and-refresh without that wait is how this test hung — the
-        // probe published, the late subscriber snapshotted the new head, and
-        // `Stream.take(2)` waited forever for a second frame.
         const open = yield* watching(get({ key: "report.html" }) as Stream.Stream<Head>)
         const first = yield* open.take
 
@@ -354,10 +350,7 @@ test("a reader holding a key across a file's birth is handed the body", () =>
 
       // TWO frames, in this order: the upsert that says the collection has a new
       // key (which cannot carry a body — nothing has read one), and the body
-      // read for the reader holding it. A late subscriber — the subscription
-      // scheduled but not yet attached — sees only the body, which is the
-      // documented "opens afterwards" path; `watching` attaches first so this
-      // is the holder-across-birth path.
+      // read for the reader holding it.
       expect(yield* open.take).toEqual({ rev: 2, text: null, refused: false })
       expect(yield* open.take).toEqual({
         rev: 2,
@@ -421,11 +414,6 @@ test("a directory that never loaded publishes no head, and the first head is the
       if (said === undefined) throw new Error("the manifest cell has no `get`")
       if (framed === undefined) throw new Error("the heads collection has no `deltas`")
 
-      // The snapshot frames are the barrier: taking them says both
-      // subscriptions are open over the never-validated set. Fork-and-refresh
-      // without that wait is how this test hung — the probe published a set,
-      // the late subscribers snapshotted it, and `Stream.take(2)` waited
-      // forever for a second frame.
       const heads = yield* watching(
         framed({}) as Stream.Stream<CollectionDeltasMsg<string, Head>>,
       )
@@ -494,7 +482,6 @@ test("the shelf is answered per revision, so a rename elsewhere renames the pin"
         ])
       }),
   ))
-
 
 /**
  * …and a revision that moved no pin sends NOTHING, which is what the cell's
