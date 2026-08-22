@@ -1,10 +1,12 @@
 /**
- * THE QUIET WINDOW: when a directory that has gone quiet records itself.
+ * THE QUIET WINDOW: how long a directory must be quiet before what is waiting
+ * records itself, and whether it would record at all right now.
  *
- * The rules only. The timer over them, and the two verbs it drives, are
- * `./pending.ts` — for the reason the browser's retired copy split the same
- * way: these are ARGUMENTS, and an argument is a thing to unit-test, where a
- * debounce over a stream is plumbing.
+ * The RULE and nothing else — no timer, no git, no I/O. `@olai/ops`' `pending.ts`
+ * runs it (the debounce, the two verbs, the stop) and the BROWSER draws the
+ * promise off it, which is why it lives down here on the floor both stand on
+ * rather than beside the loop: a browser cannot import the ops layer, whose
+ * next module down reaches `node:child_process`.
  *
  * **It moved here from a browser tab, and that is the whole of this module's
  * existence.** Auto-commit shipped as a preference beside theme: a 15 s window
@@ -25,14 +27,28 @@
  * writes, which is why nothing here knows who wrote anything.
  */
 
-import { type CommitMode, isReady, type Pending, QUIET_MS } from "@olai/format"
+import { isReady, type CommitMode, type Pending } from "./committing.ts"
 
-/** The span, re-exported beside the rules it belongs to. It is DECLARED on the
- *  floor (`@olai/format`) rather than here because the preferences panel prints
- *  it — "records itself when writes stop arriving for fifteen seconds" — and a
- *  browser must not import this package: the module below it reaches
- *  `node:child_process`. */
-export { QUIET_MS }
+/**
+ * How long writes must stop arriving before what is waiting becomes a commit.
+ *
+ * FIFTEEN SECONDS, inside the ten-to-thirty band the ruling named, and the span
+ * is an argument about two things at once:
+ *
+ *   - it has to outlast the pauses INSIDE one piece of work — reading a line
+ *     back, moving between rows, waiting for an agent's next op — or the
+ *     feature's own promise breaks and one train of thought arrives as three
+ *     commits;
+ *   - and it has to be short enough that the audit trail is never far behind
+ *     the work, so the message it composes still describes something the person
+ *     remembers doing.
+ *
+ * It is deliberately not a knob. A setting here would be a second thing to
+ * explain about a feature whose whole point is not having to think about it.
+ * The preferences panel prints the span in the Git commit row's own sentence,
+ * read off this value rather than spelled again.
+ */
+export const QUIET_MS = 15_000
 
 /**
  * What is waiting, as one word — the same for two readings of the same work,
@@ -65,10 +81,16 @@ export const flurryOf = (pending: Pending): string =>
  * not waiting on anything.
  *
  * ONE EXPRESSION, and it is the whole rule — asked when a survey arrives to arm
- * the window, and asked again at the moment the window closes, so the two
- * cannot come to want slightly different things. It was four constructs (a
- * value, a predicate, a builder and this) and they had already drifted: the
- * arming path read four terms and the firing path hand-spelled two of them.
+ * the window, asked again at the moment the window closes, and asked a third
+ * time by the BROWSER, whose panel promises "Auto-commit will record all of
+ * this" and may only promise it when this answers with something. The three
+ * cannot come to want slightly different things.
+ *
+ * That third caller is why this is on the floor. The panel used to re-derive a
+ * shorter version of it, and the shorter version had already lost a term: on a
+ * clean tree under `--commit=auto` it promised to record an empty list, because
+ * "the policy is the window and the repository is ready" is true of a directory
+ * with nothing in it.
  *
  * EVERY RE-ARM IN THE FEATURE IS A CHANGE OF THIS STRING. A write moves the
  * flurry; turning Auto-commit on moves it from `""`; Resume moves it back from
@@ -97,8 +119,8 @@ export const flurryOf = (pending: Pending): string =>
  */
 export const armedOn = (
   /** What this server does about commits — the policy, with the defaults and
-   *  the pin already folded in (`@olai/format`'s `policyOf`). Only `auto` runs
-   *  a loop; `manual` waits to be asked and `off` never touches git. */
+   *  the pin already folded in ({@link policyOf}). Only `auto` runs a loop;
+   *  `manual` waits to be asked and `off` never touches git. */
   commit: CommitMode,
   /** Why the loop stopped, or `null` while it is running. A refused commit or
    *  push sets it and nothing clears it on olai's own initiative. */

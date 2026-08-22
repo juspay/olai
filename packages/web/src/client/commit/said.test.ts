@@ -40,6 +40,7 @@ import {
   unpushedOf,
   verbatim,
   waitingIn,
+  willRecord,
 } from "./said.ts"
 
 /** A survey of a directory in one repository state, with nothing waiting unless
@@ -522,4 +523,30 @@ test("a refusal that stopped the loop is quoted once, not twice", () => {
   expect(sentence).toContain("Resume")
   // A stop with a reason nothing else quoted still carries it.
   expect(explain("committed", surveyed(READY), stopped(words))).toContain(words)
+})
+
+/**
+ * THE PROMISE IS THE LOOP'S OWN GATE, and the term it must not lose is that
+ * something is WAITING.
+ *
+ * A clean tree under `--commit=auto` is the case that got through: the policy
+ * is the window and the repository is ready, both true, so a shorter version of
+ * the rule promised "Auto-commit will record all of this as one commit once the
+ * edits stop" over an empty list — while the server's own answer was `""`
+ * precisely because there was nothing to record.
+ */
+test("the panel promises to record only what there is to record", () => {
+  const windowed = git({ policy: { commit: "auto", push: "off" } })
+  expect(willRecord(waiting(2), windowed)).toBe(true)
+  // A clean tree: the policy has not changed and neither has the repository.
+  expect(willRecord(surveyed(READY), windowed)).toBe(false)
+  // ... and the other three terms of the same rule.
+  expect(willRecord(waiting(2), git())).toBe(false)
+  expect(willRecord(waiting(2), { ...windowed, paused: "no upstream" })).toBe(false)
+  expect(willRecord(
+    surveyed({ _tag: "Blocked", reason: "rebase", said: "" }, {
+      unreadable: ["garden.olai"],
+    }),
+    windowed,
+  )).toBe(false)
 })

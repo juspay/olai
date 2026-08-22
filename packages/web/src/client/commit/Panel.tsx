@@ -49,11 +49,11 @@ import {
   AUTO_STOPPED,
   because,
   commitRefused,
-  loopIn,
   scopeOf,
   verbatim,
   waitingIn,
   WHO,
+  willRecord,
 } from "./said.ts"
 import { Others } from "./Others.tsx"
 import { Outlines } from "./Outlines.tsx"
@@ -108,18 +108,9 @@ export function Panel(props: {
    *  ask. */
   const nothingTicked = () => selection.paths()?.length === 0
 
-  /**
-   * Whether the quiet window would record this list on its own.
-   *
-   * The SERVER's own gate, read off the two facts it publishes: the policy is
-   * `auto` and the loop is not stopped. It used to be the loop's own verdict
-   * published on a value in this tab, which is what a promise had to be made
-   * out of while the loop lived here; now the loop is the directory's, so the
-   * honest promise is "the policy says this will be recorded" and the rest of
-   * the gate — is the repository ready, has git refused — is already on screen
-   * as its own line right above this one.
-   */
-  const willRecord = () => loopIn(props.commit.git()) === "armed" && ready()
+  /** Whether the quiet window would record this list on its own — the loop's
+   *  OWN gate, asked rather than re-derived (`./said.ts`). */
+  const promised = () => willRecord(pending(), props.commit.git())
 
   return (
     <section
@@ -289,7 +280,7 @@ export function Panel(props: {
           drawn only while the loop really would keep it. The button stays
           either way: a person who does not want to wait out the window meant
           it. */}
-      <Show when={willRecord()}>
+      <Show when={promised()}>
         <p class="text-xs text-muted" data-testid={TESTID.commitAutoArmed}>
           {AUTO_ARMED}
         </p>

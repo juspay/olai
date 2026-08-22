@@ -46,6 +46,7 @@
  */
 
 import {
+  armedOn,
   COMMIT_MODES,
   type CommitMode,
   type CommitRequest,
@@ -68,6 +69,7 @@ import {
   parseOutline,
   type Pending,
   policyOf,
+  QUIET_MS,
   type PushResult,
   type Reason,
   type RepoState,
@@ -79,7 +81,6 @@ import * as Git from "@olai/git"
 import { Duration, Effect, Result, Stream, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
-import { armedOn, QUIET_MS } from "./loop.ts"
 import { AUDIT, signed } from "./message.ts"
 
 /**
@@ -347,7 +348,7 @@ export interface Options {
    */
   readonly onSettled?: () => void
   /** The quiet window, for a test that cannot wait fifteen seconds. The SPAN is
-   *  a product decision and lives with the rules (`./loop.ts`'s
+   *  a product decision and lives with the rule (`@olai/format`'s
    *  {@link QUIET_MS}); this is only how long this instance waits. */
   readonly quiet?: Duration.Input
 }
@@ -443,7 +444,7 @@ export interface Committing {
    * The loop is armed by the arrival of a reading rather than by a clock of its
    * own, so this is the one thing outside this module that has to be called:
    * whoever recomputes {@link status} says so here, and the window re-arms
-   * exactly when what is waiting has actually moved (`./loop.ts`'s `armedOn`).
+   * exactly when what is waiting has actually moved (`@olai/format`'s `armedOn`).
    * A survey that says nothing new — the server's slow sweep over a quiet
    * directory — leaves the window where it is, which is what keeps a commit
    * from being pushed out by a clock nobody typed on.
@@ -1067,7 +1068,7 @@ export const make = (options: Options): Committing => {
    * re-armed the window, so a window that fired is a window nothing has
    * republished under for fifteen seconds. What CAN have moved in that gap is
    * the policy and the pause, and those are read fresh below — which is why
-   * {@link ./loop.ts}'s rule takes them apart from the reading.
+   * `@olai/format`'s rule takes them apart from the reading.
    */
   let looked: Pending = NOTHING_PENDING
 
@@ -1092,7 +1093,7 @@ export const make = (options: Options): Committing => {
    *
    * THE SAME RULE IS ASKED AGAIN at the moment the window closes rather than
    * trusted from when it was armed — one expression, both moments
-   * ({@link ./loop.ts}'s `armedOn`) — because fifteen seconds is long enough
+   * (`@olai/format`'s `armedOn`) — because fifteen seconds is long enough
    * for somebody to turn the policy off and for git to refuse something else.
    * It costs no survey: a reading that said anything new would have re-armed
    * the window rather than let it close.

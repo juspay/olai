@@ -54,7 +54,7 @@ export { How, Reason, RepoState }
  * `manual` is the point of the whole thing: a write lands on disk and WAITS,
  * and something asks for a commit. `auto` is the SERVER's quiet-window loop —
  * what is waiting records itself once writes stop arriving for fifteen seconds,
- * whoever made them (`@olai/ops`' `loop.ts`). `off` is `--no-commit`.
+ * whoever made them (`./window.ts`). `off` is `--no-commit`.
  *
  * `auto` used to mean one commit per write, made inside the write gate, and
  * that is retired: a train of thought arrived as a dozen commits, and the
@@ -85,31 +85,6 @@ export type PushMode = (typeof PUSH_MODES)[number]
  *  {@link COMMIT_DEFAULT} and for the same reason: "nobody said" and "somebody
  *  said off" must not be able to come to disagree about what the server does. */
 export const PUSH_DEFAULT: PushMode = "off"
-
-/**
- * How long writes must stop arriving before what is waiting becomes a commit —
- * the quiet window `--commit=auto` runs on (`@olai/ops`' `loop.ts`).
- *
- * FIFTEEN SECONDS, inside the ten-to-thirty band the ruling named, and the span
- * is an argument about two things at once:
- *
- *   - it has to outlast the pauses INSIDE one piece of work — reading a line
- *     back, moving between rows, waiting for an agent's next op — or the
- *     feature's own promise breaks and one train of thought arrives as three
- *     commits;
- *   - and it has to be short enough that the audit trail is never far behind
- *     the work, so the message it composes still describes something the person
- *     remembers doing.
- *
- * It is deliberately not a knob. A setting here would be a second thing to
- * explain about a feature whose whole point is not having to think about it.
- *
- * It is DECLARED HERE rather than beside the loop for the reason the mode
- * tables are: it travels. The preferences panel prints the span in the Git
- * commit row's own sentence, and a browser cannot import the ops layer — the
- * module the loop lives in reaches `node:child_process` one package down.
- */
-export const QUIET_MS = 15_000
 
 /**
  * WHAT THE OPERATOR PINNED, and `null` for each half nobody pinned.
@@ -353,7 +328,7 @@ export const sameGit: (a: GitState, b: GitState) => boolean = Schema
  *
  *  `auto` is the fifth and is the only one that never writes a FILE: it is the
  *  server's own quiet-window loop, which makes commits and nothing else
- *  (`@olai/ops`' `loop.ts`). It is here rather than reusing `web` because that
+ *  (`./window.ts`, run by `@olai/ops`). It is here rather than reusing `web` because that
  *  would be a lie a headless serve tells in every commit it makes — there is no
  *  page, no button and possibly no browser anywhere — and the trailer is the
  *  permanent half of "who did this". */

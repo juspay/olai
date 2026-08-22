@@ -76,7 +76,7 @@ const withRepo = <A>(
     readonly commits?: "off" | "manual" | "auto"
     readonly pushes?: "off" | "auto"
     /** The quiet window this instance waits. Milliseconds, and short: the SPAN
-     *  is a product decision (`./loop.ts`'s `QUIET_MS`) and a test that waited
+     *  is a product decision (`@olai/format`'s `QUIET_MS`) and a test that waited
      *  it out would take fifteen seconds to prove a debounce. */
     readonly quiet?: number
     /** Which directory olai SERVES, relative to the repository root. Absent is

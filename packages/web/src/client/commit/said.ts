@@ -17,6 +17,7 @@
  */
 
 import {
+  armedOn,
   type How,
   type Pending,
   type Reason,
@@ -346,7 +347,7 @@ export const PUSH_REFUSED = "the last push was refused"
 /**
  * ── Auto-commit, as the DIRECTORY has it ──────────────────────────────
  *
- * The loop is the server's (`@olai/ops`' `loop.ts`); these are the words for
+ * The loop is the server's (`@olai/ops`, over `@olai/format`'s `window.ts`); these are the words for
  * it. It is not one of the pill's {@link Face}s and never was: those are eight
  * things about whether writes are being RECORDED, and whether the loop has
  * stopped is a different question about the same directory — a stopped loop
@@ -425,6 +426,23 @@ const quoted = (git: GitState): boolean =>
 /** ... and the PANEL's line, which does not repeat git — see {@link autoSays}. */
 export const AUTO_STOPPED =
   `auto-commit is paused, and what git said is below. ${RESUME_GESTURE}`
+
+/**
+ * Whether the server's quiet window really would record what the panel is
+ * listing — the loop's OWN gate, called rather than re-derived.
+ *
+ * `armedOn` is the expression the server arms the window with and re-asks at
+ * the moment it fires (`@olai/format`'s `window.ts`), and the panel is its
+ * third caller for exactly the reason it is on the floor: a promise made out of
+ * a shorter version of the rule is a promise the loop does not keep. It was
+ * made out of a shorter version — the policy and the repository's readiness,
+ * without the term that says something is WAITING — so on a clean tree under
+ * `--commit=auto` the committed pill printed {@link AUTO_ARMED} over an empty
+ * list, while the server's own answer was `""` precisely because there was
+ * nothing to record.
+ */
+export const willRecord = (pending: Pending, git: GitState): boolean =>
+  armedOn(git.policy.commit, git.paused, pending) !== ""
 
 /** What an ARMED loop is about to do with what the panel is listing. Drawn only
  *  while it is really going to happen, so it is a promise rather than a

@@ -572,6 +572,13 @@ export type {
 export { canonicalRepeat, nextOccurrence, REPEAT_GRAMMAR, REPEAT_RULES } from "./repeat.ts"
 export { stampOf } from "./stamp.ts"
 
+/** THE QUIET WINDOW, as the rule alone: how long a directory must be quiet
+ *  before what is waiting records itself, and whether it would record at all
+ *  right now. On the FLOOR because three callers ask it — `@olai/ops` runs the
+ *  loop, `@olai/server` prints the span in `--help`, and the browser draws the
+ *  promise off it — and a browser cannot import the layer that runs it. */
+export { armedOn, flurryOf, QUIET_MS } from "./window.ts"
+
 export { biggestOf, changesOf, Field, NodeChange, Sort } from "./changes.ts"
 export type { Records } from "./changes.ts"
 
@@ -601,7 +608,6 @@ export {
   PUSH_MODES,
   type PushMode,
   PushResult,
-  QUIET_MS,
   Reason,
   RepoState,
   sameGit,
