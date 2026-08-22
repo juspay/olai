@@ -476,9 +476,16 @@ export interface Committing {
    * So the words are re-earned rather than remembered. One `git push` at boot,
    * the same bare one every other door runs — never a force, never a pull — and
    * whatever git says lands on the cell through the same path a pressed Push
-   * takes. A branch already in sync answers `NothingToPush` and writes nothing,
-   * which is why there is no "is anything unpushed" check here: {@link push}
-   * owns that question and asking it twice is how the two come to disagree.
+   * takes.
+   *
+   * ONLY WHERE THERE ARE COMMITS TO SEND, and that check is here rather than
+   * left to {@link push} — the one place the two verbs genuinely want different
+   * answers. A branch with NO UPSTREAM is not a branch that is behind: `push`
+   * lets that one through to git, because a person who pressed the button is
+   * owed git's own words about the remote they have not set. A boot nobody
+   * asked for is owed nothing of the kind, and letting it through would stop
+   * the loop of every directory whose branch has never been pushed, at every
+   * start, with a refusal about a thing that is not wrong.
    *
    * Under `manual` and `off` nothing is attempted at all. A directory whose
    * pushes are somebody's own button press has not asked this process to make
@@ -1158,11 +1165,12 @@ export const make = (options: Options): Committing => {
         )),
   )
 
-  const catchUp: Effect.Effect<void> = Effect.suspend(() =>
-    options.policy.now().push === "auto"
-      ? Effect.asVoid(push)
-      : Effect.void
-  )
+  const catchUp: Effect.Effect<void> = Effect.gen(function*() {
+    if (options.policy.now().push !== "auto") return
+    const looked = yield* survey
+    if (looked.unpushed === null || looked.unpushed.commits === 0) return
+    yield* push
+  })
 
   const resume: Effect.Effect<void> = Effect.sync(() => {
     if (settled.paused === null) return

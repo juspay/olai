@@ -1510,3 +1510,45 @@ describe("the one push a boot owes", () => {
         expect(said.paused).toBeNull()
       }), { commits: "auto", pushes: "auto" }))
 })
+
+/**
+ * A BRANCH WITH NO UPSTREAM IS NOT A BRANCH THAT IS BEHIND, and the boot arm is
+ * the one place that difference decides something.
+ *
+ * The Push BUTTON lets it through to git on purpose: a person who pressed it is
+ * owed git's own words about the remote they have not set. A boot nobody asked
+ * for is owed nothing of the kind — and if it let the same refusal through, the
+ * loop of every `--commit=auto --push=auto` directory whose branch has never
+ * been pushed would stop at every start, over a thing that is not wrong.
+ */
+test("a boot says nothing about a branch that has no upstream at all", () =>
+  withRepo({ "house.olai": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      // No remote, so nothing to be behind: `unpushed` is `null` rather than
+      // zero, which is a different fact and the one this arm reads.
+      expect((yield* fixture.ops.pending).unpushed).toBeNull()
+
+      yield* fixture.ops.catchUp
+
+      const said = yield* fixture.ops.git
+      expect(said.pushSaid).toBeNull()
+      expect(said.paused).toBeNull()
+
+      // ... and the loop it did not stop still records.
+      yield* Effect.forkScoped(fixture.ops.loop)
+      fixture.write("notes.md", "the herb bed needs splitting\n")
+      yield* fixture.refresh
+      yield* fixture.observe
+      yield* Effect.sleep(Duration.millis(240))
+      expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
+    }), { commits: "auto", pushes: "auto", quiet: 40 }))
+
+/** ... and the button still gets git's words about that same branch, which is
+ *  the half the boot arm must not have changed. */
+test("the Push button still hands over git's refusal about a missing upstream", () =>
+  withRepo({ "house.olai": HOUSE }, (fixture) =>
+    Effect.gen(function*() {
+      const sent = yield* fixture.ops.push
+      expect(sent._tag).toBe("Failed")
+      if (sent._tag === "Failed") expect(sent.said).not.toBe("")
+    }), { commits: "manual", pushes: "off" }))
