@@ -70,7 +70,7 @@ describe("an agent that will not start", () => {
   test("refuses with the file it was pointed at, not with our end of the pipe", async () => {
     const agent = await Effect.runPromise(
       make({
-        id: CLAUDE.id,
+        id: "claude",
         leg: CLAUDE,
         command: NOWHERE,
         args: [],

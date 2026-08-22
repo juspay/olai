@@ -20,6 +20,8 @@
 
 import { For } from "solid-js"
 
+import { AGENTS, type AgentId } from "@olai/surface"
+
 import { TESTID } from "../testids.ts"
 import { AgentMark } from "./AgentMark.tsx"
 
@@ -30,34 +32,36 @@ import { AgentMark } from "./AgentMark.tsx"
 const AGENT_ENV = "OLAI_ACP_AGENT"
 
 /**
- * The agents olai knows how to find, and where a person gets one.
+ * Where a person GETS each agent olai knows how to talk to.
  *
- * A LIST HERE rather than one sent over the wire, and the difference is what
- * each end knows: the server can say which agents are INSTALLED and cannot say
- * where to get one — that is a URL and a sentence, which is drawing. This list
- * is the same table's rows (`../../../../chat/src/agents/roster.ts`) read from
- * the other side, and it is only ever drawn when the server found NONE of them,
- * so the two cannot contradict each other on screen.
+ * Only the half neither end could answer for the other: the server says which
+ * agents are installed and this face is drawn precisely when the answer was
+ * NONE, so there is nothing on the wire to draw from — and a URL and a sentence
+ * are drawing rather than facts about a machine.
+ *
+ * KEYED BY `AgentId`, which is what stops it drifting. The ids and the NAMES
+ * are the wire's own table (`@olai/surface`'s `AGENTS`, which says why it lives
+ * there), so this record is exhaustive by the type checker: a third agent added
+ * to the roster stops this file compiling rather than quietly not being
+ * mentioned in the one face that explains agents.
  */
-const KNOWN: ReadonlyArray<{
-  readonly id: string
-  readonly name: string
-  readonly how: string
-  readonly where: string
-}> = [
-  {
-    id: "claude",
-    name: "Claude Code",
+const WHERE_FROM: { readonly [K in AgentId]: { readonly how: string; readonly where: string } } = {
+  claude: {
     how: "comes with olai — every documented way of starting it bakes the adapter in",
     where: "https://claude.com/claude-code",
   },
-  {
-    id: "opencode",
-    name: "opencode",
+  opencode: {
     how: "put `opencode` on this server's PATH",
     where: "https://opencode.ai",
   },
-]
+}
+
+/** ... and the rows to draw, in the table's own order. */
+const KNOWN = (Object.keys(WHERE_FROM) as ReadonlyArray<AgentId>).map((id) => ({
+  id,
+  name: AGENTS[id].name,
+  ...WHERE_FROM[id],
+}))
 
 export function NoAgent() {
   return (

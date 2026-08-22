@@ -49,7 +49,7 @@ The TRANSCRIPT is still not persisted on this side, and that is the part that ha
 
 | file | what it owns |
 |---|---|
-| `adapter.ts` | which executable the `claude` row of the roster is: the pinned adapter by default, `OLAI_ACP_AGENT` to override, empty to turn chat off — the whole panel, not one row |
+| `adapter.ts` | which executable the `claude` row of the roster is: the pinned adapter by default, `OLAI_ACP_AGENT` to override, empty to turn chat off — the whole panel, not one row. Both variable NAMES live here, and the sentence a person reads when nothing was found |
 | `agents/roster.ts` | WHICH agents this machine has, and how to start each: one table, probed once when the server starts. `OLAI_AGENT_PATH` is where the probes look, because olai's PATH is not your shell's |
 | `agents/leg.ts` | the one shape both agents answer to — everything that is true of ONE agent and not the other, as pure functions and constants. The rule that survives the split: nothing is ever approved by failing to recognise it |
 | `agents/claude.ts` | the Claude Code adapter's answers, meaning unchanged from the day it was the only file: the two readings of `_meta.claudeCode` (`toolName`, which tool a call is; `parentToolUseId`, which AGENT made it), the flag that says a call spawned one, the CLI `init` message it forwards, its bypass mode and its steering extension |

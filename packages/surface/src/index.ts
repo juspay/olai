@@ -1279,8 +1279,10 @@ export const surface = defineSurface({
 })
 
 export {
+  AGENTS,
   AgentChoice,
   AgentEntry,
+  type AgentId,
   agentIn,
   Ask,
   AskAnswer,

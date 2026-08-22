@@ -131,7 +131,6 @@ export const allowedWithoutAsking = (
  * floor, a `_meta` subscription nothing subscribes to.
  */
 export const OPENCODE: Leg = {
-  id: "opencode",
   // The id, and never the frame's `_meta` — there is none — nor its title,
   // which moves.
   toolName: (_meta, toolCallId) => toolNameIn(toolCallId),

@@ -61,22 +61,22 @@
  * always made.
  */
 
-import { type Adapter, adapterFrom, AGENT_ENV } from "../adapter.ts"
+import { AGENTS, type AgentId } from "@olai/surface"
+
+import { type Adapter, adapterFrom, AGENT_ENV, AGENT_PATH_ENV } from "../adapter.ts"
 import { CLAUDE } from "./claude.ts"
 import type { Leg } from "./leg.ts"
 import { OPENCODE } from "./opencode.ts"
-
-/** Where the probes look, when it is not `PATH`. See the header. */
-export const AGENT_PATH_ENV = "OLAI_AGENT_PATH"
 
 /** An agent that is installed: who it is, what to spawn, and how to read what
  *  comes back. The whole of what the rest of the package needs. */
 export interface Installed {
   /** Stable, lower-case, never shown: the id a memory writes down and the
    *  browser sends back when a person picks. */
-  readonly id: string
+  readonly id: AgentId
   /** What a person reads — in the picker, and in the header beside the
-   *  model. */
+   *  model. Taken from the wire's own table (`@olai/surface`'s `AGENTS`), which
+   *  is where both ends' agent tables get their vocabulary. */
   readonly name: string
   readonly adapter: Adapter
   readonly leg: Leg
@@ -96,8 +96,7 @@ export interface Where {
 
 /** One agent olai knows how to talk to. */
 interface Kind {
-  readonly id: string
-  readonly name: string
+  readonly id: AgentId
   readonly leg: Leg
   /** How to start it here, or `null` when it is not installed. */
   readonly at: (where: Where) => Adapter | null
@@ -108,16 +107,14 @@ interface Kind {
  * than by a sort somewhere else: the agent olai ships with comes first, and
  * everything found on the machine follows in the order somebody wrote it down.
  */
-const KINDS: ReadonlyArray<Kind> = [
+const KINDS = [
   {
-    id: CLAUDE.id,
-    name: "Claude Code",
+    id: "claude",
     leg: CLAUDE,
     at: (where) => adapterFrom(where.env[AGENT_ENV]),
   },
   {
-    id: OPENCODE.id,
-    name: "opencode",
+    id: "opencode",
     leg: OPENCODE,
     at: (where) => {
       const bin = where.found("opencode")
@@ -129,7 +126,21 @@ const KINDS: ReadonlyArray<Kind> = [
       return bin === null ? null : { command: bin, args: ["acp", "--cwd", where.cwd] }
     },
   },
-]
+] as const satisfies ReadonlyArray<Kind>
+
+/**
+ * ... and the table COVERS the wire's list, checked by the compiler.
+ *
+ * The two tables over agents live in packages that never meet
+ * (`@olai/surface`'s `AGENTS` says why), and this is the half a record cannot
+ * enforce on its own: the ORDER of these rows is the order the picker draws, so
+ * they are an array rather than a record keyed by id. This line buys the
+ * coverage back — a third agent named on the wire and not started here stops
+ * compiling, in the file that would otherwise silently not offer it.
+ */
+const _everyAgentIsStartable: (typeof KINDS)[number]["id"] extends AgentId
+  ? AgentId extends (typeof KINDS)[number]["id"] ? true : never
+  : never = true
 
 /**
  * Every agent installed here, in the table's order — or NOTHING when chat is
@@ -148,7 +159,7 @@ export const rosterOf = (where: Where): ReadonlyArray<Installed> => {
   for (const kind of KINDS) {
     const adapter = kind.at(where)
     if (adapter !== null) {
-      found.push({ id: kind.id, name: kind.name, adapter, leg: kind.leg })
+      found.push({ id: kind.id, name: AGENTS[kind.id].name, adapter, leg: kind.leg })
     }
   }
   return found
@@ -204,4 +215,4 @@ export const onPath = (name: string, search: string): string | null =>
  * upgrade therefore comes back into the conversation it was in, which is the
  * whole promise of the note.
  */
-export const BEFORE_THE_ROSTER = CLAUDE.id
+export const BEFORE_THE_ROSTER: AgentId = "claude"

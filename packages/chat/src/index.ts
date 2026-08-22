@@ -20,18 +20,7 @@
  * able to spell `session/update`.
  */
 
-export {
-  type Adapter,
-  adapterFrom,
-  AGENT_ENV,
-  whyNoAgent,
-} from "./adapter.ts"
-export {
-  AGENT_PATH_ENV,
-  type Installed,
-  onPath,
-  roster,
-  rosterOf,
-} from "./agents/roster.ts"
+export { type Adapter, AGENT_ENV, whyNoAgent } from "./adapter.ts"
+export { type Installed, roster } from "./agents/roster.ts"
 export { type Chat, make, type Options, type ToolServer } from "./chat.ts"
 export type { Change } from "./transcript.ts"

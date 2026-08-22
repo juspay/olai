@@ -649,6 +649,38 @@ export const SessionInfo = Schema.Struct({
 export type SessionInfo = typeof SessionInfo.Type
 
 /**
+ * EVERY AGENT olai knows how to talk to, and what a person reads.
+ *
+ * HERE, on the wire, because it is the one vocabulary BOTH ENDS keep a table
+ * over and neither owns: the server's roster says how to find each of them and
+ * how to read its frames (`../../chat/src/agents/roster.ts`), and the client
+ * draws a mark for each and — when NONE of them is installed, which is the one
+ * moment nothing can be sent — says where to get one
+ * (`../../web/src/client/chat/NoAgent.tsx`). Two tables keyed alike, in two
+ * packages that never otherwise meet, is exactly the contract that breaks
+ * silently: adding a third agent server-side would leave the face that explains
+ * agents quietly not mentioning it.
+ *
+ * A RECORD, so both tables are `{ [K in AgentId]: … }` and the type checker is
+ * what enforces coverage — the same arrangement `@olai/format`'s `FILE_KINDS`
+ * and `MARKS` already make for their own cross-package names, and for the same
+ * reason. What is NOT here is anything either end can answer alone: how to find
+ * an agent, how to read its wire, what mark to draw, where to download it.
+ *
+ * The NAME travels on the wire too ({@link AgentChoice}), and that is not this
+ * table being ignored: a browser draws what the server SENT, because the server
+ * is what knows which agents are actually here. This is the fallback for the
+ * face drawn when nothing was sent, and the one spelling both sides use.
+ */
+export const AGENTS = {
+  claude: { name: "Claude Code" },
+  opencode: { name: "opencode" },
+} as const
+
+/** One of them. Every table over agents is keyed by this. */
+export type AgentId = keyof typeof AGENTS
+
+/**
  * ONE AGENT a conversation can be with — a row of the picker, and, once one is
  * chosen, who the header names beside the model.
  *

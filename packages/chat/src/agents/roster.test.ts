@@ -20,8 +20,8 @@ import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os"
 import { delimiter, join } from "node:path"
 
-import { AGENT_ENV } from "../adapter.ts"
-import { AGENT_PATH_ENV, BEFORE_THE_ROSTER, onPath, rosterOf } from "./roster.ts"
+import { AGENT_ENV, AGENT_PATH_ENV } from "../adapter.ts"
+import { BEFORE_THE_ROSTER, onPath, rosterOf } from "./roster.ts"
 
 const CWD = "/vault"
 

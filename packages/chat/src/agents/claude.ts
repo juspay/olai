@@ -417,7 +417,6 @@ export const liveModelIn = (params: unknown): string | null => {
  * ONE that could be wrong, since a Claude call id is an opaque `toolu_…`.
  */
 export const CLAUDE: Leg = {
-  id: "claude",
   toolName: (meta) => toolNameIn(meta),
   allowedWithoutAsking,
   parentToolUse: parentToolUseIn,

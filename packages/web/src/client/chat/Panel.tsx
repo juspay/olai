@@ -174,12 +174,20 @@ function Face(props: { readonly chat: Chat }) {
    *  opened" — two verbs, because they mean two things
    *  (`../../../../chat/src/chat.ts`). */
   const pick = (id: string): void => {
-    if (asking()) {
-      setAsking(false)
-      props.chat.newSession(id)
+    // WHICH question was answered is read off the FACE rather than off this
+    // tab's own signal, because the two are not symmetrical: the panel's own
+    // question is the server's and outranks anything a click here started.
+    // Read the other way round, a `+ new` pressed over a panel that was
+    // ALREADY asking would answer the boot's question with the wrong verb —
+    // minting a fresh conversation where the panel was about to come back to
+    // the one this directory was in.
+    const server = face().kind === "choose"
+    setAsking(false)
+    if (server) {
+      props.chat.chooseAgent(id)
       return
     }
-    props.chat.chooseAgent(id)
+    props.chat.newSession(id)
   }
   /**
    * What `+ new` does, which depends on whether there is a question to ask.
@@ -191,6 +199,9 @@ function Face(props: { readonly chat: Chat }) {
    * conversation, at once.
    */
   const onNew = (): void => {
+    // A panel that is already asking has nothing for this button to add: the
+    // question is up, and the answer to it opens a conversation.
+    if (face().kind === "choose") return
     const roster = props.chat.state().roster
     const only = roster.length === 1 ? roster[0] : undefined
     if (only !== undefined) {

@@ -30,6 +30,12 @@
 /** The variable, spelled once. */
 export const AGENT_ENV = "OLAI_ACP_AGENT"
 
+/** ... and the one saying where the OTHER agents are looked for, which the
+ *  sentence below has to name. Its rules are {@link ./agents/roster.ts}'s;
+ *  spelled here because a module that imported the roster for one string would
+ *  be the roster importing itself (the roster reads this file). */
+export const AGENT_PATH_ENV = "OLAI_AGENT_PATH"
+
 export interface Adapter {
   readonly command: string
   readonly args: ReadonlyArray<string>
@@ -51,17 +57,22 @@ export const adapterFrom = (value: string | undefined): Adapter | null => {
 }
 
 /**
- * Why there is no agent, as a line for the log.
+ * Why the roster is EMPTY, as a line for the log.
  *
  * The two cases read differently on purpose: an EMPTY variable is somebody
- * saying "not this time", and an absent one is a launch path that did not go
- * through the wrapper or the justfile — which is worth pointing at, because
- * every documented path bakes the default in.
+ * saying "not this time" — and it is the whole off switch, so nothing else was
+ * even looked for — while an absent one is a launch path that did not go
+ * through the wrapper or the justfile, which is worth pointing at because every
+ * documented path bakes the default in. The second line also names the other
+ * variable, because "olai cannot see the opencode I installed" is a PATH
+ * question and this is the line somebody greps.
  */
 export const whyNoAgent = (value: string | undefined): string =>
   value === undefined
-    ? `no ACP agent: ${AGENT_ENV} is unset and nothing baked one in — the packaged binary and ` +
-      `\`just serve\` both default to the pinned Claude Code adapter, so this is a hand-rolled start. ` +
+    ? `no agent: ${AGENT_ENV} is unset and nothing baked one in — the packaged binary and ` +
+      `\`just serve\` both default to the pinned Claude Code adapter, so this is a hand-rolled start ` +
+      `— and no other known agent was found on ${AGENT_PATH_ENV} (or PATH, where that is unset). ` +
       `The outlines are served as usual and the chat panel says the same thing.`
-    : `no ACP agent: ${AGENT_ENV} is set to the empty string, which is the explicit off switch. ` +
-      `The outlines are served as usual and the chat panel says so.`
+    : `no agent: ${AGENT_ENV} is set to the empty string, which is the explicit off switch — the ` +
+      `whole panel, so nothing else was looked for either. The outlines are served as usual and the ` +
+      `chat panel says so.`

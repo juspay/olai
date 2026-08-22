@@ -96,10 +96,6 @@ export interface Spawn {
  * and how to find their agents; {@link ../agent.ts} does the talking.
  */
 export interface Leg {
-  /** Which agent this is. The same id the roster, the memory and the header
-   *  all use — spelled once, in {@link ./roster.ts}'s table. */
-  readonly id: string
-
   /**
    * The PROGRAMMATIC name of the tool a frame is about, or `null` when nothing
    * on this frame says.
