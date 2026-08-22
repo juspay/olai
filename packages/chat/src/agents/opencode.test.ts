@@ -82,6 +82,11 @@ describe("which permissions are answered without asking", () => {
     expect(allowedWithoutAsking("olai", GIVEN, ASKED)).toBeNull()
     // A name that is a prefix of ours rather than the other way round.
     expect(allowedWithoutAsking("ola_i_read", GIVEN, ASKED)).toBeNull()
+    // ... and the other way round again: a LONGER server-shaped name. This is
+    // the case that would slip through if the match ever widened to the bare
+    // server name, which is the likeliest way somebody would try to simplify
+    // this rule.
+    expect(allowedWithoutAsking("olaix_set_done", GIVEN, ASKED)).toBeNull()
     // An ordinary builtin.
     expect(allowedWithoutAsking("bash", GIVEN, ASKED)).toBeNull()
     // A tool that looks like the OTHER agent's spelling.

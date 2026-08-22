@@ -126,9 +126,9 @@ export const BACKSTOP_TIMEOUT = 90_000;
  *
  * A fourth axis, on the same argument as the third. There is exactly one way to
  * see that face and it is to wait out `@olai/chat`'s own deadline
- * (`interpret.ts`'s `STEER_TIMEOUT`, thirty seconds — the number is a claim
- * about the steering extension, not about this suite, so it is not shortened to
- * suit a test), and folding that wait into `HYDRATION_TIMEOUT` would make every
+ * (the Claude leg's `STEER_TIMEOUT`, `@olai/chat`'s `agents/claude.ts`, thirty
+ * seconds — the number is a claim about that agent's steering extension, not
+ * about this suite, so it is not shortened to suit a test), and folding that wait into `HYDRATION_TIMEOUT` would make every
  * first paint in the suite wait on the slowest thing in it.
  *
  * Kept as a literal beside the interaction budgets rather than imported from

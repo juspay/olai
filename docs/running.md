@@ -106,6 +106,16 @@ inputs.olai.url = "github:juspay/olai";
 
 The module fills `package` from the flake for the host platform. The packaged binary already bakes the browser bundle (`OLAI_DIST_DIR`), so the service needs no ambient environment.
 
+**The one thing a user service does NOT inherit is your PATH**, and that is where agents live. Olai looks for the ones it knows when it starts — the pinned Claude Code adapter it ships with, and an `opencode` on its own search path — and a unit started by systemd sees neither your login shell nor your profile. So an `opencode` you can run in a terminal is not necessarily one this process can find, and `OLAI_AGENT_PATH` is how you say where to look:
+
+```nix
+  systemd.user.services.olai.Environment = [
+    "OLAI_AGENT_PATH=${config.home.homeDirectory}/.nix-profile/bin"
+  ];
+```
+
+Set, it REPLACES the search path rather than adding to it — including when it is set to the empty string, which is "look nowhere". The other variable is `OLAI_ACP_AGENT`: it points the Claude side at a different ACP executable, and setting it to the empty string turns the chat panel off entirely (nothing is probed, and the panel says so rather than disappearing). Both are [chat.md](chat.md)'s, which says what the panel does with each.
+
 On Linux the unit is `Restart=always` / `RestartSec=1s` / `SuccessExitStatus=130`. A stray `kill -TERM` of the main pid is a successful exit that systemd still brings back; a `systemctl --user stop olai` is a systemd stop, which `Restart=` never overrides. On macOS the agent is `KeepAlive.SuccessfulExit=false` and `Crashed=true` — a 130 exit already restarts there, because launchd treats non-zero as unsuccessful. The 2026-08-20 incident (an outside SIGTERM, `on-failure` + `SuccessExitStatus=130`, hours of dark ledger) is [the RCA](RCA/2026-08-20-olai-service-sigterm.md).
 
 ## The git policy

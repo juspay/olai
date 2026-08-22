@@ -2733,3 +2733,27 @@ Then("the composer says nothing about queueing", async function (this: OlaiWorld
 When("I keep the conversation I am in", async function (this: OlaiWorld) {
   await this.page.locator(CHAT_CHOOSE_CANCEL).click();
 });
+
+/** ... and that it has NOT — the half a queued message needs, because "the
+ *  words went out at once" and "the agent has not reached them yet" are two
+ *  facts and only the second one is about the queue. Checked twice with a beat
+ *  between, so an answer that was merely a moment away fails this rather than
+ *  passing it. */
+Then(
+  "the chat has not answered {string}",
+  async function (this: OlaiWorld, text: string) {
+    const answered = async (): Promise<boolean> =>
+      oneLine(await this.page.locator(CHAT_TRANSCRIPT).innerText()).includes(text);
+    assert.ok(!(await answered()), `the chat has already answered "${text}"`);
+    await this.page.waitForTimeout(700);
+    assert.ok(!(await answered()), `the chat answered "${text}" while it was held`);
+  },
+);
+
+/** This machine stops having opencode, for the next start of its server. A
+ *  property of the MACHINE rather than of anything the client says — the same
+ *  thing the `@opencode` tag decides, moved mid-scenario, which is what
+ *  uninstalling an agent between two serves looks like from here. */
+When("opencode is no longer installed", function (this: OlaiWorld) {
+  this.hasOpencode = false;
+});

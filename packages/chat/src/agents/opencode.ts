@@ -58,7 +58,7 @@ const AT = ":"
  * when it looked. The id is minted once and never moves.
  *
  * A `null` here is the same `null` the other leg's is: a call nobody named is
- * a call a person is asked about ({@link Leg.toolName}). It is answered for an
+ * a call a person is asked about ({@link Leg.toolNameOf}). It is answered for an
  * id with no separator in it — which is not a shape opencode has been seen to
  * send, and is exactly the shape a future version could — and for an id whose
  * name half is empty (`:0`). Neither guesses; a name this cannot read is a

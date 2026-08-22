@@ -387,7 +387,6 @@ export const liveModelIn = (params: unknown): string | null => {
   return typeof shape.model === "string" && shape.model !== "" ? shape.model : null
 }
 
-
 // ── the leg ────────────────────────────────────────────────────────────
 
 /**

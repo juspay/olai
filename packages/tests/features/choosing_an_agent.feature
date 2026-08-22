@@ -29,6 +29,39 @@ Feature: Choosing an agent
     And the picker offers the agent "opencode"
     And there is nothing to type into
 
+  @opencode @agent-stored @scratch:chat
+  Scenario: `+ new` adds nothing to a question the panel is already asking
+    # The press has nothing to add: the question is up, and the answer to it
+    # opens a conversation. What it must not do is take the question OVER —
+    # answering the boot's question with the wrong verb mints a fresh
+    # conversation where the panel was about to come back to the one this
+    # directory was in, and the two are told apart only by what happens next.
+    Then the panel asks which agent
+    When I start a new conversation
+    Then the panel asks which agent
+    When I choose the agent "opencode"
+    # ADOPTED, not minted: this agent has a stored conversation for this
+    # directory, and the boot's own question is what was answered.
+    Then the chat eventually shows "opencode remembers this conversation"
+
+  @opencode @scratch:chat
+  Scenario: An agent this machine no longer has is not a conversation to wedge on
+    # The note names an agent, and an agent can be uninstalled between one serve
+    # and the next. That is not a refusal and not a wedge: the id means nothing
+    # to anybody left, so nothing is remembered — and here the one agent left is
+    # not a choice, so the panel binds it and says which it is.
+    When I choose the agent "opencode"
+    And I ask the agent "hello"
+    Then the chat eventually shows "opencode says: hello"
+    When opencode is no longer installed
+    And the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then the panel does not ask which agent
+    And the header names the agent "claude"
+    And the chat input takes typing
+
   @opencode @scratch:chat
   Scenario: The header says who the conversation is with
     # The other half of the ruling: the header shows the agent's icon and name
@@ -114,6 +147,62 @@ Feature: Choosing an agent
     When the agent is released
     Then the agent is idle
     And the composer says nothing about queueing
+
+  @opencode @scratch:chat
+  Scenario: A message sent mid-turn goes out at once and is reached in its turn
+    # What the composer's line is ABOUT, walked end to end. Nothing is held on
+    # this side — the words are on screen the moment they are sent — and the
+    # agent reaches them when the turn they were sent into is over. Until then
+    # the panel is working, because it is: two turns this server owns, and
+    # neither has finished.
+    When I choose the agent "opencode"
+    And I ask the agent "slow"
+    Then the chat shows a running tool call
+    When I type "hello" into the chat
+    And I send the chat message
+    Then the chat shows my message "hello"
+    And the agent is working
+    And the chat has not answered "opencode says: hello"
+    # ... and the call the FIRST turn is still making is still running. A turn
+    # that starts beside another must not mark the other's calls abandoned:
+    # they are live, and a clock that stopped here would be the panel saying a
+    # running call had been walked away from.
+    And the chat says how long a running call has been going
+    When the agent is released
+    Then the chat eventually shows "done dawdling"
+    And the chat eventually shows "opencode says: hello"
+    And the agent is idle
+
+  @opencode @scratch:chat
+  Scenario: The panel settles when the LAST turn ends, not the first
+    # Two held turns, one behind the other. The first ending is not the
+    # conversation ending — a panel that went idle there would be reporting a
+    # state it can see it is not in, over a turn still doing work.
+    When I choose the agent "opencode"
+    And I ask the agent "slow"
+    And I ask the agent "slow"
+    Then the chat shows a running tool call
+    When the agent is released
+    Then the chat eventually shows "done dawdling"
+    And the agent is working
+    When the agent is released
+    Then the agent is idle
+
+  @opencode @scratch:chat
+  Scenario: Cancel is about everything in flight, not the newest of it
+    # A person pressing cancel means the things they have going. With a message
+    # queued behind the running turn there are two, and both end — the panel
+    # settles rather than sitting at "working" over a turn nobody will ever
+    # hear from.
+    When I choose the agent "opencode"
+    And I ask the agent "slow"
+    And I type "hello" into the chat
+    And I send the chat message
+    Then the agent is working
+    When I cancel the turn
+    Then the agent is idle
+    And the chat says the turn was cancelled
+    And the chat has not answered "opencode says: hello"
 
   @opencode @scratch:chat
   Scenario: Starting another chat asks again, and can be backed out of

@@ -231,7 +231,7 @@ function Face(props: { readonly chat: Chat }) {
         <Match when={refused()}>
           {(unopened) => <Unopened chat={props.chat} unopened={unopened()} />}
         </Match>
-{/* ONE ARM for both doors, and the prop is where they differ: the
+        {/* ONE ARM for both doors, and the prop is where they differ: the
             panel's own question has no way out — there is no conversation
             behind it to keep — and this tab's does, because the conversation
             underneath is still open and a misclick must not be a one-way door.

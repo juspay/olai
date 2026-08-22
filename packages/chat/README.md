@@ -76,7 +76,7 @@ A tool call is not instantaneous, so a frame is not just a status that flips. `t
 
 `events.ts` is the seam that makes the rest of this hold. Nothing above it spells `session/update`, reads a `ContentBlock`, or knows which `configOptions` entry the model is. A consumer wanting something not in that union needs a new member — which is what keeps the ACP version in one file and the conversation in another.
 
-`chat.ts` BUILDS the agent rather than being handed one, so `session/update` stays a phrase this package is the last to say: a caller passes the adapter it resolved and the directory to run it in, never a protocol object. The seam for a scripted agent is one level further out and more honest for it — `OLAI_ACP_AGENT` pointed at a script, which is how the e2e suite drives every turn it asserts on, and which exercises the subprocess and the wire that an injected object would replace with an assumption.
+`chat.ts` BUILDS the agent rather than being handed one, so `session/update` stays a phrase this package is the last to say: a caller passes the ROSTER it detected and the directory to run in, never a protocol object. The seam for a scripted agent is one level further out and more honest for it — `OLAI_ACP_AGENT` pointed at a script, which is how the e2e suite drives every turn it asserts on, and which exercises the subprocess and the wire that an injected object would replace with an assumption.
 
 ## When the agent has a question
 
@@ -105,7 +105,7 @@ The rule itself is a PURE FUNCTION — one per LEG, `allowedWithoutAsking(tool, 
 
 The second reading of that same `_meta` corner, and the reason there are two: **an agent can spawn agents**, and the protocol has no way of saying so. A subagent's tool calls arrive on the one feed every other frame arrives on, with the same shape — so a turn that sent three agents out reaches a panel as one agent doing everything, and a reader cannot tell that a subagent was ever started.
 
-The adapter knows. It keeps a registry of the tasks it has seen start, keyed by the subagent's own agent id, and stamps the spawning `Agent` call onto every frame that comes out of one: the streamed `tool_call`, the `tool_call_update` that completes it, the permission request in between. the Claude leg's `parentToolUse` is the whole of what this package does about it, and it fails the same way its sibling does — a frame that says nothing is the main agent's own, so an agent that is not that adapter has no subagents here and the transcript looks exactly as it did before any of this was read.
+The adapter knows. It keeps a registry of the tasks it has seen start, keyed by the subagent's own agent id, and stamps the spawning `Agent` call onto every frame that comes out of one: the streamed `tool_call`, the `tool_call_update` that completes it, the permission request in between. The Claude leg's `parentToolUse` is the whole of what this package does about it, and it fails the same way its sibling does — a frame that says nothing is the main agent's own, so an agent that is not that adapter has no subagents here and the transcript looks exactly as it did before any of this was read.
 
 What `transcript.ts` stores is that call's ROW, in this collection's own key shape, rather than the id it arrived as: a reader of the field wants the frame, and two spellings — an id on the wire, a key on screen — would be a mapping to keep in step for nothing. It is sticky like every other field on a tool row, and for a sharper reason than most: the adapter has a completion shape carrying only a status, and a row that read that silence as "no agent now" would step out of its lane at the moment the call finished, which is the moment somebody looks.
 
@@ -131,7 +131,7 @@ The adapter says so at the spawn itself, and the Claude leg's `spawned` is the w
 
 `transcript.ts` stores that as `spawned`, and it is the one field here that is sticky a level DOWN as well as at the top. The reason is that the ARGUMENTS ARRIVE INCREMENTALLY: the adapter announces the call as the tool use starts and refines it once the arguments have finished parsing, and it will send a flagged frame with no `rawInput` at all if the input would not serialize. Every one of those frames is honestly a spawn and some of them honestly name no kind — so without the inner merge, a later flagged frame saying only "this is a spawn" would take a kind back off a row that already had it. A spread rather than a field-by-field `??`, so a field added to `Spawned` inherits the rule instead of needing a line of its own.
 
-Three more things are deliberately left unread, and `interpret.ts` says why in place: the heartbeat's `elapsedTimeSeconds` (it only moves when a beat arrives, so a subagent that has actually wedged under-reports its own age, which is wrong in exactly the direction a person consults it for), its `subagentRetry` counters (worth drawing one day; nothing in this repo has ever seen the shape arrive), and the subagent's own prose — which the adapter strips unless a client declares `subagent-transcript` in its `initialize` capabilities. Olai does not, so a subagent's narration cannot reach this feed and cannot leak into the main agent's voice either. Drawing it is a feature with a switch to throw rather than a `_meta` to read.
+Three more things are deliberately left unread, and `agents/claude.ts` says why in place: the heartbeat's `elapsedTimeSeconds` (it only moves when a beat arrives, so a subagent that has actually wedged under-reports its own age, which is wrong in exactly the direction a person consults it for), its `subagentRetry` counters (worth drawing one day; nothing in this repo has ever seen the shape arrive), and the subagent's own prose — which the adapter strips unless a client declares `subagent-transcript` in its `initialize` capabilities. Olai does not, so a subagent's narration cannot reach this feed and cannot leak into the main agent's voice either. Drawing it is a feature with a switch to throw rather than a `_meta` to read.
 
 ## Kolu's terminals, when the host has them
 
@@ -161,13 +161,13 @@ That mattered most on the one this file is not about. `OLAI_ACP_AGENT` is a path
 
 ## What the caller does
 
-Four exports. Resolve the adapter, build, wire the two publishers, register `stop` as a finalizer, `start`:
+Detect the roster, build over it, wire the two publishers, register `stop` as a finalizer, `start`:
 
 ```ts
-const adapter = adapterFrom(process.env[AGENT_ENV])
-if (adapter === null) yield* Effect.logInfo(whyNoAgent(process.env[AGENT_ENV]))
-const chat = adapter === null ? null : yield* make({
-  adapter,
+const installed = roster(servedDirectory)
+if (installed.length === 0) yield* Effect.logInfo(whyNoAgent(process.env[AGENT_ENV]))
+const chat = installed.length === 0 ? null : yield* make({
+  roster: installed,
   cwd: servedDirectory,
   tools: () => mcpServerOnceTheListenerHasBound,
   onState,
@@ -177,7 +177,7 @@ const chat = adapter === null ? null : yield* make({
 
 `tools` is a thunk because the MCP server's address is not knowable until the listener has bound, and the session is opened after that.
 
-A `null` adapter is not an error. Serving a directory has never depended on an agent being installed; the panel says so and the outlines are unaffected.
+An EMPTY roster is not an error, and it is why `make` is not called with one: serving a directory has never depended on an agent being installed, so the panel draws the face that says so — and says how to install one — while the outlines are unaffected. A chat with nothing to talk to would be a panel holding a subprocess-shaped hole.
 
 There is no `log` in that list any more, and that is the point: this package logs the way every other one does ([`@olai/log`](../log/README.md)), so nothing has to be handed a place to write. What it says lands at three levels. The agent's own stderr is relayed at `debug` — it is somebody else's program's log and by volume the loudest thing olai ever emits, so it is off until `--log-level debug` asks for it. Trouble the panel is already drawing (a session that would not open, a boot the next prompt will retry) is a `warn`, because nothing has stopped. Every line carries `agent=<command>`, which is what the `acp: ` prefix used to be, except now it is a field. There is no fiber inside an ACP notification handler or a subprocess `data` event, which is why the emitter is taken once at `make` rather than a line at a time.
 

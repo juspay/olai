@@ -41,10 +41,15 @@ packages/tests/
 │                           #   column held still rather than that it ended up drawing
 │                           #   the same markup
 │   ├── mcp.ts               # an MCP client, for the agent olai did not start
-│   └── ndjson.ts            # line-delimited JSON off a pipe — one copy, shared
-│                           #   by that client and both fakes below
-├── agent/                   # the scripted ACP agent the chat scenarios drive,
-│                           #   and the fake `kolu` every server finds on PATH
+│   ├── ndjson.ts            # line-delimited JSON off a pipe — one copy, shared
+│                           #   by that client and every fake below
+│   └── scripted.ts          # ... and the write half: the JSON-RPC envelope, the
+│                           #   requests a fake is waiting on, and the hold
+│                           #   protocol — shared by the two scripted agents
+├── agent/                   # the two scripted ACP agents the chat scenarios
+│                           #   drive — one shaped like the Claude Code adapter,
+│                           #   one like opencode — and the fake `kolu` every
+│                           #   server finds on PATH
 ├── bin/broken-git/git       # a `git` that is found and fails, for @git:broken
 └── fixtures/                # the served directories (see fixtures/README.md)
 ```
@@ -397,7 +402,18 @@ The seventeen port drops went to zero, and so did the four faces of the disk-as-
 
 Port/lock did not move: it is still zero, the way the 2026-08-16 wait-honesty run left it. The remaining drops are other classes (a scroll-restore that missed 267px, a CSP-picture assertion, 15s waits); they are counted, not fixed, here. Taken on `399cf308`, before `#296` restored overlapping writers onto a shared scratch.
 
-## The scripted agent
+## The scripted agents
+
+There are TWO, and that is the point rather than an accident of history: one is
+shaped like the Claude Code adapter and one like opencode, and what they share
+is the transport (`support/scripted.ts`, `support/ndjson.ts`) and nothing else.
+Every frame shape each of them sends — where a tool's name is said, how an MCP
+server's tools are spelled, which methods are refused, the order of a
+permission's options — is its own file's, so the two are independent witnesses
+to the same protocol. A fake whose shape is chosen by a flag is one that can
+agree with the client by construction.
+
+### The Claude-shaped one
 
 `agent/fake-acp-agent.ts` is a deterministic ACP agent: line-delimited JSON-RPC on stdio, just enough of the protocol to be indistinguishable from a real one as far as the server's client is concerned. Every server this suite spawns is pointed at it, for the same reason the Chromium flags are not branched on `CI` — a server configured differently for one feature than for another is a class of bug that only reproduces where it is hardest to see.
 
@@ -422,6 +438,28 @@ It lives in `agent/` rather than `support/` because Cucumber imports everything 
 WHICH of the two is loaded is the thing several of those scenarios are about. A first boot has nothing written down, so it takes the most recently updated — the fallback, and once the whole rule. After a conversation has been PICKED, the server remembers it and a restart comes back to that one however much fresher its sibling is (`chat-restore-wrong`), and falls back to the newest again only when the remembered one has gone. A scenario takes one away with `.agent-forgot-<sessionId>`, a dot-file in the served directory like the `hold` release — the store's walk prunes those, so arming one is not an edit.
 
 The real Claude adapter is for driving the panel by hand: `just serve` resolves the pinned one on demand.
+
+### The opencode-shaped one
+
+`agent/opencode/opencode` is an executable named exactly that, and its directory
+goes on `OLAI_AGENT_PATH` for a scenario tagged `@opencode` — the variable olai
+probes for installed agents. Every OTHER server this suite spawns gets that
+variable set to the EMPTY string, which is "look nowhere": which agents a server
+finds decides whether its panel ASKS which one a conversation is with, so a
+developer with the real opencode installed would otherwise run a different suite
+than a CI lane does. The fake `kolu` next door makes the same argument about
+PATH.
+
+Its differences from the file above are opencode 1.17.9's own, captured live
+(`docs/brainstorming/opencode-chat.md`): no `_meta` on any frame, so the tool's
+name is the head of the `toolCallId` (`bash:0`) and the `title` moves under a
+running call; MCP tools spelled `<server>_<tool>`; permission options that lead
+with an ALLOW where the other's lead with the refusal; `session/set_mode` and
+`_session/steering` refused; the model in `configOptions` and changes only in
+method responses. And it QUEUES: one `session/prompt` at a time, because "this
+agent queues what you send now" is a claim a fake that answered two at once
+could not witness. Behaviour is keyed on the prompt text (`done <id>`, `bash`,
+`permit`, `nameless`, `slow`).
 
 ## The fake kolu
 

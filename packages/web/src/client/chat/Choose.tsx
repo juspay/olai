@@ -2,10 +2,12 @@
  * WHICH AGENT this conversation is with — the question, and the only place it
  * is answered.
  *
- * Every new chat asks (the human's ruling, 2026-08-21): a conversation is bound
- * to one agent for its life, and no default is remembered across conversations.
- * So this is not a setting and there is nowhere else it can be changed — the
- * way to talk to the other agent is to start a chat with it.
+ * Every new chat asks WHERE THERE IS SOMETHING TO ASK (the human's ruling,
+ * 2026-08-21, and the one narrowing of it this panel makes — see "Not a picker
+ * of one" below): a conversation is bound to one agent for its life, and no
+ * default is remembered across conversations. So this is not a setting and
+ * there is nowhere else it can be changed — the way to talk to the other agent
+ * is to start a chat with it.
  *
  * ## Two doors, one list
  *

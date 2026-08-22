@@ -19,7 +19,13 @@
  *   - **no bypass mode**: `session/set_mode` answers `-32602` for anything but
  *     `build` and `plan`.
  *   - **no steering**: `_session/steering` answers `-32601`, so a mid-turn
- *     message is an ordinary prompt this agent queues.
+ *     message is an ordinary prompt this agent QUEUES — and this file queues it
+ *     for real, one `session/prompt` at a time, because a fake that answered
+ *     two at once would be a witness of the composer's copy and of nothing
+ *     else. What a `session/cancel` does to a queue is not something the spike
+ *     captured, so what is scripted here is the shape olai has to survive
+ *     rather than a fact about the real one: the running turn ends
+ *     `cancelled`, and so does anything still waiting behind it.
  *   - **permission options are ALLOW-FIRST** (`allow_once`, `allow_always`,
  *     `reject_once`), where the Claude adapter's list leads with the refusal —
  *     which is why nothing in olai may read "the first option".
@@ -46,9 +52,9 @@
  *               anybody being asked
  *   nameless    ask permission for a call whose id carries no name at all,
  *               which must reach a person
- *   slow        dawdle until a scenario says when — long enough to look at a
- *               turn WHILE it is running, which is when a mid-turn message is
- *               a question anybody has
+ *   slow        announce a tool call and hold it, until a scenario says when —
+ *               long enough to look at a turn WHILE it is running, which is
+ *               when a mid-turn message is a question anybody has
  *   anything    one chunk of prose and an `end_turn`
  *
  * `OLAI_FAKE_OPENCODE_STORED` works the way the other agent's does: unset means
@@ -80,6 +86,11 @@ const cwdArg = (): string => {
   return at >= 0 ? argv[at + 1] ?? process.cwd() : process.cwd();
 };
 const cwd = cwdArg();
+
+/** A turn that gave up because somebody pressed cancel. Its own class so the
+ *  `session/prompt` handler can tell it from a fault and answer the stop reason
+ *  a real agent would. */
+class Cancelled extends Error {}
 
 const STORED = process.env.OLAI_FAKE_OPENCODE_STORED ?? "";
 
@@ -219,10 +230,30 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (said === "slow") {
+    // A tool call is ANNOUNCED and left running while the hold lasts, which is
+    // what makes the second half of the claim observable: a turn started
+    // beside this one must not strand this one's calls.
+    const toolCallId = callIdFor("dawdle");
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId,
+        title: "dawdle",
+        status: "in_progress",
+        rawInput: {},
+      },
+    });
     // The same marker, the same limit and the same loop the other scripted
     // agent waits on ({@link ../../support/scripted.ts}), so one step
     // definition releases either of them.
-    await released(cwd);
+    await released(cwd, () => {
+      if (cancelled) throw new Cancelled();
+    });
+    notify("session/update", {
+      sessionId,
+      update: { sessionUpdate: "tool_call_update", toolCallId, status: "completed" },
+    });
     say("done dawdling");
     return "end_turn";
   }
@@ -275,6 +306,20 @@ const configOptions = () => [
 ];
 
 let openedSessions = 0;
+
+/**
+ * ONE TURN AT A TIME, which is what "opencode queues a mid-turn message" means
+ * on the wire: a second `session/prompt` is accepted at once and answered only
+ * when the one before it is done.
+ *
+ * A promise chain rather than a list, for the reason the other scripted agent's
+ * is one: the ORDER is the whole claim, and a chain cannot serve two out of it.
+ */
+let queue: Promise<unknown> = Promise.resolve();
+
+/** Somebody pressed cancel. Every turn still in the chain — the one running and
+ *  anything behind it — answers `cancelled` rather than doing its work. */
+let cancelled = false;
 
 const openSession = (id: string, params: Record<string, unknown>): void => {
   sessionId = id;
@@ -375,13 +420,33 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       const text = blocks
         .map((block) => (block["type"] === "text" ? String(block["text"] ?? "") : ""))
         .join("");
-      const stopReason = await turn(text);
-      respond(id, { stopReason });
+      // BEHIND whatever is already running, which is the whole of what "this
+      // agent queues what you send now" means. The request is answered when
+      // this turn's place in the chain comes up, so a client watching for a
+      // `stopReason` sees the order the agent worked in.
+      queue = queue.then(async () => {
+        if (cancelled) {
+          respond(id, { stopReason: "cancelled" });
+          return;
+        }
+        try {
+          respond(id, { stopReason: await turn(text) });
+        } catch (cause) {
+          respond(id, { stopReason: cause instanceof Cancelled ? "cancelled" : "refusal" });
+        }
+      });
       return;
     }
 
     case "session/cancel":
-      // A notification: nothing to answer.
+      // A notification, so there is nothing to answer — but there is something
+      // to DO: the turn that is running gives up at its next tick, and so does
+      // anything queued behind it. Reset by the next prompt that is not part of
+      // this cancelled batch, which is the one after the chain has drained.
+      cancelled = true;
+      void queue.then(() => {
+        cancelled = false;
+      });
       return;
 
     default:

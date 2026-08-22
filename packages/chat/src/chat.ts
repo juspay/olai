@@ -101,6 +101,7 @@ import * as Context from "./context.ts"
 import type { AgentEvent } from "./events.ts"
 import * as Memory from "./memory.ts"
 import { type Change, Transcript } from "./transcript.ts"
+import { type Turn, Turns } from "./turns.ts"
 
 export type { ToolServer } from "./agent.ts"
 
@@ -278,38 +279,6 @@ const SPOKE: ReadonlySet<AgentEvent["_tag"]> = new Set([
   "usage",
 ])
 
-/**
- * One turn in flight, as a TICKET rather than as a fiber handle.
- *
- * It exists because the fiber does not, yet: the ticket is written down before
- * the fork, so there is no window in which a turn is running and nothing says
- * so. The fiber is filled in a moment later, for the callers that have to
- * interrupt it.
- *
- * THERE CAN BE MORE THAN ONE, and that is not a race — it is what a mid-turn
- * message IS for an agent that cannot take one into the turn it is running
- * (opencode has no steering method at all). The message goes out as an ordinary
- * prompt, the agent queues it behind the turn it is working on, and until that
- * queue drains there are two turns this file owns and neither has finished.
- * They live in a SET ({@link Turns}) rather than in a slot, so every question
- * about "is the conversation busy" is asked of the set — which is the shape
- * that makes a second turn ordinary rather than a case to guard against.
- */
-interface Turn {
-  fiber: Fiber.Fiber<unknown, unknown> | null
-  /**
-   * Somebody asked THIS turn to stop.
-   *
-   * It outlives the turn on purpose, because the thing that needs it is a
-   * steer still on the wire: a message aimed at a turn a person then cancelled
-   * comes back "nothing to steer", which is indistinguishable from the turn
-   * having simply ended — unless the ticket it was aimed at remembers being
-   * stopped. Without that, the two are the same answer and the message starts
-   * a fresh turn the person just pressed a button to end.
-   */
-  stopped: boolean
-}
-
 export const make = (options: Options): Effect.Effect<Chat, never, never> =>
   Effect.gen(function*() {
     /**
@@ -382,22 +351,36 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *  while it is talking to none — before the first choice, and in the beat
      *  between one agent being stopped and its replacement handshaking. */
     let talking: { readonly row: Installed; readonly agent: AcpAgent.Agent } | null = null
-    /**
-     * The turns in flight — usually none or one, and more only for an agent
-     * that queues a mid-turn message instead of steering it ({@link Turn}).
-     *
-     * A SET rather than a slot, and every reader below is the same question
-     * asked of it: is anything running (`size > 0`), am I the last one to
-     * finish (`size === 0` after leaving), stop them all. A slot answered the
-     * first two by comparing identities and the third by holding the newest,
-     * which is right for one turn and quietly wrong for two — a cancel aimed at
-     * the newest left the other running, and a conversation could be swapped
-     * out from under a turn nothing was pointing at.
-     */
-    const turns = new Set<Turn>()
+    /** The server is going away. Read by {@link using}, which must not start an
+     *  agent after the one thing that stops them has run: a subprocess spawned
+     *  then is one nothing will ever kill. */
+    let closing = false
+    /** The turns in flight — usually none or one, and more only for an agent
+     *  that queues a mid-turn message instead of steering it. Every question
+     *  anybody asks about them, and why they are a set, is {@link ./turns.ts}. */
+    const turns = new Turns()
     /** One session change at a time: a load and a new-session racing each other
      *  would leave the transcript holding half of each. */
     const switching = yield* Semaphore.make(1)
+    /**
+     * ONE AGENT BOUND AT A TIME — the permit {@link using} takes for itself.
+     *
+     * Its own rather than {@link switching}'s, and that is not tidiness: the
+     * two verbs that open a conversation already hold that one, but a BOOT does
+     * not — it runs on its own fiber while the listener serves pages, which is
+     * the whole reason a page is not waiting on an agent. Read the other way
+     * round: a boot that took the directory's permit would hold it for as long
+     * as an agent takes to hand-shake, and `stop` waits on that same permit to
+     * empty this conversation's tmp directory — so a shutdown during a boot
+     * waited out the boot's whole deadline. (It does; the server tests time out
+     * on it.)
+     *
+     * What it guards is exactly the read-then-write in {@link using}: two
+     * callers seeing the same `talking === null` and both spawning an agent
+     * module, with only one of them ever stopped and the other left holding an
+     * ACP subprocess nothing will ever talk to.
+     */
+    const binding = yield* Semaphore.make(1)
     /** One delivery decision at a time — see {@link deliver}. Deciding which
      *  lane a message takes means reading whether a turn is running, and taking
      *  that lane means writing it; two sends interleaving between the two would
@@ -597,12 +580,24 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * model, the room left in a context that no longer exists, the servers that
      * conversation was short of.
      *
-     * Under {@link changeSession}'s permit in every caller, so the switch and
-     * the open that follows it are one step: two of them interleaving would
-     * leave the panel talking to one agent and drawing another's name.
+     * UNDER ITS OWN PERMIT ({@link binding}), which every caller reaches
+     * through this function rather than having to remember: the two verbs that
+     * open a conversation hold {@link switching} as well, and a BOOT holds
+     * neither, so the guard that matters has to be here. Two callers
+     * interleaving would leave the panel talking to one agent and drawing
+     * another's name, and, worse, would spawn two agent modules with only one
+     * of them ever stopped.
      */
     const using = (row: Installed): Effect.Effect<AcpAgent.Agent, AcpAgent.AgentGone> =>
-      Effect.gen(function*() {
+      binding.withPermit(Effect.gen(function*() {
+        // A SHUTDOWN has already taken the agent this would replace, and a
+        // subprocess started after it is one nothing will ever stop.
+        if (closing) {
+          return yield* new AcpAgent.AgentGone({
+            gone: "unreachable",
+            why: "the server is shutting down",
+          })
+        }
         const already = talking
         if (already !== null && already.row.id === row.id) return already.agent
         if (already !== null) {
@@ -630,7 +625,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         const made = yield* spawn(row, receive)
         talking = { row, agent: made }
         return made
-      })
+      }))
 
     /** A verb that names an agent. An id that is not on this machine is a
      *  STALE TAB — the roster it was drawn from has moved, or the browser was
@@ -685,6 +680,28 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       )
       return held === null ? null : rowFor(held.agent)
     })
+
+    /**
+     * A conversation is open, and whatever was in flight while it opened is
+     * still in flight.
+     *
+     * NOT `idle`, which is what this was and what it is right about only when
+     * nothing was sent in between. Opening a conversation takes real time — a
+     * subprocess starts, a session is asked for, a stored one replays — and the
+     * box is deliberately not locked while it does, so a prompt typed in that
+     * window is accepted and starts a turn ({@link ./chat.ts}'s header says why
+     * nothing is held). Stamping `idle` over that turn is the panel reporting a
+     * state it can see it is not in: the composer stops saying the agent is
+     * working while the agent is working, and the cancel button goes away from
+     * under the person who was about to press it.
+     *
+     * Reachable before an agent was something a person picked — a boot is an
+     * open too — and now it is ordinary: choosing an agent STARTS a subprocess,
+     * which is the longest that window has ever been.
+     */
+    const settled = (): void => {
+      move({ status: turns.busy ? "thinking" : "idle" })
+    }
 
     /** A verb that OPENS a conversation with a named agent — the three steps
      *  the two of them share, and the part that is easy to get subtly wrong:
@@ -835,7 +852,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // time it answers, it may be over. An agent that steers never has more
         // than one — a mid-turn message is steered rather than begun — so the
         // set holds at most this one.
-        const aimed = [...turns][0] ?? null
+        const aimed = turns.only
         // AN AGENT THAT CANNOT STEER GETS AN ORDINARY PROMPT, mid-turn or not,
         // and the agent queues it behind the turn it is running (opencode
         // does; the composer says so). Nothing is held here either way — that
@@ -954,9 +971,8 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       Effect.gen(function*() {
         /** A turn was ALREADY running when this one started, which is what a
          *  mid-turn message is for an agent that cannot steer. */
-        const alongside = turns.size > 0
-        const ticket: Turn = { fiber: null, stopped: false }
-        turns.add(ticket)
+        const alongside = turns.busy
+        const ticket = turns.open()
         // The rows go first, and the order is the point. A dead agent's rows
         // are deliberately left where they are, so this turn is starting over a
         // transcript that may hold calls the last one abandoned — and the panel
@@ -992,8 +1008,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // Left the set HERE rather than in the `ensuring` below, because
             // every line under this one is asking whether anything is still
             // running and the answer has to already be true.
-            turns.delete(ticket)
-            const current = turns.size === 0
+            const current = turns.leave(ticket)
             // ... and so is the SETTLE, for `begins`' reason read from the
             // other end: a turn that ends while another is still running must
             // not strand the running turn's calls. The last one out settles,
@@ -1045,7 +1060,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // out, and an INTERRUPT (a shutdown, a conversation change) never
             // reaches that line.
             Effect.ensuring(Effect.sync(() => {
-              turns.delete(ticket)
+              turns.leave(ticket)
             })),
           ),
         )
@@ -1095,21 +1110,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * report.
      */
     const cancel: Effect.Effect<void, OpFailure> = Effect.gen(function*() {
-      const asked = [...turns]
+      const running = turns.busy
       yield* onAgent((agent) => Effect.mapError(agent.cancel, asFailure))
-      if (asked.length === 0) return
-      // Written on EVERY ticket, and after the cancel is on the wire rather
-      // than before, because a cancel that could not be delivered stopped
-      // nothing. What reads it is a steer still in flight against one of these
-      // turns: it is about to come back "nothing to steer", and this is the
-      // only thing that says the reason was a person rather than the turn
-      // finishing. It outlives the turn, which is the point — by then the
-      // ticket is all that is left of it.
-      //
-      // ALL of them, because `session/cancel` is the conversation's rather than
-      // one turn's: what a person pressed stops whatever the agent is doing,
-      // including the message it had queued behind it.
-      for (const ticket of asked) ticket.stopped = true
+      if (!running) return
+      // Marked AFTER the cancel is on the wire rather than before, because a
+      // cancel that could not be delivered stopped nothing — and on EVERY
+      // ticket, for the reason {@link ./turns.ts} gives. What reads the mark is
+      // a steer still in flight against one of these turns: it is about to come
+      // back "nothing to steer", and this is the only thing that says the
+      // reason was a person rather than the turn finishing. It outlives the
+      // turn, which is the point — by then the ticket is all that is left of it.
+      const asked = turns.stopping()
       const quietSince = heard
       yield* Effect.forkDetach(Effect.gen(function*() {
         yield* Effect.sleep(CANCEL_GRACE)
@@ -1240,7 +1251,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     ): Effect.Effect<void, OpFailure> =>
       switching.withPermit(
         Effect.gen(function*() {
-          if (turns.size > 0) {
+          if (turns.busy) {
             return yield* new BusyFailure({
               reason: "a turn is running; cancel it before switching conversations",
             })
@@ -1263,7 +1274,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             }
             return yield* asFailure(outcome.failure)
           }
-          move({ status: "idle" })
+          settled()
         }),
       )
 
@@ -1287,7 +1298,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // `sessions` gets, and for the same reason: a verb that could not be
       // done says so where it was asked.
       cancel,
-// WITH the agent that was chosen, always: every new chat asks, so there
+      // WITH the agent that was chosen, always: every new chat asks, so there
       // is no arm here that picks one. An id off a stale tab is refused in
       // words rather than started.
       newSession: (id: string) => openWith(id, (agent) => agent.newSession),
@@ -1380,6 +1391,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               move({ status: "idle", talking: { kind: "asking" } })
               return
             }
+            // Serialized against every other way an agent is bound by
+            // {@link using}'s own permit, and NOT by the directory's: this boot
+            // runs while the listener serves pages, and a shutdown must not
+            // queue behind it.
             const outcome = yield* Effect.result(
               Effect.flatMap(using(chosen), (agent) => agent.boot),
             )
@@ -1401,16 +1416,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               }
               return
             }
-            move({ status: "idle" })
+            settled()
           }),
         )
       }),
       stop: Effect.gen(function*() {
-        // EVERY turn, not the newest: a queued message an agent had not reached
-        // yet is a fiber this process owns, and one left running past a
-        // shutdown is one nothing will ever report on.
-        const running = [...turns].flatMap((ticket) => ticket.fiber ?? [])
-        turns.clear()
+        closing = true
+        // EVERY turn, not the newest ({@link ./turns.ts}).
+        const running = turns.drain().flatMap((ticket) => ticket.fiber ?? [])
         for (const fiber of running) yield* Fiber.interrupt(fiber)
         const at = talking
         talking = null

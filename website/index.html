@@ -1350,9 +1350,14 @@ The corner unit is the **risky one** — see
 <section id="agent">
   <div class="wrap">
     <h2>Agents, over ACP</h2>
-    <p class="lead">The chat panel connects to any agent that speaks
-    <a href="https://agentclientprotocol.com">ACP</a>. Claude Code is bundled as
-    the default; set <code>OLAI_ACP_AGENT</code> to use a different agent CLI.
+    <p class="lead">The chat panel connects to agents that speak
+    <a href="https://agentclientprotocol.com">ACP</a>, and it finds the ones you
+    have: Claude Code is bundled, and an <code>opencode</code> on the server’s
+    PATH is offered beside it. A chat is bound to ONE of them, chosen when it
+    starts, and the header says which — with several installed every new chat
+    asks, and the conversation you come back to comes back on its own agent.
+    <code>OLAI_ACP_AGENT</code> points the Claude side at a different CLI, and
+    <code>OLAI_AGENT_PATH</code> says where to look for the rest.
     Olai hands an agent no filesystem — a fixed set of tools that name nodes
     and whole documents, never bytes — so every write it asks olai for is
     validated before it lands. What a
