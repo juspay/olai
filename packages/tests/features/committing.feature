@@ -218,7 +218,7 @@ Feature: Committing on purpose
     When I open the preferences
     And I set Git commit to "on"
     And I set Git push to "on"
-    Then the Git commit row explains that a write "records itself"
+    Then the Git commit row explains that a write "records what is waiting"
     # NOTHING IS STORED HERE. The rows set the server's policy for this
     # directory, so a key of either name in this browser is the shape this
     # feature retired — a quiet window that only ran while a tab was open.
