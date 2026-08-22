@@ -12,7 +12,9 @@
  * `X-Pomerium-Claim-Email` / `-Name` / `-Picture`) — one feature, not one
  * per proxy. Pomerium's signed `X-Pomerium-Jwt-Assertion` is a JWT, not a
  * login; olai reads the claim headers, not the assertion.
- * {@link identityHeaders} is the config; {@link identityOf} is the reading.
+ * {@link identityOf} is the reading; WHICH names it is handed is the
+ * operator's, read from the environment in {@link ./config.ts} and passed
+ * in — nothing in this file touches `process.env`.
  *
  * **The login is not necessarily an email.** On a Google/Microsoft/Okta
  * tailnet `Tailscale-User-Login` is the address, which is why the email
@@ -55,17 +57,6 @@ export const DEFAULT_NAME_HEADER = "Tailscale-User-Name"
 /** Default picture header — `tailscale serve` injects the IdP's avatar URL,
  *  which is the best picture of a person anybody here has. */
 export const DEFAULT_PICTURE_HEADER = "Tailscale-User-Profile-Pic"
-
-/** The login header's name. Unset is {@link DEFAULT_LOGIN_HEADER}. */
-export const LOGIN_ENV = "OLAI_IDENTITY_LOGIN_HEADER"
-/** The email header's name. Unset is the login header; empty is no email. */
-export const EMAIL_ENV = "OLAI_IDENTITY_EMAIL_HEADER"
-/** The display-name header's name. Unset is {@link DEFAULT_NAME_HEADER};
- *  empty is no name. */
-export const NAME_ENV = "OLAI_IDENTITY_NAME_HEADER"
-/** The picture header's name. Unset is {@link DEFAULT_PICTURE_HEADER};
- *  empty is no picture header. */
-export const PICTURE_ENV = "OLAI_IDENTITY_PICTURE_HEADER"
 
 /**
  * The header names olai trusts for who is looking.
@@ -116,35 +107,6 @@ const headerOf = (
   const value = Array.isArray(raw) ? raw[0] : raw
   const trimmed = value?.trim() ?? ""
   return trimmed === "" ? null : trimmed
-}
-
-/** One optional header name out of the environment: unset is `fallback`,
- *  empty (or blank) is off, anything else is that name. */
-const named = (variable: string, fallback: string | null): string | null => {
-  const asked = process.env[variable]
-  if (asked === undefined) return fallback
-  const name = asked.trim()
-  return name === "" ? null : name
-}
-
-/**
- * The configured header names, or the Tailscale defaults.
- *
- * `OLAI_IDENTITY_LOGIN_HEADER` names the login. Unset is
- * `Tailscale-User-Login`. `OLAI_IDENTITY_EMAIL_HEADER` names the email
- * claim: unset, the login header (Tailscale); empty, no email claim;
- * otherwise that name. `OLAI_IDENTITY_NAME_HEADER` and
- * `OLAI_IDENTITY_PICTURE_HEADER` are the same shape over Tailscale's own
- * display-name and avatar headers. Read on demand, not at import.
- */
-export const identityHeaders = (): IdentityHeaders => {
-  const login = process.env[LOGIN_ENV]?.trim() || DEFAULT_LOGIN_HEADER
-  return {
-    login,
-    email: named(EMAIL_ENV, login),
-    name: named(NAME_ENV, DEFAULT_NAME_HEADER),
-    picture: named(PICTURE_ENV, DEFAULT_PICTURE_HEADER),
-  }
 }
 
 /**

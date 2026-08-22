@@ -8,10 +8,10 @@ This package is the PERSON as a value. It is not a cell (a cell is one value for
 
 | file | what it owns |
 |---|---|
-| `identity.ts` | the person: `identityOf` the one reading, `identityHeaders` the names (Tailscale's four by default) |
-| `picture.ts` | the LADDER: the picture header, an avatar URL template (`OLAI_IDENTITY_AVATAR_TEMPLATE`, `{login}`), the gravatar of a claim that really is an address (`looksLikeEmail`), or none |
+| `identity.ts` | the person: `identityOf`, the one reading — a function of the header names it is HANDED and the headers a request arrived with |
+| `picture.ts` | the LADDER: the picture header, an avatar URL template (`{login}`), the gravatar of a claim that really is an address (`looksLikeEmail`), or none |
 | `gravatar.ts` | one rung of it: MD5 of an email address |
-| `config.ts` | the whole `OLAI_IDENTITY_*` family in one value, for the composition root to read once |
+| `config.ts` | THE ENVIRONMENT EDGE: the whole `OLAI_IDENTITY_*` family (four header names, one avatar template) read into one value, once, for the composition root. Nothing else here touches `process.env`, which is what lets the two files above be functions of their arguments |
 
 No dependencies. Putting the reading in `@olai/server` would make every other caller import the composition root.
 

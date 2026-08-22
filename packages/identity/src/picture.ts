@@ -39,19 +39,10 @@
 import { gravatarOf } from "./gravatar.ts"
 import type { Identity } from "./identity.ts"
 
-/** The avatar URL template — one URL with {@link LOGIN_PLACEHOLDER} in it.
- *  Unset (or blank) is no template. */
-export const AVATAR_ENV = "OLAI_IDENTITY_AVATAR_TEMPLATE"
-
-/** What a template spells the login as. */
+/** What a template spells the login as. The template itself is the
+ *  operator's, read from the environment in {@link ./config.ts} and passed
+ *  in: this file is a ladder, not a place that knows how olai was started. */
 export const LOGIN_PLACEHOLDER = "{login}"
-
-/** The configured template, or `null`. Read on demand, not at import, so
- *  what a process was started with is what it serves. */
-export const avatarTemplate = (): string | null => {
-  const asked = process.env[AVATAR_ENV]?.trim() ?? ""
-  return asked === "" ? null : asked
-}
 
 /** That URL, if it is one a browser can fetch a picture over. */
 const remoteImage = (url: string): string | null => {

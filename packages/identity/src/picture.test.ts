@@ -12,16 +12,11 @@
  * {@link ./gravatar.test.ts}.
  */
 
-import { afterEach, expect, test } from "bun:test"
+import { expect, test } from "bun:test"
 
 import { gravatarOf } from "./gravatar.ts"
 import type { Identity } from "./identity.ts"
-import {
-  AVATAR_ENV,
-  avatarTemplate,
-  looksLikeEmail,
-  pictureOf,
-} from "./picture.ts"
+import { looksLikeEmail, pictureOf } from "./picture.ts"
 
 const ADA = "ada@example.com"
 const GITHUB = "https://github.com/{login}.png"
@@ -33,12 +28,6 @@ const someone = (over: Partial<Identity> = {}): Identity => ({
   name: null,
   picture: null,
   ...over,
-})
-
-const templateWas = process.env[AVATAR_ENV]
-afterEach(() => {
-  if (templateWas === undefined) delete process.env[AVATAR_ENV]
-  else process.env[AVATAR_ENV] = templateWas
 })
 
 test("the picture header wins, even over a template and an email", () => {
@@ -96,13 +85,4 @@ test("an address is an @ with a dotted domain, and nothing else is", () => {
   expect(looksLikeEmail("ada@")).toBe(false)
   expect(looksLikeEmail("@example.com")).toBe(false)
   expect(looksLikeEmail("ada example@com")).toBe(false)
-})
-
-test("OLAI_IDENTITY_AVATAR_TEMPLATE is the template; unset and blank are none", () => {
-  delete process.env[AVATAR_ENV]
-  expect(avatarTemplate()).toBeNull()
-  process.env[AVATAR_ENV] = "  "
-  expect(avatarTemplate()).toBeNull()
-  process.env[AVATAR_ENV] = ` ${GITHUB} `
-  expect(avatarTemplate()).toBe(GITHUB)
 })
