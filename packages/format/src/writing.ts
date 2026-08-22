@@ -1309,28 +1309,24 @@ export const WriteResult = Schema.Struct({
   /** The store revision this write produced. */
   rev: Schema.Int,
   /**
-   * Whether THIS WRITE was committed to git on its own.
+   * WHY THIS WRITE IS NOT IN THE HISTORY YET, in one sentence.
    *
-   * Only `--commit=auto` ever makes this true, and that mode exists for a
-   * headless server with no browser to press anything. Under the default,
-   * `manual`, a write lands on disk and waits: `false` here means "not yet",
-   * and what is waiting is {@link Pending}.
+   * There is always one, which is why this is not optional and why the
+   * `committed` boolean that used to sit beside it is gone. Nothing commits a
+   * write on its own any more: `--commit=auto` was one commit per op, made
+   * inside the write gate, and it turned a train of thought into a dozen
+   * commits — so it is the server's quiet window now, and a write that has
+   * landed is a write that is WAITING, under every mode there is
+   * (`@olai/ops`' `whyOf`).
+   *
+   * Six different pieces of news wear "not yet", and for a while the difference
+   * between them went only to the server log — where somebody reading a browser
+   * can never see it, and where a person who knows perfectly well that their
+   * notes are a git repository is left with a write that quietly said
+   * `committed: false`. So the reason travels with the answer: the agent reads
+   * it in its tool result, the panel draws it beside the call, and nothing has
+   * to be inferred from a boolean that had one value.
    */
-  committed: Schema.Boolean,
-  /**
-   * Why it was not, in one sentence. Absent when it was.
-   *
-   * The boolean above is four different pieces of news wearing one word, and
-   * for a while the difference between them went only to the server log — where
-   * somebody reading a browser can never see it, and where a person who knows
-   * perfectly well that their notes are a git repository is left with a write
-   * that quietly says `committed: false`. So the reason travels with the
-   * answer: the agent reads it in its tool result, the panel draws it beside
-   * the call, and nothing has to be inferred from a `false`.
-   *
-   * ADDITIVE and optional on purpose — a healthy commit says nothing, so
-   * nothing that reads this reply had to change to keep working.
-   */
-  why: Schema.optionalKey(Schema.String),
+  why: Schema.String,
 })
 export type WriteResult = typeof WriteResult.Type

@@ -298,6 +298,8 @@ The subject names the node's TITLE, and this proposal's own example named its id
 
 The mode is one module's business. `pending.ts` owns all three arms — `off` has nothing to say, `manual` answers only when asked, `auto` also takes a per-write door — so the write loop calls the same verb whichever mode it is in, and a change to how olai commits cannot ripple into two places.
 
+> **Superseded, 2026-08-22 (`git-policy-server-side`).** `auto`'s per-write door is RETIRED. One commit per op turned a train of thought into a dozen commits — the thing `manual` was introduced to end — and the browser had grown a quiet window of its own to avoid exactly that, so olai shipped two features called Auto-commit that meant different things. `auto` is now that window, on the SERVER: everything waiting records itself once writes stop arriving for fifteen seconds, whoever wrote them. The rule is `@olai/format`'s `window.ts` and the timer over it is `@olai/ops`' `pending.ts`; the mode is still one module's business and `pending.ts` still owns all three arms. What is left of the per-write door is the SENTENCE a write carries back saying why it is not in the history yet. `--push=auto` moved with it and follows every settled commit, whichever door made it. See [git.md](../git.md#committing-on-its-own) and [running.md](../running.md#the-git-policy) for the shipped shape.
+
 ## Open questions
 
 1. Nothing stops pending changes piling up over days, mixing several sessions of agent edits into one commit. The count in the chrome is a nag, not a plan. **Still open**: nothing shipped addresses it, and nothing shipped forecloses anything — a nudge, an age in the panel, or a session boundary are all still available.

@@ -17,6 +17,7 @@
  */
 
 import {
+  armedOn,
   type How,
   type Pending,
   type Reason,
@@ -24,8 +25,6 @@ import {
   type Writer,
 } from "@olai/format"
 import type { GitState } from "@olai/surface"
-
-import type { Attempt, PushAttempt } from "./state.ts"
 
 /**
  * Which of the eight things the pill is saying right now.
@@ -148,16 +147,14 @@ export const isInert = (face: Face): boolean =>
  * of chips; a banner that is only there when there is news can be trusted
  * when it is absent, because the page itself is the healthy state.
  */
-export const isNews = (
-  face: Face,
-  unpushed: number,
-  /** Whether Auto-commit has stopped. News on a phone for the same reason it is
-   *  a chip on a laptop: the loop's whole promise is that nobody has to watch
-   *  it, so the one moment it stops is the one moment it has to speak. */
-  paused: string | null = null,
-): boolean =>
-  face === "waiting" || face === "blocked" || face === "error" || unpushed > 0 ||
-  paused !== null
+export const isNews = (face: Face, pending: Pending, git: GitState): boolean =>
+  face === "waiting" || face === "blocked" || face === "error" ||
+  unpushedIn(pending) > 0 || git.paused !== null || git.pushSaid !== null
+
+/** How many commits are recorded here and nowhere else, as a number — `0` for a
+ *  branch already in sync and for one with no upstream at all, which are two
+ *  different facts and the same amount to say about them. */
+export const unpushedIn = (pending: Pending): number => pending.unpushed?.commits ?? 0
 
 /**
  * One line for the phone banner. The panel behind it has the sentence.
@@ -165,12 +162,10 @@ export const isNews = (
  * Waiting outranks unpushed when both are true: not-recorded is the more
  * urgent half of the same work, and the panel lists both.
  */
-export const newsSays = (
-  face: Face,
-  waiting: number,
-  unpushed: number,
-  paused: string | null = null,
-): string => {
+export const newsSays = (face: Face, pending: Pending, git: GitState): string => {
+  const waiting = waitingIn(pending)
+  const unpushed = unpushedIn(pending)
+  const paused = git.paused
   // A stopped loop outranks every face, because it is the one line that is
   // about something having gone wrong with a promise rather than about work.
   //
@@ -192,6 +187,10 @@ export const newsSays = (
     case "error":
       return "git error — tap to see"
     default:
+      // WHY the count is not coming down outranks the count, which is the whole
+      // of `push-failure-invisible` on a phone: a number with a reason and a
+      // number without one look identical, and only one of them is news.
+      if (git.pushSaid !== null) return `${PUSH_REFUSED} — tap to see`
       return unpushed > 0 ? `${unpushed} unpushed — tap to push` : ""
   }
 }
@@ -241,6 +240,23 @@ export const MARK: Readonly<Record<Face, Mark | null>> = {
 }
 
 /**
+ * ... and the mark actually WORN, which a failing push overrules.
+ *
+ * `✓ committed · 13 unpushed` over a push that had been refused for an hour is
+ * the screenshot this whole feature was filed against. The tick is a claim, and
+ * it is a false one whenever the sharing half of the job is broken — so the
+ * refusal takes the glyph, in alarm, whatever the face underneath is saying
+ * about what is recorded.
+ *
+ * It is a RIDER rather than a ninth face, exactly as the unpushed count and the
+ * pause are: a refused push says nothing about whether writes are being
+ * recorded, which is what the faces are about, and folding it in would make
+ * `4 uncommitted` and `push refused` compete for one word.
+ */
+export const markOf = (face: Face, git: GitState): Mark | null =>
+  git.pushSaid === null ? MARK[face] : { glyph: "⚠", tone: "text-alarm" }
+
+/**
  * What a face MEANS, in one sentence — the tip a pointer opens and the
  * `aria-label` everybody else gets.
  *
@@ -274,19 +290,8 @@ export const DETAIL: Readonly<Record<Face, string>> = {
  * git's own words, and the two that are waiting carry how much. Everything else
  * reads as its own sentence.
  */
-export const explain = (
-  face: Face,
-  pending: Pending,
-  git: GitState,
-  /** Why Auto-commit stopped, when it has — a fact about the READER and not
-   *  about the directory, which is why it is a clause on every face rather
-   *  than a ninth one. Same argument as {@link alsoUnpushed}. */
-  paused: string | null = null,
-  /** Whether the Git commit preference is the SERVER's, which is the only thing
-   *  that changes here: it decides which gesture the pause sentence names. */
-  frozen: boolean = false,
-): string =>
-  alsoPaused(alsoUnpushed(sentence(face, pending, git), pending), paused, frozen)
+export const explain = (face: Face, pending: Pending, git: GitState): string =>
+  alsoPaused(alsoUnpushed(sentence(face, pending, git), pending, git), git)
 
 const sentence = (face: Face, pending: Pending, git: GitState): string => {
   switch (face) {
@@ -321,20 +326,38 @@ const sentence = (face: Face, pending: Pending, git: GitState): string => {
  * with no pointer gets: the pill's own `· 3 unpushed` is hover-free but silent
  * to a screen reader that only takes the label.
  */
-const alsoUnpushed = (said: string, pending: Pending): string => {
+const alsoUnpushed = (said: string, pending: Pending, git: GitState): string => {
   const unpushed = unpushedOf(pending)
+  // WHY it is still unpushed, when git has said. This is the clause the
+  // screenshot was missing: `✓ committed · 13 unpushed` is every word of it
+  // true and the one that matters absent, because the refusal lived in a tab's
+  // memory and that tab had been reloaded an hour before.
+  if (git.pushSaid !== null) {
+    const count = unpushed === null ? "" : `${unpushed} · `
+    return `${said} · ${count}${PUSH_REFUSED}: ${git.pushSaid}`
+  }
   return unpushed === null ? said : `${said} · ${unpushed}, and the panel can push them`
 }
 
+/** What a push that git said no to is CALLED — short, because it goes on a
+ *  fixed-height bar and on a phone banner, with git's own words a gesture
+ *  away. Spelled once for the chip, the sentence and the banner. */
+export const PUSH_REFUSED = "the last push was refused"
+
 /**
- * ── Auto-commit, as this browser sees it ──────────────────────────────
+ * ── Auto-commit, as the DIRECTORY has it ──────────────────────────────
  *
- * The loop is `./auto.ts`; these are the words for it. It is a claim about the
- * READER — "I do not want to press Commit" — so it is never one of the pill's
- * {@link Face}s: those are eight things about the DIRECTORY, and a ninth that
- * was true only in this browser would put a preference into the vocabulary the
- * panel and the phone banner share. It rides beside them instead, exactly as
- * the unpushed count does and for the same reason.
+ * The loop is the server's (`@olai/ops`, over `@olai/format`'s `window.ts`); these are the words for
+ * it. It is not one of the pill's {@link Face}s and never was: those are eight
+ * things about whether writes are being RECORDED, and whether the loop has
+ * stopped is a different question about the same directory — a stopped loop
+ * with nothing waiting has nothing wrong with the history. It rides beside them
+ * instead, exactly as the unpushed count does and for the same reason.
+ *
+ * What changed is who it is true of. These sentences used to describe THIS
+ * BROWSER — a loop in this tab, a pause a reload cleared — so two tabs could
+ * say different things about one directory and a phone could say a third. They
+ * are read off the git cell now, so every reader gets the same one.
  */
 
 /** The chip a stopped loop wears in the header. Short, because the bar is a
@@ -343,25 +366,31 @@ const alsoUnpushed = (said: string, pending: Pending): string => {
 export const AUTO_PAUSED = "auto-commit paused"
 
 /**
+ * WHAT THE LOOP IS DOING, as one word — and the one place that reading is made.
+ *
+ * Three states, and they are the DIRECTORY's: `off` where the policy is not the
+ * quiet window, `paused` where git stopped it, `armed` otherwise. Three
+ * surfaces ask — the pill wears it as `data-auto`, the panel makes a promise
+ * off it, and a phone's banner speaks it — and asked separately they would be
+ * three readings of one cell, free to disagree about a directory that has none
+ * of the ambiguity between them.
+ */
+export const loopIn = (git: GitState): "off" | "armed" | "paused" =>
+  git.policy.commit !== "auto" ? "off" : git.paused !== null ? "paused" : "armed"
+
+/**
  * The one gesture that starts the loop again, spelled once for both sentences
  * below: the header and the panel drifting on how to restart it is the one
  * sentence a reader cannot work out for themselves.
  *
- * TWO gestures now, and which one a reader has depends on whether the operator
- * PINNED this deployment's git policy (`vault-level-settings`). An unpinned Git
- * commit row is this browser's, and turning it off and on again is the person
- * saying they have dealt with whatever git said. A pinned row has no toggle to
- * flip, so it carries a Resume button instead — one gesture either way, and the
- * sentence names the one that is actually on the panel.
- *
- * A PARAMETER rather than a read of the pin, because this module is the WORDS
- * and nothing else: every sentence in it is a function of what it is handed, so
- * a test can ask for either without a server.
+ * ONE gesture now, where there were two. The stop used to be this tab's, so
+ * turning the browser's own Auto-commit toggle off and on again cleared it —
+ * and on a server that had PINNED the policy there was no toggle to flip, so
+ * the frozen row grew a Resume button and the sentence had to name whichever
+ * one this reader had. The stop is the directory's, so neither a toggle nor a
+ * reload can clear it: Resume is the gesture, on every deployment.
  */
-const resumeGesture = (frozen: boolean): string =>
-  frozen
-    ? "Press Resume in preferences to start it again."
-    : "Turn Auto-commit off and on again in preferences to resume."
+const RESUME_GESTURE = "Press Resume in preferences to start it again."
 
 /**
  * ... and the sentence the HEADER carries, which is git's own words plus that
@@ -378,12 +407,42 @@ const resumeGesture = (frozen: boolean): string =>
  * of its own down there, beside the verb that produced it, and one paragraph
  * printed twice in one popover is a popover nobody reads either copy of.
  */
-const autoSays = (paused: string, frozen: boolean): string =>
-  `auto-commit is paused — ${paused}. ${resumeGesture(frozen)}`
+const autoSays = (paused: string): string =>
+  `auto-commit is paused — ${paused}. ${RESUME_GESTURE}`
+
+/** ... and the same clause for a sentence that has ALREADY quoted whatever git
+ *  said, which is the ordinary case: a refused push both stops the loop and
+ *  rides {@link alsoUnpushed}, so a paragraph of git's hints would otherwise be
+ *  printed twice inside one `aria-label`. */
+const AUTO_SAYS_AGAIN = `auto-commit is paused. ${RESUME_GESTURE}`
+
+/** Whether the words that stopped the loop are already on the sentence. There
+ *  are exactly two things that can have printed them — the refused push's
+ *  clause and the fault face's — and the stop is set from one of those two, so
+ *  this is a comparison rather than a search through the prose. */
+const quoted = (git: GitState): boolean =>
+  git.paused === git.pushSaid || git.paused === git.said
 
 /** ... and the PANEL's line, which does not repeat git — see {@link autoSays}. */
-export const autoStopped = (frozen: boolean): string =>
-  `auto-commit is paused, and what git said is below. ${resumeGesture(frozen)}`
+export const AUTO_STOPPED =
+  `auto-commit is paused, and what git said is below. ${RESUME_GESTURE}`
+
+/**
+ * Whether the server's quiet window really would record what the panel is
+ * listing — the loop's OWN gate, called rather than re-derived.
+ *
+ * `armedOn` is the expression the server arms the window with and re-asks at
+ * the moment it fires (`@olai/format`'s `window.ts`), and the panel is its
+ * third caller for exactly the reason it is on the floor: a promise made out of
+ * a shorter version of the rule is a promise the loop does not keep. It was
+ * made out of a shorter version — the policy and the repository's readiness,
+ * without the term that says something is WAITING — so on a clean tree under
+ * `--commit=auto` the committed pill printed {@link AUTO_ARMED} over an empty
+ * list, while the server's own answer was `""` precisely because there was
+ * nothing to record.
+ */
+export const willRecord = (pending: Pending, git: GitState): boolean =>
+  armedOn(git.policy.commit, git.paused, pending) !== ""
 
 /** What an ARMED loop is about to do with what the panel is listing. Drawn only
  *  while it is really going to happen, so it is a promise rather than a
@@ -391,9 +450,19 @@ export const autoStopped = (frozen: boolean): string =>
 export const AUTO_ARMED =
   "Auto-commit will record all of this as one commit once the edits stop."
 
-/** The pause, on whatever sentence the face produced — see {@link explain}. */
-const alsoPaused = (said: string, paused: string | null, frozen: boolean): string =>
-  paused === null ? said : `${said} · ${autoSays(paused, frozen)}`
+/**
+ * The pause, on whatever sentence the face produced — see {@link explain}.
+ *
+ * GIT'S WORDS GO IN ONCE. The same refusal is very often already on the
+ * sentence: a push that would not go stops the loop AND rides the unpushed
+ * clause, so quoting it here as well put the whole of git's non-fast-forward
+ * hint — five lines of it — twice into one label, which is a label nobody reads
+ * either copy of.
+ */
+const alsoPaused = (said: string, git: GitState): string =>
+  git.paused === null
+    ? said
+    : `${said} · ${quoted(git) ? AUTO_SAYS_AGAIN : autoSays(git.paused)}`
 
 /** How much is waiting, in words — the same tally the pill draws as a number,
  *  so the sentence and the label cannot disagree. */
@@ -486,31 +555,6 @@ export const unpushedOf = (pending: Pending): string | null => {
   return `${commits} not on ${unpushed.upstream}`
 }
 
-/**
- * What a push attempt leaves on screen, or `null` for one that leaves nothing.
- *
- * A push that WORKED is the `null`, for the reason a commit that worked is: what
- * is waiting is republished and the line it would have been read on is gone. The
- * refusals are the point — authentication, a non-fast-forward, a branch with no
- * upstream — and they are git's own words, whole, because they are what a person
- * is about to paste into a terminal.
- */
-export const pushTrouble = (attempt: PushAttempt | null): string | null => {
-  if (attempt === null) return null
-  switch (attempt._tag) {
-    case "Pushed":
-      return null
-    case "NothingToPush":
-      return "everything was already pushed"
-    case "Blocked":
-      return `${because(attempt.repo)} — nothing was pushed`
-    case "Failed":
-      return attempt.said
-    case "Refused":
-      return attempt.failure.message
-  }
-}
-
 /** Who a writer is, to a reader. `web` is the only one that gets a different
  *  word than its name: the person reading this is the one who pressed the
  *  button, and "web" would be telling them about a transport.
@@ -521,6 +565,11 @@ export const WHO: Readonly<Record<Writer, string>> = {
   "chat-agent": "chat agent",
   mcp: "an agent in a terminal",
   web: "you",
+  // The server's own quiet window, which nobody pressed. `auto-commit` rather
+  // than "the server": a reader who turned the row on recognises the name of
+  // the thing they turned on, and a commit trailer saying `web` here would have
+  // told them they made it.
+  auto: "auto-commit",
   // Also you, and deliberately not said that way: the write came in at
   // `POST /capture` from a share sheet, a script or another machine on the
   // tailnet, and a reader looking at a change they do not remember making is
@@ -566,23 +615,19 @@ const BLOCKED: Readonly<Record<Reason, string>> = {
 }
 
 /**
- * What an attempt leaves on screen, or `null` for one that leaves nothing.
+ * What git said when it last refused a COMMIT, or `null` when it did not.
  *
- * A commit that WORKED is the `null`: it republishes what is pending, and the
- * panel it would have been read in is gone with it.
+ * The cell's `said`, read only on the face that has one — a `Blocked`
+ * repository puts its own words on `pending.repo` and the panel draws those
+ * beside the button, and quoting them here as well would be one paragraph
+ * printed twice in one popover.
+ *
+ * It used to be this TAB's last attempt, unpacked from five arms, which had the
+ * shape of a receipt and the lifetime of a page: the commit an agent made, the
+ * one the quiet window made, and the one made in another tab all left nothing
+ * here. What is drawn now is the directory's, so a reload does not change it and
+ * the reader who opens the panel last sees what the reader who opened it first
+ * saw.
  */
-export const trouble = (attempt: Attempt | null): string | null => {
-  if (attempt === null) return null
-  switch (attempt._tag) {
-    case "Committed":
-      return null
-    case "NothingToCommit":
-      return "nothing was waiting"
-    case "Blocked":
-      return `${because(attempt.repo)} — nothing was committed`
-    case "Failed":
-      return attempt.said
-    case "Refused":
-      return attempt.failure.message
-  }
-}
+export const commitRefused = (git: GitState): string | null =>
+  git.status === "error" ? git.said : null

@@ -18,7 +18,13 @@
  * record is the same value it was.
  */
 
-import { codec, make as makeOps, type Ops, type Store as OutlineStore } from "@olai/ops"
+import {
+  codec,
+  fixedPolicy,
+  make as makeOps,
+  type Ops,
+  type Store as OutlineStore,
+} from "@olai/ops"
 import type { DocumentEntry, Head, Manifest, Shelf } from "@olai/surface"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import * as Store from "@olai/store"
@@ -30,6 +36,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { watchFault } from "./fault.ts"
+import { frozenPolicy } from "./serve.testlib.ts"
 import { type Bound, bind, gitWiring, writerAt } from "./runtime.ts"
 
 /** One bound runtime over a directory of `files`, torn down with the scope —
@@ -76,13 +83,17 @@ const withRuntime = <A>(
         return opened.body(path)
       },
     }
-    const ops = makeOps({ store, root, pin: { commit: "off", push: null } })
+    const ops = makeOps({ store, root, policy: fixedPolicy({ commit: "off", push: null }) })
     const wired = yield* bind({
       store,
       chat: null,
       ops,
       writer: "web",
-      git: gitWiring(ops, yield* SubscriptionRef.make(0)),
+      git: gitWiring(
+        ops,
+        frozenPolicy({ commit: "off", push: null }),
+        yield* SubscriptionRef.make(0),
+      ),
     })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))

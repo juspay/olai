@@ -30,7 +30,13 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { type FailureKind, type OutlineSet, outlinePaths } from "@olai/format"
 import { recordsOf } from "@olai/format/testlib"
-import { codec, make as makeOps, type Store as OutlineStore, TOOLS } from "@olai/ops"
+import {
+  codec,
+  fixedPolicy,
+  make as makeOps,
+  type Store as OutlineStore,
+  TOOLS,
+} from "@olai/ops"
 import { STAMP, steady } from "@olai/ops/testlib"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
@@ -42,6 +48,7 @@ import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
+import { frozenPolicy } from "../serve.testlib.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { bespokeFrom } from "./tools.ts"
 
@@ -128,7 +135,7 @@ const withTools = <A>(
     const ops = makeOps({
       store,
       root,
-      pin: { commit: "off", push: null },
+      policy: fixedPolicy({ commit: "off", push: null }),
       // The ops layer's own fixture context — deterministic ids and one fixed
       // instant — rather than a second spelling of it up here, which is a
       // fixture free to drift from the assertions that package is written
@@ -145,7 +152,11 @@ const withTools = <A>(
       chat: null,
       ops,
       writer: "mcp",
-      git: gitWiring(ops, yield* SubscriptionRef.make(0)),
+      git: gitWiring(
+        ops,
+        frozenPolicy({ commit: "off", push: null }),
+        yield* SubscriptionRef.make(0),
+      ),
     })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))

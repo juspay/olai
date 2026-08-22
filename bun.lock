@@ -37,6 +37,7 @@
         "@olai/acp": "workspace:*",
         "@olai/format": "workspace:*",
         "@olai/log": "workspace:*",
+        "@olai/state": "workspace:*",
         "@olai/surface": "workspace:*",
         "effect": "4.0.0-rc.110",
         "zod": "^4.0.0",
@@ -108,8 +109,19 @@
         "@olai/identity": "workspace:*",
         "@olai/log": "workspace:*",
         "@olai/ops": "workspace:*",
+        "@olai/state": "workspace:*",
         "@olai/store": "workspace:*",
         "@olai/surface": "workspace:*",
+        "effect": "4.0.0-rc.110",
+      },
+      "devDependencies": {
+        "@types/node": "^22.0.0",
+      },
+    },
+    "packages/state": {
+      "name": "@olai/state",
+      "version": "0.1.0",
+      "dependencies": {
         "effect": "4.0.0-rc.110",
       },
       "devDependencies": {
@@ -343,6 +355,8 @@
     "@olai/ops": ["@olai/ops@workspace:packages/ops"],
 
     "@olai/server": ["@olai/server@workspace:packages/server"],
+
+    "@olai/state": ["@olai/state@workspace:packages/state"],
 
     "@olai/store": ["@olai/store@workspace:packages/store"],
 

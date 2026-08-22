@@ -1,17 +1,22 @@
 @scratch:good @git:repo @pin:commit=auto @pin:push=auto
 Feature: A pinned loop that git stopped can still be started again
-  A commit or a push git REFUSED pauses Auto-commit and nothing clears that on
-  olai's own initiative: a loop that un-paused itself is a blind retry wearing a
-  different hat, and piling more automatic commits onto a branch that has
-  already diverged makes the eventual resolution worse. So it waits for a person
-  to say they have dealt with whatever git said.
+  A commit or a push git REFUSED pauses the quiet window and nothing clears that
+  on olai's own initiative: a loop that un-paused itself is a blind retry
+  wearing a different hat, and piling more automatic commits onto a branch that
+  has already diverged makes the eventual resolution worse. So it waits for a
+  person to say they have dealt with whatever git said.
 
-  Where the Git commit row is this browser's, that gesture is turning it off and
-  on again — `committing.feature`'s divergence scenario is the whole of it. On a
-  server that PINNED the policy there is no toggle to flip, so the same stop
-  would be permanent and silent, which is the one failure a loop nobody watches
-  may not have. The frozen row carries a **Resume** button instead: the same
-  gesture, on the only control a pinned row is allowed to have.
+  There is ONE gesture for that and it is **Resume**, on every deployment. It
+  used to be two: the stop lived in a browser tab, so turning that browser's own
+  Auto-commit toggle off and on again cleared it, and only a PINNED row — which
+  has no toggle to flip — carried a button. The stop is a fact about the
+  DIRECTORY now, so no toggle and no reload can clear it, and Resume is a server
+  procedure that clears it for every reader at once.
+
+  What this feature still holds that `committing.feature` cannot is that the
+  gesture survives the row being READ-ONLY: an operator who pinned the policy
+  has taken the toggle away, and the one control a stopped loop needs must not
+  go with it.
 
   This server is started `--commit=auto --push=auto`, and the divergence is the
   case that meets it — somebody else has pushed, so the push is a
@@ -32,12 +37,12 @@ Feature: A pinned loop that git stopped can still be started again
     And the commit pill says auto-commit is "paused"
     # Git's own words, on the sentence a reader with no pointer gets.
     And the commit pill explains "rejected"
-    # ... and the gesture named is the one this reader ACTUALLY HAS. A frozen
-    # row has no toggle, so a sentence still naming the off-and-on dance would
-    # send somebody after a control that is on screen and inert.
+    # ... and the gesture named is the one that exists: a frozen row has no
+    # toggle, and neither does an unfrozen one any more.
     And the commit pill explains "Resume"
     When I open the preferences
     Then the "Git commit" row is the server's, set by "--commit=auto"
+    And the "Git commit" row cannot be changed from this browser
     And the preferences offer to resume auto-commit
     When I resume auto-commit
     Then the commit pill says auto-commit is "armed"

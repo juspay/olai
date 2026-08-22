@@ -123,6 +123,7 @@ import { type Emit, emitter } from "@olai/log"
 import * as Bodies from "./bodies.ts"
 import { contextFor } from "./context.ts"
 import { inverseOf, reresolves, requestFor } from "./edit.ts"
+import type { LivePolicy } from "./gitPolicy.ts"
 import { runResolved } from "./resolving.ts"
 import {
   type Change as CollectionChange,
@@ -215,10 +216,23 @@ export interface Wiring {
      *  asked, so it is bound per face by {@link writing} rather than once
      *  here. */
     readonly push: Effect.Effect<PushResult>
-    /** Bumped by the ops layer whenever git RECORDED or SHARED something — a
-     *  commit by whichever door, or a push. Neither moves a served file, so
-     *  this is the only thing that can say what is waiting has changed. */
-    readonly recorded: SubscriptionRef.SubscriptionRef<number>
+    /** WHAT THIS DIRECTORY'S GIT POLICY IS, and the one way to move it
+     *  (`../gitPolicy.ts`). The `git.setPolicy` procedure is the two
+     *  preference rows' door to it; `pin` is what makes a pinned row refuse. */
+    readonly policy: LivePolicy
+    /** The quiet-window loop, and the two things around it (`@olai/ops`):
+     *  `observe` is handed every survey so the window re-arms on what actually
+     *  moved, `loop` is the effect this file forks, and `resume` is what the
+     *  Resume button calls. */
+    readonly observe: Ops["observe"]
+    readonly loop: Ops["loop"]
+    readonly catchUp: Ops["catchUp"]
+    readonly resume: Ops["resume"]
+    /** Bumped by the ops layer whenever anything about git SETTLED — a commit
+     *  by whichever door, a push, a refusal of either, or the loop stopping.
+     *  None of them moves a served file, so this is the only thing that can say
+     *  what a reader is owed has changed. */
+    readonly settled: SubscriptionRef.SubscriptionRef<number>
   }
 }
 
@@ -241,12 +255,18 @@ export interface Wiring {
  * fenced as well.
  */
 export const gitWiring = (
-  ops: Pick<Ops, "status" | "push">,
-  recorded: SubscriptionRef.SubscriptionRef<number>,
+  ops: Pick<Ops, "status" | "push" | "observe" | "loop" | "catchUp" | "resume">,
+  policy: LivePolicy,
+  settled: SubscriptionRef.SubscriptionRef<number>,
 ): Wiring["git"] => ({
   status: ops.status,
   push: ops.push,
-  recorded,
+  policy,
+  observe: ops.observe,
+  loop: ops.loop,
+  catchUp: ops.catchUp,
+  resume: ops.resume,
+  settled,
 })
 
 /** The chat, plus the two publishers the surface hands back once it exists.
@@ -464,10 +484,20 @@ export const bind = (
     const republishGit = Effect.flatMap(
       wiring.git.status,
       ({ git, pending }) =>
-        Effect.sync(() => {
-          pendingCell?.set(pending)
-          gitCell?.set(git)
-        }),
+        Effect.flatMap(
+          Effect.sync(() => {
+            pendingCell?.set(pending)
+            gitCell?.set(git)
+          }),
+          // ... AND THE LOOP IS TOLD, off the same survey. The quiet window is
+          // armed by the arrival of a reading rather than by a clock of its
+          // own, so this is where it hears about a write, a commit, a policy a
+          // browser moved, and the resume that follows a stop. Which of those
+          // actually re-arms it is `@olai/ops`' rule (`armedOn`), not this
+          // line's: the slow sweep over a quiet directory says nothing new and
+          // must not push the window out.
+          () => wiring.git.observe(pending),
+        ),
     )
 
     /** A chat verb, when there may be no chat. The cell already reads `off`, so
@@ -566,7 +596,8 @@ export const bind = (
           connect: (cell) => Effect.sync(() => gitCell = cell),
         },
         /**
-         * What is waiting to be committed, on THREE clocks.
+         * What is waiting to be committed, on THREE clocks — plus the quiet
+         * window over them and the one push a boot owes.
          *
          * Every published revision is one — a write changes what is waiting, and
          * that is the ordinary case. A landed commit is the second, because a
@@ -589,11 +620,30 @@ export const bind = (
                   () => republishGit,
                 ),
                 Stream.runForEach(
-                  SubscriptionRef.changes(wiring.git.recorded),
+                  SubscriptionRef.changes(wiring.git.settled),
                   () => republishGit,
                 ),
                 Effect.forever(Effect.andThen(Effect.sleep(SWEEP), republishGit)),
-              ], { concurrency: 3 })
+                // THE QUIET WINDOW ITSELF, forked here beside the three clocks
+                // that feed it. It is a cell connector rather than a fiber of
+                // its own because this is where the survey is: the loop watches
+                // what `republishGit` just published, and a second place that
+                // ran git would be a second answer to what is waiting.
+                //
+                // The connector starts when the surface BINDS, not when a
+                // browser subscribes (`@kolu/surface`'s owned sources), which
+                // is what makes a headless `olai web --commit=auto` commit at
+                // all — the whole point of moving the loop off a tab.
+                wiring.git.loop,
+                // ONE PUSH AT BOOT, where the policy is `auto` and there is
+                // anything to send (`@olai/ops`' `catchUp`). Nothing about a
+                // refusal is remembered across a restart, and `olai.service` is
+                // `Restart=always` — so without this a deploy would take the
+                // words with it and leave the chip reading `✓ committed · N
+                // unpushed` over a branch that has been refusing for hours.
+                // The words are re-earned rather than written down.
+                wiring.git.catchUp,
+              ], { concurrency: 5 })
             }),
         },
         /**
@@ -1091,14 +1141,24 @@ export const bind = (
           // is what {@link writing} is for. A procedure is a transport, and
           // which transport this one is is not a thing it should be able to
           // claim about itself. What republishes afterwards is NOT here: it is
-          // the `recorded` subscription above, so the agent's tool and
-          // `--commit=auto` get it too.
+          // the `settled` subscription above, so the agent's tool and the quiet
+          // window get it too.
           commit: impl(writing(wiring.ops, wiring.writer).git.commit),
           // The Push button's door, and it takes no input at all — one verb,
           // the current branch, the upstream it already has. It republishes
           // through the same subscription for the same reason: pushing moves no
           // served file and changes what `pending` says.
           push: () => wiring.git.push,
+          // The two preference rows' door. What republishes afterwards is NOT
+          // here — the policy fires the same `settled` subscription the ops
+          // layer does (`../gitPolicy.ts`), which is what re-arms the quiet
+          // window when the policy it just moved turned the loop on, and what
+          // keeps a second door to the policy from publishing nothing.
+          setPolicy: ({ input }) => Effect.as(wiring.git.policy.set(input), {}),
+          // ... and the Resume button's. The ops layer republishes for itself
+          // here, because clearing a stop is exactly a moment nothing else in
+          // the process would mention.
+          resume: () => Effect.as(wiring.git.resume, {}),
         },
         /**
          * Who is looking on THIS connection. The value is the per-connection

@@ -20,7 +20,7 @@ Three arms, and the third is the whole of #108:
 | `NoRepo` | the directory is not a work tree — a statement about the DIRECTORY |
 | `Unusable` | git ran and could not answer, with what it said — no binary on the PATH, dubious ownership, a repository git refuses to use |
 
-Answering `null` for both of the last two is exactly the collapse that left a person staring at `committed: false` with nowhere to read why. "Your notes are not a repository" and "this service has no git" are two different pieces of news.
+Answering `null` for both of the last two is exactly the collapse that left a person staring at a write that was not committed with nowhere to read why. "Your notes are not a repository" and "this service has no git" are two different pieces of news.
 
 ## The handle
 

@@ -28,7 +28,6 @@ const MARKED = {
   summary: "done: order the cabinets",
   sort: "done",
   rev: 4,
-  committed: false,
   why: "the write is waiting to be committed",
 }
 

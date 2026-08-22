@@ -46,9 +46,9 @@
  */
 
 import {
+  armedOn,
   COMMIT_MODES,
   type CommitMode,
-  commitModeOf,
   type CommitRequest,
   type CommitResult,
   changesOf,
@@ -56,8 +56,10 @@ import {
   type Derived,
   fileKind,
   type GitPin,
+  type GitPolicy,
   type GitState,
   type How,
+  isReady,
   type LastCommit,
   type Node,
   nodesOf,
@@ -66,6 +68,8 @@ import {
   outlinePaths,
   parseOutline,
   type Pending,
+  policyOf,
+  QUIET_MS,
   type PushResult,
   type Reason,
   type RepoState,
@@ -74,7 +78,7 @@ import {
   type Wrote,
 } from "@olai/format"
 import * as Git from "@olai/git"
-import { Effect, Result, SubscriptionRef } from "effect"
+import { Duration, Effect, Result, Stream, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
 import { AUDIT, signed } from "./message.ts"
@@ -104,49 +108,119 @@ export { COMMIT_MODES, type CommitMode }
 export type { GitState }
 
 /**
- * This value's answer, from the repository's — and from what the operator
- * pinned, which is not derived from anything and simply rides along.
+ * This value's answer, from the repository's — plus the four facts about the
+ * DIRECTORY that no probe of it can see.
  *
  * `Blocked` reads as `repo`, deliberately: a mid-rebase repository is a
  * perfectly good one, and what cannot happen right now is a COMMIT — which the
  * pending value already says, with the reason, and which the indicator draws
- * from there. This one answers the narrower question it has always answered,
+ * from there. That arm answers the narrower question it has always answered,
  * which is whether writes here have a history to go into at all.
  *
- * The PIN is a parameter rather than something this function could work out,
- * and it is on every arm including the ones that are already a settled setting:
- * a `--commit=off` serve is exactly a server whose git policy was pinned, and a
- * browser that was told "off" without being told who said so has to guess
- * whether its own preference still applies.
+ * THE FOUR THAT ARE NOT THE PROBE'S, and every one of them is here rather than
+ * assembled by a caller so that "what git is doing" has exactly one derivation:
+ *
+ *   - `pinned` — what the operator typed, on every arm including the settled
+ *     ones: a `--commit=off` serve is exactly a pinned policy, and a browser
+ *     told "off" without being told who said so cannot draw the row.
+ *   - `policy` — what this server DOES, which is the value the two preference
+ *     rows now draw (they used to draw a preference stored in the browser).
+ *   - `refused` — the last commit git said no to. #108's: a repository whose
+ *     identity nobody set answers every probe happily and refuses every commit,
+ *     so this OVERRIDES the probe's own status and reaches a reader as `error`.
+ *   - `pushSaid` and `paused` — the last push refusal and why the loop stopped.
+ *     Neither overrides the status: a push that will not go is not a repository
+ *     that will not take a commit, and drawing them as one is exactly the bug
+ *     that read `✓ committed · 13 unpushed` over an hour of failing pushes.
  */
-export const gitOf = (repo: RepoState, pinned: GitPin): GitState => {
+const gitOf = (
+  repo: RepoState,
+  policy: Policy,
+  settled: Settled,
+): GitState => {
+  const rest = {
+    pinned: policy.pin,
+    policy: policy.now(),
+    pushSaid: settled.pushSaid,
+    paused: settled.paused,
+  }
+  if (settled.refusal !== null) {
+    return { status: "error", said: settled.refusal, ...rest }
+  }
   switch (repo._tag) {
     case "Off":
-      return { status: "off", said: null, pinned }
+      return { status: "off", said: null, ...rest }
     case "NoRepo":
-      return { status: "none", said: null, pinned }
+      return { status: "none", said: null, ...rest }
     case "Unusable":
-      return { status: "error", said: repo.said, pinned }
+      return { status: "error", said: repo.said, ...rest }
     case "Ready":
     case "Blocked":
-      return { status: "repo", said: null, pinned }
+      return { status: "repo", said: null, ...rest }
   }
 }
 
 /**
- * Why a write is not in the history, in one sentence — or `undefined` when it
- * is.
+ * THE THREE THINGS THIS LAYER REMEMBERS ABOUT GIT, as one value.
  *
- * FIVE different facts wear one `committed: false`, and telling them apart is
- * the whole of #108 plus the thing manual mode adds: `off` and `manual` are
- * SETTINGS working exactly as asked, `NoRepo` is a statement about the
- * directory, and `Unusable` / `Blocked` / a refusal are faults with git's own
- * words on them. A write waiting under the default mode must never read as an
- * error, because it is not one — it is the feature.
+ * Everything else about the repository is derived from it on every reading —
+ * that is the rule the whole feature is built on — and these three are the
+ * exceptions, because they are the class of fact no probe can see: `rev-parse`
+ * answers happily in a repository with no `user.email`, `git status` says how
+ * far ahead a branch is and never why it is still ahead, and nothing on disk
+ * says a loop stopped.
  *
- * `Blocked` is the arm that has to beat `manual` to the answer, and it does:
- * a write on a mid-rebase repository is NOT waiting to be asked about, it is
- * waiting for the rebase, and the tool it would be told to call will refuse.
+ * ONE VALUE rather than three fields, because they are coupled by a rule and
+ * the rule is what would otherwise live in a comment: a refusal of EITHER verb
+ * sets the pause, and only `resume` clears it. Kept together, the writers are
+ * countable ({@link Committing}'s `commit`, `push` and `resume`, and nothing
+ * else) and the readers take one argument.
+ */
+interface Settled {
+  /** What git said when it last refused a COMMIT, or `null` — cleared by the
+   *  next commit that works. #108's, and the reason this is remembered at all. */
+  readonly refusal: string | null
+  /**
+   * ... and a PUSH.
+   *
+   * Its own field rather than the same one, and the separation is the bug this
+   * feature was filed for: a refused push leaves a repository whose every
+   * commit still lands, so folding it into `refusal` would make the chip read
+   * `git error` at a directory whose git is fine. What is broken is the
+   * sharing, and the chip has to be able to say so while still saying
+   * everything else is well.
+   */
+  readonly pushSaid: string | null
+  /** Why the quiet window stopped, or `null` while it is running. A fact about
+   *  the directory: it used to be a signal in one browser tab, so a reload was
+   *  a silent retry and a second tab knew nothing. */
+  readonly paused: string | null
+}
+
+/** Nothing has refused and nothing has stopped — what a server boots holding,
+ *  and what a healthy directory keeps holding. */
+const NOTHING_SETTLED: Settled = {
+  refusal: null,
+  pushSaid: null,
+  paused: null,
+}
+
+/**
+ * Why a write is not in the history, in one sentence — and there is ALWAYS one.
+ *
+ * It used to answer `undefined` for the one mode that committed the write
+ * inside the write gate, and that mode is gone: nothing commits a write any
+ * more, so `committed: true` was a thing no reply could carry and the boolean
+ * beside this sentence went with it. Six facts wear "not yet", and telling them
+ * apart is the whole of #108 plus what manual mode adds: `off` and the two
+ * waits are SETTINGS working exactly as asked, `NoRepo` is a statement about
+ * the directory, and `Unusable` / `Blocked` / a refusal are faults with git's
+ * own words on them. A write waiting under the default mode must never read as
+ * an error, because it is not one — it is the feature.
+ *
+ * `Blocked` is the arm that has to beat both waits to the answer, and it does:
+ * a write on a mid-rebase repository is NOT waiting to be asked about or waited
+ * out, it is waiting for the rebase, and the loop will not attempt into one.
  * Saying "waiting" there is the #108 mistake wearing manual mode's clothes.
  */
 export const whyOf = (
@@ -159,29 +233,44 @@ export const whyOf = (
    *  scope at every call site, and an optional one would be a second code path
    *  meaning "we do not know who asked", which is never true here. */
   writer: Writer,
-): string | undefined => {
+): string => {
   if (refused !== null) return `git refused the commit: ${refused}`
   switch (repo._tag) {
     case "Off":
-      return "this directory is served with --commit=off, so writes are not committed"
+      return COMMITS_OFF
     case "NoRepo":
       return "the served directory is not a git work tree, so there is nothing to commit to"
     case "Unusable":
       return `git could not be asked about this directory: ${repo.said}`.trim()
     case "Blocked":
-      // Not "waiting", even under `manual`, and that is the point: this write
+      // Not "waiting", under either mode, and that is the point: this write
       // is not waiting for somebody to ask — it is waiting for the repository,
       // and asking will refuse until that is finished. Naming the state is
       // what lets a reader (or an agent) do the one thing that helps.
       return `${busy(repo.reason)}, so the write is on disk but cannot be ` +
         `committed — finish that first, then commit`
     case "Ready":
-      return mode === "manual"
-        ? "waiting to be committed: writes accumulate under --commit=manual (the " +
-          `default) until ${commitDoor(writer)} asks for one`
-        : undefined
+      switch (mode) {
+        case "off":
+          return COMMITS_OFF
+        case "manual":
+          return "waiting to be committed: writes accumulate under --commit=manual (the " +
+            `default) until ${commitDoor(writer)} asks for one`
+        // The window, and it names nobody's door on purpose: under `auto` there
+        // is nothing for this caller to press. What it is waiting for is the
+        // DIRECTORY going quiet, which every other writer moves too.
+        case "auto":
+          return `waiting to be committed: --commit=auto records everything waiting ` +
+            `once writes stop arriving for ${Math.round(QUIET_MS / 1000)} seconds`
+      }
   }
 }
+
+/** The one sentence `--commit=off` gets, wherever it is reached from — the
+ *  setting is one fact and two spellings of it is one place for them to
+ *  drift. */
+const COMMITS_OFF =
+  "this directory is served with --commit=off, so writes are not committed"
 
 /** What a busy repository IS, in words that read. Three of the four reasons are
  *  an operation in progress and take "mid-"; a detached HEAD is a place you are
@@ -221,6 +310,13 @@ export const commitDoor = (writer: Writer): string => {
   switch (writer) {
     case "web":
     case "capture":
+    // `auto` is the quiet-window loop, which writes no FILE — it only ever
+    // makes commits — so no write is ever attributed to it and this arm is
+    // unreachable by construction. It is spelled rather than defaulted for the
+    // reason the others are: a writer added to the format is a decision here,
+    // and the button is the honest answer to "what would release this" for a
+    // caller that has no door of its own.
+    case "auto":
       return COMMIT_BUTTON
     case "mcp":
       return COMMIT_TOOL
@@ -233,40 +329,68 @@ export interface Options {
   /** Absolute path of the directory being served — where git runs. */
   readonly root: string
   readonly store: Store
+  /** WHAT THIS SERVER DOES about git, live — see {@link Policy}. */
+  readonly policy: Policy
   /**
-   * What the operator PINNED — the flags as given, `null` for each one nobody
-   * gave (`@olai/format`'s {@link GitPin}).
-   *
-   * The pin rather than the effective mode, and that is the one place this
-   * layer's shape changed for `vault-level-settings`: what the server DOES is
-   * `commitModeOf(pin)`, derived here in one line, while what a browser has to
-   * be TOLD is whether a flag was given at all. Carrying both would be the
-   * hand-kept mirror the two of them would then drift across.
-   */
-  readonly pin: GitPin
-  /**
-   * Told whenever a commit lands, by whichever door.
+   * Told whenever anything about git SETTLED — a commit by whichever door, a
+   * push, a refusal of either, and the loop stopping or being started again.
    *
    * It hangs HERE rather than on the transport that asked, for the same reason
-   * `onRefusal` hangs on the ops layer: a commit changes what is waiting
-   * without changing one served byte, so no revision will ever say so — and a
-   * caller that had to remember to republish is a caller that can forget.
-   * The button did remember; the agent's `commit` tool and `--commit=auto`
-   * did not, and every open tab sat on a stale count until the next sweep.
+   * `onRefusal` hangs on the ops layer: none of those moves one served byte, so
+   * no revision will ever say so — and a caller that had to remember to
+   * republish is a caller that can forget. The button did remember; the agent's
+   * `commit` tool did not, and every open tab sat on a stale count until the
+   * next sweep.
    *
-   * A PUSH fires it too, and that is why it is not called `onCommitted` any
-   * more: pushing moves no file either, and it changes the unpushed count both
-   * the panel and the header draw.
+   * A REFUSAL fires it too, which is what the push-invisibility bug turned on:
+   * git said no, the remembered reason moved, and nothing told a browser for up
+   * to thirty seconds — or, for a push, ever.
    */
-  readonly onRecorded?: () => void
+  readonly onSettled?: () => void
+  /** The quiet window, for a test that cannot wait fifteen seconds. The SPAN is
+   *  a product decision and lives with the rule (`@olai/format`'s
+   *  {@link QUIET_MS}); this is only how long this instance waits. */
+  readonly quiet?: Duration.Input
 }
+
+/**
+ * WHAT THIS SERVER DOES ABOUT GIT, and who decided — the whole of
+ * `git-policy-server-side` as this layer sees it.
+ *
+ * Two members rather than one, because they answer different questions and both
+ * travel: `now()` is what the loop and the two verbs obey, `pin` is what a
+ * browser is told so it can draw the rows read-only. It is a live ACCESSOR
+ * rather than a value, because the policy moves while the server runs — the
+ * preferences panel sets it through `git.setPolicy` — and a value read once at
+ * boot would be a loop that never noticed being turned on.
+ *
+ * WHERE IT IS KEPT is deliberately not here. This layer is handed the answer;
+ * `@olai/server`'s `gitPolicy.ts` composes the flags with whatever was
+ * remembered for this directory, outside the vault.
+ */
+export interface Policy {
+  /** What the operator pinned — the flags as given, `null` for each one nobody
+   *  gave (`@olai/format`'s {@link GitPin}). */
+  readonly pin: GitPin
+  /** What the server does right now, with the pin, the remembered choice and
+   *  the defaults already folded in (`@olai/format`'s `policyOf`). */
+  readonly now: () => GitPolicy
+}
+
+/** A policy that cannot move: the flags, the defaults, and nowhere to remember
+ *  anything else. What a caller with no state directory behind it hands in —
+ *  every test here, and any composition that has not opened one. */
+export const fixedPolicy = (pin: GitPin): Policy => ({
+  pin,
+  now: () => policyOf(pin),
+})
 
 /**
  * Everything git is asked to do, in one place — which is what makes the MODE
  * one module's business rather than two. `off` has nothing to say, `manual`
- * answers only when asked, and `auto` also takes the {@link Committing.automatic}
- * door; every one of those is decided here, and `ops.ts` calls the same two
- * verbs whichever mode it is in.
+ * answers only when asked, and `auto` runs the quiet-window loop below; every
+ * one of those is decided here, and `ops.ts` calls the same verbs whichever
+ * mode it is in.
  */
 export interface Committing {
   /** What is waiting, right now. UNFAILING: every way this can go wrong — no
@@ -291,28 +415,95 @@ export interface Committing {
    *  values that one indicator reads cannot disagree. */
   readonly git: Effect.Effect<GitState>
   /**
-   * A commit NOBODY asked for: exactly the files one write produced, with that
-   * write's own summary — which is what `--commit=auto` is, and nothing in any
-   * other mode.
+   * WHY THE WRITE THAT JUST LANDED IS NOT IN THE HISTORY — one sentence, and
+   * there is always one ({@link whyOf}).
    *
-   * Answers with what the op reports: whether it committed, and — when it did
-   * not — WHY, which under the default mode is "it is waiting", not a fault.
+   * It is what is left of the per-write commit, and the difference is the whole
+   * of this feature: `--commit=auto` used to commit exactly the files one write
+   * produced, inside the write gate, so a train of thought arrived as a dozen
+   * commits. Nothing commits a write any more — the loop below sweeps the
+   * repository once the directory goes quiet — so what a write reports is what
+   * it is waiting FOR, which is a sentence rather than a boolean.
+   *
+   * It costs one `symbolic-ref`, and that is the price of an honest answer: a
+   * write on a mid-rebase repository is not waiting for a window or a button,
+   * and telling it so would send an agent after a tool that will refuse.
    */
-  readonly automatic: (
-    paths: ReadonlyArray<string>,
-    summary: string,
-    writer: Writer,
-  ) => Effect.Effect<Outcome>
+  readonly whyWaiting: (writer: Writer) => Effect.Effect<string>
   /**
    * Told that one write landed AND IS WAITING. The only thing in here that is
    * remembered, and the only thing that is allowed to be wrong.
    *
-   * A write that committed itself is not waiting, so it is not counted — see
-   * `ops.ts`. What this counts and what {@link commit} clears are then the same
-   * set, which is what keeps a clean tree from reporting work that is already
-   * in the log.
+   * What this counts and what {@link commit} clears are the same set, which is
+   * what keeps a clean tree from reporting work that is already in the log.
    */
   readonly wrote: (writer: Writer) => void
+  /**
+   * WHAT THE SURVEY JUST SAID, handed to the quiet window.
+   *
+   * The loop is armed by the arrival of a reading rather than by a clock of its
+   * own, so this is the one thing outside this module that has to be called:
+   * whoever recomputes {@link status} says so here, and the window re-arms
+   * exactly when what is waiting has actually moved (`@olai/format`'s `armedOn`).
+   * A survey that says nothing new — the server's slow sweep over a quiet
+   * directory — leaves the window where it is, which is what keeps a commit
+   * from being pushed out by a clock nobody typed on.
+   */
+  readonly observe: (pending: Pending) => Effect.Effect<void>
+  /**
+   * THE LOOP ITSELF, as one effect to fork and never return from.
+   *
+   * One per served directory by construction: one olai holds the directory
+   * (`@olai/server`'s `flock.ts`), so there is no election, no leader and no
+   * lock — which is the half the browser's copy of this had to invent and get
+   * wrong across two browsers.
+   */
+  readonly loop: Effect.Effect<void>
+  /**
+   * ON BOOT: share what this directory already recorded, once — and only where
+   * the policy says to.
+   *
+   * NOTHING ABOUT A REFUSAL IS REMEMBERED ACROSS A RESTART (the human's ruling,
+   * 2026-08-22): the state file keeps the policy and nothing else, so a fresh
+   * process starts with no stop and no words. That is the right shape for the
+   * STOP — a restart is an operator's act, and a pause written down would be a
+   * blind retry's opposite with no way out of it that survives either — and it
+   * is the wrong shape for the WORDS on its own, because `olai.service` is
+   * `Restart=always`: a deploy or a crash would take `pushSaid` with it and the
+   * chip would go back to `✓ committed · N unpushed` with the reason nowhere,
+   * which is the whole of `push-failure-invisible` restored.
+   *
+   * So the words are re-earned rather than remembered. One `git push` at boot,
+   * the same bare one every other door runs — never a force, never a pull — and
+   * whatever git says lands on the cell through the same path a pressed Push
+   * takes.
+   *
+   * ONLY WHERE THERE ARE COMMITS TO SEND, and that check is here rather than
+   * left to {@link push} — the one place the two verbs genuinely want different
+   * answers. A branch with NO UPSTREAM is not a branch that is behind: `push`
+   * lets that one through to git, because a person who pressed the button is
+   * owed git's own words about the remote they have not set. A boot nobody
+   * asked for is owed nothing of the kind, and letting it through would stop
+   * the loop of every directory whose branch has never been pushed, at every
+   * start, with a refusal about a thing that is not wrong.
+   *
+   * Under `manual` and `off` nothing is attempted at all. A directory whose
+   * pushes are somebody's own button press has not asked this process to make
+   * one, and a boot that pushed anyway would be the flag meaning something
+   * different on the first survey than on every one after it.
+   */
+  readonly catchUp: Effect.Effect<void>
+  /**
+   * Start the loop again after git stopped it — the person saying they have
+   * dealt with whatever it said.
+   *
+   * The ONE way out, and a procedure rather than a side effect of some other
+   * gesture: the stop is a fact about the directory now, so turning a toggle
+   * off and on in one browser cannot be what clears it. Nothing clears it on
+   * olai's own initiative, because a loop that un-paused itself is the blind
+   * retry wearing a different hat.
+   */
+  readonly resume: Effect.Effect<void>
 }
 
 /** The one state git is never asked about, so it is spelled once. */
@@ -322,14 +513,6 @@ const OFF: RepoState = { _tag: "Off" }
 export interface Status {
   readonly pending: Pending
   readonly git: GitState
-}
-
-/** What one write's own commit attempt came to — the two fields an op reports
- *  (`@olai/format`'s `writing.ts`, as `WriteResult`), so the reason never has to be inferred
- *  from the boolean. */
-export interface Outcome {
-  readonly committed: boolean
-  readonly why?: string
 }
 
 /**
@@ -397,10 +580,10 @@ interface Detail {
 }
 
 export const make = (options: Options): Committing => {
-  /** What this server DOES about commits — the pin, with the default filled in
-   *  for the flag nobody gave. Derived once, here, so every decision below asks
-   *  the same question and the default is spelled in `@olai/format` alone. */
-  const mode = commitModeOf(options.pin)
+  /** What this server DOES about commits, ASKED EVERY TIME rather than derived
+   *  once: the policy moves while the server runs (`git.setPolicy`), and a mode
+   *  read at boot would be a loop that never noticed being turned on. */
+  const mode = (): CommitMode => options.policy.now().commit
 
   /** Ops per writer since the last commit. A counter rather than the list of
    *  edits the design first drew: the panel says "chat-agent 3 · you 1", and
@@ -413,21 +596,48 @@ export const make = (options: Options): Committing => {
     [...counts].map(([writer, ops]) => ({ writer, ops }))
 
   /**
-   * What the last commit attempt said, when it refused — the ONE thing here
-   * that is remembered about git rather than derived from it, and #108's.
+   * THE THREE THINGS THIS LAYER REMEMBERS about git — see {@link Settled}.
    *
-   * It has to be remembered because it is the one failure a probe cannot see: a
-   * repository with no `user.email` is a perfectly good repository right up
-   * until something tries to commit in it. Kept as the sentence rather than as a
-   * second state, so what a reader is told stays a function of the two.
+   * One place, written by the three functions below and by nothing else, so
+   * "what has git said here, and is the loop stopped" is one read at every
+   * reader and the rule that couples them is a line of code rather than a
+   * comment.
    */
-  let refusal: string | null = null
+  let settled: Settled = NOTHING_SETTLED
 
-  /** Every commit path ends here, so the remembered refusal is set in one place
-   *  and — just as importantly — CLEARED by the next thing that works. */
-  const settled = (said: string | null): void => {
-    refusal = said
+  /**
+   * Every commit path ends here, so the remembered refusal is set in one place
+   * and — just as importantly — CLEARED by the next thing that works.
+   *
+   * A refusal also STOPS the loop, and only while the loop is the thing that
+   * would go round again: under `manual` a refused commit is a button press
+   * that failed, which the panel already draws, and marking the directory
+   * "auto-commit paused" over it would be chrome about a loop nobody armed.
+   */
+  const committed = (said: string | null): void => {
+    settled = { ...settled, refusal: said, paused: stopBy(said) }
   }
+
+  /** ... and the push's own end, with the same two jobs. */
+  const pushed = (said: string | null): void => {
+    settled = { ...settled, pushSaid: said, paused: stopBy(said) }
+  }
+
+  /**
+   * What a refusal does to the loop, or `null` for one that leaves it running.
+   *
+   * ONE STOP FOR BOTH VERBS, which is the divergence ruling: piling more
+   * automatic commits onto a branch that has already refused a push makes the
+   * eventual resolution worse, so a refused push stops the committing too. It
+   * does not pull, does not rebase, does not force and does not try again.
+   *
+   * The FIRST reason wins, and a verb that WORKED does not clear the stop. A
+   * stop already on the record is the one a person is about to read, and only
+   * they may lift it ({@link Committing.resume}) — a commit that landed after a
+   * push was refused says nothing about whether the branch can be sent.
+   */
+  const stopBy = (said: string | null): string | null =>
+    settled.paused ?? (said !== null && mode() === "auto" ? said : null)
 
   /**
    * The repository, once it is one.
@@ -454,7 +664,7 @@ export const make = (options: Options): Committing => {
   /** One round of git questions. Four subprocesses at most, and one when the
    *  directory is not a repository. */
   const survey: Effect.Effect<Survey> = Effect.gen(function*() {
-    if (mode === "off") {
+    if (mode() === "off") {
       return { ...NOTHING_ASKED, repo: OFF } as const
     }
     const opening = yield* repository
@@ -635,9 +845,14 @@ export const make = (options: Options): Committing => {
    */
   const status: Effect.Effect<Status> = Effect.gen(function*() {
     const looked = yield* survey
-    const git = refusal === null
-      ? gitOf(looked.repo, options.pin)
-      : ({ status: "error", said: refusal, pinned: options.pin } as const)
+    // A branch with nothing unshared has no unresolved push refusal, whoever
+    // resolved it — including somebody who pushed from a terminal, which olai
+    // would otherwise go on warning about until the next press of its own
+    // button. The STOP is not cleared with it: that is a person's to lift.
+    if (looked.unpushed === null || looked.unpushed.commits === 0) {
+      settled = { ...settled, pushSaid: null }
+    }
+    const git = gitOf(looked.repo, options.policy, settled)
     if (looked.repo._tag === "Off") return { pending: NOTHING_PENDING, git }
     const { changes, unreadable } = yield* detail(looked)
     const others = looked.others.map(otherOf)
@@ -716,10 +931,14 @@ export const make = (options: Options): Committing => {
         message: signed(request.message ?? composed(changes, others), writer),
       })
       if (done._tag === "Failed") {
-        settled(done.said)
+        committed(done.said)
+        // A refusal changes what a reader is owed without moving one byte, and
+        // for thirty seconds nothing said so. THIS is the republish that was
+        // missing: the words are on the cell the moment git says them.
+        options.onSettled?.()
         return done
       }
-      settled(null)
+      committed(null)
 
       // The counters are what "since the last commit" means, so a commit that
       // swept EVERYTHING is where they stop meaning anything. A piecemeal one
@@ -728,7 +947,25 @@ export const make = (options: Options): Committing => {
       // work that is still waiting — and this value is explicitly allowed to be
       // wrong in the other direction.
       if (request.paths === undefined) counts.clear()
-      options.onRecorded?.()
+      options.onSettled?.()
+
+      // ... AND THE PUSH, which is what `--push=auto` now means: a settled
+      // commit is shared, whichever door made it — the Commit button, the
+      // agent's `commit` tool, or the quiet window. It used to fire in the
+      // BROWSER, inside the success callback of one tab's own request, so a
+      // commit an agent made or a headless serve made was never pushed and the
+      // count grew with nothing saying why.
+      //
+      // ONE ROUND TRIP PER COMMIT, and that is the argument the old
+      // `--commit=auto` could not make: it committed every write, so pushing
+      // would have put a network call inside every keystroke. The window is
+      // what makes this affordable.
+      //
+      // The push's own refusal is remembered and stops the loop ({@link sent}),
+      // and the commit STANDS either way: nothing here is rolled back, and
+      // nothing is retried.
+      if (options.policy.now().push === "auto") yield* push
+
       return {
         _tag: "Committed",
         sha: done.sha,
@@ -761,15 +998,21 @@ export const make = (options: Options): Committing => {
    * agent's tool gets, and the two faces answer the same way.
    */
   const push: Effect.Effect<PushResult> = Effect.gen(function*() {
-    if (mode === "off") return { _tag: "Blocked", repo: OFF } as const
+    if (mode() === "off") return { _tag: "Blocked", repo: OFF } as const
     const opening = yield* repository
     if (opening._tag !== "Opened") {
       return { _tag: "Blocked", repo: opening } as const
     }
-    const repo = yield* opening.repo.state
+    // Two independent questions, asked together — the same shape `survey` above
+    // uses, and it earns it twice over now that this verb is on the commit path
+    // rather than behind a button: `state` is a subprocess AND a synchronous
+    // walk of the git directory, so serialising them stalls the loop's own
+    // round trip for no reason.
+    const [repo, dirt] = yield* Effect.all(
+      [opening.repo.state, opening.repo.dirty],
+      { concurrency: 2 },
+    )
     if (repo._tag !== "Ready") return { _tag: "Blocked", repo } as const
-
-    const dirt = yield* opening.repo.dirty
     if (dirt._tag === "Unusable") {
       // A survey git refused: the count this verb reports on cannot be read, so
       // it is the same news the panel gets rather than a push into the dark.
@@ -780,17 +1023,26 @@ export const make = (options: Options): Committing => {
       return { _tag: "NothingToPush" } as const
     }
 
-    const sent = yield* opening.repo.push
-    if (sent._tag === "Refused") {
+    const outcome = yield* opening.repo.push
+    if (outcome._tag === "Refused") {
       // VERBATIM, exactly as a refused commit is: authentication, a
       // non-fast-forward, a branch with no upstream. What git said is the only
       // thing that says what to do next, and this is the one failure a person
       // cannot see any other way from inside the app.
-      return { _tag: "Failed", said: sent.said } as const
+      //
+      // REMEMBERED now, and republished — which is the bug this feature is
+      // named after. The words used to reach one tab's memory and the server's
+      // log and nowhere else, so a reload lost them and a second tab never had
+      // them, while the chip went on reading `✓ committed` over a count that
+      // never came down.
+      pushed(outcome.said)
+      options.onSettled?.()
+      return { _tag: "Failed", said: outcome.said } as const
     }
+    pushed(null)
     // What is waiting has changed without a served byte moving — the same
     // reason a commit republishes.
-    options.onRecorded?.()
+    options.onSettled?.()
     return {
       _tag: "Pushed",
       upstream: upstream?.name ?? "",
@@ -799,103 +1051,143 @@ export const make = (options: Options): Committing => {
   })
 
   /**
-   * The per-write commit, which is the whole of `--commit=auto`.
+   * Why the write that just landed is not in the history — and nothing else.
    *
-   * It is here rather than in the write loop for one reason: the repository
-   * check, the `olai` prefix, the writer trailer and the subprocess are the
-   * same four things a commit somebody asked for does, and having them in two
-   * modules would mean a change to how olai commits rippling into both.
+   * What used to be here was the per-write commit: `--commit=auto` staged
+   * exactly the files one write produced and committed them, inside the write
+   * gate, on every op. It is RETIRED. It turned one train of thought into a
+   * dozen commits, which is the thing manual mode was introduced to end, and
+   * the browser had already grown a quiet window to avoid it — so olai shipped
+   * two features called Auto-commit that meant different things. There is one
+   * window now and it belongs to the directory ({@link loop}).
    *
-   * The repository check is also the part that is NEW. An agent marking a node
-   * done in the middle of a rebase could swallow the resolution, and a mode with
-   * nobody watching is exactly where that would happen unseen.
-   *
-   * It does NOT clear the writer counters the way {@link commit} does, and that
-   * is deliberate: this commit names only the paths one write produced, so an op
-   * that landed earlier while the repository was busy is still on disk and still
-   * waiting. Clearing here would under-report it. What keeps the counters honest
-   * on this path is that a write which commits itself is never counted at all.
+   * The probe survives the retirement, and for the reason it was added: a write
+   * on a mid-rebase repository is not waiting for a window, and telling an
+   * agent it is sends it to call a tool that will refuse.
    */
-  const automatic = (
-    paths: ReadonlyArray<string>,
-    summary: string,
-    writer: Writer,
-  ): Effect.Effect<Outcome> =>
+  const whyWaiting = (writer: Writer): Effect.Effect<string> =>
     Effect.gen(function*() {
-      if (paths.length === 0) return { committed: false }
       // `off` asks git nothing at all — that is what the opt-out is for.
-      if (mode === "off") {
-        return { committed: false, ...said(whyOf("off", OFF, null, writer)) }
-      }
+      if (mode() === "off") return whyOf("off", OFF, null, writer)
 
       // One MEMOISED `rev-parse` for a directory that is a work tree. A
       // directory that is NOT one, or a git that cannot be asked, is the whole
       // answer already.
       const opening = yield* repository
-      if (opening._tag !== "Opened") {
-        return { committed: false, ...said(whyOf(mode, opening, null, writer)) }
-      }
+      if (opening._tag !== "Opened") return whyOf(mode(), opening, null, writer)
 
-      /**
-       * Both remaining modes ask whether the repository can take a commit, and
-       * `manual` asking is a CORRECTION.
-       *
-       * It used to short-circuit here on the reasoning that a write is waiting
-       * either way, so whether the repository was mid-rebase changed nothing —
-       * and that was the #108 mistake in miniature. A write on a busy
-       * repository is not waiting for somebody to press a button; it is
-       * waiting for a rebase to finish, and nothing the agent can do will sweep
-       * it until that happens. Telling it "waiting… until the `commit` tool
-       * asks for one" sends it to call a tool that will refuse, and the person
-       * reading the transcript learns the real reason only from the refusal.
-       *
-       * The cost is one `symbolic-ref` inside the store's write gate per op,
-       * which is what the short-circuit was avoiding. It is worth paying: the
-       * write itself has just re-serialized and fsynced an outline, `auto`
-       * spawns two git processes on the same path without anybody minding, and
-       * the alternative is a reply that is confidently wrong.
-       */
       const repo = yield* opening.repo.state
-      if (mode === "manual") {
-        return { committed: false, ...said(whyOf("manual", repo, null, writer)) }
-      }
-
-      // `auto` is the only mode that goes on, and the busy check is the part
-      // that is NEW: an agent marking a node done in the middle of a rebase
-      // could swallow the resolution, and a mode with nobody watching is
-      // exactly where that would happen unseen.
-      if (repo._tag !== "Ready") {
-        yield* Effect.annotateLogs(
-          Effect.logWarning(
-            "olai git: the repository is busy, so the write was not committed",
-          ),
-          { reason: repo._tag === "Blocked" ? repo.reason : repo._tag, summary },
-        )
-        return { committed: false, ...said(whyOf("auto", repo, null, writer)) }
-      }
-
-      const done = yield* opening.repo.commit({
-        paths,
-        message: signed(summary, writer),
-      })
-      if (done._tag === "Committed") {
-        settled(null)
-        options.onRecorded?.()
-        return { committed: true }
-      }
-      settled(done.said)
-      yield* Effect.annotateLogs(
-        Effect.logWarning("olai git: the write was not committed"),
-        { commitMessage: summary, said: done.said },
-      )
-      return { committed: false, ...said(whyOf("auto", repo, done.said, writer)) }
+      return whyOf(mode(), repo, settled.refusal, writer)
     })
+
+  // ── the quiet window ───────────────────────────────────────────────────
+
+  /**
+   * WHAT THE WINDOW IS WAITING ON, as a value a stream can debounce.
+   *
+   * `Effect.runSync` because {@link make} is a plain function and this is the
+   * one piece of state in it that has to be observable: `SubscriptionRef.make`
+   * asks for nothing, does no I/O and cannot fail, so running it here is the
+   * construction it looks like rather than an escape hatch. The alternative —
+   * making this whole factory an effect — would put a `yield*` in front of
+   * every composition root for one ref.
+   */
+  const arming = Effect.runSync(SubscriptionRef.make(""))
+
+  /**
+   * THE LAST SURVEY, held so the window can be asked its own question again at
+   * the moment it closes.
+   *
+   * It is not stale by construction: a survey that said anything new would have
+   * re-armed the window, so a window that fired is a window nothing has
+   * republished under for fifteen seconds. What CAN have moved in that gap is
+   * the policy and the pause, and those are read fresh below — which is why
+   * `@olai/format`'s rule takes them apart from the reading.
+   */
+  let looked: Pending = NOTHING_PENDING
+
+  const observe = (pending: Pending): Effect.Effect<void> => {
+    looked = pending
+    return SubscriptionRef.set(arming, armedOn(mode(), settled.paused, pending))
+  }
+
+  /**
+   * The commit the window makes, asked for exactly as the button asks for it.
+   *
+   * `{}` is no message and no selection: no message so the server composes the
+   * same summary the panel would have suggested, and no selection so it is a
+   * full sweep of the repository — which is the one that clears the per-writer
+   * counters and the only honest reading of "everything that was waiting". One
+   * committer, a new trigger; nothing here knows how a commit is made, and the
+   * push that may follow is that verb's ({@link commit}).
+   *
+   * `auto` is the writer, and it is the writer this feature added: nobody
+   * pressed anything and there may be no browser anywhere, so `web` in the
+   * trailer would be a lie in every commit a headless serve makes.
+   *
+   * THE SAME RULE IS ASKED AGAIN at the moment the window closes rather than
+   * trusted from when it was armed — one expression, both moments
+   * (`@olai/format`'s `armedOn`) — because fifteen seconds is long enough
+   * for somebody to turn the policy off and for git to refuse something else.
+   * It costs no survey: a reading that said anything new would have re-armed
+   * the window rather than let it close.
+   */
+  const record: Effect.Effect<void> = Effect.gen(function*() {
+    if (armedOn(mode(), settled.paused, looked) === "") return
+    yield* commit({}, "auto")
+  })
+
+  /**
+   * The loop, as the ecosystem's own debounce over what {@link observe} says.
+   *
+   * `Stream.debounce` drops every reading inside the window and keeps only the
+   * last, which is exactly the rule: a burst of writes is ONE commit, and the
+   * window runs from the last of them. `Stream.changes` in front of it is what
+   * makes a survey saying nothing new cost nothing — the server's slow sweep
+   * over a quiet directory would otherwise push the window out every thirty
+   * seconds and a busy repository would never record at all.
+   *
+   * A DEFECT here must not take the loop with it. Everything `record` calls
+   * answers rather than fails, so the only way through this is a bug — and a
+   * bug that silently ended the recording is the exact failure mode this
+   * feature exists to remove. It is logged and the stream carries on.
+   */
+  const loop: Effect.Effect<void> = Stream.runForEach(
+    Stream.debounce(
+      Stream.changes(SubscriptionRef.changes(arming)),
+      options.quiet ?? Duration.millis(QUIET_MS),
+    ),
+    (flurry) =>
+      flurry === "" ? Effect.void : Effect.catchCause(record, (cause) =>
+        Effect.annotateLogs(
+          Effect.logError("olai git: the auto-commit loop failed to record"),
+          { cause: String(cause) },
+        )),
+  )
+
+  const catchUp: Effect.Effect<void> = Effect.gen(function*() {
+    if (options.policy.now().push !== "auto") return
+    const looked = yield* survey
+    if (looked.unpushed === null || looked.unpushed.commits === 0) return
+    yield* push
+  })
+
+  const resume: Effect.Effect<void> = Effect.sync(() => {
+    if (settled.paused === null) return
+    settled = { ...settled, paused: null }
+    // The republish is what puts the loop back on the arming stream, and it is
+    // the whole of what a person is answered with: what is waiting has not
+    // moved, so nothing else would say so, and a resumed loop would otherwise
+    // sit there until the next write. Pressing it on a loop that is already
+    // running says nothing, because there is nothing to say.
+    options.onSettled?.()
+  })
 
   /** The repository's state on its own — what {@link Committing.git} wants,
    *  without the status walk and the parsing {@link pending} does for the
    *  panel. */
   const repoState: Effect.Effect<RepoState> = Effect.gen(function*() {
-    if (mode === "off") return OFF
+    if (mode() === "off") return OFF
     const opening = yield* repository
     if (opening._tag !== "Opened") return opening
     return yield* opening.repo.state
@@ -906,11 +1198,16 @@ export const make = (options: Options): Committing => {
     pending: Effect.map(status, (both) => both.pending),
     commit,
     push,
-    automatic,
+    whyWaiting,
     wrote,
+    observe,
+    loop,
+    catchUp,
+    resume,
     /**
      * This value's answer on its own, for a caller that wants only it: the
-     * directory's own state, unless a commit refused.
+     * directory's own state, plus the four facts no probe of it can see
+     * ({@link gitOf}).
      *
      * The refusal override is #108's and is kept deliberately: a repository
      * whose identity nobody set answers `rev-parse` perfectly happily, so the
@@ -921,9 +1218,7 @@ export const make = (options: Options): Committing => {
      * both from one survey. This is the narrow question asked alone.
      */
     git: Effect.map(repoState, (repo) =>
-      refusal === null
-        ? gitOf(repo, options.pin)
-        : { status: "error", said: refusal, pinned: options.pin }),
+      gitOf(repo, options.policy, settled)),
   }
 }
 
@@ -1028,11 +1323,6 @@ const recorded = (last: Git.Recorded): LastCommit => ({
  *  which is a quiet wrong answer on a panel rather than anything that fails. */
 const WRITERS: ReadonlySet<string> = new Set<string>(Writer.literals)
 
-/** An optional field, present only when there is something to say — so an op
- *  that committed carries no `why` key at all. */
-const said = (why: string | undefined): { readonly why?: string } =>
-  why === undefined ? {} : { why }
-
 /**
  * What a SUBCOMMAND offers — which is not the same question {@link commitDoor}
  * answers, and the difference is where the two came apart.
@@ -1056,7 +1346,8 @@ export const commitDoors = (face: CommitFace): string => {
 }
 
 /** The subcommands. Derived from `Writer` rather than spelled again — one name
- *  for who is asking — minus the two that are not faces a person can start:
- *  `chat-agent` is a session `olai web` spawns, and `capture` is an HTTP route
- *  ON that serve, so neither is something with a `--help` of its own. */
-export type CommitFace = Exclude<Writer, "chat-agent" | "capture">
+ *  for who is asking — minus the three that are not faces a person can start:
+ *  `chat-agent` is a session `olai web` spawns, `capture` is an HTTP route ON
+ *  that serve, and `auto` is that serve's own quiet window, so none of them is
+ *  something with a `--help` of its own. */
+export type CommitFace = Exclude<Writer, "chat-agent" | "capture" | "auto">

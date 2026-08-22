@@ -52,9 +52,14 @@ export { How, Reason, RepoState }
  * which is the argument `RepoState` is re-exported above by.
  *
  * `manual` is the point of the whole thing: a write lands on disk and WAITS,
- * and something asks for a commit. `auto` is for a headless server with no
- * browser to press anything, and commits each write on its own the way olai
- * used to. `off` is `--no-commit`.
+ * and something asks for a commit. `auto` is the SERVER's quiet-window loop —
+ * what is waiting records itself once writes stop arriving for fifteen seconds,
+ * whoever made them (`./window.ts`). `off` is `--no-commit`.
+ *
+ * `auto` used to mean one commit per write, made inside the write gate, and
+ * that is retired: a train of thought arrived as a dozen commits, and the
+ * browser had grown a quiet window of its own to avoid exactly that. There is
+ * one window now and it belongs to the directory.
  */
 export const COMMIT_MODES = ["off", "manual", "auto"] as const
 export type CommitMode = (typeof COMMIT_MODES)[number]
@@ -76,6 +81,11 @@ export const COMMIT_DEFAULT: CommitMode = "manual"
 export const PUSH_MODES = ["off", "auto"] as const
 export type PushMode = (typeof PUSH_MODES)[number]
 
+/** What `--push` means when nobody gave it — spelled once beside
+ *  {@link COMMIT_DEFAULT} and for the same reason: "nobody said" and "somebody
+ *  said off" must not be able to come to disagree about what the server does. */
+export const PUSH_DEFAULT: PushMode = "off"
+
 /**
  * WHAT THE OPERATOR PINNED, and `null` for each half nobody pinned.
  *
@@ -87,14 +97,16 @@ export type PushMode = (typeof PUSH_MODES)[number]
  * pinned state, read-only, with the flag that set them named on screen.
  *
  * `null` is the DEFAULT and it is the arm that matters: a flag nobody gave
- * leaves the row exactly as it shipped — a live preference of that browser's,
- * stored there and sent nowhere. Single-user, nothing about this feature is
- * visible at all.
+ * leaves the two rows LIVE — they set the server's own policy for this
+ * directory, which every browser then draws alike. Single-user, nothing about
+ * this feature is visible at all.
  *
- * There is deliberately NO settings file behind this. Policy is a property of
- * the running INSTANCE; a file in the vault would travel with `git pull`, so a
- * personal clone of a team's outlines would inherit the team's auto-push, which
- * is exactly wrong (the ruling, 2026-08-21).
+ * There is deliberately no settings file IN THE VAULT behind this. Where a
+ * choice is remembered at all it is remembered outside it (`@olai/server`'s
+ * `gitPolicy.ts`, under the XDG state directory, keyed by the served path): a
+ * file in the vault would travel with `git pull`, so a personal clone of a
+ * team's outlines would inherit the team's auto-push, which is exactly wrong
+ * (the ruling, 2026-08-21).
  */
 export const GitPin = Schema.Struct({
   /** The mode `--commit` was GIVEN, or `null` when it was not given at all. */
@@ -105,31 +117,83 @@ export const GitPin = Schema.Struct({
 export type GitPin = typeof GitPin.Type
 
 /** Nothing pinned: what a server started with neither flag publishes, and what
- *  a page holds before it has heard anything. */
+ *  a page holds before it has heard anything. It is also the shape a REMEMBERED
+ *  choice has — either half unsaid — which is what lets {@link policyOf} take
+ *  the two in one expression. */
 export const NO_PIN: GitPin = { commit: null, push: null }
 
 /**
- * What the server actually DOES about commits, from what it was told — so
- * "nobody said" and "somebody said manual" are one answer downstream and the
- * default is spelled in exactly one place.
+ * WHAT THIS SERVER ACTUALLY DOES about the two verbs — both halves, together,
+ * because they are one policy about one directory.
  *
- * There is NO `pushModeOf` beside it, and the asymmetry is the truth rather
- * than an omission: this server has no push of its own to govern. `--commit`
- * decides something olai does unasked (a commit per write, under `auto`);
- * `--push` decides only what the BROWSERS do with a commit they made, which is
- * `web/src/client/settings/pinned.ts`'s to read. A `pushModeOf` here would
- * describe a behaviour nothing has.
+ * Three sources, in the one order that can be honoured: the FLAG wins, because
+ * an operator who typed it stated a policy for everybody; then what somebody
+ * CHOSE here (remembered outside the vault, and `null` for a directory nobody
+ * has chosen for); then the defaults, which are spelled in exactly one place
+ * each ({@link COMMIT_DEFAULT}, {@link PUSH_DEFAULT}).
+ *
+ * It replaces a `commitModeOf` that answered only the first half, on the
+ * argument that this server had no push of its own to govern. That stopped
+ * being true: `--push=auto` now follows a settled commit the server itself
+ * made, so a push mode is a thing this process DOES rather than a message it
+ * relays to browsers.
  */
-export const commitModeOf = (pin: GitPin): CommitMode =>
-  pin.commit ?? COMMIT_DEFAULT
+export const policyOf = (pin: GitPin, chosen: GitPin = NO_PIN): GitPolicy => ({
+  commit: pin.commit ?? chosen.commit ?? COMMIT_DEFAULT,
+  push: pin.push ?? chosen.push ?? PUSH_DEFAULT,
+})
+
+/**
+ * The policy in force, with no `null` left in it — what the server does, and
+ * what the two preference rows draw.
+ *
+ * Its own shape beside {@link GitPin} rather than the same one narrowed,
+ * because the two answer different questions and a reader holding one must not
+ * be able to mistake it for the other: the pin says WHO DECIDED (and leaves a
+ * half unsaid where nobody did), this says WHAT HAPPENS (and cannot).
+ */
+export const GitPolicy = Schema.Struct({
+  commit: Schema.Literals(COMMIT_MODES),
+  push: Schema.Literals(PUSH_MODES),
+})
+export type GitPolicy = typeof GitPolicy.Type
+
+/** The policy a server nobody has said anything to runs under — the two
+ *  defaults, as the one value they come to. */
+export const DEFAULT_POLICY: GitPolicy = {
+  commit: COMMIT_DEFAULT,
+  push: PUSH_DEFAULT,
+}
+
+/** Asking the server to change it — each half optional, because the two rows
+ *  move one at a time and a request that had to carry both would make a browser
+ *  re-state a policy it was only reading. */
+export const PolicyRequest = Schema.Struct({
+  commit: Schema.optionalKey(
+    Schema.Literals(COMMIT_MODES).annotate({
+      description:
+        "how writes reach git in this directory: off, manual, or auto (the " +
+        "quiet-window loop). Omitted leaves it as it is.",
+    }),
+  ),
+  push: Schema.optionalKey(
+    Schema.Literals(PUSH_MODES).annotate({
+      description:
+        "whether a settled commit is pushed to the branch's upstream. " +
+        "Omitted leaves it as it is.",
+    }),
+  ),
+})
+export type PolicyRequest = typeof PolicyRequest.Type
 
 /**
  * What git is doing for the served directory, for the git indicator in the app
  * header (`git-invisible`, #108) and for the agent that reads the same cell
  * over MCP.
  *
- * FLAT — a status, the words that go with it, and what the operator pinned —
- * because this value TRAVELS:
+ * FLAT — a status, the words that go with it, what the operator pinned, what
+ * the server is DOING, and what the loop last came to — because this value
+ * TRAVELS:
  * the ops layer derives it from its own survey's `RepoState` (`gitOf`, which
  * owns the one-survey coherence argument), the surface declares it as the
  * `git` cell (which says how each of the four states is drawn), and the
@@ -161,6 +225,49 @@ export const GitState = Schema.Struct({
    * {@link sameGit} is what keeps a republish that says nothing new quiet.
    */
   pinned: GitPin,
+  /**
+   * WHAT THIS SERVER DOES about the two verbs, with the defaults filled in and
+   * whatever anybody chose already folded in ({@link policyOf}).
+   *
+   * The whole of `git-policy-server-side` on the wire, and the reason the two
+   * preference rows can be drawn at all now: they used to draw a value stored
+   * in that browser, so two tabs of two browsers could each believe something
+   * different about one directory and only one of them could be right. This is
+   * the directory's own answer, so every tab draws the same one and a reload
+   * changes nothing.
+   *
+   * Beside {@link GitState.pinned} rather than instead of it, because the two
+   * are different questions: this says what happens, the pin says whether a
+   * reader may change it.
+   */
+  policy: GitPolicy,
+  /**
+   * What git said when it last refused a PUSH, or `null` when the last one
+   * worked (and for a directory nothing has ever been pushed from).
+   *
+   * Its own field beside {@link GitState.said} rather than folded into it, and
+   * the separation is the bug this feature was filed for: a refused push leaves
+   * a repository whose every commit still lands, so the status stays `repo` and
+   * the pill read `✓ committed · 13 unpushed` over a push that had been failing
+   * for an hour. One field per verb is what lets the chip say the true thing
+   * about both at once.
+   *
+   * REMEMBERED, like the commit refusal, because no probe can see it: `git
+   * status` says how far ahead the branch is, never why it is still ahead.
+   */
+  pushSaid: Schema.NullOr(Schema.String),
+  /**
+   * WHY THE LOOP STOPPED, or `null` while it is running — git's own words, from
+   * whichever verb refused.
+   *
+   * A fact about the DIRECTORY now, which is the whole of the move: it used to
+   * be a signal in one tab's memory, so a reload was a silent retry and a second
+   * tab never knew. The loop does not go round again while this is set — a loop
+   * that un-paused itself is the blind retry wearing a different hat — and the
+   * one way out is the `git.resume` procedure, which the preferences panel's
+   * Resume button calls.
+   */
+  paused: Schema.NullOr(Schema.String),
 })
 export type GitState = typeof GitState.Type
 
@@ -172,7 +279,14 @@ export type GitState = typeof GitState.Type
  *  ANYTHING is not this value — the pill has a face of its own for that,
  *  because "we have not been told" and "commits are off" are two different
  *  claims.) */
-export const GIT_OFF: GitState = { status: "off", said: null, pinned: NO_PIN }
+export const GIT_OFF: GitState = {
+  status: "off",
+  said: null,
+  pinned: NO_PIN,
+  policy: DEFAULT_POLICY,
+  pushSaid: null,
+  paused: null,
+}
 
 /**
  * When two readings of what git is doing say the same thing.
@@ -210,8 +324,21 @@ export const sameGit: (a: GitState, b: GitState) => boolean = Schema
  *  trailer exists to keep apart from one somebody typed. WHO captured is a
  *  different question and is not answered here — this word records a DOOR, and
  *  the identity that door was handed rides the captured node itself, as a
- *  property (`@olai/server`'s `capture.ts`). */
-export const Writer = Schema.Literals(["chat-agent", "mcp", "web", "capture"])
+ *  property (`@olai/server`'s `capture.ts`).
+ *
+ *  `auto` is the fifth and is the only one that never writes a FILE: it is the
+ *  server's own quiet-window loop, which makes commits and nothing else
+ *  (`./window.ts`, run by `@olai/ops`). It is here rather than reusing `web` because that
+ *  would be a lie a headless serve tells in every commit it makes — there is no
+ *  page, no button and possibly no browser anywhere — and the trailer is the
+ *  permanent half of "who did this". */
+export const Writer = Schema.Literals([
+  "chat-agent",
+  "mcp",
+  "web",
+  "capture",
+  "auto",
+])
 export type Writer = typeof Writer.Type
 
 /** Whether a commit could be asked for at all. */

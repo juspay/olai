@@ -8,10 +8,12 @@ let
   # `--commit=X` / `--push=X` only where a value was actually chosen. `null` is
   # the default on both, and it is not the same as passing the mode olai would
   # have defaulted to: giving the flag PINS that preference row read-only in
-  # every browser looking at this instance, and saying nothing leaves each
-  # reader their own (docs/running.md, `vault-level-settings`). A module that
-  # helpfully passed `--commit=manual` because that is the default would freeze
-  # a control on every single-user deployment.
+  # every browser looking at this instance, and saying nothing leaves the rows
+  # live — they set this same server's policy either way, and what a reader
+  # chose is remembered outside the vault (docs/running.md,
+  # `git-policy-server-side`). A module that helpfully passed `--commit=manual`
+  # because that is the default would freeze a control on every single-user
+  # deployment.
   gitArgs = lib.optionals (cfg.commit != null) [ "--commit" cfg.commit ]
     ++ lib.optionals (cfg.push != null) [ "--push" cfg.push ];
 
@@ -61,20 +63,23 @@ in
       description = ''
         When olai git-commits writes, as this instance's POLICY.
 
-        null (the default) passes no flag: the server commits manually, and
-        each browser keeps its own live "Git commit" preference — which is what
-        a single-user deployment wants.
+        Committing is a fact about the DIRECTORY, so the server holds it and
+        every browser draws the same answer. null (the default) passes no flag:
+        the server commits manually until somebody moves the "Git commit" row
+        in the preferences panel, and what they chose is remembered outside the
+        vault (under $XDG_STATE_HOME) — which is what a single-user deployment
+        wants.
 
-        Setting it PINS the preference. The server tells every browser which
-        flag it was started with, and they draw that row read-only, naming it,
-        so auto-commit is the same for everyone looking at this directory
-        rather than whichever browser's preference happens to be set. Never
-        hidden and never overridable from a browser.
+        Setting it PINS the row. The server tells every browser which flag it
+        was started with, and they draw that row read-only, naming it, so no
+        reader can change this instance's policy from a preferences panel.
+        Never hidden and never overridable from a browser.
 
         manual — a write lands on disk and waits for the Commit button or the
-        agent's commit tool. auto — every write commits itself, and browsers
-        also record what is waiting once the edits stop. off — olai never
-        touches git in this directory (the same as --no-commit).
+        agent's commit tool. auto — everything waiting records itself once
+        writes stop arriving for fifteen seconds, whoever made them, and with
+        no browser open at all. off — olai never touches git in this directory
+        (the same as --no-commit).
       '';
     };
 
@@ -83,10 +88,15 @@ in
       default = null;
       example = "off";
       description = ''
-        Whether a commit made in a browser is pushed to the branch's upstream,
-        as this instance's policy — null (the default) leaves each browser its
-        own "Git push" preference, and a value pins that row read-only in all
-        of them, exactly as `commit` above does.
+        Whether a settled commit is pushed to the branch's upstream, as this
+        instance's policy — null (the default) leaves the "Git push" row live
+        for whoever is looking, and a value pins it read-only, exactly as
+        `commit` above does.
+
+        auto follows EVERY commit olai makes in this directory: the Commit
+        button's, an agent's commit tool's, and the quiet window's own. So
+        commit = "auto" beside push = "auto" records and shares a directory
+        nobody has a tab open on.
 
         Two values and not three: a branch that is not pushed on its own is
         pushed by the Push button, so there is no third thing to be.

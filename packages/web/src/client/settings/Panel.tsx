@@ -62,14 +62,24 @@ import { Show } from "solid-js"
 
 import { type Anchor, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
-import { autoCommit, setAutoCommit } from "./autocommit.ts"
-import { autoPush, setAutoPush } from "./autopush.ts"
-import { autoPause } from "../commit/pause.ts"
+import type { GitState } from "@olai/format"
+
+import { createGitPolicy } from "../commit/state.ts"
 import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
 import { outlinesHidden, setOutlinesHidden } from "./hiddenOutlines.ts"
-import { commitFrozen, commitSetBy, commitsOff, pushFrozen, pushSetBy } from "./pinned.ts"
-import { QUIET_MS } from "../commit/flurry.ts"
+import {
+  commitFrozen,
+  commitPick,
+  commitOn,
+  commitSetBy,
+  commitsOff,
+  pushFrozen,
+  pushOn,
+  pushPick,
+  pushSetBy,
+} from "./policy.ts"
+import { QUIET_MS } from "@olai/format"
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
 import { TARGET } from "../touch.ts"
@@ -110,23 +120,23 @@ const HIDDEN_CHOICES = [
   { value: "shown", label: "Shown" },
 ] as const
 
-/** Git commit: Off / Auto-commit — today's wait for a press, or what is
- *  waiting records itself once the edits stop arriving. */
+/** Git commit: Off / Auto-commit — a write waits for a press, or what is
+ *  waiting records itself once writes stop arriving. */
 const COMMIT_CHOICES = [
   { value: "off", label: "Off" },
   { value: "on", label: "Auto-commit" },
 ] as const
 
-/** Git push: Off / Auto-push — today's wait, or a commit from this browser is
- *  followed by the same push the panel already offers. */
+/** Git push: Off / Auto-push — a commit waits to be sent, or every commit olai
+ *  makes here is followed by the same push the panel already offers. */
 const PUSH_CHOICES = [
   { value: "off", label: "Off" },
   { value: "on", label: "Auto-push" },
 ] as const
 
-/** The quiet window in the words the hint says it in. Read off the rule
- *  (`../commit/flurry.ts`) rather than spelled again, so the sentence cannot
- *  promise a span the loop does not wait. */
+/** The quiet window in the words the hint says it in. Read off the value the
+ *  server's loop actually waits (`@olai/format`) rather than spelled again, so
+ *  the sentence cannot promise a span the loop does not keep. */
 const QUIET_SECONDS = Math.round(QUIET_MS / 1000)
 
 export function Panel(props: {
@@ -137,6 +147,14 @@ export function Panel(props: {
    *  not a descendant of the control that opened it. */
   readonly inside: (el: HTMLElement | undefined) => void
 }) {
+  /** The two git rows' door — what the server says about git, and the two verbs
+   *  that move it (`../commit/state.ts`). The SEAM rather than the whole
+   *  committer: this panel draws nothing that is waiting, and the committer
+   *  opens a `pending` subscription it would decode a full frame of per publish
+   *  for nobody. `./policy.ts`'s readings are pure functions of what it hands
+   *  back, so there is no signal here either. */
+  const policy = createGitPolicy()
+  const git = policy.git
   return (
     <section
       ref={props.inside}
@@ -202,26 +220,31 @@ export function Panel(props: {
         />
       </Row>
 
-      {/* The two git rows, in the order the two verbs happen in — and the two
-          the server is allowed to have pinned (`./pinned.ts`). */}
+      {/* The two git rows, in the order the two verbs happen in — and the only
+          two on this panel that are about the DIRECTORY rather than about the
+          reader, so they set the server's policy and draw its answer
+          (`./policy.ts`). */}
       <Row
         label="Git commit"
         pref="git-commit"
-        hint={commitHint()}
-        setBy={commitSetBy()}
+        hint={commitHint(git())}
+        setBy={commitSetBy(git())}
         under={
-          /* THE ONE GESTURE THAT STARTS THE LOOP AGAIN when this row is frozen.
-             A refused commit or push stops Auto-commit and nothing clears that
-             on olai's own initiative (`../commit/auto.ts`); where the row is
-             this browser's, turning it off and on again is what a person does.
-             A pinned row has no toggle to flip, so the stop would be permanent
-             and silent — which is the one failure a loop nobody watches may
-             not have.
+          /* THE ONE GESTURE THAT STARTS THE LOOP AGAIN. A refused commit or
+             push stops the quiet window and nothing clears that on olai's own
+             initiative — a loop that un-paused itself is a blind retry wearing
+             a different hat.
 
-             Drawn ONLY while it is frozen AND stopped: a button offering to
-             resume a loop that is running is a control with nothing to do, and
-             on a live row there is already a gesture. */
-          <Show when={commitFrozen() && autoPause.said() !== null}>
+             It used to be two gestures: the stop was this TAB's, so turning the
+             browser's own toggle off and on again cleared it, and only a PINNED
+             row (which has no toggle) carried this button. The stop is the
+             directory's now, so neither a toggle nor a reload can clear it and
+             this is the gesture on every deployment — which is also what makes
+             it work from any tab, for a loop any tab can see is stopped.
+
+             Drawn ONLY while the loop is actually stopped: a button offering to
+             resume a loop that is running is a control with nothing to do. */
+          <Show when={git().paused !== null}>
             <button
               type="button"
               // `mt-2` here rather than on a wrapper in `./Row.tsx`: the slot is
@@ -229,7 +252,7 @@ export function Panel(props: {
               // nothing at all — see there.
               class={`${TARGET} mt-2 rounded-full border border-rule px-3 text-xs text-ink hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:min-h-0 md:py-1`}
               data-testid={TESTID.prefsResume}
-              onClick={() => autoPause.resume()}
+              onClick={() => policy.resume()}
             >
               Resume auto-commit
             </button>
@@ -238,25 +261,45 @@ export function Panel(props: {
       >
         <Segmented
           choices={COMMIT_CHOICES}
-          value={autoCommit() ? "on" : "off"}
-          onPick={(value) => setAutoCommit(value === "on")}
-          frozen={commitFrozen()}
+          value={commitOn(git()) ? "on" : "off"}
+          // `manual` rather than `off` for the row's Off, because that is what
+          // the row means: a write waits for the Commit button. `off` is
+          // `--commit=off`, which is olai never touching git here at all — a
+          // pinned-only state, and one a browser must not be able to arrive at
+          // by pressing the same control that says "wait for me instead".
+          onPick={(value) => policy.setPolicy(commitPick(value === "on"))}
+          frozen={commitFrozen(git())}
         />
       </Row>
 
       <Row
         label="Git push"
         pref="git-push"
-        hint={pushHint()}
-        setBy={pushSetBy()}
+        hint={pushHint(git())}
+        setBy={pushSetBy(git())}
       >
         <Segmented
           choices={PUSH_CHOICES}
-          value={autoPush() ? "on" : "off"}
-          onPick={(value) => setAutoPush(value === "on")}
-          frozen={pushFrozen()}
+          value={pushOn(git()) ? "on" : "off"}
+          onPick={(value) => policy.setPolicy(pushPick(value === "on"))}
+          frozen={pushFrozen(git())}
         />
       </Row>
+
+      {/* WHAT THE SERVER WOULD NOT TAKE, beside the two rows that asked. The
+          git rows are the only controls on this panel that reach a server at
+          all, so they are the only ones that can silently do nothing: a pinned
+          half refuses by name, and a dropped socket refuses without one. Either
+          way a control that moved on screen and nowhere else is the failure
+          this whole feature is about, and Resume is the sharpest case — a loop
+          that stays stopped with the button pressed and no words anywhere. */}
+      <Show when={policy.refused()}>
+        {(said) => (
+          <p class="wrap-anywhere text-xs text-alarm" data-testid={TESTID.prefsGitRefused}>
+            {said()}
+          </p>
+        )}
+      </Show>
 
       {/* One sentence for the whole panel, because it is one fact about every
           row on it and repeating it per row would be three copies of the
@@ -270,11 +313,14 @@ export function Panel(props: {
           believing the sentence. */}
       <p class="border-t border-rule pt-3 text-xs text-muted" data-testid={TESTID.prefsScope}>
         These are this browser's. They are stored here, reach every tab you have
-        olai open in, and are never sent to the server.
-        <Show when={commitFrozen() || pushFrozen()}>
+        olai open in, and are never sent to the server. The two git rows are the
+        exception: committing and pushing are facts about this DIRECTORY, so
+        they are the server's — the same in every browser, and remembered there
+        rather than here.
+        <Show when={commitFrozen(git()) || pushFrozen(git())}>
           {" "}
-          The git rows are the exception: this server was started with a git
-          policy, so those are its answer for everybody and not yours.
+          This one was also started with a git policy on the command line, so
+          those rows are read-only.
         </Show>
       </p>
     </section>
@@ -335,26 +381,26 @@ const hiddenHint = (): string =>
  *  change in the repository rather than only the ones typed here. The last is
  *  the one nobody would guess — an agent writing over MCP restarts the same
  *  window and lands in the same commit. */
-const commitHint = (): string => {
+const commitHint = (git: GitState): string => {
   // `--commit=off` FIRST, because it is not a third setting of this row — it is
   // the row having nothing to be about. Sending a reader to the Commit button
   // there points them at a pill that is inert and a directory olai never writes
   // a commit in; the two arms below both assume there is a history to record
-  // into (`./pinned.ts`'s `commitsOff`).
-  if (commitsOff()) {
+  // into (`./policy.ts`'s `commitsOff`).
+  if (commitsOff(git)) {
     return "olai never touches git in this directory, so nothing is waiting " +
       "and there is nothing here to record."
   }
-  return autoCommit()
-    ? `What is waiting records itself when edits stop arriving for ${QUIET_SECONDS} ` +
+  return commitOn(git)
+    ? `The server records what is waiting when writes stop arriving for ${QUIET_SECONDS} ` +
       "seconds, so a burst of work is one commit — including writes an agent " +
-      `made. A commit or a push git refuses pauses it until ${
-        commitFrozen() ? "you press Resume" : "you set this Off and back On"
-      }.`
+      "made, and with no browser open. A commit or a push git refuses pauses " +
+      "it until you press Resume."
     : "A write waits. Record it with the Commit button, in the pill."
 }
 
-const pushHint = (): string =>
-  autoPush()
-    ? "A commit from this browser is pushed after it is recorded."
-    : "A commit from here waits. Push it from the panel."
+const pushHint = (git: GitState): string =>
+  pushOn(git)
+    ? "Every commit olai makes here is pushed after it is recorded — the " +
+      "button's, an agent's, and the server's own."
+    : "A commit waits. Push it from the panel."

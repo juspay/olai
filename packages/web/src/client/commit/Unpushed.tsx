@@ -21,13 +21,13 @@
 
 import { Show } from "solid-js"
 
-import { pushTrouble, unpushedOf } from "./said.ts"
+import { unpushedOf } from "./said.ts"
 import type { Commit } from "./state.ts"
 import { TESTID } from "../testids.ts"
 
 export function Unpushed(props: { readonly commit: Commit }) {
   const said = () => unpushedOf(props.commit.pending())
-  const trouble = () => pushTrouble(props.commit.pushed())
+  const trouble = () => props.commit.git().pushSaid
 
   return (
     <>
@@ -56,9 +56,11 @@ export function Unpushed(props: { readonly commit: Commit }) {
       </Show>
 
       {/* Whatever git said, whole. This is the one thing about pushing a person
-          cannot find out any other way from inside the app, and it stays on
-          screen after the line above has gone — a push that emptied the branch
-          leaves nothing to draw, and a push that failed has to be readable. */}
+          cannot find out any other way from inside the app, and it comes off
+          the CELL now rather than out of this tab's memory of its own last
+          press — so a push the quiet window made and git refused is readable by
+          whoever opens this panel, an hour later, in a tab that has been
+          reloaded since. */}
       <Show when={trouble()}>
         {(words) => (
           <p class="wrap-anywhere text-xs text-alarm" data-testid={TESTID.commitPushRefused}>

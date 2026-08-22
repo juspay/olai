@@ -38,6 +38,7 @@ import {
   COMMIT_PANEL,
   COMMIT_PILL,
   COMMIT_PUSH,
+  COMMIT_PUSH_REFUSED,
   COMMIT_SCOPE,
   COMMIT_TICK,
   COMMIT_UNPUSHED,
@@ -324,7 +325,30 @@ Then(
 );
 
 /**
- * The flurry landing — the one step in this suite that waits out the client's
+ * WHETHER THE LAST PUSH WAS REFUSED — the fact `push-failure-invisible` was
+ * filed about, as an attribute rather than a sentence.
+ *
+ * Its own attribute beside the eight faces for the reason the pause has one: a
+ * repository whose commits all land and whose push will not go is healthy on
+ * one question and broken on the other, and one word could not say both. What
+ * the reader SEES of it — the ⚠ instead of the ✓, git's own words on the label
+ * — is asserted by the alarming/reads/explains steps above.
+ */
+Then(
+  "the commit pill says the push was refused",
+  async function (this: OlaiWorld) {
+    await this.expectAttribute(
+      COMMIT_PILL,
+      "data-push-refused",
+      "true",
+      "the commit pill",
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+/**
+ * The flurry landing — the one step in this suite that waits out the SERVER's
  * quiet window.
  *
  * Its own budget (`QUIET_WINDOW_TIMEOUT`) and its own step envelope, for the
@@ -393,6 +417,23 @@ Then("the panel promises to record it on its own", async function (this: OlaiWor
 });
 
 /**
+ * ... and its absence, which is the half that regressed.
+ *
+ * The promise is the SERVER's own gate asked by the panel, and the term the
+ * panel's shorter copy of it had lost is that something is waiting: on a clean
+ * tree under `--commit=auto` the policy is still the window and the repository
+ * is still ready, so it printed "Auto-commit will record all of this as one
+ * commit once the edits stop" over an empty list.
+ */
+Then("the panel promises nothing", async function (this: OlaiWorld) {
+  assert.equal(
+    await this.page.locator(COMMIT_AUTO_ARMED).count(),
+    0,
+    "the panel promises to record a list it has nothing in",
+  );
+});
+
+/**
  * ... and the line a STOPPED loop leaves in the panel.
  *
  * It asserts the GESTURE rather than git's words, and that is the app's shape
@@ -406,8 +447,21 @@ Then("the panel says auto-commit is paused", async function (this: OlaiWorld) {
   await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   const said = oneLine(await line.innerText());
   assert.ok(
-    said.includes("off and on again"),
+    said.includes("Resume"),
     `the paused line says "${said}", which never says how to resume it`,
+  );
+});
+
+/** ... and git's own account of the push it refused, in the panel, verbatim.
+ *  It comes off the CELL, so it is readable by whoever opens the panel rather
+ *  than only by the tab that happened to make the request. */
+Then("the panel says a push was refused", async function (this: OlaiWorld) {
+  const line = this.page.locator(COMMIT_PUSH_REFUSED);
+  await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const said = oneLine(await line.innerText());
+  assert.ok(
+    said.includes("reject"),
+    `the refused-push line says "${said}", which is not git's own refusal`,
   );
 });
 
