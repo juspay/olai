@@ -98,8 +98,7 @@ test("a torn shallowest inbox is the file the door names — its count is zero, 
 
 test("a done row does not count — the badge is what still awaits processing", () => {
   // A bullet, a todo, a doing: still in the inbox. A done row has been
-  // processed, so it does not inflate the door. Nested under a still-open
-  // capture is still one, the way it always was.
+  // processed, so it does not inflate the door.
   expect(heldOf({
     "Inbox.olai": [
       `{"id":"a","ord":"a0","title":"buy the walnut stain"}`,

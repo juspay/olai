@@ -19,11 +19,9 @@
  * it (a capture with a note under it is still one thing in the inbox), and a
  * mirror does not (a placement is not a capture). Empty, missing, unreadable,
  * only placements, or every capture already done: zero. A file that holds
- * only mirrors is none of empty, missing or unreadable — it still wears
- * zero, because the badge counts captures, not rows the page draws. A file
- * whose captures are all done is the same zero: processed work is not news
- * on the door, even though the page behind it still draws the row when Done
- * is shown.
+ * only mirrors, or whose captures are all done, is none of empty, missing
+ * or unreadable — it still wears zero, because the badge counts captures
+ * that await processing, not rows the page draws.
  *
  * A READING of the set, the way `./shelf.ts` is: the browser may not hold the
  * vault, so the server answers this per published revision and the sidebar
