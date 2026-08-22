@@ -33,6 +33,17 @@
  * port can send them — the same bargain the rest of the unauthenticated
  * listener already takes. The names are not a credential.
  *
+ * That covers EVERY name still in force, including the ones nobody
+ * configured: an unset variable keeps its Tailscale default, so a serve
+ * that renamed only the login still trusts `Tailscale-User-Name` and
+ * `Tailscale-User-Profile-Pic` — and a proxy that is not `tailscale
+ * serve` usually passes inbound `Tailscale-*` headers straight through.
+ * The picture is the sharp edge, because it becomes an `<img src>` the
+ * browser fetches: behind any other proxy, the unused names are emptied
+ * (`OLAI_IDENTITY_PICTURE_HEADER=`) or stripped at the proxy, the same as
+ * the login already must be. Said beside the config in
+ * [`docs/running.md`](../../../docs/running.md).
+ *
  * It is NOT a cell. Cells are one value for the process; this value is one
  * value for the REQUEST. The websocket cannot see it today: kolu's
  * `serveSurfaceApp` owns the upgrade and does not hand request headers to

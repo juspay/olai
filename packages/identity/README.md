@@ -17,6 +17,6 @@ No dependencies. Putting the reading in `@olai/server` would make every other ca
 
 **The ladder is walked server-side.** The browser is handed a picture URL or `null` (plus the display name), never a header name or a template: what a page must not know is how this deployment is wired. A `null` is the silhouette the chip draws itself, with no request to anywhere.
 
-**Trust.** These headers are only meaningful when the proxy is the only way in: olai bound to loopback or the tailnet, **and the proxy stripping client-supplied copies of the same names**. Anything that can reach the port can send them. Documented beside the config in [`docs/running.md`](../../docs/running.md), which also says why the app page's image policy admits `https:` rather than a list of origins nobody can know at build time.
+**Trust.** These headers are only meaningful when the proxy is the only way in: olai bound to loopback or the tailnet, **and the proxy stripping client-supplied copies of the same names** — every name still in force, including the ones nobody configured, since an unset variable keeps its Tailscale default and the picture one becomes an `<img src>` the browser fetches. Anything that can reach the port can send them. Documented beside the config in [`docs/running.md`](../../docs/running.md), which also says why the app page's image policy admits `https:` rather than a list of origins nobody can know at build time.
 
 The websocket cannot see it today: kolu's `serveSurfaceApp` owns the upgrade and does not hand request headers to the app.

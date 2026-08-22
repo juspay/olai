@@ -26,10 +26,12 @@
  * NO PROVIDER IS NAMED HERE. GitHub is an example in a doc; what the code
  * has is one template with one placeholder.
  *
- * A rung that is present but is not an `http(s)` URL is not a picture, and
+ * A rung that is present but is not an `https:` URL is not a picture, and
  * the ladder goes on to the next rung rather than handing the page a src
  * that can only draw broken. That is a config or a proxy being wrong, and
  * the honest answer to it is the next-best picture, not a broken image.
+ * `https:` is the whole of what counts, because it is the whole of what
+ * the page's own image policy will fetch ({@link remoteImage}).
  *
  * A separate fold from who the person IS ({@link ./identity.ts}) for the
  * reason {@link ./gravatar.ts} is: `POST /capture` wants the login and no
@@ -44,11 +46,24 @@ import type { Identity } from "./identity.ts"
  *  in: this file is a ladder, not a place that knows how olai was started. */
 export const LOGIN_PLACEHOLDER = "{login}"
 
-/** That URL, if it is one a browser can fetch a picture over. */
+/**
+ * That URL, if it is one the page can actually draw a picture from.
+ *
+ * `https:` ONLY, and that is the ladder agreeing with the page it feeds:
+ * the shell's image policy is `img-src 'self' blob: https:`, so an
+ * `http:` rung would stop the ladder and then be refused by the browser —
+ * a broken chip where the rung below it (a template, a gravatar, the
+ * silhouette) had a real answer. Mixed content would refuse it a second
+ * time on any deployment served over TLS, which every deployment behind a
+ * proxy is.
+ *
+ * The value comes back as it was WRITTEN rather than as `URL.href`: what
+ * a proxy sent, or an operator configured, is what the chip draws, and a
+ * normalising round-trip would put a URL nobody typed into the page.
+ */
 const remoteImage = (url: string): string | null => {
   try {
-    const scheme = new URL(url).protocol
-    return scheme === "https:" || scheme === "http:" ? url : null
+    return new URL(url).protocol === "https:" ? url : null
   } catch {
     return null
   }

@@ -19,9 +19,10 @@
  * inherit this.
  *
  * What a DOCUMENT may draw is not this line's business and did not move:
- * `markdown/render.ts` refuses a remote `<img>` outright — a note cannot
+ * `markdown/rewrite.ts` resolves every picture through `@olai/format`'s
+ * `pictureOf` and draws nothing at all for a remote `src` — a note cannot
  * tell a third party what someone is reading whatever `img-src` says — and
- * its own tests hold that.
+ * `markdown/render.test.ts` holds that.
  */
 
 import { expect, test } from "bun:test"

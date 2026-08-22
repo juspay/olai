@@ -63,7 +63,7 @@ test("nothing on any rung is no picture at all, not a hash of nothing", () => {
   expect(pictureOf(someone({ email: "" }), null)).toBeNull()
 })
 
-test("a picture that is not an http(s) URL is not a picture", () => {
+test("a picture that is not an https URL is not a picture", () => {
   expect(pictureOf(someone({ picture: "javascript:alert(1)" }), null)).toBeNull()
   expect(pictureOf(someone({ picture: "/relative.png" }), null)).toBeNull()
   // …and the rung below still gets its turn.
@@ -72,7 +72,22 @@ test("a picture that is not an http(s) URL is not a picture", () => {
   )
 })
 
-test("a template that is not an http(s) URL is not a picture either", () => {
+// The page's image policy is `img-src 'self' blob: https:`. A rung the
+// browser is going to refuse must not stop the ladder: it would draw a
+// broken chip while a template, a gravatar or the silhouette was waiting
+// underneath it.
+test("an http rung is refused by the page, so it does not stop the ladder", () => {
+  expect(pictureOf(someone({ picture: "http://avatars.example/srid.png" }), GITHUB))
+    .toBe("https://github.com/srid.png")
+  expect(pictureOf(someone({ picture: "http://avatars.example/srid.png", email: ADA }), null))
+    .toBe(gravatarOf(ADA))
+  expect(pictureOf(someone({ picture: "http://avatars.example/srid.png" }), null))
+    .toBeNull()
+  expect(pictureOf(someone({ email: ADA }), "http://avatars.example/{login}.png"))
+    .toBe(gravatarOf(ADA))
+})
+
+test("a template that is not an https URL is not a picture either", () => {
   expect(pictureOf(someone({ email: ADA }), "{login}.png")).toBe(gravatarOf(ADA))
 })
 

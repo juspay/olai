@@ -62,16 +62,18 @@ Default wiring is `tailscale serve`'s own four headers. **The login is not neces
 | Caddy + oauth2-proxy | `X-Auth-Request-User` | `X-Auth-Request-Email` | `X-Auth-Request-Preferred-Username` | — (use a template) |
 | Caddy + caddy-security (`inject headers with claims`) | `X-Token-User-Nick` (or `-Name`) | `X-Token-User-Email` | `X-Token-User-Name` | `X-Token-User-Picture`, where that claim is injected — otherwise a template |
 | Authelia | `Remote-User` | `Remote-Email` | `Remote-Name` | — (use a template) |
-| Pomerium (`pass_identity_headers`) | `X-Pomerium-Claim-User` | `X-Pomerium-Claim-Email` | `X-Pomerium-Claim-Name` | `X-Pomerium-Claim-Picture` |
+| Pomerium (`jwt_claims_headers`) | `X-Pomerium-Claim-User` | `X-Pomerium-Claim-Email` | `X-Pomerium-Claim-Name` | `X-Pomerium-Claim-Picture`, where the operator mapped that claim — otherwise a template |
 
-Pomerium's `X-Pomerium-Jwt-Assertion` is a signed JWT, not a login; point the family at the claim headers.
+Pomerium's `pass_identity_headers` forwards `X-Pomerium-Jwt-Assertion`, which is a signed JWT and not a login; the unsigned `X-Pomerium-Claim-*` headers this family reads come from `jwt_claims_headers`, and each one is only there if that claim was mapped.
 
 ```sh
 # Authelia in front, for example
 OLAI_IDENTITY_LOGIN_HEADER=Remote-User
 OLAI_IDENTITY_EMAIL_HEADER=Remote-Email
 OLAI_IDENTITY_NAME_HEADER=Remote-Name
-OLAI_IDENTITY_PICTURE_HEADER=            # Authelia sends none — empty is off
+OLAI_IDENTITY_PICTURE_HEADER=            # Authelia sends none — empty is off,
+                                         # and an unset name is one a client
+                                         # could send (see Trust, below)
 ```
 
 Each variable unset is the Tailscale name in the table's first row (`OLAI_IDENTITY_EMAIL_HEADER` unset is the *login* header, since that is what a Tailscale login often is); each one **empty** turns that claim off. The login is the only one that makes somebody present — the rest are claims about them, and any of them may be missing. The same reading is the attribution the capture door records.
@@ -86,13 +88,29 @@ Four rungs, in order, and the first one that answers wins:
 4. **Nothing**, which is the silhouette, drawn by the page itself with no request to anywhere.
 
 ```sh
-# A GitHub-backed tailnet, or Caddy + oauth2-proxy against GitHub
+# A GitHub-backed TAILNET: tailscale serve injects the picture header
+# itself (rung 1), and the template is what pictures anybody it has no
+# picture for.
+OLAI_IDENTITY_AVATAR_TEMPLATE='https://github.com/{login}.png'
+```
+
+```sh
+# Caddy + oauth2-proxy against GitHub, where the login IS the username.
+# Turn the Tailscale defaults OFF: that proxy does not strip inbound
+# `Tailscale-*` names, and a name olai still trusts is one a client can
+# send — the picture one especially, since it becomes an <img src>.
+OLAI_IDENTITY_LOGIN_HEADER=X-Auth-Request-User
+OLAI_IDENTITY_EMAIL_HEADER=X-Auth-Request-Email
+OLAI_IDENTITY_NAME_HEADER=X-Auth-Request-Preferred-Username
+OLAI_IDENTITY_PICTURE_HEADER=
 OLAI_IDENTITY_AVATAR_TEMPLATE='https://github.com/{login}.png'
 ```
 
 The picture is a remote `<img>` on the app page, and **whose host that is belongs to whoever deployed this olai** — an IdP's avatar host, the template's host (`github.com` redirects to `avatars.githubusercontent.com`), or gravatar. None of them is knowable when the page is built, so the page's content policy admits `https:` images: still no `http:`, no `data:`, no wildcard, and the `src` can only ever be what this server's own `GET /olai/who` answered. Sealed `/media` pages carry their own, stricter, policy and are unaffected.
 
 **Trust.** These headers are only meaningful when the proxy is the only way in: olai bound to loopback or the tailnet, **and the proxy stripping client-supplied copies of the same names**. Anything that can reach the port can send them — the same bargain the rest of the unauthenticated listener already takes. Do not expose this port to the internet.
+
+That rule covers **every name still in force, including the ones you did not configure**. Each variable left unset keeps its Tailscale default, so a serve that renames only the login and the email still trusts `Tailscale-User-Name` and `Tailscale-User-Profile-Pic` — and a proxy that is not `tailscale serve` usually passes inbound `Tailscale-*` headers straight through. The picture one is the sharp edge, because it becomes an `<img src>` the browser fetches: on any proxy but `tailscale serve`, **set `OLAI_IDENTITY_PICTURE_HEADER=` (and `OLAI_IDENTITY_NAME_HEADER=`) empty, or strip those names at the proxy** — the same as it must already do for the login.
 
 ### Logging
 
