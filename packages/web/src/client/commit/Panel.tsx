@@ -39,37 +39,31 @@
  */
 
 import { isReady } from "@olai/format"
-import { type Accessor, createSignal, Show } from "solid-js"
+import { createSignal, Show } from "solid-js"
 
 import { agoOf } from "./ago.ts"
 import { type Anchor, styleOf } from "../anchor.ts"
-import { type Auto, pausedIn } from "./auto.ts"
 import { LAYER } from "../layer.ts"
 import {
   AUTO_ARMED,
-  autoStopped,
+  AUTO_STOPPED,
   because,
+  commitRefused,
+  loopIn,
   scopeOf,
-  trouble,
   verbatim,
   waitingIn,
   WHO,
 } from "./said.ts"
 import { Others } from "./Others.tsx"
 import { Outlines } from "./Outlines.tsx"
-import { canRecord } from "./record.ts"
 import { createSelection } from "./selection.ts"
-import { commitFrozen } from "../settings/pinned.ts"
-import type { Commit } from "./state.ts"
+import { canRecord, type Commit } from "./state.ts"
 import { TESTID } from "../testids.ts"
 import { Unpushed } from "./Unpushed.tsx"
 
 export function Panel(props: {
   readonly commit: Commit
-  /** What Auto-commit is doing in this browser (`./auto.ts`) — one value, so
-   *  the promise this panel makes while the loop is running and the line it
-   *  draws when the loop has stopped cannot both be on screen. */
-  readonly auto: Accessor<Auto>
   readonly now: number
   /** Where to sit, in viewport pixels — see `../anchor.ts` for why this is not
    *  a matter of CSS alone. */
@@ -114,12 +108,18 @@ export function Panel(props: {
    *  ask. */
   const nothingTicked = () => selection.paths()?.length === 0
 
-  /** Whether Auto-commit would record this list on its own — the loop's own
-   *  gate, read off the value it publishes (`./auto.ts`). */
-  const willRecord = () => {
-    const auto = props.auto()
-    return auto._tag === "armed" && auto.willRecord
-  }
+  /**
+   * Whether the quiet window would record this list on its own.
+   *
+   * The SERVER's own gate, read off the two facts it publishes: the policy is
+   * `auto` and the loop is not stopped. It used to be the loop's own verdict
+   * published on a value in this tab, which is what a promise had to be made
+   * out of while the loop lived here; now the loop is the directory's, so the
+   * honest promise is "the policy says this will be recorded" and the rest of
+   * the gate — is the repository ready, has git refused — is already on screen
+   * as its own line right above this one.
+   */
+  const willRecord = () => loopIn(props.commit.git()) === "armed" && ready()
 
   return (
     <section
@@ -212,9 +212,9 @@ export function Panel(props: {
           person reads it — and this popover printed that paragraph twice.
           The HEADER's own sentence carries the words, because the header has
           nowhere else to put them (`./said.ts`). */}
-      <Show when={pausedIn(props.auto()) !== null}>
+      <Show when={props.commit.git().paused !== null}>
         <p class="text-xs text-alarm" data-testid={TESTID.commitAutoPaused}>
-          ⚠ {autoStopped(commitFrozen())}
+          ⚠ {AUTO_STOPPED}
         </p>
       </Show>
 
@@ -252,9 +252,27 @@ export function Panel(props: {
         />
       </Show>
 
-      <Show when={trouble(props.commit.attempt())}>
+      {/* What git said when it last refused a COMMIT here. Off the cell, so it
+          is the same words in every tab and after a reload — and so a commit
+          the agent or the quiet window made and git refused is readable by the
+          person who opens this panel, who need not be the one who was looking
+          when it happened. */}
+      <Show when={commitRefused(props.commit.git())}>
         {(said) => (
-          <p class="text-xs text-alarm" data-testid={TESTID.commitRefused}>
+          <p class="wrap-anywhere text-xs text-alarm" data-testid={TESTID.commitRefused}>
+            {said()}
+          </p>
+        )}
+      </Show>
+
+      {/* ... and what the SERVER would not take from this tab: a call the wire
+          dropped, or a usage refusal — which is what a pinned policy row
+          answers a `setPolicy` with. Its own line because it is about this
+          press rather than about the directory, and a control that silently
+          did nothing is the failure this whole feature is about. */}
+      <Show when={props.commit.refused()}>
+        {(said) => (
+          <p class="wrap-anywhere text-xs text-alarm" data-testid={TESTID.commitCallRefused}>
             {said()}
           </p>
         )}
@@ -268,14 +286,9 @@ export function Panel(props: {
 
       {/* What is about to happen to this list without anybody pressing
           anything — a promise rather than a description of a setting, so it is
-          drawn only while the loop really would keep it.
-
-          THE LOOP'S OWN VERDICT and never a shorter version of it: `willRecord`
-          is `mayRecord` (`./flurry.ts`) published on the value, which is the
-          same eight terms the timer is armed on. A hand-rolled "waiting, and
-          the repository is Ready" would promise this over a git that answers
-          every probe and refuses every commit. The button stays either way: a
-          person who does not want to wait out the window meant it. */}
+          drawn only while the loop really would keep it. The button stays
+          either way: a person who does not want to wait out the window meant
+          it. */}
       <Show when={willRecord()}>
         <p class="text-xs text-muted" data-testid={TESTID.commitAutoArmed}>
           {AUTO_ARMED}

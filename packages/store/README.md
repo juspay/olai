@@ -41,7 +41,7 @@ Failures during a probe are not fatal: the next trigger tries again, and a live 
 
 ## The write gate
 
-`commit({baseRev, changes, afterPublish?})` is the one way in, and it takes the same permit the probe does — so a write and a `git pull` can never interleave over the stamp table they both read. Inside it the order is fixed:
+`commit({baseRev, changes})` is the one way in, and it takes the same permit the probe does — so a write and a `git pull` can never interleave over the stamp table they both read. Inside it the order is fixed:
 
 1. **probe**, so a change that arrived out of band is part of the revision the write is judged against;
 2. **the optimistic-concurrency check**: a `baseRev` the store has moved past fails with `StaleWrite{baseRev, currentRev}`, and the caller re-derives its edit from the newer snapshot. Because ops are SEMANTIC — mark node X, move node Y — a retry lands cleanly unless the two edits genuinely collide;
@@ -52,7 +52,7 @@ Failures during a probe are not fatal: the next trigger tries again, and a live 
 
 Two channels, and the split says who is at fault. `StaleWrite` is a FAILURE — the caller re-derives and asks again. A set the codec REFUSES is an ANSWER, in the success channel as `Result.fail`: the write was well-formed and the tree it would make is not, so the caller renders the errors rather than retrying.
 
-`afterPublish` is the caller's Effect, run after the snapshot moves and still inside the gate. It is how the git commit rides along without this package ever learning what git is. Typed as unfailing: the bytes are already on disk and already visible, so there is nothing here that could undo them.
+There is no post-publish hook, and there was one: `afterPublish` ran the caller's Effect after the snapshot moved and still inside the gate, so olai's per-write `git commit` could name exactly the tree that write produced. That mode is retired — committing is a quiet window over the whole repository now, run outside any write — and a seam with no consumer is a promise about ordering that nothing tests.
 
 `resync` is the outside-writer analogue of that forget. `refresh` still uses stamps, so a same-length rewrite that landed in the same second is a change it is entitled not to see — the accepted trade for a `git pull`. An operator (or a test harness putting a fixture back under a live server) cannot take that trade. `resync` forgets every cached stamp, then probes, and does not return until the result has been published. The write gate's `forget` is for the files this process just wrote; this is the same signal for an unknown set of paths.
 

@@ -359,16 +359,17 @@ const refused = (failure: OpFailure) => {
 }
 
 /** A capture that landed. The id is what a client keeps — to link back at
- *  `/#<id>`, or to notice it has captured this message before — and `committed`
- *  / `why` are the same pair every other write's answer carries, so a caller
- *  learns its line is on disk and waiting rather than having to assume. */
+ *  `/#<id>`, or to notice it has captured this message before — and `why` is
+ *  the same sentence every other write's answer carries, so a caller learns its
+ *  line is on disk and waiting rather than having to assume. (The `committed`
+ *  boolean beside it is gone with the per-write commit: nothing commits a write
+ *  on its own any more, so it had one value.) */
 const landed = (done: Applied) =>
   HttpServerResponse.jsonUnsafe({
     id: done.id,
     title: done.title,
     file: done.file,
-    committed: done.committed,
-    ...(done.why === undefined ? {} : { why: done.why }),
+    why: done.why,
   }, { status: 201 })
 
 export interface Options {

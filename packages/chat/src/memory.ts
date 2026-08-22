@@ -54,16 +54,16 @@
  * own store either: this is olai's fact about olai's panel, and an ACP agent
  * carries no field for it (`session/list` answers with an id, a cwd, a title and
  * a timestamp, and that is the whole vocabulary). It goes where a program keeps
- * state that should survive a restart and means nothing to anybody else: the XDG
- * state directory, `$XDG_STATE_HOME` or `~/.local/state` after it.
+ * state that should survive a restart and means nothing to anybody else — the
+ * XDG state directory, one file per served directory, named by a digest of the
+ * path and carrying that path inside it as a guard.
  *
- * ONE FILE PER SERVED DIRECTORY, named by a digest of the path rather than by
- * the path itself — an encoded path is a filename that can outgrow the 255 bytes
- * a component gets, and a single index file shared by every directory is a
- * read-modify-write two olai servers can lose an update through. The path is
- * written INSIDE the file, which is what makes a state directory readable by the
- * person whose state it is, and is read back as a guard: a file that is about
- * some other directory is not this panel's memory.
+ * ALL OF THAT IS `@olai/state`'s NOW, which is the module this file predicted
+ * by name ("not a receptacle for where this machine keeps olai's state, though
+ * that is what it would be at population two"). Population reached three — this
+ * panel's memory, the one-brain lock's runtime file, and a directory's
+ * remembered git policy — so it is a leaf package, and what is left here is the
+ * only part that was ever this package's: what one of these records SAYS.
  *
  * ## What it does with a failure
  *
@@ -87,25 +87,19 @@
  * nothing to provide them — so adopting it here means threading a layer through
  * the chat package, the composition root and back, to write eighty bytes.
  * `attachments.ts`, the sibling that owns this conversation's other directory
- * on disk, reaches for `node:fs/promises` for the same reason.
+ * on disk, reaches for `node:fs/promises` for the same reason, and `@olai/state`
+ * reaches for it below this file.
  *
- * **Not a receptacle for "where this machine keeps olai's state"**, though that
- * is what it would be at population two: the state home resolved once, and the
- * files under it named in one place, rather than a second module doing this
- * again for a semantic index's cache or a window's last size. Population is ONE
- * — recorded here rather than extracted, which is the rule (prove, then
- * extract), and named so the second one is a move rather than a rediscovery.
+ * **Not a second failure vocabulary.** {@link MemoryFailure} stays this
+ * package's own — its one caller renders it as a row in the transcript — and is
+ * a rewrap of `@olai/state`'s, which says the same thing about a file without
+ * knowing it is a conversation.
  */
 
-import { reasonOf } from "@olai/log"
+import { canonical, fileFor, readHeld, writeHeld } from "@olai/state"
 import { Data, Effect } from "effect"
-import { createHash } from "node:crypto"
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
-import { homedir } from "node:os"
-import { dirname, join } from "node:path"
 
 import { BEFORE_THE_ROSTER } from "./agents/roster.ts"
-import { normalDirectory } from "./directory.ts"
 
 /** Remembering, or reading back, went wrong. Reported to a person and never
  *  fatal — see the header. */
@@ -157,152 +151,92 @@ export interface Memory {
 // ── what one of these files IS ─────────────────────────────────────────
 //
 // The two halves of one fact, side by side: the shape, what it looks like
-// written, and what a read makes of it. Split across the writer and the reader
-// they were two places that had to agree about two field names and a guard, by
-// nothing stronger than both being short.
+// ── what one of these files IS ─────────────────────────────────────────
+//
+// The two halves of one fact, side by side: what it looks like written, and
+// what a read makes of it. Split across the writer and the reader they were two
+// places that had to agree about two field names, by nothing stronger than both
+// being short. WHERE it is written, that it is written atomically, and that a
+// file about some other directory is not this panel's are `@olai/state`'s.
 
-/** The `cwd` is not redundant with the file's name: the name is a digest, and
- *  this is what makes the file say whose it is — to a person reading their own
- *  state directory, and to {@link parsed}. The `model` is optional ON DISK: a
- *  file written before olai remembered one is a file that says nothing about
- *  it, which is what `null` means everywhere else here. */
+/** The `kind` this package's files live under in the state home — one
+ *  subdirectory beside the git policy's. */
+const CHAT = "chat"
+
+/** What is written down. The `model` is optional ON DISK: a file written before
+ *  olai remembered one says nothing about it, which is what `null` means
+ *  everywhere else here. The AGENT is optional too, for a sharper version of
+ *  the same reason — a file written before olai had a roster names no agent,
+ *  and there was exactly one it could have been ({@link BEFORE_THE_ROSTER}). */
 interface Written {
-  readonly cwd: string
-  /** Optional ON DISK, like the model and for a sharper version of the same
-   *  reason: a file written before olai had a roster names no agent, and there
-   *  was exactly one it could have been — see {@link BEFORE_THE_ROSTER}. */
   readonly agent?: string
   readonly session: string
   readonly model?: string
 }
 
-const printed = (cwd: string, held: Held): string =>
-  // `undefined` is how `JSON.stringify` spells a field that is not there, which
-  // is what a model nothing has said about IS on disk. The AGENT is always
-  // written: a note this olai wrote knows which agent it was talking to, and an
-  // absent one means something else entirely on the way back in.
-  `${
-    JSON.stringify({
-      cwd,
-      agent: held.agent,
-      session: held.session,
-      model: held.model ?? undefined,
-    })
-  }\n`
-
-/** The text as what it is meant to be — or the reason it is not. A file that is
- *  about a DIFFERENT directory is answered `null` rather than refused: it is not
- *  damage, it is somebody else's note, and the honest answer to "what was this
- *  panel in" is that nothing here says.
+/**
+ * What a read makes of one — or the reason it is not one.
  *
  * The SESSION is the load-bearing half and a file without one is damage; the
  * MODEL is read leniently — anything that is not a non-empty string reads as
  * "nothing says", the same as an absent field. A file whose model went strange
  * is one the panel opens on whatever the agent offers, which is the behaviour
  * of every olai before this one; refusing the whole memory over it would cost
- * the conversation too.
- *
- * The AGENT is read leniently too, and lands on {@link BEFORE_THE_ROSTER} when
- * nothing readable says — which is not a default standing in for a choice, it
- * is the only agent a file that names none can be about. What a caller does
- * with an id it no longer has an agent for is the caller's: this file's job is
- * to say what was written down. */
+ * the conversation too. The AGENT is read leniently too, and lands on
+ * {@link BEFORE_THE_ROSTER} when nothing readable says — which is not a default
+ * standing in for a choice, it is the only agent a file that names none can be
+ * about.
+ */
 const parsed = (
   at: string,
-  cwd: string,
-  text: string,
-): Effect.Effect<Held | null, MemoryFailure> =>
-  Effect.flatMap(
-    Effect.try({
-      try: () => JSON.parse(text) as unknown,
-      catch: (cause) =>
-        new MemoryFailure({ why: `\`${at}\` is not readable JSON: ${reasonOf(cause)}` }),
-    }),
-    (value) => {
-      const held = value as Partial<Written> | null
-      if (typeof held?.session !== "string" || held.session === "") {
-        return Effect.fail(new MemoryFailure({ why: `\`${at}\` names no conversation` }))
-      }
-      const model = typeof held.model === "string" && held.model !== "" ? held.model : null
-      const agent = typeof held.agent === "string" && held.agent !== ""
-        ? held.agent
-        : BEFORE_THE_ROSTER
-      return Effect.succeed(
-        held.cwd === cwd ? { agent, session: held.session, model } : null,
-      )
-    },
-  )
+  held: Record<string, unknown>,
+): Effect.Effect<Held, MemoryFailure> => {
+  const written = held as Partial<Written>
+  if (typeof written.session !== "string" || written.session === "") {
+    return Effect.fail(new MemoryFailure({ why: `\`${at}\` names no conversation` }))
+  }
+  return Effect.succeed({
+    agent: word(written.agent) ?? BEFORE_THE_ROSTER,
+    session: written.session,
+    model: word(written.model) ?? null,
+  })
+}
+
+/** A non-empty string, or `null` for everything else — including an absent
+ *  field, which is what "nothing says" is on disk. */
+const word = (value: unknown): string | null =>
+  typeof value === "string" && value !== "" ? value : null
 
 export const forDirectory = (spelling: string): Memory => {
-  // ONE spelling from here down — the name of the file, what goes in it, and
-  // what a read is checked against — and it is the package's own spelling
-  // ({@link ./directory.ts}), the same one a stored session's `cwd` is matched
-  // against. Two spellings of one directory would be two memories.
-  const cwd = normalDirectory(spelling)
-  const at = fileFor(cwd)
-  const home = dirname(at)
+  // ONE spelling from here down — the name of the file and what a read is
+  // checked against — and it is `@olai/state`'s, which is the same answer the
+  // one-brain lock is named by. It resolves symlinks, where this package's own
+  // `normalDirectory` only strips a trailing slash: a vault reached two ways is
+  // one lock and should be one memory. (A stored session's `cwd` is still
+  // matched with `sameDirectory`, which is a question about what an AGENT
+  // reported rather than about where olai keeps a file.)
+  const cwd = canonical(spelling)
+  const at = fileFor(CHAT, cwd)
 
   const recall: Effect.Effect<Held | null, MemoryFailure> = Effect.flatMap(
-    Effect.tryPromise({
-      // ENOENT is the ordinary answer rather than a fault — nothing has been
-      // written down for this directory yet — so it is answered INSIDE the
-      // promise, where the file's own reason is. Every other way a read fails
-      // (a state directory whose permissions moved, a disk that will not
-      // answer) is news, and comes out the error channel.
-      try: async (): Promise<string | null> => {
-        try {
-          return await readFile(at, "utf8")
-        } catch (cause) {
-          if (isMissing(cause)) return null
-          throw cause
-        }
-      },
-      catch: (cause) =>
-        new MemoryFailure({ why: `\`${at}\` could not be read: ${reasonOf(cause)}` }),
-    }),
-    (text) => text === null ? Effect.succeed(null) : parsed(at, cwd, text),
+    Effect.mapError(readHeld(at, cwd), (failure) => new MemoryFailure(failure)),
+    (held) => held === null ? Effect.succeed(null) : parsed(at, held),
   )
 
   const remember = (held: Held): Effect.Effect<void, MemoryFailure> =>
-    Effect.tryPromise({
-      try: async () => {
-        await mkdir(home, { recursive: true, mode: 0o700 })
-        // Written beside its destination and renamed onto it, the way every
-        // other file olai writes is: a half-written memory read by the next
-        // boot would be a parse failure reported to somebody who did nothing
-        // wrong. `rename` within one directory is atomic.
-        const staged = `${at}.${process.pid}.tmp`
-        try {
-          await writeFile(staged, printed(cwd, held), { mode: 0o600 })
-          await rename(staged, at)
-        } catch (cause) {
-          await rm(staged, { force: true })
-          throw cause
-        }
-      },
-      catch: (cause) =>
-        new MemoryFailure({ why: `\`${at}\` could not be written: ${reasonOf(cause)}` }),
-    })
+    Effect.mapError(
+      // `undefined` is how `JSON.stringify` spells a field that is not there,
+      // which is what a model nothing has said about IS on disk. The AGENT is
+      // always written: a note this olai wrote knows which agent it was talking
+      // to, and an absent one means something else entirely on the way back in.
+      writeHeld(at, {
+        cwd,
+        agent: held.agent,
+        session: held.session,
+        model: held.model ?? undefined,
+      }),
+      (failure) => new MemoryFailure(failure),
+    )
 
   return { recall, remember }
-}
-
-/** ENOENT, whatever wrapped it. A missing file is the ordinary answer here and
- *  the one thing that must not read as a fault. */
-const isMissing = (cause: unknown): boolean =>
-  (cause as { readonly code?: unknown } | null)?.code === "ENOENT"
-
-/** Where this directory's memory lives — a digest of the path it is about, for
- *  the reason the header gives. Takes the spelling {@link ./directory.ts}
- *  settled on, never a raw one. */
-const fileFor = (cwd: string): string => {
-  const digest = createHash("sha256").update(cwd).digest("hex")
-  return join(stateHome(), "olai", "chat", `${digest.slice(0, 16)}.json`)
-}
-
-/** `$XDG_STATE_HOME`, or the default the spec names. Read at call time rather
- *  than at import, so a test can point a server somewhere of its own. */
-const stateHome = (): string => {
-  const set = process.env["XDG_STATE_HOME"]
-  return set !== undefined && set !== "" ? set : join(homedir(), ".local", "state")
 }

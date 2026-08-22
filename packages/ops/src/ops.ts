@@ -27,7 +27,6 @@ import {
   type CommitResult,
   type DatedAnswer,
   type DatedRequest,
-  type GitPin,
   type HomesAnswer,
   type HomesRequest,
   type MovingAnswer,
@@ -53,10 +52,16 @@ import {
   type WriteRequest as Request,
   type WriteResult as Applied,
 } from "@olai/format"
-import { Effect, Result, SubscriptionRef } from "effect"
+import { type Duration, Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
-import { type GitState, make as makeCommits, type Status } from "./pending.ts"
+import {
+  type Committing,
+  type GitState,
+  make as makeCommits,
+  type Policy,
+  type Status,
+} from "./pending.ts"
 import { type Context, plan } from "./plan.ts"
 import * as Query from "./query.ts"
 import { sortOfWrite } from "./sorted.ts"
@@ -67,30 +72,27 @@ export interface Options {
   /** Absolute path of the served directory — where git runs. */
   readonly root: string
   /**
-   * How writes reach git — as the operator PINNED it, which is the flags they
-   * gave and a `null` for each one they did not (`@olai/format`'s `GitPin`).
+   * How writes reach git in this directory, and who decided — the live policy
+   * ({@link ./pending.ts}'s `Policy`).
    *
-   * `commitModeOf` of it is what this server does: `manual` is the point of the
-   * whole thing (a write lands on disk and WAITS, and something asks for a
-   * commit — the button, or the agent's `commit` tool), `auto` is for a
-   * headless server with no browser to press anything, and `off` is
-   * `--no-commit`, for a directory whose history is somebody else's job.
+   * `now()` is what this server DOES: `manual` is the point of the whole thing
+   * (a write lands on disk and WAITS, and something asks for a commit — the
+   * button, or the agent's `commit` tool), `auto` is the quiet-window loop, and
+   * `off` is `--no-commit`, for a directory whose history is somebody else's
+   * job.
    *
-   * The pin travels FURTHER than that: a flag that was given freezes the two
-   * git rows in every browser's preferences, read-only and naming the flag
-   * (`vault-level-settings`). That is why what arrives here is the pin rather
-   * than the mode — "nobody said" is a thing a browser has to be told, and it
-   * cannot be recovered from a mode with the default already filled in.
+   * `pin` travels FURTHER than that: a flag that was given freezes the two git
+   * rows in every browser's preferences, read-only and naming the flag
+   * (`vault-level-settings`). That is why both halves arrive — "nobody said" is
+   * a thing a browser has to be told, and it cannot be recovered from a mode
+   * with the default already filled in.
    *
-   * Required, with no default here: `main.ts` already carries one for the flag,
-   * and a second would be a second answer to what happens when nobody says.
-   *
-   * It is spelled `pin` at every layer it crosses — `main.ts` mints it,
-   * `@olai/server`'s `ServeOptions` takes it, this layer passes it down, and
-   * `./pending.ts` reads it — because one value with three names is one grep
-   * that finds a third of its call sites.
+   * It is spelled `policy` at every layer it crosses — `@olai/server`'s
+   * `gitPolicy.ts` composes it, `ServeOptions` takes it, this layer passes it
+   * down and `./pending.ts` reads it — because one value with three names is
+   * one grep that finds a third of its call sites.
    */
-  readonly pin: GitPin
+  readonly policy: Policy
   /** Overridable so tests are deterministic: the id a new node gets and the
    *  instant a mark is stamped with are the only two things about an op that
    *  are not a function of the snapshot. */
@@ -106,9 +108,13 @@ export interface Options {
    * front of the person watching.
    */
   readonly onRefusal?: (request: Request, failure: OpFailure) => Effect.Effect<void>
-  /** Told whenever git recorded or shared something — a commit by whichever
-   *  door, or a push — see {@link ./pending.ts}'s `Options`. */
-  readonly onRecorded?: () => void
+  /** Told whenever anything about git settled — a commit by whichever door, a
+   *  push, a refusal of either, or the loop stopping — see
+   *  {@link ./pending.ts}'s `Options`. */
+  readonly onSettled?: () => void
+  /** The quiet window, for a test that cannot wait fifteen seconds — see
+   *  {@link ./pending.ts}'s `Options`. */
+  readonly quiet?: Duration.Input
 }
 
 /**
@@ -298,6 +304,12 @@ export interface Ops extends Asking {
    * as a value with git's own words on it, exactly as a refused commit does.
    */
   readonly push: Effect.Effect<PushResult>
+  /** The quiet-window loop and the two things around it, straight off
+   *  {@link ./pending.ts} — the effect a composition root forks, the reading
+   *  that re-arms the window, and the one way a stopped loop starts again. */
+  readonly observe: Committing["observe"]
+  readonly loop: Committing["loop"]
+  readonly resume: Committing["resume"]
   /**
    * The set as a reader sees it, or the one refusal for a directory that has
    * never loaded.
@@ -340,8 +352,9 @@ export const make = (options: Options): Ops => {
   const commits = makeCommits({
     store: options.store,
     root: options.root,
-    pin: options.pin,
-    ...(options.onRecorded === undefined ? {} : { onRecorded: options.onRecorded }),
+    policy: options.policy,
+    ...(options.onSettled === undefined ? {} : { onSettled: options.onSettled }),
+    ...(options.quiet === undefined ? {} : { quiet: options.quiet }),
   })
 
   const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
@@ -388,32 +401,8 @@ export const make = (options: Options): Ops => {
           })),
           ...documents.map((doc) => ({ path: doc.file, contents: doc.text })),
         ]
-        const paths = changes.map((change) => options.store.resolve(change.path))
-
-        // The post-publish hook, which is the whole of what `--commit=auto`
-        // still does inside the write gate: the bytes are on disk and the
-        // browser has seen them, and this cannot fail the write. In every
-        // other mode it answers `false` without spawning anything, so what
-        // decides is one module and not two.
-        let committed = false
-        /** Why not, when not — the sentence that used to go only to the log.
-         *  It rides the reply, so a `committed: false` says what happened where
-         *  the person who asked for the write is looking. Under the default
-         *  mode that sentence is "waiting", which is the feature working and
-         *  must never render as the git-error state. */
-        let why: string | undefined
         const outcome = yield* Effect.result(
-          options.store.commit({
-            baseRev: snapshot.rev,
-            changes,
-            afterPublish: Effect.map(
-              commits.automatic(paths, about.summary, writer),
-              (came) => {
-                committed = came.committed
-                why = came.why
-              },
-            ),
-          }),
+          options.store.commit({ baseRev: snapshot.rev, changes }),
         )
 
         if (Result.isFailure(outcome)) {
@@ -436,12 +425,18 @@ export const make = (options: Options): Ops => {
           })
         }
 
-        // Recorded AFTER the write landed, and only when it is actually
-        // WAITING. The counter answers "how many ops have not been committed
-        // yet": a refused write is not waiting, and neither is one that
-        // `--commit=auto` has already committed — counting that one left a
-        // clean tree reporting `chat agent 3` for work that is in the log.
-        if (!committed) commits.wrote(writer)
+        // Recorded AFTER the write landed. Every write that lands is waiting
+        // now — nothing commits one on its own any more — so the counter
+        // answers "how many ops the next commit will sweep", and what clears it
+        // is that sweep.
+        commits.wrote(writer)
+        /** WHY this write is not in the history — always a sentence, because
+         *  there is always a reason (`./pending.ts`'s `whyOf`). It rides the
+         *  reply, so what happened is where the person who asked for the write
+         *  is looking rather than in the server's log. Under either waiting
+         *  mode that sentence is "waiting", which is the feature working and
+         *  must never render as the git-error state. */
+        const why = yield* commits.whyWaiting(writer)
         // What the write CHANGED, classified the way a pending row is — off
         // the two readings this write is made of, which are both still in
         // hand. A reader that DRAWS a write rather than logging one needs a
@@ -454,8 +449,7 @@ export const make = (options: Options): Ops => {
         return {
           ...about,
           rev: written.success,
-          committed,
-          ...(why === undefined ? {} : { why }),
+          why,
           ...(sort === undefined ? {} : { sort }),
         }
       }
@@ -527,6 +521,9 @@ export const make = (options: Options): Ops => {
     pending: commits.pending,
     commit: commits.commit,
     push: commits.push,
+    observe: commits.observe,
+    loop: commits.loop,
+    resume: commits.resume,
     git: commits.git,
   }
 }

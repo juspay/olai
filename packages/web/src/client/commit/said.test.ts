@@ -15,14 +15,15 @@
  * the news appears.
  */
 
-import { NO_PIN, NOTHING_PENDING, type Pending, type RepoState } from "@olai/format"
+import { NOTHING_PENDING, type Pending, type RepoState } from "@olai/format"
 import { GIT_OFF, type GitState } from "@olai/surface"
 import { expect, test } from "bun:test"
 
 import {
   AUTO_PAUSED,
-  autoStopped,
+  AUTO_STOPPED,
   because,
+  commitRefused,
   DETAIL,
   explain,
   faceOf,
@@ -31,8 +32,10 @@ import {
   isNews,
   localOf,
   MARK,
+  markOf,
   newsSays,
-  pushTrouble,
+  unpushedIn,
+  PUSH_REFUSED,
   scopeOf,
   unpushedOf,
   verbatim,
@@ -48,7 +51,30 @@ const surveyed = (repo: RepoState, over: Partial<Pending> = {}): Pending => ({
 })
 
 const READY: RepoState = { _tag: "Ready", branch: "main" }
-const gitSaid = (said: string): GitState => ({ status: "error", said, pinned: NO_PIN })
+
+/** A healthy git cell, and the one field a case is about, over it. Every
+ *  scenario here moves ONE of the six things this value carries, which is what
+ *  keeps a sentence about a refused push from being a sentence about a broken
+ *  repository. */
+const git = (over: Partial<GitState> = {}): GitState => ({
+  ...GIT_OFF,
+  status: "repo",
+  ...over,
+})
+
+const gitSaid = (said: string): GitState => git({ status: "error", said })
+
+/** The loop stopped, with git's own words on it. */
+const stopped = (said: string): GitState => git({ paused: said })
+
+/** A directory with `count` rows waiting, and one with `count` commits nobody
+ *  else has — the two numbers `newsSays` and `isNews` read off the survey now
+ *  that they take it whole. */
+const waiting = (count: number): Pending =>
+  surveyed(READY, { unreadable: Array.from({ length: count }, (_, at) => `f${at}.olai`) })
+
+const behind = (count: number): Pending =>
+  surveyed(READY, { unpushed: { upstream: "origin/main", commits: count } })
 
 // ── which face ─────────────────────────────────────────────────────────
 
@@ -61,7 +87,7 @@ test("a page that has not been told anything claims nothing about the directory"
 
 test("the opt-out and the directory that is no work tree are told apart", () => {
   expect(faceOf(surveyed({ _tag: "Off" }), true, GIT_OFF)).toBe("off")
-  expect(faceOf(surveyed({ _tag: "NoRepo" }), true, { status: "none", said: null, pinned: NO_PIN }))
+  expect(faceOf(surveyed({ _tag: "NoRepo" }), true, git({ status: "none" })))
     .toBe("no-repo")
 })
 
@@ -155,86 +181,80 @@ test("a phone only interrupts the page when git has news", () => {
   // The desktop pill is always drawn. A banner that vanished cannot be
   // trusted either — so the healthy faces stay off screen and the page
   // itself is the healthy state.
-  expect(isNews("committed", 0)).toBe(false)
-  expect(isNews("never", 0)).toBe(false)
-  expect(isNews("off", 0)).toBe(false)
-  expect(isNews("no-repo", 0)).toBe(false)
-  expect(isNews("unknown", 0)).toBe(false)
-  expect(isNews("waiting", 0)).toBe(true)
-  expect(isNews("blocked", 0)).toBe(true)
-  expect(isNews("error", 0)).toBe(true)
-  expect(isNews("committed", 3)).toBe(true)
+  const quiet = surveyed(READY)
+  for (const face of ["committed", "never", "off", "no-repo", "unknown"] as const) {
+    expect(isNews(face, quiet, git())).toBe(false)
+  }
+  for (const face of ["waiting", "blocked", "error"] as const) {
+    expect(isNews(face, quiet, git())).toBe(true)
+  }
+  expect(isNews("committed", behind(3), git())).toBe(true)
 })
 
 test("the phone banner is one line, and waiting outranks unpushed", () => {
-  expect(newsSays("waiting", 6, 3)).toBe("6 uncommitted — tap to record")
-  expect(newsSays("blocked", 2, 0)).toBe("2 uncommitted — repository busy")
-  expect(newsSays("error", 0, 0)).toBe("git error — tap to see")
-  expect(newsSays("committed", 0, 3)).toBe("3 unpushed — tap to push")
-  expect(newsSays("committed", 0, 0)).toBe("")
+  expect(newsSays("waiting", waiting(6), git())).toBe("6 uncommitted — tap to record")
+  expect(newsSays("blocked", waiting(2), git())).toBe("2 uncommitted — repository busy")
+  expect(newsSays("error", surveyed(READY), git())).toBe("git error — tap to see")
+  expect(newsSays("committed", behind(3), git())).toBe("3 unpushed — tap to push")
+  expect(newsSays("committed", surveyed(READY), git())).toBe("")
 })
 
-// ── Auto-commit, which is a claim about the READER ─────────────────────
+// ── the quiet window, which is a fact about the DIRECTORY ──────────────
 //
 // It rides beside the faces rather than being one of them (the module's own
-// argument, and `alsoUnpushed`'s): eight faces are eight things about the
-// DIRECTORY, and whether this browser records on its own is true in one tab and
-// false in the next. So what is asserted here is that it reaches a reader on
-// EVERY face — including the healthy ones, which is the whole risk: a loop that
-// stopped is silent by design.
+// argument, and `alsoUnpushed`'s): eight faces are eight things about whether
+// writes are being RECORDED, and whether the loop has stopped is a different
+// question about the same directory. So what is asserted here is that it
+// reaches a reader on EVERY face — including the healthy ones, which is the
+// whole risk: a loop that stopped is silent by design.
 
 test("a stopped loop reaches a reader on every face, healthy ones included", () => {
   const said = "gpg failed to sign the data"
   for (const face of ["committed", "never", "waiting", "error", "blocked"] as const) {
-    expect(explain(face, surveyed(READY), GIT_OFF, said)).toContain(said)
+    expect(explain(face, surveyed(READY), stopped(said))).toContain(said)
   }
   // ... and a running loop adds nothing at all, so the ordinary sentence is
   // exactly what it was.
-  expect(explain("committed", surveyed(READY), GIT_OFF, null))
+  expect(explain("committed", surveyed(READY), git()))
     .toBe(explain("committed", surveyed(READY), GIT_OFF))
 })
 
-test("the sentence a stopped loop leaves says how to start it again", () => {
-  // The one thing a reader cannot work out for themselves — and the panel's own
-  // line says it too, so the two cannot drift on it.
-  const said = explain("committed", surveyed(READY), GIT_OFF, "no upstream")
-  expect(said).toContain("off and on again")
-  expect(autoStopped(false)).toContain("off and on again")
-})
-
 /**
- * ... and it names the gesture the reader ACTUALLY HAS.
+ * The sentence a stopped loop leaves says how to start it again — and there is
+ * exactly ONE gesture now.
  *
- * A server started with `--commit` freezes the Git commit row read-only in
- * every browser (`vault-level-settings`), so there is no toggle to turn off and
- * on again — that row carries a Resume button instead. A sentence still naming
- * the dance would send somebody after a control that is on screen and inert,
- * which is worse than saying nothing: a loop that stopped and cannot be
- * restarted is the one failure Auto-commit may never have.
+ * There used to be two, and which one a reader had depended on whether the
+ * operator had pinned the policy: an unpinned row was this browser's, so
+ * turning it off and on again cleared a stop that lived in this tab, while a
+ * frozen row carried a Resume button because it had no toggle to flip. The stop
+ * is the directory's, so neither a toggle nor a reload can clear it — Resume is
+ * the gesture on every deployment, and the panel's own line says the same one.
  */
-test("a frozen row is told to press Resume instead, on both sentences", () => {
-  const frozen = explain("committed", surveyed(READY), GIT_OFF, "no upstream", true)
-  expect(frozen).toContain("Resume")
-  expect(frozen).not.toContain("off and on again")
-  expect(autoStopped(true)).toContain("Resume")
-  expect(autoStopped(true)).not.toContain("off and on again")
-  // Both still carry git's own account of what happened / point at it.
-  expect(frozen).toContain("no upstream")
-  expect(autoStopped(true)).toContain("what git said is below")
+test("the sentence a stopped loop leaves names Resume, on both sentences", () => {
+  const said = explain("committed", surveyed(READY), stopped("no upstream"))
+  expect(said).toContain("Resume")
+  expect(said).not.toContain("off and on again")
+  expect(AUTO_STOPPED).toContain("Resume")
+  expect(AUTO_STOPPED).not.toContain("off and on again")
+  // The header carries git's own account of what happened; the panel points at
+  // it rather than printing the same paragraph twice in one popover.
+  expect(said).toContain("no upstream")
+  expect(AUTO_STOPPED).toContain("what git said is below")
 })
 
 test("a phone is interrupted by a stopped loop, on a face that is otherwise quiet", () => {
-  expect(isNews("committed", 0, null)).toBe(false)
-  expect(isNews("committed", 0, "no upstream")).toBe(true)
-  expect(isNews("never", 0, "no upstream")).toBe(true)
+  expect(isNews("committed", surveyed(READY), git())).toBe(false)
+  expect(isNews("committed", surveyed(READY), stopped("no upstream"))).toBe(true)
+  expect(isNews("never", surveyed(READY), stopped("no upstream"))).toBe(true)
 })
 
 test("the banner says the loop stopped ahead of whatever else is true", () => {
   // It outranks every face, because it is the one line about a promise having
   // broken rather than about work waiting.
-  expect(newsSays("waiting", 6, 3, "no upstream")).toContain(AUTO_PAUSED)
-  expect(newsSays("committed", 0, 0, "no upstream")).toContain(AUTO_PAUSED)
-  expect(newsSays("waiting", 6, 3, null)).toBe("6 uncommitted — tap to record")
+  expect(newsSays("waiting", waiting(6), stopped("no upstream"))).toContain(AUTO_PAUSED)
+  expect(newsSays("committed", surveyed(READY), stopped("no upstream")))
+    .toContain(AUTO_PAUSED)
+  expect(newsSays("waiting", waiting(6), git())).toBe("6 uncommitted — tap to record")
 })
 
 // ... and it does not take the COUNT with it. A halted loop plus a later edit
@@ -242,10 +262,11 @@ test("the banner says the loop stopped ahead of whatever else is true", () => {
 // pill says both beside each other — a phone that had to tap through to find
 // out is the same fact told to two readers differently.
 test("a stopped loop on a phone still says how much is waiting", () => {
-  expect(newsSays("waiting", 6, 0, "no upstream")).toContain("6 uncommitted")
-  expect(newsSays("waiting", 6, 0, "no upstream")).toContain(AUTO_PAUSED)
+  expect(newsSays("waiting", waiting(6), stopped("no upstream"))).toContain("6 uncommitted")
+  expect(newsSays("waiting", waiting(6), stopped("no upstream"))).toContain(AUTO_PAUSED)
   // Nothing waiting is nothing to count, and the line stays one line.
-  expect(newsSays("committed", 0, 0, "no upstream")).toBe(`${AUTO_PAUSED} — tap to see`)
+  expect(newsSays("committed", surveyed(READY), stopped("no upstream")))
+    .toBe(`${AUTO_PAUSED} — tap to see`)
 })
 
 // ── what it says ───────────────────────────────────────────────────────
@@ -254,12 +275,17 @@ test("a git failure hands over git's own words", () => {
   const said = "fatal: detected dubious ownership in repository at '/srv/notes'"
   expect(explain("error", surveyed(READY), gitSaid(said))).toContain(said)
   // And from the survey's own side, when the cell has nothing to quote.
-  expect(explain("error", surveyed({ _tag: "Unusable", said }), { status: "error", said: null, pinned: NO_PIN }))
-    .toContain(said)
+  expect(
+    explain("error", surveyed({ _tag: "Unusable", said }), git({ status: "error" })),
+  ).toContain(said)
+  // ... and the panel reads the same words off the cell, so a commit the agent
+  // or the quiet window made and git refused is readable by whoever opens it.
+  expect(commitRefused(gitSaid(said))).toBe(said)
+  expect(commitRefused(git())).toBe(null)
 })
 
 test("a fault that arrived with nothing to say still reads as a sentence", () => {
-  expect(explain("error", surveyed(READY), { status: "error", said: "", pinned: NO_PIN }))
+  expect(explain("error", surveyed(READY), git({ status: "error", said: "" })))
     .toBe(DETAIL.error)
 })
 
@@ -367,18 +393,56 @@ test("the sentence says what is unpushed, whichever face is worn", () => {
   expect(explain("committed", surveyed(READY), GIT_OFF)).toBe(DETAIL.committed)
 })
 
-/** A push that git refused is git's own words, verbatim — the one thing about
- *  pushing a person cannot find out any other way from inside the app. And a
- *  push that worked leaves nothing on screen, because what is waiting is
- *  republished under it. */
+/**
+ * ── a push git refused, which is the bug this whole feature is named after ──
+ *
+ * The screenshot: `✓ committed · 1h ago · 13 unpushed`, auto-push on, and no
+ * error anywhere — every word of it true and the one that mattered absent,
+ * because the refusal lived in one tab's memory and that tab had been reloaded.
+ * It is on the cell now, so these are assertions about a value every reader
+ * gets.
+ */
 test("a refused push says what git said, and a successful one says nothing", () => {
   const said = "! [rejected] master -> master (non-fast-forward)"
-  expect(pushTrouble({ _tag: "Failed", said })).toBe(said)
-  expect(pushTrouble({ _tag: "Pushed", upstream: "origin/master", commits: 2 })).toBe(null)
-  expect(pushTrouble(null)).toBe(null)
-  expect(pushTrouble({ _tag: "NothingToPush" })).toContain("already pushed")
-  expect(pushTrouble({ _tag: "Blocked", repo: { _tag: "NoRepo" } }))
-    .toContain("nowhere to commit to")
+  expect(git({ pushSaid: said }).pushSaid).toBe(said)
+  expect(git().pushSaid).toBeNull()
+})
+
+test("a failing push takes the tick off the pill, whatever the face is saying", () => {
+  const said = "! [rejected] master -> master (non-fast-forward)"
+  // The ordinary healthy chip, which is the one that lied.
+  expect(MARK.committed?.glyph).toBe("✓")
+  expect(markOf("committed", git())?.glyph).toBe("✓")
+  expect(markOf("committed", git({ pushSaid: said }))).toEqual({
+    glyph: "⚠",
+    tone: "text-alarm",
+  })
+  // ... and it overrules a face that wears no mark at all, too.
+  expect(markOf("waiting", git())).toBe(null)
+  expect(markOf("waiting", git({ pushSaid: said }))?.glyph).toBe("⚠")
+})
+
+test("the sentence says the push was refused, and hands over git's words", () => {
+  const said = "! [rejected] master -> master (non-fast-forward)"
+  const shared: Pending = {
+    ...NOTHING_PENDING,
+    repo: READY,
+    unpushed: { upstream: "origin/master", commits: 13 },
+    last: { sha: "abc", message: "olai: earlier", writer: "auto", at: "" },
+  }
+  const sentence = explain("committed", shared, git({ pushSaid: said }))
+  expect(sentence).toContain("13 commits not on origin/master")
+  expect(sentence).toContain(PUSH_REFUSED)
+  expect(sentence).toContain(said)
+})
+
+test("a phone is interrupted by a refused push, and the banner says which", () => {
+  const said = "! [rejected] master -> master (non-fast-forward)"
+  expect(isNews("committed", surveyed(READY), git({ pushSaid: said }))).toBe(true)
+  expect(newsSays("committed", behind(13), git({ pushSaid: said })))
+    .toContain(PUSH_REFUSED)
+  // ... and the plain count is what it says when nothing was refused.
+  expect(newsSays("committed", behind(13), git())).toBe("13 unpushed — tap to push")
 })
 
 /** Every status a dirty file can have wears a word. A table, so a sixth one
@@ -429,4 +493,33 @@ test("an outline that changed no node is still something waiting", () => {
 
   // A clean tree is still clean, which is the other half of the fence.
   expect(waitingIn(NOTHING_PENDING)).toBe(0)
+})
+
+/**
+ * ... and git's words go into the sentence ONCE.
+ *
+ * A refused push is the ordinary way the loop stops, so the same refusal is
+ * already on the unpushed clause by the time the pause clause is added. Quoting
+ * it twice put five lines of git's non-fast-forward hint into one `aria-label`,
+ * which is a label nobody reads either copy of.
+ */
+test("a refusal that stopped the loop is quoted once, not twice", () => {
+  const words = "! [rejected] main -> main (fetch first)"
+  const shared: Pending = {
+    ...NOTHING_PENDING,
+    repo: READY,
+    unpushed: { upstream: "origin/main", commits: 2 },
+    last: { sha: "abc", message: "olai: earlier", writer: "auto", at: "" },
+  }
+  const sentence = explain(
+    "committed",
+    shared,
+    git({ pushSaid: words, paused: words }),
+  )
+  expect(sentence.split(words)).toHaveLength(2)
+  // ... and the loop is still reported, with the gesture that starts it again.
+  expect(sentence).toContain("auto-commit is paused")
+  expect(sentence).toContain("Resume")
+  // A stop with a reason nothing else quoted still carries it.
+  expect(explain("committed", surveyed(READY), stopped(words))).toContain(words)
 })

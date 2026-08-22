@@ -1134,21 +1134,6 @@ test("several files land together or not at all", () =>
       expect((yield* snapshotOf(store))?.rev).toBe((before?.rev ?? 0) + 1)
     })))
 
-test("the post-publish hook runs after the snapshot moved, inside the gate", () =>
-  withStore({ "a.txt": "alpha" }, ({ store }) =>
-    Effect.gen(function*() {
-      let sawRev = 0
-      const before = yield* snapshotOf(store)
-      yield* store.commit({
-        baseRev: before?.rev ?? 0,
-        changes: [{ path: "a.txt", contents: "alpha, hooked" }],
-        afterPublish: Effect.gen(function*() {
-          sawRev = (yield* snapshotOf(store))?.rev ?? 0
-        }),
-      })
-      expect(sawRev).toBe((before?.rev ?? 0) + 1)
-    })))
-
 /**
  * The race the whole design is for: two writers derive an edit from the SAME
  * revision and commit concurrently. One wins; the other is told the store

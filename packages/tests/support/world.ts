@@ -816,8 +816,12 @@ export const COMMIT_SCOPE = selector(TESTID.commitScope);
 /** What is committed here and nowhere else; `data-commits` is how many. */
 export const COMMIT_UNPUSHED = selector(TESTID.commitUnpushed);
 export const COMMIT_PUSH = selector(TESTID.commitPush);
-/** Why Auto-commit stopped, in git's own words. Absent while the loop is
- *  running, which is what makes its PRESENCE the fact a scenario asserts. */
+/** What git said when it last refused a push, verbatim. Off the git cell, so
+ *  it is there for whoever opens the panel rather than only for the tab that
+ *  made the request. */
+export const COMMIT_PUSH_REFUSED = selector(TESTID.commitPushRefused);
+/** Why the quiet-window loop stopped, in git's own words. Absent while the loop
+ *  is running, which is what makes its PRESENCE the fact a scenario asserts. */
 export const COMMIT_AUTO_PAUSED = selector(TESTID.commitAutoPaused);
 /** What Auto-commit is about to do with what the panel is listing. Drawn only
  *  while it really is going to happen. */
