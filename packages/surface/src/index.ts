@@ -192,7 +192,10 @@ import {
   ChatFailure,
   ChatState,
   OpFailure,
+  Conversation,
+  Listed,
   SessionInfo,
+  Unreachable,
 } from "./chat.ts"
 import { editProcedures } from "./edit.ts"
 import { opsProcedures } from "./ops.ts"
@@ -1088,9 +1091,17 @@ export const surface = defineSurface({
         error: ChatFailure,
       },
       /** Move to one of the stored conversations. The transcript is replaced by
-       *  the replay, because a transcript of a session you are not in is a lie. */
+       *  the replay, because a transcript of a session you are not in is a lie.
+       *
+       *  WITH the agent whose conversation it is, which the row itself carries
+       *  ({@link SessionInfo}). The list spans every installed agent now, so a
+       *  row picked out of it may belong to the one this panel is NOT talking
+       *  to — and opening it is a change of agent as well as of conversation,
+       *  exactly the change {@link newSession} makes. A session id means
+       *  nothing to the wrong agent, so this is not a detail the server could
+       *  work out from the id. Refuses an agent this machine does not have. */
       loadSession: {
-        input: Schema.Struct({ id: Schema.String }),
+        input: Schema.Struct({ agent: Schema.String, id: Schema.String }),
         error: ChatFailure,
       },
       /** Try the OPEN that was refused again — the one the panel is holding a
@@ -1102,11 +1113,16 @@ export const surface = defineSurface({
        *  the way it keeps the prompt behind an undelivered message. Refuses
        *  when there is nothing waiting to be opened again. */
       reopen: { error: ChatFailure },
-      /** The agent's stored conversations for this directory, newest first.
-       *  Asked of the agent every time: its list is the only one that is
-       *  right. */
+      /** EVERY installed agent's stored conversations for this directory,
+       *  merged newest-first, each row saying whose it is.
+       *
+       *  The one this panel is talking to is asked every time, because its list
+       *  is the only one that is right and it is already running. The others
+       *  are asked when their answer is stale ({@link ../../chat/src/listings.ts}),
+       *  one at a time — opening a list is not a reason to start three
+       *  subprocesses at once. */
       sessions: {
-        output: Schema.Array(SessionInfo),
+        output: Listed,
         error: ChatFailure,
       },
       /** Answer a question the agent asked — the `ask` entry named by `id`,
@@ -1319,12 +1335,15 @@ export {
   NoticeEntry,
   OpFailure,
   RefusalEntry,
+  Conversation,
+  Listed,
   SessionInfo,
   Spawned,
   Talking,
   ToolEntry,
   ToolStatus,
   Unopened,
+  Unreachable,
   Usage,
   UsageFailure,
   UserEntry,

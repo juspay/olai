@@ -1037,6 +1037,10 @@ export const TESTID = {
   chatSessions: "chat-sessions",
   chatSessionList: "chat-session-list",
   chatSession: "chat-session",
+  /** The heading over one agent's rows in the chats list. Drawn only where
+   *  more than one agent has conversations here — one agent is a heading over
+   *  the whole list. */
+  chatSessionAgent: "chat-session-agent",
   /** The strip under the header naming an MCP server this conversation was
    *  meant to have and did not. Absent — not empty — on a healthy session.
    *  One `chatMissingServer` inside it per server. */

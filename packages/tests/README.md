@@ -479,7 +479,17 @@ with an ALLOW where the other's lead with the refusal; `session/set_mode` and
 method responses. And it QUEUES: one `session/prompt` at a time, because "this
 agent queues what you send now" is a claim a fake that answered two at once
 could not witness. Behaviour is keyed on the prompt text (`done <id>`, `bash`,
-`permit`, `nameless`, `slow`).
+`permit`, `nameless`, `slow`, `silent`).
+
+`silent` is the auth failure, whole: one zero-token `usage_update` and then a
+SUCCESSFUL `end_turn`, with no error anywhere. It is a scripted turn rather than
+a unit test because nothing about it is an error — every layer between the wire
+and the panel behaves correctly, and the bug was that the panel drew the result
+as an ordinary turn. A `.agent-hold-open` dot-file makes the next session open
+sit on the wire until `the agent is released`, which is how a scenario reaches
+the seconds between picking an agent and having a conversation: on a laptop that
+window is too short to aim at, and it is the window a message typed into it used
+to be lost in.
 
 ## The fake kolu
 

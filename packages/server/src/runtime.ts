@@ -946,7 +946,8 @@ export const bind = (
           // fresh one. Two verbs because they mean two things — see the
           // surface's declaration.
           chooseAgent: ({ input }) => withChat((open) => open.chooseAgent(input.agent)),
-          loadSession: ({ input }) => withChat((open) => open.loadSession(input.id)),
+          loadSession: ({ input }) =>
+            withChat((open) => open.loadSession(input.agent, input.id)),
           // No input, for the reason the member says: which open was refused is
           // the chat's own record, and a browser naming one would be picking a
           // conversation nobody asked for.

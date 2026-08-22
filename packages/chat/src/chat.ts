@@ -88,6 +88,7 @@ import {
   type ChatState,
   type NodeContext,
   type OpFailure,
+  type Listed,
   type SessionInfo,
   type Talking,
 } from "@olai/surface"
@@ -98,7 +99,8 @@ import * as AcpAgent from "./agent.ts"
 import type { Installed } from "./agents/roster.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
-import type { AgentEvent } from "./events.ts"
+import type { AgentEvent, Stored } from "./events.ts"
+import { asOneList, Listings } from "./listings.ts"
 import * as Memory from "./memory.ts"
 import { type Change, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
@@ -182,13 +184,22 @@ export interface Chat {
    *  one where it has none; the `+ new` button is the verb that always means a
    *  fresh one. */
   readonly chooseAgent: (agent: string) => Effect.Effect<void, OpFailure>
-  readonly loadSession: (id: string) => Effect.Effect<void, OpFailure>
+  /** Move to one of the stored conversations — WITH the agent whose it is,
+   *  because the list spans every installed agent and a session id means
+   *  nothing to the wrong one. Opening another agent's conversation switches
+   *  this panel to that agent, the way {@link Chat.newSession} does. */
+  readonly loadSession: (agent: string, id: string) => Effect.Effect<void, OpFailure>
   /** Try the refused OPEN again — the one `ChatState.unopened` is about. It
    *  takes no argument because the attempt is kept here, beside the reason:
    *  a boot picks its own conversation, so a caller naming one would be asking
    *  for something nobody asked for. Refuses when nothing is waiting. */
   readonly reopen: Effect.Effect<void, OpFailure>
-  readonly sessions: Effect.Effect<ReadonlyArray<SessionInfo>, OpFailure>
+  /** EVERY installed agent's stored conversations here, merged newest-first,
+   *  each row saying whose it is — and which agents could not be asked. Never
+   *  refuses, because the answer is PARTIAL rather than absent when one agent
+   *  is broken: its conversations are missing and it is named, and the other's
+   *  are still on the screen. */
+  readonly sessions: Effect.Effect<Listed>
   /** Answer the question `id`, or — with `null` — decline it. Both refuse if
    *  that question has stopped waiting, which is a thing two open tabs can
    *  genuinely race and a person deserves to be told about. */
@@ -441,6 +452,56 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *  three-megabyte attachment chunk and a send should not queue behind a
      *  picture. */
     const sending = yield* Semaphore.make(1)
+    /**
+     * ONE CONVERSATION BEING OPENED, and everything that means something INSIDE
+     * a conversation waits for it.
+     *
+     * The window is the seconds between pressing an agent and having something
+     * to type into: a subprocess starts, a handshake runs, a session is asked
+     * for and a stored one REPLAYS. The box is deliberately not locked while
+     * that happens — a message typed then is a message somebody means — so the
+     * window is a person's ordinary next keystroke rather than a race anybody
+     * has to arrange.
+     *
+     * What it used to cost was the message's own row. {@link send} writes the
+     * words into the transcript before anything is on the wire, and a replay
+     * CLEARS the transcript ({@link receive}'s `replayStarted`) — so a message
+     * sent into that gap had its row wiped by the conversation it was going
+     * into, and what a person was left looking at was an answer with no
+     * question above it, or nothing at all. Against an agent that answers both
+     * opens at once it costs more than that: two conversations opened, two
+     * deliveries, and the panel in whichever finished last.
+     *
+     * ITS OWN PERMIT, and not one of the three that were already here:
+     *
+     *   - **{@link switching}** is held across a three-megabyte attachment
+     *     chunk, and a send must not queue behind a picture (its own note says
+     *     so).
+     *   - **{@link binding}** is about which agent this panel is talking to,
+     *     which is settled long before the conversation is open.
+     *   - **{@link sending}** is one delivery decision at a time, which is a
+     *     rule between two sends rather than between a send and an open.
+     *
+     * A concurrent send WAITS here rather than being refused, which is the
+     * whole answer: there is nothing to tell somebody, because the conversation
+     * their message belongs in is the one being opened.
+     */
+    const opening = yield* Semaphore.make(1)
+    /**
+     * ONE AGENT ASKED AT A TIME for what it has stored.
+     *
+     * Its own permit and not {@link binding}'s, because these are two different
+     * rules about two different things. `binding` is about the agent this panel
+     * is TALKING to, of which there is one; this is about starting an agent
+     * that nobody is talking to, asking it one question and stopping it again
+     * ({@link ./listings.ts}). Opening the picker must not be a reason to start
+     * every agent on the machine at once — three handshakes racing each other
+     * for one list is the cost a person pays for a click.
+     */
+    const listing = yield* Semaphore.make(1)
+    /** What the agents this panel is NOT talking to last answered about their
+     *  stored conversations. See {@link ./listings.ts}. */
+    const listings = new Listings(() => Date.now())
     /** Everything the agent has said FOR ITSELF, counted — the wide reading.
      *  See {@link receive} and {@link ARRIVED}. */
     let heard = 0
@@ -659,6 +720,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         const already = talking
         if (already !== null && already.row.id === row.id) return already.agent
         if (already !== null) {
+          // WHAT IT HAS STORED HAS MOVED, and it stops being the agent we ask
+          // afresh every time: this panel has just spent a conversation in it
+          // (a fresh one minted, a stored one retitled), so anything kept about
+          // it from before is a list that does not name the conversation
+          // somebody was just in — the exact complaint the fan-out answers.
+          listings.forget(already.row.id)
           talking = null
           // THROUGH THE EVENT, not through a second list of what a conversation
           // ending costs. Stopping an agent deliberately emits nothing (a
@@ -769,8 +836,84 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const openWith = (
       id: string,
       use: (agent: AcpAgent.Agent) => Effect.Effect<void, AcpAgent.AgentGone>,
+      /** WHICH conversation, for the sentence a refusal draws — `null` for a
+       *  verb that opens whichever the agent picks. */
+      named: string | null = null,
     ): Effect.Effect<void, OpFailure> =>
-      withRow(id, (row) => changeSession(Effect.flatMap(using(row), use)))
+      withRow(id, (row) => changeSession(Effect.flatMap(using(row), use), named))
+
+    /**
+     * What ONE installed agent has stored here, as the rows the picker draws.
+     *
+     * Two lanes, and which one a row takes is the whole of the arrangement:
+     *
+     *   - **the agent this panel is TALKING to** is asked every time. It is
+     *     already running, so the answer costs one round trip, and its list is
+     *     the one most likely to have just changed — this conversation is in
+     *     it.
+     *   - **every other installed agent** is asked only when what it last said
+     *     has gone stale ({@link ./listings.ts}), and asking means STARTING it,
+     *     putting the one question, and stopping it again. Serialized, so a
+     *     click on `chats` cannot start three subprocesses at once.
+     *
+     * A PROBE ENTERS NO CONVERSATION and says nothing into this one. Its events
+     * go nowhere — a replay from an agent nobody is talking to has no business
+     * in the transcript on screen — and `sessions` is the one verb that brings
+     * up the process without opening a session ({@link ./agent.ts}'s
+     * `onProcess`), so nothing is entered and the directory's note is not
+     * rewritten by a question about it.
+     *
+     * AN AGENT THAT CANNOT BE ASKED DOES NOT FAIL THE CALL — and is not
+     * silent about it either. The list is what somebody opened to find a
+     * conversation in, so one broken agent must not take the other's
+     * conversations off the screen with it (the shape of the bug this fan-out
+     * is the fix for); and an absent list drawn as *no stored conversations* is
+     * a claim about somebody's disk standing in for never having reached them
+     * (the shape of the bug the picker's own refusal arm is the fix for). Both
+     * are the same rule, so the answer carries both halves
+     * ({@link Listed}).
+     */
+    const storedBy = (row: Installed): Effect.Effect<Listed> =>
+      Effect.suspend(() => {
+        const said = (stored: ReadonlyArray<Stored>): Listed => ({
+          sessions: stored.map((entry): SessionInfo => ({
+            id: entry.id,
+            agent: row.id,
+            title: entry.title,
+            updatedAt: entry.updatedAt,
+          })),
+          unreachable: [],
+        })
+        const couldNotAsk = (gone: AcpAgent.AgentGone): Listed => ({
+          sessions: [],
+          unreachable: [{ agent: row.id, why: gone.why }],
+        })
+        const at = talking
+        if (at !== null && at.row.id === row.id) {
+          return Effect.match(at.agent.sessions, {
+            onSuccess: said,
+            onFailure: couldNotAsk,
+          })
+        }
+        const kept = listings.fresh(row.id)
+        if (kept !== null) return Effect.succeed({ sessions: kept, unreachable: [] })
+        return listing.withPermit(Effect.gen(function*() {
+          // Read AGAIN under the permit: three rows queueing on one click would
+          // otherwise each have decided to ask before the first of them
+          // answered.
+          const now = listings.fresh(row.id)
+          if (now !== null) return { sessions: now, unreachable: [] }
+          const probe = yield* spawn(row, () => {})
+          const asked = yield* Effect.result(probe.sessions)
+          yield* probe.stop
+          if (asked._tag === "Failure") return couldNotAsk(asked.failure)
+          const answer = said(asked.success)
+          // ONLY A SUCCESS IS KEPT: a refusal cached for fifteen seconds is an
+          // agent that stays broken on screen after it has been mended.
+          listings.keep(row.id, answer.sessions)
+          return answer
+        }))
+      })
 
     /** A verb that needs somebody to talk to. Refused in words when there is
      *  nobody — the panel is drawing the picker, and what the caller asked for
@@ -818,7 +961,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       attachments: ReadonlyArray<string>,
       context: ReadonlyArray<NodeContext>,
     ): Effect.Effect<void, OpFailure> =>
-      Effect.gen(function*() {
+      // BEHIND WHATEVER IS OPENING A CONVERSATION ({@link opening}), which is
+      // what makes "the words are on screen from the moment you send them" and
+      // "a replay empties the transcript" stop contradicting each other. The
+      // permit covers the ROW as well as the delivery, deliberately: a row
+      // written before the replay is a row the replay takes away.
+      opening.withPermit(Effect.gen(function*() {
         const said = text.trim()
         // A picture on its own IS a message — "what is this" with a
         // screenshot under it is the usual way of asking — and so is a node on
@@ -853,7 +1001,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           attachments,
         )
         yield* deliver(row.key, prompt)
-      })
+      }))
 
     /**
      * Get one prompt to the agent NOW, whatever it is doing — and, when that
@@ -1356,7 +1504,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // conversation can name them, and no prompt in the next one will.
           yield* files.discard
           move({ status: "booting" })
-          const outcome = yield* Effect.result(what)
+          // HELD ACROSS THE WHOLE OPEN, not around it: what a send has to wait
+          // for is the replay, which is the last thing to happen and the thing
+          // that empties the transcript ({@link opening}).
+          const outcome = yield* opening.withPermit(Effect.result(what))
           if (outcome._tag === "Failure") {
             // THE AGENT SAID NO, as against there being no agent to say it —
             // `refused` and only `refused` ({@link ./agent.ts}'s `Gone`). It is
@@ -1408,7 +1559,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // has before the load answers — a title would be the picker's word for a
       // conversation, and the picker is exactly what this refusal takes off the
       // screen. The agent's own reason sits beside it either way.
-      loadSession: (id: string) => onAgent((agent) => changeSession(agent.loadSession(id), id)),
+      // WITH the agent whose conversation it is, because the list spans all of
+      // them now: a row picked out of it may belong to the agent this panel is
+      // not talking to, and opening it is a change of agent as well as of
+      // conversation. `openWith` is what {@link Chat.newSession} already goes
+      // through, so the switch, the stale-tab refusal and the permit are the
+      // same ones — the only thing that differs is what is opened at the end.
+      loadSession: (agentId: string, id: string) =>
+        openWith(agentId, (agent) => agent.loadSession(id), id),
       /**
        * The refused OPEN, tried again — whichever it was.
        *
@@ -1444,16 +1602,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         unopened = null
         return changeSession(waiting.again, state.unopened?.what ?? null)
       }),
-      sessions: onAgent((agent) =>
-        Effect.catch(
-          Effect.map(agent.sessions, (stored) =>
-            stored.map((entry): SessionInfo => ({
-              id: entry.id,
-              title: entry.title,
-              updatedAt: entry.updatedAt,
-            }))),
-          (gone) => Effect.fail(asFailure(gone)),
-        )),
+      sessions: Effect.map(
+        Effect.forEach(options.roster, storedBy, { concurrency: 1 }),
+        asOneList,
+      ),
       answer: (id, answers) =>
         onAgent((agent) =>
           Effect.flatMap(
@@ -1491,9 +1643,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // {@link using}'s own permit, and NOT by the directory's: this boot
             // runs while the listener serves pages, and a shutdown must not
             // queue behind it.
-            const outcome = yield* Effect.result(
+            // The other place a conversation is opened, and the one no click
+            // reaches. It takes {@link opening} for the reason the two verbs do
+            // — a page is served while this runs, so somebody can be typing
+            // into a panel whose conversation is still being replayed — and
+            // deliberately NOT the directory's permit, so a shutdown does not
+            // queue behind a boot.
+            const outcome = yield* opening.withPermit(Effect.result(
               Effect.flatMap(using(chosen), (agent) => agent.boot),
-            )
+            ))
             if (outcome._tag === "Failure") {
               // A warning rather than an error: the panel is already showing
               // this, and the next prompt retries the boot exactly as a crash

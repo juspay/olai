@@ -67,12 +67,23 @@
  * nothing is stored (so a client boots with `session/new`), set means
  * `session/list` answers and `session/load` replays.
  *
+ * A `.agent-hold-open` dot-file in the directory makes the NEXT session open —
+ * whichever verb asked for it — sit on the wire until `the agent is released`,
+ * the same idiom the other scripted agent uses for a held load. It exists
+ * because the window this suite has to reach is the one a person meets on a
+ * real machine and cannot reach on a fast one: the seconds between picking an
+ * agent and its first conversation being open. Held here rather than at
+ * `initialize`, because that is where the boot's own permit is held and where a
+ * prompt typed into the gap has to queue.
+ *
  * It lives in a directory of its own because that directory is what goes on a
  * spawned server's `OLAI_AGENT_PATH`: whether this machine "has opencode" is a
  * property of the scenario rather than of the laptop the run is on — the same
  * argument the fake `kolu` next door makes, and the reason a developer with the
  * real opencode installed still gets the same suite CI does.
  */
+
+import { existsSync, rmSync } from "node:fs";
 
 import { readMessages } from "../../support/ndjson.ts";
 import { emitter, released, speaking } from "../../support/scripted.ts";
@@ -99,6 +110,17 @@ const cwd = cwdArg();
 class Cancelled extends Error {}
 
 const STORED = process.env.OLAI_FAKE_OPENCODE_STORED ?? "";
+
+/** Whether a scenario armed the boot to hang, read at the moment the open is
+ *  asked for — so it can be armed and then something pressed. TAKEN: the file
+ *  is removed as it is read, so one arming holds one open and the retry behind
+ *  it is not held too. */
+const holdingOpen = (): boolean => {
+  const marker = `${cwd}/.agent-hold-open`;
+  if (!existsSync(marker)) return false;
+  rmSync(marker, { force: true });
+  return true;
+};
 
 /** The one stored conversation, when a scenario asked for one. Opencode's own
  *  ids look like this; nothing reads their shape, but a scenario that
@@ -376,6 +398,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return;
 
     case "session/new": {
+      if (holdingOpen()) await released(cwd);
       openSession(`ses_new_${++openedSessions}`, params);
       respond(id, { sessionId, configOptions: configOptions() });
       return;
@@ -393,6 +416,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return;
 
     case "session/load": {
+      if (holdingOpen()) await released(cwd);
       openSession(String(params["sessionId"]), params);
       // A replay: collapsed final frames, and the person's own words as chunks.
       notify("session/update", {

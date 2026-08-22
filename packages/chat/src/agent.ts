@@ -1305,9 +1305,9 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     /** The subprocess, and nothing about a conversation. Its own step because
      *  the two things a caller can want are genuinely different: {@link boot}
-     *  wants the panel IN a conversation, and {@link opening} wants only
-     *  somebody to talk to, because it is about to say which conversation
-     *  itself. */
+     *  wants the panel IN a conversation, and {@link onProcess} wants only
+     *  somebody to talk to — because what it does next either says which
+     *  conversation itself, or is a question about no conversation at all. */
     const bringUpProcess = Effect.gen(function*() {
       if (stopped) return yield* shuttingDown()
       const started = live ?? (yield* start())
@@ -1317,7 +1317,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     /**
      * The boot itself, WITHOUT the permit — so that a caller which has to hold
-     * that permit across more than a boot can ({@link opening}).
+     * that permit across more than a boot can ({@link onProcess}).
      *
      * Split from {@link boot} rather than duplicated, because the thing being
      * serialized is not "booting" but OPENING A CONVERSATION, and there are two
@@ -1362,8 +1362,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       })
 
     /**
-     * ... and the two verbs that OPEN a conversation, which hold the boot's own
-     * permit for the whole of it.
+     * ... and the verbs that want THE PROCESS AND NOT A CONVERSATION, which
+     * hold the boot's own permit for the whole of what they do.
      *
      * ONE OPEN AT A TIME, and this is what makes that structural. `boot`
      * short-circuits on the module being in a conversation, and a conversation
@@ -1380,8 +1380,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * to tell it — the conversation it should act in is the one being opened —
      * and the initial boot has always behaved this way; what was missing is
      * that a picker-driven open released the permit before doing its work.
+     *
+     * THREE VERBS TAKE IT, not two. The two that open a conversation say which
+     * one themselves, which is why they must not let `bringUp` pick one first.
+     * {@link Agent.sessions} wants no conversation at all: LISTING is a
+     * question, not a visit, and it is asked of agents this panel is not
+     * talking to ({@link ./listings.ts}) — an agent started to answer it and
+     * stopped again must not enter, replay and REMEMBER a conversation on the
+     * way past, which is exactly what booting into one would do.
      */
-    const opening = <A>(
+    const onProcess = <A>(
       use: (at: Live) => Effect.Effect<A, AgentGone>,
     ): Effect.Effect<A, AgentGone> =>
       booting.withPermit(
@@ -1535,7 +1543,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       prompt,
       steer,
       cancel,
-      newSession: opening((at) =>
+      newSession: onProcess((at) =>
         Effect.gen(function*() {
           session = null
           // BEFORE the break, so the question is settled on the row it is
@@ -1546,7 +1554,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         })
       ),
       loadSession: (id: string) =>
-        opening((at) =>
+        onProcess((at) =>
           Effect.gen(function*() {
             if (!at.canLoad) {
               return yield* new AgentGone({
@@ -1567,7 +1575,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             yield* load(at, id, wanted?.title ?? null, modelFor(id))
           })
         ),
-      sessions: withLive(storedFor),
+      // THE PROCESS, not a conversation — see {@link onProcess}. This used to
+      // boot into one, which was invisible while the only thing that ever asked
+      // was a panel already in one, and is not invisible now that an agent is
+      // started to answer this and stopped again.
+      sessions: onProcess(storedFor),
       answer: (id, answers) =>
         Effect.suspend(() => {
           const took = questions.answer(id, answers)
