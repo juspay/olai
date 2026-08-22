@@ -24,7 +24,7 @@
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
 import { identityConfig } from "@olai/identity"
-import { toStdout } from "@olai/log"
+import { atLevel, toStdout } from "@olai/log"
 import { Effect, Layer } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 
@@ -83,8 +83,15 @@ const web = Command.make("web", {
     // by a process that has already stopped answering, and a fault takes the
     // same road out rather than exiting from under those finalizers.
     yield* faulted
-  })).pipe(
-    Command.withDescription("serve a directory of outlines in the browser"),
+  }).pipe(
+    // Innermost only when the env var is set (empty layer otherwise), so
+    // `olai web --log-level warn` still quiets Info, and a systemd
+    // `OLAI_LOG_LEVEL=debug` still raises it.
+    Effect.provide(atLevel()),
+  )).pipe(
+    Command.withDescription(
+      "serve a directory of outlines in the browser. OLAI_LOG_LEVEL (debug|info|warn|error) sets the minimum log level and wins when set; when unset, --log-level applies (default info)",
+    ),
   )
 
 const olai = Command.make("olai").pipe(
@@ -112,12 +119,9 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   })
 }
 
-// The LOG LEVEL is not set here and there is no flag of ours for it: Effect's
-// CLI already carries `--log-level`, parses it, documents it in `--help` and
-// provides the minimum level to whichever subcommand runs. Quiet is its default
-// (`Info`), so debug lines — a relayed agent stderr chunk, the loudest thing in
-// the program — are off until somebody asks. The sink is stdout: a person
-// watching a server looks there, and nothing else in this process owns it.
+// The sink is stdout: a person watching a server looks there, and nothing else
+// in this process owns it. The LEVEL is provided on the `web` handler above:
+// OLAI_LOG_LEVEL when set, otherwise Effect's `--log-level` (default info).
 NodeRuntime.runMain(
   Command.run(olai, { version: "0.1.0" }).pipe(
     Effect.scoped,

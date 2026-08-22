@@ -12,8 +12,9 @@
  *
  * So the policy names `https:` and keeps its shape: this vault, a `blob:`
  * the chat's thumbnails already are, and no wildcard — `http:` and `data:`
- * are still refused, and the `src` can only ever be what the server's own
- * `GET /olai/who` answered. A `default-src` is deliberately absent: the
+ * are still refused, and the `src` can only ever be what the server
+ * answered (`who.get` on the upgrade, `GET /olai/who` for a door with no
+ * websocket). A `default-src` is deliberately absent: the
  * inline theme script in this same file would be the first casualty.
  * Sealed `/media` pages carry a stricter policy on the RESPONSE and do not
  * inherit this.

@@ -3,9 +3,10 @@
  *
  * The person ({@link ./identity.ts}), their picture ({@link ./picture.ts},
  * over {@link ./gravatar.ts}) and what the operator configured
- * ({@link ./config.ts}) are four folds. HTTP is not here: `GET /olai/who`
- * is `@olai/server`'s door over {@link identityOf}, and the path lives in
- * `@olai/surface` the way `/media` does.
+ * ({@link ./config.ts}) are four folds. HTTP is not here: `@olai/server`
+ * reads {@link identityOf} at the upgrade (`who.get`) and at
+ * `GET /olai/who`; the path and JSON live in `@olai/surface` the way
+ * `/media` does.
  *
  * WHAT CROSSES THE PACKAGE BOUNDARY, and no more. The environment variable
  * names, the placeholder a template spells the login as, and the email
@@ -23,6 +24,7 @@ export {
 export {
   DEFAULT_IDENTITY_HEADERS,
   DEFAULT_LOGIN_HEADER,
+  headerNamesOf,
   identityOf,
   type Identity,
   type IdentityHeaders,

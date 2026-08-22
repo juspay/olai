@@ -316,6 +316,10 @@ test("the agent's face is what it can SEE plus the doors its tools land through"
   // room for. An agent writing `#home` writes the word (`./faces.ts`).
   expect(Object.keys(BROWSER)).toContain("vocabulary.tags")
   expect(Object.keys(AGENT)).not.toContain("vocabulary.tags")
+  // Who is looking is a fact about THIS TAB, stamped on the upgrade. An
+  // agent arrives on HTTP `/mcp` and has no login header on that face.
+  expect(Object.keys(BROWSER)).toContain("who.get")
+  expect(Object.keys(AGENT)).not.toContain("who.get")
   // And the human's session is the human's, on this face as on the MCP one.
   expect(Object.keys(AGENT)).not.toContain("chat")
   expect(Object.keys(AGENT)).not.toContain("transcript")

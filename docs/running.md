@@ -106,15 +106,32 @@ OLAI_IDENTITY_PICTURE_HEADER=
 OLAI_IDENTITY_AVATAR_TEMPLATE='https://github.com/{login}.png'
 ```
 
-The picture is a remote `<img>` on the app page, and **whose host that is belongs to whoever deployed this olai** — an IdP's avatar host, the template's host (`github.com` redirects to `avatars.githubusercontent.com`), or gravatar. None of them is knowable when the page is built, so the page's content policy admits `https:` images: still no `http:`, no `data:`, no wildcard, and the `src` can only ever be what this server's own `GET /olai/who` answered. Sealed `/media` pages carry their own, stricter, policy and are unaffected.
+The picture is a remote `<img>` on the app page, and **whose host that is belongs to whoever deployed this olai** — an IdP's avatar host, the template's host (`github.com` redirects to `avatars.githubusercontent.com`), or gravatar. None of them is knowable when the page is built, so the page's content policy admits `https:` images: still no `http:`, no `data:`, no wildcard, and the `src` can only ever be what this server answered (the chip reads it off the websocket upgrade; `GET /olai/who` is the same JSON for a share sheet or a script). Sealed `/media` pages carry their own, stricter, policy and are unaffected.
 
-**Trust.** These headers are only meaningful when the proxy is the only way in: olai bound to loopback or the tailnet, **and the proxy stripping client-supplied copies of the same names**. Anything that can reach the port can send them — the same bargain the rest of the unauthenticated listener already takes. Do not expose this port to the internet.
+**Trust.** These headers are only meaningful when the proxy is the only way in: olai bound to loopback or the tailnet, **and the proxy stripping client-supplied copies of the same names**. That is the same bargain on the websocket upgrade as on `GET /olai/who` — a client dialling the listener directly can send the header itself, and the upgrade will hand it on as faithfully as a proxy's own. Anything that can reach the port can send them — the same bargain the rest of the unauthenticated listener already takes. Do not expose this port to the internet.
 
 That rule covers **every name still in force, including the ones you did not configure**. Each variable left unset keeps its Tailscale default, so a serve that renames only the login and the email still trusts `Tailscale-User-Name` and `Tailscale-User-Profile-Pic` — and a proxy that is not `tailscale serve` usually passes inbound `Tailscale-*` headers straight through. The picture one is the sharp edge, because it becomes an `<img src>` the browser fetches: on any proxy but `tailscale serve`, **set `OLAI_IDENTITY_PICTURE_HEADER=` (and `OLAI_IDENTITY_NAME_HEADER=`) empty, or strip those names at the proxy** — the same as it must already do for the login.
 
 ### Logging
 
-It says what it is doing on stdout, one line per event, quietly: the address it bound, the agent it started, and anything that went wrong. `--log-level debug` turns on the rest, including everything the agent itself writes.
+It says what it is doing on stdout, one line per event, quietly: the address it bound, the agents it detected, the chat's lifecycle (a conversation opened, a prompt sent, a turn that ended or failed, the agent process itself coming and going), and anything that went wrong.
+
+Two knobs, both environment variables, both facts of the running instance rather than of a browser:
+
+| variable | what it picks | default |
+|---|---|---|
+| `OLAI_LOG` | the face: `logfmt` or `pretty` | pretty on a TTY, logfmt everywhere a machine reads (piped, systemd, tests) |
+| `OLAI_LOG_LEVEL` | the minimum level: `debug`, `info`, `warn`, `error` | unset — Effect's `--log-level` applies, default `info` |
+
+**When `OLAI_LOG_LEVEL` is set, it wins.** When it is unset, `olai web --log-level warn` quiets Info, as Effect's CLI always did. A systemd unit cannot pass that flag without rewriting argv, which is why the env var exists. Setting both is env-wins, not a merge.
+
+`OLAI_LOG_LEVEL=debug` turns on the rest, including everything the agent itself writes to its stderr — which is where opencode dumps JSON-RPC errors. A failed turn already surfaces that stderr at `warn`, so a silent send is diagnosable from the journal at the default level; debug is the live feed.
+
+The home-manager module's `logLevel` option sets `OLAI_LOG_LEVEL` on the user unit:
+
+```nix
+services.olai.logLevel = "debug";   # debug | info | warn | error — omit and the process stays at info
+```
 
 A SIGINT or SIGTERM writes `olai web: received SIGTERM` (or `SIGINT`) to stderr before the process unwinds. Effect still treats the interrupt as a successful stop and exits 130 — the shipped user unit counts 130 as success so `systemctl stop` is not a failed unit, and on Linux `Restart=always` still brings a stray SIGTERM back (see [As a user service](#as-a-user-service-home-manager)). That one line is what lets a journal tell a signaled death from a deliberate stop.
 
@@ -232,7 +249,7 @@ curl -X POST http://olai.your-tailnet.ts.net/capture \
 
 ### Auth is the tailnet; the CSRF gate is the content type
 
-An identity header is **required**, and it is the same one the header chip reads at `GET /olai/who` — `Tailscale-User-Login` by default, or whatever `OLAI_IDENTITY_LOGIN_HEADER` names, so a vault behind a different proxy configures it once and both doors follow. `tailscale serve` injects it in front of the process, so there is no token to mint, nothing secret to paste into a share sheet, and no client to re-issue when a key rotates. A request that carries no identity is refused, naming the header actually in force. The login is recorded on the captured node as a `captured-by` property, so `prop:captured-by=you@example.com` finds what you sent from your phone — and a client that tries to send that property itself is refused rather than quietly overruled.
+An identity header is **required**, and it is the same one the header chip reads (`who.get` off the upgrade; `GET /olai/who` for a door with no websocket) — `Tailscale-User-Login` by default, or whatever `OLAI_IDENTITY_LOGIN_HEADER` names, so a vault behind a different proxy configures it once and both doors follow. `tailscale serve` injects it in front of the process, so there is no token to mint, nothing secret to paste into a share sheet, and no client to re-issue when a key rotates. A request that carries no identity is refused, naming the header actually in force. The login is recorded on the captured node as a `captured-by` property, so `prop:captured-by=you@example.com` finds what you sent from your phone — and a client that tries to send that property itself is refused rather than quietly overruled.
 
 What the header does **not** do is authenticate. It is a claim the transport in front makes, so anything that can reach the port can make it too — the same bargain the rest of the listener already takes. Put olai behind `tailscale serve`, or leave it on loopback. Do not expose this port to the internet.
 

@@ -102,6 +102,22 @@ in
         this module always passes --port, so a user service does not wander.
       '';
     };
+
+    logLevel = lib.mkOption {
+      type = lib.types.nullOr (lib.types.enum [ "debug" "info" "warn" "error" ]);
+      default = null;
+      example = "debug";
+      description = ''
+        Minimum log level for this instance (`OLAI_LOG_LEVEL`).
+
+        null (the default) sets nothing: the process stays at info, which is
+        what olai itself defaults to — lifecycle lines on, agent stderr off.
+
+        debug turns on the rest, including everything the chat agent writes to
+        its stderr (JSON-RPC errors live there). This is an instance fact, like
+        `--commit`, not a per-browser preference; see docs/running.md.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -128,6 +144,8 @@ in
           Restart = "always";
           RestartSec = "1s";
           SuccessExitStatus = 130;
+        } // lib.optionalAttrs (cfg.logLevel != null) {
+          Environment = [ "OLAI_LOG_LEVEL=${cfg.logLevel}" ];
         };
         Install = {
           WantedBy = [ "default.target" ];
@@ -154,6 +172,8 @@ in
           # launchd otherwise drops the process's output.
           StandardOutPath = "${config.home.homeDirectory}/Library/Logs/olai.out.log";
           StandardErrorPath = "${config.home.homeDirectory}/Library/Logs/olai.err.log";
+        } // lib.optionalAttrs (cfg.logLevel != null) {
+          EnvironmentVariables = { OLAI_LOG_LEVEL = cfg.logLevel; };
         };
       };
     };

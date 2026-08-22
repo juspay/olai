@@ -12,7 +12,7 @@
  *
  * So this file is a CHUNK of its own, and ./chunk.ts's `import("./pipeline.ts")`
  * is the whole of what asks for that: the bundler reads the specifier, splits
- * this graph out of the entry, and hashes it into the same immutable `/assets/`
+ * this graph out of the entry, and hashes it into the same immutable `/_olai/assets/`
  * dir (`pipeline-<hash>.js`). The specifier used to be a VARIABLE, deliberately,
  * to defeat a bundler that had splitting hardcoded off and would otherwise have
  * inlined this here — deferred in evaluation, identical on the wire. That is
@@ -64,7 +64,7 @@
  *      `rehype-highlight`, SHIPPED BY THIS SERVER: it is in `bun.lock`, so
  *      `bun.nix` fetches it into the Nix build, and no page ever asks a CDN for
  *      the code that renders someone's private outline. Being a second file on
- *      this server's own `/assets/` does not change that — it is the same
+ *      this server's own `/_olai/assets/` does not change that — it is the same
  *      origin, the same immutable pin, the same bytes CI built.
  *
  * The pipeline is built ONCE, when this module is evaluated — which is now the

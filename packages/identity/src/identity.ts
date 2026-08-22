@@ -45,9 +45,11 @@
  * [`docs/running.md`](../../../docs/running.md).
  *
  * It is NOT a cell. Cells are one value for the process; this value is one
- * value for the REQUEST. The websocket cannot see it today: kolu's
- * `serveSurfaceApp` owns the upgrade and does not hand request headers to
- * the app. HTTP paths can (`GET /olai/who`, a later `/capture`).
+ * value for the REQUEST (or, on the live wire, for the CONNECTION: the
+ * upgrade is that request). HTTP paths read it off the request
+ * (`GET /olai/who`, `POST /capture`); a tab that is already connected reads
+ * it off the upgrade headers `serveSurfaceApp` hands the per-connection
+ * services.
  *
  * PROCESS identity is a different question, already answered:
  * `surface/system/identity` is which olai this tab is bound to
@@ -131,6 +133,31 @@ const headerOf = (
  * three are claims about them, each `null` when it was not sent or when
  * the config named no header for it.
  */
+/**
+ * The header names this config trusts, unique, in the order login / email
+ * / name / picture.
+ *
+ * THE ALLOWLIST `serveSurfaceApp` takes. A name that is `null` is a claim
+ * the operator turned off and is not named. Login and email often SHARE a
+ * name (Tailscale's login is the email claim by default), and a repeated
+ * name is a bind-time defect upstream — so the second spelling of one
+ * wire header is dropped, not listed twice.
+ */
+export const headerNamesOf = (
+  headers: IdentityHeaders,
+): ReadonlyArray<string> => {
+  const names: string[] = []
+  const seen = new Set<string>()
+  for (const name of [headers.login, headers.email, headers.name, headers.picture]) {
+    if (name === null) continue
+    const key = name.toLowerCase()
+    if (seen.has(key)) continue
+    seen.add(key)
+    names.push(name)
+  }
+  return names
+}
+
 export const identityOf = (
   headers: {
     readonly [name: string]: string | ReadonlyArray<string> | undefined

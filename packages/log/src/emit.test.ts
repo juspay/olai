@@ -2,7 +2,7 @@
  * A line emitted from a callback is the same line as one emitted from a fiber.
  *
  * That is the whole claim, and both halves of it are things a plain
- * `Effect.runFork` gets wrong: a `--log-level` the operator typed would not
+ * `Effect.runFork` gets wrong: an `OLAI_LOG_LEVEL` the operator typed would not
  * reach the noisiest half of the program, and no annotation would survive the
  * trip out of Effect.
  */

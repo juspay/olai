@@ -100,6 +100,7 @@ import {
   type Manifest,
   type OpFailure,
   surface,
+  type Who,
 } from "@olai/surface"
 import { UsageFailure } from "@olai/format"
 import { surfaceTag } from "@kolu/surface/define"
@@ -128,6 +129,7 @@ import {
   type Published,
   publishedOf,
 } from "./published.ts"
+import { CurrentWho } from "./identity.ts"
 import { readFailed } from "./report.ts"
 
 /** What a transport needs, and nothing else. `ctx` is the write face, which
@@ -1095,6 +1097,21 @@ export const bind = (
           // through the same subscription for the same reason: pushing moves no
           // served file and changes what `pending` says.
           push: () => wiring.git.push,
+        },
+        /**
+         * Who is looking on THIS connection. The value is the per-connection
+         * `CurrentWho` the listener's `services` layer provides from the
+         * upgrade headers — so a tab that is already connected does not GET
+         * `/olai/who`. The handler REQUIRES that service; the deps type has
+         * no room for an unsatisfied requirement, so the cast erases the
+         * REQUIREMENT and nothing else (kolu's own `Viewer` seam, same
+         * shape).
+         */
+        who: {
+          get: (() =>
+            CurrentWho.use((who) => Effect.succeed(who))) as unknown as () => Effect.Effect<
+              Who | null
+            >,
         },
       },
     }

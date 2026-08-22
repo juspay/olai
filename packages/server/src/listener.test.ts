@@ -9,7 +9,7 @@
  *
  * What did NOT move upstream is the SINK (`./report.ts`), and the way that
  * wiring breaks is silent: a `console.warn` still reaches a terminal, just not
- * the logfmt an e2e harness, a systemd journal or a `--log-level` is reading.
+ * the logfmt an e2e harness, a systemd journal or an `OLAI_LOG_LEVEL` is reading.
  * So these drive real sockets at a real server and assert on what the LOGGER
  * heard.
  *

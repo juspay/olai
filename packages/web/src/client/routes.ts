@@ -62,31 +62,24 @@
  * WHAT CAN COLLIDE IS THE BUNDLE, and it is named here because a prefix-free
  * URL space is what makes it possible: the server hands the SPA shell to
  * anything it does not serve itself, and what it serves at the root is the
- * bundle's own — `/index.html` and `/assets/…`, beside `/sw.js` and
- * `/manifest.webmanifest` (`@kolu/surface-app`). Only the first two can shadow
- * a PAGE: the other two carry no suffix the registry claims, so no address this
- * parser can spell lands on them.
+ * bundle's own — `/index.html` and the hashed dir, beside `/sw.js` and
+ * `/manifest.webmanifest` (`@kolu/surface-app`). Only a hashed dir at
+ * `/assets/` can shadow a PAGE: `/index.html` is the SPA shell, byte for
+ * byte what the fallback would have answered with, so a vault's own
+ * `index.html` opens as a page; the other two carry no suffix the registry
+ * claims, so no address this parser can spell lands on them.
  *
- * And ONE of that first pair is a collision, and which one was MEASURED rather
- * than reasoned about (`packages/server/src/serve.test.ts`, the two tests at the
- * foot of the install surface). A served directory holding an `index.html` at
- * its top level is reachable: the bundle answers that path with the shell, and
- * the shell is byte for byte what the SPA fallback would have answered with, so
- * the address reaches this parser and the page opens like any other file's. A
- * file under an `assets/` folder is not, and cannot be made so from here: that
- * prefix is the immutable, content-hashed one, and a miss under it has to 404
+ * The hashed dir used to sit at `/assets/`, and a miss under it has to 404
  * rather than fall through — a `.js` URL answered with the HTML shell is the
- * wrong MIME pinned `immutable` for a year (kolu#1319). So the reader gets
- * `not found`, and no page at all.
+ * wrong MIME pinned `immutable` for a year (kolu#1319). So a vault file under
+ * an `assets/` folder was an address this app could spell and could not open
+ * (`packages/server/src/serve.test.ts`, measured in #341).
  *
- * The fix is to move the bundle's hashed dir under a prefix this app already
- * owns — `/_olai/assets/`, the same `_olai/` the shelf and the trash are
- * minted into, so what it shadows is olai's own namespace rather than the
- * reader's — and it is a SERVER change. `@kolu/surface-app`'s serving half has
- * taken an `assetPrefix` since the freshness contract was written; its Bun
- * build hardcoded the directory, so the input had no producer and nothing here
- * could reach it. That socket is kolu#2197, and the move lands when the pin
- * carries it.
+ * That collision is gone. The hashed dir sits at `/_olai/assets/` now — the
+ * same `_olai/` the shelf and the trash are minted into, so what it shadows
+ * is olai's own namespace rather than the reader's. A vault file under
+ * `assets/` opens as a page. The prefix is one spelling (`@olai/surface`'s
+ * `ASSET_PREFIX`), taken by the build and pinned by the server.
  *
  * ## The computed pages, which name nothing on disk
  *

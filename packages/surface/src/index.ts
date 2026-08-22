@@ -70,11 +70,12 @@
  * framework reserves `system/identity` for it and answers it out of every
  * surface, process id included, so an app that declares its own is declaring a
  * second answer to a question already answered (juspay/kolu#2133). Who is
- * LOOKING is a different question and is not a member either: it is per HTTP
- * request (`@olai/identity`'s `identityOf`, served at `GET /olai/who`), because a cell
- * would be one value for the process and this value is one value for the
- * request. The websocket cannot see it today (kolu's `serveSurfaceApp`
- * owns the upgrade).
+ * LOOKING is a different question: it is per CONNECTION, not per process, so
+ * it is a PROCEDURE (`who.get`) rather than a cell — the login is stamped on
+ * the upgrade and does not move for the life of the socket, which is nothing
+ * to subscribe to. `GET /olai/who` stays for the plain-HTTP doors. The
+ * reading is `@olai/identity`'s `identityOf`; which headers the upgrade
+ * named is the serve's.
  *
  * One more is GIT, and it is a cell with two verbs beside it rather than a
  * member: a `pending` cell — what is waiting to be committed, and what is
@@ -201,6 +202,7 @@ import { DatedAnswer, DatedRequest, Owed, OwedRequest } from "./dates.ts"
 import { MovingAnswer, MovingRequest, PageReading, PageRequest } from "./page.ts"
 import { NarrowingAnswer, NarrowingRequest } from "./narrowing.ts"
 import { SearchAnswer, SearchRequest } from "./search.ts"
+import { Who } from "./who.ts"
 
 /**
  * One outline file's slice of the set, as published at set revision `rev`.
@@ -1312,6 +1314,24 @@ export const surface = defineSurface({
         error: OpFailure,
       },
     },
+    /**
+     * WHO IS LOOKING on this connection — the login a reverse proxy stamped
+     * on the upgrade, already resolved down the picture ladder.
+     *
+     * A PROCEDURE, not a cell: a cell is one value for the process, and this
+     * value is one value for THIS TAB. The login is stamped at the upgrade
+     * and does not move for the life of the socket, so there is nothing to
+     * subscribe to. `GET /olai/who` stays for the plain-HTTP doors (a share
+     * sheet, a script); a tab that is already connected reads this instead.
+     *
+     * THE BROWSER'S ALONE: an agent has no login header on its face, and
+     * asking who is looking at a tab is a paint instruction for a chip.
+     */
+    who: {
+      get: {
+        output: Schema.NullOr(Who),
+      },
+    },
   },
 })
 
@@ -1379,9 +1399,13 @@ export { ours, type Press } from "./press.ts"
  *  way to ask the traversal guard a question and ignore the allowlist. */
 export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
 
-/** Who is looking, as the HTTP door both ends spell — see {@link ./who.ts}.
- *  Not a member: the value is per request. */
+/** Who is looking — the HTTP door both ends still spell, and the JSON the
+ *  `who.get` procedure carries. See {@link ./who.ts}. */
 export { WHO_PATH, Who } from "./who.ts"
+
+/** Where the hashed browser bundle lives — see {@link ./bundle.ts}. One
+ *  spelling, both halves of the serve. */
+export { ASSET_PREFIX } from "./bundle.ts"
 
 /** What a served `.html` is answered with, how tall it says it is, and which
  *  page of this vault it says a reader clicked — the other contract between the

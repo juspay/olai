@@ -94,7 +94,8 @@ export const pickTheme = (palette: Palette): void => {
  * name neither can paint.
  *
  * The chrome is repainted either way, because the shell could only ship the
- * DEFAULT's paper in a tag it wrote before anybody's pick was known.
+ * DEFAULT's paper in a tag it wrote, and the install mark as a file, before
+ * anybody's pick was known.
  */
 export const followStoredTheme = (): void => {
   const stored = attribute()
