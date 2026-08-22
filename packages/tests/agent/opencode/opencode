@@ -61,6 +61,17 @@
  *               never reaches the wire as one, so this is the whole of what a
  *               client gets, and a panel that drew it as a normal turn drew
  *               nothing at all
+ *   error-silent the other half of the same split: a lone `usage_update` and
+ *               then a JSON-RPC ERROR for the prompt. The frame that arrived
+ *               said nothing a person can see, so the words did not land and
+ *               the row has to say so — which the old single count got wrong,
+ *               reading the usage frame as the agent having worked on it
+ *   hush        hold the turn saying NOTHING at all until a scenario says when.
+ *               `slow` announces a tool call first, so a cancel during it lands
+ *               on a turn that has already shown something; this is the turn a
+ *               cancel arrives at before the agent has said a word, which is
+ *               the ordinary case and the one arm a silence notice must not
+ *               fire on
  *   anything    one chunk of prose and an `end_turn`
  *
  * `OLAI_FAKE_OPENCODE_STORED` works the way the other agent's does: unset means
@@ -108,6 +119,11 @@ const cwd = cwdArg();
  *  `session/prompt` handler can tell it from a fault and answer the stop reason
  *  a real agent would. */
 class Cancelled extends Error {}
+
+/** A turn the agent REFUSED — a JSON-RPC error for `session/prompt` rather
+ *  than a stop reason, which is the shape a real `-32603` arrives in and the
+ *  one a stop reason cannot express. */
+class Refused extends Error {}
 
 const STORED = process.env.OLAI_FAKE_OPENCODE_STORED ?? "";
 
@@ -297,6 +313,28 @@ const turn = async (text: string): Promise<string> => {
     return "end_turn";
   }
 
+  if (said === "error-silent") {
+    // The SAME zero-token frame, and then a refusal. Nothing a person can see
+    // arrived, so the message did not land — and the panel has to offer it
+    // again rather than read the usage frame as work.
+    notify("session/update", {
+      sessionId,
+      update: { sessionUpdate: "usage_update", used: 0, size: 256000 },
+    });
+    throw new Refused("No api key passed in");
+  }
+
+  if (said === "hush") {
+    // NOTHING announced, and then a hold. The only thing a scenario can wait
+    // for here is the PANEL saying it is busy, which is the point: this is a
+    // turn a person cancels before the agent has said a word.
+    await released(cwd, () => {
+      if (cancelled) throw new Cancelled();
+    });
+    say("finished after all");
+    return "end_turn";
+  }
+
   if (said === "bash") {
     await runTool("bash", { command: "ls" }, async () => ({ ok: true }));
     say("ran it");
@@ -473,6 +511,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         try {
           respond(id, { stopReason: await turn(text) });
         } catch (cause) {
+          if (cause instanceof Refused) {
+            refuse(id, -32603, cause.message);
+            return;
+          }
           respond(id, { stopReason: cause instanceof Cancelled ? "cancelled" : "refusal" });
         }
       });

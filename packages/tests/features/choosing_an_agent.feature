@@ -293,16 +293,39 @@ Feature: Choosing an agent
   @opencode @scratch:chat
   Scenario: A turn somebody stopped is not accused of it either
     # A cancelled turn has a notice of its own. Blaming the agent for obeying
-    # would be the panel arguing with the person who pressed the button — and
-    # a cancel before the agent says anything is the ordinary case, not a rare
-    # one.
+    # would be the panel arguing with the person who pressed the button.
+    #
+    # `hush` rather than `slow`, and that is the whole of what this pins: a
+    # held turn that has ANNOUNCED something is a turn the silence arm would
+    # skip anyway, so cancelling one asserts the outcome without reaching the
+    # arm. This turn says nothing at all, so the cancel lands with the count
+    # untouched — which is the ordinary case (a person stops a turn before it
+    # has produced anything) and the one place the early return is the only
+    # thing standing between them and being told the agent went quiet on them.
     When I choose the agent "opencode"
-    And I ask the agent "slow"
-    Then the chat shows a running tool call
+    And I ask the agent "hush"
+    # The only thing there IS to wait for, which is the point.
+    Then the panel says it is busy, with "working"
     When I cancel the turn
     And the agent is released
     Then the chat says the turn was cancelled
     And the chat does not yet show "ended the turn without saying anything"
+    And the agent is idle
+
+  @opencode @scratch:chat
+  Scenario: A turn that failed after a usage frame is a message that did not land
+    # The other half of the split, and the half that has no face of its own: a
+    # usage report is not something a person can SEE, so a turn that sends one
+    # and then refuses has produced nothing — the words did not land, and the
+    # row has to say so and offer them again. The old single count read that
+    # frame as the agent having worked on the message and left it looking sent.
+    When I choose the agent "opencode"
+    And I ask the agent "error-silent"
+    Then the chat shows my message "error-silent" as "refused"
+    And the strip under my message "error-silent" reads "not sent"
+    # ... and it is the REFUSAL a person is told about, not a silence: the agent
+    # answered, in its own words.
+    And the chat eventually shows "No api key passed in"
 
   @opencode @scratch:chat
   Scenario: While a turn runs, the panel says so where a person is looking
