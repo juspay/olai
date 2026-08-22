@@ -56,18 +56,51 @@ describe("which body the panel draws", () => {
     // being true.
     expect(faceOf({ ...LIVE, unopened: null })).toEqual({ kind: "conversation" })
   })
+})
 
-  test("no agent wins over a refusal, whatever order they are met in", () => {
+/**
+ * WHERE TWO OF THEM COULD CLAIM AT ONCE.
+ *
+ * Its own block because these are the cases the three above cannot state: each
+ * of them moves one field and leaves the other at its ordinary value, so none
+ * of them can say which answer WINS. The cell is a value that arrives over a
+ * wire, and every one of these is constructible.
+ */
+describe("two faces claiming one body", () => {
+  test("no agent wins over a refusal", () => {
     // Unreachable in practice — nothing was attempted, so nothing was refused —
-    // and stated anyway, because the cell is a value that arrives over a wire
-    // and a precedence nobody wrote down is one a reader can get backwards.
+    // and stated anyway, because a precedence nobody wrote down is one a reader
+    // meeting the two fields in the other order can get backwards.
     expect(faceOf({ ...CHAT_OFF, unopened: REFUSED })).toEqual({ kind: "no-agent" })
   })
 
-  test("a panel still booting is the conversation, not an explanation", () => {
-    // A body swapped out while the agent starts would flash an explanation at
-    // somebody every time they opened the drawer. The refused face is a state
-    // that has SETTLED.
+  test("an agent that has GONE wins over a refusal it left behind", () => {
+    // Reachable, and the reason this block exists: refuse an open, then have
+    // the agent die — a spawn that fails on the retry sets `gone` from the verb
+    // that failed rather than from the process going, so no exit event fires to
+    // clear what was recorded before it. The face would then say "the agent
+    // itself is running — it answered" under a header saying it is not there.
+    //
+    // The rows a dead agent left are the body, deliberately, with `trouble`
+    // under them saying what happened.
+    expect(faceOf({ ...LIVE, status: "gone", trouble: "the agent exited", unopened: REFUSED }))
+      .toEqual({ kind: "conversation" })
+  })
+
+  test("a refusal being RETRIED keeps its face while the retry is in flight", () => {
+    // The one overlap that goes the other way, and the difference is that
+    // nothing has changed yet: `booting` with a refusal on it is a person who
+    // has just pressed *try again*, and what they are owed is the thing they
+    // pressed still saying what it was about. A body swapped out here would
+    // flash the empty conversation and come back.
+    expect(faceOf({ ...LIVE, status: "booting", unopened: REFUSED }))
+      .toEqual({ kind: "unopened", unopened: REFUSED })
+  })
+
+  test("...where a panel merely STARTING is the conversation", () => {
+    // The same status, the other value, and the pair is what makes the line
+    // above about the refusal rather than about `booting`: the first paint of
+    // every panel is this one, and it draws the conversation.
     expect(faceOf({ ...LIVE, status: "booting" })).toEqual({ kind: "conversation" })
   })
 })

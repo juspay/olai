@@ -462,7 +462,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         case "gone":
           publish(transcript.settle())
           publish(transcript.add("notice", event.why))
-          move({ status: "gone", trouble: event.why })
+          // Through the same door the two open verbs use, so a refusal that was
+          // about a LIVE agent does not outlive the process it was about.
+          wentAway(event.why)
           return
         case "trouble":
           publish(transcript.add("notice", event.message))
@@ -913,6 +915,24 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     }
 
     /**
+     * THE AGENT IS NOT THERE — it never started, it died, the handshake failed.
+     *
+     * The other answer to "the open did not happen", and the one that takes a
+     * refusal with it: `unopened` says *the agent is running and would not open
+     * a conversation*, and the first half of that stops being true here. A
+     * refusal left standing over a dead process is the panel's body saying the
+     * agent answered while its own header says the agent is gone — the same
+     * shape of lie this PR exists to end, one state later.
+     *
+     * Three callers and one rule: the two verbs that open a conversation, and
+     * the process exiting on its own.
+     */
+    const wentAway = (why: string): void => {
+      opened()
+      move({ status: "gone", trouble: why, unopened: null })
+    }
+
+    /**
      * Move to another conversation. The `done` frame of a cancelled turn
      * follows on its own — the agent decides how a turn ended, and a cancel
      * that raced the end of one must not claim otherwise.
@@ -948,7 +968,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             if (outcome.failure.gone === "refused") {
               refusedOpen(outcome.failure, named, what)
             } else {
-              move({ status: "gone", trouble: outcome.failure.message })
+              wentAway(outcome.failure.message)
             }
             return yield* asFailure(outcome.failure)
           }
@@ -986,15 +1006,24 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
        * The refused OPEN, tried again — whichever it was.
        *
        * The prompt-retry's shape one level up ({@link resend}), and its rule:
-       * TAKING the attempt is one step with reading it, under the same permit
-       * `changeSession` holds, so two presses cannot both leave with it. A
-       * second press finds nothing waiting and is told so rather than opening a
-       * second conversation.
+       * IT TAKES. Reading the attempt and emptying the slot are one step, so
+       * whichever press gets there first leaves with it and the other finds
+       * nothing waiting and is told so. Two presses that both read a non-null
+       * attempt would both open — and for a refused `newSession` that is a
+       * second fresh conversation wiping the first, which is the one outcome a
+       * retry must not be able to produce.
        *
-       * It does NOT unmark first. A retry that fails again should leave the
-       * face exactly as it was — still there, still retryable, with the new
-       * reason on it — and that falls out of `changeSession` writing the face
-       * again on the one path that writes it at all.
+       * SYNCHRONOUS, inside the suspend, which is what makes the take atomic:
+       * `changeSession`'s permit cannot be borrowed for it (a semaphore is not
+       * reentrant, and `changeSession` takes that permit itself), and it would
+       * be the wrong permit anyway — the window is between reading the slot and
+       * queueing on it, which is over before either press awaits anything.
+       *
+       * WHAT IS NOT TAKEN IS THE FACE. The cell keeps its reason until
+       * `changeSession` rewrites it, so a retry that fails again leaves the
+       * panel exactly as it was — still saying why, still offering the button —
+       * and one that lands clears both halves at the door a conversation is
+       * entered by ({@link opened}).
        */
       reopen: Effect.suspend(() => {
         const waiting = unopened
@@ -1005,6 +1034,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             }),
           )
         }
+        unopened = null
         return changeSession(waiting.again, state.unopened?.what ?? null)
       }),
       sessions: Effect.catch(
@@ -1053,7 +1083,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               if (outcome.failure.gone === "refused") {
                 refusedOpen(outcome.failure, null, agent.boot)
               } else {
-                move({ status: "gone", trouble: outcome.failure.message })
+                wentAway(outcome.failure.message)
               }
               return
             }

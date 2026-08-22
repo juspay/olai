@@ -477,6 +477,42 @@ Feature: Talking to the agent
     And the agent panel is open
     Then the conversation is titled "the last conversation"
 
+  @agent-stored @scratch:chat
+  Scenario: A message sent while a conversation is opening does not open a second one
+    # THE WINDOW THE REFUSAL FIX OPENED. A conversation is not entered until the
+    # agent has agreed to it — which is what stops a refused load leaving the
+    # server pointing at one — so between a `session/load` going out and its
+    # answer coming back the server is in NO conversation. Anything that booted
+    # in that window found nothing open and started opening one, against a load
+    # already on the wire.
+    #
+    # It is not a race anybody has to arrange: the composer is never disabled, a
+    # prompt typed while the panel is starting is accepted on purpose, and a
+    # load is the one open that takes real time — the agent replays a whole
+    # conversation before it answers, which is why it has a deadline of its own.
+    #
+    # WHAT IT COSTS is the message. The second open goes out behind the first —
+    # it asks for the conversation list, which the agent is not going to answer
+    # while it is busy with the load — so it sits there until its own boot
+    # deadline and the prompt behind it dies with it, in a panel that by then is
+    # perfectly healthy and in a conversation. Against an agent that answers
+    # both at once it costs more than that: two conversations opened, and the
+    # panel in whichever finished last.
+    Given the chat eventually shows "we decided to order the cabinets"
+    When the next conversation load will hang
+    And I open the session picker
+    And I pick the conversation "an older conversation"
+    And I ask the agent "hello"
+    And the agent is released
+    # THE CLAIM: the message waited for the conversation and landed IN it.
+    # Waiting is the right answer to a send in this window rather than a
+    # refusal — there is nothing to tell somebody, because the conversation
+    # their message belongs in is the one being opened.
+    Then the agent's answer mentions "you said: hello"
+    # ... and it is the conversation that was asked for, not one a second open
+    # chose out of a note still naming the one being left.
+    And the conversation is titled "an older conversation"
+
   @scratch:chat
   Scenario: An agent that will not open a conversation is not an agent that has gone
     # The panel's THIRD body, and the distinction it exists for. `session/new`
@@ -528,7 +564,19 @@ Feature: Talking to the agent
     # believing there was a conversation already. A retry answered by doing
     # nothing at all is what that looked like.
     When the agent will load a conversation again
+    # ...and it dawdles, so the retry is IN FLIGHT while the next thing happens.
+    And the next conversation load will hang
     And I try to open it again
+    # A SECOND PRESS FINDS NOTHING WAITING. Reading the attempt and taking it
+    # are one step, so whichever press gets there first leaves with it — and
+    # for a refused `+ new` two presses that both left with it would be a
+    # second fresh conversation wiping the first. The refusal is drawn in this
+    # body because the click was made in it: there is no transcript here to put
+    # it in, and a control that can be refused silently is the one thing
+    # nothing in this panel may be.
+    And I try to open it again
+    Then the chat says the click was refused, with "no conversation is waiting to be opened"
+    When the agent is released
     Then the panel shows no such refusal
     And the conversation is titled "an older conversation"
     And the agent is idle

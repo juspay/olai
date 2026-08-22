@@ -38,19 +38,37 @@ export type Face =
 /**
  * Which of the three this state is.
  *
- * NO AGENT WINS, and that ordering is not arbitrary: `unopened` is a fact about
- * an agent that answered, so a panel with no agent cannot have one — but the
- * cell is a value that arrives over a wire, and a precedence stated here is one
- * that cannot be got wrong by a reader of the two fields who meets them in the
- * other order.
+ * TWO STATUSES OUTRANK A REFUSAL, and both for one reason: `unopened` says *the
+ * agent is running and would not open a conversation*, and neither of them is a
+ * panel where the first half of that sentence is true.
  *
- * BOOTING IS THE CONVERSATION, deliberately. A panel that swapped its whole
- * body out while the agent was starting would flash an explanation at somebody
- * every time they opened the drawer — and `unopened` is a state that has
- * SETTLED, which is what separates it from one that is still in progress.
+ *   - **`off`** — no agent is configured, so nothing was attempted and nothing
+ *     was refused.
+ *   - **`gone`** — the agent is not there any more. Its body is the
+ *     CONVERSATION, deliberately: the rows a dead agent left are kept on screen
+ *     to read, with `trouble` under them saying what happened. A refusal that
+ *     outlived the process it was about would put "the agent itself is running
+ *     — it answered" over a panel whose header says otherwise.
+ *
+ * The cell drops `unopened` at both of those too (`../../../../chat/src/chat.ts`),
+ * so this is the second of two answers rather than the only one — and it is
+ * worth being the second, because the cell is a VALUE THAT ARRIVES OVER A WIRE
+ * and a precedence stated only in the writer is one a reader can meet in the
+ * other order. The path that needs it: an agent that dies without ever exiting
+ * cleanly — a spawn that fails on a retry — sets `gone` from the verb that
+ * failed rather than from the process going, and no event fires to clear a
+ * refusal recorded before it.
+ *
+ * BOOTING DOES NOT, and that is the one arm where the two orders differ. A
+ * panel still starting has `unopened: null` and is the conversation, which is
+ * the first paint; a panel RETRYING a refused open is `booting` with the
+ * refusal still on it, and what a person is owed there is the thing they just
+ * pressed still saying what it was about. Nothing has changed yet.
  */
 export const faceOf = (state: ChatState): Face => {
   if (state.status === "off") return { kind: "no-agent" }
   const unopened = state.unopened
-  return unopened === null ? { kind: "conversation" } : { kind: "unopened", unopened }
+  return unopened === null || state.status === "gone"
+    ? { kind: "conversation" }
+    : { kind: "unopened", unopened }
 }

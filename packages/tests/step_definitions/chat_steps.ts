@@ -256,6 +256,13 @@ When(
   },
 );
 
+/** Make the next `session/load` sit on the wire until `the agent is released`.
+ *  That stretch is the one in which the panel is between conversations, which
+ *  is the only window a second open can be started in. */
+When("the next conversation load will hang", function (this: OlaiWorld) {
+  fs.writeFileSync(path.join(this.scratch(), ".agent-hold-load"), "");
+});
+
 /** ...and it stops refusing, so `try again` has something to succeed at. */
 When(
   "the agent will {word} a conversation again",
@@ -2138,6 +2145,16 @@ When("I try to open it again", async function (this: OlaiWorld) {
   await again.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await again.click();
 });
+
+/** What a CLICK was told, wherever the panel says it. The refused-conversation
+ *  body draws the same line the transcript does — there is no transcript in it
+ *  to put one in, and the button it sits under is the only control there is. */
+Then(
+  "the chat says the click was refused, with {string}",
+  async function (this: OlaiWorld, said: string) {
+    await saysThat(this, CHAT_REFUSAL, said, "refused click");
+  },
+);
 
 Then("there is nothing to type into", async function (this: OlaiWorld) {
   assert.strictEqual(

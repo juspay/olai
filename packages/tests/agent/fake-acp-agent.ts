@@ -112,6 +112,11 @@
  * in) rather than for a clock, so the scenario says when — a dot-file, which
  * the store's walk prunes, so waiting for one is not itself an edit.
  *
+ * A LOAD THAT DAWDLES is `.agent-hold-load`, released by the same
+ * `.agent-release` a held turn waits on: `session/load` sits on the wire until
+ * a scenario says when, which is the only stretch in which a client is between
+ * conversations and a second open can be started against the first.
+ *
  * REFUSING TO OPEN A CONVERSATION is a dot-file per verb
  * (`.agent-refuse-new`, `.agent-refuse-load`), for the same reason stored
  * sessions are an environment variable: it is a property of the machine rather
@@ -307,6 +312,19 @@ const forgotten = (sessionId: string): boolean =>
  */
 const refusesToOpen = (verb: "new" | "load"): boolean =>
   existsSync(`${cwd}/.agent-refuse-${verb}`)
+
+/**
+ * Whether `session/load` DAWDLES — armed by `.agent-hold-load`, released by
+ * the same `.agent-release` a held turn waits on.
+ *
+ * A load is the one open that takes real time: the agent re-opens a
+ * conversation and replays every message in it before it answers, which is why
+ * the client gives it its own two-minute deadline. `hold` is how a scenario
+ * gets to look at the client DURING one — the stretch where a person's next
+ * keystroke lands on a panel that is between conversations, and the only
+ * stretch in which a second open can be started against the first.
+ */
+const holdsLoad = (): boolean => existsSync(`${cwd}/.agent-hold-load`)
 
 /** The client's own two, NEWEST LAST — so a client that takes the first entry
  *  instead of the most recently updated one adopts the wrong conversation. */
@@ -1983,6 +2001,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         refuse(id, -32603, `no such conversation: ${String(params["sessionId"])}`)
         return
       }
+      // ...and BEFORE any of it too, for the same reason: a load that is still
+      // on the wire has opened nothing, and what a scenario looks at in that
+      // window is a client that is between conversations.
+      if (holdsLoad()) await released()
       openSession(params)
       sessionId = String(params["sessionId"] ?? sessionId)
       replay()

@@ -34,14 +34,16 @@
  * heard of.
  */
 
-import type { Unopened as Refusal } from "@olai/surface"
+import type { Unopened as Refused } from "@olai/surface"
+import { Show } from "solid-js"
 
 import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
+import { Refusal } from "./Refusal.tsx"
 import type { Chat } from "./state.ts"
 
 export function Unopened(
-  props: { readonly chat: Chat; readonly unopened: Refusal },
+  props: { readonly chat: Chat; readonly unopened: Refused },
 ) {
   return (
     <div
@@ -83,6 +85,25 @@ export function Unopened(
       >
         try again
       </button>
+
+      {/* WHAT THAT BUTTON WAS TOLD, when it was told something. The panel's
+          refusal line lives in the transcript, and there is no transcript here
+          — so without this a click on the one control in this body could be
+          refused and say nothing at all, which is the one thing HACKING.md
+          asks of every error. It is the same component the conversation draws,
+          because it is the same kind of answer.
+
+          The press it reports is the SECOND one: `reopen` takes the attempt as
+          it reads it, so a retry already in flight leaves nothing for the next
+          click to leave with, and it is told so rather than opening a second
+          conversation on top of the first. */}
+      <Show when={props.chat.refused()}>
+        {(failure) => (
+          <div class="mt-3" data-testid={TESTID.chatRefused}>
+            <Refusal failure={failure()} />
+          </div>
+        )}
+      </Show>
     </div>
   )
 }

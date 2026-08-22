@@ -1251,21 +1251,40 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         }),
       )
 
-    const boot = booting.withPermit(
-      Effect.gen(function*() {
-        if (stopped) return yield* new AgentGone({ gone: "unreachable", why: "the server is shutting down" })
-        if (live !== null && session !== null) return
-        const started = live ?? (yield* start())
-        live = started
-        // `onError` hands the fiber's CAUSE, not the failure — `String` on one
-        // of those is `Cause([Fail(…)])` with the reason buried in it, which
-        // is a notice a person reads. `reasonOf` squashes it back down.
-        yield* Effect.onError(openSession(started), (cause) =>
-          Effect.sync(() => {
-            trouble(`the agent could not open a session: ${reasonOf(cause)}`)
-          }))
-      }),
-    )
+    /**
+     * The boot itself, WITHOUT the permit — so that a caller which has to hold
+     * that permit across more than a boot can ({@link opening}).
+     *
+     * Split from {@link boot} rather than duplicated, because the thing being
+     * serialized is not "booting" but OPENING A CONVERSATION, and there are two
+     * ways in.
+     */
+    const bringUp = Effect.gen(function*() {
+      if (stopped) return yield* new AgentGone({ gone: "unreachable", why: "the server is shutting down" })
+      if (live !== null && session !== null) return
+      const started = live ?? (yield* start())
+      live = started
+      // `onError` hands the fiber's CAUSE, not the failure — `String` on one
+      // of those is `Cause([Fail(…)])` with the reason buried in it, which
+      // is a notice a person reads. `reasonOf` squashes it back down.
+      yield* Effect.onError(openSession(started), (cause) =>
+        Effect.sync(() => {
+          trouble(`the agent could not open a session: ${reasonOf(cause)}`)
+        }))
+    })
+
+    const boot = booting.withPermit(bringUp)
+
+    /** The process that came up, or the refusal that there is none. The tail
+     *  both doors below share. */
+    const onLive = <A>(
+      use: (at: Live) => Effect.Effect<A, AgentGone>,
+    ): Effect.Effect<A, AgentGone> => {
+      const at = live
+      return at === null
+        ? Effect.fail(new AgentGone({ gone: "unreachable", why: "the agent is not running" }))
+        : use(at)
+    }
 
     /** Every verb: boot if necessary, then act on the process that came up. */
     const withLive = <A>(
@@ -1273,10 +1292,38 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     ): Effect.Effect<A, AgentGone> =>
       Effect.gen(function*() {
         yield* boot
-        const at = live
-        if (at === null) return yield* new AgentGone({ gone: "unreachable", why: "the agent is not running" })
-        return yield* use(at)
+        return yield* onLive(use)
       })
+
+    /**
+     * ... and the two verbs that OPEN a conversation, which hold the boot's own
+     * permit for the whole of it.
+     *
+     * ONE OPEN AT A TIME, and this is what makes that structural. `boot`
+     * short-circuits on the module being in a conversation, and a conversation
+     * is not entered until the agent has agreed to it ({@link load}) — so
+     * between a `session/load` going out and its answer coming back, the module
+     * is in none, and any verb that booted in that window would start a SECOND
+     * open against a live one. The composer is never disabled and a prompt
+     * typed while the panel is `booting` is accepted, so that window is a
+     * person's ordinary next keystroke rather than a race somebody has to
+     * arrange: it ended with two conversations opened and the panel in whichever
+     * finished last, which is not the one they asked for.
+     *
+     * A concurrent verb WAITS here rather than being refused. There is nothing
+     * to tell it — the conversation it should act in is the one being opened —
+     * and the initial boot has always behaved this way; what was missing is
+     * that a picker-driven open released the permit before doing its work.
+     */
+    const opening = <A>(
+      use: (at: Live) => Effect.Effect<A, AgentGone>,
+    ): Effect.Effect<A, AgentGone> =>
+      booting.withPermit(
+        Effect.gen(function*() {
+          yield* bringUp
+          return yield* onLive(use)
+        }),
+      )
 
     /** ... and the ones that also need a conversation to act IN. */
     const withSession = <A>(
@@ -1400,7 +1447,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       prompt,
       steer,
       cancel,
-      newSession: withLive((at) =>
+      newSession: opening((at) =>
         Effect.gen(function*() {
           session = null
           // BEFORE the break, so the question is settled on the row it is
@@ -1411,7 +1458,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         })
       ),
       loadSession: (id: string) =>
-        withLive((at) =>
+        opening((at) =>
           Effect.gen(function*() {
             if (!at.canLoad) {
               return yield* new AgentGone({
