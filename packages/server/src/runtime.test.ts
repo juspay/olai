@@ -350,7 +350,8 @@ test("a reader holding a key across a file's birth is handed the body", () =>
 
       // TWO frames, in this order: the upsert that says the collection has a new
       // key (which cannot carry a body — nothing has read one), and the body
-      // read for the reader holding it.
+      // read for the reader holding it. That order is `published.ts`'s
+      // holder-across-birth contract, and this connector's apply-then-unread.
       expect(yield* open.take).toEqual({ rev: 2, text: null, refused: false })
       expect(yield* open.take).toEqual({
         rev: 2,
