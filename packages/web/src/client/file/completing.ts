@@ -53,7 +53,7 @@
  * once, and `../Nothing.tsx` was already making it.
  */
 
-import { type FileKind, FILE_KINDS, fileKind } from "@olai/format"
+import { bareOf, type FileKind, FILE_KINDS, fileKind } from "@olai/format"
 
 import { oneNamed } from "./kinds.ts"
 
@@ -66,12 +66,16 @@ import { oneNamed } from "./kinds.ts"
  * handed ({@link ../NewFile.tsx}), rather than a fourth name for one thing.
  */
 export type Meant =
-  /** Nobody has asked for anything: an empty box, or one holding only spaces. */
-  | { readonly nothing: true }
   /** The completed path, exactly as the ops layer will be asked for it. */
   | { readonly file: string }
   /** The box's own words — nothing was asked for. */
   | { readonly refused: string }
+  /** ...and `null` for text that names nothing at all: an empty box, or one
+   *  holding only spaces. An answer rather than a failure, the way the
+   *  registry's own `fileKind` answers `null` for a file the set is not
+   *  holding — a third SHAPE would be a sentinel a reader has to learn where
+   *  the language already has one. */
+  | null
 
 /**
  * What `typed` means at a door that makes `of` — trimmed, completed, and
@@ -89,20 +93,20 @@ export type Meant =
  */
 export const meantAt = (of: FileKind, typed: string): Meant => {
   const name = typed.trim()
-  if (name === "") return { nothing: true }
+  if (name === "") return null
+  const ext = FILE_KINDS[of].ext
   const carried = fileKind(name)
   if (carried === of) return { file: name }
-  if (carried === null) return { file: `${name}${FILE_KINDS[of].ext}` }
-  // HOW MANY CHARACTERS COME OFF is the registry's answer, not a `lastIndexOf`
-  // — the same rule `stemOf` is, minus its basename step, which would offer
-  // `plan` for a `notes/plan.md` and quietly move the file to the root.
-  const bare = name.slice(0, -FILE_KINDS[carried].ext.length)
+  if (carried === null) return { file: `${name}${ext}` }
+  // HOW MANY CHARACTERS COME OFF is the registry's own answer and not a
+  // `lastIndexOf` here: `bareOf` is the rule `stemOf` is made of, with the
+  // path left whole — taking the basename would offer `plan` for a
+  // `notes/plan.md` and quietly move the file to the root.
+  const bare = bareOf(name)
   const said = `\`${name}\` is ${oneNamed(carried)}, not ${oneNamed(of)}`
-  // A name that is nothing BUT a suffix leaves nothing to suggest typing, and
-  // an empty pair of backticks is advice about nothing.
-  return {
-    refused: bare === ""
-      ? `${said}.`
-      : `${said} — type \`${bare}\` to make \`${bare}${FILE_KINDS[of].ext}\`.`,
-  }
+  // Only the ADVICE is conditional, so the sentence is written once: a name
+  // that is nothing but a suffix leaves nothing to suggest typing, and an empty
+  // pair of backticks is advice about nothing.
+  const advice = bare === "" ? "" : ` — type \`${bare}\` to make \`${bare}${ext}\``
+  return { refused: `${said}${advice}.` }
 }

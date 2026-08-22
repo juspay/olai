@@ -90,6 +90,6 @@ test("a path the ops layer will refuse is completed and passed on all the same",
 // file: it is a person who has not typed anything, which the box used to decide
 // for itself in a second `trim()` beside this one.
 test("an empty box, or one holding only spaces, has asked for nothing", () => {
-  expect(meantAt("outline", "")).toEqual({ nothing: true })
-  expect(meantAt("document", "   ")).toEqual({ nothing: true })
+  expect(meantAt("outline", "")).toBeNull()
+  expect(meantAt("document", "   ")).toBeNull()
 })

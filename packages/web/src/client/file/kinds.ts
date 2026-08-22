@@ -4,9 +4,10 @@
  * loud.
  *
  * The format's registry (`@olai/format`'s `kinds.ts`) says which kinds exist
- * and what each is called on disk; it cannot say where one goes, because a
- * route is this client's own vocabulary and the format cannot import it. So
- * that half lives here, in the layer that owns the question.
+ * and what each is called on disk; it cannot say what a SCENARIO grips one by
+ * or what a READER is told one is, because both are this client's own
+ * vocabulary and the format cannot import it. So those live here, in the layer
+ * that owns the question.
  *
  * WHERE A ROW GOES IS NOT HERE ANY MORE, and its leaving is worth recording:
  * this file held a `routeTo(kind, file)` that answered "a body opens the page
@@ -61,7 +62,7 @@ export const ROW_TESTID: Record<FileKind, string> = {
  * unicorn) — and because only one of the two moods wants it: "No outline named
  * that" takes the bare noun, "is a document, not an outline" takes both.
  */
-export interface Named {
+interface Named {
   /** The noun on its own — what a sentence that already has an article, or
    *  wants none, spends. */
   readonly noun: string
@@ -75,8 +76,8 @@ export const NAMED: Record<FileKind, Named> = {
   hypertext: { noun: "page", article: "a" },
 }
 
-/** ONE of them — "an outline", "a page". Beside the table rather than at the
- *  two call sites that want it, so how the two fields go together is written
- *  down once. */
+/** ONE of them — "an outline", "a page". Beside the table rather than in the
+ *  sentence that spends it twice (`./completing.ts`'s refusal names two kinds
+ *  in one breath), so how the two fields go together is written down once. */
 export const oneNamed = (kind: FileKind): string =>
   `${NAMED[kind].article} ${NAMED[kind].noun}`

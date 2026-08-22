@@ -110,8 +110,11 @@ const TABLES: ReadonlyArray<{ file: string; over: "FileKind" | "BodyKind" }> = [
   // What a scenario grips a row of this kind by, and what a READER is told a
   // kind is — the client's vocabulary seam, spent by the empty page that says
   // the directory holds nothing by that name and by the refusal under the
-  // sidebar's path box. Two tables, one file, one entry: this list is about
-  // where a table LIVES, and the assertion below is per kind per table.
+  // sidebar's path box. TWO TABLES, one file, one entry, because this list is
+  // about where a table lives: the sweep below reads a FILE, so what it holds
+  // for this row is that every kind is somewhere in it, and what makes the
+  // coverage per table is the type checker on each `Record` — which is what it
+  // has always been (the paragraph above says so).
   { file: "packages/web/src/client/file/kinds.ts", over: "FileKind" },
   // What the body of one is drawn as, and whether its page can write it.
   { file: "packages/web/src/client/document/faces.tsx", over: "BodyKind" },

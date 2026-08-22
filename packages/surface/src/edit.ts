@@ -889,9 +889,15 @@ export const Edit = Schema.Union([
    *
    * {@link docNew}'s twin, spelled the same way and for the same reasons: the
    * path is what a person types, because a file's name is its address in this
-   * app, and every rule about that path — relative, `.olai`, no `..`, not one
-   * the set already holds — is the OP's, surfaced verbatim rather than
-   * re-implemented in a browser that would then disagree with an agent.
+   * app, and every rule about that path — relative, no `..`, not one the set
+   * already holds — is the OP's, surfaced verbatim rather than re-implemented
+   * in a browser that would then disagree with an agent.
+   *
+   * WHAT ARRIVES IS COMPLETED, and that is the one half the browser settles
+   * first: the sidebar's box knows which kind it makes, so a person may type
+   * `Foo` and this field carries `Foo.olai` (`@olai/web`'s
+   * `file/completing.ts`). The op is unchanged by it and still demands the
+   * suffix — an agent naming a file has no door around it.
    *
    * IT CARRIES NO SEED, and that is the one place it says less than the tool
    * does. `create_outline` may be born holding a whole tree, which is what

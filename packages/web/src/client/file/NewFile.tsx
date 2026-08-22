@@ -11,7 +11,7 @@
  * underneath, the click that must not close the mobile drawer — was the same
  * decision twice, free to drift the day one of them grew a fifth.
  *
- * ## What may judge a path: still nothing here
+ * ## Nothing here judges a path, and one thing completes one
  *
  * A path that is absolute, climbs with `..` or names a file the set already
  * holds is refused by `create_outline` / `create_document` in its own words,
@@ -69,7 +69,7 @@ export function NewFile(props: {
     // `./completing.ts`'s answer rather than a reading of its own: an empty box
     // is not a refusal to draw — nobody has asked for anything yet.
     const meant = meantAt(props.making.of, path())
-    if ("nothing" in meant) return
+    if (meant === null) return
     // ONE LINE draws both sentences, and that is the point of drawing the box's
     // own one here rather than beside it: which layer refused a path is not a
     // difference the person who typed it should have to see.

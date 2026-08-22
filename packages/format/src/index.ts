@@ -172,6 +172,7 @@ export type { SetDelta } from "./patch.ts"
  *  and the sweep that says nobody spelled a suffix elsewhere has to read the
  *  list itself. */
 export {
+  bareOf,
   bodyKind,
   DOCUMENT_EXT,
   FILE_EXTS,
