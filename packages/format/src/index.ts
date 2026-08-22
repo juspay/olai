@@ -813,6 +813,25 @@ export {
 } from "./page.ts"
 
 /**
+ * THE WHOLE DIRECTORY AS A PAGE (./everywhere.ts) — `/search?q=…`, the one
+ * page whose question IS a query.
+ *
+ * Public because its shapes ride on {@link Shown} like every other arm's, and
+ * because the browser draws them: a group is a file heading and the tree under
+ * it, a found document is a row beside the groups, and the cap is a number the
+ * bar has to be able to say out loud (docs/brainstorming/one-search-box.md).
+ */
+export {
+  /** How many matched nodes `/search` draws before the bar starts saying so. */
+  EVERYWHERE_LIMIT,
+  Everywhere,
+  /** WHAT THE WHOLE DIRECTORY ANSWERS, over one revision of one set. */
+  everywhereOf,
+  EverywhereGroup,
+  FoundDocument,
+} from "./everywhere.ts"
+
+/**
  * WHICH OF THAT PAGE'S NODES A QUERY SELECTS (./narrowing.ts) — the reading
  * beside the one above, and what a filter box is answered with.
  *

@@ -59,7 +59,8 @@ import { Backlink, backlinksOf, Referrer, referrersTo } from "./backlinks.ts"
 import { Custom } from "./custom.ts"
 import { dailyNotesOn, DayGroup, datedOn } from "./dates.ts"
 import { type Derived, type InTheWay, nodeNamed, nodesOf, Row, rowsOf } from "./derive.ts"
-import type { Face } from "./document.ts"
+import type { Document, Face } from "./document.ts"
+import { Everywhere, everywhereOf } from "./everywhere.ts"
 import { bodyKind, FileKind, fileKind } from "./kinds.ts"
 import { isPutAway, isTrashed, type LocatedRegular } from "./node.ts"
 import { BrokenFile } from "./set.ts"
@@ -95,6 +96,27 @@ export const PageRequest = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("agenda"), today: Schema.String }),
   /** Everything that was put away. */
   Schema.Struct({ kind: Schema.Literal("trash") }),
+  /**
+   * THE WHOLE DIRECTORY, ASKED — `/search?q=…`, the one page whose question
+   * IS a query (`./everywhere.ts`).
+   *
+   * IT CARRIES THE WORDS, which is exactly what the paragraph above says a
+   * page request must not do — so the exception is worth naming rather than
+   * noticing. A `?q=` on any other page NARROWS what that page draws, and a
+   * page reading that carried it would re-open this subscription and re-send
+   * every row of the page it is already drawing for each settled keystroke
+   * (docs/brainstorming/filter-rides-the-page.md §4). Here the words are not a
+   * narrowing of a page: there is no `/search` without a query, its rows ARE
+   * the answer to those words, and re-sending them when the words change is
+   * re-sending the answer. The settle rides with them all the same — the
+   * browser puts the words on this request only once a pair of hands has
+   * stopped moving (`@olai/web`'s `filter/typed.ts`).
+   *
+   * NO DAY on the arm, unlike the agenda's: what `date:today` means is the
+   * SERVER's day at every door (docs/search.md), so the clock this is answered
+   * on is the one `search_nodes` is answered on and not the asker's.
+   */
+  Schema.Struct({ kind: Schema.Literal("search"), text: Schema.String }),
 ])
 export type PageRequest = typeof PageRequest.Type
 
@@ -219,6 +241,10 @@ export const Shown = Schema.Union([
      */
     records: Schema.Int,
   }),
+  /** WHAT THE WHOLE DIRECTORY ANSWERS — `/search?q=…`, declared next door
+   *  because it is a reading of its own rather than a shape of this one
+   *  (`./everywhere.ts`). */
+  Everywhere,
   /** An outline whose file did not parse: it has no tree to draw, so its own
    *  pane carries its errors instead. Every other outline is unaffected. */
   Schema.Struct({ kind: Schema.Literal("broken"), file: BrokenFile }),
@@ -298,11 +324,16 @@ export const samePageRequest: (a: PageRequest, b: PageRequest) => boolean = Sche
  */
 export const pageOf = (
   derived: Derived,
-  faces: ReadonlyArray<Face>,
+  faces: ReadonlyArray<Document>,
   broken: ReadonlyArray<BrokenFile>,
   request: PageRequest,
+  /** What the grammar's relative words count from, for the ONE page that is a
+   *  QUERY (`./everywhere.ts`). Every other arm names a place and reads no
+   *  clock; this one is answered on the SERVER's day, exactly as
+   *  `search_nodes` and the page's own narrowing are. */
+  now: string,
 ): PageReading => {
-  const shows = shownOf(derived, faces, broken, request)
+  const shows = shownOf(derived, faces, broken, request, now)
   return {
     shows,
     names: namesFor(derived, shows, request.kind === "at" ? request.address : null),
@@ -312,7 +343,7 @@ export const pageOf = (
 /** The OUTLINES' paths, in path order — what the trash reads and what the front
  *  page picks its first file from. A narrowing of the one list rather than a
  *  list beside it: asking says which files are being left out. */
-const outlinesAmong = (faces: ReadonlyArray<Face>): ReadonlyArray<string> =>
+const outlinesAmong = (faces: ReadonlyArray<Document>): ReadonlyArray<string> =>
   faces.filter((face) => fileKind(face.path) === "outline").map((face) => face.path)
 
 /** WHAT THE ADDRESS PUTS ON THE SCREEN, without the names table beside it —
@@ -321,9 +352,11 @@ const outlinesAmong = (faces: ReadonlyArray<Face>): ReadonlyArray<string> =>
  *  matches over the records this page draws and resolves no id at all. */
 export const shownOf = (
   derived: Derived,
-  faces: ReadonlyArray<Face>,
+  faces: ReadonlyArray<Document>,
   broken: ReadonlyArray<BrokenFile>,
   request: PageRequest,
+  /** { pageOf}'s clock, for the one arm that reads one. */
+  now: string,
 ): Shown => {
   // THE PAGES THE APP CLAIMED BY NAME FIRST, and then the address — the same
   // reading order the browser's parser uses, because it is the same precedence:
@@ -333,6 +366,12 @@ export const shownOf = (
     return { kind: "agenda", date: request.today, agenda: agendaOf(derived, request.today) }
   }
   if (request.kind === "trash") return trashOf(derived, faces)
+  // THE ONE PAGE THAT IS A QUERY, and the only arm here that reads the clock:
+  // `date:today` on `/search?q=` means the day it is where the files are, which
+  // is the same sentence every other door onto this grammar makes.
+  if (request.kind === "search") {
+    return everywhereOf(derived, faces, request.text, now)
+  }
   if (request.kind === "day") {
     return {
       kind: "day",
@@ -410,7 +449,7 @@ export const shownOf = (
  *  sidebar sorts by, the rows of those that hold anything, and what emptying
  *  would take. One spelling for the route and for an archive's own address, so
  *  the two doors cannot show two different trashes. */
-const trashOf = (derived: Derived, faces: ReadonlyArray<Face>): Shown => {
+const trashOf = (derived: Derived, faces: ReadonlyArray<Document>): Shown => {
   const files = outlinesAmong(faces).filter(isTrashed)
   return {
     kind: "trash",
@@ -505,6 +544,16 @@ export function* narrowableIn(shows: Shown): Generator<LocatedRegular> {
     case "trash":
       for (const group of shows.groups) yield* inRows(group.rows)
       return
+    // THE EVERYWHERE PAGE IS NARROWABLE LIKE ANY OTHER, and that is what makes
+    // its rows say why they are drawn without a second field on each of them:
+    // the narrowing beside this reading answers which of these rows the query
+    // selected, and the browser lights and dims out of that one answer
+    // (`./everywhere.ts`). The prune it feeds is a no-op here — these rows are
+    // already what the query kept — which is the honest shape rather than a
+    // special case: a page pruned by its own answer is the page.
+    case "search":
+      for (const group of shows.groups) yield* inRows(group.rows)
+      return
     case "document":
     case "broken":
     case "nothing":
@@ -557,6 +606,11 @@ function* referencedIn(shows: Shown): Generator<LocatedRegular> {
       for (const day of shows.agenda.upcoming) yield* situatedIn(day.groups)
       return
     case "trash":
+      for (const group of shows.groups) yield* waitedOnIn(group.rows)
+      return
+    // A search row draws its `blocked by` like a tree row does, so the ids it
+    // waits on are names this page spends.
+    case "search":
       for (const group of shows.groups) yield* waitedOnIn(group.rows)
       return
     case "broken":

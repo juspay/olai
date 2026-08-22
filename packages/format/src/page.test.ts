@@ -32,7 +32,7 @@ import { agendaOf } from "./agenda.ts"
 import { backlinksOf, referrersTo } from "./backlinks.ts"
 import { dailyNotesOn, datedOn } from "./dates.ts"
 import { derive, nodesOf, rowsOf } from "./derive.ts"
-import type { Face } from "./document.ts"
+import type { Document } from "./document.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
 import { PageReading, type PageRequest, pageOf, samePageReading } from "./page.ts"
@@ -62,8 +62,10 @@ const TODAY = "2026-08-10"
  *  (the set's own documents, which ARE faces plus their content). A face's
  *  links and tags are no business of these claims, so the fixtures say only
  *  what a path is; the referrers case below writes its own with links in. */
-const facesOf = (paths: ReadonlyArray<string>): ReadonlyArray<Face> =>
-  paths.map((path) => ({ path, title: path, links: [], tags: [], props: {} }) as unknown as Face)
+const facesOf = (paths: ReadonlyArray<string>): ReadonlyArray<Document> =>
+  paths.map((path) =>
+    ({ kind: "hypertext", path, title: path, links: [], tags: [], props: {} }) as unknown as Document
+  )
 
 const FILES = ["garden.olai", "house.olai"]
 /** Two of these are about the day arm: one NAMED for a date, which IS that
@@ -82,7 +84,7 @@ const readAt = (
   files = FILES,
   broken = READABLE,
   set = SET,
-) => pageOf(set, facesOf([...files, ...DOCUMENTS]), broken, request).shows
+) => pageOf(set, facesOf([...files, ...DOCUMENTS]), broken, request, TODAY).shows
 
 const at = (path: string, element: string | null = null): PageRequest => ({
   kind: "at",
@@ -125,8 +127,8 @@ test("an outline the directory does not have is a nothing that names it", () => 
 
 test("a directory with no outlines at all is the other nothing", () => {
   const nothing = { kind: "nothing", sought: "outline", requested: null } as const
-  expect(pageOf(SET, [], READABLE, at("shed.olai")).shows).toEqual(nothing)
-  expect(pageOf(SET, [], READABLE, HOME).shows).toEqual(nothing)
+  expect(pageOf(SET, [], READABLE, at("shed.olai"), TODAY).shows).toEqual(nothing)
+  expect(pageOf(SET, [], READABLE, HOME, TODAY).shows).toEqual(nothing)
 })
 
 test("a document route opens that document, by path", () => {
@@ -252,7 +254,7 @@ test("the trash draws each archive that has something in it, and counts the SET"
 // ── the names table ────────────────────────────────────────────────────
 
 test("every id this page points at is resolved, once each", () => {
-  const reading = pageOf(SET, facesOf(FILES), READABLE, at("house.olai"))
+  const reading = pageOf(SET, facesOf(FILES), READABLE, at("house.olai"), TODAY)
   // `install` sees `herbs`; `linky`'s TITLE addresses the same node. One entry.
   expect(reading.names).toEqual([
     { id: "herbs", title: "the herb bed", file: "garden.olai" },
@@ -263,12 +265,12 @@ test("an id nothing declares is absent — the honest dangling link", () => {
   const set = derive(nodesOfFiles({
     "house.olai": `{"id":"a","ord":"a0","title":"a","see":["gone"]}`,
   }))
-  expect(pageOf(set, facesOf(["house.olai"]), READABLE, at("house.olai")).names)
+  expect(pageOf(set, facesOf(["house.olai"]), READABLE, at("house.olai"), TODAY).names)
     .toEqual([])
 })
 
 test("the address the page IS gets a name too — the palette's pin row asks it", () => {
-  const reading = pageOf(SET, facesOf(FILES), READABLE, node("herbs"))
+  const reading = pageOf(SET, facesOf(FILES), READABLE, node("herbs"), TODAY)
   expect(reading.names.some((one) => one.id === "herbs")).toBe(true)
 })
 
@@ -311,7 +313,7 @@ test("the trash is `rowsOf` per archive plus `nodesOf`, exactly", () => {
 })
 
 test("a document page is `referrersTo`, exactly", () => {
-  const faces: ReadonlyArray<Face> = [
+  const faces: ReadonlyArray<Document> = [
     { path: "notes/finishes.md", title: "finishes", links: [], tags: [], props: {} },
     {
       path: "house.olai",
@@ -320,8 +322,8 @@ test("a document page is `referrersTo`, exactly", () => {
       tags: [],
       props: {},
     },
-  ] as unknown as ReadonlyArray<Face>
-  const shows = pageOf(SET, faces, READABLE, at("notes/finishes.md")).shows
+  ] as unknown as ReadonlyArray<Document>
+  const shows = pageOf(SET, faces, READABLE, at("notes/finishes.md"), TODAY).shows
   expect(shows.kind === "document" ? shows.referrers : undefined)
     .toEqual(referrersTo(addressOf("notes/finishes.md", null)!, faces, SET))
 })
@@ -334,7 +336,7 @@ test("a document page carries the frontmatter its face already has", () => {
   const empty = readAt(at("notes/finishes.md"))
   expect(empty.kind === "document" ? empty.props : undefined).toEqual({})
 
-  const faces: ReadonlyArray<Face> = [
+  const faces: ReadonlyArray<Document> = [
     {
       path: "notes/finishes.md",
       title: "Finishes",
@@ -342,8 +344,8 @@ test("a document page carries the frontmatter its face already has", () => {
       tags: [],
       props: { agent: "claude-opus", owners: ["alice", "bob"] },
     },
-  ] as unknown as ReadonlyArray<Face>
-  const shown = pageOf(SET, faces, READABLE, at("notes/finishes.md")).shows
+  ] as unknown as ReadonlyArray<Document>
+  const shown = pageOf(SET, faces, READABLE, at("notes/finishes.md"), TODAY).shows
   expect(shown.kind === "document" ? shown.props : undefined).toEqual({
     agent: "claude-opus",
     owners: ["alice", "bob"],
@@ -370,6 +372,12 @@ const EVERY_ROUTE: ReadonlyArray<PageRequest> = [
   { kind: "day", date: "2026-01-01" },
   { kind: "agenda", today: TODAY },
   { kind: "trash" },
+  // The one page whose question IS a query — an empty box, a query that finds
+  // something across two files, and a query that finds nothing, because the
+  // three are three different shapes on the wire.
+  { kind: "search", text: "" },
+  { kind: "search", text: "install" },
+  { kind: "search", text: "zzz-nothing" },
 ]
 
 for (const request of EVERY_ROUTE) {
@@ -379,6 +387,7 @@ for (const request of EVERY_ROUTE) {
       facesOf([...WITH_TRASH, ...DOCUMENTS]),
       READABLE,
       request,
+      TODAY,
     )
     const back = decode(JSON.parse(JSON.stringify(encode(reading))))
     expect(back).toEqual(reading)
@@ -390,8 +399,8 @@ for (const request of EVERY_ROUTE) {
 }
 
 test("two readings of one set are the same reading, and a moved set is not", () => {
-  const before = pageOf(SET, facesOf(FILES), READABLE, at("house.olai"))
-  expect(samePageReading(before, pageOf(SET, facesOf(FILES), READABLE, at("house.olai"))))
+  const before = pageOf(SET, facesOf(FILES), READABLE, at("house.olai"), TODAY)
+  expect(samePageReading(before, pageOf(SET, facesOf(FILES), READABLE, at("house.olai"), TODAY)))
     .toBe(true)
   const moved = derive(
     RECORDS.map((one) =>
@@ -400,6 +409,6 @@ test("two readings of one set are the same reading, and a moved set is not", () 
         : one
     ) as ReadonlyArray<Located>,
   )
-  expect(samePageReading(before, pageOf(moved, facesOf(FILES), READABLE, at("house.olai"))))
+  expect(samePageReading(before, pageOf(moved, facesOf(FILES), READABLE, at("house.olai"), TODAY)))
     .toBe(false)
 })

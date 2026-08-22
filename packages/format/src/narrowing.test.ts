@@ -30,7 +30,7 @@ import { addressOf } from "./address.ts"
 import { type Agenda, keepingOwed, owedIn } from "./agenda.ts"
 import { type DayGroup, datedIn } from "./dates.ts"
 import { derive, type Row } from "./derive.ts"
-import type { Face } from "./document.ts"
+import type { Document } from "./document.ts"
 import {
   keeping,
   keepingDated,
@@ -87,8 +87,10 @@ const SET = derive(nodesOfFiles({
 const TODAY = "2026-08-10"
 
 const FILES = ["Archive.olai", "_olai/Trash.olai", "garden.olai", "house.olai"]
-const facesOf = (paths: ReadonlyArray<string>): ReadonlyArray<Face> =>
-  paths.map((path) => ({ path, title: path, links: [], tags: [] } as unknown as Face))
+const facesOf = (paths: ReadonlyArray<string>): ReadonlyArray<Document> =>
+  paths.map((path) =>
+    ({ kind: "hypertext", path, title: path, links: [], tags: [], props: {} } as unknown as Document)
+  )
 const FACES = facesOf(FILES)
 const READABLE: ReadonlyArray<BrokenFile> = []
 
@@ -114,7 +116,8 @@ const PAGES: ReadonlyArray<readonly [string, PageRequest]> = [
  *  nothing. */
 const QUERIES = ["door", "walnut", "is:done", "is:todo", "is:trashed door", "zzz", "#home"]
 
-const shownAt = (request: PageRequest): Shown => shownOf(SET, FACES, READABLE, request)
+const shownAt = (request: PageRequest): Shown =>
+  shownOf(SET, FACES, READABLE, request, TODAY)
 
 const selectedBy = (matches: NarrowingAnswer["matches"]): Selected =>
   new Map(matches.map((one) => [one.id as string, one]))
@@ -165,6 +168,7 @@ const narrowedPage = (shows: Shown, selected: Selected): unknown => {
         rows: shows.groups.map((group) => [group.file, idsOfRows(keeping(group.rows, selected))]),
         places: shows.groups.reduce((total, group) => total + rowsIn(group.rows), 0),
       }
+    case "search":
     case "document":
     case "broken":
     case "nothing":
@@ -189,6 +193,7 @@ const matchesOn = (shows: Shown, selected: Selected): number => {
         (total, group) => total + matchedIn(group.rows, selected),
         0,
       )
+    case "search":
     case "document":
     case "broken":
     case "nothing":

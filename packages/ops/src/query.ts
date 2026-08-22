@@ -611,8 +611,14 @@ export const owed = (derived: Derived, request: OwedRequest): Owed =>
  * there is no projection per page per revision and no second list to keep in
  * step with the one the directory was assembled from.
  */
-export const page = (at: Reading, request: PageRequest): PageReading =>
-  pageOf(at.derived, at.set.documents, at.set.broken, request)
+export const page = (
+  at: Reading,
+  request: PageRequest,
+  /** What the grammar's relative words count from — { search}'s own
+   *  argument and the same clock, for the ONE page that is a query
+   *  (`/search?q=…`). Every other arm names a place and reads no clock. */
+  now: string,
+): PageReading => pageOf(at.derived, at.set.documents, at.set.broken, request, now)
 
 /**
  * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING — the move picker's preview

@@ -503,7 +503,7 @@ export const make = (options: Options): Ops => {
     // derivation alone, because two of the questions a page asks are about
     // files rather than about records: which paths the directory serves, and
     // which of them is a day's note (`Query.homes`' argument, one door along).
-    page: (request) => Effect.map(read, (at) => Query.page(at, request)),
+    page: (request) => Effect.map(read, (at) => Query.page(at, request, context.now())),
     // The move picker's preview, over the same gated read and over the
     // derivation alone: every rule it previews is about records and where they
     // are drawn.

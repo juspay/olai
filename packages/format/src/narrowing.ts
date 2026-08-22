@@ -50,7 +50,7 @@
 import { Schema } from "effect"
 
 import type { Derived, Row } from "./derive.ts"
-import type { Face } from "./document.ts"
+import type { Document } from "./document.ts"
 import { type Filter, parseFilter, selecting, shownRecord } from "./filter.ts"
 import { isTrashed, type LocatedRegular } from "./node.ts"
 import { narrowableIn, PageRequest, type Shown, shownOf } from "./page.ts"
@@ -143,7 +143,7 @@ export const sameNarrowingRequest: (a: NarrowingRequest, b: NarrowingRequest) =>
  */
 export const narrowingOf = (
   derived: Derived,
-  faces: ReadonlyArray<Face>,
+  faces: ReadonlyArray<Document>,
   broken: ReadonlyArray<BrokenFile>,
   request: NarrowingRequest,
   /** What the grammar's relative words count from — the same clock
@@ -153,7 +153,7 @@ export const narrowingOf = (
   text: request.text,
   matches: narrowedIn(
     derived,
-    shownOf(derived, faces, broken, request.page),
+    shownOf(derived, faces, broken, request.page, now),
     parseFilter(request.text, now),
   ),
 })
@@ -236,6 +236,12 @@ export const showsPutAway = (shows: Shown): boolean => {
       return anyPutAway(shows.rows)
     case "node":
       return shows.zoomed.kind === "node" && anyPutAway(shows.zoomed.children)
+    // THE MATCHER ALREADY DECIDED, one reading over: `/search` is `matching`
+    // over the whole set, which leaves what was put away out unless the query
+    // said `is:trashed` — and when it did, `narrowedIn` below reads that off
+    // the query itself. A `true` here would be this reading answering a
+    // question the page has already answered.
+    case "search":
     case "document":
     case "day":
     case "agenda":
