@@ -175,7 +175,7 @@ import {
   Pending,
   PolicyRequest,
   PushResult,
-  Resumed,
+
   sameGit,
   sameInboxHeld,
   samePending,
@@ -526,7 +526,7 @@ export const LOADED: Manifest = {}
  * the ops layer both stand on, so there is no second spelling to drift. Its
  * before-first-frame default `GIT_OFF` travels with it.
  */
-export { GIT_OFF, GitPin, GitPolicy, GitState, PolicyRequest, Resumed }
+export { GIT_OFF, GitPin, GitPolicy, GitState, PolicyRequest }
 
 /** When two answers are the same answer, so the cell can stay quiet. There is
  *  exactly one thing this value can say, so there is exactly one thing that can
@@ -1355,7 +1355,12 @@ export const surface = defineSurface({
        */
       setPolicy: {
         input: PolicyRequest,
-        output: GitPolicy,
+        // NOTHING COMES BACK, and that is the feature rather than an omission:
+        // what changed is the cell, and a returned policy is exactly the second
+        // opinion this move exists to retire — the next client to echo it into
+        // a signal of its own would have per-tab divergence again, and it would
+        // look like it was designed for.
+        output: Schema.Struct({}),
         error: OpFailure,
       },
       /**
@@ -1369,7 +1374,11 @@ export const surface = defineSurface({
        */
       resume: {
         input: Schema.Struct({}),
-        output: Resumed,
+        // ... and nothing comes back from this one either. What a person needs
+        // to see is that the loop is running again, which is the chip going
+        // from `paused` to `armed` on the same republish — in this tab and in
+        // every other one, which a return value could never have done.
+        output: Schema.Struct({}),
         error: OpFailure,
       },
     },

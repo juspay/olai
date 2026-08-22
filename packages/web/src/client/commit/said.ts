@@ -146,21 +146,14 @@ export const isInert = (face: Face): boolean =>
  * of chips; a banner that is only there when there is news can be trusted
  * when it is absent, because the page itself is the healthy state.
  */
-export const isNews = (
-  face: Face,
-  unpushed: number,
-  /** Why the quiet-window loop stopped, or `null`. News on a phone for the same
-   *  reason it is a chip on a laptop: the loop's whole promise is that nobody
-   *  has to watch it, so the one moment it stops is the one moment it has to
-   *  speak. */
-  paused: string | null = null,
-  /** ... and what git said when it last refused a push. On its own terms even
-   *  where nothing is unpushed any more: a refusal that has been resolved by
-   *  somebody else is cleared on the server, so a value here is a live one. */
-  pushSaid: string | null = null,
-): boolean =>
-  face === "waiting" || face === "blocked" || face === "error" || unpushed > 0 ||
-  paused !== null || pushSaid !== null
+export const isNews = (face: Face, pending: Pending, git: GitState): boolean =>
+  face === "waiting" || face === "blocked" || face === "error" ||
+  unpushedIn(pending) > 0 || git.paused !== null || git.pushSaid !== null
+
+/** How many commits are recorded here and nowhere else, as a number — `0` for a
+ *  branch already in sync and for one with no upstream at all, which are two
+ *  different facts and the same amount to say about them. */
+export const unpushedIn = (pending: Pending): number => pending.unpushed?.commits ?? 0
 
 /**
  * One line for the phone banner. The panel behind it has the sentence.
@@ -168,17 +161,10 @@ export const isNews = (
  * Waiting outranks unpushed when both are true: not-recorded is the more
  * urgent half of the same work, and the panel lists both.
  */
-export const newsSays = (
-  face: Face,
-  waiting: number,
-  unpushed: number,
-  paused: string | null = null,
-  /** Whether the last push was REFUSED — the one thing a growing unpushed count
-   *  cannot say for itself, and the whole of `push-failure-invisible` on a
-   *  phone. It outranks the plain count for the same reason the pause outranks
-   *  a face: a number that is not coming down is a number with a reason. */
-  pushSaid: string | null = null,
-): string => {
+export const newsSays = (face: Face, pending: Pending, git: GitState): string => {
+  const waiting = waitingIn(pending)
+  const unpushed = unpushedIn(pending)
+  const paused = git.paused
   // A stopped loop outranks every face, because it is the one line that is
   // about something having gone wrong with a promise rather than about work.
   //
@@ -200,7 +186,10 @@ export const newsSays = (
     case "error":
       return "git error — tap to see"
     default:
-      if (pushSaid !== null) return `${PUSH_REFUSED} — tap to see`
+      // WHY the count is not coming down outranks the count, which is the whole
+      // of `push-failure-invisible` on a phone: a number with a reason and a
+      // number without one look identical, and only one of them is news.
+      if (git.pushSaid !== null) return `${PUSH_REFUSED} — tap to see`
       return unpushed > 0 ? `${unpushed} unpushed — tap to push` : ""
   }
 }
@@ -547,23 +536,6 @@ export const unpushedOf = (pending: Pending): string | null => {
   const commits = `${unpushed.commits} ${unpushed.commits === 1 ? "commit" : "commits"}`
   return `${commits} not on ${unpushed.upstream}`
 }
-
-/**
- * What git said when it last refused a push, or `null` when the last one
- * worked.
- *
- * ONE FIELD READ, and that is the whole of what this function is left as: it
- * used to unpack a five-armed value this TAB held about its own last press,
- * cleared on the next one and lost on a reload. Now the refusal is remembered
- * by the server and published to every tab, and the server clears it the moment
- * there is nothing unshared — including when somebody resolved it in a
- * terminal, which the tab-local version could never have noticed.
- *
- * The words are git's own, whole, because they are what a person is about to
- * paste into a terminal: authentication, a non-fast-forward, a branch with no
- * upstream.
- */
-export const pushRefused = (git: GitState): string | null => git.pushSaid
 
 /** Who a writer is, to a reader. `web` is the only one that gets a different
  *  word than its name: the person reading this is the one who pressed the

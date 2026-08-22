@@ -1137,19 +1137,16 @@ export const bind = (
           // through the same subscription for the same reason: pushing moves no
           // served file and changes what `pending` says.
           push: () => wiring.git.push,
-          // The two preference rows' door. What it changes is the `git` cell,
-          // republished through the same subscription — which is also what
-          // re-arms the quiet window when the policy it just moved turned the
-          // loop on.
-          setPolicy: ({ input }) =>
-            Effect.tap(
-              wiring.git.policy.set(input),
-              () => SubscriptionRef.update(wiring.git.settled, (count) => count + 1),
-            ),
+          // The two preference rows' door. What republishes afterwards is NOT
+          // here — the policy fires the same `settled` subscription the ops
+          // layer does (`../gitPolicy.ts`), which is what re-arms the quiet
+          // window when the policy it just moved turned the loop on, and what
+          // keeps a second door to the policy from publishing nothing.
+          setPolicy: ({ input }) => Effect.as(wiring.git.policy.set(input), {}),
           // ... and the Resume button's. The ops layer republishes for itself
           // here, because clearing a stop is exactly a moment nothing else in
           // the process would mention.
-          resume: () => wiring.git.resume,
+          resume: () => Effect.as(wiring.git.resume, {}),
         },
         /**
          * Who is looking on THIS connection. The value is the per-connection

@@ -501,6 +501,10 @@ export const TESTID = {
    *  a loop that stopped for good in silence is the one failure Auto-commit may
    *  not have. */
   prefsResume: "prefs-resume",
+  /** What the server would not take from one of the two git rows — a pinned
+   *  half refusing by name, or a call the wire dropped. Absent while nothing
+   *  has been refused, which is what makes its PRESENCE the fact. */
+  prefsGitRefused: "prefs-git-refused",
   /** What every row on the panel has in common, said once: these belong to this
    *  browser and reach no server. */
   prefsScope: "prefs-scope",

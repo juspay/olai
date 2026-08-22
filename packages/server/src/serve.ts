@@ -126,7 +126,9 @@ export const serve = (options: ServeOptions) =>
      *  chose for this path, remembered outside the vault (`./gitPolicy.ts`).
      *  Opened before the ops layer, because that layer asks it on every
      *  decision it makes. */
-    const policy = yield* openPolicy(root, options.pin)
+    const policy = yield* openPolicy(root, options.pin, () => {
+      Effect.runSync(SubscriptionRef.update(settled, (count) => count + 1))
+    })
 
     const ops = makeOps({
       store,

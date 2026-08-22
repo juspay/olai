@@ -63,9 +63,6 @@ export {
   type Policy,
   type Status,
 } from "./pending.ts"
-/** The quiet window's own rules, for the tests that hold them and for the
- *  sentence a preferences panel prints about the span. */
-export { flurryOf, mayRecord, QUIET_MS, type Standing } from "./loop.ts"
 /** The write vocabulary, under the names this layer's own answers use. It
  *  lives on the FLOOR (`@olai/format`'s `writing.ts`, which says why): the
  *  surface carries these to an agent's door, so a package the browser bundles

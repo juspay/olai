@@ -706,14 +706,3 @@ export const PushResult = Schema.Union([
 ])
 export type PushResult = typeof PushResult.Type
 
-/**
- * What Resume came to.
- *
- * A boolean rather than nothing at all, because "the loop was not stopped" is
- * an answer and not a fault — the same reading `NothingToPush` is. Two people
- * looking at one directory can both press it, and the second one is entitled to
- * be told the first got there.
- */
-export const Resumed = Schema.Struct({ resumed: Schema.Boolean })
-export type Resumed = typeof Resumed.Type
-

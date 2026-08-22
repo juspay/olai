@@ -71,7 +71,6 @@ import {
   type PushResult,
   type Reason,
   type RepoState,
-  type Resumed,
   type Unpushed,
   Writer,
   type Wrote,
@@ -80,7 +79,7 @@ import * as Git from "@olai/git"
 import { Duration, Effect, Result, Stream, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
-import { armedOn, flurryOf, QUIET_MS, type Standing } from "./loop.ts"
+import { armedOn, QUIET_MS } from "./loop.ts"
 import { AUDIT, signed } from "./message.ts"
 
 /**
@@ -133,7 +132,7 @@ export type { GitState }
  *     that will not take a commit, and drawing them as one is exactly the bug
  *     that read `✓ committed · 13 unpushed` over an hour of failing pushes.
  */
-export const gitOf = (
+const gitOf = (
   repo: RepoState,
   policy: Policy,
   settled: Settled,
@@ -176,7 +175,7 @@ export const gitOf = (
  * countable ({@link Committing}'s `commit`, `push` and `resume`, and nothing
  * else) and the readers take one argument.
  */
-export interface Settled {
+interface Settled {
   /** What git said when it last refused a COMMIT, or `null` — cleared by the
    *  next commit that works. #108's, and the reason this is remembered at all. */
   readonly refusal: string | null
@@ -199,7 +198,7 @@ export interface Settled {
 
 /** Nothing has refused and nothing has stopped — what a server boots holding,
  *  and what a healthy directory keeps holding. */
-export const NOTHING_SETTLED: Settled = {
+const NOTHING_SETTLED: Settled = {
   refusal: null,
   pushSaid: null,
   paused: null,
@@ -469,7 +468,7 @@ export interface Committing {
    * olai's own initiative, because a loop that un-paused itself is the blind
    * retry wearing a different hat.
    */
-  readonly resume: Effect.Effect<Resumed>
+  readonly resume: Effect.Effect<void>
 }
 
 /** The one state git is never asked about, so it is spelled once. */
@@ -969,10 +968,16 @@ export const make = (options: Options): Committing => {
     if (opening._tag !== "Opened") {
       return { _tag: "Blocked", repo: opening } as const
     }
-    const repo = yield* opening.repo.state
+    // Two independent questions, asked together — the same shape `survey` above
+    // uses, and it earns it twice over now that this verb is on the commit path
+    // rather than behind a button: `state` is a subprocess AND a synchronous
+    // walk of the git directory, so serialising them stalls the loop's own
+    // round trip for no reason.
+    const [repo, dirt] = yield* Effect.all(
+      [opening.repo.state, opening.repo.dirty],
+      { concurrency: 2 },
+    )
     if (repo._tag !== "Ready") return { _tag: "Blocked", repo } as const
-
-    const dirt = yield* opening.repo.dirty
     if (dirt._tag === "Unusable") {
       // A survey git refused: the count this verb reports on cannot be read, so
       // it is the same news the panel gets rather than a push into the dark.
@@ -1054,18 +1059,22 @@ export const make = (options: Options): Committing => {
    */
   const arming = Effect.runSync(SubscriptionRef.make(""))
 
-  /** Everything the rules read, from the survey plus what this module
-   *  remembers — one place, so the arming and the check at the moment the
-   *  window closes cannot ask slightly different questions. */
-  const standingOf = (pending: Pending): Standing => ({
-    commit: mode(),
-    paused: settled.paused,
-    flurry: flurryOf(pending),
-    ready: isReady(pending.repo),
-  })
+  /**
+   * THE LAST SURVEY, held so the window can be asked its own question again at
+   * the moment it closes.
+   *
+   * It is not stale by construction: a survey that said anything new would have
+   * re-armed the window, so a window that fired is a window nothing has
+   * republished under for fifteen seconds. What CAN have moved in that gap is
+   * the policy and the pause, and those are read fresh below — which is why
+   * {@link ./loop.ts}'s rule takes them apart from the reading.
+   */
+  let looked: Pending = NOTHING_PENDING
 
-  const observe = (pending: Pending): Effect.Effect<void> =>
-    SubscriptionRef.set(arming, armedOn(standingOf(pending)))
+  const observe = (pending: Pending): Effect.Effect<void> => {
+    looked = pending
+    return SubscriptionRef.set(arming, armedOn(mode(), settled.paused, pending))
+  }
 
   /**
    * The commit the window makes, asked for exactly as the button asks for it.
@@ -1081,12 +1090,15 @@ export const make = (options: Options): Committing => {
    * pressed anything and there may be no browser anywhere, so `web` in the
    * trailer would be a lie in every commit a headless serve makes.
    *
-   * The state is re-read at the moment the window closes rather than trusted
-   * from when it was armed: fifteen seconds is long enough for somebody to turn
-   * the policy off, and for git to refuse something else.
+   * THE SAME RULE IS ASKED AGAIN at the moment the window closes rather than
+   * trusted from when it was armed — one expression, both moments
+   * ({@link ./loop.ts}'s `armedOn`) — because fifteen seconds is long enough
+   * for somebody to turn the policy off and for git to refuse something else.
+   * It costs no survey: a reading that said anything new would have re-armed
+   * the window rather than let it close.
    */
   const record: Effect.Effect<void> = Effect.gen(function*() {
-    if (mode() !== "auto" || settled.paused !== null) return
+    if (armedOn(mode(), settled.paused, looked) === "") return
     yield* commit({}, "auto")
   })
 
@@ -1118,14 +1130,15 @@ export const make = (options: Options): Committing => {
         )),
   )
 
-  const resume: Effect.Effect<Resumed> = Effect.suspend(() => {
-    const was = settled.paused
+  const resume: Effect.Effect<void> = Effect.sync(() => {
+    if (settled.paused === null) return
     settled = { ...settled, paused: null }
-    // The republish is what puts the loop back on the arming stream: what is
-    // waiting has not moved, so nothing else would say so and a resumed loop
-    // would sit there until the next write.
-    if (was !== null) options.onSettled?.()
-    return Effect.succeed({ resumed: was !== null })
+    // The republish is what puts the loop back on the arming stream, and it is
+    // the whole of what a person is answered with: what is waiting has not
+    // moved, so nothing else would say so, and a resumed loop would otherwise
+    // sit there until the next write. Pressing it on a loop that is already
+    // running says nothing, because there is nothing to say.
+    options.onSettled?.()
   })
 
   /** The repository's state on its own — what {@link Committing.git} wants,

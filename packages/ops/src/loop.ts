@@ -25,7 +25,7 @@
  * writes, which is why nothing here knows who wrote anything.
  */
 
-import { type CommitMode, type Pending, QUIET_MS } from "@olai/format"
+import { type CommitMode, isReady, type Pending, QUIET_MS } from "@olai/format"
 
 /** The span, re-exported beside the rules it belongs to. It is DECLARED on the
  *  floor (`@olai/format`) rather than here because the preferences panel prints
@@ -60,30 +60,26 @@ export const flurryOf = (pending: Pending): string =>
       pending.unreadable,
     ])
 
-/** Everything {@link mayRecord} reads, as one value — so the arming and the
- *  check at the moment the window fires cannot ask slightly different
- *  questions. */
-export interface Standing {
-  /** What this server does about commits — the policy, with the defaults and
-   *  the pin already folded in (`@olai/format`'s `policyOf`). Only `auto` runs
-   *  a loop; `manual` waits to be asked and `off` never touches git. */
-  readonly commit: CommitMode
-  /** Why the loop stopped, or `null` while it is running. A refused commit or
-   *  push sets it and nothing clears it on olai's own initiative. */
-  readonly paused: string | null
-  /** What is waiting, as {@link flurryOf} says it — and `""` for nothing, which
-   *  is what makes "there is something to record" ONE spelling rather than a
-   *  count here and an empty string there. */
-  readonly flurry: string
-  /** Whether the repository can take a commit at all — `@olai/format`'s
-   *  `isReady` of the survey's `RepoState`. */
-  readonly ready: boolean
-}
-
 /**
- * Whether the loop may ask for a commit right now.
+ * THE WINDOW'S OWN KEY: what the loop is waiting on, or `""` for a loop that is
+ * not waiting on anything.
  *
- * FOUR TERMS, and the fourth is the whole of "stop rather than retry blindly".
+ * ONE EXPRESSION, and it is the whole rule — asked when a survey arrives to arm
+ * the window, and asked again at the moment the window closes, so the two
+ * cannot come to want slightly different things. It was four constructs (a
+ * value, a predicate, a builder and this) and they had already drifted: the
+ * arming path read four terms and the firing path hand-spelled two of them.
+ *
+ * EVERY RE-ARM IN THE FEATURE IS A CHANGE OF THIS STRING. A write moves the
+ * flurry; turning Auto-commit on moves it from `""`; Resume moves it back from
+ * `""`. The survey that says nothing new — the thirty-second sweep over a quiet
+ * directory — produces the same string, which is what keeps the window from
+ * being pushed out by a clock nobody typed on.
+ *
+ * THE CHEAP TERMS COME FIRST, and that is not tidiness: {@link flurryOf}
+ * serializes every waiting change, this runs on every published revision, and
+ * on the default `manual` server no amount of it could ever arm anything.
+ *
  * A repository that is not `Ready` — mid-merge, mid-rebase, on a detached HEAD
  * — is a PAUSE and never a stop: nothing is attempted while it lasts, the chip
  * already wears that face with the reason on it, and the work is recorded once
@@ -99,21 +95,18 @@ export interface Standing {
  * is exactly the person saying "I have dealt with that, try again", and a gate
  * that only a successful commit could open would make Resume do nothing at all.
  */
-export const mayRecord = (standing: Standing): boolean =>
-  standing.commit === "auto" &&
-  standing.paused === null &&
-  standing.flurry !== "" &&
-  standing.ready
-
-/**
- * The window's own key: what the loop is waiting on, or `""` for a loop that is
- * not waiting on anything.
- *
- * ONE STRING, and every re-arm in the feature is a change of it. A write moves
- * the flurry; turning Auto-commit on moves it from `""`; Resume moves it back
- * from `""`. The survey that says nothing new — the thirty-second sweep over a
- * quiet directory — produces the same string, which is what keeps the window
- * from being pushed out by a clock nobody typed on.
- */
-export const armedOn = (standing: Standing): string =>
-  mayRecord(standing) ? standing.flurry : ""
+export const armedOn = (
+  /** What this server does about commits — the policy, with the defaults and
+   *  the pin already folded in (`@olai/format`'s `policyOf`). Only `auto` runs
+   *  a loop; `manual` waits to be asked and `off` never touches git. */
+  commit: CommitMode,
+  /** Why the loop stopped, or `null` while it is running. A refused commit or
+   *  push sets it and nothing clears it on olai's own initiative. */
+  paused: string | null,
+  /** The last survey — what is waiting, and whether the repository could take a
+   *  commit at all. */
+  pending: Pending,
+): string =>
+  commit !== "auto" || paused !== null || !isReady(pending.repo)
+    ? ""
+    : flurryOf(pending)

@@ -604,7 +604,6 @@ export {
   QUIET_MS,
   Reason,
   RepoState,
-  Resumed,
   sameGit,
   samePending,
   Unpushed,

@@ -1085,8 +1085,11 @@ describe("--commit=auto: the quiet window", () => {
         // waiting work records.
         fixture.git("config", "user.email", "test@olai.invalid")
         fixture.git("config", "user.name", "olai tests")
-        expect(yield* fixture.ops.resume).toEqual({ resumed: true })
-        expect(yield* fixture.ops.resume).toEqual({ resumed: false })
+        yield* fixture.ops.resume
+        expect((yield* fixture.ops.git).paused).toBeNull()
+        // ... and pressing it again is not an error, it is nothing: two people
+        // looking at one directory can both press it.
+        yield* fixture.ops.resume
         yield* fixture.observe
         yield* past(40)
         expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)

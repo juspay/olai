@@ -17,7 +17,12 @@
  * is why every one of them takes the cell as an argument.
  */
 
-import { DEFAULT_POLICY, GIT_OFF, type GitState } from "@olai/format"
+import {
+  DEFAULT_POLICY,
+  GIT_OFF,
+  type GitState,
+  type PolicyRequest,
+} from "@olai/format"
 import { expect, test } from "bun:test"
 
 import {
@@ -25,9 +30,10 @@ import {
   commitOn,
   commitSetBy,
   commitsOff,
-  policyIn,
+  commitPick,
   pushFrozen,
   pushOn,
+  pushPick,
   pushSetBy,
 } from "./policy.ts"
 
@@ -40,7 +46,7 @@ const said = (over: Partial<GitState> = {}): GitState => ({
 })
 
 test("a page that has heard nothing draws the defaults, live", () => {
-  expect(policyIn(GIT_OFF)).toEqual(DEFAULT_POLICY)
+  expect(GIT_OFF.policy).toEqual(DEFAULT_POLICY)
   expect(commitOn(GIT_OFF)).toBe(false)
   expect(pushOn(GIT_OFF)).toBe(false)
   expect(commitFrozen(GIT_OFF)).toBe(false)
@@ -119,4 +125,28 @@ test("--commit=off is told apart from the other way the row reads Off", () => {
   expect(commitsOff(said({ policy: { commit: "off", push: "off" } }))).toBe(true)
   expect(commitsOff(said({ policy: { commit: "manual", push: "off" } }))).toBe(false)
   expect(commitsOff(said({ policy: { commit: "auto", push: "off" } }))).toBe(false)
+})
+
+/**
+ * THE WRITE HALF, and it is the read half's inverse — a two-value control whose
+ * two directions used to be in two places.
+ *
+ * The load-bearing half is the Off: a browser must not be able to arrive at
+ * `--commit=off` by pressing the control that says "wait for me instead", and
+ * the reading has to agree that what it wrote is off.
+ */
+test("what a pick writes is what the row then reads", () => {
+  /** The server having applied a pick — what the next `git` frame says. */
+  const after = (want: PolicyRequest): GitState =>
+    said({ policy: { commit: "manual", push: "off", ...want } })
+
+  for (const on of [true, false]) {
+    expect(commitOn(after(commitPick(on)))).toBe(on)
+    expect(pushOn(after(pushPick(on)))).toBe(on)
+  }
+  // Off is `manual` and never `off`, which is the one thing the mapping
+  // decides: `off` is olai never touching git here, a pinned-only state a
+  // browser must not reach by pressing the control that says "wait instead".
+  expect(commitPick(false)).toEqual({ commit: "manual" })
+  expect(commitsOff(after(commitPick(false)))).toBe(false)
 })

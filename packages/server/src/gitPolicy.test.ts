@@ -239,6 +239,10 @@ const withState = async <A>(use: (dirs: {
 
 /** Every file under a directory, so a test can say what was written and,
  *  more to the point, what was NOT. */
+/** The republish sink, for a test that is not about it — `openPolicy` fires it
+ *  and every one of these asserts on what it can read back instead. */
+const told = (): void => {}
+
 const filesUnder = (at: string): ReadonlyArray<string> =>
   fs.existsSync(at)
     ? fs.readdirSync(at, { recursive: true, withFileTypes: true })
@@ -248,16 +252,25 @@ const filesUnder = (at: string): ReadonlyArray<string> =>
 
 test("a directory nobody has chosen for runs on the flags and the defaults", () =>
   withState(async ({ root }) => {
-    const policy = await Effect.runPromise(openPolicy(root, NO_PIN))
+    const policy = await Effect.runPromise(openPolicy(root, NO_PIN, told))
     expect(policy.now()).toEqual(DEFAULT_POLICY)
     expect(policy.pin).toEqual(NO_PIN)
   }))
 
 test("a choice is remembered outside the vault, and a second server reads it back", () =>
   withState(async ({ root, state }) => {
-    const first = await Effect.runPromise(openPolicy(root, NO_PIN))
-    expect(await Effect.runPromise(first.set({ commit: "auto" })))
-      .toEqual({ commit: "auto", push: PUSH_DEFAULT })
+    let published = 0
+    const first = await Effect.runPromise(
+      openPolicy(root, NO_PIN, () => {
+        published += 1
+      }),
+    )
+    await Effect.runPromise(first.set({ commit: "auto" }))
+    expect(first.now()).toEqual({ commit: "auto", push: PUSH_DEFAULT })
+    // ... and it SAID SO. The policy fires the republish itself rather than
+    // leaving it to whichever door asked, so a second door — a re-read, a CLI —
+    // cannot be the one that quietly publishes nothing.
+    expect(published).toBe(1)
 
     // NOTHING IN THE VAULT. This is the whole ruling, as an assertion: a file
     // here would be committed, and then pulled into somebody's personal clone.
@@ -273,16 +286,16 @@ test("a choice is remembered outside the vault, and a second server reads it bac
 
     // A RESTART: a fresh policy over the same directory, which is what the next
     // boot of the server does.
-    const second = await Effect.runPromise(openPolicy(root, NO_PIN))
+    const second = await Effect.runPromise(openPolicy(root, NO_PIN, told))
     expect(second.now()).toEqual({ commit: "auto", push: PUSH_DEFAULT })
   }))
 
 test("each half moves on its own, so setting one does not reset the other", () =>
   withState(async ({ root }) => {
-    const policy = await Effect.runPromise(openPolicy(root, NO_PIN))
+    const policy = await Effect.runPromise(openPolicy(root, NO_PIN, told))
     await Effect.runPromise(policy.set({ commit: "auto" }))
-    expect(await Effect.runPromise(policy.set({ push: "auto" })))
-      .toEqual({ commit: "auto", push: "auto" })
+    await Effect.runPromise(policy.set({ push: "auto" }))
+    expect(policy.now()).toEqual({ commit: "auto", push: "auto" })
   }))
 
 /**
@@ -295,11 +308,11 @@ test("each half moves on its own, so setting one does not reset the other", () =
  */
 test("a pinned half overrules what was remembered, and refuses to be set", () =>
   withState(async ({ root }) => {
-    const chose = await Effect.runPromise(openPolicy(root, NO_PIN))
+    const chose = await Effect.runPromise(openPolicy(root, NO_PIN, told))
     await Effect.runPromise(chose.set({ commit: "auto", push: "auto" }))
 
     const pinned = await Effect.runPromise(
-      openPolicy(root, { commit: "manual", push: null }),
+      openPolicy(root, { commit: "manual", push: null }, told),
     )
     // The flag wins over the remembered choice for its own half, and leaves the
     // other one exactly where the reader put it.
@@ -313,8 +326,8 @@ test("a pinned half overrules what was remembered, and refuses to be set", () =>
       expect(refused.failure.message).toContain("--commit=manual")
     }
     // ... and the unpinned half is still live on the same server.
-    expect(await Effect.runPromise(pinned.set({ push: "off" })))
-      .toEqual({ commit: "manual", push: "off" })
+    await Effect.runPromise(pinned.set({ push: "off" }))
+    expect(pinned.now()).toEqual({ commit: "manual", push: "off" })
   }))
 
 /** A file about some OTHER directory is not this one's memory. It is not damage
@@ -322,14 +335,14 @@ test("a pinned half overrules what was remembered, and refuses to be set", () =>
  *  honest answer is that nothing here says. */
 test("a remembered file about another directory is ignored", () =>
   withState(async ({ root, state }) => {
-    const policy = await Effect.runPromise(openPolicy(root, NO_PIN))
+    const policy = await Effect.runPromise(openPolicy(root, NO_PIN, told))
     await Effect.runPromise(policy.set({ commit: "auto" }))
     const written = filesUnder(path.join(state, "olai", "git"))[0] ?? ""
     fs.writeFileSync(
       written,
       JSON.stringify({ cwd: "/somewhere/else", commit: "auto" }),
     )
-    expect((await Effect.runPromise(openPolicy(root, NO_PIN))).now())
+    expect((await Effect.runPromise(openPolicy(root, NO_PIN, told))).now())
       .toEqual(DEFAULT_POLICY)
   }))
 
@@ -338,10 +351,10 @@ test("a remembered file about another directory is ignored", () =>
  *  rather than refusing to serve a directory of notes. */
 test("a remembered file that will not parse leaves the defaults standing", () =>
   withState(async ({ root, state }) => {
-    const policy = await Effect.runPromise(openPolicy(root, NO_PIN))
+    const policy = await Effect.runPromise(openPolicy(root, NO_PIN, told))
     await Effect.runPromise(policy.set({ commit: "auto" }))
     fs.writeFileSync(filesUnder(path.join(state, "olai", "git"))[0] ?? "", "{ not json")
-    expect((await Effect.runPromise(openPolicy(root, NO_PIN))).now())
+    expect((await Effect.runPromise(openPolicy(root, NO_PIN, told))).now())
       .toEqual(DEFAULT_POLICY)
   }))
 
@@ -349,10 +362,10 @@ test("a remembered file that will not parse leaves the defaults standing", () =>
  *  which costs that setting and not the other one. */
 test("a remembered half that is not a mode reads as unsaid", () =>
   withState(async ({ root, state }) => {
-    const policy = await Effect.runPromise(openPolicy(root, NO_PIN))
+    const policy = await Effect.runPromise(openPolicy(root, NO_PIN, told))
     await Effect.runPromise(policy.set({ commit: "auto", push: "auto" }))
     const written = filesUnder(path.join(state, "olai", "git"))[0] ?? ""
     fs.writeFileSync(written, JSON.stringify({ cwd: root, commit: "sideways", push: "auto" }))
-    expect((await Effect.runPromise(openPolicy(root, NO_PIN))).now())
+    expect((await Effect.runPromise(openPolicy(root, NO_PIN, told))).now())
       .toEqual({ commit: COMMIT_DEFAULT, push: "auto" })
   }))

@@ -61,6 +61,7 @@ import {
   PUSH_DEFAULT,
   PUSH_MODES,
   type PushMode,
+  QUIET_MS,
   UsageFailure,
 } from "@olai/format"
 import { type CommitFace, commitDoors, type Policy } from "@olai/ops"
@@ -98,7 +99,7 @@ export const commitsSaid = (face: CommitFace): string =>
     commitDoors(face)
   } to ask for one, so a finished piece of work is ONE commit (the default); ` +
   `auto — everything waiting records itself once writes stop arriving for ` +
-  `fifteen seconds, whoever made them; ` +
+  `${Math.round(QUIET_MS / 1000)} seconds, whoever made them; ` +
   `off — olai never touches git in this directory. ${PINS}`
 
 /** ... and what `--push` says, which needs no face at all: there is one push
@@ -192,15 +193,18 @@ export const gitPin = (
  */
 export interface LivePolicy extends Policy {
   /**
-   * Change the halves the operator did not pin, and answer with what the
-   * policy now IS.
+   * Change the halves the operator did not pin.
+   *
+   * IT ANSWERS NOTHING, and tells whoever is listening instead: what changed is
+   * the `git` cell every reader draws from, and a returned policy is exactly
+   * the second opinion this feature exists to retire.
    *
    * A REFUSAL for a pinned half rather than a silent no-op: a browser that
    * asked for something and got a cheerful answer describing the opposite is
    * the failure `vault-level-settings` shipped a read-only control to prevent,
    * and a procedure is exactly where the control could be bypassed.
    */
-  readonly set: (want: PolicyRequest) => Effect.Effect<GitPolicy, UsageFailure>
+  readonly set: (want: PolicyRequest) => Effect.Effect<void, UsageFailure>
 }
 
 /**
@@ -227,10 +231,22 @@ export interface LivePolicy extends Policy {
 export const openPolicy = (
   root: string,
   pin: GitPin,
+  /**
+   * Told when the policy has moved, so the `git` cell is republished and the
+   * quiet window hears about a loop it has just been given.
+   *
+   * IT HANGS HERE rather than on the procedure that asked, which is the rule
+   * `@olai/ops`' `onSettled` already states and the reason it is stated:
+   * a caller that has to remember to republish is a caller that can forget, and
+   * this policy will grow a second door (a `SIGHUP` re-read, an `olai` CLI that
+   * can set it) before anybody notices the first one was the only one that
+   * published.
+   */
+  onSettled: () => void,
 ): Effect.Effect<LivePolicy> =>
   Effect.gen(function*() {
-    const at = fileFor(GIT, root)
     const cwd = canonical(root)
+    const at = fileFor(GIT, cwd)
     const read = yield* Effect.result(remembered(at, cwd))
     if (Result.isFailure(read)) {
       yield* Effect.annotateLogs(
@@ -243,7 +259,7 @@ export const openPolicy = (
     }
     let chosen: GitPin = Result.isSuccess(read) ? read.success : NO_PIN
 
-    const set = (want: PolicyRequest): Effect.Effect<GitPolicy, UsageFailure> =>
+    const set = (want: PolicyRequest): Effect.Effect<void, UsageFailure> =>
       Effect.gen(function*() {
         for (const half of HALVES) {
           if (want[half] !== undefined && pin[half] !== null) {
@@ -272,7 +288,7 @@ export const openPolicy = (
             }),
         )
         chosen = next
-        return policyOf(pin, chosen)
+        onSettled()
       })
 
     return { pin, now: () => policyOf(pin, chosen), set }
@@ -282,10 +298,20 @@ export const openPolicy = (
  *  `kind` `@olai/state` names a file by, beside the chat panel's own. */
 const GIT = "git"
 
-/** The two halves, as one list: the refusal loop above and the reader below
- *  both walk them, and a third half added to the pin should be a compile
- *  error in each rather than a silently unguarded row. */
-const HALVES = ["commit", "push"] as const
+/**
+ * The halves, as a list the COMPILER keeps — the pinned-row guard above walks
+ * it, and a third half added to {@link GitPin} must not be able to go
+ * unguarded.
+ *
+ * A hand-written `["commit", "push"]` would compile perfectly well beside a
+ * three-field pin and simply never check the new one, which is the exact
+ * failure the pin exists to prevent (a row an operator froze, moved from a
+ * browser) and it would be silent: the write lands, the row moves, the flag is
+ * overridden. `satisfies` is what makes the omission a type error instead.
+ */
+const HALVES = Object.keys(
+  { commit: true, push: true } satisfies Record<keyof GitPin, true>,
+) as ReadonlyArray<keyof GitPin>
 
 /**
  * What was written down, as this module's own vocabulary — or nothing, for a

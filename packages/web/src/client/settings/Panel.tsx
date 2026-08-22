@@ -64,17 +64,19 @@ import { type Anchor, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
 import type { GitState } from "@olai/format"
 
-import { createCommit } from "../commit/state.ts"
+import { createGitPolicy } from "../commit/state.ts"
 import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
 import { outlinesHidden, setOutlinesHidden } from "./hiddenOutlines.ts"
 import {
   commitFrozen,
+  commitPick,
   commitOn,
   commitSetBy,
   commitsOff,
   pushFrozen,
   pushOn,
+  pushPick,
   pushSetBy,
 } from "./policy.ts"
 import { QUIET_MS } from "@olai/format"
@@ -146,14 +148,13 @@ export function Panel(props: {
   readonly inside: (el: HTMLElement | undefined) => void
 }) {
   /** The two git rows' door — what the server says about git, and the two verbs
-   *  that move it. The same factory the commit pill's own panel uses, so the
-   *  two cannot ask the server different things, and it holds nothing but
-   *  whether ITS OWN requests are in flight: a second instance is a second set
-   *  of accessors over the same two subscriptions rather than a second opinion
-   *  about the directory. `./policy.ts`'s readings are pure functions of what
-   *  it hands back, which is why this panel needs no subscription of its own. */
-  const commit = createCommit()
-  const git = () => commit.git()
+   *  that move it (`../commit/state.ts`). The SEAM rather than the whole
+   *  committer: this panel draws nothing that is waiting, and the committer
+   *  opens a `pending` subscription it would decode a full frame of per publish
+   *  for nobody. `./policy.ts`'s readings are pure functions of what it hands
+   *  back, so there is no signal here either. */
+  const policy = createGitPolicy()
+  const git = policy.git
   return (
     <section
       ref={props.inside}
@@ -251,7 +252,7 @@ export function Panel(props: {
               // nothing at all — see there.
               class={`${TARGET} mt-2 rounded-full border border-rule px-3 text-xs text-ink hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:min-h-0 md:py-1`}
               data-testid={TESTID.prefsResume}
-              onClick={() => commit.resume()}
+              onClick={() => policy.resume()}
             >
               Resume auto-commit
             </button>
@@ -266,7 +267,7 @@ export function Panel(props: {
           // `--commit=off`, which is olai never touching git here at all — a
           // pinned-only state, and one a browser must not be able to arrive at
           // by pressing the same control that says "wait for me instead".
-          onPick={(value) => commit.setPolicy({ commit: value === "on" ? "auto" : "manual" })}
+          onPick={(value) => policy.setPolicy(commitPick(value === "on"))}
           frozen={commitFrozen(git())}
         />
       </Row>
@@ -280,10 +281,25 @@ export function Panel(props: {
         <Segmented
           choices={PUSH_CHOICES}
           value={pushOn(git()) ? "on" : "off"}
-          onPick={(value) => commit.setPolicy({ push: value === "on" ? "auto" : "off" })}
+          onPick={(value) => policy.setPolicy(pushPick(value === "on"))}
           frozen={pushFrozen(git())}
         />
       </Row>
+
+      {/* WHAT THE SERVER WOULD NOT TAKE, beside the two rows that asked. The
+          git rows are the only controls on this panel that reach a server at
+          all, so they are the only ones that can silently do nothing: a pinned
+          half refuses by name, and a dropped socket refuses without one. Either
+          way a control that moved on screen and nowhere else is the failure
+          this whole feature is about, and Resume is the sharpest case — a loop
+          that stays stopped with the button pressed and no words anywhere. */}
+      <Show when={policy.refused()}>
+        {(said) => (
+          <p class="wrap-anywhere text-xs text-alarm" data-testid={TESTID.prefsGitRefused}>
+            {said()}
+          </p>
+        )}
+      </Show>
 
       {/* One sentence for the whole panel, because it is one fact about every
           row on it and repeating it per row would be three copies of the

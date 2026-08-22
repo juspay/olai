@@ -144,7 +144,7 @@ export class LockUnavailable extends Data.TaggedError("LockUnavailable")<{
  * drift that would make one of them read somebody else's.
  */
 export const lockFor = (root: string): string =>
-  join(runtimeHome(), `${digestOf(root)}.lock`)
+  join(runtimeHome(), `${digestOf(canonical(root))}.lock`)
 
 /**
  * The pid a holder wrote down — DIAGNOSIS, never validity.

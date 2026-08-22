@@ -21,13 +21,13 @@
 
 import { Show } from "solid-js"
 
-import { pushRefused, unpushedOf } from "./said.ts"
+import { unpushedOf } from "./said.ts"
 import type { Commit } from "./state.ts"
 import { TESTID } from "../testids.ts"
 
 export function Unpushed(props: { readonly commit: Commit }) {
   const said = () => unpushedOf(props.commit.pending())
-  const trouble = () => pushRefused(props.commit.git())
+  const trouble = () => props.commit.git().pushSaid
 
   return (
     <>

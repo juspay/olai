@@ -22,21 +22,18 @@
  */
 
 import { expect, test } from "bun:test"
-import { execFileSync } from "node:child_process"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
 import { QUIET_MS } from "@olai/format"
+import { gitIn, repoAt, writerOf } from "@olai/ops/testlib"
 
 import { startWeb } from "./child.testlib.ts"
 
 /** The window, plus room for a git subprocess and a slow CI runner. What is
  *  being told apart is "after the window" from "never". */
 const AFTER_THE_WINDOW = QUIET_MS + 30_000
-
-const git = (root: string) => (...argv: ReadonlyArray<string>): string =>
-  execFileSync("git", argv, { cwd: root, encoding: "utf8" })
 
 /** Poll until `look` answers, or give up saying what it last saw — the shape
  *  every wait in this suite has, because "it never happened" and "it happened
@@ -60,18 +57,16 @@ test("a headless serve commits a quiet directory and pushes it, with no tab open
   const state = fs.mkdtempSync(path.join(os.tmpdir(), "olai-headless-state-"))
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-headless-")))
   const bare = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-headless-remote-")))
-  const here = git(root)
-  const there = git(bare)
+  const here = gitIn(root)
+  const there = gitIn(bare)
 
   fs.writeFileSync(
     path.join(root, "garden.olai"),
     `{"id":"garden","ord":"a0","title":"garden"}\n`,
   )
-  here("init", "--quiet", "--initial-branch", "main")
-  here("config", "user.email", "test@olai.invalid")
-  here("config", "user.name", "olai tests")
-  here("add", "-A")
-  here("commit", "--quiet", "--no-verify", "-m", "fixtures")
+  // The shared fixture, so this file cannot drift from every other suite over
+  // the branch name or an identity a CI runner has no `~/.gitconfig` for.
+  repoAt(root)
   there("init", "--quiet", "--bare", "--initial-branch", "main")
   here("remote", "add", "origin", bare)
   here("push", "--quiet", "--set-upstream", "origin", "main")
@@ -100,9 +95,7 @@ test("a headless serve commits a quiet directory and pushes it, with no tab open
     expect(here("status", "--porcelain").trim()).toBe("")
     // ... and the trailer says who: not `web`, which is the lie a headless
     // serve would otherwise tell in every commit it makes.
-    expect(
-      here("log", "--format=%(trailers:key=X-Olai-Writer,valueonly)", "-1").trim(),
-    ).toBe("auto")
+    expect(writerOf(root)).toBe("auto")
     // ONE commit for the one quiet spell, not one per write.
     expect(here("log", "--format=%s", "--grep", "^olai").trim().split("\n"))
       .toHaveLength(1)

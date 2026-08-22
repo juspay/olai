@@ -102,12 +102,16 @@ export const stateHome = (): string => {
 /**
  * What one served directory is CALLED under either home.
  *
- * Sixteen hex characters of a SHA-256 over the realpath — enough that two
- * vaults on one machine colliding is not a thing anybody will meet, and short
- * enough to read in a directory listing.
+ * Sixteen hex characters of a SHA-256, enough that two vaults on one machine
+ * colliding is not a thing anybody will meet and short enough to read in a
+ * directory listing.
+ *
+ * IT TAKES THE CANONICAL PATH and does not compute one, so a caller that also
+ * wants the spelling — every caller here does, since it goes inside the file as
+ * the guard — pays for one `realpath` rather than two.
  */
-export const digestOf = (root: string): string =>
-  createHash("sha256").update(canonical(root)).digest("hex").slice(0, 16)
+export const digestOf = (cwd: string): string =>
+  createHash("sha256").update(cwd).digest("hex").slice(0, 16)
 
 /**
  * The served root, spelled the one way everything here keys on.
@@ -135,14 +139,21 @@ export class StateFailure extends Data.TaggedError("StateFailure")<{
 }
 
 /**
- * Where one KIND of remembered thing lives for one served directory — a
- * subdirectory of the state home, and the digest under it.
+ * WHAT THIS MACHINE KEEPS, as a closed list.
  *
- * The kind is a word rather than a path so a caller cannot reach outside the
- * home: `chat` and `git` today.
+ * A union rather than a free string, and that is the containment the header
+ * claims: `join(stateHome(), "../../somewhere")` escapes a home a caller was
+ * told it could not reach, and nothing but a type can say so. It also makes
+ * "what does olai keep about a directory" answerable by reading one line.
  */
-export const fileFor = (kind: string, root: string): string =>
-  join(stateHome(), kind, `${digestOf(root)}.json`)
+export type Kind = "chat" | "git"
+
+/** Where one kind of remembered thing lives for one served directory — a
+ *  subdirectory of the state home, and the digest under it. Takes the
+ *  CANONICAL path, which is the one every caller has already resolved because
+ *  it goes inside the file too. */
+export const fileFor = (kind: Kind, cwd: string): string =>
+  join(stateHome(), kind, `${digestOf(cwd)}.json`)
 
 /** What every record here carries beside its own fields — see the header for
  *  why the path is written inside the file it is named after. */

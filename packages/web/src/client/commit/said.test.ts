@@ -34,8 +34,8 @@ import {
   MARK,
   markOf,
   newsSays,
+  unpushedIn,
   PUSH_REFUSED,
-  pushRefused,
   scopeOf,
   unpushedOf,
   verbatim,
@@ -66,6 +66,15 @@ const gitSaid = (said: string): GitState => git({ status: "error", said })
 
 /** The loop stopped, with git's own words on it. */
 const stopped = (said: string): GitState => git({ paused: said })
+
+/** A directory with `count` rows waiting, and one with `count` commits nobody
+ *  else has — the two numbers `newsSays` and `isNews` read off the survey now
+ *  that they take it whole. */
+const waiting = (count: number): Pending =>
+  surveyed(READY, { unreadable: Array.from({ length: count }, (_, at) => `f${at}.olai`) })
+
+const behind = (count: number): Pending =>
+  surveyed(READY, { unpushed: { upstream: "origin/main", commits: count } })
 
 // ── which face ─────────────────────────────────────────────────────────
 
@@ -172,23 +181,22 @@ test("a phone only interrupts the page when git has news", () => {
   // The desktop pill is always drawn. A banner that vanished cannot be
   // trusted either — so the healthy faces stay off screen and the page
   // itself is the healthy state.
-  expect(isNews("committed", 0)).toBe(false)
-  expect(isNews("never", 0)).toBe(false)
-  expect(isNews("off", 0)).toBe(false)
-  expect(isNews("no-repo", 0)).toBe(false)
-  expect(isNews("unknown", 0)).toBe(false)
-  expect(isNews("waiting", 0)).toBe(true)
-  expect(isNews("blocked", 0)).toBe(true)
-  expect(isNews("error", 0)).toBe(true)
-  expect(isNews("committed", 3)).toBe(true)
+  const quiet = surveyed(READY)
+  for (const face of ["committed", "never", "off", "no-repo", "unknown"] as const) {
+    expect(isNews(face, quiet, git())).toBe(false)
+  }
+  for (const face of ["waiting", "blocked", "error"] as const) {
+    expect(isNews(face, quiet, git())).toBe(true)
+  }
+  expect(isNews("committed", behind(3), git())).toBe(true)
 })
 
 test("the phone banner is one line, and waiting outranks unpushed", () => {
-  expect(newsSays("waiting", 6, 3)).toBe("6 uncommitted — tap to record")
-  expect(newsSays("blocked", 2, 0)).toBe("2 uncommitted — repository busy")
-  expect(newsSays("error", 0, 0)).toBe("git error — tap to see")
-  expect(newsSays("committed", 0, 3)).toBe("3 unpushed — tap to push")
-  expect(newsSays("committed", 0, 0)).toBe("")
+  expect(newsSays("waiting", waiting(6), git())).toBe("6 uncommitted — tap to record")
+  expect(newsSays("blocked", waiting(2), git())).toBe("2 uncommitted — repository busy")
+  expect(newsSays("error", surveyed(READY), git())).toBe("git error — tap to see")
+  expect(newsSays("committed", behind(3), git())).toBe("3 unpushed — tap to push")
+  expect(newsSays("committed", surveyed(READY), git())).toBe("")
 })
 
 // ── the quiet window, which is a fact about the DIRECTORY ──────────────
@@ -235,17 +243,18 @@ test("the sentence a stopped loop leaves names Resume, on both sentences", () =>
 })
 
 test("a phone is interrupted by a stopped loop, on a face that is otherwise quiet", () => {
-  expect(isNews("committed", 0, null)).toBe(false)
-  expect(isNews("committed", 0, "no upstream")).toBe(true)
-  expect(isNews("never", 0, "no upstream")).toBe(true)
+  expect(isNews("committed", surveyed(READY), git())).toBe(false)
+  expect(isNews("committed", surveyed(READY), stopped("no upstream"))).toBe(true)
+  expect(isNews("never", surveyed(READY), stopped("no upstream"))).toBe(true)
 })
 
 test("the banner says the loop stopped ahead of whatever else is true", () => {
   // It outranks every face, because it is the one line about a promise having
   // broken rather than about work waiting.
-  expect(newsSays("waiting", 6, 3, "no upstream")).toContain(AUTO_PAUSED)
-  expect(newsSays("committed", 0, 0, "no upstream")).toContain(AUTO_PAUSED)
-  expect(newsSays("waiting", 6, 3, null)).toBe("6 uncommitted — tap to record")
+  expect(newsSays("waiting", waiting(6), stopped("no upstream"))).toContain(AUTO_PAUSED)
+  expect(newsSays("committed", surveyed(READY), stopped("no upstream")))
+    .toContain(AUTO_PAUSED)
+  expect(newsSays("waiting", waiting(6), git())).toBe("6 uncommitted — tap to record")
 })
 
 // ... and it does not take the COUNT with it. A halted loop plus a later edit
@@ -253,10 +262,11 @@ test("the banner says the loop stopped ahead of whatever else is true", () => {
 // pill says both beside each other — a phone that had to tap through to find
 // out is the same fact told to two readers differently.
 test("a stopped loop on a phone still says how much is waiting", () => {
-  expect(newsSays("waiting", 6, 0, "no upstream")).toContain("6 uncommitted")
-  expect(newsSays("waiting", 6, 0, "no upstream")).toContain(AUTO_PAUSED)
+  expect(newsSays("waiting", waiting(6), stopped("no upstream"))).toContain("6 uncommitted")
+  expect(newsSays("waiting", waiting(6), stopped("no upstream"))).toContain(AUTO_PAUSED)
   // Nothing waiting is nothing to count, and the line stays one line.
-  expect(newsSays("committed", 0, 0, "no upstream")).toBe(`${AUTO_PAUSED} — tap to see`)
+  expect(newsSays("committed", surveyed(READY), stopped("no upstream")))
+    .toBe(`${AUTO_PAUSED} — tap to see`)
 })
 
 // ── what it says ───────────────────────────────────────────────────────
@@ -394,8 +404,8 @@ test("the sentence says what is unpushed, whichever face is worn", () => {
  */
 test("a refused push says what git said, and a successful one says nothing", () => {
   const said = "! [rejected] master -> master (non-fast-forward)"
-  expect(pushRefused(git({ pushSaid: said }))).toBe(said)
-  expect(pushRefused(git())).toBe(null)
+  expect(git({ pushSaid: said }).pushSaid).toBe(said)
+  expect(git().pushSaid).toBeNull()
 })
 
 test("a failing push takes the tick off the pill, whatever the face is saying", () => {
@@ -428,10 +438,11 @@ test("the sentence says the push was refused, and hands over git's words", () =>
 
 test("a phone is interrupted by a refused push, and the banner says which", () => {
   const said = "! [rejected] master -> master (non-fast-forward)"
-  expect(isNews("committed", 0, null, said)).toBe(true)
-  expect(newsSays("committed", 0, 13, null, said)).toContain(PUSH_REFUSED)
+  expect(isNews("committed", surveyed(READY), git({ pushSaid: said }))).toBe(true)
+  expect(newsSays("committed", behind(13), git({ pushSaid: said })))
+    .toContain(PUSH_REFUSED)
   // ... and the plain count is what it says when nothing was refused.
-  expect(newsSays("committed", 0, 13, null, null)).toBe("13 unpushed — tap to push")
+  expect(newsSays("committed", behind(13), git())).toBe("13 unpushed — tap to push")
 })
 
 /** Every status a dirty file can have wears a word. A table, so a sixth one

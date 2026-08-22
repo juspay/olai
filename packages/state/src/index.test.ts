@@ -77,9 +77,11 @@ test("one directory is one name, however it was spelled", () =>
     const link = `${root}-link`
     fs.symlinkSync(root, link)
     try {
+      // The resolving is `canonical`'s; `digestOf` names whatever it is handed,
+      // so one `realpath` serves the file's name and the guard inside it.
       expect(canonical(link)).toBe(root)
-      expect(digestOf(link)).toBe(digestOf(root))
-      expect(digestOf(`${root}/`)).toBe(digestOf(root))
+      expect(canonical(`${root}/`)).toBe(root)
+      expect(digestOf(canonical(link))).toBe(digestOf(canonical(root)))
       // ... and two DIFFERENT directories are two names.
       expect(digestOf(root)).not.toBe(digestOf(`${root}-other`))
     } finally {
@@ -92,7 +94,7 @@ test("one directory is one name, however it was spelled", () =>
  *  this must not be what tells them so. */
 test("a directory that is not there still has a name", () => {
   expect(canonical("/no/such/place")).toBe("/no/such/place")
-  expect(digestOf("/no/such/place")).toHaveLength(16)
+  expect(digestOf(canonical("/no/such/place"))).toHaveLength(16)
 })
 
 test("a kind is a subdirectory of the state home, and the digest names the file", () =>
@@ -100,6 +102,8 @@ test("a kind is a subdirectory of the state home, and the digest names the file"
     expect(fileFor("git", root)).toBe(
       path.join(home, "olai", "git", `${digestOf(root)}.json`),
     )
+    // A second kind is a sibling directory rather than a second naming scheme.
+    expect(path.dirname(fileFor("chat", root))).toBe(path.join(home, "olai", "chat"))
   }))
 
 test("nothing written down is `null` rather than a failure", () =>

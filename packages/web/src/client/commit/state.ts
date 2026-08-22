@@ -38,10 +38,66 @@ import { GIT_OFF } from "@olai/surface"
 import { type Accessor, createSignal } from "solid-js"
 
 import { waitingIn } from "./said.ts"
-import { run } from "../run.ts"
+import { type Call, run } from "../run.ts"
 import { olai } from "../wire.ts"
 
-export interface Commit {
+/**
+ * WHAT GIT IS DOING HERE, and the two verbs that move the policy — the two
+ * preference rows' whole door, and the smaller half of {@link Commit}.
+ *
+ * Its own factory because the preferences panel wants exactly this and nothing
+ * else: it does not draw what is waiting, so building the whole committer for
+ * it opened a second `pending` subscription — a full frame of every dirty file
+ * decoded twice per publish while the popover is up, and a subscription pair
+ * churned on every open and close.
+ */
+export interface GitPolicySeam {
+  /**
+   * What git is doing for this directory — the whole of the second half of the
+   * one indicator, and of the two preference rows.
+   *
+   * A repository with no `user.email` answers every probe happily, so the
+   * survey reads `Ready` while nothing can be committed; a repository whose
+   * PUSH is being refused answers every probe happily too, and the survey
+   * cannot see that either. The server remembers both and publishes them here,
+   * beside the policy it is running under and whether the loop has stopped.
+   */
+  readonly git: Accessor<GitState>
+  /**
+   * WHAT THE SERVER WOULD NOT TAKE FROM THIS TAB, or `null`.
+   *
+   * The one refusal that is genuinely this tab's, and the reason it survived
+   * the move: git's own refusals are the directory's and arrive on the cell,
+   * but a CALL that never reached git — the wire dropped it, or the server
+   * answered a usage refusal, which is what a pinned policy row does to a
+   * `setPolicy` — happened to this request and to nobody else's. Nothing on the
+   * cell can say so, and a control that silently did nothing is the failure
+   * this whole feature is about.
+   *
+   * It belongs to the SEAM the press went through, and is drawn beside the
+   * control that made it: the preferences panel draws its own, the commit panel
+   * draws the pill's.
+   *
+   * Cleared when the next request starts, so what is on screen is about the
+   * press a reader just made.
+   */
+  readonly refused: Accessor<string | null>
+  /**
+   * Set this DIRECTORY's git policy — the two preference rows' verb.
+   *
+   * It answers nothing: what changes is the `git` cell, which the server
+   * republishes the moment it is done, so the row redraws from the same value
+   * every other tab is redrawing from. A local echo would be this browser
+   * holding a second opinion about a directory, which is the thing being
+   * retired.
+   */
+  readonly setPolicy: (want: PolicyRequest) => void
+  /** Start a stopped loop again — the Resume button's verb, and the one way
+   *  out. Same shape and same reason as {@link setPolicy}. */
+  readonly resume: () => void
+}
+
+export interface Commit extends GitPolicySeam {
   /** What is waiting. Always a value, so nothing downstream branches on an
    *  absence — see {@link Commit.heard} for the one thing that absence means. */
   readonly pending: Accessor<Pending>
@@ -55,21 +111,6 @@ export interface Commit {
    * business making about a server it had not heard from.
    */
   readonly heard: Accessor<boolean>
-  /**
-   * What git is doing for this directory — the whole of the second half of the
-   * one indicator, and now of the two preference rows as well.
-   *
-   * Its own cell rather than something read off {@link Commit.pending}'s `repo`,
-   * and the difference is more than one state: a repository with no
-   * `user.email` answers every probe happily, so the survey reads `Ready` while
-   * nothing can be committed; a repository whose PUSH is being refused answers
-   * every probe happily too, and the survey cannot see that either. The server
-   * remembers both and publishes them here, beside the policy it is running
-   * under and whether the loop has stopped. Both cells are recomputed from ONE
-   * survey in one statement on the server, so this is a second READING and
-   * never a second probe.
-   */
-  readonly git: Accessor<GitState>
   /** How much is waiting: the node-level changes, the outlines nothing could be
    *  read in, and every OTHER dirty file in the repository. Zero is a clean
    *  tree — and also every directory olai cannot commit in, because the server
@@ -98,34 +139,6 @@ export interface Commit {
   readonly pushing: Accessor<boolean>
   /** Send the current branch. No argument: there is nothing to choose. */
   readonly push: () => void
-  /**
-   * WHAT THE SERVER WOULD NOT TAKE FROM THIS TAB, or `null`.
-   *
-   * The one refusal that is genuinely this tab's, and the reason it survived
-   * the move: git's own refusals are the directory's and arrive on the cell,
-   * but a CALL that never reached git — the wire dropped it, or the server
-   * answered a usage refusal, which is what a pinned policy row does to a
-   * `setPolicy` — happened to this request and to nobody else's. Nothing on the
-   * cell can say so, and a control that silently did nothing is the failure
-   * this whole feature is about.
-   *
-   * Cleared when the next request starts, so what is on screen is about the
-   * press a reader just made.
-   */
-  readonly refused: Accessor<string | null>
-  /**
-   * Set this DIRECTORY's git policy — the two preference rows' verb.
-   *
-   * It answers nothing here: what changes is the `git` cell, which the server
-   * republishes the moment it is done, so the row redraws from the same value
-   * every other tab is redrawing from. A local echo would be this browser
-   * holding a second opinion about a directory, which is the thing being
-   * retired.
-   */
-  readonly setPolicy: (want: PolicyRequest) => void
-  /** Start a stopped loop again — the Resume button's verb, and the one way
-   *  out. Same shape and same reason as {@link setPolicy}. */
-  readonly resume: () => void
 }
 
 /**
@@ -140,12 +153,40 @@ export interface Commit {
 export const canRecord = (working: boolean, pushing: boolean): boolean =>
   !working && !pushing
 
+/**
+ * The `git` cell and the two verbs that move the policy — no `pending`, no
+ * committer, and nothing else this browser owns beyond whether ITS OWN policy
+ * request is still out.
+ *
+ * The preferences panel takes this one. Each `.use()` is a subscription of its
+ * own, so handing that panel the whole committer meant a second full `Pending`
+ * frame decoded per publish for a component that never draws one — and it is
+ * mounted inside a `<Show>`, so the pair was set up and torn down on every
+ * open and close of the popover.
+ */
+export const createGitPolicy = (): GitPolicySeam => {
+  const git = olai.cells.git.use()
+  const [refused, setRefused] = createSignal<string | null>(null)
+
+  /** One shape for both verbs: clear what the last press said, ask, and put
+   *  whatever the server would not take where the person who pressed can read
+   *  it. Neither answers anything — what changed is the cell. */
+  const ask = (call: Call<unknown>) => (): void => {
+    setRefused(null)
+    run(call, (failure) => setRefused(failure.message))
+  }
+
+  return {
+    git: () => git.value() ?? GIT_OFF,
+    refused,
+    setPolicy: (want) => ask(olai.procedures.git.setPolicy(want))(),
+    resume: ask(olai.procedures.git.resume({})),
+  }
+}
+
 export const createCommit = (): Commit => {
   const cell = olai.cells.pending.use()
-  // The spec declares `off` as this cell's default and the framework seeds the
-  // subscription with it, so a page reads "say nothing" before the first frame
-  // rather than flashing a state it has not been told.
-  const git = olai.cells.git.use()
+  const policy = createGitPolicy()
   const [working, setWorking] = createSignal(false)
   const [pushing, setPushing] = createSignal(false)
   const [refused, setRefused] = createSignal<string | null>(null)
@@ -171,9 +212,14 @@ export const createCommit = (): Commit => {
   }
 
   return {
+    ...policy,
+    // This committer's OWN refusals rather than the seam's: a press of Commit
+    // or Push is drawn beside those buttons, and a `setPolicy` a preferences
+    // panel made is drawn beside the row it moved. One signal for both would be
+    // a message under whichever control the reader was not looking at.
+    refused,
     pending,
     heard: () => cell.value() !== undefined,
-    git: () => git.value() ?? GIT_OFF,
     // ONE count, shared with the face the pill wears and the sentence beside it
     // (`./said.ts`): the node changes, plus every other dirty file in the
     // repository now that a `.md` edited by hand is one of them.
@@ -197,17 +243,5 @@ export const createCommit = (): Commit => {
     },
     pushing,
     push: send,
-    refused,
-    setPolicy: (want) => {
-      setRefused(null)
-      run(
-        olai.procedures.git.setPolicy(want),
-        (failure) => setRefused(failure.message),
-      )
-    },
-    resume: () => {
-      setRefused(null)
-      run(olai.procedures.git.resume({}), (failure) => setRefused(failure.message))
-    },
   }
 }

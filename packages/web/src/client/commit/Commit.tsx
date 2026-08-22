@@ -75,6 +75,7 @@ import {
   markOf,
   newsSays,
   PUSH_REFUSED,
+  unpushedIn,
 } from "./said.ts"
 import { Panel } from "./Panel.tsx"
 import { desktop } from "../layout/media.ts"
@@ -142,7 +143,7 @@ export function Commit() {
    * nothing to act on, and chrome that speaks in the ordinary case is chrome
    * nobody reads in the rare one.
    */
-  const unpushed = () => commit.pending().unpushed?.commits ?? 0
+  const unpushed = () => unpushedIn(commit.pending())
 
   /** What the pill says. One line per state, and the reason each is worth its
    *  own words rather than a count is in the header above. */
@@ -176,10 +177,8 @@ export function Commit() {
   const pushSaid = () => commit.git().pushSaid
 
   const showPill = () => desktop()
-  const showBanner = () =>
-    !desktop() && isNews(face(), unpushed(), paused(), pushSaid())
-  const line = () =>
-    newsSays(face(), commit.waiting(), unpushed(), paused(), pushSaid())
+  const showBanner = () => !desktop() && isNews(face(), commit.pending(), commit.git())
+  const line = () => newsSays(face(), commit.pending(), commit.git())
 
   return (
     <>

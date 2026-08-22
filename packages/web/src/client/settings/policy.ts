@@ -28,7 +28,9 @@
  * named a flag nobody gave.
  */
 
-import type { CommitMode, GitPolicy, GitState, PushMode } from "@olai/format"
+import type { CommitMode, GitState, PolicyRequest, PushMode } from "@olai/format"
+
+import { loopIn } from "../commit/said.ts"
 
 /**
  * ── the readings, so nobody re-derives one ─────────────────────────────
@@ -40,21 +42,45 @@ import type { CommitMode, GitPolicy, GitState, PushMode } from "@olai/format"
  * applying.
  */
 
-/** The policy in force — what this server DOES about the two verbs. */
-export const policyIn = (git: GitState): GitPolicy => git.policy
-
-/** What the Git commit row is set to: `true` for the quiet-window loop, `false`
- *  for the two modes that wait.
+/**
+ * What the Git commit row is set to: `true` for the quiet-window loop, `false`
+ * for the two modes that wait.
  *
- *  `auto` is the only mode that turns the row on, and the other two are one
- *  answer for two reasons: `manual` is "a write waits until somebody asks",
- *  which is the row's Off exactly, and `off` is a directory olai never commits
- *  in, where a loop is not a thing that could happen. */
-export const commitOn = (git: GitState): boolean => git.policy.commit === "auto"
+ * READ THROUGH `loopIn` (`../commit/said.ts`), which is the pill's own reading
+ * of the same question — "is the window running here" — so the segmented
+ * control and the chip's `data-auto` cannot come to disagree about one
+ * directory. A third commit mode that counted as running would otherwise move
+ * one of them and not the other, with no test to catch it.
+ *
+ * `auto` is the only mode that turns the row on, and the other two are one
+ * answer for two reasons: `manual` is "a write waits until somebody asks",
+ * which is the row's Off exactly, and `off` is a directory olai never commits
+ * in, where a loop is not a thing that could happen — a STOPPED loop still
+ * reads on, because the row is the policy rather than the loop's health.
+ */
+export const commitOn = (git: GitState): boolean => loopIn(git) !== "off"
 
 /** ... and the same for the push row, whose mode table has only the two values
  *  the row has. */
 export const pushOn = (git: GitState): boolean => git.policy.push === "auto"
+
+/**
+ * ── and the write half of the same two rows ────────────────────────────
+ *
+ * WHAT A PICK MEANS, beside the reading it is the inverse of. The mapping used
+ * to live in a JSX callback, which is the read and the write of one two-value
+ * control kept in two places by nothing.
+ */
+
+/** Off is `manual`, never `off`. The row means "a write waits for the Commit
+ *  button"; `--commit=off` is olai never touching git in this directory at all,
+ *  which is a pinned-only state and not something a browser may arrive at by
+ *  pressing the control that says "wait for me instead". */
+export const commitPick = (on: boolean): PolicyRequest => ({
+  commit: on ? "auto" : "manual",
+})
+
+export const pushPick = (on: boolean): PolicyRequest => ({ push: on ? "auto" : "off" })
 
 /** Whether each row is the OPERATOR's rather than anybody's to change — a flag
  *  was given, so the row is drawn read-only with the flag named. */
