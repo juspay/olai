@@ -70,7 +70,11 @@ export const listenHeaderProxy = (
         if (rest.length > 0) upstream.write(rest);
         client.on("data", (chunk) => upstream.write(chunk));
         client.on("end", () => upstream.end());
-        upstream.end();
+        // A GET/HEAD is complete in the head we already parsed; the client
+        // will not send more. A body (capture, etc.) ends when the client
+        // does.
+        const method = methodOf(requestLine);
+        if (method === "GET" || method === "HEAD") upstream.end();
       });
     });
     server.on("error", reject);
