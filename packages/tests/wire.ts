@@ -61,11 +61,16 @@ import { mkdirSync, writeFileSync } from "node:fs"
 import * as path from "node:path"
 
 import { BROWSER_ARGS } from "./support/browser.ts"
+import { delayed } from "./delay.ts"
 
 const BASE = process.env["BASE"] ?? "http://127.0.0.1:7788"
 const VAULT = process.env["VAULT"] ?? ""
 const LABEL = process.env["LABEL"] ?? "unlabelled"
 const SESSION = process.env["SESSION"] ?? "preview"
+/** Milliseconds of one-way delay to put in front of the server — so a round
+ *  trip costs twice this. Zero (the default) is loopback, which is where the
+ *  stop-and-wait half of `transcript-stream-quadratic` is invisible. */
+const DELAY = Number(process.env["DELAY"] ?? "0")
 
 /** The saved page under test, and the note beside it. Both are written by this
  *  driver rather than taken from a fixture corpus, so the two runs measure the
@@ -239,6 +244,17 @@ const main = async () => {
     write(NOTE, note())
   }
 
+  // A LINK WITH DISTANCE IN IT, when one is asked for: everything the tab does
+  // goes through a relay that holds each chunk for `DELAY` ms each way. The
+  // driver is otherwise unchanged, which is the point — the same session, the
+  // same counters, one property of the wire ({@link ./delay.ts}).
+  const served = new URL(BASE)
+  const link = DELAY === 0 ? null : await delayed(
+    { host: served.hostname, port: Number(served.port) },
+    DELAY,
+  )
+  const base = link === null ? BASE : `http://127.0.0.1:${link.port}`
+
   const browser = await chromium.launch({ args: [...BROWSER_ARGS] })
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } })
   const page = await context.newPage()
@@ -281,18 +297,20 @@ const main = async () => {
     readings.push({ what, socket, media, asks, frames })
   }
 
-  if (SESSION === "pages") await pages(page, mark)
-  else if (SESSION === "filter") await filtered(page, mark, () => asks)
-  else if (SESSION === "chat") await chat(page, mark)
-  else await preview(page, mark, write)
+  if (SESSION === "pages") await pages(page, base, mark)
+  else if (SESSION === "filter") await filtered(page, base, mark, () => asks)
+  else if (SESSION === "chat") await chat(page, base, mark)
+  else await preview(page, base, mark, write)
 
   await browser.close()
+  link?.close()
   report(LABEL, readings)
 }
 
 /** The edit-while-previewing session — see the header. */
 const preview = async (
   page: Page,
+  base: string,
   mark: (what: string) => Promise<void>,
   write: (file: string, text: string) => void,
 ): Promise<void> => {
@@ -304,7 +322,7 @@ const preview = async (
       .waitFor({ timeout: 15_000 })
   }
 
-  await page.goto(BASE)
+  await page.goto(base)
   await page.locator('[data-testid="outline-link"]').first().waitFor()
   await mark("the app opens")
 
@@ -334,6 +352,7 @@ const preview = async (
  */
 const pages = async (
   page: Page,
+  base: string,
   mark: (what: string) => Promise<void>,
 ): Promise<void> => {
   const FIRST = outlineFile(0)
@@ -345,7 +364,7 @@ const pages = async (
   // clicking rather than calling `goto`: a reload re-subscribes to everything,
   // so a session of reloads would measure the first frame eight times and say
   // nothing about what moving between pages costs.
-  await page.goto(`${BASE}/${FIRST}`)
+  await page.goto(`${base}/${FIRST}`)
   await page.locator('[data-testid="outline-link"]').first().waitFor({ timeout: 30_000 })
   await rows.first().waitFor({ timeout: 30_000 })
   await mark(
@@ -410,6 +429,7 @@ const PICKED = 30
  */
 const filtered = async (
   page: Page,
+  base: string,
   mark: (what: string) => Promise<void>,
   counted: () => number,
 ): Promise<void> => {
@@ -417,7 +437,7 @@ const filtered = async (
     page.locator(`[data-testid="node"][data-node-id="${id}"]`)
       .locator('[data-testid="node-title"]').first()
 
-  await page.goto(`${BASE}/${outlineFile(0)}?q=title`)
+  await page.goto(`${base}/${outlineFile(0)}?q=title`)
   await page.locator('[data-testid="outline-link"]').first().waitFor({ timeout: 30_000 })
   // The bar drawn on the address, and the rows under it — so the burst starts
   // from a page that is narrowed rather than one still waiting for its first
@@ -477,10 +497,11 @@ const filtered = async (
  */
 const chat = async (
   page: Page,
+  base: string,
   mark: (what: string) => Promise<void>,
 ): Promise<void> => {
   const panel = page.locator('[data-testid="chat-panel"]')
-  await page.goto(BASE)
+  await page.goto(base)
   await page.locator('[data-testid="outline-link"]').first().waitFor({ timeout: 30_000 })
   // Whether the panel is open is remembered per browser, and this context is a
   // fresh one — but the toggle is a TOGGLE, so a click on an open panel shuts
@@ -498,25 +519,58 @@ const chat = async (
   )
   await mark("the app opens and the panel is opened")
 
-  /** One turn: ask, wait for the answer to stop growing, and mark. `data-
-   *  streaming` comes off the row when the paragraph ends, so waiting for the
-   *  row to settle is waiting for exactly the frames this is counting. */
+  /**
+   * One turn: ask, and time TWO things that are not the same thing.
+   *
+   * WHEN THE AGENT FINISHED is the panel going idle — the `chat` cell, which
+   * is its own subscription and is not queued behind the answer. WHEN THE
+   * ANSWER FINISHED ARRIVING is the row's own `data-streaming` coming off,
+   * which is the last transcript frame of the turn. On a loopback link those
+   * are the same instant. On a link with distance in it they are not, and the
+   * gap between them is the whole of the second defect
+   * (`transcript-stream-quadratic`): a stream that ACKs each frame carries one
+   * publish per round trip, so an agent streaming faster than the round trip
+   * can never be caught up with and the reader watches an answer that has
+   * already been finished being typed out.
+   */
   const turn = async (prompt: string, what: string) => {
     const answers = page.locator('[data-testid="chat-entry"][data-kind="agent"]')
     const before = await answers.count()
+    const asked = Date.now()
     await page.locator('[data-testid="chat-input"]').fill(prompt)
     await page.locator('[data-testid="chat-send"]').click()
+    // `thinking` is the panel's own word for a turn in flight
+    // (`@olai/surface`'s `ChatState.status`).
+    await page.waitForFunction(
+      () =>
+        document.querySelector('[data-testid="chat-panel"]')?.getAttribute("data-status") ===
+          "thinking",
+      undefined,
+      { timeout: 60_000 },
+    )
+    await page.waitForFunction(
+      () =>
+        document.querySelector('[data-testid="chat-panel"]')?.getAttribute("data-status") ===
+          "idle",
+      undefined,
+      { timeout: 300_000 },
+    )
+    const finished = Date.now()
     const answer = answers.nth(before)
-    await answer.waitFor({ timeout: 60_000 })
     await page.waitForFunction(
       (nth) =>
         document.querySelectorAll('[data-testid="chat-entry"][data-kind="agent"]')[nth]
           ?.getAttribute("data-streaming") !== "true",
       before,
-      { timeout: 120_000 },
+      { timeout: 300_000 },
     )
+    const arrived = Date.now()
     const said = await answer.locator('[data-testid="chat-said"]').innerText()
-    await mark(`${what} (${said.length} characters)`)
+    const seconds = (millis: number) => `${(millis / 1000).toFixed(1)}s`
+    await mark(
+      `${what} — ${said.length} chars; agent done ${seconds(finished - asked)}, ` +
+        `answer done ${seconds(arrived - asked)}, panel ${seconds(arrived - finished)} behind`,
+    )
   }
 
   // PACED FIRST, because it is the honest one: a model's tokens arrive over
