@@ -197,10 +197,11 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   const outlines = of("list_outlines")[0]?.["outlines"] as ReadonlyArray<
     Record<string, unknown>
   >
-  // Two rows, one of each kind: a file that parsed, and one that did not. The
-  // torn row carries `unreadable` BESIDE a zero count and an empty root list —
-  // the flat shape `OutlineSummary` holds knowingly, and pinned here so a
-  // change to it is a decision somebody makes rather than one that happens.
+  // Two rows, one of each kind: a file that parsed is a count and its roots,
+  // a file that did not is its errors and NOTHING ELSE — no `nodes: 0` for a
+  // count nobody counted, and no empty `roots` claiming the outline is about
+  // nothing. Pinned here so a change to the shape is a decision somebody makes
+  // rather than one that happens.
   expect(outlines[0]).toEqual({
     file: "house.olai",
     // Four REGULAR nodes; the two mirrors are placements and do not count.
@@ -209,8 +210,6 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   })
   expect(outlines[1]).toEqual({
     file: "torn.olai",
-    nodes: 0,
-    roots: [],
     unreadable: [expect.any(String)],
   })
 
@@ -253,8 +252,8 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   expect(gone).toEqual({ missing: "shed" })
 
   // The document listing is the outline listing's twin, torn row and all: a
-  // `.md` the set could not read carries `unreadable` beside an empty title
-  // and a zero, and the `.html` beside it is not in this answer at all —
+  // `.md` the set could not read is its errors and nothing else — matching
+  // the outline arm — and the `.html` beside it is not in this answer at all:
   // nothing kept its body, so there is nothing to name or measure.
   const documents = of("list_documents")[0]?.["documents"] as ReadonlyArray<
     Record<string, unknown>
@@ -268,7 +267,7 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
       props: { agent: "claude-opus", owners: ["alice", "bob"] },
     },
     { file: "plain.md", title: "walnut, or birch", bytes: 17 },
-    { file: "torn.md", title: "", bytes: 0, unreadable: [expect.any(String)] },
+    { file: "torn.md", unreadable: [expect.any(String)] },
   ])
 
   // And one body, whole — the text a `write_document` guard is judged against.

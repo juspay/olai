@@ -75,6 +75,7 @@ import {
   nodesOf,
   nothing,
   type OpFailure,
+  type OutlineError,
   type Owed,
   owedOf,
   type OwedRequest,
@@ -950,6 +951,19 @@ export const subtree = (
 
 // ── the directory ──────────────────────────────────────────────────────
 
+/**
+ * The torn arm of a listing — {@link OutlineSummary}'s and
+ * {@link DocumentSummary}'s, built here so they cannot come apart.
+ *
+ * A count, a root list, a title and a size are what a successful read
+ * produces; this is the whole of what can be said when that read did not
+ * happen. The floor's own arm, and the reason both listings have two.
+ */
+const torn = (file: string, errors: ReadonlyArray<OutlineError>) => ({
+  file,
+  unreadable: errors.map(errorLine),
+})
+
 export const outlines = (
   set: OutlineSet,
   derived: Derived,
@@ -987,20 +1001,10 @@ export const outlines = (
    */
   // ANNOTATED, so the row literals below are checked against the floor: a
   // field dropped from `OutlineSummary` fails HERE rather than only at the
-  // table-driven decode. That is independent of what the rows hold, which is
-  // why it survives the revert of the two-arm shape.
+  // table-driven decode.
   return outlinePaths(set).map((file): OutlineSummary => {
     const errors = broken.get(file)
-    // The zero and the empty list are what a file that did not parse gets, and
-    // {@link OutlineSummary} says why that is held rather than settled.
-    if (errors !== undefined) {
-      return {
-        file,
-        nodes: 0,
-        roots: [],
-        unreadable: errors.map(errorLine),
-      }
-    }
+    if (errors !== undefined) return torn(file, errors)
     // No entry at all is an outline holding no nodes of its own.
     const own = nodesOf(derived, file).filter(isRegular)
     return {
@@ -1037,12 +1041,7 @@ export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
   // `DocumentSummary` fails HERE rather than only at the table-driven decode.
   return markdownIn(set).map((entry): DocumentSummary => {
     const errors = broken.get(entry.path)
-    // The empty title and the zero are what a file that could not be read
-    // gets, and {@link DocumentSummary} says why that is held rather than
-    // settled — it is `OutlineSummary`'s convention, matched on purpose.
-    if (errors !== undefined) {
-      return { file: entry.path, title: "", bytes: 0, unreadable: errors.map(errorLine) }
-    }
+    if (errors !== undefined) return torn(entry.path, errors)
     // The TITLE is the document's own now rather than this listing's reading of
     // its text: it is a field of the face the decode built (`@olai/format`'s
     // `Document`), which is the same title the browser draws and the same one a

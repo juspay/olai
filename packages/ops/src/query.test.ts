@@ -697,7 +697,11 @@ describe("a whole outline, walked", () => {
     })
     expect(rootIds(walked(readingOf(set), { file: "out.olai" })))
       .toEqual(["first", "second"])
-    expect(outlines(set, derivedOf(set))[0]?.roots).toEqual(["Second", "First"])
+    expect(outlines(set, derivedOf(set))[0]).toEqual({
+      file: "out.olai",
+      nodes: 2,
+      roots: ["Second", "First"],
+    })
   })
 
   test("a placement at the top level is not a root", () => {
@@ -973,9 +977,11 @@ describe("the directory", () => {
       // counted nor a root — and the roots are in FILE order.
       { file: "house.olai", nodes: 3, roots: ["Garden", "House"] },
       { file: "shed.olai", nodes: 1, roots: ["Shed"] },
-      // The torn row carries `unreadable` BESIDE a zero and an empty list —
-      // the flat shape {@link OutlineSummary} holds knowingly.
-      { file: "torn.olai", nodes: 0, roots: [], unreadable: [expect.any(String)] },
+      // The torn row is the other arm: its errors and NOTHING ELSE — no
+      // `nodes: 0` for a count nobody counted, and no empty `roots` claiming
+      // the outline is about nothing. Empty above is a file somebody emptied;
+      // this is a file nobody read. They must not look the same.
+      { file: "torn.olai", unreadable: [expect.any(String)] },
     ])
   })
 })
