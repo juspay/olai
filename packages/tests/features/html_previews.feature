@@ -50,6 +50,39 @@ Feature: A `.html` in the vault
     # which is the whole of the new rule read from the console.
     And the only complaints are the browser refusing what the file may not do
 
+  @scratch:good
+  Scenario: A page named index.html at the top of the vault is still that vault's page
+    # THE BUNDLE'S OWN PATH, as a scenario. A file's address is its path since
+    # addresses went prefix-free (#256), so a reader whose folder holds an
+    # `index.html` is asking for the one path the browser bundle also answers
+    # at — `@kolu/surface-app` serves `<dist>/index.html` from the dist root.
+    #
+    # Clicking the row would never notice: that is a client-side route and no
+    # request leaves the tab. A RELOAD is what asks the server, which is why
+    # this scenario spends one. What comes back there is the SPA shell, byte
+    # for byte the one an unmatched path is answered with, so the address
+    # reaches the client's parser and the reader's own page opens.
+    #
+    # `web/src/client/routes.ts` used to say this address could not be reached.
+    # It can. The half that genuinely cannot is a file under an `assets/`
+    # folder, where the immutable prefix has to 404 rather than reach the
+    # shell — pinned at the HTTP layer in `packages/server/src/serve.test.ts`,
+    # since a page that does not exist is not a thing a browser can be shown.
+    When I rewrite "index.html" as:
+      """
+      <h1>The reader's own index</h1>
+      <p>At the top of the vault, where the bundle's shell lives too.</p>
+      """
+    And I open the app
+    Then the pages listed are "index.html, quarter.html, report.html"
+    When I click the page "index.html"
+    Then the address is "/index.html"
+    And the preview shows the heading "The reader's own index"
+    When I reload the page
+    Then the address is "/index.html"
+    And the preview shows the heading "The reader's own index"
+    And there should be no page errors
+
   @corpus:good
   Scenario: The page shows what the file says, with the file's own styling
     When I open the page "report.html"

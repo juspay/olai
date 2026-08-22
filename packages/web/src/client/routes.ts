@@ -61,13 +61,29 @@
  *
  * WHAT CAN COLLIDE IS THE BUNDLE, and it is named here because a prefix-free
  * URL space is what makes it possible: the server hands the SPA shell to
- * anything it does not serve itself, and the two things it does serve at the
- * root are `/index.html` and `/assets/…` (`@kolu/surface-app`). A served
- * directory holding an `index.html` at its top level, or any file under an
- * `assets/` folder, is a page this app can address and cannot be reached at —
- * the bundle answers first. Moving the bundle's own paths under a reserved
- * prefix is the fix and it is a server change, so it is filed rather than
- * done here.
+ * anything it does not serve itself, and what it serves at the root is the
+ * bundle's own — `/index.html` and `/assets/…` (`@kolu/surface-app`).
+ *
+ * ONE of those two is a collision, and which one was MEASURED rather than
+ * reasoned about (`packages/server/src/serve.test.ts`, the two tests at the
+ * foot of the install surface). A served directory holding an `index.html` at
+ * its top level is reachable: the bundle answers that path with the shell, and
+ * the shell is byte for byte what the SPA fallback would have answered with, so
+ * the address reaches this parser and the page opens like any other file's. A
+ * file under an `assets/` folder is not, and cannot be made so from here: that
+ * prefix is the immutable, content-hashed one, and a miss under it has to 404
+ * rather than fall through — a `.js` URL answered with the HTML shell is the
+ * wrong MIME pinned `immutable` for a year (kolu#1319). So the reader gets
+ * `not found`, and no page at all.
+ *
+ * The fix is to move the bundle's hashed dir under a prefix this app already
+ * owns — `/_olai/assets/`, the same `_olai/` the shelf and the trash are
+ * minted into, so what it shadows is olai's own namespace rather than the
+ * reader's — and it is a SERVER change. `@kolu/surface-app`'s serving half has
+ * taken an `assetPrefix` since the freshness contract was written; its Bun
+ * build hardcoded the directory, so the input had no producer and nothing here
+ * could reach it. That socket is kolu#2197, and the move lands when the pin
+ * carries it.
  *
  * ## The computed pages, which name nothing on disk
  *
