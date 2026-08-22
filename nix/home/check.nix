@@ -109,6 +109,10 @@ let
     assert !(lib.hasInfix "--commit" execPlain);
     assert !(lib.hasInfix "--push" execPlain);
     assert linux.config.home.packages == [ fakeOlai ];
+    # No log-level env when the option is unset — info is olai's own default,
+    # and a module that helpfully passed it would still be an instance pin
+    # (docs/running.md), just a louder one.
+    assert !(linuxService.Service ? Environment);
     # Darwin path must not fire on Linux.
     assert linux.config.launchd.agents == { };
     true;
@@ -128,6 +132,16 @@ let
     assert !(lib.hasInfix "--push" commitOnlyExec);
     true;
 
+  # --- log level, when an operator raises it -------------------------------
+  loud = evalFor { isLinux = true; isDarwin = false; } { logLevel = "debug"; };
+  loudDarwin = evalFor { isLinux = false; isDarwin = true; } { logLevel = "debug"; };
+  _loud =
+    assert loud.config.systemd.user.services.olai.Service.Environment
+      == [ "OLAI_LOG_LEVEL=debug" ];
+    assert loudDarwin.config.launchd.agents.olai.config.EnvironmentVariables
+      == { OLAI_LOG_LEVEL = "debug"; };
+    true;
+
   # --- the environment agents inherit ------------------------------------
   # No EnvironmentFile unless one was named: an empty setting is not a file
   # systemd should be told to read.
@@ -141,8 +155,10 @@ let
     assert !(linuxService.Service ? EnvironmentFile);
     assert withEnvFile.config.systemd.user.services.olai.Service.EnvironmentFile
       == "/home/alice/.config/olai/env";
-    # Nothing else moved: the file is an addition to the unit, not a rewrite.
+    # Nothing else moved: the file is an addition to the unit, not a rewrite,
+    # and neither is the log level beside it.
     assert withEnvFile.config.systemd.user.services.olai.Service.Restart == "always";
+    assert !(loud.config.systemd.user.services.olai.Service ? EnvironmentFile);
     # ... and launchd, which has no such knob, REFUSES rather than dropping it.
     assert failed linux == [ ];
     assert failed darwin == [ ];
@@ -178,10 +194,12 @@ in
 assert _linux;
 assert _darwin;
 assert _pinned;
+assert _loud;
 assert _env;
 pkgs.runCommand "olai-hm-module-check" { } ''
   echo "services.olai module evaluates (linux systemd + darwin launchd)"
   echo "  ... and the git policy options reach argv only when they are set"
+  echo "  ... and the log level reaches both supervisors when it is raised"
   echo "  ... and environmentFile reaches the unit on Linux, and is refused on Darwin"
   touch $out
 ''

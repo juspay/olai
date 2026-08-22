@@ -65,8 +65,16 @@ When the human approves a PR: approval opens a gate, it does not skip the pipeli
   
 When the human approves multiples PRs, approve them in sensible order to minimize conflict resolution work.
   
-Before asking the human to approve a PR, read the author's final message in its terminal (kolu snapshot). Anything it leaves "for you" — deferred scope, sibling-repo defects, follow-up work — is not merge-ready until the human has ratified its disposition: fold it into the PR, spawn it as new work, or explicitly let it lie. Never file issues, or take any action on another repo, without the human's ratification. "Recorded" in prose is not tracked; only a URL or a roadmap entry is.
+Before asking the human to approve a PR, read the author's final message in its terminal (kolu snapshot). Anything the author leaves 'for you' is a stop-and-ask, not a note; the PR waits on the human's answer (unless working autonomously overnight). Never file issues, or take any action on another repo, without the human's ratification. "Recorded" in prose is not tracked; only a URL or a roadmap entry is.
 
-Agents must be browbeated into doing deferrals in the same PR unless there is a godly reason not to. Diff size, noise, or review burden are NEVER godly — these PRs mostly merge without human review. Refactors in particular, whether of code the PR touched or of a pre-existing hack it spotted, are done in the spotting PR, never deferred. If there is a godly reason (a different subsystem, or a design the human must rule), a deferral filed on roadmap goes in olai Inbox and carries `from=<PR>` as a property (`set_prop`) — the property is where it came from.
+**No deferrals.** A PR ships everything its roadmap item names and everything it spots in the
+code it touches — refactors of touched code, pre-existing hacks, review findings, nits. Diff size,
+noise, review burden, "different shape", "wants its own PR" are never reasons; neither is another
+repository's gate or a design question. If something genuinely cannot be done in the PR, the author
+does not write it down and carry on: it STOPS and ASKS in its terminal (what, why it cannot be done
+here, the options), and the orchestrator puts the question to the human before the PR moves (unless working overnight autonomously). A PR
+whose `## Deferrals` section says anything but `No deferrals.` is not merge-ready, and "filed as a
+follow-up" counts as a deferral. The Inbox holds only what the human chooses to park.
+
 
 [^green-ci]: Never judge CI from gh pr list's check rollup — it only lists checks that have already reported, so a required check that hasn't started looks like success. Before calling a PR green, run gh pr checks <n> --required and demand an explicit pass on every required check (or mergeStateStatus == CLEAN).
