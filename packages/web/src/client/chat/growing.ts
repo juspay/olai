@@ -104,7 +104,7 @@ const growing = (pieces: Map<string, Saying>): Growing => ({
  * arrives as a remove that was never preceded by an upsert.
  */
 export const TRANSCRIPT_TAIL: CollectionFoldOptions<string, Saying, Growing> = {
-  init: (entries) => growing(new Map(entries.map(([key, piece]) => [key, piece]))),
+  init: (entries) => growing(new Map(entries)),
   step: (held, { upserts, removes }) => {
     let moved = false
     for (const key of removes) if (held.pieces.delete(key)) moved = true

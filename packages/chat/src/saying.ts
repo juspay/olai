@@ -123,48 +123,71 @@ export const cadence = (options: {
   const after = options.after ?? afterReally
   /** What is on the wire, by key — {@link Cadence.onWire}. */
   const live = new Map<string, Saying>()
-  /** The piece waiting for the window to close. At most ONE, because pieces of
-   *  one row merge and a piece of another row displaces this one: a second
-   *  slot would be a second row growing, which the transcript's single open
-   *  entry makes unrepresentable. */
-  let held: Saying | null = null
-  /** How to cancel the open window, or `null` when none is open. The window is
-   *  open exactly while something is held, which is why this is not a second
-   *  fact to keep in step: both move on the same lines. */
-  let close: (() => void) | null = null
+  /**
+   * The piece waiting for its window to close, and how to cancel that window.
+   *
+   * ONE SLOT holding BOTH, because they are one fact and were two: a window is
+   * open exactly while something is held, and keeping the piece in one binding
+   * and its timer in another is an invariant a reader has to be told about
+   * instead of one the shape holds — "held with no window" is a chunk that
+   * never goes out, and "a window with nothing held" is a frame that publishes
+   * nothing. Neither is spellable now.
+   *
+   * At most ONE, because pieces of one row merge and a piece of another row
+   * displaces this one: a second slot would be a second row growing, which the
+   * transcript's single open entry makes unrepresentable.
+   */
+  let waiting: { readonly piece: Saying; readonly close: () => void } | null = null
 
-  const disarm = (): void => {
-    close?.()
-    close = null
+  /** Nothing is waiting, and no window is open — however it got that way. */
+  const drop = (): void => {
+    waiting?.close()
+    waiting = null
   }
 
-  /** The held piece, taken. Answers with what to upsert, or nothing. */
-  const take = (): ReadonlyArray<readonly [string, Saying]> => {
-    if (held === null) return []
-    const piece = held
-    held = null
+  /** Hold a piece, opening a window if one is not already open. The DEADLINE
+   *  belongs to the first piece of a run rather than to the newest, which is
+   *  what bounds the wait: a row that never stops growing would otherwise
+   *  never be published. */
+  const hold = (piece: Saying): void => {
+    waiting = {
+      piece,
+      close: waiting?.close ?? after(window, () => {
+        const held = waiting
+        waiting = null
+        if (held === null) return
+        options.onFrame({ rows: NO_ROWS, pieces: { upserts: [sent(held.piece)], removes: [] } })
+      }),
+    }
+  }
+
+  /** A piece, onto the wire: filed under its own key and remembered as live,
+   *  so a later subscriber is seeded with it and the row that supersedes it
+   *  knows what to take off. */
+  const sent = (piece: Saying): readonly [string, Saying] => {
     const key = sayingKey(piece)
     live.set(key, piece)
-    return [[key, piece]]
+    return [key, piece]
   }
 
   const publish = (change: Change): void => {
-    // The pieces this call sends AHEAD of the window: one per row that was
-    // displaced by a piece of another row. Ordinarily empty — one row grows at
-    // a time — and never dropped silently, which is the point of collecting
-    // them rather than letting the next assignment overwrite what was held.
-    let upserts: ReadonlyArray<readonly [string, Saying]> = []
+    // The pieces this call sends AHEAD of their window: one per row displaced
+    // by a piece of another row. Ordinarily empty — one row grows at a time —
+    // and collected rather than dropped, because a displaced piece is text
+    // somebody is reading.
+    const upserts: Array<readonly [string, Saying]> = []
     for (const piece of change.appends) {
-      if (held !== null && held.of === piece.of && held.at + held.text.length === piece.at) {
+      const held = waiting?.piece
+      if (held !== undefined && held.of === piece.of && held.at + held.text.length === piece.at) {
         // CONTIGUOUS, so it is the same piece, longer. This is the coalescing:
         // six hundred chunks become a couple of dozen pieces, and the wire
         // carries the answer's own bytes plus a piece's worth of overhead per
         // window rather than per token.
-        held = { ...held, text: `${held.text}${piece.text}` }
+        hold({ ...held, text: `${held.text}${piece.text}` })
         continue
       }
-      if (held !== null) upserts = [...upserts, ...take()]
-      held = piece
+      if (held !== undefined) upserts.push(sent(held))
+      hold(piece)
     }
 
     // WHICH ROWS THIS CHANGE SPEAKS FOR. A row on the wire is whole, so
@@ -175,24 +198,19 @@ export const cadence = (options: {
       ...change.upserts.map(([key]) => key),
       ...change.removes,
     ])
-    let removes: ReadonlyArray<string> = []
-    if (rows.size > 0) {
-      if (held !== null && rows.has(held.of)) held = null
-      upserts = upserts.filter(([, piece]) => !rows.has(piece.of))
-      for (const [key, piece] of [...live]) {
-        if (!rows.has(piece.of)) continue
-        live.delete(key)
-        removes = [...removes, key]
-      }
-    }
-
-    if (held === null) disarm()
-    else if (close === null) {
-      close = after(window, () => {
-        close = null
-        const late = take()
-        if (late.length > 0) options.onFrame({ rows: NO_ROWS, pieces: { upserts: late, removes: [] } })
-      })
+    const removes: Array<string> = []
+    if (waiting !== null && rows.has(waiting.piece.of)) drop()
+    // Everything that WAS on the wire for one of those rows comes off it —
+    // including a piece this very call put there a few lines up, which then
+    // rides out as an upsert and a remove of one key in one frame. That is
+    // correct rather than merely harmless: the consumer writes the upserts and
+    // then the removes, and the framework's own tick coalescer resolves an
+    // upsert-then-remove inside a tick to a bare remove. Filtering it out here
+    // would be this module doing a second time what both ends already do.
+    for (const [key, piece] of live) {
+      if (!rows.has(piece.of)) continue
+      live.delete(key)
+      removes.push(key)
     }
 
     const moved = change.upserts.length > 0 || change.removes.length > 0
@@ -203,12 +221,5 @@ export const cadence = (options: {
     })
   }
 
-  return {
-    publish,
-    onWire: () => live,
-    stop: () => {
-      disarm()
-      held = null
-    },
-  }
+  return { publish, onWire: () => live, stop: drop }
 }
