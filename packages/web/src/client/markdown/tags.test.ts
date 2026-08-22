@@ -156,6 +156,19 @@ test("a phrase that crosses an unwrapped fence into trailing prose lights neithe
   )
 })
 
+// Nested emphasis used to lose its render to the escaped source (title.ts's
+// accounting), and the escaped source lights nothing — so a filtered row whose
+// only reason was a word inside `**b *c* d**` was drawn with its marks showing
+// and nothing lit. Both halves are one fix: the title renders, and the needle
+// lands where it sits inside the nesting.
+test("a needle inside nested emphasis is lit where it sits", () => {
+  expect(lit("a **b *c* d** e", "c")).toBe(
+    `a <strong>b <em><mark class="olai-hit" data-testid="hit">c</mark></em>` +
+      ` d</strong> e`,
+  )
+})
+
+
 // ── the half that is protected, and stays protected ────────────────────
 
 test("a `#…` inside a code span is code, not a tag", () => {

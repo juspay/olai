@@ -526,6 +526,72 @@ test("a normal markdown title does not fall back to escaped source", () => {
   expect(html).not.toContain("&lt;")
 })
 
+// ── what the loss check must NOT mistake for a loss ─────────────────────
+//
+// The check above compares what was drawn against the text the SOURCE accounts
+// for, and that second number is markdown's own reading of the title
+// (title.ts's `accountedText`). It used to be a list of regexes — a small
+// markdown dialect standing next to the real parser — and these are the titles
+// it read wrong: every one of them rendered correctly and was then thrown away
+// for its own escaped source.
+
+// Nested emphasis is the shape that started it: `**b *c* d**` matches no
+// bold rule whole, so the marks the inner run left behind stayed in the
+// estimate, the estimate came out longer than the render, and the row drew
+// `a **b *c* d** e` with a stray `*` in it.
+test("nested emphasis renders rather than falling back to the source", () => {
+  expect(renderTitle("a **b *c* d** e", NOTE)).toBe(
+    "a <strong>b <em>c</em> d</strong> e",
+  )
+})
+
+test("every nesting of the two emphasis marks renders", () => {
+  expect(renderTitle("***x***", NOTE)).toBe("<em><strong>x</strong></em>")
+  expect(renderTitle("**a *b* c**", NOTE)).toBe(
+    "<strong>a <em>b</em> c</strong>",
+  )
+  expect(renderTitle("*a **b** c*", NOTE)).toBe("<em>a <strong>b</strong> c</em>")
+  // The underscore spellings of the same three.
+  expect(renderTitle("a __b _c_ d__ e", NOTE)).toBe(
+    "a <strong>b <em>c</em> d</strong> e",
+  )
+  expect(renderTitle("___x___", NOTE)).toBe("<em><strong>x</strong></em>")
+  expect(renderTitle("_a __b__ c_", NOTE)).toBe("<em>a <strong>b</strong> c</em>")
+})
+
+test("nested emphasis beside a tag keeps the emphasis and the pill", () => {
+  const html = renderTitle("**a *b* c** #home", NOTE)
+  expect(html).toContain("<strong>a <em>b</em> c</strong>")
+  expect(html).toContain(`data-testid="tag"`)
+  expect(html).toContain("#home")
+  expect(html).not.toContain("**")
+})
+
+test("nested emphasis inside a link's text keeps the link", () => {
+  const html = renderTitle("see [**a *b* c**](https://example.com/x)", NOTE)
+  expect(html).toContain(`href="https://example.com/x"`)
+  expect(html).toContain("<strong>a <em>b</em> c</strong>")
+  expect(html).not.toContain("[**")
+})
+
+// A character reference is one character of text, and the source spells it in
+// five. Counting the spelling made every `&amp;` a loss, and the row drew the
+// fallback's re-escaped `&amp;amp;`.
+test("a character reference is not read as lost text", () => {
+  const html = renderTitle("Tom &amp; Jerry", NOTE)
+  expect(html).not.toContain("amp;amp;")
+  expect(html.replace(/&#x26;|&amp;/g, "&")).toBe("Tom & Jerry")
+})
+
+// The renderer reads the title through `bracketSpacedLinks` (@olai/format), so
+// the accounting has to read the same string: `(my file.md)` is a destination
+// to the renderer and would be literal text to a plain parse.
+test("a link whose destination holds a space still renders", () => {
+  const html = renderTitle("see [the spec](my file.md)", NOTE)
+  expect(html).toContain("the spec")
+  expect(html).not.toContain("](")
+})
+
 // Inside a Link (breadcrumb, see-ref): no nested <a>.
 test("a title with links=false unwraps anchors", () => {
   const html = renderTitle("see [the spec](https://example.com/x)", NOTE, {

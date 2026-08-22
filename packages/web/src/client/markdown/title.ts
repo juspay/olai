@@ -31,10 +31,10 @@
  * (`**urgent #home**` loses its bold; `[spec](…#home)` shreds the link). Tags
  * after markdown keeps every construct whole.
  *
- * When the pipeline loses text the source still accounts for — empty render
- * of non-empty source, or a shorter plain-text estimate after stripping
- * markdown marks (`Use <Component> here` → `Use  here`) — fall back to the
- * escaped source. A title that looks correct while missing a word is worse
+ * When the drawing loses text the source still accounts for — an empty render
+ * of a non-empty source, or less text than markdown's own reading of that
+ * source says is in it (`Use <Component> here` → `Use  here`) — fall back to
+ * the escaped source. A title that looks correct while missing a word is worse
  * than the marks. The fallback is plain escaped text (no tag styling): it is
  * "show what you wrote", not a second render path.
  *
@@ -47,11 +47,12 @@
  */
 
 import type { Element, ElementContent, Root, RootContent, Text } from "hast"
+import type { Root as Source, RootContent as SourceContent } from "mdast"
 
 import { NO_NEEDLES } from "../filter/lit.ts"
 import { markdownReady } from "./chunk.ts"
 import { plainTitle } from "./plain.ts"
-import { hastToHtml, renderToTree } from "./render.ts"
+import { hastToHtml, parseToMdast, renderToTree } from "./render.ts"
 import { escapeHtml, styleTags } from "./tags.ts"
 
 export interface TitleRender {
@@ -164,49 +165,64 @@ const build = (
   if (!links) unwrapAnchors(tree)
 
   // The pipeline dropped words the source still accounts for — fully empty,
-  // or shorter than the source with markdown marks removed (raw HTML content
-  // is kept in the estimate, so `Use <Component> here` fails the length check
-  // when the pipeline leaves only "Use  here").
+  // or less text than markdown reads in the source (raw HTML is text there and
+  // nothing here, so `Use <Component> here` fails the check when the pipeline
+  // leaves only "Use  here").
   if (title.trim() !== "" && lostText(title, tree)) {
     return escapeHtml(title)
   }
   return hastToHtml(tree)
 }
 
-/** True when the rendered plain text is missing content the source still has. */
+/**
+ * True when what was DRAWN is missing text the source still accounts for.
+ *
+ * Two numbers off one title: the text of the tree the pipeline produced, and
+ * the text markdown says is in the source ({@link accountedText}). Shorter
+ * than accounted-for is a loss; longer is not — a rendering adds text of its
+ * own (a heading's anchor, a footnote's number, the space ./inline.ts opens
+ * between two unwrapped blocks), and none of that is a title losing a word.
+ */
 const lostText = (title: string, tree: Root): boolean => {
-  const rendered = collapse(textOf(tree))
-  const expected = collapse(plainTextEstimate(title))
-  if (rendered === "") return true
-  return rendered.length < expected.length
+  const drawn = collapse(renderedText(tree))
+  if (drawn === "") return true
+  return drawn.length < collapse(accountedText(parseToMdast(title))).length
 }
 
 /**
- * Rough plain text a title should still show after markdown is interpreted:
- * link labels, code bodies, emphasis bodies kept; markers stripped. Angle
- * brackets and their contents are KEPT — raw HTML is what the pipeline drops
- * and what the length check is for. Autolinks `<http…>` are the one
- * angle-bracket form that is markdown, and are unwrapped to the URL.
+ * The text a source ACCOUNTS FOR — markdown's own reading of the title, off
+ * the same parse the render came out of (./render.ts's `parseToMdast`).
+ *
+ * Every node that carries characters carries them here: words, code (fenced
+ * and inline), and RAW HTML, which is the whole point of the comparison — a
+ * `<Component>` is text in the source and nothing at all in the tree, and this
+ * is what turns that into a fallback rather than a title with a word missing.
+ * An image's `alt` counts for the same reason: a title is phrasing only
+ * (./inline.ts drops the picture), so the words written into one would
+ * otherwise go quietly.
+ *
+ * IT USED TO BE A LIST OF REGEXES, one per construct, stripping marks off the
+ * source — which is a second markdown dialect standing beside the real one,
+ * the thing ./plain.ts refuses a title rather than keep. It could not read
+ * NESTING: `**b *c* d**` matched no bold rule whole, the marks the inner run
+ * left behind stayed in the count, the count came out longer than the render,
+ * and `a **b *c* d** e` was drawn as its own escaped source with a stray `*`
+ * in it (the same for `**a *b* c**`, the underscore spellings, and every
+ * `&amp;`, which is five characters of source and one of text). Reading the
+ * parser cannot be wrong that way: it is not a second opinion about markdown,
+ * it is the one the render is made of.
  */
-const plainTextEstimate = (source: string): string => {
-  let s = source
-  s = s.replace(/```[^\n]*\n?([\s\S]*?)```/g, "$1")
-  s = s.replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
-  s = s.replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-  s = s.replace(/<(https?:\/\/[^>]+)>/g, "$1")
-  s = s.replace(/`([^`]+)`/g, "$1")
-  s = s.replace(/\*\*([^*]+)\*\*/g, "$1")
-  s = s.replace(/__([^_]+)__/g, "$1")
-  s = s.replace(/~~([^~]+)~~/g, "$1")
-  s = s.replace(/\*([^*]+)\*/g, "$1")
-  // Emphasis underscores only when not mid-tag (`#a_b` stays).
-  s = s.replace(/(^|[\s(])_([^_]+)_([\s).,!?:;]|$)/g, "$1$2$3")
-  s = s.replace(/^#{1,6}\s+/gm, "")
-  s = s.replace(/^[-*+]\s+/gm, "")
-  s = s.replace(/^([-*_])\1{2,}\s*$/gm, "")
-  s = s.replace(/\[\^[^\]]+\]/g, "")
-  s = s.replace(/^\[\^[^\]]+\]:\s*.*$/gm, "")
-  return s
+const accountedText = (tree: Source): string => {
+  let out = ""
+  const walk = (nodes: ReadonlyArray<SourceContent>): void => {
+    for (const node of nodes) {
+      if ("value" in node) out += node.value
+      else if ("alt" in node) out += node.alt ?? ""
+      else if ("children" in node) walk(node.children)
+    }
+  }
+  walk(tree.children)
+  return out
 }
 
 const collapse = (value: string): string => value.replace(/\s+/g, " ").trim()
@@ -230,7 +246,9 @@ const unwrapAnchors = (parent: Root | Element): void => {
   parent.children = next as typeof parent.children
 }
 
-const textOf = (tree: Root): string => {
+/** The text a rendering DREW — the other half of the loss check, and the one
+ *  that is a walk over HTML rather than over markdown. */
+const renderedText = (tree: Root): string => {
   let out = ""
   const walk = (nodes: ReadonlyArray<RootContent | ElementContent>): void => {
     for (const node of nodes) {
