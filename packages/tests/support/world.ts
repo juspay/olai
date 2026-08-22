@@ -30,6 +30,7 @@ import { NODE_REF as CHAT_NODE_REF_ATTR } from "@olai/web/src/client/chat/refs.t
 // imported rather than re-spelled: a scenario that held a finger for a number
 // this file had guessed would become a tap the day that one moved.
 import { LONG_PRESS_MS } from "@olai/web/src/client/longPress.ts";
+import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
 import { selector, TESTID } from "@olai/web/src/client/testids.ts";
 import {
   setDefaultTimeout,
@@ -1201,18 +1202,34 @@ export class OlaiWorld extends World {
   /**
    * What the reverse proxy in front of this tab injects, as it accumulates.
    *
-   * Playwright's `setExtraHTTPHeaders` REPLACES the whole set, so a scenario
-   * that said who it is and then said what it is called would have dropped
-   * the login on the second step. Kept here, per scenario, and written back
-   * whole each time — which is also what a proxy does.
+   * Playwright's `setExtraHTTPHeaders` does not apply to websocket
+   * connections — the browser cannot set those headers — so a chip that
+   * reads identity off the upgrade would never see them. The harness sits a
+   * real reverse proxy in front instead, the way `tailscale serve` does.
+   * Kept here, per scenario, and written back whole each time.
    */
   private proxied: Record<string, string> = {};
+  private headerProxy?: HeaderProxy;
 
   /** Inject one more header on every request this tab makes from here on.
    *  Before the first navigation, which is when a proxy would have. */
   async proxyInjects(name: string, value: string): Promise<void> {
     this.proxied = { ...this.proxied, [name]: value };
+    if (this.headerProxy === undefined) {
+      this.headerProxy = await listenHeaderProxy(
+        this.baseUrl,
+        () => this.proxied,
+      );
+      this.baseUrl = this.headerProxy.url;
+    }
     await this.context.setExtraHTTPHeaders(this.proxied);
+  }
+
+  /** Drop the header proxy, if a scenario started one. */
+  async closeHeaderProxy(): Promise<void> {
+    const proxy = this.headerProxy;
+    this.headerProxy = undefined;
+    if (proxy !== undefined) await proxy.close();
   }
 
   /** Uncaught page errors and `console.error` output, collected for the whole
@@ -1481,7 +1498,10 @@ export class OlaiWorld extends World {
    *  person differently — a different server rather than the same one
    *  restarted. */
   avatarTemplate?: string;
-  /** The URL that corpus's server answers on; also the context's `baseURL`. */
+  /** The URL this tab talks to: the corpus's server, until `proxyInjects`
+   *  sits the reverse proxy in front, after which it is the proxy. Restart
+   *  and port reads in hooks.ts want the server's own URL, so a scenario
+   *  that combined a Tailscale Given with a restart would fail here. */
   baseUrl!: string;
 
   /** The directory being served, for a `@scratch:` scenario — a private copy
@@ -1568,7 +1588,10 @@ export class OlaiWorld extends World {
    *  rejection above; a second copy of this over there is how the burger
    *  regression that `SETTLED_SELECTOR` documents would be re-learnt. */
   async settle(path = "/"): Promise<void> {
-    await this.page.goto(path);
+    // Absolute against THIS scenario's baseUrl: `proxyInjects` may have
+    // pointed it at the header proxy after the Playwright context was
+    // created with the server's own origin.
+    await this.page.goto(new URL(path, this.baseUrl).href);
     // `visible`: a node that exists but never gets a box is exactly the class
     // of layout defect settle is meant to catch. SETTLED_SELECTOR keys on the
     // docked header (always a real box when the set loaded), the error view,

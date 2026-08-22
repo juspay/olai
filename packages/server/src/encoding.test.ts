@@ -18,7 +18,8 @@
  * upstream now arrives in this test rather than quietly going untested in it.
  */
 
-import { PRECOMPRESSED_ENCODINGS } from "@kolu/surface-app"
+import { assetDirOf, PRECOMPRESSED_ENCODINGS } from "@kolu/surface-app"
+import { ASSET_PREFIX } from "@olai/surface"
 import { collector, findSaid } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
@@ -59,8 +60,8 @@ const COMPRESS: Record<
  *  test of the SERVE rather than a second run of the build. */
 const clientDist = (): string => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-client-"))
-  const assets = path.join(root, "assets")
-  fs.mkdirSync(assets)
+  const assets = path.join(root, assetDirOf(ASSET_PREFIX))
+  fs.mkdirSync(assets, { recursive: true })
   const identity = Buffer.from("console.log('identity-bundle-body')\n".repeat(200))
   fs.writeFileSync(path.join(assets, "main-abc123.js"), identity)
   for (const [encoding, suffix] of PRECOMPRESSED_ENCODINGS) {
@@ -71,7 +72,7 @@ const clientDist = (): string => {
   }
   fs.writeFileSync(
     path.join(root, "index.html"),
-    `<!doctype html><script type="module" src="/assets/main-abc123.js"></script>`,
+    `<!doctype html><script type="module" src="${ASSET_PREFIX}main-abc123.js"></script>`,
   )
   // One outline so the store boots.
   fs.writeFileSync(
@@ -144,7 +145,7 @@ for (const [encoding, suffix] of PRECOMPRESSED_ENCODINGS) {
     const dist = clientDist()
     try {
       await withServer(dist, async (base) => {
-        const res = await get(`${base}/assets/main-abc123.js`, {
+        const res = await get(`${base}${ASSET_PREFIX}main-abc123.js`, {
           "Accept-Encoding": encoding,
         })
         expect(res.status).toBe(200)
@@ -154,7 +155,7 @@ for (const [encoding, suffix] of PRECOMPRESSED_ENCODINGS) {
         // travel, never what they are.
         expect(String(res.headers["content-type"] ?? "")).toMatch(/javascript/)
         expect(res.body.equals(
-          fs.readFileSync(path.join(dist, "assets", `main-abc123.js${suffix}`)),
+          fs.readFileSync(path.join(dist, assetDirOf(ASSET_PREFIX), `main-abc123.js${suffix}`)),
         )).toBe(true)
       })
     } finally {
@@ -167,7 +168,7 @@ test("identity is honoured — no Content-Encoding, raw bytes", async () => {
   const dist = clientDist()
   try {
     await withServer(dist, async (base) => {
-      const res = await get(`${base}/assets/main-abc123.js`, {
+      const res = await get(`${base}${ASSET_PREFIX}main-abc123.js`, {
         "Accept-Encoding": "identity",
       })
       expect(res.headers["content-encoding"]).toBeUndefined()

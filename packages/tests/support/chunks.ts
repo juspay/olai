@@ -20,12 +20,14 @@
  * page: if that rule moves, every step built on this goes quiet in the same way
  * — "the page never asked" — and the log has to be enough to tell that from a
  * page that genuinely did not ask. So {@link Chunk.diagnosis} prints the
- * pattern beside every `/assets/*` the page DID fetch, and the two together
+ * pattern beside every `/_olai/assets/*` the page DID fetch, and the two together
  * name the mismatch without anybody opening this file.
  */
 
 import * as assert from "node:assert";
 import type { Route } from "playwright";
+
+import { ASSET_PREFIX } from "@olai/surface";
 
 import type { OlaiWorld } from "./world.ts";
 
@@ -51,16 +53,16 @@ export interface Chunk {
  * the chunk after: `pipeline`, `Dropdown`.
  */
 export const chunkOf = (what: string, module: string): Chunk => {
-  const url = new RegExp(`/assets/${module}-[^/]+\\.js$`);
+  const url = new RegExp(`${ASSET_PREFIX}${module}-[^/]+\\.js$`);
   const asked = (world: OlaiWorld): ReadonlyArray<string> =>
     world.requests.filter((one) => url.test(one));
   const diagnosis = (world: OlaiWorld): string => {
-    const assets = world.requests.filter((one) => one.includes("/assets/"));
+    const assets = world.requests.filter((one) => one.includes(ASSET_PREFIX));
     return [
       `expected a request matching ${url}`,
       ...(assets.length === 0
-        ? ["this page fetched nothing under /assets/ at all"]
-        : ["the /assets/* this page did fetch:", ...assets.map((one) => `  ${one}`)]),
+        ? [`this page fetched nothing under ${ASSET_PREFIX} at all`]
+        : [`the ${ASSET_PREFIX}* this page did fetch:`, ...assets.map((one) => `  ${one}`)]),
     ].join("\n  ");
   };
 

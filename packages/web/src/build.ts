@@ -6,7 +6,7 @@
  * server that builds on startup — is a second build with different inputs from
  * the one CI proves, and the two would drift.
  *
- * The whole DIST contract — content-hashed `/assets/*` names, the `no-store`
+ * The whole DIST contract — content-hashed `/_olai/assets/*` names, the `no-store`
  * shell that points at them, the commit stamped onto that shell, the
  * precompressed siblings the static layer negotiates, and the chunk a dynamic
  * `import()` asks for — belongs to `@kolu/surface-app/bun` (kolu#2159). This
@@ -42,6 +42,7 @@ import babelTypeScript from "@babel/preset-typescript"
 // @ts-expect-error — the babel presets ship loose types
 import babelSolid from "babel-preset-solid"
 import { buildSurfaceClient } from "@kolu/surface-app/bun"
+import { ASSET_PREFIX } from "@olai/surface"
 import type { BunPlugin } from "bun"
 
 import { fontCss, FONTS_DIR, HOSTED_WOFF2 } from "@olai/fonts/build"
@@ -120,7 +121,7 @@ const tailwindUtilities = async (): Promise<string> => {
  * part of the sheet its minifier never sees.
  *
  * The bytes are hashed after this, so a palette edited on disk is a new
- * `/assets/styles-<hash>.css` on the same immutable-caching contract as the JS.
+ * `/_olai/assets/styles-<hash>.css` on the same immutable-caching contract as the JS.
  */
 const buildStylesheet = async (): Promise<ArrayBuffer> =>
   new Response(
@@ -174,6 +175,10 @@ const buildClient = async (distDir: string): Promise<void> => {
   const { assets } = await buildSurfaceClient({
     entrypoint: resolve(CLIENT, "main.tsx"),
     distDir,
+    // The same spelling the server pins — see `@olai/surface`'s ASSET_PREFIX.
+    // Reported back on the result; two processes, so they share the constant
+    // rather than a value one of them wrote.
+    assetPrefix: ASSET_PREFIX,
     htmlTemplate: resolve(CLIENT, "index.html"),
     // Both placeholders must match index.html byte for byte; the helper throws
     // rather than silently shipping a shell that points at dev paths.
@@ -187,7 +192,7 @@ const buildClient = async (distDir: string): Promise<void> => {
       },
     ],
     // The install surface's icons, copied verbatim to the dist ROOT rather
-    // than hashed into /assets/: a manifest and an `apple-touch-icon` are read
+    // than hashed into /_olai/assets/: a manifest and an `apple-touch-icon` are read
     // by an installer, not by the shell, so their URLs have to be stable ones
     // the server's manifest can name (packages/server/src/listener.ts) and
     // must not change with their bytes.

@@ -68,7 +68,7 @@
          https, plus this vault and a blob: the chat's own thumbnails
          already are. It is still a policy, not a hole: http:, data: and
          every other scheme are refused, and the src itself can only ever be
-         what GET /olai/who answered (who/policy.test.ts). What a DOCUMENT
+         what who.get answered off the upgrade (who/policy.test.ts). What a DOCUMENT
          may draw is a different rule in a different place and did not move
          with this one: markdown/rewrite.ts resolves a picture through
          @olai/format's pictureOf and draws NOTHING for a remote src, so no
@@ -102,7 +102,7 @@
          fetch. The page finds it by asking — a dynamic `import()` the bundler
          splits into its own hashed chunk (src/client/markdown/chunk.ts). -->
     <!-- The `href` below and the `<script src>` in the body are the two
-         placeholders the build rewrites to hashed /assets/* URLs; they must
+         placeholders the build rewrites to hashed /_olai/assets/* URLs; they must
          match build.ts byte for byte. -->
     <link rel="stylesheet" href="./styles.css" />
   </head>

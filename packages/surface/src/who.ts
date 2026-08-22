@@ -1,14 +1,16 @@
 /**
- * `GET /olai/who` — the one HTTP address that answers who is looking.
+ * Who is looking — the JSON both doors carry, and the HTTP path the
+ * plain-HTTP door still answers at.
  *
- * Identity is not a surface member: a cell is one value for the process, and
- * this value is one value for the REQUEST. The chip fetches it, the server
- * answers it, and those two live in packages that cannot import each other.
- * So the path — and the JSON it carries — are declared here, the way
+ * Identity is per CONNECTION (the upgrade is that request), not one value
+ * for the process, so it is a PROCEDURE (`who.get`) rather than a cell.
+ * The chip asks that; `GET /olai/who` stays for a share sheet and a
+ * script, which have no websocket. The two live in packages that cannot
+ * import each other, so the path and the JSON are declared here, the way
  * `/media/…` is, rather than copied.
  *
- * A second spelling of the path is a 404 on one end and a chip that never
- * appears on the other.
+ * A second spelling of the JSON is a chip that cannot draw what the
+ * server answered.
  */
 
 import { Schema } from "effect"
@@ -16,7 +18,8 @@ import { Schema } from "effect"
 export const WHO_PATH = "/olai/who"
 
 /**
- * What `GET /olai/who` answers with, when somebody is looking. 204 otherwise.
+ * Who is looking, when somebody is. `null` (the procedure) or 204 (the
+ * HTTP door) otherwise.
  *
  * ONE READING, and it is the server's: which picture a person wears is
  * resolved there, down `@olai/identity`'s ladder (a picture header, an

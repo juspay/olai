@@ -5,6 +5,8 @@
  */
 
 import * as assert from "node:assert";
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import { HYDRATION_TIMEOUT, ROOT } from "../support/world.ts";
@@ -18,6 +20,16 @@ When("I open the app", async function (this: OlaiWorld) {
     .locator(ROOT)
     .waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT });
 });
+
+Then(
+  "I save a screenshot as {string}",
+  async function (this: OlaiWorld, name: string) {
+    const dir = process.env.OLAI_SHOTS
+    if (dir === undefined || dir === "") return
+    mkdirSync(dir, { recursive: true })
+    await this.page.screenshot({ path: join(dir, name), fullPage: true })
+  },
+)
 
 Then("there should be no page errors", function (this: OlaiWorld) {
   assert.deepStrictEqual(
