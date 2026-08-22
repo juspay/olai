@@ -18,7 +18,7 @@
 import type { PermissionOption } from "@agentclientprotocol/sdk"
 import { describe, expect, test } from "bun:test"
 
-import { allowedWithoutAsking, OPENCODE, toolNameIn } from "./opencode.ts"
+import { allowedWithoutAsking, OPENCODE, toolNameOf } from "./opencode.ts"
 
 /** The servers a session is handed: olai's own, and kolu's when the host has
  *  one. `given` in `agent.ts` is exactly this list of names. */
@@ -38,28 +38,30 @@ describe("which tool a call is", () => {
     // The title moves over a call's life — the tool's name, then a sentence
     // about what it is doing, then the tool's name again when it fails. The id
     // is minted once.
-    expect(toolNameIn("bash:0")).toBe("bash")
-    expect(toolNameIn("olaiprobe_ping:0")).toBe("olaiprobe_ping")
-    expect(toolNameIn("read:12")).toBe("read")
+    expect(toolNameOf("bash:0")).toBe("bash")
+    expect(toolNameOf("olaiprobe_ping:0")).toBe("olaiprobe_ping")
+    expect(toolNameOf("read:12")).toBe("read")
   })
 
   test("takes the FIRST separator, so a colon in a name under-reads", () => {
     // Under-reading a name costs a question; over-reading one could cost an
     // approval.
-    expect(toolNameIn("weird:name:0")).toBe("weird")
+    expect(toolNameOf("weird:name:0")).toBe("weird")
   })
 
   test("answers nothing for an id that is not one", () => {
-    expect(toolNameIn("bash")).toBeNull()
-    expect(toolNameIn(":0")).toBeNull()
-    expect(toolNameIn("")).toBeNull()
+    expect(toolNameOf("bash")).toBeNull()
+    expect(toolNameOf(":0")).toBeNull()
+    expect(toolNameOf("")).toBeNull()
   })
 
-  test("is what the leg reads, and the leg reads no meta", () => {
-    expect(OPENCODE.toolName(undefined, "bash:0")).toBe("bash")
+  test("is what the leg reads, and the leg reads nothing off a frame", () => {
+    expect(OPENCODE.toolNameOf("bash:0")).toBe("bash")
     // A `_meta` cannot make a call something else here — there are none on this
-    // wire, and a leg that read one would be reading another agent's.
-    expect(OPENCODE.toolName({ claudeCode: { toolName: "Bash" } }, "bash:0")).toBe("bash")
+    // wire, and a leg that read one would be reading another agent's. Answering
+    // `null` off a frame is also what keeps the call registry empty for this
+    // agent: what the ID says needs no remembering.
+    expect(OPENCODE.toolNameIn({ claudeCode: { toolName: "Bash" } })).toBeNull()
   })
 })
 

@@ -80,6 +80,36 @@ export interface RawMessages {
   readonly modelIn: (params: unknown) => string | null
 }
 
+/**
+ * The auto-allow rule, in one place, over the one thing that differs.
+ *
+ * POSITIVE RECOGNITION and nothing else: the tool is named, the name belongs to
+ * one of the MCP servers WE handed this session, and the request offers an
+ * allow-flavoured option — or a person is asked. What differs between agents is
+ * only the SPELLING each gives the tools an MCP server contributes
+ * (`mcp__<server>__<tool>` on one wire, `<server>_<tool>` on the other), so the
+ * spelling is the argument and the rule is written once. Written twice, the one
+ * rule this package declares un-widenable would have to be tightened twice —
+ * and could silently be tightened once.
+ *
+ * ALLOW-FLAVOURED, NEVER FIRST, and that is the half that has to be shared:
+ * opencode's options are allow-first (`allow_once`, `allow_always`,
+ * `reject_once`) where the Claude adapter's ordinary list leads with the
+ * refusal, so a client that took "the first option" would deny every one of
+ * olai's own tools on one wire and approve somebody's plan-mode exit on the
+ * other. One rule, read off the option's own `kind`, is right on both.
+ *
+ * @param spelling what this agent calls the tools of the server named
+ */
+export const allowingOurs = (
+  spelling: (server: string) => string,
+): Leg["allowedWithoutAsking"] =>
+(tool, given, options) => {
+  const ours = tool !== null && given.some((server) => tool.startsWith(spelling(server)))
+  if (!ours) return null
+  return options.find((option) => option.kind.startsWith("allow"))?.optionId ?? null
+}
+
 /** What a leg says about a call that SPAWNED an agent — structural rather than
  *  `@olai/surface`'s `Spawned`, which is what the caller assigns it to:
  *  everything here is a pure function over a payload and none of them knows
@@ -97,20 +127,30 @@ export interface Spawn {
  */
 export interface Leg {
   /**
-   * The PROGRAMMATIC name of the tool a frame is about, or `null` when nothing
-   * on this frame says.
+   * The PROGRAMMATIC name of the tool, out of what a FRAME said — or `null`
+   * when this agent says it somewhere else, or not at all.
    *
    * The question the fail-safe rule turns on, and the reason it is answered per
    * agent: `session/request_permission` describes the call it is about with a
-   * DISPLAY title, and "which tool is this" is what the answer depends on. One
-   * agent stamps the name in a `_meta`; another puts it at the head of the call
-   * id. An agent that does neither says `null`, and a call nobody named is a
-   * call a person is asked about.
-   *
-   * @param meta the frame's `_meta`, if it had one
-   * @param toolCallId the call's own id, which is a name on some wires
+   * DISPLAY title, and "which tool is this" is what the answer depends on. An
+   * agent that answers neither this nor {@link Leg.toolNameOf} leaves every call
+   * unnamed, and a call nobody named is a call a person is asked about.
    */
-  readonly toolName: (meta: Meta, toolCallId: string) => string | null
+  readonly toolNameIn: (meta: Meta) => string | null
+
+  /**
+   * ... and out of the CALL ID, for a wire that puts it there.
+   *
+   * TWO READERS RATHER THAN ONE over both, and the split is not cosmetic: what
+   * a frame said has to be REMEMBERED, because the frame is gone by the time a
+   * permission request asks about its call ({@link ../calls.ts}), and what the
+   * ID says never does — the id is the key that question arrives under. Asked
+   * as one function over both, an agent that names its tools in the id made
+   * every frame of every call look like news, and the registry that exists to
+   * hold the rare thing wrote and held one entry per call for the life of a
+   * session.
+   */
+  readonly toolNameOf: (toolCallId: string) => string | null
 
   /**
    * The option a permission request is answered with WITHOUT asking a person,

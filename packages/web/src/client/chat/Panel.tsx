@@ -161,7 +161,7 @@ function Face(props: { readonly chat: Chat }) {
    * A person pressed `+ new` and is being asked which agent — THIS TAB'S, and
    * deliberately not the server's.
    *
-   * The panel's own `choosing` is a state the SERVER is in: it has no
+   * The panel's own `asking` is a state the SERVER is in: it has no
    * conversation and is waiting to be told which agent to open one with, and
    * every tab watching sees the same thing because it is true of the panel.
    * This is a person part-way through a gesture, like a half-typed message: it
@@ -231,15 +231,19 @@ function Face(props: { readonly chat: Chat }) {
         <Match when={refused()}>
           {(unopened) => <Unopened chat={props.chat} unopened={unopened()} />}
         </Match>
-        {/* The panel's own question, which has no way out: there is no
-            conversation behind it to keep. */}
-        <Match when={face().kind === "choose"}>
-          <Choose agents={agents()} onPick={pick} />
-        </Match>
-        {/* ... and this tab's, which does: the conversation underneath is
-            still open, and a misclick must not be a one-way door. */}
-        <Match when={asking()}>
-          <Choose agents={agents()} onPick={pick} onCancel={() => setAsking(false)} />
+{/* ONE ARM for both doors, and the prop is where they differ: the
+            panel's own question has no way out — there is no conversation
+            behind it to keep — and this tab's does, because the conversation
+            underneath is still open and a misclick must not be a one-way door.
+            Two arms would also be two component instances, so a tab-local
+            question superseded by the server's would remount the list under
+            somebody's cursor. */}
+        <Match when={face().kind === "choose" || asking()}>
+          <Choose
+            agents={agents()}
+            onPick={pick}
+            onCancel={face().kind === "choose" ? undefined : () => setAsking(false)}
+          />
         </Match>
       </Switch>
     </>

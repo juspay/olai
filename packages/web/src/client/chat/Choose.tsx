@@ -10,7 +10,7 @@
  * ## Two doors, one list
  *
  *   - **the panel is asking**, because it has no conversation and will not pick
- *     one for you (`ChatState.choosing`). This is the panel's BODY then, where
+ *     one for you (`ChatState.talking`'s `asking` arm). This is the panel's BODY then, where
  *     the transcript would be, and there is no way out of it: there is nothing
  *     behind it to go back to.
  *   - **`+ new` asked**, which is a person deciding to start a chat while
@@ -28,7 +28,7 @@
  *
  * A roster of one agent never reaches this component: the server has already
  * bound the panel to it and says which it is in the header. A one-row question
- * is friction with no answer behind it — see `ChatState.choosing`.
+ * is friction with no answer behind it — see `Talking`'s `asking` arm.
  */
 
 import { For, Show } from "solid-js"

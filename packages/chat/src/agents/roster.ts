@@ -138,9 +138,7 @@ const KINDS = [
  * coverage back — a third agent named on the wire and not started here stops
  * compiling, in the file that would otherwise silently not offer it.
  */
-const _everyAgentIsStartable: (typeof KINDS)[number]["id"] extends AgentId
-  ? AgentId extends (typeof KINDS)[number]["id"] ? true : never
-  : never = true
+const _everyAgentIsStartable: AgentId extends (typeof KINDS)[number]["id"] ? true : never = true
 
 /**
  * Every agent installed here, in the table's order — or NOTHING when chat is

@@ -39,9 +39,7 @@
  * is not one.
  */
 
-import type { PermissionOption } from "@agentclientprotocol/sdk"
-
-import type { Leg } from "./leg.ts"
+import { allowingOurs, type Leg } from "./leg.ts"
 
 // ── which tool a call is ───────────────────────────────────────────────
 
@@ -70,7 +68,7 @@ const AT = ":"
  * would be one this under-reads rather than over-reads, and under-reading a
  * name costs a question where over-reading one could cost an approval.
  */
-export const toolNameIn = (toolCallId: string): string | null => {
+export const toolNameOf = (toolCallId: string): string | null => {
   const at = toolCallId.indexOf(AT)
   if (at <= 0) return null
   return toolCallId.slice(0, at)
@@ -107,15 +105,7 @@ export const toolNameIn = (toolCallId: string): string | null => {
  * plan-mode exit there — one rule, read off the option's own `kind`, is right
  * on both.
  */
-export const allowedWithoutAsking = (
-  tool: string | null,
-  given: ReadonlyArray<string>,
-  options: ReadonlyArray<PermissionOption>,
-): string | null => {
-  const ours = tool !== null && given.some((server) => tool.startsWith(`${server}_`))
-  if (!ours) return null
-  return options.find((option) => option.kind.startsWith("allow"))?.optionId ?? null
-}
+export const allowedWithoutAsking = allowingOurs((server) => `${server}_`)
 
 // ── the leg ────────────────────────────────────────────────────────────
 
@@ -131,9 +121,11 @@ export const allowedWithoutAsking = (
  * floor, a `_meta` subscription nothing subscribes to.
  */
 export const OPENCODE: Leg = {
-  // The id, and never the frame's `_meta` — there is none — nor its title,
-  // which moves.
-  toolName: (_meta, toolCallId) => toolNameIn(toolCallId),
+  // NOTHING is read off a frame — there is no `_meta` on this wire, and the
+  // `title` moves — so nothing about a call is remembered either: the name is
+  // in the key the question arrives under ({@link ../calls.ts}).
+  toolNameIn: () => null,
+  toolNameOf,
   allowedWithoutAsking,
   // Nothing on an opencode frame says who made a call, so nothing here says it
   // either. A fan-out renders flat.

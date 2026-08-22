@@ -36,7 +36,7 @@
 
 import type { PermissionOption } from "@agentclientprotocol/sdk"
 
-import type { Leg, Meta, Spawn } from "./leg.ts"
+import { allowingOurs, type Leg, type Meta, type Spawn } from "./leg.ts"
 
 // ── which permissions are answered without asking ──────────────────────
 
@@ -78,20 +78,7 @@ export const BYPASS_MODE = "bypassPermissions"
  * @param given the MCP servers this conversation was handed, by name
  * @param options the request's own options, in the agent's own order
  */
-export const allowedWithoutAsking = (
-  tool: string | null,
-  given: ReadonlyArray<string>,
-  options: ReadonlyArray<PermissionOption>,
-): string | null => {
-  const ours = tool !== null &&
-    given.some((server) => tool.startsWith(`mcp__${server}__`))
-  if (!ours) return null
-  // Allow-FLAVOURED, rather than first: the options arrive in the order the
-  // agent wants them read, and its ordinary list for a tool call leads with the
-  // refusal. A request for one of ours that offers no allow at all is left to a
-  // person like anything else this cannot answer.
-  return options.find((option) => option.kind.startsWith("allow"))?.optionId ?? null
-}
+export const allowedWithoutAsking = allowingOurs((server) => `mcp__${server}__`)
 
 // ── which tool a call is ───────────────────────────────────────────────
 
@@ -417,7 +404,11 @@ export const liveModelIn = (params: unknown): string | null => {
  * ONE that could be wrong, since a Claude call id is an opaque `toolu_…`.
  */
 export const CLAUDE: Leg = {
-  toolName: (meta) => toolNameIn(meta),
+  toolNameIn,
+  // Nothing: a Claude call id is an opaque `toolu_…` and says nothing about
+  // the tool. Reading it would answer for a call nothing has named, which is
+  // the one direction this file may not fail in.
+  toolNameOf: () => null,
   allowedWithoutAsking,
   parentToolUse: parentToolUseIn,
   spawned: spawnedIn,

@@ -84,12 +84,15 @@ const NOTHING: Said = Object.freeze({})
  *  {@link NOTHING} rather than a fresh empty when it says neither, so a frame
  *  nothing is read from costs nothing to read.
  *
- *  The CALL ID is read as well as the `_meta`, because on one of the two wires
- *  it is where the name is: opencode sends no `_meta` at all and puts the
- *  tool's name at the head of the id. Which of them a leg reads is the leg's;
- *  what arrives here is a frame, whole. */
-const saidIn = (leg: Leg, id: string, meta: Meta): Said => {
-  const name = leg.toolName(meta, id)
+ *  WHAT THE ID SAYS IS NOT READ HERE, and that is the whole reason the leg has
+ *  two readers for one question ({@link ./agents/leg.ts}): this is the
+ *  remembering, and a name that is in the key needs none. Read here, an agent
+ *  that names its tools in the call id would make every frame of every call
+ *  news — a slice, two objects and a map write apiece, on the one path that
+ *  runs on every frame of every conversation — to store an answer
+ *  {@link Calls.about} can read off its own argument. */
+const saidIn = (leg: Leg, meta: Meta): Said => {
+  const name = leg.toolNameIn(meta)
   const parent = leg.parentToolUse(meta)
   if (name === null && parent === null) return NOTHING
   return {
@@ -111,7 +114,7 @@ export class Calls {
    *  ordinary calls keeps an empty map — which is nearly every conversation,
    *  and this runs on every frame of all of them. */
   heard(id: string, meta: Meta): void {
-    const said = saidIn(this.#leg, id, meta)
+    const said = saidIn(this.#leg, meta)
     if (said === NOTHING) return
     this.#said.set(id, { ...this.#said.get(id), ...said })
   }
@@ -131,9 +134,21 @@ export class Calls {
    * rather than to a session, and one an MCP server sends may name no call.
    * That is answered rather than refused — a question that named nothing is an
    * ordinary question the main agent asked.
+   *
+   * WHAT THE ID ITSELF SAYS is answered here rather than remembered, for the
+   * agent whose wire puts the tool's name in the call id. It is the same
+   * answer either way and it is asked far less often — a permission request,
+   * a form — where {@link heard} runs on every frame. What a FRAME said still
+   * wins: an agent that says the name in its own words has said something the
+   * id does not know.
    */
   about(id: string | null): Said {
-    return (id === null ? undefined : this.#said.get(id)) ?? NOTHING
+    if (id === null) return NOTHING
+    const said = this.#said.get(id)
+    if (said?.name !== undefined) return said
+    const named = this.#leg.toolNameOf(id)
+    if (named === null) return said ?? NOTHING
+    return said === undefined ? { name: named } : { ...said, name: named }
   }
 
   /** The conversation is over. A call id is only ever looked up inside the

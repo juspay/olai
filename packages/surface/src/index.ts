@@ -1063,7 +1063,8 @@ export const surface = defineSurface({
         input: Schema.Struct({ agent: Schema.String }),
         error: ChatFailure,
       },
-      /** Answer the question the panel is asking ({@link ChatState.choosing}):
+      /** Answer the question the panel is asking ({@link ChatState.talking}'s
+       *  `asking` arm):
        *  THIS agent, now open the conversation you would have opened.
        *
        *  Not {@link newSession} with the same argument. A boot that stopped to

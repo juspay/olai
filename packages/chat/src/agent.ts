@@ -244,11 +244,6 @@ export interface Options {
 }
 
 export interface Agent {
-  /** Whether a message sent while a turn runs can go INTO that turn
-   *  ({@link Agent.steer}) — the leg's answer, read by the caller that has to
-   *  decide between steering and an ordinary prompt, and by the composer, which
-   *  says so where it is false. */
-  readonly steers: boolean
   /** Spawn and hand-shake if that has not happened. Idempotent, and serialized
    *  against itself: two callers racing a cold start get one subprocess. */
   readonly boot: Effect.Effect<void, AgentGone>
@@ -313,6 +308,11 @@ const PROTOCOL = 1
  *  reports through. Two literals that have to match for the panel to read
  *  consistently is one literal. */
 const notCancelled = (why: string): string => `the turn could not be cancelled: ${why}`
+
+/** The server is going away, said the same way by both doors into a boot.
+ *  Nothing was asked of anything, so it is `unreachable` rather than a no. */
+const shuttingDown = (): AgentGone =>
+  new AgentGone({ gone: "unreachable", why: "the server is shutting down" })
 
 /** Boot is a few small round trips against a process that just started. Only it
  *  gets a deadline — a turn is a person waiting on a language model. */
@@ -1033,7 +1033,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * here rather than reading `held.model`.
      */
     const modelFor = (id: string): string | null =>
-      held?.session === id ? held.model : null
+      held?.agent === options.id && held.session === id ? held.model : null
 
     /** The conversation this panel was last in, when it was one of OURS.
      *
@@ -1309,9 +1309,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  somebody to talk to, because it is about to say which conversation
      *  itself. */
     const bringUpProcess = Effect.gen(function*() {
-      if (stopped) {
-        return yield* new AgentGone({ gone: "unreachable", why: "the server is shutting down" })
-      }
+      if (stopped) return yield* shuttingDown()
       const started = live ?? (yield* start())
       live = started
       return started
@@ -1326,7 +1324,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * ways in.
      */
     const bringUp = Effect.gen(function*() {
-      if (stopped) return yield* new AgentGone({ gone: "unreachable", why: "the server is shutting down" })
+      // BEFORE the short-circuit below rather than inside {@link bringUpProcess}
+      // alone: a stopped agent that is still holding an open session would
+      // otherwise answer this verb as if nothing were wrong.
+      if (stopped) return yield* shuttingDown()
       if (live !== null && session !== null) return
       const started = yield* bringUpProcess
       // `onError` hands the fiber's CAUSE, not the failure — `String` on one
@@ -1530,7 +1531,6 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     })
 
     return {
-      steers: options.leg.steering !== null,
       boot,
       prompt,
       steer,

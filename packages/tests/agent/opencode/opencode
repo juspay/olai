@@ -62,38 +62,15 @@
  * real opencode installed still gets the same suite CI does.
  */
 
-import { existsSync, rmSync } from "node:fs";
-
 import { readMessages } from "../../support/ndjson.ts";
+import { emitter, released, speaking } from "../../support/scripted.ts";
 
-const OUT = process.stdout;
-
-const emit = (message: unknown): void => {
-  OUT.write(`${JSON.stringify(message)}\n`);
-};
-
-const respond = (id: unknown, result: unknown): void => {
-  emit({ jsonrpc: "2.0", id, result });
-};
-
-const refuse = (id: unknown, code: number, message: string): void => {
-  emit({ jsonrpc: "2.0", id, error: { code, message } });
-};
-
-const notify = (method: string, params: unknown): void => {
-  emit({ jsonrpc: "2.0", method, params });
-};
-
-/** Answers to requests WE sent, by the id we sent them under. */
-const answering = new Map<string, (result: unknown) => void>();
-let nextRequestId = 0;
-
-const request = (method: string, params: unknown): Promise<unknown> =>
-  new Promise((resolve) => {
-    const id = `oc-${++nextRequestId}`;
-    answering.set(id, resolve);
-    emit({ jsonrpc: "2.0", id, method, params });
-  });
+/** The wire, and what an agent puts on it — the transport this file shares with
+ *  the other scripted agent ({@link ../../support/scripted.ts}). What is NOT
+ *  shared is anything either of them MEANS: every frame shape below is this
+ *  file's own, which is the whole reason two fakes are worth having. */
+const emit = emitter(process.stdout);
+const { notify, refuse, request, respond, take } = speaking(emit, "oc");
 
 /** `--cwd <dir>`, which is how olai starts this agent — and the only cwd the
  *  real one hears, since its `session/list` ignores the one a request carries. */
@@ -242,14 +219,10 @@ const turn = async (text: string): Promise<string> => {
   }
 
   if (said === "slow") {
-    // The file a scenario touches to let a held turn go on — the same one the
-    // other scripted agent waits for, so a step definition serves both.
-    const release = `${cwd}/.agent-release`;
-    const until = Date.now() + 30_000;
-    while (!existsSync(release) && Date.now() < until) {
-      await new Promise<void>((done) => setTimeout(done, 25));
-    }
-    if (existsSync(release)) rmSync(release, { force: true });
+    // The same marker, the same limit and the same loop the other scripted
+    // agent waits on ({@link ../../support/scripted.ts}), so one step
+    // definition releases either of them.
+    await released(cwd);
     say("done dawdling");
     return "end_turn";
   }
@@ -323,10 +296,8 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
   const params = (message["params"] ?? {}) as Record<string, unknown>;
 
   // An answer to something WE asked.
-  if (method === undefined && typeof id === "string" && answering.has(id)) {
-    const resolve = answering.get(id);
-    answering.delete(id);
-    resolve?.(message["result"] ?? null);
+  if (method === undefined) {
+    take(id)?.(message["result"] ?? null);
     return;
   }
 

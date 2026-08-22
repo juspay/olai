@@ -165,7 +165,8 @@ export interface Chat {
    *  The id is REQUIRED because every new chat asks which one — see the
    *  surface's declaration, and `./Choose.tsx`, which is what asks. */
   readonly newSession: (agent: string) => void
-  /** Answer the panel's own question ({@link ChatState.choosing}): this agent,
+  /** Answer the panel's own question ({@link ChatState.talking}'s `asking`
+   *  arm): this agent,
    *  now open the conversation you would have opened. Not the same verb as
    *  {@link Chat.newSession} — a boot that stopped to ask has not asked for a
    *  new conversation. */

@@ -427,8 +427,8 @@ describe("the leg", () => {
     // Reading it as a name — which the OTHER leg does, on a wire where it IS
     // one — would answer for a call nothing has named, which is the one
     // direction this file may not fail in.
-    expect(CLAUDE.toolName({ claudeCode: { toolName: "Bash" } }, "toolu_01ABC")).toBe("Bash")
-    expect(CLAUDE.toolName(undefined, "Bash:0")).toBeNull()
+    expect(CLAUDE.toolNameIn({ claudeCode: { toolName: "Bash" } })).toBe("Bash")
+    expect(CLAUDE.toolNameOf("Bash:0")).toBeNull()
   })
 
   test("has a bypass mode to ask for, and a way to steer a running turn", () => {

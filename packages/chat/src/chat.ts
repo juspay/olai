@@ -39,7 +39,7 @@
  *     the panel was last talking to, so a restart comes back to the
  *     conversation it was in rather than to a question.
  *   - **otherwise the panel ASKS**, and holds no conversation until somebody
- *     answers ({@link ChatState.choosing}). A default remembered ACROSS
+ *     answers ({@link Talking}'s `asking` arm). A default remembered ACROSS
  *     conversations is exactly what was ruled out: the question is per chat.
  *
  * Four decisions worth naming:
@@ -47,7 +47,10 @@
  *   - **a turn is accepted, not awaited.** `send` answers the moment the prompt
  *     is on the wire; what happens next arrives on the transcript, so every open
  *     tab stays in step and a five-minute turn is not a five-minute call. The
- *     turn runs on its own fiber, and the `thinking` state is what says so.
+ *     turn runs on its own fiber, and the `thinking` state is what says so —
+ *     for as long as ANY of them is running, because an agent that cannot take
+ *     a message into the turn it is working on gets a second prompt it queues
+ *     ({@link Turn}).
  *   - **what is typed goes out IMMEDIATELY, always, and this file holds
  *     nothing.** A message sent while a turn runs is STEERED into that turn
  *     ({@link ./agent.ts}'s `steer`), so the agent hears it while it is still
@@ -276,19 +279,21 @@ const SPOKE: ReadonlySet<AgentEvent["_tag"]> = new Set([
 ])
 
 /**
- * The turn in flight, as a TICKET rather than as a fiber handle.
+ * One turn in flight, as a TICKET rather than as a fiber handle.
  *
  * It exists because the fiber does not, yet: the ticket is written down before
  * the fork, so there is no window in which a turn is running and nothing says
- * so. The fiber is filled in a moment later, for the one caller that has to
+ * so. The fiber is filled in a moment later, for the callers that have to
  * interrupt it.
  *
- * Its real job is IDENTITY. A turn that ends reports where it stands — idle,
- * or gone — and a turn that was superseded must report nothing, or a settling
- * turn would talk over the one that replaced it. Comparing the ticket is what
- * separates "the turn I am is still the turn" from "some turn ended", which a
- * status flag cannot answer and a null check gets wrong exactly when it
- * matters.
+ * THERE CAN BE MORE THAN ONE, and that is not a race — it is what a mid-turn
+ * message IS for an agent that cannot take one into the turn it is running
+ * (opencode has no steering method at all). The message goes out as an ordinary
+ * prompt, the agent queues it behind the turn it is working on, and until that
+ * queue drains there are two turns this file owns and neither has finished.
+ * They live in a SET ({@link Turns}) rather than in a slot, so every question
+ * about "is the conversation busy" is asked of the set — which is the shape
+ * that makes a second turn ordinary rather than a case to guard against.
  */
 interface Turn {
   fiber: Fiber.Fiber<unknown, unknown> | null
@@ -377,9 +382,19 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *  while it is talking to none — before the first choice, and in the beat
      *  between one agent being stopped and its replacement handshaking. */
     let talking: { readonly row: Installed; readonly agent: AcpAgent.Agent } | null = null
-    /** The turn in flight, so a second `send` knows to STEER rather than start
-     *  one and a cancel has something to aim at. See {@link Turn}. */
-    let turn: Turn | null = null
+    /**
+     * The turns in flight — usually none or one, and more only for an agent
+     * that queues a mid-turn message instead of steering it ({@link Turn}).
+     *
+     * A SET rather than a slot, and every reader below is the same question
+     * asked of it: is anything running (`size > 0`), am I the last one to
+     * finish (`size === 0` after leaving), stop them all. A slot answered the
+     * first two by comparing identities and the third by holding the newest,
+     * which is right for one turn and quietly wrong for two — a cancel aimed at
+     * the newest left the other running, and a conversation could be swapped
+     * out from under a turn nothing was pointing at.
+     */
+    const turns = new Set<Turn>()
     /** One session change at a time: a load and a new-session racing each other
      *  would leave the transcript holding half of each. */
     const switching = yield* Semaphore.make(1)
@@ -592,21 +607,25 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         if (already !== null && already.row.id === row.id) return already.agent
         if (already !== null) {
           talking = null
-          publish(transcript.clear())
+          // THROUGH THE EVENT, not through a second list of what a conversation
+          // ending costs. Stopping an agent deliberately emits nothing (a
+          // `gone` about a process somebody asked to stop would be a lie), so
+          // the swap has to say it — and saying it here is the difference
+          // between one place that knows which fields go with a session and
+          // two that have to be kept in step.
+          receive({ _tag: "sessionOver", why: "new" })
           yield* already.agent.stop
         }
+        // ... and the three that do NOT go with a session, because they are
+        // about the AGENT: the model is a different agent's answer, a refused
+        // open was about a process that is gone, and a banner about it with it.
+        opened()
         move({
           // WHO, and — because it is one member — no longer a question that
           // could still be being asked while it names somebody.
           talking: bound(row),
-          session: null,
           model: null,
-          usage: null,
-          commands: [],
-          missing: [],
-          asking: asking(),
           trouble: null,
-          unopened: null,
         })
         const made = yield* spawn(row, receive)
         talking = { row, agent: made }
@@ -666,6 +685,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       )
       return held === null ? null : rowFor(held.agent)
     })
+
+    /** A verb that OPENS a conversation with a named agent — the three steps
+     *  the two of them share, and the part that is easy to get subtly wrong:
+     *  the stale-tab refusal, the agent switch, and the permit that makes the
+     *  switch and the open one step. What each verb says for itself is the
+     *  one line that differs. */
+    const openWith = (
+      id: string,
+      use: (agent: AcpAgent.Agent) => Effect.Effect<void, AcpAgent.AgentGone>,
+    ): Effect.Effect<void, OpFailure> =>
+      withRow(id, (row) => changeSession(Effect.flatMap(using(row), use)))
 
     /** A verb that needs somebody to talk to. Refused in words when there is
      *  nobody — the panel is drawing the picker, and what the caller asked for
@@ -802,15 +832,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         }
         const agent = at.agent
         // WHICH turn this steer is aimed at, kept rather than re-read: by the
-        // time it answers, `turn` may be null, or somebody else's.
-        const aimed = turn
+        // time it answers, it may be over. An agent that steers never has more
+        // than one — a mid-turn message is steered rather than begun — so the
+        // set holds at most this one.
+        const aimed = [...turns][0] ?? null
         // AN AGENT THAT CANNOT STEER GETS AN ORDINARY PROMPT, mid-turn or not,
         // and the agent queues it behind the turn it is running (opencode
         // does; the composer says so). Nothing is held here either way — that
         // is the promise this file's header makes — and what a person loses by
         // it is the chance to redirect a turn already in flight, which is a
         // difference they are told about rather than one they discover.
-        if (aimed !== null && agent.steers) {
+        if (aimed !== null && at.row.leg.steering !== null) {
           const steered = yield* Effect.result(agent.steer(prompt))
           if (steered._tag === "Failure") {
             // WHICH failure it was is the agent's reading, not ours: it is the
@@ -922,9 +954,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       Effect.gen(function*() {
         /** A turn was ALREADY running when this one started, which is what a
          *  mid-turn message is for an agent that cannot steer. */
-        const alongside = turn !== null
+        const alongside = turns.size > 0
         const ticket: Turn = { fiber: null, stopped: false }
-        turn = ticket
+        turns.add(ticket)
         // The rows go first, and the order is the point. A dead agent's rows
         // are deliberately left where they are, so this turn is starting over a
         // transcript that may hold calls the last one abandoned — and the panel
@@ -950,15 +982,22 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         const running = yield* Effect.forkDetach(
           Effect.gen(function*() {
             const outcome = yield* Effect.result(agent.prompt(prompt))
-            // Whether this turn is still THE turn. The notices go in either
-            // way — they are things that happened, and they happened — and
-            // only the state is withheld.
-            const current = turn === ticket
+            // Whether this turn was the LAST one running. The notices go in
+            // either way — they are things that happened, and they happened —
+            // and only the state is withheld: a turn that ends while another is
+            // still going has nothing true left to say about where the
+            // conversation stands, and saying it anyway would mark a thinking
+            // panel idle.
+            //
+            // Left the set HERE rather than in the `ensuring` below, because
+            // every line under this one is asking whether anything is still
+            // running and the answer has to already be true.
+            turns.delete(ticket)
+            const current = turns.size === 0
             // ... and so is the SETTLE, for `begins`' reason read from the
-            // other end: a turn that has been superseded by one still running
-            // must not strand the running turn's calls. The turn that replaced
-            // it settles when it ends, and settling is idempotent over rows
-            // that have already stopped.
+            // other end: a turn that ends while another is still running must
+            // not strand the running turn's calls. The last one out settles,
+            // and settling is idempotent over rows that have already stopped.
             if (current) publish(transcript.settle())
             if (outcome._tag === "Failure") {
               publish(transcript.add("notice", outcome.failure.message))
@@ -1002,8 +1041,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // would make the panel report a state it can see it is not in.
             if (current) move({ status: "idle", trouble: null })
           }).pipe(
+            // Belt to the brace above: the body leaves the set on its own way
+            // out, and an INTERRUPT (a shutdown, a conversation change) never
+            // reaches that line.
             Effect.ensuring(Effect.sync(() => {
-              if (turn === ticket) turn = null
+              turns.delete(ticket)
             })),
           ),
         )
@@ -1053,25 +1095,29 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * report.
      */
     const cancel: Effect.Effect<void, OpFailure> = Effect.gen(function*() {
-      const asked = turn
+      const asked = [...turns]
       yield* onAgent((agent) => Effect.mapError(agent.cancel, asFailure))
-      if (asked === null) return
-      // Written on the TICKET, and after the cancel is on the wire rather than
-      // before, because a cancel that could not be delivered stopped nothing.
-      // What reads it is a steer still in flight against this same turn: it is
-      // about to come back "nothing to steer", and this is the only thing that
-      // says the reason was a person rather than the turn finishing. It
-      // outlives the turn, which is the point — by then the ticket is all that
-      // is left of it.
-      asked.stopped = true
+      if (asked.length === 0) return
+      // Written on EVERY ticket, and after the cancel is on the wire rather
+      // than before, because a cancel that could not be delivered stopped
+      // nothing. What reads it is a steer still in flight against one of these
+      // turns: it is about to come back "nothing to steer", and this is the
+      // only thing that says the reason was a person rather than the turn
+      // finishing. It outlives the turn, which is the point — by then the
+      // ticket is all that is left of it.
+      //
+      // ALL of them, because `session/cancel` is the conversation's rather than
+      // one turn's: what a person pressed stops whatever the agent is doing,
+      // including the message it had queued behind it.
+      for (const ticket of asked) ticket.stopped = true
       const quietSince = heard
       yield* Effect.forkDetach(Effect.gen(function*() {
         yield* Effect.sleep(CANCEL_GRACE)
-        // A DIFFERENT turn is a turn that ended and was replaced, which is the
-        // cancel having worked; `null` is the same. Comparing the ticket rather
-        // than the status is what makes the second press of the button about
-        // the turn it was pressed for.
-        if (turn !== asked) return
+        // A turn that has LEFT the set is one that ended, which is the cancel
+        // having worked. Asking about the tickets this press was about, rather
+        // than about the status, is what makes the second press of the button
+        // about the turns it was pressed for.
+        if (asked.every((ticket) => !turns.has(ticket))) return
         // ...and an agent that has said anything since is one still working
         // towards the stop it was asked for, which is not a thing to accuse
         // anybody of.
@@ -1194,7 +1240,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     ): Effect.Effect<void, OpFailure> =>
       switching.withPermit(
         Effect.gen(function*() {
-          if (turn !== null) {
+          if (turns.size > 0) {
             return yield* new BusyFailure({
               reason: "a turn is running; cancel it before switching conversations",
             })
@@ -1241,20 +1287,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // `sessions` gets, and for the same reason: a verb that could not be
       // done says so where it was asked.
       cancel,
-      // WITH the agent that was chosen, always: every new chat asks, so there
+// WITH the agent that was chosen, always: every new chat asks, so there
       // is no arm here that picks one. An id off a stale tab is refused in
       // words rather than started.
-      newSession: (id: string) =>
-        withRow(id, (row) =>
-          changeSession(Effect.flatMap(using(row), (agent) => agent.newSession))),
+      newSession: (id: string) => openWith(id, (agent) => agent.newSession),
       // The answer to the panel's own question, which is not the same verb: a
       // boot that stopped to ask has not asked for a NEW conversation, so what
       // this opens is the one that agent's own boot would have adopted —
       // {@link Chat.chooseAgent}. `boot` is idempotent and picks its own, which
       // is why it is also what a refused one is retried with.
-      chooseAgent: (id: string) =>
-        withRow(id, (row) =>
-          changeSession(Effect.flatMap(using(row), (agent) => agent.boot))),
+      chooseAgent: (id: string) => openWith(id, (agent) => agent.boot),
       // NAMED by the id the browser pressed, which is the only thing this end
       // has before the load answers — a title would be the picker's word for a
       // conversation, and the picker is exactly what this refusal takes off the
@@ -1364,9 +1406,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         )
       }),
       stop: Effect.gen(function*() {
-        const running = turn?.fiber ?? null
-        turn = null
-        if (running !== null) yield* Fiber.interrupt(running)
+        // EVERY turn, not the newest: a queued message an agent had not reached
+        // yet is a fiber this process owns, and one left running past a
+        // shutdown is one nothing will ever report on.
+        const running = [...turns].flatMap((ticket) => ticket.fiber ?? [])
+        turns.clear()
+        for (const fiber of running) yield* Fiber.interrupt(fiber)
         const at = talking
         talking = null
         if (at !== null) yield* at.agent.stop
