@@ -617,6 +617,24 @@ Then(
   },
 );
 
+/** The other emphasis, and it earns its own step for the reason the bug did:
+ *  a title's loss check used to read `**b *c* d**` with regexes, so the ONE
+ *  shape nobody could assert was an italic run inside a bold one. */
+Then(
+  "the title of {string} renders italic text {string}",
+  async function (this: OlaiWorld, id: string, text: string) {
+    const title = this.nodeTitle(id);
+    await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () =>
+        (await title.locator("em, i").allInnerTexts()).some(
+          (value) => value.trim() === text,
+        ),
+      `the title of "${id}" to render ${JSON.stringify(text)} in italics`,
+    );
+  },
+);
+
 /** A link in a title, read by where it POINTS — the half of it a highlight
  *  must never reach, since a mark inside an attribute is a broken link rather
  *  than a loud one. Through `expectAttribute`, so a failure says the href it
