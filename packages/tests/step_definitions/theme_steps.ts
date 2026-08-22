@@ -244,40 +244,35 @@ Then("the paper colour has changed", async function (this: OlaiWorld) {
 });
 
 Then("the browser chrome matches the paper", async function (this: OlaiWorld) {
-  // Three facts read in the SAME page function, and polled by the browser: the
-  // meta and the tab mark are repainted from the palette a frame after a chip
-  // is pressed, so this is a wait — and a wait made of three round trips per
-  // attempt would be reading values taken at different instants.
+  // One page function per attempt — the meta and the tab mark are repainted
+  // from the palette a frame after a chip is pressed, so this is a wait.
+  // Polled from Node: waitForFunction does not await an async IIFE string, and
+  // a Promise is truthy, so that wait would return on the first tick.
   const property = JSON.stringify(PAPER);
-  try {
-    await this.page.waitForFunction(
-      `(async () => {
-        const seen = await (${CHROME_OF})(${property});
-        return seen.chrome === seen.paper && seen.mark !== null && seen.mark.includes('fill="' + seen.paper + '"');
-      })()`,
-      null,
-      { timeout: POLL_TIMEOUT },
-    );
-  } catch (cause) {
-    // The timeout says "it never matched"; say WHAT it said instead.
-    const seen = (await this.page.evaluate(
-      `(${CHROME_OF})(${property})`,
-    )) as {
+  const seenOf = () =>
+    this.page.evaluate(`(${CHROME_OF})(${property})`) as Promise<{
       chrome: string | null;
       paper: string;
       mark: string | null;
-    };
-    assert.equal(
-      seen.chrome,
-      seen.paper,
-      "the browser chrome is not the colour the page is painted in",
+    }>;
+  await this.waitUntil(async () => {
+    const seen = await seenOf();
+    return (
+      seen.chrome === seen.paper &&
+      seen.mark !== null &&
+      seen.mark.includes(`fill="${seen.paper}"`)
     );
-    assert.ok(
-      seen.mark !== null && seen.mark.includes(`fill="${seen.paper}"`),
-      "the tab mark is not painted in the paper the page is in",
-    );
-    throw cause;
-  }
+  }, "the browser chrome to match the paper").catch(() => undefined);
+  const seen = await seenOf();
+  assert.equal(
+    seen.chrome,
+    seen.paper,
+    "the browser chrome is not the colour the page is painted in",
+  );
+  assert.ok(
+    seen.mark !== null && seen.mark.includes(`fill="${seen.paper}"`),
+    "the tab mark is not painted in the paper the page is in",
+  );
 });
 
 Then(
