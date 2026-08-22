@@ -226,6 +226,7 @@ export interface Wiring {
      *  Resume button calls. */
     readonly observe: Ops["observe"]
     readonly loop: Ops["loop"]
+    readonly catchUp: Ops["catchUp"]
     readonly resume: Ops["resume"]
     /** Bumped by the ops layer whenever anything about git SETTLED — a commit
      *  by whichever door, a push, a refusal of either, or the loop stopping.
@@ -254,7 +255,7 @@ export interface Wiring {
  * fenced as well.
  */
 export const gitWiring = (
-  ops: Pick<Ops, "status" | "push" | "observe" | "loop" | "resume">,
+  ops: Pick<Ops, "status" | "push" | "observe" | "loop" | "catchUp" | "resume">,
   policy: LivePolicy,
   settled: SubscriptionRef.SubscriptionRef<number>,
 ): Wiring["git"] => ({
@@ -263,6 +264,7 @@ export const gitWiring = (
   policy,
   observe: ops.observe,
   loop: ops.loop,
+  catchUp: ops.catchUp,
   resume: ops.resume,
   settled,
 })
@@ -594,7 +596,8 @@ export const bind = (
           connect: (cell) => Effect.sync(() => gitCell = cell),
         },
         /**
-         * What is waiting to be committed, on THREE clocks.
+         * What is waiting to be committed, on THREE clocks — plus the quiet
+         * window over them and the one push a boot owes.
          *
          * Every published revision is one — a write changes what is waiting, and
          * that is the ordinary case. A landed commit is the second, because a
@@ -632,7 +635,15 @@ export const bind = (
                 // is what makes a headless `olai web --commit=auto` commit at
                 // all — the whole point of moving the loop off a tab.
                 wiring.git.loop,
-              ], { concurrency: 4 })
+                // ONE PUSH AT BOOT, where the policy is `auto` and there is
+                // anything to send (`@olai/ops`' `catchUp`). Nothing about a
+                // refusal is remembered across a restart, and `olai.service` is
+                // `Restart=always` — so without this a deploy would take the
+                // words with it and leave the chip reading `✓ committed · N
+                // unpushed` over a branch that has been refusing for hours.
+                // The words are re-earned rather than written down.
+                wiring.git.catchUp,
+              ], { concurrency: 5 })
             }),
         },
         /**

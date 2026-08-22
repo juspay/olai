@@ -105,3 +105,111 @@ test("a headless serve commits a quiet directory and pushes it, with no tab open
     for (const at of [root, bare, state]) fs.rmSync(at, { recursive: true, force: true })
   }
 }, AFTER_THE_WINDOW + 15_000)
+
+/**
+ * WHAT A RESTART LOOKS LIKE — the human's ruling on the one fork the two
+ * reviews split on (2026-08-22).
+ *
+ * `olai.service` is `Restart=always`, and nothing about a refusal is written
+ * down: a deploy, a crash or a `systemctl restart` starts a process holding no
+ * stop and no words. That is deliberate for the STOP; on its own it would put
+ * `push-failure-invisible` straight back, because a branch that has been
+ * refusing for hours would come up reading `✓ committed · N unpushed` with the
+ * reason nowhere and — on a clean tree — never attempt again, since a push
+ * follows a settled commit made in THIS process.
+ *
+ * So the words are re-earned: one push at boot, under `--push=auto` and no
+ * other mode. These two are that ruling as a real serve — a child process over
+ * a real repository whose upstream somebody else has moved.
+ */
+const diverged = (dirs: { readonly root: string; readonly bare: string }): void => {
+  const theirs = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-theirs-")))
+  gitIn(theirs)("clone", "--quiet", dirs.bare, ".")
+  gitIn(theirs)("config", "user.email", "them@example.com")
+  gitIn(theirs)("config", "user.name", "them")
+  fs.writeFileSync(path.join(theirs, "theirs.md"), "somebody else's work\n")
+  gitIn(theirs)("add", "-A")
+  gitIn(theirs)("commit", "--quiet", "-m", "theirs")
+  gitIn(theirs)("push", "--quiet")
+  fs.rmSync(theirs, { recursive: true, force: true })
+  // ... and this side has a commit of its own, so the branch is genuinely
+  // unshared and genuinely cannot be sent.
+  fs.writeFileSync(path.join(dirs.root, "notes.md"), "the herb bed needs splitting\n")
+  gitIn(dirs.root)("add", "-A")
+  gitIn(dirs.root)("commit", "--quiet", "-m", "olai: earlier")
+}
+
+/** A repository with a bare remote, and the state home the child writes to.
+ *  Torn down by the caller. */
+const served = (): { readonly root: string; readonly bare: string; readonly state: string } => {
+  const state = fs.mkdtempSync(path.join(os.tmpdir(), "olai-boot-state-"))
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-boot-")))
+  const bare = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-boot-remote-")))
+  fs.writeFileSync(
+    path.join(root, "garden.olai"),
+    `{"id":"garden","ord":"a0","title":"garden"}\n`,
+  )
+  repoAt(root)
+  gitIn(bare)("init", "--quiet", "--bare", "--initial-branch", "main")
+  gitIn(root)("remote", "add", "origin", bare)
+  gitIn(root)("push", "--quiet", "--set-upstream", "origin", "main")
+  return { root, bare, state }
+}
+
+/** How long a boot's own push may take before it is a hang rather than a slow
+ *  machine — no window is waited here, so this is a git subprocess and not a
+ *  product decision. */
+const AFTER_BOOT = 15_000
+
+test("a boot under --push=auto re-earns git's words about a branch it cannot send", async () => {
+  const dirs = served()
+  diverged(dirs)
+  const web = startWeb({
+    root: dirs.root,
+    extra: ["--commit=manual", "--push=auto"],
+    env: { XDG_STATE_HOME: dirs.state },
+  })
+  try {
+    await web.address()
+    // The refusal, in git's own words, on the server's own log — which is the
+    // same `sent()` that puts it on the cell every open tab reads.
+    const said = await until(
+      () => web.said(),
+      (all) => all.includes("the branch was not pushed"),
+      AFTER_BOOT,
+    )
+    expect(said).toContain("the branch was not pushed")
+    expect(said).toContain("rejected")
+    // Never a force and never a pull: the remote is exactly where the other
+    // machine left it, and this side's commit is still unshared.
+    expect(gitIn(dirs.bare)("log", "--format=%s", "-1").trim()).toBe("theirs")
+    expect(gitIn(dirs.root)("log", "--format=%s", "-1").trim()).toBe("olai: earlier")
+  } finally {
+    web.kill()
+    await web.exited()
+    for (const at of Object.values(dirs)) fs.rmSync(at, { recursive: true, force: true })
+  }
+}, AFTER_BOOT + 15_000)
+
+test("a boot under --push=off attempts nothing, however far behind the branch is", async () => {
+  const dirs = served()
+  diverged(dirs)
+  const web = startWeb({
+    root: dirs.root,
+    extra: ["--commit=manual", "--push=off"],
+    env: { XDG_STATE_HOME: dirs.state },
+  })
+  try {
+    await web.address()
+    // Given the same time the serve above needed to refuse in, and then some:
+    // a directory whose pushes are somebody's own button press has not asked
+    // this process to make one.
+    await Bun.sleep(3_000)
+    expect(web.said()).not.toContain("the branch was not pushed")
+    expect(gitIn(dirs.bare)("log", "--format=%s", "-1").trim()).toBe("theirs")
+  } finally {
+    web.kill()
+    await web.exited()
+    for (const at of Object.values(dirs)) fs.rmSync(at, { recursive: true, force: true })
+  }
+}, AFTER_BOOT + 15_000)

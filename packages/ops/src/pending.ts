@@ -460,6 +460,33 @@ export interface Committing {
    */
   readonly loop: Effect.Effect<void>
   /**
+   * ON BOOT: share what this directory already recorded, once — and only where
+   * the policy says to.
+   *
+   * NOTHING ABOUT A REFUSAL IS REMEMBERED ACROSS A RESTART (the human's ruling,
+   * 2026-08-22): the state file keeps the policy and nothing else, so a fresh
+   * process starts with no stop and no words. That is the right shape for the
+   * STOP — a restart is an operator's act, and a pause written down would be a
+   * blind retry's opposite with no way out of it that survives either — and it
+   * is the wrong shape for the WORDS on its own, because `olai.service` is
+   * `Restart=always`: a deploy or a crash would take `pushSaid` with it and the
+   * chip would go back to `✓ committed · N unpushed` with the reason nowhere,
+   * which is the whole of `push-failure-invisible` restored.
+   *
+   * So the words are re-earned rather than remembered. One `git push` at boot,
+   * the same bare one every other door runs — never a force, never a pull — and
+   * whatever git says lands on the cell through the same path a pressed Push
+   * takes. A branch already in sync answers `NothingToPush` and writes nothing,
+   * which is why there is no "is anything unpushed" check here: {@link push}
+   * owns that question and asking it twice is how the two come to disagree.
+   *
+   * Under `manual` and `off` nothing is attempted at all. A directory whose
+   * pushes are somebody's own button press has not asked this process to make
+   * one, and a boot that pushed anyway would be the flag meaning something
+   * different on the first survey than on every one after it.
+   */
+  readonly catchUp: Effect.Effect<void>
+  /**
    * Start the loop again after git stopped it — the person saying they have
    * dealt with whatever it said.
    *
@@ -1131,6 +1158,12 @@ export const make = (options: Options): Committing => {
         )),
   )
 
+  const catchUp: Effect.Effect<void> = Effect.suspend(() =>
+    options.policy.now().push === "auto"
+      ? Effect.asVoid(push)
+      : Effect.void
+  )
+
   const resume: Effect.Effect<void> = Effect.sync(() => {
     if (settled.paused === null) return
     settled = { ...settled, paused: null }
@@ -1161,6 +1194,7 @@ export const make = (options: Options): Committing => {
     wrote,
     observe,
     loop,
+    catchUp,
     resume,
     /**
      * This value's answer on its own, for a caller that wants only it: the

@@ -1412,3 +1412,101 @@ test("a manual write on a healthy repository still just says it is waiting", () 
       expect(applied.why).toStartWith("waiting to be committed")
       expect(applied.why).toContain(COMMIT_TOOL)
     })))
+
+/**
+ * WHAT A BOOT OWES — the human's ruling on the one fork the two reviews split
+ * on (2026-08-22).
+ *
+ * Nothing about a refusal is remembered across a restart: the state file keeps
+ * the policy and nothing else, so a fresh process starts with no stop and no
+ * words. For the STOP that is the right shape — a restart is an operator's act,
+ * and a pause written down is a blind retry's opposite with no way out that
+ * survives either. For the WORDS on their own it is not, because
+ * `olai.service` is `Restart=always`: a deploy would take `pushSaid` with it
+ * and the chip would go back to `✓ committed · N unpushed` with the reason
+ * nowhere, which is the whole of `push-failure-invisible` restored.
+ *
+ * So the words are RE-EARNED. One push at boot, under `--push=auto` and no
+ * other mode, and whatever git says lands on the cell.
+ */
+describe("the one push a boot owes", () => {
+  /** Somebody else moved the upstream, so every push from here is a
+   *  non-fast-forward — the divergence a restarted service wakes up into. */
+  const diverge = (bare: string): void => {
+    const theirs = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-theirs-")))
+    gitIn(theirs)("clone", "--quiet", bare, ".")
+    gitIn(theirs)("config", "user.email", "them@example.com")
+    gitIn(theirs)("config", "user.name", "them")
+    fs.writeFileSync(path.join(theirs, "theirs.md"), "somebody else's work\n")
+    gitIn(theirs)("add", "-A")
+    gitIn(theirs)("commit", "--quiet", "-m", "theirs")
+    gitIn(theirs)("push", "--quiet")
+    fs.rmSync(theirs, { recursive: true, force: true })
+  }
+
+  /** A commit this directory has and the upstream does not — what a restarted
+   *  service is holding, with nothing waiting to be committed at all. */
+  const unpushed = (fixture: Fixture): void => {
+    fixture.write("notes.md", "the herb bed needs splitting\n")
+    fixture.git("add", "-A")
+    fixture.git("commit", "--quiet", "-m", "olai: earlier")
+  }
+
+  test("a boot under --push=auto re-earns the words, on the FIRST reading", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        diverge(fixture.remote())
+        unpushed(fixture)
+        yield* fixture.refresh
+
+        // Before the boot push: the cell has nothing to say about a refusal,
+        // because nothing was remembered — which is the state grok's argument
+        // is about, and it is only correct for the instant before this runs.
+        expect((yield* fixture.ops.git).pushSaid).toBeNull()
+
+        yield* fixture.ops.catchUp
+
+        const said = yield* fixture.ops.git
+        expect(said.pushSaid).toContain("reject")
+        // The COMMIT half is untouched: the history is fine and the sharing is
+        // not, which is why these are two fields.
+        expect(said.status).toBe("repo")
+        expect(said.said).toBeNull()
+        // ... and a reader is told without waiting for the sweep: the push
+        // republishes the way every other settled thing does.
+        expect(fixture.settlements()).toBeGreaterThan(0)
+      }), { commits: "manual", pushes: "auto" }))
+
+  test("a boot under --push=off attempts nothing at all", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        diverge(fixture.remote())
+        unpushed(fixture)
+        yield* fixture.refresh
+        const quiet = fixture.settlements()
+
+        yield* fixture.ops.catchUp
+
+        // A directory whose pushes are somebody's own button press has not
+        // asked this process to make one. Nothing was attempted, so nothing
+        // refused, so there is nothing on the cell and nobody was told.
+        expect((yield* fixture.ops.git).pushSaid).toBeNull()
+        expect(fixture.settlements()).toBe(quiet)
+      }), { commits: "manual", pushes: "off" }))
+
+  test("a boot with nothing unshared says nothing, and does not stop the loop", () =>
+    withRepo({ "house.olai": HOUSE }, (fixture) =>
+      Effect.gen(function*() {
+        fixture.remote()
+        yield* fixture.refresh
+
+        yield* fixture.ops.catchUp
+
+        // `push` owns "is there anything to send" — a branch already in sync
+        // answers `NothingToPush` and writes nothing, which is why the boot arm
+        // asks no second version of that question.
+        const said = yield* fixture.ops.git
+        expect(said.pushSaid).toBeNull()
+        expect(said.paused).toBeNull()
+      }), { commits: "auto", pushes: "auto" }))
+})

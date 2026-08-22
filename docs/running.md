@@ -214,6 +214,8 @@ The two are independent, so pinning committing does not silently pin pushing. `-
 
 That pause is a fact about the DIRECTORY, held by the server. A reload does not clear it, a second tab does not clear it, and turning the row off and on again does not clear it; pressing Resume clears it for every reader at once. It used to live in the tab that made the attempt, which meant a reload was a silent retry, a second tab knew nothing about the stop, and a headless serve had no loop to stop.
 
+**Restarting the process is the one thing that does clear it.** Nothing about a refusal is remembered — the file above holds the policy and nothing else — so a `systemctl restart`, a deploy or a crash brings up a server with no stop and no words. That is deliberate for the stop: a restart is an operator's act where a reload is not. It would be wrong for the WORDS on their own, because the unit restarts on its own and the count would go quiet again — so **a boot re-earns them**: with `--push=auto` and commits to send, the server makes one push at startup (the same bare `git push`, never a force, never a pull) and whatever git answers is on the chip at once. With `--push=off` or `manual` committing, a boot attempts nothing.
+
 Theme, typeface, size, note density, finished work and hidden outlines are untouched by any of this. They are personal view choices, per browser, and there is nothing about them for a server to have an opinion on.
 
 ## Agents, over HTTP

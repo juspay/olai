@@ -309,6 +309,7 @@ export interface Ops extends Asking {
    *  that re-arms the window, and the one way a stopped loop starts again. */
   readonly observe: Committing["observe"]
   readonly loop: Committing["loop"]
+  readonly catchUp: Committing["catchUp"]
   readonly resume: Committing["resume"]
   /**
    * The set as a reader sees it, or the one refusal for a directory that has
@@ -523,6 +524,7 @@ export const make = (options: Options): Ops => {
     push: commits.push,
     observe: commits.observe,
     loop: commits.loop,
+    catchUp: commits.catchUp,
     resume: commits.resume,
     git: commits.git,
   }
