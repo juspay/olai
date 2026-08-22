@@ -18,7 +18,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import { countsNothing, foundCount } from "../support/counted.ts";
-import { saysThat } from "../support/said.ts";
+import { refuses } from "../support/said.ts";
 import {
   attr,
   DESC_HIT,
@@ -323,15 +323,6 @@ Then(
  *  (`client/SaidLine.tsx`) and none of them spells `role="alert"` by hand.
  *  `data-tone` is that claim in the markup — never a colour, per
  *  `../support/said.ts`. */
-const refuses = (
-  world: OlaiWorld,
-  line: string,
-  what: string,
-  token: string,
-  teaching: string,
-): Promise<void> =>
-  saysThat(world, line, token, what, "alarm")
-    .then(() => saysThat(world, line, teaching, what));
 
 /** The BAR's own refusal line, which is the grammar refusing in this tab: the
  *  filter parses what is typed here rather than asking, so this line is up

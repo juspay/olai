@@ -106,3 +106,24 @@ export const saysNothing = async (
     return true;
   }, what);
 };
+
+/**
+ * A REFUSAL, read as the one sentence it is: the token quoted back as the
+ * reader typed it, and what that operator actually takes, both in the alarmed
+ * mood.
+ *
+ * Here rather than in `filter_steps.ts`, which is where it was written, because
+ * a second door draws this line: the pickers under a row got it when
+ * `one-search-box` deleted the two that used to (`client/search/Shortlist.tsx`).
+ * One reading, so a panel that drew a different sentence about the same grammar
+ * would fail this rather than pass a copy of it.
+ */
+export const refuses = (
+  world: OlaiWorld,
+  line: string,
+  what: string,
+  token: string,
+  teaching: string,
+): Promise<void> =>
+  saysThat(world, line, token, what, "alarm")
+    .then(() => saysThat(world, line, teaching, what));

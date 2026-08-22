@@ -40,14 +40,28 @@
  * WRITE leaves behind — which outlives the panel and is therefore the host's
  * (`../edges/editing.tsx`, `../move/moving.tsx`).
  *
- * The other two doors onto the same reading are deliberately not consumers.
- * The ⌘K palette and the header's box draw more than node hits (shell
- * commands, the grammar's own refusals, an ask to the agent) and place
- * themselves (a portal, an anchor re-measured while the page scrolls); the
+ * The other doors onto the same reading are deliberately not consumers. The
  * `((` widget has no box at all — the row's own editor is the input
- * (`../complete/Completions.tsx`). Bending any of them onto this would make it
- * a bundle of everything a list can be, which is the shape `RowPanel.tsx`
- * refused in the other direction.
+ * (`../complete/Completions.tsx`) — and the chat composer's `@` list is a
+ * completion under a caret in the middle of a sentence. Bending either onto
+ * this would make it a bundle of everything a list can be, which is the shape
+ * `RowPanel.tsx` refused in the other direction.
+ *
+ * ## It SURVIVED `one-search-box`, and the ruling's own words are why
+ *
+ * The 2026-08-21 ruling deleted the two SEARCH doors — the header's box and the
+ * ⌘K palette's node hits — and its next sentence protects exactly what this
+ * file is: "the composer's `@` list keeps its own bounded shortlist — it names
+ * one node into a message, it is not a search door". Both panels here are that
+ * same kind of thing: each names ONE node for an act (an edge written, a row
+ * moved), so the question is whether what you are spelling is in the list
+ * rather than how much of the directory answers to it
+ * (docs/brainstorming/one-search-box.md, and the PR's Assumptions).
+ *
+ * What the deletion DID land on it is one line it should always have had: the
+ * grammar's refusals. The wire has carried them all along and the two doors
+ * that drew them are gone, so a typo in `is:` here was — and would have stayed
+ * — a panel that looks like an empty directory.
  */
 
 import type { NodeHit } from "@olai/surface"
@@ -56,6 +70,7 @@ import { type Accessor, createMemo, createSignal, Index, onMount, Show } from "s
 import { SaidLine } from "../SaidLine.tsx"
 import { listKey } from "../keys.ts"
 import { Refused } from "../Refused.tsx"
+import { Refusals } from "../refusals.tsx"
 import type { TestId } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 import { createCursor } from "./cursor.ts"
@@ -77,6 +92,9 @@ export interface ShortlistTestids {
   readonly row: RowTestids
   /** A refused SEARCH, in the server's words. */
   readonly failed: TestId
+  /** …and a refused QUERY, in the grammar's — a known operator with a value it
+   *  does not take. A different slot for a different piece of news. */
+  readonly refused: TestId
 }
 
 export function Shortlist(props: {
@@ -300,6 +318,26 @@ export function Shortlist(props: {
           />
         )}
       </Show>
+
+      {/* …AND THE OTHER REFUSAL, which is a different piece of news: the words
+          were READ and one of them is an operator with a value the grammar does
+          not take. Without it a typo in `is:` looks exactly like a directory
+          with nothing in it, which is the silent failure HACKING.md's error
+          rule forbids.
+
+          IT ARRIVED WITH `one-search-box`, and its absence until then is worth
+          the sentence: this panel takes the full grammar (`#tag`, `is:done`,
+          `changed:today`) and has always been answered with `refusals` on the
+          wire, and the two doors that DREW them were the ⌘K palette's hits and
+          the header's box. Deleting those left the field with no reader at all
+          — so the hole they were hiding is closed here rather than the field
+          deleted with them. `../refusals.tsx` is the same rows the one search
+          box draws, once, for every door onto this grammar. */}
+      <Refusals
+        of={found.refusals()}
+        class="m-0 mt-1 font-mono text-xs"
+        testid={props.testids.refused}
+      />
 
       <ul class="m-0 max-h-56 list-none overflow-x-hidden overflow-y-auto p-0">
         {/* `<Index>` rather than `<For>`: the rows are positional, there are at

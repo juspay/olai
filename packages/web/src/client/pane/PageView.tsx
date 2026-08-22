@@ -246,7 +246,7 @@ export function PageView() {
   const found = createMemo((): Found => {
     const everywhere = only(narrowing.drawn(), "search")
     if (everywhere === undefined) {
-      return { kind: "page", counts: narrowing.counts(), elsewhere: elsewhere.more() }
+      return { kind: "page", counts: narrowing.counts(), elsewhere: elsewhere() }
     }
     return {
       kind: "everywhere",

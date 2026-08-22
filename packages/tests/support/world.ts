@@ -408,7 +408,10 @@ export const EDGE_HELD = selector(TESTID.edgeHeld);
 export const EDGE_DROP = selector(TESTID.edgeDrop);
 /** Its search box — the server's own node search, the same one ⌘K, the header
  *  box and the `((` widget call. */
-export const EDGE_SEARCH = selector(TESTID.edgeSearch);
+export const EDGE_SEARCH = selector(TESTID.edgeSearch)
+/** THE GRAMMAR refusing a token in this panel, since `one-search-box` gave the
+ *  pickers the line the deleted search doors used to draw. */
+export const EDGE_SEARCH_REFUSAL = selector(TESTID.edgeSearchRefusal);
 /** One hit in it; `data-id` is the node it would name. */
 export const EDGE_HIT = selector(TESTID.edgeHit);
 /** What the last edge WRITE said — a refusal verbatim (the loop an `after`

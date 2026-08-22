@@ -277,3 +277,20 @@ Feature: Writing a node's edges — `see` and `after`
     When I search the edge panel for "hinges"
     Then the edge panel hit "pick the hinges" shows the property "agent" holding "claude-opus"
     And there should be no page errors
+
+  Scenario: A refused operator says so here too, rather than looking like an empty directory
+    # The panel takes the FULL grammar (`#tag`, `is:done`, `changed:today`) and
+    # is answered by the same matcher every other door is, so it has always been
+    # sent `refusals` on the wire — and, until `one-search-box`, drew none of
+    # them: the two doors that did were the header's box and the ⌘K palette's
+    # hits, and deleting those left the field with no reader at all. A typo in
+    # an operator would have gone on looking exactly like a directory with
+    # nothing in it, which is the silent failure HACKING.md's error rule
+    # forbids.
+    Given I open the outline "house.olai"
+    When I open the node menu of "handles"
+    And I choose "Link to a node…" from the node menu
+    Then the see panel is open on "handles"
+    When I type "is:open" into the edge panel
+    Then the edge panel refuses "is:open" and says "done, doing, todo, marked, blocked, mirrored, trashed"
+    And there should be no page errors

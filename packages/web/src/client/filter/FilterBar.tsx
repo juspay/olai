@@ -98,9 +98,14 @@ export function FilterBar(props: {
   readonly found: Found
   readonly onType: (text: string) => void
   /**
-   * WIDEN THIS QUERY — absent on the page that IS everywhere, which is what
-   * takes both the line and the key away there rather than a condition written
-   * twice inside this component.
+   * WIDEN THIS QUERY — absent on the page that IS everywhere, because there is
+   * nowhere wider to go.
+   *
+   * WHICH SCOPE THIS BAR IS AT is NOT read off its absence, and that is worth
+   * saying: `found.kind` is the one value that says it, so the placeholder, the
+   * label and the sentence all read the same fact rather than inferring it from
+   * a callback nobody passed. A missing handler means "this gesture is not
+   * available here" and means only that.
    */
   readonly onWiden?: () => void
   /** Whether this pane is the FOCUSED one — which is the whole of how a
@@ -120,14 +125,18 @@ export function FilterBar(props: {
       found: props.found,
     })
 
+  /** WHICH SCOPE this bar is at — the one value that says so, read by the three
+   *  bindings that differ between them. */
+  const everywhere = () => props.found.kind === "everywhere"
+
   /** …and the second half of that line, which is a DOOR rather than a number:
    *  how many more the directory holds, and the way to them. Absent on the
    *  everywhere page, absent while the count is unknown, absent when there is
    *  nothing more (`./count.ts`'s `widenSaid`). */
   const widen = () =>
-    props.onWiden === undefined || props.narrowing.answering() === null
+    props.narrowing.answering() === null || props.found.kind !== "page"
       ? null
-      : widenSaid(props.found.kind === "page" ? props.found.elsewhere : null)
+      : widenSaid(props.found.elsewhere)
 
   // THE CARET, ASKED FOR FROM OUTSIDE — the phone's magnifier and the ⌘K
   // handoff row (`./caret.ts`). `defer`, because the ask is an event and a bar
@@ -169,10 +178,8 @@ export function FilterBar(props: {
           type="text"
           class="min-w-0 flex-1 rounded-full border-0 bg-desk/70 px-4 py-2 font-mono text-xs text-ink outline-none placeholder:text-muted ring-1 ring-rule/40 focus:ring-2 focus:ring-accent/40"
           data-testid={TESTID.filterInput}
-          placeholder={props.onWiden === undefined ? EVERYWHERE_PLACEHOLDER : PLACEHOLDER}
-          aria-label={props.onWiden === undefined
-            ? "search the directory"
-            : "filter this page"}
+          placeholder={everywhere() ? EVERYWHERE_PLACEHOLDER : PLACEHOLDER}
+          aria-label={everywhere() ? "search the directory" : "filter this page"}
           value={props.narrowing.text()}
           onInput={(event) => props.onType(event.currentTarget.value)}
           // WHICH key does what is the registry's (`../keys.ts`'s list layer,

@@ -71,6 +71,7 @@ const MOVE_LIST: ShortlistTestids = {
     prop: TESTID.moveHitProp,
   },
   failed: TESTID.moveSearchFailed,
+  refused: TESTID.moveSearchRefusal,
 }
 
 export function MovePicker(props: {

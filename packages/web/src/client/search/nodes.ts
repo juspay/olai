@@ -55,23 +55,15 @@ export const LIMIT = 8
 
 export interface Search<H extends SearchHit = SearchHit> {
   readonly hits: Accessor<ReadonlyArray<H>>
-  /**
-   * HOW MANY MATCHED IN ALL — uncapped, where {@link hits} is only what
-   * {@link LIMIT} let through. `0` when nothing has answered.
-   *
-   * The cap is a fact about a DOOR and the total is a fact about the QUERY, and
-   * this is the number every door here had and did not pass on: an answer
-   * carries it precisely so that "eight of ninety" is sayable (`@olai/format`'s
-   * `SearchAnswer`, `@olai/ops`' `query.ts`), and the two doors drew eight rows
-   * and said nothing. What a door SAYS with it is `./count.ts`.
-   *
-   * READ OFF THE SAME VALUE THE HITS ARE, which is what keeps the pair from
-   * being two numbers out of two moments: while a newer query is in flight the
-   * rows hold still, and this holds still with them — so a line under them
-   * counts the rows a reader is looking at rather than the answer they are
-   * waiting for.
-   */
-  readonly total: Accessor<number>
+  // THE UNCAPPED TOTAL IS NOT HERE, and its absence is the shortlists' own
+  // deletion showing through. It was read by one line — "8 of 90 matches",
+  // under the ⌘K palette's hits and the header box's — and both of those doors
+  // are gone (docs/brainstorming/one-search-box.md). Every caller left is a
+  // PICKER, and a picker is choosing ONE node for an act: the question there is
+  // whether what you are spelling is in the list, not how much of the directory
+  // answers to it (docs/search.md says so, and said so before this). The number
+  // is still on the wire, where `search_nodes` and `filter/elsewhere.ts` read
+  // it.
   /** A refusal from the server, in its own words — `null` when there is none.
    *  Never silently dropped (`../run.ts` forbids a silent handler). */
   readonly failure: Accessor<string | null>
@@ -158,11 +150,6 @@ export function createSearch(
 
   return {
     hits: () => asked.answer()?.hits ?? [],
-    // The uncapped count, off the same answer the rows come off — never
-    // `hits.length` and never a second call. Nothing answered is `0`, which is
-    // the one reading that makes the sentence under a door disappear rather
-    // than claim a denominator nobody has been given (`./count.ts`).
-    total: () => asked.answer()?.total ?? 0,
     failure: asked.failure,
     refusals: () => asked.answer()?.refusals ?? [],
     // Straight through: which query the rows answer is the primitive's own

@@ -89,6 +89,7 @@ const EDGE_LIST: ShortlistTestids = {
     prop: TESTID.edgeHitProp,
   },
   failed: TESTID.edgeSearchFailed,
+  refused: TESTID.edgeSearchRefusal,
 }
 
 export function EdgePanel(props: {

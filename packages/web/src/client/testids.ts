@@ -343,6 +343,10 @@ export const TESTID = {
    *  write: two unrelated async sources sharing one line is how a reader is
    *  shown the wrong sentence about the wrong thing. */
   edgeSearchFailed: "edge-search-failed",
+  /** …and a refused QUERY, in the grammar's own words — a known operator with a
+   *  value it does not take. A different slot from the line above, because a
+   *  refused CALL and a refused QUERY are two pieces of news. */
+  edgeSearchRefusal: "edge-search-refusal",
   /** What the last WRITE from this panel said — a refusal verbatim (a loop an
    *  `after` would close, an id nothing declares), or a nudge from one that
    *  landed. Two moods, `data-tone` apart, like every other said line. */
@@ -374,6 +378,9 @@ export const TESTID = {
   /** A refused SEARCH, in the server's words — never the same slot as the two
    *  lines above, for the reason the edge panel keeps them apart. */
   moveSearchFailed: "move-search-failed",
+  /** …and the grammar refusing a token, on this picker's own line
+   *  ({ edgeSearchRefusal}). */
+  moveSearchRefusal: "move-search-refusal",
   /** What the last MOVE said: a refusal verbatim, or the nudge from one that
    *  landed — drawn under the row, which after a landed move is the row in its
    *  new home. Two moods, `data-tone` apart, like every other said line. */

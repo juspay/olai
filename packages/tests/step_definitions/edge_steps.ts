@@ -34,6 +34,7 @@ import {
   EDGE_PANEL,
   EDGE_SAID,
   EDGE_SEARCH,
+  EDGE_SEARCH_REFUSAL,
   EDGE_VERB,
   POLL_TIMEOUT,
   REF_DROP,
@@ -42,7 +43,7 @@ import {
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 import { focusedOn } from "../support/caret.ts";
-import { saysThat } from "../support/said.ts";
+import { refuses, saysThat } from "../support/said.ts";
 import { answering } from "../support/shortlist.ts";
 import { retypedAndTaken } from "../support/atonce.ts";
 
@@ -121,6 +122,17 @@ When(
     const box = (await panelOf(this)).locator(EDGE_SEARCH);
     await box.fill(text);
     await answered(this, text);
+  },
+);
+
+/** …and the same keystrokes with NOTHING waited for, which is the one case the
+ *  step above cannot serve: a REFUSED query selects nothing at every door
+ *  (`@olai/format`'s `filter.ts`), so there are no rows to wait on and the news
+ *  is the line rather than the list. */
+When(
+  "I type {string} into the edge panel",
+  async function (this: OlaiWorld, text: string) {
+    await (await panelOf(this)).locator(EDGE_SEARCH).fill(text);
   },
 );
 
@@ -433,6 +445,24 @@ Then(
     await this.waitUntil(
       async () => edgeIn(this, file, id, "after").length === 0,
       `${file} to hold ${JSON.stringify(id)} with no \`after\` at all`,
+    );
+  },
+);
+
+/** THE GRAMMAR refusing a token, on this panel's own line — a different slot
+ *  from the search failing, because a refused CALL and a refused QUERY are two
+ *  pieces of news (`client/search/Shortlist.tsx`). The reader is the suite's
+ *  one refusal reader (`../support/said.ts`), so the sentence this panel draws
+ *  and the sentence the one search box draws are held to being one sentence. */
+Then(
+  "the edge panel refuses {string} and says {string}",
+  async function (this: OlaiWorld, token: string, teaching: string) {
+    await refuses(
+      this,
+      `${EDGE_PANEL} ${EDGE_SEARCH_REFUSAL}`,
+      "edge panel refusal",
+      token,
+      teaching,
     );
   },
 );

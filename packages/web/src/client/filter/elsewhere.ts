@@ -63,12 +63,14 @@ import type { Matches } from "./matches.ts"
  */
 const COUNT_ONLY = 0
 
-export interface Elsewhere {
-  /** How many more nodes and documents this query matches outside the page in
-   *  front of the reader — `null` while nothing has answered. */
-  readonly more: Accessor<number | null>
-}
-
+/**
+ * HOW MANY MORE — `null` while nothing has answered.
+ *
+ * ONE ACCESSOR and not a record holding one, which is the shape the consumer
+ * asked for: `elsewhere.more()` is a double-deref for a reading with a single
+ * fact in it, and a record is what a reading grows into when it has several
+ * (`./asking.ts` has five, and each of them earns its name).
+ */
 export const createElsewhere = (source: {
   /** What the grammar made of the box, parsed once by the pane — so an empty
    *  box and a query the grammar refused cost nothing at all, exactly as they
@@ -89,7 +91,7 @@ export const createElsewhere = (source: {
    *  taken against nothing would be the whole directory's count wearing the
    *  word "more". */
   readonly onPage: Accessor<Matches | undefined>
-}): Elsewhere => {
+}): Accessor<number | null> => {
   const asked = createSettled(
     () => {
       if (!source.widenable() || source.query().kind !== "asking") return null
@@ -99,18 +101,16 @@ export const createElsewhere = (source: {
     (text) => olai.procedures.search.nodes({ text, limit: COUNT_ONLY }),
   )
 
-  return {
-    more: createMemo(() => {
-      // WHILE THE ANSWER IS ABOUT SOMETHING ELSE, say nothing. `answering` is
-      // `null` through the settle and the flight of a newer question, and a
-      // difference between the last query's total and this query's page is
-      // arithmetic across two moments — the very thing `./count.ts` exists to
-      // refuse.
-      if (asked.answering() === null) return null
-      const total = asked.answer()?.total
-      const here = source.onPage()
-      if (total === undefined || here === undefined) return null
-      return Math.max(0, total - here.size)
-    }),
-  }
+  return createMemo(() => {
+    // WHILE THE ANSWER IS ABOUT SOMETHING ELSE, say nothing. `answering` is
+    // `null` through the settle and the flight of a newer question, and a
+    // difference between the last query's total and this query's page is
+    // arithmetic across two moments — the very thing `./count.ts` exists to
+    // refuse.
+    if (asked.answering() === null) return null
+    const total = asked.answer()?.total
+    const here = source.onPage()
+    if (total === undefined || here === undefined) return null
+    return Math.max(0, total - here.size)
+  })
 }
