@@ -80,7 +80,7 @@ import * as Git from "@olai/git"
 import { Duration, Effect, Result, Stream, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
-import { armedOn, flurryOf, mayRecord, QUIET_MS, type Standing } from "./loop.ts"
+import { armedOn, flurryOf, QUIET_MS, type Standing } from "./loop.ts"
 import { AUDIT, signed } from "./message.ts"
 
 /**
@@ -133,36 +133,76 @@ export type { GitState }
  *     that will not take a commit, and drawing them as one is exactly the bug
  *     that read `✓ committed · 13 unpushed` over an hour of failing pushes.
  */
-export const gitOf = (input: {
-  readonly repo: RepoState
-  readonly pinned: GitPin
-  readonly policy: GitPolicy
-  /** What git said when it last refused a COMMIT, or `null`. */
-  readonly refused?: string | null
-  /** ... and a PUSH. */
-  readonly pushSaid?: string | null
-  /** Why the loop stopped, or `null` while it is running. */
-  readonly paused?: string | null
-}): GitState => {
+export const gitOf = (
+  repo: RepoState,
+  policy: Policy,
+  settled: Settled,
+): GitState => {
   const rest = {
-    pinned: input.pinned,
-    policy: input.policy,
-    pushSaid: input.pushSaid ?? null,
-    paused: input.paused ?? null,
+    pinned: policy.pin,
+    policy: policy.now(),
+    pushSaid: settled.pushSaid,
+    paused: settled.paused,
   }
-  const refused = input.refused ?? null
-  if (refused !== null) return { status: "error", said: refused, ...rest }
-  switch (input.repo._tag) {
+  if (settled.refusal !== null) {
+    return { status: "error", said: settled.refusal, ...rest }
+  }
+  switch (repo._tag) {
     case "Off":
       return { status: "off", said: null, ...rest }
     case "NoRepo":
       return { status: "none", said: null, ...rest }
     case "Unusable":
-      return { status: "error", said: input.repo.said, ...rest }
+      return { status: "error", said: repo.said, ...rest }
     case "Ready":
     case "Blocked":
       return { status: "repo", said: null, ...rest }
   }
+}
+
+/**
+ * THE THREE THINGS THIS LAYER REMEMBERS ABOUT GIT, as one value.
+ *
+ * Everything else about the repository is derived from it on every reading —
+ * that is the rule the whole feature is built on — and these three are the
+ * exceptions, because they are the class of fact no probe can see: `rev-parse`
+ * answers happily in a repository with no `user.email`, `git status` says how
+ * far ahead a branch is and never why it is still ahead, and nothing on disk
+ * says a loop stopped.
+ *
+ * ONE VALUE rather than three fields, because they are coupled by a rule and
+ * the rule is what would otherwise live in a comment: a refusal of EITHER verb
+ * sets the pause, and only `resume` clears it. Kept together, the writers are
+ * countable ({@link Committing}'s `commit`, `push` and `resume`, and nothing
+ * else) and the readers take one argument.
+ */
+export interface Settled {
+  /** What git said when it last refused a COMMIT, or `null` — cleared by the
+   *  next commit that works. #108's, and the reason this is remembered at all. */
+  readonly refusal: string | null
+  /**
+   * ... and a PUSH.
+   *
+   * Its own field rather than the same one, and the separation is the bug this
+   * feature was filed for: a refused push leaves a repository whose every
+   * commit still lands, so folding it into `refusal` would make the chip read
+   * `git error` at a directory whose git is fine. What is broken is the
+   * sharing, and the chip has to be able to say so while still saying
+   * everything else is well.
+   */
+  readonly pushSaid: string | null
+  /** Why the quiet window stopped, or `null` while it is running. A fact about
+   *  the directory: it used to be a signal in one browser tab, so a reload was
+   *  a silent retry and a second tab knew nothing. */
+  readonly paused: string | null
+}
+
+/** Nothing has refused and nothing has stopped — what a server boots holding,
+ *  and what a healthy directory keeps holding. */
+export const NOTHING_SETTLED: Settled = {
+  refusal: null,
+  pushSaid: null,
+  paused: null,
 }
 
 /**
@@ -522,40 +562,14 @@ export const make = (options: Options): Committing => {
     [...counts].map(([writer, ops]) => ({ writer, ops }))
 
   /**
-   * What the last commit attempt said, when it refused — the ONE thing here
-   * that is remembered about git rather than derived from it, and #108's.
+   * THE THREE THINGS THIS LAYER REMEMBERS about git — see {@link Settled}.
    *
-   * It has to be remembered because it is the one failure a probe cannot see: a
-   * repository with no `user.email` is a perfectly good repository right up
-   * until something tries to commit in it. Kept as the sentence rather than as a
-   * second state, so what a reader is told stays a function of the two.
+   * One place, written by the three functions below and by nothing else, so
+   * "what has git said here, and is the loop stopped" is one read at every
+   * reader and the rule that couples them is a line of code rather than a
+   * comment.
    */
-  let refusal: string | null = null
-
-  /**
-   * ... and the same for a PUSH, which is the field this whole feature was
-   * filed for.
-   *
-   * It is remembered for exactly the reason above and it is a SECOND field
-   * rather than the same one: a refused push leaves a repository whose commits
-   * all land, so folding it into `refusal` would make the chip read `git error`
-   * at a directory whose git is fine. What is broken is the sharing, and the
-   * chip has to be able to say so while still saying everything else is well.
-   *
-   * Cleared by the next push that works, and by nothing else — least of all by
-   * a commit, which says nothing about whether the branch can be sent.
-   */
-  let pushRefusal: string | null = null
-
-  /**
-   * WHY THE LOOP STOPPED, or `null` while it is running.
-   *
-   * A fact about the directory, kept here beside the two refusals it is set
-   * from. It used to be a signal in one browser tab, so a reload was a silent
-   * retry, a second tab knew nothing, and a headless serve had no loop to stop.
-   * Nothing clears it but {@link Committing.resume}.
-   */
-  let paused: string | null = null
+  let settled: Settled = NOTHING_SETTLED
 
   /**
    * Every commit path ends here, so the remembered refusal is set in one place
@@ -566,32 +580,30 @@ export const make = (options: Options): Committing => {
    * that failed, which the panel already draws, and marking the directory
    * "auto-commit paused" over it would be chrome about a loop nobody armed.
    */
-  const settled = (said: string | null): void => {
-    refusal = said
-    if (said !== null) stop(said)
+  const committed = (said: string | null): void => {
+    settled = { ...settled, refusal: said, paused: stopBy(said) }
   }
 
   /** ... and the push's own end, with the same two jobs. */
-  const sent = (said: string | null): void => {
-    pushRefusal = said
-    if (said !== null) stop(said)
+  const pushed = (said: string | null): void => {
+    settled = { ...settled, pushSaid: said, paused: stopBy(said) }
   }
 
   /**
-   * What a refusal does to the loop.
+   * What a refusal does to the loop, or `null` for one that leaves it running.
    *
    * ONE STOP FOR BOTH VERBS, which is the divergence ruling: piling more
    * automatic commits onto a branch that has already refused a push makes the
    * eventual resolution worse, so a refused push stops the committing too. It
    * does not pull, does not rebase, does not force and does not try again.
    *
-   * The FIRST reason wins. A stop already on the record is the one a person is
-   * about to read, and overwriting it with whatever refused next would replace
-   * the sentence that says what actually happened.
+   * The FIRST reason wins, and a verb that WORKED does not clear the stop. A
+   * stop already on the record is the one a person is about to read, and only
+   * they may lift it ({@link Committing.resume}) — a commit that landed after a
+   * push was refused says nothing about whether the branch can be sent.
    */
-  const stop = (said: string): void => {
-    if (mode() === "auto" && paused === null) paused = said
-  }
+  const stopBy = (said: string | null): string | null =>
+    settled.paused ?? (said !== null && mode() === "auto" ? said : null)
 
   /**
    * The repository, once it is one.
@@ -803,15 +815,10 @@ export const make = (options: Options): Committing => {
     // resolved it — including somebody who pushed from a terminal, which olai
     // would otherwise go on warning about until the next press of its own
     // button. The STOP is not cleared with it: that is a person's to lift.
-    if (looked.unpushed === null || looked.unpushed.commits === 0) pushRefusal = null
-    const git = gitOf({
-      repo: looked.repo,
-      pinned: options.policy.pin,
-      policy: options.policy.now(),
-      refused: refusal,
-      pushSaid: pushRefusal,
-      paused,
-    })
+    if (looked.unpushed === null || looked.unpushed.commits === 0) {
+      settled = { ...settled, pushSaid: null }
+    }
+    const git = gitOf(looked.repo, options.policy, settled)
     if (looked.repo._tag === "Off") return { pending: NOTHING_PENDING, git }
     const { changes, unreadable } = yield* detail(looked)
     const others = looked.others.map(otherOf)
@@ -890,14 +897,14 @@ export const make = (options: Options): Committing => {
         message: signed(request.message ?? composed(changes, others), writer),
       })
       if (done._tag === "Failed") {
-        settled(done.said)
+        committed(done.said)
         // A refusal changes what a reader is owed without moving one byte, and
         // for thirty seconds nothing said so. THIS is the republish that was
         // missing: the words are on the cell the moment git says them.
         options.onSettled?.()
         return done
       }
-      settled(null)
+      committed(null)
 
       // The counters are what "since the last commit" means, so a commit that
       // swept EVERYTHING is where they stop meaning anything. A piecemeal one
@@ -988,11 +995,11 @@ export const make = (options: Options): Committing => {
       // log and nowhere else, so a reload lost them and a second tab never had
       // them, while the chip went on reading `✓ committed` over a count that
       // never came down.
-      sent(outcome.said)
+      pushed(outcome.said)
       options.onSettled?.()
       return { _tag: "Failed", said: outcome.said } as const
     }
-    sent(null)
+    pushed(null)
     // What is waiting has changed without a served byte moving — the same
     // reason a commit republishes.
     options.onSettled?.()
@@ -1030,7 +1037,7 @@ export const make = (options: Options): Committing => {
       if (opening._tag !== "Opened") return whyOf(mode(), opening, null, writer)
 
       const repo = yield* opening.repo.state
-      return whyOf(mode(), repo, refusal, writer)
+      return whyOf(mode(), repo, settled.refusal, writer)
     })
 
   // ── the quiet window ───────────────────────────────────────────────────
@@ -1052,7 +1059,7 @@ export const make = (options: Options): Committing => {
    *  window closes cannot ask slightly different questions. */
   const standingOf = (pending: Pending): Standing => ({
     commit: mode(),
-    paused,
+    paused: settled.paused,
     flurry: flurryOf(pending),
     ready: isReady(pending.repo),
   })
@@ -1079,7 +1086,7 @@ export const make = (options: Options): Committing => {
    * the policy off, and for git to refuse something else.
    */
   const record: Effect.Effect<void> = Effect.gen(function*() {
-    if (mode() !== "auto" || paused !== null) return
+    if (mode() !== "auto" || settled.paused !== null) return
     yield* commit({}, "auto")
   })
 
@@ -1112,8 +1119,8 @@ export const make = (options: Options): Committing => {
   )
 
   const resume: Effect.Effect<Resumed> = Effect.suspend(() => {
-    const was = paused
-    paused = null
+    const was = settled.paused
+    settled = { ...settled, paused: null }
     // The republish is what puts the loop back on the arming stream: what is
     // waiting has not moved, so nothing else would say so and a resumed loop
     // would sit there until the next write.
@@ -1155,14 +1162,7 @@ export const make = (options: Options): Committing => {
      * both from one survey. This is the narrow question asked alone.
      */
     git: Effect.map(repoState, (repo) =>
-      gitOf({
-        repo,
-        pinned: options.policy.pin,
-        policy: options.policy.now(),
-        refused: refusal,
-        pushSaid: pushRefusal,
-        paused,
-      })),
+      gitOf(repo, options.policy, settled)),
   }
 }
 

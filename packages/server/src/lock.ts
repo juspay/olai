@@ -90,8 +90,9 @@ import type { Scope } from "effect"
 import * as fs from "node:fs"
 import { dirname, join } from "node:path"
 
+import { canonical, digestOf, runtimeHome } from "@olai/state"
+
 import { lockExclusive } from "./flock.ts"
-import { canonical, digestOf, runtimeHome } from "./state.ts"
 
 /**
  * Another olai holds this directory.
@@ -137,10 +138,10 @@ export class LockUnavailable extends Data.TaggedError("LockUnavailable")<{
  * processes that share nothing else land on the same file.
  *
  * WHERE the runtime home is, and what a served directory is called under it,
- * are {@link ./state.ts}'s. They were spelled here first and are needed twice
- * now — the remembered git policy lives under the other home with the same
- * name — and two answers to "which file is this vault's" is exactly the drift
- * that would make one of them read somebody else's.
+ * are `@olai/state`'s. They were spelled here first and are answered three
+ * times now — this lock, the chat panel's memory, and the remembered git
+ * policy — and two answers to "which file is this vault's" is exactly the
+ * drift that would make one of them read somebody else's.
  */
 export const lockFor = (root: string): string =>
   join(runtimeHome(), `${digestOf(root)}.lock`)

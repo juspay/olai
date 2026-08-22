@@ -13,11 +13,13 @@
   },
   "//dependencies": "Beside `ops` rather than above or below it (docs/architecture.md): a conversation and an edit are two things a person does to the same directory, and neither is built out of the other. @olai/acp owns the protocol's vocabulary and the pure projections over its payloads — this package runs the subprocess that speaks it, and translates acp's own refusal word into the domain's at the seam (questions.ts). @olai/surface supplies the entry and state shapes the panel is served in; @olai/format supplies the refusal vocabulary a verb answers with; @olai/log supplies the one thing an ACP session cannot do from inside Effect — say what the subprocess said, from the callback it said it on. @olai/ops is deliberately ABSENT — the agent reaches the ops layer through the MCP server it is handed an address for, which is a URL and a token rather than an import, and that is the whole reason a whole-file write is not expressible.",
   "//acp": "@agentclientprotocol/sdk is the official ACP client, and `zod` is beside it because the SDK declares it a PEER dependency and imports it at runtime to validate protocol payloads. That is the one place zod re-enters a tree the rewrite took it out of, and it is the SDK's validator rather than ours: nothing in olai imports zod, and the format still has exactly one validator (Effect Schema, in @olai/format). @olai/acp imports the SDK's TYPES only, which is why the runtime and its zod peer stay declared here, beside the subprocess that runs them.",
+  "//state": "@olai/state is where the panel writes down which conversation it was in: outside the served directory, under the XDG state home, one file per directory. A LEAF beside format and log, extracted when the third caller of that answer arrived (this package, the one-brain lock and the remembered git policy).",
   "dependencies": {
     "@agentclientprotocol/sdk": "^1.3.0",
     "@olai/acp": "workspace:*",
     "@olai/format": "workspace:*",
     "@olai/log": "workspace:*",
+    "@olai/state": "workspace:*",
     "@olai/surface": "workspace:*",
     "effect": "4.0.0-rc.110",
     "zod": "^4.0.0"
