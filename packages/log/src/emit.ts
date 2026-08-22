@@ -2,15 +2,15 @@
  * Logging from a callback, without leaving the fiber's settings behind.
  *
  * `Effect.logInfo` is an Effect, and that is what makes the interesting parts
- * work: the minimum level the operator asked for with `--log-level`, the
+ * work: the minimum level the operator asked for with `OLAI_LOG_LEVEL`, the
  * annotations the enclosing scope set, the spans a boot is being timed with —
  * all of them are read off the RUNNING FIBER when the line is emitted.
  *
  * But half of what this server has to say happens in a Node callback: a
  * websocket that hung up, a promise the surface runtime rejected, a subprocess
  * writing to its stderr. There is no fiber there. Running the line with
- * `Effect.runFork` would emit it against the defaults instead — which means a
- * `--log-level debug` the operator typed would silently not apply to exactly
+ * `Effect.runFork` would emit it against the defaults instead — which means an
+ * `OLAI_LOG_LEVEL=debug` the operator typed would silently not apply to exactly
  * the noisiest half of the program, and no annotation would ever survive.
  *
  * So: capture the fiber's services ONCE, where there is a fiber, and run every

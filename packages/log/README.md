@@ -12,6 +12,7 @@ What this package owns is what a logging seam is otherwise re-decided at, once p
 | file | what it owns |
 |---|---|
 | `sinks.ts` | two streams and which face each line wears — stdout for `olai web`, stderr for a process whose stdout is already spoken for; pretty on a TTY, logfmt everywhere a machine reads |
+| `level.ts` | the instance's minimum level — `OLAI_LOG_LEVEL`, default `info` |
 | `cause.ts` | what a failure says, in the two lengths anything wants it: `prettyCause` for a log, `reasonOf` for a sentence somebody reads |
 | `emit.ts` | `emitter`: how a plain Node callback emits a line without losing the fiber's level, annotations and spans |
 | `lines.testlib.ts` | how a TEST hears a line, on the `./testlib` subpath: the collecting logger inside the process, the logfmt decoder outside it |
@@ -27,13 +28,19 @@ Effect's, used the way [kolu's own logger](https://github.com/juspay/kolu) docum
 | `logWarning` | degraded but recoverable — bound off loopback, a connection that failed, a boot the next prompt will retry |
 | `logError` | a failure something stops for |
 
-**Quiet by default, and the switch is not ours.** Effect's minimum level is `Info`, so `logDebug` is off until asked for; `--log-level` is Effect's own CLI global flag — already parsed, already in `--help`, and already the thing that sets the minimum for the command it runs:
+**Quiet by default.** Effect's minimum level is `Info`, so `logDebug` is off until asked for. `OLAI_LOG_LEVEL` is the instance knob — the same kind of fact `--commit` is, read at the one env edge, default `info`. A systemd unit raises it without rewriting argv; the home-manager module's `logLevel` option sets it.
 
 ```sh
-olai web ~/outlines --log-level debug
+OLAI_LOG_LEVEL=debug olai web ~/outlines
 ```
 
-A second spelling (`--verbose`, `OLAI_LOG_LEVEL`) would be a second answer to one question, so there isn't one.
+| value | what you get |
+|---|---|
+| unset / `info` | lifecycle: the address bound, a conversation opened, a prompt sent, a turn that ended or failed, the agent process coming and going |
+| `debug` | the rest, including every chunk of the agent's own stderr |
+| `warn` / `error` | quieter still |
+
+Effect's CLI `--log-level` still exists; `OLAI_LOG_LEVEL` is what production actually has a way to set. The two faces (`OLAI_LOG`) are a different question and stay a different variable.
 
 ## The format
 
@@ -115,7 +122,7 @@ It matches the message exactly (two of this server's lines carry a `url=`), unqu
 
 ## Logging from a callback
 
-Half of what a server has to say happens in a Node callback — a websocket that hung up, a promise the surface runtime rejected, a subprocess writing to its stderr. There is no fiber there, and `Effect.runFork` would emit the line against the defaults: the operator's `--log-level` would silently not apply to the noisiest half of the program.
+Half of what a server has to say happens in a Node callback — a websocket that hung up, a promise the surface runtime rejected, a subprocess writing to its stderr. There is no fiber there, and `Effect.runFork` would emit the line against the defaults: the operator's `OLAI_LOG_LEVEL` would silently not apply to the noisiest half of the program.
 
 So capture the services once, where there IS a fiber, and run every later line under them. Annotate first, then take the emitter — the capture reads what is in force at that point:
 

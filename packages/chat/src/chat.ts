@@ -972,6 +972,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         /** A turn was ALREADY running when this one started, which is what a
          *  mid-turn message is for an agent that cannot steer. */
         const alongside = turns.busy
+        if (alongside) {
+          yield* Effect.logInfo("message queued behind a running turn").pipe(
+            Effect.annotateLogs({
+              agent: talking?.row.id,
+              ...(state.session === null ? {} : { session: state.session.id }),
+            }),
+          )
+        }
         const ticket = turns.open()
         // The rows go first, and the order is the point. A dead agent's rows
         // are deliberately left where they are, so this turn is starting over a

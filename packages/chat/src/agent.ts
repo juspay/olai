@@ -332,9 +332,39 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
   Effect.gen(function*() {
     // Everything this module has to say happens in a protocol callback or on a
     // subprocess's stderr, where there is no fiber to log from — so the fiber's
-    // logging settings are captured once, here, with the agent's own command on
-    // every line it will ever emit. `acp: ` used to be that, as a prefix.
-    const say = yield* Effect.annotateLogs(emitter, { agent: options.command })
+    // logging settings are captured once, here, with the agent's id on every
+    // line it will ever emit. Session is added per line, once one is open.
+    const say = yield* Effect.annotateLogs(emitter, { agent: options.id })
+
+    /** Annotations that belong on a lifecycle line: the session when we have
+     *  one, plus whatever the event itself carries. */
+    const about = (extra: Record<string, unknown> = {}): Record<string, unknown> => ({
+      agent: options.id,
+      ...(session === null ? {} : { session }),
+      ...extra,
+    })
+
+    /** Emit a line from a callback, with the session in force right now. */
+    const tell = (line: Effect.Effect<void>, extra: Record<string, unknown> = {}): void => {
+      say(Effect.annotateLogs(line, about(extra)))
+    }
+
+    /** The agent's stderr since this subprocess started, capped so a chatty
+     *  one cannot grow the journal's dump without bound. Dumped at WARN when
+     *  a turn fails — that is where opencode writes its JSON-RPC errors. */
+    let stderrBuf = ""
+    const STDERR_CAP = 32 * 1024
+    const takeStderr = (chunk: string): void => {
+      const text = chunk.trimEnd()
+      stderrBuf = `${stderrBuf}${stderrBuf === "" || stderrBuf.endsWith("\n") ? "" : "\n"}${text}`
+      if (stderrBuf.length > STDERR_CAP) stderrBuf = stderrBuf.slice(-STDERR_CAP)
+      tell(Effect.logDebug(text))
+    }
+    const dumpStderr = (from: number): void => {
+      const during = stderrBuf.slice(from).trim()
+      if (during === "") return
+      for (const line of during.split("\n")) tell(Effect.logWarning(line))
+    }
 
     /** What this agent's leg wants on the `_meta` of the two calls that OPEN a
      *  conversation — spread into both, and EMPTY for an agent that asks for
@@ -365,7 +395,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }
 
     const trouble = (message: string) => {
-      say(Effect.logWarning(message))
+      tell(Effect.logWarning(message))
       emit({ _tag: "trouble", message })
     }
 
@@ -783,6 +813,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             }),
           catch: (cause) => notStarted(reasonOf(cause)),
         })
+        stderrBuf = ""
 
         /**
          * The same refusal, arriving the way it actually arrives.
@@ -818,23 +849,38 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
         // The agent's stderr is a log sink, not a channel: the adapter
         // redirects all its console output there, and a pipe nobody drains
-        // eventually blocks the process writing to it. DEBUG, because it is
-        // somebody else's program's log and by volume the loudest thing olai
-        // ever emits — `--log-level debug` is how you ask for it.
+        // eventually blocks the process writing to it. DEBUG while a turn is
+        // fine; WARN when one fails, because that is where opencode dumps its
+        // JSON-RPC errors and the 2026-08-22 silent-send was otherwise
+        // undiagnosable. `OLAI_LOG_LEVEL=debug` is how you ask for the rest.
         child.stderr?.setEncoding("utf8")
         child.stderr?.on("data", (chunk: string) => {
-          say(Effect.logDebug(chunk.trimEnd()))
+          takeStderr(chunk)
         })
 
         child.on("exit", (code, signal) => {
-          if (live?.child !== child) return
-          live = null
-          session = null
-          // Before anything else it emits: a form left live on a dead wire is a
-          // control that does nothing, and pressing it is how a person finds
-          // out.
-          leaving()
-          if (stopped) return
+          // `stop` nulls `live` then kills, so this handler still has to log
+          // the exit of a child we asked to die — `live?.child !== child`
+          // would drop the one line the operator has for a clean shutdown.
+          const ours = live?.child === child
+          const id = ours ? session : null
+          if (ours) {
+            live = null
+            session = null
+            // Before anything else it emits: a form left live on a dead wire is a
+            // control that does nothing, and pressing it is how a person finds
+            // out.
+            leaving()
+          }
+          tell(
+            Effect.logInfo("chat agent exited"),
+            {
+              ...(id === null ? {} : { session: id }),
+              code: code ?? "none",
+              signal: signal ?? "none",
+            },
+          )
+          if (stopped || !ours) return
           emit({ _tag: "sessionOver", why: "gone" })
           emit({
             _tag: "gone",
@@ -922,6 +968,18 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         )) as InitializeResponse
 
         const capabilities = initialized.agentCapabilities
+        // AFTER the handshake, not after `spawn` returns: an exec failure
+        // arrives later, and logging "spawned" for a command that never ran
+        // is the silent-send class of lie — a line that says the process is
+        // up when the next line is the ENOENT.
+        yield* Effect.logInfo("chat agent spawned").pipe(
+          Effect.annotateLogs(
+            about({
+              command: options.command,
+              args: options.args.join(" "),
+            }),
+          ),
+        )
         return {
           child,
           connection,
@@ -1072,10 +1130,17 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * and writing it down is exactly the kind of third step a third call site
      * remembers two of.
      */
-    const entered = (id: string, title: string | null): Effect.Effect<void> =>
+    const entered = (
+      id: string,
+      title: string | null,
+      how: "new" | "loaded",
+    ): Effect.Effect<void> =>
       Effect.gen(function*() {
         session = id
         emit({ _tag: "session", id, title })
+        yield* Effect.logInfo("conversation opened").pipe(
+          Effect.annotateLogs(about({ how })),
+        )
         yield* note(
           // The model is a fact ABOUT a conversation, so it travels with one:
           // coming back into the conversation we remember keeps what it was
@@ -1123,7 +1188,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           mcpServers: [...(yield* servers)],
           ...openMeta,
         })) as NewSessionResponse
-        yield* entered(made.sessionId, null)
+        yield* entered(made.sessionId, null, "new")
         readModel(made.configOptions)
         yield* askForBypass(at, made.sessionId)
       })
@@ -1174,7 +1239,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // they are rows, and `replayStarted` has already emptied the transcript
         // for them — so what the panel is short of in between is the title,
         // which it gets a moment later along with everything else.
-        yield* entered(id, title)
+        yield* entered(id, title, "loaded")
         yield* restore(at, id, loaded?.configOptions, wanted)
         yield* askForBypass(at, id)
       })
@@ -1435,18 +1500,42 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               ),
             )
           }
+          // Size, never content: a prompt is somebody's words and the journal
+          // is for the operator, not a transcript.
+          const from = stderrBuf.length
+          const started = Date.now()
+          yield* Effect.logInfo("prompt sent").pipe(
+            Effect.annotateLogs(about({ bytes: text.length })),
+          )
           // A TURN THE AGENT REFUSES fails like any other request and needs
           // nothing said about it here: `refused` means the agent answered, so
           // the caller already has what it needs to end the turn without
-          // burying the conversation with it ({@link Gone}).
-          const answered = yield* ask(
-            at.connection,
-            methods.agent.session.prompt,
-            { sessionId: id, prompt: [{ type: "text", text }] },
-            // A turn is a person waiting on a model: no deadline.
-            null,
+          // burying the conversation with it ({@link Gone}). The journal still
+          // names the error verbatim, and the agent's stderr for this turn
+          // lands at WARN — that dump is the diagnosis the silent-send had
+          // none of.
+          const outcome = yield* Effect.result(
+            ask(
+              at.connection,
+              methods.agent.session.prompt,
+              { sessionId: id, prompt: [{ type: "text", text }] },
+              // A turn is a person waiting on a model: no deadline.
+              null,
+            ),
           )
-          return (answered as PromptResponse).stopReason
+          const duration = `${Date.now() - started}ms`
+          if (outcome._tag === "Failure") {
+            dumpStderr(from)
+            yield* Effect.logWarning("turn failed").pipe(
+              Effect.annotateLogs(about({ error: outcome.failure.why, duration })),
+            )
+            return yield* Effect.fail(outcome.failure)
+          }
+          const stopReason = (outcome.success as PromptResponse).stopReason
+          yield* Effect.logInfo("turn ended").pipe(
+            Effect.annotateLogs(about({ stopReason, duration })),
+          )
+          return stopReason
         })
       )
 

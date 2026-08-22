@@ -24,7 +24,7 @@
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
 import { identityConfig } from "@olai/identity"
-import { toStdout } from "@olai/log"
+import { atLevel, toStdout } from "@olai/log"
 import { Effect, Layer } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 
@@ -83,7 +83,11 @@ const web = Command.make("web", {
     // by a process that has already stopped answering, and a fault takes the
     // same road out rather than exiting from under those finalizers.
     yield* faulted
-  })).pipe(
+  }).pipe(
+    // Innermost: Effect CLI's `--log-level` otherwise wins with its Info
+    // default and a systemd `OLAI_LOG_LEVEL=debug` would silently not apply.
+    Effect.provide(atLevel()),
+  )).pipe(
     Command.withDescription("serve a directory of outlines in the browser"),
   )
 
@@ -112,12 +116,11 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   })
 }
 
-// The LOG LEVEL is not set here and there is no flag of ours for it: Effect's
-// CLI already carries `--log-level`, parses it, documents it in `--help` and
-// provides the minimum level to whichever subcommand runs. Quiet is its default
-// (`Info`), so debug lines — a relayed agent stderr chunk, the loudest thing in
-// the program — are off until somebody asks. The sink is stdout: a person
-// watching a server looks there, and nothing else in this process owns it.
+// The sink is stdout: a person watching a server looks there, and nothing else
+// in this process owns it. The LEVEL is `OLAI_LOG_LEVEL` (default info), read
+// at the one env edge and provided here so a systemd unit can raise it without
+// rewriting argv — the same kind of instance fact `--commit` is. Inner relative
+// to Effect CLI's `--log-level`, so the env is what production actually has.
 NodeRuntime.runMain(
   Command.run(olai, { version: "0.1.0" }).pipe(
     Effect.scoped,
@@ -125,7 +128,12 @@ NodeRuntime.runMain(
     // layerHttpServices carries the static file layer's (the file-response
     // platform and ETags).
     Effect.provide(
-      Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices, toStdout),
+      Layer.mergeAll(
+        NodeServices.layer,
+        NodeHttpServer.layerHttpServices,
+        toStdout,
+        atLevel(),
+      ),
     ),
   ),
 )

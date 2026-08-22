@@ -114,7 +114,22 @@ That rule covers **every name still in force, including the ones you did not con
 
 ### Logging
 
-It says what it is doing on stdout, one line per event, quietly: the address it bound, the agent it started, and anything that went wrong. `--log-level debug` turns on the rest, including everything the agent itself writes.
+It says what it is doing on stdout, one line per event, quietly: the address it bound, the agents it detected, the chat's lifecycle (a conversation opened, a prompt sent, a turn that ended or failed, the agent process itself coming and going), and anything that went wrong.
+
+Two knobs, both environment variables, both facts of the running instance rather than of a browser:
+
+| variable | what it picks | default |
+|---|---|---|
+| `OLAI_LOG` | the face: `logfmt` or `pretty` | pretty on a TTY, logfmt everywhere a machine reads (piped, systemd, tests) |
+| `OLAI_LOG_LEVEL` | the minimum level: `debug`, `info`, `warn`, `error` | `info` |
+
+`OLAI_LOG_LEVEL=debug` turns on the rest, including everything the agent itself writes to its stderr — which is where opencode dumps JSON-RPC errors. A failed turn already surfaces that stderr at `warn`, so a silent send is diagnosable from the journal at the default level; debug is the live feed.
+
+The home-manager module's `logLevel` option sets `OLAI_LOG_LEVEL` on the user unit:
+
+```nix
+services.olai.logLevel = "debug";   # debug | info | warn | error — omit and the process stays at info
+```
 
 A SIGINT or SIGTERM writes `olai web: received SIGTERM` (or `SIGINT`) to stderr before the process unwinds. Effect still treats the interrupt as a successful stop and exits 130 — the shipped user unit counts 130 as success so `systemctl stop` is not a failed unit, and on Linux `Restart=always` still brings a stray SIGTERM back (see [As a user service](#as-a-user-service-home-manager)). That one line is what lets a journal tell a signaled death from a deliberate stop.
 
