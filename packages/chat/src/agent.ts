@@ -1480,14 +1480,20 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *
      * A different rule, and the difference is the whole reason it is not spelled
      * {@link opening}: {@link Agent.sessions} opens nothing, so "one open at a
-     * time" is not what it needs. What it needs is "one COLD START at a time",
-     * which is `bringUpProcess` and nothing after it. Held across the round
-     * trip as well, it would serialize the picker against any open of this
-     * agent in flight — press `chats` while a conversation is replaying and the
-     * list waits out the replay, which is a question about stored conversations
-     * queueing behind a conversation.
+     * time" is not what it needs. What it needs is "one COLD START at a time" —
+     * and a process that is already up needs no start at all, so it takes NO
+     * PERMIT. That is the whole of the fix: {@link opening} holds this same
+     * permit across a `session/load` AND ITS REPLAY, so a listing that queued
+     * on it waited out the replay of a conversation it has nothing to do with.
+     * Pressing `chats` while the agent you are talking to is opening one is
+     * exactly when somebody does it, and the answer to it — what is stored —
+     * cannot be changed by the open in flight.
      *
-     * It must not BOOT, though, which is the half it shares with the verbs
+     * The reverse ordering is the one the permit is FOR and it is untouched: a
+     * listing that has to start the process holds it for that, so nothing opens
+     * a conversation against a handshake in flight.
+     *
+     * It must not BOOT either way, which is the half it shares with the verbs
      * above: a listing is a question, not a visit, and it is asked of agents
      * this panel is not talking to at all ({@link ./listings.ts}). An agent
      * started to answer it and stopped again must not enter, replay and
@@ -1496,7 +1502,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const listing = <A>(
       use: (at: Live) => Effect.Effect<A, AgentGone>,
     ): Effect.Effect<A, AgentGone> =>
-      Effect.flatMap(booting.withPermit(bringUpProcess), () => onLive(use))
+      Effect.suspend(() =>
+        live !== null
+          ? onLive(use)
+          : Effect.flatMap(booting.withPermit(bringUpProcess), () => onLive(use))
+      )
 
     /** ... and the ones that also need a conversation to act IN. */
     const withSession = <A>(
