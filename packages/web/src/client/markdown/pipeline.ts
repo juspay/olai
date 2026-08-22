@@ -142,8 +142,14 @@ export interface Pipeline {
    * them. Raw HTML is the case that matters: `<Component>` is characters in
    * the source and nothing at all in the tree above, and the only way to know
    * that without re-implementing markdown is to ask markdown.
+   *
+   * SOURCE is in the name and stays there: ./anchors.ts's `textOf` is an
+   * ELEMENT and the text it reads as, which is the drawn half of the very
+   * comparison this is the other half of. ./title.ts renamed its own twin
+   * (`renderedText`) for that reason; one word answering both sides of a
+   * check is how the two get read as the same number.
    */
-  readonly textOf: (source: string) => string
+  readonly sourceTextOf: (source: string) => string
   /** A tree that pipeline ran → the HTML string an element may be given. */
   readonly htmlOf: (tree: Root) => string
 }
@@ -174,10 +180,11 @@ export const treeOf = (source: string): Root =>
  * characters (the loss the caller is hunting), and `includeImageAlt` keeps a
  * picture's words (a title is phrasing only — ./inline.ts drops the picture
  * itself, so the alt would otherwise go quietly). It is remark's own utility,
- * already under `remark-parse` in the lockfile; the walk was written out here
- * once and was this function line for line.
+ * already in the lockfile under `mdast-util-from-markdown` (which is how
+ * `remark-parse` reads a document at all); the walk was written out here once
+ * and was this function line for line.
  */
-export const textOf = (source: string): string =>
+export const sourceTextOf = (source: string): string =>
   toString(pipeline.parse(asRead(source)))
 
 export const htmlOf = (tree: Root): string => pipeline.stringify(tree)

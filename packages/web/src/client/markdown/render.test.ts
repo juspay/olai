@@ -530,7 +530,8 @@ test("a normal markdown title does not fall back to escaped source", () => {
 //
 // The check above compares what was drawn against the text the SOURCE accounts
 // for, and that second number is markdown's own reading of the title
-// (title.ts's `accountedText`). It used to be a list of regexes — a small
+// (render.ts's `sourceText`, held against the drawn text by
+// title.ts's `lostText`). It used to be a list of regexes — a small
 // markdown dialect standing next to the real parser — and these are the titles
 // it read wrong: every one of them rendered correctly and was then thrown away
 // for its own escaped source.
@@ -602,9 +603,16 @@ test("a title with links=false unwraps anchors", () => {
   expect(html).not.toContain("href=")
 })
 
-// A local picture is not phrasing for titles — it would grow the row.
-test("a picture in a title is not drawn", () => {
+// A local picture is not phrasing for titles — it would grow the row — which
+// makes such a title one that LOST words: ./inline.ts drops the picture and
+// the `alt` goes with it, while the alt is text the source accounts for. So
+// this is a fallback like the raw-HTML ones above, and it is pinned as the
+// WHOLE string rather than "no <img>, and the word shot is in there
+// somewhere": the accounting counts an image's alt (`mdast-util-to-string`'s
+// `includeImageAlt`), and turning that off would draw a bare "shot" here and
+// sail past the weaker assertion.
+test("a picture in a title falls back to the escaped source", () => {
   const html = renderTitle("shot ![a](art/shot.png)", NOTE)
+  expect(html).toBe("shot ![a](art/shot.png)")
   expect(html).not.toContain("<img")
-  expect(html).toContain("shot")
 })

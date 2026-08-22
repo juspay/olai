@@ -171,7 +171,7 @@ export const renderToTree = (
  * pipeline's own door (./pipeline.ts).
  */
 export const sourceText = (source: string): string =>
-  pipelineNow().textOf(source)
+  pipelineNow().sourceTextOf(source)
 
 /**
  * The id a rendered block ACTUALLY carries for a heading somebody named — the
