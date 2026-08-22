@@ -472,7 +472,7 @@
           <tr><td>Sync</td><td>Their cloud</td><td>git, or anything that moves files</td></tr>
           <tr><td>History</td><td>In-app version history</td><td><code>git log</code>; every edit is a reviewable commit</td></tr>
           <tr><td>Concurrent edits</td><td>Resolved by their server</td><td>Line-based git merges</td></tr>
-          <tr><td>Search</td><td>Keyword, in their app</td><td>The same query language everywhere — a box in the header, the ⌘K palette, a filter that narrows the outline in place, and an agent's own tools — with <code>is:done</code>, <code>has:desc</code>, <code>date:</code>, <code>changed:</code>, <code>prop:</code> and <code>-not</code> meaning one thing in all four, over files you can also grep yourself</td></tr>
+          <tr><td>Search</td><td>Keyword, in their app</td><td>The same query language everywhere — one box that narrows the page in place and widens to a <code>/search?q=…</code> page over the whole vault, and an agent's own tools — with <code>is:done</code>, <code>has:desc</code>, <code>date:</code>, <code>changed:</code>, <code>prop:</code> and <code>-not</code> meaning one thing at every door, over files you can also grep yourself</td></tr>
           <tr><td>Programmatic access</td><td>Vendor API, where one exists</td><td>Any agent over ACP or MCP; any text tool</td></tr>
           <tr><td>Source</td><td>Proprietary</td><td><a href="https://github.com/juspay/olai">Open source</a> (AGPL-3.0)</td></tr>
         </tbody>
@@ -840,18 +840,21 @@ The corner unit is the **risky one** — see
 <section id="find">
   <div class="wrap">
     <h2>Finding, and filtering in place</h2>
-    <p class="lead">One query language, four doors: the box in the header, the
-    ⌘K palette, an agent’s <code>search_nodes</code>, and the filter that
-    narrows the page in front of you. The first three list what they found —
-    the two in the browser draw at most eight rows and say <code>8 of 20
-    matches</code> underneath when there were more, and nothing at all when
-    there were not; the fourth takes rows away and leaves the rest standing
-    where they live.
-    The two that list also find <strong>documents</strong>: a <code>.md</code>
+    <p class="lead">One query language, and <strong>one box</strong>: the
+    filter above the page you are on. Type, and it takes rows away and leaves
+    the rest standing where they live. Under it the bar says what it found
+    <em>and</em> what it did not — <code>3 of 41 · 12 more in other files —
+    search everywhere</code> — and that line is the door: one press, or
+    <kbd>Enter</kbd>, and the same query is asked of the whole directory at
+    <code>/search?q=…</code>, which is a real page with an address, a back
+    button and a place on the shelf. An agent asks the same words through
+    <code>search_nodes</code> and is answered out of the same matcher.
+    The everywhere page also finds <strong>documents</strong>: a <code>.md</code>
     or a saved page is a hit of its own, looked for in four places that line up
     with a node’s one for one — what it is called, its path, the tags in its
     prose, and <em>the prose itself</em>. Both kinds come back in one ranked
-    list, so a document whose title holds the word outranks a node that only
+    list wherever an answer is ranked, so a document whose title holds the word
+    outranks a node that only
     mentions it in a note. What a document does not have, it does not pretend
     to: an operator over a field it lacks — <code>is:done</code>,
     <code>has:date</code> — selects none of them. What it <em>does</em> have is

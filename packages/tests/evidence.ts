@@ -59,7 +59,7 @@ const shot = async (
 
 /** The caret, and the two lines a write leaves under it. Named rather than
  *  spelled per section, which is this file's rule for every other row it
- *  drives (`MOVE_PICKER`, `FILTER_REFUSAL`, `SEARCH_REFUSAL`). */
+ *  drives (`MOVE_PICKER`, `FILTER_REFUSAL`, `SEARCH_PAGE`). */
 const TITLE_EDITOR = '[data-testid="title-editor"]'
 const EDIT_REFUSAL = '[data-testid="edit-refusal"]'
 const EDIT_NUDGE = '[data-testid="edit-nudge"]'
@@ -684,32 +684,24 @@ const PALETTE_INPUT = '[data-testid="palette-input"]'
  *  the browser tests grip it. It read `node-` until 2026-08-20, which is a
  *  prefix nothing has ever carried: the one section using it printed
  *  "(nothing)" where its hits should have been. */
-const PALETTE_HIT = '[data-testid="palette-item"][data-id^="hit-#"]'
-/** The header box itself — the other door, and the one surface here that was
- *  spelled as a literal at each of its three call sites while every other one
- *  in this file is a named const. */
-const HEADER_SEARCH = '[data-testid="header-search"]'
-/** What a shortlist says it drew of what it found — the same line on both
- *  doors, absent when the answer fit (`web/src/client/search/count.ts`). */
-const SEARCH_COUNT = '[data-testid="search-count"]'
-/** WHY a door drew nothing: the operator the grammar could not read, in the
- *  grammar's own words. ONE testid at both doors because it is one sentence
- *  about one grammar (`web/src/client/refusals.tsx`); the bar's own row is
- *  {@link FILTER_REFUSAL}, which is a different slot on a different surface. */
-const SEARCH_REFUSAL = '[data-testid="search-refusal"]'
-/** …and the rows of it that are DOCUMENTS, told apart the same way: a served
- *  file's row carries its whole path in `data-id`, so a shot can print WHICH
- *  file it matched rather than the name a folder may repeat. The header's box
- *  draws the identical row (`web/src/client/search/row.ts`), which is
- *  why the pair is spelled here together. */
-const PALETTE_DOC = '[data-testid="palette-item"][data-id^="doc-"]'
-const HEADER_DOC = '[data-testid="header-search-item"][data-id^="doc-"]'
-/** One SEARCH HIT row of the header box, by the address it stands for — the
- *  `hit-<address>` id `palette/items.ts` mints, which for a document is its
- *  path. Distinct from {@link HEADER_DOC}, which is the palette's own file-row
- *  family (`doc-<path>`): the header box answers with hits and nothing else. */
-const headerHit = (at: string) =>
-  `[data-testid="header-search-item"][data-id="hit-${at}"]`
+/** `/search?q=…` — the whole directory as a page, since `one-search-box`
+ *  deleted the two shortlist doors that used to answer a query here. A group is
+ *  one outline; a row carries `data-node-id` and the same `data-match` every
+ *  filtered page publishes. */
+const SEARCH_PAGE = '[data-testid="search-page"]'
+const SEARCH_GROUP = '[data-testid="search-group"]'
+const SEARCH_ROW = '[data-testid="search-row"]'
+const SEARCH_DOCUMENT = '[data-testid="search-document"]'
+const SEARCH_ROW_PROP = '[data-testid="search-row-prop"]'
+/** THE DOOR THAT WIDENS — the second half of the filter bar's line, and the
+ *  gesture the whole of `one-search-box` is about. */
+const FILTER_WIDEN = '[data-testid="filter-widen"]'
+/** One row of the everywhere page, by the file or the node it stands for — so
+ *  a shot can print WHICH file it matched rather than a name a folder may
+ *  repeat. */
+const foundDocument = (path: string) =>
+  `[data-testid="search-document"][data-file="${path}"]`
+const foundNode = (id: string) => `[data-testid="search-row"][data-node-id="${id}"]`
 const DOCUMENT_PAGE = '[data-testid="document-page"]'
 const DOCUMENT_BODY = '[data-testid="document-body"]'
 /** One line of a document's contents — the survey the frontmatter section
@@ -938,26 +930,26 @@ const SECTIONS = {
     await page.keyboard.press("Escape")
     await page.waitForTimeout(DRAWN)
 
-    /** One query put to the header's box, with what it answered — the door the
-     *  human was refused at when they typed `created:1h`, which is why the
-     *  evidence is taken here rather than at the filter bar. */
+    /** One query put to the ONE search box, at its widest scope — the door the
+     *  human was refused at when they typed `created:1h`. It used to be the
+     *  header's box, which `one-search-box` deleted; `/search?q=…` is what
+     *  answers a directory-wide query now, and it is a page rather than eight
+     *  rows in a popover. */
     const asks = async (query: string, name: string) => {
-      const box = page.locator(HEADER_SEARCH)
-      await box.click()
-      await box.fill(query)
+      await page.goto(`${BASE}/search?q=${encodeURIComponent(query)}`)
+      await page.locator(SEARCH_PAGE).waitFor()
       await page.waitForTimeout(SETTLE)
-      const rows = await page.locator('[data-testid="header-search-item"]').allInnerTexts()
+      const rows = await page.locator(SEARCH_ROW).allInnerTexts()
       console.log(`  ${query.padEnd(22)}${
         rows.length === 0
           ? "(no rows)"
           : rows.map((one) => one.replace(/\s+/g, " ").trim()).join(" · ")
       }`)
-      const refused = await page.locator(SEARCH_REFUSAL).first().textContent().catch(() =>
+      const refused = await page.locator(FILTER_REFUSAL).first().textContent().catch(() =>
         null
       )
       if (refused !== null) console.log(`  ${"...and refuses:".padEnd(22)}${refused.trim()}`)
       await shot(page, name)
-      await page.keyboard.press("Escape")
       await page.waitForTimeout(DRAWN)
     }
 
@@ -1645,13 +1637,12 @@ const SECTIONS = {
     await shot(page, "trash-holds-it")
 
     // The other half of the ruling: what went is the DEFAULT presence, never
-    // the way to ask. The header's box is the same matcher, from any page.
-    await page.keyboard.press("Control+k")
-    await page.locator(PALETTE_INPUT).first().waitFor()
-    await page.locator(PALETTE_INPUT).first().fill("is:trashed")
+    // the way to ask. The everywhere page is the same matcher, from any page.
+    await page.goto(`${BASE}/search?q=${encodeURIComponent("is:trashed")}`)
+    await page.locator(SEARCH_PAGE).waitFor()
     await page.waitForTimeout(SETTLE)
     console.log(`  \`is:trashed\` still answers with:`)
-    const hits = await page.locator(PALETTE_HIT).allInnerTexts()
+    const hits = await page.locator(SEARCH_ROW).allInnerTexts()
     console.log(hits.map((one) => `    ${oneLine(one)}`).join("\n") || "    (nothing)")
     await shot(page, "is-archived-still-finds-it")
   },
@@ -2258,44 +2249,37 @@ const SECTIONS = {
   "documents-in-the-palette": async (page) => {
     pinnedBy(
       "documents.feature",
-      "The ⌘K palette opens a document by name",
-      "The header's box finds the same document, drawn the same way",
+      "The everywhere page opens a document by name",
+      "The document rows are the bodied files, matched by path",
     )
     const pass = async (dark: boolean) => {
       const suffix = dark ? "-dark" : ""
-      await opened(page, "/house.olai", OUTLINE_TREE)
 
-      // THE PALETTE, on a query that is the start of a file's NAME rather than
-      // of its path: `notes/palette.md` is what `pal` means to a person.
-      await page.keyboard.press("ControlOrMeta+k")
-      await page.locator(PALETTE_INPUT).waitFor()
-      await page.locator(PALETTE_INPUT).fill("pal")
-      await page.locator(PALETTE_DOC).first().waitFor()
+      // THE EVERYWHERE PAGE, on a query that is the start of a file's NAME
+      // rather than of its path: `notes/palette.md` is what `pal` means to a
+      // person. It used to be the ⌘K palette and the header's box, each drawing
+      // eight rows in a popover; a document is a row of a PAGE now
+      // (`one-search-box`), which is the only one of the three a reader can
+      // link to.
+      await page.goto(`${BASE}/search?q=pal`)
+      await page.locator(SEARCH_PAGE).waitFor()
+      await page.locator(SEARCH_DOCUMENT).first().waitFor()
       await page.waitForTimeout(400)
-      console.log(`  documents drawn:    ${await page.locator(PALETTE_DOC).count()}`)
+      console.log(`  documents drawn:    ${await page.locator(SEARCH_DOCUMENT).count()}`)
       console.log(
-        `  the first one:      ${await page.locator(PALETTE_DOC).first().getAttribute("data-id")}`,
+        `  the first one:      ${
+          await page.locator(SEARCH_DOCUMENT).first().getAttribute("data-file")
+        }`,
       )
-      await shot(page, `the-palette-matches-a-document${suffix}`)
+      await shot(page, `the-page-matches-a-document${suffix}`)
 
       // …and the row OPENS it: the same page the sidebar's row opens, at the
       // address the router has served all along.
-      await page.locator(PALETTE_DOC).first().click()
+      await page.locator(SEARCH_DOCUMENT).first().locator("a").first().click()
       await page.locator(DOCUMENT_PAGE).first().waitFor()
       await page.waitForTimeout(SETTLE)
       console.log(`  the address:        ${new URL(page.url()).pathname}`)
       await shot(page, `the-document-opens${suffix}`)
-
-      // THE OTHER DOOR, over the same query and drawing the same row.
-      const box = page.locator(HEADER_SEARCH)
-      await box.click()
-      await box.fill("pal")
-      await page.locator(HEADER_DOC).first().waitFor()
-      await page.waitForTimeout(400)
-      console.log(
-        `  the header box too: ${await page.locator(HEADER_DOC).first().getAttribute("data-id")}`,
-      )
-      await shot(page, `the-header-box-matches${suffix}`)
     }
 
     await pass(false)
@@ -2305,23 +2289,19 @@ const SECTIONS = {
     // and inside `quarter.html`, and the two are drawn with the two glyphs the
     // sidebar gives them. Once, in the light pass — the pair above is what has
     // to be checked in either palette; this is a fact about the SET.
-    await opened(page, "/house.olai", OUTLINE_TREE)
-    await page.keyboard.press("ControlOrMeta+k")
-    await page.locator(PALETTE_INPUT).waitFor()
-    await page.locator(PALETTE_INPUT).fill("a")
-    await page.locator(PALETTE_DOC).first().waitFor()
-    // `a` is a broad query, so the commands it also matches fill the box above
-    // them — which is the block ORDER working, and means the shot has to be
-    // taken where the block is. The list scrolls under a fixed input, so this
-    // is a picture of the same palette a little further down.
-    await page.locator(PALETTE_DOC).last().scrollIntoViewIfNeeded()
+    await page.goto(`${BASE}/search?q=a`)
+    await page.locator(SEARCH_PAGE).waitFor()
+    await page.locator(SEARCH_DOCUMENT).first().waitFor()
+    // `a` is a broad query, so the node groups above the block fill the page —
+    // which is the ORDER working, and means the shot has to be taken where the
+    // block is.
+    await page.locator(SEARCH_DOCUMENT).last().scrollIntoViewIfNeeded()
     await page.waitForTimeout(400)
-    const matched = await page.locator(PALETTE_DOC).evaluateAll((rows) =>
-      rows.map((row) => row.getAttribute("data-id"))
+    const matched = await page.locator(SEARCH_DOCUMENT).evaluateAll((rows) =>
+      rows.map((row) => row.getAttribute("data-file"))
     )
     console.log(`  “a” matches:        ${matched.join(", ")}`)
     await shot(page, "a-document-and-a-saved-page")
-    await page.keyboard.press("Escape")
 
     await wearTheme(page, "pitch")
     await pass(true)
@@ -2404,32 +2384,22 @@ const SECTIONS = {
 
       // WHAT THE DOCUMENT IS CALLED, in the door that draws a face's title:
       // the body's first real line, not the fence and not the first YAML key.
-      const box = page.locator(HEADER_SEARCH)
-      await box.click()
-      await box.fill("plan")
-      const row = page.locator(headerHit("notes/plan.md"))
+      await page.goto(`${BASE}/search?q=plan`)
+      await page.locator(SEARCH_PAGE).waitFor()
+      const row = page.locator(foundDocument("notes/plan.md"))
       await row.waitFor()
       await page.waitForTimeout(400)
       console.log(`  the row is called:  ${oneLine(await row.innerText())}`)
       await shot(page, `the-title-is-the-first-real-line${suffix}`)
 
-      // …AND THE DOOR THIS ITEM IS: a property query, selecting a `.md`. The
-      // key it matched leads the row's third line, exactly as it does on a
-      // node's.
-      await box.fill("prop:agent=claude-opus")
-      await page.locator(headerHit("notes/plan.md")).waitFor()
+      // …AND THE DOOR THIS ITEM IS: a property query, selecting a `.md`.
+      await page.goto(`${BASE}/search?q=${encodeURIComponent("prop:agent=claude-opus")}`)
+      await page.locator(foundDocument("notes/plan.md")).waitFor()
       await page.waitForTimeout(400)
-      const rows = await page.locator('[data-testid="header-search-item"]')
-        .evaluateAll((all) => all.map((one) => one.getAttribute("data-id")))
+      const rows = await page.locator(SEARCH_DOCUMENT)
+        .evaluateAll((all) => all.map((one) => one.getAttribute("data-file")))
       console.log(`  prop: selects:      ${rows.join(", ")}`)
-      console.log(
-        `  its property line:  ${
-          (await page.locator('[data-testid="header-search-item-prop"]').allInnerTexts())
-            .map(oneLine).join(" · ")
-        }`,
-      )
       await shot(page, `a-property-selects-a-document${suffix}`)
-      await page.keyboard.press("Escape")
     }
 
     await pass(false)
@@ -3044,74 +3014,152 @@ const SECTIONS = {
   },
 
   /**
-   * A SHORTLIST SAYS ITS TOTAL (`a-shortlist-says-its-total`): both doors onto
-   * the one search reading, over a directory big enough for the cap to bite —
-   * and the same doors over an answer that fits, saying nothing.
+   * ONE SEARCH BOX (`one-search-box`): the arc a reader walks, in six frames.
    *
-   * The pair is what a still frame can carry here, because the claim is about
-   * a SILENCE as much as a sentence: eight rows with `8 of 44 matches` under
-   * them and eight rows' worth of query with no line at all are the same
-   * picture apart from the one element this PR draws.
+   * The complaint this answers is exact and is the human's own — `#next` was
+   * tagged on five nodes in three outlines and nothing in the app would list
+   * them together. So the pictures are that walk rather than a feature tour:
+   * type on the page in front of you, be TOLD there is more elsewhere, go there
+   * in one gesture without retyping a word, and keep the result.
    *
    * THE VAULT IS WRITTEN rather than taken from `fixtures/good`, for the
-   * frontmatter section's reason: the fixture is a five-node house and the cap
-   * never bites in it, so a shot taken against it would be a shot of the
-   * absence twice. Forty rows that answer one word is the smallest directory
-   * in which the two doors have something to say.
+   * frontmatter section's reason and one sharper: the whole subject is a tag
+   * written in more than one file, and the good fixture writes each of its two
+   * tags in exactly one. Three files carrying `#next` is the smallest directory
+   * in which this feature has anything to show.
+   *
+   * Both halves of the palette table, because the widen line is an accent token
+   * and a door that reads as a door on chalk and as decoration on pitch is a
+   * door nobody presses.
    */
-  "a-shortlist-says-its-total": async (page) => {
+  "one-search-box": async (page) => {
     pinnedBy(
-      "a_shortlist_says_its_total.feature",
-      "The palette drew eight of what it found, and says which",
-      "The header's box says the same thing about the same answer",
-      "A palette answer that fits says nothing about a total",
+      "one_search_box.feature",
+      "The bar says how many more the directory holds, and that line is the door",
+      "The everywhere page groups its rows by file, ancestry kept",
+      "An everywhere search is a pin, so a saved cross-vault search is a row on the shelf",
+      "⌘K keeps its commands and hands a non-command query to the box",
     )
-    rewrite("stock.olai", [
-      `{"id":"stock","ord":"a0","title":"the supplier's catalogue"}`,
-      ...Array.from(
-        { length: 40 },
-        (_unused, index) =>
-          `{"id":"h${index + 1}","parent":"stock","ord":"a${
-            String(index + 1).padStart(2, "0")
-          }","title":"brass handle no. ${index + 1}"}`,
-      ),
+    rewrite("roadmap.olai", [
+      `{"id":"web","ord":"a0","title":"the web client"}`,
+      `{"id":"onebox","parent":"web","ord":"a0","title":"one search box #next","todo":true}`,
+      `{"id":"shelf","parent":"web","ord":"a1","title":"the shelf takes a query"}`,
+    ])
+    rewrite("server.olai", [
+      `{"id":"wire","ord":"a0","title":"the wire"}`,
+      `{"id":"stream","parent":"wire","ord":"a0","title":"a page is a stream #next","doing":true}`,
+    ])
+    rewrite("reading.olai", [
+      `{"id":"list","ord":"a0","title":"reading list"}`,
+      `{"id":"hickey","parent":"list","ord":"a0","title":"simple made easy #next"}`,
     ])
 
-    // THE PALETTE, over a word forty rows answer to. The line sits under the
-    // list rather than in it, so it is in frame whether or not a reader has
-    // scrolled the eight.
-    await opened(page, "/house.olai", OUTLINE_TREE)
-    await page.keyboard.press("ControlOrMeta+k")
-    await page.locator(PALETTE_INPUT).waitFor()
-    await page.locator(PALETTE_INPUT).fill("handle")
-    await page.locator(PALETTE_HIT).first().waitFor()
-    await page.waitForTimeout(SETTLE)
-    console.log(`  hits drawn:         ${await page.locator(PALETTE_HIT).count()}`)
-    console.log(`  and it says:        ${await textOf(page, SEARCH_COUNT)}`)
-    await shot(page, "the-palette-says-its-total")
+    const pass = async (dark: boolean) => {
+      const suffix = dark ? "-dark" : ""
 
-    // …and the same palette over a query the vault answers eight-or-fewer
-    // times: the rows are there, and there is no line under them.
-    await page.locator(PALETTE_INPUT).fill("cabinets")
-    await page.locator(PALETTE_HIT).first().waitFor()
-    await page.waitForTimeout(SETTLE)
+      // (a) A FILTERED PAGE, and the line that says what it cannot show. The
+      // count is honest about the page and silent about everything else, which
+      // is the whole complaint; the second half of the line is the news and the
+      // door at once.
+      await opened(page, "/roadmap.olai", OUTLINE_TREE)
+      await narrow(page, "#next")
+      await page.locator(FILTER_WIDEN).waitFor()
+      await page.waitForTimeout(DRAWN)
+      console.log(`  the bar says:       ${await said(page, FILTER_COUNT)}`)
+      console.log(`  ...and the door:    ${await said(page, FILTER_WIDEN)}`)
+      await shot(page, `a-page-says-what-it-cannot-show${suffix}`)
+
+      // (b) THE SAME QUERY, EVERYWHERE — one press, no retyping, and an ADDRESS
+      // at the end of it. The rows are grouped by the file they live in, each
+      // with the ancestry that leads to it, and every one says whether it is a
+      // match or the context around one.
+      await page.locator(FILTER_WIDEN).click()
+      await page.locator(SEARCH_PAGE).waitFor()
+      await page.waitForTimeout(SETTLE)
+      console.log(
+        `  the address:        ${new URL(page.url()).pathname}${new URL(page.url()).search}`,
+      )
+      console.log(`  the bar now says:   ${await said(page, FILTER_COUNT)}`)
+      const groups = await page.locator(SEARCH_GROUP).evaluateAll((all) =>
+        all.map((one) => one.getAttribute("data-file"))
+      )
+      console.log(`  grouped by:         ${groups.join(", ")}`)
+      const rows = await page.locator(SEARCH_ROW).evaluateAll((all) =>
+        all.map((one) => `${one.getAttribute("data-node-id")}=${one.getAttribute("data-match")}`)
+      )
+      console.log(`  rows (id=match):    ${rows.join(", ")}`)
+      await shot(page, `everywhere-is-a-page${suffix}`)
+
+      // (c) …AND IT PINS, because it is a page like any other. A query is the
+      // one part of an address nothing in the set can name, so the shelf asks
+      // what to call it — and what lands is a saved cross-vault search rather
+      // than a fourth kind of thing.
+      //
+      // ONCE, in the light pass: the chord is a TOGGLE over one address, so a
+      // second press on the second pass would unpin the row the first one
+      // wrote — and the shelf is drawn from the directory, so what it holds is
+      // not a fact about a theme.
+      if (!dark) {
+        await page.keyboard.press("ControlOrMeta+Shift+p")
+        await page.locator(PALETTE_INPUT).waitFor()
+        await page.locator(PALETTE_INPUT).fill("Everything next")
+        await page.locator(PALETTE_INPUT).press("Enter")
+        await page.locator(SHELF).waitFor()
+        await page.waitForTimeout(SETTLE)
+        console.log(`  the shelf holds:    ${oneLine(await textOf(page, SHELF))}`)
+        console.log(
+          `  ...written as:      ${
+            VAULT === undefined
+              ? "(no VAULT; run through evidence.sh)"
+              : oneLine(readFileSync(`${VAULT}/_olai/Pins.olai`, "utf8"))
+          }`,
+        )
+        await shot(page, "a-saved-search-is-a-pin")
+      }
+
+      // (d) ⌘K, WITH NO NODE HITS IN IT. The palette keeps its commands and
+      // hands the query to the one box; the row is minted from the words, so
+      // nothing is asked of the server for it and it can never be a row of an
+      // answer the reader has typed past.
+      await opened(page, "/roadmap.olai", OUTLINE_TREE)
+      await page.keyboard.press("ControlOrMeta+k")
+      await page.locator(PALETTE_INPUT).waitFor()
+      await page.locator(PALETTE_INPUT).fill("one search box")
+      await page.waitForTimeout(SETTLE)
+      const items = await page.locator('[data-testid="palette-item"]').allInnerTexts()
+      console.log(`  ⌘K offers:          ${items.map(oneLine).join(" · ") || "(nothing)"}`)
+      await shot(page, `the-palette-hands-it-off${suffix}`)
+      await page.keyboard.press("Escape")
+
+      // (e) THE HEADER, with no search box in it at all — the control this
+      // ruling deleted, photographed by its absence beside the pills that
+      // stayed.
+      await page.waitForTimeout(DRAWN)
+      console.log(
+        `  header search boxes: ${await page.locator('[data-testid="header-search"]').count()}`,
+      )
+      await shot(page, `the-header-has-no-box${suffix}`, {
+        clip: { x: 0, y: 0, width: WIDE, height: 56 },
+      })
+    }
+
+    await pass(false)
+    await wearTheme(page, "pitch")
+    await pass(true)
+    await wearTheme(page, "chalk")
+
+    // (f) A PHONE, where the magnifier is the whole of what search is in the
+    // bar: pressing it puts the caret in the page's own box.
+    await page.setViewportSize({ width: 390, height: 780 })
+    await opened(page, "/roadmap.olai", OUTLINE_TREE)
+    await page.locator('[data-testid="header-search-open"]').click()
+    await page.waitForTimeout(DRAWN)
     console.log(
-      `  an answer that fits: ${await page.locator(PALETTE_HIT).count()} hits, and the line is ${
-        (await page.locator(SEARCH_COUNT).count()) === 0 ? "absent" : "STILL THERE"
+      `  the caret is in the box: ${
+        await page.locator(FILTER_INPUT).evaluate((box) => box === document.activeElement)
       }`,
     )
-    await shot(page, "an-answer-that-fits-says-nothing")
-    await page.keyboard.press("Escape")
-
-    // THE OTHER DOOR, over the same word and the same answer — one reading,
-    // one sentence, two places it is drawn.
-    const box = page.locator(HEADER_SEARCH)
-    await box.click()
-    await box.fill("handle")
-    await page.locator(headerHit("#h1")).first().waitFor()
-    await page.waitForTimeout(SETTLE)
-    console.log(`  the header box too: ${await textOf(page, SEARCH_COUNT)}`)
-    await shot(page, "the-header-box-says-it-too")
+    await shot(page, "the-magnifier-focuses-the-one-box")
   },
 
   /**
@@ -3140,8 +3188,8 @@ const SECTIONS = {
   "one-alert-row": async (page) => {
     pinnedBy(
       "an_answer_leaves_the_rows_standing.feature",
-      "The palette's refusal is not read out a second time for the next keystroke",
-      "The header box's refusal is not read out a second time for the next keystroke",
+      "A refusal is not read out a second time for the next keystroke",
+      "The refusal on the everywhere page is not read out a second time either",
     )
     const pass = async (dark: boolean) => {
       const suffix = dark ? "-dark" : "-light"
@@ -3160,25 +3208,16 @@ const SECTIONS = {
       await narrow(page, "is:open")
       await reads("the bar refuses:", FILTER_REFUSAL, "the-filter-bar")
 
-      // THE PALETTE, which had to ASK for the same refusal and hand-rolled
-      // three bands of its own to draw it and its two neighbours. `DRAWN` and
-      // not `SETTLE`: nothing was written, and the row above is already up.
-      await page.keyboard.press("ControlOrMeta+k")
-      await page.locator(PALETTE_INPUT).waitFor()
-      await page.locator(PALETTE_INPUT).fill("is:open")
-      await page.locator(SEARCH_REFUSAL).first().waitFor()
+      // THE SAME BOX AT ITS WIDEST SCOPE, which is where the two doors that
+      // hand-rolled their own bands used to be: `one-search-box` deleted the
+      // palette's hits and the header's box, so the refusal is drawn once, by
+      // the component, at the one door left. `DRAWN` and not `SETTLE`: nothing
+      // was written, and the parse arrives with the keystroke.
+      await page.goto(`${BASE}/search?q=${encodeURIComponent("is:open")}`)
+      await page.locator(SEARCH_PAGE).waitFor()
+      await page.locator(FILTER_REFUSAL).first().waitFor()
       await page.waitForTimeout(DRAWN)
-      await reads("the palette:", SEARCH_REFUSAL, "the-palette")
-      await page.keyboard.press("Escape")
-
-      // THE HEADER BOX, the third door and the second that hand-rolled one.
-      const box = page.locator(HEADER_SEARCH)
-      await box.click()
-      await box.fill("is:open")
-      await page.locator(SEARCH_REFUSAL).first().waitFor()
-      await page.waitForTimeout(DRAWN)
-      await reads("the header box:", SEARCH_REFUSAL, "the-header-box")
-      await page.keyboard.press("Escape")
+      await reads("everywhere:", FILTER_REFUSAL, "the-everywhere-page")
     }
 
     await pass(false)

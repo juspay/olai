@@ -41,6 +41,7 @@ Feature: Documents
   @corpus:good
   Scenario: The everywhere page opens a document by name
     Given I search everywhere for "palette"
+    And I mark the page
     Then the search page lists the document "notes/palette.md"
     When I press the search document "notes/palette.md"
     Then the document open is "notes/palette.md"
@@ -206,10 +207,18 @@ Feature: Documents
   # both are still findable by the name they actually have.
   @corpus:good
   Scenario: A frontmatter key is not a tag and not a day
-    Given I search everywhere for "#swatches"
+    # A word only the BLOCK holds is not the document's prose: `alice` is an
+    # owner in the frontmatter and appears nowhere else in the file.
+    Given I search everywhere for "alice"
     Then the search page lists no document "notes/palette.md"
+    # …and a `date:` in that block is a property NAMED date, never the journal's
+    # day — reading it as one would put a document in a search the day page, the
+    # agenda and the calendar do not draw it in.
     When I search everywhere for "date:2026-09-01"
     Then the search page lists no document "notes/palette.md"
+    # Both are found by the name they actually have.
+    When I search everywhere for "prop:owners=alice"
+    Then the search page lists the document "notes/palette.md"
     When I search everywhere for "prop:date=2026-09-01"
     Then the search page lists the document "notes/palette.md"
 
