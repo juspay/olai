@@ -14,13 +14,11 @@
  * palette is what painted the page in the first place: a second reading of the
  * same fact can only ever be the reading that is a frame behind. The shell
  * ships the default's paper in a tag it writes (`index.html`) and the install
- * mark as a file, so this is right on the first paint of a page nobody has
- * picked on, and this only ever catches it up.
+ * mark as a file. The status-bar colour is right on the first paint of a page
+ * nobody has picked on; the tab starts as that file, and this catches both up.
  *
- * The tab mark is a blob, not a `data:` URL. The shell's CSP names `blob:` on
- * `img-src` (favicons count) and refuses `data:` — a hole a note could walk
- * through — so the mark that follows a pick has to be a blob the page minted
- * or it is not a mark the tab can show.
+ * The tab mark is a blob, not a `data:` URL: the shell's CSP names `blob:` on
+ * `img-src` (favicons count) and refuses `data:`.
  */
 
 import { markSvg } from "./mark.ts"
@@ -44,25 +42,21 @@ const tag = (): Element => {
   return meta
 }
 
-/** The tab's `<link rel="icon">`, found once, same reason as {@link tag}. */
+/** The tab's `<link rel="icon">`, found once — same reason the theme-color
+ *  tag is. */
 let iconLink: HTMLLinkElement | undefined
 /** The blob this tab is showing, so a pick can revoke the last one. */
 let iconUrl: string | undefined
 
 const icon = (): HTMLLinkElement => {
-  if (iconLink !== undefined) return iconLink
-  const existing = document.querySelector<HTMLLinkElement>(
-    `link[rel="${ICON_REL}"]`,
-  )
-  if (existing !== null) {
-    iconLink = existing
-    return existing
-  }
-  iconLink = Object.assign(document.createElement("link"), {
-    rel: ICON_REL,
-    type: "image/svg+xml",
-  })
-  document.head.appendChild(iconLink)
+  iconLink ??=
+    document.querySelector<HTMLLinkElement>(`link[rel="${ICON_REL}"]`) ??
+    document.head.appendChild(
+      Object.assign(document.createElement("link"), {
+        rel: ICON_REL,
+        type: "image/svg+xml",
+      }),
+    )
   return iconLink
 }
 

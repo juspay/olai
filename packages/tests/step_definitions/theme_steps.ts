@@ -12,10 +12,9 @@
  * which is the scenario saying what it wants.
  *
  * No step asserts on a COLOUR it wrote down. The paper is compared against
- * itself (before a pick, after a pick), against the browser chrome (the
- * status-bar colour and the tab's own mark) and against what the manifest
- * says — never against a hex written in a test, which would make this the
- * place a design decision has to be changed.
+ * itself (before a pick, after a pick), against the browser chrome and against
+ * what the manifest says — never against a hex written in a test, which would
+ * make this the place a design decision has to be changed.
  */
 
 import * as assert from "node:assert";
@@ -31,7 +30,7 @@ import {
 
 import { manifestOf } from "./install_steps.ts";
 import { hintOf, showPreferences } from "./preferences_steps.ts";
-import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT, THEME_CHIP } from "../support/world.ts";
+import { attr, POLL_TIMEOUT, THEME_CHIP } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 /** What the parse probe leaves on `window`. Named once: an init script and two
@@ -49,8 +48,7 @@ const PAPER = customProperty("paper");
  * A STRING, not a TypeScript function this file would serialise: Playwright
  * runs `toString()` of a callback in the page, and a `: string` or an `as`
  * cast is a syntax error there. The mark is a blob the page minted; fetching
- * it is how we read the paper it was drawn in, without this step writing a
- * hex.
+ * it is how this step reads the paper it was drawn in.
  */
 const CHROME_OF = `async (property) => {
   const paper = getComputedStyle(document.documentElement)

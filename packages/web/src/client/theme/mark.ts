@@ -1,15 +1,10 @@
 /**
  * The palm-leaf mark as a square icon, in a palette.
  *
- * Paper is the ground, ink the stem and leaflets, done the soft washes — the
- * three tokens the install files already spent. A fourth would be a drawing
- * that is not this drawing. The geometry is the original olai mark; only the
- * colours move.
- *
- * The files in `public/` are this drawing in one palette, because an installer
- * and a home screen keep a file. The TAB is not those files: `./chrome.ts`
- * paints this from whichever palette is in force, the same way it paints
- * `theme-color`.
+ * Paper is the ground, ink the stem and leaflets, done the soft washes. The
+ * geometry is the original olai mark; only the colours move. `./chrome.ts`
+ * paints this from whichever palette is in force; the files in `public/` are
+ * the same drawing in one row, because an installer keeps a file.
  */
 
 import type { Palette } from "./palettes.ts"

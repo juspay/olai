@@ -41,9 +41,9 @@ export const currentTheme: Accessor<string> = named
 
 /**
  * Put the page in a palette: the attribute the sheet keys off, the signal the
- * picker reads, and the chrome around the page (the status-bar colour, and
- * the tab's own mark). Three things that have to stay in step, so they are
- * written down once — a fourth thing a theme touches is added here or nowhere.
+ * picker reads, and the chrome around the page. Three things that have to stay
+ * in step, so they are written down once — a fourth thing a theme touches is
+ * added here or nowhere.
  *
  * `undefined` is the page NOBODY HAS PICKED ON, which is not the same fact as a
  * page naming the default: it carries no attribute at all, because the

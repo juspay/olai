@@ -3,9 +3,8 @@ import { describe, expect, test } from "bun:test"
 import { markSvg } from "./mark.ts"
 import { paletteNamed, PALETTES } from "./palettes.ts"
 
-/** The palette the files in `public/` are drawn in — a brand mark, not a
- *  pick. The tab is painted from whichever row is in force; the installer
- *  keeps a file. */
+/** The palette the files in `public/` are drawn in. The tab is painted from
+ *  whichever row is in force; the installer keeps a file. */
 const INSTALL = paletteNamed("leaf")
 if (INSTALL === undefined) {
   throw new Error("unreachable: no row named leaf")
@@ -31,9 +30,9 @@ describe("the palm-leaf mark", () => {
   })
 
   test("the shipped icon is the mark in the leaf palette", async () => {
-    // The install files are a SNAPSHOT of this drawing in one row. A geometry
-    // edit here that forgot the file, or a leaf retune that forgot the icon,
-    // is a tab and a home screen that no longer agree about what the mark is.
+    // The install files are this drawing in one row. A geometry edit here that
+    // forgot the file, or a leaf retune that forgot the icon, is a tab and a
+    // home screen that no longer agree.
     const shipped = await Bun.file(
       new URL("../public/icon.svg", import.meta.url),
     ).text()

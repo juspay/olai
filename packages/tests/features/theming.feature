@@ -84,10 +84,10 @@ Feature: The theme is a pick, and it is yours
 
   Scenario: The browser chrome follows the paper
     # The status bar on a phone, the title bar of an installed window, and the
-    # tab's own mark. The shell ships the default's paper and the install icon,
-    # so both are right on the first paint of a page nobody has picked on; a
-    # page that picked (and the default, once the bundle is up) repaints them
-    # from the same table that painted the page.
+    # tab's own mark. The shell ships the default's paper, so the status bar is
+    # right on the first paint; the tab starts as the install file. A page that
+    # picked (and the default, once the bundle is up) repaints both from the
+    # same table that painted the page.
     When I open the app
     Then the browser chrome matches the paper
     When I pick the theme "bloom"
