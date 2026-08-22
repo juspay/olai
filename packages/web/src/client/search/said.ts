@@ -26,19 +26,27 @@
  * can ask about.
  */
 
-/** The three numbers `/search`'s reading knows about itself
- *  (`@olai/format`'s `everywhereOf`). */
+/**
+ * WHAT `/search` DREW — the reading itself, and not four numbers taken off it.
+ *
+ * Two of the four are LENGTHS (`groups.length` is how many files hold a row,
+ * `documents.length` is how many the other half found), and a caller projecting
+ * them was a caller that had to know which lengths this sentence counts. That
+ * is one derivation living at the call site, which is the first place a second
+ * caller gets it subtly wrong. The element types are deliberately opaque:
+ * nothing here reads a row.
+ */
 export interface Everywhere {
   /** How many NODES the query selected in the whole directory — uncapped. */
   readonly matches: number
   /** …and how many of those the page actually drew. Equal to {@link matches}
    *  until the cap bites. */
   readonly drawn: number
-  /** How many files hold the rows on screen. */
-  readonly files: number
-  /** How many DOCUMENTS matched — never capped, and counted apart because a
-   *  document is not a row of a tree. */
-  readonly documents: number
+  /** One entry per file that holds a drawn match. */
+  readonly groups: ReadonlyArray<unknown>
+  /** …and the DOCUMENTS beside them — never capped, and counted apart because
+   *  a document is not a row of a tree. */
+  readonly documents: ReadonlyArray<unknown>
 }
 
 /** What one of something is called, so the sentence reads in English rather
@@ -47,9 +55,11 @@ const many = (count: number, one: string, more = `${one}es`): string =>
   `${count} ${count === 1 ? one : more}`
 
 export const everywhereLine = (
-  { matches, drawn, files, documents }: Everywhere,
+  { matches, drawn, groups, documents }: Everywhere,
 ): string => {
-  const found = matches === 0
+  const files = groups.length
+  const found = documents.length
+  const said = matches === 0
     // No RECORD matched. The clause below still runs, so a query that found only
     // documents reads `no matches · 2 documents` — which is the honest pair
     // rather than a sentence that hides half its answer.
@@ -60,7 +70,5 @@ export const everywhereLine = (
     : `${many(matches, "match")} in ${many(files, "file", "files")}`
   // The other half of the directory, counted apart — absent when a query found
   // none, which is the zero rule every count line in this app keeps.
-  return documents === 0
-    ? found
-    : `${found} · ${many(documents, "document", "documents")}`
+  return found === 0 ? said : `${said} · ${many(found, "document", "documents")}`
 }

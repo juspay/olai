@@ -20,9 +20,8 @@ import { DayPage } from "../day/DayPage.tsx"
 import { DocumentPage } from "../document/DocumentPage.tsx"
 import { Broken } from "../errors/Broken.tsx"
 import { createAsked } from "../filter/asking.ts"
-import type { Found } from "../filter/count.ts"
-import { createElsewhere } from "../filter/elsewhere.ts"
 import { FilterBar } from "../filter/FilterBar.tsx"
+import { createFound } from "../filter/found.ts"
 import { NarrowedProvider } from "../filter/narrowed.tsx"
 import { createNarrowing } from "../filter/narrowing.ts"
 import { tagPressed } from "../filter/tag.ts"
@@ -45,7 +44,6 @@ import {
   narrowedTo,
   samePage,
 } from "../routes.ts"
-import { everywhereLine } from "../search/said.ts"
 import { SearchPage } from "../search/SearchPage.tsx"
 import { panesOf } from "../workspace.ts"
 import { visibleIn } from "../settings/done.ts"
@@ -214,21 +212,6 @@ export function PageView() {
     return drawn !== null && answered !== null && samePageRequest(drawn, answered)
   })
 
-  /**
-   * HOW MANY MORE OF THIS QUERY THE DIRECTORY HOLDS — the widen line's number,
-   * and the one thing on this bar that is not about the page
-   * (`../filter/elsewhere.ts`).
-   *
-   * Off on the everywhere page, because there is nowhere wider to go, and off
-   * on a page that takes no filter, because there is no box.
-   */
-  const elsewhere = createElsewhere({
-    query,
-    text: () => filterOf(route()),
-    widenable: () => narrowable(route()) && route().kind !== "search",
-    onPage: () => (together() ? asked.matched() : undefined),
-  })
-
   const narrowing = createNarrowing({
     query,
     text: () => filterOf(route()),
@@ -239,24 +222,18 @@ export function PageView() {
   })
 
   /**
-   * WHAT THE BAR SAYS ABOUT THIS ANSWER — which is a different sentence at each
-   * of the two scopes, decided here because this is where both readings are in
-   * hand (`../filter/count.ts`'s `Found`).
+   * WHAT THE BAR SAYS ABOUT THIS ANSWER — the page's numbers, or the everywhere
+   * page's own count, and the elsewhere ask that sits behind the widen line
+   * (`../filter/found.ts`, which is where those three live together because
+   * they change together).
    */
-  const found = createMemo((): Found => {
-    const everywhere = only(narrowing.drawn(), "search")
-    if (everywhere === undefined) {
-      return { kind: "page", counts: narrowing.counts(), elsewhere: elsewhere() }
-    }
-    return {
-      kind: "everywhere",
-      said: everywhereLine({
-        matches: everywhere.matches,
-        drawn: everywhere.drawn,
-        files: everywhere.groups.length,
-        documents: everywhere.documents.length,
-      }),
-    }
+  const found = createFound({
+    query,
+    text: () => filterOf(route()),
+    narrowable: () => narrowable(route()),
+    drawn: narrowing.drawn,
+    counts: narrowing.counts,
+    matched: () => (together() ? asked.matched() : undefined),
   })
 
   /** THE SAME QUERY, EVERYWHERE — the widen line and `Enter` in the box, one
