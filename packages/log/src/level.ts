@@ -18,20 +18,20 @@ import { Layer, References } from "effect"
 /** The variable, spelled once. */
 export const LEVEL_ENV_VAR = "OLAI_LOG_LEVEL"
 
-/** The four levels an operator is expected to type, matching Effect's names. */
-export const LEVELS = ["debug", "info", "warn", "error"] as const
-
-export type LevelName = (typeof LEVELS)[number]
-
 /** Effect's own spelling of a minimum level — what {@link References.MinimumLogLevel} takes. */
 export type Minimum = "Debug" | "Info" | "Warn" | "Error"
 
-const NAMED: Readonly<Record<LevelName, Minimum>> = {
+const NAMED = {
   debug: "Debug",
   info: "Info",
   warn: "Warn",
   error: "Error",
-}
+} as const satisfies Readonly<Record<string, Minimum>>
+
+/** The four levels an operator is expected to type, matching Effect's names. */
+export const LEVELS = Object.keys(NAMED) as ReadonlyArray<keyof typeof NAMED>
+
+export type LevelName = keyof typeof NAMED
 
 /** Latch for the once-per-process invalid-`OLAI_LOG_LEVEL` diagnostic. */
 let warnedInvalidOlaiLogLevel = false

@@ -385,7 +385,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const dumpStderr = (from: number): void => {
       const during = stderrBuf.slice(from).trim()
       if (during === "") return
-      for (const line of during.split("\n")) tell(Effect.logWarning(line))
+      // ONE line, even when the agent wrote several: a newline in a logfmt
+      // value is escaped, not wrapped, and N WARNs of one dump would be the
+      // same event fragmented.
+      tell(Effect.logWarning(during))
     }
 
     let stopped = false
