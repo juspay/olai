@@ -118,7 +118,8 @@ import type { Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
 import * as Bodies from "./bodies.ts"
 import { contextFor } from "./context.ts"
-import { inverseOf, requestFor } from "./edit.ts"
+import { inverseOf, reresolves, requestFor } from "./edit.ts"
+import { runResolved } from "./resolving.ts"
 import {
   type Change as CollectionChange,
   type Published,
@@ -471,16 +472,22 @@ export const bind = (
      * than a `[]` at one end and a test for it at the other.
      */
     const applyEdit = (edit: Edit): Effect.Effect<Applied, OpFailure> =>
-      Effect.flatMap(wiring.ops.read, (at) => {
-        const request = requestFor(at, edit)
-        if (Result.isFailure(request)) return Effect.fail(request.failure)
-        return Effect.map(wiring.ops.run(request.success, wiring.writer), (done) => {
+      Effect.map(
+        // The read, the resolve and the run are `./resolving.ts`'s, shared with
+        // the HTTP capture door — and with them the second CHOICE for the two
+        // verbs whose answer is one (`reresolves`): a `⌘K` `+` or a pin in one
+        // tab used to be refused naming a file the OTHER tab had just minted,
+        // which is the resolver's own answer going stale rather than anything
+        // the person who pressed the key did.
+        runResolved(wiring.ops, wiring.writer, (at) => requestFor(at, edit), reresolves(edit)),
+        ({ at, request, done }) => {
           // AFTER the run, because an `add`'s inverse names the row the write
-          // brought into being — and from the reading BEFORE it, because
-          // everything else it needs the write is about to change. The resolved
-          // REQUEST goes with the edit: what a write leaves behind is a fact
-          // about the op that ran, and it has already been worked out once.
-          const undo = inverseOf(at, edit, request.success, done.id)
+          // brought into being — and from the reading the winning request was
+          // RESOLVED against, because everything else it needs the write is
+          // about to change. That pairing is why `runResolved` hands both back:
+          // when the arm was chosen a second time, the first reading is not the
+          // one this request is about.
+          const undo = inverseOf(at, edit, request, done.id)
           return {
             id: done.id,
             title: done.title,
@@ -488,8 +495,8 @@ export const bind = (
             ...(done.nudge === undefined ? {} : { nudge: done.nudge }),
             ...(undo.length === 0 ? {} : { undo }),
           }
-        })
-      })
+        },
+      )
 
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
       cells: {

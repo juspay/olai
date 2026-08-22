@@ -42,19 +42,31 @@ async () => {
 }
 
 /** A capture, as a client sends one. The header is what makes it one; a call
- *  passing `identity: null` is the request that has not got it. */
+ *  passing `identity: null` is the request that has not got it, and `headers`
+ *  is what the CSRF cases below replace or take away. */
 const capturing = (
   url: string,
   body: unknown,
-  options: { readonly identity?: string | null; readonly raw?: string } = {},
+  options: {
+    readonly identity?: string | null
+    readonly raw?: string
+    /** Merged over the defaults; a key set to `null` is REMOVED, which is how
+     *  "no content type at all" is spelled. */
+    readonly headers?: Readonly<Record<string, string | null>>
+  } = {},
 ): Promise<Response> => {
   const identity = options.identity === undefined ? LOGIN : options.identity
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    ...(identity === null ? {} : { [IDENTITY_HEADER]: identity }),
+  }
+  for (const [name, value] of Object.entries(options.headers ?? {})) {
+    if (value === null) delete headers[name]
+    else headers[name] = value
+  }
   return fetch(`${url}${CAPTURE_PATH}`, {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      ...(identity === null ? {} : { [IDENTITY_HEADER]: identity }),
-    },
+    headers,
     body: options.raw ?? JSON.stringify(body),
   })
 }
@@ -262,6 +274,100 @@ const refusal = async (answered: Response): Promise<{ error: string; kind: strin
   expect([typeof said["error"], typeof said["kind"]]).toEqual(["string", "string"])
   return { error: String(said["error"]), kind: String(said["kind"]) }
 }
+
+/**
+ * A BROWSER CANNOT BE CONSCRIPTED INTO CAPTURING — the blocking review finding,
+ * as the deployment it is actually about.
+ *
+ * The identity header is NOT a CSRF gate behind `tailscale serve`: the proxy
+ * strips a client's copy and injects its own, so a page on another origin does
+ * not need to name it. Every request below therefore CARRIES a valid identity,
+ * exactly as the proxy would have supplied it — which is what makes this a test
+ * of the door rather than of the header, and what the original loopback
+ * evidence could not see.
+ *
+ * What refuses them is the CONTENT TYPE. `application/json` is not
+ * CORS-safelisted, so a cross-origin `fetch` that sends it must preflight, and
+ * the preflight is answered 404 with no `Access-Control-Allow-*`. The three
+ * types a browser WILL send without one — and the absence of the header
+ * entirely — are refused before the body is read.
+ */
+test(
+  "a request a browser could make without a preflight writes nothing",
+  inServed(async (url, root) => {
+    for (
+      const said of [
+        // The exploit, verbatim: `fetch` with a JSON body and a safelisted type.
+        "text/plain;charset=UTF-8",
+        "text/plain",
+        // The two a `<form>` can post.
+        "application/x-www-form-urlencoded",
+        "multipart/form-data; boundary=x",
+        // Close enough to look right, and not the type this door reads.
+        "application/json-patch+json",
+        "text/json",
+      ]
+    ) {
+      const answered = await capturing(url, { title: "pwned from evil.example" }, {
+        headers: { "content-type": said },
+      })
+      expect([said, answered.status]).toEqual([said, 415])
+      expect([said, (await refusal(answered)).kind]).toEqual([said, "usage"])
+    }
+    // …and no content type at all is not a promise of JSON either.
+    const bare = await capturing(url, { title: "pwned" }, {
+      headers: { "content-type": null },
+    })
+    expect(bare.status).toBe(415)
+
+    // Nothing was written by any of them: no inbox was even minted.
+    expect(Object.keys(outlinesIn(root))).toEqual(["a.olai"])
+  }),
+  BOUND_MS,
+)
+
+/**
+ * …and the belt beside that brace. `Sec-Fetch-Site` is a forbidden header name,
+ * so a page cannot forge it; a browser stamps it on every request and a script
+ * sends none at all. So its ABSENCE may never refuse — the `curl` in a cron job
+ * is the reference client — while a browser owning up to another site is turned
+ * away whatever identity the tailnet put on the request.
+ */
+test(
+  "a browser that says the request came from another site is refused",
+  inServed(async (url, root) => {
+    for (const said of ["cross-site", "same-site", "none"]) {
+      const answered = await capturing(url, { title: "pwned" }, {
+        headers: { "sec-fetch-site": said },
+      })
+      expect([said, answered.status]).toEqual([said, 403])
+    }
+    expect(Object.keys(outlinesIn(root))).toEqual(["a.olai"])
+
+    // A bookmarklet running ON an olai page is a client somebody may write.
+    expect(
+      (await capturing(url, { title: "from the page" }, {
+        headers: { "sec-fetch-site": "same-origin" },
+      })).status,
+    ).toBe(201)
+  }),
+  BOUND_MS,
+)
+
+/** A charset parameter is the sender's business — several HTTP clients add one
+ *  unasked, and refusing them would be refusing correct requests to no end. */
+test(
+  "the content type is read by its type, not by its parameters",
+  inServed(async (url) => {
+    for (const said of ["application/json", "application/json; charset=utf-8", "APPLICATION/JSON"]) {
+      const answered = await capturing(url, { title: `sent as ${said}` }, {
+        headers: { "content-type": said },
+      })
+      expect([said, answered.status]).toEqual([said, 201])
+    }
+  }),
+  BOUND_MS,
+)
 
 test(
   "a request with no identity header is refused, and writes nothing",

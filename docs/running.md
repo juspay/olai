@@ -125,13 +125,17 @@ curl -X POST http://olai.your-tailnet.ts.net/capture \
 
 **And it arrives dated**, so it is on the day's journal page as well as in the inbox — which is the half a capture made while nobody was looking actually needs. A date with no mark is an *occurrence*: it is on the day, and it is never overdue ([format.md](format.md#status)). The stamp is the server's local time with its offset written out, so it names one instant — a phone several zones away capturing near midnight lands on the day the vault is on, not the day the phone is on.
 
-### Auth is the tailnet, and the header is the whole of it
+### Auth is the tailnet; the CSRF gate is the content type
 
 `Tailscale-User-Login` is **required**. `tailscale serve` injects it in front of the process, so there is no token to mint, nothing secret to paste into a share sheet, and no client to re-issue when a key rotates. The login is recorded on the captured node as a `captured-by` property, so `prop:captured-by=you@example.com` finds what you sent from your phone — and a client that tries to send that property itself is refused rather than quietly overruled.
 
-Requiring a header is also what keeps a page you are reading from writing into your vault: a cross-origin `fetch` cannot set one without a preflight this server does not answer, and a form post cannot set one at all.
+What the header does **not** do is authenticate. It is a claim the transport in front makes, so anything that can reach the port can make it too — the same bargain the rest of the listener already takes. Put olai behind `tailscale serve`, or leave it on loopback. Do not expose this port to the internet.
 
-What it does **not** do is authenticate. The header is a claim the transport in front makes, so anything that can reach the port can make it too — the same bargain the rest of the listener already takes. Put olai behind `tailscale serve`, or leave it on loopback. Do not expose this port to the internet.
+**And it is not a CSRF gate.** This page used to say it was, and behind the very deployment it recommends the opposite is true: `tailscale serve` *strips* a client's `Tailscale-*` headers and injects its own, so a browser on your tailnet does not need to name the header — the proxy names it. A page on another site could otherwise have written into your vault with a request that carries nothing of its own, because `POST` with a safelisted `text/plain` body is a *CORS-simple* request: there is no preflight to fail, and CORS hides only the response, not the write.
+
+So the gate is **`Content-Type: application/json`, required, and checked before the body is read**. That type is not CORS-safelisted, so a cross-origin `fetch` sending it must preflight — and the preflight is answered `404` with no `Access-Control-Allow-*`, so the real request never leaves the browser. The three types a browser *will* send without a preflight (`text/plain`, `application/x-www-form-urlencoded`, `multipart/form-data`), and no content type at all, are refused `415`. This costs a real client nothing: every recipe below already sends the header, because it is already sending JSON. A charset parameter is fine.
+
+Beside it, a request whose `Sec-Fetch-Site` says it came from another site is refused `403`. That header is one a page cannot forge (it is a forbidden header name) and one a browser stamps on everything; `curl`, a Shortcut and a Raycast script send none at all, so its **absence** is never a refusal.
 
 ```
 tailscale serve --bg 7714

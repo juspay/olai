@@ -86,6 +86,27 @@ import { Result } from "effect"
 
 type Resolved = Result.Result<Request, OpFailure>
 
+/**
+ * WHICH VERBS may have their answer chosen AGAIN when the set moved under it.
+ *
+ * The two whose request is a CHOICE between ops that are not interchangeable:
+ * a capture and a pin are a `create` for a directory with no inbox (or no
+ * shelf) and an `add` for one that has it, and which of those is right stops
+ * being true the moment another writer mints the file. Two tabs, or a script
+ * fanning out its first few captures, are the cases that reach it.
+ *
+ * Everything else here either names a node the CALLER named or reads a fact
+ * whose staleness is a real answer — a `toggle` refused with "already done"
+ * because somebody else got there first must STAY refused, or the retry would
+ * resolve an `undo` and quietly take back their mark, which is the trap the
+ * toggle arm below already argues against.
+ *
+ * Read by `./resolving.ts`, which owns the retry itself. What a verb MEANS is
+ * this file's, and whether its answer can go stale is part of that.
+ */
+export const reresolves = (edit: Edit): boolean =>
+  edit.verb === "capture" || edit.verb === "pin"
+
 /** The ops request one keystroke asks for. Total over {@link Edit}: a verb
  *  added to the surface and not answered here is a compile error, which is the
  *  reason the union is declared beside the procedures rather than inferred

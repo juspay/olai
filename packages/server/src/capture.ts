@@ -32,21 +32,13 @@
  * client that has to be re-issued when a key rotates. A request without the
  * header is refused.
  *
- * TWO THINGS THAT BUYS, said out loud because neither is obvious:
- *
- *   - it is the ATTRIBUTION. The login is written onto the captured node as a
- *     property ({@link CAPTURED_BY}), so what arrived from a phone is a fact in
- *     the file rather than a line in a log — and it is queryable
- *     (`prop:captured-by=…`) beside whatever else the client sent. That is a
- *     different question from the `X-Olai-Writer` trailer, which records the
- *     DOOR: git already knows the repository's own user, and neither of the two
- *     can answer for the other.
- *   - it is the CSRF gate, for free. A page on some other origin cannot set a
- *     custom header on a `fetch` without a preflight this listener does not
- *     answer, and cannot set one on a form post at all — so requiring the
- *     header is what stops a page somebody is reading from writing into their
- *     vault, which is the one realistic attack on a port bound where a browser
- *     can reach it.
+ * WHAT IT BUYS is the ATTRIBUTION: the login is written onto the captured node
+ * as a property ({@link CAPTURED_BY}), so what arrived from a phone is a fact
+ * in the file rather than a line in a log, and it is queryable
+ * (`prop:captured-by=…`) beside whatever else the client sent. That is a
+ * different question from the `X-Olai-Writer` trailer, which records the DOOR:
+ * git already knows the repository's own user, and neither can answer for the
+ * other.
  *
  * WHAT IT DOES NOT BUY, equally out loud: the header is a claim the TRANSPORT
  * makes, so anything that can reach this port can make it too. That is the same
@@ -54,6 +46,44 @@
  * unauthenticated and `olai web` says so at boot when it binds off loopback —
  * and it is why the ruling pairs "no token" with "no public exposure". Put this
  * behind `tailscale serve`, or leave it on loopback.
+ *
+ * ## …AND IT IS NOT A CSRF GATE. That is {@link JSON_ONLY}'s job.
+ *
+ * This door claimed the header was one, and it is not — behind the very
+ * deployment the docs advertise, it is the opposite. `tailscale serve` STRIPS a
+ * client's `Tailscale-*` headers and INJECTS its own, so a browser on the
+ * tailnet does not need to name the header: the proxy names it. A page on
+ * `evil.example` could therefore write into the reader's vault with a request
+ * that carries nothing of its own —
+ *
+ *     fetch("https://olai.ts.net/capture", { method: "POST",
+ *       headers: { "content-type": "text/plain" },
+ *       body: JSON.stringify({ title: "pwned" }) })
+ *
+ * — because POST with a safelisted `text/plain` is a CORS-SIMPLE request: there
+ * is no preflight for this listener's missing `Access-Control-Allow-Origin` to
+ * fail, CORS hides only the RESPONSE, and the write has already happened.
+ * `request.json` never consulted the content type, so the body parsed. Found by
+ * review; the original evidence for the claim was measured on LOOPBACK, where
+ * the client really must set the header, which is the wrong threat model for
+ * the deployment being recommended.
+ *
+ * The gate is the CONTENT TYPE instead, and it is the same argument `/mcp` won
+ * with a bearer: a write surface reachable from whatever page a browser happens
+ * to be showing is a different bargain. `application/json` is not on the
+ * CORS-safelist, so a cross-origin `fetch` that sends it MUST preflight — and
+ * the preflight is answered 404 with no `Access-Control-Allow-*`, so the real
+ * request never leaves the browser. The shapes a browser WILL send without a
+ * preflight (`text/plain`, `application/x-www-form-urlencoded`,
+ * `multipart/form-data`) are refused before anything is parsed. It costs a
+ * legitimate client nothing: every recipe in docs/running.md already sends the
+ * header, because it is sending JSON.
+ *
+ * {@link crossSite} is the belt beside that brace, for the same reason the seal
+ * has more than one: `Sec-Fetch-Site` is a FORBIDDEN header name, so no page can
+ * set or forge it, and a browser stamps it on every request. A non-browser
+ * client sends none at all, which is why its ABSENCE may not be a refusal — the
+ * `curl` in a cron job is the reference client.
  *
  * ## Dated, because nobody is watching
  *
@@ -101,6 +131,8 @@ import {
   type HttpServerRequest,
   HttpServerResponse,
 } from "effect/unstable/http"
+
+import { runResolved } from "./resolving.ts"
 
 /** Where the route lives. Named once: the docs, the clients and the tests all
  *  spell this one. */
@@ -367,6 +399,74 @@ const NO_IDENTITY = refusing(
   "usage",
 )
 const NOT_JSON = refusing(400, "the body is not JSON", "usage")
+
+/**
+ * The ONE content type this door reads, and the whole of its CSRF gate — see
+ * the header for why the identity header is not one.
+ *
+ * The value is compared on its TYPE alone: parameters are the sender's
+ * (`; charset=utf-8` is what several HTTP clients add on their own), and a
+ * door that refused those would be refusing correct requests to no end. What is
+ * refused is any other type, INCLUDING NONE AT ALL — an absent header is not a
+ * promise of JSON, and a `fetch` with no `Content-Type` and a string body is
+ * given `text/plain` by the browser anyway.
+ */
+const JSON_ONLY = "application/json"
+
+const WRONG_MEDIA = refusing(
+  415,
+  `this door reads ${JSON_ONLY} only, and that is deliberate: it is what makes a ` +
+    "cross-origin request preflight, which this server does not answer. Send " +
+    `\`content-type: ${JSON_ONLY}\` (a charset parameter is fine).`,
+  "usage",
+)
+
+/** Whether the body may be read at all. `Headers.get` lower-cases the name; the
+ *  value is cut at the first `;` so a parameter neither helps nor hurts, and
+ *  trimmed and case-folded because a media type is neither. */
+const readable = (request: HttpServerRequest.HttpServerRequest): boolean =>
+  Option.match(Headers.get(request.headers, "content-type"), {
+    onNone: () => false,
+    onSome: (said) => said.split(";")[0]?.trim().toLowerCase() === JSON_ONLY,
+  })
+
+/**
+ * A request a BROWSER says came from somewhere else.
+ *
+ * `Sec-Fetch-Site` is stamped by the browser and cannot be set by a page (it is
+ * a forbidden header name), so it is trustworthy in the one direction that
+ * matters: if it says `cross-site`, no legitimate client of this door sent it.
+ *
+ * ABSENT IS ALLOWED, and that is the load-bearing half — `curl`, a Shortcut and
+ * a Raycast script send no `Sec-Fetch-*` at all, and they are the clients this
+ * door exists for. So this catches a browser and never a script, which is
+ * exactly the shape of a defence-in-depth check: it may only ever add refusals
+ * a browser deserved.
+ *
+ * `same-origin` is kept because a bookmarklet running ON an olai page is a
+ * capture client somebody might reasonably write. Everything else a browser can
+ * say here — `cross-site`, `same-site`, and the `none` of a top-level
+ * navigation, which for a POST means a form submission — is refused.
+ *
+ * ORIGIN IS DELIBERATELY NOT READ BESIDE IT. Judging one means knowing this
+ * server's own external origin, which behind a proxy is exactly the fact
+ * `OLAI_ALLOWED_ORIGINS` exists because the process cannot derive it — and a
+ * wrong answer there fails CLOSED on a legitimate client. `Sec-Fetch-Site`
+ * needs no such knowledge: the browser has already done the comparison.
+ */
+const crossSite = (request: HttpServerRequest.HttpServerRequest): boolean =>
+  Option.match(Headers.get(request.headers, "sec-fetch-site"), {
+    onNone: () => false,
+    onSome: (said) => said.trim().toLowerCase() !== "same-origin",
+  })
+
+const NOT_FOR_A_PAGE = refusing(
+  403,
+  "this door is for a share sheet, a script or a `curl` — a browser saying the " +
+    "request came from another site is refused, whatever identity the tailnet " +
+    "put on it",
+  "usage",
+)
 /** What a method this door does not answer is told, rather than falling through
  *  to the shell's `GET /*` and being handed the app: a person reaching for
  *  `curl` and forgetting `-X POST` deserves a sentence and not a page of HTML. */
@@ -391,6 +491,14 @@ export const captureRoute = (
       CAPTURE_PATH,
       (request: HttpServerRequest.HttpServerRequest) =>
         Effect.gen(function*() {
+          // THE TWO GATES FIRST, and before the body is touched: they decide
+          // whether this is a request from a client of this door at all, and
+          // the identity below cannot decide it — behind `tailscale serve` the
+          // proxy supplies that header to a conscripted browser as readily as
+          // to a script (see the header).
+          if (crossSite(request)) return NOT_FOR_A_PAGE
+          if (!readable(request)) return WRONG_MEDIA
+
           // `Headers.get` rather than an index: it lower-cases the name itself,
           // so the spelling a client writes is the spelling this file reads and
           // there is no second constant to keep in step with the first.
@@ -419,77 +527,20 @@ export const captureRoute = (
     HttpRouter.add("GET", CAPTURE_PATH, WRONG_METHOD),
   )
 
-/**
- * Read the set, resolve where a capture lands against THAT reading, write it
- * under the writer this door was composed as — and resolve AGAIN if the answer
- * stopped being true while the write was on its way.
- *
- * ## Why the second attempt exists
- *
- * {@link captureInto} picks between two ops that are not interchangeable — a
- * `create` for a directory with no inbox, an `add` for one that has it — and it
- * picks against a reading. The ops layer re-plans the REQUEST it was handed
- * when the store moves under it, which is right for every op that names a node;
- * it cannot re-make a CHOICE it did not make. So two captures into a vault that
- * has never captured both resolve `create`, one lands, and the other is refused
- * naming a file that now exists (found in review, and reproduced: three
- * simultaneous captures into a fresh directory answered 201, 400, 400).
- *
- * That refusal is not an answer to the CALLER. It is this door's own resolution
- * having gone stale between the read and the plan, which is exactly what the
- * gate's own `StaleWrite` is one layer down — and that one is retried in
- * silence rather than reported. So this does the same thing at the layer that
- * made the choice: read again, resolve again, once.
- *
- * ONCE, and not a loop. The second reading either holds the inbox — in which
- * case the answer is an `add` and no third attempt can be needed — or the
- * directory really has no inbox and the `create` is the honest request. There
- * is no state this can spin on, so a bounded retry is a fact about the problem
- * rather than a number somebody picked.
- *
- * ## What it does NOT close
- *
- * The palette's `⌘K` `+` and the sidebar's pin resolve the same shape through
- * `./edit.ts` and have the same race between two tabs. Closing it there means
- * either a `capture` verb in the ops layer's closed table or a write gate that
- * re-resolves rather than re-plans, and both are a decision about what an agent
- * may do — the human's to rule, and named in this PR's report rather than
- * invented here. What is fixed is the door that made it reachable: this one is
- * built for scripts, and a script fanning out its first few captures is the
- * case that actually happens.
- */
+/** Read the set, resolve where a capture lands against THAT reading, write it
+ *  under the writer this door was composed as — and let `./resolving.ts` choose
+ *  again if the arm went stale while the write was on its way, which is the
+ *  mechanism the palette and the pin now share (the whole argument is there). */
 const capture = (
   options: Options,
   what: Capturing,
 ): Effect.Effect<Applied, OpFailure> =>
-  Effect.flatMap(options.ops.read, (at) =>
-    Effect.catchIf(
-      options.ops.run(captureInto(at, what), options.writer),
-      (failure) => resolvedStale(at, failure),
-      () =>
-        Effect.flatMap(options.ops.read, (now) =>
-          options.ops.run(captureInto(now, what), options.writer)),
-    ))
-
-/**
- * Whether a refusal is THIS DOOR'S CHOICE having gone stale rather than
- * anything about the capture.
- *
- * Narrow on purpose, and narrow in the one way that matters: it fires only
- * where the resolution picked `create`, which is the only arm a concurrent
- * capture can invalidate. An `add` into an inbox that exists cannot be
- * overtaken — nothing in this app deletes an outline — so a refusal on that arm
- * is a real answer and is passed straight back.
- *
- * It does not read the refusal's WORDS. A sentence is the ops layer's to write
- * and to reword, and a door keyed on one would go quiet the day it improved.
- * What is read is the shape of the request this door sent, which is this file's
- * own.
- */
-const resolvedStale = (at: Reading, failure: OpFailure): boolean =>
-  failure._tag === "UsageFailure" && captureInto(at, EMPTY).op === "create"
-
-/** A capture with nothing in it, for asking {@link captureInto} WHICH ARM it
- *  would take without composing a second capture to ask with. The fields play
- *  no part in that answer — only the set does. */
-const EMPTY: Capturing = { title: "" }
+  Effect.map(
+    runResolved(
+      options.ops,
+      options.writer,
+      (at) => Result.succeed(captureInto(at, what)),
+      true,
+    ),
+    (written) => written.done,
+  )
