@@ -262,14 +262,28 @@ export function PageView() {
     narrowable: () => narrowable(route()),
     drawn: narrowing.drawn,
     counts: narrowing.counts,
-    matched: () => (together() ? asked.matched() : undefined),
+    // WHICH PAGE the elsewhere count is the complement OF — the pane's own
+    // request, the same value its rows are asked with. The server holds both
+    // sets; a subtraction here could only ever be right on some pages
+    // (`../filter/elsewhere.ts`).
+    page: request,
   })
 
-  /** THE SAME QUERY, EVERYWHERE — the widen line and `Enter` in the box, one
-   *  gesture and one call site. Absent on the page that IS everywhere, which
-   *  is what takes both away there. */
+  /**
+   * THE SAME QUERY, EVERYWHERE — the widen line and `Enter` in the box, one
+   * gesture and one call site. Absent on the page that IS everywhere, which is
+   * what takes both away there.
+   *
+   * A PUSH, where typing REPLACES. The two look alike and are not: a keystroke
+   * narrows the page you are standing on, so Back should leave the filter
+   * rather than un-type it one letter at a time — but widening goes to a
+   * DIFFERENT PAGE, and Back is the inverse of going somewhere. Replaced, the
+   * stack read `[wherever you were, /search]` and Back from the everywhere page
+   * skipped the narrowed page it was opened from, which is the one place a
+   * reader would expect to land (both reviewers of #334).
+   */
   const widen = (): void => {
-    router.replaceIn(here(), everywhereFor(filterOf(route())))
+    router.goIn(here(), everywhereFor(filterOf(route())))
   }
 
   const rows = () => only(narrowing.drawn(), "tree")?.rows ?? []

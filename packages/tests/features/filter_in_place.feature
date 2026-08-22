@@ -6,7 +6,7 @@ Feature: Filtering the outline in place
   thing you found is still standing where it lives.
 
   What decides which nodes match is `@olai/format`'s one matcher, which also
-  gates an agent's `search_nodes` and the ⌘K palette (`filter.test.ts` holds the
+  gates an agent's `search_nodes` and every picker in the app (`filter.test.ts` holds the
   grammar). These scenarios are about the other half: what the page does with
   the answer, where the filter lives (the address), and what it says when it
   finds nothing.

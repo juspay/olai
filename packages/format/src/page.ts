@@ -544,13 +544,13 @@ export function* narrowableIn(shows: Shown): Generator<LocatedRegular> {
     // ONE BODY, because they are one shape: a group is a file heading and the
     // rows under it, on both.
     //
-    // THE EVERYWHERE PAGE IS NARROWABLE LIKE ANY OTHER, and that is what makes
-    // its rows say why they are drawn without a second field on each of them:
-    // the narrowing beside this reading answers which of these rows the query
-    // selected, and the browser lights and dims out of that one answer
-    // (`./everywhere.ts`). The prune it feeds is a no-op here — these rows are
-    // already what the query kept — which is the honest shape rather than a
-    // special case: a page pruned by its own answer is the page.
+    // THE EVERYWHERE PAGE'S ROWS ARE ROWS, and that is all this walk says about
+    // them. What LIGHTS them is not a narrowing beside this reading — that
+    // would be `everywhereOf` run a second time per revision — but the
+    // `matched` list the reading itself carries (`./everywhere.ts`). This walk
+    // still matters to it: `./elsewhere.ts` asks which nodes the page puts on
+    // screen, so that "how much is this page not showing" is a complement
+    // rather than a subtraction across two questions.
     case "trash":
     case "search":
       for (const group of shows.groups) yield* inRows(group.rows)
@@ -560,6 +560,27 @@ export function* narrowableIn(shows: Shown): Generator<LocatedRegular> {
     case "nothing":
       return
   }
+}
+
+/**
+ * EVERY NODE THIS PAGE PUTS A TITLE ON SCREEN FOR — {@link narrowableIn} plus
+ * the one node that is on the page and is not a row.
+ *
+ * A ZOOM's own node is drawn as the page's HEADING, title and tags and all. It
+ * is not narrowable — a filter has never taken a page's own heading away, which
+ * is why it is out of that walk — but it is very much on screen, and the one
+ * caller here is asking a question about what a reader can SEE: how much of
+ * this query the page is not showing (`./elsewhere.ts`). Counting the heading
+ * as absent would tell somebody standing on a matching node that there is one
+ * more of it somewhere else.
+ *
+ * THE CRUMBS ARE NOT IN IT, and that is the line: a zoom's trail is navigation,
+ * drawn as the path back rather than as the thing being read. A match in an
+ * ancestor is still a match this page is not showing you.
+ */
+export function* shownIn(shows: Shown): Generator<LocatedRegular> {
+  yield* narrowableIn(shows)
+  if (shows.kind === "node" && shows.zoomed.kind === "node") yield shows.zoomed.shows
 }
 
 /** Every regular record this reading MENTIONS, however deep — the rows above

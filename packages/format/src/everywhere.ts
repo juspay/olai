@@ -208,17 +208,27 @@ export const everywhereOf = (
   const matched: Array<MatchedNode> = []
   let rows = 0
   for (const [file, held] of byFile) {
-    // THE TWO BOUNDS, checked before the file is opened rather than after — a
-    // group that would take the page past either is not built at all. The first
-    // group is exempt from the ROW bound: one big answer beats none, and the
-    // bar says the difference either way ({@link Everywhere.drawn}).
-    if (matched.length + held.length > EVERYWHERE_LIMIT && matched.length > 0) break
+    // THE MATCH BOUND CUTS A FILE, it does not skip one — which is the fix for
+    // what both reviewers of #334 read as accidental. It used to be a `break`
+    // guarded on `matched.length > 0`, which exempted the FIRST file from the
+    // match bound entirely: a directory whose first outline held five hundred
+    // hits drew all five hundred. Skipping it outright is worse in the other
+    // direction (that file would draw nothing at all), so what a full budget
+    // does is take as much of the file as is left and stop.
+    const room = EVERYWHERE_LIMIT - matched.length
+    if (room <= 0) break
+    const taking = held.length <= room ? held : held.slice(0, room)
     // THE FILE'S OWN TREE, pruned exactly as a filtered page prunes itself.
-    const kept = keeping(rowsOf(derived, file), new Set<string>(held.map((one) => one.id)))
+    const kept = keeping(rowsOf(derived, file), new Set<string>(taking.map((one) => one.id)))
     const places = rowsIn(kept)
+    // THE ROW BOUND, checked before the group is added, and the FIRST group is
+    // exempt from it: a match keeps its whole subtree, so a hit on a big file's
+    // root would draw nothing at all under a hard cap — one big answer beats
+    // none, and the bar says the difference either way
+    // ({@link Everywhere.drawn}).
     if (rows + places > EVERYWHERE_ROWS && groups.length > 0) break
     groups.push({ file, rows: kept })
-    matched.push(...held)
+    matched.push(...taking)
     rows += places
   }
 

@@ -266,7 +266,6 @@ export default function App() {
    * arms, same one place they are written down — but that request grew a field
    * only a PANE can fill (the everywhere page's settled words), and a door
    * nobody but a pane should open is not the door for a calendar.
-OLD
    *
    * Read off the PAGE, as it was, this went `day → undefined → day` on every
    * click of a second day: the month is stamped on the day being read

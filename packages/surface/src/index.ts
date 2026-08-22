@@ -198,6 +198,7 @@ import { opsProcedures } from "./ops.ts"
 import { DatedAnswer, DatedRequest, Owed, OwedRequest } from "./dates.ts"
 import { MovingAnswer, MovingRequest, PageReading, PageRequest } from "./page.ts"
 import { NarrowingAnswer, NarrowingRequest } from "./narrowing.ts"
+import { ElsewhereAnswer, ElsewhereRequest } from "./elsewhere.ts"
 import { SearchAnswer, SearchRequest } from "./search.ts"
 
 /**
@@ -1120,6 +1121,34 @@ export const surface = defineSurface({
       nodes: {
         input: SearchRequest,
         output: SearchAnswer,
+        error: OpFailure,
+      },
+      /**
+       * HOW MUCH OF THAT QUERY THE PAGE IS NOT SHOWING — the number under the
+       * one search box, and the door that widens
+       * (`@olai/format`'s `elsewhere.ts`).
+       *
+       * A PROCEDURE beside the narrowing STREAM, and the difference is what
+       * each is bounded by: a narrowing is bounded by the page, so re-reading
+       * it per published revision costs a page, where this walks the corpus.
+       * Asked once per settled keystroke and left alone until the words move —
+       * which is the trade docs/brainstorming/one-search-box.md makes.
+       *
+       * IT TAKES THE PAGE, and that is the whole of why it is a member at all:
+       * the browser used to subtract its own narrowing's size from a scopeless
+       * `search.nodes` total, which is the complement ONLY where the page's
+       * matches are a subset of the directory's — and the trash is a page where
+       * the two sets are disjoint. Both sets exist on the server; neither does
+       * in a tab.
+       *
+       * THE BROWSER'S ALONE (`@olai/server`'s `faces.ts`), for {@link
+       * ./narrowing.ts}'s reason: a number about what a screen is not showing
+       * is useful only to somebody looking at that screen. An agent asking how
+       * much a query finds asks `search_nodes` and reads `total`.
+       */
+      elsewhere: {
+        input: ElsewhereRequest,
+        output: ElsewhereAnswer,
         error: OpFailure,
       },
     },

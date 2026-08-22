@@ -25,7 +25,7 @@ Feature: One search box, and the page it widens to
     Given I open the outline "house.olai"
     When I filter the page by "old"
     Then the filter found "1 of 10"
-    And the filter offers "· 3 more in other files — search everywhere"
+    And the filter offers "· 3 more elsewhere — search everywhere"
     # THE SAME QUERY, one press wider. The words are the address either way, so
     # nothing is retyped.
     When I widen the filter
@@ -147,3 +147,68 @@ Feature: One search box, and the page it widens to
     Then the search page is open
     And the address is exactly "/search?q=cabinetmaker"
     And the search page lists the document "finishes.md"
+
+  # ── the number is a COMPLEMENT, at every scope ──────────────────────
+  #
+  # The widen line's number used to be a subtraction — a scopeless directory
+  # total minus this page's own matched ids — which is the complement only where
+  # the page's matches are a SUBSET of the directory's. Both reviewers of #334
+  # constructed pages where they are not. It is `search.elsewhere` now
+  # (`@olai/format`'s `elsewhere.ts`): the server reads the page, asks the
+  # corpus the same question under the page's own archive rule, and counts what
+  # the page does not put on screen.
+
+  @corpus:good
+  Scenario: A ZOOM counts the matches its own file holds outside the subtree
+    # THE WORDING half of the fix. `pick` is on `hinges` and `knobs`, both in
+    # house.olai and neither under `handles`, plus one document — so two of the
+    # three the bar offers are in the file the reader is already standing in.
+    # The old sentence called all three "in other files", which a reader could
+    # check and find false in one click.
+    Given I open the node "handles"
+    When I filter the page by "pick"
+    Then the filter offers "· 3 more elsewhere — search everywhere"
+    # …and widening shows exactly those: the two same-file rows the zoom left
+    # out, under the file they live in.
+    When I widen the filter
+    Then the search groups are "house.olai"
+    And the search page lists the node "pick the hinges"
+    And the search page lists the node "pick the knobs"
+    And there should be no page errors
+
+  @scratch:good
+  Scenario: The TRASH counts the live matches it is not showing, not a difference
+    # The case that was WRONG rather than misworded. The trash's rows are
+    # archived; a directory-wide search leaves those out unless the query says
+    # `is:trashed`, so the two sets are disjoint — the old subtraction took live
+    # matches away for archived ones and the clamp at zero could hide the line
+    # altogether.
+    Given I open the outline "house.olai"
+    When I open the node menu of "install"
+    And I choose "Move to Trash" from the node menu
+    And I choose "Move to Trash" from the node menu
+    Then "_olai/Trash.olai" holds the node "install"
+    When I open the Trash
+    And I filter the page by "the"
+    # THE ARITHMETIC half of the fix, and the numbers say it exactly. Sixteen
+    # matches — live nodes and documents — are not on this page. Three archived
+    # rows hold "the" and ARE on it. The old formula subtracted the second from
+    # a directory total that had already left the archive out: 16 − 3 = 13,
+    # three short of the truth, and an archive bigger than the live answer drove
+    # it to zero and took the line off the bar altogether. The complement is 16.
+    Then the filter offers "· 16 more elsewhere — search everywhere"
+    And there should be no page errors
+
+  @corpus:good
+  Scenario: Back from the everywhere page returns to the page it was widened from
+    # Widening PUSHES where typing replaces: a keystroke narrows the page you
+    # are standing on, and this goes to a different one. Replaced, Back skipped
+    # the narrowed page it was opened from.
+    Given I open the outline "house.olai"
+    When I filter the page by "old"
+    And I widen the filter
+    Then the address is exactly "/search?q=old"
+    When I go back
+    Then the address is exactly "/house.olai?q=old"
+    And the filter box holds "old"
+    And there should be no page errors

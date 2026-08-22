@@ -1,76 +1,76 @@
 /**
- * HOW MANY MORE OF THIS QUERY THE DIRECTORY HOLDS — the number the widen line
- * says, and the truth a narrowed page could not tell on its own.
+ * HOW MUCH OF THIS QUERY THE PAGE IS NOT SHOWING — the widen line's number, and
+ * the one thing on the bar that is not about the page in front of somebody.
  *
  * `3 of 41` is honest about the page and silent about everything else. A reader
  * who types `#next` into one outline has no way of knowing the tag is on four
- * more nodes in two other files — which is exactly the complaint that produced
- * this whole change (docs/brainstorming/one-search-box.md). So the bar says the
+ * more nodes somewhere else — which is exactly the complaint that produced this
+ * whole change (docs/brainstorming/one-search-box.md). So the bar says the
  * difference, and the words after it are the way through.
  *
- * ## Where the number comes from, and why it is a CALL
+ * ## The number is the SERVER's, and that is a correction
  *
- * The wire's own uncapped `total`, off `search.nodes` asked with **no
- * `file`/`under` scope and `limit: 0`** — the whole directory, counted, no rows
- * carried — minus the nodes the page's own narrowing already selected. Never a
- * walk in this browser, which holds no vault to walk
- * (docs/brainstorming/vault-in-browser.md).
+ * This file used to compute it: `search.nodes` with no scope for a directory
+ * total, minus the size of this page's own narrowing. That is
+ * `|directory| − |page|`, which is the complement only where the page's matches
+ * are a subset of the directory's — and the reviewers of #334 constructed three
+ * pages where they are not. The trash is the sharp one: its rows are ARCHIVED
+ * nodes, which a directory-wide search leaves out unless the query says
+ * `is:trashed`, so the two sets are disjoint and the subtraction took live
+ * matches away for archived ones until the clamp at zero hid the line
+ * altogether.
  *
- * A PROCEDURE and not a stream, and this is the one trade the design makes
+ * A browser cannot fix that, because it cannot see the intersection. So the
+ * question is asked where both sets are (`@olai/format`'s `elsewhere.ts`), and
+ * what comes back is the complement itself: every node and document the query
+ * selects that this page does not draw. True on a zoom, on a day, on the
+ * agenda, on the trash.
+ *
+ * ## What is unchanged
+ *
+ * A PROCEDURE and not a stream, and it is the one trade the design makes
  * deliberately. The page's narrowing is a subscription because it is bounded by
  * the PAGE, so re-reading it on every published revision costs a page-sized
- * walk (docs/brainstorming/filter-rides-the-page.md). This number is bounded by
- * the CORPUS. On the revision pulse it would put a whole-vault match behind
- * every write while any page is filtered — which is the nine-walks-per-bulk-
- * gesture defect that design removed, re-created one line over. So it is asked
- * once per settled keystroke, behind the same 200ms every other box settles on,
- * and it does not move again until the words do. A hint a few seconds old is
- * honest; a regression is not.
- *
- * ## The subtraction, exactly
- *
- * NODES, not places. The page's answer is keyed by node id, so its `size` is
- * how many distinct nodes on this page the query selected — where the ROWS
- * could count one node twice, once at a mirror of it, and the difference would
- * be an "elsewhere" that shrank when somebody placed a mirror.
- *
- * CLAMPED AT ZERO, and it is not defensive: the trash page's narrowing can
- * select archived nodes that a directory-wide search leaves out unless the
- * query says `is:trashed` (docs/search.md), so the two counts are honestly
- * about slightly different sets there. A negative number is not news; no line
- * is.
- *
- * DOCUMENTS COUNT AS ELSEWHERE, and that falls out rather than being decided
- * here: `total` counts both kinds, a document is never a row of a page filter,
- * so every matched document survives the subtraction. Which is right — a `.md`
- * whose prose holds the word is precisely a thing the page in front of you
- * cannot show you.
+ * walk (docs/brainstorming/filter-rides-the-page.md). This is bounded by the
+ * CORPUS. On the revision pulse it would put a whole-vault match behind every
+ * write while any page is filtered — which is the nine-walks-per-bulk-gesture
+ * defect that design removed, re-created one file over. So it is asked once per
+ * settled keystroke, behind the same 200ms every other box settles on, and it
+ * does not move again until the words do. A hint a few seconds old is honest; a
+ * regression is not.
  */
 
 import { type Accessor, createMemo } from "solid-js"
 
-import type { Filter } from "@olai/format"
+import type { Filter, PageRequest } from "@olai/format"
+import { sameElsewhereRequest } from "@olai/format"
 
 import { createSettled } from "../settled.ts"
 import { olai } from "../wire.ts"
-import type { Matches } from "./matches.ts"
 
 /**
- * How many hits the counting ask carries back: none. The number is the
- * ANSWER's `total`, which is uncapped and travels beside the hits precisely so
- * that a door can say what it left out (`@olai/format`'s `SearchAnswer`) — so
- * this door asks for the sentence and pays for no rows at all.
- */
-const COUNT_ONLY = 0
-
-/**
- * HOW MANY MORE — `null` while nothing has answered.
+ * WHAT THE BAR KNOWS about the rest of the directory — three states, as a sum.
  *
- * ONE ACCESSOR and not a record holding one, which is the shape the consumer
- * asked for: `elsewhere.more()` is a double-deref for a reading with a single
- * fact in it, and a record is what a reading grows into when it has several
- * (`./asking.ts` has five, and each of them earns its name).
+ * A SUM rather than a nullable number, because the three are three different
+ * sentences and one of them used to be silent: a failed call, "nothing has
+ * answered yet" and "there is nothing more" all collapsed to `null`, so a
+ * `search.elsewhere` that fell over simply hid the door — which is the silent
+ * failure HACKING.md's error rule is about (both reviewers of #334 raised it).
  */
+export type Elsewhere =
+  /** Nothing has answered — the settle, the flight, or a query the grammar
+   *  refused and has already spoken for. */
+  | { readonly kind: "unknown" }
+  /** …and the answer, which may be none. */
+  | { readonly kind: "more"; readonly many: number }
+  /** The reading could not be taken, in the server's own words. */
+  | { readonly kind: "failed"; readonly because: string }
+
+/** Nothing known — ONE value, shared, because an unfiltered pane produces it on
+ *  every revision the store publishes and a fresh record per frame is a fresh
+ *  value for whatever memoises against it. */
+const UNKNOWN: Elsewhere = { kind: "unknown" }
+
 export const createElsewhere = (source: {
   /** What the grammar made of the box, parsed once by the pane — so an empty
    *  box and a query the grammar refused cost nothing at all, exactly as they
@@ -79,6 +79,16 @@ export const createElsewhere = (source: {
   /** …and the words themselves, which are what goes on the wire. */
   readonly text: Accessor<string>
   /**
+   * WHICH PAGE this is the complement OF — the pane's own request, the same
+   * value its rows are asked with.
+   *
+   * It is what makes the number true rather than nearly true: the server reads
+   * that page, asks the corpus the same question under the page's own archive
+   * rule, and counts what the page does not draw. `null` asks nothing, which is
+   * a pane with no page yet.
+   */
+  readonly page: Accessor<PageRequest | null>
+  /**
    * WHETHER THERE IS ANYWHERE WIDER TO GO — false on `/search`, which IS
    * everywhere, and false on a page that takes no filter.
    *
@@ -86,35 +96,41 @@ export const createElsewhere = (source: {
    * narrowable is `../routes.ts`'s one answer and the pane already holds it.
    */
   readonly widenable: Accessor<boolean>
-  /** What the page's own narrowing selected — `undefined` before it has said
-   *  anything. The subtrahend, and the reason this waits for it: a difference
-   *  taken against nothing would be the whole directory's count wearing the
-   *  word "more". */
-  readonly onPage: Accessor<Matches | undefined>
-}): Accessor<number | null> => {
+}): Accessor<Elsewhere> => {
   const asked = createSettled(
     // WHAT IS WORTH A TRIP: a query the grammar READ, on a page there is
     // somewhere wider than. An empty box and a refused query are both `asking`'s
     // absence (`@olai/format`'s `parseFilter` answers `nothing` for a box that
     // read no token at all), so this asks the parse rather than testing the
     // text a second time — one empty-box rule, in the one place that owns it.
-    () =>
-      source.widenable() && source.query().kind === "asking"
-        ? source.text().trim()
-        : null,
-    (text) => olai.procedures.search.nodes({ text, limit: COUNT_ONLY }),
+    () => {
+      const page = source.page()
+      if (page === null || !source.widenable() || source.query().kind !== "asking") {
+        return null
+      }
+      return { page, text: source.text().trim() }
+    },
+    (request) => olai.procedures.search.elsewhere(request),
+    // BY VALUE, for `./asking.ts`'s reason: a pane mints a fresh `PageRequest`
+    // on every revision the store publishes, and a question compared by
+    // reference would be a fresh round trip for an answer already on screen.
+    (was, is) =>
+      was === is ||
+      (was !== null && is !== null && sameElsewhereRequest(was, is)),
   )
 
-  return createMemo(() => {
+  return createMemo<Elsewhere>(() => {
+    // A FAILURE FIRST, because it is the one state that must not read as an
+    // answer: the door is still drawn, and it says it could not count rather
+    // than saying there is nothing more (`./count.ts`'s `widenSaid`).
+    const failed = asked.failure()
+    if (failed !== null) return { kind: "failed", because: failed }
     // WHILE THE ANSWER IS ABOUT SOMETHING ELSE, say nothing. `answering` is
     // `null` through the settle and the flight of a newer question, and a
-    // difference between the last query's total and this query's page is
-    // arithmetic across two moments — the very thing `./count.ts` exists to
-    // refuse.
-    if (asked.answering() === null) return null
-    const total = asked.answer()?.total
-    const here = source.onPage()
-    if (total === undefined || here === undefined) return null
-    return Math.max(0, total - here.size)
+    // number about the query before is a claim about a question nobody asked —
+    // the very thing `./count.ts` exists to refuse.
+    if (asked.answering() === null) return UNKNOWN
+    const answer = asked.answer()
+    return answer === undefined ? UNKNOWN : { kind: "more", many: answer.more }
   })
 }

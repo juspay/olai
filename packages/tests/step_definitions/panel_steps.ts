@@ -34,9 +34,6 @@ import {
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
-const HEADER_SEARCH = `[data-testid="header-search"]`;
-const HEADER_SEARCH_ITEM = `[data-testid="header-search-item"]`;
-const HEADER_SEARCH_ITEM_PROP = `[data-testid="header-search-item-prop"]`;
 const CHAT_PILL_TEXT = `[data-testid="chat-pill-text"]`;
 
 // ── desktop sidebar ────────────────────────────────────────────────────

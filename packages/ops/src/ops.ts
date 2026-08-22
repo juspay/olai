@@ -34,6 +34,8 @@ import {
   type NamedAnswer,
   type NamedRequest,
   type NarrowingAnswer,
+  type ElsewhereAnswer,
+  type ElsewhereRequest,
   type NarrowingRequest,
   type OpFailure,
   type Owed,
@@ -143,6 +145,22 @@ export interface Ops extends Asking {
   readonly narrowing: (
     request: NarrowingRequest,
   ) => Effect.Effect<NarrowingAnswer, OpFailure>
+  /**
+   * …and HOW MUCH OF THAT QUERY THE PAGE IS NOT SHOWING ({@link ./query.ts}'s
+   * `elsewhere`) — the number the widen line says, and the door it is.
+   *
+   * HERE FOR {@link narrowing}'s REASON: what comes back is a number useful
+   * only to somebody looking at the rows it is the complement of. An agent
+   * asking how much a query finds asks `search_nodes` and reads `total`.
+   *
+   * A PROCEDURE where that one is a stream, and the difference is what each is
+   * bounded by: a narrowing is bounded by the page, so re-reading it per
+   * published revision costs a page; this walks the corpus, so it is asked once
+   * per settled keystroke and left alone until the words move.
+   */
+  readonly elsewhere: (
+    request: ElsewhereRequest,
+  ) => Effect.Effect<ElsewhereAnswer, OpFailure>
   /**
    * WHICH of these ids the set declares, and what each one names ({@link
    * ./query.ts}'s `named`).
@@ -483,6 +501,11 @@ export const make = (options: Options): Ops => {
     // address names is a question about files as well as records.
     narrowing: (request) =>
       Effect.map(read, (at) => Query.narrowing(at, request, context.now())),
+    // …and the complement of it, over the same gated read and the same clock:
+    // both sets are here, which is the whole reason this is a member rather
+    // than a subtraction in the browser (`./query.ts`'s `elsewhere`).
+    elsewhere: (request) =>
+      Effect.map(read, (at) => Query.elsewhere(at, request, context.now())),
     // The transcript's backticks, over the same gated read and with no clock in
     // it: an id names what it names whatever day it is asked on.
     named: (request) => Effect.map(read, (at) => Query.named(at.derived, request)),

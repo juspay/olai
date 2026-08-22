@@ -236,3 +236,22 @@ test("the answer says which of its rows matched, and why", () => {
   // the page's dim is drawn from.
   expect(answer.matched.map((one) => String(one.id))).not.toContain("garden")
 })
+
+// The MATCH bound cuts a file rather than exempting the first one, which is
+// what both reviewers of #334 read as accidental in the shipped version: a
+// `break` guarded on "we have taken something already" let a first file of five
+// hundred hits draw all five hundred.
+test("a first file over the match bound is CUT to the bound, not exempted from it", () => {
+  const many = Object.fromEntries([["big.olai", Array.from(
+    { length: EVERYWHERE_LIMIT * 2 },
+    (_unused, index) => `{"id":"n${index}","ord":"a${String(index).padStart(4, "0")}","title":"widget ${index}"}`,
+  ).join("\n")]])
+  const set = derive(nodesOfFiles(many))
+  const answer = everywhereOf(set, documentsOf(["big.olai"]), "widget", TODAY)
+  expect(answer.matches).toBe(EVERYWHERE_LIMIT * 2)
+  expect(answer.drawn).toBe(EVERYWHERE_LIMIT)
+  // …and the file is still drawn, which is why the bound cuts rather than
+  // skips: a first file skipped outright is a page with nothing on it.
+  expect(answer.groups.map((group) => group.file)).toEqual(["big.olai"])
+  expect(answer.matched).toHaveLength(EVERYWHERE_LIMIT)
+})

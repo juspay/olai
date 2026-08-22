@@ -18,11 +18,14 @@
  * `order` means nothing until you can see what it is under, which is the whole
  * argument the filter already won.
  *
- * **Every row says why it is drawn**, and for free: this page is narrowable
- * like any other, so the narrowing beside it answers which rows the query
- * selected and the lit needles and the context dim come out of the same
- * `../filter/why.ts` the outline tree reads. There is no second highlighter
- * here and no `matched` field on these rows.
+ * **Every row says why it is drawn**, out of the same `../filter/why.ts` the
+ * outline tree reads — the lit needles, the context dim, the matched property
+ * first. What it reads is the reading's OWN `matched` list rather than a
+ * narrowing beside it: on every other page those are two readings on two
+ * clocks, and here the page IS the query, so a second one would be
+ * `everywhereOf` run again per revision to re-derive a match that pass already
+ * had in hand (`@olai/format`'s `everywhere.ts`). The pane opens no narrowing
+ * stream for this page at all, and there is no second highlighter here.
  *
  * ## What a row is, and what it is not
  *

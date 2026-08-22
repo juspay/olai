@@ -1,14 +1,19 @@
 /**
  * Node search, as a primitive — asked of the server, latest answer wins.
  *
- * ONE READING, TWO DOORS. The ⌘K palette and the header's search box are both
- * callers of this, drawing the same rows (`./Result.tsx`) from the same
- * procedure; neither has a matcher, a ranking rule or a debounce of its own.
- * That is the consistency doctrine one layer in from where it usually gets
- * argued: it already says an agent's `search_nodes` and the browser must not
- * drift, and a browser that grew a second in-house search would have broken
- * the same rule inside one process. It lives in `search/` rather than in
- * `palette/` because of that second door.
+ * ONE READING, EVERY PICKER. The edge panel, the move-to picker, the `((`
+ * widget and the chat composer's `@` are all callers of this, drawing the same
+ * rows (`./Result.tsx`) from the same procedure; none has a matcher, a ranking
+ * rule or a debounce of its own. That is the consistency doctrine one layer in
+ * from where it usually gets argued: it already says an agent's `search_nodes`
+ * and the browser must not drift, and a browser that grew a second in-house
+ * search would have broken the same rule inside one process.
+ *
+ * IT USED TO HAVE TWO SEARCH DOORS ON IT — the ⌘K palette and the header's
+ * box — and `one-search-box` deleted both: there is one search box in this app
+ * and its answer is a PAGE (docs/brainstorming/one-search-box.md). Every caller
+ * left names ONE node for an act, which is why none of them lists a total and
+ * why the file still lives in `search/`: what a picker asks for is a search.
  *
  * It is a hook rather than lines inside a component for the reason HACKING.md
  * gives twice: UI components stay encapsulated, and a browser should use the

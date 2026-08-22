@@ -834,6 +834,23 @@ export {
 } from "./everywhere.ts"
 
 /**
+ * HOW MUCH OF A QUERY A PAGE IS NOT SHOWING (./elsewhere.ts) — the number under
+ * the widen line, and the door it is.
+ *
+ * Public because it crosses, and computed HERE rather than by subtracting two
+ * answers in a browser for the reason that file argues: the complement is only
+ * a subtraction where the page's matches are a subset of the directory's, and
+ * the trash, a zoom and a day are each a page where they are not.
+ */
+export {
+  ElsewhereAnswer,
+  /** WHAT A PAGE IS NOT SHOWING, over one revision of one set. */
+  elsewhereOf,
+  ElsewhereRequest,
+  sameElsewhereRequest,
+} from "./elsewhere.ts"
+
+/**
  * WHICH OF THAT PAGE'S NODES A QUERY SELECTS (./narrowing.ts) — the reading
  * beside the one above, and what a filter box is answered with.
  *

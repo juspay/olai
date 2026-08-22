@@ -237,7 +237,7 @@ A `.md` file under the served directory is a **document**, and documents are par
 
 **The top level of that file is the shelf, in `ord` order.** One node per pin. What is nested under a pin is that pin's own business — notes about it, a checklist — and is not a second row in the sidebar.
 
-**The title is the address this app would spell for that page.** An address is `[document]#[element]`, the format's own grammar (`@olai/format`'s `address.ts`), with a slash in front of it: `/#<id>` a node, `/<path>` a document — a `.md`, a `.html` or an outline, the suffix says which page it opens — and `/<path>#<slug>` a heading inside one. Beside them are the pages that name nothing on disk, which are the app's own ([architecture.md](architecture.md)): `/d/<ISO>` a day, `/today`, `/agenda`, `/trash`. Each may carry `?q=<filter>`, which is how a **saved query** is a pin at all ([search.md](search.md)).
+**The title is the address this app would spell for that page.** An address is `[document]#[element]`, the format's own grammar (`@olai/format`'s `address.ts`), with a slash in front of it: `/#<id>` a node, `/<path>` a document — a `.md`, a `.html` or an outline, the suffix says which page it opens — and `/<path>#<slug>` a heading inside one. Beside them are the pages that name nothing on disk, which are the app's own ([architecture.md](architecture.md)): `/d/<ISO>` a day, `/today`, `/agenda`, `/trash`, and `/search`, which is the whole directory asked one question. Each may carry `?q=<filter>`, which is how a **saved query** is a pin at all — and on `/search` the query is the page, so `[Everything next](/search?q=%23next)` is a saved CROSS-VAULT search on the shelf ([search.md](search.md)).
 
 ```jsonl
 {"id":"p-herbs","ord":"a0","title":"/#herbs"}

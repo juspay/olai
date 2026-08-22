@@ -58,7 +58,7 @@ test("nothing drawn and something hidden drops the word `more`", () => {
 const COUNTS = { shown: 8, held: 57, hiddenAsDone: 0 }
 /** What the bar is looking at on an ordinary narrowed page — the numbers, and
  *  nothing known yet about the rest of the directory. */
-const ON_A_PAGE: Found = { kind: "page", counts: COUNTS, elsewhere: null }
+const ON_A_PAGE: Found = { kind: "page", counts: COUNTS, elsewhere: { kind: "unknown" } }
 
 test("rows that answer what is typed are described by the numbers", () => {
   expect(countSaid({ answering: "walnut", failure: null, found: ON_A_PAGE }))
@@ -99,8 +99,28 @@ test("a failure after an answer does not take the answer's numbers away", () => 
 // through (docs/brainstorming/one-search-box.md).
 
 test("the widen line says how many more, and is the door to them", () => {
-  expect(widenSaid(12)).toBe("· 12 more in other files — search everywhere")
-  expect(widenSaid(1)).toBe("· 1 more in other files — search everywhere")
+  expect(widenSaid({ kind: "more", many: 12 }))
+    .toBe("· 12 more elsewhere — search everywhere")
+  expect(widenSaid({ kind: "more", many: 1 }))
+    .toBe("· 1 more elsewhere — search everywhere")
+})
+
+// "ELSEWHERE" and not "in other files", and the word is load-bearing: what the
+// server answers is the COMPLEMENT of what this page draws, which on a zoom
+// includes matches in the page's OWN file outside the subtree, and on a day or
+// the agenda includes matches in files the page is already drawing rows from.
+// Both reviewers of #334 constructed those.
+test("the sentence never claims the matches are in another FILE", () => {
+  expect(widenSaid({ kind: "more", many: 12 })).not.toContain("file")
+})
+
+// The state that used to be silent: a refused call, "nothing yet" and "nothing
+// more" all drew no line, so a failed count hid the door and read exactly like
+// a page that was the whole answer. The door stays pressable — not knowing how
+// much is elsewhere is no reason not to go and look.
+test("a count that could not be taken says so, and is still the door", () => {
+  expect(widenSaid({ kind: "failed", because: "the wire is gone" }))
+    .toBe("· could not count the rest — search everywhere")
 })
 
 // The zero rule this file already keeps, read once more — and here it costs
@@ -108,14 +128,14 @@ test("the widen line says how many more, and is the door to them", () => {
 // leads nowhere new. A number the reader has to take in before they can ignore
 // it is worse than no number.
 test("nothing elsewhere says nothing at all", () => {
-  expect(widenSaid(0)).toBe(null)
+  expect(widenSaid({ kind: "more", many: 0 })).toBe(null)
 })
 
 // …and neither does a number nobody has answered yet: the count is a second
 // question with a round trip of its own, and "0 more" while waiting would be
 // answering it before it had been answered.
 test("an unknown count says nothing rather than guessing at zero", () => {
-  expect(widenSaid(null)).toBe(null)
+  expect(widenSaid({ kind: "unknown" })).toBe(null)
 })
 
 // ── the everywhere page's own sentence ────────────────────────────────

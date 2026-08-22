@@ -27,6 +27,8 @@
  * they can ignore it.
  */
 
+import type { Elsewhere } from "./elsewhere.ts"
+
 /**
  * The three numbers a filtered page knows about itself
  * (`./narrowing.ts` derives all three from the sets the page is drawn from).
@@ -111,8 +113,9 @@ export type Found =
   | {
     readonly kind: "page"
     readonly counts: Counts
-    /** `null` while nothing has answered that question yet. */
-    readonly elsewhere: number | null
+    /** …and what the rest of the directory holds, in the three states that
+     *  question can be in (`./elsewhere.ts`). */
+    readonly elsewhere: Elsewhere
   }
   /** The everywhere page, whose own reading counts itself
    *  (`../search/said.ts`). */
@@ -155,13 +158,22 @@ export const countSaid = (said: {
 
 /**
  * THE DOOR THAT WIDENS, as the sentence it is drawn as — `null` when there is
- * nothing behind this page to widen TO.
+ * nothing to say.
  *
  * It is the truth the bar was missing: `3 of 41` is honest about the page and
- * silent about the directory, and a reader who has typed `#next` into one
+ * silent about everything else, and a reader who has typed `#next` into one
  * outline has no way of knowing the tag is on four more nodes somewhere else.
  * So the number goes beside the count and the words after it are the way
  * through (docs/brainstorming/one-search-box.md).
+ *
+ * "ELSEWHERE" AND NOT "IN OTHER FILES", and the correction is the number's as
+ * much as the copy's. What the server answers is the COMPLEMENT — every match
+ * this page does not draw (`@olai/format`'s `elsewhere.ts`) — and on three
+ * pages that is not "another file": a zoom leaves matches in its OWN file
+ * outside the subtree, and a day and the agenda draw rows from several files
+ * already, so a match in one of those files can still be one the page is not
+ * showing. Both reviewers of #334 constructed those; the word is now true
+ * wherever the line is drawn.
  *
  * NOTHING FOR A ZERO, which is this file's own rule about a part that is zero
  * read once more — and it costs nothing here: the page in front of the reader
@@ -169,11 +181,26 @@ export const countSaid = (said: {
  * because a key that works only sometimes is worse than a line that appears
  * only sometimes.
  *
- * NOTHING WHILE IT IS UNKNOWN either (`null` elsewhere): the count is a second
- * question with a round trip of its own, and a bar that said "0 more" while
- * waiting would be answering it before it had been answered.
+ * NOTHING WHILE IT IS UNKNOWN either: the count is a second question with a
+ * round trip of its own, and a bar that said "0 more" while waiting would be
+ * answering it before it had been answered.
+ *
+ * …AND A SENTENCE WHEN IT FAILED, which is the state that used to be silent.
+ * A refused call, "nothing yet" and "nothing more" all drew no line, so a
+ * `search.elsewhere` that fell over hid the door and looked exactly like a page
+ * that was the whole answer — the silent failure HACKING.md's error rule is
+ * about. The door stays pressable: not knowing how much is elsewhere is no
+ * reason not to go and look.
  */
-export const widenSaid = (elsewhere: number | null): string | null =>
-  elsewhere === null || elsewhere <= 0
-    ? null
-    : `· ${elsewhere} more in other files — search everywhere`
+export const widenSaid = (elsewhere: Elsewhere): string | null => {
+  switch (elsewhere.kind) {
+    case "unknown":
+      return null
+    case "failed":
+      return "· could not count the rest — search everywhere"
+    case "more":
+      return elsewhere.many <= 0
+        ? null
+        : `· ${elsewhere.many} more elsewhere — search everywhere`
+  }
+}

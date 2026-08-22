@@ -42,6 +42,9 @@ import {
   DEFAULT_SEARCH_LIMIT,
   DEFAULT_SUBTREE_DEPTH,
   documentHitOf,
+  type ElsewhereAnswer,
+  elsewhereOf,
+  type ElsewhereRequest,
   type DatedAnswer,
   datedAnswer,
   type DatedRequest,
@@ -410,6 +413,28 @@ export const narrowing = (
   now: string,
 ): NarrowingAnswer =>
   narrowingOf(at.derived, at.set.documents, at.set.broken, request, now)
+
+/**
+ * HOW MUCH OF THAT QUERY THE PAGE IS NOT SHOWING — the widen line's number.
+ *
+ * The envelope, like the two above it; `@olai/format`'s `elsewhereOf` is where
+ * it is argued and tested. What is worth saying HERE is why it is a member at
+ * all rather than the browser subtracting {@link search}'s `total` from its own
+ * narrowing: the complement is a subtraction only where the page's matches are
+ * a subset of the directory's, and the trash is a page where they are disjoint.
+ * Both sets exist on this side; neither does over there.
+ *
+ * A PROCEDURE and not a stream, unlike the narrowing beside it: that one is
+ * bounded by the page and rides the revision pulse, and this one walks the
+ * corpus. Asked once per settled keystroke.
+ */
+export const elsewhere = (
+  at: Reading,
+  request: ElsewhereRequest,
+  /** {@link search}'s own argument, and the same clock. */
+  now: string,
+): ElsewhereAnswer =>
+  elsewhereOf(at.derived, at.set.documents, at.set.broken, request, now)
 
 // ── which ids the set declares ─────────────────────────────────────────
 

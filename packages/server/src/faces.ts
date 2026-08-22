@@ -257,6 +257,10 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   "chat.decline": "tool",
   "edit.apply": "tool",
   "search.nodes": "tool",
+  // …and the widen line's number, which is the browser's alone for the reason
+  // `narrowing` is: it is the complement of what ONE SCREEN is showing, and an
+  // agent asking how much a query finds asks `search_nodes` and reads `total`.
+  "search.elsewhere": "tool",
   "nodes.named": "tool",
   "nodes.homes": "tool",
   "vocabulary.tags": "tool",

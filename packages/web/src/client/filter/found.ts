@@ -30,14 +30,14 @@
 
 import { type Accessor, createMemo } from "solid-js"
 
-import type { Filter } from "@olai/format"
+import type { Filter, PageRequest } from "@olai/format"
 
 import { only } from "../narrow.ts"
 import type { Drawn } from "../page.ts"
 import { everywhereLine } from "../search/said.ts"
 import type { Counts, Found } from "./count.ts"
 import { createElsewhere } from "./elsewhere.ts"
-import type { Matches } from "./matches.ts"
+
 
 export const createFound = (source: {
   /** What the grammar made of the box, parsed once by the pane. */
@@ -53,9 +53,17 @@ export const createFound = (source: {
   readonly drawn: Accessor<Drawn>
   /** The page's own three numbers, for every other page. */
   readonly counts: Accessor<Counts>
-  /** What this page's narrowing selected — the subtrahend the elsewhere count
-   *  is taken against. */
-  readonly matched: Accessor<Matches | undefined>
+  /**
+   * WHICH PAGE this is, as the pane's own request — what the elsewhere count is
+   * the complement OF.
+   *
+   * It used to be the page's own matched ids, and the count a subtraction over
+   * them; that is the complement only where the page's matches are a subset of
+   * the directory's, and the trash is a page where they are disjoint. The
+   * server holds both sets (`@olai/format`'s `elsewhere.ts`), so what crosses
+   * is the question rather than half of an answer.
+   */
+  readonly page: Accessor<PageRequest | null>
 }): Accessor<Found> => {
   /** IS THIS THE EVERYWHERE PAGE? Read off the page's own READING rather than
    *  off a route, so the ask below and the sentence beside it cannot disagree
@@ -65,10 +73,10 @@ export const createFound = (source: {
   const elsewhere = createElsewhere({
     query: source.query,
     text: source.text,
+    page: source.page,
     // ANYWHERE WIDER TO GO? Not on `/search`, which IS everywhere, and not on a
     // page that takes no filter, which has no box.
     widenable: () => source.narrowable() && everywhere() === undefined,
-    onPage: source.matched,
   })
 
   return createMemo((): Found => {

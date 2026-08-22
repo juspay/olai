@@ -953,7 +953,15 @@ export const bind = (
         // declaration, `@olai/format`'s, which is the only arrangement under
         // which this line could not be quietly returning more than the wire
         // carries.
-        search: { nodes: ({ input }) => wiring.ops.search(input) },
+        search: {
+          nodes: ({ input }) => wiring.ops.search(input),
+          // …and the complement of what one PAGE is showing, which is a second
+          // question about the same matcher and cannot be asked as arithmetic
+          // over the answer above: the page's matches are a subset of the
+          // directory's on a live outline and disjoint from them on the trash
+          // (`@olai/format`'s `elsewhere.ts`). Both sets are here.
+          elsewhere: ({ input }) => wiring.ops.elsewhere(input),
+        },
         // The COMPLETION's door, and the same restraint a third time: the row
         // editor used to enumerate the tag vocabulary out of the browser's own
         // copy of the set, which is the copy `vault-in-browser` is taking away.

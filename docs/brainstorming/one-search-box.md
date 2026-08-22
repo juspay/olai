@@ -19,16 +19,23 @@ Typing narrows the page in front of you, exactly as before. What is new is one
 line under the count:
 
 ```
-3 of 41 · 12 more in other files — search everywhere
+3 of 41 · 12 more elsewhere — search everywhere
 ```
 
 That line is the door. It says the truth the bar was missing — the query you
 typed matches things you cannot see — and pressing it widens the SAME query to
 `/search?q=…`. **The query text is never retyped.**
 
+**Widening PUSHES, where typing replaces.** The two look alike and are not: a
+keystroke narrows the page you are standing on, so Back should leave the filter
+rather than un-type it a letter at a time — but widening goes to a DIFFERENT
+PAGE, and Back is the inverse of going somewhere. Replaced, Back from `/search`
+skipped the narrowed page it was opened from, which is the one place a reader
+would expect to land.
+
 **Enter widens too**, and that is the shortcut. The filter box is the one search
 box in this app with no list under it, so `Enter` there was free; it now means
-*and now everywhere*. A hand that typed a query, read "12 more in other files"
+*and now everywhere*. A hand that typed a query, read "12 more elsewhere"
 and pressed Enter is on the everywhere page with the words still in the box.
 Escape still empties the box and gives the page the caret back.
 
@@ -38,9 +45,10 @@ On `/search` itself Enter does nothing: there is nowhere wider to go.
 
 | scope | the bar |
 |---|---|
-| a page, matches elsewhere | `3 of 41` · `12 more in other files — search everywhere` |
+| a page, matches elsewhere | `3 of 41` · `12 more elsewhere — search everywhere` |
 | a page, nothing elsewhere | `3 of 41` — and no second line at all |
 | a page, nothing answered yet | `filtering…` — the widen line waits with it |
+| a page, the count could not be taken | `3 of 41` · `could not count the rest — search everywhere` |
 | `/search`, matches | `12 matches in 3 files` |
 | `/search`, matches and documents | `12 matches in 3 files · 2 documents` |
 | `/search`, nothing | `no matches` |
@@ -57,13 +65,27 @@ your query emptied it; the directory holds no answer at all.
 
 ### Where the "12 more" comes from
 
-Not from a browser walk — this browser holds no vault to walk
-([vault-in-browser.md](vault-in-browser.md)). It is the wire's own uncapped
-`total`, off `search.nodes` asked with **no `file`/`under` scope and
-`limit: 0`**, minus the nodes the page's own narrowing already selected
-(`Matches.size` — distinct nodes, not places, so a node drawn twice by a mirror
-is not subtracted twice). Clamped at zero, because the trash page can match
-archived nodes a directory-wide search leaves out.
+**The COMPLEMENT: every match this page does not draw.** Not "in other files",
+not "in the directory" — and the word matters, because the first version of
+this shipped as a subtraction and both reviewers of #334 constructed pages where
+it was wrong:
+
+- **The trash.** Its rows are ARCHIVED nodes; a directory-wide search leaves
+  those out unless the query says `is:trashed`. The two sets are disjoint, so
+  `|directory| − |page|` took live matches away for archived ones — ten archived
+  and three live read as `max(0, 3 − 10) = 0`, and the bar went silent while
+  `/search` would have shown the three.
+- **A zoom.** Matches in the SAME file outside the subtree are not on the page
+  and are not in another file either.
+- **A day, and the agenda.** Their rows come from several files already, so a
+  match in one of those files can still be one the page is not showing.
+
+A browser cannot fix any of that: it holds the page's ids and a total, and never
+the intersection. So the question is asked where both sets are — `search.elsewhere`
+(`@olai/format`'s `elsewhere.ts`), which reads the page, asks the corpus the same
+question under **the page's own archive rule**, and counts what the page does not
+put on screen. That last phrase is exact: a zoom's own node is its heading rather
+than a row, and it counts as shown.
 
 **It is a CALL and not a subscription, and that is the one trade this design
 makes deliberately.** The page's narrowing rides the revision pulse
@@ -74,6 +96,13 @@ is precisely the nine-walks-per-bulk-gesture defect that design removed. So it
 is asked once per settled keystroke, behind the same 200ms settle, and it does
 not move again until the words do. A hint that is a few seconds old is honest;
 a regression that walks the vault nine times for a bulk edit is not.
+
+**And a count that could not be taken says so.** A refused call used to draw the
+same nothing as "not yet" and "nothing more", which hid the door and read like a
+page that was the whole answer — the silent failure HACKING.md's error rule is
+about. The line reads `· could not count the rest — search everywhere` and is
+still pressable: not knowing how much is elsewhere is no reason not to go and
+look.
 
 ## `/search?q=…` is a real page
 
@@ -132,8 +161,16 @@ No silent cap — and TWO bounds, because one of them is not one. `EVERYWHERE_LI
 bring with them, since a match keeps its whole subtree and a single hit on a
 file's root would otherwise put that file's every node on the wire. Both are
 applied file by file in the set's own path order, so what is dropped is the tail
-of the directory rather than a sample of each file, and the first group is
-exempt from the row budget because one big answer beats none.
+of the directory rather than a sample of each file.
+
+They are applied differently, and the difference is the one thing about the caps
+that is easy to get wrong. The MATCH bound **cuts** a file: a first outline
+holding five hundred hits draws two hundred of them, because skipping it outright
+would be a page with nothing on it and exempting it would be no bound at all
+(the first version did exempt it, and both reviewers of #334 read that as
+accidental). The ROW bound is the one with a carve-out, and only for the FIRST
+group: a match keeps its subtree, so a hit on a big file's root would draw
+nothing under a hard cap, and one big answer beats none.
 
 Neither is silent: `matches` is the uncapped number and `drawn` is what the
 groups hold, so whichever bound bit, the bar reads
