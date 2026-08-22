@@ -105,6 +105,51 @@ const OUTLINE = `{"id":"a","ord":"a0","title":"a"}\n`
  *  snapshot at all, which is the state the manifest's `null` is for. */
 const REFUSED = `{"id":"a","parent":"nowhere","ord":"a0","title":"a"}\n`
 
+/**
+ * Drain a stream onto a queue, and do not return until the subscription is
+ * attached.
+ *
+ * `forkChild` without `startImmediately` only SCHEDULES the consumer, so a
+ * publish on this fiber can land on zero subscribers: the stream's snapshot is
+ * then already the post-publish value, and a wait for two frames hangs on a
+ * second one that will never come. Starting the child on this stack runs it
+ * until it parks on the next frame — subscribe, then the snapshot — which is
+ * the same barrier taking a frame is, and the only one a not-yet-born key has
+ * (there is no snapshot to take).
+ */
+const watching = <A>(
+  stream: Stream.Stream<A>,
+): Effect.Effect<{
+  readonly take: Effect.Effect<A>
+  readonly reader: Fiber.Fiber<void>
+}> =>
+  Effect.gen(function*() {
+    const frames = yield* Queue.unbounded<A>()
+    const reader = yield* Effect.forkChild(
+      Stream.runForEach(stream, (frame) => Queue.offer(frames, frame)),
+      { startImmediately: true },
+    )
+    return { take: Queue.take(frames), reader }
+  })
+
+/** One body-carrying subscription, drained onto a queue so a test can wait for
+ *  a FRAME rather than for a duration: taking one proves the subscription is
+ *  open and says what it was handed. The fiber is a child of the test's scope,
+ *  so it is interrupted with it — which is the release, and which is what two of
+ *  the tests below are about. */
+const opening = (
+  bound: Bound,
+  key: string,
+): Effect.Effect<
+  { readonly frame: Effect.Effect<DocumentEntry>; readonly reader: Fiber.Fiber<void> }
+> =>
+  Effect.gen(function*() {
+    const get = bound.handlers["surface/documents/get"]
+    if (get === undefined) throw new Error("the documents collection has no `get`")
+    const open = yield* watching(get({ key }) as Stream.Stream<DocumentEntry>)
+    return { frame: open.take, reader: open.reader }
+  })
+
 test("a face served under another writer differs by exactly the members that record one", () =>
   withRuntime({ "a.olai": OUTLINE }, ({ wired, ops }) =>
     Effect.gen(function*() {
@@ -183,28 +228,26 @@ test("a reader watching a head is told the file moved, and no body is read", () 
         const get = wired.bound.handlers["surface/heads/get"]
         if (get === undefined) throw new Error("the heads collection has no `get`")
 
-        // TWO frames: the one this subscription opens with, and the one the
-        // rewrite below produces. Collected on a fiber of its own, because the
-        // second one cannot arrive until the probe has run.
-        const watching = yield* Effect.forkChild(
-          Stream.runCollect(
-            Stream.take(get({ key: "report.html" }) as Stream.Stream<Head>, 2),
-          ),
-        )
+        // The snapshot frame is the barrier: taking it says the subscription is
+        // open. Fork-and-refresh without that wait is how this test hung — the
+        // probe published, the late subscriber snapshotted the new head, and
+        // `Stream.take(2)` waited forever for a second frame.
+        const open = yield* watching(get({ key: "report.html" }) as Stream.Stream<Head>)
+        const first = yield* open.take
 
         fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
         yield* store.refresh
+        const second = yield* open.take
 
-        const frames = [...yield* Fiber.join(watching)]
         // A revision, a face and whether the file parsed — and NO BODY, no
         // `text` key at all, not even a `null`. That is the whole of what this
         // member is for: what the file IS and when it moved, without the
         // megabytes of a saved page.
-        expect(frames.map((frame) => Object.keys(frame))).toEqual([
+        expect([first, second].map((frame) => Object.keys(frame))).toEqual([
           ["rev", "face", "broken"],
           ["rev", "face", "broken"],
         ])
-        expect(frames[0]?.rev).toBeLessThan(frames[1]?.rev ?? 0)
+        expect(first.rev).toBeLessThan(second.rev)
 
         // THE POINT. The file changed under a reader who is watching it, and
         // nothing opened it: no body was read, so none was sent, and nobody
@@ -212,28 +255,6 @@ test("a reader watching a head is told the file moved, and no body is read", () 
         expect(reads).toEqual([])
       }),
   ))
-
-/** One body-carrying subscription, drained onto a queue so a test can wait for
- *  a FRAME rather than for a duration: taking one proves the subscription is
- *  open and says what it was handed. The fiber is a child of the test's scope,
- *  so it is interrupted with it — which is the release, and which is what two of
- *  the tests below are about. */
-const opening = (
-  bound: Bound,
-  key: string,
-): Effect.Effect<
-  { readonly frame: Effect.Effect<DocumentEntry>; readonly reader: Fiber.Fiber<void> }
-> =>
-  Effect.gen(function*() {
-    const get = bound.handlers["surface/documents/get"]
-    if (get === undefined) throw new Error("the documents collection has no `get`")
-    const frames = yield* Queue.unbounded<DocumentEntry>()
-    const reader = yield* Effect.forkChild(
-      Stream.runForEach(get({ key }) as Stream.Stream<DocumentEntry>, (frame) =>
-        Queue.offer(frames, frame)),
-    )
-    return { frame: Queue.take(frames), reader }
-  })
 
 /**
  * The live half of a held body: the file is rewritten under a reader who has it
@@ -297,14 +318,11 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
 
         const heads = wired.bound.handlers["surface/heads/get"]
         if (heads === undefined) throw new Error("the heads collection has no `get`")
-        const moved = yield* Effect.forkChild(
-          Stream.runCollect(
-            Stream.take(heads({ key: "report.html" }) as Stream.Stream<Head>, 2),
-          ),
-        )
+        const moved = yield* watching(heads({ key: "report.html" }) as Stream.Stream<Head>)
+        yield* moved.take
         fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
         yield* store.refresh
-        yield* Fiber.join(moved)
+        yield* moved.take
 
         // The barrier: a body asked for by a reader who IS here, which the
         // serial reader cannot answer before anything the revision asked for.
@@ -338,7 +356,10 @@ test("a reader holding a key across a file's birth is handed the body", () =>
 
       // TWO frames, in this order: the upsert that says the collection has a new
       // key (which cannot carry a body — nothing has read one), and the body
-      // read for the reader holding it.
+      // read for the reader holding it. A late subscriber — the subscription
+      // scheduled but not yet attached — sees only the body, which is the
+      // documented "opens afterwards" path; `watching` attaches first so this
+      // is the holder-across-birth path.
       expect(yield* open.frame).toEqual({ rev: 2, text: null, refused: false })
       expect(yield* open.frame).toEqual({
         rev: 2,
@@ -417,24 +438,22 @@ test("a directory that never loaded publishes no head, and the first head is the
       if (said === undefined) throw new Error("the manifest cell has no `get`")
       if (framed === undefined) throw new Error("the heads collection has no `deltas`")
 
-      // TWO frames each, on fibers of their own: the one the subscription
-      // opens with — over a set that has never validated — and the one the
-      // repair below produces. The same shape the tests above use, and for the
-      // same reason: the second cannot arrive until the probe has run.
-      const heads = yield* Effect.forkChild(
-        Stream.runCollect(
-          Stream.take(framed({}) as Stream.Stream<CollectionDeltasMsg<string, Head>>, 2),
-        ),
+      // The snapshot frames are the barrier: taking them says both
+      // subscriptions are open over the never-validated set. Fork-and-refresh
+      // without that wait is how this test hung — the probe published a set,
+      // the late subscribers snapshotted it, and `Stream.take(2)` waited
+      // forever for a second frame.
+      const heads = yield* watching(
+        framed({}) as Stream.Stream<CollectionDeltasMsg<string, Head>>,
       )
-      const manifest = yield* Effect.forkChild(
-        Stream.runCollect(Stream.take(said({}) as Stream.Stream<Manifest>, 2)),
-      )
+      const manifest = yield* watching(said({}) as Stream.Stream<Manifest>)
+      const opened = yield* heads.take
+      const never = yield* manifest.take
 
       fs.writeFileSync(path.join(root, "a.olai"), OUTLINE)
       yield* store.refresh
-
-      const [opened, arrived] = [...yield* Fiber.join(heads)]
-      const [never, loaded] = [...yield* Fiber.join(manifest)]
+      const arrived = yield* heads.take
+      const loaded = yield* manifest.take
 
       // A SET THAT NEVER VALIDATED: the settled `null`, and a snapshot with
       // nothing in it. Not one head — which is the whole claim.
@@ -461,20 +480,17 @@ test("the shelf is answered per revision, so a rename elsewhere renames the pin"
         const get = wired.bound.handlers["surface/pins/get"]
         if (get === undefined) throw new Error("the pins cell has no `get`")
 
-        // TWO frames: the one this subscription opens with, and the one the
-        // rewrite below produces. On a fiber of its own, because the second
-        // cannot arrive until the probe has run.
-        const watching = yield* Effect.forkChild(
-          Stream.runCollect(Stream.take(get({}) as Stream.Stream<Shelf>, 2)),
-        )
+        const open = yield* watching(get({}) as Stream.Stream<Shelf>)
+        const first = yield* open.take
 
         // The pinned node is retitled in the file it lives in — which is not
         // the shelf's file, and is the whole point: nothing about `Pins.olai`
         // changed.
         fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"b"}\n`)
         yield* store.refresh
+        const second = yield* open.take
 
-        expect([...yield* Fiber.join(watching)]).toEqual([
+        expect([first, second]).toEqual([
           [{ id: "p", title: "/#a", shows: { id: "a", name: "a" } }],
           [{ id: "p", title: "/#a", shows: { id: "a", name: "b" } }],
         ])
@@ -509,12 +525,8 @@ test("a revision that changes no pin sends no frame", () =>
       Effect.gen(function*() {
         const get = wired.bound.handlers["surface/pins/get"]
         if (get === undefined) throw new Error("the pins cell has no `get`")
-        const frames = yield* Queue.unbounded<Shelf>()
-        yield* Effect.forkChild(
-          Stream.runForEach(get({}) as Stream.Stream<Shelf>, (frame) =>
-            Queue.offer(frames, frame)),
-        )
-        expect(yield* Queue.take(frames)).toEqual([
+        const open = yield* watching(get({}) as Stream.Stream<Shelf>)
+        expect(yield* open.take).toEqual([
           { id: "p", title: "/#a", shows: { id: "a", name: "a" } },
         ])
 
@@ -525,7 +537,7 @@ test("a revision that changes no pin sends no frame", () =>
         fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"b"}\n`)
         yield* store.refresh
 
-        expect(yield* Queue.take(frames)).toEqual([
+        expect(yield* open.take).toEqual([
           { id: "p", title: "/#a", shows: { id: "a", name: "b" } },
         ])
       }),
