@@ -583,9 +583,9 @@ test("a character reference is not read as lost text", () => {
   expect(html.replace(/&#x26;|&amp;/g, "&")).toBe("Tom & Jerry")
 })
 
-// The renderer reads the title through `bracketSpacedLinks` (@olai/format), so
-// the accounting has to read the same string: `(my file.md)` is a destination
-// to the renderer and would be literal text to a plain parse.
+// Both readings of a title go through `bracketSpacedLinks` (@olai/format, in
+// pipeline.ts), so they read one string: `(my file.md)` is a destination to
+// the render and would be literal text to a parse that skipped it.
 test("a link whose destination holds a space still renders", () => {
   const html = renderTitle("see [the spec](my file.md)", NOTE)
   expect(html).toContain("the spec")
