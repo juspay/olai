@@ -50,7 +50,7 @@ import { describe, expect, test } from "bun:test"
 
 import type { NodeChange } from "./changes.ts"
 import { noteDateOf } from "./dates.ts"
-import { OUTLINE_EXT, stemOf } from "./kinds.ts"
+import { bareOf, OUTLINE_EXT, stemOf } from "./kinds.ts"
 import { composed } from "./message.ts"
 
 /** `./message.ts`'s retired private `stemOf`: the basename, and the suffix taken
@@ -199,5 +199,43 @@ describe("what each caller actually passes", () => {
     expect(noteDateOf("2026-08-11.olai")).toBeNull()
     expect(noteDateOf("2026-08-11.html")).toBeNull()
     expect(noteDateOf("2026-08-11")).toBeNull()
+  })
+})
+
+/**
+ * THE SAME CUT WITH THE PATH LEFT WHOLE, which is the half {@link stemOf} is
+ * made of now rather than a second reading beside it.
+ *
+ * Its caller is a box that offers a name back to be TYPED — the sidebar's
+ * refusal for a name carrying the wrong kind's suffix (`@olai/web`'s
+ * `file/completing.ts`) — and a stem there would be advice that moves the file:
+ * "type `plan`" for a `notes/plan.md` mints `plan.olai` at the root.
+ */
+describe("the suffix off a path, and the same off a name", () => {
+  test("bareOf keeps every directory above the file", () => {
+    expect(bareOf("notes/plan.md")).toBe("notes/plan")
+    expect(bareOf("Daily/2026/08/2026-08-12.md")).toBe("Daily/2026/08/2026-08-12")
+    expect(bareOf("plan.olai")).toBe("plan")
+    expect(bareOf("report.html")).toBe("report")
+  })
+
+  // Same rule about the END of the name: a suffix the registry does not claim
+  // is part of the name, so nothing comes off at all.
+  test("a file no kind claims is handed back whole, path and all", () => {
+    expect(bareOf("notes/README")).toBe("notes/README")
+    expect(bareOf("plan v1.2")).toBe("plan v1.2")
+    expect(bareOf("art/handle.png")).toBe("art/handle.png")
+  })
+
+  // The one relationship worth pinning, because it is what makes them one rule:
+  // the stem is this answer over the basename, so the two can never take a
+  // different number of characters off one name.
+  test("a stem is this answer over the basename", () => {
+    for (const path of ["notes/plan.md", "a/b/c.olai", "README", "x/y/plan v1.2", "r.html"]) {
+      expect({ path, stem: stemOf(path) }).toEqual({
+        path,
+        stem: bareOf(path.slice(path.lastIndexOf("/") + 1)),
+      })
+    }
   })
 })

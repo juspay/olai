@@ -43,6 +43,29 @@ Feature: Inline markdown in titles
     And the node "demo" has the title "nor a list item"
     And there should be no page errors
 
+  Scenario: A title nests one emphasis inside the other, and a filter lights inside it
+    # `plain-estimate-nested-emphasis`. The renderer never had this bug — the
+    # CHECK above it did: a title is drawn as its own escaped source when the
+    # pipeline lost words the source still accounts for, and "accounts for"
+    # was measured with regexes that could not read `**b *c* d**`. A perfect
+    # rendering was thrown away, marks and all, and the escaped source lights
+    # nothing — so a row the filter had selected drew no reason for being in
+    # front of anybody. Both halves are here, on one page.
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"a **b *c* d** e"}
+      {"id":"order","parent":"kitchen","ord":"a1","title":"plan the **kitchen *remodel* budget** carefully"}
+      """
+    Then the title of "demo" renders bold text "b c d"
+    And the title of "demo" renders italic text "c"
+    And the title of "demo" does not show its markdown source
+    And the node "demo" has the title "a b c d e"
+    When I filter the page by "remodel"
+    Then the node "order" is a match
+    And the node "order" lights "remodel"
+    And there should be no page errors
+
   Scenario: A filter lights its word inside a code span and inside a link
     # The dark corner of `filter_in_place.feature`'s "every row says why it is
     # drawn": these rows were already SELECTED — the matcher reads a title as

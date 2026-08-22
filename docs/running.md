@@ -21,7 +21,7 @@ If a directory that used to serve comes up EMPTY, its outlines predate the renam
 
 It binds to loopback by default because the surface is unauthenticated: anyone who can reach the port can read every outline under the directory — and, since the keyboard editor arrived, change one.
 
-The page it serves follows the disk — save a file, `git pull`, drop in a new outline, and it updates in place — and a pill in its header is green only while a server is actually answering; drop the connection and the app freezes under an overlay that says so, thawing by itself when the wire comes back; restart the server under an open tab and that overlay offers a reload, because nothing else recovers that one. It reads on a phone and installs as one (there is no offline mode, on purpose — a cached copy of an outline is a copy that has stopped being true). A ⚙ in the header (or, on a phone, at the foot of the directory drawer) opens the preferences — one of the named palettes, the typeface, how big the page is set, how much of a row is drawn by default, whether pages open with finished work shown, whether the sidebar's file tree draws the outlines olai names for itself (`_olai/`: the shelf, the inbox, the trash — hidden by default, each with a door of its own in that column), and the two git rows (whether what is waiting records itself once the edits stop, and whether a commit from here is pushed) — stored in the browser and sent nowhere; `⌘K` opens a command palette, where the keyboard-shortcut list also lives, where a zoomed node's own verbs are offered, and where `+ a line` captures that line to the directory's inbox without leaving the page ([docs/editing.md](editing.md)). Search has a box in the header and lives in that palette too — the same reading an agent's `search_nodes` gets, jump on Enter; on a phone the header's magnifier opens the palette ([docs/search.md](search.md)). It needs nothing installed.
+The page it serves follows the disk — save a file, `git pull`, drop in a new outline, and it updates in place — and a pill in its header is green only while a server is actually answering; drop the connection and the app freezes under an overlay that says so, thawing by itself when the wire comes back; restart the server under an open tab and that overlay offers a reload, because nothing else recovers that one. It reads on a phone and installs as one (there is no offline mode, on purpose — a cached copy of an outline is a copy that has stopped being true). A ⚙ in the header (or, on a phone, at the foot of the directory drawer) opens the preferences — one of the named palettes, the typeface, how big the page is set, how much of a row is drawn by default, whether pages open with finished work shown, whether the sidebar's file tree draws the outlines olai names for itself (`_olai/`: the shelf, the inbox, the trash — hidden by default, each with a door of its own in that column), and the two git rows (whether what is waiting records itself once the edits stop, and whether a commit from here is pushed) — stored in the browser and sent nowhere, except that the two git rows can be [pinned by the server](#the-git-policy), which is the one thing on that panel an instance is allowed an opinion about; `⌘K` opens a command palette, where the keyboard-shortcut list also lives, where a zoomed node's own verbs are offered, and where `+ a line` captures that line to the directory's inbox without leaving the page ([docs/editing.md](editing.md)). Search has a box in the header and lives in that palette too — the same reading an agent's `search_nodes` gets, jump on Enter; on a phone the header's magnifier opens the palette ([docs/search.md](search.md)). It needs nothing installed.
 
 ### One olai per directory
 
@@ -52,29 +52,65 @@ Put it behind a reverse proxy or `tailscale serve` and the browser's origin will
 
 ### Who is looking
 
-A reverse proxy in front of olai can say who made the request. olai trusts **one configurable pair of header names** — a login, and optionally an email — and the header bar **always** draws who is looking as an icon, top right, in the same chip as prefs: **anonymous** when the header is absent (direct access, a local `just run`), the gravatar when a login is present, or that the door failed. The words are the tooltip. Absence is a face, not a missing chip.
+A reverse proxy in front of olai can say who made the request. olai trusts **one configurable family of header names** — a login, and optionally an email, a display name and a picture — and the header bar **always** draws who is looking as an icon, top right, in the same chip as prefs: **anonymous** when no login came (direct access, a local `just run`), the person when one did, or that the door failed. The words are the tooltip, and they say the display name with the login beside it (`Sridhar Ratnakumar (srid@github)`) — on a shared vault, which account this is is the whole question. Absence is a face, not a missing chip.
 
-Default wiring is `tailscale serve`'s `Tailscale-User-Login` for both (that header is the email). The same pair covers other proxies — one feature, not one per proxy:
+Default wiring is `tailscale serve`'s own four headers. **The login is not necessarily an email**: on a Google, Microsoft or Okta tailnet `Tailscale-User-Login` *is* the address, which is why the email claim defaults to the same header — but on a GitHub- or passkey-backed one it reads `srid@github`, which is Tailscale's spelling of that account and not an address anybody can hash. The same family covers other proxies — one feature, not one per proxy:
 
-| Proxy | login | email |
-|---|---|---|
-| `tailscale serve` (default) | `Tailscale-User-Login` | `Tailscale-User-Login` |
-| Caddy + oauth2-proxy | `X-Auth-Request-User` | `X-Auth-Request-Email` |
-| Caddy + caddy-security (`inject headers with claims`) | `X-Token-User-Nick` (or `-Name`) | `X-Token-User-Email` |
-| Authelia | `Remote-User` | `Remote-Email` |
-| Pomerium (`pass_identity_headers`) | `X-Pomerium-Claim-User` | `X-Pomerium-Claim-Email` |
+| Proxy | login | email | name | picture |
+|---|---|---|---|---|
+| `tailscale serve` (default) | `Tailscale-User-Login` | `Tailscale-User-Login` | `Tailscale-User-Name` | `Tailscale-User-Profile-Pic` |
+| Caddy + oauth2-proxy | `X-Auth-Request-User` | `X-Auth-Request-Email` | `X-Auth-Request-Preferred-Username` | — (use a template) |
+| Caddy + caddy-security (`inject headers with claims`) | `X-Token-User-Nick` (or `-Name`) | `X-Token-User-Email` | `X-Token-User-Name` | `X-Token-User-Picture`, where that claim is injected — otherwise a template |
+| Authelia | `Remote-User` | `Remote-Email` | `Remote-Name` | — (use a template) |
+| Pomerium (`jwt_claims_headers`) | `X-Pomerium-Claim-User` | `X-Pomerium-Claim-Email` | `X-Pomerium-Claim-Name` | `X-Pomerium-Claim-Picture`, where the operator mapped that claim — otherwise a template |
 
-Pomerium's `X-Pomerium-Jwt-Assertion` is a signed JWT, not a login; point the pair at the claim headers.
+Pomerium's `pass_identity_headers` forwards `X-Pomerium-Jwt-Assertion`, which is a signed JWT and not a login; the unsigned `X-Pomerium-Claim-*` headers this family reads come from `jwt_claims_headers`, and each one is only there if that claim was mapped.
 
 ```sh
 # Authelia in front, for example
 OLAI_IDENTITY_LOGIN_HEADER=Remote-User
 OLAI_IDENTITY_EMAIL_HEADER=Remote-Email
+OLAI_IDENTITY_NAME_HEADER=Remote-Name
+OLAI_IDENTITY_PICTURE_HEADER=            # Authelia sends none — empty is off,
+                                         # and an unset name is one a client
+                                         # could send (see Trust, below)
 ```
 
-`OLAI_IDENTITY_LOGIN_HEADER` unset is `Tailscale-User-Login`. `OLAI_IDENTITY_EMAIL_HEADER` unset is the login header; **empty** is no email claim (generic gravatar). The same reading is the attribution a later capture door will record.
+Each variable unset is the Tailscale name in the table's first row (`OLAI_IDENTITY_EMAIL_HEADER` unset is the *login* header, since that is what a Tailscale login often is); each one **empty** turns that claim off. The login is the only one that makes somebody present — the rest are claims about them, and any of them may be missing. The same reading is the attribution the capture door records.
+
+#### The picture, and where it comes from
+
+Four rungs, in order, and the first one that answers wins:
+
+1. **The picture header**, when the proxy sends one — `tailscale serve` injects the IdP's own avatar, which is the best picture of a person anybody here has.
+2. **An avatar URL template**, `OLAI_IDENTITY_AVATAR_TEMPLATE`, with `{login}` where the login goes. This is the answer for a proxy that hands over a *username*: GitHub serves every user's avatar, unauthenticated, at `https://github.com/<user>.png`, so a Caddy + GitHub-OAuth deployment (whose `X-Auth-Request-User` is the GitHub username) needs no API and no token.
+3. **The gravatar of the email claim**, and only when that claim really looks like an address — which is what stops `srid@github` from hashing into a picture of nobody.
+4. **Nothing**, which is the silhouette, drawn by the page itself with no request to anywhere.
+
+```sh
+# A GitHub-backed TAILNET: tailscale serve injects the picture header
+# itself (rung 1), and the template is what pictures anybody it has no
+# picture for.
+OLAI_IDENTITY_AVATAR_TEMPLATE='https://github.com/{login}.png'
+```
+
+```sh
+# Caddy + oauth2-proxy against GitHub, where the login IS the username.
+# Turn the Tailscale defaults OFF: that proxy does not strip inbound
+# `Tailscale-*` names, and a name olai still trusts is one a client can
+# send — the picture one especially, since it becomes an <img src>.
+OLAI_IDENTITY_LOGIN_HEADER=X-Auth-Request-User
+OLAI_IDENTITY_EMAIL_HEADER=X-Auth-Request-Email
+OLAI_IDENTITY_NAME_HEADER=X-Auth-Request-Preferred-Username
+OLAI_IDENTITY_PICTURE_HEADER=
+OLAI_IDENTITY_AVATAR_TEMPLATE='https://github.com/{login}.png'
+```
+
+The picture is a remote `<img>` on the app page, and **whose host that is belongs to whoever deployed this olai** — an IdP's avatar host, the template's host (`github.com` redirects to `avatars.githubusercontent.com`), or gravatar. None of them is knowable when the page is built, so the page's content policy admits `https:` images: still no `http:`, no `data:`, no wildcard, and the `src` can only ever be what this server's own `GET /olai/who` answered. Sealed `/media` pages carry their own, stricter, policy and are unaffected.
 
 **Trust.** These headers are only meaningful when the proxy is the only way in: olai bound to loopback or the tailnet, **and the proxy stripping client-supplied copies of the same names**. Anything that can reach the port can send them — the same bargain the rest of the unauthenticated listener already takes. Do not expose this port to the internet.
+
+That rule covers **every name still in force, including the ones you did not configure**. Each variable left unset keeps its Tailscale default, so a serve that renames only the login and the email still trusts `Tailscale-User-Name` and `Tailscale-User-Profile-Pic` — and a proxy that is not `tailscale serve` usually passes inbound `Tailscale-*` headers straight through. The picture one is the sharp edge, because it becomes an `<img src>` the browser fetches: on any proxy but `tailscale serve`, **set `OLAI_IDENTITY_PICTURE_HEADER=` (and `OLAI_IDENTITY_NAME_HEADER=`) empty, or strip those names at the proxy** — the same as it must already do for the login.
 
 ### Logging
 
@@ -106,7 +142,50 @@ inputs.olai.url = "github:juspay/olai";
 
 The module fills `package` from the flake for the host platform. The packaged binary already bakes the browser bundle (`OLAI_DIST_DIR`), so the service needs no ambient environment.
 
+**The one thing a user service does NOT inherit is your PATH**, and that is where agents live. Olai looks for the ones it knows when it starts — the pinned Claude Code adapter it ships with, and an `opencode` on its own search path — and a unit started by systemd sees neither your login shell nor your profile. So an `opencode` you can run in a terminal is not necessarily one this process can find, and `OLAI_AGENT_PATH` is how you say where to look:
+
+```nix
+  systemd.user.services.olai.Environment = [
+    "OLAI_AGENT_PATH=${config.home.homeDirectory}/.nix-profile/bin"
+  ];
+```
+
+Set, it REPLACES the search path rather than adding to it — including when it is set to the empty string, which is "look nowhere". The other variable is `OLAI_ACP_AGENT`: it points the Claude side at a different ACP executable, and setting it to the empty string turns the chat panel off entirely (nothing is probed, and the panel says so rather than disappearing). Both are [chat.md](chat.md)'s, which says what the panel does with each.
+
 On Linux the unit is `Restart=always` / `RestartSec=1s` / `SuccessExitStatus=130`. A stray `kill -TERM` of the main pid is a successful exit that systemd still brings back; a `systemctl --user stop olai` is a systemd stop, which `Restart=` never overrides. On macOS the agent is `KeepAlive.SuccessfulExit=false` and `Crashed=true` — a 130 exit already restarts there, because launchd treats non-zero as unsuccessful. The 2026-08-20 incident (an outside SIGTERM, `on-failure` + `SuccessExitStatus=130`, hours of dark ledger) is [the RCA](RCA/2026-08-20-olai-service-sigterm.md).
+
+## The git policy
+
+Whether what is waiting records itself, and whether a commit is pushed, are preferences of one BROWSER ([git.md](git.md)) — stored there, sent nowhere, and exactly right for one person on one machine. **In a team deployment they are exactly wrong.** Whether a branch is pushed is not a thing one colleague's laptop gets to decide for everybody else, and "whichever browser happened to have the toggle on" is not a policy.
+
+So an instance may state one, and it is a property of the RUNNING SERVER rather than of the directory. There is deliberately no settings file in the vault: a file there would travel with `git pull`, so a personal clone of a team's outlines would inherit the team's auto-push, which is exactly the accident this prevents.
+
+```
+olai web ~/outlines --commit=auto --push=off
+```
+
+```nix
+services.olai = {
+  enable = true;
+  dataDir = "${config.home.homeDirectory}/outlines";
+  commit = "auto";   # off | manual | auto — omit and each browser keeps its own
+  push = "off";      # off | auto          — omit and each browser keeps its own
+};
+```
+
+**Giving a flag is what pins it.** With neither given — the default, and every single-user deployment — nothing about this is visible: the server commits manually and the two git rows in every browser's preferences are live, as they always were. Given, the server tells every browser which flag it was started with, and that row is drawn in the pinned state, **read-only, naming the flag**: *Set by the server: `--commit=auto`.* Never hidden, and never overridable from a browser — a policy a reader cannot see is one they cannot ask anybody about.
+
+The two are independent, so pinning committing does not silently pin pushing. `--commit=manual` typed out loud is not the same as saying nothing, even though this server behaves identically either way: the first freezes the row for everybody, the second leaves it to each reader. Nothing a browser had stored is overwritten, so a server restarted without the flag hands each reader their own pick straight back.
+
+`--commit` is the same flag [git.md](git.md#modes) describes, with the same three modes; `--no-commit` is `--commit=off` and pins in the same way. It governs the server as well as the browsers: `--commit=auto` really does commit every write olai makes, with or without a browser in front of it.
+
+**`--push` governs the BROWSERS and nothing else.** It is Auto-push — whether a commit somebody's browser made is followed by a push — stated for everybody instead of set per browser. It does **not** push the commits `--commit=auto` makes on its own: a headless serve pushes nothing, and `--commit=auto --push=auto` with no tab open records without sharing. That is deliberate rather than an oversight — `--commit=auto` is one commit per write, so pushing them would put a network round trip inside every write — but it means an instance that must also share what it records still needs somebody's browser open, or a cron. `--push` has two values and deliberately not three: a branch that is not pushed on its own is pushed by the Push button, so there is no third thing to be.
+
+**A refused commit or push still pauses the loop** under a pin, because that is runtime state rather than policy: git said no, and nothing starts the loop again on olai's own initiative. Where the row is the browser's, turning Auto-commit off and on again is the gesture. A pinned row has no toggle to flip, so it carries a **Resume** button instead, drawn only while the loop is actually stopped.
+
+That pause lives in the TAB, in memory, exactly as it did before there was anything to pin. Reloading the page — or opening a second tab and letting it win the lock — starts the loop again without anybody pressing Resume; if git still refuses, the next attempt pauses it again and says so. Nothing is persisted, and that is on purpose: a stop remembered across reloads is a different feature, and it would need a way to say "no, really, carry on" that survives them too.
+
+Theme, typeface, size, note density, finished work and hidden outlines are untouched by any of this. They are personal view choices, per browser, and there is nothing about them for a server to have an opinion on.
 
 ## Agents, over HTTP
 

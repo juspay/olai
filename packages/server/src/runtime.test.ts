@@ -19,7 +19,8 @@
  */
 
 import { codec, make as makeOps, type Ops, type Store as OutlineStore } from "@olai/ops"
-import type { DocumentEntry, Head, Shelf } from "@olai/surface"
+import type { DocumentEntry, Head, Manifest, Shelf } from "@olai/surface"
+import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, test } from "bun:test"
@@ -75,7 +76,7 @@ const withRuntime = <A>(
         return opened.body(path)
       },
     }
-    const ops = makeOps({ store, root, commits: "off" })
+    const ops = makeOps({ store, root, pin: { commit: "off", push: null } })
     const wired = yield* bind({
       store,
       chat: null,
@@ -97,6 +98,12 @@ const withRuntime = <A>(
 const RECORDS_THE_WRITER = ["surface/git/commit", "surface/ops/run"]
 
 const OUTLINE = `{"id":"a","ord":"a0","title":"a"}\n`
+/** A set the codec refuses: a row whose parent nothing declares. It has to be
+ *  a MEANING error and not a syntax one — a file that will not parse keeps its
+ *  key and carries its errors (the hybrid scope, `Head.broken`), so the set
+ *  still validates and heads still travel. This one leaves the store with no
+ *  snapshot at all, which is the state the manifest's `null` is for. */
+const REFUSED = `{"id":"a","parent":"nowhere","ord":"a0","title":"a"}\n`
 
 test("a face served under another writer differs by exactly the members that record one", () =>
   withRuntime({ "a.olai": OUTLINE }, ({ wired, ops }) =>
@@ -385,6 +392,64 @@ test("an unreadable `.html` is refused rather than held open", () => {
  * test: what is under test is the wiring — that the cell is recomputed per
  * published revision, over the set that revision holds.
  */
+/**
+ * THE INVARIANT THE BROWSER'S SKEW RULE RESTS ON — pinned here, where it is
+ * true, and not only in the client that depends on it.
+ *
+ * `@olai/web`'s `directory.ts` answers a `null` manifest beside a fold holding
+ * files with "a directory": a tab holding files is holding a directory, because
+ * a head only ever reaches the wire out of a published revision
+ * (`manifest-fold-skew`). That is a fact about THIS file and about nowhere
+ * else — `apply(collections?.heads, revision.heads)` lives inside the manifest
+ * connector's `snapshot !== null` arm — and a head published from any other
+ * path would turn the browser's rule into a lie it has no way to catch: a
+ * directory that never loaded, drawn as one.
+ *
+ * So the two are asked TOGETHER, over one directory that starts refused and
+ * then validates. Before: `null`, and not one head. After: a set, and the head
+ * that arrives is the revision's.
+ */
+test("a directory that never loaded publishes no head, and the first head is the revision's", () =>
+  withRuntime({ "a.olai": REFUSED }, ({ wired, store, root }) =>
+    Effect.gen(function*() {
+      const said = wired.bound.handlers["surface/manifest/get"]
+      const framed = wired.bound.handlers["surface/heads/deltas"]
+      if (said === undefined) throw new Error("the manifest cell has no `get`")
+      if (framed === undefined) throw new Error("the heads collection has no `deltas`")
+
+      // TWO frames each, on fibers of their own: the one the subscription
+      // opens with — over a set that has never validated — and the one the
+      // repair below produces. The same shape the tests above use, and for the
+      // same reason: the second cannot arrive until the probe has run.
+      const heads = yield* Effect.forkChild(
+        Stream.runCollect(
+          Stream.take(framed({}) as Stream.Stream<CollectionDeltasMsg<string, Head>>, 2),
+        ),
+      )
+      const manifest = yield* Effect.forkChild(
+        Stream.runCollect(Stream.take(said({}) as Stream.Stream<Manifest>, 2)),
+      )
+
+      fs.writeFileSync(path.join(root, "a.olai"), OUTLINE)
+      yield* store.refresh
+
+      const [opened, arrived] = [...yield* Fiber.join(heads)]
+      const [never, loaded] = [...yield* Fiber.join(manifest)]
+
+      // A SET THAT NEVER VALIDATED: the settled `null`, and a snapshot with
+      // nothing in it. Not one head — which is the whole claim.
+      expect(never).toBeNull()
+      expect(opened).toEqual({ kind: "snapshot", entries: [] })
+
+      // …and the head that finally arrives arrives WITH the revision that
+      // published it, on the same statement as the cell's `{}`.
+      expect(loaded).toEqual({})
+      expect(arrived?.kind).toBe("delta")
+      expect(
+        arrived?.kind === "delta" ? arrived.upserts.map(([file]) => file) : [],
+      ).toEqual(["a.olai"])
+    })))
+
 test("the shelf is answered per revision, so a rename elsewhere renames the pin", () =>
   withRuntime(
     {

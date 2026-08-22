@@ -6,12 +6,30 @@ What you type sits on the right, in a tinted bubble. What the agent answers sits
 
 ## Which agent
 
-The panel speaks [ACP](https://agentclientprotocol.com), and the default agent is the pinned Claude Code adapter, which comes with olai: `nix run`, the packaged binary and `just serve` all default to it, so there is nothing to install and nothing to configure.
+The panel speaks [ACP](https://agentclientprotocol.com), and it talks to whichever agents this machine has. It finds them itself: the pinned Claude Code adapter, which comes with olai — `nix run`, the packaged binary and `just serve` all bake it in, so there is nothing to install and nothing to configure — and an **opencode** on the server's own PATH.
 
-- `OLAI_ACP_AGENT` points at a different ACP agent.
-- Setting it to the empty string turns chat off — the panel then says there is no agent and which variable would give it one. The outlines are served the same either way.
+**A conversation is with ONE agent, and you choose it when the chat starts.** Not a setting, and not something a conversation can be moved to afterwards: the way to talk to the other agent is to start a chat with it. What you choose is remembered *for that conversation* and nowhere else, so a new chat asks again — there is no default quietly deciding for you, and no way to find yourself in a conversation with an agent you did not pick.
 
-The conversation is the agent's own session for that directory: close olai, reopen it, and you are back in it — and (for the default agent) `claude --resume` in a terminal reaches the same conversations.
+With only ONE agent installed there is nothing to ask, so nothing is asked. That is the state olai has always been in, and what is new in it is the header: it says who you are talking to, with the agent's own mark beside the name.
+
+The list itself:
+
+- **found once, when the server starts.** An agent installed while olai is running is offered by the next start. What decides whether the panel has an agent at all is not a thing to change under somebody who is reading it.
+- `OLAI_ACP_AGENT` points at a different ACP agent for the Claude row — that override has always meant *read this the way you read Claude Code*, and it still does.
+- Setting it to the empty string turns chat off — the whole panel, not one row of it: nothing is looked for, and the panel says there is no agent and how to get one. The outlines are served the same either way.
+- `OLAI_AGENT_PATH` is where the probes look, and defaults to `PATH`. It is worth knowing about because **olai's PATH is not your shell's**: run as a systemd user service (the home-manager unit) it inherits neither your profile nor your login shell, so an `opencode` you can run in a terminal is not necessarily one this process can see. Set it and it REPLACES the search path.
+
+With no agent at all the panel still draws, and says which agents olai can talk to and where to get one — because a feature that is silently absent cannot be told apart from one that is broken.
+
+The conversation is the agent's own session for that directory: close olai, reopen it, and you are back in it — with the agent that has it, because which agent a conversation is with is written down beside which conversation it is ([below](#which-conversation-you-come-back-to)). A session id means nothing to the other agent, so this is not a nicety: asking the wrong one to open it gets a refusal. And (for the Claude agent) `claude --resume` in a terminal reaches the same conversations.
+
+### What differs between them
+
+Anything an agent does not offer simply is not drawn — except where you would expect the behaviour, and then the absence is stated rather than left to be discovered:
+
+- **opencode has no way of taking a message INTO a turn it is already running.** The box still never locks and nothing is held here; what differs is where the words land. So while an opencode turn is running the composer says the next thing you send will queue behind it, and it is reached when that turn is over. With the Claude agent it lands in the turn ([below](#talking-while-it-works)).
+- **opencode's subagents carry no attribution**, so a fan-out is drawn flat — every call in one column — rather than in lanes ([below](#when-the-agent-sends-other-agents)). Nothing here guesses at whose a call was.
+- **a tool call's name comes from wherever that agent says it.** Claude Code says it in a field of its own; opencode says it at the head of the call's id (`bash:0`). Either way the row keeps the name it was announced with, and a tool olai cannot name is one you are asked about rather than one that is quietly allowed.
 
 ## Which conversation you come back to
 
@@ -19,15 +37,17 @@ The conversation is the agent's own session for that directory: close olai, reop
 
 If that conversation is GONE — you deleted it, or you have pointed olai at a different agent since — the most recent one in this directory is opened instead, which is what always used to happen. Whichever you get, the header names it.
 
-The note lives with this machine's other state (`~/.local/state/olai/`, or wherever `XDG_STATE_HOME` points), never in the directory being served: it is one conversation id, the model that conversation was on (below), and the path both belong to — so a directory you serve from two machines remembers a conversation on each. If it cannot be read or written the panel says so in the conversation and carries on — a restart then opens the most recent conversation, which is the old behaviour and a working panel either way.
+The note lives with this machine's other state (`~/.local/state/olai/`, or wherever `XDG_STATE_HOME` points), never in the directory being served: it is one conversation id, **the agent that conversation is with**, the model that conversation was on (below), and the path all three belong to — so a directory you serve from two machines remembers a conversation on each. The agent is what makes the rest of it work at all: a session id belongs to one agent, so the boot has to know which one to start before it has one to ask. A note written by an olai that only ever had one agent names none, and is read as being about the one it had — so an upgrade comes back into the conversation it was in rather than into a question. If it cannot be read or written the panel says so in the conversation and carries on — a restart then opens the most recent conversation, which is the old behaviour and a working panel either way.
 
 **chats** lists the stored conversations for this directory, and each row says when it was last touched, to the minute. That is deliberate rather than decorative: `/clear` leaves two sessions sharing one name, and the protocol carries no fact that says which of them replaced the other, so the time is what tells you the row you mean. Picking one loads it — and makes it the conversation you come back to.
 
 **A conversation opens on its newest line.** The panel jumps there at once, so a long transcript is not something you have to scroll down. While you read, new text only follows if you were already at the bottom; scroll up and it stays put.
 
-## Which model the header names
+## Who, and which model, the header names
 
-Under the conversation's title, the header names the model — because a turn's cost and character depend on it and nothing else on screen says.
+Under the conversation's title, the header names **the agent** — its mark and its name — and then the model. The agent is there because a conversation is bound to one for its life and "who am I talking to" is a question you answer by looking rather than by reading; the model is there because a turn's cost and character depend on it and nothing else on screen says.
+
+An agent olai has no mark for gets a plain one, and its name in full beside it. It never borrows another agent's mark.
 
 It names the model the agent is **running**, which is not always the one the session was started on: `/model` is handled inside the CLI the adapter wraps, so the adapter never learns of it and its own picker goes on reporting the starting model for the life of the session. What the header follows instead is the CLI's own message, forwarded because olai asks for it whenever it opens a conversation — a new one and a stored one alike.
 
@@ -72,7 +92,9 @@ What a session has **cost** is on the wire too, and is deliberately not drawn: i
 
 ## Talking while it works
 
-**The box never locks, and what you type while a turn is running goes to the agent immediately.** It does not wait for the turn to finish — it lands *in* the turn, so an agent halfway through the wrong thing can be redirected while it is still doing it. "not that file, the other one" is worth saying at the moment you notice, and that moment is almost never the moment the agent stops.
+**The box never locks, and what you type while a turn is running goes to the agent immediately.** It does not wait for the turn to finish — with an agent that can take one, it lands *in* the turn, so an agent halfway through the wrong thing can be redirected while it is still doing it. "not that file, the other one" is worth saying at the moment you notice, and that moment is almost never the moment the agent stops.
+
+**Not every agent can take one, and the composer says which you have.** opencode has no such method: what you send mid-turn is an ordinary message it QUEUES behind the running turn and reaches when that turn is over. Nothing is held here either way — the words go out when you send them, and they are on screen from the moment you do — so what the line under the box is telling you is what saying it *now* buys you. Two panels that looked identical and behaved differently is the thing it exists to stop.
 
 The button says **send** the whole time, because that is what it does the whole time. Cancel sits beside it rather than replacing it: sending and stopping are two things you can want at the same moment, and while a turn runs they are usually the two you are choosing between.
 

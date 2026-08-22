@@ -111,6 +111,25 @@ const FAKE_AGENT = path.resolve(
 const FAKE_KOLU_DIR = path.resolve(import.meta.dirname, "..", "agent", "kolu");
 
 /**
+ * The directory holding a fake `opencode`, put on a spawned server's
+ * `OLAI_AGENT_PATH` when — and only when — a scenario asks for one.
+ *
+ * WHICH AGENTS A SERVER FINDS IS A PROPERTY OF THE SCENARIO, for the fake
+ * kolu's reason and a sharper version of it: the roster decides whether the
+ * panel ASKS which agent, so a developer with the real opencode installed would
+ * otherwise run a different suite than a CI lane does — one where every chat
+ * scenario opens on a picker.
+ *
+ * It is the agent search path rather than `PATH` because that is the variable
+ * olai probes with, and because the default has to be "nothing": every other
+ * scenario spawns with `OLAI_AGENT_PATH` set to the EMPTY string, which finds
+ * no agent anywhere and leaves the roster as the one `OLAI_ACP_AGENT` names —
+ * a roster of one, which is what every olai in the world is running today and
+ * the state the rest of this suite is written against.
+ */
+const FAKE_OPENCODE_DIR = path.resolve(import.meta.dirname, "..", "agent", "opencode");
+
+/**
  * A `git` that is found and cannot work, put FIRST on the PATH of a server a
  * `@git:broken` scenario spawns — same argument as the kolu above: whether git
  * works is a property of the scenario rather than of the machine the run is on,
@@ -121,6 +140,12 @@ const BROKEN_GIT_DIR = path.resolve(import.meta.dirname, "..", "bin", "broken-gi
 /** `@kolu`: this scenario's host is running kolu, so its session should be
  *  handed kolu's terminals alongside olai's own tools. */
 const KOLU_TAG = "@kolu";
+
+/** `@opencode`: this scenario's machine HAS opencode, so its server's roster is
+ *  two agents and the panel asks which one a conversation is with. Untagged,
+ *  the agent search path is empty and the roster is the scripted Claude-shaped
+ *  agent alone — see {@link FAKE_OPENCODE_DIR}. */
+const OPENCODE_TAG = "@opencode";
 
 /** `@wire`: this scenario asks what the SERVER SENT rather than what the page
  *  drew, so every websocket frame the tab is delivered is kept for it
@@ -156,6 +181,47 @@ const NO_AGENT_TAG = "@no-agent";
  * writes anything.
  */
 const GIT_TAG = /^@git:(repo|none|broken)$/;
+
+/**
+ * `@pin:commit=<mode>` / `@pin:push=<mode>`: this scenario's server was started
+ * with a git POLICY, so every browser draws those two preference rows read-only
+ * with the flag named (`vault-level-settings`).
+ *
+ * A TAG rather than a step for the reason `@git:` is one: it decides how the
+ * server is STARTED, and the whole point of a pin is that a page knows before
+ * anybody presses anything. Both may be given; each is independent, which is
+ * what lets a scenario pin one row and leave the other live.
+ *
+ * It requires a `@git:` tag beside it, and the Before hook says so: without one
+ * the server is started `--no-commit`, which is `--commit=off` under another
+ * name and would quietly win over whatever the tag asked for.
+ *
+ * A SCENARIO's tag beats its feature's for the same flag, because cucumber
+ * hands the feature's tags first and the collection below keeps the last of
+ * each key. That is what lets one feature pin a policy for every scenario in it
+ * and one scenario in it ask for a different one.
+ */
+const PIN_TAG = /^@pin:(commit|push)=([a-z]+)$/;
+
+/**
+ * `@avatar-template`: this scenario's server was started with an avatar URL
+ * TEMPLATE (`OLAI_IDENTITY_AVATAR_TEMPLATE`), which is the second rung of the
+ * picture ladder and the answer for a proxy that hands over a username rather
+ * than an address — GitHub serves every user's avatar at
+ * `https://github.com/<login>.png`, with no API and no token.
+ *
+ * A TAG rather than a step for the reason `@pin:` is one: it decides how the
+ * server is STARTED. The template itself is fixed here rather than spelled in
+ * the tag, because a tag is a name and a URL with a `/` in it is not: what a
+ * scenario is choosing is "this server has a template", and {@link
+ * AVATAR_TEMPLATE} is the documented one.
+ *
+ * It needs a server of its own (`@scratch:`) — a shared corpus server is
+ * running for every other scenario too, so what it pictures people with is
+ * not this one's to choose.
+ */
+const AVATAR_TAG = "@avatar-template";
+const AVATAR_TEMPLATE = "https://github.com/{login}.png";
 
 /** The screen a scenario is read on, and the pointer it is read with.
  *
@@ -428,10 +494,22 @@ interface Spawn {
    *  "this host is running kolu". Otherwise the one on PATH reaches no daemon,
    *  which detection must refuse. */
   readonly kolu?: boolean;
+  /** `true` puts a fake `opencode` on the agent search path, so this server's
+   *  roster is two agents. Otherwise that path is EMPTY and the roster is the
+   *  scripted agent alone — see {@link FAKE_OPENCODE_DIR}. */
+  readonly opencode?: boolean;
   /** Absent is `--no-commit`, which is what every scenario but the git ones
    *  wants. Present drops the opt-out and says which of the three git
    *  situations this server is being started into. */
   readonly git?: GitMode;
+  /** The git POLICY, when the scenario pinned one — see {@link PIN_TAG}. Each
+   *  half is absent when that flag was not asked for, because "nobody gave the
+   *  flag" is exactly what leaves the preference row live in a browser. */
+  readonly pin?: { readonly commit?: string; readonly push?: string };
+  /** The avatar URL template this server pictures people with, when the
+   *  scenario asked for one — see {@link AVATAR_TAG}. Absent is no template,
+   *  which is every other scenario. */
+  readonly avatar?: string;
   /** Private XDG cache root this child may write to. Required: a spawn
    *  that inherited the host's would share a cache (and a padi) with every
    *  other worker. HOME is not overridden — see `isolateEnv`. */
@@ -462,6 +540,15 @@ const startServerChild = async (
       "127.0.0.1",
       ...(fixedPort === undefined ? [] : ["--port", String(fixedPort)]),
       ...(spawnOptions.git === undefined ? ["--no-commit"] : []),
+      // The git POLICY, when the scenario asked for one — see `PIN_TAG`. Each
+      // flag is passed only where a value was given, because giving it at all
+      // is what freezes that row in every browser.
+      ...(spawnOptions.pin?.commit === undefined
+        ? []
+        : ["--commit", spawnOptions.pin.commit]),
+      ...(spawnOptions.pin?.push === undefined
+        ? []
+        : ["--push", spawnOptions.pin.push]),
     ];
     const child = spawn(bin, argv, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -475,6 +562,13 @@ const startServerChild = async (
         // state the same way rather than through a hole in the harness.
         OLAI_ACP_AGENT: spawnOptions.agent === false ? "" : FAKE_AGENT,
         ...(spawnOptions.stored === true ? { OLAI_FAKE_ACP_STORED: "yes" } : {}),
+        // WHERE OLAI LOOKS FOR AGENTS, and by default nowhere: the empty
+        // string is "look on no path at all", so a developer's own opencode
+        // cannot decide a scenario. `@opencode` is what puts one there.
+        OLAI_AGENT_PATH: spawnOptions.opencode === true ? FAKE_OPENCODE_DIR : "",
+        ...(spawnOptions.opencode === true && spawnOptions.stored === true
+          ? { OLAI_FAKE_OPENCODE_STORED: "yes" }
+          : {}),
         // FIRST, so a real kolu on the developer's PATH does not decide a
         // scenario. Which one this is, is the tag's business — and the broken
         // git goes ahead of even that, for exactly the same reason.
@@ -484,6 +578,12 @@ const startServerChild = async (
           process.env.PATH ?? "",
         ].join(path.delimiter),
         OLAI_FAKE_KOLU: spawnOptions.kolu === true ? "live" : "stale",
+        // The avatar template, when the scenario asked for one (`AVATAR_TAG`).
+        // Passed only where it was asked for: the variable being SET at all is
+        // what puts the second rung of the picture ladder in play.
+        ...(spawnOptions.avatar === undefined
+          ? {}
+          : { OLAI_IDENTITY_AVATAR_TEMPLATE: spawnOptions.avatar }),
         // The harness parses logfmt (`findLogfmt` for the serving line). A
         // developer's `OLAI_LOG=pretty` would make every boot hang on readiness.
         OLAI_LOG: "logfmt",
@@ -646,9 +746,19 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       port,
       stored: world.storedSessions,
       agent: world.hasAgent,
+      opencode: world.hasOpencode,
       kolu: world.hasKolu,
       stateRoot: scratchState(world.scratch()),
       ...(world.gitMode === undefined ? {} : { git: world.gitMode }),
+      // ... and the same git POLICY, for the same reason: a restart that came
+      // back unpinned would hand the open page its preferences back, which is a
+      // different server rather than the same one restarted.
+      ...(Object.keys(world.gitPin).length === 0 ? {} : { pin: world.gitPin }),
+      // ... and the same avatar template, on the same sentence: a restart that
+      // came back without it would draw the open page's person off a lower rung.
+      ...(world.avatarTemplate === undefined
+        ? {}
+        : { avatar: world.avatarTemplate }),
     },
   );
   if (started.baseUrl !== world.baseUrl) {
@@ -940,10 +1050,38 @@ Before(
       (tag) => tag.name === NO_AGENT_TAG,
     );
     this.hasKolu = scenario.pickle.tags.some((tag) => tag.name === KOLU_TAG);
+    this.hasOpencode = scenario.pickle.tags.some(
+      (tag) => tag.name === OPENCODE_TAG,
+    );
+    // On the world rather than in a local, because a restart mid-scenario has
+    // to reproduce this boot (`startOwnServer`).
+    this.avatarTemplate = scenario.pickle.tags.some(
+      (tag) => tag.name === AVATAR_TAG,
+    )
+      ? AVATAR_TEMPLATE
+      : undefined;
+    const templated = this.avatarTemplate !== undefined;
     this.gitMode = scenario.pickle.tags.flatMap((tag) => {
       const asked = GIT_TAG.exec(tag.name);
       return asked === null ? [] : [asked[1] as GitMode];
     })[0];
+    this.gitPin = Object.fromEntries(
+      scenario.pickle.tags.flatMap((tag) => {
+        const asked = PIN_TAG.exec(tag.name);
+        return asked === null ? [] : [[asked[1]!, asked[2]!] as const];
+      }),
+    );
+    const pinned = Object.keys(this.gitPin).length > 0;
+    // A pinned server without a `@git:` tag is started `--no-commit`, which is
+    // `--commit=off` under another name and would quietly beat whatever the pin
+    // asked for. Said here rather than left to an assertion, which would fail
+    // about a preference row instead of about the tag.
+    if (pinned && this.gitMode === undefined) {
+      throw new Error(
+        "@pin: states this server's git policy, so the scenario must say which " +
+          "git situation it is in too: add @git:repo (or none/broken).",
+      );
+    }
     // A shared corpus server serves every other scenario too, so whether it
     // commits — and into what — is not this one's to choose. Same rule as
     // `@kolu`, and said here rather than left to an assertion that would fail
@@ -967,13 +1105,36 @@ Before(
           `server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
+    // ... and the same for the roster, for the same reason: which agents a
+    // server offers decides whether its panel asks, and a shared corpus server
+    // is answering that for every other scenario in the run too.
+    if (this.hasOpencode && !writes) {
+      throw new Error(
+        `${OPENCODE_TAG} decides which agents its server finds, so the scenario must own ` +
+          `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
+      );
+    }
+    // …and the same rule for the avatar template, which is one more thing a
+    // shared server would be deciding for every scenario that borrowed it.
+    if (templated && !writes) {
+      throw new Error(
+        `${AVATAR_TAG} decides what its server pictures people with, so the ` +
+          `scenario must own that server: tag it @scratch:${asked.corpus} ` +
+          `rather than @corpus:${asked.corpus}.`,
+      );
+    }
 
     if (writes) {
       const spawnOptions = {
         stored: this.storedSessions,
         agent: this.hasAgent,
+        opencode: this.hasOpencode,
         kolu: this.hasKolu,
+        ...(this.avatarTemplate === undefined
+          ? {}
+          : { avatar: this.avatarTemplate }),
         ...(this.gitMode === undefined ? {} : { git: this.gitMode }),
+        ...(pinned ? { pin: this.gitPin } : {}),
       };
       const ownCopy = async (): Promise<void> => {
         const own = await scratchServerFor(asked.corpus, spawnOptions);

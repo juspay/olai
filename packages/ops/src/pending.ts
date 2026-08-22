@@ -46,12 +46,16 @@
  */
 
 import {
+  COMMIT_MODES,
+  type CommitMode,
+  commitModeOf,
   type CommitRequest,
   type CommitResult,
   changesOf,
   composed,
   type Derived,
   fileKind,
+  type GitPin,
   type GitState,
   type How,
   type LastCommit,
@@ -76,19 +80,16 @@ import type { Store } from "./deps.ts"
 import { AUDIT, signed } from "./message.ts"
 
 /**
- * How writes reach git.
+ * How writes reach git — `@olai/format`'s table, re-exported rather than
+ * declared, exactly as {@link GitState} is below.
  *
- * `manual` is the point of the whole thing: a write lands on disk and WAITS,
- * and something asks for a commit. `auto` is for a headless server with no
- * browser to press anything, and commits each write on its own the way olai
- * used to. `off` is `--no-commit`.
- *
- * Here rather than in `@olai/format`: these are the values of a CLI flag and
- * they never travel the wire, so the bottom package has no business knowing
- * that olai has one.
+ * It used to be declared here, on the argument that these are the values of a
+ * CLI flag and never travel the wire. Half of that stopped being true with
+ * `vault-level-settings`: a flag that was GIVEN is pinned into every browser's
+ * preferences, so the mode is on the wire now and the vocabulary belongs on the
+ * floor the spec and this layer both stand on.
  */
-export const COMMIT_MODES = ["off", "manual", "auto"] as const
-export type CommitMode = (typeof COMMIT_MODES)[number]
+export { COMMIT_MODES, type CommitMode }
 
 /**
  * What git is doing for this directory — `@olai/format`'s {@link GitState},
@@ -103,25 +104,32 @@ export type CommitMode = (typeof COMMIT_MODES)[number]
 export type { GitState }
 
 /**
- * This value's answer, from the repository's.
+ * This value's answer, from the repository's — and from what the operator
+ * pinned, which is not derived from anything and simply rides along.
  *
  * `Blocked` reads as `repo`, deliberately: a mid-rebase repository is a
  * perfectly good one, and what cannot happen right now is a COMMIT — which the
  * pending value already says, with the reason, and which the indicator draws
  * from there. This one answers the narrower question it has always answered,
  * which is whether writes here have a history to go into at all.
+ *
+ * The PIN is a parameter rather than something this function could work out,
+ * and it is on every arm including the ones that are already a settled setting:
+ * a `--commit=off` serve is exactly a server whose git policy was pinned, and a
+ * browser that was told "off" without being told who said so has to guess
+ * whether its own preference still applies.
  */
-export const gitOf = (repo: RepoState): GitState => {
+export const gitOf = (repo: RepoState, pinned: GitPin): GitState => {
   switch (repo._tag) {
     case "Off":
-      return { status: "off", said: null }
+      return { status: "off", said: null, pinned }
     case "NoRepo":
-      return { status: "none", said: null }
+      return { status: "none", said: null, pinned }
     case "Unusable":
-      return { status: "error", said: repo.said }
+      return { status: "error", said: repo.said, pinned }
     case "Ready":
     case "Blocked":
-      return { status: "repo", said: null }
+      return { status: "repo", said: null, pinned }
   }
 }
 
@@ -225,7 +233,17 @@ export interface Options {
   /** Absolute path of the directory being served — where git runs. */
   readonly root: string
   readonly store: Store
-  readonly mode: CommitMode
+  /**
+   * What the operator PINNED — the flags as given, `null` for each one nobody
+   * gave (`@olai/format`'s {@link GitPin}).
+   *
+   * The pin rather than the effective mode, and that is the one place this
+   * layer's shape changed for `vault-level-settings`: what the server DOES is
+   * `commitModeOf(pin)`, derived here in one line, while what a browser has to
+   * be TOLD is whether a flag was given at all. Carrying both would be the
+   * hand-kept mirror the two of them would then drift across.
+   */
+  readonly pin: GitPin
   /**
    * Told whenever a commit lands, by whichever door.
    *
@@ -379,6 +397,11 @@ interface Detail {
 }
 
 export const make = (options: Options): Committing => {
+  /** What this server DOES about commits — the pin, with the default filled in
+   *  for the flag nobody gave. Derived once, here, so every decision below asks
+   *  the same question and the default is spelled in `@olai/format` alone. */
+  const mode = commitModeOf(options.pin)
+
   /** Ops per writer since the last commit. A counter rather than the list of
    *  edits the design first drew: the panel says "chat-agent 3 · you 1", and
    *  every other field of that list would be a thing stored for nobody. */
@@ -431,7 +454,7 @@ export const make = (options: Options): Committing => {
   /** One round of git questions. Four subprocesses at most, and one when the
    *  directory is not a repository. */
   const survey: Effect.Effect<Survey> = Effect.gen(function*() {
-    if (options.mode === "off") {
+    if (mode === "off") {
       return { ...NOTHING_ASKED, repo: OFF } as const
     }
     const opening = yield* repository
@@ -613,8 +636,8 @@ export const make = (options: Options): Committing => {
   const status: Effect.Effect<Status> = Effect.gen(function*() {
     const looked = yield* survey
     const git = refusal === null
-      ? gitOf(looked.repo)
-      : ({ status: "error", said: refusal } as const)
+      ? gitOf(looked.repo, options.pin)
+      : ({ status: "error", said: refusal, pinned: options.pin } as const)
     if (looked.repo._tag === "Off") return { pending: NOTHING_PENDING, git }
     const { changes, unreadable } = yield* detail(looked)
     const others = looked.others.map(otherOf)
@@ -738,7 +761,7 @@ export const make = (options: Options): Committing => {
    * agent's tool gets, and the two faces answer the same way.
    */
   const push: Effect.Effect<PushResult> = Effect.gen(function*() {
-    if (options.mode === "off") return { _tag: "Blocked", repo: OFF } as const
+    if (mode === "off") return { _tag: "Blocked", repo: OFF } as const
     const opening = yield* repository
     if (opening._tag !== "Opened") {
       return { _tag: "Blocked", repo: opening } as const
@@ -801,7 +824,7 @@ export const make = (options: Options): Committing => {
     Effect.gen(function*() {
       if (paths.length === 0) return { committed: false }
       // `off` asks git nothing at all — that is what the opt-out is for.
-      if (options.mode === "off") {
+      if (mode === "off") {
         return { committed: false, ...said(whyOf("off", OFF, null, writer)) }
       }
 
@@ -810,7 +833,7 @@ export const make = (options: Options): Committing => {
       // answer already.
       const opening = yield* repository
       if (opening._tag !== "Opened") {
-        return { committed: false, ...said(whyOf(options.mode, opening, null, writer)) }
+        return { committed: false, ...said(whyOf(mode, opening, null, writer)) }
       }
 
       /**
@@ -833,7 +856,7 @@ export const make = (options: Options): Committing => {
        * the alternative is a reply that is confidently wrong.
        */
       const repo = yield* opening.repo.state
-      if (options.mode === "manual") {
+      if (mode === "manual") {
         return { committed: false, ...said(whyOf("manual", repo, null, writer)) }
       }
 
@@ -872,7 +895,7 @@ export const make = (options: Options): Committing => {
    *  without the status walk and the parsing {@link pending} does for the
    *  panel. */
   const repoState: Effect.Effect<RepoState> = Effect.gen(function*() {
-    if (options.mode === "off") return OFF
+    if (mode === "off") return OFF
     const opening = yield* repository
     if (opening._tag !== "Opened") return opening
     return yield* opening.repo.state
@@ -898,7 +921,9 @@ export const make = (options: Options): Committing => {
      * both from one survey. This is the narrow question asked alone.
      */
     git: Effect.map(repoState, (repo) =>
-      refusal === null ? gitOf(repo) : { status: "error", said: refusal }),
+      refusal === null
+        ? gitOf(repo, options.pin)
+        : { status: "error", said: refusal, pinned: options.pin }),
   }
 }
 

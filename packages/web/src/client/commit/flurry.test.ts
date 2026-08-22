@@ -7,7 +7,7 @@
  */
 
 import type { Pending } from "@olai/format"
-import { BusyFailure, isReady, NOTHING_PENDING, type RepoState } from "@olai/format"
+import { BusyFailure, isReady, NO_PIN, NOTHING_PENDING, type RepoState } from "@olai/format"
 import { GIT_OFF, type GitState } from "@olai/surface"
 import { expect, test } from "bun:test"
 
@@ -111,10 +111,10 @@ test("every reason to hold off holds off", () => {
 // the server's sweep whether or not anything moved — see {@link Standing.sound}.
 test("git is sound only where it is a repository that has refused nothing", () => {
   const soundIn = (git: GitState): boolean => git.status === "repo"
-  expect(soundIn({ status: "repo", said: null })).toBe(true)
+  expect(soundIn({ status: "repo", said: null, pinned: NO_PIN })).toBe(true)
   expect(soundIn(GIT_OFF)).toBe(false)
-  expect(soundIn({ status: "none", said: null })).toBe(false)
-  expect(soundIn({ status: "error", said: "no user.email" })).toBe(false)
+  expect(soundIn({ status: "none", said: null, pinned: NO_PIN })).toBe(false)
+  expect(soundIn({ status: "error", said: "no user.email", pinned: NO_PIN })).toBe(false)
 })
 
 // ... and `ready` is the repository's own three refusals, through the one

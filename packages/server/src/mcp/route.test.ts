@@ -18,7 +18,7 @@
  * pipe the chat panel's agent reads its refusals through.
  */
 
-import { DEFAULT_IDENTITY_HEADERS } from "@olai/identity"
+import { DEFAULT_IDENTITY_CONFIG, DEFAULT_IDENTITY_HEADERS } from "@olai/identity"
 import { codec, make as makeOps, type Store as OutlineStore, TOOLS } from "@olai/ops"
 import * as Store from "@olai/store"
 import { expect, test } from "bun:test"
@@ -63,7 +63,7 @@ const withRoute = <A>(
       watch: false,
       settle: "10 millis",
     })
-    const ops = makeOps({ store, root, commits: "off" })
+    const ops = makeOps({ store, root, pin: { commit: "off", push: null } })
     const wired = yield* bind({
       store,
       chat: null,
@@ -94,7 +94,7 @@ const withRoute = <A>(
       host: listenOn.host,
       port: 0,
       allowedOrigins: [],
-      identity: DEFAULT_IDENTITY_HEADERS,
+      identity: DEFAULT_IDENTITY_CONFIG,
       mcp: { transport, token: TOKEN },
       capture: { ops, writer: "capture", identity: DEFAULT_IDENTITY_HEADERS },
       resync: Effect.void,

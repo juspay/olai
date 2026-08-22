@@ -2,9 +2,10 @@
  * What has been said about each tool call in this conversation.
  *
  * The protocol tells you a call's DISPLAY title and nothing else. Two things
- * this panel needs are said somewhere else entirely — in the agent-specific
- * `_meta` {@link ./interpret.ts} reads — and both are needed at a moment when
- * the frame that carried them has already gone past:
+ * this panel needs are said somewhere else entirely — in whatever corner of a
+ * frame this agent's leg reads them out of ({@link ./agents/leg.ts}) — and both
+ * are needed at a moment when the frame that carried them has already gone
+ * past:
  *
  *   - **which tool a call is**, programmatically. A permission request carries
  *     a title ("Ready to code?") and never a name, and the name is what stops
@@ -18,7 +19,10 @@
  * (`ensureToolCallEmitted`), and a notification and a request travel the same
  * pipe in order — so by the time either question is put, the answer has
  * already been said on a frame. One frame answers both, so one thing
- * remembers both.
+ * remembers both. It is true of the other agent too, for its own reason: an
+ * opencode permission request names the call it is about by the same id the
+ * announcement carried, and that id is where the tool's name is
+ * ({@link ./agents/opencode.ts}).
  *
  * ONE RULE: **a frame refines, never retracts.** The facts arrive across
  * frames and each carries what it knows — a subagent's terminal output arrives
@@ -43,11 +47,13 @@
  * a subprocess and talking it into a fan-out. A rule worth being sure of is
  * one worth asserting over values.
  *
- * It knows nothing about ACP. What a `_meta` MEANS is `interpret.ts`'s, and
- * what to do with the answer is the caller's; this owns only the remembering.
+ * It knows nothing about ACP. What a frame MEANS is the LEG's
+ * ({@link ./agents/leg.ts}) — handed in at construction, because which agent
+ * this conversation is with is decided per conversation now — and what to do
+ * with the answer is the caller's; this owns only the remembering.
  */
 
-import { parentToolUseIn, toolNameIn } from "./interpret.ts"
+import type { Leg, Meta } from "./agents/leg.ts"
 
 /**
  * What is known about one call.
@@ -72,16 +78,22 @@ export interface Said {
  *  neither of these things, and {@link heard} runs on every one of them. */
 const NOTHING: Said = Object.freeze({})
 
-/** Everything one `_meta` says about the call it rode in on. The two readings
- *  in one value, so a frame and a request contribute the same shape and the
- *  merges below are one operation rather than a field-by-field `??` per
- *  caller — and {@link NOTHING} rather than a fresh empty when it says
- *  neither, so a frame nothing is read from costs nothing to read. */
-const saidIn = (
-  meta: { readonly [key: string]: unknown } | null | undefined,
-): Said => {
-  const name = toolNameIn(meta)
-  const parent = parentToolUseIn(meta)
+/** Everything ONE FRAME says about the call it rode in on. The two readings in
+ *  one value, so a frame and a request contribute the same shape and the merges
+ *  below are one operation rather than a field-by-field `??` per caller — and
+ *  {@link NOTHING} rather than a fresh empty when it says neither, so a frame
+ *  nothing is read from costs nothing to read.
+ *
+ *  WHAT THE ID SAYS IS NOT READ HERE, and that is the whole reason the leg has
+ *  two readers for one question ({@link ./agents/leg.ts}): this is the
+ *  remembering, and a name that is in the key needs none. Read here, an agent
+ *  that names its tools in the call id would make every frame of every call
+ *  news — a slice, two objects and a map write apiece, on the one path that
+ *  runs on every frame of every conversation — to store an answer
+ *  {@link Calls.about} can read off its own argument. */
+const saidIn = (leg: Leg, meta: Meta): Said => {
+  const name = leg.toolNameIn(meta)
+  const parent = leg.parentToolUse(meta)
   if (name === null && parent === null) return NOTHING
   return {
     ...(name === null ? {} : { name }),
@@ -91,16 +103,18 @@ const saidIn = (
 
 export class Calls {
   #said = new Map<string, Said>()
+  readonly #leg: Leg
+
+  constructor(leg: Leg) {
+    this.#leg = leg
+  }
 
   /** A frame went past. What it said about its call is folded in; a frame that
    *  said nothing leaves no entry and allocates nothing, so a conversation of
    *  ordinary calls keeps an empty map — which is nearly every conversation,
    *  and this runs on every frame of all of them. */
-  heard(
-    id: string,
-    meta: { readonly [key: string]: unknown } | null | undefined,
-  ): void {
-    const said = saidIn(meta)
+  heard(id: string, meta: Meta): void {
+    const said = saidIn(this.#leg, meta)
     if (said === NOTHING) return
     this.#said.set(id, { ...this.#said.get(id), ...said })
   }
@@ -120,9 +134,21 @@ export class Calls {
    * rather than to a session, and one an MCP server sends may name no call.
    * That is answered rather than refused — a question that named nothing is an
    * ordinary question the main agent asked.
+   *
+   * WHAT THE ID ITSELF SAYS is answered here rather than remembered, for the
+   * agent whose wire puts the tool's name in the call id. It is the same
+   * answer either way and it is asked far less often — a permission request,
+   * a form — where {@link heard} runs on every frame. What a FRAME said still
+   * wins: an agent that says the name in its own words has said something the
+   * id does not know.
    */
   about(id: string | null): Said {
-    return (id === null ? undefined : this.#said.get(id)) ?? NOTHING
+    if (id === null) return NOTHING
+    const said = this.#said.get(id)
+    if (said?.name !== undefined) return said
+    const named = this.#leg.toolNameOf(id)
+    if (named === null) return said ?? NOTHING
+    return said === undefined ? { name: named } : { ...said, name: named }
   }
 
   /** The conversation is over. A call id is only ever looked up inside the

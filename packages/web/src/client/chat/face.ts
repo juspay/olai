@@ -25,13 +25,17 @@
 
 import type { ChatState, Unopened } from "@olai/surface"
 
-/** The three things the panel's body can be. */
+/** The four things the panel's body can be. */
 export type Face =
-  /** No ACP agent is configured at all. Nothing was attempted, so nothing was
-   *  refused; what is owed is the explanation and the variable that fixes it. */
+  /** This machine has no agent at all — none installed, or chat switched off.
+   *  Nothing was attempted, so nothing was refused; what is owed is the
+   *  explanation and how to get one. */
   | { readonly kind: "no-agent" }
   /** The agent is running and would not open a conversation. */
   | { readonly kind: "unopened"; readonly unopened: Unopened }
+  /** There are several agents and nobody has said which this conversation is
+   *  with. The panel asks, and holds no conversation until it is answered. */
+  | { readonly kind: "choose" }
   /** The ordinary panel: the transcript and the box. */
   | { readonly kind: "conversation" }
 
@@ -64,11 +68,18 @@ export type Face =
  * the first paint; a panel RETRYING a refused open is `booting` with the
  * refusal still on it, and what a person is owed there is the thing they just
  * pressed still saying what it was about. Nothing has changed yet.
+ *
+ * AND THE QUESTION OUTRANKS THE CONVERSATION, but nothing else. `choosing` says
+ * *there are several agents and nobody has said which this conversation is
+ * with*, which is only ever true when there is no conversation — so it sits
+ * under both statuses above and under a refusal, and above the empty transcript
+ * it would otherwise be drawn as. The empty transcript is the face this
+ * replaces, and it is exactly the wrong one: a box you can type into, over a
+ * conversation nobody has opened, for an agent nobody has named.
  */
 export const faceOf = (state: ChatState): Face => {
   if (state.status === "off") return { kind: "no-agent" }
   const unopened = state.unopened
-  return unopened === null || state.status === "gone"
-    ? { kind: "conversation" }
-    : { kind: "unopened", unopened }
+  if (unopened !== null && state.status !== "gone") return { kind: "unopened", unopened }
+  return state.talking?.kind === "asking" ? { kind: "choose" } : { kind: "conversation" }
 }

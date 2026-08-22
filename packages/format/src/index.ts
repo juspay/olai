@@ -172,6 +172,7 @@ export type { SetDelta } from "./patch.ts"
  *  and the sweep that says nobody spelled a suffix elsewhere has to read the
  *  list itself. */
 export {
+  bareOf,
   bodyKind,
   DOCUMENT_EXT,
   FILE_EXTS,
@@ -575,18 +576,26 @@ export { biggestOf, changesOf, Field, NodeChange, Sort } from "./changes.ts"
 export type { Records } from "./changes.ts"
 
 export {
+  COMMIT_DEFAULT,
+  COMMIT_MODES,
+  type CommitMode,
+  commitModeOf,
   CommitRequest,
   CommitResult,
   GIT_OFF,
+  GitPin,
   GitState,
   How,
   isPossible,
   isReady,
   LastCommit,
+  NO_PIN,
   NOTHING_PENDING,
   DirtyOutline,
   Other,
   Pending,
+  PUSH_MODES,
+  type PushMode,
   PushResult,
   Reason,
   RepoState,

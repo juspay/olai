@@ -648,6 +648,125 @@ export const SessionInfo = Schema.Struct({
 })
 export type SessionInfo = typeof SessionInfo.Type
 
+/**
+ * EVERY AGENT olai knows how to talk to, and what a person reads.
+ *
+ * HERE, on the wire, because it is the one vocabulary BOTH ENDS keep a table
+ * over and neither owns: the server's roster says how to find each of them and
+ * how to read its frames (`../../chat/src/agents/roster.ts`), and the client
+ * draws a mark for each and — when NONE of them is installed, which is the one
+ * moment nothing can be sent — says where to get one
+ * (`../../web/src/client/chat/NoAgent.tsx`). Two tables keyed alike, in two
+ * packages that never otherwise meet, is exactly the contract that breaks
+ * silently: adding a third agent server-side would leave the face that explains
+ * agents quietly not mentioning it.
+ *
+ * A RECORD, so both tables are `{ [K in AgentId]: … }` and the type checker is
+ * what enforces coverage — the same arrangement `@olai/format`'s `FILE_KINDS`
+ * and `MARKS` already make for their own cross-package names, and for the same
+ * reason. What is NOT here is anything either end can answer alone: how to find
+ * an agent, how to read its wire, what mark to draw, where to download it.
+ *
+ * The NAME travels on the wire too ({@link AgentChoice}), and that is not this
+ * table being ignored: a browser draws what the server SENT, because the server
+ * is what knows which agents are actually here. This is the fallback for the
+ * face drawn when nothing was sent, and the one spelling both sides use.
+ */
+export const AGENTS = {
+  claude: { name: "Claude Code" },
+  opencode: { name: "opencode" },
+} as const
+
+/** One of them. Every table over agents is keyed by this. */
+export type AgentId = keyof typeof AGENTS
+
+/**
+ * ONE AGENT a conversation can be with — a row of the picker, and, once one is
+ * chosen, who the header names beside the model.
+ *
+ * TWO FIELDS AND NO MORE. What to spawn, how to read its wire, where it was
+ * found: all of that stays on the server (`../../chat/src/agents/roster.ts`),
+ * because a browser that knew what to spawn would be a browser that could ask
+ * for it. What crosses is a NAME to draw and an ID to send back.
+ *
+ * The ICON is not here either, and that is the same decision read from the
+ * other side: which mark to draw for an agent is a fact about the drawing, so
+ * the client keeps the marks and looks them up by id, with a generic one for an
+ * agent it has no mark for (`../../web/src/client/chat/AgentMark.tsx`). A
+ * server sending an icon would be a server shipping artwork over a websocket to
+ * be told what a shape is.
+ */
+export const AgentChoice = Schema.Struct({
+  /** Stable and never shown: `claude`, `opencode`. What a picker sends back,
+   *  what a memory writes down, and what the client draws a mark by. */
+  id: Schema.String,
+  /** What a person reads. */
+  name: Schema.String,
+})
+export type AgentChoice = typeof AgentChoice.Type
+
+/**
+ * WHO the panel is talking to — or that it is waiting to be told which.
+ *
+ * ONE MEMBER RATHER THAN THREE, and that is the shape carrying the rule instead
+ * of a comment reminding somebody of it. Written flat it was an agent, a
+ * boolean for "is the panel asking", and a boolean for "does this agent take a
+ * message into a running turn" — three fields whose validity depended on each
+ * other and on nothing enforceable. Two of the eight combinations were lies a
+ * reader could be handed: a panel ASKING which agent while naming one, and a
+ * `steers` that answered for an agent that was not there. Both are now
+ * unspellable, which is cheaper than both being untrue.
+ *
+ * `null` is the third state and needs no arm: the panel is talking to nobody
+ * and is not asking either — no agent is installed at all, or the first frame
+ * has not arrived, or a subprocess is being swapped for another.
+ */
+export const Talking = Schema.Union([
+  /** The agent this conversation is with. */
+  Schema.Struct({
+    kind: Schema.Literal("agent"),
+    /** {@link AgentChoice}'s two fields, spelled here rather than nested: what
+     *  a reader wants off this is a name and a mark, and `talking.agent.name`
+     *  would be a box around one fact. */
+    id: Schema.String,
+    name: Schema.String,
+    /**
+     * Whether a message sent WHILE A TURN RUNS goes into that turn.
+     *
+     * True and what you type lands in the turn the agent is already running,
+     * which is the only moment saying it is worth anything; false and the agent
+     * QUEUES it behind the turn and reaches it when that turn is over. Opencode
+     * is the second (it has no steering method at all), and the composer says
+     * so rather than looking identical and behaving differently — a degradation
+     * a person can see is one they can work with.
+     *
+     * ON THE AGENT because it is a fact ABOUT one. Beside it, on the state, it
+     * was a field a reader could ask with nobody to answer for.
+     */
+    steers: Schema.Boolean,
+  }),
+  /**
+   * Several agents are installed and nobody has said which this conversation is
+   * with, so the panel holds none until somebody does.
+   *
+   * NEVER with one agent installed. A one-row question is friction with no
+   * answer behind it, and every olai before this one was in exactly that state;
+   * what a person gets instead is the header naming the agent they are talking
+   * to, which is the part they did not have.
+   */
+  Schema.Struct({ kind: Schema.Literal("asking") }),
+])
+export type Talking = typeof Talking.Type
+
+/** The agent a conversation is with, or `null` — the narrowing every reader of
+ *  {@link ChatState.talking} wants, written once so that "is there an agent" is
+ *  asked the same way in the header, the composer and the panel's own choice of
+ *  body. */
+export const agentIn = (
+  state: { readonly talking: Talking | null },
+): Extract<Talking, { kind: "agent" }> | null =>
+  state.talking?.kind === "agent" ? state.talking : null
+
 /** A slash command the agent offers, as the input's completion draws it. */
 export const Command = Schema.Struct({
   name: Schema.String,
@@ -786,6 +905,29 @@ export const ChatState = Schema.Struct({
   usage: Schema.NullOr(Usage),
   commands: Schema.Array(Command),
   /**
+   * WHICH agents this machine has, in the order the picker draws them.
+   *
+   * Detected on the server when it started (the human's ruling: no list to
+   * maintain, no path to set for an agent that is simply installed), and sent
+   * whole because it is what the picker IS. Empty only in {@link CHAT_OFF} —
+   * with no agent at all there is no chat, and the panel draws the face that
+   * says so and says how to install one.
+   */
+  roster: Schema.Array(AgentChoice),
+  /**
+   * WHO the panel is talking to, or that it is waiting to be told — see
+   * {@link Talking}, which is where the three facts this used to be became one.
+   *
+   * A conversation is bound to ONE agent for its life (ruled 2026-08-21), and
+   * the note this directory keeps writes the id down beside the session id, so
+   * reopening a conversation talks to the agent that has it.
+   *
+   * `null` while the panel is talking to nobody and asking nobody: no agent is
+   * installed at all, the first frame has not arrived, or one subprocess is
+   * being swapped for another.
+   */
+  talking: Schema.NullOr(Talking),
+  /**
    * How many questions the agent is waiting on a person to answer.
    *
    * Its own fact rather than a sixth `status`, because it is TRUE AT THE SAME
@@ -838,6 +980,8 @@ export const CHAT_OFF: ChatState = {
   model: null,
   usage: null,
   commands: [],
+  roster: [],
+  talking: null,
   asking: 0,
   trouble: null,
   unopened: null,

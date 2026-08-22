@@ -186,10 +186,28 @@ export const fileKind = (path: string): FileKind | null => {
  * is called, and a caller putting a stem in front of a reader means the name,
  * not the path.
  */
-export const stemOf = (path: string): string => {
-  const name = path.slice(path.lastIndexOf("/") + 1)
-  const kind = fileKind(name)
-  return kind === null ? name : name.slice(0, -FILE_KINDS[kind].ext.length)
+export const stemOf = (path: string): string => bareOf(path.slice(path.lastIndexOf("/") + 1))
+
+/**
+ * The same cut with the PATH left whole — `notes/plan` for `notes/plan.md`,
+ * and the path itself for a file no kind claims.
+ *
+ * {@link stemOf} minus its basename step, and it is here rather than spelled
+ * where it is wanted for that function's own reason: how many characters come
+ * off the end is the TABLE's question, and the docstring above is the record of
+ * two callers each answering it for themselves and reaching opposite rules. A
+ * third caller doing the same arithmetic one package up would be that failure
+ * again, in the direction a type checker cannot see.
+ *
+ * The two are one rule and one basename apart, so the difference between them
+ * cannot drift: a caller wants the NAME (a stem in front of a reader) or the
+ * PATH (a name to type back into a box — `@olai/web`'s `file/completing.ts`,
+ * where offering `plan` for a `notes/plan.md` would quietly move the file to
+ * the root).
+ */
+export const bareOf = (path: string): string => {
+  const kind = fileKind(path)
+  return kind === null ? path : path.slice(0, -FILE_KINDS[kind].ext.length)
 }
 
 /** Whether a kind's content is a body rather than records — the question the

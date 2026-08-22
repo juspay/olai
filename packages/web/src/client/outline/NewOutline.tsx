@@ -9,7 +9,9 @@
  * The BOX is `../file/NewFile.tsx`, shared with the document's door, so what is
  * left here is the two things that are actually this file's: the op it sends,
  * and where a write that landed goes. Every rule about the path belongs to
- * neither — `create_outline` judges it and its sentence is what is drawn.
+ * neither — `create_outline` judges it and its sentence is what is drawn. The
+ * box settles the SUFFIX before it asks, because that half is the door's own
+ * and this file is the door (`../file/completing.ts`).
  *
  * IT SENDS NO SEED, and that is the one place this verb says less than the tool
  * it maps to. The op may mint an outline holding a whole tree, which is what

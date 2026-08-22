@@ -1,0 +1,460 @@
+#!/usr/bin/env bun
+/**
+ * An `opencode` on PATH, shaped the way the real one is on the wire.
+ *
+ * The suite's other scripted agent (`agent/fake-acp-agent.ts`) is the CLAUDE
+ * CODE adapter's shape and has been since there was only one: a `_meta` on
+ * every frame, tool names inside it, a bypass mode, a steering extension. This
+ * one is the other shape, and every difference in it was captured live against
+ * **opencode 1.17.9** (`docs/brainstorming/opencode-chat.md`):
+ *
+ *   - **no `_meta` on any frame, ever.** Which is what makes the tool name
+ *     unreachable except at the head of the call id.
+ *   - **call ids are `<tool>:<n>`** — `bash:0`, `olai_set_done:1` — and the
+ *     `title` MOVES over a call's life: the tool's name, then a sentence about
+ *     what it is doing, then the tool's name again when it fails. A client that
+ *     read the title as the name would get a different answer depending on when
+ *     it looked.
+ *   - **MCP tools are `<server>_<tool>`**, not `mcp__server__tool`.
+ *   - **no bypass mode**: `session/set_mode` answers `-32602` for anything but
+ *     `build` and `plan`.
+ *   - **no steering**: `_session/steering` answers `-32601`, so a mid-turn
+ *     message is an ordinary prompt this agent QUEUES — and this file queues it
+ *     for real, one `session/prompt` at a time, because a fake that answered
+ *     two at once would be a witness of the composer's copy and of nothing
+ *     else. What a `session/cancel` does to a queue is not something the spike
+ *     captured, so what is scripted here is the shape olai has to survive
+ *     rather than a fact about the real one: the running turn ends
+ *     `cancelled`, and so does anything still waiting behind it.
+ *   - **permission options are ALLOW-FIRST** (`allow_once`, `allow_always`,
+ *     `reject_once`), where the Claude adapter's list leads with the refusal —
+ *     which is why nothing in olai may read "the first option".
+ *   - **the model is in `configOptions` with the ids the picker offers**, and a
+ *     change comes back in the method RESPONSE. Nothing is ever pushed.
+ *
+ * It is a SEPARATE FILE rather than a mode of the other agent, deliberately: a
+ * fake whose shape is chosen by a flag is a fake that can agree with the client
+ * by construction the day somebody makes the flag do less than it says. Two
+ * files that share nothing but the protocol are two independent witnesses.
+ *
+ * Like the other one, it calls the REAL internal MCP server over the real HTTP
+ * route with the token `session/new` handed it — so a scenario drives the real
+ * panel, the real ops layer and the real store, with no model in the middle.
+ *
+ * Behaviour is keyed on the prompt text:
+ *
+ *   done <id>   call `olai_set_done` on that node and say so — an MCP tool,
+ *               named this agent's way, which the panel must auto-allow
+ *   bash        announce a BUILTIN tool call (`bash:<n>`) whose title then
+ *               moves under it, and report it completed. Nothing here is olai's,
+ *               so a permission for it is a person's
+ *   permit      ask permission for one of olai's own tools — answered without
+ *               anybody being asked
+ *   nameless    ask permission for a call whose id carries no name at all,
+ *               which must reach a person
+ *   slow        announce a tool call and hold it, until a scenario says when —
+ *               long enough to look at a turn WHILE it is running, which is
+ *               when a mid-turn message is a question anybody has
+ *   anything    one chunk of prose and an `end_turn`
+ *
+ * `OLAI_FAKE_OPENCODE_STORED` works the way the other agent's does: unset means
+ * nothing is stored (so a client boots with `session/new`), set means
+ * `session/list` answers and `session/load` replays.
+ *
+ * It lives in a directory of its own because that directory is what goes on a
+ * spawned server's `OLAI_AGENT_PATH`: whether this machine "has opencode" is a
+ * property of the scenario rather than of the laptop the run is on — the same
+ * argument the fake `kolu` next door makes, and the reason a developer with the
+ * real opencode installed still gets the same suite CI does.
+ */
+
+import { readMessages } from "../../support/ndjson.ts";
+import { emitter, released, speaking } from "../../support/scripted.ts";
+
+/** The wire, and what an agent puts on it — the transport this file shares with
+ *  the other scripted agent ({@link ../../support/scripted.ts}). What is NOT
+ *  shared is anything either of them MEANS: every frame shape below is this
+ *  file's own, which is the whole reason two fakes are worth having. */
+const emit = emitter(process.stdout);
+const { notify, refuse, request, respond, take } = speaking(emit, "oc");
+
+/** `--cwd <dir>`, which is how olai starts this agent — and the only cwd the
+ *  real one hears, since its `session/list` ignores the one a request carries. */
+const cwdArg = (): string => {
+  const argv = process.argv;
+  const at = argv.indexOf("--cwd");
+  return at >= 0 ? argv[at + 1] ?? process.cwd() : process.cwd();
+};
+const cwd = cwdArg();
+
+/** A turn that gave up because somebody pressed cancel. Its own class so the
+ *  `session/prompt` handler can tell it from a fault and answer the stop reason
+ *  a real agent would. */
+class Cancelled extends Error {}
+
+const STORED = process.env.OLAI_FAKE_OPENCODE_STORED ?? "";
+
+/** The one stored conversation, when a scenario asked for one. Opencode's own
+ *  ids look like this; nothing reads their shape, but a scenario that
+ *  accidentally matched the other agent's `fake-stored-…` would be asserting
+ *  nothing. */
+const STORED_SESSION = "ses_opencode_stored";
+
+let sessionId = "";
+
+/** The MCP server olai handed this session, and the names it contributed —
+ *  which is what makes a tool "ours" on this wire, at the `<server>_` prefix. */
+let mcp: { url: string; headers: Record<string, string>; name: string } | null = null;
+
+let nextCall = 0;
+
+// ── talking to olai's own MCP server ───────────────────────────────────
+
+const callMcp = async (
+  method: string,
+  params: unknown,
+): Promise<Record<string, unknown>> => {
+  if (mcp === null) throw new Error("no MCP server was configured");
+  const response = await fetch(mcp.url, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json, text/event-stream",
+      ...mcp.headers,
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", id: ++nextCall, method, params }),
+  });
+  if (response.status === 202) return {};
+  const body = (await response.json()) as { result?: Record<string, unknown> };
+  return body.result ?? {};
+};
+
+// ── the frames ─────────────────────────────────────────────────────────
+
+const say = (text: string): void => {
+  notify("session/update", {
+    sessionId,
+    update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text } },
+  });
+};
+
+/** A call id, this agent's way: the tool's name, a colon, and the call's
+ *  number. It is the ONLY place the name is said. */
+const callIdFor = (tool: string): string => `${tool}:${nextCall++}`;
+
+/**
+ * Announce a call, then move its TITLE under it, then complete it.
+ *
+ * The title moving is not decoration: it is the behaviour that makes the id the
+ * only stable name, and a panel that named a row from the title would rename it
+ * mid-run. Nothing here ever says the tool's name in a `_meta`, because the real
+ * one has none to say it in.
+ */
+const runTool = async (
+  tool: string,
+  args: Record<string, unknown>,
+  call: () => Promise<Record<string, unknown>>,
+): Promise<Record<string, unknown>> => {
+  const toolCallId = callIdFor(tool);
+  notify("session/update", {
+    sessionId,
+    update: {
+      sessionUpdate: "tool_call",
+      toolCallId,
+      title: tool,
+      status: "in_progress",
+      rawInput: args,
+    },
+  });
+  notify("session/update", {
+    sessionId,
+    update: {
+      sessionUpdate: "tool_call_update",
+      toolCallId,
+      title: `working on ${tool}, at some length`,
+    },
+  });
+  const result = await call();
+  notify("session/update", {
+    sessionId,
+    update: {
+      sessionUpdate: "tool_call_update",
+      toolCallId,
+      status: result["isError"] === true ? "failed" : "completed",
+      rawOutput: result,
+    },
+  });
+  return result;
+};
+
+/** Opencode's own option list for a permission — ALLOW FIRST. */
+const OPTIONS = [
+  { optionId: "allow_once", name: "Allow once", kind: "allow_once" },
+  { optionId: "allow_always", name: "Allow always", kind: "allow_always" },
+  { optionId: "reject_once", name: "Reject", kind: "reject_once" },
+];
+
+/**
+ * Announce a call and then ask about it, correlated by the call id — which is
+ * the shape olai relies on, and the only correlation this wire has.
+ */
+const askPermission = async (toolCallId: string, title: string): Promise<unknown> => {
+  notify("session/update", {
+    sessionId,
+    update: { sessionUpdate: "tool_call", toolCallId, title, status: "pending" },
+  });
+  return await request("session/request_permission", {
+    sessionId,
+    toolCall: { toolCallId, title },
+    options: OPTIONS,
+  });
+};
+
+// ── turns ──────────────────────────────────────────────────────────────
+
+const turn = async (text: string): Promise<string> => {
+  const said = text.trim();
+
+  if (said.startsWith("done ")) {
+    const node = said.slice("done ".length).trim();
+    // An MCP tool, named this agent's way: `<server>_<tool>`. The panel has to
+    // recognise it as one of the servers it handed over and allow it without
+    // asking anybody.
+    const result = await runTool(
+      `${mcp?.name ?? "olai"}_set_done`,
+      { id: node },
+      () => callMcp("tools/call", { name: "set_done", arguments: { id: node } }),
+    );
+    say(result["isError"] === true ? `could not mark ${node}` : `marked ${node} done`);
+    return "end_turn";
+  }
+
+  if (said === "slow") {
+    // A tool call is ANNOUNCED and left running while the hold lasts, which is
+    // what makes the second half of the claim observable: a turn started
+    // beside this one must not strand this one's calls.
+    const toolCallId = callIdFor("dawdle");
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId,
+        title: "dawdle",
+        status: "in_progress",
+        rawInput: {},
+      },
+    });
+    // The same marker, the same limit and the same loop the other scripted
+    // agent waits on ({@link ../../support/scripted.ts}), so one step
+    // definition releases either of them.
+    await released(cwd, () => {
+      if (cancelled) throw new Cancelled();
+    });
+    notify("session/update", {
+      sessionId,
+      update: { sessionUpdate: "tool_call_update", toolCallId, status: "completed" },
+    });
+    say("done dawdling");
+    return "end_turn";
+  }
+
+  if (said === "bash") {
+    await runTool("bash", { command: "ls" }, async () => ({ ok: true }));
+    say("ran it");
+    return "end_turn";
+  }
+
+  if (said === "permit") {
+    // One of olai's own, asked about anyway — which is the path a session whose
+    // auto-approval was refused takes, and the one the fail-safe rule's ALLOW
+    // half is about.
+    const tool = `${mcp?.name ?? "olai"}_add_node`;
+    const answered = await askPermission(callIdFor(tool), "Add a node?");
+    say(`permission: ${JSON.stringify(answered)}`);
+    return "end_turn";
+  }
+
+  if (said === "nameless") {
+    // A call id with no name in it at all. Nothing can say which tool this is,
+    // so a person is asked — which is the fail-safe rule's REFUSE half.
+    const answered = await askPermission(`:${nextCall++}`, "do something unnamed");
+    say(`permission: ${JSON.stringify(answered)}`);
+    return "end_turn";
+  }
+
+  say(`opencode says: ${said}`);
+  return "end_turn";
+};
+
+// ── the protocol ───────────────────────────────────────────────────────
+
+let currentModel = "litellm/kimi-k3";
+
+const configOptions = () => [
+  {
+    id: "model",
+    name: "Model",
+    type: "select",
+    currentValue: currentModel,
+    // The ids the picker offers ARE the ids it reports — no aliases, which is
+    // the boring case the shared model reading also has to get right.
+    options: [
+      { value: "litellm/kimi-k3", name: "litellm/kimi-k3" },
+      { value: "anthropic/claude-sonnet-5", name: "anthropic/claude-sonnet-5" },
+    ],
+  },
+];
+
+let openedSessions = 0;
+
+/**
+ * ONE TURN AT A TIME, which is what "opencode queues a mid-turn message" means
+ * on the wire: a second `session/prompt` is accepted at once and answered only
+ * when the one before it is done.
+ *
+ * A promise chain rather than a list, for the reason the other scripted agent's
+ * is one: the ORDER is the whole claim, and a chain cannot serve two out of it.
+ */
+let queue: Promise<unknown> = Promise.resolve();
+
+/** Somebody pressed cancel. Every turn still in the chain — the one running and
+ *  anything behind it — answers `cancelled` rather than doing its work. */
+let cancelled = false;
+
+const openSession = (id: string, params: Record<string, unknown>): void => {
+  sessionId = id;
+  const servers = (params["mcpServers"] ?? []) as ReadonlyArray<Record<string, unknown>>;
+  const http = servers.find((server) => server["type"] === "http");
+  if (http !== undefined) {
+    const headers = (http["headers"] ?? []) as ReadonlyArray<{ name: string; value: string }>;
+    mcp = {
+      url: String(http["url"]),
+      name: String(http["name"]),
+      headers: Object.fromEntries(headers.map((header) => [header.name, header.value])),
+    };
+  }
+};
+
+const handle = async (message: Record<string, unknown>): Promise<void> => {
+  const id = message["id"];
+  const method = message["method"];
+  const params = (message["params"] ?? {}) as Record<string, unknown>;
+
+  // An answer to something WE asked.
+  if (method === undefined) {
+    take(id)?.(message["result"] ?? null);
+    return;
+  }
+
+  switch (method) {
+    case "initialize":
+      respond(id, {
+        protocolVersion: 1,
+        agentInfo: { name: "opencode", version: "1.17.9" },
+        agentCapabilities: {
+          loadSession: true,
+          sessionCapabilities: { list: {} },
+        },
+      });
+      return;
+
+    case "session/new": {
+      openSession(`ses_new_${++openedSessions}`, params);
+      respond(id, { sessionId, configOptions: configOptions() });
+      return;
+    }
+
+    case "session/list":
+      // Every session on the machine, ignoring the request's own `cwd` — which
+      // is what the real one does, and why olai's client-side filter is
+      // mandatory. The `cwd` reported is the one on our command line.
+      respond(id, {
+        sessions: STORED === ""
+          ? []
+          : [{ sessionId: STORED_SESSION, cwd, title: "an opencode conversation", updatedAt: "2026-08-21T10:00:00Z" }],
+      });
+      return;
+
+    case "session/load": {
+      openSession(String(params["sessionId"]), params);
+      // A replay: collapsed final frames, and the person's own words as chunks.
+      notify("session/update", {
+        sessionId,
+        update: {
+          sessionUpdate: "user_message_chunk",
+          content: { type: "text", text: "what did we say" },
+        },
+      });
+      notify("session/update", {
+        sessionId,
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "opencode remembers this conversation" },
+        },
+      });
+      respond(id, { configOptions: configOptions() });
+      return;
+    }
+
+    case "session/set_mode":
+      // `build` and `plan`, and nothing else — which is why olai's opencode leg
+      // asks for no permission mode at all.
+      refuse(id, -32602, `unknown mode: ${String(params["modeId"])}`);
+      return;
+
+    case "session/set_config_option": {
+      const value = String(params["value"]);
+      currentModel = value;
+      // In the RESPONSE, never as a pushed update.
+      respond(id, { configOptions: configOptions() });
+      return;
+    }
+
+    case "_session/steering":
+      // No such method on this wire.
+      refuse(id, -32601, "method not found: _session/steering");
+      return;
+
+    case "session/prompt": {
+      const blocks = (params["prompt"] ?? []) as ReadonlyArray<Record<string, unknown>>;
+      const text = blocks
+        .map((block) => (block["type"] === "text" ? String(block["text"] ?? "") : ""))
+        .join("");
+      // BEHIND whatever is already running, which is the whole of what "this
+      // agent queues what you send now" means. The request is answered when
+      // this turn's place in the chain comes up, so a client watching for a
+      // `stopReason` sees the order the agent worked in.
+      queue = queue.then(async () => {
+        if (cancelled) {
+          respond(id, { stopReason: "cancelled" });
+          return;
+        }
+        try {
+          respond(id, { stopReason: await turn(text) });
+        } catch (cause) {
+          respond(id, { stopReason: cause instanceof Cancelled ? "cancelled" : "refusal" });
+        }
+      });
+      return;
+    }
+
+    case "session/cancel":
+      // A notification, so there is nothing to answer — but there is something
+      // to DO: the turn that is running gives up at its next tick, and so does
+      // anything queued behind it. Reset by the next prompt that is not part of
+      // this cancelled batch, which is the one after the chain has drained.
+      cancelled = true;
+      void queue.then(() => {
+        cancelled = false;
+      });
+      return;
+
+    default:
+      if (id !== undefined) refuse(id, -32601, `method not found: ${String(method)}`);
+      return;
+  }
+};
+
+readMessages<Record<string, unknown>>(process.stdin, (message) => {
+  void handle(message);
+});

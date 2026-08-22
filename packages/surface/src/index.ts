@@ -158,6 +158,7 @@ import {
   CommitResult,
   Face,
   GIT_OFF,
+  GitPin,
   GitState,
   HomesAnswer,
   HomesRequest,
@@ -498,6 +499,15 @@ export const LOADED: Manifest = {}
  *   - `error` — git tried and could not, and `said` is its own words. The one
  *     face that warns, and the words ride its tip and its `aria-label`.
  *
+ * It carries a FIFTH fact that is not one of those four and is not about the
+ * repository at all: `pinned`, which is the `--commit` / `--push` flags this
+ * server was started with, `null` for each one nobody gave. It rides this cell
+ * rather than a cell of its own because the preferences panel that draws it is
+ * drawing the same server's answer about the same directory, and `off` above is
+ * already exactly that answer wearing the repository's clothes. What a browser
+ * does with it — freeze the two git preference rows, read-only, naming the flag
+ * — is `web/src/client/settings/`.
+ *
  * A CELL, and read-only on the wire, for the reason the manifest is: one value
  * the server owns, about the directory rather than about any file in it. It
  * moves twice at most in an ordinary serve — once when the directory is probed,
@@ -508,7 +518,7 @@ export const LOADED: Manifest = {}
  * the ops layer both stand on, so there is no second spelling to drift. Its
  * before-first-frame default `GIT_OFF` travels with it.
  */
-export { GIT_OFF, GitState }
+export { GIT_OFF, GitPin, GitState }
 
 /** When two answers are the same answer, so the cell can stay quiet. There is
  *  exactly one thing this value can say, so there is exactly one thing that can
@@ -1051,9 +1061,33 @@ export const surface = defineSurface({
       /** Stop the turn in flight. Legal while the agent is still booting — the
        *  cancel is remembered and sent with the prompt. */
       cancel: { error: ChatFailure },
-      /** Start a fresh conversation. The agent-side context goes away and the
-       *  transcript is emptied. */
-      newSession: { error: ChatFailure },
+      /** Start a fresh conversation WITH the named agent — one of
+       *  {@link ChatState.roster}'s ids. The agent-side context goes away and
+       *  the transcript is emptied.
+       *
+       *  The agent is REQUIRED, and that is the ruling rather than an
+       *  ergonomic: every new chat asks which one, and no default is
+       *  remembered across conversations. A verb that could be called without
+       *  one would be the place a default grew back. Refuses an id this machine
+       *  does not have, which is what a tab open across a restart can send. */
+      newSession: {
+        input: Schema.Struct({ agent: Schema.String }),
+        error: ChatFailure,
+      },
+      /** Answer the question the panel is asking ({@link ChatState.talking}'s
+       *  `asking` arm):
+       *  THIS agent, now open the conversation you would have opened.
+       *
+       *  Not {@link newSession} with the same argument. A boot that stopped to
+       *  ask has not asked for a new conversation — it was stopped before it
+       *  could come back to the one this directory was in — so this opens that
+       *  agent's remembered conversation, or its most recent, and only mints a
+       *  fresh one where it has none. `+ new` is the verb that always means
+       *  fresh. */
+      chooseAgent: {
+        input: Schema.Struct({ agent: Schema.String }),
+        error: ChatFailure,
+      },
       /** Move to one of the stored conversations. The transcript is replaced by
        *  the replay, because a transcript of a session you are not in is a lie. */
       loadSession: {
@@ -1285,7 +1319,11 @@ export const surface = defineSurface({
 })
 
 export {
+  AGENTS,
+  AgentChoice,
   AgentEntry,
+  type AgentId,
+  agentIn,
   Ask,
   AskAnswer,
   AskChoice,
@@ -1312,6 +1350,7 @@ export {
   RefusalEntry,
   SessionInfo,
   Spawned,
+  Talking,
   ToolEntry,
   ToolStatus,
   Unopened,

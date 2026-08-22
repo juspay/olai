@@ -105,7 +105,7 @@ test("PIN (profile): cucumber.js asks workerCount(); it does not hardcode 1", ()
 });
 
 test("PIN (spawn shape): fingerprints differ when the server would start differently", () => {
-  const base = { stored: false, agent: true, kolu: false };
+  const base = { stored: false, agent: true, opencode: false, kolu: false };
   expect(spawnFingerprint(base)).toBe(spawnFingerprint({ ...base }));
   expect(spawnFingerprint(base)).not.toBe(
     spawnFingerprint({ ...base, kolu: true }),
@@ -119,6 +119,38 @@ test("PIN (spawn shape): fingerprints differ when the server would start differe
   expect(spawnFingerprint(base)).not.toBe(
     spawnFingerprint({ ...base, agent: false }),
   );
+  // Which AGENTS a server finds decides whether its panel asks which one a
+  // conversation is with, so two servers that differ in it are two servers.
+  expect(spawnFingerprint(base)).not.toBe(
+    spawnFingerprint({ ...base, opencode: true }),
+  );
+});
+
+// What a server under test trusts for who is looking — and what it pictures
+// them with — is the SCENARIO's, never the machine's. A developer with the
+// documented avatar template exported would otherwise have handed it to every
+// spawned server, and the silhouette scenario would have drawn a GitHub face.
+test("PIN (env): the host's identity family never reaches a spawned server", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-e2e-iso-"));
+  const was = process.env.OLAI_IDENTITY_AVATAR_TEMPLATE;
+  try {
+    process.env.OLAI_IDENTITY_AVATAR_TEMPLATE = "https://github.com/{login}.png";
+    process.env.OLAI_IDENTITY_LOGIN_HEADER = "X-Somebody-Else";
+    expect(isolateEnv(root).OLAI_IDENTITY_AVATAR_TEMPLATE).toBeUndefined();
+    expect(isolateEnv(root).OLAI_IDENTITY_LOGIN_HEADER).toBeUndefined();
+    // …and what the SPAWN asked for still gets through, which is how
+    // `@avatar-template` puts the ladder's second rung in play.
+    expect(
+      isolateEnv(root, {
+        OLAI_IDENTITY_AVATAR_TEMPLATE: "https://example.test/{login}.png",
+      }).OLAI_IDENTITY_AVATAR_TEMPLATE,
+    ).toBe("https://example.test/{login}.png");
+  } finally {
+    if (was === undefined) delete process.env.OLAI_IDENTITY_AVATAR_TEMPLATE;
+    else process.env.OLAI_IDENTITY_AVATAR_TEMPLATE = was;
+    delete process.env.OLAI_IDENTITY_LOGIN_HEADER;
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("PIN (env): a spawned server does not inherit the host's padi or cache", () => {

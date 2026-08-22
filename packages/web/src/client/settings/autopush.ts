@@ -10,10 +10,15 @@
  * waits and the panel's Push sends it. The circuit is `../preference.ts`.
  * Cross-tab follow is the same `storage` event the theme and the folds ride,
  * started once from `main.tsx`.
+ *
+ * **The SERVER may overrule it** — `--push`, and the argument is `./autocommit
+ * .ts`'s one door over and sharper: whether a branch is pushed is the least
+ * personal thing on this panel. See `./pinned.ts`.
  */
 
 import type { Accessor } from "solid-js"
 
+import { pinned, pinnedPush } from "./pinned.ts"
 import { boolCodec, createPreference } from "../preference.ts"
 
 export const AUTOPUSH_KEY = "olai.git.autopush"
@@ -26,8 +31,9 @@ const OFF = false
  *  in how it is stored. */
 const pref = createPreference(AUTOPUSH_KEY, boolCodec(OFF))
 
-/** Whether this browser follows a commit with a push. */
-export const autoPush: Accessor<boolean> = pref.value
+/** Whether a commit made here is followed by a push — the server's answer where
+ *  it gave one, and this browser's otherwise. */
+export const autoPush: Accessor<boolean> = () => pinnedPush(pinned()) ?? pref.value()
 
 /** Persist on change — `pref.set` writes `olai.git.autopush`. */
 export const setAutoPush = (value: boolean): void => pref.set(value)

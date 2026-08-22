@@ -16,8 +16,9 @@ export const TESTID = {
   appHeader: "app-header",
   /** Who is looking, last in the chrome row (top right). Always drawn:
    *  `data-who` is `asking` / `none` / `yes` / `error` — a closed set.
-   *  `none` is anonymous, not a missing chip. The gravatar `<img>` is
-   *  inside it only when `yes`. */
+   *  `none` is anonymous, not a missing chip. A picture `<img>` is inside
+   *  it only when `yes` AND the server resolved one — a person the ladder
+   *  found no picture for wears the silhouette and is still `yes`. */
   identity: "identity",
   /** The row of controls inside it that are about the APP. On desktop: the
    *  connection, the Commit pill, the agent toggle, the preferences trigger.
@@ -494,8 +495,19 @@ export const TESTID = {
    *  in is worse than no hint at all. */
   prefsHint: "prefs-hint",
   /** One segment of a two-or-three-way choice. `data-value` is what it picks,
-   *  `aria-pressed` whether it is the one in force. */
+   *  `aria-pressed` whether it is the one in force, `aria-disabled` whether the
+   *  row it is in was pinned by the server. */
   prefsChoice: "prefs-choice",
+  /** WHO set a row, on the rows the server pinned — the flag named, and that a
+   *  browser cannot change it. Absent on every row this browser owns, which is
+   *  every row on an unpinned server. */
+  prefsSetBy: "prefs-set-by",
+  /** Start Auto-commit again after git refused something, on a Git commit row
+   *  the server has frozen. The off-and-on-again gesture is the same thing on a
+   *  row that is still this browser's; a pinned row has no toggle to flip, and
+   *  a loop that stopped for good in silence is the one failure Auto-commit may
+   *  not have. */
+  prefsResume: "prefs-resume",
   /** What every row on the panel has in common, said once: these belong to this
    *  browser and reach no server. */
   prefsScope: "prefs-scope",
@@ -1014,6 +1026,25 @@ export const TESTID = {
   paletteAskError: "palette-ask-error",
   chatTitle: "chat-title",
   chatModel: "chat-model",
+  /** WHO this conversation is with, beside the model — the agent's name, with
+   *  its mark in front of it. `data-agent` is the id, so a scenario can say
+   *  which agent without reading a brand name off the screen. */
+  chatAgent: "chat-agent",
+  /** The mark itself. Its own id because "the header shows the agent's ICON"
+   *  is half the ruling, and a name with no mark passes an assertion about the
+   *  name. `data-mark` says which one was drawn — the agent's own, or the
+   *  generic one an agent olai has no mark for gets. */
+  chatAgentMark: "chat-agent-mark",
+  /** The picker: which agent this conversation is with. Drawn in the
+   *  transcript's place when the panel is asking, and over it when `+ new`
+   *  does the asking. */
+  chatChoose: "chat-choose",
+  /** One agent to choose. `data-agent` is its id. */
+  chatChooseAgent: "chat-choose-agent",
+  /** The way out of the picker when a conversation is already open and `+ new`
+   *  put it there. Absent when the panel is asking because it HAS no
+   *  conversation: there is nothing to go back to. */
+  chatChooseCancel: "chat-choose-cancel",
   /** How full the context is (`22k/1M`), beside the model. Absent until the
    *  agent has reported some — a conversation that has spent nothing says
    *  `0/…`, so an absent line means nothing was said rather than nothing spent. */
@@ -1041,9 +1072,12 @@ export const TESTID = {
    *  transcript and the composer while a drag carrying files is over them,
    *  and gone the moment it is not. */
   chatDrop: "chat-drop",
-  /** Drawn in the transcript's place when no ACP agent is configured. The
-   *  panel is NOT hidden in that state — this is what it says instead. */
+  /** Drawn in the transcript's place when this machine has no agent at all —
+   *  none installed, or chat switched off. The panel is NOT hidden in that
+   *  state: this is what it says instead, and it says how to install one. */
   chatNoAgent: "chat-no-agent",
+  /** One agent it tells you how to install. `data-agent` is its id. */
+  chatInstall: "chat-install",
   /** Drawn in the transcript's place when the agent is RUNNING and would not
    *  open a conversation. The panel's third body, and the one that is about a
    *  live agent: `chatNoAgent` is a capability that is switched off, this is
@@ -1172,6 +1206,10 @@ export const TESTID = {
    *  never a reason anything failed — the transcript's own copy of the aside a
    *  keystroke already gets under its row. */
   chatNudge: "chat-nudge",
+  /** The composer saying that what you type now will QUEUE behind the running
+   *  turn rather than land in it — drawn only for an agent that cannot take a
+   *  message mid-turn, and only while a turn is running. */
+  chatQueues: "chat-queues",
   /** A refused write, with its structured detail drawn out. */
   chatRefusal: "chat-refusal",
   /** What the last VERB refused — an empty send, a turn already running. */

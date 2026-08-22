@@ -33,18 +33,24 @@
  * hand, because the promise Auto-commit makes is that changes reach git without
  * being watched, and the moment a verb fails in this browser that promise is
  * broken. A timer going round again in the background after that is precisely
- * the "retrying blindly" the ruling forbids. ONE gesture resumes it: turn
- * Auto-commit off and on again, which is a person saying they have dealt with
- * whatever git said. Nothing clears it on olai's own initiative — a loop that
- * un-paused itself would be the retry wearing a different hat.
+ * the "retrying blindly" the ruling forbids. ONE gesture resumes it, and it is
+ * a person saying they have dealt with whatever git said: Resume on a pinned
+ * row, or Auto-commit off and on again where the row is still this browser's.
+ * Nothing clears it on olai's own initiative — a loop that un-paused itself
+ * would be the retry wearing a different hat.
+ *
+ * The pause itself is `./pause.ts` rather than a signal in here, because the
+ * button that clears it is on the preferences panel while the loop is on the
+ * header's pill — see there.
  */
 
 import { debounce } from "@solid-primitives/scheduled"
-import { type Accessor, createEffect, createMemo, createSignal, untrack } from "solid-js"
+import { type Accessor, createEffect, createMemo, untrack } from "solid-js"
 
 import { isReady } from "@olai/format"
 
 import { flurryOf, mayRecord, QUIET_MS, type Standing, stoppedBy, stoppedByPush } from "./flurry.ts"
+import { autoPause, type Pause } from "./pause.ts"
 import type { Commit } from "./state.ts"
 
 /**
@@ -100,8 +106,13 @@ export const createAuto = (input: {
   /** The quiet window, for a test that cannot wait fifteen seconds. The SPAN is
    *  a product decision and lives with the rules. */
   readonly quiet?: number
+  /** Where the stop is kept (`./pause.ts`). The app's own by default; a test
+   *  hands in a fresh one, because a module-level value shared between two
+   *  loops in one process would carry a refusal from one case into the next. */
+  readonly pause?: Pause
 }): Accessor<Auto> => {
-  const [paused, setPaused] = createSignal<string | null>(null)
+  const pause = input.pause ?? autoPause
+  const paused = pause.said
   const quiet = input.quiet ?? QUIET_MS
 
   /**
@@ -181,17 +192,19 @@ export const createAuto = (input: {
    * on the attempt that stopped it in the first place.
    */
   const judge = (said: string | null): void => {
-    if (said !== null && untrack(input.on)) setPaused(said)
+    if (said !== null && untrack(input.on)) pause.stop(said)
   }
   createEffect(() => judge(stoppedBy(input.commit.attempt())))
   createEffect(() => judge(stoppedByPush(input.commit.pushed())))
 
   // Turning it OFF forgets the reason, which is the whole of "off and on again
-  // resumes it" — see this file's header for why nothing else clears it. It is
-  // not what hides the pause from a reader (the value below does that, and
-  // cannot be read any other way); it is what makes the NEXT arming clean.
+  // resumes it" WHERE THE ROW IS STILL THIS BROWSER'S — see this file's header
+  // for why nothing else clears it, and `./pause.ts` for the Resume button that
+  // is the same gesture on a row the server has frozen. It is not what hides
+  // the pause from a reader (the value below does that, and cannot be read any
+  // other way); it is what makes the NEXT arming clean.
   createEffect(() => {
-    if (!input.on()) setPaused(null)
+    if (!input.on()) pause.resume()
   })
 
   return createMemo(() => {

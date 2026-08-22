@@ -20,7 +20,7 @@
  * sentence, which is the whole reason the pieces exist.
  */
 
-import { DEFAULT_IDENTITY_HEADERS } from "@olai/identity"
+import { DEFAULT_IDENTITY_CONFIG } from "@olai/identity"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
@@ -71,10 +71,10 @@ const run = (
       host: options.host ?? "127.0.0.1",
       clientDist: served(),
       allowedOrigins: [],
-      identity: DEFAULT_IDENTITY_HEADERS,
+      identity: DEFAULT_IDENTITY_CONFIG,
       // These start and stop a real server against a temp directory; committing
       // to whatever repository happens to contain it is not theirs to do.
-      commits: "off",
+      pin: { commit: "off", push: null },
     })
   }).pipe(
     Effect.scoped,
@@ -365,5 +365,70 @@ test("the shell names the mark, the viewport, and no service worker", async () =
     const touch = await fetch(`${url}/apple-touch-icon.png`)
     expect(touch.status).toBe(200)
     expect(touch.headers.get("content-type") ?? "").toMatch(/^image\/png/)
+  })
+})
+
+// ── the bundle against the reader's own URL space ───────────────────────
+//
+// Addresses went prefix-free in #256: a served file's address IS its path. So
+// the paths the BUNDLE answers at the dist root are paths a reader's own files
+// can have, and `web/src/client/routes.ts` names the two of them. These are
+// where that claim is measured, because its two halves do not come out the
+// same way and only a request can say which.
+//
+// Unlike the install tests above, the served directory and the dist are two
+// different trees here — the whole question is what happens when one holds a
+// path the other also holds.
+
+/** A served directory holding the two paths the bundle also answers at. */
+const shadowedVault = (): string => {
+  const root = served()
+  fs.writeFileSync(
+    path.join(root, "index.html"),
+    "<!doctype html><h1>the reader's own index</h1>\n",
+  )
+  fs.mkdirSync(path.join(root, "assets"))
+  fs.writeFileSync(path.join(root, "assets", "x.md"), "# a note under assets\n")
+  return root
+}
+
+const withShadowed = (body: (url: string) => Promise<void>): Promise<void> =>
+  withServing(
+    { root: shadowedVault(), clientDist: installDist() },
+    (url) => body(url),
+  )
+
+test("a vault's own index.html has a page — the bundle answers it with the shell the fallback would have", async () => {
+  await withShadowed(async (url) => {
+    const shell = await fetch(`${url}/`)
+    const shadowed = await fetch(`${url}/index.html`)
+    expect(shadowed.status).toBe(200)
+    expect(shadowed.headers.get("content-type") ?? "").toMatch(/^text\/html/)
+    // The bundle wins the path, and winning it costs nothing: what sits there
+    // is the SPA shell, which is exactly what an unmatched path is answered
+    // with. So the address reaches the client's parser and `index.html` opens
+    // as the hypertext page it is — driven in a browser, with a reload, by
+    // `features/html_previews.feature`.
+    expect(await shadowed.text()).toBe(await shell.text())
+    // ...and it is still the shell's own freshness contract, not a cacheable
+    // file: a reader who reloads here must not replay a stale bundle.
+    expect(shadowed.headers.get("cache-control")).toBe("no-store")
+  })
+})
+
+test("a vault file under assets/ has no page — the hashed prefix must 404 rather than reach the shell", async () => {
+  await withShadowed(async (url) => {
+    const answer = await fetch(`${url}/assets/x.md`)
+    // THE COLLISION, pinned rather than described. `/assets/` is the immutable
+    // content-hashed prefix, and a miss under it has to 404: the shell served
+    // under a `.js` URL is the wrong MIME pinned `immutable` for a year
+    // (kolu#1319). So a file the reader keeps in a folder called `assets` is
+    // an address this app can spell and cannot open.
+    //
+    // This is the assertion the follow-up flips. Moving the bundle to
+    // `/_olai/assets/` needs `buildSurfaceClient` to take the prefix its own
+    // server already takes — kolu#2197 — so it lands when the pin carries it.
+    expect(answer.status).toBe(404)
+    expect(answer.headers.get("content-type") ?? "").not.toMatch(/^text\/html/)
   })
 })

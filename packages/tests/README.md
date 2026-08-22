@@ -41,10 +41,15 @@ packages/tests/
 │                           #   column held still rather than that it ended up drawing
 │                           #   the same markup
 │   ├── mcp.ts               # an MCP client, for the agent olai did not start
-│   └── ndjson.ts            # line-delimited JSON off a pipe — one copy, shared
-│                           #   by that client and both fakes below
-├── agent/                   # the scripted ACP agent the chat scenarios drive,
-│                           #   and the fake `kolu` every server finds on PATH
+│   ├── ndjson.ts            # line-delimited JSON off a pipe — one copy, shared
+│                           #   by that client and every fake below
+│   └── scripted.ts          # ... and the write half: the JSON-RPC envelope, the
+│                           #   requests a fake is waiting on, and the hold
+│                           #   protocol — shared by the two scripted agents
+├── agent/                   # the two scripted ACP agents the chat scenarios
+│                           #   drive — one shaped like the Claude Code adapter,
+│                           #   one like opencode — and the fake `kolu` every
+│                           #   server finds on PATH
 ├── bin/broken-git/git       # a `git` that is found and fails, for @git:broken
 └── fixtures/                # the served directories (see fixtures/README.md)
 ```
@@ -157,6 +162,26 @@ LABEL=after bash wire.sh
 That is `SESSION=preview`, the first of THREE. `SESSION=pages` walks an ordinary reading session over a generated vault, which is how `vault-in-browser`'s trade — a small first frame against a round trip per navigation — landed as a number. `SESSION=filter` counts ASKS rather than bytes: it opens a narrowed outline over a 90,000-node vault, picks thirty rows and ticks them off, and reports how many times the page asked the matcher what its filter selects. That third one is the instrument `reactivity-after-the-flip` §3.5 was measured with, and it is what said the coalescing that finding asked for could not help — the ask was already one per published revision, and this gesture's revisions are a procedure round trip apart (the edits go out one at a time through the editor's queue), which is further apart than any window the filter could honestly hold. It is then the ACCEPTANCE TEST for the fix that did work ([../../docs/brainstorming/filter-rides-the-page.md](../../docs/brainstorming/filter-rides-the-page.md)): the narrowing is a stream over the page now, so the gesture costs the matcher nothing at all. The counter knows BOTH spellings of the ask — the old `search.matching` procedure and the new `narrowing` subscribe — because `ROOT=` is the whole point of the driver and the two worktrees it measures are on either side of that change.
 
 `ROOT=` is the knob it exists for: the driver imports nothing of olai, so pointing it at a second worktree measures THAT branch's server through the same session, and the two numbers are comparable. That is how `preview-body-not-shipped`'s were taken — a previewed page's body used to cross the socket as well as the route, so the same session read 3.9 MB on the socket before and about 50 kB after (which is the note, and only the note).
+
+## Photographing a window the wire is allowed to open
+
+```bash
+just build-client
+nix develop .#e2e -c bash
+cd packages/tests
+SHOTS=/tmp/shots bash skew.sh
+ROOT=/path/to/another/worktree LABEL=before SHOTS=/tmp/shots bash skew.sh
+```
+
+`skew.ts` / `skew.sh` are the fourth driver, and not part of the suite either. The other three drive a wire behaving exactly as it does for everybody — `evidence.ts` photographs a LOOK, `wire.ts` counts a COST, `reads.ts` prints what a tool surface ANSWERS. This one is about a wire behaving in one of the two ways it is ALLOWED to and normally does not: the `manifest` cell and the `heads` collection are two members on two channels, and the server declines to promise an order between them ([`@olai/server`'s `runtime.ts`](../server/src/runtime.ts), where a revision is published — "a reader tolerates the skew either way"). A reader that tolerates only one of the two is wrong in a window nobody can photograph by waiting for it, because the order that exposes it is the one the server happens not to produce.
+
+So one frame is HELD, and nothing else is touched: the server is a real `olai web` over a real directory that really does not parse, so the manifest cell really does say `null`; the SECOND frame of `surface/manifest/get` — the `{}` that says the set finally loaded — is held for `HOLD_MS` by a Playwright `routeWebSocket`, and the heads of that same revision pass through untouched. Every frame the driver holds or passes is announced on stdout with a clock beside it, so the transcript says what was interfered with rather than asking anybody to take it on trust. Three shots: the boot over a set that never validated, THE WINDOW (`WINDOW_MS` after the files are repaired on disk, that revision's heads already here and the cell's `{}` still held), and the same page once the frame is let through, which is the control.
+
+`ROOT=` is the knob it exists for, exactly as `wire.ts` has one: the driver imports no olai package, so pointing it at a second worktree photographs THAT branch's client through the same frames, and the two runs are of the same window. That is how `manifest-fold-skew`'s before and after were taken — one run drawing the error report over a directory the tab was holding, one drawing the directory, at the same instant of the same held frame.
+
+The vault is the driver's own, both states of it, for `reads.ts`'s reason one section up: the exhibit is the TRANSITION between a refused set and a repaired one, and a corpus shared with the suite would drift away from it the moment a scenario needed a row. The refused state is a MEANING error and not a syntax one, which is load-bearing — a file that will not PARSE keeps its key and carries its errors (`Head.broken`), so that set still validates and its heads still travel; a row hanging off a parent nothing declares is what leaves the store with no snapshot at all. It is seeded by `bash skew.sh`'s own `--seed` pass, before the server starts, because an empty directory is a valid set and would boot to a directory rather than to the `null` the window opens out of.
+
+What the BEHAVIOUR is held by is not here: [`directory.browsertest.ts`](../web/src/client/directory.browsertest.ts) orders the two arrivals deterministically and [`runtime.test.ts`](../server/src/runtime.test.ts) pins the fact the browser's rule rests on. This is the picture, and a picture is all it is.
 
 ## Making it flake on purpose
 
@@ -397,7 +422,18 @@ The seventeen port drops went to zero, and so did the four faces of the disk-as-
 
 Port/lock did not move: it is still zero, the way the 2026-08-16 wait-honesty run left it. The remaining drops are other classes (a scroll-restore that missed 267px, a CSP-picture assertion, 15s waits); they are counted, not fixed, here. Taken on `399cf308`, before `#296` restored overlapping writers onto a shared scratch.
 
-## The scripted agent
+## The scripted agents
+
+There are TWO, and that is the point rather than an accident of history: one is
+shaped like the Claude Code adapter and one like opencode, and what they share
+is the transport (`support/scripted.ts`, `support/ndjson.ts`) and nothing else.
+Every frame shape each of them sends — where a tool's name is said, how an MCP
+server's tools are spelled, which methods are refused, the order of a
+permission's options — is its own file's, so the two are independent witnesses
+to the same protocol. A fake whose shape is chosen by a flag is one that can
+agree with the client by construction.
+
+### The Claude-shaped one
 
 `agent/fake-acp-agent.ts` is a deterministic ACP agent: line-delimited JSON-RPC on stdio, just enough of the protocol to be indistinguishable from a real one as far as the server's client is concerned. Every server this suite spawns is pointed at it, for the same reason the Chromium flags are not branched on `CI` — a server configured differently for one feature than for another is a class of bug that only reproduces where it is hardest to see.
 
@@ -422,6 +458,28 @@ It lives in `agent/` rather than `support/` because Cucumber imports everything 
 WHICH of the two is loaded is the thing several of those scenarios are about. A first boot has nothing written down, so it takes the most recently updated — the fallback, and once the whole rule. After a conversation has been PICKED, the server remembers it and a restart comes back to that one however much fresher its sibling is (`chat-restore-wrong`), and falls back to the newest again only when the remembered one has gone. A scenario takes one away with `.agent-forgot-<sessionId>`, a dot-file in the served directory like the `hold` release — the store's walk prunes those, so arming one is not an edit.
 
 The real Claude adapter is for driving the panel by hand: `just serve` resolves the pinned one on demand.
+
+### The opencode-shaped one
+
+`agent/opencode/opencode` is an executable named exactly that, and its directory
+goes on `OLAI_AGENT_PATH` for a scenario tagged `@opencode` — the variable olai
+probes for installed agents. Every OTHER server this suite spawns gets that
+variable set to the EMPTY string, which is "look nowhere": which agents a server
+finds decides whether its panel ASKS which one a conversation is with, so a
+developer with the real opencode installed would otherwise run a different suite
+than a CI lane does. The fake `kolu` next door makes the same argument about
+PATH.
+
+Its differences from the file above are opencode 1.17.9's own, captured live
+(`docs/brainstorming/opencode-chat.md`): no `_meta` on any frame, so the tool's
+name is the head of the `toolCallId` (`bash:0`) and the `title` moves under a
+running call; MCP tools spelled `<server>_<tool>`; permission options that lead
+with an ALLOW where the other's lead with the refusal; `session/set_mode` and
+`_session/steering` refused; the model in `configOptions` and changes only in
+method responses. And it QUEUES: one `session/prompt` at a time, because "this
+agent queues what you send now" is a claim a fake that answered two at once
+could not witness. Behaviour is keyed on the prompt text (`done <id>`, `bash`,
+`permit`, `nameless`, `slow`).
 
 ## The fake kolu
 

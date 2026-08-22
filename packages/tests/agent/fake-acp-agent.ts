@@ -147,57 +147,32 @@ import { existsSync, readFileSync, rmSync, statSync } from "node:fs"
 import { basename } from "node:path"
 
 import { readMessages } from "../support/ndjson.ts"
+import { emitter, RELEASE, released as releasedIn, speaking } from "../support/scripted.ts"
 
 const OUT = process.stdout
 
-const emit = (message: unknown): void => {
-  OUT.write(`${JSON.stringify(message)}\n`)
-}
-
-const respond = (id: unknown, result: unknown): void => {
-  emit({ jsonrpc: "2.0", id, result })
-}
-
-/** The other half of {@link respond}: a request we will not answer. Named for
- *  the same reason its sibling is — the envelope is the protocol's, not this
- *  file's, and two hand-built copies is how one of them drifts. */
-const refuse = (id: unknown, code: number, message: string): void => {
-  emit({ jsonrpc: "2.0", id, error: { code, message } })
-}
-
-const notify = (method: string, params: unknown): void => {
-  emit({ jsonrpc: "2.0", method, params })
-}
-
-/** The client's answers to requests WE sent, by the id we sent them under.
- *  Ids are prefixed so they cannot be mistaken for the client's own. */
-const answering = new Map<string, (result: unknown) => void>()
-let nextRequestId = 0
-
-/** Ask the client something and wait. Half the protocol runs this way — a
- *  permission, an elicitation — and a scripted agent that could only notify
- *  could not exercise any of it. */
-const request = (method: string, params: unknown): Promise<unknown> =>
-  new Promise((resolve) => {
-    const id = `agent-${++nextRequestId}`
-    answering.set(id, resolve)
-    emit({ jsonrpc: "2.0", id, method, params })
-  })
+/** The wire, and what an agent puts on it — the transport this file shares with
+ *  the other scripted agent ({@link ../support/scripted.ts}). What is NOT
+ *  shared is anything either of them MEANS: the frames, the `_meta`, the call
+ *  ids and the option order are this file's own, which is the whole reason two
+ *  fakes are worth having. */
+const emit = emitter(OUT)
+const { notify, refuse, request, respond, take, withdraw } = speaking(emit, "agent")
 
 /**
  * Take back every question still on the wire, the way a real agent does when
  * its turn is cancelled: `$/cancel_request` per outstanding id, which aborts
  * the client's handler.
  *
- * The promises are resolved HERE rather than waited on, because a cancelled
- * request gets no response — that is the point of cancelling it — so an agent
- * that went on awaiting them would hang on a turn it had just abandoned.
+ * The promises are resolved by the registry rather than waited on, because a
+ * cancelled request gets no response — that is the point of cancelling it — so
+ * an agent that went on awaiting them would hang on a turn it had just
+ * abandoned. WHICH notification says so is this adapter's own, which is why the
+ * loop is here and the bookkeeping is not.
  */
 const withdrawRequests = (): void => {
-  for (const [id, resolve] of [...answering]) {
-    answering.delete(id)
+  for (const id of withdraw()) {
     notify("$/cancel_request", { requestId: id })
-    resolve(null)
   }
 }
 
@@ -693,28 +668,18 @@ const showPicture = (): void => {
 
 const sleep = (millis: number) => new Promise<void>((done) => setTimeout(done, millis))
 
-/** The file a scenario touches to let a held turn go on. */
-const RELEASE = ".agent-release"
-/** Long enough that a slow machine is not the reason a scenario fails, short
- *  enough that a scenario which forgot to release fails on its own assertion
- *  rather than on the runner's timeout. */
-const HOLD_LIMIT_MS = 30_000
-
+/** Wait until a scenario says when, taking anything steered in FIRST — before
+ *  the release is even looked for, because that is the claim under test: a
+ *  message steered into a turn is acted on by the turn that is still running,
+ *  not by the one after it. The marker, the limit and the loop are shared with
+ *  the other scripted agent ({@link ../support/scripted.ts}); what is on each
+ *  tick is this one's. */
 const released = async (onTick?: () => void): Promise<void> => {
-  const marker = `${cwd}/${RELEASE}`
-  for (let waited = 0; waited < HOLD_LIMIT_MS; waited += 100) {
-    // FIRST, before the release is even looked for, because that is the claim
-    // under test: a message steered into a turn is acted on by the turn that
-    // is still running, not by the one after it.
+  const let_go = await releasedIn(cwd, async () => {
     await takeSteering()
-    if (existsSync(marker)) {
-      rmSync(marker, { force: true })
-      return
-    }
     onTick?.()
-    await sleep(100)
-  }
-  noise("fake agent: nothing released the held turn; going on anyway")
+  })
+  if (!let_go) noise("fake agent: nothing released the held turn; going on anyway")
 }
 
 /**
@@ -2117,14 +2082,12 @@ readMessages(
     // An answer to something WE asked. It cannot go through the queue: the turn
     // that asked is sitting in it, waiting for exactly this.
     if (message["method"] === undefined) {
-      const id = String(message["id"])
-      const answering_ = answering.get(id)
-      if (answering_ === undefined) {
-        noise(`fake agent: an answer to nothing: ${id}`)
+      const answered = take(message["id"])
+      if (answered === null) {
+        noise(`fake agent: an answer to nothing: ${String(message["id"])}`)
         return
       }
-      answering.delete(id)
-      answering_(message["error"] ?? message["result"])
+      answered(message["error"] ?? message["result"])
       return
     }
     queue = queue.then(() => handle(message)).catch((cause: unknown) => {

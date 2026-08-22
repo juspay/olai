@@ -665,10 +665,18 @@ export const bind = (
                   // coalesced into one delta on a microtask, so the manifest
                   // reaches a socket first. Nothing here may promise otherwise
                   // — a reader tolerates the skew either way, and that is the
-                  // cross-file consistency paragraph in the design doc. It is
-                  // also the only write here that is usually a no-op: the cell
-                  // says whether there is a set, and its `equals` keeps every
-                  // revision after the first one quiet.
+                  // cross-file consistency paragraph in the design doc. What
+                  // "either way" costs a reader that does NOT is
+                  // `manifest-fold-skew`: a tab told `null` before this
+                  // revision, reached by these heads before that cell frame,
+                  // drew the error report over a directory it was holding. The
+                  // browser resolves it where both halves are held
+                  // (`@olai/web`'s `directory.ts` — heads are published only
+                  // from here, so holding one is proof of a set); this line
+                  // stays exactly as unpromising as it was. It is also the only
+                  // write here that is usually a no-op: the cell says whether
+                  // there is a set, and its `equals` keeps every revision after
+                  // the first one quiet.
                   cell.set(LOADED)
                   // …and last of all, the readings that publish NOTHING are
                   // told to go and look again.
@@ -930,7 +938,14 @@ export const bind = (
           // answer to "what did that message actually say".
           resend: ({ input }) => withChat((open) => open.resend(input.id)),
           cancel: () => withChat((open) => open.cancel),
-          newSession: () => withChat((open) => open.newSession),
+          // WITH the agent the browser named — every new chat asks which one,
+          // and this end has no default to fall back on if it did not.
+          newSession: ({ input }) => withChat((open) => open.newSession(input.agent)),
+          // ... and the answer to the panel's own question, which opens the
+          // conversation that agent's boot would have adopted rather than a
+          // fresh one. Two verbs because they mean two things — see the
+          // surface's declaration.
+          chooseAgent: ({ input }) => withChat((open) => open.chooseAgent(input.agent)),
           loadSession: ({ input }) => withChat((open) => open.loadSession(input.id)),
           // No input, for the reason the member says: which open was refused is
           // the chat's own record, and a browser naming one would be picking a

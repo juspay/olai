@@ -14,9 +14,10 @@
  * here (`last.ts`), never the collection.
  *
  * Both layouts render the same `Face` — the header, whatever this conversation
- * is short of, and then one of three bodies ({@link ./face.ts}): the
- * conversation, the explanation that there is no agent, or the explanation that
- * a live agent would not open one. So the two shells own their chrome and their
+ * is short of, and then one of four bodies ({@link ./face.ts}): the
+ * conversation, the explanation that this machine has no agent, the explanation
+ * that a live agent would not open one, or the question of WHICH agent a
+ * conversation is with ({@link ./Choose.tsx}). So the two shells own their chrome and their
  * geometry and nothing else. Inside it, `Body` is the conversation,
  * the box and the drop target around them: a file let go of anywhere on the
  * conversation is attached to it, and the chips land in the composer inside.
@@ -32,6 +33,8 @@
 
 import { createSignal, Match, Show, Switch } from "solid-js"
 
+import type { AgentChoice } from "@olai/surface"
+
 import { ChatHandle } from "../layout/Handle.tsx"
 import { desktop } from "../layout/media.ts"
 import {
@@ -45,6 +48,7 @@ import {
 import { LAYER, WITHIN } from "../layer.ts"
 import { TESTID } from "../testids.ts"
 import { ICON_BUTTON } from "../readout.ts"
+import { Choose } from "./Choose.tsx"
 import { Composer } from "./Composer.tsx"
 import { DropTarget } from "./DropTarget.tsx"
 import { Header } from "./Header.tsx"
@@ -149,10 +153,63 @@ export function Toggle() {
  * would notice mostly run on a desktop viewport.
  */
 function Face(props: { readonly chat: Chat }) {
-  // WHICH of the three, decided in one place and asserted without a browser
+  // WHICH of the four, decided in one place and asserted without a browser
   // ({@link ./face.ts}) — the precedence has been re-decided once already, and
-  // what it decides is which of three things a person is looking at.
+  // what it decides is which of four things a person is looking at.
   const face = () => faceOf(props.chat.state())
+  /**
+   * A person pressed `+ new` and is being asked which agent — THIS TAB'S, and
+   * deliberately not the server's.
+   *
+   * The panel's own `asking` is a state the SERVER is in: it has no
+   * conversation and is waiting to be told which agent to open one with, and
+   * every tab watching sees the same thing because it is true of the panel.
+   * This is a person part-way through a gesture, like a half-typed message: it
+   * belongs to the tab it was made in, it is cancellable, and a second tab has
+   * no business being taken over by it.
+   */
+  const [asking, setAsking] = createSignal(false)
+  /** ... and the answer, whichever door asked. `+ new` always means a FRESH
+   *  conversation; the panel's own question means "open what you would have
+   *  opened" — two verbs, because they mean two things
+   *  (`../../../../chat/src/chat.ts`). */
+  const pick = (id: string): void => {
+    // WHICH question was answered is read off the FACE rather than off this
+    // tab's own signal, because the two are not symmetrical: the panel's own
+    // question is the server's and outranks anything a click here started.
+    // Read the other way round, a `+ new` pressed over a panel that was
+    // ALREADY asking would answer the boot's question with the wrong verb —
+    // minting a fresh conversation where the panel was about to come back to
+    // the one this directory was in.
+    const server = face().kind === "choose"
+    setAsking(false)
+    if (server) {
+      props.chat.chooseAgent(id)
+      return
+    }
+    props.chat.newSession(id)
+  }
+  /**
+   * What `+ new` does, which depends on whether there is a question to ask.
+   *
+   * ONE INSTALLED AGENT IS NOT A CHOICE — the ruling's own shape, read at the
+   * one door a person can reach it from. Asking a one-row question is friction
+   * with no answer behind it, and every olai before this one was in exactly
+   * that state, so `+ new` there is what it has always been: a fresh
+   * conversation, at once.
+   */
+  const onNew = (): void => {
+    // A panel that is already asking has nothing for this button to add: the
+    // question is up, and the answer to it opens a conversation.
+    if (face().kind === "choose") return
+    const roster = props.chat.state().roster
+    const only = roster.length === 1 ? roster[0] : undefined
+    if (only !== undefined) {
+      props.chat.newSession(only.id)
+      return
+    }
+    setAsking(true)
+  }
   // The REASON comes off the same answer that chose the arm, rather than being
   // fetched again from the cell: two reads of one fact are two answers free to
   // disagree, and the one that can be `null` is exactly the one a second read
@@ -161,9 +218,11 @@ function Face(props: { readonly chat: Chat }) {
     const chosen = face()
     return chosen.kind === "unopened" ? chosen.unopened : undefined
   }
+  /** The roster, for whichever door is asking. */
+  const agents = (): ReadonlyArray<AgentChoice> => props.chat.state().roster
   return (
     <>
-      <Header chat={props.chat} />
+      <Header chat={props.chat} onNew={onNew} />
       <Missing chat={props.chat} />
       <Switch fallback={<Body chat={props.chat} />}>
         <Match when={face().kind === "no-agent"}>
@@ -171,6 +230,20 @@ function Face(props: { readonly chat: Chat }) {
         </Match>
         <Match when={refused()}>
           {(unopened) => <Unopened chat={props.chat} unopened={unopened()} />}
+        </Match>
+        {/* ONE ARM for both doors, and the prop is where they differ: the
+            panel's own question has no way out — there is no conversation
+            behind it to keep — and this tab's does, because the conversation
+            underneath is still open and a misclick must not be a one-way door.
+            Two arms would also be two component instances, so a tab-local
+            question superseded by the server's would remount the list under
+            somebody's cursor. */}
+        <Match when={face().kind === "choose" || asking()}>
+          <Choose
+            agents={agents()}
+            onPick={pick}
+            onCancel={face().kind === "choose" ? undefined : () => setAsking(false)}
+          />
         </Match>
       </Switch>
     </>

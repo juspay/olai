@@ -45,7 +45,7 @@ let
     };
   };
 
-  evalFor = platform: lib.evalModules {
+  evalFor = platform: settings: lib.evalModules {
     modules = [
       module
       stub
@@ -55,14 +55,20 @@ let
           package = fakeOlai;
           dataDir = "/home/alice/outlines";
           # host/port left at defaults so the asserts below pin them.
-        };
+        } // settings;
       }
     ];
     specialArgs.pkgs = mkPkgs platform;
   };
 
-  linux = evalFor { isLinux = true; isDarwin = false; };
-  darwin = evalFor { isLinux = false; isDarwin = true; };
+  linux = evalFor { isLinux = true; isDarwin = false; } { };
+  darwin = evalFor { isLinux = false; isDarwin = true; } { };
+
+  # The same module with a git policy set — the `vault-level-settings` half.
+  pinned = evalFor { isLinux = true; isDarwin = false; } {
+    commit = "auto";
+    push = "off";
+  };
 
   linuxService = linux.config.systemd.user.services.olai;
   darwinAgent = darwin.config.launchd.agents.olai;
@@ -89,9 +95,31 @@ let
     assert lib.hasInfix "/home/alice/outlines" execPlain;
     assert lib.hasInfix "--port 7714" execPlain;
     assert lib.hasInfix "--host 127.0.0.1" execPlain;
+    # NO GIT FLAG when neither option is set, and that is the whole default of
+    # `vault-level-settings` rather than a saving: giving `--commit` at all pins
+    # that preference row read-only in every browser, so a module that helpfully
+    # passed the mode olai would have defaulted to anyway would freeze a control
+    # on every single-user deployment.
+    assert !(lib.hasInfix "--commit" execPlain);
+    assert !(lib.hasInfix "--push" execPlain);
     assert linux.config.home.packages == [ fakeOlai ];
     # Darwin path must not fire on Linux.
     assert linux.config.launchd.agents == { };
+    true;
+
+  # --- the git policy, when an operator states one ------------------------
+  execOf = evaluated: builtins.unsafeDiscardStringContext
+    evaluated.config.systemd.user.services.olai.Service.ExecStart;
+  pinnedExec = execOf pinned;
+  # Only committing pinned, to show the two options are independent: an
+  # operator who ruled on committing has not silently ruled on pushing.
+  commitOnlyExec = execOf
+    (evalFor { isLinux = true; isDarwin = false; } { commit = "off"; });
+  _pinned =
+    assert lib.hasInfix "--commit auto" pinnedExec;
+    assert lib.hasInfix "--push off" pinnedExec;
+    assert lib.hasInfix "--commit off" commitOnlyExec;
+    assert !(lib.hasInfix "--push" commitOnlyExec);
     true;
 
   # --- Darwin (launchd) --------------------------------------------------
@@ -122,7 +150,9 @@ let
 in
 assert _linux;
 assert _darwin;
+assert _pinned;
 pkgs.runCommand "olai-hm-module-check" { } ''
   echo "services.olai module evaluates (linux systemd + darwin launchd)"
+  echo "  ... and the git policy options reach argv only when they are set"
   touch $out
 ''

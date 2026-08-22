@@ -2,6 +2,13 @@
  * The panel's header: which conversation, which model, and the ways to change
  * session.
  *
+ * WHO comes before WHAT IT RUNS ON, in that line, because it is the coarser
+ * fact: a conversation is bound to one agent for its life (ruled 2026-08-21),
+ * and the mark is there to be glanced at rather than read
+ * ({@link ./AgentMark.tsx}). It is drawn even where this machine has only one
+ * agent — the header is where a person looks to find out what they are talking
+ * to, and "there was only ever one" is not something they know.
+ *
  * The model is here because a turn's cost and character depend on it and
  * nothing else on screen says. USAGE is the other half of that same sentence —
  * how much room is left to run the turn in — and it is here because the
@@ -33,8 +40,11 @@
 
 import { Show } from "solid-js"
 
+import { agentIn } from "@olai/surface"
+
 import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
+import { AgentMark } from "./AgentMark.tsx"
 import { LIVE_DOT } from "./live.ts"
 import { Sessions } from "./Sessions.tsx"
 import type { Chat } from "./state.ts"
@@ -42,6 +52,10 @@ import { usageOf } from "./usage.ts"
 
 export function Header(props: {
   readonly chat: Chat
+  /** Ask which agent a new conversation is for. The QUESTION is the panel's
+   *  ({@link ./Panel.tsx}), because it takes the panel's body over; this header
+   *  only owns the button that raises it. */
+  readonly onNew: () => void
 }) {
   const state = () => props.chat.state()
 
@@ -57,6 +71,22 @@ export function Header(props: {
             : state().session?.title ?? "new conversation"}
         </div>
         <div class="flex items-center gap-2 truncate font-mono text-[0.6875rem] text-muted">
+          {/* WHO, before what it runs on. Drawn from the moment an agent is
+              bound, which is before the conversation opens — the panel is
+              talking to somebody while it starts, and saying who is the point
+              of the line. */}
+          <Show when={agentIn(state())}>
+            {(agent) => (
+              <span
+                class="flex items-center gap-1"
+                data-testid={TESTID.chatAgent}
+                data-agent={agent().id}
+              >
+                <AgentMark id={agent().id} />
+                <span class="truncate">{agent().name}</span>
+              </span>
+            )}
+          </Show>
           <Show when={state().model} fallback={<span>{statusWord(state().status)}</span>}>
             {(model) => <span data-testid={TESTID.chatModel}>{model()}</span>}
           </Show>
@@ -92,14 +122,21 @@ export function Header(props: {
       </div>
 
       {/* Both verbs need an agent to act on. With none they would refuse, so
-          they are not offered — the panel's body says why. */}
+          they are not offered — the panel's body says why.
+          The CHATS list is one agent's own — the conversation this panel is in
+          belongs to somebody, and `session/list` is asked of them — so it is
+          drawn only once there is somebody to ask. `+ new` is offered either
+          way: raising the question is exactly what it does, and it is the way
+          out of a panel with no conversation in it. */}
       <Show when={state().status !== "off"}>
-        <Sessions chat={props.chat} />
+        <Show when={agentIn(state())}>
+          <Sessions chat={props.chat} />
+        </Show>
         <button
           type="button"
           class={QUIET_PILL}
           data-testid={TESTID.chatNew}
-          onClick={() => props.chat.newSession()}
+          onClick={() => props.onNew()}
         >
           + new
         </button>

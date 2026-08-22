@@ -47,7 +47,7 @@ import { type Auto, pausedIn } from "./auto.ts"
 import { LAYER } from "../layer.ts"
 import {
   AUTO_ARMED,
-  AUTO_STOPPED,
+  autoStopped,
   because,
   scopeOf,
   trouble,
@@ -59,6 +59,7 @@ import { Others } from "./Others.tsx"
 import { Outlines } from "./Outlines.tsx"
 import { canRecord } from "./record.ts"
 import { createSelection } from "./selection.ts"
+import { commitFrozen } from "../settings/pinned.ts"
 import type { Commit } from "./state.ts"
 import { TESTID } from "../testids.ts"
 import { Unpushed } from "./Unpushed.tsx"
@@ -213,7 +214,7 @@ export function Panel(props: {
           nowhere else to put them (`./said.ts`). */}
       <Show when={pausedIn(props.auto()) !== null}>
         <p class="text-xs text-alarm" data-testid={TESTID.commitAutoPaused}>
-          ⚠ {AUTO_STOPPED}
+          ⚠ {autoStopped(commitFrozen())}
         </p>
       </Show>
 

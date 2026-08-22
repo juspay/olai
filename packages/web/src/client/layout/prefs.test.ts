@@ -19,6 +19,7 @@ import {
   SIDEBAR_WIDTH_KEY,
 } from "./prefs.ts"
 import { parseBool } from "../preference.ts"
+import { remembering } from "../preference.testlib.ts"
 
 test("clamp holds a value inside its bounds", () => {
   expect(clamp(10, 0, 20)).toBe(10)
@@ -57,14 +58,7 @@ test("the width setters forward persist: false, so a pointermove writes nothing"
   // turn every pointermove of a drag into a storage write while the factory
   // test stayed green. Storage is shimmed for the duration; bun's runner has
   // none, and `readPreference` reads that absence as null either way.
-  const store = new Map<string, string>()
-  const g = globalThis as Record<string, unknown>
-  g.localStorage = {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => void store.set(key, value),
-    removeItem: (key: string) => void store.delete(key),
-  }
-  try {
+  remembering((store) => {
     setSidebarWidth(300, { persist: false })
     setChatWidth(300, { persist: false })
     expect(store.size).toBe(0)
@@ -72,9 +66,7 @@ test("the width setters forward persist: false, so a pointermove writes nothing"
     setChatWidth(302)
     expect(store.get(SIDEBAR_WIDTH_KEY)).toBe("301")
     expect(store.get(CHAT_WIDTH_KEY)).toBe("302")
-  } finally {
-    delete g.localStorage
-  }
+  })
 })
 
 test("fitWidths keeps a main pane on a 1024px laptop at max stored widths", () => {

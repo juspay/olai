@@ -390,7 +390,18 @@ test(
   async () => {
     const root = served()
     await withServing(
-      { root, identity: { login: "X-Forwarded-User", email: null } },
+      {
+        root,
+        identity: {
+          headers: {
+            login: "X-Forwarded-User",
+            email: null,
+            name: null,
+            picture: null,
+          },
+          avatarTemplate: null,
+        },
+      },
       async (url) => {
         const landed = await fetch(`${url}${CAPTURE_PATH}`, {
           method: "POST",

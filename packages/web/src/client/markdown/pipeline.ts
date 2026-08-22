@@ -21,6 +21,10 @@
  *
  * The stages, and why each is where it is:
  *
+ *   0. **as read** — a link destination with a space in it is closed in `<…>`
+ *      before anything parses the text ({@link asRead}). One step, at the one
+ *      door, so a rendering and the text a title accounts for cannot be two
+ *      readings of two different strings.
  *   1. **parse**, with GFM — which is what brings footnotes (and tables, task
  *      lists and strikethrough) into the same dialect an agent and a reader
  *      already write.
@@ -69,8 +73,10 @@
  * pipeline rebuilt per note would pay for that on every row of every frame.
  */
 
+import { bracketSpacedLinks } from "@olai/format"
 import nix from "highlight.js/lib/languages/nix"
 import { common } from "lowlight"
+import { toString } from "mdast-util-to-string"
 import rehypeAutolinkHeadings from "rehype-autolink-headings"
 import rehypeHighlight from "rehype-highlight"
 import rehypeSanitize from "rehype-sanitize"
@@ -112,8 +118,9 @@ const pipeline = unified()
   .use(rehypeStringify)
 
 /**
- * What the rest of the app is allowed to know about the pipeline: two
- * functions, one each way.
+ * What the rest of the app is allowed to know about the pipeline: a source in
+ * (twice — the tree it renders to, and the text it reads in it) and a tree
+ * back out as HTML.
  *
  * Narrow on purpose. This is the shape ./chunk.ts hands out once the file has
  * arrived, so it is also the surface a test installs and the thing a reader
@@ -125,11 +132,59 @@ export interface Pipeline {
   /** Source → the sanitised, highlighted HAST, before anything of ours has
    *  walked it. */
   readonly treeOf: (source: string) => Root
+  /**
+   * Source → THE TEXT MARKDOWN READS IN IT, which is not the text the render
+   * draws and is the whole point: this is the same parse one step earlier,
+   * before `remark-rehype` and the sanitiser have dropped anything of it.
+   *
+   * One caller, one question — ./title.ts asks how much text a title accounts
+   * for, so it can tell a rendering that LOST words from one that never had
+   * them. Raw HTML is the case that matters: `<Component>` is characters in
+   * the source and nothing at all in the tree above, and the only way to know
+   * that without re-implementing markdown is to ask markdown.
+   *
+   * SOURCE is in the name and stays there: ./anchors.ts's `textOf` is an
+   * ELEMENT and the text it reads as, which is the drawn half of the very
+   * comparison this is the other half of. ./title.ts renamed its own twin
+   * (`renderedText`) for that reason; one word answering both sides of a
+   * check is how the two get read as the same number.
+   */
+  readonly sourceTextOf: (source: string) => string
   /** A tree that pipeline ran → the HTML string an element may be given. */
   readonly htmlOf: (tree: Root) => string
 }
 
+/**
+ * What the parser is actually handed, which is not quite what a person wrote:
+ * a link destination holding a space is closed in `<…>` first (`@olai/format`,
+ * which owns that rule because the index reads the same links). `[a](my
+ * file.md)` names a file a vault really has, and markdown alone would read the
+ * whole thing as words.
+ *
+ * HERE rather than at the callers, and that is a fix rather than a tidy:
+ * ./render.ts spelled it at every door it opened — a rendering, a title's
+ * tree, and now the text a title accounts for — which is one dialect decision
+ * held in three places by memory. The third is the one that would have gone
+ * wrong: a loss check reading a different string from the render's would call
+ * every spaced destination a lost link. Every parse below goes through this,
+ * so two readings of one source cannot be readings of two strings.
+ */
+const asRead = (source: string): string => bracketSpacedLinks(source)
+
 export const treeOf = (source: string): Root =>
-  pipeline.runSync(pipeline.parse(source)) as Root
+  pipeline.runSync(pipeline.parse(asRead(source))) as Root
+
+/**
+ * `mdast-util-to-string`'s DEFAULTS are the two decisions this needs, which is
+ * why they are not spelled: `includeHtml` keeps a raw `<Component>`'s
+ * characters (the loss the caller is hunting), and `includeImageAlt` keeps a
+ * picture's words (a title is phrasing only — ./inline.ts drops the picture
+ * itself, so the alt would otherwise go quietly). It is remark's own utility,
+ * already in the lockfile under `mdast-util-from-markdown` (which is how
+ * `remark-parse` reads a document at all); the walk was written out here once
+ * and was this function line for line.
+ */
+export const sourceTextOf = (source: string): string =>
+  toString(pipeline.parse(asRead(source)))
 
 export const htmlOf = (tree: Root): string => pipeline.stringify(tree)

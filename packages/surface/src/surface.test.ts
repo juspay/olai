@@ -2,6 +2,8 @@ import { expect, test } from "bun:test"
 
 import { Schema, SchemaAST } from "effect"
 
+import { NO_PIN } from "@olai/format"
+
 import { DocumentEntry, type GitState, LOADED, Manifest, surface, WHO_PATH } from "./index.ts"
 
 const tags = [...surface.group.requests.keys()].sort()
@@ -70,18 +72,39 @@ test("the manifest carries nothing, and knows when it has not changed", () => {
 // without one of its own it framed every tab twice a minute saying `repo`,
 // which is what restarted Auto-commit's quiet window on a frame nobody typed.
 test("what git is doing knows when it has not changed", () => {
-  const healthy: GitState = { status: "repo", said: null }
-  expect(surface.spec.cells.git.equals?.(healthy, { status: "repo", said: null }))
-    .toBe(true)
+  const healthy: GitState = { status: "repo", said: null, pinned: NO_PIN }
+  expect(
+    surface.spec.cells.git.equals?.(healthy, {
+      status: "repo",
+      said: null,
+      pinned: NO_PIN,
+    }),
+  ).toBe(true)
   // ... and the two states it must still tell apart: the fault, and the words
   // on it, which are the whole of what #108 fought for.
-  expect(surface.spec.cells.git.equals?.(healthy, { status: "error", said: null }))
-    .toBe(false)
+  expect(
+    surface.spec.cells.git.equals?.(healthy, {
+      status: "error",
+      said: null,
+      pinned: NO_PIN,
+    }),
+  ).toBe(false)
   expect(
     surface.spec.cells.git.equals?.(
-      { status: "error", said: "no user.email" },
-      { status: "error", said: "gpg failed" },
+      { status: "error", said: "no user.email", pinned: NO_PIN },
+      { status: "error", said: "gpg failed", pinned: NO_PIN },
     ),
+  ).toBe(false)
+  // ... and the PIN, which is the fifth fact this cell carries: a server that
+  // pinned the policy and one that left it to the browser are two different
+  // answers about the same healthy repository, and a page that swallowed the
+  // difference would draw a live preference row over a frozen one.
+  expect(
+    surface.spec.cells.git.equals?.(healthy, {
+      status: "repo",
+      said: null,
+      pinned: { commit: "auto", push: null },
+    }),
   ).toBe(false)
 })
 

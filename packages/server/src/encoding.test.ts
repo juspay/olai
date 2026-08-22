@@ -33,7 +33,7 @@ import {
   zstdCompressSync,
 } from "node:zlib"
 
-import { DEFAULT_IDENTITY_HEADERS } from "@olai/identity"
+import { DEFAULT_IDENTITY_CONFIG } from "@olai/identity"
 import { serve } from "./serve.ts"
 import { SERVER_LAYERS } from "./serve.testlib.ts"
 
@@ -93,8 +93,8 @@ const withServer = (
       host: "127.0.0.1",
       clientDist: dist,
       allowedOrigins: [],
-      identity: DEFAULT_IDENTITY_HEADERS,
-      commits: "off",
+      identity: DEFAULT_IDENTITY_CONFIG,
+      pin: { commit: "off", push: null },
     })
     const url = findSaid(said, "serving")?.annotations.url
     expect(typeof url).toBe("string")

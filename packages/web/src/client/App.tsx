@@ -100,8 +100,9 @@ export default function App() {
   const problems = () => errors.value() ?? []
 
   /**
-   * Whether there is a set at all — the manifest's three states (no frame yet,
-   * never loaded, a directory) folded to the one bit every reader below needs.
+   * Whether there is a set at all — the directory's three states (still
+   * reading, never loaded, a directory) folded to the one bit every reader
+   * below needs.
    *
    * ONE SPELLING, and it is worth a name because there were about to be two:
    * a question worth asking the server about (`owed`, below) and the chrome
@@ -113,13 +114,17 @@ export default function App() {
    * existing, which could only ever be true once a directory had loaded, and is
    * now a page each pane waits for where its own `Reading…` line is. The one
    * reader that genuinely needs all THREE states is the `Switch` below, which
-   * has to tell "still reading" from "never loaded"; it asks the manifest
+   * has to tell "still reading" from "never loaded"; it names the state
    * itself, because folding is what this is and that reader is not folding.
+   *
+   * NEITHER OF THEM DECIDES ANYTHING, and that is `manifest-fold-skew`'s
+   * change: this used to read the manifest cell's own `Manifest | undefined`
+   * and spell the three-way test here, one of two spellings in this file. Which
+   * of the three states a tab is in is answered where both halves of the answer
+   * are held (`./directory.ts` — the cell alone can be the older of the two),
+   * and what is left here is a name for the bit the chrome wants.
    */
-  const loaded = () => {
-    const manifest = directory.manifest()
-    return manifest !== undefined && manifest !== null
-  }
+  const loaded = () => directory.standing() === "loaded"
 
   /**
    * THE FOCUSED PANE's reading — the ONE thing the chrome outside the panes
@@ -352,7 +357,7 @@ export default function App() {
           }}
         >
           <Switch fallback={<p class={`${SHEET} p-8 text-muted`}>Reading…</p>}>
-          <Match when={directory.manifest() === null}>
+          <Match when={directory.standing() === "never"}>
             <ErrorPage errors={problems()} />
           </Match>
           {/* THE GATE IS THE DIRECTORY, not the page. It used to be the focused

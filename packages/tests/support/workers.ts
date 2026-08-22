@@ -50,10 +50,24 @@ export { defaultWorkers, WORKER_CAP, workerCount } from "./parallelism.js";
 export const spawnFingerprint = (opts: {
   readonly stored: boolean;
   readonly agent: boolean;
+  readonly opencode: boolean;
   readonly kolu: boolean;
   readonly git?: string;
+  /** The git POLICY this server was started with — `--commit` / `--push`, and
+   *  `null` for the flag nobody gave. Part of the key because a pinned server
+   *  draws every browser's preference panel differently, so a scenario about a
+   *  live toggle may not reuse one. */
+  readonly pin?: { readonly commit?: string; readonly push?: string };
+  /** The avatar URL template this server was started with, if any. Part of
+   *  the key because a server that pictures people from a template answers
+   *  `GET /olai/who` differently — a scenario about the rung below it may not
+   *  reuse one. */
+  readonly avatar?: string;
 }): string =>
-  `stored=${opts.stored ? 1 : 0},agent=${opts.agent ? 1 : 0},kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}`;
+  `stored=${opts.stored ? 1 : 0},agent=${opts.agent ? 1 : 0},opencode=${
+    opts.opencode ? 1 : 0
+  },kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}` +
+  `,commit=${opts.pin?.commit ?? "-"},push=${opts.pin?.push ?? "-"},avatar=${opts.avatar ?? "-"}`;
 
 /** Cucumber numbers workers from 0. Unset means this process is the only
  *  one — a serial run, or a unit test. Used to name the per-worker temp
@@ -119,8 +133,20 @@ export const isolateEnv = (
   const state = path.join(stateRoot, "state");
   fs.mkdirSync(cache, { recursive: true });
   fs.mkdirSync(state, { recursive: true });
+  // The identity family is taken off the HOST's copy, before the spawn's own
+  // extras go on: a developer whose shell exports the documented avatar
+  // template (`OLAI_IDENTITY_AVATAR_TEMPLATE='https://github.com/{login}.png'`)
+  // would otherwise hand it to EVERY spawned server, and the scenario that
+  // says a login with nothing behind it draws the silhouette would draw a
+  // GitHub avatar instead. What a server under test trusts, and pictures
+  // people with, is the scenario's (`@avatar-template`, and the headers a
+  // step injects) — never the laptop's.
+  const host: NodeJS.ProcessEnv = { ...process.env };
+  for (const key of Object.keys(host)) {
+    if (key.startsWith("OLAI_IDENTITY_")) delete host[key];
+  }
   const env: NodeJS.ProcessEnv = {
-    ...process.env,
+    ...host,
     ...extras,
     XDG_CACHE_HOME: cache,
     XDG_STATE_HOME: state,

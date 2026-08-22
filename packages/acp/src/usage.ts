@@ -3,9 +3,10 @@
  *
  * `usage_update` is ACP's own — it sits in the `SessionUpdate` union beside
  * `tool_call` and `config_option_update`, and any agent may send one — so it is
- * read HERE rather than in the chat package's `interpret.ts`, which is the file
- * for values only the Claude Code adapter means anything by. The boundary is
- * not which payload a reader touches but who has to have sent it.
+ * read HERE rather than in one of the chat package's LEGS (`agents/claude.ts`,
+ * `agents/opencode.ts`), which are the files for values only one agent means
+ * anything by. The boundary is not which payload a reader touches but who has
+ * to have sent it.
  *
  * What it carries is two numbers ({@link Usage}) and, on the turn's last frame,
  * a cost this does not read. What this file adds is the one judgement between
