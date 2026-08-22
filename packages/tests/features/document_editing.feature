@@ -124,6 +124,26 @@ Feature: Documents become writable
     When I create the document "finishes.md" from the sidebar
     Then the document creation is refused saying "already a document"
 
+  # The suffix is the DOOR's half of the path, at this door exactly as at the
+  # outline's beside it: this one makes documents, so a bare name takes `.md`
+  # and a name carrying the outline's suffix is the box's own short refusal
+  # rather than the wire's paragraph (web/src/client/file/completing.ts).
+  @scratch:good
+  Scenario: A bare name at the document door takes the door's own suffix
+    Given I open the app
+    And I mark the page
+    When I create the document "notes/wiring" from the sidebar
+    Then the document open is "notes/wiring.md"
+    And the document editor is open
+    And the page has not reloaded
+    And there should be no page errors
+
+  @scratch:good
+  Scenario: An outline's suffix at the document door is the box's own refusal
+    Given I open the app
+    When I create the document "house.olai" from the sidebar
+    Then the document creation is refused saying "`house.olai` is an outline, not a document — type `house` to make `house.md`."
+
   # A DOCUMENT IS NOT A MOUNT, and these three are the difference. Going from
   # one document to another keeps the same page on screen — same route kind,
   # same arm — so anything the page decided "once, at mount" is a decision it

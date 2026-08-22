@@ -11,14 +11,20 @@
  * underneath, the click that must not close the mobile drawer — was the same
  * decision twice, free to drift the day one of them grew a fifth.
  *
- * ## What may judge a path: nothing here
+ * ## What may judge a path: still nothing here
  *
- * What is typed goes to the ops layer as it was typed. A path that is absolute,
- * climbs with `..`, has the wrong extension or names a file the set already
- * holds is refused by `create_outline` / `create_document` in its own words, and
- * that sentence is what is drawn. A browser that pre-checked any of it would be
- * a second rule, free to disagree with the one an agent meets — which is the
- * consistency rule read at the smallest scale there is.
+ * A path that is absolute, climbs with `..` or names a file the set already
+ * holds is refused by `create_outline` / `create_document` in its own words,
+ * and that sentence is what is drawn. A browser that pre-checked any of it
+ * would be a second rule, free to disagree with the one an agent meets — which
+ * is the consistency rule read at the smallest scale there is.
+ *
+ * What this box does do to what was typed is COMPLETE it: a door knows which
+ * kind of file it makes and the wire deliberately does not, so `Foo` at the
+ * outline door is asked for as `Foo.olai` (`./completing.ts` holds that rule,
+ * the argument for it, and the one refusal that is the box's own rather than
+ * the ops layer's). Every other verdict is still the ops layer's, over the path
+ * this hands it.
  *
  * ## The two halves that differ
  *
@@ -35,14 +41,17 @@ import { createSignal, Show } from "solid-js"
 import { ENTRY_SHAPE, ROW_GAP } from "../layout/entry.ts"
 import { Refused } from "../Refused.tsx"
 import { CONTROL } from "../touch.ts"
+import { meantAt } from "./completing.ts"
 import { Glyph } from "./icons.tsx"
 import type { Making } from "./making.ts"
 
 export function NewFile(props: {
   /** What this door is called, and the names the browser tests find it by. */
   readonly making: Making
-  /** Mint it. Answers with the refusal to draw, verbatim, or `null` when the
-   *  write landed — at which point the box puts itself away. */
+  /** Mint it, at the path the box completed ({@link meantAt}) rather than at
+   *  the characters that were typed. Answers with the refusal to draw,
+   *  verbatim, or `null` when the write landed — at which point the box puts
+   *  itself away. */
   readonly create: (file: string) => Promise<string | null>
 }) {
   const [open, setOpen] = createSignal(false)
@@ -56,11 +65,18 @@ export function NewFile(props: {
   }
 
   const send = async (): Promise<void> => {
-    const file = path().trim()
     // An empty box is not a refusal to draw — nobody has asked for anything
     // yet.
-    if (file === "") return
-    const refused = await props.create(file)
+    if (path().trim() === "") return
+    const meant = meantAt(props.making.of, path())
+    // ONE LINE draws both sentences, and that is the point of drawing the box's
+    // own one here rather than beside it: which layer refused a path is not a
+    // difference the person who typed it should have to see.
+    if ("refused" in meant) {
+      setSaid(meant.refused)
+      return
+    }
+    const refused = await props.create(meant.at)
     if (refused === null) close()
     else setSaid(refused)
   }

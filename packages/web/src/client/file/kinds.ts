@@ -34,3 +34,26 @@ export const ROW_TESTID: Record<FileKind, string> = {
   document: TESTID.documentLink,
   hypertext: TESTID.hypertextLink,
 }
+
+/**
+ * What ONE FILE of this kind is called in a sentence a person reads — with its
+ * article, because the sentence that spends it puts two of these side by side
+ * ("`notes.md` is a document, not an outline") and an article added by the
+ * caller would be the caller holding a fact about a word it was handed.
+ *
+ * Here for {@link ROW_TESTID}'s reason exactly: a name is a decision, the
+ * registry cannot make it (what a kind is CALLED to a reader is this client's
+ * vocabulary — the sidebar's doors say these words), and a `Record` over the
+ * union means a fourth kind is a compile error here rather than a sentence
+ * about `undefined`.
+ *
+ * HYPERTEXT CARRIES NO ARTICLE, and that is the word rather than an omission:
+ * "a hypertext" is not English, and this kind is the one with no door of its
+ * own — olai shows a `.html` and never writes one — so it is only ever met as
+ * the left-hand half of that sentence.
+ */
+export const KIND_NAMED: Record<FileKind, string> = {
+  outline: "an outline",
+  document: "a document",
+  hypertext: "hypertext",
+}
