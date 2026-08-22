@@ -15,7 +15,8 @@
  *
  * The count is what still awaits processing: a top-level todo or doing, a
  * leaf bullet, or a bare-bullet header that still holds unfinished work (a
- * todo, a doing, or a bullet leaf) somewhere under it. A done root does not
+ * todo, a doing, or a bullet leaf) in some descendant still in the open
+ * part of the branch. A done root does not
  * count, and neither does a finished branch — a header whose every descendant
  * is done. Nested children do not inflate it (a capture with a note under it
  * is still one thing in the inbox), and a mirror does not (a placement is
@@ -52,7 +53,8 @@ import type { Capture, WriteRequest } from "./writing.ts"
 export const InboxHeld = Schema.Struct({
   /** Top-level regular nodes of the directory's inbox that still await
    *  processing. A todo or a doing counts; a leaf bullet counts; a
-   *  bare-bullet header counts only if some descendant is unfinished. A
+   *  bare-bullet header counts only if some descendant still in the open
+   *  part of the branch is unfinished. A
    *  done root, and a finished branch, do not. Zero when there is none,
    *  when the file holds nothing, when it would not parse, when it holds
    *  only placements, and when every capture is already processed. */
@@ -88,7 +90,8 @@ export const sameInboxHeld: (a: InboxHeld, b: InboxHeld) => boolean =
  * THE NUMBER is what still awaits processing on that file: `rootsOf`, kept
  * only when `awaiting` says the root still has work. A todo or a doing
  * counts; a leaf bullet counts; a bare-bullet header counts only if some
- * descendant is unfinished (a todo, a doing, or a bullet leaf). A nested
+ * descendant still in the open part of the branch is unfinished (a todo, a
+ * doing, or a bullet leaf). A nested
  * child does not inflate it, a placement does not, a done row does not, and
  * a finished branch does not.
  */
@@ -106,8 +109,9 @@ export const inboxHeldOf = (set: OutlineSet, derived: Derived): InboxHeld => {
  * A `done` mark is a claim about the whole branch, so it is out. A `todo` or
  * `doing` is unfinished work, so it is in. An unmarked LEAF is an unprocessed
  * line, so it is in. An unmarked node WITH children is a header: it counts
- * only if some descendant still awaits, walked through {@link countedChildren}
- * so a placement is never work of this branch's.
+ * only if some descendant still in the open part of the branch awaits,
+ * walked through {@link countedChildren} so a placement is never work of
+ * this branch's — and a `done` mark prunes the walk, the way the page does.
  *
  * Cycle-safe the way every walk in `./derive.ts` is: a parent loop is a set
  * the validator rejects, and this still has to answer over one.
