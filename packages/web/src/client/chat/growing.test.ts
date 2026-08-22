@@ -10,7 +10,7 @@
 import type { Saying } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
-import { grownText, type Growing, TRANSCRIPT_TAIL } from "./saying.ts"
+import { grownText, type Growing, TRANSCRIPT_TAIL } from "./growing.ts"
 
 const piece = (of: string, at: number, text: string): readonly [string, Saying] => [
   `${of}#${at}`,

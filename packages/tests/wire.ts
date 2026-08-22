@@ -25,6 +25,14 @@
  *     as a number rather than a feeling, so this session is measured on both
  *     sides of it — and it is the SAME driver, which is what makes the two
  *     numbers comparable.
+ *   - `chat` — ONE TURN of a conversation, with the scripted agent streaming a
+ *     five-paragraph answer five characters at a time. The defect it was built
+ *     for is `transcript-stream-quadratic`: a chunk used to be published as the
+ *     whole row it grew, so the socket carried the sum of the answer's own
+ *     prefixes — 323× the answer — in one frame per chunk. So this session
+ *     reports BOTH numbers, and the frame count is not a footnote: on a
+ *     high-latency link hundreds of small ACK-clocked writes are what a reader
+ *     feels as an answer arriving in lumps.
  *   - `filter` — a page somebody has NARROWED, with the vault moving under it.
  *     A filter is a standing view, so every frame the open page drew used to be
  *     a reason to ask the matcher again — one whole-vault `search.matching` PER
@@ -88,6 +96,13 @@ interface Reading {
    *  spellings are counted ({@link MATCHER}), because one driver measures two
    *  worktrees and the member changed shape between them. */
   readonly asks: number
+  /** How many websocket frames the tab was delivered, cumulative — the
+   *  `chat` session's second number, and the one bytes cannot say on their
+   *  own. A streaming answer's cost is TWO shapes: what the server chose to
+   *  send, and how many writes it made of it. On a link with a quarter-second
+   *  in it the second is what a reader FEELS, because hundreds of small
+   *  ACK-clocked writes pace badly however few bytes they carry. */
+  readonly frames: number
 }
 
 /**
@@ -200,6 +215,7 @@ const main = async () => {
   let socket = 0
   let media = 0
   let asks = 0
+  let frames = 0
   const readings: Array<Reading> = []
   const write = (file: string, text: string) => {
     const full = path.join(VAULT, file)
@@ -207,7 +223,10 @@ const main = async () => {
     writeFileSync(full, text)
   }
 
-  if (SESSION === "pages" || SESSION === "filter") {
+  if (SESSION === "chat") {
+    // Nothing written and nothing waited for: the vault `wire.sh` made is
+    // already there, and what this session measures happens inside one panel.
+  } else if (SESSION === "pages" || SESSION === "filter") {
     corpus(write, SESSION === "filter" ? BIG : READING)
     // WRITTEN BEFORE THE TAB OPENS, and given a beat to be read: the server is
     // already up (`wire.sh` needed a URL to hand over), so the store learns
@@ -231,6 +250,7 @@ const main = async () => {
       socket += typeof frame.payload === "string"
         ? Buffer.byteLength(frame.payload)
         : frame.payload.byteLength
+      frames += 1
     })
     // …and the other direction, which is what the `filter` session is about:
     // every whole-vault matcher call this page CHOSE TO MAKE.
@@ -257,11 +277,12 @@ const main = async () => {
   const mark = async (what: string) => {
     // One beat for the last frames and the last fetch to be accounted.
     await page.waitForTimeout(500)
-    readings.push({ what, socket, media, asks })
+    readings.push({ what, socket, media, asks, frames })
   }
 
   if (SESSION === "pages") await pages(page, mark)
   else if (SESSION === "filter") await filtered(page, mark, () => asks)
+  else if (SESSION === "chat") await chat(page, mark)
   else await preview(page, mark, write)
 
   await browser.close()
@@ -432,22 +453,100 @@ const filtered = async (
   await mark(`the pick is ticked off (${PICKED} writes, one gesture)`)
 }
 
+
+/**
+ * A CHAT ANSWER STREAMING IN — what one turn costs the socket, in bytes and in
+ * frames.
+ *
+ * The session `transcript-stream-quadratic` was filed on, made re-runnable. The
+ * scripted agent's `stream` verb sends a five-paragraph answer as 634 chunks of
+ * five characters, which is the shape a language model's own tokens arrive in
+ * (measured on kolu-bot: 3,218 bytes as 643 chunks averaging five). What the
+ * old wire did with that was publish the whole growing row per chunk — the sum
+ * of the answer's prefixes, 323× the answer — in one frame per chunk.
+ *
+ * TWO NUMBERS, because the defect has two shapes and only one of them is bytes.
+ * The frame count is what a reader on a high-latency link actually feels:
+ * hundreds of small ACK-clocked writes pace badly however little each carries,
+ * which is the lumpiness the node's symptom paragraph describes.
+ *
+ * It marks BEFORE the prompt as well as after it, so the answer's cost is the
+ * difference between two readings rather than a total that has a page load in
+ * it.
+ */
+const chat = async (
+  page: Page,
+  mark: (what: string) => Promise<void>,
+): Promise<void> => {
+  const panel = page.locator('[data-testid="chat-panel"]')
+  await page.goto(BASE)
+  await page.locator('[data-testid="outline-link"]').first().waitFor({ timeout: 30_000 })
+  // Whether the panel is open is remembered per browser, and this context is a
+  // fresh one — but the toggle is a TOGGLE, so a click on an open panel shuts
+  // it. Ask first.
+  if (!(await panel.isVisible())) await page.locator('[data-testid="chat-toggle"]').click()
+  await panel.waitFor({ state: "visible", timeout: 30_000 })
+  // The agent has finished handshaking. A prompt sent into a booting panel is
+  // a prompt the composer refuses, and the answer this measures never arrives.
+  await page.waitForFunction(
+    () =>
+      document.querySelector('[data-testid="chat-panel"]')?.getAttribute("data-status") ===
+        "idle",
+    undefined,
+    { timeout: 60_000 },
+  )
+  await mark("the app opens and the panel is opened")
+
+  /** One turn: ask, wait for the answer to stop growing, and mark. `data-
+   *  streaming` comes off the row when the paragraph ends, so waiting for the
+   *  row to settle is waiting for exactly the frames this is counting. */
+  const turn = async (prompt: string, what: string) => {
+    const answers = page.locator('[data-testid="chat-entry"][data-kind="agent"]')
+    const before = await answers.count()
+    await page.locator('[data-testid="chat-input"]').fill(prompt)
+    await page.locator('[data-testid="chat-send"]').click()
+    const answer = answers.nth(before)
+    await answer.waitFor({ timeout: 60_000 })
+    await page.waitForFunction(
+      (nth) =>
+        document.querySelectorAll('[data-testid="chat-entry"][data-kind="agent"]')[nth]
+          ?.getAttribute("data-streaming") !== "true",
+      before,
+      { timeout: 120_000 },
+    )
+    const said = await answer.locator('[data-testid="chat-said"]').innerText()
+    await mark(`${what} (${said.length} characters)`)
+  }
+
+  // PACED FIRST, because it is the honest one: a model's tokens arrive over
+  // seconds, so what a coalescing wire costs in frames is a function of how
+  // long the answer took. The burst after it is the harsher case for bytes.
+  await turn("stream slow", "an answer streams in at a model's pace")
+  await turn("stream", "...and one arrives as fast as the pipe will take it")
+}
+
 const kb = (bytes: number) => `${(bytes / 1024).toFixed(1)} kB`
 
 const report = (label: string, readings: ReadonlyArray<Reading>) => {
   console.log(`\n── ${label} ─────────────────────────────────────`)
   console.log(
-    ["step", "socket (total)", "media (total)", "matcher asks (total)"].join("\t"),
+    ["step", "socket (total)", "frames (total)", "media (total)", "matcher asks (total)"]
+      .join("\t"),
   )
   for (const reading of readings) {
     console.log(
-      [reading.what, kb(reading.socket), kb(reading.media), String(reading.asks)]
-        .join("\t"),
+      [
+        reading.what,
+        kb(reading.socket),
+        String(reading.frames),
+        kb(reading.media),
+        String(reading.asks),
+      ].join("\t"),
     )
   }
   const last = readings[readings.length - 1]
   console.log(
-    `TOTAL\t${kb(last?.socket ?? 0)}\t${kb(last?.media ?? 0)}\t${last?.asks ?? 0}`,
+    `TOTAL\t${kb(last?.socket ?? 0)}\t${last?.frames ?? 0}\t${kb(last?.media ?? 0)}\t${last?.asks ?? 0}`,
   )
 }
 

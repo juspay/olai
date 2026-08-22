@@ -98,6 +98,19 @@ export interface Change {
 const EMPTY: Change = { upserts: [], removes: [], appends: [] }
 
 /**
+ * Whether a change says anything at all.
+ *
+ * HERE, beside the type, because it is a fact about a `Change` and the day the
+ * type grew a third thing to carry is exactly the day a caller asking about
+ * two of them stopped being right — which is what happened: a guard that asked
+ * only about rows dropped every chunk of every streaming answer, and the
+ * paragraph appeared whole when the turn ended. One reader of one shape rather
+ * than a list of fields re-spelled wherever somebody publishes.
+ */
+export const says = (change: Change): boolean =>
+  change.upserts.length > 0 || change.removes.length > 0 || change.appends.length > 0
+
+/**
  * An entry without the fields `#put` DERIVES, ready to be written back.
  *
  * `streaming` is why this exists and why it is one function: a spread of the

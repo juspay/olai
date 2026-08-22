@@ -10,7 +10,7 @@ import type { ChatEntry } from "@olai/surface"
 import { ValidationFailure } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 
-import { type Change, Transcript } from "./transcript.ts"
+import { type Change, says, Transcript } from "./transcript.ts"
 
 /** The rows as a reader would see them: conversation order, which is `seq`. */
 const rows = (transcript: Transcript): ReadonlyArray<ChatEntry> =>
@@ -43,6 +43,31 @@ const touched = (change: Change): ReadonlyArray<string> =>
  *  not republishing. */
 const added = (change: Change): ReadonlyArray<string> =>
   change.appends.map((piece) => `${piece.of}@${piece.at}:${piece.text}`)
+
+describe("whether a change says anything", () => {
+  // The guard every publisher is written against, and the reason it is asked
+  // of the change rather than spelled at each of them: a chunk of a streaming
+  // answer moves no ROW, so a caller naming upserts and removes drops every
+  // token of every answer and lets the paragraph appear when the turn ends.
+  test("an append-only change says something", () => {
+    const transcript = new Transcript()
+    transcript.say("one")
+    const chunk = transcript.say(" more")
+    expect(chunk.upserts).toEqual([])
+    expect(chunk.removes).toEqual([])
+    expect(says(chunk)).toBe(true)
+  })
+
+  test("a change that carries nothing says nothing", () => {
+    expect(says(NOTHING)).toBe(false)
+  })
+
+  test("a row and a removal each say something", () => {
+    const transcript = new Transcript()
+    expect(says(transcript.add("notice", "cancelled"))).toBe(true)
+    expect(says(transcript.clear())).toBe(true)
+  })
+})
 
 describe("prose", () => {
   test("chunks accumulate into one row, not one row each", () => {

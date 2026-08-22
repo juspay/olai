@@ -41,6 +41,8 @@ The note lives with this machine's other state (`~/.local/state/olai/`, or where
 
 **chats** lists the stored conversations for this directory, and each row says when it was last touched, to the minute. That is deliberate rather than decorative: `/clear` leaves two sessions sharing one name, and the protocol carries no fact that says which of them replaced the other, so the time is what tells you the row you mean. Picking one loads it — and makes it the conversation you come back to.
 
+**An answer arrives as it is written.** The agent sends its answer a few characters at a time — hundreds of pieces for a paragraph — and what olai sends the browser is those pieces, not the paragraph so far. That is the difference between a page that costs the connection the answer and one that costs it the answer three hundred times over: before this, reading five paragraphs off a machine across the world moved a megabyte and arrived in lumps, because every token re-sent everything said before it. The text also settles on a clock — a few times a second — rather than on the agent's, so however fast the tokens land, the words come in at a speed a person can read and the machine is not re-laying-out the page per letter.
+
 **A conversation opens on its newest line.** The panel jumps there at once, so a long transcript is not something you have to scroll down. While you read, new text only follows if you were already at the bottom; scroll up and it stays put.
 
 ## Who, and which model, the header names

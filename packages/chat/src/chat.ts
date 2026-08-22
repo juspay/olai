@@ -100,7 +100,7 @@ import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
 import type { AgentEvent } from "./events.ts"
 import * as Memory from "./memory.ts"
-import { type Change, Transcript } from "./transcript.ts"
+import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
 
 export type { ToolServer } from "./agent.ts"
@@ -393,8 +393,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *  and {@link SPOKE}. */
     let heard = 0
 
+    /** A change that says nothing is not published — asked of the change
+     *  itself ({@link ./transcript.ts}'s `says`) rather than by naming its
+     *  fields here. This line used to name two of the three, which meant every
+     *  chunk of every streaming answer was dropped and the paragraph appeared,
+     *  whole, when the turn ended. */
     const publish = (change: Change) => {
-      if (change.upserts.length === 0 && change.removes.length === 0) return
+      if (!says(change)) return
       options.onTranscript(change)
     }
 

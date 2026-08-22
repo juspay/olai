@@ -60,7 +60,7 @@ import { olai } from "../wire.ts"
 import { type Call, run } from "../run.ts"
 import { attaching } from "./attach.ts"
 import { createRows } from "./order.ts"
-import { grownText, TRANSCRIPT_TAIL } from "./saying.ts"
+import { grownText, TRANSCRIPT_TAIL } from "./growing.ts"
 import { forget, remember } from "./previews.ts"
 
 /**
@@ -224,7 +224,7 @@ export const createChat = (): Chat => {
   // THE ROW STILL BEING SAID, in pieces. A second subscription rather than a
   // second delivery of the first, and the reason a streaming answer costs the
   // socket the answer rather than three hundred copies of its prefixes
-  // ({@link ./saying.ts}).
+  // ({@link ./growing.ts}).
   const tail = olai.collections.saying.use().fold(TRANSCRIPT_TAIL)
   const [refused, setRefused] = createSignal<OpFailure | null>(null)
 
@@ -245,7 +245,7 @@ export const createChat = (): Chat => {
    * downstream — the row, the lane above it, the minimized pill's last message
    * — reads one complete row and no consumer has to know the wire delivers a
    * growing one in two halves. The join is total and idempotent, so this is
-   * the whole of the knowledge ({@link ./saying.ts}).
+   * the whole of the knowledge ({@link ./growing.ts}).
    *
    * The row itself is handed back UNCHANGED whenever nothing is added to it,
    * which is every row but one and every frame after a paragraph ends: the
