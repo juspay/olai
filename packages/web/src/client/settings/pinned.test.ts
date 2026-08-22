@@ -18,6 +18,7 @@ import { expect, test } from "bun:test"
 import {
   commitFrozen,
   commitSetBy,
+  commitsOff,
   pinnedCommit,
   pinnedPush,
   pushFrozen,
@@ -97,6 +98,34 @@ test("the line names the flag that set the row, and says a browser cannot", () =
     setPinned({ commit: "off", push: "auto" })
     expect(commitSetBy()).toContain("--commit=off")
     expect(pushSetBy()).toContain("--push=auto")
+  } finally {
+    setPinned(NO_PIN)
+  }
+})
+
+/**
+ * `--commit=off` is not a third setting of the Git commit row — it is the row
+ * having nothing to be about, and the hint has to say so.
+ *
+ * The row's Off sentence sends a reader to the Commit button, which is true for
+ * a live row and for a `manual` pin. Under this one the pill is inert and olai
+ * never writes a commit in this directory at all, so that sentence would be the
+ * row's permanent, reader-can-do-nothing statement pointing at a door that will
+ * not open.
+ */
+test("--commit=off is told apart from the other two ways the row reads Off", () => {
+  try {
+    setPinned({ commit: "off", push: null })
+    expect(commitsOff()).toBe(true)
+    // ... and it is the only one. `manual` really does wait for the button, and
+    // an unpinned row is the browser's own Off.
+    setPinned({ commit: "manual", push: null })
+    expect(commitsOff()).toBe(false)
+    setPinned(NO_PIN)
+    expect(commitsOff()).toBe(false)
+    // Nor does pinning the OTHER row say anything about this one.
+    setPinned({ commit: null, push: "off" })
+    expect(commitsOff()).toBe(false)
   } finally {
     setPinned(NO_PIN)
   }

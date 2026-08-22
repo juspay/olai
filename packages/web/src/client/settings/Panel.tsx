@@ -68,7 +68,7 @@ import { autoPause } from "../commit/pause.ts"
 import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
 import { outlinesHidden, setOutlinesHidden } from "./hiddenOutlines.ts"
-import { commitFrozen, commitSetBy, pushFrozen, pushSetBy } from "./pinned.ts"
+import { commitFrozen, commitSetBy, commitsOff, pushFrozen, pushSetBy } from "./pinned.ts"
 import { QUIET_MS } from "../commit/flurry.ts"
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
@@ -224,7 +224,10 @@ export function Panel(props: {
           <Show when={commitFrozen() && autoPause.said() !== null}>
             <button
               type="button"
-              class={`${TARGET} rounded-full border border-rule px-3 text-xs text-ink hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:min-h-0 md:py-1`}
+              // `mt-2` here rather than on a wrapper in `./Row.tsx`: the slot is
+              // rendered bare, so a row whose Resume is not showing draws
+              // nothing at all — see there.
+              class={`${TARGET} mt-2 rounded-full border border-rule px-3 text-xs text-ink hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:min-h-0 md:py-1`}
               data-testid={TESTID.prefsResume}
               onClick={() => autoPause.resume()}
             >
@@ -332,14 +335,24 @@ const hiddenHint = (): string =>
  *  change in the repository rather than only the ones typed here. The last is
  *  the one nobody would guess — an agent writing over MCP restarts the same
  *  window and lands in the same commit. */
-const commitHint = (): string =>
-  autoCommit()
+const commitHint = (): string => {
+  // `--commit=off` FIRST, because it is not a third setting of this row — it is
+  // the row having nothing to be about. Sending a reader to the Commit button
+  // there points them at a pill that is inert and a directory olai never writes
+  // a commit in; the two arms below both assume there is a history to record
+  // into (`./pinned.ts`'s `commitsOff`).
+  if (commitsOff()) {
+    return "olai never touches git in this directory, so nothing is waiting " +
+      "and there is nothing here to record."
+  }
+  return autoCommit()
     ? `What is waiting records itself when edits stop arriving for ${QUIET_SECONDS} ` +
       "seconds, so a burst of work is one commit — including writes an agent " +
       `made. A commit or a push git refuses pauses it until ${
         commitFrozen() ? "you press Resume" : "you set this Off and back On"
       }.`
     : "A write waits. Record it with the Commit button, in the pill."
+}
 
 const pushHint = (): string =>
   autoPush()

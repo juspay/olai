@@ -20,6 +20,19 @@
  * for exactly this (`../pins/pinning.ts`, `../palette/open.ts`): {@link
  * autoPause} is the one the app runs on, and {@link createPause} is what a test
  * — or a second loop, if there is ever one — makes its own with.
+ *
+ * **It is IN MEMORY, in this tab, and it is not remembered.** A reload starts
+ * the loop again with nothing stopped, and so does a second tab of this browser
+ * taking over the recording (`./elected.ts`). That is what it always was — the
+ * signal used to live inside `createAuto` — and moving it out here did not
+ * change it. Which makes a reload a RETRY: if git still refuses, the next
+ * attempt stops the loop again and says so, so nothing is lost and nothing is
+ * silently carried on with. Persisting it is a different feature and would need
+ * its own ruling: a stop that survives reloads needs a way to say "no, really,
+ * carry on" that survives them too, and Resume is a button on a panel rather
+ * than a fact about a directory. docs/git.md says all of this out loud, because
+ * under a pin Resume is the only in-UI way out and a reader who found the other
+ * one sideways would not know which of the two olai meant.
  */
 
 import { type Accessor, createRoot, createSignal } from "solid-js"

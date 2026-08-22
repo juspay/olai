@@ -74,7 +74,7 @@ const run = (
       identity: DEFAULT_IDENTITY_HEADERS,
       // These start and stop a real server against a temp directory; committing
       // to whatever repository happens to contain it is not theirs to do.
-      git: { commit: "off", push: null },
+      pin: { commit: "off", push: null },
     })
   }).pipe(
     Effect.scoped,

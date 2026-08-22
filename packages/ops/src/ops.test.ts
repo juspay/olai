@@ -104,7 +104,7 @@ const withOps = <A>(
       // `auto` is the old behaviour, one commit per op, and it is what these
       // tests are written against: the MANUAL path — a commit somebody asks
       // for — is `pending.test.ts`'s subject.
-      commits: { commit: options.git === true ? "auto" : "off", push: null },
+      pin: { commit: options.git === true ? "auto" : "off", push: null },
       // The planner's own fixture context by default — ids from `n1`, one fixed
       // instant — so an assertion can name what a mark stamps. `realClock`
       // hands the layer back its OWN: the one test that is about what that
@@ -634,7 +634,7 @@ describe("the auto-commit", () => {
     withOps({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         // `commits: "auto"`, but there is no repository here.
-        const ops = Ops.make({ store: fixture.store, root: fixture.root, commits: { commit: "auto", push: null } })
+        const ops = Ops.make({ store: fixture.store, root: fixture.root, pin: { commit: "auto", push: null } })
         const applied = yield* Effect.orDie(ops.run({ op: "done", id: "order" }, "mcp"))
         expect(applied.committed).toBe(false)
         // The half that was missing: `false` on its own is four different
@@ -717,7 +717,7 @@ describe("the auto-commit", () => {
         const ops = Ops.make({
           store: fixture.store,
           root: fixture.root,
-          commits: { commit: "manual", push: null },
+          pin: { commit: "manual", push: null },
           context: steady(),
         })
         const applied = yield* Effect.orDie(ops.run({ op: "done", id: "order" }, "mcp"))
@@ -737,7 +737,7 @@ describe("the auto-commit", () => {
   test("the opt-out writes without committing, and says that is why", () =>
     withOps({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
-        const ops = Ops.make({ store: fixture.store, root: fixture.root, commits: { commit: "off", push: null } })
+        const ops = Ops.make({ store: fixture.store, root: fixture.root, pin: { commit: "off", push: null } })
         const applied = yield* Effect.orDie(ops.run({ op: "done", id: "order" }, "mcp"))
         expect(applied.committed).toBe(false)
         expect(applied.why).toContain("--commit=off")

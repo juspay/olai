@@ -104,7 +104,7 @@ export const withServe = async <A>(
       clientDist: options.clientDist ?? served(),
       allowedOrigins: [],
       identity: options.identity ?? DEFAULT_IDENTITY_HEADERS,
-      git: { commit: options.commits ?? "off", push: null },
+      pin: { commit: options.commits ?? "off", push: null },
     })
     return yield* Effect.promise(() => body(said))
   }).pipe(

@@ -40,11 +40,20 @@ export function Row(props: {
    *  case. Its presence is what makes the row read-only, so a row that says it
    *  is pinned and a row that behaves as if it is cannot come apart. */
   readonly setBy?: string | null
-  /** Anything this row needs UNDER its sentences — today the one thing: Resume,
-   *  which starts a stopped Auto-commit again on a row the server has frozen.
-   *  A slot rather than a sibling in the panel, because a control that belongs
-   *  to a row and is only associated with it by adjacency is a control the next
-   *  row inserted above will silently steal. */
+  /**
+   * Anything this row needs UNDER its sentences — today the one thing: Resume,
+   * which starts a stopped Auto-commit again on a row the server has frozen.
+   *
+   * A slot rather than a sibling in the panel, because a control that belongs
+   * to a row and is only associated with it by adjacency is a control the next
+   * row inserted above will silently steal.
+   *
+   * It is rendered BARE, and the caller owns its own spacing. A wrapper here
+   * would be a box this row draws whenever the prop is passed — and the prop is
+   * passed unconditionally, since what decides whether Resume is on screen is a
+   * `Show` INSIDE it. So every unpinned Git commit row grew an empty div its
+   * neighbour did not have. Nothing renders nothing.
+   */
   readonly under?: JSX.Element
   readonly children: JSX.Element
 }) {
@@ -99,9 +108,7 @@ export function Row(props: {
           </p>
         )}
       </Show>
-      <Show when={props.under}>
-        <div class="mt-2">{props.under}</div>
-      </Show>
+      {props.under}
     </div>
   )
 }

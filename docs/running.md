@@ -131,9 +131,13 @@ services.olai = {
 
 The two are independent, so pinning committing does not silently pin pushing. `--commit=manual` typed out loud is not the same as saying nothing, even though this server behaves identically either way: the first freezes the row for everybody, the second leaves it to each reader. Nothing a browser had stored is overwritten, so a server restarted without the flag hands each reader their own pick straight back.
 
-`--commit` is the same flag [git.md](git.md#modes) describes, with the same three modes; `--no-commit` is `--commit=off` and pins in the same way. `--push` has two values and deliberately not three — a branch that is not pushed on its own is pushed by the Push button, so there is no third thing to be.
+`--commit` is the same flag [git.md](git.md#modes) describes, with the same three modes; `--no-commit` is `--commit=off` and pins in the same way. It governs the server as well as the browsers: `--commit=auto` really does commit every write olai makes, with or without a browser in front of it.
+
+**`--push` governs the BROWSERS and nothing else.** It is Auto-push — whether a commit somebody's browser made is followed by a push — stated for everybody instead of set per browser. It does **not** push the commits `--commit=auto` makes on its own: a headless serve pushes nothing, and `--commit=auto --push=auto` with no tab open records without sharing. That is deliberate rather than an oversight — `--commit=auto` is one commit per write, so pushing them would put a network round trip inside every write — but it means an instance that must also share what it records still needs somebody's browser open, or a cron. `--push` has two values and deliberately not three: a branch that is not pushed on its own is pushed by the Push button, so there is no third thing to be.
 
 **A refused commit or push still pauses the loop** under a pin, because that is runtime state rather than policy: git said no, and nothing starts the loop again on olai's own initiative. Where the row is the browser's, turning Auto-commit off and on again is the gesture. A pinned row has no toggle to flip, so it carries a **Resume** button instead, drawn only while the loop is actually stopped.
+
+That pause lives in the TAB, in memory, exactly as it did before there was anything to pin. Reloading the page — or opening a second tab and letting it win the lock — starts the loop again without anybody pressing Resume; if git still refuses, the next attempt pauses it again and says so. Nothing is persisted, and that is on purpose: a stop remembered across reloads is a different feature, and it would need a way to say "no, really, carry on" that survives them too.
 
 Theme, typeface, size, note density, finished work and hidden outlines are untouched by any of this. They are personal view choices, per browser, and there is nothing about them for a server to have an opinion on.
 

@@ -84,6 +84,8 @@ The case that matters is a DIVERGENCE. Another machine of yours — or somebody 
 
 On a server that has [pinned the git policy](running.md#the-git-policy) there is no toggle to turn off and on, so the frozen row carries a **Resume** button — the same gesture, drawn only while the loop is actually stopped. Whichever of the two this reader has, it is the one the pill's own sentence names.
 
+**The pause is this TAB's, and it is not remembered.** It lives in memory, like the loop it stops, so reloading the page starts the loop again without anybody pressing anything — and so does a second tab of this browser that takes over the recording. If git still refuses, the next attempt pauses it again and the pill says so, so a reload is a retry rather than a way out; what it is not is a promise, and nothing here writes the stop down.
+
 A repository that cannot take a commit *at all* — mid-merge, mid-rebase, a detached HEAD — is the other thing and is a **pause rather than a stop**: nothing is attempted while it lasts, the pill says which state it is in exactly as it always has, and what is waiting is recorded once you have finished. Nothing has to be switched off and on for that one. Never attempting is also the point: an automatic commit landing in the middle of a conflict is how a resolution gets swallowed.
 
 ## Pushing
@@ -102,7 +104,7 @@ The agent has this one too, as a `push` tool that takes nothing at all.
 - `--commit=auto` is one commit per write, for a server with no browser in front of it. It commits exactly the files that write produced — never the rest of the repository. It is NOT Auto-commit above: that one is this browser's, waits out a quiet window, and sweeps the whole repository once.
 - `--commit=off` (or `--no-commit`) is for a directory whose history is somebody else's job. The pill says which of those two it is rather than vanishing, and nothing is ever `git init`ed on your behalf.
 
-Giving `--commit` at all — or `--push`, its neighbour — also **pins** the matching row in every browser's preferences: read-only, in the state the flag names, with the flag on screen. That is the server's answer for a directory more than one person is looking at, and it is [running.md](running.md#the-git-policy)'s subject. With neither flag given, which is the default, both rows are live exactly as this page describes them.
+Giving `--commit` at all — or `--push`, its neighbour — also **pins** the matching row in every browser's preferences: read-only, in the state that flag comes to, with the flag itself on screen. The row is Auto-commit rather than "may this directory be committed at all", so the two are not always spelled alike: `--commit=auto` freezes it on, and both `manual` and `off` freeze it Off — `manual` because a write waiting for the Commit button is exactly what Off means, and `off` because a directory olai never commits in has nothing for a browser to record on its own. The line under the row names the flag either way, so the two Offs are told apart by what set them. That is the server's answer for a directory more than one person is looking at, and it is [running.md](running.md#the-git-policy)'s subject. With neither flag given, which is the default, both rows are live exactly as this page describes them.
 
 ## The audit view
 

@@ -740,3 +740,17 @@ Then(
     );
   },
 );
+
+/** The negative half of the row's promise: a sentence that is true of a live
+ *  row can be exactly wrong on a pinned one, and only asserting what a hint
+ *  SAYS would let the old words survive beside the new. */
+Then(
+  "the Git commit row does not explain that a write {string}",
+  async function (this: OlaiWorld, unwanted: string) {
+    const hint = await hintOf(this, "git-commit");
+    assert.ok(
+      !hint.includes(unwanted),
+      `the Git commit row still says "${hint}", which claims ${JSON.stringify(unwanted)}`,
+    );
+  },
+);

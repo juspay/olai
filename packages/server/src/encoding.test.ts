@@ -94,7 +94,7 @@ const withServer = (
       clientDist: dist,
       allowedOrigins: [],
       identity: DEFAULT_IDENTITY_HEADERS,
-      git: { commit: "off", push: null },
+      pin: { commit: "off", push: null },
     })
     const url = findSaid(said, "serving")?.annotations.url
     expect(typeof url).toBe("string")

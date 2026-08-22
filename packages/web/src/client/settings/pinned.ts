@@ -90,6 +90,25 @@ export const pinnedPush = (pin: GitPin): boolean | null =>
 export const commitFrozen = (): boolean => pinnedCommit(pinned()) !== null
 export const pushFrozen = (): boolean => pinnedPush(pinned()) !== null
 
+/**
+ * ... and the one thing a frozen Git commit row needs to say that "frozen off"
+ * does not cover: `--commit=off` is not "a write waits", it is olai never
+ * touching git in this directory at all.
+ *
+ * Its own reading rather than the row asking `pinned().commit === "off"` for
+ * itself, for {@link commitFrozen}'s reason: every question about the pin is
+ * answered here, so the sentence a row prints and the state it is drawn in
+ * cannot be read off two different places.
+ *
+ * The row's Off hint sends a reader to the Commit button, which is true for a
+ * live row and for a `manual` pin and false here — under this one the pill is
+ * inert and there is nothing waiting for it to record. Pre-existing for an
+ * unpinned `--commit=off` serve; a pin is what makes it the row's PERMANENT
+ * statement, which is what turns it from a passing inaccuracy into a control
+ * pointing at a door that will not open.
+ */
+export const commitsOff = (): boolean => pinned().commit === "off"
+
 /** WHO set each row, in the words the panel prints — `null` where nobody did.
  *  Here beside {@link commitFrozen} rather than in the panel, so "is it frozen"
  *  and "what does it say" cannot come apart: both are read off the same pin. */

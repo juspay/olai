@@ -170,6 +170,11 @@ const GIT_TAG = /^@git:(repo|none|broken)$/;
  * It requires a `@git:` tag beside it, and the Before hook says so: without one
  * the server is started `--no-commit`, which is `--commit=off` under another
  * name and would quietly win over whatever the tag asked for.
+ *
+ * A SCENARIO's tag beats its feature's for the same flag, because cucumber
+ * hands the feature's tags first and the collection below keeps the last of
+ * each key. That is what lets one feature pin a policy for every scenario in it
+ * and one scenario in it ask for a different one.
  */
 const PIN_TAG = /^@pin:(commit|push)=([a-z]+)$/;
 

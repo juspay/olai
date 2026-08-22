@@ -76,3 +76,20 @@ Feature: The server can pin the git policy, and the preferences say so
     And olai has recorded 1 commit here
     # ... and --push=off is honoured too: the commit is made and stays here.
     And there should be no page errors
+
+  @pin:commit=off
+  Scenario: A pin of --commit=off says what it means, not "press the Commit button"
+    # THE ONE ROW STATE THE OTHER TWO OFFS DO NOT COVER. Off is what `manual`
+    # comes to as well, and there it is exactly true: a write waits for the
+    # Commit button. Here the button is on an inert pill and olai never writes a
+    # commit in this directory at all — so the shipped sentence would be this
+    # row's permanent, reader-can-do-nothing statement pointing at a door that
+    # will not open. The set-by line names which of the two Offs this is.
+    #
+    # Its own @pin: tag beside the feature's, which the later tag wins.
+    When I open the preferences
+    Then the "Git commit" row is the server's, set by "--commit=off"
+    And the "Git commit" row is set to "off"
+    And the Git commit row explains that a write "never touches git"
+    And the Git commit row does not explain that a write "Commit button"
+    And there should be no page errors

@@ -71,7 +71,7 @@ const web = Command.make("web", {
       root: directory,
       port,
       host,
-      git: gitPin(commits, noCommit, pushes),
+      pin: gitPin(commits, noCommit, pushes),
       clientDist: yield* clientDist,
       allowedOrigins: allowedOrigins(),
       identity: identityHeaders(),

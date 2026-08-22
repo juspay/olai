@@ -84,8 +84,13 @@ export interface Options {
    *
    * Required, with no default here: `main.ts` already carries one for the flag,
    * and a second would be a second answer to what happens when nobody says.
+   *
+   * It is spelled `pin` at every layer it crosses — `main.ts` mints it,
+   * `@olai/server`'s `ServeOptions` takes it, this layer passes it down, and
+   * `./pending.ts` reads it — because one value with three names is one grep
+   * that finds a third of its call sites.
    */
-  readonly commits: GitPin
+  readonly pin: GitPin
   /** Overridable so tests are deterministic: the id a new node gets and the
    *  instant a mark is stamped with are the only two things about an op that
    *  are not a function of the snapshot. */
@@ -335,7 +340,7 @@ export const make = (options: Options): Ops => {
   const commits = makeCommits({
     store: options.store,
     root: options.root,
-    pin: options.commits,
+    pin: options.pin,
     ...(options.onRecorded === undefined ? {} : { onRecorded: options.onRecorded }),
   })
 

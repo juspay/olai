@@ -58,8 +58,9 @@ export interface ServeOptions {
    *  `--commit=off | manual | auto` and `--push=off | auto`, each `null` when
    *  the flag was not given (`@olai/format`'s `GitPin`). What the server does
    *  is that with the defaults filled in; what every browser draws is the pin
-   *  itself. See `@olai/ops`'s `Options`. */
-  readonly git: GitPin
+   *  itself. Spelled `pin` here, in `@olai/ops`' `Options` and in its
+   *  `pending.ts`, so one grep finds every layer it crosses. */
+  readonly pin: GitPin
 }
 
 /**
@@ -121,7 +122,7 @@ export const serve = (options: ServeOptions) =>
     const ops = makeOps({
       store,
       root,
-      commits: options.git,
+      pin: options.pin,
       onRecorded: () => {
         Effect.runSync(SubscriptionRef.update(recorded, (count) => count + 1))
       },
