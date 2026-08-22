@@ -69,8 +69,9 @@ const HERE = "/tmp/olai-somewhere"
 const ELSEWHERE = "/tmp/olai-somewhere-else"
 
 /** A conversation with nothing said about its model, which is what ENTERING one
- *  writes: the model is learned afterwards, from the agent, or never. */
-const IN = (session: string): Held => ({ session, model: null })
+ *  writes: the model is learned afterwards, from the agent, or never. Its AGENT
+ *  is always written — a note this olai wrote knows which agent it is about. */
+const IN = (session: string): Held => ({ agent: "claude", session, model: null })
 
 describe("the panel's own conversation, across a restart", () => {
   test("a directory that has never been served remembers nothing", async () => {
@@ -128,9 +129,14 @@ describe("the model that conversation was on", () => {
 
   test("the model comes back with the conversation it was on", async () => {
     await Effect.runPromise(
-      forDirectory(HERE).remember({ session: "session-a", model: "claude-fable-5" }),
+      forDirectory(HERE).remember({
+        agent: "claude",
+        session: "session-a",
+        model: "claude-fable-5",
+      }),
     )
     expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual({
+      agent: "claude",
       session: "session-a",
       model: "claude-fable-5",
     })
@@ -140,7 +146,11 @@ describe("the model that conversation was on", () => {
     // Which is not the same as saying it is on the default: it is the panel
     // having heard nothing yet, and the agent's own answer standing.
     await Effect.runPromise(
-      forDirectory(HERE).remember({ session: "session-a", model: "claude-fable-5" }),
+      forDirectory(HERE).remember({
+        agent: "claude",
+        session: "session-a",
+        model: "claude-fable-5",
+      }),
     )
     await Effect.runPromise(forDirectory(HERE).remember(IN("session-b")))
     expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual(IN("session-b"))
@@ -210,5 +220,38 @@ describe("a memory that cannot be trusted", () => {
     } finally {
       chmodSync(state, 0o700)
     }
+  })
+})
+
+describe("which agent the conversation is with", () => {
+  test("comes back with the conversation, so the right subprocess is started", async () => {
+    await Effect.runPromise(
+      forDirectory(HERE).remember({ agent: "opencode", session: "ses_x", model: null }),
+    )
+    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual({
+      agent: "opencode",
+      session: "ses_x",
+      model: null,
+    })
+  })
+
+  test("a memory written before olai had a roster is about the agent it had", async () => {
+    // Every state directory in the world right now. It names no agent because
+    // there was exactly one it could be about — reading it as that one is what
+    // makes an upgrade come back into the conversation it was in, rather than
+    // into a question.
+    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
+    writeFileSync(only(), `{"cwd":"${HERE}","session":"session-a"}\n`)
+    expect(await Effect.runPromise(forDirectory(HERE).recall)).toEqual({
+      agent: "claude",
+      session: "session-a",
+      model: null,
+    })
+  })
+
+  test("an agent that is not a name reads the same way", async () => {
+    await Effect.runPromise(forDirectory(HERE).remember(IN("session-a")))
+    writeFileSync(only(), `{"cwd":"${HERE}","agent":7,"session":"session-a"}\n`)
+    expect((await Effect.runPromise(forDirectory(HERE).recall))?.agent).toBe("claude")
   })
 })

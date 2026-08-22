@@ -747,6 +747,29 @@ export function Composer(props: {
             waiting on your answer
           </span>
         </Show>
+        {/* WHAT SAYING IT NOW BUYS YOU, for an agent that cannot take a message
+            into a turn it is already running.
+
+            The box never locks and nothing is held here, whichever agent it is
+            — that much is the same. What differs is where the words LAND: an
+            agent with steering hears them while it works, which is the whole
+            reason to type them then, and one without queues them and reaches
+            them when the turn is over. Two panels that look identical and
+            behave differently is the thing this line exists to stop; a
+            degradation a person can see is one they can work with (the ruling,
+            2026-08-21).
+
+            Only while a turn RUNS, because that is the only time it is true —
+            an idle agent takes what you type at once either way — and that is
+            also the moment somebody is deciding whether to say it. */}
+        <Show when={props.chat.state().status === "thinking" && !props.chat.state().steers}>
+          <span
+            class="font-mono text-[0.6875rem] text-muted"
+            data-testid={TESTID.chatQueues}
+          >
+            this agent queues what you send now
+          </span>
+        </Show>
         {/* Only when the agent offers some: a button that opens nothing lies. */}
         <Show when={props.chat.state().commands.length > 0}>
           <button

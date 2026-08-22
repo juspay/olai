@@ -32,13 +32,13 @@
  *     handed this session — olai's mediated ops, kolu's terminals — is allowed
  *     immediately, and everything else is a person's to answer. What is HERE is
  *     that the two paths exist and which one a request took; the rule that
- *     tells them apart is {@link ./interpret.ts}, where it is a pure function
+ *     tells them apart is this agent's LEG ({@link ./agents/leg.ts}), where it is a pure function
  *     with unit tests rather than a branch inside a subprocess's callback.
  *   - **reading the payloads**: which update kind this is, what a content block
  *     says, how a session list sorts. An event carries what was READ, never the
  *     raw protocol value. What any of it means to the CLAUDE CODE adapter in
  *     particular — its `_meta`, its tool naming, the message it forwards, which
- *     config option its picker is — is {@link ./interpret.ts}; what is still
+ *     config option its picker is — is its LEG's ({@link ./agents/leg.ts}); what is still
  *     here is what those readings are REMEMBERED as, which is a session's job.
  *
  * The MCP servers a session is given are olai's own internal one — the standard
@@ -98,28 +98,18 @@ import { emitter, reasonOf } from "@olai/log"
 import type { AskAnswer } from "@olai/surface"
 import { Data, type Duration, Effect, Semaphore } from "effect"
 
-import { Calls } from "./calls.ts"
-import { sameDirectory } from "./directory.ts"
-import type { AgentEvent, Command, Stored } from "./events.ts"
+import type { Leg } from "./agents/leg.ts"
 import {
-  allowedWithoutAsking,
-  BYPASS_MODE,
-  liveModelIn,
   MODEL_CONFIG,
   modelNameIn,
   modelPickerIn,
-  OPEN_SESSION_META,
-  parentToolUseIn,
   type Picker,
   pickerValueFor,
   sameModel,
-  SDK_MESSAGE,
-  spawnedIn,
-  STEER_METHOD,
-  STEER_TIMEOUT,
-  STEER_WHEN_IDLE,
-  steerTaken,
-} from "./interpret.ts"
+} from "./agents/models.ts"
+import { Calls } from "./calls.ts"
+import { sameDirectory } from "./directory.ts"
+import type { AgentEvent, Command, Stored } from "./events.ts"
 import * as Kolu from "./kolu.ts"
 import type { Held, Memory, MemoryFailure } from "./memory.ts"
 import { streamOver, unstartable } from "./pipes.ts"
@@ -175,7 +165,7 @@ export interface ToolServer {
  * RESPONSE arrives as the SDK's own {@link RequestError}, and every other
  * rejection — a closed connection, an interrupted deadline — is silence wearing
  * an `Error`. That reading is {@link goneOf}, and it lives here rather than in
- * {@link ./interpret.ts} because it is the protocol SDK's vocabulary rather
+ * {@link ./agents/leg.ts} because it is the protocol SDK's vocabulary rather
  * than one adapter's extension. `unreachable` is never read off a rejection: it
  * is what this file mints when there was nothing to reject.
  */
@@ -211,7 +201,7 @@ export class AgentGone extends Data.TaggedError("AgentGone")<{
  *   - `taken` — the message is in the running turn. Nothing else to do; what
  *     the agent makes of it arrives on the transcript like everything else.
  *   - `no-turn` — the agent had nothing to steer, and has NOT taken the message
- *     (that is what {@link ./interpret.ts}'s `STEER_WHEN_IDLE` asks for), so
+ *     (that is what the leg's steering `_meta` asks for), so
  *     the caller sends it as an ordinary prompt. This is the race rather than
  *     the ordinary path: olai steers only while it believes a turn is running,
  *     and the turn can settle between the send and the steer arriving.
@@ -219,7 +209,15 @@ export class AgentGone extends Data.TaggedError("AgentGone")<{
 export type Steered = "taken" | "no-turn"
 
 export interface Options {
-  /** The executable to run. `OLAI_ACP_AGENT`, or the adapter nix baked in. */
+  /** WHICH agent this is ({@link ./agents/roster.ts}) — the id a conversation
+   *  is remembered under, so that the next boot starts the same one. */
+  readonly id: string
+  /** ... and how to read what it sends. Every bet that is true of one agent
+   *  and not the other is behind this ({@link ./agents/leg.ts}); nothing in
+   *  this file names an adapter. */
+  readonly leg: Leg
+  /** The executable to run — the roster row's, which for the Claude leg is
+   *  `OLAI_ACP_AGENT` or the adapter nix baked in. */
   readonly command: string
   readonly args: ReadonlyArray<string>
   /** The directory the agent works in — the served directory, absolute. It is
@@ -246,6 +244,11 @@ export interface Options {
 }
 
 export interface Agent {
+  /** Whether a message sent while a turn runs can go INTO that turn
+   *  ({@link Agent.steer}) — the leg's answer, read by the caller that has to
+   *  decide between steering and an ordinary prompt, and by the composer, which
+   *  says so where it is false. */
+  readonly steers: boolean
   /** Spawn and hand-shake if that has not happened. Idempotent, and serialized
    *  against itself: two callers racing a cold start get one subprocess. */
   readonly boot: Effect.Effect<void, AgentGone>
@@ -333,6 +336,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     // every line it will ever emit. `acp: ` used to be that, as a prefix.
     const say = yield* Effect.annotateLogs(emitter, { agent: options.command })
 
+    /** What this agent's leg wants on the `_meta` of the two calls that OPEN a
+     *  conversation — spread into both, and EMPTY for an agent that asks for
+     *  nothing. Spelled once because `session/new` and `session/load` have to
+     *  agree: the Claude adapter reads the subscription off whichever of them
+     *  made the session, and sending it at `new` alone is a bug this file has
+     *  already had. */
+    const openMeta = options.leg.rawMessages === null
+      ? {}
+      : { _meta: options.leg.rawMessages.openMeta }
+
     // The spawn/handshake takes its own permit, so two callers racing a cold
     // start share one subprocess rather than each getting their own.
     const booting = yield* Semaphore.make(1)
@@ -383,7 +396,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  tool it is, and which agent made it ({@link ./calls.ts}). Per session,
      *  because a call id is only ever looked up inside the session that minted
      *  it. */
-    const calls = new Calls()
+    const calls = new Calls(options.leg)
 
     /** The conversation is over — replaced, reloaded, or dead. Everything keyed
      *  to it goes: the questions nobody is going to answer now, what was said
@@ -473,7 +486,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // front of a person. Which is which is `allowedWithoutAsking`, and it is
       // there rather than here because it is the rule that stops this panel
       // approving its own permissions.
-      const allowed = allowedWithoutAsking(toolOf(params), given, params.options)
+      const allowed = options.leg.allowedWithoutAsking(toolOf(params), given, params.options)
       if (allowed !== null) {
         return { outcome: { outcome: "selected", optionId: allowed } }
       }
@@ -536,13 +549,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // from. A subagent's frames arrive on this one feed with nothing
             // in the protocol to tell them apart, so this is the only thing
             // that says a turn had more than one agent in it.
-            parent: parentToolUseIn(update._meta) ?? undefined,
+            parent: options.leg.parentToolUse(update._meta) ?? undefined,
             // ... and, the other way round, whether this call SENT an agent
             // out. Read here rather than left to the parent stamp because the
             // stamp is answered by a subagent's own frames and a subagent that
             // has not made a call yet has produced none — which is the whole
             // of the stretch a person is watching a fan-out through.
-            spawned: spawnedIn(update._meta, update.rawInput) ?? undefined,
+            spawned: options.leg.spawned(update._meta, update.rawInput) ?? undefined,
           })
           return
         case "available_commands_update":
@@ -571,7 +584,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // and may revise `size` too, so the panel holds the newest rather
           // than the first.
           //
-          // Read by `@olai/acp` rather than by `interpret.ts`, because this is
+          // Read by `@olai/acp` rather than by a leg, because this is
           // ACP's own update kind and not one adapter's extension — any agent
           // may send one, and one that never does simply leaves the header
           // saying nothing about room.
@@ -693,11 +706,18 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // either — `sonnet` and `claude-sonnet-5` are one model, judged the way
       // {@link restore} judges it rather than as two strings.
       if (at === null || (at.model !== null && sameModel(labels, at.model, value))) return
+      // NOR IS A MODEL A MOVE IN SOMEBODY ELSE'S CONVERSATION. What is mirrored
+      // in `held` before this agent has entered anything is the note the last
+      // boot left, which may be another agent's — and a frame can arrive in
+      // that window, during a replay. Writing then would file this agent's
+      // model against that agent's session id, which is the one thing the note
+      // must never hold.
+      if (at.agent !== options.id) return
       // `say` is this file's escape hatch out of a protocol callback, where
       // there is no fiber to yield in — the same one a line of the subprocess's
       // stderr goes out through, carrying a write rather than a log line.
       say(note(
-        { session: at.session, model: value },
+        { agent: options.id, session: at.session, model: value },
         (why) => `the model this conversation is on will not survive a restart: ${why}`,
       ))
     }
@@ -722,7 +742,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }
 
     const readLiveModel = (params: unknown): void => {
-      const id = liveModelIn(params)
+      const id = options.leg.rawMessages?.modelIn(params) ?? null
       if (id === null || id === announced) return
       const switched = announced !== null
       announced = id
@@ -822,30 +842,37 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           })
         })
 
-        const connection = acpClient({ name: "olai" })
+        const opened = acpClient({ name: "olai" })
           .onNotification(methods.client.session.update, (context) => {
             onUpdate(context.params)
           })
-          // The CLI's own message, forwarded verbatim because the call that
-          // OPENED this conversation asked for it (`OPEN_SESSION_META`, on
-          // `session/new` and `session/load` both — the adapter reads the
-          // subscription off whichever one made the session, and asking at
-          // `new` alone left every restored conversation silent).
-          // Asking and then not listening is
-          // what this used to do, which is why the header could name a model
-          // the session had stopped running. Custom method, so the SDK wants a
-          // parser: there is nothing to validate beyond "it is an object", and
-          // `readLiveModel` reads one field out of it.
-          .onNotification(
-            SDK_MESSAGE,
+        // The agent's own message, forwarded verbatim because the call that
+        // OPENED this conversation asked for it (the leg's `openMeta`, on
+        // `session/new` and `session/load` both — the Claude adapter reads the
+        // subscription off whichever one made the session, and asking at `new`
+        // alone left every restored conversation silent). Asking and then not
+        // listening is what this used to do, which is why the header could name
+        // a model the session had stopped running.
+        //
+        // SUBSCRIBED ONLY WHERE THERE IS SOMETHING TO SUBSCRIBE TO: an agent
+        // whose leg forwards nothing (opencode does not) is one this method
+        // never arrives from, and a handler for a notification nobody sends is
+        // a reader's question with no answer in the file. Custom method, so the
+        // SDK wants a parser: there is nothing to validate beyond "it is an
+        // object", and `readLiveModel` reads one field out of it.
+        const raw = options.leg.rawMessages
+        const connection = (raw === null
+          ? opened
+          : opened.onNotification(
+            raw.method,
             (params: unknown) => params,
             (context) => {
               readLiveModel(context.params)
             },
-          )
+          ))
           // Allowed without asking when it is one of the tools we handed this
           // session, and PUT IN FRONT OF A PERSON otherwise — the rule, and
-          // what it used to cost to get it wrong, in `interpret.ts`.
+          // what it used to cost to get it wrong, in `./agents/leg.ts`.
           .onRequest(methods.client.session.requestPermission, (context) =>
             onPermission(context.params, context.signal))
           // The agent's own structured question, which is a thing it can only
@@ -881,7 +908,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
                 // not asked for, and the difference matters because asking is
                 // one line. It is not asked for yet because a second voice in
                 // the transcript is a feature with its own drawing to decide
-                // (`./interpret.ts` says what the panel does know about a
+                // (`./agents/claude.ts` says what the panel does know about a
                 // spawn), and because the flag's absence is what guarantees a
                 // subagent's prose cannot arrive unattributed in the main
                 // agent's voice.
@@ -943,7 +970,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // conversation writes the mirror back out ({@link entered}) — a recall
         // discarded here would be this boot forgetting what it had just read.
         held = yield* recalled
-        const wanted = adopt(held?.session ?? null, stored)
+        const wanted = adopt(rememberedHere(), stored)
         if (wanted !== undefined) {
           // The model goes with the conversation it was written down for. Adopt
           // the FALLBACK — the remembered one is gone — and there is nothing
@@ -1005,7 +1032,20 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * thing it exists to undo. Every caller that opens a conversation asks
      * here rather than reading `held.model`.
      */
-    const modelFor = (id: string): string | null => held?.session === id ? held.model : null
+    const modelFor = (id: string): string | null =>
+      held?.session === id ? held.model : null
+
+    /** The conversation this panel was last in, when it was one of OURS.
+     *
+     *  A conversation belongs to one agent and a session id means nothing to
+     *  another: asking opencode to load a Claude session id gets a refusal, and
+     *  a note written for one agent adopted by the other would spend a boot
+     *  finding that out. So the id is read only when the note names this agent,
+     *  and a note about a different one leaves this boot with nothing
+     *  remembered — which is the ordinary "adopt the newest" path, in an agent
+     *  this panel has just been asked to talk to. */
+    const rememberedHere = (): string | null =>
+      held?.agent === options.id ? held.session : null
 
     /** The one write, whatever moved. What a failure COSTS is the caller's to
      *  say — a lost conversation and a lost model are different sentences to
@@ -1042,7 +1082,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           // running, and opening any OTHER one keeps nothing. A model carried
           // across would be re-asserted onto somebody else's conversation,
           // which is this note doing the thing it exists to undo.
-          { session: id, model: modelFor(id) },
+          { agent: options.id, session: id, model: modelFor(id) },
           (why) => `this conversation will not be restored after a restart: ${why}`,
         )
       })
@@ -1081,7 +1121,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         const made = (yield* ask(at.connection, methods.agent.session.new, {
           cwd: options.cwd,
           mcpServers: [...(yield* servers)],
-          _meta: OPEN_SESSION_META,
+          ...openMeta,
         })) as NewSessionResponse
         yield* entered(made.sessionId, null)
         readModel(made.configOptions)
@@ -1113,7 +1153,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // only at `session/new`, the CLI's `init` never arrived for a
             // RESTORED conversation — so the header could not follow a `/model`
             // in one, and neither could the memory that has to remember it.
-            { sessionId: id, cwd: options.cwd, mcpServers, _meta: OPEN_SESSION_META },
+            { sessionId: id, cwd: options.cwd, mcpServers, ...openMeta },
             LOAD_TIMEOUT,
           ),
           () =>
@@ -1247,13 +1287,35 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * costs is one round trip per tool call, which is not a fact about a
      * person's outlines and has no honest place on their screen.
      */
-    const askForBypass = (at: Live, id: string): Effect.Effect<void> =>
-      Effect.ignore(
+    const askForBypass = (at: Live, id: string): Effect.Effect<void> => {
+      // An agent with NO such mode is not asked at all, which is one step
+      // better than a refusal ignored: opencode's modes are `build` and
+      // `plan` and it answers `-32602` to anything else, so the request was
+      // a round trip and a line of somebody else's stderr per conversation,
+      // bought with nothing.
+      const mode = options.leg.bypassMode
+      if (mode === null) return Effect.void
+      return Effect.ignore(
         ask(at.connection, methods.agent.session.setMode, {
           sessionId: id,
-          modeId: BYPASS_MODE,
+          modeId: mode,
         }),
       )
+    }
+
+    /** The subprocess, and nothing about a conversation. Its own step because
+     *  the two things a caller can want are genuinely different: {@link boot}
+     *  wants the panel IN a conversation, and {@link opening} wants only
+     *  somebody to talk to, because it is about to say which conversation
+     *  itself. */
+    const bringUpProcess = Effect.gen(function*() {
+      if (stopped) {
+        return yield* new AgentGone({ gone: "unreachable", why: "the server is shutting down" })
+      }
+      const started = live ?? (yield* start())
+      live = started
+      return started
+    })
 
     /**
      * The boot itself, WITHOUT the permit — so that a caller which has to hold
@@ -1266,8 +1328,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     const bringUp = Effect.gen(function*() {
       if (stopped) return yield* new AgentGone({ gone: "unreachable", why: "the server is shutting down" })
       if (live !== null && session !== null) return
-      const started = live ?? (yield* start())
-      live = started
+      const started = yield* bringUpProcess
       // `onError` hands the fiber's CAUSE, not the failure — `String` on one
       // of those is `Cause([Fail(…)])` with the reason buried in it, which
       // is a notice a person reads. `reasonOf` squashes it back down.
@@ -1324,7 +1385,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     ): Effect.Effect<A, AgentGone> =>
       booting.withPermit(
         Effect.gen(function*() {
-          yield* bringUp
+          // THE PROCESS, not a conversation. Both callers open one of their own
+          // in the next breath, and `bringUp` would open a DIFFERENT one first
+          // — the boot's adopted conversation, replayed in full — only to
+          // replace it. That was invisible while the process was always already
+          // up by the time anybody pressed anything; an agent that is started
+          // when a conversation needs it ({@link ./chat.ts}) reaches this cold
+          // every time somebody picks one.
+          yield* bringUpProcess
           return yield* onLive(use)
         }),
       )
@@ -1397,22 +1465,37 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * the request is made of: it is one adapter extension's vocabulary, and
      * reading half of it here would be the same bet made in two files.
      */
-    const steer = (text: string): Effect.Effect<Steered, AgentGone> =>
-      withSession((at, id) =>
+    const steer = (text: string): Effect.Effect<Steered, AgentGone> => {
+      const steering = options.leg.steering
+      // AN AGENT THAT CANNOT STEER IS NEVER ASKED TO. A caller reads
+      // {@link Agent.steers} and sends an ordinary prompt instead — this arm is
+      // the belt to that brace, and it refuses rather than inventing an outcome
+      // so that a caller which got it wrong loses a round trip rather than a
+      // person's words.
+      if (steering === null) {
+        return Effect.fail(
+          new AgentGone({
+            gone: "unreachable",
+            why: "this agent takes no message into a turn that is already running",
+          }),
+        )
+      }
+      return withSession((at, id) =>
         Effect.map(
           ask(
             at.connection,
-            STEER_METHOD,
+            steering.method,
             {
               sessionId: id,
               prompt: [{ type: "text", text }],
-              _meta: STEER_WHEN_IDLE,
+              ...(steering.meta === undefined ? {} : { _meta: steering.meta }),
             },
-            STEER_TIMEOUT,
+            steering.timeout,
           ),
-          (answered): Steered => steerTaken(answered) ? "taken" : "no-turn",
+          (answered): Steered => steering.taken(answered) ? "taken" : "no-turn",
         )
       )
+    }
 
     const cancel = Effect.suspend(() => {
       const at = live
@@ -1447,6 +1530,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     })
 
     return {
+      steers: options.leg.steering !== null,
       boot,
       prompt,
       steer,
@@ -1743,7 +1827,7 @@ const detailOf = (input: unknown, output: unknown): string | undefined => {
  * cleared out, or on a machine whose agent has been repointed — and something
  * has to be opened.
  *
- * Pure, and exported for its own test, for the reason `interpret.ts`'s rules
+ * Pure, and exported for its own test, for the reason a leg's rules
  * are: it is the sentence a boot turns on, and reaching it through a subprocess
  * is not how anybody should have to check it. `stored` arrives NEWEST FIRST
  * ({@link storedFor} sorts it), so the fallback is the head of the list.

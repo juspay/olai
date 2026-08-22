@@ -1050,9 +1050,32 @@ export const surface = defineSurface({
       /** Stop the turn in flight. Legal while the agent is still booting — the
        *  cancel is remembered and sent with the prompt. */
       cancel: { error: ChatFailure },
-      /** Start a fresh conversation. The agent-side context goes away and the
-       *  transcript is emptied. */
-      newSession: { error: ChatFailure },
+      /** Start a fresh conversation WITH the named agent — one of
+       *  {@link ChatState.roster}'s ids. The agent-side context goes away and
+       *  the transcript is emptied.
+       *
+       *  The agent is REQUIRED, and that is the ruling rather than an
+       *  ergonomic: every new chat asks which one, and no default is
+       *  remembered across conversations. A verb that could be called without
+       *  one would be the place a default grew back. Refuses an id this machine
+       *  does not have, which is what a tab open across a restart can send. */
+      newSession: {
+        input: Schema.Struct({ agent: Schema.String }),
+        error: ChatFailure,
+      },
+      /** Answer the question the panel is asking ({@link ChatState.choosing}):
+       *  THIS agent, now open the conversation you would have opened.
+       *
+       *  Not {@link newSession} with the same argument. A boot that stopped to
+       *  ask has not asked for a new conversation — it was stopped before it
+       *  could come back to the one this directory was in — so this opens that
+       *  agent's remembered conversation, or its most recent, and only mints a
+       *  fresh one where it has none. `+ new` is the verb that always means
+       *  fresh. */
+      chooseAgent: {
+        input: Schema.Struct({ agent: Schema.String }),
+        error: ChatFailure,
+      },
       /** Move to one of the stored conversations. The transcript is replaced by
        *  the replay, because a transcript of a session you are not in is a lie. */
       loadSession: {
@@ -1256,6 +1279,7 @@ export const surface = defineSurface({
 })
 
 export {
+  AgentChoice,
   AgentEntry,
   Ask,
   AskAnswer,

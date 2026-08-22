@@ -4,9 +4,10 @@
  * Four exports and no more, because the composition root should be able to say
  * "an agent, wired to the surface" in a handful of lines:
  *
- *   - {@link adapterFrom} and its two companions answer WHICH agent, out of the
- *     environment. Resolving it is the caller's move; deciding what a resolved
- *     one looks like is this package's;
+ *   - {@link roster} and its companions answer WHICH AGENTS this machine has —
+ *     a PATH probe per agent olai knows, plus the one `OLAI_ACP_AGENT` names.
+ *     Detecting them is the caller's move (it owns the process); deciding what
+ *     a detected one looks like is this package's;
  *   - {@link make} builds the conversation over an agent factory it is handed,
  *     and everything else — the transcript, the protocol, the session — is
  *     behind it;
@@ -25,5 +26,12 @@ export {
   AGENT_ENV,
   whyNoAgent,
 } from "./adapter.ts"
+export {
+  AGENT_PATH_ENV,
+  type Installed,
+  onPath,
+  roster,
+  rosterOf,
+} from "./agents/roster.ts"
 export { type Chat, make, type Options, type ToolServer } from "./chat.ts"
 export type { Change } from "./transcript.ts"

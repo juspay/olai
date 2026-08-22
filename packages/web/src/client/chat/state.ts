@@ -161,7 +161,15 @@ export interface Chat {
    *  on screen would be a different message. */
   readonly resend: (id: string) => void
   readonly cancel: () => void
-  readonly newSession: () => void
+  /** Start a fresh conversation with one of {@link ChatState.roster}'s agents.
+   *  The id is REQUIRED because every new chat asks which one — see the
+   *  surface's declaration, and `./Choose.tsx`, which is what asks. */
+  readonly newSession: (agent: string) => void
+  /** Answer the panel's own question ({@link ChatState.choosing}): this agent,
+   *  now open the conversation you would have opened. Not the same verb as
+   *  {@link Chat.newSession} — a boot that stopped to ask has not asked for a
+   *  new conversation. */
+  readonly chooseAgent: (agent: string) => void
   readonly loadSession: (id: string) => void
   /** Try the OPEN the agent refused again. It takes no argument, and that is
    *  the same rule { Chat.resend} follows: the SERVER holds which one was
@@ -302,7 +310,8 @@ export const createChat = (): Chat => {
       }),
     resend: (id) => verb(olai.procedures.chat.resend({ id })),
     cancel: () => verb(olai.procedures.chat.cancel()),
-    newSession: () => verb(olai.procedures.chat.newSession()),
+    newSession: (agent) => verb(olai.procedures.chat.newSession({ agent })),
+    chooseAgent: (agent) => verb(olai.procedures.chat.chooseAgent({ agent })),
     loadSession: (id) => verb(olai.procedures.chat.loadSession({ id })),
     reopen: () => verb(olai.procedures.chat.reopen()),
     answer: (id, answers, done) =>

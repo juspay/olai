@@ -648,6 +648,31 @@ export const SessionInfo = Schema.Struct({
 })
 export type SessionInfo = typeof SessionInfo.Type
 
+/**
+ * ONE AGENT a conversation can be with — a row of the picker, and, once one is
+ * chosen, who the header names beside the model.
+ *
+ * TWO FIELDS AND NO MORE. What to spawn, how to read its wire, where it was
+ * found: all of that stays on the server (`../../chat/src/agents/roster.ts`),
+ * because a browser that knew what to spawn would be a browser that could ask
+ * for it. What crosses is a NAME to draw and an ID to send back.
+ *
+ * The ICON is not here either, and that is the same decision read from the
+ * other side: which mark to draw for an agent is a fact about the drawing, so
+ * the client keeps the marks and looks them up by id, with a generic one for an
+ * agent it has no mark for (`../../web/src/client/chat/AgentMark.tsx`). A
+ * server sending an icon would be a server shipping artwork over a websocket to
+ * be told what a shape is.
+ */
+export const AgentChoice = Schema.Struct({
+  /** Stable and never shown: `claude`, `opencode`. What a picker sends back,
+   *  what a memory writes down, and what the client draws a mark by. */
+  id: Schema.String,
+  /** What a person reads. */
+  name: Schema.String,
+})
+export type AgentChoice = typeof AgentChoice.Type
+
 /** A slash command the agent offers, as the input's completion draws it. */
 export const Command = Schema.Struct({
   name: Schema.String,
@@ -786,6 +811,57 @@ export const ChatState = Schema.Struct({
   usage: Schema.NullOr(Usage),
   commands: Schema.Array(Command),
   /**
+   * WHICH agents this machine has, in the order the picker draws them.
+   *
+   * Detected on the server when it started (the human's ruling: no list to
+   * maintain, no path to set for an agent that is simply installed), and sent
+   * whole because it is what the picker IS. Empty only in {@link CHAT_OFF} —
+   * with no agent at all there is no chat, and the panel draws the face that
+   * says so and says how to install one.
+   */
+  roster: Schema.Array(AgentChoice),
+  /**
+   * WHO this conversation is with — the agent it was created for, drawn in the
+   * header beside the model.
+   *
+   * `null` while the panel has none: before the first choice, and in the beat
+   * between one agent being stopped and its replacement handshaking. A
+   * conversation is bound to ONE agent for its life (ruled 2026-08-21), and the
+   * note this directory keeps writes the id down beside the session id, so
+   * reopening a conversation talks to the agent that has it.
+   */
+  agent: Schema.NullOr(AgentChoice),
+  /**
+   * The panel is WAITING FOR SOMEBODY TO SAY which agent, and holds no
+   * conversation until they do.
+   *
+   * Its own fact rather than a sixth `status`, for {@link Unopened}'s reason:
+   * nothing is happening, the agent is not gone and nothing was refused — the
+   * panel has stopped, deliberately, at a question. `status` is `idle`
+   * underneath it, which is the truth: there is nothing in flight.
+   *
+   * FALSE where there is only one agent installed. A one-row question is
+   * friction with no answer behind it, and every olai before this one was in
+   * exactly that state; what a person gets instead is the header naming the
+   * agent they are talking to, which is the part they did not have.
+   */
+  choosing: Schema.Boolean,
+  /**
+   * Whether a message sent WHILE A TURN RUNS goes into that turn.
+   *
+   * A property of the agent, drawn in the composer: true and what you type
+   * lands in the turn the agent is already running, which is the only moment
+   * saying it is worth anything; false and the agent QUEUES it behind the turn
+   * and reaches it when that turn is over. Opencode is the second (it has no
+   * steering method at all), and the composer says so rather than looking
+   * identical and behaving differently — a degradation a person can see is one
+   * they can work with.
+   *
+   * FALSE with no agent, which is not a claim about anybody: there is nothing
+   * to send to.
+   */
+  steers: Schema.Boolean,
+  /**
    * How many questions the agent is waiting on a person to answer.
    *
    * Its own fact rather than a sixth `status`, because it is TRUE AT THE SAME
@@ -838,6 +914,10 @@ export const CHAT_OFF: ChatState = {
   model: null,
   usage: null,
   commands: [],
+  roster: [],
+  agent: null,
+  choosing: false,
+  steers: false,
   asking: 0,
   trouble: null,
   unopened: null,
