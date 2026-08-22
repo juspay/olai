@@ -162,6 +162,30 @@ export type Found = typeof Found.Type
 // ── the directory ──────────────────────────────────────────────────────
 
 /**
+ * A file the set could not load — the torn arm of both listings.
+ *
+ * A VALUE and not a refusal: the directory still serves the file, and the
+ * listing says so. The dependent facts of a successful read exist only on the
+ * other arm, which is why this one is just the path and the reason.
+ *
+ * Shared rather than spelled twice, because {@link OutlineSummary} and
+ * {@link DocumentSummary} answering a torn file differently would be the
+ * inconsistency the ruling retired. What differs between the two listings is
+ * the other arm; this one is the whole of what can be said about either.
+ *
+ * Not on the package's surface, for {@link Missing}'s reason: a consumer
+ * holding a listing row narrows it with `"unreadable" in`, which needs no
+ * name. It is exported the day something wants to say the arm out loud.
+ */
+const Unreadable = Schema.Struct({
+  file: Schema.String,
+  /** Why it is not loaded, in the validator's own words — and the whole of
+   *  what can be said about the file, which is why it is the only other
+   *  field. */
+  unreadable: Schema.Array(Schema.String),
+})
+
+/**
  * One outline FILE, as a listing says it — a count and the titles at the top,
  * never the nodes.
  *
@@ -197,13 +221,7 @@ export const OutlineSummary = Schema.Union([
      *  a listing has. */
     roots: Schema.Array(Schema.String),
   }),
-  Schema.Struct({
-    file: Schema.String,
-    /** Why it did not parse, in the validator's own words — and the whole of
-     *  what can be said about the file, which is why it is the only other
-     *  field. */
-    unreadable: Schema.Array(Schema.String),
-  }),
+  Unreadable,
 ])
 export type OutlineSummary = typeof OutlineSummary.Type
 
@@ -285,13 +303,7 @@ export const DocumentSummary = Schema.Union([
      */
     props: Schema.optionalKey(Custom),
   }),
-  Schema.Struct({
-    file: Schema.String,
-    /** Why it could not be read, in the validator's own words — and the whole
-     *  of what can be said about the file, which is why it is the only other
-     *  field. */
-    unreadable: Schema.Array(Schema.String),
-  }),
+  Unreadable,
 ])
 export type DocumentSummary = typeof DocumentSummary.Type
 
@@ -642,10 +654,9 @@ export const Subtree = Schema.Struct({
  * is echoed because the answer is otherwise indistinguishable from an empty
  * one — "which id did you not find" is the whole of what there is to say.
  *
- * Not on the package's surface, and it is the only shape in this file that is
- * not: a consumer holding a {@link NodeAnswer} narrows it with `"missing" in`,
- * which needs no name. It is exported the day something wants to say the arm
- * out loud.
+ * Not on the package's surface, like {@link Unreadable}: a consumer holding a
+ * {@link NodeAnswer} narrows it with `"missing" in`, which needs no name. It
+ * is exported the day something wants to say the arm out loud.
  */
 const Missing = Schema.Struct({ missing: Schema.String })
 

@@ -167,7 +167,9 @@ nothing, on the one file where neither could be known. Every field read honestly
 alone; the untruth was in the combination, held apart by a convention a reader
 had to know. The dependent facts now exist only on the arm that grounds them
 (ruled 2026-08-22: `{file, unreadable}`), which is also what the neighbouring
-`Missing` already does for a `read_node` of an id the set does not hold.
+`Missing` already does for a `read_node` of an id the set does not hold. The
+torn arm is one declaration, shared with `DocumentSummary`, so the two listings
+cannot answer a file nobody read two different ways.
 
 The document pair shares no atom with the four above it, and that used to be the `md-second-class` asymmetry in one line. What can be said about one is its path, its title, its size and — when it wrote any — the properties its frontmatter holds. The title is READ OFF THE FACE the decode built rather than derived again here, so this listing, a search hit, a palette row and the page's own heading say one name; the properties are that face's too, omitted when empty, the same map a search hit carries and the document page draws. Its torn-file row is the same two-arm shape `OutlineSummary` now is — `{file, unreadable}` — so one listing answering a torn file one way and the other listing answering it another cannot come apart. And `DocumentBody` has no `{ missing }` arm on purpose: an id is guessed at and worth answering, a path is not — a typo gets the near miss, which only a refusal can carry.
 
