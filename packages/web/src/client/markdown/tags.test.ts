@@ -168,7 +168,6 @@ test("a needle inside nested emphasis is lit where it sits", () => {
   )
 })
 
-
 // ── the half that is protected, and stays protected ────────────────────
 
 test("a `#…` inside a code span is code, not a tag", () => {
