@@ -131,7 +131,9 @@ test("a healthy repository is quiet, and not a second green claim", () => {
   // The retired readout's rule, and it outlives it: the connection dot beside
   // this pill is the page's one green claim, and a second one lit permanently
   // in the ordinary case dilutes the thing a reader actually scans for.
-  expect(MARK.committed?.glyph).toBe("✓")
+  // Quiet is also no extra paint: a `text-muted` tick is a paper-page token
+  // and vanishes into the ink header this mark actually lives on.
+  expect(MARK.committed).toEqual({ glyph: "✓" })
   expect(MARK.never).toBeNull()
   expect(MARK.waiting).toBeNull()
 })

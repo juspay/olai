@@ -205,8 +205,14 @@ export function Commit() {
           // when the rest of it goes. `min-w-9` is the floor of THAT shrink:
           // without it a 360pt bar (an iPhone mini) ate the glyph too and
           // left an empty oval between `live` and the agent toggle.
+          //
+          // Hover brightens to paper, the same token the agent and prefs
+          // already use (`../readout.ts`'s ICON_BUTTON). `hover:text-ink` is
+          // the paper-page hover — muted words going dark — and on this bar
+          // it painted the label the colour of the bar. The tip is a hover;
+          // asking what the pill says made the pill unreadable.
           class={`${PILL} min-w-9 max-w-[9rem] sm:max-w-none ${
-            inert() ? "opacity-60" : "hover:text-ink"
+            inert() ? "opacity-60" : "hover:text-paper"
           }`}
           data-testid={TESTID.commitPill}
           // The STATE as an attribute, so a scenario asserts on which face this
@@ -234,7 +240,7 @@ export function Commit() {
         >
           <Show when={MARK[face()]}>
             {(mark) => (
-              <span class={`shrink-0 ${mark().tone}`} aria-hidden="true">
+              <span class={`shrink-0 ${mark().tone ?? ""}`} aria-hidden="true">
                 {mark().glyph}
               </span>
             )}
