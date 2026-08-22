@@ -780,6 +780,8 @@ export const PREFS_ROW = selector(TESTID.prefsRow);
 export const PREFS_HINT = selector(TESTID.prefsHint);
 export const PREFS_CHOICE = selector(TESTID.prefsChoice);
 export const PREFS_SCOPE = selector(TESTID.prefsScope);
+export const PREFS_SET_BY = selector(TESTID.prefsSetBy);
+export const PREFS_RESUME = selector(TESTID.prefsResume);
 export const THEME_CHIP = selector(TESTID.themeChip);
 export const FONT_SELECT = selector(TESTID.fontSelect);
 
@@ -1415,6 +1417,12 @@ export class OlaiWorld extends World {
    *  to reproduce the first boot, and this one decides both the argv and what
    *  the served directory IS. */
   gitMode?: GitMode;
+  /** The git POLICY this scenario's server was started with (`@pin:commit=…`,
+   *  `@pin:push=…`) — an empty object for the ordinary server, which pins
+   *  nothing and leaves both preference rows to the browser. Carried for the
+   *  same reason as `gitMode`: a restart has to reproduce the first boot, and
+   *  this decides what every browser's preferences panel is allowed to do. */
+  gitPin: { commit?: string; push?: string } = {};
   /** The URL that corpus's server answers on; also the context's `baseURL`. */
   baseUrl!: string;
 

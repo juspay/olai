@@ -15,13 +15,13 @@
  * the news appears.
  */
 
-import { NOTHING_PENDING, type Pending, type RepoState } from "@olai/format"
+import { NO_PIN, NOTHING_PENDING, type Pending, type RepoState } from "@olai/format"
 import { GIT_OFF, type GitState } from "@olai/surface"
 import { expect, test } from "bun:test"
 
 import {
   AUTO_PAUSED,
-  AUTO_STOPPED,
+  autoStopped,
   because,
   DETAIL,
   explain,
@@ -48,7 +48,7 @@ const surveyed = (repo: RepoState, over: Partial<Pending> = {}): Pending => ({
 })
 
 const READY: RepoState = { _tag: "Ready", branch: "main" }
-const gitSaid = (said: string): GitState => ({ status: "error", said })
+const gitSaid = (said: string): GitState => ({ status: "error", said, pinned: NO_PIN })
 
 // ── which face ─────────────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ test("a page that has not been told anything claims nothing about the directory"
 
 test("the opt-out and the directory that is no work tree are told apart", () => {
   expect(faceOf(surveyed({ _tag: "Off" }), true, GIT_OFF)).toBe("off")
-  expect(faceOf(surveyed({ _tag: "NoRepo" }), true, { status: "none", said: null }))
+  expect(faceOf(surveyed({ _tag: "NoRepo" }), true, { status: "none", said: null, pinned: NO_PIN }))
     .toBe("no-repo")
 })
 
@@ -199,7 +199,28 @@ test("the sentence a stopped loop leaves says how to start it again", () => {
   // line says it too, so the two cannot drift on it.
   const said = explain("committed", surveyed(READY), GIT_OFF, "no upstream")
   expect(said).toContain("off and on again")
-  expect(AUTO_STOPPED).toContain("off and on again")
+  expect(autoStopped(false)).toContain("off and on again")
+})
+
+/**
+ * ... and it names the gesture the reader ACTUALLY HAS.
+ *
+ * A server started with `--commit` freezes the Git commit row read-only in
+ * every browser (`vault-level-settings`), so there is no toggle to turn off and
+ * on again — that row carries a Resume button instead. A sentence still naming
+ * the dance would send somebody after a control that is on screen and inert,
+ * which is worse than saying nothing: a loop that stopped and cannot be
+ * restarted is the one failure Auto-commit may never have.
+ */
+test("a frozen row is told to press Resume instead, on both sentences", () => {
+  const frozen = explain("committed", surveyed(READY), GIT_OFF, "no upstream", true)
+  expect(frozen).toContain("Resume")
+  expect(frozen).not.toContain("off and on again")
+  expect(autoStopped(true)).toContain("Resume")
+  expect(autoStopped(true)).not.toContain("off and on again")
+  // Both still carry git's own account of what happened / point at it.
+  expect(frozen).toContain("no upstream")
+  expect(autoStopped(true)).toContain("what git said is below")
 })
 
 test("a phone is interrupted by a stopped loop, on a face that is otherwise quiet", () => {
@@ -233,12 +254,12 @@ test("a git failure hands over git's own words", () => {
   const said = "fatal: detected dubious ownership in repository at '/srv/notes'"
   expect(explain("error", surveyed(READY), gitSaid(said))).toContain(said)
   // And from the survey's own side, when the cell has nothing to quote.
-  expect(explain("error", surveyed({ _tag: "Unusable", said }), { status: "error", said: null }))
+  expect(explain("error", surveyed({ _tag: "Unusable", said }), { status: "error", said: null, pinned: NO_PIN }))
     .toContain(said)
 })
 
 test("a fault that arrived with nothing to say still reads as a sentence", () => {
-  expect(explain("error", surveyed(READY), { status: "error", said: "" }))
+  expect(explain("error", surveyed(READY), { status: "error", said: "", pinned: NO_PIN }))
     .toBe(DETAIL.error)
 })
 

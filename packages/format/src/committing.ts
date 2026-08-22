@@ -41,11 +41,95 @@ import { NodeChange } from "./changes.ts"
 export { How, Reason, RepoState }
 
 /**
+ * How writes reach git — the values of `--commit`, and the one table of them.
+ *
+ * It lives on this floor rather than in `@olai/ops` because it TRAVELS now. The
+ * mode used to be a fact the server kept to itself: `off` reached a browser as
+ * {@link GitState}'s `off` status and the other two were indistinguishable from
+ * out here. `vault-level-settings` made the flag a POLICY the client has to
+ * draw — pinned, read-only, with the flag named — so the vocabulary is declared
+ * once, on the floor the wire spec and the ops layer both already stand on,
+ * which is the argument `RepoState` is re-exported above by.
+ *
+ * `manual` is the point of the whole thing: a write lands on disk and WAITS,
+ * and something asks for a commit. `auto` is for a headless server with no
+ * browser to press anything, and commits each write on its own the way olai
+ * used to. `off` is `--no-commit`.
+ */
+export const COMMIT_MODES = ["off", "manual", "auto"] as const
+export type CommitMode = (typeof COMMIT_MODES)[number]
+
+/** What `--commit` means when nobody gave it — the default, spelled once, so
+ *  "the flag was not given" and "the flag said manual" cannot come to disagree
+ *  about what the server then does. */
+export const COMMIT_DEFAULT: CommitMode = "manual"
+
+/**
+ * ... and the values of `--push`, which is the newer flag and has TWO.
+ *
+ * Deliberately not three. `--commit`'s `manual` and `off` are different facts
+ * about a directory — one waits for somebody to ask, the other says olai never
+ * touches git here — and pushing has no such pair: a branch that is not sent on
+ * its own is sent by the Push button, and there is no third thing to be. A
+ * `manual` beside this `off` would be two names for one behaviour.
+ */
+export const PUSH_MODES = ["off", "auto"] as const
+export type PushMode = (typeof PUSH_MODES)[number]
+
+/**
+ * WHAT THE OPERATOR PINNED, and `null` for each half nobody pinned.
+ *
+ * The whole of `vault-level-settings` on the wire. In a team deployment,
+ * committing and pushing are the SERVER's decision and the same for everyone —
+ * not whichever browser's preference happens to be set — so a flag given on the
+ * command line (or through the home-manager module, which passes the same
+ * flags) freezes the two git rows in every browser's preferences: drawn in the
+ * pinned state, read-only, with the flag that set them named on screen.
+ *
+ * `null` is the DEFAULT and it is the arm that matters: a flag nobody gave
+ * leaves the row exactly as it shipped — a live preference of that browser's,
+ * stored there and sent nowhere. Single-user, nothing about this feature is
+ * visible at all.
+ *
+ * There is deliberately NO settings file behind this. Policy is a property of
+ * the running INSTANCE; a file in the vault would travel with `git pull`, so a
+ * personal clone of a team's outlines would inherit the team's auto-push, which
+ * is exactly wrong (the ruling, 2026-08-21).
+ */
+export const GitPin = Schema.Struct({
+  /** The mode `--commit` was GIVEN, or `null` when it was not given at all. */
+  commit: Schema.NullOr(Schema.Literals(COMMIT_MODES)),
+  /** The mode `--push` was GIVEN, or `null` when it was not given at all. */
+  push: Schema.NullOr(Schema.Literals(PUSH_MODES)),
+})
+export type GitPin = typeof GitPin.Type
+
+/** Nothing pinned: what a server started with neither flag publishes, and what
+ *  a page holds before it has heard anything. */
+export const NO_PIN: GitPin = { commit: null, push: null }
+
+/**
+ * What the server actually DOES about commits, from what it was told — so
+ * "nobody said" and "somebody said manual" are one answer downstream and the
+ * default is spelled in exactly one place.
+ *
+ * There is NO `pushModeOf` beside it, and the asymmetry is the truth rather
+ * than an omission: this server has no push of its own to govern. `--commit`
+ * decides something olai does unasked (a commit per write, under `auto`);
+ * `--push` decides only what the BROWSERS do with a commit they made, which is
+ * `web/src/client/settings/pinned.ts`'s to read. A `pushModeOf` here would
+ * describe a behaviour nothing has.
+ */
+export const commitModeOf = (pin: GitPin): CommitMode =>
+  pin.commit ?? COMMIT_DEFAULT
+
+/**
  * What git is doing for the served directory, for the git indicator in the app
  * header (`git-invisible`, #108) and for the agent that reads the same cell
  * over MCP.
  *
- * FLAT — a status and the words that go with it — because this value TRAVELS:
+ * FLAT — a status, the words that go with it, and what the operator pinned —
+ * because this value TRAVELS:
  * the ops layer derives it from its own survey's `RepoState` (`gitOf`, which
  * owns the one-survey coherence argument), the surface declares it as the
  * `git` cell (which says how each of the four states is drawn), and the
@@ -61,6 +145,22 @@ export const GitState = Schema.Struct({
    *  reader gets rather than "something went wrong". `null` otherwise: a
    *  healthy repository is not quoting anything. */
   said: Schema.NullOr(Schema.String),
+  /**
+   * What the OPERATOR pinned — see {@link GitPin}.
+   *
+   * It rides HERE rather than on a cell of its own, and that is one channel
+   * rather than thrift: this cell is already "what git is for this directory",
+   * a `--no-commit` serve already reaches a browser through it as `off`, and
+   * the preferences panel that draws the pin is drawing the same server's
+   * answer about the same directory. A second cell would be a second thing to
+   * seed, a second thing to keep in step, and a second moment for a page to be
+   * holding one of them and not the other.
+   *
+   * It MOVES NEVER: the flags are read once, at boot. Riding a value that is
+   * recomputed on a timer costs nothing for the reason the status does not —
+   * {@link sameGit} is what keeps a republish that says nothing new quiet.
+   */
+  pinned: GitPin,
 })
 export type GitState = typeof GitState.Type
 
@@ -72,7 +172,7 @@ export type GitState = typeof GitState.Type
  *  ANYTHING is not this value — the pill has a face of its own for that,
  *  because "we have not been told" and "commits are off" are two different
  *  claims.) */
-export const GIT_OFF: GitState = { status: "off", said: null }
+export const GIT_OFF: GitState = { status: "off", said: null, pinned: NO_PIN }
 
 /**
  * When two readings of what git is doing say the same thing.

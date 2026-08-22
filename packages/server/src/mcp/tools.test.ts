@@ -128,7 +128,7 @@ const withTools = <A>(
     const ops = makeOps({
       store,
       root,
-      commits: "off",
+      pin: { commit: "off", push: null },
       // The ops layer's own fixture context — deterministic ids and one fixed
       // instant — rather than a second spelling of it up here, which is a
       // fixture free to drift from the assertions that package is written

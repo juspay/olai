@@ -95,7 +95,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     // is the one mode that asks git nothing at all. The edit procedures are
     // bound to it too and this face exposes none of them, so what they cost
     // here is a binding nobody can reach.
-    const ops = makeOps({ store, root, commits: "off" })
+    const ops = makeOps({ store, root, pin: { commit: "off", push: null } })
     const wired = yield* bind({
       store,
       chat: null,

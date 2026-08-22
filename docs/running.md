@@ -21,7 +21,7 @@ If a directory that used to serve comes up EMPTY, its outlines predate the renam
 
 It binds to loopback by default because the surface is unauthenticated: anyone who can reach the port can read every outline under the directory — and, since the keyboard editor arrived, change one.
 
-The page it serves follows the disk — save a file, `git pull`, drop in a new outline, and it updates in place — and a pill in its header is green only while a server is actually answering; drop the connection and the app freezes under an overlay that says so, thawing by itself when the wire comes back; restart the server under an open tab and that overlay offers a reload, because nothing else recovers that one. It reads on a phone and installs as one (there is no offline mode, on purpose — a cached copy of an outline is a copy that has stopped being true). A ⚙ in the header (or, on a phone, at the foot of the directory drawer) opens the preferences — one of the named palettes, the typeface, how big the page is set, how much of a row is drawn by default, whether pages open with finished work shown, whether the sidebar's file tree draws the outlines olai names for itself (`_olai/`: the shelf, the inbox, the trash — hidden by default, each with a door of its own in that column), and the two git rows (whether what is waiting records itself once the edits stop, and whether a commit from here is pushed) — stored in the browser and sent nowhere; `⌘K` opens a command palette, where the keyboard-shortcut list also lives, where a zoomed node's own verbs are offered, and where `+ a line` captures that line to the directory's inbox without leaving the page ([docs/editing.md](editing.md)). Search has a box in the header and lives in that palette too — the same reading an agent's `search_nodes` gets, jump on Enter; on a phone the header's magnifier opens the palette ([docs/search.md](search.md)). It needs nothing installed.
+The page it serves follows the disk — save a file, `git pull`, drop in a new outline, and it updates in place — and a pill in its header is green only while a server is actually answering; drop the connection and the app freezes under an overlay that says so, thawing by itself when the wire comes back; restart the server under an open tab and that overlay offers a reload, because nothing else recovers that one. It reads on a phone and installs as one (there is no offline mode, on purpose — a cached copy of an outline is a copy that has stopped being true). A ⚙ in the header (or, on a phone, at the foot of the directory drawer) opens the preferences — one of the named palettes, the typeface, how big the page is set, how much of a row is drawn by default, whether pages open with finished work shown, whether the sidebar's file tree draws the outlines olai names for itself (`_olai/`: the shelf, the inbox, the trash — hidden by default, each with a door of its own in that column), and the two git rows (whether what is waiting records itself once the edits stop, and whether a commit from here is pushed) — stored in the browser and sent nowhere, except that the two git rows can be [pinned by the server](#the-git-policy), which is the one thing on that panel an instance is allowed an opinion about; `⌘K` opens a command palette, where the keyboard-shortcut list also lives, where a zoomed node's own verbs are offered, and where `+ a line` captures that line to the directory's inbox without leaving the page ([docs/editing.md](editing.md)). Search has a box in the header and lives in that palette too — the same reading an agent's `search_nodes` gets, jump on Enter; on a phone the header's magnifier opens the palette ([docs/search.md](search.md)). It needs nothing installed.
 
 ### One olai per directory
 
@@ -107,6 +107,39 @@ inputs.olai.url = "github:juspay/olai";
 The module fills `package` from the flake for the host platform. The packaged binary already bakes the browser bundle (`OLAI_DIST_DIR`), so the service needs no ambient environment.
 
 On Linux the unit is `Restart=always` / `RestartSec=1s` / `SuccessExitStatus=130`. A stray `kill -TERM` of the main pid is a successful exit that systemd still brings back; a `systemctl --user stop olai` is a systemd stop, which `Restart=` never overrides. On macOS the agent is `KeepAlive.SuccessfulExit=false` and `Crashed=true` — a 130 exit already restarts there, because launchd treats non-zero as unsuccessful. The 2026-08-20 incident (an outside SIGTERM, `on-failure` + `SuccessExitStatus=130`, hours of dark ledger) is [the RCA](RCA/2026-08-20-olai-service-sigterm.md).
+
+## The git policy
+
+Whether what is waiting records itself, and whether a commit is pushed, are preferences of one BROWSER ([git.md](git.md)) — stored there, sent nowhere, and exactly right for one person on one machine. **In a team deployment they are exactly wrong.** Whether a branch is pushed is not a thing one colleague's laptop gets to decide for everybody else, and "whichever browser happened to have the toggle on" is not a policy.
+
+So an instance may state one, and it is a property of the RUNNING SERVER rather than of the directory. There is deliberately no settings file in the vault: a file there would travel with `git pull`, so a personal clone of a team's outlines would inherit the team's auto-push, which is exactly the accident this prevents.
+
+```
+olai web ~/outlines --commit=auto --push=off
+```
+
+```nix
+services.olai = {
+  enable = true;
+  dataDir = "${config.home.homeDirectory}/outlines";
+  commit = "auto";   # off | manual | auto — omit and each browser keeps its own
+  push = "off";      # off | auto          — omit and each browser keeps its own
+};
+```
+
+**Giving a flag is what pins it.** With neither given — the default, and every single-user deployment — nothing about this is visible: the server commits manually and the two git rows in every browser's preferences are live, as they always were. Given, the server tells every browser which flag it was started with, and that row is drawn in the pinned state, **read-only, naming the flag**: *Set by the server: `--commit=auto`.* Never hidden, and never overridable from a browser — a policy a reader cannot see is one they cannot ask anybody about.
+
+The two are independent, so pinning committing does not silently pin pushing. `--commit=manual` typed out loud is not the same as saying nothing, even though this server behaves identically either way: the first freezes the row for everybody, the second leaves it to each reader. Nothing a browser had stored is overwritten, so a server restarted without the flag hands each reader their own pick straight back.
+
+`--commit` is the same flag [git.md](git.md#modes) describes, with the same three modes; `--no-commit` is `--commit=off` and pins in the same way. It governs the server as well as the browsers: `--commit=auto` really does commit every write olai makes, with or without a browser in front of it.
+
+**`--push` governs the BROWSERS and nothing else.** It is Auto-push — whether a commit somebody's browser made is followed by a push — stated for everybody instead of set per browser. It does **not** push the commits `--commit=auto` makes on its own: a headless serve pushes nothing, and `--commit=auto --push=auto` with no tab open records without sharing. That is deliberate rather than an oversight — `--commit=auto` is one commit per write, so pushing them would put a network round trip inside every write — but it means an instance that must also share what it records still needs somebody's browser open, or a cron. `--push` has two values and deliberately not three: a branch that is not pushed on its own is pushed by the Push button, so there is no third thing to be.
+
+**A refused commit or push still pauses the loop** under a pin, because that is runtime state rather than policy: git said no, and nothing starts the loop again on olai's own initiative. Where the row is the browser's, turning Auto-commit off and on again is the gesture. A pinned row has no toggle to flip, so it carries a **Resume** button instead, drawn only while the loop is actually stopped.
+
+That pause lives in the TAB, in memory, exactly as it did before there was anything to pin. Reloading the page — or opening a second tab and letting it win the lock — starts the loop again without anybody pressing Resume; if git still refuses, the next attempt pauses it again and says so. Nothing is persisted, and that is on purpose: a stop remembered across reloads is a different feature, and it would need a way to say "no, really, carry on" that survives them too.
+
+Theme, typeface, size, note density, finished work and hidden outlines are untouched by any of this. They are personal view choices, per browser, and there is nothing about them for a server to have an opinion on.
 
 ## Agents, over HTTP
 

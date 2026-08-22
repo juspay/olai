@@ -30,7 +30,7 @@ import { Argument, Command, Flag } from "effect/unstable/cli"
 
 import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
-import { commitFlags, commitMode } from "./commits.ts"
+import { gitFlags, gitPin } from "./gitPolicy.ts"
 import { serve } from "./serve.ts"
 
 /** The directory of outlines the server operates on. */
@@ -38,10 +38,10 @@ const directory = Argument.directory("directory", { mustExist: true }).pipe(
   Argument.withDescription("the directory of outlines, read recursively"),
 )
 
-/** `--commit` / `--no-commit` — `./commits.ts`, which owns the mode table,
- *  the default, why `--no-commit` wins, and why the sentence names both
- *  doors this face actually has. */
-const webCommits = commitFlags("web")
+/** `--commit` / `--no-commit` / `--push` — `./gitPolicy.ts`, which owns the mode
+ *  tables, the defaults it declines to apply, why `--no-commit` wins, and why
+ *  the sentence names both doors this face actually has. */
+const webGit = gitFlags("web")
 
 /** 0 is the OS's to pick. A fixed port is a deploy's explicit `--port` —
  *  7714 ("olai" on a phone keypad) is what the home-manager module passes.
@@ -64,14 +64,14 @@ const web = Command.make("web", {
     ),
     Flag.withDefault("127.0.0.1"),
   ),
-  ...webCommits,
-}, ({ commits, directory, host, noCommit, port }) =>
+  ...webGit,
+}, ({ commits, directory, host, noCommit, port, pushes }) =>
   Effect.gen(function*() {
     const faulted = yield* serve({
       root: directory,
       port,
       host,
-      commits: commitMode(commits, noCommit),
+      pin: gitPin(commits, noCommit, pushes),
       clientDist: yield* clientDist,
       allowedOrigins: allowedOrigins(),
       identity: identityHeaders(),

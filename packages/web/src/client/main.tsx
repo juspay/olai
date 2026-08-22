@@ -17,6 +17,7 @@ import { followAutoPush } from "./settings/autopush.ts"
 import { followDensity } from "./settings/density.ts"
 import { followDoneHidden } from "./settings/done.ts"
 import { followOutlinesHidden } from "./settings/hiddenOutlines.ts"
+import { followPin } from "./settings/followPin.ts"
 import { followStoredFont } from "./theme/fontState.ts"
 import { followStoredSize } from "./theme/sizeState.ts"
 import { followStoredTheme } from "./theme/state.ts"
@@ -59,6 +60,15 @@ followAutoPush()
 followFolds()
 followFolders()
 trackDesktop()
+
+// ... and the one thing on that panel that is NOT this browser's, where an
+// operator asked for it: the git policy this server was started with
+// (`--commit` / `--push`), which freezes the two git rows read-only for
+// everybody looking at this directory. It rides the git cell, so this is a
+// subscription rather than a stored value — started here beside the followers
+// above because it belongs to the DOCUMENT and outlives every component that
+// reads it (`./settings/followPin.ts`).
+followPin()
 
 const root = document.getElementById("root")
 if (root === null) throw new Error("no #root element")

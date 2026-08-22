@@ -47,8 +47,9 @@ export { notANode, notFound, noSuchDocument } from "./refusals.ts"
  *  order, or carrying a guard that stopped matching. */
 export { type Merging, merging } from "./plan.ts"
 /** When writes reach git, and what git is doing for the directory they reach.
- *  The mode is passed IN and the state comes back OUT; the subprocesses between
- *  them are this layer's business. */
+ *  The PIN is passed IN — the flags the operator gave, `@olai/format`'s own
+ *  vocabulary — and the state comes back OUT; the subprocesses between them are
+ *  this layer's business. */
 export {
   COMMIT_BUTTON,
   COMMIT_TOOL,
