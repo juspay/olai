@@ -47,9 +47,10 @@ export { notANode, notFound, noSuchDocument } from "./refusals.ts"
  *  order, or carrying a guard that stopped matching. */
 export { type Merging, merging } from "./plan.ts"
 /** When writes reach git, and what git is doing for the directory they reach.
- *  The PIN is passed IN — the flags the operator gave, `@olai/format`'s own
- *  vocabulary — and the state comes back OUT; the subprocesses between them are
- *  this layer's business. */
+ *  The POLICY is passed IN — what this server does, and the flags the operator
+ *  gave, in `@olai/format`'s own vocabulary — and the state comes back OUT; the
+ *  subprocesses between them, and the quiet window over them, are this layer's
+ *  business. */
 export {
   COMMIT_BUTTON,
   COMMIT_TOOL,
@@ -58,8 +59,13 @@ export {
   commitDoors,
   type CommitFace,
   type CommitMode,
+  fixedPolicy,
+  type Policy,
   type Status,
 } from "./pending.ts"
+/** The quiet window's own rules, for the tests that hold them and for the
+ *  sentence a preferences panel prints about the span. */
+export { flurryOf, mayRecord, QUIET_MS, type Standing } from "./loop.ts"
 /** The write vocabulary, under the names this layer's own answers use. It
  *  lives on the FLOOR (`@olai/format`'s `writing.ts`, which says why): the
  *  surface carries these to an agent's door, so a package the browser bundles

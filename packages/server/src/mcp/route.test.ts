@@ -19,7 +19,13 @@
  */
 
 import { DEFAULT_IDENTITY_CONFIG, DEFAULT_IDENTITY_HEADERS } from "@olai/identity"
-import { codec, make as makeOps, type Store as OutlineStore, TOOLS } from "@olai/ops"
+import {
+  codec,
+  fixedPolicy,
+  make as makeOps,
+  type Store as OutlineStore,
+  TOOLS,
+} from "@olai/ops"
 import * as Store from "@olai/store"
 import { expect, test } from "bun:test"
 import { Effect, Option, SubscriptionRef } from "effect"
@@ -30,7 +36,7 @@ import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
 import { listen } from "../listener.ts"
-import { SERVER_LAYERS } from "../serve.testlib.ts"
+import { frozenPolicy, SERVER_LAYERS } from "../serve.testlib.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "./route.ts"
@@ -63,13 +69,17 @@ const withRoute = <A>(
       watch: false,
       settle: "10 millis",
     })
-    const ops = makeOps({ store, root, pin: { commit: "off", push: null } })
+    const ops = makeOps({ store, root, policy: fixedPolicy({ commit: "off", push: null }) })
     const wired = yield* bind({
       store,
       chat: null,
       ops,
       writer: "mcp",
-      git: gitWiring(ops, yield* SubscriptionRef.make(0)),
+      git: gitWiring(
+        ops,
+        frozenPolicy({ commit: "off", push: null }),
+        yield* SubscriptionRef.make(0),
+      ),
     })
     const runtime = yield* watchFault(wired.bound)
     yield* Effect.addFinalizer(() => Effect.promise(() => wired.bound.close()))

@@ -1,59 +1,45 @@
 /**
- * What is waiting to be committed, as this tab sees it — and the two verbs.
+ * What is waiting to be committed, what git is doing about it — and the four
+ * verbs.
  *
- * One subscription and two procedures, and none of them is state this browser
- * owns: `pending` is DERIVED FROM GIT on the server, on every published
+ * TWO SUBSCRIPTIONS AND FOUR PROCEDURES, and none of them is state this browser
+ * owns. `pending` is DERIVED FROM GIT on the server, on every published
  * revision and on a sweep of its own, so a tab that has been open all day is
- * looking at the repository as it is rather than at a tally it kept. There is
- * deliberately nothing here that counts writes — or commits.
+ * looking at the repository as it is rather than at a tally it kept. `git` is
+ * the other half of the same survey: what the policy is, what git last refused,
+ * and whether the quiet-window loop has stopped.
  *
- * What IS this tab's is the last ATTEMPT — one signal rather than a refusal
- * beside an answer, because exactly one of those two can be true at a time and
- * two optionals with coupled presence is a state the panel would have to
- * reassemble. What the attempt is CALLED is not here either: this module knows
- * that a commit was refused, `said.ts` knows how to say so.
+ * **What this tab USED to keep is the whole of what `git-policy-server-side`
+ * deleted.** There was a 15 s quiet window in here, behind a Web Lock so two
+ * tabs of one browser would not race the work tree; a pause signal that a
+ * reload silently cleared; a last-commit and a last-push outcome that lived in
+ * two signals and were lost with the page. Every one of those is a fact about
+ * the DIRECTORY wearing a tab's clothes, and each was wrong in its own way —
+ * the directory recorded only while somebody had a tab open, two BROWSERS could
+ * both lead, and a refused push was visible nowhere at all. They are the
+ * server's now, and they arrive on the `git` cell, which is why what is left in
+ * here is so short.
  *
- * Auto-push is this browser's, handed in as an accessor so this file does
- * not import the preference: a recorded commit from the button here is
- * followed by the same `send` the Push button runs (`./record.ts`). Off,
- * nothing changes. A push that fails is still a push the panel already
- * draws — the commit stands.
+ * What IS this tab's is whether one of ITS OWN requests is in flight
+ * ({@link Commit.working}, {@link Commit.pushing}). That is not a fact about
+ * the directory — it is about the button under this reader's finger, which must
+ * not be pressed twice — so it stays a signal, and it is the only one.
  */
 
 import {
   type CommitResult,
+  type GitState,
   NOTHING_PENDING,
-  type OpFailure,
   type Pending,
+  type PolicyRequest,
   type PushResult,
 } from "@olai/format"
-import { GIT_OFF, type GitState } from "@olai/surface"
+import { GIT_OFF } from "@olai/surface"
 import { type Accessor, createSignal } from "solid-js"
 
-import { afterCommit, canRecord } from "./record.ts"
 import { waitingIn } from "./said.ts"
 import { run } from "../run.ts"
 import { olai } from "../wire.ts"
-
-/**
- * What the last attempt did.
- *
- * The procedure's four answers, plus the fifth thing that can happen to a
- * procedure: it never answered at all. `Refused` is that one — the wire, or a
- * server that would not take the call — and it is an arm here rather than a
- * second signal so that "what is there to say" is one read.
- */
-export type Attempt =
-  | CommitResult
-  | { readonly _tag: "Refused"; readonly failure: OpFailure }
-
-/** The same five shapes for the other verb. Its own signal rather than a
- *  second arm on {@link Attempt}, because the two answers sit in two places on
- *  screen: a refused commit belongs beside the button that made it, and a
- *  refused push beside the branch it would not send. */
-export type PushAttempt =
-  | PushResult
-  | { readonly _tag: "Refused"; readonly failure: OpFailure }
 
 export interface Commit {
   /** What is waiting. Always a value, so nothing downstream branches on an
@@ -70,16 +56,18 @@ export interface Commit {
    */
   readonly heard: Accessor<boolean>
   /**
-   * What git is doing for this directory at all — the second half of the one
-   * indicator (`one-git-indicator`, folding #108's readout into this pill).
+   * What git is doing for this directory — the whole of the second half of the
+   * one indicator, and now of the two preference rows as well.
    *
    * Its own cell rather than something read off {@link Commit.pending}'s `repo`,
-   * and the difference is exactly one state: a commit that git REFUSED. A
-   * repository with no `user.email` answers every probe happily, so the survey
-   * reads `Ready` while nothing can be committed — the server remembers the
-   * refusal and publishes it here, and no reading of the directory can. Both
-   * are recomputed from ONE survey in one statement on the server, so this is a
-   * second READING and never a second probe.
+   * and the difference is more than one state: a repository with no
+   * `user.email` answers every probe happily, so the survey reads `Ready` while
+   * nothing can be committed; a repository whose PUSH is being refused answers
+   * every probe happily too, and the survey cannot see that either. The server
+   * remembers both and publishes them here, beside the policy it is running
+   * under and whether the loop has stopped. Both cells are recomputed from ONE
+   * survey in one statement on the server, so this is a second READING and
+   * never a second probe.
    */
   readonly git: Accessor<GitState>
   /** How much is waiting: the node-level changes, the outlines nothing could be
@@ -90,8 +78,6 @@ export interface Commit {
   /** True between asking and being answered. A second press while a commit is
    *  in flight would be a second commit. */
   readonly working: Accessor<boolean>
-  /** The last attempt, or `null` for one that has not been made. */
-  readonly attempt: Accessor<Attempt | null>
   /**
    * Record what is waiting.
    *
@@ -101,55 +87,86 @@ export interface Commit {
    * deliberately leaves the per-writer counters alone, because an op cannot be
    * attributed to a file.
    *
-   * Refused while a push is in flight, same as the button: Auto-push would
-   * then call `send` and `send` would return at the door
-   * ({@link canRecord}).
+   * WHETHER IT IS PUSHED AFTERWARDS IS NOT ASKED HERE. That is the directory's
+   * policy and the server's to apply, to this commit and to every other one —
+   * which is what makes an agent's `commit` and the quiet window's own share
+   * what they record, where the browser-side composition this replaced could
+   * only ever push what one tab had committed.
    */
   readonly commit: (message: string, paths?: ReadonlyArray<string>) => void
   /** True while a push is in flight, for the same reason {@link working} is. */
   readonly pushing: Accessor<boolean>
-  /** What the last push did, or `null` for one nobody has asked for. */
-  readonly pushed: Accessor<PushAttempt | null>
   /** Send the current branch. No argument: there is nothing to choose. */
   readonly push: () => void
+  /**
+   * WHAT THE SERVER WOULD NOT TAKE FROM THIS TAB, or `null`.
+   *
+   * The one refusal that is genuinely this tab's, and the reason it survived
+   * the move: git's own refusals are the directory's and arrive on the cell,
+   * but a CALL that never reached git — the wire dropped it, or the server
+   * answered a usage refusal, which is what a pinned policy row does to a
+   * `setPolicy` — happened to this request and to nobody else's. Nothing on the
+   * cell can say so, and a control that silently did nothing is the failure
+   * this whole feature is about.
+   *
+   * Cleared when the next request starts, so what is on screen is about the
+   * press a reader just made.
+   */
+  readonly refused: Accessor<string | null>
+  /**
+   * Set this DIRECTORY's git policy — the two preference rows' verb.
+   *
+   * It answers nothing here: what changes is the `git` cell, which the server
+   * republishes the moment it is done, so the row redraws from the same value
+   * every other tab is redrawing from. A local echo would be this browser
+   * holding a second opinion about a directory, which is the thing being
+   * retired.
+   */
+  readonly setPolicy: (want: PolicyRequest) => void
+  /** Start a stopped loop again — the Resume button's verb, and the one way
+   *  out. Same shape and same reason as {@link setPolicy}. */
+  readonly resume: () => void
 }
 
-/** Whether this browser follows a recorded commit with a push is the
- *  caller's: this factory does not import the preference, so the composition
- *  (`./record.ts`) can be asked with any answer. Read at commit time. Off
- *  is today's behaviour, for a caller that has not asked. */
-export const createCommit = (
-  autoPush: Accessor<boolean> = () => false,
-): Commit => {
+/**
+ * Whether a Commit press may start.
+ *
+ * Working is a commit already in flight. Pushing is a push still in the air —
+ * `push` returns at the door if one is, so a commit that landed on top of it
+ * would be a commit whose own push the server made while this tab thought it
+ * was still sending the last. The Push button already waits; Commit waits for
+ * the same reason.
+ */
+export const canRecord = (working: boolean, pushing: boolean): boolean =>
+  !working && !pushing
+
+export const createCommit = (): Commit => {
   const cell = olai.cells.pending.use()
   // The spec declares `off` as this cell's default and the framework seeds the
   // subscription with it, so a page reads "say nothing" before the first frame
   // rather than flashing a state it has not been told.
   const git = olai.cells.git.use()
   const [working, setWorking] = createSignal(false)
-  const [attempt, setAttempt] = createSignal<Attempt | null>(null)
   const [pushing, setPushing] = createSignal(false)
-  const [pushed, setPushed] = createSignal<PushAttempt | null>(null)
+  const [refused, setRefused] = createSignal<string | null>(null)
 
   const pending = (): Pending => cell.value() ?? NOTHING_PENDING
 
-  /** The same verb the panel's Push button runs — and the one Auto-push
-   *  follows a recorded commit with (`./record.ts`). One function so the two
-   *  doors cannot drift. */
+  /** The Push button's verb. What it DID is on the cell — `pushSaid` when git
+   *  refused, and the unpushed count when it did not — so nothing is kept
+   *  here but whether this tab's own request is still out, and whether the
+   *  server took it at all. */
   const send = (): void => {
     if (pushing()) return
     setPushing(true)
-    setPushed(null)
+    setRefused(null)
     run(
       olai.procedures.git.push({}),
       (failure) => {
         setPushing(false)
-        setPushed({ _tag: "Refused", failure })
+        setRefused(failure.message)
       },
-      (result) => {
-        setPushing(false)
-        setPushed(result)
-      },
+      (_result: PushResult) => setPushing(false),
     )
   }
 
@@ -162,11 +179,10 @@ export const createCommit = (
     // repository now that a `.md` edited by hand is one of them.
     waiting: () => waitingIn(pending()),
     working,
-    attempt,
     commit: (message, paths) => {
       if (!canRecord(working(), pushing())) return
       setWorking(true)
-      setAttempt(null)
+      setRefused(null)
       run(
         olai.procedures.git.commit({
           ...(message.trim() === "" ? {} : { message }),
@@ -174,17 +190,24 @@ export const createCommit = (
         }),
         (failure) => {
           setWorking(false)
-          setAttempt({ _tag: "Refused", failure })
+          setRefused(failure.message)
         },
-        (result) => {
-          setWorking(false)
-          setAttempt(result)
-          afterCommit(autoPush(), result._tag, send)
-        },
+        (_result: CommitResult) => setWorking(false),
       )
     },
     pushing,
-    pushed,
     push: send,
+    refused,
+    setPolicy: (want) => {
+      setRefused(null)
+      run(
+        olai.procedures.git.setPolicy(want),
+        (failure) => setRefused(failure.message),
+      )
+    },
+    resume: () => {
+      setRefused(null)
+      run(olai.procedures.git.resume({}), (failure) => setRefused(failure.message))
+    },
   }
 }

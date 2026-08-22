@@ -874,11 +874,16 @@ export const TESTID = {
   commitMessage: "commit-message",
   /** The button itself. */
   commitNow: "commit-now",
-  /** What the last attempt refused with, when it left anything to say. */
+  /** What git said when it last refused a COMMIT here — the directory's, off
+   *  the git cell, so it is the same words in every tab and after a reload. */
   commitRefused: "commit-refused",
-  /** Why Auto-commit stopped, when it has — git's own words, and the one
-   *  gesture that resumes it. Absent while the loop is running, and absent for
-   *  a browser that never asked for it. */
+  /** ... and what the SERVER would not take from this tab: a call the wire
+   *  dropped, or a usage refusal — which is what a pinned policy row answers a
+   *  `setPolicy` with. About this press rather than about the directory. */
+  commitCallRefused: "commit-call-refused",
+  /** Why the quiet-window loop stopped, when it has — and the one gesture that
+   *  resumes it. Absent while the loop is running, and absent for a directory
+   *  whose policy is not `auto`. */
   commitAutoPaused: "commit-auto-paused",
   /** What Auto-commit is about to do with what is waiting. Drawn only while
    *  the preference is on and the loop is running — a line that said so with

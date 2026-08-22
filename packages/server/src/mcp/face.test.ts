@@ -26,7 +26,7 @@
  * subscription test is a sequence and not a race.
  */
 
-import { make as makeOps } from "@olai/ops"
+import { fixedPolicy, make as makeOps } from "@olai/ops"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
 import { ResourceUpdatedNotificationSchema } from "@modelcontextprotocol/sdk/types.js"
@@ -39,7 +39,7 @@ import * as path from "node:path"
 import { openDirectory } from "../directory.ts"
 import { watchFault } from "../fault.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
-import { SERVER_LAYERS } from "../serve.testlib.ts"
+import { frozenPolicy, SERVER_LAYERS } from "../serve.testlib.ts"
 import { clientOver, serveFace } from "./face.ts"
 
 const HOUSE = [
@@ -95,13 +95,17 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     // is the one mode that asks git nothing at all. The edit procedures are
     // bound to it too and this face exposes none of them, so what they cost
     // here is a binding nobody can reach.
-    const ops = makeOps({ store, root, pin: { commit: "off", push: null } })
+    const ops = makeOps({ store, root, policy: fixedPolicy({ commit: "off", push: null }) })
     const wired = yield* bind({
       store,
       chat: null,
       ops,
       writer: "mcp",
-      git: gitWiring(ops, yield* SubscriptionRef.make(0)),
+      git: gitWiring(
+        ops,
+        frozenPolicy({ commit: "off", push: null }),
+        yield* SubscriptionRef.make(0),
+      ),
     })
     // Not optional, and not ceremony copied from `serve.ts`: the runtime's
     // `done` REJECTS when it is closed, so something has to be holding the

@@ -160,6 +160,7 @@ import {
   Face,
   GIT_OFF,
   GitPin,
+  GitPolicy,
   GitState,
   HomesAnswer,
   HomesRequest,
@@ -172,7 +173,9 @@ import {
   NOTHING_PENDING,
   OutlineError,
   Pending,
+  PolicyRequest,
   PushResult,
+  Resumed,
   sameGit,
   sameInboxHeld,
   samePending,
@@ -523,7 +526,7 @@ export const LOADED: Manifest = {}
  * the ops layer both stand on, so there is no second spelling to drift. Its
  * before-first-frame default `GIT_OFF` travels with it.
  */
-export { GIT_OFF, GitPin, GitState }
+export { GIT_OFF, GitPin, GitPolicy, GitState, PolicyRequest, Resumed }
 
 /** When two answers are the same answer, so the cell can stay quiet. There is
  *  exactly one thing this value can say, so there is exactly one thing that can
@@ -1328,6 +1331,45 @@ export const surface = defineSurface({
       push: {
         input: Schema.Struct({}),
         output: PushResult,
+        error: OpFailure,
+      },
+      /**
+       * WHAT THIS DIRECTORY'S GIT POLICY IS TO BE — the two preference rows'
+       * door, and the whole of `git-policy-server-side` on the write side.
+       *
+       * The rows used to be preferences of one BROWSER, stored there and sent
+       * nowhere, so two people looking at one directory could each believe
+       * something different about it and only one of them could be right.
+       * Whether a branch is pushed is not a claim about a reader. So the rows
+       * set the SERVER's policy, it is remembered outside the vault, and every
+       * tab draws the same answer off the `git` cell.
+       *
+       * Each half is optional, because the rows move one at a time. A half the
+       * operator PINNED refuses rather than quietly doing nothing: a
+       * read-only control that could be bypassed by a procedure would be the
+       * pin honoured in the drawing and not in the doing.
+       *
+       * What it changes is the `git` cell, which the server republishes the
+       * moment it is done — including to the tab that asked, so nothing here
+       * has to echo the new value into a signal of its own.
+       */
+      setPolicy: {
+        input: PolicyRequest,
+        output: GitPolicy,
+        error: OpFailure,
+      },
+      /**
+       * Start the quiet-window loop again after git stopped it.
+       *
+       * A PROCEDURE rather than a side effect of some other gesture, and that
+       * is what moving the pause to the server costs and buys: the stop is a
+       * fact about the directory, so turning a toggle off and on in one browser
+       * cannot be what clears it, and a Resume pressed in one tab clears it in
+       * every other one.
+       */
+      resume: {
+        input: Schema.Struct({}),
+        output: Resumed,
         error: OpFailure,
       },
     },

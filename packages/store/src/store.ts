@@ -114,17 +114,6 @@ export interface Write {
    *  past it refuses with {@link StaleWrite}. */
   readonly baseRev: Rev
   readonly changes: ReadonlyArray<Change>
-  /**
-   * Run once the new snapshot is published, still inside the gate — so no
-   * second commit can interleave with it, and a caller that shells out to git
-   * commits exactly the tree this write produced.
-   *
-   * Typed as unfailing on purpose: the write is already on disk and already
-   * visible, so there is nothing here that could undo it. A hook whose own
-   * work can fail owns that failure — logs it, records it, reports it beside
-   * the result — rather than turning a successful write into a failed one.
-   */
-  readonly afterPublish?: Effect.Effect<void>
 }
 
 export interface Store<S, E> {
@@ -556,8 +545,6 @@ export const make = <F, S, E>(
             // error channel; the caller hears the same "no" it would have.
             return Result.fail(published.failure)
           }
-
-          if (write.afterPublish !== undefined) yield* write.afterPublish
           return Result.succeed(published.success.rev)
         }),
       )

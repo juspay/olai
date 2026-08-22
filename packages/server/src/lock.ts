@@ -87,11 +87,11 @@ import { isPrivateOwnedDir } from "@kolu/surface/unix-socket"
 import { codeOf, reasonOf } from "@olai/log"
 import { Data, Effect } from "effect"
 import type { Scope } from "effect"
-import { createHash } from "node:crypto"
 import * as fs from "node:fs"
-import { dirname, join, resolve } from "node:path"
+import { dirname, join } from "node:path"
 
 import { lockExclusive } from "./flock.ts"
+import { canonical, digestOf, runtimeHome } from "./state.ts"
 
 /**
  * Another olai holds this directory.
@@ -136,52 +136,14 @@ export class LockUnavailable extends Data.TaggedError("LockUnavailable")<{
  * Where this directory's lock lives — computed from the directory alone, so two
  * processes that share nothing else land on the same file.
  *
- * A path that does not exist has no realpath, and falls back to the resolved
- * spelling: the caller is about to fail on the missing directory anyway, and
- * this must not be what tells them so.
+ * WHERE the runtime home is, and what a served directory is called under it,
+ * are {@link ./state.ts}'s. They were spelled here first and are needed twice
+ * now — the remembered git policy lives under the other home with the same
+ * name — and two answers to "which file is this vault's" is exactly the drift
+ * that would make one of them read somebody else's.
  */
 export const lockFor = (root: string): string =>
-  join(
-    runtimeHome(),
-    `${createHash("sha256").update(canonical(root)).digest("hex").slice(0, 16)}.lock`,
-  )
-
-/**
- * `$XDG_RUNTIME_DIR/olai`, or the fixed per-user `/tmp/olai-$UID` where there
- * is no runtime directory — the convention kolu's rendezvous sockets use, which
- * olai kept a user of until #184 and is one again here.
- *
- * Spelled out rather than called as `getRuntimeSocketPath`, which is the same
- * five lines: that function's value is that two programs which must MEET
- * compute one path, and the two processes here are both olai computing it
- * through this file. If a second program ever has to find olai's lock, the
- * call is the right answer. The unix-socket module is already in this file's
- * graph for `isPrivateOwnedDir`; the reason this path is still local is the
- * meeting-vs-computing distinction, not a desire to keep the module out.
- *
- * NOT `os.tmpdir()`, and that is the whole reason this is not one line: it
- * honours `$TMPDIR`, which differs by LAUNCH CONTEXT — a launchd- or
- * systemd-started olai and one a person types into a terminal get different
- * ones — so the same vault would be locked at two paths and neither process
- * would see the other. `/tmp` is present and identical in every process on both
- * platforms, and `-$UID` keeps it per-user. Read at call time rather than at
- * import, so a test can point a server somewhere of its own (the same reason
- * `@olai/chat`'s state home is).
- */
-const runtimeHome = (): string => {
-  const xdg = process.env["XDG_RUNTIME_DIR"]
-  return xdg !== undefined && xdg !== ""
-    ? join(xdg, "olai")
-    : `/tmp/olai-${process.getuid?.() ?? "shared"}`
-}
-
-const canonical = (root: string): string => {
-  try {
-    return fs.realpathSync(resolve(root))
-  } catch {
-    return resolve(root)
-  }
-}
+  join(runtimeHome(), `${digestOf(root)}.lock`)
 
 /**
  * The pid a holder wrote down — DIAGNOSIS, never validity.

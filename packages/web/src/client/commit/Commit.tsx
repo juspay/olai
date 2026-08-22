@@ -65,41 +65,43 @@ import { Show } from "solid-js"
 import { Portal } from "solid-js/web"
 
 import { agoOf, createNow } from "./ago.ts"
-import { createAuto, pausedIn } from "./auto.ts"
-import { createElected } from "./elected.ts"
 import {
   AUTO_PAUSED,
   explain,
   faceOf,
   isInert,
   isNews,
-  MARK,
+  markOf,
   newsSays,
+  PUSH_REFUSED,
 } from "./said.ts"
-import { commitFrozen } from "../settings/pinned.ts"
 import { Panel } from "./Panel.tsx"
 import { desktop } from "../layout/media.ts"
 import { LAYER } from "../layer.ts"
 import { BANNER, PILL } from "../readout.ts"
 import { createPopover } from "../popover.ts"
-import { autoCommit } from "../settings/autocommit.ts"
-import { autoPush } from "../settings/autopush.ts"
 import { createCommit } from "./state.ts"
 import { TESTID } from "../testids.ts"
 import { Tip } from "../Tip.tsx"
 
 export function Commit() {
-  const commit = createCommit(autoPush)
-  // Auto-commit: the same verb this panel's button runs, on a debounced flurry
-  // instead of a press (`./auto.ts`). It is instantiated HERE, beside the
-  // commit it drives, because the pill is the one control that is always on
-  // screen — a loop hung off the panel would stop existing the moment somebody
-  // shut it. `createElected` is which tab of this browser records
-  // (`./elected.ts`).
-  const auto = createAuto({ on: autoCommit, alone: createElected(), commit })
-  /** Why the loop stopped, or `null` — the arm the words and the chip both
-   *  ask about, through the union's own accessor (`./auto.ts`). */
-  const paused = () => pausedIn(auto())
+  const commit = createCommit()
+  /** WHAT THE QUIET-WINDOW LOOP IS DOING, as one word for the chrome to wear.
+   *
+   *  Three states and they are the directory's, off the git cell: `off` where
+   *  the policy is not `auto`, `paused` where git stopped it, `armed`
+   *  otherwise. It used to be a union this file constructed from a loop it
+   *  owned, and the loop is the server's now — so what is left is a reading,
+   *  and every tab makes the same one. */
+  const auto = () =>
+    commit.git().policy.commit !== "auto"
+      ? "off"
+      : commit.git().paused !== null
+      ? "paused"
+      : "armed"
+  /** Why the loop stopped, or `null` — the fact the words and the chip both
+   *  ask about. */
+  const paused = () => commit.git().paused
   // Whether the panel is up, where it goes, and the ways it shuts
   // (`../popover.ts`, shared with the preferences at the other end of the bar).
   // It used to be `note/expand.ts` — the row note's "open until you click
@@ -115,8 +117,7 @@ export function Commit() {
   const inert = () => isInert(face())
   /** One reading of the sentence for the two places it has to be: the tip a
    *  pointer opens, and the label everything else gets. */
-  const said = () =>
-    explain(face(), commit.pending(), commit.git(), paused(), commitFrozen())
+  const said = () => explain(face(), commit.pending(), commit.git())
 
   /**
    * How long ago the last commit was, for the one face that has one — and `""`
@@ -176,9 +177,16 @@ export function Commit() {
     }
   }
 
+  /** What git said when it last refused a push, or `null`. It overrules the
+   *  ✓ and colours the count, because a number that is not coming down is a
+   *  number with a reason (`./said.ts`). */
+  const pushSaid = () => commit.git().pushSaid
+
   const showPill = () => desktop()
-  const showBanner = () => !desktop() && isNews(face(), unpushed(), paused())
-  const line = () => newsSays(face(), commit.waiting(), unpushed(), paused())
+  const showBanner = () =>
+    !desktop() && isNews(face(), unpushed(), paused(), pushSaid())
+  const line = () =>
+    newsSays(face(), commit.waiting(), unpushed(), paused(), pushSaid())
 
   return (
     <>
@@ -223,10 +231,13 @@ export function Commit() {
           data-uncommitted={commit.waiting()}
           data-unpushed={unpushed()}
           data-repo={commit.pending().repo._tag}
-          // What AUTO-COMMIT is doing in this browser, which is a claim about
-          // the reader rather than about the directory — hence its own
-          // attribute rather than a ninth face (`./said.ts`).
-          data-auto={auto()._tag}
+          // What the quiet-window loop is doing for this DIRECTORY — its own
+          // attribute rather than a ninth face, because "is the loop running"
+          // and "is anything waiting" are two questions (`./said.ts`).
+          data-auto={auto()}
+          // ... and whether the last push was refused, which is the other thing
+          // no face can carry: the history is fine and the sharing is not.
+          data-push-refused={pushSaid() === null ? undefined : "true"}
           // Absent rather than `false` on the faces with no panel behind them:
           // a control that says it can expand and never does is a promise the
           // page does not keep.
@@ -240,7 +251,7 @@ export function Commit() {
             if (!inert()) panel.toggle()
           }}
         >
-          <Show when={MARK[face()]}>
+          <Show when={markOf(face(), commit.git())}>
             {(mark) => (
               <span class={`shrink-0 ${mark().tone ?? ""}`} aria-hidden="true">
                 {mark().glyph}
@@ -256,7 +267,19 @@ export function Commit() {
               every width, unlike the recency beside it: "3 unpushed" is news,
               and the panel behind this pill is where the Push button lives. */}
           <Show when={unpushed() > 0}>
-            <span class="shrink-0">· {unpushed()} unpushed</span>
+            <span class={`shrink-0 ${pushSaid() === null ? "" : "text-alarm"}`}>
+              · {unpushed()} unpushed
+            </span>
+          </Show>
+          {/* ... and WHY it is not coming down. `push-failure-invisible` in one
+              span: the count alone was every word of the truth except the one
+              that mattered, and the reason existed nowhere but one tab's
+              memory. Git's own words are a gesture away, on this pill's own
+              label and in the panel. It is drawn even at zero unpushed, which
+              cannot normally happen — the server clears the refusal the moment
+              there is nothing unshared — so if it ever does, it is news. */}
+          <Show when={pushSaid() !== null}>
+            <span class="shrink-0 text-alarm">· {PUSH_REFUSED}</span>
           </Show>
           {/* A loop that has STOPPED, which is the one thing Auto-commit has to
               say out loud: its promise is that nobody watches it, so silence
@@ -285,14 +308,17 @@ export function Commit() {
           type="button"
           ref={panel.setTrigger}
           class={`${BANNER} justify-between ${
-            face() === "error" || paused() !== null ? "text-alarm" : "text-doing"
+            face() === "error" || paused() !== null || pushSaid() !== null
+              ? "text-alarm"
+              : "text-doing"
           }`}
           data-testid={TESTID.gitNews}
           data-state={face()}
           data-uncommitted={commit.waiting()}
           data-unpushed={unpushed()}
           data-repo={commit.pending().repo._tag}
-          data-auto={auto()._tag}
+          data-auto={auto()}
+          data-push-refused={pushSaid() === null ? undefined : "true"}
           aria-expanded={inert() ? undefined : panel.open()}
           aria-disabled={inert() ? true : undefined}
           aria-label={said()}
@@ -307,13 +333,7 @@ export function Commit() {
       <Show when={panel.open() && !inert() ? panel.at() : null}>
         {(at) => (
           <Portal>
-            <Panel
-              commit={commit}
-              auto={auto}
-              now={now()}
-              at={at()}
-              inside={panel.setPanel}
-            />
+            <Panel commit={commit} now={now()} at={at()} inside={panel.setPanel} />
           </Portal>
         )}
       </Show>

@@ -35,6 +35,7 @@ import * as path from "node:path"
 import * as Chat from "@olai/chat"
 import { openDirectory } from "./directory.ts"
 import { watchFault } from "./fault.ts"
+import { openPolicy } from "./gitPolicy.ts"
 import { listen } from "./listener.ts"
 import { clientOver, serveFace } from "./mcp/face.ts"
 import { MCP_PATH, mcpTransport } from "./mcp/route.ts"
@@ -57,10 +58,10 @@ export interface ServeOptions {
   readonly identity: IdentityConfig
   /** The git policy this serve runs under, as the operator PINNED it —
    *  `--commit=off | manual | auto` and `--push=off | auto`, each `null` when
-   *  the flag was not given (`@olai/format`'s `GitPin`). What the server does
-   *  is that with the defaults filled in; what every browser draws is the pin
-   *  itself. Spelled `pin` here, in `@olai/ops`' `Options` and in its
-   *  `pending.ts`, so one grep finds every layer it crosses. */
+   *  the flag was not given (`@olai/format`'s `GitPin`). What the server DOES
+   *  is that composed with whatever anybody chose for this directory and the
+   *  defaults (`./gitPolicy.ts`'s `openPolicy`); what every browser draws
+   *  read-only is the pin itself. */
   readonly pin: GitPin
 }
 
@@ -114,18 +115,25 @@ export const serve = (options: ServeOptions) =>
     // its refusals, because the chat is not what writes.
     let chat: Chat.Chat | null = null
 
-    // Bumped whenever git recorded or shared something — a commit by whichever
-    // door (the button, the agent's tool, `--commit=auto`), or a push. Neither
-    // moves a served file, so nothing else in this process can say that what is
-    // waiting has changed.
-    const recorded = yield* SubscriptionRef.make(0)
+    // Bumped whenever anything about git settled — a commit by whichever door
+    // (the button, the agent's tool, the quiet window), a push, a refusal of
+    // either, or the loop stopping. None of them moves a served file, so
+    // nothing else in this process can say that what a reader is owed has
+    // changed.
+    const settled = yield* SubscriptionRef.make(0)
+
+    /** WHAT THIS DIRECTORY'S GIT POLICY IS: the flags, plus whatever anybody
+     *  chose for this path, remembered outside the vault (`./gitPolicy.ts`).
+     *  Opened before the ops layer, because that layer asks it on every
+     *  decision it makes. */
+    const policy = yield* openPolicy(root, options.pin)
 
     const ops = makeOps({
       store,
       root,
-      pin: options.pin,
-      onRecorded: () => {
-        Effect.runSync(SubscriptionRef.update(recorded, (count) => count + 1))
+      policy,
+      onSettled: () => {
+        Effect.runSync(SubscriptionRef.update(settled, (count) => count + 1))
       },
       // A refusal reaches the agent as its tool result AND the panel as a row:
       // what the agent then says about it is prose, and the unfinished
@@ -173,7 +181,7 @@ export const serve = (options: ServeOptions) =>
       chat,
       ops,
       writer: "web",
-      git: gitWiring(ops, recorded),
+      git: gitWiring(ops, policy, settled),
     })
     publish = wired.publish
 
