@@ -148,6 +148,22 @@ kolu detection documents from the other side. Nothing found at all is a state
 with a face: the panel draws and says how to install one. The table lives in
 `@olai/chat`'s `agents/roster.ts`.
 
+**One agent at a time is true of the PROCESS, not of the history.** Only the
+conversation's own agent is kept running, and the `chats` list spans all of
+them: the one being talked to is asked every time it opens, and each of the
+others is started to answer, asked, and stopped again — one at a time, with the
+answer reused for a few seconds. An agent that could not be asked is named in
+the list rather than dropped from it, so one broken agent takes nothing off the
+screen.
+
+**And what an agent olai spawns can see is what OLAI can see.** A chat agent is
+a child of this process, so its environment is this process's — not your login
+shell's. An agent that resolves a provider key out of the environment finds
+nothing unless the server was started with it, and fails silently when it does
+not: the turn comes back successful with nothing in it, which the panel now
+names rather than drawing as an ordinary turn. `docs/running.md` has the
+`environmentFile` for a user service.
+
 **The default is Claude Code, on every documented launch path.** The adapter is pinned (`nix/acp-agent.nix`) and the packaged binary's wrapper bakes it in with `--set-default`, exactly as the racket reference's `default.nix` did; `just serve` and `just run` resolve the same derivation on demand through `scripts/acp-agent.sh`. Nobody following a documented path has to know the variable exists — and the `nix` CI lane asserts it rather than trusting this paragraph: the wrapper must carry the assignment and the path it names must be executable.
 
 `OLAI_ACP_AGENT` overrides that, and it has two useful shapes:

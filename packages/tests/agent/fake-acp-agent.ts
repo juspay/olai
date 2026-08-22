@@ -151,7 +151,7 @@ import { existsSync, readFileSync, rmSync, statSync } from "node:fs"
 import { basename } from "node:path"
 
 import { readMessages } from "../support/ndjson.ts"
-import { emitter, RELEASE, released as releasedIn, speaking } from "../support/scripted.ts"
+import { emitter, MARKER, RELEASE, released as releasedIn, speaking } from "../support/scripted.ts"
 
 const OUT = process.stdout
 
@@ -303,7 +303,7 @@ const refusesToOpen = (verb: "new" | "load"): boolean =>
  * keystroke lands on a panel that is between conversations, and the only
  * stretch in which a second open can be started against the first.
  */
-const holdsLoad = (): boolean => existsSync(`${cwd}/.agent-hold-load`)
+const holdsLoad = (): boolean => existsSync(`${cwd}/${MARKER.holdLoad}`)
 
 /** The client's own two, NEWEST LAST — so a client that takes the first entry
  *  instead of the most recently updated one adopts the wrong conversation. */

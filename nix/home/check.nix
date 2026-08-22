@@ -26,6 +26,12 @@ let
         type = lib.types.attrsOf lib.types.anything;
         default = { };
       };
+      # The module refuses `environmentFile` on Darwin rather than dropping it,
+      # so the check needs somewhere for that refusal to land.
+      assertions = lib.mkOption {
+        type = lib.types.listOf lib.types.unspecified;
+        default = [ ];
+      };
     };
   };
 
@@ -136,6 +142,29 @@ let
       == { OLAI_LOG_LEVEL = "debug"; };
     true;
 
+  # --- the environment agents inherit ------------------------------------
+  # No EnvironmentFile unless one was named: an empty setting is not a file
+  # systemd should be told to read.
+  withEnvFile = evalFor { isLinux = true; isDarwin = false; }
+    { environmentFile = "/home/alice/.config/olai/env"; };
+  darwinEnvFile = evalFor { isLinux = false; isDarwin = true; }
+    { environmentFile = "/home/alice/.config/olai/env"; };
+  failed = evaluated:
+    builtins.filter (a: !a.assertion) evaluated.config.assertions;
+  _env =
+    assert !(linuxService.Service ? EnvironmentFile);
+    assert withEnvFile.config.systemd.user.services.olai.Service.EnvironmentFile
+      == "/home/alice/.config/olai/env";
+    # Nothing else moved: the file is an addition to the unit, not a rewrite,
+    # and neither is the log level beside it.
+    assert withEnvFile.config.systemd.user.services.olai.Service.Restart == "always";
+    assert !(loud.config.systemd.user.services.olai.Service ? EnvironmentFile);
+    # ... and launchd, which has no such knob, REFUSES rather than dropping it.
+    assert failed linux == [ ];
+    assert failed darwin == [ ];
+    assert builtins.length (failed darwinEnvFile) == 1;
+    true;
+
   # --- Darwin (launchd) --------------------------------------------------
   args = darwinAgent.config.ProgramArguments;
   _darwin =
@@ -166,8 +195,11 @@ assert _linux;
 assert _darwin;
 assert _pinned;
 assert _loud;
+assert _env;
 pkgs.runCommand "olai-hm-module-check" { } ''
   echo "services.olai module evaluates (linux systemd + darwin launchd)"
   echo "  ... and the git policy options reach argv only when they are set"
+  echo "  ... and the log level reaches both supervisors when it is raised"
+  echo "  ... and environmentFile reaches the unit on Linux, and is refused on Darwin"
   touch $out
 ''

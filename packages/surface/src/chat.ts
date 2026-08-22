@@ -738,8 +738,14 @@ export const Attached = Schema.Struct({
 })
 export type Attached = typeof Attached.Type
 
-/** One of the agent's stored conversations, as the picker lists them. */
-export const SessionInfo = Schema.Struct({
+/**
+ * ONE CONVERSATION, by the only three things every agent says about one.
+ *
+ * The panel is IN one of these ({@link ChatState}'s `session`), and the picker
+ * LISTS them ({@link SessionInfo}) — two readings of one fact, which is why the
+ * fields are written once here and extended there rather than restated.
+ */
+export const Conversation = Schema.Struct({
   id: Schema.String,
   /** What the agent named it. `null` until it has decided — a fresh session
    *  says its id first and its name later. */
@@ -747,7 +753,64 @@ export const SessionInfo = Schema.Struct({
   /** ISO 8601, which is why the list can be sorted as strings. */
   updatedAt: Schema.NullOr(Schema.String),
 })
+export type Conversation = typeof Conversation.Type
+
+/**
+ * One of the stored conversations, as the picker lists them — and WHOSE it is.
+ *
+ * The agent is on the ROW rather than on a group around it, because it is a
+ * fact about the conversation and travels wherever the row does: a session id
+ * means nothing to the other agent (asking opencode to load a Claude id gets a
+ * refusal), so the id and the agent that can open it are one value. Drawing the
+ * list in groups is the client's arrangement of that fact, not the fact.
+ *
+ * It arrived when the list stopped being one agent's. The panel talks to one
+ * agent at a time, and the list used to be asked of exactly that one — so every
+ * conversation you had with the OTHER agent disappeared from view the moment
+ * you started a chat with this one, and the only way back was to start a new
+ * chat with the first just so the list would name them again.
+ *
+ * The panel's OWN conversation is a {@link Conversation} and not one of these:
+ * which agent it belongs to is already the panel's `talking`, and a second
+ * copy of that on the row beside it would be a fact with two spellings free to
+ * disagree.
+ */
+export const SessionInfo = Schema.Struct({
+  ...Conversation.fields,
+  /** One of {@link AGENTS}' ids. */
+  agent: Schema.String,
+})
 export type SessionInfo = typeof SessionInfo.Type
+
+/**
+ * An agent that could not be asked what it has stored, and why.
+ *
+ * The list spans every installed agent, so "could not ask" stopped being a
+ * question about the whole call and became a question about ONE ROW OF THE
+ * ROSTER: one agent broken must not take the other's conversations off the
+ * screen — that is the shape of the bug the fan-out exists to fix — and it must
+ * not be silent either, because an absent list drawn as *no stored
+ * conversations* is a claim about somebody's disk standing in for never having
+ * reached it. Both halves are the same rule, one layer apart.
+ */
+export const Unreachable = Schema.Struct({
+  /** One of {@link AGENTS}' ids. */
+  agent: Schema.String,
+  /** The agent's own reason, as a person reads it. */
+  why: Schema.String,
+})
+export type Unreachable = typeof Unreachable.Type
+
+/** What every installed agent has stored here — and which of them could not be
+ *  asked. Two arrays rather than a failure, because the answer to "what
+ *  conversations are there" is partial rather than absent when one agent is
+ *  broken. */
+export const Listed = Schema.Struct({
+  /** Merged newest-first, each row saying whose it is. */
+  sessions: Schema.Array(SessionInfo),
+  unreachable: Schema.Array(Unreachable),
+})
+export type Listed = typeof Listed.Type
 
 /**
  * EVERY AGENT olai knows how to talk to, and what a person reads.
@@ -984,8 +1047,9 @@ export const ChatState = Schema.Struct({
    *     server serves the outlines either way.
    */
   status: Schema.Literals(["off", "booting", "idle", "thinking", "gone"]),
-  /** The session the server is in, or `null` between sessions. */
-  session: Schema.NullOr(SessionInfo),
+  /** The session the server is in, or `null` between sessions. WHOSE it is
+   *  is `talking` below, which is the panel's one answer to that. */
+  session: Schema.NullOr(Conversation),
   /** The model a turn actually runs on, labelled the way the agent labels its
    *  own models. `null` until the agent has said. */
   model: Schema.NullOr(Schema.String),

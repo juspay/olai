@@ -873,10 +873,21 @@ export const CHAT_INSTALL = selector(TESTID.chatInstall);
 /** The composer saying a message sent now will QUEUE behind the running turn
  *  rather than land in it — drawn only for an agent that cannot steer. */
 export const CHAT_QUEUES = selector(TESTID.chatQueues);
+/** The strip between the transcript and the box while the panel is busy —
+ *  what a person sees when a turn or a boot is in flight and nothing has
+ *  arrived to look at yet. */
+export const CHAT_BUSY = selector(TESTID.chatBusy);
 export const CHAT_SESSIONS = selector(TESTID.chatSessions);
 export const CHAT_SESSION_LIST = selector(TESTID.chatSessionList);
 export const CHAT_SESSIONS_REFUSED = selector(TESTID.chatSessionsRefused);
 export const CHAT_SESSION = selector(TESTID.chatSession);
+/** The heading over one agent's rows in the chats list. Drawn only where more
+ *  than one agent has conversations here. */
+export const CHAT_SESSION_AGENT = selector(TESTID.chatSessionAgent);
+/** One agent in that list that could not be asked what it has stored. Its own
+ *  selector and not the whole call's refusal, because the two are two states:
+ *  this one leaves every other agent's conversations on the screen. */
+export const CHAT_SESSION_UNREACHABLE = selector(TESTID.chatSessionUnreachable);
 export const CHAT_TRANSCRIPT = selector(TESTID.chatTranscript);
 export const CHAT_MISSING = selector(TESTID.chatMissing);
 export const CHAT_MISSING_SERVER = selector(TESTID.chatMissingServer);

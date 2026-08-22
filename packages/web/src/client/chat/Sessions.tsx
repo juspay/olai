@@ -1,10 +1,32 @@
 /**
- * The picker: the agent's stored conversations, newest first.
+ * The picker: EVERY installed agent's stored conversations for this directory,
+ * grouped by who they are with, newest first inside each group.
+ *
+ * Every agent's, and that is the fix this file carries. The list used to be the
+ * one the panel happened to be TALKING to — so a single opencode chat took
+ * every Claude conversation in the directory off the screen, and the way back
+ * to one was to start a new Claude chat purely so the list would name them
+ * again. One agent at a time is true of the PROCESS and was never true of the
+ * history: the conversations are all still there, and what somebody opens this
+ * for is to find one.
+ *
+ * So a row here can belong to the agent this panel is not talking to, and
+ * picking it is a change of agent as well as of conversation — the same change
+ * `+ new` makes, through the same door (`./state.ts`'s `loadSession`, which
+ * takes the agent the row carries).
+ *
+ * GROUPED, in the roster's own order, headings only where there is more than
+ * one group ({@link ./grouped.ts}): interleaving two agents' conversations by
+ * timestamp makes a list you have to read every line of to find the one you
+ * want, and the thing you know about the one you want is who it was with. One
+ * agent on the machine draws exactly the list it always did.
  *
  * Asked of the SERVER every time it opens rather than kept in a cell, because
  * the agent's list is the only one that is right — it changes when a terminal
  * `claude --resume` writes to the same directory, and a cached copy would
- * quietly stop being true. The cost is one round trip on a click.
+ * quietly stop being true. The cost is one round trip on a click. (The server
+ * keeps the answers of the agents it had to START for a few seconds, which is
+ * its own bargain and argued where it is made.)
  *
  * The one this server is in is marked, and clicking it does nothing: loading
  * the session you are already in would throw away a transcript to replace it
@@ -37,16 +59,27 @@
  * click. Pressing it a second time would do nothing at all.
  */
 
-import { createSignal, For, Match, onCleanup, Show, Switch } from "solid-js"
+import {
+  createMemo,
+  createSignal,
+  For,
+  Match,
+  onCleanup,
+  Show,
+  Switch,
+  untrack,
+} from "solid-js"
 
 import { dismissOn } from "../dismiss.ts"
+import { AgentMark } from "./AgentMark.tsx"
+import { type Grouped, groupedByAgent, nameOf } from "./grouped.ts"
 import { Refusal } from "./Refusal.tsx"
 import { WITHIN } from "../layer.ts"
 import { QUIET_PILL } from "../pill.ts"
 import { TESTID } from "../testids.ts"
 import type { Chat, Sessions as Answer } from "./state.ts"
 import { whenOf } from "./when.ts"
-import type { OpFailure, SessionInfo } from "@olai/surface"
+import type { OpFailure, SessionInfo, Unreachable } from "@olai/surface"
 
 /**
  * The picker is a small state machine, and it is ONE signal because it is one
@@ -61,6 +94,15 @@ import type { OpFailure, SessionInfo } from "@olai/surface"
  * flattened to a list, which is the fix this file carries: a refusal used to
  * arrive as `[]` and be drawn as "no stored conversations" — a claim about the
  * agent's disk, standing in for never having reached it.
+ *
+ * The SAME distinction now lives INSIDE the listed arm, because the list spans
+ * every installed agent: one of them being unaskable is a fact about that agent
+ * rather than about the call, so it is drawn beside the others' conversations
+ * rather than instead of them, and it has a name of its own. That is where the
+ * server puts every reason it has — the verb cannot fail for an agent any more.
+ * What is left in the REFUSED arm is the call itself not landing, which no
+ * scenario can drive from a browser (a dropped socket, a server that went) and
+ * which must still not be drawn as an empty list.
  */
 type Picker = { readonly _tag: "shut" } | { readonly _tag: "asking" } | Answer
 
@@ -111,7 +153,48 @@ export function Sessions(props: { readonly chat: Chat }) {
     })
   }
 
-  const current = () => props.chat.state().session?.id ?? null
+  /** Which conversation the panel is IN. A memo, not a plain read: three
+   *  things per row ask it, and each of those would otherwise be its own
+   *  subscription to the whole chat cell — recomputing the same id on every
+   *  usage frame of every turn, for every row in the list. */
+  const current = createMemo(() => props.chat.state().session?.id ?? null)
+
+  /**
+   * The answer, arranged for a reader ({@link ./grouped.ts}).
+   *
+   * The roster is the panel's own, so the groups come in the order the agent
+   * picker offers them in rather than in the order somebody last typed
+   * something — and it is read UNTRACKED, which is the whole point of the memo
+   * being one. The roster changes once, when the server starts; the chat cell
+   * it lives on changes several times a turn (usage, model, questions). Tracked,
+   * every one of those would rebuild the group objects, and `<For>` diffs by
+   * reference — so the entire list would be torn down and re-rendered under
+   * somebody's cursor while they were reading it. The list is asked for afresh
+   * every time it opens, so there is nothing to lose by not following it.
+   */
+  const groups = createMemo((): ReadonlyArray<Grouped> => {
+    const answer = picker()
+    return answer._tag === "listed"
+      ? groupedByAgent(answer.sessions, untrack(() => props.chat.state().roster))
+      : []
+  })
+
+  /** Whether the groups are worth a heading each. ONE agent on the machine is a
+   *  heading over the whole list, saying what the panel's own header already
+   *  says — the picker's own rule, read at the other door. */
+  const headed = createMemo(() => groups().length > 1)
+
+  /** The agents that could not be asked at all. Beside the rows rather than
+   *  instead of them: one broken agent must not take the other's conversations
+   *  off the screen, which is the bug the fan-out is the fix for. */
+  const unreachable = (): ReadonlyArray<Unreachable> => {
+    const answer = picker()
+    return answer._tag === "listed" ? answer.unreachable : []
+  }
+
+  /** What a person reads for that agent ({@link ./grouped.ts}). */
+  const named = (agent: string): string =>
+    nameOf(untrack(() => props.chat.state().roster), agent)
 
   return (
     <>
@@ -166,54 +249,65 @@ export function Sessions(props: { readonly chat: Chat }) {
                 </li>
               )}
             </Match>
-            <Match when={listedIn(picker())}>
-              {(sessions) => (
-                <Show
-                  when={sessions().length > 0}
-                  fallback={
-                    <li class="px-2 py-1 text-xs text-muted">no stored conversations</li>
-                  }
-                >
-                  <For each={sessions()}>
-                    {(session) => (
-                      <li>
-                        <button
-                          type="button"
-                          class="flex w-full items-baseline gap-2 rounded px-2 py-1 text-left text-xs hover:bg-rule"
-                          data-testid={TESTID.chatSession}
-                          data-session-id={session.id}
-                          data-current={session.id === current()}
-                          disabled={session.id === current()}
-                          onClick={() => {
-                            setPicker({ _tag: "shut" })
-                            props.chat.loadSession(session.id)
-                          }}
-                        >
-                          <span
-                            class={`min-w-0 flex-1 truncate ${
-                              session.id === current() ? "text-accent" : ""
-                            }`}
+            <Match when={picker()._tag === "listed"}>
+              <Show
+                when={groups().length > 0 || unreachable().length > 0}
+                fallback={
+                  <li class="px-2 py-1 text-xs text-muted">no stored conversations</li>
+                }
+              >
+                <For each={groups()}>
+                    {(group) => (
+                      <>
+                        {/* ONE agent installed draws no heading: it is a
+                            heading over the whole list, saying what the panel's
+                            own header already says. The same shape as the
+                            picker's own rule — one installed agent is not a
+                            choice. */}
+                        <Show when={headed()}>
+                          <li
+                            class="flex items-center gap-1.5 px-2 pt-2 pb-1 text-[0.625rem] text-muted"
+                            data-testid={TESTID.chatSessionAgent}
+                            data-agent={group.agent.id}
                           >
-                            {session.title ?? session.id}
-                          </span>
-                          {/* The stamp does not shrink and the title does:
-                              two rows that share a title (a `/clear` leaves a
-                              pair) differ in nothing else, so the one thing
-                              that tells them apart may not be the thing a long
-                              title pushes off the end. */}
-                          <Show when={whenOf(session.updatedAt)}>
-                            {(at) => (
-                              <span class="shrink-0 font-mono text-[0.625rem] text-muted">
-                                {at()}
-                              </span>
-                            )}
-                          </Show>
-                        </button>
-                      </li>
+                            <AgentMark id={group.agent.id} />
+                            <span class="truncate">{group.agent.name}</span>
+                          </li>
+                        </Show>
+                        <For each={group.sessions}>
+                          {(session) => (
+                            <Row
+                              session={session}
+                              current={session.id === current()}
+                              onPick={() => {
+                                setPicker({ _tag: "shut" })
+                                // WITH the agent the row carries: this may be
+                                // the one the panel is not talking to, and the
+                                // id means nothing to the other.
+                                props.chat.loadSession(session.agent, session.id)
+                              }}
+                            />
+                          )}
+                        </For>
+                      </>
                     )}
-                  </For>
-                </Show>
-              )}
+                </For>
+                {/* AFTER the conversations, because they are what somebody
+                    opened this for — and in the same slot the whole call's
+                    refusal takes, because it is the same sentence about a
+                    smaller subject: we did not get to look. */}
+                <For each={unreachable()}>
+                  {(agent) => (
+                    <li
+                      class="px-2 py-1 text-xs text-muted"
+                      data-testid={TESTID.chatSessionUnreachable}
+                      data-agent={agent.agent}
+                    >
+                      {named(agent.agent)} could not be asked — {agent.why}
+                    </li>
+                  )}
+                </For>
+              </Show>
             </Match>
           </Switch>
         </ul>
@@ -222,10 +316,50 @@ export function Sessions(props: { readonly chat: Chat }) {
   )
 }
 
-/** The sessions, when there are some — `undefined` in the states that have
- *  none, which is what `<Show>` takes. */
-const listedIn = (picker: Picker): ReadonlyArray<SessionInfo> | undefined =>
-  picker._tag === "listed" ? picker.sessions : undefined
+/**
+ * ONE stored conversation, as a row.
+ *
+ * Its own component because the list around it grew a grouping layer and this
+ * did not change at all: nested inside, the button that a person actually
+ * clicks sat eight elements deep, so the loop over groups and the thing a row
+ * IS could not be read on one screen. It takes what it draws and what to do
+ * about a click, and knows nothing about groups, pickers or agents.
+ */
+function Row(props: {
+  readonly session: SessionInfo
+  /** Whether this is the conversation the panel is already in. Passed rather
+   *  than looked up, so the row does not need the cell. */
+  readonly current: boolean
+  readonly onPick: () => void
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        class="flex w-full items-baseline gap-2 rounded px-2 py-1 text-left text-xs hover:bg-rule"
+        data-testid={TESTID.chatSession}
+        data-session-id={props.session.id}
+        data-agent={props.session.agent}
+        data-current={props.current}
+        // Loading the conversation you are already in would throw away a
+        // transcript to replace it with the same one.
+        disabled={props.current}
+        onClick={() => props.onPick()}
+      >
+        <span class={`min-w-0 flex-1 truncate ${props.current ? "text-accent" : ""}`}>
+          {props.session.title ?? props.session.id}
+        </span>
+        {/* The stamp does not shrink and the title does: two rows that share a
+            title (a `/clear` leaves a pair) differ in nothing else, so the one
+            thing that tells them apart may not be the thing a long title pushes
+            off the end. */}
+        <Show when={whenOf(props.session.updatedAt)}>
+          {(at) => <span class="shrink-0 font-mono text-[0.625rem] text-muted">{at()}</span>}
+        </Show>
+      </button>
+    </li>
+  )
+}
 
 /** Why there is no list, when that is the answer. */
 const refusedIn = (picker: Picker): OpFailure | undefined =>

@@ -57,6 +57,7 @@ import { createHolding } from "./holding.ts"
 import { createLastAgent } from "./last.ts"
 import { Minimized } from "./Minimized.tsx"
 import { Missing } from "./Missing.tsx"
+import { Busy } from "./Busy.tsx"
 import { NoAgent } from "./NoAgent.tsx"
 import { type Chat, createChat, createChatState } from "./state.ts"
 import { Transcript } from "./Transcript.tsx"
@@ -264,6 +265,11 @@ function Body(props: { readonly chat: Chat }) {
   return (
     <DropTarget onFiles={(files) => void holding.take(files)}>
       <Transcript chat={props.chat} />
+      {/* BETWEEN the two, which is the whole point of it: the reader's eye is
+          at the bottom of the transcript because that is where their own
+          message just landed, and this is the line under it
+          ({@link ./Busy.tsx}). */}
+      <Busy chat={props.chat} />
       <Composer chat={props.chat} holding={holding} />
     </DropTarget>
   )

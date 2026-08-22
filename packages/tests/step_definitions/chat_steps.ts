@@ -23,6 +23,7 @@ import { NEAR } from "@olai/web/src/client/chat/near.ts";
 import { selector, TESTID, type TestId } from "@olai/web/src/client/testids.ts";
 
 import { retypedAndTaken } from "../support/atonce.ts";
+import { MARKER } from "../support/scripted.ts";
 import { saysThat } from "../support/said.ts";
 
 import {
@@ -39,6 +40,7 @@ import {
   CHAT_ATTACHMENT_SIZE,
   CHAT_AGENT,
   CHAT_AGENT_MARK,
+  CHAT_BUSY,
   CHAT_CANCEL,
   CHAT_CHOOSE,
   CHAT_CHOOSE_AGENT,
@@ -79,9 +81,10 @@ import {
   CHAT_SAID,
   CHAT_SEND,
   CHAT_SESSION,
+  CHAT_SESSION_AGENT,
+  CHAT_SESSION_UNREACHABLE,
   CHAT_SESSION_LIST,
   CHAT_SESSIONS,
-  CHAT_SESSIONS_REFUSED,
   CHAT_SPAWN,
   CHAT_SPAWN_WORKING,
   CHAT_STRIP,
@@ -231,7 +234,7 @@ When("I send the chat message", async function (this: OlaiWorld) {
  *  clock, so "mid-turn" is a state the scenario ENDS rather than one it races.
  *  A dot-file: the store's walk prunes those, so this is not an edit. */
 When("the agent is released", async function (this: OlaiWorld) {
-  fs.writeFileSync(path.join(this.scratch(), ".agent-release"), "");
+  fs.writeFileSync(path.join(this.scratch(), MARKER.release), "");
 });
 
 /** Ask the next `session/load` of `an older conversation` to hold a last
@@ -267,7 +270,16 @@ When(
  *  That stretch is the one in which the panel is between conversations, which
  *  is the only window a second open can be started in. */
 When("the next conversation load will hang", function (this: OlaiWorld) {
-  fs.writeFileSync(path.join(this.scratch(), ".agent-hold-load"), "");
+  fs.writeFileSync(path.join(this.scratch(), MARKER.holdLoad), "");
+});
+
+/** ... and the same for the FIRST open of a freshly picked agent, which is the
+ *  longer window and the one a person actually meets: choosing an agent starts
+ *  a subprocess, hand-shakes it and opens a conversation before there is
+ *  anything to type into. On a laptop that is a second or two and nobody can
+ *  aim at it; here it lasts until the scenario says when. */
+When("the next agent boot will hang", function (this: OlaiWorld) {
+  fs.writeFileSync(path.join(this.scratch(), MARKER.holdOpen), "");
 });
 
 /** ...and it stops refusing, so `try again` has something to succeed at. */
@@ -380,6 +392,42 @@ Then(
   },
 );
 
+/** EXACTLY ONE of mine says that. The claim a send during a boot is about is
+ *  a count, not a presence: a message delivered twice draws two identical rows
+ *  and the "is it there" assertion passes on both. */
+Then(
+  "the chat shows my message {string} exactly once",
+  async function (this: OlaiWorld, text: string) {
+    await myMessage(this, text).first().waitFor({
+      state: "visible",
+      timeout: HYDRATION_TIMEOUT,
+    });
+    assert.strictEqual(
+      await myMessage(this, text).count(),
+      1,
+      `"${text}" is in the transcript more than once — it was delivered twice`,
+    );
+  },
+);
+
+/** ... and the agent answered it once, which is the half that says the DELIVERY
+ *  doubled rather than the drawing. Counted over the agent's own rows. */
+Then(
+  "the agent has answered {string} exactly once",
+  async function (this: OlaiWorld, text: string) {
+    const said = this.page.locator(CHAT_SAID).filter({ hasText: text });
+    await said.first().waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    // A beat, so a second answer that was merely on its way fails this rather
+    // than arriving after it.
+    await this.page.waitForTimeout(700);
+    assert.strictEqual(
+      await said.count(),
+      1,
+      `the agent answered "${text}" more than once — the prompt went out twice`,
+    );
+  },
+);
+
 Then("my message sits to the right of the agent's", async function (this: OlaiWorld) {
   // Alignment is a property no attribute can carry: `data-kind="user"` already
   // says who spoke, and a class is a styling decision a refactor may change.
@@ -418,6 +466,32 @@ Then("the agent is working", async function (this: OlaiWorld) {
     "data-status",
     "thinking",
     "the agent panel",
+  );
+});
+
+/** The strip between the transcript and the box, by what it SAYS. The words
+ *  are the assertion rather than the element's presence: "working", "starting"
+ *  and "waiting on your answer" are three different things to be told, and a
+ *  strip that said the wrong one would pass a test about a strip. */
+Then(
+  "the panel says it is busy, with {string}",
+  async function (this: OlaiWorld, what: string) {
+    const busy = this.page.locator(CHAT_BUSY);
+    await busy.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await this.waitUntil(
+      async () => oneLine(await busy.innerText()).includes(what),
+      `the busy line to say "${what}"`,
+    );
+  },
+);
+
+/** ... and that it is GONE, which is the other half of a cue being a cue: one
+ *  left up over a finished turn is the same lie the other way round. */
+Then("the panel does not say it is busy", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_BUSY).count()) === 0,
+    "the busy line to go away",
+    HYDRATION_TIMEOUT,
   );
 });
 
@@ -1999,18 +2073,34 @@ When("I open the session picker", async function (this: OlaiWorld) {
  *  claim that nothing did. No wait of its own: the step before it has already
  *  waited for something the panel could only have drawn after the moment this
  *  is about, so a `trouble` that was coming would be here. */
+/** The BANNER, which is a different claim from a notice in the transcript:
+ *  a notice scrolls away with the conversation and this does not, and the one
+ *  ending that leaves it up deliberately is a turn that produced nothing. */
+Then("the panel says something went wrong", async function (this: OlaiWorld) {
+  await this.page
+    .locator(CHAT_TROUBLE)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
 Then("the chat says nothing went wrong", async function (this: OlaiWorld) {
   assert.strictEqual(await this.page.locator(CHAT_TROUBLE).count(), 0);
 });
 
+/** ONE AGENT of the several installed could not be asked — a different claim
+ *  from the one above, and the whole reason it has a locator of its own: this
+ *  one leaves every other agent's conversations on the screen, and the picker
+ *  did not refuse. Named by the agent, so a list with two broken agents in it
+ *  is two assertions rather than one ambiguous locator. */
 Then(
-  "the picker refuses, saying {string}",
-  async function (this: OlaiWorld, reason: string) {
-    const refused = this.page.locator(CHAT_SESSIONS_REFUSED);
-    await refused.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  "the picker says {string} could not be asked, with {string}",
+  async function (this: OlaiWorld, agent: string, reason: string) {
+    const line = this.page.locator(
+      `${CHAT_SESSION_UNREACHABLE}${attr("data-agent", agent)}`,
+    );
+    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.ok(
-      oneLine(await refused.innerText()).includes(reason),
-      `the picker to give the reason "${reason}"`,
+      oneLine(await line.innerText()).includes(reason),
+      `the picker to give "${agent}"'s own reason, "${reason}"`,
     );
   },
 );
@@ -2034,6 +2124,38 @@ When(
     await this.page.locator(CHAT_SESSION, { hasText: title }).first().click();
   },
 );
+
+/** A conversation in the list, said to be one AGENT's — which is the whole of
+ *  the fan-out's claim: the list is not the agent this panel happens to be
+ *  talking to. By the roster's id rather than by the brand name beside it. */
+Then(
+  "the chats list shows {string} under the agent {string}",
+  async function (this: OlaiWorld, title: string, agent: string) {
+    await this.page
+      .locator(`${CHAT_SESSION}${attr("data-agent", agent)}`, { hasText: title })
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+/** The HEADING over that agent's rows. Its own step because grouping and
+ *  belonging are two claims: a flat list of correctly-tagged rows would pass
+ *  the one above and be the interleaved list this arrangement exists to
+ *  replace. */
+Then(
+  "the chats list is grouped under the agent {string}",
+  async function (this: OlaiWorld, agent: string) {
+    await this.page
+      .locator(`${CHAT_SESSION_AGENT}${attr("data-agent", agent)}`)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+/** ... and that it is NOT grouped, which is the one-agent case: a heading over
+ *  the whole list says what the panel's own header already says. */
+Then("the chats list has no headings", async function (this: OlaiWorld) {
+  assert.strictEqual(await this.page.locator(CHAT_SESSION_AGENT).count(), 0);
+});
 
 // ── what the OUTLINE did about it ──────────────────────────────────────
 
@@ -2674,6 +2796,19 @@ When("I choose the agent {string}", async function (this: OlaiWorld, id: string)
     HYDRATION_TIMEOUT,
   );
 });
+
+/** Choose, and come straight back — the panel is left mid-boot on purpose,
+ *  because the window this is for is the one BEFORE it settles. Its sibling
+ *  above waits, which is right for every scenario that is about what happens
+ *  after. */
+When(
+  "I choose the agent {string} without waiting for it",
+  async function (this: OlaiWorld, id: string) {
+    const row = this.page.locator(`${CHAT_CHOOSE_AGENT}${attr("data-agent", id)}`);
+    await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    await row.click();
+  },
+);
 
 Then(
   "the header names the agent {string}",

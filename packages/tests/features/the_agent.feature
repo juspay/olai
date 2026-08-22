@@ -604,7 +604,11 @@ Feature: Talking to the agent
     # a claim about the agent's disk standing in for never having read it.
     When I ask the agent "lose"
     And I open the session picker
-    Then the picker refuses, saying "the conversation store is unreadable"
+    # NAMED, and named as ONE AGENT's trouble rather than as the list failing:
+    # the list spans every installed agent now, so "we could not find out" is a
+    # fact about a row of the roster. Here there is only one row, so it is the
+    # whole of what there was to say.
+    Then the picker says "claude" could not be asked, with "the conversation store is unreadable"
     And the picker lists nothing
 
   @agent-stored @scratch:chat

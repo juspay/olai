@@ -55,11 +55,37 @@
  *   slow        announce a tool call and hold it, until a scenario says when —
  *               long enough to look at a turn WHILE it is running, which is
  *               when a mid-turn message is a question anybody has
+ *   silent      a lone `usage_update` and a SUCCESSFUL `end_turn` — no prose,
+ *               no tool, no error anywhere. Captured live from opencode 1.17.9
+ *               with a provider key it could not resolve: the auth failure
+ *               never reaches the wire as one, so this is the whole of what a
+ *               client gets, and a panel that drew it as a normal turn drew
+ *               nothing at all
+ *   error-silent the other half of the same split: a lone `usage_update` and
+ *               then a JSON-RPC ERROR for the prompt. The frame that arrived
+ *               said nothing a person can see, so the words did not land and
+ *               the row has to say so — which the old single count got wrong,
+ *               reading the usage frame as the agent having worked on it
+ *   hush        hold the turn saying NOTHING at all until a scenario says when.
+ *               `slow` announces a tool call first, so a cancel during it lands
+ *               on a turn that has already shown something; this is the turn a
+ *               cancel arrives at before the agent has said a word, which is
+ *               the ordinary case and the one arm a silence notice must not
+ *               fire on
  *   anything    one chunk of prose and an `end_turn`
  *
  * `OLAI_FAKE_OPENCODE_STORED` works the way the other agent's does: unset means
  * nothing is stored (so a client boots with `session/new`), set means
  * `session/list` answers and `session/load` replays.
+ *
+ * A `.agent-hold-open` dot-file in the directory makes the NEXT session open —
+ * whichever verb asked for it — sit on the wire until `the agent is released`,
+ * the same idiom the other scripted agent uses for a held load. It exists
+ * because the window this suite has to reach is the one a person meets on a
+ * real machine and cannot reach on a fast one: the seconds between picking an
+ * agent and its first conversation being open. Held here rather than at
+ * `initialize`, because that is where the boot's own permit is held and where a
+ * prompt typed into the gap has to queue.
  *
  * It lives in a directory of its own because that directory is what goes on a
  * spawned server's `OLAI_AGENT_PATH`: whether this machine "has opencode" is a
@@ -68,8 +94,10 @@
  * real opencode installed still gets the same suite CI does.
  */
 
+import { existsSync, rmSync } from "node:fs";
+
 import { readMessages } from "../../support/ndjson.ts";
-import { emitter, released, speaking } from "../../support/scripted.ts";
+import { emitter, MARKER, released, speaking } from "../../support/scripted.ts";
 
 /** The wire, and what an agent puts on it — the transport this file shares with
  *  the other scripted agent ({@link ../../support/scripted.ts}). What is NOT
@@ -92,7 +120,23 @@ const cwd = cwdArg();
  *  a real agent would. */
 class Cancelled extends Error {}
 
+/** A turn the agent REFUSED — a JSON-RPC error for `session/prompt` rather
+ *  than a stop reason, which is the shape a real `-32603` arrives in and the
+ *  one a stop reason cannot express. */
+class Refused extends Error {}
+
 const STORED = process.env.OLAI_FAKE_OPENCODE_STORED ?? "";
+
+/** Whether a scenario armed the boot to hang, read at the moment the open is
+ *  asked for — so it can be armed and then something pressed. TAKEN: the file
+ *  is removed as it is read, so one arming holds one open and the retry behind
+ *  it is not held too. */
+const holdingOpen = (): boolean => {
+  const marker = `${cwd}/${MARKER.holdOpen}`;
+  if (!existsSync(marker)) return false;
+  rmSync(marker, { force: true });
+  return true;
+};
 
 /** The one stored conversation, when a scenario asked for one. Opencode's own
  *  ids look like this; nothing reads their shape, but a scenario that
@@ -258,6 +302,39 @@ const turn = async (text: string): Promise<string> => {
     return "end_turn";
   }
 
+  if (said === "silent") {
+    // THE AUTH FAILURE, exactly as it arrives. One usage frame — which is a
+    // frame, and used to be enough to convince olai the agent had worked on
+    // the message — and then a turn that succeeded having produced nothing.
+    notify("session/update", {
+      sessionId,
+      update: { sessionUpdate: "usage_update", used: 0, size: 256000 },
+    });
+    return "end_turn";
+  }
+
+  if (said === "error-silent") {
+    // The SAME zero-token frame, and then a refusal. Nothing a person can see
+    // arrived, so the message did not land — and the panel has to offer it
+    // again rather than read the usage frame as work.
+    notify("session/update", {
+      sessionId,
+      update: { sessionUpdate: "usage_update", used: 0, size: 256000 },
+    });
+    throw new Refused("No api key passed in");
+  }
+
+  if (said === "hush") {
+    // NOTHING announced, and then a hold. The only thing a scenario can wait
+    // for here is the PANEL saying it is busy, which is the point: this is a
+    // turn a person cancels before the agent has said a word.
+    await released(cwd, () => {
+      if (cancelled) throw new Cancelled();
+    });
+    say("finished after all");
+    return "end_turn";
+  }
+
   if (said === "bash") {
     await runTool("bash", { command: "ls" }, async () => ({ ok: true }));
     say("ran it");
@@ -359,6 +436,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return;
 
     case "session/new": {
+      if (holdingOpen()) await released(cwd);
       openSession(`ses_new_${++openedSessions}`, params);
       respond(id, { sessionId, configOptions: configOptions() });
       return;
@@ -376,6 +454,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return;
 
     case "session/load": {
+      if (holdingOpen()) await released(cwd);
       openSession(String(params["sessionId"]), params);
       // A replay: collapsed final frames, and the person's own words as chunks.
       notify("session/update", {
@@ -432,6 +511,10 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         try {
           respond(id, { stopReason: await turn(text) });
         } catch (cause) {
+          if (cause instanceof Refused) {
+            refuse(id, -32603, cause.message);
+            return;
+          }
           respond(id, { stopReason: cause instanceof Cancelled ? "cancelled" : "refusal" });
         }
       });
