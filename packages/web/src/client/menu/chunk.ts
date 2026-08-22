@@ -11,7 +11,7 @@
  * The `import()` below is the WHOLE of the request, exactly as it is in
  * `../markdown/chunk.ts`: `buildSurfaceClient` splits on a dynamic import and
  * names chunks with the same `[hash]` the entry gets (kolu#2159), so the panel
- * lands in the same immutable `/assets/` dir and the entry references it by a
+ * lands in the same immutable `/_olai/assets/` dir and the entry references it by a
  * URL that resolves inside it. Nothing here has to know that URL. What a
  * chunk's ARRIVAL is — the one signal over not-here / here / not-coming, the
  * read that starts the fetch, the failure kept as a value rather than thrown —

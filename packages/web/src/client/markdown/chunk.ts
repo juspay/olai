@@ -9,7 +9,7 @@
  *
  * The `import()` below is the WHOLE of the request. `buildSurfaceClient` splits
  * on a dynamic import and names chunks with the same `[hash]` the entry gets
- * (kolu#2159), so the pipeline lands in the same immutable `/assets/` dir and
+ * (kolu#2159), so the pipeline lands in the same immutable `/_olai/assets/` dir and
  * the entry references it by a URL that resolves inside it. Nothing here has to
  * know that URL, and nothing has to write it anywhere: this file used to read a
  * `<meta>` off the shell because the helper hardcoded `splitting: false` and

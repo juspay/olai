@@ -1262,6 +1262,7 @@ After(async function (this: OlaiWorld, scenario) {
   // cookies and any in-flight WebSocket go with it, so the next scenario's
   // first frame is a genuine cold load.
   if (this.context) await this.context.close();
+  await this.closeHeaderProxy();
 
   if (this.portHold !== undefined) {
     await releasePort(this.portHold);
