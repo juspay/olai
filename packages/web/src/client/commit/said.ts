@@ -407,6 +407,12 @@ const RESUME_GESTURE = "Press Resume in preferences to start it again."
 const autoSays = (paused: string): string =>
   `auto-commit is paused — ${paused}. ${RESUME_GESTURE}`
 
+/** ... and the same clause for a sentence that has ALREADY quoted whatever git
+ *  said, which is the ordinary case: a refused push both stops the loop and
+ *  rides {@link alsoUnpushed}, so a paragraph of git's hints would otherwise be
+ *  printed twice inside one `aria-label`. */
+const AUTO_SAYS_AGAIN = `auto-commit is paused. ${RESUME_GESTURE}`
+
 /** ... and the PANEL's line, which does not repeat git — see {@link autoSays}. */
 export const AUTO_STOPPED =
   `auto-commit is paused, and what git said is below. ${RESUME_GESTURE}`
@@ -417,9 +423,19 @@ export const AUTO_STOPPED =
 export const AUTO_ARMED =
   "Auto-commit will record all of this as one commit once the edits stop."
 
-/** The pause, on whatever sentence the face produced — see {@link explain}. */
+/**
+ * The pause, on whatever sentence the face produced — see {@link explain}.
+ *
+ * GIT'S WORDS GO IN ONCE. The same refusal is very often already on the
+ * sentence: a push that would not go stops the loop AND rides the unpushed
+ * clause, so quoting it here as well put the whole of git's non-fast-forward
+ * hint — five lines of it — twice into one label, which is a label nobody reads
+ * either copy of.
+ */
 const alsoPaused = (said: string, paused: string | null): string =>
-  paused === null ? said : `${said} · ${autoSays(paused)}`
+  paused === null
+    ? said
+    : `${said} · ${said.includes(paused) ? AUTO_SAYS_AGAIN : autoSays(paused)}`
 
 /** How much is waiting, in words — the same tally the pill draws as a number,
  *  so the sentence and the label cannot disagree. */

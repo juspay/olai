@@ -483,3 +483,32 @@ test("an outline that changed no node is still something waiting", () => {
   // A clean tree is still clean, which is the other half of the fence.
   expect(waitingIn(NOTHING_PENDING)).toBe(0)
 })
+
+/**
+ * ... and git's words go into the sentence ONCE.
+ *
+ * A refused push is the ordinary way the loop stops, so the same refusal is
+ * already on the unpushed clause by the time the pause clause is added. Quoting
+ * it twice put five lines of git's non-fast-forward hint into one `aria-label`,
+ * which is a label nobody reads either copy of.
+ */
+test("a refusal that stopped the loop is quoted once, not twice", () => {
+  const words = "! [rejected] main -> main (fetch first)"
+  const shared: Pending = {
+    ...NOTHING_PENDING,
+    repo: READY,
+    unpushed: { upstream: "origin/main", commits: 2 },
+    last: { sha: "abc", message: "olai: earlier", writer: "auto", at: "" },
+  }
+  const sentence = explain(
+    "committed",
+    shared,
+    git({ pushSaid: words, paused: words }),
+  )
+  expect(sentence.split(words)).toHaveLength(2)
+  // ... and the loop is still reported, with the gesture that starts it again.
+  expect(sentence).toContain("auto-commit is paused")
+  expect(sentence).toContain("Resume")
+  // A stop with a reason nothing else quoted still carries it.
+  expect(explain("committed", surveyed(READY), stopped(words))).toContain(words)
+})
