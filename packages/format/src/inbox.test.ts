@@ -12,10 +12,11 @@
  * captures the longest was written.
  *
  * HOW FULL THE INBOX IS is the rest: top-level regular nodes of whichever
- * outline is the inbox, found by name over the SET's paths — the same list
- * capture walks — so an empty or torn shallowest file is the file the door
- * names, not a deeper one that still holds records. Nested children and
- * placements do not count.
+ * outline is the inbox that still await processing, found by name over the
+ * SET's paths — the same list capture walks — so an empty or torn shallowest
+ * file is the file the door names, not a deeper one that still holds records.
+ * Nested children and placements do not count, and a done row does not: the
+ * badge is what is left to process, not every capture the file has ever held.
  */
 
 import { expect, test } from "bun:test"
@@ -93,6 +94,29 @@ test("a torn shallowest inbox is the file the door names — its count is zero, 
     { "_olai/Inbox.olai": `{"id":"minted","ord":"a0","title":"olai made this"}` },
     { "Inbox.olai": `{"id":"i0","ord":"a0",title:"broken"}` },
   )).toEqual(NO_INBOX)
+})
+
+test("a done row does not count — the badge is what still awaits processing", () => {
+  // A bullet, a todo, a doing: still in the inbox. A done row has been
+  // processed, so it does not inflate the door. Nested under a still-open
+  // capture is still one, the way it always was.
+  expect(heldOf({
+    "Inbox.olai": [
+      `{"id":"a","ord":"a0","title":"buy the walnut stain"}`,
+      `{"id":"b","ord":"a1","title":"and a tin of oil","todo":true}`,
+      `{"id":"c","ord":"a2","title":"wipe the bench","doing":true}`,
+      `{"id":"d","ord":"a3","title":"the leftover stain","done":"2026-08-22T12:00:00-04:00"}`,
+    ].join("\n"),
+  })).toEqual({ count: 3 })
+
+  // All processed: the door wears nothing, the way an empty inbox does.
+  expect(heldOf({
+    "Inbox.olai": [
+      `{"id":"a","ord":"a0","title":"buy the walnut stain","done":true}`,
+      `{"id":"b","ord":"a1","title":"and a tin of oil","done":"2026-08-22T12:01:00-04:00"}`,
+      `{"id":"c","ord":"a2","title":"wipe the bench","done":true}`,
+    ].join("\n"),
+  })).toEqual(NO_INBOX)
 })
 
 test("two answers that say the same number are the same reading", () => {

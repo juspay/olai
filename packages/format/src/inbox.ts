@@ -13,13 +13,17 @@
  *
  * ## How full the inbox is ({@link inboxHeldOf}) — the number the door wears.
  *
- * The count is the top-level regular nodes of whichever outline `inboxIn`
- * names, which is the same number `list_outlines` reports as that file's
- * `roots`. Nested children do not inflate it (a capture with a note under it
- * is still one thing in the inbox), and a mirror does not (a placement is not
- * a capture). Empty, missing, unreadable, or only placements: zero. A file
- * that holds only mirrors is none of empty, missing or unreadable — it still
- * wears zero, because the badge counts captures, not rows the page draws.
+ * The count is what still awaits processing: the top-level regular nodes of
+ * whichever outline `inboxIn` names that are not marked done. A bullet, a
+ * todo or a doing counts; a done row does not. Nested children do not inflate
+ * it (a capture with a note under it is still one thing in the inbox), and a
+ * mirror does not (a placement is not a capture). Empty, missing, unreadable,
+ * only placements, or every capture already done: zero. A file that holds
+ * only mirrors is none of empty, missing or unreadable — it still wears
+ * zero, because the badge counts captures, not rows the page draws. A file
+ * whose captures are all done is the same zero: processed work is not news
+ * on the door, even though the page behind it still draws the row when Done
+ * is shown.
  *
  * A READING of the set, the way `./shelf.ts` is: the browser may not hold the
  * vault, so the server answers this per published revision and the sidebar
@@ -32,13 +36,13 @@
 import { Schema } from "effect"
 
 import { type Derived, rootsOf } from "./derive.ts"
-import { INBOX, inboxIn, mintedInto } from "./node.ts"
+import { INBOX, inboxIn, mintedInto, storedMarker } from "./node.ts"
 import { type OutlineSet, outlinePaths } from "./set.ts"
 import type { Reading } from "./validate.ts"
 import type { Capture, WriteRequest } from "./writing.ts"
 
 /**
- * How many captures the inbox holds, as the wire carries it.
+ * How many captures still await processing, as the wire carries it.
  *
  * ONE INTEGER, and nothing else: which file that is is a fact about the
  * PATHS (`inboxIn` over the directory's names), and the door already reads
@@ -46,15 +50,18 @@ import type { Capture, WriteRequest } from "./writing.ts"
  * is the inbox".
  */
 export const InboxHeld = Schema.Struct({
-  /** Top-level regular nodes of the directory's inbox. Zero when there is
-   *  none, when the file holds nothing, when it would not parse, and when
-   *  it holds only placements. */
+  /** Top-level regular nodes of the directory's inbox that still await
+   *  processing. A bullet, a todo or a doing counts; a done row does not.
+   *  Zero when there is none, when the file holds nothing, when it would
+   *  not parse, when it holds only placements, and when every capture is
+   *  already done. */
   count: Schema.Int,
 })
 export type InboxHeld = typeof InboxHeld.Type
 
-/** No inbox, an empty one, a torn one, a placements-only one, and a server
- *  that has never loaded — one value, because all five wear no chip. */
+/** No inbox, an empty one, a torn one, a placements-only one, an all-done
+ *  one, and a server that has never loaded — one value, because all six
+ *  wear no chip. */
 export const NO_INBOX: InboxHeld = { count: 0 }
 
 /**
@@ -76,11 +83,17 @@ export const sameInboxHeld: (a: InboxHeld, b: InboxHeld) => boolean =
  * shallowest empty `Inbox.olai` beside a populated `_olai/Inbox.olai` would
  * send the door and every future capture to the empty file and the count to
  * the deeper one. The set's paths are the list capture already walks.
+ *
+ * THE NUMBER is what still awaits processing on that file: `rootsOf`, minus
+ * any root whose stored mark is `done`. A bullet, a todo or a doing counts;
+ * a nested child does not, a placement does not, and a done row does not.
  */
 export const inboxHeldOf = (set: OutlineSet, derived: Derived): InboxHeld => {
   const file = inboxIn(outlinePaths(set))
   if (file === undefined) return NO_INBOX
-  const count = rootsOf(derived, file).length
+  const count = rootsOf(derived, file).filter(
+    (root) => storedMarker(root.node) !== "done",
+  ).length
   return { count }
 }
 
