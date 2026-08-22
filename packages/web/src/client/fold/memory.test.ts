@@ -23,6 +23,8 @@
 
 import { expect, test } from "bun:test"
 
+import { remembering } from "../preference.testlib.ts"
+
 import {
   combined,
   type Folds,
@@ -226,14 +228,7 @@ test("a write starts from the ENTRY: a sibling tab's fold this tab never saw sur
   // alone, classic last-write-wins, the exact flattening #138 exists to
   // forbid — would leave all of them green while a sibling tab's fold is
   // thrown away.
-  const store = new Map<string, string>()
-  const g = globalThis as Record<string, unknown>
-  g.localStorage = {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => void store.set(key, value),
-    removeItem: (key: string) => void store.delete(key),
-  }
-  try {
+  remembering((store) => {
     // This tab folds herbs; the signal now holds it.
     setFolded([{ id: "herbs", file: "garden.olai" }], true)
     // A sibling tab rewrites the entry with a fold of its own. No `storage`
@@ -254,9 +249,7 @@ test("a write starts from the ENTRY: a sibling tab's fold this tab never saw sur
       ],
       false,
     )
-  } finally {
-    delete g.localStorage
-  }
+  })
 })
 
 test("an id the question did not name is left exactly where it is", () => {

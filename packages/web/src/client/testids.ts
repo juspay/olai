@@ -487,8 +487,19 @@ export const TESTID = {
    *  in is worse than no hint at all. */
   prefsHint: "prefs-hint",
   /** One segment of a two-or-three-way choice. `data-value` is what it picks,
-   *  `aria-pressed` whether it is the one in force. */
+   *  `aria-pressed` whether it is the one in force, `aria-disabled` whether the
+   *  row it is in was pinned by the server. */
   prefsChoice: "prefs-choice",
+  /** WHO set a row, on the rows the server pinned — the flag named, and that a
+   *  browser cannot change it. Absent on every row this browser owns, which is
+   *  every row on an unpinned server. */
+  prefsSetBy: "prefs-set-by",
+  /** Start Auto-commit again after git refused something, on a Git commit row
+   *  the server has frozen. The off-and-on-again gesture is the same thing on a
+   *  row that is still this browser's; a pinned row has no toggle to flip, and
+   *  a loop that stopped for good in silence is the one failure Auto-commit may
+   *  not have. */
+  prefsResume: "prefs-resume",
   /** What every row on the panel has in common, said once: these belong to this
    *  browser and reach no server. */
   prefsScope: "prefs-scope",

@@ -104,7 +104,7 @@ const withOps = <A>(
       // `auto` is the old behaviour, one commit per op, and it is what these
       // tests are written against: the MANUAL path — a commit somebody asks
       // for — is `pending.test.ts`'s subject.
-      commits: options.git === true ? "auto" : "off",
+      pin: { commit: options.git === true ? "auto" : "off", push: null },
       // The planner's own fixture context by default — ids from `n1`, one fixed
       // instant — so an assertion can name what a mark stamps. `realClock`
       // hands the layer back its OWN: the one test that is about what that
@@ -627,20 +627,20 @@ describe("the auto-commit", () => {
         const applied = yield* run(fixture, { op: "done", id: "order" })
         expect(applied.committed).toBe(true)
         expect(applied.why).toBeUndefined()
-        expect(yield* fixture.ops.git).toEqual({ status: "repo", said: null })
+        expect(yield* fixture.ops.git).toEqual({ status: "repo", said: null, pinned: { commit: "auto", push: null } })
       }), { git: true }))
 
   test("a directory that is not a work tree is written anyway, and says why", () =>
     withOps({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         // `commits: "auto"`, but there is no repository here.
-        const ops = Ops.make({ store: fixture.store, root: fixture.root, commits: "auto" })
+        const ops = Ops.make({ store: fixture.store, root: fixture.root, pin: { commit: "auto", push: null } })
         const applied = yield* Effect.orDie(ops.run({ op: "done", id: "order" }, "mcp"))
         expect(applied.committed).toBe(false)
         // The half that was missing: `false` on its own is four different
         // pieces of news, and this is the one that says which.
         expect(applied.why).toContain("not a git work tree")
-        expect(yield* ops.git).toEqual({ status: "none", said: null })
+        expect(yield* ops.git).toEqual({ status: "none", said: null, pinned: { commit: "auto", push: null } })
         expect(fixture.read("house.olai")).toContain(`"done"`)
       })))
 
@@ -698,7 +698,7 @@ describe("the auto-commit", () => {
         // Cleared by the thing that worked, which is the other half of
         // remembering it: a refusal that outlived its cause would be a header
         // shouting about a repository that is fine now.
-        expect(yield* fixture.ops.git).toEqual({ status: "repo", said: null })
+        expect(yield* fixture.ops.git).toEqual({ status: "repo", said: null, pinned: { commit: "auto", push: null } })
       }), { git: true, identity: false }))
 
   /**
@@ -717,7 +717,7 @@ describe("the auto-commit", () => {
         const ops = Ops.make({
           store: fixture.store,
           root: fixture.root,
-          commits: "manual",
+          pin: { commit: "manual", push: null },
           context: steady(),
         })
         const applied = yield* Effect.orDie(ops.run({ op: "done", id: "order" }, "mcp"))
@@ -728,7 +728,7 @@ describe("the auto-commit", () => {
         // readout stays healthy.
         expect(applied.why).not.toContain("could not")
         expect(applied.why).not.toContain("refused")
-        expect(yield* ops.git).toEqual({ status: "repo", said: null })
+        expect(yield* ops.git).toEqual({ status: "repo", said: null, pinned: { commit: "manual", push: null } })
         // The write is on disk, and nothing is in the log yet.
         expect(fixture.read("house.olai")).toContain(`"done"`)
         expect(gitLog(fixture.root)).toEqual(["fixtures"])
@@ -737,7 +737,7 @@ describe("the auto-commit", () => {
   test("the opt-out writes without committing, and says that is why", () =>
     withOps({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
-        const ops = Ops.make({ store: fixture.store, root: fixture.root, commits: "off" })
+        const ops = Ops.make({ store: fixture.store, root: fixture.root, pin: { commit: "off", push: null } })
         const applied = yield* Effect.orDie(ops.run({ op: "done", id: "order" }, "mcp"))
         expect(applied.committed).toBe(false)
         expect(applied.why).toContain("--commit=off")
@@ -745,7 +745,7 @@ describe("the auto-commit", () => {
         // `off` without asking git anything: the opt-out is a state, not a
         // probe that came back empty — which is what keeps olai out of the
         // history of a directory whose history is somebody else's job.
-        expect(yield* ops.git).toEqual({ status: "off", said: null })
+        expect(yield* ops.git).toEqual({ status: "off", said: null, pinned: { commit: "off", push: null } })
       }), { git: true }))
 })
 

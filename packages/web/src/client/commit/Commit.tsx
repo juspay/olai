@@ -76,6 +76,7 @@ import {
   MARK,
   newsSays,
 } from "./said.ts"
+import { commitFrozen } from "../settings/pinned.ts"
 import { Panel } from "./Panel.tsx"
 import { desktop } from "../layout/media.ts"
 import { LAYER } from "../layer.ts"
@@ -114,7 +115,8 @@ export function Commit() {
   const inert = () => isInert(face())
   /** One reading of the sentence for the two places it has to be: the tip a
    *  pointer opens, and the label everything else gets. */
-  const said = () => explain(face(), commit.pending(), commit.git(), paused())
+  const said = () =>
+    explain(face(), commit.pending(), commit.git(), paused(), commitFrozen())
 
   /**
    * How long ago the last commit was, for the one face that has one — and `""`

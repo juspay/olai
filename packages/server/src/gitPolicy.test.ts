@@ -1,11 +1,19 @@
 /**
- * `--commit`, on both faces, as a truth table and a fence.
+ * `--commit` and `--push`, on both faces, as a truth table and a fence.
  *
  * Two different claims are held here and they are worth telling apart.
  *
- * The TRUTH TABLE is about one function: what `--commit=X` and `--no-commit`
- * come to between them, including the case where a person typed both. That is
- * pure, so it is asserted as values rather than by starting a process.
+ * The TRUTH TABLE is about one function: what `--commit=X`, `--no-commit` and
+ * `--push=X` come to between them, including the case where a person typed both
+ * of the first two. That is pure, so it is asserted as values rather than by
+ * starting a process.
+ *
+ * What it answers with is a PIN rather than a mode, and that distinction is the
+ * whole of `vault-level-settings`: a flag NOBODY GAVE is `null`, which leaves
+ * every browser's own preference alone, while `--commit=manual` typed out loud
+ * freezes that row read-only in every browser. The two do the same thing on
+ * this server and opposite things in front of a reader, so a table that folded
+ * them together would be a table that cannot see the feature.
  *
  * The FENCE is about the two faces, and it is the one this file exists for.
  * the agent face shipped without the flag at all — the tri-state was `olai web`'s
@@ -23,21 +31,55 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import { COMMIT_BUTTON, COMMIT_MODES, commitDoors, COMMIT_TOOL } from "@olai/ops"
+import { COMMIT_DEFAULT, COMMIT_MODES, commitModeOf, NO_PIN, PUSH_MODES } from "@olai/format"
+import { COMMIT_BUTTON, commitDoors, COMMIT_TOOL } from "@olai/ops"
 import { BOOT_TIMEOUT, startWeb } from "./child.testlib.ts"
-import { commitMode, commitsSaid } from "./commits.ts"
+import { commitsSaid, gitPin, pushSaid } from "./gitPolicy.ts"
 import { served } from "./serve.testlib.ts"
 
-// ── what the two flags come to between them ────────────────────────────
+// ── what the flags come to between them ────────────────────────────────
 
-test("the default is manual: a write lands and waits to be asked about", () => {
-  expect(commitMode("manual", false)).toBe("manual")
+/**
+ * THE DEFAULT IS AN ABSENCE, and that is the claim this whole feature rests on.
+ *
+ * A server nobody gave a git flag to pins nothing, so both preference rows stay
+ * live in every browser exactly as they shipped. It still commits manually —
+ * that is `commitModeOf` filling the default back in — and the two facts are
+ * deliberately separate values here rather than one.
+ */
+test("no flag at all pins nothing, and the server still commits manually", () => {
+  expect(gitPin(null, false, null)).toEqual(NO_PIN)
+  expect(commitModeOf(gitPin(null, false, null))).toBe(COMMIT_DEFAULT)
+})
+
+/**
+ * ... and the same mode TYPED OUT LOUD is a pin.
+ *
+ * `--commit=manual` and saying nothing make this process behave identically and
+ * every browser behave oppositely: one freezes the Git commit row read-only for
+ * everyone, the other leaves it alone. Folding the two into one `CommitMode`
+ * is exactly the bug this test exists to keep out.
+ */
+test("a mode given out loud is a pin, even when it is the default one", () => {
+  expect(gitPin("manual", false, null).commit).toBe("manual")
+  expect(commitModeOf(gitPin("manual", false, null))).toBe("manual")
 })
 
 test("each mode passes through when it is the only thing said", () => {
   for (const mode of COMMIT_MODES) {
-    expect(commitMode(mode, false)).toBe(mode)
+    expect(gitPin(mode, false, null).commit).toBe(mode)
+    expect(commitModeOf(gitPin(mode, false, null))).toBe(mode)
   }
+  for (const mode of PUSH_MODES) {
+    expect(gitPin(null, false, mode).push).toBe(mode)
+  }
+})
+
+/** The two halves are independent: pinning one leaves the other unpinned, so an
+ *  operator who ruled on committing has not accidentally ruled on pushing. */
+test("pinning one flag does not pin the other", () => {
+  expect(gitPin("auto", false, null)).toEqual({ commit: "auto", push: null })
+  expect(gitPin(null, false, "off")).toEqual({ commit: null, push: "off" })
 })
 
 /**
@@ -46,16 +88,42 @@ test("each mode passes through when it is the only thing said", () => {
  * A person who typed both said "off" once and something else once, and the
  * opt-out is the reading that cannot surprise them: honouring `--commit=auto`
  * would write to a history they had asked olai to stay out of, which is the one
- * mistake here that trying again does not undo.
+ * mistake here that trying again does not undo. It PINS, exactly as
+ * `--commit=off` does — the two are one flag with two spellings, and a browser
+ * whose preferences depended on which one the operator likes to type would be
+ * a browser nobody can reason about.
  */
 test("--no-commit wins over every mode, because it is the one that turns something off", () => {
   for (const mode of COMMIT_MODES) {
-    expect(commitMode(mode, true)).toBe("off")
+    expect(gitPin(mode, true, null).commit).toBe("off")
   }
+  expect(gitPin(null, true, null).commit).toBe("off")
 })
 
 test("the modes are exactly three, and `off` is what --no-commit means", () => {
   expect([...COMMIT_MODES]).toEqual(["off", "manual", "auto"])
+})
+
+/** `--push` has two and deliberately not three: a `manual` beside this `off`
+ *  would be two names for one behaviour. */
+test("the push modes are exactly two", () => {
+  expect([...PUSH_MODES]).toEqual(["off", "auto"])
+})
+
+/** Both flags say out loud that GIVING them is a decision about every browser,
+ *  because that is the thing an operator most needs to know before typing one
+ *  and the only place they will be told is `--help`. */
+test("both flags say that giving them pins the row in every browser", () => {
+  for (const said of [commitsSaid("web"), commitsSaid("mcp"), pushSaid()]) {
+    expect(said).toContain("PINS")
+    expect(said).toContain("read-only")
+  }
+})
+
+test("--push names both of its modes and its default", () => {
+  const said = pushSaid()
+  for (const mode of PUSH_MODES) expect(said).toContain(mode)
+  expect(said).toContain("the default")
 })
 
 // ── the two faces do not diverge ───────────────────────────────────────
@@ -111,7 +179,7 @@ test("apart from the doors, both faces say the same thing", () => {
  * it has a fallback. `--no-commit` is the opt-out: a person (and the e2e git
  * scenarios) who want the default pass nothing. Spawning, not parsing in
  * process, because that is the seam the CLI library owns and the unit tests
- * of `commitMode` never touch.
+ * of `gitPin` never touch.
  */
 test("olai web without --no-commit still boots", async () => {
   const runtime = fs.mkdtempSync(path.join(os.tmpdir(), "olai-commit-run-"))
