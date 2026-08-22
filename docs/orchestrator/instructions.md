@@ -36,13 +36,12 @@ When instructing the agent in terminal:
   - by https://github.com/juspay/kolu/blob/master/.agents/skills/architecture-first-principles/SKILL.md
   - by hickey (https://github.com/srid/agency/blob/master/.apm/skills/hickey/SKILL.md) and lowy (https://github.com/srid/agency/blob/master/.apm/skills/lowy/SKILL.md) *together*, using human intuition so as to keep architecture simple.
   - Run /simplify (only if running in Claude).
-- Do the 'Review' phase (without, *yet*, running full CI)
-- Run full CI; Take PR to green CI[^green-ci] (before CI, merge latest master to the PR, just in case)
+- Do the 'Review' phase. Do NOT run full CI — the author's bar at report time is the local suites (typecheck, unit, the touched features). Full CI[^green-ci] runs ONCE per PR, after the cross-review round (below).
   
 ## Reviewing the PR
   
-Once the agent has finished the implementation, spawn a new reviewer agent (Grok, if main agent is Claude Opus; and vice-versa) in a split terminal of same worktree asking it to review the PR per guidelines in HACKING.md in the repo. The reviewer agents must post their review as PR comment. Then have the original agent address those reviews (giving it the PR comment link), to full green CI.
-  
+Once the agent has finished the implementation, spawn a new reviewer agent (Grok, if main agent is Claude Opus; and vice-versa) in a split terminal of same worktree asking it to review the PR per guidelines in HACKING.md in the repo. The reviewer agents must post their review as PR comment. Then have the original agent address those reviews (giving it the PR comment link), and only then run full CI, taking the PR to green[^green-ci] — one run per PR in the happy path. Merge latest master first only if the PR has conflicts. A re-verdict round that changes code re-runs CI at the new head; that run is the price of the finding.
+
 Finally, the agent create a screenshot (or video) as evidence that you, the orchestrator, will verify before fielding the PR to the human for approval. 
   
 ## Evidence
