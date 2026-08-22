@@ -54,7 +54,7 @@
 
 import { isMirror, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
-import { createMemo, Match, Show, Switch } from "solid-js"
+import { createMemo, Show } from "solid-js"
 
 import { SaidLine } from "../SaidLine.tsx"
 import { useUndo } from "../edit/undoing.ts"
@@ -63,7 +63,7 @@ import { useNarrowed } from "../filter/narrowed.tsx"
 import { PAGE_TITLE } from "../look.ts"
 import { CONTEXT_DIM, lighting, matchedAttr, unfiltered } from "../filter/why.ts"
 import { EmptyTrash } from "./EmptyTrash.tsx"
-import { NodeTitle } from "../NodeTitle.tsx"
+import { RowTitle } from "../RowTitle.tsx"
 import type { TrashGroup } from "@olai/format"
 import { createSaying } from "../saying.ts"
 import { TESTID } from "../testids.ts"
@@ -214,7 +214,7 @@ function Branch(props: {
           data-testid={TESTID.nodeTitle}
           classList={{ "line-through opacity-60": props.row.status === "done" }}
         >
-          <Title row={props.row} needles={lighting(narrowed, shownId())} />
+          <RowTitle row={props.row} needles={lighting(narrowed, shownId())} />
         </span>
         <Show when={props.row.kind === "node" ? props.row : undefined}>
           {(row) => (
@@ -250,47 +250,3 @@ function Branch(props: {
   )
 }
 
-/** What a trash row is called. A node or a mirror says the title of the node
- *  it shows, rendered the one way titles are; the two degenerate kinds a
- *  condemned set could hold say the outline tree's own sentences (`Tree.tsx`,
- *  quoted — a reader who meets the same broken record on two pages should
- *  read the same words about it). */
-function Title(props: {
-  readonly row: Row
-  /** The words the query found this row by, lit in its title — the same fact
-   *  every other surface's rows draw (`../filter/lit.ts`). */
-  readonly needles?: ReadonlyArray<string>
-}) {
-  return (
-    <Switch>
-      <Match
-        when={props.row.kind === "node" || props.row.kind === "mirror"
-          ? props.row
-          : undefined}
-      >
-        {(row) => (
-          <NodeTitle
-            title={row().shows.node.title}
-            from={row().shows.file}
-            needles={props.needles}
-          />
-        )}
-      </Match>
-      <Match when={props.row.kind === "dangling" ? props.row : undefined}>
-        {(row) => (
-          <span class="text-muted">
-            a mirror of `{row().missing}`, which no node declares
-          </span>
-        )}
-      </Match>
-      <Match when={props.row.kind === "cycle" ? props.row : undefined}>
-        {(row) => (
-          <span class="text-muted">
-            this mirror is inside the subtree it shows (`{row().through}`) — not
-            expanded
-          </span>
-        )}
-      </Match>
-    </Switch>
-  )
-}

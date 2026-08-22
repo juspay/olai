@@ -43,7 +43,7 @@ import { chatOpen, sidebarOpen, toggleSidebar } from "./layout/prefs.ts"
 import { Rail } from "./layout/Rail.tsx"
 import { only } from "./narrow.ts"
 import { OpensProvider } from "./opens.tsx"
-import { fileOf, opensAt, requestFor } from "./page.ts"
+import { dayOf, fileOf, opensAt } from "./page.ts"
 import { fileNamed } from "./routes.ts"
 import { createReadings, ReadingsProvider } from "./reading.tsx"
 import { Palette } from "./palette/Palette.tsx"
@@ -255,16 +255,18 @@ export default function App() {
    * The day the calendar opens on, when the focused pane is a day page — the
    * cell that is filled, and the month the grid anchors to.
    *
-   * THE ADDRESS ANSWERS THIS ONE WHOLE, and it is asked with the SAME function
-   * the pane asks its own question with (`./page.ts`'s `requestFor`): a day page
-   * is `/d/<date>`, which spells its day, or `/today`, which spells the day it
-   * IS — and who says which day that is is the reader's own clock, which is why
-   * that function takes it as an argument.
+   * THE ADDRESS ANSWERS THIS ONE WHOLE, and it is asked where the route→page
+   * translation lives (`./page.ts`'s `dayOf`): a day page is `/d/<date>`, which
+   * spells its day, or `/today`, which spells the day it IS — and who says which
+   * day that is is the reader's own clock, which is why that function takes it
+   * as an argument.
    *
-   * READ THROUGH THE REQUEST rather than re-mapped here, so the month the grid
-   * opens on and the page the pane asked for cannot come to two answers about
-   * one address — and so the arms that say which routes name a day are
-   * exhaustive over the route in exactly one place.
+   * ASKED AS THE QUESTION IT IS rather than through the pane's whole request,
+   * which is what it used to do (`requestFor`, then `only(…, "day")`). Same two
+   * arms, same one place they are written down — but that request grew a field
+   * only a PANE can fill (the everywhere page's settled words), and a door
+   * nobody but a pane should open is not the door for a calendar.
+OLD
    *
    * Read off the PAGE, as it was, this went `day → undefined → day` on every
    * click of a second day: the month is stamped on the day being read
@@ -272,7 +274,7 @@ export default function App() {
    * on the way past, rebuilding all thirty-odd cells twice and tearing the
    * month's own subscription down with them.
    */
-  const openDay = createMemo(() => only(requestFor(router.route(), today()), "day")?.date)
+  const openDay = createMemo(() => dayOf(router.route(), today()))
 
   const split = () => !isLone(router.workspace())
 

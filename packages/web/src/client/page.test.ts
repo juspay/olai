@@ -14,7 +14,7 @@ import { addressOf } from "@olai/format"
 import type { Agenda, Row, Shown } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { drawnBy, fileOf, opensAt, requestFor } from "./page.ts"
+import { dayOf, drawnBy, fileOf, opensAt, requestFor } from "./page.ts"
 import { atElement, atFile, atNode, HOME_ROUTE } from "./routes.ts"
 
 const TODAY = "2026-08-10"
@@ -22,31 +22,31 @@ const TODAY = "2026-08-10"
 // ── what the server is asked ───────────────────────────────────────────
 
 test("an address goes over as the address the parser read", () => {
-  expect(requestFor(atFile("house.olai"), TODAY))
+  expect(requestFor(atFile("house.olai"), TODAY, ""))
     .toEqual({ kind: "at", address: addressOf("house.olai", null) })
-  expect(requestFor(HOME_ROUTE, TODAY)).toEqual({ kind: "at", address: null })
+  expect(requestFor(HOME_ROUTE, TODAY, "")).toEqual({ kind: "at", address: null })
 })
 
 // `/today` names no date, and the clock that says which day it is belongs to
 // the reader — so the two routes reach the server as ONE question.
 test("`/today` is the day it is, and `/d/<date>` is the same question", () => {
-  expect(requestFor({ kind: "today" }, TODAY))
-    .toEqual(requestFor({ kind: "day", date: TODAY }, TODAY))
+  expect(requestFor({ kind: "today" }, TODAY, ""))
+    .toEqual(requestFor({ kind: "day", date: TODAY }, TODAY, ""))
 })
 
 // The agenda counts against the reader's own today, for `OwedRequest`'s reason:
 // what is late is late where the person is standing.
 test("the agenda carries the day it is counted against", () => {
-  expect(requestFor({ kind: "agenda" }, TODAY)).toEqual({ kind: "agenda", today: TODAY })
+  expect(requestFor({ kind: "agenda" }, TODAY, "")).toEqual({ kind: "agenda", today: TODAY })
 })
 
 // A `?q=` is a second question with a door of its own (`filter/asking.ts`), so
 // it must not reach this one — a page reading that carried the query would be
 // the whole page re-asked on every keystroke.
 test("the narrowing is dropped: it is not part of which page this is", () => {
-  expect(requestFor({ ...atFile("house.olai"), filter: "is:todo" }, TODAY))
-    .toEqual(requestFor(atFile("house.olai"), TODAY))
-  expect(requestFor({ kind: "trash", filter: "is:todo" }, TODAY)).toEqual({ kind: "trash" })
+  expect(requestFor({ ...atFile("house.olai"), filter: "is:todo" }, TODAY, ""))
+    .toEqual(requestFor(atFile("house.olai"), TODAY, ""))
+  expect(requestFor({ kind: "trash", filter: "is:todo" }, TODAY, "")).toEqual({ kind: "trash" })
 })
 
 // ── which sidebar entry lights up ──────────────────────────────────────
@@ -163,4 +163,37 @@ test("a fragment is read by the grammar that would have written it", () => {
   // which is the grammar's own answer (`@olai/format`'s `address.ts`), asked
   // here rather than re-decided.
   expect(opensAt(SERVED, "house.olai", "install")).toEqual(atNode("install"))
+})
+
+// ── which day a route is about ────────────────────────────────────────
+//
+// The calendar's question, and the reason it is not the pane's: the sidebar
+// fills a cell and anchors a month on whatever day the focused page is, which
+// is two arms of the route and nothing else about it. It used to be asked
+// through `requestFor` and read off the `day` arm — the same reading through a
+// door that now takes a field only a pane can fill.
+
+test("a day page names its day, and today names the day it is", () => {
+  expect(dayOf({ kind: "day", date: "2026-08-11" }, TODAY)).toBe("2026-08-11")
+  expect(dayOf({ kind: "today" }, TODAY)).toBe(TODAY)
+})
+
+test("every other route names no day at all", () => {
+  expect(dayOf(atFile("house.olai"), TODAY)).toBeUndefined()
+  expect(dayOf(HOME_ROUTE, TODAY)).toBeUndefined()
+  expect(dayOf({ kind: "agenda" }, TODAY)).toBeUndefined()
+  expect(dayOf({ kind: "trash" }, TODAY)).toBeUndefined()
+  expect(dayOf({ kind: "search", filter: "#next" }, TODAY)).toBeUndefined()
+})
+
+// The one page whose request carries WORDS, and the reason it does: the rows
+// are the answer to them (`@olai/format`'s `everywhere.ts`). Who settles them
+// is the pane; what this says is only that they arrive on the request.
+test("the everywhere page asks with the words it was given", () => {
+  expect(requestFor({ kind: "search", filter: "#next" }, TODAY, "#next"))
+    .toEqual({ kind: "search", text: "#next" })
+  // …and with nothing at all before a pair of hands has stopped moving, which
+  // is a page that says "type in the box" rather than one that guesses.
+  expect(requestFor({ kind: "search", filter: "#next" }, TODAY, ""))
+    .toEqual({ kind: "search", text: "" })
 })

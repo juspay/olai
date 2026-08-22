@@ -12,6 +12,7 @@
 
 import { createMemo, Match, Show, Switch } from "solid-js"
 
+import type { MatchedNode } from "@olai/format"
 import { parseFilter, samePageRequest } from "@olai/format"
 
 import { AgendaPage } from "../agenda/AgendaPage.tsx"
@@ -25,6 +26,7 @@ import { createFound } from "../filter/found.ts"
 import { NarrowedProvider } from "../filter/narrowed.tsx"
 import { createNarrowing } from "../filter/narrowing.ts"
 import { tagPressed } from "../filter/tag.ts"
+import type { Matches } from "../filter/matches.ts"
 import { createTyped } from "../filter/typed.ts"
 import { desktop } from "../layout/media.ts"
 import { chatOpen } from "../layout/prefs.ts"
@@ -146,7 +148,14 @@ export function PageView() {
   const asked = createAsked({
     query,
     text: () => filterOf(route()),
-    page: request,
+    // NOT ON THE EVERYWHERE PAGE, and that is the one line that keeps this app
+    // from matching the whole corpus twice per revision: `/search`'s own
+    // reading IS the query, so a narrowing of it would be `everywhereOf` run a
+    // second time to re-derive a `match` that pass already had in hand. It
+    // carries the answer instead (`@olai/format`'s `everywhere.ts`), and
+    // {@link narrowing} reads it from there. `null` holds the subscription
+    // closed, which is the framework's own way of saying "do not ask".
+    page: () => (route().kind === "search" ? null : request()),
     // WHICH PAGE these words narrow, as an identity that moves exactly when the
     // reader went somewhere else — the same memo this pane's subscription is
     // opened on, so "a navigation" means here what it means there. It is what
@@ -212,13 +221,33 @@ export function PageView() {
     return drawn !== null && answered !== null && samePageRequest(drawn, answered)
   })
 
+  /**
+   * WHAT LIGHTS THE EVERYWHERE PAGE'S ROWS — its own reading's matches, as the
+   * map every row looks itself up in.
+   *
+   * The same value a narrowing hands out, from the page that already computed
+   * it. `undefined` on every other page, where the narrowing beside the pane is
+   * the answer.
+   */
+  const everywhere = createMemo(() => only(shownDrawn(), "search"))
+  const lit = createMemo<Matches | undefined>(() => {
+    const found = everywhere()
+    if (found === undefined) return undefined
+    const matches = new Map<string, MatchedNode>()
+    for (const one of found.matched) matches.set(one.id, one)
+    return matches
+  })
+
   const narrowing = createNarrowing({
     query,
     text: () => filterOf(route()),
     all: allDrawn,
     visible: shownDrawn,
-    matched: () => (together() ? asked.matched() : undefined),
-    answering: () => (together() ? asked.answering() : null),
+    matched: () => lit() ?? (together() ? asked.matched() : undefined),
+    // …and WHICH query those rows answer, off the value that holds them —
+    // `/search`'s reading carries its own `text` for the reason a narrowing
+    // answer does (`@olai/format`'s `everywhere.ts`).
+    answering: () => everywhere()?.text ?? (together() ? asked.answering() : null),
   })
 
   /**
@@ -348,13 +377,18 @@ export function PageView() {
                   </Show>
                 )}
               </Match>
+              {/* THE READING ITSELF, not the narrowed form of it: `/search`'s
+                  rows ARE the query's answer, so the done preference passes it
+                  through untouched (`../settings/done.ts` reaches a tree and
+                  nothing else) and the prune is the identity
+                  (`../filter/drawn.ts`). A `narrowing.drawn()` here would be
+                  the same object under two more narrowings and a fallback
+                  neither could ever reach. What the narrowing beside it IS for
+                  on this page is which rows are LIT, which the rows ask for
+                  themselves (`../filter/why.ts`). */}
               <Match when={only(open(), "search")}>
                 {(open) => (
-                  <SearchPage
-                    groups={only(narrowing.drawn(), "search")?.groups ?? open().groups}
-                    documents={only(narrowing.drawn(), "search")?.documents ??
-                      open().documents}
-                  />
+                  <SearchPage groups={open().groups} documents={open().documents} />
                 )}
               </Match>
               <Match when={only(open(), "trash")}>

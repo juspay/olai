@@ -106,10 +106,15 @@ subtrees kept, exactly what `keeping` does on any filtered page. So a match
 reads in the context that makes a bare title like `order` mean something, and
 the crumb is real structure rather than a line of prose glued under a hit.
 
-**Every row says why it is drawn**, unchanged and for free: the page's narrowing
-runs on `/search` like on any other page, so a matched row lights its needles
-and a kept ancestor wears the context dim, out of the same
-`filter/why.ts` every other surface uses. There is no second highlighter here.
+**Every row says why it is drawn**, out of the same `filter/why.ts` every other
+surface uses: a matched row lights its needles, a kept ancestor wears the
+context dim, and a row selected on a `prop:` clause puts that key first in the
+reading ink. The answer that DREW the rows carries which of them matched (below),
+so there is no second highlighter and no second reading here.
+
+**A node is drawn once, where it lives.** A mirror of a match in some other file
+is not a row here — the node itself is already on the page — which is the same
+sentence `search_nodes` has always made about its own hits.
 
 Enter or a click on a row goes to that node's page (`/#<id>`) — the thing the
 shortlist could never be: a row you can come back to, link to, and read in
@@ -122,8 +127,16 @@ selects nodes and the one page made of prose is the one page with no box.
 
 ### It is uncapped, and where it is not, it says so
 
-No silent cap. A query matching more nodes than `EVERYWHERE_LIMIT` (200) draws
-the first 200 in corpus order and the bar says
+No silent cap — and TWO bounds, because one of them is not one. `EVERYWHERE_LIMIT`
+(200) is matched NODES; `EVERYWHERE_ROWS` (2,000) is the rows those matches
+bring with them, since a match keeps its whole subtree and a single hit on a
+file's root would otherwise put that file's every node on the wire. Both are
+applied file by file in the set's own path order, so what is dropped is the tail
+of the directory rather than a sample of each file, and the first group is
+exempt from the row budget because one big answer beats none.
+
+Neither is silent: `matches` is the uncapped number and `drawn` is what the
+groups hold, so whichever bound bit, the bar reads
 `200 of 1340 matches in 37 files — narrow the query`. Documents are uncapped:
 the list is bounded by the number of served files, which the sidebar already
 draws in full.
@@ -132,6 +145,26 @@ Two hundred is a number, not a principle. It is there because a query matching
 ninety thousand nodes would otherwise put ninety thousand rows on one wire
 frame, and "page it" is a second navigation vocabulary for an answer whose real
 fix is another word in the query.
+
+### And the reading it does NOT ask twice
+
+The page's `matched` list — which of its rows the query selected, and why —
+**rides on the reading that drew them**. Every other page asks a second reading
+for that (`filter/asking.ts`), because a page and its narrowing move on
+different clocks: the page on the directory, the narrowing on the directory AND
+a pair of hands. Here they are one clock, because the page IS the query — so a
+narrowing beside it would be `everywhereOf` run a second time, per revision, to
+re-derive a match that pass already had in hand. The browser opens no narrowing
+stream for `/search` at all and lights its rows out of the answer that drew
+them.
+
+Two more things fall out of the same observation. A file that holds no match is
+never walked, because `matching` says which file every match is in — where a
+naive pass materialises a row per node of the whole directory to throw nearly
+all of it away. And **a mirror of a match is not a row here**: the node itself
+is already on the page in the file it lives in, so a placement of it elsewhere
+would be the same node twice — which is the very reason `matching` answers with
+no mirrors either.
 
 ## ⌘K keeps its commands and hands the query off
 

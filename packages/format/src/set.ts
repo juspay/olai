@@ -273,8 +273,13 @@ export const markdownIn = (set: OutlineSet): ReadonlyArray<Markdown> =>
  * write — and the two are not the same list, which is exactly why both have a
  * name.
  */
-export const bodiedIn = (set: OutlineSet): ReadonlyArray<Markdown | Hypertext> =>
-  set.documents.filter((document): document is Markdown | Hypertext =>
+export const bodiedIn = (
+  /** The set's own documents — the ARRAY rather than the set that holds it, so
+   *  the two callers that have one and not the other (a page reading, an ops
+   *  search) ask one function rather than one each. */
+  documents: ReadonlyArray<Document>,
+): ReadonlyArray<Markdown | Hypertext> =>
+  documents.filter((document): document is Markdown | Hypertext =>
     document.kind !== "outline"
   )
 

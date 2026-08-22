@@ -71,13 +71,14 @@
  * in height to say something nobody asked to see.
  */
 
-import { createMemo, For, Show } from "solid-js"
+import { createMemo, Show } from "solid-js"
 
 import { renderTitle } from "../markdown/title.ts"
 
 import type { DirectoryKind } from "../file/icons.tsx"
 import { Glyph } from "../file/icons.tsx"
 import type { NodeProp } from "./props.ts"
+import { PropsLine } from "./PropsLine.tsx"
 
 /**
  * The handles ONE door gives this row's three lines.
@@ -209,40 +210,17 @@ export function Result(props: {
           </span>
         )}
       </Show>
-      <Show when={(props.props ?? []).length > 0}>
-        {/* One line, truncated like the two above it, so six properties cost
-            what one does and neither this nor the panel ever widens. */}
-        <span class="flex w-full min-w-0 gap-4 truncate text-[0.6875rem]">
-          <For each={props.props}>
-            {(prop) => (
-              <span
-                class="min-w-0 truncate"
-                data-testid={props.testids.prop}
-                data-key={prop.key}
-                data-matched={prop.matched ? "true" : undefined}
-              >
-                {/* The drawer's pairing: mono key, reading-face value. A
-                    MATCHED key is drawn in the reading ink instead of the
-                    muted one — the row's answer to "why is this here."
-
-                    That is a LUMINANCE step (`text-ink` against `text-muted`),
-                    not a change of weight and not a hue: it reads for somebody
-                    who cannot separate two colours, and does not for somebody
-                    who cannot separate two greys. Which is why it is the second
-                    signal rather than the only one — ORDER is the first, and it
-                    survives everything, including a line ellipsized down to its
-                    first pair (`./props.ts` puts the matched keys in front). */}
-                <span
-                  class={`font-mono ${prop.matched ? "text-ink" : "text-muted"}`}
-                >
-                  {prop.key}
-                </span>{" "}
-                <span class="text-muted">{prop.value}</span>
-              </span>
-            )}
-          </For>
-        </span>
-      </Show>
+      {/* The THIRD line, and what it says is `./PropsLine.tsx`'s — shared with
+          the everywhere page, because the ordering was already one rule and the
+          INK is the half a shared ordering cannot protect. What is this row's
+          own is the layout: one line, truncated like the two above it, so six
+          properties cost what one does and neither this nor the panel ever
+          widens. */}
+      <PropsLine
+        of={props.props ?? []}
+        testid={props.testids.prop}
+        class="flex w-full min-w-0 gap-4 truncate text-[0.6875rem]"
+      />
     </button>
   )
 }

@@ -689,6 +689,11 @@ export {
 export {
   DEFAULT_SEARCH_LIMIT,
   DocumentHit,
+  /** ONE DOCUMENT THE MATCHER SELECTED, as the hit both producers of that row
+   *  build it into — the ops layer's ranked answer, and the everywhere page.
+   *  Exported because there ARE two, which is exactly the drift this package
+   *  exists to prevent. */
+  documentHitOf,
   isNodeHit,
   MatchedNode,
   NodeHit,
@@ -822,13 +827,10 @@ export {
  * bar has to be able to say out loud (docs/brainstorming/one-search-box.md).
  */
 export {
-  /** How many matched nodes `/search` draws before the bar starts saying so. */
-  EVERYWHERE_LIMIT,
   Everywhere,
   /** WHAT THE WHOLE DIRECTORY ANSWERS, over one revision of one set. */
   everywhereOf,
   EverywhereGroup,
-  FoundDocument,
 } from "./everywhere.ts"
 
 /**

@@ -23,50 +23,71 @@
  * ancestry that leads to one**. The reason is the same one: a bare `order` means
  * nothing until you can see what it is under.
  *
+ * ## Why the ANSWER carries which rows matched
+ *
+ * {@link Everywhere.matched} is the same `MatchedNode` list a page's narrowing
+ * answers with, and it rides here rather than being asked for beside this page.
+ * On every other page those are two readings on two clocks — the page moves
+ * with the directory, the narrowing with the directory AND a pair of hands
+ * (`./narrowing.ts`) — and asking twice is what keeps a keystroke from
+ * re-sending every row.
+ *
+ * HERE THEY ARE ONE READING, because the page IS the query: a narrowing of
+ * `/search` would be this function run a second time — the same whole-corpus
+ * `matching`, the same `rowsOf`, per published revision — to re-derive a `match`
+ * this pass already had in its hand. So the browser opens no narrowing stream
+ * for this page at all, and lights its rows out of the answer that drew them
+ * (`@olai/web`'s `filter/why.ts`, over the same `Matches` map every other page
+ * builds).
+ *
  * ## What is NOT here
  *
- * WHY A ROW IS DRAWN is not computed twice. A `/search` page is narrowable like
- * every other page (`./page.ts`'s `narrowableIn` yields its rows), so the
- * narrowing beside it answers which of them the query selected and the browser
- * lights and dims out of that one answer — the same `filter/why.ts` every other
- * surface reads. Putting a second `matched` on each row here would be the same
- * fact spelled twice, free to disagree by a frame.
- *
- * RANKING is not here either, and its absence is the point: a shortlist ranks
+ * RANKING, and its absence is the point: a shortlist ranks
  * because it has to choose eight, and this chooses nothing. Files come in path
  * order and rows in the file's own order, which is where a reader will look for
  * them again tomorrow.
  *
- * ## The cap, said out loud
+ * ## The two caps, and the one sentence that says both
  *
- * {@link EVERYWHERE_LIMIT} nodes, applied in the set's own file-then-line order
- * so whole files are kept rather than sampled — and {@link Everywhere.matches}
- * is the uncapped number beside it, so the bar can say `200 of 1340 matches`
- * rather than quietly drawing two hundred rows as though that were the answer.
- * A silent cap is the failure this whole arc is about; a loud one is a number
- * and another word in the query.
+ * {@link EVERYWHERE_LIMIT} MATCHES, and {@link EVERYWHERE_ROWS} ROWS — because
+ * a match keeps its whole subtree, so two hundred matches is not two hundred
+ * rows and a cap on one is no bound at all on the other. Both are applied file
+ * by file in the set's own path order, so what is dropped is the tail of the
+ * directory rather than a sample of every file — and a file whose FIRST group
+ * is already over the row budget is taken anyway, because one big answer beats
+ * none.
+ *
+ * NEITHER IS SILENT. {@link Everywhere.matches} is the uncapped number and
+ * {@link Everywhere.drawn} is what the groups actually hold, so whichever bound
+ * bit, the bar says `200 of 1340 matches` rather than drawing two hundred rows
+ * as though that were the answer. A silent cap is the failure this whole arc is
+ * about; a loud one is a number and another word in the query.
  *
  * DOCUMENTS ARE UNCAPPED, and that is a fact about the list rather than
  * generosity: it is bounded by the number of served files, which the sidebar
  * already draws in full, and a document hit is one line.
+ *
+ * ## And the files it never opens
+ *
+ * A file that holds no match is never walked. `matching` says which file every
+ * match is in, so `rowsOf` runs over those files and no others — where a naive
+ * pass would materialise a `Row` per node of the whole directory, per revision,
+ * to throw nearly all of it away in `keeping`.
+ *
+ * WHICH MEANS A MIRROR OF A MATCH IS NOT A ROW HERE, and that is right rather
+ * than a cost of the bound: the node itself is already on this page, in the file
+ * it lives in, so a placement of it elsewhere would be the same node twice —
+ * which is the very reason `matching` answers with no mirrors either.
  */
 
 import { Schema } from "effect"
 
-import { AtDocument } from "./address.ts"
-import type { Custom } from "./custom.ts"
 import { type Derived, Row, rowsOf } from "./derive.ts"
-import { type Document, Face } from "./document.ts"
-import type { Bodied, Filter } from "./filter.ts"
-import {
-  DOCUMENT_FIELDS,
-  keeping,
-  matching,
-  matchingDocuments,
-  parseFilter,
-} from "./filter.ts"
-import { fileKind } from "./kinds.ts"
-import { heldCustom, nothing } from "./write.ts"
+import type { Document } from "./document.ts"
+import type { Filter, Matched } from "./filter.ts"
+import { keeping, matching, matchingDocuments, parseFilter, rowsIn } from "./filter.ts"
+import { DocumentHit, documentHitOf, MatchedNode } from "./searching.ts"
+import { bodiedIn } from "./set.ts"
 
 /**
  * How many matched NODES `/search` draws before it starts saying so.
@@ -79,6 +100,17 @@ import { heldCustom, nothing } from "./write.ts"
  */
 export const EVERYWHERE_LIMIT = 200
 
+/**
+ * …and how many ROWS those matches may bring with them.
+ *
+ * The second bound exists because the first is not one: a match keeps its whole
+ * subtree ({@link keeping}), so a single hit on a file's root puts that file's
+ * every node on the wire. Counted after the prune, file by file, and reported
+ * through {@link Everywhere.drawn} like the other — a group that would take the
+ * page past it is not added, and the bar says the difference.
+ */
+export const EVERYWHERE_ROWS = 2000
+
 /** One outline that holds a match, and its tree pruned to the matches with the
  *  ancestry that leads to them — {@link TrashGroup}'s shape and {@link
  *  DayGroup}'s idea: a file heading, and what is under it. */
@@ -87,33 +119,6 @@ export const EverywhereGroup = Schema.Struct({
   rows: Schema.Array(Row),
 })
 export type EverywhereGroup = typeof EverywhereGroup.Type
-
-/**
- * ONE DOCUMENT THIS QUERY FOUND, as `/search` draws it.
- *
- * `./searching.ts`'s `DocumentHit` minus the ranking it was built for — the
- * same four fields, because a document row here and a document row in an
- * agent's `search_nodes` answer must say the same things about the same file.
- * It is re-declared rather than imported for exactly one reason: that one is a
- * member of a `SearchHit` union whose other arm is a whole situated record, and
- * a page that carried the union would be inviting a caller to switch on a kind
- * this page can never have.
- */
-export const FoundDocument = Schema.Struct({
-  at: AtDocument,
-  /** What the file is CALLED — its own face's title, so this row, the
-   *  document's page and `list_documents` say one name. */
-  title: Schema.String,
-  /** Which of the three document fields carried the strongest match — ABSENT
-   *  for a query that named no words, on the format's own rule for absence. */
-  matched: Schema.optionalKey(Schema.Literals(DOCUMENT_FIELDS)),
-  /** The named facts the file writes about itself — its frontmatter. Absent
-   *  for a file that wrote none. */
-  props: Schema.optionalKey(Face.fields.props),
-  /** The keys a `prop:` clause selected it on, in the file's own spelling. */
-  matchedProps: Schema.optionalKey(Schema.Array(Schema.String)),
-})
-export type FoundDocument = typeof FoundDocument.Type
 
 /**
  * WHAT `/search?q=…` SHOWS — an arm of {@link Shown} like any other page's.
@@ -127,12 +132,18 @@ export const Everywhere = Schema.Struct({
   kind: Schema.Literal("search"),
   text: Schema.String,
   groups: Schema.Array(EverywhereGroup),
-  documents: Schema.Array(FoundDocument),
+  documents: Schema.Array(DocumentHit),
+  /**
+   * Every node these groups DRAW that the query selected, and why — the same
+   * shape a page's narrowing answers with, so a row lights and dims out of one
+   * reading (the header argues why it rides here).
+   */
+  matched: Schema.Array(MatchedNode),
   /** How many NODES the query selected in the whole directory — NEVER cut,
-   *  which is what makes the cap sayable. */
+   *  which is what makes the caps sayable. */
   matches: Schema.Int,
-  /** How many of those the groups below actually draw — equal to `matches`
-   *  until {@link EVERYWHERE_LIMIT} bites, and the smaller of the two after. */
+  /** How many of those the groups below actually draw — `matched.length`, equal
+   *  to `matches` until one of the two bounds bites and smaller after. */
   drawn: Schema.Int,
 })
 export type Everywhere = typeof Everywhere.Type
@@ -144,6 +155,7 @@ export type Everywhere = typeof Everywhere.Type
 const NOTHING_FOUND = {
   groups: [],
   documents: [],
+  matched: [],
   matches: 0,
   drawn: 0,
 } as const
@@ -174,35 +186,64 @@ export const everywhereOf = (
   if (filter.kind !== "asking") return { kind: "search", text, ...NOTHING_FOUND }
 
   const found = matching(derived, filter)
-  // THE CAP, in the set's own file-then-line order, so what is dropped is the
-  // tail of the directory rather than a sample of it — and the number above it
-  // is the whole answer.
-  const selected = new Set<string>()
+  const documented = foundDocuments(documents, filter)
+  // NO MATCH IS NO WALK. Without this the loop below still opens every outline
+  // in the directory to prune each of them to nothing — which is the commonest
+  // query of all, the one somebody is half-way through typing.
+  if (found.length === 0) {
+    return { kind: "search", text, ...NOTHING_FOUND, documents: documented }
+  }
+
+  // WHICH FILES HOLD A MATCH, in the set's own path order — the only files
+  // `rowsOf` is run over. See the header: a mirror of a match in some other
+  // file is deliberately not a row here, because the node itself already is.
+  const byFile = new Map<string, Array<MatchedNode>>()
   for (const one of found) {
-    if (selected.size >= EVERYWHERE_LIMIT) break
-    selected.add(one.at.node.id)
+    const held = byFile.get(one.at.file)
+    if (held === undefined) byFile.set(one.at.file, [matchedOf(one)])
+    else held.push(matchedOf(one))
   }
 
   const groups: Array<EverywhereGroup> = []
-  for (const path of documents) {
-    if (fileKind(path.path) !== "outline") continue
-    // THE FILE'S OWN TREE, pruned exactly as a filtered page prunes itself. A
-    // mirror of a matching node survives wherever it is drawn, which is
-    // `keeping`'s rule and the reason one node can be a row in two groups —
-    // places, where {@link Everywhere.drawn} counts nodes.
-    const rows = keeping(rowsOf(derived, path.path), selected)
-    if (rows.length > 0) groups.push({ file: path.path, rows })
+  const matched: Array<MatchedNode> = []
+  let rows = 0
+  for (const [file, held] of byFile) {
+    // THE TWO BOUNDS, checked before the file is opened rather than after — a
+    // group that would take the page past either is not built at all. The first
+    // group is exempt from the ROW bound: one big answer beats none, and the
+    // bar says the difference either way ({@link Everywhere.drawn}).
+    if (matched.length + held.length > EVERYWHERE_LIMIT && matched.length > 0) break
+    // THE FILE'S OWN TREE, pruned exactly as a filtered page prunes itself.
+    const kept = keeping(rowsOf(derived, file), new Set<string>(held.map((one) => one.id)))
+    const places = rowsIn(kept)
+    if (rows + places > EVERYWHERE_ROWS && groups.length > 0) break
+    groups.push({ file, rows: kept })
+    matched.push(...held)
+    rows += places
   }
 
   return {
     kind: "search",
     text,
     groups,
-    documents: foundDocuments(documents, filter),
+    documents: documented,
+    matched,
     matches: found.length,
-    drawn: selected.size,
+    drawn: matched.length,
   }
 }
+
+/** One selected record as the id-and-why every narrowing answers with — the
+ *  format's own rule for absence, applied twice: a query that named no words
+ *  was carried by no field, and one that named no property matched none. */
+const matchedOf = (one: Matched): MatchedNode => ({
+  // CAST rather than `NodeId.make`, and it is the same call `./address.ts`
+  // argues for at its own hot spot: the brand is nominal, so `make` runs a
+  // parser with nothing to check, and this list is the size of the answer.
+  id: one.at.node.id as MatchedNode["id"],
+  ...(one.match.field === null ? {} : { matched: one.match.field }),
+  ...(one.match.props.length === 0 ? {} : { matchedProps: one.match.props }),
+})
 
 /** The other half of the directory, asked the same question — `.md` and `.html`
  *  alike, in the set's own path order. No ranking, for the reason the rows have
@@ -210,20 +251,5 @@ export const everywhereOf = (
 const foundDocuments = (
   documents: ReadonlyArray<Document>,
   filter: Filter,
-): ReadonlyArray<FoundDocument> => {
-  const bodied = documents.filter((one): one is Bodied => one.kind !== "outline")
-  return matchingDocuments(bodied, filter).map((selected): FoundDocument => {
-    // Through `heldCustom` for the reason the ops layer's own hit goes through
-    // it: it puts the keys in the FILE's canonical order, which is the order a
-    // record's `custom` already arrives in, so one open map is not drawn two
-    // ways inside one answer.
-    const props = heldCustom(selected.at.props as Custom)
-    return {
-      at: { kind: "document", path: selected.at.path },
-      title: selected.at.title,
-      ...(selected.match.field === null ? {} : { matched: selected.match.field }),
-      ...(nothing(props) ? {} : { props }),
-      ...(selected.match.props.length === 0 ? {} : { matchedProps: selected.match.props }),
-    }
-  })
-}
+): ReadonlyArray<DocumentHit> =>
+  matchingDocuments(bodiedIn(documents), filter).map(documentHitOf)

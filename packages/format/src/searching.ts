@@ -47,9 +47,11 @@ import { Schema } from "effect"
 
 import { AtDocument, AtNode, NodeId } from "./address.ts"
 import { Face } from "./document.ts"
+import type { Bodied, DocumentMatch } from "./filter.ts"
 import { DOCUMENT_FIELDS, DURATION_TEACHING, Refusal, SEARCH_FIELDS } from "./filter.ts"
 import { RegularNode } from "./node.ts"
 import { Found } from "./reading.ts"
+import { heldCustom, nothing } from "./write.ts"
 
 /**
  * ONE HIT ON A NODE: a situated record, its ADDRESS, and the only thing about
@@ -381,3 +383,41 @@ export const MatchedNode = Schema.Struct({
   matchedProps: Schema.optionalKey(Schema.Array(Schema.String)),
 })
 export type MatchedNode = typeof MatchedNode.Type
+
+/**
+ * ONE DOCUMENT THE MATCHER SELECTED, as the hit a caller answers with.
+ *
+ * A CONSTRUCTOR and still not a matcher, which is what keeps it inside this
+ * file's own rule: it takes what `./filter.ts` already decided (the document,
+ * and why it matched) and spells the row. What it is NOT is a second decision
+ * about any of it.
+ *
+ * It exists because there are two producers of this row — `@olai/ops`' `search`
+ * for an agent and every picker, and `./everywhere.ts` for the page a person
+ * stands on — and they were the same fifteen lines twice, down to which fields
+ * are omitted when absent. That is the drift this package exists to prevent,
+ * spelled inside the package: a field added for one caller and forgotten for
+ * the other is an agent and a reader looking at different facts about one file.
+ */
+export const documentHitOf = (
+  selected: { readonly at: Bodied; readonly match: DocumentMatch },
+): DocumentHit => {
+  // Through `heldCustom` for {@link carriedOf}'s reason, which is not only the
+  // pruning: it puts the keys in the FILE's canonical order (alphabetical), and
+  // a node hit's `custom` already comes back that way. Without it a document's
+  // `props` would arrive in frontmatter line order — two orderings of one open
+  // map inside one answer.
+  const props = heldCustom(selected.at.props)
+  return {
+    // WHERE TO GO, which is what a hit is for: the document's own address,
+    // minted by the grammar rather than assembled here.
+    at: { kind: "document", path: selected.at.path },
+    title: selected.at.title,
+    // The format's own rule for absence, three times: a field that carried no
+    // words says nothing, a query that named no property names none, and an
+    // empty map is a file that wrote none.
+    ...(selected.match.field === null ? {} : { matched: selected.match.field }),
+    ...(nothing(props) ? {} : { props }),
+    ...(selected.match.props.length === 0 ? {} : { matchedProps: selected.match.props }),
+  }
+}

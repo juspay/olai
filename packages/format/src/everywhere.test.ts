@@ -25,7 +25,7 @@ import { expect, test } from "bun:test"
 
 import { derive, rowsOf } from "./derive.ts"
 import type { Document } from "./document.ts"
-import { EVERYWHERE_LIMIT, everywhereOf } from "./everywhere.ts"
+import { EVERYWHERE_LIMIT, EVERYWHERE_ROWS, everywhereOf } from "./everywhere.ts"
 import { keeping, matching, parseFilter } from "./filter.ts"
 import { fileKind } from "./kinds.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
@@ -171,4 +171,68 @@ test("documents are hits here, found by their prose as well as by their name", (
   // carried the words, and a query naming none says nothing.
   expect(found("herb bed", documents).documents[0]?.matched).toBe("body")
   expect(found("is:done", documents).documents).toEqual([])
+})
+
+// ── the two bounds, and the files never opened ────────────────────────
+
+test("a file that holds no match is never a group, and a mirror of one is not a row", () => {
+  // `herbs` matches in garden.olai; house.olai draws a MIRROR of it. The node
+  // is already on this page in the file it lives in, so a placement of it
+  // elsewhere would be the same node twice — which is why `matching` answers
+  // with no mirrors either.
+  const set = derive(nodesOfFiles({
+    "garden.olai": [
+      `{"id":"garden","ord":"a0","title":"garden"}`,
+      `{"id":"herbs","parent":"garden","ord":"a0","title":"the herb bed"}`,
+    ].join("\n"),
+    "house.olai": [
+      `{"id":"kitchen","ord":"a0","title":"kitchen"}`,
+      `{"id":"here","parent":"kitchen","ord":"a0","mirror":"herbs"}`,
+    ].join("\n"),
+  }))
+  const answer = everywhereOf(set, documentsOf(["garden.olai", "house.olai"]), "herb", TODAY)
+  expect(answer.groups.map((group) => group.file)).toEqual(["garden.olai"])
+  expect(answer.matches).toBe(1)
+  expect(answer.drawn).toBe(1)
+})
+
+// The second bound, and the reason there is one: a match keeps its whole
+// subtree, so a cap on MATCHES is no bound at all on rows. A single hit on a
+// file's root would otherwise put every node of that file on the wire.
+test("the row bound stops the page after the file that filled it, and says so", () => {
+  const wide = (file: string, howMany: number) =>
+    [
+      `{"id":"${file}-root","ord":"a0","title":"the ${file} pile is deep"}`,
+      ...Array.from(
+        { length: howMany },
+        (_unused, index) =>
+          `{"id":"${file}-${index}","parent":"${file}-root","ord":"a${
+            String(index).padStart(4, "0")
+          }","title":"leaf ${index}"}`,
+      ),
+    ].join("\n")
+  // Two files, each one match (the root's title) bringing a subtree past the
+  // budget with it.
+  const set = derive(nodesOfFiles({
+    "a.olai": wide("a", EVERYWHERE_ROWS),
+    "b.olai": wide("b", EVERYWHERE_ROWS),
+  }))
+  const answer = everywhereOf(set, documentsOf(["a.olai", "b.olai"]), "pile is deep", TODAY)
+  // BOTH matched — the uncapped number is never cut, which is what makes the
+  // bound sayable — and only the first file is drawn.
+  expect(answer.matches).toBe(2)
+  expect(answer.drawn).toBe(1)
+  expect(answer.groups.map((group) => group.file)).toEqual(["a.olai"])
+})
+
+// …and WHY each drawn row is drawn, carried on the answer rather than asked for
+// beside it: a narrowing of this page would be this whole reading run a second
+// time (the module header argues it).
+test("the answer says which of its rows matched, and why", () => {
+  const answer = found("#next")
+  expect([...answer.matched].map((one) => [String(one.id), one.matched]))
+    .toEqual([["herbs", "title"], ["kitchen", "title"], ["cabinets", "title"]])
+  // A row kept only as ancestry is not in it — that is exactly the distinction
+  // the page's dim is drawn from.
+  expect(answer.matched.map((one) => String(one.id))).not.toContain("garden")
 })

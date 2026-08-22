@@ -71,14 +71,14 @@ export const narrowed = (drawn: Drawn, matched: Selected): Drawn => {
       return { kind: "agenda", agenda: keepingOwed(drawn.agenda, matched) }
     case "trash":
       return { ...drawn, groups: keepingArchives(drawn.groups, matched) }
-    // NOTHING LEFT TO TAKE AWAY. `/search` IS the query — its rows are what the
-    // matcher already kept, ancestry and all (`@olai/format`'s `everywhere.ts`)
-    // — so a prune here would be the same answer applied to itself. The
-    // narrowing beside it is not wasted: it is what LIGHTS the rows and dims the
-    // ancestry, which is a question about why a row is drawn rather than about
-    // whether it is.
+    // NOTHING LEFT TO TAKE AWAY, for two quite different reasons that land on
+    // one line. `none` is a page with no rows to narrow; `/search` IS the query
+    // — its rows are what the matcher already kept, ancestry and all
+    // (`@olai/format`'s `everywhere.ts`), so a prune would be the same answer
+    // applied to itself. The narrowing beside it is not wasted there: it is what
+    // LIGHTS the rows and dims the ancestry, which is a question about why a row
+    // is drawn rather than about whether it is.
     case "search":
-      return drawn
     case "none":
       return drawn
   }
@@ -105,8 +105,12 @@ export const placesIn = (drawn: Drawn): number => {
       return owedIn(drawn.agenda)
     case "trash":
       return drawn.groups.reduce((total, group) => total + rowsIn(group.rows), 0)
+    // THE EVERYWHERE PAGE COUNTS ITSELF, in a different sentence about a
+    // different subject: "12 matches in 3 files", off its own reading
+    // (`../search/said.ts`). There is no page underneath it for "3 of 41" to be
+    // about, so the three numbers this feeds are not asked of it — and
+    // answering `0` here is what keeps them from being walked for nobody.
     case "search":
-      return drawn.groups.reduce((total, group) => total + rowsIn(group.rows), 0)
     case "none":
       return 0
   }
@@ -138,11 +142,8 @@ export const matchesIn = (drawn: Drawn, matched: Selected): number => {
         (total, group) => total + matchedIn(group.rows, matched),
         0,
       )
+    // …and its numerator, for {@link placesIn}'s reason.
     case "search":
-      return drawn.groups.reduce(
-        (total, group) => total + matchedIn(group.rows, matched),
-        0,
-      )
     case "none":
       return 0
   }

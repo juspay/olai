@@ -163,7 +163,7 @@ const documentsOf = (
 ): Pick<Published, "documents" | "unread"> => {
   // The BODIED half of the directory: this member is what a reader opens as a
   // page, and an outline is published as its records next door.
-  const documents = bodiedIn(snapshot.value.set)
+  const documents = bodiedIn(snapshot.value.set.documents)
   const change = changeOf(
     documents,
     (document) => document.path,

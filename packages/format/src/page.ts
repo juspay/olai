@@ -541,9 +541,9 @@ export function* narrowableIn(shows: Shown): Generator<LocatedRegular> {
       yield* inGroups(shows.agenda.today)
       yield* inDays(shows.agenda.upcoming)
       return
-    case "trash":
-      for (const group of shows.groups) yield* inRows(group.rows)
-      return
+    // ONE BODY, because they are one shape: a group is a file heading and the
+    // rows under it, on both.
+    //
     // THE EVERYWHERE PAGE IS NARROWABLE LIKE ANY OTHER, and that is what makes
     // its rows say why they are drawn without a second field on each of them:
     // the narrowing beside this reading answers which of these rows the query
@@ -551,6 +551,7 @@ export function* narrowableIn(shows: Shown): Generator<LocatedRegular> {
     // (`./everywhere.ts`). The prune it feeds is a no-op here — these rows are
     // already what the query kept — which is the honest shape rather than a
     // special case: a page pruned by its own answer is the page.
+    case "trash":
     case "search":
       for (const group of shows.groups) yield* inRows(group.rows)
       return
@@ -605,11 +606,9 @@ function* referencedIn(shows: Shown): Generator<LocatedRegular> {
       yield* situatedIn(shows.agenda.today)
       for (const day of shows.agenda.upcoming) yield* situatedIn(day.groups)
       return
-    case "trash":
-      for (const group of shows.groups) yield* waitedOnIn(group.rows)
-      return
     // A search row draws its `blocked by` like a tree row does, so the ids it
-    // waits on are names this page spends.
+    // waits on are names this page spends — and a group is a group, on both.
+    case "trash":
     case "search":
       for (const group of shows.groups) yield* waitedOnIn(group.rows)
       return

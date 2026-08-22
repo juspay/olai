@@ -46,17 +46,18 @@
  */
 
 import { Key } from "@solid-primitives/keyed"
-import { createMemo, Match, Show, Switch } from "solid-js"
+import { createMemo, Show } from "solid-js"
 
-import type { EverywhereGroup, FoundDocument, Row } from "@olai/format"
+import type { DocumentHit, EverywhereGroup, Row } from "@olai/format"
 import { bodyKind, customOf, isMirror, shownRecord } from "@olai/format"
 
 import { Glyph } from "../file/icons.tsx"
 import { useNarrowed } from "../filter/narrowed.tsx"
 import { CONTEXT_DIM, lighting, matchedAttr, propsOf, unfiltered } from "../filter/why.ts"
 import { PAGE_TITLE } from "../look.ts"
-import { NodeTitle } from "../NodeTitle.tsx"
-import { atFile, atNode } from "../routes.ts"
+import { PropsLine } from "./PropsLine.tsx"
+import { RowTitle } from "../RowTitle.tsx"
+import { atFile } from "../routes.ts"
 import { Link } from "../router.tsx"
 import { TESTID } from "../testids.ts"
 
@@ -64,7 +65,7 @@ export function SearchPage(props: {
   /** One outline that holds a match, and its tree pruned to what matched. */
   readonly groups: ReadonlyArray<EverywhereGroup>
   /** …and the `.md`s and `.html`s the same query selected. */
-  readonly documents: ReadonlyArray<FoundDocument>
+  readonly documents: ReadonlyArray<DocumentHit>
 }) {
   const empty = () => props.groups.length === 0 && props.documents.length === 0
 
@@ -183,35 +184,29 @@ function Branch(props: { readonly row: Row }) {
           data-testid={TESTID.nodeTitle}
           classList={{ "line-through opacity-60": props.row.status === "done" }}
         >
-          <Title row={props.row} needles={lighting(narrowed, shown().node.id)} />
+          <RowTitle
+            row={props.row}
+            needles={lighting(narrowed, shown().node.id)}
+            opens={TESTID.searchRowLink}
+          />
         </span>
       </div>
       {/* WHY THIS ROW IS HERE, when the reason was a PROPERTY — the matched key
           first, in the reading ink, and the rest of the map beside it. It is
           the line the ⌘K palette's hit rows drew, moved to the page that
           answers a `prop:` query now that the shortlist doors are gone
-          (`../filter/why.ts`'s `propsOf`, `../search/props.ts` for the
-          ordering). Nothing at all on a row the query did not select on a
-          property, which is most rows on most queries. */}
-      <Show when={properties().length > 0}>
-        <ul
-          class="m-0 ml-5 flex list-none flex-wrap gap-x-3 p-0 font-mono text-xs"
-          data-testid={TESTID.searchRowProps}
-        >
-          <Key each={properties()} by="key">
-            {(one) => (
-              <li
-                data-testid={TESTID.searchRowProp}
-                data-key={one().key}
-                data-matched={one().matched ? "true" : undefined}
-                classList={{ "text-ink": one().matched, "text-muted": !one().matched }}
-              >
-                {one().key} <span class="font-serif">{one().value}</span>
-              </li>
-            )}
-          </Key>
-        </ul>
-      </Show>
+          (`../filter/why.ts`'s `propsOf` for WHICH keys, `./PropsLine.tsx` for
+          what the line says about them). Nothing at all on a row the query did
+          not select on a property, which is most rows on most queries.
+
+          The layout is this page's own: a page may WRAP where a popover's row
+          truncates, because there is a column's width to spend and no panel to
+          push sideways. */}
+      <PropsLine
+        of={properties()}
+        testid={TESTID.searchRowProp}
+        class="ml-5 flex flex-wrap gap-x-4 text-xs"
+      />
       <Show when={props.row.children.length > 0}>
         <div class="ml-5">
           <Rows rows={props.row.children} />
@@ -221,64 +216,10 @@ function Branch(props: { readonly row: Row }) {
   )
 }
 
-/**
- * What a row is called — and, for the two kinds that show a node, WHERE IT
- * GOES.
- *
- * The link wraps the title rather than sitting beside it, because the row is
- * the thing you press: a hit that needed a second target would be a shortlist
- * with more words in it. The two degenerate kinds a condemned set can hold say
- * the outline tree's own sentences, quoted, because a reader who meets the same
- * broken record on two pages should read the same words about it.
- */
-function Title(props: {
-  readonly row: Row
-  readonly needles?: ReadonlyArray<string>
-}) {
-  return (
-    <Switch>
-      <Match
-        when={props.row.kind === "node" || props.row.kind === "mirror"
-          ? props.row
-          : undefined}
-      >
-        {(row) => (
-          <Link
-            route={atNode(row().shows.node.id)}
-            class="text-ink no-underline hover:underline"
-            testid={TESTID.searchRowLink}
-          >
-            <NodeTitle
-              title={row().shows.node.title}
-              from={row().shows.file}
-              needles={props.needles}
-            />
-          </Link>
-        )}
-      </Match>
-      <Match when={props.row.kind === "dangling" ? props.row : undefined}>
-        {(row) => (
-          <span class="text-muted">
-            a mirror of `{row().missing}`, which no node declares
-          </span>
-        )}
-      </Match>
-      <Match when={props.row.kind === "cycle" ? props.row : undefined}>
-        {(row) => (
-          <span class="text-muted">
-            this mirror is inside the subtree it shows (`{row().through}`) — not
-            expanded
-          </span>
-        )}
-      </Match>
-    </Switch>
-  )
-}
-
 /** One document the query found: the sidebar's glyph, what the file is called,
  *  and the path under it — the same three facts a document row has ever drawn
  *  in this app. */
-function Found(props: { readonly document: FoundDocument }) {
+function Found(props: { readonly document: DocumentHit }) {
   const kind = () => bodyKind(props.document.at.path) ?? "document"
   return (
     <li data-testid={TESTID.searchDocument} data-file={props.document.at.path}>

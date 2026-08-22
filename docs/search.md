@@ -221,13 +221,15 @@ The design, and the alternatives that lost, is [brainstorming/filter-in-place.md
 
 **It is the filter, widened, and it looks it.** Rows are grouped by the outline they live in, in path order, and inside a group they are that file's own tree pruned to the matches: a match keeps its subtree, and a row that did not match is kept as the ancestry that leads to one. That is the same `keeping` every narrowed page uses, run over every file — so a bare `order` arrives with the crumb that says which one, and there is nothing new to learn about how it reads. **Every row says why it is drawn** out of the same reading too: this page is narrowable like any other, so a matched row lights its needles and a kept ancestor wears the context dim, and a row selected on a `prop:` clause draws that property first, in the reading ink ("Every row says why it is drawn", above).
 
+**A node is drawn once, where it lives.** A mirror of a match in some other file is not a row here — the node itself is already on the page — which is the same sentence `search_nodes` has always made about its own hits: a placement is a second view of a node, so answering with one would be the same node twice.
+
 **From a row, Enter or a click goes to the node** — `/#<id>`, the page you can come back to. Rows here are not editable: this page draws rows from every file in the directory at once, and the verbs live where the node does, one press away.
 
 **Documents are rows here** ("…and documents", below) — under the node groups, with the sidebar's own glyph and their path. They are still not rows on a page FILTER, and that stays: a filter selects nodes, and the one page made of prose is the one page with no box.
 
 **The bar counts the directory rather than a page.** `12 matches in 3 files`, and `· 2 documents` when the other half answered too; `no matches` with no denominator, because on a page the denominator is the news ("your query emptied it, and here is what it emptied") and here the news is that the directory holds no answer at all. An empty box is a page that says so rather than a page that says "no matches".
 
-**It is uncapped, and where it is not, it says so.** A query matching more nodes than the page draws (200) draws the first two hundred in the set's own file-then-line order and the bar reads `200 of 1340 matches in 37 files — narrow the query`. Documents are uncapped: the list is bounded by the number of served files, which the sidebar already draws in full. There is no silent cap anywhere here.
+**It is uncapped, and where it is not, it says so.** Two bounds, because one is not one: a match keeps its whole SUBTREE, so two hundred matches is not two hundred rows. So the page stops at 200 matches OR at 2,000 rows, whichever comes first — file by file, in the set's own path order, so what is dropped is the tail of the directory rather than a sample of every file. Neither is silent: the bar reads `200 of 1340 matches in 37 files — narrow the query` whichever bound bit, because what it compares is what was drawn against what was found. Documents are uncapped: the list is bounded by the number of served files, which the sidebar already draws in full.
 
 ## What a result row looks like
 

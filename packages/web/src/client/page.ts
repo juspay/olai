@@ -24,8 +24,9 @@
 import type {
   Agenda,
   DayGroup,
+  DocumentHit,
   EverywhereGroup,
-  FoundDocument,
+  MatchedNode,
   PageRequest,
   Row,
   Shown,
@@ -64,9 +65,10 @@ export const requestFor = (
    * keystroke otherwise, which is the walk-per-frame `filter-rides-the-page`
    * removed, arriving from the other side. Who settles it is the pane
    * (`./filter/typed.ts`), and a caller that is not drawing a pane passes
-   * nothing, because no other caller asks about this page.
+   * nothing at all, and the one caller that is not drawing a pane asks a
+   * narrower question instead ({@link dayOf}).
    */
-  words = "",
+  words: string,
 ): PageRequest => {
   switch (route.kind) {
     case "at": {
@@ -197,8 +199,18 @@ export type Drawn =
    */
   | {
     readonly kind: "search"
+    /** WHICH QUERY these rows answer — carried on the reading for the reason a
+     *  narrowing answer carries one: the bar has to tell "these rows are about
+     *  your query" from "these rows are about one you have moved on from", and
+     *  that must be read off the value that holds them. */
+    readonly text: string
     readonly groups: ReadonlyArray<EverywhereGroup>
-    readonly documents: ReadonlyArray<FoundDocument>
+    readonly documents: ReadonlyArray<DocumentHit>
+    /** Every drawn row the query SELECTED, and why — this page's own narrowing,
+     *  carried on the reading that drew it because asking for one beside it
+     *  would be the same whole-corpus match run twice per revision
+     *  (`@olai/format`'s `everywhere.ts`). */
+    readonly matched: ReadonlyArray<MatchedNode>
     /** Matched in the whole directory, uncapped. */
     readonly matches: number
     /** …and how many of those the groups draw. */
@@ -242,11 +254,30 @@ export const drawnBy = (shows: Shown | undefined): Drawn => {
   if (shows.kind === "search") {
     return {
       kind: "search",
+      text: shows.text,
       groups: shows.groups,
       documents: shows.documents,
+      matched: shows.matched,
       matches: shows.matches,
       drawn: shows.drawn,
     }
   }
   return NOTHING_DRAWN
 }
+
+/**
+ * WHICH DAY a route is about — `undefined` for every route that names none.
+ *
+ * The question a caller that is NOT drawing a pane has: the calendar in the
+ * sidebar, which fills a cell and anchors a month on whatever day the focused
+ * page is (`./App.tsx`). It used to ask {@link requestFor} and read the `day`
+ * arm off the answer, which is the same reading through a bigger door — and the
+ * day the request grew a field only a pane can fill (the everywhere page's
+ * settled words), that door stopped being one anybody but a pane should open.
+ *
+ * The two arms are exactly the ones that name a day, and they are the same two
+ * {@link requestFor} collapses: `/d/<date>` spells its day, and `/today` names
+ * the day it IS, which is the reader's own clock and so an argument.
+ */
+export const dayOf = (route: Route, today: string): string | undefined =>
+  route.kind === "day" ? route.date : route.kind === "today" ? today : undefined

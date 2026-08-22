@@ -41,6 +41,7 @@ import {
   countedChildren,
   DEFAULT_SEARCH_LIMIT,
   DEFAULT_SUBTREE_DEPTH,
+  documentHitOf,
   type DatedAnswer,
   datedAnswer,
   type DatedRequest,
@@ -295,38 +296,27 @@ export const search = (
   // and the honest answer rather than a hole.
   const documents = query.kind === "node"
     ? []
-    : matchingDocuments(bodiedIn(at.set), filter, scope)
+    : matchingDocuments(bodiedIn(at.set.documents), filter, scope)
   const limit = query.limit ?? DEFAULT_SEARCH_LIMIT
   // Read ONCE for the answer rather than per hit: it is a fact about the
   // question, and this same request is what a browser's boxes send on every
   // settled keystroke.
   const wantsNotes = query.withDesc === true
-  const hits = rankedTogether(at.derived, nodes, documents)
+  // A `limit` OF NONE RANKS NOTHING, and that is a real caller rather than a
+  // degenerate one: the widen line under the one search box asks this question
+  // with `limit: 0` on every settled keystroke, because what it wants is the
+  // uncapped `total` and no rows at all (`@olai/web`'s `filter/elsewhere.ts`).
+  // Ranked anyway, that is an allocation per match and an n·log n sort thrown
+  // away by the `.slice(0, 0)` on the next line.
+  const hits = limit === 0 ? [] : rankedTogether(at.derived, nodes, documents)
     .slice(0, limit)
     .map((selected): SearchHit => {
-      if (selected.kind === "document") {
-        // Through `heldCustom` for {@link carriedOf}'s reason, which is not
-        // only the pruning: it puts the keys in the FILE's canonical order
-        // (alphabetical), and a node hit's `custom` already comes back that
-        // way. Without it a document's `props` would arrive in frontmatter
-        // line order — two orderings of one open map inside one ranked answer,
-        // which is exactly the drift the row's own ordering rule refuses
-        // (`@olai/web`'s `search/props.ts`).
-        const props = heldCustom(selected.at.props)
-        return {
-          // WHERE TO GO, which is what a hit is for: the document's own
-          // address, minted by the grammar rather than assembled here.
-          at: { kind: "document", path: selected.at.path },
-          title: selected.at.title,
-          ...(selected.match.field === null ? {} : { matched: selected.match.field }),
-          // The two halves of "why is this here" a document can carry, each
-          // omitted on the format's own rule for absence — the same two lines
-          // the node arm below spells, over the frontmatter this file writes
-          // about itself instead of over a record's `custom`.
-          ...(nothing(props) ? {} : { props }),
-          ...(selected.match.props.length === 0 ? {} : { matchedProps: selected.match.props }),
-        }
-      }
+      // ONE CONSTRUCTOR, in the package that owns the shape
+      // (`@olai/format`'s `documentHitOf`). It was these fifteen lines, and the
+      // everywhere page had the same fifteen — two producers of one row, which
+      // is the drift `searching.ts` exists to prevent, in the one file that
+      // could not see the other.
+      if (selected.kind === "document") return documentHitOf(selected)
       const { at: located, match } = selected
       const found = foundOf(at.derived, located)
       // The note this query is entitled to — the record's when it asked for

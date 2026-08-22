@@ -63,7 +63,7 @@ const VAULT = (): OutlineSet =>
 
 /** Which documents a query selects, written. */
 const selected = (set: OutlineSet, text: string): ReadonlyArray<string> =>
-  matchingDocuments(bodiedIn(set), parseFilter(text, TODAY)).map((one) => one.at.path)
+  matchingDocuments(bodiedIn(set.documents), parseFilter(text, TODAY)).map((one) => one.at.path)
 
 // ── which documents a query selects ────────────────────────────────────
 
@@ -221,8 +221,8 @@ test("a negated clause is satisfied by a document", () => {
 test("a scoped query selects no documents", () => {
   const set = VAULT()
   const filter = parseFilter("plan", TODAY)
-  expect(matchingDocuments(bodiedIn(set), filter, { file: "house.olai" })).toEqual([])
-  expect(matchingDocuments(bodiedIn(set), filter, { under: "kitchen" })).toEqual([])
+  expect(matchingDocuments(bodiedIn(set.documents), filter, { file: "house.olai" })).toEqual([])
+  expect(matchingDocuments(bodiedIn(set.documents), filter, { under: "kitchen" })).toEqual([])
 })
 
 // ONE LIST, and it is why the two weight tables share a scale: a document whose
@@ -238,7 +238,7 @@ test("both kinds come back in one ranked order", () => {
   const ranked = rankedTogether(
     derived,
     matching(derived, filter),
-    matchingDocuments(bodiedIn(set), filter),
+    matchingDocuments(bodiedIn(set.documents), filter),
   )
   expect(
     ranked.map((one) => (one.kind === "node" ? one.at.node.id : String(one.at.path))),

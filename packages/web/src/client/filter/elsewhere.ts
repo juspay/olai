@@ -93,11 +93,15 @@ export const createElsewhere = (source: {
   readonly onPage: Accessor<Matches | undefined>
 }): Accessor<number | null> => {
   const asked = createSettled(
-    () => {
-      if (!source.widenable() || source.query().kind !== "asking") return null
-      const words = source.text().trim()
-      return words === "" ? null : words
-    },
+    // WHAT IS WORTH A TRIP: a query the grammar READ, on a page there is
+    // somewhere wider than. An empty box and a refused query are both `asking`'s
+    // absence (`@olai/format`'s `parseFilter` answers `nothing` for a box that
+    // read no token at all), so this asks the parse rather than testing the
+    // text a second time — one empty-box rule, in the one place that owns it.
+    () =>
+      source.widenable() && source.query().kind === "asking"
+        ? source.text().trim()
+        : null,
     (text) => olai.procedures.search.nodes({ text, limit: COUNT_ONLY }),
   )
 

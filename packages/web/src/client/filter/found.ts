@@ -57,23 +57,24 @@ export const createFound = (source: {
    *  is taken against. */
   readonly matched: Accessor<Matches | undefined>
 }): Accessor<Found> => {
-  /** IS THERE ANYWHERE WIDER TO GO? False on `/search`, which IS everywhere,
-   *  and false on a page that takes no filter, which has no box. Read off the
-   *  page's own reading rather than off a route, so it and the sentence below
-   *  cannot disagree about which page this is. */
-  const widenable = () => source.narrowable() && only(source.drawn(), "search") === undefined
+  /** IS THIS THE EVERYWHERE PAGE? Read off the page's own READING rather than
+   *  off a route, so the ask below and the sentence beside it cannot disagree
+   *  about which page this is — and once, because both of them ask. */
+  const everywhere = createMemo(() => only(source.drawn(), "search"))
 
   const elsewhere = createElsewhere({
     query: source.query,
     text: source.text,
-    widenable,
+    // ANYWHERE WIDER TO GO? Not on `/search`, which IS everywhere, and not on a
+    // page that takes no filter, which has no box.
+    widenable: () => source.narrowable() && everywhere() === undefined,
     onPage: source.matched,
   })
 
   return createMemo((): Found => {
-    const everywhere = only(source.drawn(), "search")
-    return everywhere === undefined
+    const found = everywhere()
+    return found === undefined
       ? { kind: "page", counts: source.counts(), elsewhere: elsewhere() }
-      : { kind: "everywhere", said: everywhereLine(everywhere) }
+      : { kind: "everywhere", said: everywhereLine(found) }
   })
 }
