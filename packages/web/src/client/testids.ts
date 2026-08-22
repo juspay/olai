@@ -1029,6 +1029,11 @@ export const TESTID = {
   /** Drawn beside the model while a turn is running. Beside, not instead:
    *  what it runs on and whether it is running are two facts. */
   chatWorking: "chat-working",
+  /** The strip between the transcript and the box while the panel is busy —
+   *  a turn running, or an agent starting. Its WORDS are the assertion: the
+   *  header's `chatWorking` says the same fact in the chrome, and this says it
+   *  where a person who has just pressed enter is looking. */
+  chatBusy: "chat-busy",
   chatSessions: "chat-sessions",
   chatSessionList: "chat-session-list",
   chatSession: "chat-session",

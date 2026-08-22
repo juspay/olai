@@ -55,6 +55,12 @@
  *   slow        announce a tool call and hold it, until a scenario says when —
  *               long enough to look at a turn WHILE it is running, which is
  *               when a mid-turn message is a question anybody has
+ *   silent      a lone `usage_update` and a SUCCESSFUL `end_turn` — no prose,
+ *               no tool, no error anywhere. Captured live from opencode 1.17.9
+ *               with a provider key it could not resolve: the auth failure
+ *               never reaches the wire as one, so this is the whole of what a
+ *               client gets, and a panel that drew it as a normal turn drew
+ *               nothing at all
  *   anything    one chunk of prose and an `end_turn`
  *
  * `OLAI_FAKE_OPENCODE_STORED` works the way the other agent's does: unset means
@@ -255,6 +261,17 @@ const turn = async (text: string): Promise<string> => {
       update: { sessionUpdate: "tool_call_update", toolCallId, status: "completed" },
     });
     say("done dawdling");
+    return "end_turn";
+  }
+
+  if (said === "silent") {
+    // THE AUTH FAILURE, exactly as it arrives. One usage frame — which is a
+    // frame, and used to be enough to convince olai the agent had worked on
+    // the message — and then a turn that succeeded having produced nothing.
+    notify("session/update", {
+      sessionId,
+      update: { sessionUpdate: "usage_update", used: 0, size: 256000 },
+    });
     return "end_turn";
   }
 
