@@ -1,5 +1,7 @@
 # The orchestrator: give it a real home
 
+**SUPERSEDED 2026-08-22 by [orchestrator-in-olai.md](./orchestrator-in-olai.md)** — kept as history (the eight lapses, the 2026-08-21 ruling); the live design and the rulings since are there.
+
 Status: brainstorming, opened 2026-08-13, rewritten 2026-08-15; the direction was ratified the same day. The phased work is on the roadmap, as todo children of `orchestrator-in-chat` wired with `after` edges. The long version with all receipts is in git history; the apm spike is `apm-spike.md`. **2026-08-21: the seventh and eighth witnesses forced the ruling at the bottom of this file — the control flow leaves the model; olai itself becomes the deterministic harness driving the nondeterministic agent over ACP.**
 
 Lesson that opened this file: anything the orchestrator knows that is not in a file is a failure waiting to happen (wiped memory, the Fable model burn).
