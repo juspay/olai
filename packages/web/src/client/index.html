@@ -87,8 +87,10 @@
     <!-- The install surface. The manifest is the SERVER's
          (packages/server/src/listener.ts, through kolu's manifest layer); the
          icons are files copied to the dist root by the build. `rel="icon"` is
-         the tab, `apple-touch-icon` is iOS's Add to Home Screen, which reads
-         no manifest — so the same mark has to be named twice. There is no
+         the tab's first paint — the install mark — because the bundle has not
+         run yet; chrome.ts replaces it from the palette in force.
+         `apple-touch-icon` is iOS's Add to Home Screen, which reads no
+         manifest — so the install mark has to be named twice. There is no
          service worker and no offline shell: this app is live or nothing. -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />

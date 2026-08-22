@@ -30,7 +30,7 @@ import {
 
 import { manifestOf } from "./install_steps.ts";
 import { hintOf, showPreferences } from "./preferences_steps.ts";
-import { attr, HYDRATION_TIMEOUT, POLL_TIMEOUT, THEME_CHIP } from "../support/world.ts";
+import { attr, POLL_TIMEOUT, THEME_CHIP } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 /** What the parse probe leaves on `window`. Named once: an init script and two
@@ -41,6 +41,28 @@ const PROBE = "__olaiThemeLanded";
  *  of the generator, so a renamed namespace is a rename here too rather than a
  *  step that quietly reads an empty string. */
 const PAPER = customProperty("paper");
+
+/**
+ * What the browser chrome is painted in, as a page-side JavaScript function.
+ *
+ * A STRING, not a TypeScript function this file would serialise: Playwright
+ * runs `toString()` of a callback in the page, and a `: string` or an `as`
+ * cast is a syntax error there. The mark is a blob the page minted; fetching
+ * it is how this step reads the paper it was drawn in.
+ */
+const CHROME_OF = `async (property) => {
+  const paper = getComputedStyle(document.documentElement)
+    .getPropertyValue(property).trim().toLowerCase();
+  const chrome = document.querySelector('meta[name="theme-color"]')
+    ?.getAttribute("content")?.toLowerCase() ?? null;
+  const href = document.querySelector("link[rel=icon]")?.href;
+  let mark = null;
+  if (href) {
+    try { mark = (await (await fetch(href)).text()).toLowerCase(); }
+    catch { mark = null; }
+  }
+  return { chrome, paper, mark };
+}`;
 
 // ── picking ────────────────────────────────────────────────────────────
 
@@ -222,33 +244,35 @@ Then("the paper colour has changed", async function (this: OlaiWorld) {
 });
 
 Then("the browser chrome matches the paper", async function (this: OlaiWorld) {
-  // Both facts read in the SAME page function, and polled by the browser: the
-  // meta is repainted from the palette a frame after a chip is pressed, so
-  // this is a wait — and a wait made of two round trips per attempt would be
-  // reading two values taken at different instants.
-  const both = `({
-    chrome: document.querySelector('meta[name="theme-color"]')?.getAttribute('content') ?? null,
-    paper: getComputedStyle(document.documentElement).getPropertyValue(${JSON.stringify(PAPER)}).trim(),
-  })`;
-  try {
-    await this.page.waitForFunction(
-      `(both => both.chrome !== null && both.chrome.toLowerCase() === both.paper.toLowerCase())(${both})`,
-      null,
-      { timeout: POLL_TIMEOUT },
-    );
-  } catch (cause) {
-    // The timeout says "it never matched"; say WHAT it said instead.
-    const seen = (await this.page.evaluate(both)) as {
+  // One page function per attempt — the meta and the tab mark are repainted
+  // from the palette a frame after a chip is pressed, so this is a wait.
+  // Polled from Node: waitForFunction does not await an async IIFE string, and
+  // a Promise is truthy, so that wait would return on the first tick.
+  const property = JSON.stringify(PAPER);
+  const seenOf = () =>
+    this.page.evaluate(`(${CHROME_OF})(${property})`) as Promise<{
       chrome: string | null;
       paper: string;
-    };
-    assert.equal(
-      seen.chrome?.toLowerCase() ?? null,
-      seen.paper.toLowerCase(),
-      "the browser chrome is not the colour the page is painted in",
+      mark: string | null;
+    }>;
+  await this.waitUntil(async () => {
+    const seen = await seenOf();
+    return (
+      seen.chrome === seen.paper &&
+      seen.mark !== null &&
+      seen.mark.includes(`fill="${seen.paper}"`)
     );
-    throw cause;
-  }
+  }, "the browser chrome to match the paper").catch(() => undefined);
+  const seen = await seenOf();
+  assert.equal(
+    seen.chrome,
+    seen.paper,
+    "the browser chrome is not the colour the page is painted in",
+  );
+  assert.ok(
+    seen.mark !== null && seen.mark.includes(`fill="${seen.paper}"`),
+    "the tab mark is not painted in the paper the page is in",
+  );
 });
 
 Then(
