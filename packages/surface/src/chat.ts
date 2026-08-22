@@ -641,6 +641,20 @@ export const sayingKey = (piece: Pick<Saying, "of" | "at">): string =>
   `${piece.of}#${piece.at}`
 
 /**
+ * Where a piece ENDS in its row's text — the offset the NEXT piece of that row
+ * starts at.
+ *
+ * One line, spelled here for {@link sayingKey}'s reason and a sharper one: it
+ * is the whole of what both ends decide with. The server merges a piece into
+ * the one it is holding exactly when the new one starts where the held one
+ * ends, and the reader folds a piece onto a row exactly when it ends past what
+ * the row already has. Two spellings of that arithmetic is the day one of them
+ * is off by a character and a paragraph comes out with a syllable missing.
+ */
+export const sayingEnd = (piece: Pick<Saying, "at" | "text">): number =>
+  piece.at + piece.text.length
+
+/**
  * How often the server lets a growing row's pieces onto the wire, and how
  * often the panel re-renders one.
  *

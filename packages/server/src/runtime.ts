@@ -854,13 +854,22 @@ export const bind = (
          * PUT on the wire and not taken off again ({@link @olai/chat}'s
          * `cadence`).
          *
-         * A snapshot of this is deliberately allowed to overlap the row above:
-         * the transcript hands over the row's text WHOLE and this hands over
-         * pieces of it, so a subscriber can be given the same characters twice
-         * and folds them to one string anyway (`@olai/surface`'s `Saying`).
-         * That idempotence is what lets the two members be read a moment apart
-         * — which is all a socket can promise — instead of needing a snapshot
-         * of both at one instant.
+         * IT OVERLAPS THE ROW ABOVE, and that is the point of it rather than
+         * something it gets away with. The transcript hands a new subscriber
+         * the row's text WHOLE, so most of what this hands them is characters
+         * they already have — and the join drops those, because a piece that
+         * ends inside its row's own text adds nothing (`@olai/surface`'s
+         * `Saying`).
+         *
+         * What it is FOR is the gap between the two reads. A tab subscribes to
+         * the two members one after the other, and a piece published in
+         * between belongs to neither: it is past the text the row snapshot
+         * carried, and it was on the wire before this member's stream opened.
+         * Seeded empty, that piece is text nobody ever hands over, and the
+         * paragraph is short a word until the row is published whole at the
+         * end of it. Seeded with what is live, there is no gap to fall into —
+         * which is why this is a read of the pieces that are OUT rather than
+         * an empty map with a comment about idempotence over it.
          */
         saying: {
           readAll: () => new Map(saying.onWire()),
@@ -1120,7 +1129,7 @@ export const bind = (
         // Through the CADENCE, never straight onto the collection: a row that
         // grows reaches the wire as pieces on a clock rather than as itself
         // once per token (`transcript-stream-quadratic`). What comes back out
-        // is a frame, and {@link applying} writes it in the one order that
+        // is a frame, and {@link apply} writes it in the one order that
         // never shows a paragraph getting shorter.
         transcript: (change) => saying.publish(change),
       },

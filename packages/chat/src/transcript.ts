@@ -111,6 +111,19 @@ export const says = (change: Change): boolean =>
   change.upserts.length > 0 || change.removes.length > 0 || change.appends.length > 0
 
 /**
+ * Whether a change speaks for any ROW — as against carrying only text added to
+ * one.
+ *
+ * The other half of {@link says}, and here for its reason: two of a `Change`'s
+ * three fields are the ones that name rows, and a caller spelling that
+ * partition itself is a caller the next field misroutes. It is what
+ * {@link ./saying.ts} asks to decide whether a row has superseded the pieces of
+ * itself — a question about rows, so it is asked in the rows' own words.
+ */
+export const movesRows = (change: Change): boolean =>
+  change.upserts.length > 0 || change.removes.length > 0
+
+/**
  * An entry without the fields `#put` DERIVES, ready to be written back.
  *
  * `streaming` is why this exists and why it is one function: a spread of the
@@ -312,7 +325,7 @@ export class Transcript {
     this.#named.clear()
     this.#open = null
     this.#seq = 0
-    return { upserts: [], removes, appends: [] }
+    return { ...EMPTY, removes }
   }
 
   /** A row that stands on its own. */
@@ -468,7 +481,7 @@ export class Transcript {
       // answer and is what this line stopped doing.
       const at = current.text.length
       this.#write(open, { ...contentOf(current), text: `${current.text}${text}` })
-      return { upserts: [], removes: [], appends: [{ of: open, at, text }] }
+      return { ...EMPTY, appends: [{ of: open, at, text }] }
     }
     // A row that is not there yet is WRITTEN, whole and with its first chunk in
     // it: there is nothing on the far end to append to. It costs one chunk.
@@ -812,7 +825,7 @@ export class Transcript {
     key: string,
     entry: RowContent,
   ): Change {
-    return { upserts: [[key, this.#write(key, entry)]], removes: [], appends: [] }
+    return { ...EMPTY, upserts: [[key, this.#write(key, entry)]] }
   }
 
   /** The write itself, answering with the row as it now stands — and the one

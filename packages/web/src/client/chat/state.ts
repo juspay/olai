@@ -60,7 +60,7 @@ import { olai } from "../wire.ts"
 import { type Call, run } from "../run.ts"
 import { attaching } from "./attach.ts"
 import { createRows } from "./order.ts"
-import { grownText, TRANSCRIPT_TAIL } from "./growing.ts"
+import { createTail, grownText } from "./growing.ts"
 import { forget, remember } from "./previews.ts"
 
 /**
@@ -225,42 +225,52 @@ export const createChat = (): Chat => {
   // second delivery of the first, and the reason a streaming answer costs the
   // socket the answer rather than three hundred copies of its prefixes
   // ({@link ./growing.ts}).
-  const tail = olai.collections.saying.use().fold(TRANSCRIPT_TAIL)
+  const said = createTail(olai.collections.saying.use().fold)
   const [refused, setRefused] = createSignal<OpFailure | null>(null)
 
-  /** The pieces, joined — a fresh value on every frame a growing row sends. */
-  const said = createMemo(() => tail()?.tail ?? null)
-  /** WHICH row they belong to, which is what nearly every reader needs: it
-   *  moves once a paragraph, so a row asking whether it is the growing one is
-   *  woken when a paragraph opens and not once per frame of one. Reading
-   *  {@link said} instead would put every row on screen on the tail's own
-   *  clock, which is the walk-per-token this panel's fold already retired
-   *  ({@link ./order.ts}). */
-  const saying = createMemo(() => said()?.of ?? null)
-
   /**
-   * One row's value, with whatever is still being said laid onto it.
+   * THE ROW STILL BEING SAID, joined — computed ONCE per frame however many
+   * readers ask for it.
    *
-   * HERE rather than in the component that draws the text, so that everything
-   * downstream — the row, the lane above it, the minimized pill's last message
-   * — reads one complete row and no consumer has to know the wire delivers a
-   * growing one in two halves. The join is total and idempotent, so this is
-   * the whole of the knowledge ({@link ./growing.ts}).
+   * A memo rather than the join written into {@link entry} below, and the
+   * reason is identity rather than arithmetic: three tracked scopes read the
+   * growing row in one frame (the row itself, the lane over it, the lane of
+   * the row under it), and a join done per call hands each of them a
+   * different object for the same row. `./Transcript.tsx` says in place why
+   * that matters — an entry's identity surviving a frame is what stops one
+   * row's token re-running the attribute effects of every row on screen — and
+   * a per-call join would have quietly made that untrue for the one row it is
+   * about.
    *
-   * The row itself is handed back UNCHANGED whenever nothing is added to it,
-   * which is every row but one and every frame after a paragraph ends: the
-   * collection reconciles its values in place, so an identity that survives a
-   * frame is what keeps a memo over a row from re-running on somebody else's
-   * token.
+   * The row is handed back UNCHANGED whenever nothing is added to it, which is
+   * every frame after a paragraph ends: the pieces are still on the wire until
+   * the row that supersedes them is, and the join answers with the row itself
+   * for every one of them.
    */
-  const entry = (key: string): Accessor<ChatEntry | undefined> => () => {
-    const row = transcript.byKey(key)?.()
-    if (row === undefined || saying() !== key) return row
-    const held = said()
-    if (held === null) return row
+  const grown = createMemo((): ChatEntry | undefined => {
+    const key = said.of()
+    const held = said.tail()
+    const row = key === null ? undefined : transcript.byKey(key)?.()
+    if (row === undefined || held === null) return row
     const text = grownText(row, held)
     return text === row.text ? row : { ...row, text }
-  }
+  })
+
+  /**
+   * One row's value — with whatever is still being said laid onto it, when it
+   * is the row being said into.
+   *
+   * THE JOIN IS HERE rather than in the component that draws the text, so that
+   * everything downstream — the row, the lane above it, the minimized pill's
+   * last message — reads one complete row and no consumer has to know the wire
+   * delivers a growing one in two halves ({@link ./growing.ts}).
+   *
+   * WHICH row is growing is asked of a memo that moves once a paragraph, so
+   * every other row on screen is woken when a paragraph opens rather than on
+   * every frame of one.
+   */
+  const entry = (key: string): Accessor<ChatEntry | undefined> => () =>
+    said.of() === key ? grown() : transcript.byKey(key)?.()
 
   // THE ORDER, FOLDED — the wire's own frames accumulated into a key list
   // instead of the whole transcript being re-read and re-sorted per frame.

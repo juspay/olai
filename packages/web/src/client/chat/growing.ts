@@ -28,8 +28,11 @@
  * times a second ({@link ./state.ts}).
  */
 
+import { sayingEnd } from "@olai/surface"
+
 import type { Saying } from "@olai/surface"
-import type { CollectionFoldOptions } from "@kolu/surface/solid"
+import type { CollectionFold, CollectionFoldOptions } from "@kolu/surface/solid"
+import { type Accessor, createMemo } from "solid-js"
 
 /** The pieces of one row, joined: which row, where the joined run starts, and
  *  what it says. `at` travels with the text because the join needs it — it is
@@ -56,7 +59,8 @@ export interface Growing {
 }
 
 /**
- * The tail the held pieces make, or `null` when there is none.
+ * The tail the held pieces make, or `null` when there is none — REBUILT, which
+ * is the answer of last resort.
  *
  * WHOSE they are is the row of the piece most recently written, which is the
  * insertion order a `Map` keeps: pieces of a row are removed in the same frame
@@ -68,28 +72,27 @@ export interface Growing {
  * means a piece this tab has not been handed — and a string that jumped the
  * gap would be text in the wrong order presented as the answer. The run up to
  * the hole is honest, and the row's next whole publication carries the rest.
+ *
+ * The ordinary frame does NOT come through here ({@link TRANSCRIPT_TAIL}): a
+ * piece that continues the tail is the tail, longer, and walking every piece
+ * held to work that out again would be a pass over the answer so far on every
+ * frame of it — the shape {@link ./order.ts} retired one member over, arriving
+ * on this one.
  */
 const joined = (pieces: Map<string, Saying>): Tail | null => {
-  let of: string | undefined
-  for (const piece of pieces.values()) of = piece.of
+  const all = [...pieces.values()]
+  const of = all.at(-1)?.of
   if (of === undefined) return null
-  const run = [...pieces.values()]
-    .filter((piece) => piece.of === of)
-    .sort((one, other) => one.at - other.at)
-  const first = run[0]
-  if (first === undefined) return null
-  let text = ""
+  // Sorted rather than taken in arrival order: a snapshot's entries reach a
+  // fold in the store's own order, which is not this row's.
+  const run = all.filter((piece) => piece.of === of).sort((one, other) => one.at - other.at)
+  let tail: Tail = { of, at: run[0]?.at ?? 0, text: "" }
   for (const piece of run) {
-    if (piece.at !== first.at + text.length) break
-    text += piece.text
+    if (piece.at !== sayingEnd(tail)) break
+    tail = { ...tail, text: `${tail.text}${piece.text}` }
   }
-  return { of, at: first.at, text }
+  return tail
 }
-
-const growing = (pieces: Map<string, Saying>): Growing => ({
-  pieces,
-  tail: joined(pieces),
-})
 
 /**
  * The fold: seed from a full-set frame, and step one delta.
@@ -98,22 +101,71 @@ const growing = (pieces: Map<string, Saying>): Growing => ({
  * panels open at once each get their own accumulator from the one pair of
  * callbacks.
  *
+ * THE STEP EXTENDS RATHER THAN REBUILDS on the frame that is nearly every
+ * frame: a piece that starts where the held tail ends is that tail, longer, so
+ * the answer costs the length of the FRAME. Anything else — a remove, a piece
+ * of another row, a piece that does not continue — falls back to
+ * {@link joined}, which is the same rule read over everything held.
+ *
  * TOTAL OVER A REMOVE IT HAS NEVER SEEN, which the socket requires: the
  * server's tick coalescer resolves an upsert-then-remove inside one producer
  * tick to a bare remove, so a piece published and superseded within one tick
  * arrives as a remove that was never preceded by an upsert.
  */
 export const TRANSCRIPT_TAIL: CollectionFoldOptions<string, Saying, Growing> = {
-  init: (entries) => growing(new Map(entries)),
+  init: (entries) => {
+    const pieces = new Map(entries)
+    return { pieces, tail: joined(pieces) }
+  },
   step: (held, { upserts, removes }) => {
+    let tail = held.tail
     let moved = false
-    for (const key of removes) if (held.pieces.delete(key)) moved = true
+    let rebuild = false
+    for (const key of removes) {
+      if (!held.pieces.delete(key)) continue
+      moved = true
+      rebuild = true
+    }
     for (const [key, piece] of upserts) {
       held.pieces.set(key, piece)
       moved = true
+      if (rebuild) continue
+      if (tail !== null && tail.of === piece.of && sayingEnd(tail) === piece.at) {
+        tail = { ...tail, text: `${tail.text}${piece.text}` }
+        continue
+      }
+      rebuild = true
     }
-    return moved ? growing(held.pieces) : held
+    if (!moved) return held
+    return { pieces: held.pieces, tail: rebuild ? joined(held.pieces) : tail }
   },
+}
+
+/**
+ * The fold registered, and the two readings every reader of it wants.
+ *
+ * BOTH HERE, for the reason {@link ./order.ts}'s `createRows` gives about
+ * itself: the fold's saving is that a frame moving nothing hands back the
+ * accumulator it was already holding, and that saving is only cashed by
+ * something that compares. Split across two modules, the claim and the thing
+ * that cashes it are an unenforced rule.
+ *
+ * The SPLIT between the two is the whole point of there being two. `of` is a
+ * string that moves once a paragraph, so a row asking "am I the one growing"
+ * is woken when a paragraph opens rather than ten times a second; `tail` moves
+ * on every frame and is read by the one row that is growing. A reader that
+ * took the tail to answer the first question would put every row on screen on
+ * the tail's own clock, which is the walk-per-token this panel already retired.
+ */
+export const createTail = (
+  fold: CollectionFold<string, Saying>,
+): {
+  readonly tail: Accessor<Tail | null>
+  readonly of: Accessor<string | null>
+} => {
+  const held = fold(TRANSCRIPT_TAIL)
+  const tail = createMemo(() => held()?.tail ?? null)
+  return { tail, of: createMemo(() => tail()?.of ?? null) }
 }
 
 /**
@@ -137,7 +189,7 @@ export const grownText = (
   tail: Tail,
 ): string => {
   const held = row.text.length
-  if (tail.at + tail.text.length <= held) return row.text
+  if (sayingEnd(tail) <= held) return row.text
   if (tail.at > held) return row.text
   return `${row.text}${tail.text.slice(held - tail.at)}`
 }

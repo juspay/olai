@@ -7,13 +7,18 @@
  * same string as a tab that has been listening since the first token.
  */
 
+import { sayingKey } from "@olai/surface"
+
 import type { Saying } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
 import { grownText, type Growing, TRANSCRIPT_TAIL } from "./growing.ts"
 
 const piece = (of: string, at: number, text: string): readonly [string, Saying] => [
-  `${of}#${at}`,
+  // The server's own spelling, imported rather than written out: a key format
+  // that moved would break the join in the browser while a test that spelled
+  // it here went on passing.
+  sayingKey({ of, at }),
   { of, at, text },
 ]
 
@@ -53,7 +58,7 @@ describe("the fold", () => {
 
   test("removing every piece leaves no tail", () => {
     const held = stepped(seeded(), [piece("agent:1", 0, "gone")])
-    expect(stepped(held, [], ["agent:1#0"]).tail).toBeNull()
+    expect(stepped(held, [], [sayingKey({ of: "agent:1", at: 0 })]).tail).toBeNull()
   })
 
   test("the newest row's pieces are the tail", () => {

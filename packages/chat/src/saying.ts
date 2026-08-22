@@ -47,9 +47,11 @@
  * asserted without a server.
  */
 
-import { SAYING_MS, sayingKey } from "@olai/surface"
+import { SAYING_MS, sayingEnd, sayingKey } from "@olai/surface"
 
 import type { Saying } from "@olai/surface"
+
+import { movesRows } from "./transcript.ts"
 
 import type { Change } from "./transcript.ts"
 
@@ -60,17 +62,24 @@ export interface Pieces {
   readonly removes: ReadonlyArray<string>
 }
 
-/** One publication: the rows exactly as the transcript said them, and the
- *  pieces this module decided go with them. Rows first — see the header. */
+/**
+ * One publication: the rows exactly as the transcript said them, and the
+ * pieces this module decided go with them. Rows first — see the header.
+ *
+ * The rows half is the two fields a collection is WRITTEN with and not the
+ * whole `Change`, and that is the shape holding a rule rather than a comment
+ * asking for it: the appends of the change that produced this frame have
+ * already been consumed here, and a consumer that took them for something to
+ * apply would draw the same text twice.
+ */
 export interface Frame {
-  readonly rows: Change
+  readonly rows: Pick<Change, "upserts" | "removes">
   readonly pieces: Pieces
 }
 
-const NOTHING: Pieces = { upserts: [], removes: [] }
-
-/** A change with no rows in it — what a window's own frame carries. */
-const NO_ROWS: Change = { upserts: [], removes: [], appends: [] }
+/** Nothing written and nothing taken away — the half of a frame that carries
+ *  no news, whichever half that is. */
+const NOTHING = { upserts: [], removes: [] } as const
 
 /**
  * How a window is waited out.
@@ -134,8 +143,12 @@ export const cadence = (options: {
    * nothing. Neither is spellable now.
    *
    * At most ONE, because pieces of one row merge and a piece of another row
-   * displaces this one: a second slot would be a second row growing, which the
-   * transcript's single open entry makes unrepresentable.
+   * DISPLACES this one — sending it, rather than dropping it. The transcript
+   * has a single open entry, so the displacement is not a case anything can
+   * produce today; it is here because "what happens to the piece I am holding"
+   * is a question this module must answer for every piece that arrives, and
+   * the only answer that is right whatever the transcript grows into is the
+   * one that never loses text somebody is reading.
    */
   let waiting: { readonly piece: Saying; readonly close: () => void } | null = null
 
@@ -156,7 +169,7 @@ export const cadence = (options: {
         const held = waiting
         waiting = null
         if (held === null) return
-        options.onFrame({ rows: NO_ROWS, pieces: { upserts: [sent(held.piece)], removes: [] } })
+        options.onFrame({ rows: NOTHING, pieces: { upserts: [sent(held.piece)], removes: [] } })
       }),
     }
   }
@@ -178,7 +191,7 @@ export const cadence = (options: {
     const upserts: Array<readonly [string, Saying]> = []
     for (const piece of change.appends) {
       const held = waiting?.piece
-      if (held !== undefined && held.of === piece.of && held.at + held.text.length === piece.at) {
+      if (held !== undefined && held.of === piece.of && sayingEnd(held) === piece.at) {
         // CONTIGUOUS, so it is the same piece, longer. This is the coalescing:
         // six hundred chunks become a couple of dozen pieces, and the wire
         // carries the answer's own bytes plus a piece's worth of overhead per
@@ -194,12 +207,19 @@ export const cadence = (options: {
     // anything this module is holding or has sent about it is superseded —
     // said once here, for upserts and removes together, because a row that is
     // GONE supersedes its pieces exactly as hard as one that was rewritten.
-    const rows = new Set<string>([
-      ...change.upserts.map(([key]) => key),
-      ...change.removes,
-    ])
+    //
+    // ASKED FIRST, because this runs once per chunk an agent sends and nearly
+    // every one of them speaks for no row at all: a set built from two empty
+    // lists, and a walk of everything on the wire to match nothing in it, is
+    // the length of the ANSWER SO FAR paid per token — which is the shape this
+    // whole module exists to take off the wire, reintroduced beside it.
     const removes: Array<string> = []
-    if (waiting !== null && rows.has(waiting.piece.of)) drop()
+    if (movesRows(change)) {
+      const rows = new Set<string>([
+        ...change.upserts.map(([key]) => key),
+        ...change.removes,
+      ])
+      if (waiting !== null && rows.has(waiting.piece.of)) drop()
     // Everything that WAS on the wire for one of those rows comes off it —
     // including a piece this very call put there a few lines up, which then
     // rides out as an upsert and a remove of one key in one frame. That is
@@ -207,17 +227,19 @@ export const cadence = (options: {
     // then the removes, and the framework's own tick coalescer resolves an
     // upsert-then-remove inside a tick to a bare remove. Filtering it out here
     // would be this module doing a second time what both ends already do.
-    for (const [key, piece] of live) {
-      if (!rows.has(piece.of)) continue
-      live.delete(key)
-      removes.push(key)
+      for (const [key, piece] of live) {
+        if (!rows.has(piece.of)) continue
+        live.delete(key)
+        removes.push(key)
+      }
     }
 
-    const moved = change.upserts.length > 0 || change.removes.length > 0
-    if (!moved && upserts.length === 0 && removes.length === 0) return
+    const rows = movesRows(change)
+    const pieces = upserts.length > 0 || removes.length > 0
+    if (!rows && !pieces) return
     options.onFrame({
-      rows: moved ? change : NO_ROWS,
-      pieces: upserts.length === 0 && removes.length === 0 ? NOTHING : { upserts, removes },
+      rows: rows ? change : NOTHING,
+      pieces: pieces ? { upserts, removes } : NOTHING,
     })
   }
 

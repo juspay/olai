@@ -135,7 +135,13 @@ export function Entry(props: {
   readonly entry: ChatEntry
   readonly chat: Chat
 }) {
-  const due = createScheduled((run) => throttle(run, FRAME_MS))
+  /** ONLY FOR A ROW THAT CAN STREAM — off the same `kind` the asker below is
+   *  read off, and for its reason: `kind` never changes for an entry, and a
+   *  scheduler per row would leave every user message and every tool frame of
+   *  a long transcript holding a timer over text that cannot move. */
+  const due = props.entry.kind === "agent"
+    ? createScheduled((run) => throttle(run, FRAME_MS))
+    : undefined
   /** What the SET says about the ids this message names — a question now,
    *  asked once per message ({@link ./declared.ts}).
    *
@@ -154,7 +160,10 @@ export function Entry(props: {
   const shown = createMemo((previous: string = "") => {
     const text = props.entry.text
     if (props.entry.kind !== "agent" || props.entry.streaming !== true) return text
-    return due() ? text : previous
+    // `due` is present for exactly the kind this line has already narrowed to,
+    // which the type cannot see: the two are read off one `kind` that never
+    // changes for an entry.
+    return due === undefined || due() ? text : previous
   })
   /** The matching arm, or nothing. One idiom for every kind: Solid's `<Match>`
    *  then hands the narrowed row to the child, so a kind-specific field is

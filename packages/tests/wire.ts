@@ -223,17 +223,18 @@ const main = async () => {
     writeFileSync(full, text)
   }
 
-  if (SESSION === "chat") {
-    // Nothing written and nothing waited for: the vault `wire.sh` made is
-    // already there, and what this session measures happens inside one panel.
-  } else if (SESSION === "pages" || SESSION === "filter") {
+  if (SESSION === "pages" || SESSION === "filter") {
     corpus(write, SESSION === "filter" ? BIG : READING)
     // WRITTEN BEFORE THE TAB OPENS, and given a beat to be read: the server is
     // already up (`wire.sh` needed a URL to hand over), so the store learns
     // this directory from its watcher — and a first frame measured while the
     // corpus was still arriving would be a first frame of some prefix of it.
     await new Promise((settled) => setTimeout(settled, 5_000))
-  } else {
+  } else if (SESSION !== "chat") {
+    // ...and the `chat` session writes nothing at all: the vault `wire.sh`
+    // made is already there, and what it measures happens inside one panel.
+    // A megabyte of filler in the directory would be a megabyte of heads in
+    // the first frame it counts.
     write(PAGE, pageAt("Before"))
     write(NOTE, note())
   }

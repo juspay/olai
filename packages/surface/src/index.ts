@@ -1346,6 +1346,7 @@ export {
   OpFailure,
   RefusalEntry,
   Saying,
+  sayingEnd,
   sayingKey,
   SAYING_MS,
   SessionInfo,
