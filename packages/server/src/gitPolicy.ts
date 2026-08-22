@@ -213,7 +213,7 @@ export interface LivePolicy extends Policy {
  *
  * WHERE IT IS REMEMBERED is the ruling this whole feature keeps being handed:
  * outside the vault, under the XDG state directory, keyed by the served path
- * ({@link ./state.ts}). A file inside the vault would travel with `git pull`,
+ * (`@olai/state`). A file inside the vault would travel with `git pull`,
  * so a personal clone of a team's outlines would inherit the team's auto-push.
  *
  * READ ONCE, AT BOOT, and held in memory afterwards. The file is olai's own and

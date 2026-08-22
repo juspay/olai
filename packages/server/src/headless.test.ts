@@ -75,7 +75,7 @@ test("a headless serve commits a quiet directory and pushes it, with no tab open
     root,
     extra: ["--commit=auto", "--push=auto"],
     // The remembered policy lives under the state home, and a test must not
-    // write into the developer's own (`./state.ts`).
+    // write into the developer's own (`@olai/state`).
     env: { XDG_STATE_HOME: state },
   })
   try {
