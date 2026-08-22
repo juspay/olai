@@ -16,8 +16,9 @@ export const TESTID = {
   appHeader: "app-header",
   /** Who is looking, last in the chrome row (top right). Always drawn:
    *  `data-who` is `asking` / `none` / `yes` / `error` — a closed set.
-   *  `none` is anonymous, not a missing chip. The gravatar `<img>` is
-   *  inside it only when `yes`. */
+   *  `none` is anonymous, not a missing chip. A picture `<img>` is inside
+   *  it only when `yes` AND the server resolved one — a person the ladder
+   *  found no picture for wears the silhouette and is still `yes`. */
   identity: "identity",
   /** The row of controls inside it that are about the APP. On desktop: the
    *  connection, the Commit pill, the agent toggle, the preferences trigger.

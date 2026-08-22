@@ -4,18 +4,26 @@
  *
  * Four constructors, a closed set. `asking` while the door has not
  * answered; `none` when this request is anonymous; `yes` when a login
- * arrived (the gravatar is the icon); `error` when the door failed.
- * LAST in the chrome row — top right — wearing the same icon-button
- * the agent and prefs wear, so the bar's items-center has one height.
+ * arrived; `error` when the door failed. LAST in the chrome row — top
+ * right — wearing the same icon-button the agent and prefs wear, so the
+ * bar's items-center has one height.
+ *
+ * A person's PICTURE is the server's answer, already resolved down
+ * `@olai/identity`'s ladder — a proxy's IdP avatar, an operator's avatar
+ * template, the gravatar of a real email claim, or none. This file draws
+ * what it was handed and knows nothing about headers or templates; when
+ * the answer is none, the same silhouette anonymous wears stands in, and
+ * the person is still `yes` (they have a login, and now often a name).
  */
 
-import { Match, Switch, type JSX } from "solid-js"
+import { Match, Show, Switch, type JSX } from "solid-js"
 
 import { LAYER } from "../layer.ts"
 import { ICON_BUTTON } from "../readout.ts"
 import { TESTID } from "../testids.ts"
 import { Tip } from "../Tip.tsx"
 import { createWho, type Who as Person } from "./asking.ts"
+import { saying } from "./saying.ts"
 
 /** The four faces the slot can draw. Closed so a typo is a missing
  *  `Match` rather than a chip that draws nothing. */
@@ -98,21 +106,30 @@ function UserIcon() {
   )
 }
 
+/** A person: their picture when the server resolved one, and the same
+ *  silhouette as anonymous when it did not — a person with no picture is
+ *  still a person, which is what the tooltip and `data-who` say. */
 function Chip(props: { readonly person: Person }) {
   return (
-    <Tip text={props.person.login} layer={LAYER.over}>
+    <Tip text={saying(props.person)} layer={LAYER.over}>
       <span
-        class={`${ICON_BUTTON} border border-paper/25 p-1.5`}
-        aria-label={props.person.login}
+        class={`${ICON_BUTTON} border border-paper/25 ${
+          props.person.picture === null ? "text-paper/80" : "p-1.5"
+        }`}
+        aria-label={saying(props.person)}
       >
-        <img
-          src={props.person.gravatar}
-          alt=""
-          width={20}
-          height={20}
-          referrerPolicy="no-referrer"
-          class="size-5 rounded-full"
-        />
+        <Show when={props.person.picture} fallback={<UserIcon />}>
+          {(src) => (
+            <img
+              src={src()}
+              alt=""
+              width={20}
+              height={20}
+              referrerPolicy="no-referrer"
+              class="size-5 rounded-full"
+            />
+          )}
+        </Show>
       </span>
     </Tip>
   )

@@ -57,9 +57,14 @@ export const spawnFingerprint = (opts: {
    *  draws every browser's preference panel differently, so a scenario about a
    *  live toggle may not reuse one. */
   readonly pin?: { readonly commit?: string; readonly push?: string };
+  /** The avatar URL template this server was started with, if any. Part of
+   *  the key because a server that pictures people from a template answers
+   *  `GET /olai/who` differently — a scenario about the rung below it may not
+   *  reuse one. */
+  readonly avatar?: string;
 }): string =>
   `stored=${opts.stored ? 1 : 0},agent=${opts.agent ? 1 : 0},kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}` +
-  `,commit=${opts.pin?.commit ?? "-"},push=${opts.pin?.push ?? "-"}`;
+  `,commit=${opts.pin?.commit ?? "-"},push=${opts.pin?.push ?? "-"},avatar=${opts.avatar ?? "-"}`;
 
 /** Cucumber numbers workers from 0. Unset means this process is the only
  *  one — a serial run, or a unit test. Used to name the per-worker temp

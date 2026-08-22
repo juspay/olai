@@ -23,7 +23,7 @@
  */
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
-import { identityHeaders } from "@olai/identity"
+import { identityConfig } from "@olai/identity"
 import { toStdout } from "@olai/log"
 import { Effect, Layer } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
@@ -74,7 +74,7 @@ const web = Command.make("web", {
       pin: gitPin(commits, noCommit, pushes),
       clientDist: yield* clientDist,
       allowedOrigins: allowedOrigins(),
-      identity: identityHeaders(),
+      identity: identityConfig(),
     })
     // Wait to be interrupted — or for the surface runtime to fault, which is
     // the one thing that stops a healthy server on its own. Either way the

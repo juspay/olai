@@ -1169,6 +1169,23 @@ export class OlaiWorld extends World {
   context!: BrowserContext;
   page!: Page;
 
+  /**
+   * What the reverse proxy in front of this tab injects, as it accumulates.
+   *
+   * Playwright's `setExtraHTTPHeaders` REPLACES the whole set, so a scenario
+   * that said who it is and then said what it is called would have dropped
+   * the login on the second step. Kept here, per scenario, and written back
+   * whole each time — which is also what a proxy does.
+   */
+  private proxied: Record<string, string> = {};
+
+  /** Inject one more header on every request this tab makes from here on.
+   *  Before the first navigation, which is when a proxy would have. */
+  async proxyInjects(name: string, value: string): Promise<void> {
+    this.proxied = { ...this.proxied, [name]: value };
+    await this.context.setExtraHTTPHeaders(this.proxied);
+  }
+
   /** Uncaught page errors and `console.error` output, collected for the whole
    *  scenario by the `Before` hook. A feature asserts on this explicitly — a
    *  silent client-side exception behind a green UI assertion is exactly the

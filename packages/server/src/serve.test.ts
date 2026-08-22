@@ -20,7 +20,7 @@
  * sentence, which is the whole reason the pieces exist.
  */
 
-import { DEFAULT_IDENTITY_HEADERS } from "@olai/identity"
+import { DEFAULT_IDENTITY_CONFIG } from "@olai/identity"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
@@ -71,7 +71,7 @@ const run = (
       host: options.host ?? "127.0.0.1",
       clientDist: served(),
       allowedOrigins: [],
-      identity: DEFAULT_IDENTITY_HEADERS,
+      identity: DEFAULT_IDENTITY_CONFIG,
       // These start and stop a real server against a temp directory; committing
       // to whatever repository happens to contain it is not theirs to do.
       pin: { commit: "off", push: null },

@@ -20,7 +20,8 @@ export type { Who }
 
 export interface Asking {
   /** `undefined` until the server has answered; `null` when nobody is on
-   *  this connection; the login and its gravatar when somebody is. */
+   *  this connection; the login, the display name and the picture the
+   *  server resolved when somebody is. */
   readonly who: Accessor<Who | null | undefined>
   /** Whether that answer has arrived. Its own bit so a chip can wait on
    *  "none" as a fact rather than as a missing element. */

@@ -178,6 +178,26 @@ const GIT_TAG = /^@git:(repo|none|broken)$/;
  */
 const PIN_TAG = /^@pin:(commit|push)=([a-z]+)$/;
 
+/**
+ * `@avatar-template`: this scenario's server was started with an avatar URL
+ * TEMPLATE (`OLAI_IDENTITY_AVATAR_TEMPLATE`), which is the second rung of the
+ * picture ladder and the answer for a proxy that hands over a username rather
+ * than an address — GitHub serves every user's avatar at
+ * `https://github.com/<login>.png`, with no API and no token.
+ *
+ * A TAG rather than a step for the reason `@pin:` is one: it decides how the
+ * server is STARTED. The template itself is fixed here rather than spelled in
+ * the tag, because a tag is a name and a URL with a `/` in it is not: what a
+ * scenario is choosing is "this server has a template", and {@link
+ * AVATAR_TEMPLATE} is the documented one.
+ *
+ * It needs a server of its own (`@scratch:`) — a shared corpus server is
+ * running for every other scenario too, so what it pictures people with is
+ * not this one's to choose.
+ */
+const AVATAR_TAG = "@avatar-template";
+const AVATAR_TEMPLATE = "https://github.com/{login}.png";
+
 /** The screen a scenario is read on, and the pointer it is read with.
  *
  *  A `@phone` scenario gets a handset: 390×844 CSS pixels (an iPhone 13's, and
@@ -457,6 +477,10 @@ interface Spawn {
    *  half is absent when that flag was not asked for, because "nobody gave the
    *  flag" is exactly what leaves the preference row live in a browser. */
   readonly pin?: { readonly commit?: string; readonly push?: string };
+  /** The avatar URL template this server pictures people with, when the
+   *  scenario asked for one — see {@link AVATAR_TAG}. Absent is no template,
+   *  which is every other scenario. */
+  readonly avatar?: string;
   /** Private XDG cache root this child may write to. Required: a spawn
    *  that inherited the host's would share a cache (and a padi) with every
    *  other worker. HOME is not overridden — see `isolateEnv`. */
@@ -518,6 +542,12 @@ const startServerChild = async (
           process.env.PATH ?? "",
         ].join(path.delimiter),
         OLAI_FAKE_KOLU: spawnOptions.kolu === true ? "live" : "stale",
+        // The avatar template, when the scenario asked for one (`AVATAR_TAG`).
+        // Passed only where it was asked for: the variable being SET at all is
+        // what puts the second rung of the picture ladder in play.
+        ...(spawnOptions.avatar === undefined
+          ? {}
+          : { OLAI_IDENTITY_AVATAR_TEMPLATE: spawnOptions.avatar }),
         // The harness parses logfmt (`findLogfmt` for the serving line). A
         // developer's `OLAI_LOG=pretty` would make every boot hang on readiness.
         OLAI_LOG: "logfmt",
@@ -978,6 +1008,9 @@ Before(
       (tag) => tag.name === NO_AGENT_TAG,
     );
     this.hasKolu = scenario.pickle.tags.some((tag) => tag.name === KOLU_TAG);
+    const templated = scenario.pickle.tags.some(
+      (tag) => tag.name === AVATAR_TAG,
+    );
     this.gitMode = scenario.pickle.tags.flatMap((tag) => {
       const asked = GIT_TAG.exec(tag.name);
       return asked === null ? [] : [asked[1] as GitMode];
@@ -1022,12 +1055,22 @@ Before(
           `server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
+    // …and the same rule for the avatar template, which is one more thing a
+    // shared server would be deciding for every scenario that borrowed it.
+    if (templated && !writes) {
+      throw new Error(
+        `${AVATAR_TAG} decides what its server pictures people with, so the ` +
+          `scenario must own that server: tag it @scratch:${asked.corpus} ` +
+          `rather than @corpus:${asked.corpus}.`,
+      );
+    }
 
     if (writes) {
       const spawnOptions = {
         stored: this.storedSessions,
         agent: this.hasAgent,
         kolu: this.hasKolu,
+        ...(templated ? { avatar: AVATAR_TEMPLATE } : {}),
         ...(this.gitMode === undefined ? {} : { git: this.gitMode }),
         ...(pinned ? { pin: this.gitPin } : {}),
       };

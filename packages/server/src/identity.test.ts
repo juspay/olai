@@ -1,14 +1,18 @@
 /**
  * The chip's door: `GET /olai/who` over a real listener.
  *
- * The person is `@olai/identity`'s. This file drives the HTTP adapter,
- * because the chip's "mocked header" is a property of the serving stack,
- * not of the parse. {@link shown} is the mapping onto the surface's
- * `Who` — login plus picture — so a login with no email claim is still
- * someone, with the generic silhouette.
+ * The person is `@olai/identity`'s and so is the picture ladder. This file
+ * drives the HTTP adapter, because the chip's "mocked header" is a property
+ * of the serving stack, not of the parse: what a proxy actually injects
+ * reaches the door as headers, and what the browser is handed is one JSON
+ * object with the picture ALREADY RESOLVED. {@link shown} is that mapping.
  */
 
-import { GENERIC_GRAVATAR, gravatarOf } from "@olai/identity"
+import {
+  DEFAULT_IDENTITY_CONFIG,
+  gravatarOf,
+  type IdentityConfig,
+} from "@olai/identity"
 import { WHO_PATH } from "@olai/surface"
 import { expect, test } from "bun:test"
 import * as fs from "node:fs"
@@ -19,11 +23,38 @@ import { shown } from "./identity.ts"
 import { served, withServing } from "./serve.testlib.ts"
 
 const ADA = "ada@example.com"
+const GITHUB = "https://github.com/{login}.png"
 
-test("no email claim draws the generic silhouette, not a hash of the login", () => {
-  expect(shown({ login: "ada", email: null }).gravatar).toBe(GENERIC_GRAVATAR)
-  expect(shown({ login: ADA, email: ADA }).gravatar).toBe(gravatarOf(ADA))
-  expect(shown({ login: ADA, email: ADA }).gravatar).not.toBe(GENERIC_GRAVATAR)
+/** An Authelia-shaped serve, which sends no picture of its own. */
+const authelia: IdentityConfig = {
+  headers: {
+    login: "Remote-User",
+    email: "Remote-Email",
+    name: "Remote-Name",
+    picture: null,
+  },
+  avatar: null,
+}
+
+test("the door hands over the picture the ladder resolved, not a rule", () => {
+  const srid = { login: "srid@github", email: "srid@github", name: null }
+  expect(shown({ ...srid, picture: null }, null)).toEqual({
+    login: "srid@github",
+    name: null,
+    // The motivating case: a GitHub-backed tailnet's login is not an
+    // address, so there is no gravatar to hash and no picture to draw.
+    picture: null,
+  })
+  expect(shown({ ...srid, picture: null }, GITHUB).picture).toBe(
+    "https://github.com/srid%40github.png",
+  )
+  expect(
+    shown({ ...srid, picture: "https://avatars.example/srid.png" }, GITHUB)
+      .picture,
+  ).toBe("https://avatars.example/srid.png")
+  expect(
+    shown({ login: ADA, email: ADA, name: "Ada", picture: null }, null),
+  ).toEqual({ login: ADA, name: "Ada", picture: gravatarOf(ADA) })
 })
 
 const get = (
@@ -56,46 +87,86 @@ test("a mocked Tailscale-User-Login is this request's who", async () => {
     expect(answer.status).toBe(200)
     expect(JSON.parse(answer.body)).toEqual({
       login: ADA,
-      gravatar: gravatarOf(ADA),
+      name: null,
+      picture: gravatarOf(ADA),
     })
   })
 })
 
-test("Authelia headers on a serve configured for them are this request's who", async () => {
+test("tailscale's profile picture and name are what the chip is handed", async () => {
+  await withServing({ root: served() }, async (url) => {
+    const answer = await get(url, WHO_PATH, {
+      "Tailscale-User-Login": "srid@github",
+      "Tailscale-User-Name": "Sridhar Ratnakumar",
+      "Tailscale-User-Profile-Pic": "https://avatars.example/srid.png",
+    })
+    expect(answer.status).toBe(200)
+    expect(JSON.parse(answer.body)).toEqual({
+      login: "srid@github",
+      name: "Sridhar Ratnakumar",
+      picture: "https://avatars.example/srid.png",
+    })
+  })
+})
+
+test("a login that is not an address draws no picture, and still someone", async () => {
+  await withServing({ root: served() }, async (url) => {
+    const answer = await get(url, WHO_PATH, {
+      "Tailscale-User-Login": "srid@github",
+      "Tailscale-User-Name": "Sridhar Ratnakumar",
+    })
+    expect(answer.status).toBe(200)
+    expect(JSON.parse(answer.body)).toEqual({
+      login: "srid@github",
+      name: "Sridhar Ratnakumar",
+      picture: null,
+    })
+  })
+})
+
+test("an avatar template pictures that same login, with no API and no token", async () => {
   await withServing(
-    {
-      root: served(),
-      identity: { login: "Remote-User", email: "Remote-Email" },
-    },
+    { root: served(), identity: { ...DEFAULT_IDENTITY_CONFIG, avatar: GITHUB } },
     async (url) => {
       const answer = await get(url, WHO_PATH, {
-        "Remote-User": "ada",
-        "Remote-Email": ADA,
+        "Tailscale-User-Login": "srid",
       })
       expect(answer.status).toBe(200)
       expect(JSON.parse(answer.body)).toEqual({
-        login: "ada",
-        gravatar: gravatarOf(ADA),
+        login: "srid",
+        name: null,
+        picture: "https://github.com/srid.png",
       })
     },
   )
 })
 
-test("a login with no email claim is still someone, with the generic picture", async () => {
-  await withServing(
-    {
-      root: served(),
-      identity: { login: "Remote-User", email: "Remote-Email" },
-    },
-    async (url) => {
-      const answer = await get(url, WHO_PATH, { "Remote-User": "ada" })
-      expect(answer.status).toBe(200)
-      expect(JSON.parse(answer.body)).toEqual({
-        login: "ada",
-        gravatar: GENERIC_GRAVATAR,
-      })
-    },
-  )
+test("Authelia headers on a serve configured for them are this request's who", async () => {
+  await withServing({ root: served(), identity: authelia }, async (url) => {
+    const answer = await get(url, WHO_PATH, {
+      "Remote-User": "ada",
+      "Remote-Email": ADA,
+      "Remote-Name": "Ada Lovelace",
+    })
+    expect(answer.status).toBe(200)
+    expect(JSON.parse(answer.body)).toEqual({
+      login: "ada",
+      name: "Ada Lovelace",
+      picture: gravatarOf(ADA),
+    })
+  })
+})
+
+test("a login with no email claim is still someone, with no picture", async () => {
+  await withServing({ root: served(), identity: authelia }, async (url) => {
+    const answer = await get(url, WHO_PATH, { "Remote-User": "ada" })
+    expect(answer.status).toBe(200)
+    expect(JSON.parse(answer.body)).toEqual({
+      login: "ada",
+      name: null,
+      picture: null,
+    })
+  })
 })
 
 test("a request with no login is nobody", async () => {
@@ -106,7 +177,7 @@ test("a request with no login is nobody", async () => {
   })
 })
 
-test("a sealed page keeps its own policy, with no gravatar hole", async () => {
+test("a sealed page keeps its own policy, with no picture hole", async () => {
   const root = served()
   fs.writeFileSync(path.join(root, "page.html"), "<!doctype html><p>hi</p>")
   try {
@@ -116,6 +187,7 @@ test("a sealed page keeps its own policy, with no gravatar hole", async () => {
       const policy = String(page.headers["content-security-policy"] ?? "")
       expect(policy.length).toBeGreaterThan(0)
       expect(policy).not.toContain("gravatar.com")
+      expect(policy).not.toContain("img-src https:")
     })
   } finally {
     fs.rmSync(root, { recursive: true, force: true })

@@ -58,14 +58,22 @@
          from here (the sheet is a build artifact and this shell is what loads
          it) and is pinned by theme/css.test.ts instead. -->
     <meta name="theme-color" content="#D7F0E8" />
-    <!-- The header chip's gravatar is a remote <img>. Only that origin, plus
-         this vault and a blob: the chat's own thumbnails already are. Sealed
-         /media pages carry a stricter policy on the RESPONSE and do not
-         inherit this. img-src alone, so the inline theme script below is
-         untouched. -->
+    <!-- The header chip draws a person's picture, and it is a remote <img>.
+         WHOSE host that is belongs to whoever deployed this olai: the IdP
+         avatar a proxy hands over (`Tailscale-User-Profile-Pic`), the avatar
+         template an operator configured (`https://github.com/{login}.png`,
+         which itself redirects to another host), or gravatar. None of those
+         is known when this file is written, and the last two are not even
+         known when the server starts — so the policy names the SCHEME:
+         https, plus this vault and a blob: the chat's own thumbnails
+         already are. It is still a policy, not a hole: http:, data: and
+         every other scheme are refused, and the src itself can only ever be
+         what GET /olai/who answered (who/policy.test.ts). Sealed /media
+         pages carry a stricter policy on the RESPONSE and do not inherit
+         this. img-src alone, so the inline theme script below is untouched. -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="img-src 'self' blob: https://www.gravatar.com https://secure.gravatar.com https://gravatar.com"
+      content="img-src 'self' blob: https:"
     />
     <!-- What the browser should assume before the sheet lands: it cannot know
          yet which theme this page is in, and the themes come both ways. Once
