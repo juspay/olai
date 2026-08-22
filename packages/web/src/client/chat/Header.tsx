@@ -149,14 +149,15 @@ export function Header(props: {
 
       {/* Both verbs need an agent to act on. With none they would refuse, so
           they are not offered — the panel's body says why.
-          The CHATS list spans every installed agent now ({@link ./Sessions.tsx}),
-          so it is no longer gated on having somebody to ask — it is gated on
-          there being a conversation to LEAVE. While the panel is asking which
-          agent, the question in its body is the way in, and a second door
-          beside it offering the same answer in different words would be two
-          answers to one question. `+ new` is offered either way: raising that
-          question is exactly what it does, and it is the way out of a panel
-          with no conversation in it. */}
+          The CHATS list is gated on AN AGENT BEING BOUND (`agentIn`), which is
+          no longer the same thing as having somebody to ask: the list spans
+          every installed agent now ({@link ./Sessions.tsx}) and would answer
+          with no agent bound at all. It stays gated because the panel with none
+          is the panel ASKING which one, and a second door beside that question
+          offering the same answer in different words would be two answers to
+          one question. `+ new` is offered either way: raising that question is
+          exactly what it does, and it is the way out of a panel with no
+          conversation in it. */}
       <Show when={state().status !== "off"}>
         <Show when={agentIn(state())}>
           <Sessions chat={props.chat} />
