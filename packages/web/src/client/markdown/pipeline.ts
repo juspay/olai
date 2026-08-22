@@ -71,6 +71,7 @@
 
 import nix from "highlight.js/lib/languages/nix"
 import { common } from "lowlight"
+import { toString } from "mdast-util-to-string"
 import rehypeAutolinkHeadings from "rehype-autolink-headings"
 import rehypeHighlight from "rehype-highlight"
 import rehypeSanitize from "rehype-sanitize"
@@ -80,7 +81,6 @@ import remarkParse from "remark-parse"
 import remarkRehype from "remark-rehype"
 import { unified } from "unified"
 import type { Root } from "hast"
-import type { Root as Source } from "mdast"
 
 import { AUTOLINK } from "./anchors.ts"
 import { SANITISE } from "./sanitise.ts"
@@ -114,8 +114,8 @@ const pipeline = unified()
 
 /**
  * What the rest of the app is allowed to know about the pipeline: a source in
- * (twice — the tree it renders to, and the tree it parses to) and a tree back
- * out as HTML.
+ * (twice — the tree it renders to, and the text it reads in it) and a tree
+ * back out as HTML.
  *
  * Narrow on purpose. This is the shape ./chunk.ts hands out once the file has
  * arrived, so it is also the surface a test installs and the thing a reader
@@ -128,16 +128,17 @@ export interface Pipeline {
    *  walked it. */
   readonly treeOf: (source: string) => Root
   /**
-   * Source → the MDAST: the SAME parse one step earlier, before
-   * `remark-rehype` and the sanitiser have had their say about any of it.
+   * Source → THE TEXT MARKDOWN READS IN IT, which is not the text the render
+   * draws and is the whole point: this is the same parse one step earlier,
+   * before `remark-rehype` and the sanitiser have dropped anything of it.
    *
    * One caller, one question — ./title.ts asks how much text a title accounts
    * for, so it can tell a rendering that LOST words from one that never had
-   * them. Raw HTML is the whole case: `<Component>` is characters in the
-   * source and nothing at all in the tree above, and the only way to know
+   * them. Raw HTML is the case that matters: `<Component>` is characters in
+   * the source and nothing at all in the tree above, and the only way to know
    * that without re-implementing markdown is to ask markdown.
    */
-  readonly mdastOf: (source: string) => Source
+  readonly textOf: (source: string) => string
   /** A tree that pipeline ran → the HTML string an element may be given. */
   readonly htmlOf: (tree: Root) => string
 }
@@ -145,6 +146,15 @@ export interface Pipeline {
 export const treeOf = (source: string): Root =>
   pipeline.runSync(pipeline.parse(source)) as Root
 
-export const mdastOf = (source: string): Source => pipeline.parse(source)
+/**
+ * `mdast-util-to-string`'s DEFAULTS are the two decisions this needs, which is
+ * why they are not spelled: `includeHtml` keeps a raw `<Component>`'s
+ * characters (the loss the caller is hunting), and `includeImageAlt` keeps a
+ * picture's words (a title is phrasing only — ./inline.ts drops the picture
+ * itself, so the alt would otherwise go quietly). It is remark's own utility,
+ * already under `remark-parse` in the lockfile; the walk was written out here
+ * once and was this function line for line.
+ */
+export const textOf = (source: string): string => toString(pipeline.parse(source))
 
 export const htmlOf = (tree: Root): string => pipeline.stringify(tree)

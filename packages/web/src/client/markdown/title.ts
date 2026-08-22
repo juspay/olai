@@ -47,12 +47,11 @@
  */
 
 import type { Element, ElementContent, Root, RootContent, Text } from "hast"
-import type { Root as Source, RootContent as SourceContent } from "mdast"
 
 import { NO_NEEDLES } from "../filter/lit.ts"
 import { markdownReady } from "./chunk.ts"
 import { plainTitle } from "./plain.ts"
-import { hastToHtml, parseToMdast, renderToTree } from "./render.ts"
+import { hastToHtml, renderToTree, sourceText } from "./render.ts"
 import { escapeHtml, styleTags } from "./tags.ts"
 
 export interface TitleRender {
@@ -178,51 +177,29 @@ const build = (
  * True when what was DRAWN is missing text the source still accounts for.
  *
  * Two numbers off one title: the text of the tree the pipeline produced, and
- * the text markdown says is in the source ({@link accountedText}). Shorter
- * than accounted-for is a loss; longer is not — a rendering adds text of its
- * own (a heading's anchor, a footnote's number, the space ./inline.ts opens
- * between two unwrapped blocks), and none of that is a title losing a word.
+ * the text markdown reads in the source (./render.ts's `sourceText`, which is
+ * that parser's own answer rather than a second opinion about markdown — raw
+ * HTML counts as its characters there, and an image's `alt` as its words,
+ * because those are exactly what a drawn title drops).
+ *
+ * Shorter than accounted-for is a loss; longer is not — a rendering adds text
+ * of its own (a heading's anchor, a footnote's number, the space ./inline.ts
+ * opens between two unwrapped blocks), and none of that is a title losing a
+ * word.
+ *
+ * IT WAS A LIST OF REGEXES stripping marks off the source, which is a second
+ * markdown dialect standing beside the real one — the thing ./plain.ts refuses
+ * a title rather than keep. It could not read NESTING: `**b *c* d**` matched no
+ * bold rule whole, the marks the inner run left behind stayed in the count, the
+ * count came out longer than the render, and `a **b *c* d** e` was drawn as its
+ * own escaped source with a stray `*` in it (the same for `**a *b* c**`, the
+ * underscore spellings, and every `&amp;` — five characters of source and one
+ * of text).
  */
 const lostText = (title: string, tree: Root): boolean => {
   const drawn = collapse(renderedText(tree))
   if (drawn === "") return true
-  return drawn.length < collapse(accountedText(parseToMdast(title))).length
-}
-
-/**
- * The text a source ACCOUNTS FOR — markdown's own reading of the title, off
- * the same parse the render came out of (./render.ts's `parseToMdast`).
- *
- * Every node that carries characters carries them here: words, code (fenced
- * and inline), and RAW HTML, which is the whole point of the comparison — a
- * `<Component>` is text in the source and nothing at all in the tree, and this
- * is what turns that into a fallback rather than a title with a word missing.
- * An image's `alt` counts for the same reason: a title is phrasing only
- * (./inline.ts drops the picture), so the words written into one would
- * otherwise go quietly.
- *
- * IT USED TO BE A LIST OF REGEXES, one per construct, stripping marks off the
- * source — which is a second markdown dialect standing beside the real one,
- * the thing ./plain.ts refuses a title rather than keep. It could not read
- * NESTING: `**b *c* d**` matched no bold rule whole, the marks the inner run
- * left behind stayed in the count, the count came out longer than the render,
- * and `a **b *c* d** e` was drawn as its own escaped source with a stray `*`
- * in it (the same for `**a *b* c**`, the underscore spellings, and every
- * `&amp;`, which is five characters of source and one of text). Reading the
- * parser cannot be wrong that way: it is not a second opinion about markdown,
- * it is the one the render is made of.
- */
-const accountedText = (tree: Source): string => {
-  let out = ""
-  const walk = (nodes: ReadonlyArray<SourceContent>): void => {
-    for (const node of nodes) {
-      if ("value" in node) out += node.value
-      else if ("alt" in node) out += node.alt ?? ""
-      else if ("children" in node) walk(node.children)
-    }
-  }
-  walk(tree.children)
-  return out
+  return drawn.length < collapse(sourceText(title)).length
 }
 
 const collapse = (value: string): string => value.replace(/\s+/g, " ").trim()

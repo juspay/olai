@@ -41,7 +41,6 @@
 
 import { bracketSpacedLinks } from "@olai/format"
 import type { Root } from "hast"
-import type { Root as Source } from "mdast"
 
 import { pipelineNow } from "./chunk.ts"
 import { toInline } from "./inline.ts"
@@ -162,18 +161,19 @@ export const renderToTree = (
 }
 
 /**
- * The same source, as markdown PARSED it — one step before the tree above.
+ * The text markdown reads in a source — the same string {@link renderToTree}
+ * renders, read one step earlier.
  *
  * ./title.ts is the caller and the loss check is the whole use: how much text
  * a title ACCOUNTS FOR is a question only the parser can answer, and asking it
  * here rather than there is what keeps the two readings of one title on one
- * string. The transform is the reason it cannot be asked there — a title
- * reaches the pipeline through `bracketSpacedLinks`, so a caller parsing the
- * raw source itself would read `[a](my file.md)` as literal text while the
- * render read it as a link, and every such title would look like a loss.
+ * string. `bracketSpacedLinks` is the reason it cannot be asked anywhere else
+ * — a caller reading the raw source would take `[a](my file.md)` for literal
+ * text while the render took it for a link, and every such title would look
+ * like a loss.
  */
-export const parseToMdast = (source: string): Source =>
-  pipelineNow().mdastOf(bracketSpacedLinks(source))
+export const sourceText = (source: string): string =>
+  pipelineNow().textOf(bracketSpacedLinks(source))
 
 /**
  * The id a rendered block ACTUALLY carries for a heading somebody named — the
