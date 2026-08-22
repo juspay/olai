@@ -996,23 +996,30 @@ describe("--commit=auto: the quiet window", () => {
         expect(pending.last).toMatchObject({ writer: "auto" })
       }), { commits: "auto", quiet: 40 }))
 
+  /**
+   * The server's slow sweep, over and over, while nothing moves.
+   *
+   * A window re-armed on a reading that says nothing new is a window a
+   * repository somebody is not writing to would never close — the sweep is
+   * every thirty seconds and the span is fifteen, so it would close only in
+   * the gaps and, on a busy directory, not at all.
+   *
+   * IT IS ASSERTED WITHOUT WAITING AFTERWARDS, which is what makes it
+   * discriminating: the surveys run for three times the window, so a loop that
+   * re-armed on each of them has recorded nothing by the time they stop.
+   */
   test("a survey that says nothing new does not push the window out", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         yield* Effect.forkScoped(fixture.ops.loop)
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
 
-        // The server's slow sweep, five times over, while nothing moves. A
-        // window re-armed on these is a window a repository somebody is not
-        // writing to would never close — which is what the browser's own copy
-        // did until it learnt to compare readings.
-        for (let round = 0; round < 5; round++) {
+        for (let round = 0; round < 10; round++) {
           yield* fixture.observe
-          yield* Effect.sleep(Duration.millis(15))
+          yield* Effect.sleep(Duration.millis(60))
         }
-        yield* past(40)
         expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
-      }), { commits: "auto", quiet: 40 }))
+      }), { commits: "auto", quiet: 200 }))
 
   test("nothing is attempted while the repository is busy, and it records after", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
