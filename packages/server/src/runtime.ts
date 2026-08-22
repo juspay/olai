@@ -665,10 +665,18 @@ export const bind = (
                   // coalesced into one delta on a microtask, so the manifest
                   // reaches a socket first. Nothing here may promise otherwise
                   // — a reader tolerates the skew either way, and that is the
-                  // cross-file consistency paragraph in the design doc. It is
-                  // also the only write here that is usually a no-op: the cell
-                  // says whether there is a set, and its `equals` keeps every
-                  // revision after the first one quiet.
+                  // cross-file consistency paragraph in the design doc. What
+                  // "either way" costs a reader that does NOT is
+                  // `manifest-fold-skew`: a tab told `null` before this
+                  // revision, reached by these heads before that cell frame,
+                  // drew the error report over a directory it was holding. The
+                  // browser resolves it where both halves are held
+                  // (`@olai/web`'s `directory.ts` — heads are published only
+                  // from here, so holding one is proof of a set); this line
+                  // stays exactly as unpromising as it was. It is also the only
+                  // write here that is usually a no-op: the cell says whether
+                  // there is a set, and its `equals` keeps every revision after
+                  // the first one quiet.
                   cell.set(LOADED)
                   // …and last of all, the readings that publish NOTHING are
                   // told to go and look again.

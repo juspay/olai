@@ -63,28 +63,60 @@
  *
  * ## The three states, which is why the manifest is here too
  *
- * A reader must tell apart `undefined` — "no frame yet", the page is still
- * reading — from `null`, "there has never been a valid set", where the error
- * report IS the page, from a value, which is a directory. An empty collection
- * cannot carry that distinction: a directory with no files in it is a real
- * answer and looks exactly like a first probe that has not finished. The
- * manifest cell is what says which, and it is handed in beside the entries so
- * that the one place the two are read together is the one place that answers.
+ * A reader must tell apart "no frame yet", the page is still reading, from
+ * "there has never been a valid set", where the error report IS the page, from
+ * a directory. An empty collection cannot carry that distinction: a directory
+ * with no files in it is a real answer and looks exactly like a first probe
+ * that has not finished. The manifest cell is what says which, and it is handed
+ * in beside the entries so that the one place the two are read together is the
+ * one place that answers.
+ *
+ * THAT SENTENCE IS THE WHOLE CONTRACT, and {@link Standing} is what makes it
+ * unavoidable: what leaves this module is the ANSWER — `reading`, `never`,
+ * `loaded` — and not the wire's `Manifest`, so no reader downstream can ask the
+ * question a second time and get a different answer out of a cell whose word
+ * may be the older of the two things this tab is holding. The one place the two
+ * sources meet is {@link createDirectory}'s memo. Before `manifest-fold-skew`
+ * the member handed out the cell's own three-valued shape and the shell asked
+ * again — and in one of the two arrival orders, what it got back was wrong.
+ *
+ * BECAUSE THE TWO ARRIVE IN EITHER ORDER. They are two members on two channels,
+ * and the server says exactly that rather than promising an order it cannot
+ * keep (`@olai/server`'s `runtime.ts`, where a revision is published: the
+ * manifest is written last and reaches a socket first, and "a reader tolerates
+ * the skew either way"). So this module tolerates BOTH, and the rule is one
+ * sentence in each direction:
+ *
+ *   - A TAB HOLDING FILES IS HOLDING A DIRECTORY. Heads are only ever published
+ *     out of a revision, and a store with no snapshot publishes none — so a
+ *     non-empty fold is proof that a set loaded, and it OUTRANKS a `null` the
+ *     cell has not caught up on. That is the skew this used to draw wrong: a
+ *     tab that connected before the first revision has been told `null`, and
+ *     that revision's heads can reach it before the cell's next frame does. The
+ *     error report drew over live paths, and every one of them was already
+ *     here.
+ *   - A DIRECTORY THAT NEVER LOADED SAYS SO, and does not wait for a frame that
+ *     is not coming — while, and only while, this tab is holding no file. A
+ *     tab holding a directory served by a process that has since restarted and
+ *     failed to load keeps drawing it for exactly as long as it holds it: the
+ *     re-seed that empties this fold is the frame the error report arrives on,
+ *     which is one frame later than the cell and is the right one, because
+ *     until then the paths on screen are answers this tab actually has.
  *
  * AND THE FOLD PUT A FOURTH THING IN ITS CARE. A fold's accumulator has one
  * absent state and it means "there is no valid accumulator" — before the first
  * snapshot, and after an `init`/`step` that threw, which the framework contains
  * and reports loudly and which stands until the next snapshot re-seeds. Read
  * naively that is an EMPTY DIRECTORY, which is a lie a reader cannot catch: a
- * vault with no files in it looks the same. So the manifest absorbs it — while
- * this fold holds nothing, the directory reports `undefined`, "still reading",
- * which is what a tab draws before its first frame anyway and what it should
- * draw again the moment it is holding nothing. `null` OUTRANKS that silence,
- * because a directory that never loaded is a settled answer and no head is
- * coming for it. The two members below then agree with the manifest rather than
- * contradicting it: no set, no paths, nothing broken — nothing is claimed that
- * this tab is not holding, and the one member that says WHICH of the states it
- * is in is the one the shell is already gated on (`./App.tsx`'s `loaded`).
+ * vault with no files in it looks the same. So this answer absorbs it — while
+ * the fold holds nothing, the directory reads `reading`, which is what a tab
+ * draws before its first frame anyway and what it should draw again the moment
+ * it is holding nothing. `never` OUTRANKS that silence, because a directory
+ * that never loaded is a settled answer and no head is coming for it. The two
+ * members below then agree with it rather than contradicting it: no set, no
+ * paths, nothing broken — nothing is claimed that this tab is not holding, and
+ * the one member that says WHICH of the states it is in is the one the shell is
+ * already gated on (`./App.tsx`'s `loaded`).
  *
  * `./chat/order.ts` READS THE SAME ABSENT STATE AS AN EMPTY CONVERSATION, and
  * the two are not in conflict. A transcript with no rows is what a panel drew
@@ -110,11 +142,33 @@ import { type Accessor, createMemo } from "solid-js"
 import { sortByPath } from "./paths.ts"
 import { sameMap } from "./same.ts"
 
+/**
+ * WHERE A TAB'S DIRECTORY STANDS — the three states of the header, as the three
+ * words the shell switches on (`./App.tsx`).
+ *
+ *   - `reading` — no answer yet. Either member may still be in flight, and the
+ *     fold holding nothing reads as this too (the header's fourth state).
+ *   - `never` — there has never been a valid set, so the error report IS the
+ *     page. A settled answer: no head is coming.
+ *   - `loaded` — a directory. Possibly an empty one, which is a real answer.
+ *
+ * A UNION AND NOT THE WIRE'S `Manifest`, and that is the point rather than
+ * tidiness. `Manifest | undefined` is these same three states spelled
+ * `{} | null | undefined`, and every reader of it has to say the three-way test
+ * itself — which is a second answer to a question this module was handed both
+ * halves of specifically so that it could be the one that answers. The shell
+ * had two spellings of it and they differed (`./App.tsx`'s `loaded` and its
+ * `Switch`); what they could not tell each other was that the cell's word is
+ * sometimes the older of the two, which is `manifest-fold-skew`. Three words
+ * with no cell behind them make asking twice impossible.
+ */
+export type Standing = "reading" | "never" | "loaded"
+
 export interface Directory {
-  /** The set-wide facts: `undefined` before the first frame — or while the fold
-   *  is holding nothing, which is the same sentence (see the header) — `null`
-   *  for a directory that has never loaded, a value otherwise. */
-  readonly manifest: Accessor<Manifest | undefined>
+  /** Which of the three states this tab's directory is in — see
+   *  {@link Standing}, and the header for the two arrival orders it is
+   *  resolved from. */
+  readonly standing: Accessor<Standing>
   /** Every served file's PATH, in path order — the list every membership
    *  question in the app is asked of, and the one the sidebar's tree is a
    *  function of.
@@ -415,10 +469,29 @@ export const createDirectory = (
   // the registration is dropped by that owner's `onCleanup`.
   const held = entries.fold(SERVED_FILES)
   return {
-    manifest: createMemo(() => {
+    // THE ONE PLACE THE TWO SOURCES ARE READ TOGETHER, which is the whole
+    // reason the cell is handed in here rather than read by the shell: they are
+    // two members on two channels, either can arrive first, and only a reader
+    // holding both can say which of them to believe. Both orders, in the order
+    // they are decided:
+    standing: createMemo((): Standing => {
+      const holding = held()
+      // A TAB HOLDING FILES IS HOLDING A DIRECTORY. Heads come out of a
+      // revision and a store with no snapshot publishes none, so this is proof
+      // of a set — and it outranks a `null` from the cell, which in this order
+      // is simply the older of the two answers (`manifest-fold-skew`: the error
+      // report drawn over paths that had already arrived).
+      if (holding !== undefined && holding.paths.length > 0) return "loaded"
       const said = manifest()
-      // `null` OUTRANKS the fold's silence — see the header's fourth state.
-      return said === null || held() !== undefined ? said : undefined
+      // …and with nothing held, `null` is the settled answer it has always
+      // been: no head is coming for a directory that never loaded, so this
+      // waits for no frame.
+      if (said === null) return "never"
+      // What is left is the two silences, and they are one word: the cell
+      // before its first frame, and the fold holding no accumulator (the
+      // header's fourth state). An empty vault whose cell has spoken is the
+      // only `loaded` with no path in it, and it is a real answer.
+      return said === undefined || holding === undefined ? "reading" : "loaded"
     }),
     paths: createMemo(() => held()?.paths ?? NO_PATHS),
     // SEEDED with the empty map, which the `equals` requires: a comparator is

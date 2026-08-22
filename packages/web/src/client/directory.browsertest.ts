@@ -19,11 +19,15 @@
  * identity assertions for that reason, not for taste.
  *
  * A MEMO TEST rather than a test of the fold alone, because the accumulator on
- * its own would pass with nothing wired to it — and because the state that made
- * this change hard is not the accumulator's to answer at all: a fold holding
+ * its own would pass with nothing wired to it — and because the states that
+ * made this hard are not the accumulator's to answer at all. A fold holding
  * NOTHING (before its first frame, and again after a throw the framework
- * contained) is what the manifest absorbs, so only a whole directory can be
- * asked about it.
+ * contained) is one, absorbed as "still reading". The SKEW between the fold and
+ * the manifest cell is the other (`manifest-fold-skew`): they are two members
+ * on two channels, either arrives first, and only a reader holding both can say
+ * which to believe. Both are questions about `Directory.standing`, so only a
+ * whole directory can be asked them — and a case is the order it pushed the two
+ * arrivals in.
  *
  * UNDER THE BROWSER CONDITION, and it has to be: `bun test` resolves SolidJS's
  * SERVER build, where a memo NEVER RE-RUNS — so every case here would pass
@@ -141,7 +145,7 @@ const live = () => {
     return {
       wrote,
       reads: () => reads,
-      manifest: directory.manifest,
+      standing: directory.standing,
       paths: directory.paths,
       broken: directory.broken,
       head: directory.head,
@@ -420,34 +424,46 @@ test("a file this directory does not hold is at no revision at all", () => {
   directory.stop()
 })
 
-// ── and the states, which the manifest is what answers ──────────────────
+// ── and the states, which `Directory.standing` is what answers ──────────
 
 test("before the first frame there is no set, whatever the manifest says", () => {
-  // The state the fold and the cell can disagree about, and the one this change
-  // put in the manifest's care: the cell can say a directory loaded on the
-  // frame before this tab is holding one, and an empty directory is a real
-  // answer that looks exactly the same.
+  // The state the fold and the cell can disagree about, and the one
+  // `directory-heads-fold` put in this answer's care: the cell can say a
+  // directory loaded on the frame before this tab is holding one, and an empty
+  // directory is a real answer that looks exactly the same.
   const directory = live()
   directory.loaded()
-  expect(directory.manifest()).toBeUndefined()
+  expect(directory.standing()).toBe("reading")
   expect(directory.paths()).toEqual([])
   expect(directory.broken().size).toBe(0)
   directory.stop()
 })
 
 test("a directory that never loaded says so, and does not wait for a frame", () => {
-  // `null` OUTRANKS the fold's silence: no head is coming for a directory that
+  // `never` OUTRANKS the fold's silence: no head is coming for a directory that
   // failed to load, so the error report IS the page.
   const directory = live()
   directory.never()
-  expect(directory.manifest()).toBeNull()
+  expect(directory.standing()).toBe("never")
   directory.stop()
 })
 
 test("a set that arrives is a directory", () => {
   const directory = twoFiles()
-  expect(directory.manifest()).not.toBeUndefined()
+  expect(directory.standing()).toBe("loaded")
   expect(directory.paths()).toEqual(["garden.olai", "house.olai"])
+  directory.stop()
+})
+
+test("a vault with no files in it is a directory too, once the cell has said so", () => {
+  // The one `loaded` with no path in it, and the reason the cell cannot be
+  // dropped for the fold: an empty set is a real answer, and a fold seeded from
+  // an empty snapshot is indistinguishable from it by the paths alone.
+  const directory = live()
+  directory.loaded()
+  directory.snapshot([])
+  expect(directory.standing()).toBe("loaded")
+  expect(directory.paths()).toEqual([])
   directory.stop()
 })
 
@@ -458,7 +474,7 @@ test("a fold left holding nothing reads as still reading, not as an empty vault"
   // blank the sidebar of a vault full of files and give no reader a way to tell.
   const directory = twoFiles()
   directory.invalidate()
-  expect(directory.manifest()).toBeUndefined()
+  expect(directory.standing()).toBe("reading")
   expect(directory.paths()).toEqual([])
   expect(directory.broken().size).toBe(0)
   directory.stop()
@@ -468,7 +484,7 @@ test("...and the next snapshot is a directory again", () => {
   const directory = twoFiles()
   directory.invalidate()
   directory.snapshot([["shed.olai", directory.wrote(1)]])
-  expect(directory.manifest()).not.toBeUndefined()
+  expect(directory.standing()).toBe("loaded")
   expect(directory.paths()).toEqual(["shed.olai"])
   directory.stop()
 })
@@ -481,7 +497,7 @@ test("...and the frames in between land on nothing rather than on a hole", () =>
   const directory = twoFiles()
   directory.invalidate()
   directory.delta([["attic.olai", directory.wrote(1)]])
-  expect(directory.manifest()).toBeUndefined()
+  expect(directory.standing()).toBe("reading")
   expect(directory.paths()).toEqual([])
   directory.stop()
 })
@@ -495,14 +511,16 @@ test("the empty answers are one value each, not a fresh one per read", () => {
   directory.stop()
 })
 
-test("a tab holding files is holding a directory, whatever the manifest still says", () => {
-  // THE SKEW, in the one order this client drew wrong. The manifest and the
-  // heads are two members on two channels and the server promises no order
-  // between them (`@olai/server`'s `runtime.ts`: "a reader tolerates the skew
-  // either way"). A tab that connected before the first revision has been told
-  // `null`, and that revision's heads can reach it before the cell's next
-  // frame does — so answering `null` here draws the error report over a
-  // directory this tab is already holding.
+// ── and the skew between them, which is `manifest-fold-skew` ────────────
+
+test("a tab holding files is holding a directory, whatever the cell still says", () => {
+  // THE SKEW, in the order this client drew wrong. The manifest and the heads
+  // are two members on two channels and the server promises no order between
+  // them (`@olai/server`'s `runtime.ts`: "a reader tolerates the skew either
+  // way"). A tab that connected before the first revision has been told `null`,
+  // and that revision's heads can reach it before the cell's next frame does —
+  // and answering `never` there is the error report drawn over a directory this
+  // tab is already holding, every path of it live behind the page.
   const directory = live()
   directory.never()
   directory.snapshot([
@@ -510,6 +528,46 @@ test("a tab holding files is holding a directory, whatever the manifest still sa
     ["garden.olai", directory.wrote(1)],
   ])
   expect(directory.paths()).toEqual(["garden.olai", "house.olai"])
-  expect(directory.manifest()).not.toBeNull()
+  expect(directory.standing()).toBe("loaded")
+  directory.stop()
+})
+
+test("...and a delta is the same proof as a snapshot", () => {
+  // The other shape of the same arrival: the fold seeded empty (a tab that
+  // connected to a store with no snapshot, which publishes no head) and the
+  // revision's heads reached it as a delta. Nothing here is about WHICH frame
+  // carried them — what this tab holds is the proof.
+  const directory = live()
+  directory.never()
+  directory.snapshot([])
+  expect(directory.standing()).toBe("never")
+  directory.delta([["house.olai", directory.wrote(1)]])
+  expect(directory.standing()).toBe("loaded")
+  directory.stop()
+})
+
+test("...and a directory that never loaded still says so while this tab holds nothing", () => {
+  // The guard on the rule above, and the reason it is the PATHS and not the
+  // fold's mere presence: a fold seeded from a store with no snapshot holds an
+  // accumulator with no path in it, which is not proof of anything.
+  const directory = live()
+  directory.never()
+  directory.snapshot([])
+  expect(directory.standing()).toBe("never")
+  directory.stop()
+})
+
+test("...and the error report is not lost, only held until this tab is holding nothing", () => {
+  // The other direction of the same window, and the one place the rule defers
+  // an answer: a tab holding a directory, reconnected to a process that has
+  // since failed to load, is told `null` by the cell while the fold still holds
+  // the old paths. It goes on drawing them — they are answers it actually has —
+  // until the re-seed that empties it, which is the frame the error report
+  // belongs on.
+  const directory = twoFiles()
+  directory.never()
+  expect(directory.standing()).toBe("loaded")
+  directory.snapshot([])
+  expect(directory.standing()).toBe("never")
   directory.stop()
 })
