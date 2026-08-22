@@ -46,6 +46,8 @@
  * gap now, because the list is what has rows to put gaps between.
  */
 
+import { SAYING_MS } from "@olai/surface"
+
 import type { ChatEntry, Delivery } from "@olai/surface"
 import { createScheduled, throttle } from "@solid-primitives/scheduled"
 import { createEffect, createMemo, Match, Show, Switch } from "solid-js"
@@ -65,8 +67,16 @@ import type { Chat } from "./state.ts"
 import { ToolFrame } from "./ToolFrame.tsx"
 
 /** How often a growing answer may be re-rendered. Fast enough that it reads as
- *  live, slow enough that the cost is the clock's rather than the agent's. */
-const FRAME_MS = 120
+ *  live, slow enough that the cost is the clock's rather than the agent's.
+ *
+ *  THE WIRE'S OWN NUMBER, not one of this component's. The server publishes a
+ *  growing row's pieces on exactly this clock (`@olai/surface`'s `SAYING_MS`),
+ *  so a second number here would be either a re-render per frame with a
+ *  throttle that never bites, or a throttle a beat out of step with the frames
+ *  it is throttling — a cadence decided twice for one thing that happens once.
+ *  What this still buys where they agree is the burst: frames that arrive
+ *  together after a stall re-render once. */
+const FRAME_MS = SAYING_MS
 
 /**
  * WHAT A FATE LOOKS LIKE — the whole of it, per fate, in one row.

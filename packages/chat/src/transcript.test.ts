@@ -27,10 +27,22 @@ const asKind = <K extends ChatEntry["kind"]>(
 const parentOf = (entry: ChatEntry | undefined): string | undefined =>
   entry?.kind === "tool" || entry?.kind === "ask" ? entry.parent : undefined
 
+/** A change that says nothing at all — spelled once, because the empty
+ *  answer has three fields now and a test asserting two of them would pass
+ *  while the third carried a piece nobody meant to publish. */
+const NOTHING: Change = { upserts: [], removes: [], appends: [] }
+
 /** What one change touched, so a test can say a re-publish happened rather
  *  than inferring it from the state afterwards. */
 const touched = (change: Change): ReadonlyArray<string> =>
   change.upserts.map(([key]) => key)
+
+/** What one change ADDED to a row, as `<key>@<offset>:<text>` — the other half
+ *  of {@link touched}, and spelled the same way for the same reason: a
+ *  streaming answer's whole subject is what a change carries about a row it is
+ *  not republishing. */
+const added = (change: Change): ReadonlyArray<string> =>
+  change.appends.map((piece) => `${piece.of}@${piece.at}:${piece.text}`)
 
 describe("prose", () => {
   test("chunks accumulate into one row, not one row each", () => {
@@ -43,6 +55,76 @@ describe("prose", () => {
     expect(rows(transcript)[0]).toMatchObject({
       kind: "agent",
       text: "Hello, world",
+      streaming: true,
+    })
+  })
+
+  /**
+   * The defect `transcript-stream-quadratic` names, as a claim about what a
+   * change CARRIES rather than about what a row holds.
+   *
+   * A chunk used to be published as the whole row it grew, so an answer cost
+   * the wire the sum of its own prefixes — 1,039,111 bytes for 3,218 of
+   * answer, measured on a real turn. The row is still whole HERE, which is the
+   * other half of the fix and what makes the pieces safe: a reader handed the
+   * row is never handed part of one.
+   */
+  test("a chunk into an open row is published as the chunk, never as the row", () => {
+    const transcript = new Transcript()
+    const opened = transcript.say("Hello")
+    // The FIRST chunk mints the row, because there is nothing on the far end
+    // to append to yet — one row, carrying one chunk.
+    expect(touched(opened)).toEqual(["agent:1"])
+    expect(added(opened)).toEqual([])
+
+    expect(added(transcript.say(", "))).toEqual(["agent:1@5:, "])
+    expect(added(transcript.say("world"))).toEqual(["agent:1@7:world"])
+    // ... and not one byte of the row itself.
+    expect(touched(transcript.say("!"))).toEqual([])
+  })
+
+  test("what the pieces say and what the row holds are the same text", () => {
+    const transcript = new Transcript()
+    const said = ["Once", " upon", " a", " time"]
+    let text = ""
+    for (const chunk of said) {
+      const change = transcript.say(chunk)
+      for (const piece of change.appends) {
+        // The offset is where the piece belongs, so a reader with the row's
+        // text this long puts it exactly here.
+        expect(piece.at).toBe(text.length)
+        text += piece.text
+      }
+      for (const [, row] of change.upserts) text = row.text
+    }
+    expect(text).toBe(said.join(""))
+    expect(rows(transcript)[0]?.text).toBe(said.join(""))
+  })
+
+  test("the end of a paragraph publishes it whole, pieces and all", () => {
+    const transcript = new Transcript()
+    transcript.say("a long ")
+    transcript.say("answer")
+    const settled = transcript.settle()
+
+    // Whole, so nothing has to be reassembled to be right — and no piece rides
+    // with it, because the row it would belong to is right there.
+    expect(settled.upserts.map(([key, row]) => [key, row.text])).toEqual([
+      ["agent:1", "a long answer"],
+    ])
+    expect(added(settled)).toEqual([])
+  })
+
+  test("a replay of the conversation arrives whole", () => {
+    // What a late joiner is snapshotted from is `entries()`, and a row that is
+    // still being said is in it complete — the pieces are an acceleration of a
+    // fact this map states anyway.
+    const transcript = new Transcript()
+    transcript.say("still ")
+    transcript.say("going")
+    expect(rows(transcript)[0]).toMatchObject({
+      kind: "agent",
+      text: "still going",
       streaming: true,
     })
   })
@@ -60,7 +142,7 @@ describe("prose", () => {
     const transcript = new Transcript()
     transcript.say("x")
     transcript.settle()
-    expect(transcript.settle()).toEqual({ upserts: [], removes: [] })
+    expect(transcript.settle()).toEqual(NOTHING)
   })
 
   /**
@@ -195,7 +277,7 @@ describe("tool calls", () => {
     // the wire is: an identical object would be answered by reference and prove
     // nothing about the comparison this rests on.
     expect(transcript.tool("call-1", structuredClone(move)))
-      .toEqual({ upserts: [], removes: [] })
+      .toEqual(NOTHING)
     expect(rows(transcript)).toHaveLength(1)
   })
 
@@ -569,7 +651,7 @@ describe("questions", () => {
     transcript.clear()
 
     expect(transcript.settleAsk("ask:1", { how: "withdrawn", answers: [] }))
-      .toEqual({ upserts: [], removes: [] })
+      .toEqual(NOTHING)
     expect(rows(transcript)).toEqual([])
   })
 })
@@ -627,7 +709,7 @@ describe("a message the agent would not take", () => {
     const row = transcript.user("done order")
     transcript.clear()
 
-    expect(transcript.refused(row.key, "done order")).toEqual({ upserts: [], removes: [] })
+    expect(transcript.refused(row.key, "done order")).toEqual(NOTHING)
     expect(rows(transcript)).toEqual([])
     // The prompt is not kept for a row that is not there: it would be a retry
     // nothing on screen could ask for, landing in a conversation that never

@@ -573,6 +573,93 @@ export const ChatEntry = Schema.Union([
 export type ChatEntry = typeof ChatEntry.Type
 
 /**
+ * ONE PIECE OF A ROW STILL BEING SAID — the wire's unit while an answer
+ * streams, and the reason a five-paragraph answer costs the socket five
+ * paragraphs instead of three hundred of them.
+ *
+ * A row that GROWS used to be published the way every other row is: the whole
+ * entry, upserted on its own key, once per chunk the agent sent. An agent
+ * streams a token at a time — 3,218 bytes of answer arrived as 643 chunks
+ * averaging five bytes, measured on a real turn — and an upsert per chunk puts
+ * the SUM OF THE PREFIXES on the wire, which is quadratic in the length of the
+ * answer: 1,039,111 bytes for those 3,218, three hundred and twenty-three
+ * times the thing being read. On a link with a quarter-second of latency in it
+ * that is not merely wasteful — hundreds of small-then-large writes pace
+ * badly, and what a reader SEES is an answer arriving in lumps.
+ *
+ * So a chunk rides as ITS OWN ENTRY in a collection of its own, and carries
+ * only what is new. `of` names the transcript row it belongs to, `at` is where
+ * in that row's text this piece starts, and `text` is the piece. The reader
+ * joins them onto the row it already holds. What crosses the socket over a
+ * turn is the answer's own size, once.
+ *
+ * THE JOIN IS TOTAL AND IDEMPOTENT, which is what lets this be a SECOND
+ * member rather than a change to how the first one is delivered. `transcript`
+ * still answers a new subscriber with WHOLE rows — the server keeps the row's
+ * true text and hands it over complete — so a piece a tab is handed may be
+ * text its row already has. `at` is what makes that decidable without a
+ * protocol: a piece that ends at or before the row's own length is already
+ * folded in and adds nothing; one that ends past it contributes exactly the
+ * part past it. Two snapshots taken a moment apart, in either order, converge
+ * on the same string — which is the whole of what the pairing has to promise.
+ *
+ * AND A WHOLE ROW ALWAYS SUPERSEDES ITS PIECES. Every upsert on the
+ * `transcript` carries the row's text in full, so the server drops a row's
+ * pieces at the moment it republishes it — at the end of the paragraph, at a
+ * cancel, at a new conversation — and the last word about a row is always the
+ * row. Nothing has to be reassembled to be right; the pieces are an
+ * ACCELERATION of a fact the transcript states anyway.
+ */
+export const Saying = Schema.Struct({
+  /** The transcript row this piece belongs to, by that row's own key — the
+   *  same spelling `ToolEntry.parent` uses, and for its reason: what a reader
+   *  wants is the row, so the row is what is named. */
+  of: Schema.String,
+  /** Where this piece starts in that row's text, counted in characters of the
+   *  text the transcript itself holds. It is what makes the join idempotent
+   *  ({@link Saying}) and what orders two pieces of one row without a counter
+   *  beside them: pieces of a row are contiguous, so `at` is both the position
+   *  and the sequence. */
+  at: Schema.Int,
+  /** The piece itself — never the text so far, which is the bug this member
+   *  exists to be the absence of. */
+  text: Schema.String,
+})
+export type Saying = typeof Saying.Type
+
+/**
+ * How a piece is filed: the row it belongs to and where it starts.
+ *
+ * Derived from the value rather than counted, so the key of a piece is a
+ * function of the piece — two writers cannot mint the same key for two
+ * different pieces, and a re-publish of one piece is an upsert on the key it
+ * already had. Spelled ONCE, here, because both ends need it: the server files
+ * pieces under it and drops a row's by it, and a reader that wanted to look one
+ * up would have to agree.
+ */
+export const sayingKey = (piece: Pick<Saying, "of" | "at">): string =>
+  `${piece.of}#${piece.at}`
+
+/**
+ * How often the server lets a growing row's pieces onto the wire, and how
+ * often the panel re-renders one.
+ *
+ * ONE NUMBER for the two ends, because they are one cadence. Each chunk an
+ * agent sends arrives as its own event, so a piece per chunk is a websocket
+ * frame per chunk — six hundred of them for a five-paragraph answer, each one a
+ * write on a link that paces them by round trips. Time-coalesced, a turn is a
+ * few dozen frames carrying the same bytes, and the panel's markdown is
+ * re-parsed a few times a second however fast the tokens land.
+ *
+ * A tenth of a second is chosen the way a frame budget is: fast enough that
+ * text appears to flow, slow enough that the socket and the markdown parser
+ * are not being asked about single characters. It bounds LATENCY, never
+ * content — a row that has stopped growing is published at once, so the last
+ * word of an answer never waits on a clock.
+ */
+export const SAYING_MS = 120
+
+/**
  * Which of a tool call's four statuses mean it HAS NOT COME BACK.
  *
  * Here, beside the field, because BOTH ENDS ask it and they must not answer
