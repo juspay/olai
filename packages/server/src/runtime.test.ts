@@ -132,22 +132,20 @@ const watching = <A>(
     return { take: Queue.take(frames), reader }
   })
 
-/** One body-carrying subscription, drained onto a queue so a test can wait for
- *  a FRAME rather than for a duration: taking one proves the subscription is
- *  open and says what it was handed. The fiber is a child of the test's scope,
- *  so it is interrupted with it — which is the release, and which is what two of
- *  the tests below are about. */
+/** `watching` of a documents `get` — the lookup is this helper's, the attach
+ *  is `watching`'s. Same shape, so a holder and a head-watcher are one kind of
+ *  thing to take from and interrupt. */
 const opening = (
   bound: Bound,
   key: string,
-): Effect.Effect<
-  { readonly frame: Effect.Effect<DocumentEntry>; readonly reader: Fiber.Fiber<void> }
-> =>
+): Effect.Effect<{
+  readonly take: Effect.Effect<DocumentEntry>
+  readonly reader: Fiber.Fiber<void>
+}> =>
   Effect.gen(function*() {
     const get = bound.handlers["surface/documents/get"]
     if (get === undefined) throw new Error("the documents collection has no `get`")
-    const open = yield* watching(get({ key }) as Stream.Stream<DocumentEntry>)
-    return { frame: open.take, reader: open.reader }
+    return yield* watching(get({ key }) as Stream.Stream<DocumentEntry>)
   })
 
 test("a face served under another writer differs by exactly the members that record one", () =>
@@ -271,7 +269,7 @@ test("a file a reader is holding is re-read for them when it moves", () =>
     ({ wired, store, root, reads }) =>
       Effect.gen(function*() {
         const open = yield* opening(wired.bound, "report.html")
-        expect(yield* open.frame).toEqual({
+        expect(yield* open.take).toEqual({
           rev: 1,
           text: "<h1>Before</h1>\n",
           refused: false,
@@ -280,7 +278,7 @@ test("a file a reader is holding is re-read for them when it moves", () =>
         fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
         yield* store.refresh
 
-        expect(yield* open.frame).toEqual({
+        expect(yield* open.take).toEqual({
           rev: 2,
           text: "<h1>After</h1>\n",
           refused: false,
@@ -306,7 +304,7 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
     ({ wired, store, root, reads }) =>
       Effect.gen(function*() {
         const open = yield* opening(wired.bound, "report.html")
-        expect(yield* open.frame).toEqual({
+        expect(yield* open.take).toEqual({
           rev: 1,
           text: "<h1>Before</h1>\n",
           refused: false,
@@ -327,7 +325,7 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
         // The barrier: a body asked for by a reader who IS here, which the
         // serial reader cannot answer before anything the revision asked for.
         const again = yield* opening(wired.bound, "report.html")
-        expect(yield* again.frame).toEqual({
+        expect(yield* again.take).toEqual({
           rev: 2,
           text: "<h1>After</h1>\n",
           refused: false,
@@ -360,8 +358,8 @@ test("a reader holding a key across a file's birth is handed the body", () =>
       // scheduled but not yet attached — sees only the body, which is the
       // documented "opens afterwards" path; `watching` attaches first so this
       // is the holder-across-birth path.
-      expect(yield* open.frame).toEqual({ rev: 2, text: null, refused: false })
-      expect(yield* open.frame).toEqual({
+      expect(yield* open.take).toEqual({ rev: 2, text: null, refused: false })
+      expect(yield* open.take).toEqual({
         rev: 2,
         text: "<h1>Born</h1>\n",
         refused: false,
@@ -386,7 +384,7 @@ test("an unreadable `.html` is refused rather than held open", () => {
         fs.chmodSync(path.join(root, "locked.html"), 0o000)
         try {
           const open = yield* opening(wired.bound, "locked.html")
-          expect(yield* open.frame).toEqual({
+          expect(yield* open.take).toEqual({
             rev: 1,
             text: null,
             refused: true,
@@ -398,21 +396,6 @@ test("an unreadable `.html` is refused rather than held open", () => {
   )
 })
 
-/**
- * THE PINNED SHELF, published: the resolution happens here, and it happens
- * again when the directory moves.
- *
- * The claim is `docs/brainstorming/vault-in-browser.md`'s mechanism sentence
- * made concrete for the one member that carries a reading rather than a file: a
- * pin stores an ADDRESS and no name, so what the shelf says a node is called is
- * true of the revision it was answered at — and a rename in some OTHER file
- * has to reach the sidebar with no reload and nothing asked.
- *
- * Proven from OUTSIDE the reading (`@olai/format`'s `shelf.test.ts` has that
- * function's own suite) and without a browser, which is what makes it a unit
- * test: what is under test is the wiring — that the cell is recomputed per
- * published revision, over the set that revision holds.
- */
 /**
  * THE INVARIANT THE BROWSER'S SKEW RULE RESTS ON — pinned here, where it is
  * true, and not only in the client that depends on it.
@@ -469,6 +452,21 @@ test("a directory that never loaded publishes no head, and the first head is the
       ).toEqual(["a.olai"])
     })))
 
+/**
+ * THE PINNED SHELF, published: the resolution happens here, and it happens
+ * again when the directory moves.
+ *
+ * The claim is `docs/brainstorming/vault-in-browser.md`'s mechanism sentence
+ * made concrete for the one member that carries a reading rather than a file: a
+ * pin stores an ADDRESS and no name, so what the shelf says a node is called is
+ * true of the revision it was answered at — and a rename in some OTHER file
+ * has to reach the sidebar with no reload and nothing asked.
+ *
+ * Proven from OUTSIDE the reading (`@olai/format`'s `shelf.test.ts` has that
+ * function's own suite) and without a browser, which is what makes it a unit
+ * test: what is under test is the wiring — that the cell is recomputed per
+ * published revision, over the set that revision holds.
+ */
 test("the shelf is answered per revision, so a rename elsewhere renames the pin", () =>
   withRuntime(
     {
