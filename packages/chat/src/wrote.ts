@@ -21,7 +21,7 @@
  * `@olai/ops`, and `did` is the field our own projection puts on every one of
  * those answers ({@link ../../server/src/mcp/tools.ts}). A result from any other
  * server matches nothing here and draws nothing — which is the losing direction
- * this can afford, exactly as {@link ./interpret.ts}'s bets are.
+ * this can afford, exactly as {@link ./agents/leg.ts}'s bets are.
  *
  * PURE, and tested as such.
  */

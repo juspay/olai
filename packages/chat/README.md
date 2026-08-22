@@ -1,8 +1,39 @@
 # @olai/chat — one conversation with one agent
 
-Talking to a coding agent over ACP: starting the subprocess, holding the session, turning what it says into rows a panel can draw, answering the seven verbs a person has (send, cancel, new conversation, load one, try again the one the agent would not open, list them, attach a file to what they are about to send) — and the two that answer a question the agent asked back.
+Talking to a coding agent over ACP: finding out which agents this machine has, starting one of them, holding the session, turning what it says into rows a panel can draw, answering the eight verbs a person has (send, cancel, new conversation *with an agent*, say which agent the panel's own is, load a stored one, try again the one the agent would not open, list them, attach a file to what they are about to send) — and the two that answer a question the agent asked back.
+
+A conversation is bound to ONE agent, chosen when it is created (ruled 2026-08-21). Several agents inside one conversation is out of scope, permanently.
 
 It sits BESIDE `@olai/ops` rather than above or below it. A conversation and an edit are two things a person does to the same directory and neither is built out of the other — which is why this package does not depend on `ops` at all. The agent reaches the ops layer the same way any MCP client would: through a URL and a bearer token it is handed at `session/new`. That is not fastidiousness about imports. It is the whole reason a whole-file write is not something an agent can express here: there is no function to call, only tools that take a node id.
+
+## Which agent, and when it starts
+
+The roster is DETECTED rather than configured (ruled 2026-08-21): olai looks for each agent it knows — the ACP agent `OLAI_ACP_AGENT` names, which every documented way of starting olai bakes the pinned Claude Code adapter into, and an `opencode` on its own search path — and what it finds is what you can choose between. Finding nothing has a face of its own: the panel draws, says so, and says how to install one.
+
+This package holds AT MOST ONE agent at a time and starts it when a conversation needs it. There is nothing for a second subprocess to do while the panel is in somebody else's conversation, and a pool of idle ACP agents is a pool of idle language-model sessions. Where the choice comes from, in order:
+
+- **one installed agent is not a choice.** The panel talks to it and says which it is, in the header. Asking a one-row question is friction with no answer behind it, and every olai before this one was in exactly that state.
+- **the note this directory left** (`memory.ts`) names the agent the panel was last talking to, so a restart comes back to the conversation it was in rather than to a question. A note written before there was a roster names no agent, and reads as the one there was.
+- **otherwise the panel ASKS**, and holds no conversation until somebody answers. There is no default remembered across conversations; the question is per chat.
+
+`OLAI_AGENT_PATH` is where the probes look, defaulting to `PATH`, because olai's PATH is not your shell's: run as a home-manager user unit it inherits neither your profile nor your login shell, so an `opencode` you can run in a terminal is not necessarily one this process can see. Set, it REPLACES the search path — including when it is set to the empty string, which is "look nowhere" and is what the e2e suite spawns with when a scenario is not about the roster.
+
+### The legs
+
+`agents/leg.ts` is one interface with one implementation per agent, and it is where every bet that is true of ONE agent lives. Reading the two side by side is the point: what differs between `claude.ts` and `opencode.ts` is exactly what differs between the agents.
+
+| | claude | opencode |
+|---|---|---|
+| a tool's programmatic name | `_meta.claudeCode.toolName` | the head of the `toolCallId` (`bash:0`) |
+| an MCP server's tools | `mcp__<server>__<tool>` | `<server>_<tool>` |
+| who made a call | `_meta.claudeCode.parentToolUseId` | nothing says; fan-outs render flat |
+| auto-approval mode | `bypassPermissions` | none — `session/set_mode` refuses (`-32602`) |
+| a message into a running turn | `_session/steering` | none (`-32601`); it queues, and the composer says so |
+| the agent's own messages | forwarded, subscribed at `session/new`/`load` | none; settings come back in method responses |
+
+The rule survives the split, word for word: **nothing is ever approved by failing to recognise it.** A leg that answered a tool name it had not positively recognised, or an allow-option for a tool it could not name, would be approving somebody's permissions on their behalf — the one failure in this package that is not recoverable by pressing something. `_` is a weak separator, so opencode's rule is written as narrowly as it can be (the server names are olai's own, the prefix must be followed by something, and the match is a prefix rather than a contains) and pinned by the near misses that would widen it.
+
+The MODEL is neither leg's. Both agents put it in ACP's own `configOptions`, so reading one is `agents/models.ts` — including the alias bridging that is one CLI's vocabulary (`sonnet` naming `claude-sonnet-5`) and costs nothing anywhere else: an agent whose picker values are the ids it reports matches at the first tier and never reaches it.
 
 ## One session, and why that is a decision
 
@@ -18,11 +49,15 @@ The TRANSCRIPT is still not persisted on this side, and that is the part that ha
 
 | file | what it owns |
 |---|---|
-| `adapter.ts` | which executable speaks ACP: the pinned adapter by default, `OLAI_ACP_AGENT` to override, empty to turn chat off |
+| `adapter.ts` | which executable the `claude` row of the roster is: the pinned adapter by default, `OLAI_ACP_AGENT` to override, empty to turn chat off — the whole panel, not one row. Both variable NAMES live here, and the sentence a person reads when nothing was found |
+| `agents/roster.ts` | WHICH agents this machine has, and how to start each: one table, probed once when the server starts. `OLAI_AGENT_PATH` is where the probes look, because olai's PATH is not your shell's |
+| `agents/leg.ts` | the one shape both agents answer to — everything that is true of ONE agent and not the other, as pure functions and constants. The rule that survives the split: nothing is ever approved by failing to recognise it |
+| `agents/claude.ts` | the Claude Code adapter's answers, meaning unchanged from the day it was the only file: the two readings of `_meta.claudeCode` (`toolName`, which tool a call is; `parentToolUseId`, which AGENT made it), the flag that says a call spawned one, the CLI `init` message it forwards, its bypass mode and its steering extension |
+| `agents/opencode.ts` | opencode's: the tool name at the head of the `toolCallId`, the auto-allow spelling `<server>_`, and four `null`s — no attribution, no bypass mode, no steering, nothing forwarded — each of which is a request that would otherwise be sent and refused |
+| `agents/models.ts` | the model picker, which is ACP's own `configOptions` and so belongs to neither: which entry is the model, what the agent calls each value, whether two model strings name one model, and the picker's own word for one |
 | `agent.ts` | the ACP client: one subprocess, one protocol. Nothing else in olai spells `session/prompt`. Also `adopt` — which stored conversation a boot opens in, pure and exported for its own test |
-| `memory.ts` | which conversation the panel was in and which model it was running, across a restart: one file per served directory under the XDG state home, two verbs and one record. A read or a write that fails is a row in the transcript, never a failed boot |
+| `memory.ts` | which AGENT the panel was talking to, which conversation it was in and which model that was running, across a restart: one file per served directory under the XDG state home, two verbs and one record. A read or a write that fails is a row in the transcript, never a failed boot |
 | `directory.ts` | how a directory is SPELLED, decided once — read by the thing that matches a stored session's `cwd` against ours and by the thing that names this directory's memory after it, which must never come to answer differently |
-| `interpret.ts` | what the CLAUDE CODE adapter means by what it sends: which permission requests are answered without asking, the two readings of `_meta.claudeCode` — `toolName`, which tool a call is, and `parentToolUseId`, which AGENT made it — the CLI `init` message it forwards, which config option is the model — read from it, and addressed when the model is set back on a restored conversation — what the agent's own word for a running model is, since the picker offers ALIASES (`sonnet`) where the CLI reports API ids (`claude-sonnet-5`), and hence whether two model strings name the same model at all. Pure, so the adapter-specific VALUES are one file to read when olai is pointed at another agent |
 | `kolu.ts` | whether this host is running kolu, the stdio server to hand a session if it is — and, if it is not and should have been, the sentence saying why not |
 | `pipes.ts` | a subprocess's pipes as a stream of JSON-RPC messages, and why a child never ran to have any — the two things the two subprocesses above have in common |
 | `calls.ts` | what has been said about each of a conversation's tool calls — which tool it is, and which agent made it. One thing rather than two maps, because one frame answers both, and the questions that consult it name a call rather than answering for themselves. One rule: a frame refines and never retracts, so a merge is a spread and an absent field is "nothing has said yet". A request with words of its own goes in the same door, so precedence is the order rather than a second rule |
@@ -41,7 +76,7 @@ A tool call is not instantaneous, so a frame is not just a status that flips. `t
 
 `events.ts` is the seam that makes the rest of this hold. Nothing above it spells `session/update`, reads a `ContentBlock`, or knows which `configOptions` entry the model is. A consumer wanting something not in that union needs a new member — which is what keeps the ACP version in one file and the conversation in another.
 
-`chat.ts` BUILDS the agent rather than being handed one, so `session/update` stays a phrase this package is the last to say: a caller passes the adapter it resolved and the directory to run it in, never a protocol object. The seam for a scripted agent is one level further out and more honest for it — `OLAI_ACP_AGENT` pointed at a script, which is how the e2e suite drives every turn it asserts on, and which exercises the subprocess and the wire that an injected object would replace with an assumption.
+`chat.ts` BUILDS the agent rather than being handed one, so `session/update` stays a phrase this package is the last to say: a caller passes the ROSTER it detected and the directory to run in, never a protocol object. The seam for a scripted agent is one level further out and more honest for it — `OLAI_ACP_AGENT` pointed at a script, which is how the e2e suite drives every turn it asserts on, and which exercises the subprocess and the wire that an injected object would replace with an assumption.
 
 ## When the agent has a question
 
@@ -64,13 +99,13 @@ Bypass mode is the design (resolved 2026-08-09) and it is still the design: a pe
 
 Everything else is a person's. That direction is the load-bearing one. The adapter maps plan mode's "Ready to code?" onto a permission request whose FIRST allow-flavoured option switches the session to `auto`, and this client used to answer every request with the first allow it found — so it was taking that decision on somebody's behalf, silently, every time. The rule is positive recognition: a tool we cannot name is a tool a person is asked about. The name comes from the `tool_call` the adapter always emits before it asks (the permission request itself carries a display title, not a name), and it is read out of an agent-specific `_meta` — one of the two this package reads, and the reason THIS one is read. The other is below.
 
-The rule itself is a PURE FUNCTION — `interpret.ts`, `allowedWithoutAsking(tool, given, options)` — for the reason `@olai/acp` is pure: what stops this panel approving its own permissions should be a unit test on a payload rather than a branch you can only reach by starting a subprocess and talking it into asking. The e2e suite drives both requests through a real agent and stays the net for the wiring.
+The rule itself is a PURE FUNCTION — one per LEG, `allowedWithoutAsking(tool, given, options)` — for the reason `@olai/acp` is pure: what stops this panel approving its own permissions should be a unit test on a payload rather than a branch you can only reach by starting a subprocess and talking it into asking. The e2e suite drives both requests through a real agent and stays the net for the wiring.
 
 ## Which agent made a call
 
 The second reading of that same `_meta` corner, and the reason there are two: **an agent can spawn agents**, and the protocol has no way of saying so. A subagent's tool calls arrive on the one feed every other frame arrives on, with the same shape — so a turn that sent three agents out reaches a panel as one agent doing everything, and a reader cannot tell that a subagent was ever started.
 
-The adapter knows. It keeps a registry of the tasks it has seen start, keyed by the subagent's own agent id, and stamps the spawning `Agent` call onto every frame that comes out of one: the streamed `tool_call`, the `tool_call_update` that completes it, the permission request in between. `interpret.ts`'s `parentToolUseIn` is the whole of what this package does about it, and it fails the same way its sibling does — a frame that says nothing is the main agent's own, so an agent that is not that adapter has no subagents here and the transcript looks exactly as it did before any of this was read.
+The adapter knows. It keeps a registry of the tasks it has seen start, keyed by the subagent's own agent id, and stamps the spawning `Agent` call onto every frame that comes out of one: the streamed `tool_call`, the `tool_call_update` that completes it, the permission request in between. The Claude leg's `parentToolUse` is the whole of what this package does about it, and it fails the same way its sibling does — a frame that says nothing is the main agent's own, so an agent that is not that adapter has no subagents here and the transcript looks exactly as it did before any of this was read.
 
 What `transcript.ts` stores is that call's ROW, in this collection's own key shape, rather than the id it arrived as: a reader of the field wants the frame, and two spellings — an id on the wire, a key on screen — would be a mapping to keep in step for nothing. It is sticky like every other field on a tool row, and for a sharper reason than most: the adapter has a completion shape carrying only a status, and a row that read that silence as "no agent now" would step out of its lane at the moment the call finished, which is the moment somebody looks.
 
@@ -88,7 +123,7 @@ What is NOT here is the drawing. Whether a row is indented, and whether the lane
 
 The stamp above answers about a frame a subagent PRODUCED, so it says nothing until the subagent has produced one — and a spawned agent's first act is to read its instructions, which produces nothing. For the whole of that stretch, which is the stretch a person watches a fan-out through, the panel had the spawning call's own pending row and no reason to think anybody had been sent anywhere.
 
-The adapter says so at the spawn itself, and `interpret.ts`'s `spawnedIn` is the whole of what this package does about it. Two fields, and one of them is a GATE. The flag the adapter stamps beside the tool name on every frame it builds for an `Agent`/`Task` call (`claudeCodeMetaFromToolUse`, 0.66.0) — the FLAG rather than the name, because the adapter maps two of its own words onto one boolean and reading the boolean is reading its answer instead of re-deriving it from a list that is somebody else's to extend. Then, through that gate only, `subagent_type` in the call's own arguments (the `Agent` tool's `AgentInput`, on the frame that announces the spawn and the one that refines it).
+The adapter says so at the spawn itself, and the Claude leg's `spawned` is the whole of what this package does about it. Two fields, and one of them is a GATE. The flag the adapter stamps beside the tool name on every frame it builds for an `Agent`/`Task` call (`claudeCodeMetaFromToolUse`, 0.66.0) — the FLAG rather than the name, because the adapter maps two of its own words onto one boolean and reading the boolean is reading its answer instead of re-deriving it from a list that is somebody else's to extend. Then, through that gate only, `subagent_type` in the call's own arguments (the `Agent` tool's `AgentInput`, on the frame that announces the spawn and the one that refines it).
 
 **`rawInput` may not be read on its own**, and neither may the thing that looks like its safe twin. `subagent_type` is a name ONE tool gives one of its arguments and the tools on a session are not a closed set, so a reader that trusted any `rawInput` carrying that word would put a kind of agent — and a live rail — on a call some MCP server made. The adapter builds the flag and the arguments into the same frames, so requiring them together costs nothing.
 
@@ -96,7 +131,7 @@ The adapter says so at the spawn itself, and `interpret.ts`'s `spawnedIn` is the
 
 `transcript.ts` stores that as `spawned`, and it is the one field here that is sticky a level DOWN as well as at the top. The reason is that the ARGUMENTS ARRIVE INCREMENTALLY: the adapter announces the call as the tool use starts and refines it once the arguments have finished parsing, and it will send a flagged frame with no `rawInput` at all if the input would not serialize. Every one of those frames is honestly a spawn and some of them honestly name no kind — so without the inner merge, a later flagged frame saying only "this is a spawn" would take a kind back off a row that already had it. A spread rather than a field-by-field `??`, so a field added to `Spawned` inherits the rule instead of needing a line of its own.
 
-Three more things are deliberately left unread, and `interpret.ts` says why in place: the heartbeat's `elapsedTimeSeconds` (it only moves when a beat arrives, so a subagent that has actually wedged under-reports its own age, which is wrong in exactly the direction a person consults it for), its `subagentRetry` counters (worth drawing one day; nothing in this repo has ever seen the shape arrive), and the subagent's own prose — which the adapter strips unless a client declares `subagent-transcript` in its `initialize` capabilities. Olai does not, so a subagent's narration cannot reach this feed and cannot leak into the main agent's voice either. Drawing it is a feature with a switch to throw rather than a `_meta` to read.
+Three more things are deliberately left unread, and `agents/claude.ts` says why in place: the heartbeat's `elapsedTimeSeconds` (it only moves when a beat arrives, so a subagent that has actually wedged under-reports its own age, which is wrong in exactly the direction a person consults it for), its `subagentRetry` counters (worth drawing one day; nothing in this repo has ever seen the shape arrive), and the subagent's own prose — which the adapter strips unless a client declares `subagent-transcript` in its `initialize` capabilities. Olai does not, so a subagent's narration cannot reach this feed and cannot leak into the main agent's voice either. Drawing it is a feature with a switch to throw rather than a `_meta` to read.
 
 ## Kolu's terminals, when the host has them
 
@@ -126,13 +161,13 @@ That mattered most on the one this file is not about. `OLAI_ACP_AGENT` is a path
 
 ## What the caller does
 
-Four exports. Resolve the adapter, build, wire the two publishers, register `stop` as a finalizer, `start`:
+Detect the roster, build over it, wire the two publishers, register `stop` as a finalizer, `start`:
 
 ```ts
-const adapter = adapterFrom(process.env[AGENT_ENV])
-if (adapter === null) yield* Effect.logInfo(whyNoAgent(process.env[AGENT_ENV]))
-const chat = adapter === null ? null : yield* make({
-  adapter,
+const installed = roster(servedDirectory)
+if (installed.length === 0) yield* Effect.logInfo(whyNoAgent(process.env[AGENT_ENV]))
+const chat = installed.length === 0 ? null : yield* make({
+  roster: installed,
   cwd: servedDirectory,
   tools: () => mcpServerOnceTheListenerHasBound,
   onState,
@@ -142,7 +177,7 @@ const chat = adapter === null ? null : yield* make({
 
 `tools` is a thunk because the MCP server's address is not knowable until the listener has bound, and the session is opened after that.
 
-A `null` adapter is not an error. Serving a directory has never depended on an agent being installed; the panel says so and the outlines are unaffected.
+An EMPTY roster is not an error, and it is why `make` is not called with one: serving a directory has never depended on an agent being installed, so the panel draws the face that says so — and says how to install one — while the outlines are unaffected. A chat with nothing to talk to would be a panel holding a subprocess-shaped hole.
 
 There is no `log` in that list any more, and that is the point: this package logs the way every other one does ([`@olai/log`](../log/README.md)), so nothing has to be handed a place to write. What it says lands at three levels. The agent's own stderr is relayed at `debug` — it is somebody else's program's log and by volume the loudest thing olai ever emits, so it is off until `--log-level debug` asks for it. Trouble the panel is already drawing (a session that would not open, a boot the next prompt will retry) is a `warn`, because nothing has stopped. Every line carries `agent=<command>`, which is what the `acp: ` prefix used to be, except now it is a field. There is no fiber inside an ACP notification handler or a subprocess `data` event, which is why the emitter is taken once at `make` rather than a line at a time.
 

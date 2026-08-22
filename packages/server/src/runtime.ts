@@ -930,7 +930,14 @@ export const bind = (
           // answer to "what did that message actually say".
           resend: ({ input }) => withChat((open) => open.resend(input.id)),
           cancel: () => withChat((open) => open.cancel),
-          newSession: () => withChat((open) => open.newSession),
+          // WITH the agent the browser named — every new chat asks which one,
+          // and this end has no default to fall back on if it did not.
+          newSession: ({ input }) => withChat((open) => open.newSession(input.agent)),
+          // ... and the answer to the panel's own question, which opens the
+          // conversation that agent's boot would have adopted rather than a
+          // fresh one. Two verbs because they mean two things — see the
+          // surface's declaration.
+          chooseAgent: ({ input }) => withChat((open) => open.chooseAgent(input.agent)),
           loadSession: ({ input }) => withChat((open) => open.loadSession(input.id)),
           // No input, for the reason the member says: which open was refused is
           // the chat's own record, and a browser naming one would be picking a

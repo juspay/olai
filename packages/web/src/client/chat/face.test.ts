@@ -1,5 +1,5 @@
 /**
- * Which of the panel's three bodies a state asks for, over values.
+ * Which of the panel's four bodies a state asks for, over values.
  *
  * The rule is a precedence between two facts that arrive on one cell, and every
  * way of getting it wrong is a person looking at the wrong explanation of why
@@ -102,5 +102,45 @@ describe("two faces claiming one body", () => {
     // above about the refusal rather than about `booting`: the first paint of
     // every panel is this one, and it draws the conversation.
     expect(faceOf({ ...LIVE, status: "booting" })).toEqual({ kind: "conversation" })
+  })
+})
+
+describe("the question about which agent", () => {
+  /** Two agents and nobody has said which. The server only ever sets this with
+   *  no conversation open. */
+  const ASKING: ChatState = { ...LIVE, talking: { kind: "asking" } }
+
+  test("is the body when the panel is asking", () => {
+    expect(faceOf(ASKING)).toEqual({ kind: "choose" })
+  })
+
+  test("and not when nobody is asking, which is nearly every panel", () => {
+    expect(faceOf(LIVE)).toEqual({ kind: "conversation" })
+  })
+
+  test("no agent at all outranks it — nothing was asked", () => {
+    // `choosing` cannot be true with an empty roster (there is no chat at all),
+    // and a precedence stated only in the writer is one a reader can meet in
+    // the other order.
+    expect(faceOf({ ...CHAT_OFF, talking: { kind: "asking" } })).toEqual({ kind: "no-agent" })
+  })
+
+  test("a refusal outranks it — that one is about a live agent", () => {
+    // The agent answered and said no, which is a sentence with a retry under
+    // it. Asking which agent over the top of that would take the reason away.
+    expect(faceOf({ ...ASKING, unopened: REFUSED })).toEqual({
+      kind: "unopened",
+      unopened: REFUSED,
+    })
+  })
+
+  test("a dead agent does not take the question away", () => {
+    // Unlike a refusal, which is ABOUT a live agent and must not outlive it:
+    // `choosing` says there is no conversation, so there are no rows a dead
+    // agent left to read and an empty transcript is not what anybody is owed.
+    // The server never sets the pair — it binds an agent before one can die —
+    // and a precedence stated only in the writer is one a reader can meet in
+    // the other order.
+    expect(faceOf({ ...ASKING, status: "gone" })).toEqual({ kind: "choose" })
   })
 })

@@ -23,7 +23,7 @@
  * log span, so every line says how far into this serve it was emitted.
  */
 
-import { adapterFrom, AGENT_ENV, whyNoAgent } from "@olai/chat"
+import { AGENT_ENV, roster, whyNoAgent } from "@olai/chat"
 import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
 import { make as makeOps, TOOLS } from "@olai/ops"
@@ -135,8 +135,14 @@ export const serve = (options: ServeOptions) =>
         chat === null ? Effect.void : chat.recordRefusal(request.op, failure),
     })
 
-    const adapter = adapterFrom(process.env[AGENT_ENV])
-    if (adapter === null) yield* Effect.logInfo(whyNoAgent(process.env[AGENT_ENV]))
+    // WHICH agents this machine has, once, before anything is spawned: a PATH
+    // probe per agent olai knows, plus the one `OLAI_ACP_AGENT` names
+    // (`@olai/chat`'s `agents/roster.ts`, which owns the rule and the two
+    // variables). Nothing found is the state the panel has a face for — it
+    // draws, and says how to install one — so it is a line in the log and never
+    // a refusal to serve.
+    const installed = roster(root)
+    if (installed.length === 0) yield* Effect.logInfo(whyNoAgent(process.env[AGENT_ENV]))
 
     // Minted per process and handed only to the session we spawn: the write
     // surface is not something any page that can reach loopback may call.
@@ -145,8 +151,8 @@ export const serve = (options: ServeOptions) =>
      *  options. Until then there is no session to hand it to. */
     let tools: Chat.ToolServer | null = null
 
-    chat = adapter === null ? null : yield* Chat.make({
-      adapter,
+    chat = installed.length === 0 ? null : yield* Chat.make({
+      roster: installed,
       cwd: root,
       tools: () => tools,
       onState: (state) => publishing().state(state),
@@ -251,17 +257,20 @@ export const serve = (options: ServeOptions) =>
       )
     }
 
-    // One condition in two spellings: `chat` is non-null exactly when `adapter`
-    // is, and saying so is what lets the line below name the command rather
-    // than fall back to a word no reader will ever see.
-    if (chat !== null && adapter !== null) {
+    // `chat` is non-null exactly when this machine has an agent to talk to.
+    if (chat !== null) {
       // LAST, and after the listener is up: the session is handed the MCP
       // server's address, which is only knowable once we know what we bound.
       tools = { name: "olai", url: `${url}${MCP_PATH}`, token }
       yield* Effect.addFinalizer(() => chat.stop)
       yield* chat.start
-      yield* Effect.annotateLogs(Effect.logInfo("chat agent started"), {
-        agent: adapter.command,
+      yield* Effect.annotateLogs(Effect.logInfo("chat agents detected"), {
+        // The whole roster, because which agents a person is offered is the
+        // question this line now answers — and because "olai cannot see the
+        // opencode I installed" is a PATH question a log has to be able to
+        // settle (`@olai/chat`'s `agents/roster.ts` says why olai's PATH is not
+        // your shell's).
+        agents: installed.map((row) => `${row.id}=${row.adapter.command}`).join(" "),
         mcp: tools.url,
       })
     }

@@ -37,7 +37,12 @@ import {
   CHAT_ATTACHMENT_PREVIEW,
   CHAT_ATTACH_BUTTON,
   CHAT_ATTACHMENT_SIZE,
+  CHAT_AGENT,
+  CHAT_AGENT_MARK,
   CHAT_CANCEL,
+  CHAT_CHOOSE,
+  CHAT_CHOOSE_AGENT,
+  CHAT_CHOOSE_CANCEL,
   CHAT_COMPLETION,
   CHAT_COMPLETION_ROW,
   CHAT_COMPLETION_SECTION,
@@ -53,6 +58,7 @@ import {
   CHAT_ENTRY,
   CHAT_ENTRY_STREAMING,
   CHAT_INPUT,
+  CHAT_INSTALL,
   CHAT_LANE,
   CHAT_LANE_LABEL,
   CHAT_MINE,
@@ -64,6 +70,7 @@ import {
   CHAT_NO_AGENT,
   CHAT_NUDGE,
   CHAT_OUTLINE_CHANGE,
+  CHAT_QUEUES,
   CHAT_OUTLINE_DIFF,
   CHAT_PANEL,
   CHAT_REFUSAL,
@@ -2607,3 +2614,146 @@ Then(
     );
   },
 );
+
+// ── which agent ────────────────────────────────────────────────────────
+//
+// A conversation is bound to one agent, chosen when it is created. The claims
+// here are about the PANEL — that it asks, that it stops asking once answered,
+// and that the header says who — because everything under them has unit tests
+// of its own: the roster's rules, the fail-safe rule per leg, and which body a
+// state asks for are all functions over values.
+
+Then("the panel asks which agent", async function (this: OlaiWorld) {
+  await this.page
+    .locator(CHAT_CHOOSE)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
+/** ... and that it does not, which is a different claim from "a conversation is
+ *  open" and is asserted separately for the reason the panel's other faces are:
+ *  a question drawn where a conversation belongs is a face outliving its
+ *  cause. */
+Then("the panel does not ask which agent", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => {
+      const status = await this.page.locator(CHAT_PANEL).getAttribute("data-status");
+      return (
+        (status === "idle" || status === "thinking") &&
+        (await this.page.locator(CHAT_CHOOSE).count()) === 0
+      );
+    },
+    "the panel to hold a conversation rather than a question about which agent",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then(
+  "the picker offers the agent {string}",
+  async function (this: OlaiWorld, id: string) {
+    // BY ID rather than by the name on the row: what a scenario is about is
+    // that this machine's opencode is offered, and the words beside it are a
+    // brand's to change.
+    await this.page
+      .locator(`${CHAT_CHOOSE_AGENT}${attr("data-agent", id)}`)
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+When("I choose the agent {string}", async function (this: OlaiWorld, id: string) {
+  const row = this.page.locator(`${CHAT_CHOOSE_AGENT}${attr("data-agent", id)}`);
+  await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await row.click();
+  // The answer starts a subprocess and opens a conversation, so the panel goes
+  // through `booting` on its way back to a body a scenario can act on.
+  await this.waitUntil(
+    async () => {
+      const status = await this.page.locator(CHAT_PANEL).getAttribute("data-status");
+      return status === "idle" || status === "thinking";
+    },
+    `the panel to settle after choosing "${id}"`,
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then(
+  "the header names the agent {string}",
+  async function (this: OlaiWorld, id: string) {
+    await this.expectAttribute(
+      CHAT_AGENT,
+      "data-agent",
+      id,
+      "the agent named in the panel header",
+    );
+  },
+);
+
+/** The ICON half of the ruling, which an assertion about the name passes
+ *  without. `data-mark` is what was DRAWN — the agent's own shape, or the
+ *  generic one an agent olai has no mark for gets — so this fails on a build
+ *  where every agent fell back to the same glyph. */
+Then("the header draws that agent's own mark", async function (this: OlaiWorld) {
+  const id = await this.page.locator(CHAT_AGENT).getAttribute("data-agent");
+  assert.ok(id !== null, "the header names no agent, so there is no mark to check");
+  await this.expectAttribute(
+    `${CHAT_AGENT} ${CHAT_AGENT_MARK}`,
+    "data-mark",
+    id,
+    "the mark drawn beside the agent's name",
+  );
+});
+
+Then(
+  "the panel tells me how to install {string}",
+  async function (this: OlaiWorld, id: string) {
+    await this.page
+      .locator(`${CHAT_INSTALL}${attr("data-agent", id)}`)
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  },
+);
+
+Then("the composer says a message would queue", async function (this: OlaiWorld) {
+  await this.page
+    .locator(CHAT_QUEUES)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+/** ... and that it says nothing when there is nothing to say: an idle agent
+ *  takes what you type at once whichever agent it is, so a line about queueing
+ *  outside a running turn would be a claim about nothing. */
+Then("the composer says nothing about queueing", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_QUEUES).count()) === 0,
+    "the composer to say nothing about queueing",
+    POLL_TIMEOUT,
+  );
+});
+
+/** The way out of the picker that `+ new` raised. It exists only for THAT
+ *  door: the panel's own question has no conversation behind it to keep. */
+When("I keep the conversation I am in", async function (this: OlaiWorld) {
+  await this.page.locator(CHAT_CHOOSE_CANCEL).click();
+});
+
+/** ... and that it has NOT — the half a queued message needs, because "the
+ *  words went out at once" and "the agent has not reached them yet" are two
+ *  facts and only the second one is about the queue. Checked twice with a beat
+ *  between, so an answer that was merely a moment away fails this rather than
+ *  passing it. */
+Then(
+  "the chat has not answered {string}",
+  async function (this: OlaiWorld, text: string) {
+    const answered = async (): Promise<boolean> =>
+      oneLine(await this.page.locator(CHAT_TRANSCRIPT).innerText()).includes(text);
+    assert.ok(!(await answered()), `the chat has already answered "${text}"`);
+    await this.page.waitForTimeout(700);
+    assert.ok(!(await answered()), `the chat answered "${text}" while it was held`);
+  },
+);
+
+/** This machine stops having opencode, for the next start of its server. A
+ *  property of the MACHINE rather than of anything the client says — the same
+ *  thing the `@opencode` tag decides, moved mid-scenario, which is what
+ *  uninstalling an agent between two serves looks like from here. */
+When("opencode is no longer installed", function (this: OlaiWorld) {
+  this.hasOpencode = false;
+});

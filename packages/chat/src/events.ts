@@ -97,7 +97,7 @@ export type AgentEvent =
      * exists: a subagent's calls arrive on the same flat feed as everything
      * else, so without it a turn that spawned three agents is drawn as one
      * agent doing everything, and the reader cannot tell that the other three
-     * were ever there ({@link ./interpret.ts}'s `parentToolUseIn`).
+     * were ever there ({@link ./agents/leg.ts}'s `parentToolUse`).
      *
      * `undefined` reads as "unchanged" here like every field beside it, which
      * costs nothing: a call is made where it is made, so nothing ever needs
@@ -106,7 +106,7 @@ export type AgentEvent =
     readonly parent: string | undefined
     /**
      * ... and, the other way round, that this call SENT one out
-     * ({@link ./interpret.ts}'s `spawnedIn`).
+     * ({@link ./agents/leg.ts}'s `spawned`).
      *
      * The two are not one field with two directions: `parent` is answered by
      * frames a subagent produced, so it says nothing at all until the subagent

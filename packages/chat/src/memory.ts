@@ -17,6 +17,17 @@
  * an answer to: a remembered conversation that is GONE ({@link ../agent.ts}'s
  * `adopt`).
  *
+ * ## And which AGENT it was talking to
+ *
+ * A conversation belongs to ONE agent, chosen when it was created (the human's
+ * ruling, 2026-08-21) — so "which conversation" is only half an answer, and the
+ * other half is not something the wire can give back: an agent's
+ * `session/list` is its own, and asking the wrong one about a session id gets
+ * you a refusal rather than a correction. The id is written down here beside
+ * the session for the same reason the session is written down at all, and it is
+ * read FIRST: it decides which subprocess this panel starts, and everything
+ * else in this file is about a conversation that agent has.
+ *
  * ## And which MODEL it was running
  *
  * The second fact is here because it is the same fact's other half — "the panel
@@ -93,6 +104,7 @@ import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import { dirname, join } from "node:path"
 
+import { BEFORE_THE_ROSTER } from "./agents/roster.ts"
 import { normalDirectory } from "./directory.ts"
 
 /** Remembering, or reading back, went wrong. Reported to a person and never
@@ -114,6 +126,8 @@ export class MemoryFailure extends Data.TaggedError("MemoryFailure")<{
  * panel is no longer in would put somebody else's conversation on it.
  */
 export interface Held {
+  /** Which agent the conversation is with ({@link ./agents/roster.ts}). */
+  readonly agent: string
   readonly session: string
   /** `null` for "nothing says" — a conversation entered but never heard of
    *  again, a file written by an olai that only remembered sessions, or a
@@ -154,14 +168,27 @@ export interface Memory {
  *  it, which is what `null` means everywhere else here. */
 interface Written {
   readonly cwd: string
+  /** Optional ON DISK, like the model and for a sharper version of the same
+   *  reason: a file written before olai had a roster names no agent, and there
+   *  was exactly one it could have been — see {@link BEFORE_THE_ROSTER}. */
+  readonly agent?: string
   readonly session: string
   readonly model?: string
 }
 
 const printed = (cwd: string, held: Held): string =>
   // `undefined` is how `JSON.stringify` spells a field that is not there, which
-  // is what a model nothing has said about IS on disk.
-  `${JSON.stringify({ cwd, session: held.session, model: held.model ?? undefined })}\n`
+  // is what a model nothing has said about IS on disk. The AGENT is always
+  // written: a note this olai wrote knows which agent it was talking to, and an
+  // absent one means something else entirely on the way back in.
+  `${
+    JSON.stringify({
+      cwd,
+      agent: held.agent,
+      session: held.session,
+      model: held.model ?? undefined,
+    })
+  }\n`
 
 /** The text as what it is meant to be — or the reason it is not. A file that is
  *  about a DIFFERENT directory is answered `null` rather than refused: it is not
@@ -173,7 +200,13 @@ const printed = (cwd: string, held: Held): string =>
  * "nothing says", the same as an absent field. A file whose model went strange
  * is one the panel opens on whatever the agent offers, which is the behaviour
  * of every olai before this one; refusing the whole memory over it would cost
- * the conversation too. */
+ * the conversation too.
+ *
+ * The AGENT is read leniently too, and lands on {@link BEFORE_THE_ROSTER} when
+ * nothing readable says — which is not a default standing in for a choice, it
+ * is the only agent a file that names none can be about. What a caller does
+ * with an id it no longer has an agent for is the caller's: this file's job is
+ * to say what was written down. */
 const parsed = (
   at: string,
   cwd: string,
@@ -191,7 +224,12 @@ const parsed = (
         return Effect.fail(new MemoryFailure({ why: `\`${at}\` names no conversation` }))
       }
       const model = typeof held.model === "string" && held.model !== "" ? held.model : null
-      return Effect.succeed(held.cwd === cwd ? { session: held.session, model } : null)
+      const agent = typeof held.agent === "string" && held.agent !== ""
+        ? held.agent
+        : BEFORE_THE_ROSTER
+      return Effect.succeed(
+        held.cwd === cwd ? { agent, session: held.session, model } : null,
+      )
     },
   )
 

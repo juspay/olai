@@ -250,6 +250,7 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   "chat.resend": "tool",
   "chat.cancel": "tool",
   "chat.newSession": "tool",
+  "chat.chooseAgent": "tool",
   "chat.loadSession": "tool",
   "chat.reopen": "tool",
   "chat.sessions": "tool",

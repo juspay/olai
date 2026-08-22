@@ -14,18 +14,43 @@
  *
  * It BUILDS the agent rather than being handed one, and that is what keeps
  * `session/update` a word this package is the last to say: a caller passes the
- * adapter it resolved and the directory to run it in, never a protocol object.
- * The seam for a scripted agent is one level further out and more honest for
- * it — `OLAI_ACP_AGENT` pointed at a script, which is how the e2e suite drives
- * every turn it asserts on, and which exercises the subprocess and the wire
- * that an injected object would replace with an assumption.
+ * ROSTER it detected and the directory to run in, never a protocol object. The
+ * seam for a scripted agent is one level further out and more honest for it —
+ * `OLAI_ACP_AGENT` pointed at a script, which is how the e2e suite drives every
+ * turn it asserts on, and which exercises the subprocess and the wire that an
+ * injected object would replace with an assumption.
+ *
+ * ## WHICH agent, and when it starts
+ *
+ * A conversation is bound to ONE agent, chosen when it is created (the human's
+ * ruling, 2026-08-21; several agents in one conversation is out of scope,
+ * permanently). So this file holds AT MOST ONE agent at a time and starts it
+ * when a conversation needs it — there is nothing for a second subprocess to do
+ * while the panel is in somebody else's conversation, and a pool of idle ACP
+ * agents is a pool of idle language-model sessions.
+ *
+ * Where the choice comes from, in order:
+ *
+ *   - **one installed agent is not a choice.** The panel talks to it and says
+ *     which it is, in the header, beside the model. Asking a one-row question
+ *     is friction with no answer behind it, and every olai before this one was
+ *     in exactly that state.
+ *   - **the note this directory left** ({@link ./memory.ts}) names the agent
+ *     the panel was last talking to, so a restart comes back to the
+ *     conversation it was in rather than to a question.
+ *   - **otherwise the panel ASKS**, and holds no conversation until somebody
+ *     answers ({@link Talking}'s `asking` arm). A default remembered ACROSS
+ *     conversations is exactly what was ruled out: the question is per chat.
  *
  * Four decisions worth naming:
  *
  *   - **a turn is accepted, not awaited.** `send` answers the moment the prompt
  *     is on the wire; what happens next arrives on the transcript, so every open
  *     tab stays in step and a five-minute turn is not a five-minute call. The
- *     turn runs on its own fiber, and the `thinking` state is what says so.
+ *     turn runs on its own fiber, and the `thinking` state is what says so —
+ *     for as long as ANY of them is running, because an agent that cannot take
+ *     a message into the turn it is working on gets a second prompt it queues
+ *     ({@link Turn}).
  *   - **what is typed goes out IMMEDIATELY, always, and this file holds
  *     nothing.** A message sent while a turn runs is STEERED into that turn
  *     ({@link ./agent.ts}'s `steer`), so the agent hears it while it is still
@@ -54,6 +79,7 @@
  */
 
 import {
+  type AgentChoice,
   type AskAnswer,
   type Attached,
   type AttachChunk,
@@ -63,26 +89,33 @@ import {
   type NodeContext,
   type OpFailure,
   type SessionInfo,
+  type Talking,
 } from "@olai/surface"
 import { BusyFailure, UsageFailure } from "@olai/format"
 import { Effect, Fiber, Semaphore } from "effect"
 
-import type { Adapter } from "./adapter.ts"
 import * as AcpAgent from "./agent.ts"
+import type { Installed } from "./agents/roster.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
 import type { AgentEvent } from "./events.ts"
 import * as Memory from "./memory.ts"
 import { type Change, Transcript } from "./transcript.ts"
+import { type Turn, Turns } from "./turns.ts"
 
 export type { ToolServer } from "./agent.ts"
 
 export interface Options {
-  /** Which agent to start, already resolved from the environment
-   *  ({@link ./adapter.ts}). Resolving it is the caller's move — it is the
-   *  caller who knows there is a `--no-agent` flag or an env var — and what a
-   *  resolved one looks like is ours. */
-  readonly adapter: Adapter
+  /** Which agents this machine has, already detected
+   *  ({@link ./agents/roster.ts}). Detecting them is the caller's move — it is
+   *  the caller that owns this process's environment — and what a detected one
+   *  looks like is ours.
+   *
+   *  NEVER EMPTY: a caller that found nothing builds no chat at all, and what
+   *  a browser gets is the panel's `off` face, which says so and says how to
+   *  install one. A chat with an empty roster would be a panel that can never
+   *  answer anything, holding a subprocess-shaped hole. */
+  readonly roster: ReadonlyArray<Installed>
   /** Where to start it: the served directory, exactly. An agent keys its
    *  stored sessions by the directory it was started in, which is what makes
    *  them findable at all — and it is what olai's own note of WHICH of them
@@ -133,7 +166,22 @@ export interface Chat {
    *  race. */
   readonly resend: (id: string) => Effect.Effect<void, OpFailure>
   readonly cancel: Effect.Effect<void, OpFailure>
-  readonly newSession: Effect.Effect<void, OpFailure>
+  /** Start a fresh conversation with the named agent
+   *  ({@link ./agents/roster.ts}). The agent is an ARGUMENT because every new
+   *  chat asks which one — there is no default to fall back on, and a verb that
+   *  could be called without one would be a place for a default to grow. */
+  readonly newSession: (agent: string) => Effect.Effect<void, OpFailure>
+  /** Answer the question the panel is holding: THIS is the agent, now open the
+   *  conversation you would have opened.
+   *
+   *  Not {@link Chat.newSession} with the same argument, and the difference is
+   *  the whole of why both exist. A boot that could not say which agent to
+   *  start has not decided to start a NEW conversation — it has been stopped
+   *  before it could adopt the one this directory was in. So the answer opens
+   *  the remembered conversation for that agent, or its most recent, or a fresh
+   *  one where it has none; the `+ new` button is the verb that always means a
+   *  fresh one. */
+  readonly chooseAgent: (agent: string) => Effect.Effect<void, OpFailure>
   readonly loadSession: (id: string) => Effect.Effect<void, OpFailure>
   /** Try the refused OPEN again — the one `ChatState.unopened` is about. It
    *  takes no argument because the attempt is kept here, beside the reason:
@@ -231,57 +279,44 @@ const SPOKE: ReadonlySet<AgentEvent["_tag"]> = new Set([
   "usage",
 ])
 
-/**
- * The turn in flight, as a TICKET rather than as a fiber handle.
- *
- * It exists because the fiber does not, yet: the ticket is written down before
- * the fork, so there is no window in which a turn is running and nothing says
- * so. The fiber is filled in a moment later, for the one caller that has to
- * interrupt it.
- *
- * Its real job is IDENTITY. A turn that ends reports where it stands — idle,
- * or gone — and a turn that was superseded must report nothing, or a settling
- * turn would talk over the one that replaced it. Comparing the ticket is what
- * separates "the turn I am is still the turn" from "some turn ended", which a
- * status flag cannot answer and a null check gets wrong exactly when it
- * matters.
- */
-interface Turn {
-  fiber: Fiber.Fiber<unknown, unknown> | null
-  /**
-   * Somebody asked THIS turn to stop.
-   *
-   * It outlives the turn on purpose, because the thing that needs it is a
-   * steer still on the wire: a message aimed at a turn a person then cancelled
-   * comes back "nothing to steer", which is indistinguishable from the turn
-   * having simply ended — unless the ticket it was aimed at remembers being
-   * stopped. Without that, the two are the same answer and the message starts
-   * a fresh turn the person just pressed a button to end.
-   */
-  stopped: boolean
-}
-
 export const make = (options: Options): Effect.Effect<Chat, never, never> =>
   Effect.gen(function*() {
-    // A FACTORY over the handler, because the two are mutually referential:
-    // the agent needs somewhere to send its events, and the thing that
-    // consumes them needs the agent to drive.
-    const spawn = (onEvent: (event: AgentEvent) => void) =>
+    /**
+     * Where this panel writes down what it was in, and what it reads back at a
+     * boot.
+     *
+     * Built here rather than handed in, exactly like the tmp directory pasted
+     * pictures land in: both are somewhere on this machine that belongs to
+     * THIS panel about THIS directory, and a composition root passing either
+     * one down would be a second place that knows where olai keeps things.
+     * Keyed by the served DIRECTORY and by nothing else, so two servers over
+     * two directories remember two panels — and two servers over ONE directory
+     * are one panel as far as this is concerned, last one in wins, which is
+     * the honest answer for a single-user app rather than a race worth a port
+     * in the key.
+     *
+     * READ IN TWO PLACES now, which is new and is the shape of the fact rather
+     * than a duplication: this file reads the AGENT out of it, because which
+     * subprocess to start is a question that comes before there is one to ask,
+     * and {@link ./agent.ts} reads the conversation and the model out of it,
+     * because those are facts about a session only the thing holding one can
+     * act on. One writer per field, and the write is the agent's.
+     */
+    const memory = Memory.forDirectory(options.cwd)
+
+    /** One agent, built from the roster row that named it. The handler is
+     *  passed in because the two are mutually referential: the agent needs
+     *  somewhere to send its events, and the thing that consumes them needs the
+     *  agent to drive. */
+    const spawn = (row: Installed, onEvent: (event: AgentEvent) => void) =>
       AcpAgent.make({
-        command: options.adapter.command,
-        args: options.adapter.args,
+        id: row.id,
+        leg: row.leg,
+        command: row.adapter.command,
+        args: row.adapter.args,
         cwd: options.cwd,
         tools: options.tools,
-        // Built here rather than handed in, exactly like the tmp directory
-        // pasted pictures land in: both are somewhere on this machine that
-        // belongs to THIS conversation about THIS directory, and a composition
-        // root passing either one down would be a second place that knows
-        // where olai keeps things. Keyed by the served DIRECTORY and by
-        // nothing else, so two servers over two directories remember two
-        // panels — and two servers over ONE directory are one panel as far as
-        // this is concerned, last one in wins, which is the honest answer for
-        // a single-user app rather than a race worth a port in the key.
-        memory: Memory.forDirectory(options.cwd),
+        memory,
         onEvent,
       })
 
@@ -289,16 +324,63 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     /** The conversation's own tmp directory, for pictures pasted into it.
      *  Emptied when a conversation is left and when the chat stops. */
     const files = Attachments.make()
-    // The cell's own default, with the one field that differs: an agent is
-    // being started. Restating the other four here would be a second place to
-    // remember when the state gains a fifth.
-    let state: ChatState = { ...CHAT_OFF, status: "booting" }
-    /** The turn in flight, so a second `send` knows to STEER rather than start
-     *  one and a cancel has something to aim at. See {@link Turn}. */
-    let turn: Turn | null = null
+    /** WHO a roster row is, as the browser hears it: the picker's rows. The
+     *  ADAPTER and the LEG stay on this side of the wire, because a browser that
+     *  knew what to spawn would be a browser that could ask for it. */
+    const said = (row: Installed): AgentChoice => ({ id: row.id, name: row.name })
+
+    /** ... and as the panel's own `talking`, which carries one thing more: what
+     *  a message sent mid-turn will DO, which is a fact about this agent and is
+     *  read where the composer says it. */
+    const bound = (row: Installed): Talking => ({
+      kind: "agent",
+      id: row.id,
+      name: row.name,
+      steers: row.leg.steering !== null,
+    })
+
+    // The cell's own default, with the two fields that differ: an agent is
+    // being started, and the roster is this machine's. Restating the others
+    // here would be a second place to remember when the state gains one.
+    let state: ChatState = {
+      ...CHAT_OFF,
+      status: "booting",
+      roster: options.roster.map(said),
+    }
+    /** The agent this panel is talking to and the row it came from, or `null`
+     *  while it is talking to none — before the first choice, and in the beat
+     *  between one agent being stopped and its replacement handshaking. */
+    let talking: { readonly row: Installed; readonly agent: AcpAgent.Agent } | null = null
+    /** The server is going away. Read by {@link using}, which must not start an
+     *  agent after the one thing that stops them has run: a subprocess spawned
+     *  then is one nothing will ever kill. */
+    let closing = false
+    /** The turns in flight — usually none or one, and more only for an agent
+     *  that queues a mid-turn message instead of steering it. Every question
+     *  anybody asks about them, and why they are a set, is {@link ./turns.ts}. */
+    const turns = new Turns()
     /** One session change at a time: a load and a new-session racing each other
      *  would leave the transcript holding half of each. */
     const switching = yield* Semaphore.make(1)
+    /**
+     * ONE AGENT BOUND AT A TIME — the permit {@link using} takes for itself.
+     *
+     * Its own rather than {@link switching}'s, and that is not tidiness: the
+     * two verbs that open a conversation already hold that one, but a BOOT does
+     * not — it runs on its own fiber while the listener serves pages, which is
+     * the whole reason a page is not waiting on an agent. Read the other way
+     * round: a boot that took the directory's permit would hold it for as long
+     * as an agent takes to hand-shake, and `stop` waits on that same permit to
+     * empty this conversation's tmp directory — so a shutdown during a boot
+     * waited out the boot's whole deadline. (It does; the server tests time out
+     * on it.)
+     *
+     * What it guards is exactly the read-then-write in {@link using}: two
+     * callers seeing the same `talking === null` and both spawning an agent
+     * module, with only one of them ever stopped and the other left holding an
+     * ACP subprocess nothing will ever talk to.
+     */
+    const binding = yield* Semaphore.make(1)
     /** One delivery decision at a time — see {@link deliver}. Deciding which
      *  lane a message takes means reading whether a turn is running, and taking
      *  that lane means writing it; two sends interleaving between the two would
@@ -473,7 +555,181 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }
     }
 
-    const agent = yield* spawn(receive)
+    /** The roster row with that id, or `null` — the one place a name off the
+     *  wire is turned into something startable. A browser that asks for an
+     *  agent this machine does not have is a STALE TAB rather than a fault, so
+     *  it is refused in words rather than crashed on. */
+    const rowFor = (id: string): Installed | null =>
+      options.roster.find((row) => row.id === id) ?? null
+
+    /**
+     * The agent for this row, started if it is not the one already talking —
+     * and the previous one STOPPED if it was somebody else.
+     *
+     * One agent at a time, which is the shape of the ruling: a conversation is
+     * bound to one, and the panel holds one conversation. A second live
+     * subprocess would be a second language-model session held open for a
+     * conversation nobody is looking at.
+     *
+     * The transcript goes with the process. Rows are what an agent said, and
+     * what the OTHER agent said is not this conversation's history — so they
+     * are cleared here rather than left to the incoming agent's own
+     * `replayStarted`, which would leave a beat in which the old agent's
+     * answers sit under the new one's header. Everything else about the last
+     * conversation goes for the same reason it goes when a session ends: the
+     * model, the room left in a context that no longer exists, the servers that
+     * conversation was short of.
+     *
+     * UNDER ITS OWN PERMIT ({@link binding}), which every caller reaches
+     * through this function rather than having to remember: the two verbs that
+     * open a conversation hold {@link switching} as well, and a BOOT holds
+     * neither, so the guard that matters has to be here. Two callers
+     * interleaving would leave the panel talking to one agent and drawing
+     * another's name, and, worse, would spawn two agent modules with only one
+     * of them ever stopped.
+     */
+    const using = (row: Installed): Effect.Effect<AcpAgent.Agent, AcpAgent.AgentGone> =>
+      binding.withPermit(Effect.gen(function*() {
+        // A SHUTDOWN has already taken the agent this would replace, and a
+        // subprocess started after it is one nothing will ever stop.
+        if (closing) {
+          return yield* new AcpAgent.AgentGone({
+            gone: "unreachable",
+            why: "the server is shutting down",
+          })
+        }
+        const already = talking
+        if (already !== null && already.row.id === row.id) return already.agent
+        if (already !== null) {
+          talking = null
+          // THROUGH THE EVENT, not through a second list of what a conversation
+          // ending costs. Stopping an agent deliberately emits nothing (a
+          // `gone` about a process somebody asked to stop would be a lie), so
+          // the swap has to say it — and saying it here is the difference
+          // between one place that knows which fields go with a session and
+          // two that have to be kept in step.
+          receive({ _tag: "sessionOver", why: "new" })
+          yield* already.agent.stop
+        }
+        // ... and the three that do NOT go with a session, because they are
+        // about the AGENT: the model is a different agent's answer, a refused
+        // open was about a process that is gone, and a banner about it with it.
+        opened()
+        move({
+          // WHO, and — because it is one member — no longer a question that
+          // could still be being asked while it names somebody.
+          talking: bound(row),
+          model: null,
+          trouble: null,
+        })
+        const made = yield* spawn(row, receive)
+        talking = { row, agent: made }
+        return made
+      }))
+
+    /** A verb that names an agent. An id that is not on this machine is a
+     *  STALE TAB — the roster it was drawn from has moved, or the browser was
+     *  open across a restart — so it is refused in words rather than started. */
+    const withRow = <A>(
+      id: string,
+      use: (row: Installed) => Effect.Effect<A, OpFailure>,
+    ): Effect.Effect<A, OpFailure> =>
+      Effect.suspend(() => {
+        const row = rowFor(id)
+        return row === null
+          ? Effect.fail(
+            new UsageFailure({
+              reason: `there is no agent called \`${id}\` on this machine`,
+            }),
+          )
+          : use(row)
+      })
+
+    /**
+     * WHICH agent this panel comes up talking to, or `null` for "ask".
+     *
+     * The three-line rule from the header, in the order that makes each line
+     * true: one installed agent is not a choice; a note this directory left
+     * names the agent the panel was in a conversation WITH, and coming back to
+     * that conversation is the whole point of the note; and anything else is a
+     * question nobody here may answer on somebody's behalf.
+     *
+     * A NOTE THAT NAMES AN AGENT THIS MACHINE NO LONGER HAS reads as no note at
+     * all — uninstalling an agent is not a reason to refuse to open the panel,
+     * and the conversation behind that id is not reachable by anything left
+     * here anyway.
+     *
+     * A memory that cannot be READ is a notice and a question, never a failure:
+     * the panel works without one, exactly as it did before there was one.
+     */
+    const startsWith: Effect.Effect<Installed | null> = Effect.gen(function*() {
+      const only = options.roster.length === 1 ? options.roster[0] ?? null : null
+      if (only !== null) return only
+      const held = yield* Effect.catchTag(
+        memory.recall,
+        "MemoryFailure",
+        (failure) =>
+          Effect.sync(() => {
+            publish(transcript.add(
+              "notice",
+              `the agent this directory was last talking to could not be read (${failure.why}) — ` +
+                `asking which one to use instead`,
+            ))
+            return null
+          }),
+      )
+      return held === null ? null : rowFor(held.agent)
+    })
+
+    /**
+     * A conversation is open, and whatever was in flight while it opened is
+     * still in flight.
+     *
+     * NOT `idle`, which is what this was and what it is right about only when
+     * nothing was sent in between. Opening a conversation takes real time — a
+     * subprocess starts, a session is asked for, a stored one replays — and the
+     * box is deliberately not locked while it does, so a prompt typed in that
+     * window is accepted and starts a turn ({@link ./chat.ts}'s header says why
+     * nothing is held). Stamping `idle` over that turn is the panel reporting a
+     * state it can see it is not in: the composer stops saying the agent is
+     * working while the agent is working, and the cancel button goes away from
+     * under the person who was about to press it.
+     *
+     * Reachable before an agent was something a person picked — a boot is an
+     * open too — and now it is ordinary: choosing an agent STARTS a subprocess,
+     * which is the longest that window has ever been.
+     */
+    const settled = (): void => {
+      move({ status: turns.busy ? "thinking" : "idle" })
+    }
+
+    /** A verb that OPENS a conversation with a named agent — the three steps
+     *  the two of them share, and the part that is easy to get subtly wrong:
+     *  the stale-tab refusal, the agent switch, and the permit that makes the
+     *  switch and the open one step. What each verb says for itself is the
+     *  one line that differs. */
+    const openWith = (
+      id: string,
+      use: (agent: AcpAgent.Agent) => Effect.Effect<void, AcpAgent.AgentGone>,
+    ): Effect.Effect<void, OpFailure> =>
+      withRow(id, (row) => changeSession(Effect.flatMap(using(row), use)))
+
+    /** A verb that needs somebody to talk to. Refused in words when there is
+     *  nobody — the panel is drawing the picker, and what the caller asked for
+     *  is a thing to do IN a conversation. */
+    const onAgent = <A>(
+      use: (agent: AcpAgent.Agent) => Effect.Effect<A, OpFailure>,
+    ): Effect.Effect<A, OpFailure> =>
+      Effect.suspend(() => {
+        const at = talking
+        return at === null
+          ? Effect.fail(
+            new UsageFailure({
+              reason: "no agent has been chosen for this panel yet — pick one to start",
+            }),
+          )
+          : use(at.agent)
+      })
 
     /** An agent failure, as something a caller can render — ONE translation,
      *  used by every verb. Three call sites used to answer this differently
@@ -553,7 +809,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * when the steer got there. That second one is the RACE — olai steers only
      * while it believes a turn is running, and the agent can settle in between —
      * and the agent says so rather than inventing a turn ({@link
-     * ./interpret.ts}'s `STEER_WHEN_IDLE`).
+     * ./agents/claude.ts}'s `STEER_WHEN_IDLE`).
      *
      * UNDER A PERMIT, because the first thing it does is read which lane to take
      * and the last thing it does is take it. Two tabs sending at an idle agent
@@ -580,10 +836,30 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      */
     const deliver = (key: string, prompt: string): Effect.Effect<void> =>
       sending.withPermit(Effect.gen(function*() {
+        const at = talking
+        if (at === null) {
+          // Unreachable from the panel — there is no box to type into while
+          // nobody has been chosen — and said on the ROW rather than thrown,
+          // because these are somebody's words and the rule for words that did
+          // not go is the same however they failed to.
+          return undeliverable(key, prompt, {
+            gone: "unreachable",
+            why: "no agent has been chosen for this panel yet",
+          })
+        }
+        const agent = at.agent
         // WHICH turn this steer is aimed at, kept rather than re-read: by the
-        // time it answers, `turn` may be null, or somebody else's.
-        const aimed = turn
-        if (aimed !== null) {
+        // time it answers, it may be over. An agent that steers never has more
+        // than one — a mid-turn message is steered rather than begun — so the
+        // set holds at most this one.
+        const aimed = turns.only
+        // AN AGENT THAT CANNOT STEER GETS AN ORDINARY PROMPT, mid-turn or not,
+        // and the agent queues it behind the turn it is running (opencode
+        // does; the composer says so). Nothing is held here either way — that
+        // is the promise this file's header makes — and what a person loses by
+        // it is the chance to redirect a turn already in flight, which is a
+        // difference they are told about rather than one they discover.
+        if (aimed !== null && at.row.leg.steering !== null) {
           const steered = yield* Effect.result(agent.steer(prompt))
           if (steered._tag === "Failure") {
             // WHICH failure it was is the agent's reading, not ours: it is the
@@ -603,7 +879,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             return undeliverable(key, prompt, { gone: "refused", why: CANCELLED_UNDER_IT })
           }
         }
-        yield* begin(key, prompt)
+        yield* begin(agent, key, prompt)
       }))
 
     /**
@@ -687,17 +963,29 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * not there took nobody's message anywhere, and the words deserve the same
      * account of themselves ({@link undeliverable}).
      */
-    const begin = (key: string, prompt: string): Effect.Effect<void> =>
+    const begin = (
+      agent: AcpAgent.Agent,
+      key: string,
+      prompt: string,
+    ): Effect.Effect<void> =>
       Effect.gen(function*() {
-        const ticket: Turn = { fiber: null, stopped: false }
-        turn = ticket
+        /** A turn was ALREADY running when this one started, which is what a
+         *  mid-turn message is for an agent that cannot steer. */
+        const alongside = turns.busy
+        const ticket = turns.open()
         // The rows go first, and the order is the point. A dead agent's rows
         // are deliberately left where they are, so this turn is starting over a
         // transcript that may hold calls the last one abandoned — and the panel
         // is about to be told a turn is in flight. Said in the other order,
         // there is a frame in which every one of those calls is drawn as work
         // in progress again ({@link ./transcript.ts}'s `begins`).
-        publish(transcript.begins())
+        //
+        // NOT WHEN A TURN IS STILL RUNNING, though: what `begins` does is mark
+        // what the LAST turn walked away from, and a turn that is still going
+        // has walked away from nothing. Its calls are live, and stranding them
+        // because somebody typed a second message would be the panel saying a
+        // running grep had been abandoned.
+        if (!alongside) publish(transcript.begins())
         move({ status: "thinking", trouble: null })
         // How much the agent had said before this turn was asked for. What it
         // answers, on a turn that FAILED, is whether the prompt demonstrably
@@ -710,11 +998,22 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         const running = yield* Effect.forkDetach(
           Effect.gen(function*() {
             const outcome = yield* Effect.result(agent.prompt(prompt))
-            publish(transcript.settle())
-            // Whether this turn is still THE turn. The notices go in either
-            // way — they are things that happened, and they happened — and
-            // only the state is withheld.
-            const current = turn === ticket
+            // Whether this turn was the LAST one running. The notices go in
+            // either way — they are things that happened, and they happened —
+            // and only the state is withheld: a turn that ends while another is
+            // still going has nothing true left to say about where the
+            // conversation stands, and saying it anyway would mark a thinking
+            // panel idle.
+            //
+            // Left the set HERE rather than in the `ensuring` below, because
+            // every line under this one is asking whether anything is still
+            // running and the answer has to already be true.
+            const current = turns.leave(ticket)
+            // ... and so is the SETTLE, for `begins`' reason read from the
+            // other end: a turn that ends while another is still running must
+            // not strand the running turn's calls. The last one out settles,
+            // and settling is idempotent over rows that have already stopped.
+            if (current) publish(transcript.settle())
             if (outcome._tag === "Failure") {
               publish(transcript.add("notice", outcome.failure.message))
               // A turn that produced NOTHING is a delivery that failed, and it
@@ -757,8 +1056,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // would make the panel report a state it can see it is not in.
             if (current) move({ status: "idle", trouble: null })
           }).pipe(
+            // Belt to the brace above: the body leaves the set on its own way
+            // out, and an INTERRUPT (a shutdown, a conversation change) never
+            // reaches that line.
             Effect.ensuring(Effect.sync(() => {
-              if (turn === ticket) turn = null
+              turns.leave(ticket)
             })),
           ),
         )
@@ -808,25 +1110,25 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * report.
      */
     const cancel: Effect.Effect<void, OpFailure> = Effect.gen(function*() {
-      const asked = turn
-      yield* Effect.mapError(agent.cancel, asFailure)
-      if (asked === null) return
-      // Written on the TICKET, and after the cancel is on the wire rather than
-      // before, because a cancel that could not be delivered stopped nothing.
-      // What reads it is a steer still in flight against this same turn: it is
-      // about to come back "nothing to steer", and this is the only thing that
-      // says the reason was a person rather than the turn finishing. It
-      // outlives the turn, which is the point — by then the ticket is all that
-      // is left of it.
-      asked.stopped = true
+      const running = turns.busy
+      yield* onAgent((agent) => Effect.mapError(agent.cancel, asFailure))
+      if (!running) return
+      // Marked AFTER the cancel is on the wire rather than before, because a
+      // cancel that could not be delivered stopped nothing — and on EVERY
+      // ticket, for the reason {@link ./turns.ts} gives. What reads the mark is
+      // a steer still in flight against one of these turns: it is about to come
+      // back "nothing to steer", and this is the only thing that says the
+      // reason was a person rather than the turn finishing. It outlives the
+      // turn, which is the point — by then the ticket is all that is left of it.
+      const asked = turns.stopping()
       const quietSince = heard
       yield* Effect.forkDetach(Effect.gen(function*() {
         yield* Effect.sleep(CANCEL_GRACE)
-        // A DIFFERENT turn is a turn that ended and was replaced, which is the
-        // cancel having worked; `null` is the same. Comparing the ticket rather
-        // than the status is what makes the second press of the button about
-        // the turn it was pressed for.
-        if (turn !== asked) return
+        // A turn that has LEFT the set is one that ended, which is the cancel
+        // having worked. Asking about the tickets this press was about, rather
+        // than about the status, is what makes the second press of the button
+        // about the turns it was pressed for.
+        if (asked.every((ticket) => !turns.has(ticket))) return
         // ...and an agent that has said anything since is one still working
         // towards the stop it was asked for, which is not a thing to accuse
         // anybody of.
@@ -949,7 +1251,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     ): Effect.Effect<void, OpFailure> =>
       switching.withPermit(
         Effect.gen(function*() {
-          if (turn !== null) {
+          if (turns.busy) {
             return yield* new BusyFailure({
               reason: "a turn is running; cancel it before switching conversations",
             })
@@ -972,7 +1274,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             }
             return yield* asFailure(outcome.failure)
           }
-          move({ status: "idle" })
+          settled()
         }),
       )
 
@@ -996,12 +1298,21 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // `sessions` gets, and for the same reason: a verb that could not be
       // done says so where it was asked.
       cancel,
-      newSession: changeSession(agent.newSession),
+      // WITH the agent that was chosen, always: every new chat asks, so there
+      // is no arm here that picks one. An id off a stale tab is refused in
+      // words rather than started.
+      newSession: (id: string) => openWith(id, (agent) => agent.newSession),
+      // The answer to the panel's own question, which is not the same verb: a
+      // boot that stopped to ask has not asked for a NEW conversation, so what
+      // this opens is the one that agent's own boot would have adopted —
+      // {@link Chat.chooseAgent}. `boot` is idempotent and picks its own, which
+      // is why it is also what a refused one is retried with.
+      chooseAgent: (id: string) => openWith(id, (agent) => agent.boot),
       // NAMED by the id the browser pressed, which is the only thing this end
       // has before the load answers — a title would be the picker's word for a
       // conversation, and the picker is exactly what this refusal takes off the
       // screen. The agent's own reason sits beside it either way.
-      loadSession: (id: string) => changeSession(agent.loadSession(id), id),
+      loadSession: (id: string) => onAgent((agent) => changeSession(agent.loadSession(id), id)),
       /**
        * The refused OPEN, tried again — whichever it was.
        *
@@ -1037,25 +1348,27 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         unopened = null
         return changeSession(waiting.again, state.unopened?.what ?? null)
       }),
-      sessions: Effect.catch(
-        Effect.map(agent.sessions, (stored) =>
-          stored.map((entry): SessionInfo => ({
-            id: entry.id,
-            title: entry.title,
-            updatedAt: entry.updatedAt,
-          }))),
-        (gone) => Effect.fail(asFailure(gone)),
-      ),
+      sessions: onAgent((agent) =>
+        Effect.catch(
+          Effect.map(agent.sessions, (stored) =>
+            stored.map((entry): SessionInfo => ({
+              id: entry.id,
+              title: entry.title,
+              updatedAt: entry.updatedAt,
+            }))),
+          (gone) => Effect.fail(asFailure(gone)),
+        )),
       answer: (id, answers) =>
-        Effect.flatMap(
-          agent.answer(id, answers),
-          (took) =>
-            took ? Effect.void : Effect.fail(
-              new UsageFailure({
-                reason: "that question is not waiting any more — it was answered or withdrawn",
-              }),
-            ),
-        ),
+        onAgent((agent) =>
+          Effect.flatMap(
+            agent.answer(id, answers),
+            (took) =>
+              took ? Effect.void : Effect.fail(
+                new UsageFailure({
+                  reason: "that question is not waiting any more — it was answered or withdrawn",
+                }),
+              ),
+          )),
 
       recordRefusal: (tool: string, failure: OpFailure) =>
         Effect.sync(() => {
@@ -1068,7 +1381,23 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // nothing — the next prompt retries it exactly as a crash does.
         yield* Effect.forkDetach(
           Effect.gen(function*() {
-            const outcome = yield* Effect.result(agent.boot)
+            const chosen = yield* startsWith
+            if (chosen === null) {
+              // NOBODY IS CHOSEN and nobody will be chosen for you: the panel
+              // asks, and holds no conversation until it is answered. IDLE
+              // rather than `booting`, because nothing is happening — this is
+              // a state that has settled, and it settles until somebody presses
+              // something.
+              move({ status: "idle", talking: { kind: "asking" } })
+              return
+            }
+            // Serialized against every other way an agent is bound by
+            // {@link using}'s own permit, and NOT by the directory's: this boot
+            // runs while the listener serves pages, and a shutdown must not
+            // queue behind it.
+            const outcome = yield* Effect.result(
+              Effect.flatMap(using(chosen), (agent) => agent.boot),
+            )
             if (outcome._tag === "Failure") {
               // A warning rather than an error: the panel is already showing
               // this, and the next prompt retries the boot exactly as a crash
@@ -1081,21 +1410,24 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               // its own — so the face names no conversation, and trying again
               // is the boot itself, which is idempotent and re-opens.
               if (outcome.failure.gone === "refused") {
-                refusedOpen(outcome.failure, null, agent.boot)
+                refusedOpen(outcome.failure, null, Effect.flatMap(using(chosen), (a) => a.boot))
               } else {
                 wentAway(outcome.failure.message)
               }
               return
             }
-            move({ status: "idle" })
+            settled()
           }),
         )
       }),
       stop: Effect.gen(function*() {
-        const running = turn?.fiber ?? null
-        turn = null
-        if (running !== null) yield* Fiber.interrupt(running)
-        yield* agent.stop
+        closing = true
+        // EVERY turn, not the newest ({@link ./turns.ts}).
+        const running = turns.drain().flatMap((ticket) => ticket.fiber ?? [])
+        for (const fiber of running) yield* Fiber.interrupt(fiber)
+        const at = talking
+        talking = null
+        if (at !== null) yield* at.agent.stop
         // Registered as a finalizer of the serve scope, so this is also what
         // takes the pasted pictures with the server when it shuts down. Behind
         // the same permit as everything else that touches the directory: a

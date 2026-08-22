@@ -126,9 +126,9 @@ export const BACKSTOP_TIMEOUT = 90_000;
  *
  * A fourth axis, on the same argument as the third. There is exactly one way to
  * see that face and it is to wait out `@olai/chat`'s own deadline
- * (`interpret.ts`'s `STEER_TIMEOUT`, thirty seconds — the number is a claim
- * about the steering extension, not about this suite, so it is not shortened to
- * suit a test), and folding that wait into `HYDRATION_TIMEOUT` would make every
+ * (the Claude leg's `STEER_TIMEOUT`, `@olai/chat`'s `agents/claude.ts`, thirty
+ * seconds — the number is a claim about that agent's steering extension, not
+ * about this suite, so it is not shortened to suit a test), and folding that wait into `HYDRATION_TIMEOUT` would make every
  * first paint in the suite wait on the slowest thing in it.
  *
  * Kept as a literal beside the interaction budgets rather than imported from
@@ -854,6 +854,24 @@ export const PIN_SHELF = selector(TESTID.pinShelf);
 export const CHAT_TITLE = selector(TESTID.chatTitle);
 export const CHAT_WORKING = selector(TESTID.chatWorking);
 export const CHAT_MODEL = selector(TESTID.chatModel);
+/** WHO the conversation is with, beside the model. `data-agent` is the roster's
+ *  own id, so a scenario names an agent rather than reading a brand name. */
+export const CHAT_AGENT = selector(TESTID.chatAgent);
+/** The mark in front of that name — its own selector because "icon and name"
+ *  is the ruling, and a name with no mark passes an assertion about the name. */
+export const CHAT_AGENT_MARK = selector(TESTID.chatAgentMark);
+/** The picker: which agent this conversation is with. */
+export const CHAT_CHOOSE = selector(TESTID.chatChoose);
+/** One agent in it. */
+export const CHAT_CHOOSE_AGENT = selector(TESTID.chatChooseAgent);
+/** The way out of the picker `+ new` raised — absent when the panel is asking
+ *  because it HAS no conversation. */
+export const CHAT_CHOOSE_CANCEL = selector(TESTID.chatChooseCancel);
+/** One agent the no-agent face tells you how to install. */
+export const CHAT_INSTALL = selector(TESTID.chatInstall);
+/** The composer saying a message sent now will QUEUE behind the running turn
+ *  rather than land in it — drawn only for an agent that cannot steer. */
+export const CHAT_QUEUES = selector(TESTID.chatQueues);
 export const CHAT_SESSIONS = selector(TESTID.chatSessions);
 export const CHAT_SESSION_LIST = selector(TESTID.chatSessionList);
 export const CHAT_SESSIONS_REFUSED = selector(TESTID.chatSessionsRefused);
@@ -1428,6 +1446,10 @@ export class OlaiWorld extends World {
    *  are handed kolu's terminals as well as olai's own tools. Carried for the
    *  same reason again: a restart has to reproduce the first boot. */
   hasKolu = false;
+  /** `@opencode`: this scenario's machine HAS opencode, so its server's roster
+   *  is two agents and the panel asks which one a conversation is with. Every
+   *  other scenario's agent search path is empty — see `hooks.ts`. */
+  hasOpencode = false;
   /** Which git situation this scenario's server was started into (`@git:…`),
    *  or `undefined` for the `--no-commit` every other scenario runs with.
    *  Carried for the same reason as the three above: a restart mid-scenario has
