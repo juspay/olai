@@ -42,6 +42,7 @@ import {
   CHAT_CANCEL,
   CHAT_CHOOSE,
   CHAT_CHOOSE_AGENT,
+  CHAT_CHOOSE_CANCEL,
   CHAT_COMPLETION,
   CHAT_COMPLETION_ROW,
   CHAT_COMPLETION_SECTION,
@@ -2725,4 +2726,10 @@ Then("the composer says nothing about queueing", async function (this: OlaiWorld
     "the composer to say nothing about queueing",
     POLL_TIMEOUT,
   );
+});
+
+/** The way out of the picker that `+ new` raised. It exists only for THAT
+ *  door: the panel's own question has no conversation behind it to keep. */
+When("I keep the conversation I am in", async function (this: OlaiWorld) {
+  await this.page.locator(CHAT_CHOOSE_CANCEL).click();
 });

@@ -115,6 +115,29 @@ Feature: Choosing an agent
     Then the agent is idle
     And the composer says nothing about queueing
 
+  @opencode @scratch:chat
+  Scenario: Starting another chat asks again, and can be backed out of
+    # The other door into the same question, and the one difference between
+    # them: a person who pressed `+ new` still has the conversation they were
+    # in, so a misclick must not be a one-way door into a question. The panel's
+    # OWN question has nothing behind it to go back to and offers no such way
+    # out.
+    When I choose the agent "opencode"
+    And I ask the agent "hello"
+    Then the chat eventually shows "opencode says: hello"
+    When I start a new conversation
+    Then the panel asks which agent
+    When I keep the conversation I am in
+    Then the panel does not ask which agent
+    And the header names the agent "opencode"
+    And the chat eventually shows "opencode says: hello"
+    # ... and answering it starts a conversation with the agent that was picked,
+    # which is the whole of "a new chat asks".
+    When I start a new conversation
+    And I choose the agent "claude"
+    Then the header names the agent "claude"
+    And the chat is empty
+
   @opencode @agent-stored @scratch:chat
   Scenario: Reopening the conversation talks to the agent that has it
     # The note beside the session id. A session id means nothing to the other

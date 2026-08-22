@@ -862,6 +862,9 @@ export const CHAT_AGENT_MARK = selector(TESTID.chatAgentMark);
 export const CHAT_CHOOSE = selector(TESTID.chatChoose);
 /** One agent in it. */
 export const CHAT_CHOOSE_AGENT = selector(TESTID.chatChooseAgent);
+/** The way out of the picker `+ new` raised — absent when the panel is asking
+ *  because it HAS no conversation. */
+export const CHAT_CHOOSE_CANCEL = selector(TESTID.chatChooseCancel);
 /** One agent the no-agent face tells you how to install. */
 export const CHAT_INSTALL = selector(TESTID.chatInstall);
 /** The composer saying a message sent now will QUEUE behind the running turn
