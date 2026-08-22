@@ -729,8 +729,8 @@ export const TESTID = {
   inboxLink: "inbox-link",
   /** What that entry has to REPORT, wrapped around the link the way the
    *  agenda's mark wraps its own: `data-count` is how many top-level captures
-   *  the file holds, so a scenario asks the number rather than the colour the
-   *  chip was painted. */
+   *  still await processing, so a scenario asks the number rather than the
+   *  colour the chip was painted. */
   inboxHeld: "inbox-held",
   /** The number ON that entry — the same count chip Agenda wears, so "the
    *  count is drawn" is a promise a scenario can hold. Absent entirely when

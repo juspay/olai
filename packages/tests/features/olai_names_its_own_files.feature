@@ -19,10 +19,11 @@ Feature: The files olai names for itself, and the doors onto them
   format.md's "deliberately NOT"), and it got the door that goes with being
   out of the tree. That door then moved UP beside Agenda (human, 2026-08-20,
   screenshot ruling) — a primary destination, not a foot-door with Trash —
-  and it wears Agenda's own count badge: how many top-level captures the
-  file holds, hidden at zero. Only the MINT moved as to WHICH file — a
-  directory that already keeps its own `Inbox.olai` goes on capturing into
-  the file it has, and this entry opens whichever file that is.
+  and it wears Agenda's own count badge: how many top-level captures
+  still await processing, hidden at zero. Only the MINT moved as to WHICH
+  file — a directory that already keeps its own `Inbox.olai` goes on
+  capturing into the file it has, and this entry opens whichever file that
+  is.
 
   `@scratch:` because these write the directory they are served.
 

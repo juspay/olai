@@ -52,8 +52,8 @@
  * door at the foot (human, 2026-08-20, screenshot ruling). It is an ordinary
  * outline, so its entry lights up like a tree row, wears the same ⚠ when its
  * file will not parse, and is drawn only when the directory actually has one.
- * It wears Agenda's own count badge: how many top-level captures the file
- * holds, hidden at zero. **Trash** stays at the foot, below the tree, because
+ * It wears Agenda's own count badge: how many top-level captures still await
+ * processing, hidden at zero. **Trash** stays at the foot, below the tree, because
  * that is where a trash sits.
  *
  * ONE EXCEPTION to the hiding, and it is the reason the rule takes the broken
@@ -192,9 +192,10 @@ export function Sidebar(props: {
    *  first frame is still arriving, and then the entry claims nothing. */
   readonly owed: Owed | undefined
   /** How full the inbox is, counted where the set is (`./inbox.ts`'s cell) —
-   *  top-level captures, zero when there is none. The door's presence is
-   *  still a question about the PATHS (`inboxIn`); this is only the number
-   *  it wears. */
+   *  top-level captures that still await processing, zero when there is none
+   *  or every capture is already done. The door's presence is still a
+   *  question about the PATHS (`inboxIn`); this is only the number it
+   *  wears. */
   readonly inboxHeld: InboxHeld
   readonly children?: JSX.Element
   /**
@@ -536,8 +537,9 @@ function Trash() {
  *  has to say so where the reader meets it.
  *
  *  THE COUNT is Agenda's own badge (`./layout/CountChip.tsx`, the quiet
- *  paint), of the top-level captures the file holds. Hidden at zero, which
- *  is the same ruling the agenda's quiet face already keeps. */
+ *  paint), of the top-level captures that still await processing. Hidden
+ *  at zero, which is the same ruling the agenda's quiet face already
+ *  keeps — and an inbox of only done rows is that zero. */
 function Inbox(props: {
   readonly file: string
   readonly isActive: (file: string) => boolean
