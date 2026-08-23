@@ -55,8 +55,7 @@
  * `surface/system/identity` is which olai this tab is bound to
  * (juspay/kolu#2133). This file is the person on the request.
  *
- * No HTTP, no surface, no Effect. The chip's door and a later capture
- * door both import this. Which picture that person wears is
+ * No HTTP, no surface, no Effect. The chip's door imports this. Which picture that person wears is
  * {@link ./picture.ts}; the whole of what the operator configured, in one
  * value, is {@link ./config.ts}.
  */

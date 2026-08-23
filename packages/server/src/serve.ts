@@ -313,14 +313,11 @@ export const serve = (options: ServeOptions) =>
         port,
         bound: wired.bound,
         mcp: { transport, token },
-        // The quick-capture door, and the fourth face composed HERE: a share
-        // sheet is not the browser and is not an agent, so it writes as
-        // `capture` and the trailer says which door a line came in by. The
-        // writer travels beside the ops layer, exactly as `bind` above takes
-        // it — a route that named its own would be a route that could name
-        // somebody else's. Handed the ops layer directly rather than a runtime
-        // member, because nothing about this door is on the surface: no tab
-        // draws it and no agent calls it.
+        // `POST /olai/resync` — force a re-read of the disk. Handed the
+        // STORE's own operation rather than a runtime member, because nothing
+        // about it is on the surface: no tab draws it and no agent calls it. It
+        // is for the case the watcher cannot see, which is a change made where
+        // no inotify reaches.
         resync: store.resync,
       }),
       () => runtime.stopped,

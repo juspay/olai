@@ -346,9 +346,10 @@ test("a script is not markdown", () => {
  * protocols, which is the failure the two tests exist between them to keep
  * from coming back.
  *
- * The autolink spelling is the one the capture door writes (`@olai/server`'s
- * `capture.ts`): GFM's autolink literals do not cover this scheme, so a
- * bare URL would have been text either way.
+ * The autolink spelling is the one a capture writes (`@olai/format`'s
+ * `inbox.ts`, which the `capture` tool composes through): GFM's autolink
+ * literals do not cover this scheme, so a bare URL would have been text either
+ * way.
  */
 test("a captured mail's message: link survives, in a note and in a title", () => {
   const href = "message://%3Cabc123@mail.example%3E"

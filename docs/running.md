@@ -76,7 +76,7 @@ OLAI_IDENTITY_PICTURE_HEADER=            # Authelia sends none — empty is off,
                                          # could send (see Trust, below)
 ```
 
-Each variable unset is the Tailscale name in the table's first row (`OLAI_IDENTITY_EMAIL_HEADER` unset is the *login* header, since that is what a Tailscale login often is); each one **empty** turns that claim off. The login is the only one that makes somebody present — the rest are claims about them, and any of them may be missing. The same reading is the attribution the capture door records.
+Each variable unset is the Tailscale name in the table's first row (`OLAI_IDENTITY_EMAIL_HEADER` unset is the *login* header, since that is what a Tailscale login often is); each one **empty** turns that claim off. The login is the only one that makes somebody present — the rest are claims about them, and any of them may be missing. That reading is the chip's. A capture's `captured-by` is a different question and is answered by whichever door took it — the OS user on the agent socket, and nobody at all on `/mcp` (below).
 
 #### The picture, and where it comes from
 

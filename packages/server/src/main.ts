@@ -151,10 +151,7 @@ const web = Command.make("web", {
  * publishes, so `olai surface get outlines <path>` reads what an agent reads.
  * `verbs` is the tool table itself, projected by the same `bespokeFrom` the MCP
  * face is handed, which is what keeps `capture` one verb with one schema rather
- * than two spellings of it. The identity is `null` here and that is right: this
- * process is a CLIENT, and who a capture is attributed to is decided by the
- * door it lands on — the socket's own face, in `serve.ts`, which knows the OS
- * user.
+ * than two spellings of it.
  *
  * `annotate` is CLI-only ergonomics, keyed by verb name and BESIDE the table
  * rather than inside it: a scalar-ish argument reads better as a position than
