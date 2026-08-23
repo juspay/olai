@@ -42,6 +42,7 @@ import { type BespokeTool, ToolFailure, type ToolInputSchema } from "@kolu/surfa
 import { Effect, Result, Schema } from "effect"
 
 import type { Request } from "@olai/ops"
+import { resolvedWrite } from "../resolving.ts"
 import type { OlaiSurfaceClient } from "./face.ts"
 
 /** The three ops-layer doors a tool call needs, together. `@olai/ops` names
@@ -263,22 +264,18 @@ const answer = (
  * and resolve ONCE MORE if the write was refused, because the arm may simply
  * have gone stale.
  *
- * THE RACE IS REAL and it is the reason this is not two lines. A capture
+ * THE RACE IS REAL and it is the reason this is not one line. A capture
  * resolves to `create` when the directory has no inbox and `add` when it has
  * one; between the listing and the write, somebody else's capture can mint the
  * very file this one was going to create, and `create` is refused for a file
- * that exists. Re-resolving turns that into the `add` it should have been. It
- * is the same mechanism `../resolving.ts` gives the palette and the pin, and it
- * is written here rather than reused from there for one reason: that one takes
- * an `Ops` and reads a whole `Reading`, which is a thing only a process holding
- * the store has — this runs over a surface client that may be a socket away.
+ * that exists. Re-resolving turns that into the `add` it should have been.
  *
- * A SECOND REFUSAL IS THE REAL ONE. If re-resolving answers the same op, the
- * arm was not stale and the caller is owed what the write actually said; if it
- * refuses outright, the caller is owed that too. Only a resolution that comes
- * back DIFFERENT is evidence the world moved under it, and only that is retried
- * — once, never in a loop, because a second race is a busy directory and not a
- * condition to spin on.
+ * The mechanism is `../resolving.ts`'s, which is where the whole argument for
+ * it lives — including why the retry compares the OP and why it fires once. All
+ * this supplies is the two things that differ here: the reading is a LISTING
+ * (the paths, which is what the inbox convention is read off, and the only
+ * shape a face with no store can get) and the run is a surface call that names
+ * no writer, because the face this dispatches at already decided one.
  */
 const planned = (
   tool: Extract<Tool, { readonly kind: "plan" }>,
@@ -286,26 +283,21 @@ const planned = (
   args: unknown,
   login: string | null,
 ): Effect.Effect<Applied, OpFailure> =>
-  Effect.gen(function*() {
-    const at = () =>
+  Effect.map(
+    resolvedWrite(
       Effect.map(door.outlines, (listing): Planning => ({
         paths: listing.outlines.map((outline) => outline.file),
         login,
+        // Read PER CALL, so a process left running overnight still dates a
+        // capture today — `asking`'s rule for `date:yesterday`, kept here.
         now: () => stampOf(new Date()),
-      }))
-
-    const first = yield* Effect.flatMap(at(), (where) =>
-      Effect.fromResult(tool.plan(where, args as never)))
-    const ran = yield* Effect.result(door.run(first))
-    if (Result.isSuccess(ran)) return ran.success
-
-    const again = yield* Effect.flatMap(at(), (where) =>
-      Effect.result(Effect.fromResult(tool.plan(where, args as never))))
-    if (Result.isFailure(again) || again.success.op === first.op) {
-      return yield* Effect.fail(ran.failure)
-    }
-    return yield* door.run(again.success)
-  })
+      })),
+      (at) => tool.plan(at, args as never),
+      door.run,
+      true,
+    ),
+    (written) => written.done,
+  )
 
 /**
  * A refusal, in the two halves a refusal has.
