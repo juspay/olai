@@ -26,10 +26,10 @@ The one visible change outside the agenda: the date badge shifts to the attentio
 Exactly as `/d/<date>` is a question asked of every node in every outline, the agenda is the forward question — nothing on disk is the agenda. Three sections, grouped by outline within each, because that is the only heading that is true:
 
 1. **Overdue** — every overdue node in the set, oldest first. This section *is* the feature: a slipped task is on no day anyone visits, so it is the one answer no day page can give.
-2. **Today** — what today's day page computes, minus finished work.
-3. **Upcoming** — the next days that have anything, each heading a link to its day page. Days with nothing do not appear.
+2. **Today** — dated work due today that is not finished.
+3. **Upcoming** — the next days that owe work, each heading a link to its day page. Days with nothing do not appear.
 
-An occurrence keeps its place on the agenda — it draws no checkbox, its pill never turns amber, and when its day passes it simply leaves. A blocked task keeps both its answers, drawn together, as the format already requires. Undated tasks are absent entirely: they have no *when*, and inventing one is what this format refuses to do. An empty agenda says "Nothing is due." and offers nothing to press.
+An occurrence stays **off** the agenda — it draws no checkbox, its pill never turns amber, and it lives on its day page and in the calendar dots (`agenda-only-todo`). When its day passes it simply leaves those too. A blocked task keeps both its answers, drawn together, as the format already requires. Undated tasks are absent entirely: they have no *when*, and inventing one is what this format refuses to do. An empty agenda says "Nothing is due." and offers nothing to press.
 
 ## What it deliberately is not
 

@@ -223,6 +223,8 @@ A node scheduled for a time of day rather than a bare day keeps whatever it says
 
 The row moves the moment the file says so: a task given a day that has gone is above now on the agenda’s spine and on that day's page, without a reload and without this page deciding anything for itself.
 
+**The agenda lists work.** A dated `todo` or `doing` is owed — on the spine, in the overdue count, on the burning Agenda entry. A dated bullet is not: a birthday, a delivery, a note pinned to a day stay on that day's page and in the calendar's dots, and never on `/agenda`. Marking the bullet a task is what puts it on the agenda; taking the mark off is what takes it off.
+
 ## Making a node come back
 
 A dated node can say **how often it repeats**, and completing it makes the next occurrence.

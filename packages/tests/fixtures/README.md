@@ -201,7 +201,7 @@ pair they can make:
 |---|---|
 | a `todo` whose day has gone | `posts` — `2019-11-05`: overdue |
 | a `doing` whose day has gone | `permit` — `2019-10-30`: overdue too, and the older of the two, though written after it |
-| a dated bullet | `delivery` — `2019-11-02` with no mark: an OCCURRENCE, and never late |
+| a dated bullet | `delivery` — `2019-11-02` with no mark: an OCCURRENCE, never late, and never on the agenda |
 | finished work with a date on both fields | `survey` — on the 1st and the 4th's day pages, and on no agenda |
 | work with no `date` at all | `paint` — a `todo` nobody scheduled, so there is no *when* to be late against |
 | a date on the MARK and nowhere else | `latch` — `todo: 2019-11-21`, which no view reads as a day |

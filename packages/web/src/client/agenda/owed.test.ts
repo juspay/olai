@@ -89,12 +89,14 @@ test("both at once: the alarm wins the row, and the count is the LATE one", () =
   expect(mark.said).toBe("Agenda — 1 overdue, 1 on today")
 })
 
-test("an occurrence on today counts as the row it is, and is never called due", () => {
+test("an occurrence on today is not a row this mark counts", () => {
+  // The agenda lists work. A birthday is on today's PAGE and in the calendar;
+  // it is not owed, so the entry stays the door it always was.
   const birthday = `{"id":"birthday","ord":"a0","title":"mum's birthday","date":"${TODAY}"}`
   const mark = markOf(countedOf([birthday]))
-  expect(mark.face).toBe("today")
-  expect(mark.count).toBe(1)
-  expect(mark.said).toBe("Agenda — 1 on today")
+  expect(mark.face).toBe("quiet")
+  expect(mark.count).toBe(0)
+  expect(mark.said).toBeUndefined()
   // And it can never be the loud one, however long ago its day was: a day
   // passing is not a failure of a bullet.
   const gone = `{"id":"delivery","ord":"a0","title":"the timber arrives","date":"2026-08-01"}`

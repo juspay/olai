@@ -26,9 +26,9 @@
 
 import { Result } from "effect"
 
-import { type Agenda, type AgendaDay, isOverdue, UPCOMING_DAYS } from "./agenda.ts"
+import { type Agenda, type AgendaDay, UPCOMING_DAYS } from "./agenda.ts"
 import { type DayGroup, groupedOn } from "./dates.ts"
-import { byDayKey, derive, type Derived } from "./derive.ts"
+import { byDayKey, derive, unfinished, type Derived } from "./derive.ts"
 import type { OutlineError } from "./errors.ts"
 import { unkept } from "./kinds.ts"
 import { isMirror, isPutAway, type Located, type LocatedRegular, storedMarker } from "./node.ts"
@@ -648,8 +648,8 @@ export const walkedAgenda = (derived: Derived, today: string): Agenda => {
   const days = [...walked.keys()].sort(byDayKey)
   const overdue: Array<AgendaDay> = []
   for (const date of days.filter((day) => day < dayOf(today))) {
-    const owed = (walked.get(date) ?? []).filter((one) => isOverdue(one.at.node, today))
-    if (owed.length > 0) overdue.push({ date, groups: groupedOn(derived, owed) })
+    const groups = owedWalk(derived, walked.get(date) ?? [])
+    if (groups.length > 0) overdue.push({ date, groups })
   }
   const upcoming: Array<AgendaDay> = []
   for (const date of days.filter((day) => day > today)) {
@@ -660,9 +660,9 @@ export const walkedAgenda = (derived: Derived, today: string): Agenda => {
   return { overdue, today: owedWalk(derived, walked.get(today) ?? []), upcoming }
 }
 
-/** What is OWED on one day: the day's records minus what is finished. */
+/** What is OWED on one day: dated unfinished work — `todo` or `doing`. */
 const owedWalk = (
   derived: Derived,
   dated: ReadonlyArray<Dated>,
 ): ReadonlyArray<DayGroup> =>
-  groupedOn(derived, dated.filter((one) => storedMarker(one.at.node) !== "done"))
+  groupedOn(derived, dated.filter((one) => unfinished(storedMarker(one.at.node))))

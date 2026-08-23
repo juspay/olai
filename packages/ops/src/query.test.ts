@@ -1338,9 +1338,10 @@ describe("the sidebar's two date readings", () => {
   test("what is owed counts the rows the agenda page draws", () => {
     // Not a second walk of its own: this is `owedOf` over `agendaOf`, so the
     // number the sidebar prints and the rows one click away are one reading.
-    // Two late over two outlines; today holds the work AND the occurrence.
+    // Two late over two outlines; today is `posts` (doing). `mum` is an
+    // occurrence on the same day — on the day page, not owed.
     expect(owed(derivedOf(DAYS()), { today: "2026-08-09" }))
-      .toEqual({ overdue: 2, today: 2 })
+      .toEqual({ overdue: 2, today: 1 })
   })
 
   test("the day is the READER's, so two tabs either side of midnight differ", () => {

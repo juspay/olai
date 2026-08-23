@@ -13,9 +13,10 @@ Feature: The agenda — what is owed, on one line of time
   was filed under.
 
   Which is the whole of it: a date with a `todo` or a `doing` on it is work
-  somebody said was work and said when, and that is the only thing that can be
-  late. A date with no mark is an occurrence — a delivery, a birthday — and a
-  day passing is not a failure of a bullet.
+  somebody said was work and said when, and that is the only thing the agenda
+  lists — the only thing that can be late. A date with no mark is an
+  occurrence — a delivery, a birthday — and it stays on its day page and in
+  the calendar. A day passing is not a failure of a bullet.
 
   The fixtures are dated in 2019 on purpose, like the journal's: everything in
   them is overdue on every day this suite will ever run, and the scenarios

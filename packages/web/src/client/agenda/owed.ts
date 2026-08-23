@@ -169,9 +169,9 @@ export const unchanged = (before: Mark, after: Mark): boolean =>
   before.owed.overdue === after.owed.overdue && before.owed.today === after.owed.today
 
 /** The sentence, in the words the page's own sections are headed with — and
- *  never the word *due* for the today half, which holds occurrences (a birthday
- *  is on today and is nobody's late work). Both numbers, whichever one the chip
- *  went on to print. */
+ *  never the word *due* for the today half, which is work on today rather than
+ *  work that has slipped. Both numbers, whichever one the chip went on to
+ *  print. */
 const said = (owed: Owed): string => {
   const late = owed.overdue > 0 ? [`${owed.overdue} overdue`] : []
   const on = owed.today > 0 ? [`${owed.today} on today`] : []
