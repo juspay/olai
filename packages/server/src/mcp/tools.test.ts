@@ -103,6 +103,9 @@ const withTools = <A>(
   files: Readonly<Record<string, string>>,
   use: (fixture: Fixture) => Promise<A>,
   unreadable: ReadonlySet<string> = new Set(),
+  /** Who this face knows — `null` (the default) being the honest answer for
+   *  `/mcp` and for an in-process panel, both of which have no identity at all. */
+  login: string | null = null,
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-tools-")))
   for (const [file, contents] of Object.entries(files)) {
@@ -164,7 +167,7 @@ const withTools = <A>(
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
     yield* serveFace({
       client: () => clientOver(writerAt(wired.bound, ops, "mcp")),
-      tools: bespokeFrom(TOOLS),
+      tools: bespokeFrom(TOOLS, login),
       transport: serverSide,
     })
 
@@ -2158,15 +2161,33 @@ test("…and into the inbox the directory already keeps, wherever that is", asyn
 
 test("an agent's door knows nobody, so the capture carries no attribution", async () => {
   // `bespokeFrom(TOOLS)` with no identity is what this process serves over
-  // `/mcp` and in-process, and the ruling is that such a door omits the
-  // property rather than inventing one. The unix-socket face is the one that
-  // passes an OS user, and it is composed in `serve.ts`.
+  // `/mcp` and to the in-process panel, and the ruling is that such a door omits
+  // the property rather than inventing one.
   await withTools({ "a.olai": HOUSE }, async ({ client, set }) => {
     await call(client, "capture", { title: "unattributed", props: { from: "x" } })
     const node = captured(await set(), "unattributed")
     const props = "custom" in node ? node.custom : undefined
     expect(props).toEqual({ from: "x" })
   })
+})
+
+test("…and a door that DOES know somebody writes it on", async () => {
+  // The other half of the same ruling, and the half a doc makes a promise about
+  // (`prop:captured-by=…` finds what you captured). `olai surface` is the face
+  // that passes one — the OS user, which a `0700` socket makes the only account
+  // that could be dialling — and it composes the verb in its OWN process, so
+  // this is the seam that decides whether the property ever appears at all.
+  await withTools(
+    { "a.olai": HOUSE },
+    async ({ client, set }) => {
+      await call(client, "capture", { title: "attributed", props: { from: "x" } })
+      const node = captured(await set(), "attributed")
+      const props = "custom" in node ? node.custom : undefined
+      expect(props).toEqual({ from: "x", "captured-by": "srid" })
+    },
+    new Set(),
+    "srid",
+  )
 })
 
 test("a client may not say who captured this", async () => {

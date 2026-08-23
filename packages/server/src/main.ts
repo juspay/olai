@@ -35,8 +35,9 @@
  */
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
+import * as os from "node:os"
 import { getRuntimeSocketPath } from "@kolu/surface/unix-socket"
-import { surfaceCommands } from "@kolu/surface-cli"
+import { reportingRunEdge, surfaceCommands } from "@kolu/surface-cli"
 import { identityConfig } from "@olai/identity"
 import { TOOLS } from "@olai/ops"
 import { surface } from "@olai/surface"
@@ -159,6 +160,19 @@ const web = Command.make("web", {
  * rather than inside it: a scalar-ish argument reads better as a position than
  * as a flag (`olai surface read_node a1b2c3`), and that is a fact about argv
  * which the MCP face has no use for.
+ *
+ * THE IDENTITY IS THE OS USER, and it is passed HERE because this is where the
+ * verbs are composed: a bespoke verb's handler runs in the process that CALLS
+ * it, so for `olai surface` that is this one. It is still "the identity the
+ * door has" and not a claim a caller invented (the ruling, human 2026-08-22),
+ * because of what the door IS: a `0700` per-user socket admits only the account
+ * that owns it, so the user on this side and the user on that side are the same
+ * account by construction — and that account can already write those files
+ * directly. Nothing is being trusted across a privilege boundary, because there
+ * is no boundary here to cross. The faces that know NOBODY — `/mcp` and the
+ * in-process panel, both composed in `serve.ts` — pass nothing and their
+ * captures carry no attribution, which is the honest answer rather than a
+ * made-up one.
  */
 const surfaceCmd = Command.make("surface").pipe(
   Command.withDescription(
@@ -168,7 +182,7 @@ const surfaceCmd = Command.make("surface").pipe(
     ...surfaceCommands({
       surface,
       expose: MCP,
-      verbs: bespokeFrom(TOOLS),
+      verbs: bespokeFrom(TOOLS, os.userInfo().username),
       endpoint: {
         flags: {
           socket: Flag.string("socket").pipe(
@@ -218,6 +232,21 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 // OLAI_LOG_LEVEL when set, otherwise Effect's `--log-level` (default info).
 NodeRuntime.runMain(
   Command.run(olai, { version: "0.1.0" }).pipe(
+    // THE RUN EDGE `olai surface` NEEDS, in the one line the package exports it
+    // as: catch the CAUSE (a defect is not a failure, and the runtime's own
+    // report of one goes to STDOUT, into the data channel a script is reading),
+    // pass an interrupts-only cause through untouched (Ctrl-C, whose 130 is the
+    // runtime's teardown), write the arm's own line, re-fail with the verdict.
+    //
+    // NOT OPTIONAL GARNISH: every failure that face raises carries
+    // `Runtime.errorReported = false`, because its line is its own — so a host
+    // that re-fails without writing that line exits with the right code and says
+    // NOTHING AT ALL. That is not a hypothetical: this binary did exactly that,
+    // and a refused capture (`captured-by` sent by a caller) exited 1 with both
+    // channels empty until this line existed.
+    //
+    // It is harmless to `web`, whose failures are ordinary reported ones.
+    reportingRunEdge,
     Effect.scoped,
     // NodeServices carries the CLI's own needs (stdio, terminal, file system);
     // layerHttpServices carries the static file layer's (the file-response
@@ -226,4 +255,9 @@ NodeRuntime.runMain(
       Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices, toStdout),
     ),
   ),
+  // The other HALF of the same recipe, and the host's to pass because it is
+  // `runMain`'s own argument: the line above is already written, and Effect's
+  // own report on top of it would be a second, differently-worded copy — on
+  // stdout, in the middle of the data.
+  { disableErrorReporting: true },
 )

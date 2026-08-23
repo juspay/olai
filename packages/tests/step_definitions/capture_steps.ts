@@ -142,6 +142,37 @@ Then(
   },
 );
 
+/**
+ * A REFUSAL SAYS WHY, on stderr, with a non-zero code — the far end of the exit
+ * matrix, asked of the real binary.
+ *
+ * This is not a hypothetical to guard against. Every failure the CLI face
+ * raises carries `Runtime.errorReported = false` (its line is its own, and
+ * Effect's pretty cause dump on top would be noise), so a host that re-fails
+ * without writing that line exits with the right code and says NOTHING AT ALL.
+ * This binary did exactly that until `reportingRunEdge` was applied at its run
+ * edge, and a refused capture came back as a bare exit 1 with both channels
+ * empty. A unit test cannot see that — it is a property of the PROCESS, of what
+ * reaches a shell — so it is asserted here, where a process is what runs.
+ */
+Then(
+  "capturing with a forged {string} is refused, saying so",
+  async function (this: OlaiWorld, key: string) {
+    const failed = await cli(this, "capture", "forged", "--props", `${key}=someone@else`)
+      .then(
+        () => null,
+        (thrown: Error) => thrown,
+      );
+    assert.ok(failed !== null, `a capture that forged ${key} was accepted`);
+    // The refusal reached a channel AND it names what was wrong — the two
+    // halves of a non-zero exit being any use to the script that just failed.
+    assert.ok(
+      failed.message.includes(key),
+      `the refusal did not name ${key}: ${failed.message}`,
+    );
+  },
+);
+
 /** The id the last capture ANSWERED with — the only name a caller has for a row
  *  it did not choose an id for, which is why the verb hands one back. */
 const mintedIn = (world: OlaiWorld): string => {

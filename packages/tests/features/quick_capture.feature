@@ -59,3 +59,12 @@ Feature: A line captured from a terminal arrives on the page
     And I open what was captured
     Then the note links to "message://%3Cabc123@mail.example%3E"
     And there should be no page errors
+
+  Scenario: A capture that tries to say who made it is refused, out loud
+    # `captured-by` is written from the identity the door has, so a caller may
+    # not send it — and a refusal that exits non-zero while printing nothing is
+    # no use to the script that just failed. Both halves, on the real binary.
+    Given I open the outline "house.olai"
+    Then capturing with a forged "captured-by" is refused, saying so
+    And the sidebar offers no Inbox
+    And there should be no page errors

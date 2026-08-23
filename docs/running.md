@@ -254,7 +254,7 @@ olai surface capture "look into the new cabinets" \
  "why":"waiting to be committed: writes accumulate under --commit=manual (the default) until the Commit button asks for one"}
 ```
 
-**Four fields, and no target.** `title` is the row (required, and the one argument that is positional). `--text` becomes the note. `--url` goes under it as a link — a markdown autolink, so a scheme markdown would not have linked for itself still lands as a link; the characters a URI may not carry (`<`, `>`, a space) are percent-encoded on the way in, and everything else survives byte for byte, so an address you already encoded is not encoded twice. `--prop k=v` (repeatable) are named facts the capture is born with, exactly `add_node`'s ([format.md](format.md#properties)). There is no way to say *where* — a capture lands at the top level of the inbox, and where it belongs is a decision you make in the app afterwards, which is what an inbox is for.
+**Four fields, and no target.** `title` is the row (required, and the one argument that is positional). `--text` becomes the note. `--url` goes under it as a link — a markdown autolink, so a scheme markdown would not have linked for itself still lands as a link; the characters a URI may not carry (`<`, `>`, a space) are percent-encoded on the way in, and everything else survives byte for byte, so an address you already encoded is not encoded twice. `--props k=v` (repeatable) are named facts the capture is born with, exactly `add_node`'s ([format.md](format.md#properties)). There is no way to say *where* — a capture lands at the top level of the inbox, and where it belongs is a decision you make in the app afterwards, which is what an inbox is for.
 
 **It lands in the inbox the directory has**, wherever you keep one, and mints `_olai/Inbox.olai` when there is none — the same convention `⌘K` `+` follows, resolved on the server against the same reading the write is judged on ([editing.md](editing.md#quick-capture)). It is the same write as everything else: the same validation, the same all-or-none rename, the same `--commit` mode. A refused capture leaves nothing behind, not even the inbox it would have minted.
 
@@ -306,13 +306,13 @@ APPLESCRIPT
 "${olai[@]}" surface capture "$subj" \
   --text "$comment" \
   --url "message://<$mid>" \
-  --prop "from=$who" \
-  --prop "message-id=$mid"
+  --props "from=$who" \
+  --props "message-id=$mid"
 ```
 
 The `message://<Message-Id>` link **is** the attachment. Write it exactly like that — a `Message-Id` is conventionally in angle brackets, and the characters a URI may not carry are percent-encoded before the address goes in the note. Clicking it in olai opens Mail at that message: the router hands any address that is not one of this app's to the browser, and the browser hands an unknown scheme to the OS.
 
-Sending the `Message-Id` as a property is what makes de-duplication one query — `olai surface search_nodes --query 'prop:message-id=<abc@mail>'` before you capture, and you know whether you have captured this thread already ([search.md](search.md)).
+Sending the `Message-Id` as a property is what makes de-duplication one query — `olai surface search_nodes --text 'prop:message-id=<abc@mail>'` before you capture, and you know whether you have captured this thread already ([search.md](search.md)).
 
 **Known caveat:** `message:` links are solid on macOS. On iOS, third-party-composed ones do not always resolve. The subject and the sender in the capture are what keep it findable when the link does not open, which is why the recipe sends them rather than relying on the pointer alone.
 
