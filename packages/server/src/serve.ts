@@ -23,6 +23,7 @@
  * log span, so every line says how far into this serve it was emitted.
  */
 
+import { surface } from "@olai/surface"
 import { AGENT_ENV, roster, whyNoAgent } from "@olai/chat"
 import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
@@ -38,7 +39,7 @@ import { watchFault } from "./fault.ts"
 import { openPolicy } from "./gitPolicy.ts"
 import { listen } from "./listener.ts"
 import { clientOver, serveFace } from "./mcp/face.ts"
-import { MCP_PATH, mcpTransport } from "./mcp/route.ts"
+import { currentLogin, MCP_PATH, mcpTransport } from "./mcp/route.ts"
 import { bespokeFrom } from "./mcp/tools.ts"
 import { bind, gitWiring, type Publishers, writerAt } from "./runtime.ts"
 
@@ -210,7 +211,11 @@ export const serve = (options: ServeOptions) =>
     const panel = clientOver(writerAt(wired.bound, ops, "chat-agent"))
     yield* serveFace({
       client: () => panel,
-      tools: bespokeFrom(TOOLS),
+      // WHAT THIS FACE KNOWS ABOUT ITSELF: which directory it is serving, so
+      // every answer names the vault it came from, and who the request is, so a
+      // capture through a reverse proxy is attributed to the person the proxy
+      // named — and to nobody when it named nobody.
+      tools: bespokeFrom(TOOLS, { login: currentLogin, root }),
       transport,
     })
 
@@ -229,16 +234,12 @@ export const serve = (options: ServeOptions) =>
         ...options,
         port,
         bound: wired.bound,
-        mcp: { transport, token },
-        // The quick-capture door, and the fourth face composed HERE: a share
-        // sheet is not the browser and is not an agent, so it writes as
-        // `capture` and the trailer says which door a line came in by. The
-        // writer travels beside the ops layer, exactly as `bind` above takes
-        // it — a route that named its own would be a route that could name
-        // somebody else's. Handed the ops layer directly rather than a runtime
-        // member, because nothing about this door is on the surface: no tab
-        // draws it and no agent calls it.
-        capture: { ops, writer: "capture", identity: options.identity.headers },
+        mcp: { transport, token, identity: options.identity },
+        // `POST /olai/resync` — force a re-read of the disk. Handed the
+        // STORE's own operation rather than a runtime member, because nothing
+        // about it is on the surface: no tab draws it and no agent calls it. It
+        // is for the case the watcher cannot see, which is a change made where
+        // no inotify reaches.
         resync: store.resync,
       }),
       () => runtime.stopped,

@@ -43,6 +43,7 @@ The punt above came back, and the prediction held: the internal channel produced
 - **No token, no bind, no origin gate.** There is nothing to authenticate: the client proved who it is by being the process that started this one. That is also why `mcp` takes no `--port` and no `--host`.
 - **The client closing stdin is the shutdown**, which is how an MCP client stops a server; a write that fails because the far end is gone ends the same way, quietly, rather than dying into whatever log the client keeps.
 - **Still no write CLI.** `web` and `mcp` are two transports in front of one ops layer, and neither adds a node from the command line.
+  - *(2026-08-23: superseded in its letter, kept in its spirit. `olai surface <verb>` does add a node from the command line — but it is a CLIENT of the running server, not a second writer, which is the thing this line was protecting. See [running.md](../running.md#quick-capture-from-a-terminal) and `brainstorming/surface-cli.md`.)*
 
 ## Resolved 2026-08-11 — the agent asks back (roadmap `form-elicitation`)
 

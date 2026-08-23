@@ -39,7 +39,7 @@ import { listen } from "../listener.ts"
 import { frozenPolicy, SERVER_LAYERS } from "../serve.testlib.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
-import { fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "./route.ts"
+import { currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "./route.ts"
 import { bespokeFrom } from "./tools.ts"
 
 const HOUSE = `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}\n`
@@ -47,6 +47,9 @@ const HOUSE = `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}\n`
 const TOKEN = "test-token"
 
 interface Served {
+  /** The directory this route is serving — so a case can read back what a call
+   *  actually wrote, rather than trusting the answer it was given. */
+  readonly root: string
   /** POST one JSON-RPC message, with the token unless told otherwise. */
   readonly post: (
     message: unknown,
@@ -87,7 +90,7 @@ const withRoute = <A>(
     const transport = mcpTransport()
     yield* serveFace({
       client: () => clientOver(writerAt(wired.bound, ops, "mcp")),
-      tools: bespokeFrom(TOOLS),
+      tools: bespokeFrom(TOOLS, { login: currentLogin, root }),
       transport,
     })
     yield* Effect.addFinalizer(() => runtime.stopped)
@@ -105,14 +108,14 @@ const withRoute = <A>(
       port: 0,
       allowedOrigins: [],
       identity: DEFAULT_IDENTITY_CONFIG,
-      mcp: { transport, token: TOKEN },
-      capture: { ops, writer: "capture", identity: DEFAULT_IDENTITY_HEADERS },
+      mcp: { transport, token: TOKEN, identity: DEFAULT_IDENTITY_CONFIG },
       resync: Effect.void,
     }))
 
     const url = `${base}${MCP_PATH}`
     return yield* Effect.promise(() =>
       use({
+        root,
         url,
         post: (message, headers) =>
           fetch(url, {
@@ -431,4 +434,101 @@ test("an id already in flight is answered rather than overwriting its waiter", a
   // cannot strand one.
   await transport.close()
   expect(await first).toBeNull()
+})
+
+/**
+ * WHO A WRITE IS ATTRIBUTED TO IS A FACT ABOUT THE REQUEST, not about the face.
+ *
+ * The face behind this route is built once, at boot, with one transport and one
+ * set of handlers. The login is not: a reverse proxy injects it per request, and
+ * two people can be behind one proxy. So it travels beside the request in an
+ * `AsyncLocalStorage` (`./route.ts`'s `WHOSE`) rather than bound into the face
+ * — and the reason it is that and not a field is exactly what the second case
+ * below measures. A field would be a race whose failure mode is a capture
+ * attributed to the wrong person, silently, and permanently, in a file.
+ */
+test("a capture is recorded as the login the proxy named on THAT request", async () => {
+  await withRoute(async ({ post, root }) => {
+    await post(initialize)
+    await post({ jsonrpc: "2.0", method: "notifications/initialized" })
+
+    await post(
+      {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: { name: "capture", arguments: { title: "from the tailnet" } },
+      },
+      { "Tailscale-User-Login": "srid@github" },
+    )
+    // …and one with no proxy in front of it at all, which is what a direct
+    // loopback call is. The ruling: a door that knows nobody writes NO
+    // attribution rather than a made-up one.
+    await post({
+      jsonrpc: "2.0",
+      id: 3,
+      method: "tools/call",
+      params: { name: "capture", arguments: { title: "from nobody" } },
+    })
+
+    const inbox = fs.readFileSync(path.join(root, "_olai", "Inbox.olai"), "utf8")
+    const rows = inbox.trim().split("\n").map((line) => JSON.parse(line) as {
+      title?: string
+      custom?: Record<string, string>
+    })
+    expect(rows.find((row) => row.title === "from the tailnet")?.custom).toEqual({
+      "captured-by": "srid@github",
+    })
+    expect(rows.find((row) => row.title === "from nobody")?.custom).toBeUndefined()
+  })
+})
+
+test("…and two people behind one proxy do not get each other's", async () => {
+  // Two calls in flight at once, through one face, one transport and one set of
+  // handlers — because two people behind one proxy is the ordinary case for the
+  // deployment this door is reached through, and a capture attributed to the
+  // wrong person is not a crash, not a refusal, and not discoverable
+  // afterwards: it is a file that quietly says the wrong thing.
+  //
+  // WHAT THIS DOES NOT PROVE, said out loud because it was measured: it does not
+  // demonstrate that the `AsyncLocalStorage` is load-bearing. Swapping it for a
+  // plain module-level field leaves this case green, because the login is read
+  // SYNCHRONOUSLY at the top of the handler (`../mcp/tools.ts`), on the
+  // request's own stack, before anything can yield to the other request — and
+  // that is what actually makes it right. The storage is the structural half of
+  // the same guarantee: it survives a handler that starts reading it later,
+  // which a field would not, and it is what makes "read it later" a safe thing
+  // for the next person to write rather than a trap.
+  await withRoute(async ({ post, root }) => {
+    await post(initialize)
+    await post({ jsonrpc: "2.0", method: "notifications/initialized" })
+
+    const capture = (id: number, title: string, login: string) =>
+      post(
+        {
+          jsonrpc: "2.0",
+          id,
+          method: "tools/call",
+          params: { name: "capture", arguments: { title } },
+        },
+        { "Tailscale-User-Login": login },
+      )
+
+    await Promise.all([
+      capture(10, "ada's line", "ada@example.com"),
+      capture(11, "grace's line", "grace@example.com"),
+    ])
+
+    const inbox = fs.readFileSync(path.join(root, "_olai", "Inbox.olai"), "utf8")
+    const rows = inbox.trim().split("\n").map((line) => JSON.parse(line) as {
+      title?: string
+      custom?: Record<string, string>
+    })
+    expect(rows.find((row) => row.title === "ada's line")?.custom).toEqual({
+      "captured-by": "ada@example.com",
+    })
+    expect(rows.find((row) => row.title === "grace's line")?.custom).toEqual({
+      "captured-by": "grace@example.com",
+    })
+  })
 })

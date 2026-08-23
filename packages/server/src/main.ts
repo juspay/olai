@@ -1,12 +1,25 @@
 /**
  * `olai web <dir>` — the binary.
  *
- * There is still no CLI PRODUCT (the rewrite plan, decision 3): nothing here
- * adds a node, marks one or moves one, and nothing ever will. The two write
- * surfaces are the browser and the agent's MCP tools, and they are two
- * clients of ONE server: a tab on the websocket, or an HTTP POST at `/mcp`.
- * There is no second process and no stdio face. An agent that is not ours
- * dials the running `olai web`, the same way the panel's agent already does.
+ * TWO SUBCOMMANDS, and only one of them is a server. `olai web` IS the
+ * process that holds the directory; `olai surface` is a CLIENT of it — the
+ * declared surface projected as argv by `@kolu/surface-cli`, exactly as
+ * `@kolu/surface-mcp` projects it as tools, speaking MCP over HTTP to the
+ * `/mcp` that same serve already offers an agent. Not a face of its own: the
+ * same path, the same admission rule, the same members.
+ *
+ * THERE IS STILL NO SECOND WRITER, which is the principle the old sentence here
+ * ("no write CLI, and there never will be") was protecting. Nothing in this
+ * binary opens the directory except `olai web`, and `olai surface` cannot: it
+ * dials a running server and sends the same verbs an agent sends, so there is
+ * one process writing those files and one gate judging every write. What
+ * changed is the number of CLIENTS — a tab, an agent, and now a terminal — not
+ * the number of writers.
+ *
+ * The verbs are DERIVED. They are `@olai/ops`' tool table and the agent face's
+ * resources, under the names the agent already sees, so a verb cannot mean one
+ * thing to an agent and another in a shell — and a verb added to the table is a
+ * verb here with no code written in this file.
  *
  * It uses Effect's own CLI rather than an argument parser dependency — usage
  * errors are part of the format's error taxonomy, and they may as well come
@@ -23,7 +36,11 @@
  */
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
+import { reportingRunEdge, surfaceCommands, surfaceHelp } from "@kolu/surface-cli"
+import { addressOf, printAddress } from "@olai/format"
 import { identityConfig } from "@olai/identity"
+import { TOOLS } from "@olai/ops"
+import { surface } from "@olai/surface"
 import { atLevel, toStdout } from "@olai/log"
 import { dlopen, FFIType } from "bun:ffi"
 import { Effect, Layer } from "effect"
@@ -31,6 +48,9 @@ import { Argument, Command, Flag } from "effect/unstable/cli"
 
 import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
+import { dialOlai, endpointFlags } from "./dial.ts"
+import { MCP } from "./faces.ts"
+import { remoteFrom } from "./mcp/tools.ts"
 import { gitFlags, gitPin } from "./gitPolicy.ts"
 import { serve } from "./serve.ts"
 
@@ -95,9 +115,201 @@ const web = Command.make("web", {
     ),
   )
 
+/** The verbs that only ANSWER — the four query tools, the two document reads,
+ *  and this face's own three readers. Spelled out because "read" is a fact
+ *  about what a verb MEANS rather than about its `kind`: `list` and `keys` are
+ *  the projection's, not the table's, and they belong on the page beside the
+ *  reads they resemble. */
+const READING = [
+  "get",
+  "keys",
+  "list",
+  "list_outlines",
+  "read_node",
+  "read_subtree",
+  "list_documents",
+  "read_document",
+] as const
+
+/** Everything else the table offers, alphabetically — see the group's comment. */
+const writing = (): ReadonlyArray<string> =>
+  TOOLS.map((tool) => tool.name)
+    .filter((name) => name !== "capture" && name !== "search_nodes")
+    .filter((name) => !(READING as ReadonlyArray<string>).includes(name))
+    .sort((a, b) => a.localeCompare(b))
+
+/**
+ * THE HELP PAGE'S WORDING — olai's half of it.
+ *
+ * The layout is `@kolu/surface-cli`'s, so every surface client's `--help` has
+ * the same shape; what only this app can write is what its verbs are FOR. This
+ * is also the documentation: there is no `docs/surface.md`, deliberately (ruled,
+ * human 2026-08-23) — a page beside a binary is a page that goes stale, and the
+ * one thing a person always has to hand is `--help`.
+ *
+ * The groups are what a person came to do, not how the ops layer is built:
+ * capture first because it is the reason most people type this at all, then
+ * reading, then finding, then everything that changes the vault.
+ */
+const HELP = {
+  command: "surface",
+  purpose:
+    "Call any verb of a running olai from a terminal — the same verbs an agent has, against the vault --url names.",
+  groups: [
+    { title: "Capture", verbs: ["capture"] },
+    { title: "Read", verbs: READING },
+    { title: "Search", verbs: ["search_nodes"] },
+    // DERIVED, and the only group that is: everything the table offers that is
+    // not one of the three above changes the vault, and there are twenty-odd of
+    // them. Listing those by hand would be a second copy of the table — the one
+    // place that stops being true the day a tool is added, which is exactly the
+    // silence "a verb added to the table is a verb here with no code written"
+    // exists to avoid.
+    { title: "Write", verbs: writing() },
+  ],
+  examples: {
+    capture: 'capture "look into the new cabinets" --text "the brass ones"',
+    read_node: "read_node a1b2c3",
+    search_nodes: "search_nodes --text 'is:todo prop:pr'",
+    get: "get outlines _olai/Inbox.olai",
+    list_outlines: "list_outlines",
+  },
+  flags: [
+    {
+      spelling: "--url <server>",
+      description:
+        "the olai to call — the address a browser opens (required; there is no default, and no remembered vault)",
+    },
+  ],
+  answer: [
+    "A write prints one line — where it landed, and a link to the row it made; --json prints the whole",
+    "record instead. Every other answer goes to stdout as JSON already. A refusal goes to stderr, also as",
+    "JSON, on exit 1.",
+    "Exit 2 is a command that was wrong and never left this process, 3 is nothing serving at --url, 130 is Ctrl-C.",
+    "Locally the server admits loopback with no credential; through a reverse proxy the login it injects is the",
+    "authentication, and is what a capture is recorded as. Off loopback and with no proxy, set $OLAI_TOKEN.",
+  ].join("\n"),
+}
+
+/**
+ * WHAT A WRITE SAYS, in one line a person can act on.
+ *
+ * The answer underneath is the ops layer's `Applied` — id, title, file,
+ * summary, sort, captured, rev, why, did — which is the right record for an
+ * agent and the wrong one for a terminal: nine fields, of which none is a thing
+ * you can open. So a write says where it landed and gives the address of the row
+ * it made, and `--json` hands over the record whole for anything that wants it
+ * (ruled, human 2026-08-23; the flag decides, never the terminal).
+ *
+ * THE VAULT IS NAMED because not naming it is what made the reverted design
+ * dangerous: a capture that went to the wrong directory answered exactly like
+ * one that went to the right one. `root` comes off the answer — the server
+ * stamped it, so it cannot be this side's guess — and `url` is what this side
+ * dialled, which is the half the server cannot know behind a proxy.
+ */
+const wrote = (out: unknown): string => {
+  const said = out as {
+    readonly did?: string
+    readonly root?: string
+    readonly url?: string
+    readonly file?: string
+    readonly id?: string
+  }
+  // "captured into" for the verb the whole door was built around, and the verb's
+  // own name for every other write — rather than one sentence bent to fit them
+  // all, or a table of past tenses this file would have to keep.
+  const what = said.did === "capture" ? "captured into" : `${said.did ?? "wrote"} in`
+  const where = said.root ?? "the vault"
+  const at = rowAt(said)
+  return at === null ? `${what} ${where}` : `${what} ${where} — ${at}`
+}
+
+/** The URL of the row a write made, or `null` for a write that made no row
+ *  (`commit`, `push`, `empty_trash`).
+ *
+ *  Built through `@olai/format`'s own address grammar rather than by joining
+ *  strings here: which half of `<file>#<id>` a node's address writes, and what
+ *  needs escaping in each, is that module's rule and has one home. A row whose
+ *  file is not known is still addressable by id alone, which is what the node
+ *  arm of that grammar is. */
+const rowAt = (said: { readonly file?: string; readonly id?: string; readonly url?: string }): string | null => {
+  if (said.url === undefined || said.id === undefined) return null
+  const address = addressOf(said.file ?? null, said.id)
+  if (address === null) return null
+  try {
+    return new URL(`/${printAddress(address)}`, said.url).toString()
+  } catch {
+    // A `--url` that parsed well enough to dial but not to build on. The line is
+    // still worth printing without it.
+    return null
+  }
+}
+
+/**
+ * `olai surface <verb>` — the projection.
+ *
+ * A VALUE, not a program: `surfaceCommands` returns the commands and runs
+ * nothing, so this binary keeps its own run edge and mounts them beside `web`.
+ *
+ * `expose: MCP` is the RESOURCES half — the same read-only map the agent face
+ * publishes, so `olai surface get outlines <path>` reads what an agent reads.
+ * `verbs` is the tool table itself, so `capture` is one verb with one schema
+ * rather than two spellings of it.
+ *
+ * **`remoteFrom`, and not `bespokeFrom`, is the whole difference between this
+ * and the server.** Both project the same table under the same names; the
+ * server's handlers RUN each verb, and these CALL it — one MCP `tools/call` on
+ * the connection `./dial.ts` opened. So the verb executes over there, under the
+ * gate over there, with the identity over there. That is what makes
+ * `captured-by` an attribution instead of a claim: this process could compose a
+ * capture naming anybody, and a caller who could name anybody is a caller whose
+ * `prop:captured-by=…` means nothing (ruled, human 2026-08-23 — "never
+ * caller-set"). It also means there is no second implementation of a verb to
+ * keep in step, and no writer to bind here.
+ *
+ * `annotate` is CLI-only ergonomics, keyed by verb name and BESIDE the table
+ * rather than inside it: a scalar-ish argument reads better as a position than
+ * as a flag (`olai surface read_node a1b2c3`), and that is a fact about argv
+ * which the MCP face has no use for. The `render` on every WRITE is the same
+ * kind of fact — a line a person can act on, in place of the ops layer's
+ * `Applied` record, which is nine fields of which none is a thing to click.
+ */
+const surfaceCli = {
+  surface,
+  expose: MCP,
+  verbs: remoteFrom(TOOLS),
+  endpoint: {
+    flags: endpointFlags,
+    resolve: dialOlai,
+    // The door is `/mcp`, which answers one POST with one frame and pushes
+    // nothing — so `watch` and `--follow` are not mounted at all rather than
+    // offered and then always failing (`./dial.ts`).
+    streaming: false,
+  },
+  annotate: {
+    // Every verb that WRITES gets the one-line summary, derived from the table
+    // rather than listed here: a tool added to `TOOLS` is a verb here with no
+    // code written for it, and a hand-kept list of writes would be the one place
+    // that stopped being true.
+    ...Object.fromEntries(
+      TOOLS.filter((tool) => tool.kind !== "read").map((tool) => [tool.name, { render: wrote }]),
+    ),
+    capture: { positional: ["title"], render: wrote },
+    read_node: { positional: ["id"] },
+    read_subtree: { positional: ["id"] },
+  },
+  help: HELP,
+  info: { name: "olai" },
+} as const
+
+const surfaceCmd = Command.make("surface").pipe(
+  Command.withDescription(surfaceHelp(surfaceCli)),
+  Command.withSubcommands([...surfaceCommands(surfaceCli)]),
+)
+
 const olai = Command.make("olai").pipe(
   Command.withDescription("olai — outlines in flat-record JSONL"),
-  Command.withSubcommands([web]),
+  Command.withSubcommands([web, surfaceCmd]),
 )
 
 // `runMain` IS the interrupt, the keep-alive and the exit code, and it is why
@@ -162,6 +374,21 @@ function dieWithParent(): void {
 // OLAI_LOG_LEVEL when set, otherwise Effect's `--log-level` (default info).
 NodeRuntime.runMain(
   Command.run(olai, { version: "0.1.0" }).pipe(
+    // THE RUN EDGE `olai surface` NEEDS, in the one line the package exports it
+    // as: catch the CAUSE (a defect is not a failure, and the runtime's own
+    // report of one goes to STDOUT, into the data channel a script is reading),
+    // pass an interrupts-only cause through untouched (Ctrl-C, whose 130 is the
+    // runtime's teardown), write the arm's own line, re-fail with the verdict.
+    //
+    // NOT OPTIONAL GARNISH: every failure that face raises carries
+    // `Runtime.errorReported = false`, because its line is its own — so a host
+    // that re-fails without writing that line exits with the right code and says
+    // NOTHING AT ALL. That is not a hypothetical: this binary did exactly that,
+    // and a refused capture (`captured-by` sent by a caller) exited 1 with both
+    // channels empty until this line existed.
+    //
+    // It is harmless to `web`, whose failures are ordinary reported ones.
+    reportingRunEdge,
     Effect.scoped,
     // NodeServices carries the CLI's own needs (stdio, terminal, file system);
     // layerHttpServices carries the static file layer's (the file-response
@@ -170,4 +397,9 @@ NodeRuntime.runMain(
       Layer.mergeAll(NodeServices.layer, NodeHttpServer.layerHttpServices, toStdout),
     ),
   ),
+  // The other HALF of the same recipe, and the host's to pass because it is
+  // `runMain`'s own argument: the line above is already written, and Effect's
+  // own report on top of it would be a second, differently-worded copy — on
+  // stdout, in the middle of the data.
+  { disableErrorReporting: true },
 )

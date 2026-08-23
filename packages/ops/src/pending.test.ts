@@ -237,22 +237,27 @@ describe("manual is the default", () => {
   test("a quick capture signs its own commits, so the log says which door", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
-        // The fourth writer, and the one nobody watched arrive: a line POSTed
-        // at `/capture` from a share sheet is neither the browser nor an agent
-        // (`@olai/server`'s `capture.ts`), so a trailer that said `web` would put
-        // it in the same bucket as something somebody typed. The audit trail is
-        // the whole reason the trailer exists.
+        // The writer nobody watched arrive: a line sent at `/mcp` from a
+        // terminal or a script is neither the browser nor the panel's own
+        // agent, so a trailer that said `web` would put it in the same bucket
+        // as something somebody typed. The audit trail is the whole reason the
+        // trailer exists.
+        //
+        // It was `capture` here, for the bespoke door that verb had, and a
+        // `cli` for the socket that briefly replaced it. Both are gone: a
+        // terminal is a client of `/mcp` now, so it writes under that door's
+        // word rather than one of its own (`@olai/format`'s `Writer`).
         yield* Effect.orDie(
-          fixture.ops.run({ op: "add", parent: "kitchen", title: "buy handles" }, "capture"),
+          fixture.ops.run({ op: "add", parent: "kitchen", title: "buy handles" }, "mcp"),
         )
         const pending = yield* fixture.ops.pending
-        expect(pending.wrote).toEqual([{ writer: "capture", ops: 1 }])
+        expect(pending.wrote).toEqual([{ writer: "mcp", ops: 1 }])
 
-        yield* fixture.ops.commit({ message: "one captured line" }, "capture")
-        expect(writerOf(fixture.root)).toBe("capture")
+        yield* fixture.ops.commit({ message: "one captured line" }, "mcp")
+        expect(writerOf(fixture.root)).toBe("mcp")
         // …and it reads back as a writer rather than as "writer not recorded",
         // which is what a hand-listed set of them would have answered.
-        expect((yield* fixture.ops.pending).last).toMatchObject({ writer: "capture" })
+        expect((yield* fixture.ops.pending).last).toMatchObject({ writer: "mcp" })
       })))
 
   test("what was last recorded is answered beside what is waiting", () =>
@@ -1336,12 +1341,6 @@ test("what a waiting write says names the door that caller actually has", () => 
   // The panel's agent has both, and is told so.
   expect(whyOf("manual", ready, null, "chat-agent")).toContain("`commit` tool")
   expect(whyOf("manual", ready, null, "chat-agent")).toContain("Commit button")
-
-  // A quick capture has NO door of its own — a share sheet cannot commit — so
-  // it is told about the one the person whose vault this is will press, rather
-  // than about a tool a `curl` has not got.
-  expect(whyOf("manual", ready, null, "capture")).toContain("the Commit button")
-  expect(whyOf("manual", ready, null, "capture")).not.toContain("`commit` tool")
 
   // Whichever door, it never reads as a fault: this is the feature working.
   // EVERY writer, read off the format's own list rather than a copy of it, so

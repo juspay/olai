@@ -542,7 +542,7 @@ export const bind = (
     const applyEdit = (edit: Edit): Effect.Effect<Applied, OpFailure> =>
       Effect.map(
         // The read, the resolve and the run are `./resolving.ts`'s, shared with
-        // the HTTP capture door — and with them the second CHOICE for the two
+        // the `capture` tool's plan arm — and with them the second CHOICE for the two
         // verbs whose answer is one (`reresolves`): a `⌘K` `+` or a pin in one
         // tab used to be refused naming a file the OTHER tab had just minted,
         // which is the resolver's own answer going stale rather than anything

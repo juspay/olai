@@ -23,8 +23,19 @@
 import { expect, test } from "bun:test"
 
 import { readingOf, setOf } from "./fixtures.testlib.ts"
-import { type Capturing, captureInto, inboxHeldOf, NO_INBOX, sameInboxHeld } from "./inbox.ts"
+import {
+  CAPTURED_BY,
+  capturingOf,
+  type Capturing,
+  captureInto,
+  inboxHeldOf,
+  CaptureRequest,
+  NO_INBOX,
+  noteOf,
+  sameInboxHeld,
+} from "./inbox.ts"
 import { INBOX, mintedInto } from "./node.ts"
+import { outlinePaths } from "./set.ts"
 
 const heldOf = (
   files: Record<string, string>,
@@ -186,7 +197,7 @@ const WHOLE: Capturing = {
 }
 
 test("every field reaches the `add`, when the directory already has an inbox", () => {
-  expect(captureInto(readingOf(setOf({ "house.olai": HOUSE, [INBOX]: "" })), WHOLE))
+  expect(captureInto(outlinePaths(setOf({ "house.olai": HOUSE, [INBOX]: "" })), WHOLE))
     .toEqual({ op: "add", file: INBOX, ...WHOLE })
 })
 
@@ -194,6 +205,70 @@ test("…and the identical fields reach the seed of the inbox it mints", () => {
   // The same value, so the two arms cannot drift: a `create`'s seed IS an
   // `add`'s capture (./writing.ts), which is what makes one resolution serve
   // both doors.
-  expect(captureInto(readingOf(setOf({ "house.olai": HOUSE })), WHOLE))
+  expect(captureInto(outlinePaths(setOf({ "house.olai": HOUSE })), WHOLE))
     .toEqual({ op: "create", file: mintedInto(INBOX), seed: WHOLE })
+})
+
+// ── WHAT A CAPTURE IS on the way in ────────────────────────────────────
+//
+// These came down from `@olai/server`'s `capture.test.ts` when `POST /capture`
+// was retired and the verb became a tool. They used to be driven through a
+// real HTTP door because that was the only way to reach the composition; the
+// composition is a function here, so they are the same assertions asked
+// directly. What did NOT come with them is everything that was about the WIRE
+// — the status table, the CSRF gate, the method arm — because there is no wire
+// any more.
+
+const POSTED = { title: "the thread about cabinets" } as const
+
+test("the note is the text, and nothing when there is none", () => {
+  // A capture is a title and a note now (ruled, human 2026-08-23). It used to
+  // take a `url` as well, kept under the note as a markdown autolink, and a
+  // `props` map of the named facts a client already knew — both gone, along with
+  // the encoding rule the autolink needed and the guard the props map made
+  // necessary. What is left has one shape and no cases.
+  expect([
+    noteOf({ title: "a thought", text: "just this" }),
+    noteOf({ title: "buy milk" }),
+    // An empty note is no note, so the row has no `desc` rather than a blank one.
+    noteOf({ title: "buy milk", text: "" }),
+  ]).toEqual(["just this", undefined, undefined])
+})
+
+test("the identity the door has is written on, and the capture is dated", () => {
+  expect(
+    capturingOf(POSTED, "someone@example.com", "2026-08-23T09:41:00+05:30"),
+  ).toEqual({
+    title: "the thread about cabinets",
+    date: "2026-08-23T09:41:00+05:30",
+    // The one property a capture carries, and the door is the only thing that
+    // can supply it.
+    props: { [CAPTURED_BY]: "someone@example.com" },
+  })
+})
+
+test("a door that knows nobody writes no attribution, rather than a false one", () => {
+  // The ruling read literally: the property is OMITTED when the door has no
+  // identity, so `captured-by` means one thing wherever it appears — somebody
+  // the door actually knew. A capture with none is honest; a capture
+  // attributed to a process is not. And the key is absent rather than empty:
+  // `prop:captured-by` must not match a capture nobody was named on.
+  const made = capturingOf(POSTED, null, "2026-08-23T09:41:00+05:30")
+  expect(made).toEqual({
+    title: "the thread about cabinets",
+    date: "2026-08-23T09:41:00+05:30",
+  })
+  expect(Object.hasOwn(made, "props")).toBe(false)
+})
+
+test("a client CANNOT say who captured this — there is nowhere to say it", () => {
+  // This used to be a guard: a check that the props map did not carry
+  // `captured-by`, sitting one line from the merge that would have overruled it,
+  // and a second case for a key that was only the same key after the write
+  // planner trimmed it. Both are gone with the map itself, which is the
+  // stronger arrangement — a rule that cannot be broken rather than one
+  // enforced. Asserted on the SCHEMA, because that is where the fact now lives.
+  const fields = Object.keys(CaptureRequest.fields)
+  expect(fields).toEqual(["title", "text"])
+  expect(fields).not.toContain("props")
 })

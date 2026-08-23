@@ -309,7 +309,6 @@ export const COMMIT_TOOL = "the `commit` tool"
 export const commitDoor = (writer: Writer): string => {
   switch (writer) {
     case "web":
-    case "capture":
     // `auto` is the quiet-window loop, which writes no FILE — it only ever
     // makes commits — so no write is ever attributed to it and this arm is
     // unreachable by construction. It is spelled rather than defaulted for the
@@ -1346,8 +1345,9 @@ export const commitDoors = (face: CommitFace): string => {
 }
 
 /** The subcommands. Derived from `Writer` rather than spelled again — one name
- *  for who is asking — minus the three that are not faces a person can start:
- *  `chat-agent` is a session `olai web` spawns, `capture` is an HTTP route ON
- *  that serve, and `auto` is that serve's own quiet window, so none of them is
- *  something with a `--help` of its own. */
-export type CommitFace = Exclude<Writer, "chat-agent" | "capture" | "auto">
+ *  for who is asking — minus the two that are not faces a person can start:
+ *  `chat-agent` is a session `olai web` spawns and `auto` is that serve's own
+ *  quiet window, so neither has a `--help` of its own. `web` and `mcp` do — and
+ *  a TERMINAL is a client of `mcp` rather than a face of its own, so it has no
+ *  row here either (`@olai/format`'s `Writer`). */
+export type CommitFace = Exclude<Writer, "chat-agent" | "auto">

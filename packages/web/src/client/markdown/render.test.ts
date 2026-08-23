@@ -346,9 +346,12 @@ test("a script is not markdown", () => {
  * protocols, which is the failure the two tests exist between them to keep
  * from coming back.
  *
- * The autolink spelling is the one the capture door writes (`@olai/server`'s
- * `capture.ts`): GFM's autolink literals do not cover this scheme, so a
- * bare URL would have been text either way.
+ * The autolink spelling (`<…>`) is what a WRITER has to use for this scheme:
+ * GFM's autolink literals do not cover `message:`, so a bare URL would have
+ * been text either way. Nothing in olai composes one any more — the capture verb
+ * grew a link field for the mail case and lost it again (a capture is a title
+ * and a note now) — so this is the renderer's promise to whoever types one into
+ * a note, which is exactly who the mail recipe in docs/running.md is.
  */
 test("a captured mail's message: link survives, in a note and in a title", () => {
   const href = "message://%3Cabc123@mail.example%3E"

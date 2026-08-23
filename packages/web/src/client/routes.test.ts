@@ -282,7 +282,8 @@ test("a link into a section of a document is this app's", () => {
  * the browser follows the href, and a scheme the browser has no page for is
  * handed to the OS. That is what makes a captured mail's `message://` link open
  * Mail.app rather than being swallowed by a router that thought every anchor on
- * the page was its own (`@olai/server`'s `capture.ts`, docs/running.md).
+ * the page was its own — written into the note by whoever captured it
+ * (docs/running.md's mail recipe), not composed by olai.
  *
  * It is already true, and the test is what makes it STAY true: nothing about
  * "this link is not ours" is expressed as a scheme list anywhere — it falls out

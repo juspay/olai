@@ -1193,17 +1193,17 @@ The corner unit is the **risky one** — see
     were, and the box empties for the next line.</p>
     <p><strong>And a thought that arrives while you are nowhere near
     olai</strong> goes to the same inbox, through a door that is not a page:
-    <code>POST /capture</code>, one line from a phone’s share sheet, a Raycast
-    script pointed at Mail.app, or a <code>curl</code> in something that
-    noticed something. A title, a note, a link back to where it came from, and
-    whatever properties the sender already knows — the mail case keeps
-    Mail.app’s own <code>message://</code> link rather than a copy of the mail,
-    so clicking the row in olai opens the message. It arrives dated, so it is
-    on the day’s journal page as well as in the inbox. Authentication is the
-    tailnet in front of it: the identity header <code>tailscale serve</code>
-    injects is required and is recorded on the node, so there is no token to
-    mint and no secret in any client — which is why every client is a few lines
-    somebody writes once.</p>
+    <code>olai surface capture</code>, one line from a terminal, a Raycast
+    script pointed at Mail.app, or a cron job that noticed something. A title
+    and a note, and you say which vault with <code>--url</code> every time —
+    there is no default and nothing remembered, because a capture that goes to
+    the wrong directory looks exactly like one that did not. It arrives dated,
+    so it is on the day’s journal page as well as in the inbox, and it prints
+    one line back: where it landed, and a link to the row it made. There is no
+    second face to configure — the command speaks the same protocol at the same
+    address an agent does, so from another machine it is the same reverse proxy
+    that already fronts the page, and whoever that proxy says you are is what
+    the capture is recorded as.</p>
     <p><strong>And the files olai names for itself stay out of your
     list.</strong> The shelf, the inbox and the trash live under
     <code>_olai/</code>, and the file tree does not draw them: the shelf is

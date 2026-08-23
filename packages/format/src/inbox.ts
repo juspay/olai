@@ -34,12 +34,12 @@
  * somewhere else.
  */
 
-import { Schema } from "effect"
+import { Result, Schema } from "effect"
 
 import { countedChildren, type Derived, rootsOf, unfinished } from "./derive.ts"
 import { INBOX, inboxIn, mintedInto, type LocatedRegular, storedMarker } from "./node.ts"
 import { type OutlineSet, outlinePaths } from "./set.ts"
-import type { Reading } from "./validate.ts"
+import { type OpFailure, UsageFailure } from "./failure.ts"
 import type { Capture, WriteRequest } from "./writing.ts"
 
 /**
@@ -149,11 +149,12 @@ export type Capturing = Omit<Capture, "after">
  * `create` that mints one holding exactly this capture.
  *
  * THREE DOORS capture into this directory and none of them names a file: the
- * palette's `⌘K` `+` sends a line, `POST /capture` sends one from a share
- * sheet or a script on the tailnet, and an agent reads the outlines and calls
- * `add_node` or `create_outline` itself (which is why `list_outlines` says the
- * convention in words — the one door that is handed the rule rather than the
- * function). The first two resolve through THIS, and that is the whole reason
+ * palette's `⌘K` `+` sends a line, the `capture` TOOL sends one from an agent
+ * or from `olai surface capture`, and an agent that would rather aim reads the
+ * outlines and calls `add_node` or `create_outline` itself (which is why
+ * `list_outlines` says the convention in words — the one door that is handed
+ * the rule rather than the function). The first two resolve through THIS, and
+ * that is the whole reason
  * it is here rather than in whichever face happened to need it first: it is a
  * statement about the DIRECTORY, the same kind of thing {@link inboxIn} above
  * it is, and a second spelling of "is there an inbox yet, and what do I do
@@ -183,13 +184,115 @@ export type Capturing = Omit<Capture, "after">
  * `add_node` gets. A second rule here would be a door refusing something in
  * words no tool uses.
  *
- * PURE, over a {@link Reading}, for the reason every derivation in this
- * package is: it is a question about the set, answerable with a value and
- * testable without a server.
+ * PURE, over the directory's OUTLINE PATHS — not over a whole `Reading`,
+ * because the paths are all it reads and they are what every caller can get
+ * cheaply. A face holding a `Reading` passes `outlinePaths(at.set)`; a face holding
+ * only the LISTING (`ops.outlines` over a wire, which is what `capture` in
+ * `@olai/ops`' table has) passes the paths off that, and neither has to
+ * re-derive the inbox rule to do it. Widening it back to a `Reading` would put
+ * this function out of reach of the one face that has no store.
  */
-export const captureInto = (at: Reading, capture: Capturing): WriteRequest => {
-  const inbox = inboxIn(outlinePaths(at.set))
+export const captureInto = (
+  paths: ReadonlyArray<string>,
+  capture: Capturing,
+): WriteRequest => {
+  const inbox = inboxIn(paths)
   return inbox === undefined
     ? { op: "create", file: mintedInto(INBOX), seed: capture }
     : { op: "add", file: inbox, ...capture }
+}
+
+// ── what a capture IS, at whichever door takes one ──────────────────────
+
+/** The property the identity is recorded as. A key rather than a field,
+ *  because the format gives it no meaning and olai reads nothing in it — it is
+ *  there for the person who captured, and for `prop:captured-by=…`. Hyphenated
+ *  like the two the Mail recipe writes (`message-id`), and deliberately not a
+ *  word the format already has, which `set_prop`'s own rule would refuse. */
+export const CAPTURED_BY = "captured-by"
+
+/**
+ * What a capture may say: A TITLE AND A NOTE.
+ *
+ * Two fields, and the shortest version of this schema it has ever had. It
+ * carried a `url` — kept as a link under the note, for a page or a message the
+ * vault does not hold — and a free `props` map, for the named facts a client
+ * already knew. Both are gone (ruled, human 2026-08-23), and "they can return
+ * later" is the ruling's own phrase rather than a promise this comment is
+ * making.
+ *
+ * WHAT THE REMOVAL BUYS is not brevity. `props` was the one way a caller could
+ * name a property on a capture, which made the door's attribution rule a
+ * GUARD — a check that a client had not sent `captured-by` itself, one line
+ * from the merge that would have overruled it, with a whole paragraph
+ * explaining why the two could not be separated. There is no such field now, so
+ * there is no such check: a caller cannot say who captured a thing because
+ * there is nowhere to say it. That is the difference between a rule enforced
+ * and a rule that cannot be broken.
+ *
+ * No `target`, no file, no parent, no mark, as before — where a capture belongs
+ * is decided in the app afterwards, and a door that could aim would be a door
+ * somebody has to configure.
+ */
+export const CaptureRequest = Schema.Struct({
+  /** The row. Verbatim: a blank one is refused by the ops layer in its own
+   *  words, which is the sentence an agent's `add_node` gets. */
+  title: Schema.String,
+  /** The note. Markdown, stored verbatim, exactly as a `desc` anywhere else. */
+  text: Schema.optionalKey(Schema.String),
+})
+export type CaptureRequest = typeof CaptureRequest.Type
+
+/**
+ * The note a capture ends up with.
+ *
+ * It is the text, and now nothing else. It used to be the text followed by the
+ * caller's URL on its own paragraph, written as a markdown autolink (`<…>`) so
+ * that a `message:` pointer — the scheme the whole arrangement existed for —
+ * was drawn as a link rather than as characters. That field is gone with the
+ * rest of the link half of this verb; the renderer's side of it is untouched
+ * and still tested where it lives (`@olai/web`'s `markdown/sanitise.ts`), so a
+ * note that CONTAINS such a link still renders one — nothing here writes one any
+ * more.
+ *
+ * `undefined` for a capture with nothing under it, so a row with no note is a
+ * row with no `desc` rather than one with an empty string.
+ */
+export const noteOf = (posted: CaptureRequest): string | undefined =>
+  posted.text === undefined || posted.text === "" ? undefined : posted.text
+
+/**
+ * The capture, as the ops layer takes one.
+ *
+ * WHO IS PASSED IN, and may be nobody. The ruling (human, 2026-08-22, unchanged
+ * by the transport moving) is that a door records the identity it HAS and omits
+ * the property when it has none: the login a reverse proxy injects on the
+ * request, and nothing at all for a door that knows nobody — a direct loopback
+ * call, a `just run` with no proxy in front. So `login` is `null` there and the
+ * capture simply carries no `captured-by`. That keeps the property meaning ONE
+ * thing wherever it appears: somebody the door actually knew. A capture with no
+ * attribution is honest; a capture attributed to a process is not.
+ *
+ * AND IT CANNOT BE SENT, which is now a fact about the schema rather than a
+ * check in this function. {@link CaptureRequest} has no property map at all, so
+ * there is no forged `captured-by` to refuse — where there used to be a guard
+ * here, comparing trimmed keys against the one the write planner would have
+ * written, because an exact comparison answered success to `"captured-by "` and
+ * then dropped the client's value on the merge below.
+ */
+export const capturingOf = (
+  posted: CaptureRequest,
+  login: string | null,
+  at: string,
+): Capturing => {
+  const note = noteOf(posted)
+  return {
+    title: posted.title,
+    ...(note === undefined ? {} : { desc: note }),
+    // Dated so it lands on the day's journal page. The stamp is minted by the
+    // caller, which is the one impure thing a capture needs and the same `now`
+    // every other dated write here is stamped with.
+    date: at,
+    ...(login === null ? {} : { props: { [CAPTURED_BY]: login } }),
+  }
 }
