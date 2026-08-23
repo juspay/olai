@@ -33,7 +33,7 @@ import * as fs from "node:fs"
 import * as path from "node:path"
 
 import * as Chat from "@olai/chat"
-import { openDirectory, watchRoot } from "./directory.ts"
+import { openDirectory } from "./directory.ts"
 import { watchFault } from "./fault.ts"
 import { openPolicy } from "./gitPolicy.ts"
 import { listen } from "./listener.ts"
@@ -285,10 +285,7 @@ export const serve = (options: ServeOptions) =>
       })
     }
 
-    // The served directory disappearing is a stop, same as a surface fault:
-    // there is nothing left to serve. Raced with the fault watch so either
-    // one unwinds the scope, and a signal interrupts both.
-    return Effect.raceFirst(runtime.faulted, watchRoot(root))
+    return runtime.faulted
   }).pipe(Effect.withLogSpan("serve"))
 
 const LOOPBACK: ReadonlySet<string> = new Set(["127.0.0.1", "localhost", "::1"])

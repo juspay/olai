@@ -40,8 +40,6 @@ This is a refusal rather than a warning because two olai over one directory cann
 
 The claim is an OS advisory lock (`flock`), held in `$XDG_RUNTIME_DIR/olai/` — or `/tmp/olai-$UID/` on a machine without one — and the KERNEL releases it when the process ends, however it ends. A graceful stop also unlinks the lock file; a crash cannot, and the next boot sweeps leftovers (a `.lock` nothing holds, and the retired rendezvous `.sock` files of #175/#184 — `surface.sock` is skipped because reverted #352-era binaries still hold that name). A lock another olai is holding is never unlinked, even if its recorded root cannot be stat'd: that is the two-brains race. There is no stale lock to clear after a crash, nothing to delete before restarting, and no file left inside your notes directory. If a machine ever refuses to serve a directory nothing is serving, that is a bug and not a lock you should go and remove.
 
-A server whose served directory disappears exits on its own. That is what stops a leftover `olai web` sitting on a `/tmp` scratch the tests already deleted.
-
 What it does not cover:
 
 - **Another program editing the files** — your editor, `git pull`, an agent writing by hand. Those are the ordinary case, the page follows them, and they are not a second brain.

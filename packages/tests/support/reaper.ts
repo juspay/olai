@@ -11,8 +11,8 @@
  * skips AfterAll, and `exit` itself does not fire on SIGKILL of this process.
  * SIGINT and SIGTERM are the cancellations this process can still hear, and
  * they kill the group synchronously so a cancelled run leaves no server. The
- * server itself also dies with its parent (`prctl` in `olai web`) and when its
- * served directory disappears — this module is the harness half of that.
+ * server itself also dies with its parent (`prctl` in `olai web`) — this
+ * module is the harness half of that.
  */
 
 import type { ChildProcess } from "node:child_process";

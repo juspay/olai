@@ -1,6 +1,6 @@
 # @olai/tests — the browser tests
 
-Cucumber features driven through Playwright against a real `olai` server serving a real directory of fixture outlines. Nothing here is mocked: the server loads `.olai` files off disk, the client renders them over a WebSocket, and the assertions read the DOM a person would be looking at. Every server this suite starts dies with the run: it is a process-group leader, SIGINT / SIGTERM / `exit` of cucumber SIGKILL the group (`support/reaper.ts`), each spawn gets its own `$XDG_RUNTIME_DIR` so lock files do not land in the developer's runtime directory, and `olai web` itself exits when its served directory disappears and (on Linux) when its parent dies.
+Cucumber features driven through Playwright against a real `olai` server serving a real directory of fixture outlines. Nothing here is mocked: the server loads `.olai` files off disk, the client renders them over a WebSocket, and the assertions read the DOM a person would be looking at. Every server this suite starts dies with the run: it is a process-group leader, SIGINT / SIGTERM / `exit` of cucumber SIGKILL the group (`support/reaper.ts`), each spawn gets its own `$XDG_RUNTIME_DIR` so lock files do not land in the developer's runtime directory, and on Linux `olai web` dies with its parent.
 
 ## What earns a scenario
 

@@ -24,7 +24,7 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import { startWeb, stoppedWithin } from "./child.testlib.ts"
+import { startWeb } from "./child.testlib.ts"
 import { served } from "./serve.testlib.ts"
 
 /** How long a shutdown may take before it is a hang. Generous: what is being
@@ -73,18 +73,6 @@ test("SIGTERM names itself on stderr and exits 130", async () => {
   const { code, said } = await signaled("SIGTERM")
   expect(code).toBe(130)
   expect(said).toContain("olai web: received SIGTERM")
-}, BOUND_MS * 3)
-
-test("olai web exits when its served directory disappears", async () => {
-  const root = served()
-  const server = startWeb({ root })
-  try {
-    await server.address()
-    fs.rmSync(root, { recursive: true, force: true })
-    expect(await stoppedWithin(server.child, BOUND_MS)).toBe(true)
-  } finally {
-    server.kill()
-  }
 }, BOUND_MS * 3)
 
 test("olai web dies when its parent dies", async () => {
