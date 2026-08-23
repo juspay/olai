@@ -21,7 +21,7 @@
  *
  * **What counts as an edit is what is WAITING**, read off the same survey the
  * pill draws ({@link flurryOf}). So a browser keystroke, an agent's op over
- * MCP, an `olai surface capture` from a terminal and a `.md` somebody saved in vim all
+ * MCP, a `POST /capture` from a phone and a `.md` somebody saved in vim all
  * move the same window and land in the same commit. That is "all my changes end
  * up in git" — and it is a consequence of watching git rather than counting
  * writes, which is why nothing here knows who wrote anything.

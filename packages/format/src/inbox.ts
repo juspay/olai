@@ -34,12 +34,12 @@
  * somewhere else.
  */
 
-import { Result, Schema } from "effect"
+import { Schema } from "effect"
 
 import { countedChildren, type Derived, rootsOf, unfinished } from "./derive.ts"
 import { INBOX, inboxIn, mintedInto, type LocatedRegular, storedMarker } from "./node.ts"
 import { type OutlineSet, outlinePaths } from "./set.ts"
-import { type OpFailure, UsageFailure } from "./failure.ts"
+import type { Reading } from "./validate.ts"
 import type { Capture, WriteRequest } from "./writing.ts"
 
 /**
@@ -149,12 +149,11 @@ export type Capturing = Omit<Capture, "after">
  * `create` that mints one holding exactly this capture.
  *
  * THREE DOORS capture into this directory and none of them names a file: the
- * palette's `⌘K` `+` sends a line, the `capture` TOOL sends one from an agent
- * or from `olai surface capture`, and an agent that would rather aim reads the
- * outlines and calls `add_node` or `create_outline` itself (which is why
- * `list_outlines` says the convention in words — the one door that is handed
- * the rule rather than the function). The first two resolve through THIS, and
- * that is the whole reason
+ * palette's `⌘K` `+` sends a line, `POST /capture` sends one from a share
+ * sheet or a script on the tailnet, and an agent reads the outlines and calls
+ * `add_node` or `create_outline` itself (which is why `list_outlines` says the
+ * convention in words — the one door that is handed the rule rather than the
+ * function). The first two resolve through THIS, and that is the whole reason
  * it is here rather than in whichever face happened to need it first: it is a
  * statement about the DIRECTORY, the same kind of thing {@link inboxIn} above
  * it is, and a second spelling of "is there an inbox yet, and what do I do
@@ -184,178 +183,13 @@ export type Capturing = Omit<Capture, "after">
  * `add_node` gets. A second rule here would be a door refusing something in
  * words no tool uses.
  *
- * PURE, over the directory's OUTLINE PATHS — not over a whole `Reading`,
- * because the paths are all it reads and they are what every caller can get
- * cheaply. A face holding a `Reading` passes `outlinePaths(at.set)`; a face holding
- * only the LISTING (`ops.outlines` over a wire, which is what `capture` in
- * `@olai/ops`' table has) passes the paths off that, and neither has to
- * re-derive the inbox rule to do it. Widening it back to a `Reading` would put
- * this function out of reach of the one face that has no store.
+ * PURE, over a {@link Reading}, for the reason every derivation in this
+ * package is: it is a question about the set, answerable with a value and
+ * testable without a server.
  */
-export const captureInto = (
-  paths: ReadonlyArray<string>,
-  capture: Capturing,
-): WriteRequest => {
-  const inbox = inboxIn(paths)
+export const captureInto = (at: Reading, capture: Capturing): WriteRequest => {
+  const inbox = inboxIn(outlinePaths(at.set))
   return inbox === undefined
     ? { op: "create", file: mintedInto(INBOX), seed: capture }
     : { op: "add", file: inbox, ...capture }
-}
-
-// ── what a capture IS, at whichever door takes one ──────────────────────
-
-/** The property the identity is recorded as. A key rather than a field,
- *  because the format gives it no meaning and olai reads nothing in it — it is
- *  there for the person who captured, and for `prop:captured-by=…`. Hyphenated
- *  like the two the Mail recipe writes (`message-id`), and deliberately not a
- *  word the format already has, which `set_prop`'s own rule would refuse. */
-export const CAPTURED_BY = "captured-by"
-
-/**
- * What a capture may say — the ARGUMENTS half, now that the verb is a tool.
- *
- * THREE FIELDS AND A MAP, which is v1's ruling read literally: a title, the
- * text that becomes the note, the URL the capture points back at, and the
- * named facts a client already knows (`from` and `message-id` for the Mail
- * case, which is what makes de-duplicating by `prop:message-id` possible). No
- * `target`, no file, no parent, no mark — where a capture belongs is decided in
- * the app afterwards, and a door that could aim would be a door somebody has to
- * configure.
- *
- * It came down from `@olai/server`'s deleted `capture.ts` with {@link noteOf}
- * and {@link capturingOf} beside it: those three were the half of that door
- * which was about CAPTURING rather than about HTTP, and the tool table needs
- * exactly them. What stayed behind and died with the door was the half that was
- * about the wire — the status table, the CSRF gate, the method arm.
- */
-export const CaptureRequest = Schema.Struct({
-  /** The row. Verbatim: a blank one is refused by the ops layer in its own
-   *  words, which is the sentence an agent's `add_node` gets. */
-  title: Schema.String,
-  /** The note. Markdown, stored verbatim, exactly as a `desc` anywhere else. */
-  text: Schema.optionalKey(Schema.String),
-  /** Where this came from, as a link in the note. */
-  url: Schema.optionalKey(Schema.String),
-  /** The named facts this capture is born with — `add_node`'s `props`. */
-  props: Schema.optionalKey(Schema.Record(Schema.String, Schema.String)),
-})
-export type CaptureRequest = typeof CaptureRequest.Type
-
-/**
- * An address a caller sent, as a URI a markdown autolink can hold.
- *
- * THE BUG THIS EXISTS FOR, found in review and reproduced against the real
- * renderer: `message://<abc@mail.example>` — the spelling the Mail recipe's own
- * prose uses, since a `Message-Id` is written in angle brackets — closes the
- * autolink at the first `<`. What reached the page was not a broken link but a
- * WORSE one: the remains parsed as a GFM email autolink, so a reader was handed
- * `mailto:abc@mail.example`, a live link composing a new message to an address
- * nobody has. A pointer that silently becomes a different pointer is the one
- * failure this feature cannot have.
- *
- * WHAT IT ENCODES is exactly the characters a URI may not carry at all —
- * `<`, `>`, space, and the C0 controls (RFC 3986) — and nothing else. That
- * narrowness is the whole design: it is a CORRECTION rather than a rewrite, so
- * every legal character survives byte for byte and a client can compare what it
- * sent with what came back; and `%` is deliberately NOT encoded, so an address a
- * careful client already percent-encoded is not double-encoded into a different
- * one.
- *
- * It is not validation and does not pretend to be: what a scheme MEANS is the
- * reader's business (a `message:` opens Mail, an `https:` opens a page, and one
- * the sanitiser does not admit is drawn as text). What it guarantees is
- * narrower and is the whole of what the note needs — that the address survives
- * being written into one.
- */
-export const linkable = (url: string): string =>
-  url.replace(
-    /[<>\u0020\u0000-\u001F\u007F]/g,
-    (char) => `%${char.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}`,
-  )
-
-/**
- * The note a capture ends up with — the text, and the link under it.
- *
- * THE LINK GOES LAST and on its own paragraph. A note is drawn clamped to one
- * line under a row and expanded on a click (docs/editing.md), so the half a
- * reader sees without asking should be what they wrote rather than sixty
- * characters of URL — and for the Mail case the text is a comment somebody
- * typed and the link is the pointer it is about, which is the order it reads in
- * anyway.
- *
- * A MARKDOWN AUTOLINK (`<…>`) rather than a bare URL, so the link is a link
- * whatever the address looks like: GFM's autolink literals cover `http(s)` and
- * not `message:`, which is exactly the scheme this feature exists for. That is
- * a claim about the READER as much as about this line, and the two ends are
- * held together by a test rather than by a shared constant, because this end
- * names no scheme at all: `@olai/web`'s `markdown/render.test.ts` renders the
- * exact spelling written here and asserts the anchor survives the sanitiser.
- */
-export const noteOf = (posted: CaptureRequest): string | undefined => {
-  const said = [
-    posted.text,
-    posted.url === undefined || posted.url === "" ? undefined : `<${linkable(posted.url)}>`,
-  ].filter((part): part is string => part !== undefined && part !== "")
-  return said.length === 0 ? undefined : said.join("\n\n")
-}
-
-/**
- * The capture, as the ops layer takes one.
- *
- * THE IDENTITY IS THE LAST WORD, and this function is where the rule that makes
- * that safe LIVES rather than being a check somewhere above it: a client that
- * sends {@link CAPTURED_BY} itself is refused HERE, one line from the merge
- * that would otherwise have overruled it. Split apart — a guard at the door, a
- * spread down here — the two were held together by nothing but the order they
- * happened to be written in, and deleting the guard would have left a door that
- * succeeds on a forged attribution it silently rewrote.
- *
- * WHO IS PASSED IN, and may be nobody. The ruling (human, 2026-08-22) is that a
- * door records the identity it HAS and omits the property when it has none:
- * the login header on an HTTP or websocket face, the OS user on the unix
- * socket, and nothing at all for the in-process MCP face — so `login` is
- * `null` there and the capture simply carries no `captured-by`. That keeps the
- * property meaning ONE thing wherever it appears: somebody the door actually
- * knew. A capture with no attribution is honest; a capture attributed to a
- * process is not.
- *
- * A `Result`, and a `UsageFailure` inside it: the request itself is wrong,
- * nothing was read and nothing was written. That is also what puts this refusal
- * on the same answer, in the same shape and with the same word, as every refusal
- * the ops layer makes — rather than in a sentence of this function's own.
- *
- * THE KEYS ARE COMPARED TRIMMED, and that is not tidiness: the write planner
- * TRIMS a property key before it writes it (`@olai/ops`' `plan.ts`), so
- * `"captured-by "` is the same key by the time it reaches the file. An exact
- * comparison answered success to that and then dropped the client's value on
- * the merge below — the "recorded exactly as sent when it was not" outcome this
- * whole function exists to have refused. Found in review.
- */
-export const capturingOf = (
-  posted: CaptureRequest,
-  login: string | null,
-  at: string,
-): Result.Result<Capturing, OpFailure> => {
-  if (Object.keys(posted.props ?? {}).some((key) => key.trim() === CAPTURED_BY)) {
-    return Result.fail(
-      new UsageFailure({
-        reason: `\`${CAPTURED_BY}\` is written from the identity this door already ` +
-          "has and cannot be sent: it is who captured this, and a capture may not " +
-          "say that about itself",
-      }),
-    )
-  }
-  const note = noteOf(posted)
-  return Result.succeed({
-    title: posted.title,
-    ...(note === undefined ? {} : { desc: note }),
-    // Dated so it lands on the day's journal page. The stamp is minted by the
-    // caller, which is the one impure thing a capture needs and the same `now`
-    // every other dated write here is stamped with.
-    date: at,
-    props: {
-      ...posted.props,
-      ...(login === null ? {} : { [CAPTURED_BY]: login }),
-    },
-  })
 }

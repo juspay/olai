@@ -125,33 +125,14 @@ export const releasePort = (holder: net.Server): Promise<void> =>
  * would pollute a `@git:repo` work tree); shared corpus servers put it
  * in a per-worker temp directory.
  */
-/** The agent socket a server spawned with {@link isolateEnv} will bind — the
- *  convention read from THIS spawn's isolated runtime directory, so a step can
- *  name it without the server having to report it. */
-export const socketUnder = (stateRoot: string): string =>
-  path.join(stateRoot, "run", "olai", "surface.sock");
-
 export const isolateEnv = (
   stateRoot: string,
   extras: NodeJS.ProcessEnv = {},
 ): NodeJS.ProcessEnv => {
   const cache = path.join(stateRoot, "cache");
   const state = path.join(stateRoot, "state");
-  // WHERE THE AGENT SOCKET GOES, isolated for the same reason cache and state
-  // are. `olai web` binds `$XDG_RUNTIME_DIR/olai/surface.sock` with no flag,
-  // and `olai surface` walks to the same path with no flag — which is exactly
-  // what makes them find each other, and exactly what would make every parallel
-  // worker fight for ONE socket if this were the developer's. Isolated, each
-  // spawned server owns its own and the CLI run against that server's env
-  // reaches it by the same convention a real user gets.
-  //
-  // `0700` because the server REFUSES a runtime directory it does not own
-  // privately (kolu's `isPrivateOwnedDir`) — a stable path another user could
-  // have pre-created loosely must not host a full-control router.
-  const run = path.join(stateRoot, "run");
   fs.mkdirSync(cache, { recursive: true });
   fs.mkdirSync(state, { recursive: true });
-  fs.mkdirSync(run, { recursive: true, mode: 0o700 });
   // The identity family is taken off the HOST's copy, before the spawn's own
   // extras go on: a developer whose shell exports the documented avatar
   // template (`OLAI_IDENTITY_AVATAR_TEMPLATE='https://github.com/{login}.png'`)
@@ -169,7 +150,6 @@ export const isolateEnv = (
     ...extras,
     XDG_CACHE_HOME: cache,
     XDG_STATE_HOME: state,
-    XDG_RUNTIME_DIR: run,
   };
   delete env.PADI_SOCKET;
   // A worktree's `just run` writes OLAI_PORT_FILE; a spawned e2e server

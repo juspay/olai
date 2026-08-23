@@ -1507,12 +1507,6 @@ export class OlaiWorld extends World {
    *  that combined a Tailscale Given with a restart would fail here. */
   baseUrl!: string;
 
-  /** The agent socket the server for this scenario bound — what
-   *  `olai surface` dials, and the CLI's whole way in. Set beside
-   *  {@link baseUrl} from the same spawn, so a step never has to guess which
-   *  server it belongs to. */
-  socketPath!: string;
-
   /** The directory being served, for a `@scratch:` scenario — a private copy
    *  of the corpus that this scenario is allowed to EDIT while the server
    *  watches it. Undefined for the shared corpora, which are the tracked

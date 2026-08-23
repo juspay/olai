@@ -75,7 +75,6 @@ const run = (
       // These start and stop a real server against a temp directory; committing
       // to whatever repository happens to contain it is not theirs to do.
       pin: { commit: "off", push: null },
-      socketPath: null,
     })
   }).pipe(
     Effect.scoped,

@@ -57,7 +57,7 @@
  * nothing beside it to spell differently.
  */
 
-import { Effect, Result, Schema } from "effect"
+import { Effect, Schema } from "effect"
 
 import {
   AddRequest,
@@ -77,9 +77,6 @@ import {
   DocumentRequest,
   MARKS,
   MarkRequest,
-  CaptureRequest,
-  captureInto,
-  capturingOf,
   MergeRequest,
   MirrorRequest,
   MoveRequest,
@@ -293,26 +290,6 @@ export interface Acting {
 }
 
 /**
- * What a PLAN arm resolves its request against — the third of these, and named
- * for {@link Acting}'s reason: a tool reaches an interface rather than importing
- * a world, so the table stays a declaration.
- *
- * THREE FACTS, and each is one a resolver genuinely cannot compute. `paths` is
- * the directory's outline listing, which is what the inbox convention is read
- * off (`@olai/format`'s `captureInto`) — the paths and not a `Reading`, so a
- * face with no store of its own can supply it from `ops.outlines`. `login` is
- * who the DOOR knows and may be nobody, because an attribution a caller could
- * send would not be one. `now` is the clock, read PER CALL rather than
- * captured, so a server left running overnight still dates a capture today —
- * the same rule {@link asking} keeps for `date:yesterday`.
- */
-export interface Planning {
-  readonly paths: ReadonlyArray<string>
-  readonly login: string | null
-  readonly now: () => string
-}
-
-/**
  * A tool, as this package declares it.
  *
  * Three arms, and each CARRIES what answers it rather than leaving the
@@ -372,31 +349,6 @@ export type Tool =
   | (Described & {
     readonly kind: "act"
     readonly act: (ops: Acting, args: never) => Effect.Effect<unknown, never>
-  })
-  | (Described & {
-    readonly kind: "plan"
-    /**
-     * A write whose TARGET is a convention rather than an argument — so the
-     * request cannot be fixed by the name the way {@link write}'s is, and has to
-     * be resolved against the directory as it stands right now.
-     *
-     * PURE, and taking the outline PATHS rather than a store: which file a
-     * capture lands in is `@olai/format`'s question (`captureInto`), the paths
-     * are the whole of what answers it, and a listing is something every face
-     * can get — including one on the far end of a socket with no store of its
-     * own. That is what keeps this arm a DECLARATION like the other three: the
-     * table says what the request IS, and the dispatcher owns the reading, the
-     * running, and the one retry the race needs.
-     *
-     * It answers a `Result`, because resolving is the one moment a write can
-     * be refused BEFORE anything is read or written: a caller who tries to send
-     * `captured-by` is turned away here, in the same shape and with the same
-     * word the ops layer refuses everything else in.
-     */
-    readonly plan: (
-      at: Planning,
-      args: never,
-    ) => Result.Result<Request, OpFailure>
   })
 
 // ── reading ────────────────────────────────────────────────────────────
@@ -516,30 +468,6 @@ export const act = <S extends Arguments>(
   act: answer,
 })
 
-/** The plan arm's constructor, inferring its `args` the way {@link read} does
- *  and for the same reason: what a capture takes is `@olai/format`'s to say
- *  (`CaptureRequest`), and saying it again here is a second spelling free to
- *  drift from the schema this same call advertises.
- *
- *  The request it answers with is bounded by `Request` exactly as {@link
- *  write}'s schema is, and for the same reason: every write is the same call,
- *  so a resolver naming something outside that vocabulary is a tool this
- *  package advertises and its own writer cannot take. */
-export const plan = <S extends Arguments>(
-  name: string,
-  title: string,
-  description: string,
-  schema: S,
-  resolve: (at: Planning, args: S["Type"]) => Result.Result<Request, OpFailure>,
-): Tool => ({
-  name,
-  title,
-  description,
-  schema,
-  kind: "plan",
-  plan: resolve,
-})
-
 /**
  * What each MARK's tool says. The prose is per mark — they refuse for
  * different reasons and mean different things — but WHICH marks there are is
@@ -577,28 +505,6 @@ const MARK_TOOLS: ReadonlyArray<Tool> = MARKS.map((mark) =>
 )
 
 export const TOOLS: ReadonlyArray<Tool> = [
-  // THE ONLY PLAN ARM, and the reason that arm exists. Every other write here
-  // is aimed by its arguments; a capture is aimed by a CONVENTION — the inbox
-  // this directory happens to keep, or the one that gets minted holding it —
-  // so the request cannot be known until the directory has been looked at.
-  //
-  // It was `POST /capture`, ~550 lines re-deriving for one verb what this table
-  // gives every verb: a body schema, an identity rule, a status table and its
-  // own writer. As one entry here it is instead the SAME verb an agent calls
-  // and the same one `olai surface capture` calls, under one name, with one
-  // schema and one attribution rule — which is what makes the CLI a client of
-  // this table rather than a second door onto the directory.
-  plan(
-    "capture",
-    "Capture a thought",
-    "Capture one line into this directory's inbox — the fastest way to get something out of your head and into the vault, from an agent or from a terminal. `title` is the row; `text` becomes its note; `url` goes under that as a link, so a page, a message or a file the vault does not hold is kept as a pointer; `props` are the named facts it is born with, exactly `add_node`'s (`message-id` and `from` are what make de-duplicating a mail capture one `search_nodes` away). THERE IS NO WAY TO SAY WHERE: a capture lands at the top level of the inbox the directory has — `_olai/Inbox.olai` is minted when there is none — and where it really belongs is a decision made afterwards, in the app, which is what an inbox is for. It ARRIVES DATED, so it is on the day's journal page as well as in the inbox, which is the half a capture made while nobody was looking actually needs. `captured-by` is written from the identity this door already has and is REFUSED as an argument: a capture may not say who made it.",
-    CaptureRequest,
-    (at, args) =>
-      Result.map(
-        capturingOf(args, at.login, at.now()),
-        (capture) => captureInto(at.paths, capture),
-      ),
-  ),
   read(
     "list_outlines",
     "List outlines",
