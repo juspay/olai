@@ -16,8 +16,11 @@
  *     pinned to a day. It can never be overdue, because a day passing is not a
  *     failure of a bullet. That is the crown rule of the format read once more
  *     (docs/format.md's Status): an unmarked node is not an unfinished one.
- *   - `date` with `todo` or `doing` is DUE WORK — the only thing that can be
- *     late, because somebody said it was work and said when.
+ *     It stays on its day page and in the calendar dots; it is not owed, so
+ *     it is not on this page (`agenda-only-todo`).
+ *   - `date` with `todo` or `doing` is DUE WORK — the only thing this page
+ *     lists, and the only thing that can be late, because somebody said it was
+ *     work and said when.
  *
  * A second `due` field beside `date` would have been two dates answering one
  * question, which is the disagreement the mirror shape exists to make
@@ -43,21 +46,35 @@ import { Schema } from "effect"
 import { daysBetween, MONTHS, WEEKDAYS, weekdayOf } from "./calendar.ts"
 
 import { datedIn, DayGroup, groupedOn } from "./dates.ts"
-import type { Derived } from "./derive.ts"
+import { unfinished, type Derived } from "./derive.ts"
 import { keepingDated, type Selected } from "./filter.ts"
 import { type RegularNode, storedMarker } from "./node.ts"
 import { type Dated, dayOf, timeOf } from "./occasion.ts"
 
 /**
+ * Is this node WORK that nobody has finished?
+ *
+ * {@link unfinished} asked of the mark the node stores — one composition,
+ * because {@link isOverdue} and {@link owedOn} are the same question with and
+ * without the day, and two `storedMarker` walks would be two chances to write
+ * `!== "done"` again. Named apart from `unfinished` so a node-taking helper
+ * cannot shadow the mark-taking one, which is how the old local survived.
+ */
+const unfinishedWork = (node: RegularNode): boolean => unfinished(storedMarker(node))
+
+/**
  * Should this have happened by now?
  *
- * `overdue(n) ⇔ n carries todo or doing ∧ day(n.date) < today`, and the two
- * halves are both load-bearing. The MARK half is written as the two marks it
- * names rather than as `mark !== "done"`, which is the trap blockedness is
- * written against one file over: that spelling reads every plain dated bullet
- * as work somebody is late on, which is exactly what an occurrence is not.
- * `doing` is in (human, 2026-08-12: started-but-unfinished is the most honest
- * yes to the question this asks; the narrower todo-only reading was declined).
+ * `overdue(n) ⇔ unfinishedWork(n) ∧ day(n.date) < today`, and the two halves
+ * are both load-bearing. The MARK half is {@link unfinishedWork} — `todo` or
+ * `doing`, the format's own Unfinished, asked of the node — rather
+ * than `mark !== "done"`, which is the trap blockedness is written against
+ * one file over: that spelling reads every plain dated bullet as work
+ * somebody is late on, which is exactly what an occurrence is not. `doing` is
+ * in (human, 2026-08-12: started-but-unfinished is the most honest yes to the
+ * question this asks; the narrower todo-only reading was declined). The same
+ * predicate decides which rows this page lists at all ({@link owedOn}): what
+ * is owed and what is late are one spelling, not two.
  *
  * The DAY half is plain string comparison over the first ten characters, here
  * as everywhere — dates are text, and a `2026-08-10` put through an instant
@@ -74,8 +91,7 @@ import { type Dated, dayOf, timeOf } from "./occasion.ts"
  */
 export const isOverdue = (node: RegularNode, today: string): boolean => {
   if (node.date === undefined) return false
-  const mark = storedMarker(node)
-  return (mark === "todo" || mark === "doing") && dayOf(node.date) < dayOf(today)
+  return unfinishedWork(node) && dayOf(node.date) < dayOf(today)
 }
 
 /** One day ahead, and what is on it. The date is a HEADING here rather than a
@@ -107,9 +123,10 @@ export const Agenda = Schema.Struct({
   /** The days that have gone and still owe something, oldest first. Every node
    *  on one of them is overdue, by construction ({@link behind}). */
   overdue: Schema.Array(AgendaDay),
-  /** What today's day page holds, minus finished work — GROUPS rather than a
-   *  day, because the page already knows which day today is and draws now on
-   *  the line whether or not anything is owed on it. */
+  /** Dated work due today that is not finished — GROUPS rather than a day,
+   *  because the page already knows which day today is and draws now on the
+   *  line whether or not anything is owed on it. Occurrences stay on the day
+   *  page; they are not work, so they are not here. */
   today: Schema.Array(DayGroup),
   /** The next days that have anything. Days with nothing are absent. */
   upcoming: Schema.Array(AgendaDay),
@@ -178,10 +195,9 @@ export const nothingDue = (agenda: Agenda): boolean =>
 export const Owed = Schema.Struct({
   /** Nodes in {@link Agenda.overdue}, across every outline it groups. */
   overdue: Schema.Number,
-  /** Nodes in {@link Agenda.today}, the same way — OCCURRENCES INCLUDED,
-   *  because they are rows that section draws and this counts what the page
-   *  shows. Which is why nothing that prints this number may call it *due*: a
-   *  birthday is on today and is nobody's late work. */
+  /** Nodes in {@link Agenda.today}, the same way — dated `todo` and `doing`
+   *  due today. Occurrences are not rows this section draws, so they are not
+   *  in the count: a birthday is on today's PAGE and is nobody's owed work. */
   today: Schema.Number,
 })
 export type Owed = typeof Owed.Type
@@ -228,7 +244,9 @@ export const sameOwed: (a: Owed, b: Owed) => boolean = Schema.toEquivalence(Owed
  * the agenda from outside it counts the very rows the page draws.
  *
  * NODES rather than groups: a group is one outline's worth of them, and "3"
- * on a mark means three things are late, not three files are.
+ * on a mark means three things are late, not three files are. The today
+ * half is dated `todo` and `doing` only, the same as {@link Owed.today}:
+ * occurrences are not rows this page draws, so they are not in the count.
  */
 export const owedOf = (agenda: Agenda): Owed => ({
   overdue: datedInDays(agenda.overdue),
@@ -335,21 +353,23 @@ const behind = (
   const now = dayOf(today)
   for (const [date, dated] of derived.byDay) {
     if (date >= now) break
-    const owed = dated.filter((one) => isOverdue(one.at.node, today))
-    if (owed.length > 0) gone.push({ date, groups: groupedOn(derived, owed) })
+    const groups = owedOn(derived, dated)
+    if (groups.length > 0) gone.push({ date, groups })
   }
   return gone
 }
 
 /**
- * What is OWED on one day: everything the day page would show, minus what is
- * finished.
+ * What is OWED on one day: dated work that nobody has finished.
  *
- * `done` never appears anywhere on this page — the agenda answers what is owed
- * and a day page answers what happened — so the filter is applied to every
- * section built out of a day's records. A node whose `done` is dated today is
- * on today's PAGE and not on today's agenda, which is the difference between
- * the two questions in one sentence.
+ * {@link unfinishedWork} is the one spelling — so a dated bullet is not owed
+ * any more than a finished task is. `done` never appears anywhere on this
+ * page, and neither does an occurrence: the agenda answers what is owed, a
+ * day page answers what is on the day (and what happened). A birthday on
+ * today is on today's PAGE and not here; a node whose `done` is dated today
+ * is on today's PAGE and not here either. The same filter draws every stretch
+ * of the line, so the overdue count, the burning Agenda entry and the rows
+ * one click away cannot disagree about what is owed.
  *
  * Filtered BEFORE the entries are situated, which is the cheap order: situating
  * is an ancestry walk and a rollup per node, and a day whose work is finished
@@ -359,12 +379,7 @@ const owedOn = (
   derived: Derived,
   dated: ReadonlyArray<Dated>,
 ): ReadonlyArray<DayGroup> =>
-  groupedOn(derived, dated.filter((one) => unfinished(one.at.node)))
-
-/** Anything that is not finished work — the one spelling of it in this module,
- *  because "what is left" is the question the whole page asks and two ways of
- *  answering it would be two chances to disagree. */
-const unfinished = (node: RegularNode): boolean => storedMarker(node) !== "done"
+  groupedOn(derived, dated.filter((one) => unfinishedWork(one.at.node)))
 
 /**
  * The days after `today` that have something owed on them, ascending, bounded

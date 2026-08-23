@@ -178,7 +178,7 @@ The fold is the second half of DAILY NOTES: a document whose basename is exactly
 
 ## And the same dates, forward
 
-`src/client/agenda/` is `/agenda`: what is OWED. It is a query like a day and not a place, its answer is `@olai/format`'s (`agendaOf`, at whatever day it is), and what it draws is the day page's own row — `day/DayNode.tsx`, one component, because a node the set has dated is the same row whichever question collected it.
+`src/client/agenda/` is `/agenda`: what is OWED — dated `todo` and `doing` only. An occurrence (a birthday, a delivery) stays on its day page and in the calendar dots; it is not work, so it is not on this page. It is a query like a day and not a place, its answer is `@olai/format`'s (`agendaOf`, at whatever day it is), and what it draws is the day page's own row — `day/DayNode.tsx`, one component, because a node the set has dated is the same row whichever question collected it.
 
 **It is ONE SPINE OF TIME** (`agenda-spine`, ruled 2026-08-18). A 2px line runs down the left gutter with NOW marked on it — an 11px ringed dot, drawn on a day nothing is due on, because now is a place on the line rather than a section that vanishes. Days that have gone sit above it in the alarm tone; days ahead sit below it, receding: the line's ink ramps `ink → muted → rule` and fades out past the last day the directory knows about, and a whole entry fades with it, ~1 → 0.5. Days say FELT distance — "Mon, Aug 24" and "in 6 days", "Yesterday · Mon, Aug 17" — because ISO dates made a reader subtract to feel any urgency at all. The silences between listed days are content: a wait long enough to notice is named ("two quiet weeks"), and the room every wait takes grows log-ish with it.
 
