@@ -80,15 +80,27 @@ const cli = async (
     return stdout;
   } catch (failure) {
     // The CLI writes prose to stderr and data to stdout, and a refusal is JSON
-    // on stderr — quote whichever it produced rather than "command failed".
+    // on stderr — carry BOTH channels verbatim rather than flattening them into
+    // a sentence. A caller asserting on what the process SAID has to be able to
+    // read the channel it said it on: folding the argv into one message made an
+    // assertion about stderr pass on the echo of its own command line.
     const said = failure as { stderr?: string; stdout?: string; message?: string };
-    throw new Error(
-      `\`olai surface ${argv.join(" ")}\` failed: ${
-        said.stderr?.trim() || said.stdout?.trim() || said.message
-      }`,
-    );
+    throw new CliFailed(argv, said.stderr ?? "", said.stdout ?? "", said.message ?? "");
   }
 };
+
+/** A CLI run that exited non-zero, with the two channels kept apart. */
+class CliFailed extends Error {
+  constructor(
+    argv: ReadonlyArray<string>,
+    readonly stderr: string,
+    readonly stdout: string,
+    said: string,
+  ) {
+    super(`\`olai surface ${argv.join(" ")}\` failed: ${stderr.trim() || stdout.trim() || said}`);
+    this.name = "CliFailed";
+  }
+}
 
 /** Capture, and remember the id it answered with. */
 const captured = async (
@@ -161,15 +173,25 @@ Then(
     const failed = await cli(this, "capture", "forged", "--props", `${key}=someone@else`)
       .then(
         () => null,
-        (thrown: Error) => thrown,
+        (thrown: unknown) => thrown as CliFailed,
       );
     assert.ok(failed !== null, `a capture that forged ${key} was accepted`);
-    // The refusal reached a channel AND it names what was wrong — the two
-    // halves of a non-zero exit being any use to the script that just failed.
-    assert.ok(
-      failed.message.includes(key),
-      `the refusal did not name ${key}: ${failed.message}`,
+
+    // ON STDERR, and asserted THERE rather than on any sentence this file
+    // composed: the command line already contains the key, so a check against a
+    // message built from the argv would pass on the echo of its own input while
+    // the process said nothing at all — which is exactly the bug this pins.
+    assert.notStrictEqual(
+      failed.stderr.trim(),
+      "",
+      "the CLI exited non-zero and wrote NOTHING — the run edge is missing",
     );
+    assert.ok(
+      failed.stderr.includes(key),
+      `the refusal did not name ${key}: ${failed.stderr}`,
+    );
+    // …and stdout stays clean, because stdout is data.
+    assert.strictEqual(failed.stdout.trim(), "", "a refusal wrote to the data channel");
   },
 );
 
