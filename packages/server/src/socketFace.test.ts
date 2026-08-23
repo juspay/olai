@@ -15,12 +15,11 @@
  * nothing.
  */
 
-import { firstFrameOrThrow } from "@kolu/surface/first-frame"
 import { unixSocketLink } from "@kolu/surface/links/unix-socket"
 import { buildSurfaceFace } from "@kolu/surface/client"
 import { surface } from "@olai/surface"
 import { expect, test } from "bun:test"
-import { Effect } from "effect"
+import { Effect, Option, Stream } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import { execFileSync } from "node:child_process"
@@ -45,6 +44,47 @@ interface Face {
     readonly pending: { readonly get: (request: unknown) => unknown }
   }
 }
+
+/** How long the derived `pending` may take to absorb a write before this test
+ *  says it never did. Generous, because it is a DIAGNOSTIC bound and not a
+ *  wait — the frame arrives the moment the revision carrying the write is
+ *  published, and nothing here spends this. */
+const NEVER_ABSORBED = "10 seconds"
+
+/**
+ * The first `pending` frame that CARRIES a write.
+ *
+ * `ops.run` answers when the write has landed on disk. `pending` is DERIVED,
+ * and is republished on the revision that absorbs it — a strictly later event.
+ * So taking the first frame of the subscription reads whatever the snapshot
+ * happened to be, which is usually the one from BEFORE the write: this test
+ * failed on a cold run and passed on a warm one for exactly that reason, which
+ * is the worst way for a test to be wrong.
+ *
+ * Waiting for the frame that carries a write is waiting on the thing being
+ * asserted, and it is not a poll and not a sleep: the subscription delivers it.
+ * The bound only decides how a failure is REPORTED — `None` says the frame
+ * never came, rather than the runner giving up with nothing to say.
+ */
+const wroteOn = (face: Face): Promise<ReadonlyArray<{ readonly writer: string }>> =>
+  Effect.runPromise(
+    Effect.map(
+      Effect.timeoutOption(
+        Stream.runHead(
+          Stream.filter(
+            face.surface.pending.get(undefined) as Stream.Stream<
+              { readonly wrote: ReadonlyArray<{ readonly writer: string }> },
+              unknown
+            >,
+            (frame) => frame.wrote.length > 0,
+          ),
+        ),
+        NEVER_ABSORBED,
+      ),
+      (head) =>
+        Option.isSome(head) && Option.isSome(head.value) ? head.value.value.wrote : [],
+    ),
+  )
 
 /** A served directory with a socket of its own, and a client already dialled at
  *  it — torn down together, because a link left open holds the serve's scope. */
@@ -110,15 +150,6 @@ test("a write through the socket is recorded as `cli`", async () => {
     await Effect.runPromise(
       face.surface.ops.run({ op: "add", file: "a.olai", title: "a write to attribute" }),
     )
-    const pending = await Effect.runPromise(
-      firstFrameOrThrow(
-        face.surface.pending.get(undefined) as never,
-        "pending never opened",
-      ) as Effect.Effect<
-        { readonly wrote: ReadonlyArray<{ readonly writer: string }> },
-        unknown
-      >,
-    )
-    expect(pending.wrote.map((one) => one.writer)).toEqual(["cli"])
+    expect((await wroteOn(face)).map((one) => one.writer)).toEqual(["cli"])
   }, "manual")
 }, 30_000)
