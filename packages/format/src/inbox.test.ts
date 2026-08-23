@@ -21,7 +21,6 @@
  */
 
 import { expect, test } from "bun:test"
-import { Result } from "effect"
 
 import { readingOf, setOf } from "./fixtures.testlib.ts"
 import {
@@ -30,7 +29,7 @@ import {
   type Capturing,
   captureInto,
   inboxHeldOf,
-  linkable,
+  CaptureRequest,
   NO_INBOX,
   noteOf,
   sameInboxHeld,
@@ -222,68 +221,29 @@ test("…and the identical fields reach the seed of the inbox it mints", () => {
 
 const POSTED = { title: "the thread about cabinets" } as const
 
-test("the note is the text, the link, or both — and nothing when neither", () => {
-  // The three shapes `noteOf` has: a `url` and no comment is the share sheet's
-  // own case, and a bare line is the palette's.
+test("the note is the text, and nothing when there is none", () => {
+  // A capture is a title and a note now (ruled, human 2026-08-23). It used to
+  // take a `url` as well, kept under the note as a markdown autolink, and a
+  // `props` map of the named facts a client already knew — both gone, along with
+  // the encoding rule the autolink needed and the guard the props map made
+  // necessary. What is left has one shape and no cases.
   expect([
-    noteOf({ title: "a page", url: "https://example.com/a" }),
     noteOf({ title: "a thought", text: "just this" }),
-    noteOf({ title: "both", text: "worth a reply", url: "message://x" }),
     noteOf({ title: "buy milk" }),
-  ]).toEqual([
-    "<https://example.com/a>",
-    "just this",
-    // The comment, then the pointer, as its own paragraph.
-    "worth a reply\n\n<message://x>",
-    undefined,
-  ])
-})
-
-/**
- * THE ADDRESS SURVIVES BEING PUT IN A LINK — the review finding, as the case
- * that produced it.
- *
- * A `Message-Id` is conventionally written in angle brackets, and the Mail
- * recipe's own prose says `message://<Message-Id>`. Those are the characters a
- * markdown autolink is DELIMITED by, so the pointer used to close the link at
- * its first `<` — and what reached the page was not a broken link but a wrong
- * one: the remains parsed as a GFM email autolink and drew
- * `mailto:abc@mail.example`, a live link composing a new message to an address
- * nobody has.
- */
-test("an address a URI may not carry is encoded, and one already encoded is not", () => {
-  for (
-    const [sent, held] of [
-      // The spelling the docs use, and the bug.
-      ["message://<abc@mail.example>", "message://%3Cabc@mail.example%3E"],
-      // …and the spelling a careful client already writes, NOT encoded a
-      // second time: `%` is deliberately left alone.
-      ["message://%3Cabc@mail.example%3E", "message://%3Cabc@mail.example%3E"],
-      // A space is illegal in a URI too, and truncated the link before.
-      ["https://example.com/a b", "https://example.com/a%20b"],
-      // Everything legal survives byte for byte, so a client can compare what
-      // it sent with what came back.
-      ["https://example.com/a?x=1&y=2#z", "https://example.com/a?x=1&y=2#z"],
-    ] as const
-  ) {
-    expect([sent, linkable(sent)]).toEqual([sent, held])
-    expect([sent, noteOf({ title: sent, url: sent })]).toEqual([sent, `<${held}>`])
-  }
+    // An empty note is no note, so the row has no `desc` rather than a blank one.
+    noteOf({ title: "buy milk", text: "" }),
+  ]).toEqual(["just this", undefined, undefined])
 })
 
 test("the identity the door has is written on, and the capture is dated", () => {
-  const made = capturingOf(
-    { ...POSTED, props: { from: "joinery@example.com" } },
-    "someone@example.com",
-    "2026-08-23T09:41:00+05:30",
-  )
-  expect(Result.isSuccess(made)).toBe(true)
-  if (!Result.isSuccess(made)) return
-  expect(made.success).toEqual({
+  expect(
+    capturingOf(POSTED, "someone@example.com", "2026-08-23T09:41:00+05:30"),
+  ).toEqual({
     title: "the thread about cabinets",
     date: "2026-08-23T09:41:00+05:30",
-    // The client's facts, plus the one the door supplies and no client may.
-    props: { from: "joinery@example.com", [CAPTURED_BY]: "someone@example.com" },
+    // The one property a capture carries, and the door is the only thing that
+    // can supply it.
+    props: { [CAPTURED_BY]: "someone@example.com" },
   })
 })
 
@@ -291,33 +251,24 @@ test("a door that knows nobody writes no attribution, rather than a false one", 
   // The ruling read literally: the property is OMITTED when the door has no
   // identity, so `captured-by` means one thing wherever it appears — somebody
   // the door actually knew. A capture with none is honest; a capture
-  // attributed to a process is not.
+  // attributed to a process is not. And the key is absent rather than empty:
+  // `prop:captured-by` must not match a capture nobody was named on.
   const made = capturingOf(POSTED, null, "2026-08-23T09:41:00+05:30")
-  expect(Result.isSuccess(made) && made.success.props).toEqual({})
+  expect(made).toEqual({
+    title: "the thread about cabinets",
+    date: "2026-08-23T09:41:00+05:30",
+  })
+  expect(Object.hasOwn(made, "props")).toBe(false)
 })
 
-test("a client may not say who captured this", () => {
-  // Refused rather than quietly overruled: a capture that succeeds after its
-  // attribution was rewritten is a client told it was recorded as sent.
-  const sent = capturingOf(
-    { ...POSTED, props: { [CAPTURED_BY]: "someone@else" } },
-    "me@example.com",
-    "2026-08-23T09:41:00+05:30",
-  )
-  expect(Result.isFailure(sent)).toBe(true)
-  if (Result.isFailure(sent)) {
-    expect(sent.failure._tag).toBe("UsageFailure")
-    expect(sent.failure.reason).toContain(CAPTURED_BY)
-  }
-
-  // …and a key that is only the same key AFTER the planner trims it is the
-  // same refusal, which is the review finding: an exact comparison succeeded
-  // here and then dropped the client's value on the merge, which is "recorded
-  // exactly as sent" for a capture that was not.
-  const padded = capturingOf(
-    { ...POSTED, props: { [`${CAPTURED_BY} `]: "someone@else" } },
-    "me@example.com",
-    "2026-08-23T09:41:00+05:30",
-  )
-  expect(Result.isFailure(padded)).toBe(true)
+test("a client CANNOT say who captured this — there is nowhere to say it", () => {
+  // This used to be a guard: a check that the props map did not carry
+  // `captured-by`, sitting one line from the merge that would have overruled it,
+  // and a second case for a key that was only the same key after the write
+  // planner trimmed it. Both are gone with the map itself, which is the
+  // stronger arrangement — a rule that cannot be broken rather than one
+  // enforced. Asserted on the SCHEMA, because that is where the fact now lives.
+  const fields = Object.keys(CaptureRequest.fields)
+  expect(fields).toEqual(["title", "text"])
+  expect(fields).not.toContain("props")
 })

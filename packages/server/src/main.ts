@@ -35,9 +35,8 @@
  */
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
-import * as os from "node:os"
-import { getRuntimeSocketPath } from "@kolu/surface/unix-socket"
-import { reportingRunEdge, surfaceCommands } from "@kolu/surface-cli"
+import { reportingRunEdge, surfaceCommands, surfaceHelp } from "@kolu/surface-cli"
+import { addressOf, printAddress } from "@olai/format"
 import { identityConfig } from "@olai/identity"
 import { TOOLS } from "@olai/ops"
 import { surface } from "@olai/surface"
@@ -49,29 +48,9 @@ import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
 import { dialOlai, endpointFlags } from "./dial.ts"
 import { MCP } from "./faces.ts"
-import { bespokeFrom } from "./mcp/tools.ts"
+import { remoteFrom } from "./mcp/tools.ts"
 import { gitFlags, gitPin } from "./gitPolicy.ts"
 import { serve } from "./serve.ts"
-
-/**
- * Where the agent socket goes, from what `--socket` said.
- *
- * UNSET IS THE CONVENTION, not a default somebody has to know:
- * `$XDG_RUNTIME_DIR/olai/surface.sock` (else `/tmp/olai-$UID/…`), which is the
- * same path `olai surface` walks to last. That is what makes the CLI work with
- * no configuration and no flag on either side — the two ends agree because
- * neither one chose.
- *
- * `off` BINDS NONE, and it is a word rather than an absent flag because absent
- * already means the convention. A serve with no socket is the honest shape for
- * a second worktree that wants the page without fighting the user service for
- * the one path, and for anywhere a stray socket would be a surprise.
- */
-const socketFor = (flag: Option.Option<string>): string | null => {
-  const said = Option.getOrUndefined(flag)
-  if (said === "off") return null
-  return getRuntimeSocketPath({ app: "olai", file: "surface.sock", override: said })
-}
 
 /** The directory of outlines the server operates on. */
 const directory = Argument.directory("directory", { mustExist: true }).pipe(
@@ -104,14 +83,8 @@ const web = Command.make("web", {
     ),
     Flag.withDefault("127.0.0.1"),
   ),
-  socket: Flag.string("socket").pipe(
-    Flag.withDescription(
-      "path for the agent socket `olai surface` dials; the per-user runtime path by default, and `off` to bind none",
-    ),
-    Flag.optional,
-  ),
   ...webGit,
-}, ({ commits, directory, host, noCommit, port, pushes, socket }) =>
+}, ({ commits, directory, host, noCommit, port, pushes }) =>
   Effect.gen(function*() {
     const faulted = yield* serve({
       root: directory,
@@ -121,7 +94,6 @@ const web = Command.make("web", {
       clientDist: yield* clientDist,
       allowedOrigins: allowedOrigins(),
       identity: identityConfig(),
-      socketPath: socketFor(socket),
     })
     // Wait to be interrupted — or for the surface runtime to fault, which is
     // the one thing that stops a healthy server on its own. Either way the
@@ -141,6 +113,134 @@ const web = Command.make("web", {
     ),
   )
 
+/** The verbs that only ANSWER — the four query tools, the two document reads,
+ *  and this face's own three readers. Spelled out because "read" is a fact
+ *  about what a verb MEANS rather than about its `kind`: `list` and `keys` are
+ *  the projection's, not the table's, and they belong on the page beside the
+ *  reads they resemble. */
+const READING = [
+  "get",
+  "keys",
+  "list",
+  "list_outlines",
+  "read_node",
+  "read_subtree",
+  "list_documents",
+  "read_document",
+] as const
+
+/** Everything else the table offers, alphabetically — see the group's comment. */
+const writing = (): ReadonlyArray<string> =>
+  TOOLS.map((tool) => tool.name)
+    .filter((name) => name !== "capture" && name !== "search_nodes")
+    .filter((name) => !(READING as ReadonlyArray<string>).includes(name))
+    .sort((a, b) => a.localeCompare(b))
+
+/**
+ * THE HELP PAGE'S WORDING — olai's half of it.
+ *
+ * The layout is `@kolu/surface-cli`'s, so every surface client's `--help` has
+ * the same shape; what only this app can write is what its verbs are FOR. This
+ * is also the documentation: there is no `docs/surface.md`, deliberately (ruled,
+ * human 2026-08-23) — a page beside a binary is a page that goes stale, and the
+ * one thing a person always has to hand is `--help`.
+ *
+ * The groups are what a person came to do, not how the ops layer is built:
+ * capture first because it is the reason most people type this at all, then
+ * reading, then finding, then everything that changes the vault.
+ */
+const HELP = {
+  command: "surface",
+  purpose:
+    "Call any verb of a running olai from a terminal — the same verbs an agent has, against the vault --url names.",
+  groups: [
+    { title: "Capture", verbs: ["capture"] },
+    { title: "Read", verbs: READING },
+    { title: "Search", verbs: ["search_nodes"] },
+    // DERIVED, and the only group that is: everything the table offers that is
+    // not one of the three above changes the vault, and there are twenty-odd of
+    // them. Listing those by hand would be a second copy of the table — the one
+    // place that stops being true the day a tool is added, which is exactly the
+    // silence "a verb added to the table is a verb here with no code written"
+    // exists to avoid.
+    { title: "Write", verbs: writing() },
+  ],
+  examples: {
+    capture: 'capture "look into the new cabinets" --text "the brass ones"',
+    read_node: "read_node a1b2c3",
+    search_nodes: "search_nodes --text 'is:todo prop:pr'",
+    get: "get outlines _olai/Inbox.olai",
+    list_outlines: "list_outlines",
+  },
+  flags: [
+    {
+      spelling: "--url <server>",
+      description:
+        "the olai to call — the address a browser opens (required; there is no default, and no remembered vault)",
+    },
+  ],
+  answer: [
+    "Answers go to stdout as JSON; a refusal goes to stderr, also as JSON, on exit 1.",
+    "Exit 2 is a command that was wrong and never left this process, 3 is nothing serving at --url, 130 is Ctrl-C.",
+    "Locally the server admits loopback with no credential; through a reverse proxy the login it injects is the",
+    "authentication, and is what a capture is recorded as. Off loopback and with no proxy, set $OLAI_TOKEN.",
+  ].join("\n"),
+}
+
+/**
+ * WHAT A WRITE SAYS, in one line a person can act on.
+ *
+ * The answer underneath is the ops layer's `Applied` — id, title, file,
+ * summary, sort, captured, rev, why, did — which is the right record for an
+ * agent and the wrong one for a terminal: nine fields, of which none is a thing
+ * you can open. So a write says where it landed and gives the address of the row
+ * it made, and `--json` hands over the record whole for anything that wants it
+ * (ruled, human 2026-08-23; the flag decides, never the terminal).
+ *
+ * THE VAULT IS NAMED because not naming it is what made the reverted design
+ * dangerous: a capture that went to the wrong directory answered exactly like
+ * one that went to the right one. `root` comes off the answer — the server
+ * stamped it, so it cannot be this side's guess — and `url` is what this side
+ * dialled, which is the half the server cannot know behind a proxy.
+ */
+const wrote = (out: unknown): string => {
+  const said = out as {
+    readonly did?: string
+    readonly root?: string
+    readonly url?: string
+    readonly file?: string
+    readonly id?: string
+  }
+  // "captured into" for the verb the whole door was built around, and the verb's
+  // own name for every other write — rather than one sentence bent to fit them
+  // all, or a table of past tenses this file would have to keep.
+  const what = said.did === "capture" ? "captured into" : `${said.did ?? "wrote"} in`
+  const where = said.root ?? "the vault"
+  const at = rowAt(said)
+  return at === null ? `${what} ${where}` : `${what} ${where} — ${at}`
+}
+
+/** The URL of the row a write made, or `null` for a write that made no row
+ *  (`commit`, `push`, `empty_trash`).
+ *
+ *  Built through `@olai/format`'s own address grammar rather than by joining
+ *  strings here: which half of `<file>#<id>` a node's address writes, and what
+ *  needs escaping in each, is that module's rule and has one home. A row whose
+ *  file is not known is still addressable by id alone, which is what the node
+ *  arm of that grammar is. */
+const rowAt = (said: { readonly file?: string; readonly id?: string; readonly url?: string }): string | null => {
+  if (said.url === undefined || said.id === undefined) return null
+  const address = addressOf(said.file ?? null, said.id)
+  if (address === null) return null
+  try {
+    return new URL(`/${printAddress(address)}`, said.url).toString()
+  } catch {
+    // A `--url` that parsed well enough to dial but not to build on. The line is
+    // still worth printing without it.
+    return null
+  }
+}
+
 /**
  * `olai surface <verb>` — the projection.
  *
@@ -149,46 +249,58 @@ const web = Command.make("web", {
  *
  * `expose: MCP` is the RESOURCES half — the same read-only map the agent face
  * publishes, so `olai surface get outlines <path>` reads what an agent reads.
- * `verbs` is the tool table itself, projected by the same `bespokeFrom` the MCP
- * face is handed, which is what keeps `capture` one verb with one schema rather
- * than two spellings of it.
+ * `verbs` is the tool table itself, so `capture` is one verb with one schema
+ * rather than two spellings of it.
+ *
+ * **`remoteFrom`, and not `bespokeFrom`, is the whole difference between this
+ * and the server.** Both project the same table under the same names; the
+ * server's handlers RUN each verb, and these CALL it — one MCP `tools/call` on
+ * the connection `./dial.ts` opened. So the verb executes over there, under the
+ * gate over there, with the identity over there. That is what makes
+ * `captured-by` an attribution instead of a claim: this process could compose a
+ * capture naming anybody, and a caller who could name anybody is a caller whose
+ * `prop:captured-by=…` means nothing (ruled, human 2026-08-23 — "never
+ * caller-set"). It also means there is no second implementation of a verb to
+ * keep in step, and no writer to bind here.
  *
  * `annotate` is CLI-only ergonomics, keyed by verb name and BESIDE the table
  * rather than inside it: a scalar-ish argument reads better as a position than
  * as a flag (`olai surface read_node a1b2c3`), and that is a fact about argv
- * which the MCP face has no use for.
- *
- * THE IDENTITY IS THE OS USER, and it is passed HERE because this is where the
- * verbs are composed: a bespoke verb's handler runs in the process that CALLS
- * it, so for `olai surface` that is this one. It is still "the identity the
- * door has" and not a claim a caller invented (the ruling, human 2026-08-22),
- * because of what the door IS: a `0700` per-user socket admits only the account
- * that owns it, so the user on this side and the user on that side are the same
- * account by construction — and that account can already write those files
- * directly. Nothing is being trusted across a privilege boundary, because there
- * is no boundary here to cross. The faces that know NOBODY — `/mcp` and the
- * in-process panel, both composed in `serve.ts` — pass nothing and their
- * captures carry no attribution, which is the honest answer rather than a
- * made-up one.
+ * which the MCP face has no use for. The `render` on every WRITE is the same
+ * kind of fact — a line a person can act on, in place of the ops layer's
+ * `Applied` record, which is nine fields of which none is a thing to click.
  */
+const surfaceCli = {
+  surface,
+  expose: MCP,
+  verbs: remoteFrom(TOOLS),
+  endpoint: {
+    flags: endpointFlags,
+    resolve: dialOlai,
+    // The door is `/mcp`, which answers one POST with one frame and pushes
+    // nothing — so `watch` and `--follow` are not mounted at all rather than
+    // offered and then always failing (`./dial.ts`).
+    streaming: false,
+  },
+  annotate: {
+    // Every verb that WRITES gets the one-line summary, derived from the table
+    // rather than listed here: a tool added to `TOOLS` is a verb here with no
+    // code written for it, and a hand-kept list of writes would be the one place
+    // that stopped being true.
+    ...Object.fromEntries(
+      TOOLS.filter((tool) => tool.kind !== "read").map((tool) => [tool.name, { render: wrote }]),
+    ),
+    capture: { positional: ["title"], render: wrote },
+    read_node: { positional: ["id"] },
+    read_subtree: { positional: ["id"] },
+  },
+  help: HELP,
+  info: { name: "olai" },
+} as const
+
 const surfaceCmd = Command.make("surface").pipe(
-  Command.withDescription(
-    "call any verb of the running server's surface — the same verbs an agent has",
-  ),
-  Command.withSubcommands([
-    ...surfaceCommands({
-      surface,
-      expose: MCP,
-      verbs: bespokeFrom(TOOLS, os.userInfo().username),
-      endpoint: { flags: endpointFlags, resolve: dialOlai },
-      annotate: {
-        capture: { positional: ["title"] },
-        read_node: { positional: ["id"] },
-        read_subtree: { positional: ["id"] },
-      },
-      info: { name: "olai" },
-    }),
-  ]),
+  Command.withDescription(surfaceHelp(surfaceCli)),
+  Command.withSubcommands([...surfaceCommands(surfaceCli)]),
 )
 
 const olai = Command.make("olai").pipe(

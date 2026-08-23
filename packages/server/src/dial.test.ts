@@ -1,135 +1,93 @@
 /**
- * THE LADDER `olai surface` WALKS to find a server.
+ * WHERE `olai surface` GOES, given what somebody typed.
  *
- * Four rungs, and the e2e pins only one of them (`$OLAI_SOCKET`, because that
- * is the rung a harness can hand a path on). The other three decide what
- * happens for a person who types nothing at all — which is the ordinary case,
- * and the one where getting it wrong writes into the WRONG DIRECTORY rather
- * than failing: a CLI run inside a checkout that fell through to the per-user
- * socket would capture into the user service's vault, silently and correctly
- * as far as any exit code is concerned.
+ * This used to be a test of a four-rung ladder: a flag, an environment
+ * variable, a socket file found by walking up from the working directory, and a
+ * per-user path both ends agreed on because neither chose it. That design is
+ * gone, and the reason it is gone is the reason these cases are worth having at
+ * all — a resolution that can INFER a vault can infer the wrong one, and the
+ * failure mode is not an error. It is a capture that lands somewhere else and
+ * answers exactly like a capture that did not.
  *
- * So the order is the unit under test, over a temp tree, with the environment
- * and the working directory as the inputs they really are.
+ * So what is pinned now is the absence of inference, and the one derivation
+ * that is left: from the address a person typed to the door this client
+ * speaks to.
  */
 
 import { expect, test } from "bun:test"
-import { Effect, Option } from "effect"
-import * as fs from "node:fs"
-import * as os from "node:os"
-import * as path from "node:path"
+import { Effect } from "effect"
 
 import { dialOlai } from "./dial.ts"
+import { mcpUrl } from "./mcpClient.ts"
+import { MCP_PATH } from "./mcp/route.ts"
 
-/** Where `dialOlai` says it would go, for a given flag / env / cwd. */
-const resolvedTo = async (
-  values: { readonly socket?: string },
-  env: Readonly<Record<string, string | undefined>>,
-  cwd: string,
-): Promise<string> => {
-  const held = { OLAI_SOCKET: process.env["OLAI_SOCKET"], XDG_RUNTIME_DIR: process.env["XDG_RUNTIME_DIR"] }
-  const wasAt = process.cwd()
+/** What `dialOlai` says it would dial, for a given `--url`. */
+const resolvedTo = async (url: string): Promise<string> => {
+  const endpoint = await Effect.runPromise(dialOlai({ url }))
+  return endpoint.where
+}
+
+test("reports the endpoint as the user spelled it, not as it derived it", async () => {
+  // `where` is what a failed dial NAMES, and the thing a person can act on is
+  // the string they typed — `no surface at https://vault.example` sends them to
+  // check that address, where `no surface at https://vault.example/mcp` invites
+  // them to wonder what `/mcp` is and whether they were meant to type it.
+  expect(await resolvedTo("https://vault.example")).toBe("https://vault.example")
+  expect(await resolvedTo("http://127.0.0.1:7714/")).toBe("http://127.0.0.1:7714/")
+})
+
+test("reads NOTHING but the flag — no environment, no walk, no remembered vault", async () => {
+  // The whole of the reverted design, asserted as an absence. Every variable
+  // below is one the previous ladder read, and a resolution that consulted any
+  // of them could send a write somewhere the caller did not name.
+  const held = {
+    OLAI_SOCKET: process.env["OLAI_SOCKET"],
+    OLAI_URL: process.env["OLAI_URL"],
+    XDG_RUNTIME_DIR: process.env["XDG_RUNTIME_DIR"],
+  }
   try {
-    for (const [key, value] of Object.entries(env)) {
-      if (value === undefined) delete process.env[key]
-      else process.env[key] = value
-    }
-    process.chdir(cwd)
-    const endpoint = await Effect.runPromise(
-      dialOlai({
-        socket: values.socket === undefined ? Option.none() : Option.some(values.socket),
-      }),
-    )
-    return endpoint.where
+    process.env["OLAI_SOCKET"] = "/tmp/somebody-elses.sock"
+    process.env["OLAI_URL"] = "http://elsewhere.invalid"
+    process.env["XDG_RUNTIME_DIR"] = "/tmp/olai-dial-runtime"
+    expect(await resolvedTo("http://127.0.0.1:7714")).toBe("http://127.0.0.1:7714")
   } finally {
-    process.chdir(wasAt)
     for (const [key, value] of Object.entries(held)) {
       if (value === undefined) delete process.env[key]
       else process.env[key] = value
     }
   }
-}
-
-/** A checkout with a dev socket in it, and a directory well below that. */
-const treeWithDevSocket = (): { readonly root: string; readonly deep: string } => {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-dial-")))
-  fs.mkdirSync(path.join(root, ".olai-dev"), { recursive: true })
-  fs.writeFileSync(path.join(root, ".olai-dev", "surface.sock"), "")
-  const deep = path.join(root, "packages", "server", "src")
-  fs.mkdirSync(deep, { recursive: true })
-  return { root, deep }
-}
-
-test("`--socket` wins over everything, because somebody typed it", async () => {
-  const { root, deep } = treeWithDevSocket()
-  try {
-    expect(
-      await resolvedTo(
-        { socket: "/tmp/typed.sock" },
-        { OLAI_SOCKET: "/tmp/from-env.sock", XDG_RUNTIME_DIR: "/tmp/run" },
-        deep,
-      ),
-    ).toBe("/tmp/typed.sock")
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true })
-  }
 })
 
-test("…then `$OLAI_SOCKET`, which is the same choice made once for a shell", async () => {
-  const { root, deep } = treeWithDevSocket()
-  try {
-    // The dev socket is RIGHT THERE and is still not taken: an explicit choice
-    // in the environment is a choice, and a file found by walking is not.
-    expect(
-      await resolvedTo({}, { OLAI_SOCKET: "/tmp/from-env.sock", XDG_RUNTIME_DIR: "/tmp/run" }, deep),
-    ).toBe("/tmp/from-env.sock")
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true })
-  }
+test("finds `/mcp` from a bare origin, a trailing slash, or a mounted path", () => {
+  // One door, spelled however a person happens to spell the address of it. The
+  // last case is a server behind a reverse proxy that mounts it under a prefix,
+  // which is exactly the deployment the remote story is about.
+  expect(mcpUrl("http://127.0.0.1:7714")).toBe("http://127.0.0.1:7714/mcp")
+  expect(mcpUrl("http://127.0.0.1:7714/")).toBe("http://127.0.0.1:7714/mcp")
+  expect(mcpUrl("https://vault.example/")).toBe("https://vault.example/mcp")
+  expect(mcpUrl("https://vault.example/anything")).toBe("https://vault.example/mcp")
 })
 
-test("…then a worktree's own socket, found by walking UP from the cwd", async () => {
-  const { root, deep } = treeWithDevSocket()
-  try {
-    // Asked from three directories DOWN, which is where a person actually runs
-    // it — this is the rung that makes a checkout talk to its own server, and
-    // the one whose absence would send the write to the user service's vault.
-    expect(await resolvedTo({}, { OLAI_SOCKET: undefined, XDG_RUNTIME_DIR: "/tmp/run" }, deep))
-      .toBe(path.join(root, ".olai-dev", "surface.sock"))
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true })
-  }
+test("the path it derives is the path the route is mounted at", () => {
+  // The client spells `/mcp` itself rather than importing it from the route,
+  // because that module pulls the MCP SDK into every `olai surface` invocation
+  // including the ones that dial nothing. This is the pin that keeps the two
+  // spellings one fact.
+  expect(mcpUrl("http://x.invalid")).toBe(`http://x.invalid${MCP_PATH}`)
 })
 
-test("…and otherwise the per-user runtime socket, which nobody had to configure", async () => {
-  // No flag, no env, and a directory that is not a checkout: the convention
-  // `olai web` binds with no flag on its side either. That the two agree is the
-  // whole reason the CLI works out of the box, so the path is asserted rather
-  // than merely "something under the runtime dir".
-  const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-nodev-")))
-  const run = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-run-")))
-  try {
-    expect(await resolvedTo({}, { OLAI_SOCKET: undefined, XDG_RUNTIME_DIR: run }, outside))
-      .toBe(path.join(run, "olai", "surface.sock"))
-  } finally {
-    fs.rmSync(outside, { recursive: true, force: true })
-    fs.rmSync(run, { recursive: true, force: true })
-  }
+test("refuses an address that is not one, before anything is dialled", () => {
+  // Named for the FLAG, because that is what the reader has to change. A
+  // sentence about URL parsing would leave them looking at the verb.
+  expect(() => mcpUrl("127.0.0.1:7714")).toThrow(/--url/)
+  expect(() => mcpUrl("")).toThrow(/--url/)
 })
 
-test("a dev socket is taken on EXISTENCE, never on liveness", async () => {
-  // The file left behind by a dead server still wins, deliberately: what a
-  // caller gets then is "nobody serving at <that path>", which is the useful
-  // sentence. Probing here would fall through to the user service instead, and
-  // a write that lands in the wrong directory is far worse than one refused.
-  const { root, deep } = treeWithDevSocket()
-  const run = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-run-")))
-  try {
-    // Nothing is listening on it — it is an empty regular file.
-    expect(await resolvedTo({}, { OLAI_SOCKET: undefined, XDG_RUNTIME_DIR: run }, deep))
-      .toBe(path.join(root, ".olai-dev", "surface.sock"))
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true })
-    fs.rmSync(run, { recursive: true, force: true })
-  }
+test("refuses a scheme this client cannot speak, naming what --url is for", () => {
+  // `file:` and `ws:` both parse as URLs, so the scheme is a second question and
+  // not the same one. A `ws://` in particular is the shape somebody would reach
+  // for by analogy with the browser's socket — which is a different face
+  // entirely, and one this door is deliberately not.
+  expect(() => mcpUrl("file:///home/srid/vault")).toThrow(/olai web/)
+  expect(() => mcpUrl("ws://127.0.0.1:7714")).toThrow(/olai web/)
 })

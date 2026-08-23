@@ -822,7 +822,6 @@ export {
   capturingOf,
   InboxHeld,
   inboxHeldOf,
-  linkable,
   NO_INBOX,
   noteOf,
   sameInboxHeld,

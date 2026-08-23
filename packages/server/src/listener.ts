@@ -161,7 +161,7 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     //
     // There were five. `POST /capture` was a bespoke door for ONE verb, built
     // because `/mcp`'s per-process bearer left a terminal no way in; `capture`
-    // is a tool on the surface now and the terminal dials the agent socket, so
+    // is a tool on the surface now and the terminal speaks MCP at this route, so
     // the door has no reason to exist and nothing replaced it. MERGED rather
     // than ordered —
     // `HttpRouter` ranks by specificity, so each of those beats the shell's

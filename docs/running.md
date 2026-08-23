@@ -76,7 +76,7 @@ OLAI_IDENTITY_PICTURE_HEADER=            # Authelia sends none — empty is off,
                                          # could send (see Trust, below)
 ```
 
-Each variable unset is the Tailscale name in the table's first row (`OLAI_IDENTITY_EMAIL_HEADER` unset is the *login* header, since that is what a Tailscale login often is); each one **empty** turns that claim off. The login is the only one that makes somebody present — the rest are claims about them, and any of them may be missing. That reading is the chip's. A capture's `captured-by` is a different question and is answered by whichever door took it — the OS user on the agent socket, and nobody at all on `/mcp` (below).
+Each variable unset is the Tailscale name in the table's first row (`OLAI_IDENTITY_EMAIL_HEADER` unset is the *login* header, since that is what a Tailscale login often is); each one **empty** turns that claim off. The login is the only one that makes somebody present — the rest are claims about them, and any of them may be missing. That reading is the chip's. A capture's `captured-by` is the login these same headers name, on whichever request took it — and nobody at all on a direct loopback call, where there is no proxy to name anybody (below).
 
 #### The picture, and where it comes from
 
@@ -237,7 +237,7 @@ Any MCP client — a coding agent in a terminal, working in the same directory �
 
 Unattended agent runs need the server up. The user service is the one brain; `just run` is a worktree's own.
 
-There is no second writer, and there never will be — one process opens the directory and every write goes through it. The write surfaces are a page, an HTTP POST at `/mcp`, and `olai surface` on the agent socket; they are three clients of one server, over one ops layer. `olai surface` is one of those clients, not a second writer: it dials a running `olai web` and sends the same verbs an agent sends.
+There is no second writer, and there never will be — one process opens the directory and every write goes through it. The write surfaces are a page and `/mcp`; a terminal is a client of the second one, not a third door. `olai surface` opens no directory — it speaks MCP to a running `olai web` and sends the same verbs an agent sends.
 
 ## Quick capture, from a terminal
 
@@ -246,54 +246,64 @@ A thought that arrives while you are somewhere else — a terminal, a mail clien
 ```sh
 olai surface capture "look into the new cabinets" \
   --text "the joinery place off Main" \
-  --url https://example.com/cabinets
+  --url http://127.0.0.1:7714
 ```
 
-```json
-{"id":"a1b2c3","title":"look into the new cabinets","file":"_olai/Inbox.olai",
- "why":"waiting to be committed: writes accumulate under --commit=manual (the default) until the Commit button asks for one"}
+```
+captured into /home/srid/vault — http://127.0.0.1:7714/_olai/Inbox.olai#a1b2c3
 ```
 
-**Four fields, and no target.** `title` is the row (required, and the one argument that is positional). `--text` becomes the note. `--url` goes under it as a link — a markdown autolink, so a scheme markdown would not have linked for itself still lands as a link; the characters a URI may not carry (`<`, `>`, a space) are percent-encoded on the way in, and everything else survives byte for byte, so an address you already encoded is not encoded twice. `--props k=v` (repeatable) are named facts the capture is born with, exactly `add_node`'s ([format.md](format.md#properties)). There is no way to say *where* — a capture lands at the top level of the inbox, and where it belongs is a decision you make in the app afterwards, which is what an inbox is for.
+**A title and a note, and that is all it takes.** `title` is the row (required, and the one argument that is positional); `--text` becomes the note. There is no way to say *where* — a capture lands at the top level of the inbox, and where it belongs is a decision you make in the app afterwards, which is what an inbox is for. It carried a `--url` link field and a repeatable `--props k=v` once; both are gone for now, and `--url` means the server.
+
+**One line, and `--json` for the rest.** What a write prints is where it landed and the address of the row it made — the two things a person does something with. `--json` prints the whole record instead: the id, the file, the revision, why a commit is or is not waiting, and the `root` and `url` of the vault that answered. The flag decides and nothing else does, so a script gets the same answer in a pipe, in a CI log, and in front of you.
+
+**`--url` is required, on every call, with nothing underneath it.** No default, no environment variable, no remembered vault. That is the feature: an earlier design walked to a per-user socket path both ends agreed on because neither chose it, and a capture meant for one vault landed in another and answered exactly like a capture that had not. If you want a short spelling, make it an alias — then it is visibly your own choice.
 
 **It lands in the inbox the directory has**, wherever you keep one, and mints `_olai/Inbox.olai` when there is none — the same convention `⌘K` `+` follows, resolved on the server against the same reading the write is judged on ([editing.md](editing.md#quick-capture)). It is the same write as everything else: the same validation, the same all-or-none rename, the same `--commit` mode. A refused capture leaves nothing behind, not even the inbox it would have minted.
 
-**And it arrives dated**, so it is on the day's journal page as well as in the inbox — which is the half a capture made while nobody was looking actually needs. A date with no mark is an *occurrence*: it is on the day, and it is never overdue ([format.md](format.md#status)). The stamp is the local time with its offset written out, so it names one instant. The socket is a local door, so that clock is the vault's own machine.
+**And it arrives dated**, so it is on the day's journal page as well as in the inbox — which is the half a capture made while nobody was looking actually needs. A date with no mark is an *occurrence*: it is on the day, and it is never overdue ([format.md](format.md#status)). The stamp is written by the server, with its offset, so it names one instant on the vault's own clock.
 
-### Auth is the socket's mode
+### `olai surface --help` is the documentation
 
-There is no header and no token. `olai web` binds a **`0700` per-user socket** — `$XDG_RUNTIME_DIR/olai/surface.sock`, else `/tmp/olai-$UID/surface.sock` — and the file's mode is the whole gate: only the account that owns it can dial it, and somebody who can already write those files directly. `olai surface` walks to the same path with no flag on either side, so the two ends agree because neither one chose. `--socket` overrides it, `$OLAI_SOCKET` does the same for a shell, and a checkout's own `just run` binds `.olai-dev/surface.sock`, which the CLI finds by walking up — so running the CLI inside a worktree talks to that worktree's server.
-
-`captured-by` is written from **the identity the door has**, and omitted when it has none. On the socket that is the OS user, because a `0700` socket admits nobody else; over `/mcp` and in-process there is no identity at all, so a capture made by an agent simply carries no attribution rather than a made-up one. So `prop:captured-by=srid` finds what you captured from a terminal — and a client that tries to send that property itself is refused rather than quietly overruled.
-
-**`POST /capture` is gone.** It was ~550 lines re-deriving, for one verb, what the tool table gives every verb — a body schema, an identity rule, a CSRF gate, a status table and its own writer — and it existed only because `/mcp`'s per-process bearer left a terminal no way in. Nothing replaced it: there is no HTTP capture endpoint, and a phone captures through the web page (`⌘K` `+` on the tailnet) or through an MCP client.
-
-### Remote: ssh, because ssh is the authentication
-
-The socket is local by design. To capture into a vault on another machine, run the binary **there**:
+Every verb an agent has is a verb here, under the same name, with the same arguments and the same answers. `olai surface --help` lists them grouped by what they do, with an example each, and `olai surface <verb> --help` gives that verb's own flags. There is no separate page for it, deliberately: a page beside a binary is a page that goes stale, and the help is what you always have to hand.
 
 ```sh
-ssh vault-host olai surface capture "look into the new cabinets"
+olai surface --url http://127.0.0.1:7714 get outlines _olai/Inbox.olai
+olai surface --url http://127.0.0.1:7714 search_nodes --text 'is:todo prop:pr'
+olai surface list          # every verb and readable member, no server needed
 ```
 
-ssh is the authentication — no bearer to mint, nothing secret to paste into a share sheet, and no client to re-issue when a key rotates, which is the knot the old HTTP door was tied around. Note that `captured-by` is then the OS user **on the vault host**, since that is the identity that door has.
+Answers go to stdout as JSON; a refusal goes to stderr, also as JSON, on exit 1. Exit 2 is a command that was wrong and never left the process, 3 is nothing serving at `--url`, 130 is Ctrl-C. There is no SDK and there is not going to be one — `jq` is the client library.
 
-A `--url` flag would not help and is deliberately not offered: the websocket a browser uses serves the browser's face, which exposes neither the ops vocabulary every verb lands on nor the `outlines` collection, so it could not carry `capture` — or any other verb here.
+`watch` and `--follow` are not offered. The door this speaks to answers one request with one answer and pushes nothing, so there is no subscription to have; a page in a browser is what watches this vault change.
+
+### It is `/mcp`, and the auth is `/mcp`'s
+
+`olai surface` is not a second face. It speaks MCP over HTTP to the same `/mcp` an agent uses, on the same listener, admitted by the same rule — so who may call what is one decision with one place to read it, and nothing was widened for a terminal to exist.
+
+That rule is the one [Agents, over HTTP](#agents-over-http) describes: a request from `127.0.0.1` needs no credential, and one from anywhere else needs the server's bearer token, which you give this client as `$OLAI_TOKEN`. **Remotely, the reverse proxy in front is the authentication** — `tailscale serve`, Caddy with an auth proxy, Authelia — exactly as it is for the page:
+
+```sh
+olai surface --url https://olai.example.ts.net capture "look into the new cabinets"
+```
+
+`captured-by` is written from **the identity the door has**, and omitted when it has none. Behind a proxy that is the login it injects (`Tailscale-User-Login` and the family beside it, [Who is looking](#who-is-looking)); on a direct loopback call there is no identity at all, so the capture simply carries no attribution rather than a made-up one. So `prop:captured-by=srid@github` finds what you captured through the tailnet. A caller cannot send it: a capture takes a title and a note, so there is nowhere to put one.
+
+**`POST /capture` is gone.** It was ~550 lines re-deriving, for one verb, what the tool table gives every verb — a body schema, an identity rule, a CSRF gate, a status table and its own writer — and it existed only because `/mcp`'s per-process bearer left a terminal no way in. `capture` is one entry in that table now, so what an agent calls and what a terminal calls are one line of code. A phone captures through the web page (`⌘K` `+` on the tailnet) or through an MCP client.
 
 ### Client recipes
 
 None of these is a thing olai ships; each is a few lines somebody writes once.
 
-**Mail.app, via Raycast or a script (macOS).** The point of the mail case is that there is no mail infrastructure in it: AppleScript asks Mail for the selected message, and what olai keeps is the *pointer*. The message stays in Mail; the vault holds the link, your comment, and enough of the sender and subject to find it again.
+**Mail.app, via Raycast or a script (macOS).** The point of the mail case is that there is no mail infrastructure in it: AppleScript asks Mail for the selected message, and what olai keeps is what you would look for later — the subject, who it is from, and the `Message-Id`, in the note.
 
-One script, because the AppleScript values have to reach the shell — `osascript` prints them, tab-separated, and `read` takes them apart. `OLAI_HOST` is the machine the vault is on; leave it unset and the capture lands in the vault on this machine:
+One script, because the AppleScript values have to reach the shell — `osascript` prints them, tab-separated, and `read` takes them apart. `OLAI_URL` is the vault you are capturing into; it is a variable of your own, and the flag is what the binary reads:
 
 ```sh
 #!/usr/bin/env bash
 set -euo pipefail
 comment=${1:-}   # whatever you want to say about it; Raycast passes an argument
-# Unset: capture locally. Set: capture into the vault on that host, over ssh.
-olai=(olai); [ -n "${OLAI_HOST:-}" ] && olai=(ssh "$OLAI_HOST" olai)
+olai_url=${OLAI_URL:-https://olai.example.ts.net}
 
 IFS=$'\t' read -r mid subj who < <(osascript <<'APPLESCRIPT'
 tell application "Mail"
@@ -303,21 +313,22 @@ end tell
 APPLESCRIPT
 )
 
-"${olai[@]}" surface capture "$subj" \
-  --text "$comment" \
-  --url "message://<$mid>" \
-  --props "from=$who" \
-  --props "message-id=$mid"
+olai surface --url "$olai_url" capture "$subj" \
+  --text "$comment
+
+from: $who
+message-id: <$mid>
+message://<$mid>"
 ```
 
-The `message://<Message-Id>` link **is** the attachment. Write it exactly like that — a `Message-Id` is conventionally in angle brackets, and the characters a URI may not carry are percent-encoded before the address goes in the note. Clicking it in olai opens Mail at that message: the router hands any address that is not one of this app's to the browser, and the browser hands an unknown scheme to the OS.
+The `message://<Message-Id>` line **is** the attachment, and it is in the note because that is the one field a capture has for it. Clicking it in olai opens Mail at that message: the router hands any address that is not one of this app's to the browser, and the browser hands an unknown scheme to the OS — as long as the note's markdown made a link of it, which for a scheme GFM does not autolink means writing it inside `<`…`>` yourself.
 
-Sending the `Message-Id` as a property is what makes de-duplication one query — `olai surface search_nodes --text 'prop:message-id=<abc@mail>'` before you capture, and you know whether you have captured this thread already ([search.md](search.md)).
+Finding a thread again is `olai surface --url … search_nodes --text '"<abc@mail>"'` — the `Message-Id` is in the note, so the text search reaches it ([search.md](search.md)). It was a property once, which made that an exact-match query; a note is what there is now.
 
-**Known caveat:** `message:` links are solid on macOS. On iOS, third-party-composed ones do not always resolve. The subject and the sender in the capture are what keep it findable when the link does not open, which is why the recipe sends them rather than relying on the pointer alone.
+**Known caveat:** `message:` links are solid on macOS. On iOS, third-party-composed ones do not always resolve. The subject and the sender in the note are what keep it findable when the link does not open, which is why the recipe writes them rather than relying on the pointer alone.
 
-**A phone.** There is no door for one, and that is a decision rather than a gap: a phone cannot run this binary, and the alternatives — widening `/mcp`, or a second HTTP verb for the same call — were weighed and declined. Capture through the web page instead: `⌘K` then `+` on the tailnet, which is the same write ([editing.md](editing.md#quick-capture)). An MCP client on the phone is the other way in.
+**A phone.** There is no door for one, and that is a decision rather than a gap: a phone cannot run this binary. Capture through the web page instead: `⌘K` then `+` on the tailnet, which is the same write ([editing.md](editing.md#quick-capture)). An MCP client on the phone is the other way in.
 
-**Anything else, same verb.** A cron job, a script that notices something, a shell function. `olai surface --help` lists every verb the server offers; there is no SDK and there is not going to be one.
+**Anything else, same verb.** A cron job, a script that notices something, a shell function. `olai surface --help` lists every verb the server offers.
 
-**Files are not in this door yet** — a photo or a PDF is a separate piece of work, because writing binary into the vault is a path olai does not have (only chat attachments, which land in a tmp directory, and `.md` documents). Capture the link to it for now.
+**Files are not in this door yet** — a photo or a PDF is a separate piece of work, because writing binary into the vault is a path olai does not have (only chat attachments, which land in a tmp directory, and `.md` documents). Capture a link to it in the note for now.

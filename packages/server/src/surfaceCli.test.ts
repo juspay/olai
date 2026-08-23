@@ -38,38 +38,88 @@ const olai = async (
   }
 }
 
-test("a capture's title is a POSITION, and its other fields are flags", async () => {
+test("a capture's title is a POSITION, and a note is all else it takes", async () => {
   const { out } = await olai(["surface", "capture", "--help"])
   // The one CLI-only ergonomic this verb is annotated with: `olai surface
   // capture "…"` rather than `--title "…"`, because a title is the whole point
   // of the call and a flag would be ceremony around it.
   expect(out).toContain("[<title>]")
   expect(out).not.toContain("--title")
-  for (const flag of ["--text", "--url", "--props"]) expect(out).toContain(flag)
+  expect(out).toContain("--text")
+  // A capture is a title and a note (ruled, human 2026-08-23). The link field
+  // and the free props map are gone — and `--props` in particular cannot come
+  // back by accident, because it was the only way a caller could have named
+  // `captured-by` at all.
+  expect(out).not.toContain("--props")
 }, 30_000)
 
-test("the endpoint offers `--socket` and deliberately no `--url`", async () => {
+test("every verb takes `--url`, and there is no socket anywhere", async () => {
   // Asked of `list`, which takes NO input of its own — so every flag on it is
-  // the endpoint's, and `--url` appearing here could only be the endpoint's.
-  // (`capture` has a `--url` FIELD, which is a different thing entirely and is
-  // why this is not asked there.)
+  // the endpoint's or this face's, and nothing of the verb's can be mistaken
+  // for one.
   const { out } = await olai(["surface", "list", "--help"])
-  expect(out).toContain("--socket")
-  expect(out).not.toContain("--url")
+  expect(out).toContain("--url")
+  expect(out).not.toContain("--socket")
 }, 30_000)
 
-test("nothing serving is exit 3, and it names the path it tried", async () => {
-  // The arm a script branches on, and the one where the useful half is the
-  // PATH: "no surface" without saying where leaves a caller guessing which of
-  // four rungs was taken.
-  const nowhere = "/tmp/olai-surely-not-here.sock"
+test("naming no server is a usage error, and never a guess", async () => {
+  // THE WHOLE POINT OF THE FLAG BEING REQUIRED. The reverted design fell back
+  // to a per-user path when nobody said where, which is how a capture meant for
+  // one vault landed in another and answered exactly like a success. Exit 2:
+  // the command was wrong and never left this process.
+  const { code } = await olai(["surface", "keys", "outlines"])
+  expect(code).toBe(2)
+}, 30_000)
+
+test("nothing serving is exit 3, and it names the address it tried", async () => {
+  // The arm a script branches on, and the useful half is the ADDRESS as the
+  // caller spelled it — not the `/mcp` this client derived from it, which is a
+  // path they never typed and cannot act on.
+  const nowhere = "http://127.0.0.1:1"
   // `keys outlines` and not `list`: `list` is this face's own table, read off
   // the spec without dialling anything, so it answers 0 with no server at all —
   // which is right, and is why it cannot be the verb that tests the dial.
-  const { out, err, code } = await olai(["surface", "keys", "outlines"], { OLAI_SOCKET: nowhere })
+  const { out, err, code } = await olai(["surface", "keys", "outlines", "--url", nowhere])
   expect(code).toBe(3)
   expect(err).toContain(nowhere)
   expect(err).toContain("no surface at")
   // stdout is DATA, and a failure produced none.
   expect(out.trim()).toBe("")
+}, 30_000)
+
+test("`olai surface --help` is a page, not a dump of every verb", async () => {
+  // The human, on master after the first cut: "where the fuck are docs for the
+  // surface command?" — and right. There is no docs page for it (ruled): the
+  // help IS the doc, so it has to read like one.
+  const { out, code } = await olai(["surface", "--help"])
+  expect(code).toBe(0)
+  for (const said of [
+    // A purpose line…
+    "Call any verb of a running olai from a terminal",
+    // …the groups, in the order somebody reads them…
+    "Capture",
+    "Read",
+    "Search",
+    // …an example a person can paste…
+    'olai surface capture "look into the new cabinets"',
+    // …the two flags every verb takes, and where the answer goes.
+    "--url <server>",
+    "--json",
+    "Answers go to stdout as JSON",
+  ]) expect(out).toContain(said)
+  // And NOT the flat alphabetical listing the renderer would otherwise print
+  // under the page — two listings of one set, of which the flat one reads like
+  // the truth because the renderer wrote it.
+  expect(out).not.toContain("SUBCOMMANDS")
+}, 30_000)
+
+test("no `watch`, and no `--follow`, because the door pushes nothing", async () => {
+  // `/mcp` answers one POST with one frame and 405s the SSE half, so a
+  // subscription is not something this transport can carry. It is subtracted
+  // from the projection rather than offered and then always failing — a caller
+  // finds out what a face can do from `--help`.
+  const { code } = await olai(["surface", "watch", "outlines", "--url", "http://127.0.0.1:1"])
+  expect(code).toBe(2)
+  const { out } = await olai(["surface", "get", "--help"])
+  expect(out).not.toContain("--follow")
 }, 30_000)

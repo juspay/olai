@@ -51,8 +51,12 @@
 
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js"
 import type { JSONRPCMessage } from "@modelcontextprotocol/sdk/types.js"
+import type { IdentityConfig } from "@olai/identity"
 import { Effect, Layer, Option } from "effect"
 import { HttpRouter, type HttpServerRequest, HttpServerResponse } from "effect/unstable/http"
+import { AsyncLocalStorage } from "node:async_hooks"
+
+import { whoOf } from "../identity.ts"
 
 /** Where the route lives. Named once: `session/new` is told the same URL. */
 export const MCP_PATH = "/mcp"
@@ -151,6 +155,47 @@ class RouteTransport implements Transport {
 const isMessage = (body: unknown): boolean =>
   typeof body === "object" && body !== null && !Array.isArray(body)
 
+/**
+ * WHO THE REQUEST IS, for the length of the request.
+ *
+ * The face behind this route is built ONCE, at boot, with one transport and one
+ * set of handlers — which is right, and is why an agent's tool call costs no
+ * face rebuild. But a capture's `captured-by` is a fact about the REQUEST: the
+ * reverse proxy in front injects the login on each one, and two people can be
+ * behind the same proxy. So the login travels beside the request rather than
+ * bound into the face, and this is the channel.
+ *
+ * TWO THINGS MAKE IT RIGHT, and it is worth being precise about which does
+ * what, because the load-bearing one is the less obvious one.
+ *
+ * The first is that the login is READ SYNCHRONOUSLY, at the top of a handler,
+ * on the request's own stack — which is what {@link currentLogin} is for and
+ * what `bespokeFrom`'s `login` thunk does. A handler DESCRIBES its work as an
+ * Effect, and the Effect then runs on a scheduler this store makes no promises
+ * about; the construction happens before anything can yield to another request.
+ * That alone is what keeps two concurrent POSTs apart today.
+ *
+ * The second is the STORAGE, and it is here for what the first does not cover:
+ * a handler that reads the login later — after an await, inside an Effect — gets
+ * its own request's value rather than whichever request happened to be running.
+ * A module-level field would silently stop being correct the day somebody wrote
+ * that, and the failure would be a capture attributed to the wrong person:
+ * silent, permanent, and in a file. This makes "read it later" safe instead of a
+ * trap, which is a property worth paying an `AsyncLocalStorage` for.
+ *
+ * Measured rather than assumed: with the storage swapped for a plain field, the
+ * concurrency case in `./route.test.ts` still passes — because of the first
+ * reason. That case says so itself rather than claiming a proof it does not
+ * have.
+ */
+const WHOSE = new AsyncLocalStorage<string | null>()
+
+/** The login on the request being served, or `null` for a door that knows
+ *  nobody — a direct loopback call, a `just run` with no proxy in front. An
+ *  answer, not a gap: a capture with no attribution is honest, and one with an
+ *  invented attribution is not. */
+export const currentLogin = (): string | null => WHOSE.getStore() ?? null
+
 export interface Options {
   /** The transport the face is connected to, built by {@link mcpTransport} and
    *  driven here. One object for the lifetime of the process: it holds no
@@ -159,6 +204,11 @@ export interface Options {
   /** The bearer token a non-loopback request must present. Minted per process.
    *  Loopback may omit it; a request that carries it is accepted either way. */
   readonly token: string
+  /** Which headers name the person in front of the proxy — the operator's
+   *  configuration, read by the same {@link whoOf} the page and `GET /olai/who`
+   *  read. Here so that a write through this door can be attributed to whoever
+   *  the proxy says made it, and to nobody when it says nothing. */
+  readonly identity: IdentityConfig
 }
 
 /**
@@ -233,7 +283,14 @@ export const mcpRoute = (options: Options): Layer.Layer<never, never, HttpRouter
             }, { status: 400 }))
           }
 
-          const reply = yield* Effect.promise(() => options.transport.ask(body.success))
+          // The person on THIS request, for the length of THIS dispatch. Read
+          // off the same headers the page reads, by the same function, so a
+          // capture from a terminal and a chip in a browser cannot disagree
+          // about who is looking.
+          const who = whoOf(request.headers, options.identity)
+          const reply = yield* Effect.promise(() =>
+            WHOSE.run(who === null ? null : who.login, () => options.transport.ask(body.success))
+          )
           // A notification has no reply, and the transport says so with a 202
           // and an empty body rather than with a null JSON-RPC frame.
           return reply === null

@@ -67,9 +67,9 @@ type Door = Running & Asking & Acting
  * **It takes the face's IDENTITY, and nothing else about the face.** `capture`
  * records `captured-by` from the identity its door already has, omitting the
  * property when the door has none (ruled, human 2026-08-22) — so this is who
- * the face KNOWS, decided by the composition root that serves it: the OS user
- * on the `0700` unix socket, where the peer can only be the owner; nobody over
- * `/mcp` and nobody in this process, which is an answer and not a gap. It is a
+ * the face KNOWS, decided by the composition root that serves it: the login a
+ * reverse proxy injected on THIS request, and nobody at all on a direct
+ * loopback call or in this process, which is an answer and not a gap. It is a
  * parameter for the same reason the writer once was, and it is bound in the
  * same place — a tool that could name an identity could name the wrong one, and
  * an identity a CALLER could send would not be an attribution at all.
@@ -84,9 +84,135 @@ type Door = Running & Asking & Acting
  */
 export const bespokeFrom = (
   tools: ReadonlyArray<Tool>,
-  login: string | null = null,
+  at: Served,
 ): Record<string, BespokeTool> =>
-  Object.fromEntries(tools.map((tool) => [tool.name, bespoke(tool, login)]))
+  Object.fromEntries(
+    tools.map((
+      tool,
+    ) => [
+      tool.name,
+      verb(tool, (args, client) =>
+        Effect.map(
+          // READ HERE, synchronously, on the request's own stack — see
+          // `./route.ts`'s `WHOSE`. Deferring it into the Effect would read
+          // whichever request happened to be running when the scheduler got to
+          // it, which is a capture attributed to the wrong person.
+          answer(tool, doorFor(client as OlaiSurfaceClient), args, at.login()),
+          (said) => named(said, at.root),
+        )),
+    ]),
+  )
+
+/** What the FACE knows about itself — the two facts a tool's answer needs that
+ *  no caller may supply.
+ *
+ *  `login` is who the door knows (below); `root` is which directory this server
+ *  is serving, and it rides every answer out because "which vault answered" was
+ *  a question no answer could be asked. It is not a diagnostic nicety: a capture
+ *  meant for the human's own vault landed in a checkout's docs directory and the
+ *  reply looked exactly like a success, because nothing in it named the place
+ *  (2026-08-23). An agent gets it for the same reason a terminal does. */
+export interface Served {
+  /** The identity this door HAS, or nobody — see the note above.
+   *
+   *  A THUNK, and read at the top of each handler, because on `/mcp` the answer
+   *  is a fact about the REQUEST rather than about the face: the proxy injects a
+   *  login per request and two people can be behind one proxy
+   *  (`./route.ts`'s `currentLogin`). A face that knows nobody passes
+   *  `() => null`, which is a decision said out loud rather than an absence. */
+  readonly login: () => string | null
+  /** The absolute path of the directory this server is serving. */
+  readonly root: string
+}
+
+/**
+ * The SAME table, dispatched to a server instead of answered by one — what
+ * `olai surface <verb>` mounts.
+ *
+ * Every field a caller sees is the field `bespokeFrom` publishes: one name, one
+ * input schema, one description, one `mutates`. Only the handler differs, and it
+ * differs in the one way that matters — it does not RUN the verb, it CALLS it,
+ * as an MCP `tools/call` on the connection the projection handed it. So the verb
+ * executes on the server, under the server's own gate, with the server's own
+ * identity: a `capture` composed in the calling process could name any
+ * `captured-by` it liked, which is precisely what "never caller-set" forbids.
+ *
+ * The answer comes back already naming the vault's `root` — the server stamped
+ * it — and this adds the `url` the caller dialled, which is the half only this
+ * side knows: behind a reverse proxy a server cannot tell what address reached
+ * it.
+ */
+export const remoteFrom = (tools: ReadonlyArray<Tool>): Record<string, BespokeTool> =>
+  Object.fromEntries(
+    tools.map((tool) => [
+      tool.name,
+      verb(tool, (args, client) => {
+        const door = client as unknown as Dialled
+        return Effect.map(
+          Effect.tryPromise({
+            try: () => door.callTool(tool.name, args),
+            // The transport's own failures are already the two values the CLI's
+            // classifier reads (`../mcpClient.ts`) — a refusal on exit 1 with its
+            // structured detail, an unreachable door on exit 3 naming the URL —
+            // so they travel untouched rather than being re-worded here.
+            catch: (cause) => cause,
+          }),
+          (said) => at(said, door.url),
+        ) as Effect.Effect<unknown, ToolFailure>
+      }),
+    ]),
+  )
+
+/** What `remoteFrom`'s handlers need off the client the projection hands them —
+ *  the tool door and the address it was opened on. Declared here, where it is
+ *  read, and satisfied by `../dial.ts`'s shim. */
+interface Dialled {
+  readonly callTool: (name: string, args: unknown) => Promise<unknown>
+  readonly url: string
+}
+
+/** One row of the table, with its dispatch left open. Both faces build their
+ *  verbs through this, so the two cannot drift on what a verb is CALLED, what it
+ *  TAKES, or whether it is read-only — only on what calling it does. */
+const verb = (
+  tool: Tool,
+  run: (args: unknown, client: unknown) => Effect.Effect<unknown, ToolFailure>,
+): BespokeTool => {
+  // Built ONCE — it compiles a `Schema.Struct` — and read twice below, which is
+  // what the test for it is asking about.
+  const input = argsOf(tool)
+  return {
+    // Omitted rather than passed as `undefined` when the tool takes nothing —
+    // see {@link argsOf}. An absent `input` is what the adapter reads as "no
+    // arguments"; a present-but-empty schema is a different claim.
+    ...(input === undefined ? {} : { input }),
+    title: tool.title,
+    description: tool.description,
+    // Conservative where it matters and honest where it does not: only the four
+    // query tools are read-only, and `readOnlyHint` is what can let a host run a
+    // call unconfirmed. Everything else is left mutating.
+    mutates: tool.kind !== "read",
+    // The client the ADAPTER holds, not one this projection closed over — so a
+    // socket that dropped and was re-dialled is answered by the fresh one, and
+    // the tool surface never has to be rebuilt. Typed at this one seam, where
+    // `./face.ts` already keeps the framework-forced structural cast.
+    handler: (args, client) => run(args, client),
+  }
+}
+
+/** The served directory, on the answer. An object answer gains the key; anything
+ *  else is left alone rather than wrapped, because a wrapper would change the
+ *  shape of an answer to say something about the server. */
+const named = (said: unknown, root: string): unknown =>
+  isRecord(said) ? { ...said, root } : said
+
+/** The address this answer was fetched from, on the answer — the client's half
+ *  of the same fact. */
+const at = (said: unknown, url: string): unknown =>
+  isRecord(said) ? { ...said, url } : said
+
+const isRecord = (said: unknown): said is Record<string, unknown> =>
+  typeof said === "object" && said !== null && !Array.isArray(said)
 
 /**
  * The surface, as the three doors `@olai/ops`' arms are declared against.
@@ -157,29 +283,6 @@ const landed = <A>(call: Effect.Effect<A, unknown>): Effect.Effect<A, OpFailure>
     (failure) => isOpFailure(failure) ? Effect.fail(failure) : Effect.die(failure),
   )
 
-const bespoke = (tool: Tool, login: string | null): BespokeTool => {
-  // Built ONCE — it compiles a `Schema.Struct` — and read twice below, which is
-  // what the test for it is asking about.
-  const input = argsOf(tool)
-  return {
-    // Omitted rather than passed as `undefined` when the tool takes nothing —
-    // see {@link argsOf}. An absent `input` is what the adapter reads as "no
-    // arguments"; a present-but-empty schema is a different claim.
-    ...(input === undefined ? {} : { input }),
-    title: tool.title,
-    description: tool.description,
-    // Conservative where it matters and honest where it does not: only the four
-    // query tools are read-only, and `readOnlyHint` is what can let a host run a
-    // call unconfirmed. Everything else is left mutating.
-    mutates: tool.kind !== "read",
-    // The client the ADAPTER holds, not one this projection closed over — so a
-    // socket that dropped and was re-dialled is answered by the fresh one, and
-    // the tool surface never has to be rebuilt. Typed at this one seam, where
-    // `./face.ts` already keeps the framework-forced structural cast.
-    handler: (args, client) =>
-      answer(tool, doorFor(client as OlaiSurfaceClient), args, login),
-  }
-}
 
 /**
  * What an agent fills in: the request schema minus the fields the tool's NAME

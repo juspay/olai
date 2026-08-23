@@ -75,6 +75,9 @@ const ORPHAN = `{"id":"stray","parent":"kitchn","ord":"a0","title":"a lost row"}
 
 interface Fixture {
   readonly client: Client
+  /** The directory this face is serving. Every answer names it now, so a case
+   *  asserting a whole answer has to be able to name it too. */
+  readonly root: string
   readonly read: (file: string) => string | null
   readonly set: () => Promise<OutlineSet>
   /** Every write the ops layer refused, as `<op>: <tag>`. Collected at the OPS
@@ -167,7 +170,7 @@ const withTools = <A>(
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
     yield* serveFace({
       client: () => clientOver(writerAt(wired.bound, ops, "mcp")),
-      tools: bespokeFrom(TOOLS, login),
+      tools: bespokeFrom(TOOLS, { login: () => login, root }),
       transport: serverSide,
     })
 
@@ -180,6 +183,10 @@ const withTools = <A>(
       use({
         client,
         refusals,
+        // The directory this face is serving — handed to a case because every
+        // answer now carries it, so a case that asserts a whole answer has to be
+        // able to name it.
+        root,
         read: (file) => {
           const at = path.join(root, file)
           return fs.existsSync(at) ? fs.readFileSync(at, "utf8") : null
@@ -721,7 +728,7 @@ test("read_subtree refuses an outline the set could not load", async () => {
 })
 
 test("read_subtree refuses a call naming both ways in, or neither", async () => {
-  await withTools({ "plan.olai": PLAN }, async ({ client }) => {
+  await withTools({ "plan.olai": PLAN }, async ({ client, root }) => {
     // Two questions in one call: the schema an MCP host reads is an object with
     // properties rather than an `anyOf` it may or may not honour, so "exactly
     // one" is the reader's to say — in words that name which is which.
@@ -739,7 +746,10 @@ test("read_subtree refuses a call naming both ways in, or neither", async () => 
     // and carried around in prose; a path was listed or typed.
     const gone = await call(client, "read_subtree", { id: "nope" })
     expect(gone.isError).toBe(false)
-    expect(gone.structured).toEqual({ missing: "nope" })
+    // `root` on every answer, this one included: which vault answered is a fact
+    // about the ANSWER, not about the kind of answer, so an absence names its
+    // vault exactly as a hit does.
+    expect(gone.structured).toEqual({ missing: "nope", root })
   })
 })
 
@@ -818,7 +828,7 @@ test("list_documents is the map of the other kind of file", async () => {
 })
 
 test("read_document answers the text a write would replace", async () => {
-  await withTools(VAULT, async ({ client }) => {
+  await withTools(VAULT, async ({ client, root }) => {
     const answered = await call(client, "read_document", { file: "notes/cabinets.md" })
     expect(answered.isError).toBe(false)
     // Verbatim, blank lines and leading spaces included: what the listing
@@ -827,6 +837,9 @@ test("read_document answers the text a write would replace", async () => {
     expect(answered.structured).toEqual({
       file: "notes/cabinets.md",
       text: "\n\n  Walnut, or birch.\n",
+      // Which vault this text came out of — on every answer, so a reader can
+      // never be looking at the right document from the wrong directory.
+      root,
     })
   })
 })
@@ -2126,8 +2139,6 @@ test("a capture lands in a minted inbox, dated and attributed", async () => {
     const answered = await call(client, "capture", {
       title: "the thread about cabinets",
       text: "worth a reply",
-      url: "message://<abc123@mail.example>",
-      props: { from: "joinery@example.com", "message-id": "<abc123@mail.example>" },
     })
     expect(answered.isError).toBe(false)
     // The directory had never captured, so this write MINTED the inbox — the
@@ -2136,10 +2147,10 @@ test("a capture lands in a minted inbox, dated and attributed", async () => {
     expect(answered.structured["did"]).toBe("capture")
 
     const node = captured(await set(), "the thread about cabinets")
-    // The comment, then the pointer, as its own paragraph — a markdown
-    // autolink, because GFM would not have linked this scheme by itself, and
-    // the angle brackets a `Message-Id` carries are encoded so the link holds.
-    expect(node.desc ?? "").toBe("worth a reply\n\n<message://%3Cabc123@mail.example%3E>")
+    // The note is the text, verbatim, and nothing under it. The `url` field
+    // that used to add a markdown autolink below the comment is gone with the
+    // props map (ruled, human 2026-08-23) — a capture is a title and a note.
+    expect(node.desc ?? "").toBe("worth a reply")
     // DATED, which is the half a capture made while nobody was looking needs:
     // it is on the day's journal page as well as in the inbox.
     expect(typeof node.date).toBe("string")
@@ -2159,58 +2170,58 @@ test("…and into the inbox the directory already keeps, wherever that is", asyn
   )
 })
 
-test("an agent's door knows nobody, so the capture carries no attribution", async () => {
-  // `bespokeFrom(TOOLS)` with no identity is what this process serves over
-  // `/mcp` and to the in-process panel, and the ruling is that such a door omits
-  // the property rather than inventing one.
-  await withTools({ "a.olai": HOUSE }, async ({ client, set }) => {
-    await call(client, "capture", { title: "unattributed", props: { from: "x" } })
+test("a door that knows nobody writes no attribution, rather than a false one", () => {
+  // The default `withTools` face passes no login — which is what a direct
+  // loopback call to `/mcp` is, and what a `just run` with no proxy in front of
+  // it is. The ruling: such a door OMITS the property rather than inventing one.
+  return withTools({ "a.olai": HOUSE }, async ({ client, set }) => {
+    await call(client, "capture", { title: "unattributed" })
     const node = captured(await set(), "unattributed")
-    const props = "custom" in node ? node.custom : undefined
-    expect(props).toEqual({ from: "x" })
+    expect("custom" in node ? node.custom : undefined).toBeUndefined()
   })
 })
 
 test("…and a door that DOES know somebody writes it on", async () => {
   // The other half of the same ruling, and the half a doc makes a promise about
-  // (`prop:captured-by=…` finds what you captured). `olai surface` is the face
-  // that passes one — the OS user, which a `0700` socket makes the only account
-  // that could be dialling — and it composes the verb in its OWN process, so
-  // this is the seam that decides whether the property ever appears at all.
+  // (`prop:captured-by=…` finds what you captured). The login is the one the
+  // reverse proxy injected on the request (`../mcp/route.ts`), so a capture
+  // through the tailnet is attributed to whoever the proxy said made it.
   await withTools(
     { "a.olai": HOUSE },
     async ({ client, set }) => {
-      await call(client, "capture", { title: "attributed", props: { from: "x" } })
+      await call(client, "capture", { title: "attributed" })
       const node = captured(await set(), "attributed")
-      const props = "custom" in node ? node.custom : undefined
-      expect(props).toEqual({ from: "x", "captured-by": "srid" })
+      expect("custom" in node ? node.custom : undefined).toEqual({
+        "captured-by": "srid",
+      })
     },
     new Set(),
     "srid",
   )
 })
 
-test("a client may not say who captured this", async () => {
+test("a client cannot say who captured this — there is nowhere to say it", async () => {
   await withTools({ "a.olai": HOUSE }, async ({ client, set }) => {
-    // Refused rather than quietly overruled: a capture that succeeds after its
-    // attribution was rewritten is a client told it was recorded as sent.
+    // This used to be a REFUSAL — a guard reading the props map for
+    // `captured-by`, plus a second case for a key that was only the same key
+    // after the write planner trimmed it. Both went with the map: a capture
+    // takes a title and a note, so there is no field an attribution could be put
+    // in, and the rule is the schema's rather than a check this verb wrote.
+    //
+    // WHAT A CLIENT THAT SENDS ONE ANYWAY GETS is the point of this case. The
+    // decode strips a property the tool does not declare, so the call succeeds —
+    // and what it succeeds at is a capture with NO attribution, never the
+    // forged one. A door that knew somebody would have written that somebody
+    // (the case above); this door knows nobody, so the row carries nothing. The
+    // outcome the old guard protected is reached by there being nothing to
+    // guard.
     const answered = await call(client, "capture", {
       title: "x",
       props: { "captured-by": "someone@else" },
     })
-    expect(answered.isError).toBe(true)
-    expect(JSON.stringify(answered.structured)).toContain("captured-by")
-
-    // …and a key that is only the same key AFTER the planner trims it is the
-    // same refusal — the review finding an exact comparison used to miss.
-    const padded = await call(client, "capture", {
-      title: "x",
-      props: { "captured-by ": "someone@else" },
-    })
-    expect(padded.isError).toBe(true)
-
-    // Nothing was written by either, not even the inbox one would have minted.
-    expect(outlinePaths(await set())).toEqual(["a.olai"])
+    expect(answered.isError).toBe(false)
+    const node = captured(await set(), "x")
+    expect("custom" in node ? node.custom : undefined).toBeUndefined()
   })
 })
 

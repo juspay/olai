@@ -177,7 +177,7 @@ interface Described {
  * It is {@link Acting} for reads, and it exists for the reason that one does,
  * one door further along: a tool has to be answerable by something that is not
  * a local `Ops`. Since `mcp-bridge` the table is projected onto a SURFACE
- * CLIENT — in-process over a direct dispatch, or over a unix socket into an
+ * CLIENT — in-process over a direct dispatch, or over the wire into an
  * `olai web` that already holds the store — and neither of those can be handed
  * a {@link Reading}, which is the whole set plus its derivations and exists
  * only where the store is.
@@ -591,13 +591,10 @@ export const TOOLS: ReadonlyArray<Tool> = [
   plan(
     "capture",
     "Capture a thought",
-    "Capture one line into this directory's inbox — the fastest way to get something out of your head and into the vault, from an agent or from a terminal. `title` is the row; `text` becomes its note; `url` goes under that as a link, so a page, a message or a file the vault does not hold is kept as a pointer; `props` are the named facts it is born with, exactly `add_node`'s (`message-id` and `from` are what make de-duplicating a mail capture one `search_nodes` away). THERE IS NO WAY TO SAY WHERE: a capture lands at the top level of the inbox the directory has — `_olai/Inbox.olai` is minted when there is none — and where it really belongs is a decision made afterwards, in the app, which is what an inbox is for. It ARRIVES DATED, so it is on the day's journal page as well as in the inbox, which is the half a capture made while nobody was looking actually needs. `captured-by` is written from the identity this door already has and is REFUSED as an argument: a capture may not say who made it.",
+    "Capture one line into this directory's inbox — the fastest way to get something out of your head and into the vault, from an agent or from a terminal. `title` is the row and `text` becomes its note; there is nothing else to say, which is the point. THERE IS NO WAY TO SAY WHERE: a capture lands at the top level of the inbox the directory has — `_olai/Inbox.olai` is minted when there is none — and where it really belongs is a decision made afterwards, in the app, which is what an inbox is for. It ARRIVES DATED, so it is on the day's journal page as well as in the inbox, which is the half a capture made while nobody was looking actually needs. `captured-by` is written from the identity this door already has and there is no argument for it: a capture cannot say who made it.",
     CaptureRequest,
     (at, args) =>
-      Result.map(
-        capturingOf(args, at.login, at.now()),
-        (capture) => captureInto(at.paths, capture),
-      ),
+      Result.succeed(captureInto(at.paths, capturingOf(args, at.login, at.now()))),
   ),
   read(
     "list_outlines",

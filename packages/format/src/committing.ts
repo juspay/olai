@@ -317,22 +317,25 @@ export const sameGit: (a: GitState, b: GitState) => boolean = Schema
  *  olai has is a statement about olai. The git package hands back the trailer
  *  it read, verbatim, and the ops layer classifies it against this list.
  *
- *  `cli` is the fourth and the newest — the agent SOCKET, which is what
- *  `olai surface` dials (docs/running.md). It is deliberately NOT `web`: there
- *  is no page, no button and nobody watching, and a line typed in a terminal is
- *  exactly the kind of write this trailer exists to keep apart from one
- *  somebody pressed. It is not `mcp` either — that is an HTTP client on a
- *  bearer, and this is a local socket whose MODE is its gate.
+ *  THERE ARE FOUR, and there were five. `capture` was the bespoke
+ *  `POST /capture` door and went with it; a `cli` replaced it for one commit,
+ *  for a terminal on a unix socket of its own, and went when that socket did.
+ *  Neither is here, because the trailer is written and never parsed back: a
+ *  literal nothing can produce is dead vocabulary rather than compatibility.
  *
- *  There was a `capture` before it, for the bespoke `POST /capture` door. That
- *  door is gone and nothing writes under that name any more, so the word went
- *  with it: the trailer is written and never parsed back, so a literal nothing
- *  can produce is dead vocabulary rather than compatibility.
+ *  **A TERMINAL HAS NO WORD OF ITS OWN, and that follows from the design rather
+ *  than being an omission.** `olai surface` is a client of `/mcp` — the same
+ *  protocol at the same path under the same rule as any other HTTP client
+ *  (ruled, human 2026-08-23) — so its writes are recorded under whatever that
+ *  door is served as, exactly as an agent's are. This word records a DOOR, and
+ *  a terminal does not have one to itself any more. What it costs is real and
+ *  worth saying: `git log` can no longer separate a line typed in a terminal
+ *  from a tool call by an agent on the same listener. What it buys is that
+ *  there is only one door to reason about at all.
  *
- *  WHO captured is a different question and is not answered here — this word
- *  records a DOOR, and the identity that door HAS rides the captured node
- *  itself, as a property (`@olai/format`'s `inbox.ts`, which the `capture` tool
- *  composes through).
+ *  WHO captured is a different question and IS answered, elsewhere: the
+ *  identity that door has rides the captured node itself, as a property
+ *  (`@olai/format`'s `inbox.ts`, which the `capture` tool composes through).
  *
  *  `auto` is the fifth and is the only one that never writes a FILE: it is the
  *  server's own quiet-window loop, which makes commits and nothing else
@@ -344,7 +347,6 @@ export const Writer = Schema.Literals([
   "chat-agent",
   "mcp",
   "web",
-  "cli",
   "auto",
 ])
 export type Writer = typeof Writer.Type
