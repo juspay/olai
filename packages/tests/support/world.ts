@@ -894,13 +894,13 @@ export const CHAT_SESSION_UNREACHABLE = selector(TESTID.chatSessionUnreachable);
 export const CHAT_TRANSCRIPT = selector(TESTID.chatTranscript);
 /** The strip under the chat header: which MCP servers this conversation has.
  *  Drawn on every conversation, so its absence means there is none. */
-export const CHAT_SERVERS = selector(TESTID.chatServers);
+export const CHAT_ROSTER = selector(TESTID.chatRoster);
 /** One server on it. `data-server` is its name and `data-standing` is how it
  *  stands — the state as data, because which glyph says "connected" is a
  *  decision about pixels. */
 export const CHAT_SERVER = selector(TESTID.chatServer);
 /** The line saying the list is not the whole of what the agent can reach. */
-export const CHAT_SERVERS_OWN = selector(TESTID.chatServersOwn);
+export const CHAT_ROSTER_OWN = selector(TESTID.chatRosterOwn);
 export const CHAT_MISSING = selector(TESTID.chatMissing);
 export const CHAT_MISSING_SERVER = selector(TESTID.chatMissingServer);
 export const CHAT_MISSING_WHY = selector(TESTID.chatMissingWhy);

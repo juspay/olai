@@ -161,7 +161,7 @@ export const missingFrom = (found: Detected): ChatServer | null =>
     // a server that WAS handed over and differ only in what the agent then said
     // about it ({@link ./servers.ts}). Spelled here rather than by the caller
     // because this function's whole subject is the one standing it produces.
-    ? { name: COMMAND, where: found.kolu, standing: "missing", why: found.why }
+    ? { name: COMMAND, where: found.kolu, standing: { kind: "missing", why: found.why } }
     : null
 
 /**

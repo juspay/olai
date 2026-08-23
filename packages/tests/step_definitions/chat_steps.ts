@@ -67,9 +67,6 @@ import {
   CHAT_MISSING,
   CHAT_MISSING_SERVER,
   CHAT_MISSING_WHY,
-  CHAT_SERVER,
-  CHAT_SERVERS,
-  CHAT_SERVERS_OWN,
   CHAT_MODEL,
   CHAT_NEW,
   CHAT_NO_AGENT,
@@ -81,8 +78,11 @@ import {
   CHAT_REFUSAL,
   CHAT_REOPEN,
   CHAT_RESEND,
+  CHAT_ROSTER,
+  CHAT_ROSTER_OWN,
   CHAT_SAID,
   CHAT_SEND,
+  CHAT_SERVER,
   CHAT_SESSION,
   CHAT_SESSION_AGENT,
   CHAT_SESSION_UNREACHABLE,
@@ -2371,7 +2371,7 @@ Then(
     // this claim is about the sentence rather than about the glyph — a step
     // that spelled `’` would be one more place to edit the day somebody
     // reworded the line, and would fail for a reason no reader would guess.
-    const said = oneLine(await this.page.locator(CHAT_SERVERS_OWN).innerText())
+    const said = oneLine(await this.page.locator(CHAT_ROSTER_OWN).innerText())
       .replace(/[‘’]/g, "'");
     assert.ok(
       said.includes("the agent's own"),
@@ -2389,7 +2389,7 @@ Then("the panel says nothing about this conversation's servers", async function 
   this: OlaiWorld,
 ) {
   assert.strictEqual(
-    await this.page.locator(CHAT_SERVERS).count(),
+    await this.page.locator(CHAT_ROSTER).count(),
     0,
     "the panel lists servers for a conversation there is none of — the roster " +
       "is a property of a session, and a list left standing between two of them " +

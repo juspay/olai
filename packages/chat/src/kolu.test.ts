@@ -20,6 +20,8 @@ import { delimiter, join } from "node:path"
 import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
+import { whyNot } from "@olai/surface"
+
 import { mcpServersOf } from "./agent.ts"
 import {
   askOver,
@@ -270,8 +272,7 @@ describe("what a session that did not get kolu can be told", () => {
     expect(await missing()).toEqual({
       name: "kolu",
       where: bin,
-      standing: "missing",
-      why: "it refused to read the daemon's identity: padi transport down",
+      standing: { kind: "missing", why: "it refused to read the daemon's identity: padi transport down" },
     })
   })
 
@@ -281,8 +282,7 @@ describe("what a session that did not get kolu can be told", () => {
     expect(await missing()).toEqual({
       name: "kolu",
       where: bin,
-      standing: "missing",
-      why: "it closed the connection without answering",
+      standing: { kind: "missing", why: "it closed the connection without answering" },
     })
   })
 
@@ -298,14 +298,15 @@ describe("what a session that did not get kolu can be told", () => {
 
     const found = await missing()
     expect(found).toMatchObject({ name: "kolu", where: bin })
-    expect(found?.why).toStartWith("it could not be started:")
+    const why = found === null ? null : whyNot(found)
+    expect(why).toStartWith("it could not be started:")
     // ... and NOT the fifth sentence. `talking to it failed: …` is what
     // `askOver` comes back with when our own write loses to a stdin the failed
     // exec destroyed, and it is what the un-raced version of this file said —
     // a fact about our end of a pipe, on a screen where the file's name
     // belongs. Asserting the sentence that must not appear is what makes this
     // case about the RACE rather than about the words that won it.
-    expect(found?.why).not.toContain("stream was destroyed")
+    expect(why).not.toContain("stream was destroyed")
   })
 
   test("a kolu that answered is nothing to report", async () => {
@@ -345,9 +346,8 @@ describe("what a session that did not get kolu can be told", () => {
     expect(await missing()).toEqual({
       name: "kolu",
       where: null,
-      standing: "missing",
-      why: "PADI_SOCKET names a padi on this host, but no `kolu` is on the PATH "
-        + "this server was started with — so there is nothing here to reach it through",
+      standing: { kind: "missing", why: "PADI_SOCKET names a padi on this host, but no `kolu` is on the PATH "
+        + "this server was started with — so there is nothing here to reach it through" },
     })
   })
 })

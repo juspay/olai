@@ -200,6 +200,7 @@ import {
   Conversation,
   Listed,
   Saying,
+  ServerStanding,
   SessionInfo,
   Unreachable,
 } from "./chat.ts"
@@ -1446,9 +1447,9 @@ export {
   sayingEnd,
   sayingKey,
   SAYING_MS,
+  ServerStanding,
   SessionInfo,
   Spawned,
-  Standing,
   Talking,
   ToolEntry,
   ToolStatus,
@@ -1457,6 +1458,7 @@ export {
   Usage,
   UsageFailure,
   UserEntry,
+  whyNot,
   Wrote,
   YES_NO,
 } from "./chat.ts"

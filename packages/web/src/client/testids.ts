@@ -1059,7 +1059,7 @@ export const TESTID = {
   /** The strip under the header: which MCP servers this conversation has, and
    *  how each one stands. Absent — not empty — only where there is no
    *  conversation to have any. One `chatServer` inside it per server. */
-  chatServers: "chat-servers",
+  chatRoster: "chat-roster",
   /** One server on that strip. `data-server` is its name and `data-standing`
    *  is how it stands (`connected`, `handed`, `unattached`, `missing`) — the
    *  state as DATA, because the mark beside the name is styling and a scenario
@@ -1069,7 +1069,7 @@ export const TESTID = {
    *  Its own id because it is the honesty of the whole strip: olai lists what
    *  it handed over, and an agent's own servers are configured where olai
    *  cannot see them. */
-  chatServersOwn: "chat-servers-own",
+  chatRosterOwn: "chat-roster-own",
   /** The part of that strip that names the servers this conversation does NOT
    *  have, in sentences. Absent — not empty — on a conversation that got
    *  everything. One `chatMissingServer` inside it per server. */

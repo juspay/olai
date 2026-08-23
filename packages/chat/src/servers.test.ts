@@ -43,15 +43,17 @@ const KOLU: McpServer = {
 const ABSENT: ChatServer = {
   name: "kolu",
   where: "/usr/bin/kolu",
-  standing: "missing",
-  why: "it refused to read the daemon's identity: surface-mcp: padi transport down",
+  standing: {
+    kind: "missing",
+    why: "it refused to read the daemon's identity: surface-mcp: padi transport down",
+  },
 }
 
 describe("the roster as olai composed it", () => {
   test("every server handed over is on it, in the order it was handed", () => {
     expect(rosterOf([OLAI, KOLU], null)).toEqual([
-      { name: "olai", where: OLAI.url, standing: "handed", why: null },
-      { name: "kolu", where: KOLU.command, standing: "handed", why: null },
+      { name: "olai", where: OLAI.url, standing: { kind: "handed" } },
+      { name: "kolu", where: KOLU.command, standing: { kind: "handed" } },
     ])
   })
 
@@ -61,7 +63,7 @@ describe("the roster as olai composed it", () => {
     // `connected` — only an agent's own word moves a row that far, and a tick
     // drawn on olai's say-so would be the panel making the claim the model made
     // wrongly.
-    expect(rosterOf([OLAI, KOLU], null).every((server) => server.standing === "handed"))
+    expect(rosterOf([OLAI, KOLU], null).every((server) => server.standing.kind === "handed"))
       .toBe(true)
   })
 
@@ -80,13 +82,13 @@ describe("the roster as olai composed it", () => {
     // path off some other server's row.
     const acp = { type: "acp", name: "somewhere", serverId: "s1" } as unknown as McpServer
     expect(rosterOf([acp], null)).toEqual([
-      { name: "somewhere", where: null, standing: "handed", why: null },
+      { name: "somewhere", where: null, standing: { kind: "handed" } },
     ])
   })
 
   test("the one it did not get is on the roster too, last, with its sentence", () => {
     expect(rosterOf([OLAI], ABSENT)).toEqual([
-      { name: "olai", where: OLAI.url, standing: "handed", why: null },
+      { name: "olai", where: OLAI.url, standing: { kind: "handed" } },
       ABSENT,
     ])
   })
@@ -111,8 +113,8 @@ describe("the roster as the agent's own report leaves it", () => {
       { name: "olai", status: "connected" },
       { name: "kolu", status: "connected" },
     ])).toEqual([
-      { name: "olai", where: OLAI.url, standing: "connected", why: null },
-      { name: "kolu", where: KOLU.command, standing: "connected", why: null },
+      { name: "olai", where: OLAI.url, standing: { kind: "connected" } },
+      { name: "kolu", where: KOLU.command, standing: { kind: "connected" } },
     ])
   })
 
@@ -128,14 +130,12 @@ describe("the roster as the agent's own report leaves it", () => {
       {
         name: "olai",
         where: OLAI.url,
-        standing: "unattached",
-        why: "the agent did not attach it: needs-auth",
+        standing: { kind: "unattached", why: "the agent did not attach it: needs-auth" },
       },
       {
         name: "kolu",
         where: KOLU.command,
-        standing: "unattached",
-        why: "the agent did not attach it: failed",
+        standing: { kind: "unattached", why: "the agent did not attach it: failed" },
       },
     ])
   })
@@ -145,8 +145,10 @@ describe("the roster as the agent's own report leaves it", () => {
     // losing direction is a working server drawn as unconfirmed; the other
     // reading would put a tick over tools that are not there.
     const moved = movedBy(handed, [{ name: "olai", status: "reticulating" }])
-    expect(moved?.[0]?.standing).toBe("unattached")
-    expect(moved?.[0]?.why).toBe("the agent did not attach it: reticulating")
+    expect(moved?.[0]?.standing).toEqual({
+      kind: "unattached",
+      why: "the agent did not attach it: reticulating",
+    })
   })
 
   test("a row the agent did not name keeps the standing it had", () => {
@@ -169,8 +171,8 @@ describe("the roster as the agent's own report leaves it", () => {
       { name: "olai", status: "connected" },
       { name: "deepwiki", status: "connected" },
     ])).toEqual([
-      { name: "olai", where: OLAI.url, standing: "connected", why: null },
-      { name: "kolu", where: KOLU.command, standing: "handed", why: null },
+      { name: "olai", where: OLAI.url, standing: { kind: "connected" } },
+      { name: "kolu", where: KOLU.command, standing: { kind: "handed" } },
     ])
   })
 
@@ -202,8 +204,7 @@ describe("the roster as the agent's own report leaves it", () => {
     expect(fixed?.[1]).toEqual({
       name: "kolu",
       where: KOLU.command,
-      standing: "connected",
-      why: null,
+      standing: { kind: "connected" },
     })
   })
 

@@ -38,30 +38,16 @@
  */
 
 import type { McpServer } from "@agentclientprotocol/sdk"
-import type { ChatServer } from "@olai/surface"
+import type { ChatServer, ServerStanding } from "@olai/surface"
 
-/**
- * What an agent said about one of its MCP servers: its name, and its own word
- * for how it stands.
- *
- * The STATUS IS A STRING and deliberately not a vocabulary of ours. It is the
- * wrapped CLI's own field (`connected`, `failed`, `needs-auth`, `pending`,
- * `disabled` are the ones its binary carries today) and an open set that may
- * grow without asking anybody here — so it is carried verbatim, matched
- * positively against the one value that means yes, and shown to a person in
- * the agent's own spelling for everything else.
- */
-export interface Attached {
-  readonly name: string
-  readonly status: string
-}
+import type { Attached } from "./agents/leg.ts"
 
 /** The one status word that means the agent has the server. Everything else —
  *  including a word no version of anything has sent yet — is
- *  {@link Standing}'s `unattached`, which is the direction this may fail in:
- *  the worst case is a working server drawn as one the agent did not confirm,
- *  and the worst case of the other reading is a tick over tools that are not
- *  there. */
+ *  {@link ServerStanding}'s `unattached`, which is the direction this may fail
+ *  in: the worst case is a working server drawn as one the agent did not
+ *  confirm, and the worst case of the other reading is a tick over tools that
+ *  are not there. */
 const CONNECTED = "connected"
 
 /**
@@ -101,8 +87,7 @@ export const rosterOf = (
     // HANDED, never `connected`, and this is the layering in one line: olai
     // knows it gave the server to the session and cannot know the session took
     // it. Only an agent's own word moves a row past here ({@link movedBy}).
-    standing: "handed",
-    why: null,
+    standing: { kind: "handed" },
   })),
   ...missing === null ? [] : [missing],
 ]
@@ -161,19 +146,24 @@ export const movedBy = (
 ): ReadonlyArray<ChatServer> | null => {
   let moved = false
   const next = roster.map((server): ChatServer => {
-    if (server.standing === "missing") return server
+    if (server.standing.kind === "missing") return server
     const reported = said.find((one) => one.name === server.name)
     if (reported === undefined) return server
-    const standing = reported.status === CONNECTED ? "connected" as const : "unattached" as const
-    const why = standing === "connected"
-      ? null
+    const standing: ServerStanding = reported.status === CONNECTED
+      ? { kind: "connected" }
       // The agent's own word, quoted rather than translated — the same rule
       // #140's four probe sentences follow, and the reason a reader can act on
       // `needs-auth` (sign the server in) differently from `failed` (it broke).
-      : `the agent did not attach it: ${reported.status}`
-    if (server.standing === standing && server.why === why) return server
+      : { kind: "unattached", why: `the agent did not attach it: ${reported.status}` }
+    if (same(server.standing, standing)) return server
     moved = true
-    return { ...server, standing, why }
+    return { ...server, standing }
   })
   return moved ? next : null
 }
+
+/** Whether two standings say the same thing — the whole of what "this report
+ *  moved nothing" means, over a union whose arms carry at most one field. */
+const same = (before: ServerStanding, after: ServerStanding): boolean =>
+  before.kind === after.kind
+  && ("why" in before ? before.why : null) === ("why" in after ? after.why : null)

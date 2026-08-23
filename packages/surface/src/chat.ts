@@ -950,7 +950,7 @@ export type Command = typeof Command.Type
  *     (ACP's `session/new` answers with a session id and says no more), and
  *     the state every conversation is in until its agent has spoken.
  *   - `unattached` — olai handed it over and the agent says it did NOT attach.
- *     {@link ChatServer.why} carries the agent's own word for it.
+ *     Its `why` is the agent's own word for it.
  *   - `missing` — olai could not hand it over at all, because its own probe
  *     said no. `why` is that probe's sentence — the whole of `mcp-fail-visible`
  *     (`../../chat/src/kolu.ts`).
@@ -962,11 +962,38 @@ export type Command = typeof Command.Type
  * silence — the losing direction being an agent whose servers are all fine
  * drawn as merely handed, which is what every conversation looked like before
  * this member existed.
+ *
+ * A UNION AND NOT A LABEL BESIDE A NULLABLE REASON, which is the shape this
+ * shipped in for a day and is the one thing about it worth a paragraph. `why`
+ * is grounded by the standing and by nothing else — the two arms that mean
+ * "this conversation does not have it" carry one and the two that do not,
+ * cannot. Written flat, each field reads honestly alone and the lie lives in
+ * the pair: `{ standing: "missing", why: null }` is constructible and renders
+ * as a failure with no reason, which is precisely the log line
+ * `mcp-fail-visible` exists to stop putting on screen — and the panel promptly
+ * grew a `why !== null` filter, deriving the standing back out of the field
+ * that depends on it. Discriminated, both are type errors. {@link whyNot} is
+ * the one read that turns it back into a sentence.
  */
-export const Standing = Schema.Literals(
-  ["connected", "handed", "unattached", "missing"],
-)
-export type Standing = typeof Standing.Type
+export const ServerStanding = Schema.Union([
+  /** The agent itself reports it attached. */
+  Schema.Struct({ kind: Schema.Literal("connected") }),
+  /** Olai gave it to the session and nothing has said what became of it. */
+  Schema.Struct({ kind: Schema.Literal("handed") }),
+  /** Olai handed it over and the agent says it did NOT attach. */
+  Schema.Struct({
+    kind: Schema.Literal("unattached"),
+    /** The agent's own word for it. */
+    why: Schema.String,
+  }),
+  /** Olai could not hand it over at all, because its own probe said no. */
+  Schema.Struct({
+    kind: Schema.Literal("missing"),
+    /** The probe's or the server's own sentence. */
+    why: Schema.String,
+  }),
+])
+export type ServerStanding = typeof ServerStanding.Type
 
 /**
  * An MCP server this conversation has, and how it stands.
@@ -989,13 +1016,13 @@ export type Standing = typeof Standing.Type
  * question is: whether the server named on the healthy list is the one the
  * agent could not reach.
  *
- * `why` is the SERVER'S OWN SENTENCE wherever there is one — a JSON-RPC error
- * message, an exec failure's reason, the agent's own status word — with the
- * probe's framing around it and nothing invented, and `null` on a server
- * nothing went wrong with. That is the field's whole value: "kolu did not
- * attach" names the symptom every failure shares and is the one thing that
- * never helped anybody, and the four ways of failing a probe want four
- * different things done about them (`../../chat/src/kolu.ts`).
+ * The standing's `why` is the SERVER'S OWN SENTENCE wherever there is one — a
+ * JSON-RPC error message, an exec failure's reason, the agent's own status word
+ * — with the probe's framing around it and nothing invented. That is the
+ * field's whole value: "kolu did not attach" names the symptom every failure
+ * shares and is the one thing that never helped anybody, and the four ways of
+ * failing a probe want four different things done about them
+ * (`../../chat/src/kolu.ts`).
  *
  * `where` is where the server IS: the absolute file that was probed or would
  * be spawned, or the URL of one reached over http. It is here because the
@@ -1026,13 +1053,25 @@ export const ChatServer = Schema.Struct({
    *  absolute, or the URL of one reached over http — and `null` when the
    *  failure was that there was nothing to probe. */
   where: Schema.NullOr(Schema.String),
-  /** How it stands — see {@link Standing}. */
-  standing: Standing,
-  /** In the server's, the probe's or the agent's own words. Never a category,
-   *  and `null` on a server nothing has said anything against. */
-  why: Schema.NullOr(Schema.String),
+  /** How it stands, and — on the two arms that have one — why not. See
+   *  {@link ServerStanding}. */
+  standing: ServerStanding,
 })
 export type ChatServer = typeof ChatServer.Type
+
+/**
+ * Why this conversation does not have that server, or `null` for one nothing
+ * has been said against.
+ *
+ * The one read that turns {@link ServerStanding} back into a sentence, and it
+ * is here rather than at the two call sites because it is the ONLY question
+ * asked of the union that both of them ask: which rows get prose under the
+ * roster, and what that prose says. Which ARM a row is on stays a `switch` at
+ * the call site — that is the question the union exists to make total, and a
+ * helper per arm would be a second vocabulary over a closed one.
+ */
+export const whyNot = (server: ChatServer): string | null =>
+  "why" in server.standing ? server.standing.why : null
 
 /**
  * The agent is there and there is NO CONVERSATION, because opening one was

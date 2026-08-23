@@ -35,7 +35,6 @@
 import type { PermissionOption } from "@agentclientprotocol/sdk"
 import type { Duration } from "effect"
 
-import type { Attached } from "../servers.ts"
 
 /** A `_meta`, as every reader here takes one: an object of unknown fields, or
  *  nothing at all. Spelled once because five signatures below take it. */
@@ -136,6 +135,28 @@ export const allowingOurs = (
  *  what a transcript is. */
 export interface Spawn {
   readonly kind?: string
+}
+
+/**
+ * What a leg says an agent said about one of ITS OWN connections to an MCP
+ * server: the server's name, and the agent's own word for how it stands.
+ *
+ * Here beside {@link Spawn} and for its reason: this is a payload reading, and
+ * what {@link ../servers.ts} then makes of it — a roster row, a standing, a
+ * sentence — is a fact about a conversation that no leg may know. Declared the
+ * other way round, the file that is only allowed to be wrong about one agent
+ * would have been importing the panel's own vocabulary.
+ *
+ * The STATUS IS A STRING and deliberately not a vocabulary of ours. It is the
+ * wrapped CLI's own field (`connected`, `failed`, `needs-auth`, `pending`,
+ * `disabled` are the ones its binary carries today) and an open set that may
+ * grow without asking anybody here — so it is carried verbatim, matched
+ * positively against the one value that means yes, and shown to a person in
+ * the agent's own spelling for everything else.
+ */
+export interface Attached {
+  readonly name: string
+  readonly status: string
 }
 
 /**

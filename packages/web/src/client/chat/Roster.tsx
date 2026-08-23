@@ -71,7 +71,7 @@
  * interruption.
  */
 
-import type { ChatServer, Standing } from "@olai/surface"
+import { type ChatServer, type ServerStanding, whyNot } from "@olai/surface"
 import { For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
@@ -79,17 +79,20 @@ import type { Chat } from "./state.ts"
 
 export function Roster(props: { readonly chat: Chat }) {
   const servers = () => props.chat.state().servers
-  /** The ones this conversation does NOT have. Both standings, because the two
-   *  ways of not having a server want the same row: olai's probe refused to
-   *  hand one over, or the agent could not attach one that was handed. The
-   *  sentence is what tells them apart, which is the point of carrying it. */
-  const absent = () => servers().filter((server) => server.why !== null)
+  /** The ones this conversation does NOT have. Both of those standings, because
+   *  the two ways of not having a server want the same row: olai's probe
+   *  refused to hand one over, or the agent could not attach one that was
+   *  handed. Asked as "is there a reason?" rather than by listing the two arms,
+   *  because the union grounds a reason on exactly those two — so this cannot
+   *  fall out of step with them, and a fifth standing has to answer the
+   *  question rather than quietly not match a list. */
+  const absent = () => servers().filter((server) => whyNot(server) !== null)
 
   return (
     <Show when={servers().length > 0}>
       <section
         class="shrink-0 border-b border-rule/70 bg-panel px-3 py-1.5 font-mono text-[0.6875rem] leading-snug"
-        data-testid={TESTID.chatServers}
+        data-testid={TESTID.chatRoster}
         aria-label="tool servers"
       >
         <p class="flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
@@ -103,7 +106,7 @@ export function Roster(props: { readonly chat: Chat }) {
               end has no way to have. */}
           <span
             class="text-muted/70"
-            data-testid={TESTID.chatServersOwn}
+            data-testid={TESTID.chatRosterOwn}
             title="olai lists the servers it handed this conversation; whatever the agent is configured with of its own is not olai's to see"
           >
             <span aria-hidden="true">· </span>plus the agent&rsquo;s own
@@ -138,7 +141,7 @@ export function Roster(props: { readonly chat: Chat }) {
  * the tick — the thing that is actually news — competing with it.
  */
 const MARK: {
-  readonly [K in Standing]: {
+  readonly [K in ServerStanding["kind"]]: {
     readonly glyph: string
     readonly tint: string
     readonly said: string
@@ -157,7 +160,7 @@ const MARK: {
 /** One server on the roster: its name, how it stands, and — on hover — where it
  *  is. */
 function Chip(props: { readonly server: ChatServer }) {
-  const mark = () => MARK[props.server.standing]
+  const mark = () => MARK[props.server.standing.kind]
   return (
     <span
       class="flex items-baseline gap-1 text-ink"
@@ -167,7 +170,7 @@ function Chip(props: { readonly server: ChatServer }) {
       // asserting the mark: which glyph says "connected" is a decision about
       // pixels, and a test that pinned it would fail the next time somebody
       // improved it (`../../../../../HACKING.md`).
-      data-standing={props.server.standing}
+      data-standing={props.server.standing.kind}
       title={props.server.where === null
         ? mark().said
         : `${mark().said} — ${props.server.where}`}
@@ -193,7 +196,7 @@ function Row(props: { readonly server: ChatServer }) {
         />
         <span>
           <span class="font-semibold">{props.server.name}</span>{" "}
-          {props.server.standing === "missing"
+          {props.server.standing.kind === "missing"
             ? "is missing from this conversation"
             : "did not attach to this conversation"}
         </span>
@@ -203,7 +206,7 @@ function Row(props: { readonly server: ChatServer }) {
           errno string, and a 26rem drawer is not wide enough to be trusted
           with one. */}
       <p class="break-words pl-3 text-muted" data-testid={TESTID.chatMissingWhy}>
-        {props.server.why}
+        {whyNot(props.server)}
       </p>
       {/* WHICH file was asked. The incident #140 comes from was exactly this
           question: a `kolu` on PATH is not necessarily the host's kolu, and a

@@ -36,8 +36,7 @@
 
 import type { PermissionOption } from "@agentclientprotocol/sdk"
 
-import type { Attached } from "../servers.ts"
-import { allowingOurs, type Leg, type Meta, type Spawn } from "./leg.ts"
+import { allowingOurs, type Attached, type Leg, type Meta, type Spawn } from "./leg.ts"
 
 // ── which permissions are answered without asking ──────────────────────
 
