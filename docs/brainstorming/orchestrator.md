@@ -1,119 +1,156 @@
-# The orchestrator: give it a real home
+# The orchestrator: olai over kolu
 
-**SUPERSEDED 2026-08-22 by [orchestrator-in-olai.md](./orchestrator-in-olai.md)** — kept as history (the eight lapses, the 2026-08-21 ruling); the live design and the rulings since are there.
+Status: brainstorming, rev 2 (2026-08-23), being fleshed out with the human. **The visual version is [orchestrator.html](./orchestrator.html)** — one PR walked end to end, moment by moment, olai and kolu side by side; read that first, this file is the reference behind it. (This file replaces both the stale 2026-08 orchestrator.md and orchestrator-in-olai.md; the eight lapses and the earlier rulings live in git history.) Roadmap: `orchestrator-in-chat` is the parent this work re-homes under; children to be filed when this settles.
 
-Status: brainstorming, opened 2026-08-13, rewritten 2026-08-15; the direction was ratified the same day. The phased work is on the roadmap, as todo children of `orchestrator-in-chat` wired with `after` edges. The long version with all receipts is in git history; the apm spike is `apm-spike.md`. **2026-08-21: the seventh and eighth witnesses forced the ruling at the bottom of this file — the control flow leaves the model; olai itself becomes the deterministic harness driving the nondeterministic agent over ACP.**
+**The vision, in the human's words:** olai is the orchestrator — for autonomous PRs overnight and for the same work by day — using kolu terminals to actually effectuate it behind the scenes: pi where applicable, deterministic (procedural) harness where important. Olai **works on top of kolu and never launches agents itself**: every process with a model in it is a kolu terminal.
 
-Lesson that opened this file: anything the orchestrator knows that is not in a file is a failure waiting to happen (wiped memory, the Fable model burn).
+**Night is not a mode.** The driver, the gates, the executor classes are the same around the clock; the only variable is how fast Needs-you gets answered. By day you're beside it — a `#human` gate resolves in minutes, you peek at snapshots, re-brief through chat. By night nothing resolves the human gates, so lanes run to their gates and park. "Overnight" is just the cleanest demonstration of autonomy: whatever merges at 3am merged with zero trust in anyone being awake.
 
-## The organizing idea: orchestration is outlines
+## Rulings
 
-Three kinds of nodes, all in `.olai` files, all edited in the app and read by every launcher:
+First round (2026-08-22, question tool):
 
-- **agents** — who. One node per agent; its note carries the exact launch command. A missing node refuses loudly; no default can win again.
-- **workflows** — how. The pipeline every lane walks as a TEMPLATE subtree: each step a `todo` node, dependencies as `after` edges. The DAG is drawn by the app for free — blocked vs ready already renders.
-- **lanes** — what's live. Dispatching a task CLONES the workflow template under the lane's node (real copies via `add_node`, not mirrors — each lane's steps carry their own marks). Progress is marks flipping todo → doing → done; terminal id, PR, evidence links live in the step descs. The orchestrator's memory becomes the outline; it survives anything.
+- **Executor: olai is the harness; the agent is a function.** Olai's server runs the driver loop — kolu events land on the board as facts, gates flip from machine-checkable predicates, dispatch / merge / retire are mechanical — and hands a brief to an agent only for the steps that need judgment.
+- **Dashboard v1 shows four things:** the lanes board (lane × step, live marks); the whole kolu fleet with olai's ownership overlay; a needs-you queue derived mechanically; PR state. Streaming terminals into olai is **someday**; snapshots on demand are not (below).
+- **Human acts by buttons and by chat, both:** mechanical acts are buttons; anything needing words goes through the chat agent with the lane as context.
+- **First cut is read-only:** page + server-side padi client, no actions, no loop; the terminal orchestrator keeps running beside it and retires verb by verb.
+- **Kolu link: olai's server is a `@kolu/surface` client of padi** (`connectPadi` over the unix socket, `mirrorRemoteSurface` of `terminals` / `urgency` / `watchStates`). Not MCP, not parsed ndjson.
+- **GitHub reads: ride kolu.** Padi's per-terminal PR sensor carries `pr` on every terminal record; olai reads that. Where `PrInfo` is short, the fix is upstream.
+- **Policy lives on `dag.olai` nodes, code interprets:** steps carry `kind` and `gate` properties; `after` edges stay the DAG. Changing the pipeline is an outline edit.
+- **Home: `docs/orchestrator` in this repo**, served by the production olai. The page is `/orchestrator`.
+- **Other repos:** every repo gets an olai vault eventually; how the harness updates a vault other than its own is undecided.
+- **Sequencing with kolu:** olai does not hydrate the padi daemon — kolu ships a thin client package first and PR 1 waits on it; the gates PR waits on `PrInfo` growing `reviewDecision` / `mergeStateStatus` — no interim `gh` in olai.
+- **Approval:** a lane carries `merge=auto|human` from dispatch; `auto` merges when every gate is green, `human` puts the approve step in the queue and the Approve button writes `approved=<time>`.
 
-No new olai features are needed to start: marks, `after`, `add_node`, descs.
+Second round (2026-08-23, this session):
 
-### Example: one task, dispatched
+- **Executor classes** (below) refine `kind`: a step's boundedness decides its harness. **pi runs the bounded `mechanical` steps** — the human is already adding pi support to kolu (alongside opencode, grok), so `agentBucket` and `lifecycle.create` work for pi before this ships; assume it.
+- **The judge is Fable via headless `claude -p` on the human's subscription** — and, per the everything-through-kolu rule, it runs **in a kolu terminal**, not as an olai subprocess and not as an ACP session olai opens. This *replaces* the first round's "harness opens headless ACP sessions" ruling and drops its prerequisite (chat growing to many sessions). The judge's transcript is read the way any terminal is read: `screen.text`.
+- **Procedural steps carry no model at all.** The two costliest lapses in the old orchestrator (zombie terminals, promised-but-unsent actions) were a model being asked to remember what a for-loop does perfectly.
+- **Gates are configuration, not instruction** (arXiv 2608.08654 §7: agents ignore the interface they're assigned; removing the credential is what works). Nothing overnight is *trusted* not to merge; everything but the merge step is *unable* to.
+- **`lanes.olai` is an ordinary outline.** No special rendering in the outline view — the glyph vocabulary (todo box, doing half-box, done check, blocked hourglass) already draws a lane's state. The specialness is the **`/orchestrator` route**, which draws the same nodes joined with padi facts — the exact precedent of `/agenda` and `/today`, which draw ordinary nodes specially.
+- **Terminal snapshots on demand:** a lane card (and a fleet row) expands to a snapshot fetched through the server's padi client (`screen.text`, `screen.image` for the phone) at click time. Streaming stays someday; a snapshot is one verb call.
 
-The `fix-caret` workflow template, cloned under a lane when dispatched:
+## Executor classes
 
-    lanes
-      fix-caret  (todo, desc: repo, brief, agent → agents/claude-opus)
-        implement + open PR      (doing, desc: terminal 9f2c, PR #180)
-        refactor passes          (todo, after: implement)
-        review: grok             (todo, after: refactor)
-        review: opencode         (todo, after: refactor)
-        rebase onto master       (todo, after: both reviews)
-        address findings         (todo, after: both reviews)
-        CI green at head         (todo, after: rebase, address)
-        evidence verified        (todo, after: CI)
-        deferrals ruled #human   (todo, after: evidence — SKIPPED when the report says "no deferrals")
-        merge                    (todo, after: deferrals ruled)
-        retire terminals         (todo, after: merge — kill the author (reviewers die with the merge itself); executed in the SAME action block as the merge, never deferred to a future settle)
+Coined here (nearest prior art: BPMN's service/script/user task split; Löwy's volatility axis). The general rule: **the less bounded a step, the more harness it deserves — and a fully bounded step deserves no model at all.** Grounded in arXiv 2608.08654 (*The Scaffolding Matters More Than the Interface*): scaffolding dominates cost 5–28×; a small model completed a bounded git task under every scaffolding; pi was the cheapest and most reliable harness in the study; catalogue-on-demand (skills, `--help`) beats catalogue-per-request (MCP).
 
-The two reviews are ready together the moment refactor is done — the fan-out is just two `after` edges — and "address" stays blocked until both finish. What you see in the app IS the dispatch state; nothing else needs asking.
+| class | the step is… | runs as | model | dag-pr steps |
+|---|---|---|---|---|
+| `procedural` | fully bounded — API calls, zero judgment | driver code in the olai server, effecting through padi verbs | none | merge, retire, dispatch itself |
+| `mechanical` | bounded + verifiable, needs hands and judgment at the margin | **pi** in a kolu split, one `SKILL.md` | cheap | merge-master, ci |
+| `judge` | read everything, write nothing, output a verdict | headless `claude -p` **in a kolu terminal**, read-only creds, subscription | Fable | evidence |
+| `agent` (author) | open-ended — design, write, respond | Claude Code in the lane's kolu terminal | Opus | implement, refactor, address |
+| *(reviewer)* | independent eyes; per-step agents, already true today | grok / opencode as kolu splits of the author | theirs | review-grok, review-opencode |
+| `human` | a ruling | a Needs-you card; the lane parks | you | deferrals |
 
-Template rule the edges encode: a step that MUTATES the worktree sits `after` every step that READS it — readers fan out, writers wait. Dispatch is `set_doing` on a step, so the day `set_doing` refuses on a blocked node, "instructed a rebase under live reviewers" (a real 2026-08-15 incident) stops being a discipline and becomes a refusal. (`set_doing` refuses on blocked since PR #181.)
+`kind ∈ { procedural, mechanical, agent, judge, human }` on `dag.olai` steps (reviewers are `agent` steps whose `agent` prop names another roster entry). A `mechanical` step also names its `agent` (pi) and its `skill`.
 
-The `deferrals ruled` step is a HUMAN gate (ruled 2026-08-15): a PR whose report carries deferred items merges only on the human's explicit word — each deferral becomes a roadmap node first. A report that says "no deferrals" in so many words skips the gate.
+## What exists, so the design stands on facts
 
-## Decided (2026-08-15, the human)
+**The board** (`docs/orchestrator/`): `dag.olai` — the `pr` template, eleven steps, `after` edges, writer-after-readers, `set_doing` refusing on blocked; `lanes.olai` — one node per dispatched task (props `agent`/`repo`/`item`, the template cloned under it, `terminal` on implement, `pr` where it opened); `agents.olai` — the roster (`command`, `role`, quirks, mute list). All written through ops, never by hand.
 
-- **Home: olai itself.** Operated from olai chat — the chat agent already holds kolu's MCP tools (worktree-cutting `lifecycle_create` shipped in kolu #2167). The terminal orchestrator is temporary labor until parity.
-- **Agents outline: now.** Drafted (uncommitted, under review); launchers read it before every spawn. Kolu growing a structured launch spec (`{model: opus}` → argv) is the later upgrade.
-- **Workflow template: one shared place.** A single orchestration outline; every repo's lanes clone from the same template.
-- **Cross-repo progress: the orchestration outline records it.** Repo roadmaps keep their own items; the lane's step-marks live centrally.
-- **Babysitting transport: kolu MCP.** The blocking waits as tool calls (`wait_agentState` / `wait_outputSettled`), not shell — schema-validated arguments, no quoting to mangle. Upstream ask stands: block-forever default. *(Superseded for the WAKE path, 2026-08-21 — see the sixth lapse's resolution: blocking MCP waits freeze the host terminal; the wake is `kolu watch` streamed in the background. MCP stays the transport for ACTIONS — instant calls only.)*
-- **`.olai` replaces `.jsonl`** — rename PR in flight.
-- **`apm run` is out of the launch path** — the wrapper blinds kolu (measured; see apm-spike.md). At most a prompt compiler.
-- **Rejected: Claude-native push** (Claude Code "channels" — a server pushing events into a session). Claude-only, and it can only reach a session that is already open: no MCP notification can wake an idle agent. Fails the works-from-grok/codex/opencode test.
+**Olai's server:** one chat per server, browser-started turns only; no kolu client anywhere; no GitHub code. Background work lives in cell `connect` fibers (the 30 s git sweep is the model). Pages: route → `requestFor` → `streams.page` → `PageView`; agenda and day are the only aggregations. `.html` documents are served and drawn as-is.
 
-## Waking the chat agent (the babysitting gap, and its answer)
+**Padi's surface** (kolu `great-profit`, surface 5.4): collection `terminals` (active|sleeping|parked; `cwd`, `git{repoRoot,branch,worktreePath,…}`, `pr: PrResult`, `agent` folded to `agentBucket ∈ working|awaiting|waiting|other`, `parentId` for splits, `intent`, `lastActivityAt`); cell `urgency`; stream `watchStates` (the hold+nag engine, in the daemon); procedures `lifecycle.create{placement,cwd,intent}` / `kill` / `sendInput`, `git.worktreeCreate`, `screen.text`, `watch.*`, `chrome.setIntent`. `PrInfo` = number/title/url/state/checks/checkRuns — **no reviewDecision, no mergeStateStatus**. Dial: `connectPadi(socketPath)` from `@kolu/padi/dial`; socket `$XDG_RUNTIME_DIR/padi-<digest>/padi.sock`. Kolu has no lane/pipeline entity — that's the gap olai fills. **pi as a kolu agent: in progress (the human), assumed present.**
 
-An idle chat agent cannot be woken by any MCP notification, and in-turn blocking waits hold a turn open into the host's timeout. But the subscriber does not have to be the agent: **olai's server is the ACP client — the party that starts turns.** Kolu MCP already exposes subscribable resources with snapshots (`urgency` — who needs attention; `terminals` — per-terminal agent state). So the wake path is: olai holds a kolu-MCP subscription, and when a lane's agent settles, olai starts a chat turn saying so. That is the `olai-subscribes` roadmap item; until it lands, mark-flipping and babysitting stay the terminal orchestrator's hand.
+## The shape
 
-## Still open
+Three layers, each a function of the one below, none holding state of its own — and one rule about hands: **the driver's only effectors are padi verbs and olai ops.** Every process that isn't the olai server itself is a kolu terminal.
 
-1. When `olai-subscribes` gets built (it is on the roadmap, `after` lane-cloning and mcp-bridge) — sequencing, not whether.
-2. Kolu's `urgency`/`terminals` resources have not been driven from olai yet; the first subscription probe may find sharp edges (the activity stream already has a recorded one).
+```
+padi (terminals, urgency, watchStates, pr) ──mirror──▶ olai server: cells.kolu, collections.fleet
+lanes.olai + dag.olai + agents.olai        ──reading─▶ olai server: cells.board   (pure: reading × fleet × now)
+board × fleet × pr                         ──derive──▶ olai server: cells.needsYou
+                                                          ▼
+                                              /orchestrator page (draws the cells; buttons call procedures)
+                                                          ▼
+                                              the driver fiber: facts → props, gates → marks,
+                                              PROCEDURES[step] → padi verbs (create/sendInput/kill/screen.text)
+```
 
-## Challenges seen in practice (root causes, from the 2026-08-16 lapse)
+### The driver and the procedure registry — what code, where
 
-The incident: with eight lanes live, the human caught the orchestrator sitting on two unprocessed debriefs (grok's #207 delta answer; #209's refactor report) with several author terminals left unwatched. Root-cause analysis, written down so the real home fixes it by design:
+A new package, `packages/orchestrator`, three modules by volatility:
 
-**Root cause: the orchestrator's only event queue is its own attention.** A watcher firing is an interrupt — a one-shot notification pointing at an output file. If a hotter thread (usually a human message; today they came minutes apart) preempts the turn, nothing anywhere records "this debrief landed and awaits processing." The board cannot serve as the queue: a lane step marked `doing` looks identical whether its debrief is still cooking or has been sitting unread for an hour. The debt is invisible, so it silently ages until a human smells it.
+- **`driver.ts`** — one scoped fiber beside the git sweep (the cell-`connect` precedent), fed by the padi mirror. On each `watchStates` event or board revision: find the lane step owning that terminal → write the fact on the step as a property (`settled=<kind>@<time>`) → re-evaluate that lane's gates → flip marks through ops (`set_done` on a satisfied gate, `set_doing` on the next ready step, refusing blocked ones as the format already does) → run the newly-doing step's procedure. Every write goes through ops; every beat is a commit saying what happened.
+- **`procedures.ts`** — the registry: `PROCEDURES: Record<ProcName, (lane, step, io) => Effect>`, the same shape as `TOOLS` in `packages/ops`. `io` is exactly two capabilities: the padi client and the ops layer. Procedures compose padi verbs — `dispatch` = clone template (ops) → `git.worktreeCreate` → `lifecycle.create` → `sendInput(brief)`; `spawn-review` = `lifecycle.create{parent}` + brief; `bounce` = `sendInput(failure)` to the author; `judge` = `lifecycle.create` running `claude -p --model fable` in the worktree, then `screen.text` for the verdict; `retire` = `lifecycle.kill` × N, verified against the mirrored fleet. A step names its procedure implicitly by `kind` (and `agent`), or explicitly by a `proc` prop when one step differs.
+- **`gates.ts`** — the closed set of predicates (`pr-open`, `ci-green`, `mergeable`, `review-posted`, `reported`, `verified`, `approved`, `merged`, `retired`), each a pure function of board × fleet × pr, tested without a daemon.
 
-Contributing causes, each observed today:
+**The volatility split:** the *composition* — which steps, what order, who runs each, which gate — is data on `dag.olai`, edited as an outline. The *primitive verbs* are code in the registry. Adding a step to the pipeline is an outline edit; adding a new kind of verb is a PR.
 
-1. **Preemption without a resume protocol.** Correctly prioritizing the human's message displaces the interrupt, but there is no list to return to — resuming depends on remembering, and memory is the thing this file exists to distrust (see the lesson at the top).
-2. **Re-arming is coupled to processing.** The standing rule — re-arm the watcher after every processed debrief — has a hole: a debrief that is never processed never triggers a re-arm, so the lapse compounds (unread debrief AND unwatched terminal).
-3. **Write-behind board discipline.** The orchestrator updates the board *while* processing, not *when the event lands* — so the board is always slightly behind reality, and auditing it against `kolu ls` is a manual habit rather than a property.
+**The merge action** — the one effect that is neither a padi verb nor an ops write. Per everything-through-kolu, the leaning: the `merge` procedure runs it as a **one-shot kolu terminal** — `lifecycle.create` with `command: gh pr merge <n>` and the merge-capable token injected into that terminal's env at create — then verifies by watching `pr.state=merged` arrive on the padi mirror. No agent, no model; a terminal running one command is still effectuating through kolu. (Alternative, if kolu would rather own it: a `pr.merge` procedure on padi's surface beside the sensor that already runs `gh pr view`. Open question below.)
 
-What fixes it in the current (terminal-orchestrator) regime:
+### New surface members (olai's own spec)
 
-- **Land the event before working it.** The moment a debrief notification arrives, one cheap board write (a `debrief=landed` property on the lane step) before anything else — then the queue is durable and `prop:debrief=landed` lists the debt.
-- **Turn-end sweep.** No turn ends while an unread task output or an unwatched live author exists; the audit (`kolu ls` × armed watchers × landed-unprocessed debriefs) is part of ending a turn, not a thing the human requests.
-- **Decouple re-arm from processing.** Re-arm at notification time, not at processing time, so a deferred debrief never costs the watcher too.
+- `cells.kolu` — `{ status: connected|absent|skew, stateRoot?, surfaceVersion?, since }`; the page says plainly when there is no padi.
+- `collections.fleet` — TerminalId → padi's record projected (`state`, `bucket`, `cwd`, `repo`, `branch`, `worktree`, `pr`, `intent`, `parentId`, `lastActivityAt`) plus olai's overlay: `owner: {kind:"lane",lane,step} | {kind:"human"} | {kind:"unowned"}` computed from `lanes.olai` `terminal` props and `agents.olai`'s mute list. Mirrored, not polled; `deltas` on.
+- `cells.board` — one entry per live lane: `{lane, item, repo, agent, mark, steps:[{id,title,mark,blocked,kind?,gate?,terminal?,pr?,brief?}], pr?}`, derived from the same reading every page draws, joined with fleet.
+- `cells.needsYou` — `[{lane, step?, reason, since, actions}]`, `reason ∈ {human-step, terminal-held, pr-actionable, apparatus}`. `apparatus` is new (from the paper's §2.6/§9.5): a step that failed on the rig — padi gone, credential rejected, CI infra — is re-run or surfaced as *apparatus*, never judged as work.
+- `procedures.screen` — `{terminal} → {text|image}`: the snapshot-on-demand passthrough to padi's `screen.text`/`screen.image`, on the `BROWSER` face, called when a card expands. Read-only; no polling.
 
-**Second lapse, same day (the idle-but-owing agent).** A lane's author sat idle for hours with unblocked pipeline steps owed (refactor, reviews), and the orchestrator did housekeeping around it without advancing it — caught by the human, again. Two causes: an external CI wait was mentally filed under the *implement* step when it belonged to the *CI-green* step, which made every downstream step read as blocked; and once the terminal's settles were classified as noise, the classification stuck to the TERMINAL, so later events were dismissed without re-asking the one question every settle owes: *what does this lane owe next?* Rules added: a dismissal applies to an event, never to a lane; and the turn-end sweep gains a third check — an idle lane agent whose lane holds an unblocked, non-#human todo step is a defect to fix in that turn. The board can answer this query mechanically; nothing was asking it.
+`fleet` and `board` also on `MCP` as resources so the chat agent and `olai surface get board` read the same board.
 
-**Third lapse (2026-08-17, the overnight run): twelve zombie terminals.** Every merged lane's reviewers were killed in the same action block as the merge and never leaked; every author was told "remove your worktree, report done — this terminal will be retired after that" and NONE were ever killed. The retirement lived only as a sentence in a message — not a board step — so once the lane was marked done, the turn-end sweep (which asks "does any lane hold an unblocked owed step?") saw nothing owed, and the debt was invisible to the only queue that is trusted. Worse than idle waste: the authors had deleted their own cwd on instruction, so the leaked PTYs sat in dead directories, and kolu's split-from-tile (which seeds the child with the parent's cwd) failed against every one — the leak manufactured a user-facing bug. Rules added (ruled by the human): the lane template gains a `retire terminals` step after `merge`, and the author's kill is executed in the SAME action block as the merge — a kill deferred to a future settle is the attention-shaped queue again. The general law all three lapses share: an action that exists only inside a sent message does not exist.
+### The page: `/orchestrator`
 
-**Fourth lapse (2026-08-17, same day): the queue went unread for ~460 events.** Two supervision paths exist — the durable `watch_next` queue (complete by construction, acknowledged, survives restarts) and a Monitor process whose only job is to be a *doorbell*. The orchestrator inverted them: it treated the doorbell's payload as the list of terminals worth looking at, and stopped draining the queue entirely, reading each named terminal with `wait_agentState` instead. The cursor sat at 94 while the queue reached 554. The failure surfaced when two terminals in a THIRD repo finished and nothing rang: the doorbell's command grepped `olai·|kolu·`, so any lane outside those two repos was structurally invisible — but the queue had both events, unread. Rules: the doorbell carries no information beyond "something happened"; every wake drains `watch_next` and acks, and a turn does not end with an unacked event. The doorbell's filter must never be narrower than the subscription. The general law, now with four witnesses: **anything the orchestrator knows only through its own attention — a promise in a message, a terminal it remembers, a payload it trusts — is a queue that will silently lose an entry.**
+A route beside `/agenda` and `/today` — the same pattern: **a special drawing of ordinary nodes.** `lanes.olai` opened as an outline is just an outline (glyphs already say todo/doing/done/blocked); `/orchestrator` draws those nodes joined with the padi mirror. Layout, top to bottom: **Needs you** (one action per row); **Lanes** (each lane a row of step chips wearing the glyph vocabulary, the author terminal's bucket, the PR pip; a chip opens its node; **a terminal pill expands the card into a `screen.text` snapshot**, refetch on demand); **Fleet** (every terminal: bucket, idle-for, repo/branch, intent, owner tag; unowned first). Read-only in PR 1: every button is a link until the actions PR.
 
-**Fifth lapse (2026-08-18, the second overnight): three authors parked mid-pipeline for hours, and the human caught it — again.** Three of seven dispatched authors ended their turn after the implement report ("Next I'll run the refactor passes") and never continued; one sat idle 2.5 hours. A wedged reviewer compounded it. Three causes stacked: (1) the dispatch brief itself licensed the gap — "report here when the PR is open, and again after refactor" invites a turn end at the checkpoint, and whether an agent continues in-turn is luck (4 of 7 did); (2) the orchestrator overrode the machine with prose — each settle arrived as a literal `kind: "finished"` event and was classified as work-in-progress because the debrief's last sentence was future tense; (3) the doorbell is edge-triggered with dedup, so a terminal that settles once and stays idle is structurally silent forever — under load (6–10 lanes) that certainty-of-a-miss arrived. Rules added: a brief states the ONE point the agent may end its turn at ("do not end your turn until review-ready"); a debrief is classified by the event's kind and the terminal's agent state, never by its closing sentence; and the level-triggered ring (kolu-watch-next-cli — settled terminals nag until worked, snoozed, or killed) is the structural fix this lapse re-argues — the fourth witness law already named it: an edge the orchestrator must remember is a queue that will silently lose an entry.
+### Policy on the template
 
-**Sixth lapse (2026-08-20→21, the third overnight): the doorbell froze at midnight and nine finished hours sat unread until morning.** Five lanes and three reviewers ran into the night; every one of them finished clean — three do-not-object reviews posted by 22:26, two PRs opened, the census re-baselined — and the orchestrator slept through all of it, because its only wake signal was a hand-rolled Monitor poll loop, and that loop failed two independent ways at once:
+| step | `kind` | `agent` | `gate` |
+|---|---|---|---|
+| implement + open PR | agent | claude | `pr-open` — padi `pr.state=open` |
+| refactor passes | agent | claude | `reported` (skip-unless: non-trivial) |
+| review: grok / opencode | agent | grok / opencode | `review-posted` *(upstream: PrInfo)* |
+| merge latest master | mechanical | pi | `mergeable` *(upstream)*; skip-unless=conflicts |
+| address findings | agent | claude | `reported` |
+| CI green at head | mechanical | pi | `ci-green` — `pr.checks=pass` at head |
+| evidence verified | judge | claude -p · fable | `verified` — verdict prop |
+| deferrals ruled | human | — | `approved`; skipped when the report says "no deferrals" |
+| merge | procedural | — | `merged` — `pr.state=merged` |
+| retire terminals | procedural | — | `retired` — every lane terminal gone from fleet |
 
-1. **The fixed id list went stale at spawn-time.** The doorbell watched six terminal ids captured when it was armed at 21:26; the three reviewer terminals spawned at 21:31, 21:39 and 22:20 were never added. All three review completions rang nothing *by construction* — the fourth lapse's "filter narrower than the subscription" bug, reborn one layer down: the filter was current at arming and wrong twenty minutes later. A fixed list is a snapshot wearing a subscription costume.
-2. **The loop froze silently and its silence was unfalsifiable.** The process stayed "running" all night, but its log stops at 22:20 — census and inbox-count completions *inside its list* produced no lines, and the identical pipeline works when run by hand in the morning. Whether the host slept or a single `kolu ls` call hung inside `$()`, the loop's error handling (`|| continue`) could not tell a freeze from a quiet night: it emitted nothing when healthy-and-idle and nothing when dead, and no heartbeat line existed to tell those apart. Silence read as "nothing happening," which is exactly what the Monitor doctrine warns silence never proves. (Confirmed in the morning: the kolu padi HAD restarted overnight — the reopened subscription came back `reattached: false` with a fresh cursor — so the hung-`kolu ls` mechanism is the established one.)
-3. **There was no second wake.** The durable fleet-wide `watch_next` queue — which buffered every one of the night's events, complete and acknowledged-nowhere — was drained only *when the doorbell rang*. One un-heartbeated process was the single point of failure for the whole night's supervision; when it went dark, the queue full of answers sat unread until the human asked why five agents were lingering.
+The eighth lapse stays impossible by construction: the merge *is* `approved ∧ ci-green ∧ mergeable ∧ verified` (`approved` waived under `merge=auto`).
 
-Rules added: **the doorbell is fleet-wide or it is wrong** — never a terminal list, because every spawn after arming is a hole (the `watch_open` form with no ids exists precisely because "it cannot go blind to a lane nobody remembered to add"); **a monitor that can be legitimately silent for hours must emit a heartbeat line**, so that silence acquires a meaning and a frozen loop is distinguishable from a quiet one; and **overnight supervision keeps two independent wake paths** — the doorbell plus a low-frequency timer that drains `watch_next` unconditionally — so a dead doorbell costs one timer interval, not a night. The general law's sixth witness restates it structurally: an edge-triggered doorbell over a fixed list is the orchestrator's memory wearing a process costume — the durable queue must be what *wakes* you, not what you check after something else already has.
+### Credentials — gates as configuration
 
-**Resolution (2026-08-21, ruled by the human — supersedes the rule paragraph above and the 2026-08-15 "babysitting transport" decision for the wake path).** The morning's first correction — park a blocking `watch_next` MCP call and let the harness background it — was itself rejected in practice: a blocking MCP call holds the orchestrator's turn open for up to 120 seconds before backgrounding, freezing the human's terminal every time, and the two-wake-paths compensation (heartbeat doorbell + drain timer) was complexity spent shoring up the wrong transport. The ruled shape is simpler and is what #2181 built its CLI face for: **the wake path is `kolu watch` itself** — `kolu watch --states waiting,awaiting --held-for 60s --nag 10m`, run as one background process whose every printed line wakes the orchestrator. It is kolu's own engine (level map, hold, nags, snapshot-on-connect), fleet-wide with no id list to go stale, self-healing by nag (an ignored settle re-rings until dealt with), and loud on failure (a padi death EXITS the process — a notification — instead of hanging a `$()` mute). The distinction that separates this from the sixth lapse's sin: the condemned doorbell *implemented watching* in hand-rolled shell (its own poll, its own state table, its own list); the ruled one *streams kolu's watching* and contains no logic of the orchestrator's at all. MCP kolu tools remain the transport for ACTIONS — spawn, send, kill, snapshot — as instant calls only; blocking MCP waits (`wait_agentState`, parked `watch_next`) are retired from the supervision path entirely.
+| actor | gh credential | can | cannot |
+|---|---|---|---|
+| author | push | branch, push, open PR | merge |
+| reviewers | read | read, comment | push, merge |
+| pi (ci) | read + CI | run odu, read checks | push, merge |
+| judge | read | read everything | write anything |
+| merge terminal | merge (injected at create, that terminal only) | merge when the gate holds | exist longer than one command |
 
-What fixes it for real (the argument this section adds to the file's thesis): **events must become nodes.** The wake-path design above (`olai-subscribes`) already says olai's server should start turns when a lane's agent settles; this incident sharpens it — the settle-event should also *write the board itself* (step gains `debrief=landed` mechanically), so the queue exists whether or not any orchestrator is awake to hear the interrupt. An attention-shaped queue was the bug; an outline-shaped queue is the fix, which is this document's organizing idea applied to its own operator.
+### The judgment seam
 
-## The seventh and eighth witnesses (2026-08-21), and the ruling they force: the control flow leaves the model
+A `judge` step's procedure creates a kolu terminal in the lane's worktree running `claude -p --model fable --allowedTools "Read,Bash(gh pr view:*),Bash(gh pr diff:*)"` with the evidence contract as the prompt; the verdict (typed JSON on stdout) is read back with `screen.text`, written as a prop on the step with the reason in its note, and the terminal is killed. Briefs stay `.md` documents under `docs/orchestrator/briefs/`, linked from `brief` props. The human reads a judge the way they read any terminal: the snapshot. *(This replaces the ACP-session judge; no chat-side changes are needed anymore.)*
 
-Both happened in one afternoon, in one fresh orchestrator session, and together they close the case this file has been building since 2026-08-16 — because they are the two halves of the same theorem.
+## Upstream asks (kolu)
 
-**Seventh lapse (delivery, one more costume).** A fresh session armed the ruled wake path — the right command, `kolu watch --states waiting,awaiting --held-for 60s --nag 10m --ignore-self --heartbeat 10m` — through the wrong harness verb: a background Bash task, which notifies its owner only when the process EXITS. A watch stream never exits by design, so every event landed in an output file nobody wakes to read, and a worker that finished its entire pipeline (PR open, refactored, reviewed, CI green, evidence posted) sat idle 27 minutes until the human asked why. The failure is kin to the sixth lapse's family — silence unfalsifiable, the wake path structurally null from arming — but the costume was new: not a hand-rolled loop this time, a *correct* stream bound to a notify-on-exit contract. Fixed within the session: the same command re-armed under the harness's Monitor primitive, where each printed line re-invokes the orchestrator; verified live. The lesson for this file: **every fresh session re-derives the wake binding from prose, and prose cannot check a harness contract.** A deterministic home arms its own wake exactly once, in code.
+1. **`PrInfo` grows `reviewDecision` and `mergeStateStatus`** — two `--json` fields on the same `gh pr view` the sensor runs. Gates `review-posted` and `mergeable` wait on this.
+2. **A thin client package** — padi's spec + `dial` (+ `terminal-vocab`) without the daemon. PR 1 waits on this.
+3. `lifecycle.create` composing worktree → create → sendInput padi-side (noted in `oic-worktree`).
+4. **pi agent support** — in progress by the human; assumed.
+5. *(open)* `pr.merge` as a padi procedure, if kolu would rather own the merge than have olai inject a token into a one-shot terminal.
 
-**Eighth lapse (judgment — the one delivery cannot fix).** After the fix, delivery was perfect: the worker's finish, the reviewer's finish, and every 10-minute nag arrived as real notifications, and the orchestrator read and acknowledged each one. It still let the agent sit idle ~15 minutes on a fully green, human-pre-approved PR — because it had manufactured a gate: it demanded a separate per-deferral ruling from the human that the instructions' own godly-deferral rule and the pre-approval (given *after* the deferral was surfaced) had already answered. Each nag was rationalized against that wrong premise: event arrives → "still blocked" → acknowledged noop, a loop stable in the wrong state that would have run for hours. **A nag carries no information that refutes a premise.** An infinitely patient nagger paired with an operator holding a wrong premise converges to infinitely acknowledged idleness — the human broke the loop, not the machinery.
+## PR phases
 
-**The decomposition the two lapses prove.** Lapses one through seven are all the same failure — *control flow living in the model's head*: the queue was attention, the retirement was a sentence, the filter was memory, the list was a snapshot, the silence was unfalsifiable, the wake binding was prose. Each got a rule, and the eighth lapse shows why rules cannot end the series: with delivery finally perfect, the *gate evaluation* failed instead, because it too lived in the model. Meanwhile — worth saying plainly — the judgment-shaped work never failed once across all eight: the briefs were right, the evidence verifications were right, the godly-vs-not calls were right, the review orders were right. The failures live entirely in the deterministic-shaped half that was being executed nondeterministically.
+0. **kolu: thin client** (ask 2). PR 1 waits.
+1. **olai: `/orchestrator`, read-only** — padi mirror (`cells.kolu`, `collections.fleet`), `cells.board`, `cells.needsYou`, `procedures.screen` (snapshot on demand), the page, `--padi-socket`, "no kolu" drawn honestly.
+2. **olai: events land** — `watchStates` facts written onto lane steps by the driver; `instructions.md` drops the doorbell section.
+3. **olai: actions** — the procedure registry's first verbs: dispatch (with `merge=auto|human`), kill/retire, mute, approve, re-dispatch, bounce; chat "about this lane". `instructions.md` drops dispatch and retirement.
+4. **kolu: PrInfo fields** (ask 1), then **olai: gates** — `kind`/`gate`/`agent` on `dag.olai`; the driver flips marks from predicates and runs procedures; merge fires from the board. No interim.
+5. **olai: judgment + pi lanes** — the judge procedure (kolu terminal, Fable, subscription); `mechanical` steps dispatch to pi with per-step skills. The terminal orchestrator retires.
 
-**The ruling (the human, 2026-08-21): there is no permanent solution inside the nondeterministic harness.** The permanent home is a deterministic harness OUTSIDE the model — olai's orchestrator itself — driving the nondeterministic agent over the ACP chat seam. This is the file's organizing idea carried to its conclusion: the board stopped being the model's memory in the first section; now the *executor* stops being the model too.
+## Löwy and Hickey, applied
 
-**The sketch.** Three pieces, each small, each already half-built:
+Volatilities, one owner each: the padi link in one module; board derivation as pure functions over data; pipeline policy on `dag.olai`; gate predicates as a closed set; procedures as a registry keyed by name; the page as a function of cells. The agent proposes, the engine disposes — the split olai already has between ops and the agent, now with a third participant: the driver, which is the only thing that acts, and acts only through padi and ops. Data over vocabulary: a lane, a step, a terminal, a verdict, a snapshot are nodes or records; nothing the harness knows lives outside the board and the mirror.
 
-1. **Predicate wiring — gates flip from observed facts, not from bookkeeping.** The lane DAG is already the state machine (`dag.olai`; `after` edges; `is:blocked` already derived by the format). What is missing is that a gate's mark should follow a machine-checkable predicate: CI-green is `gh pr checks --required` exit 0 at the PR's head sha; review-posted is a comment URL recorded on the step; approval is one bit the human sets once; merge fires when `pre-approved ∧ all gates green`, the way a build system fires. The eighth lapse becomes structurally impossible — no premise of anyone's sits between a green board and the merge.
-2. **The driver loop — events write the board, policy is code.** `kolu watch` events land as facts on lane steps mechanically (the sixth lapse's "events must become nodes", executed by the engine rather than owed by an agent's discipline). Escalation policy stops being a resolution the model holds: *second nag on an unchanged block → force a re-derivation turn or escalate to the human* is an `if`, not a virtue.
-3. **The ACP seam — the agent becomes a function.** The engine invokes the nondeterministic agent for exactly the steps that need judgment — write the brief, verify the evidence honestly, judge a deferral godly or not, read the author's final message for what it leaves behind — and treats each answer as a fact it acts on mechanically. The agent proposes; the engine disposes.
+## Open questions
 
-**The containment argument (the honest limit).** Determinism moves the failure boundary; it does not erase it. The judgment calls stay nondeterministic and can still be wrong — a dishonest evidence pass or a bad godly-call still gets through. But the harness *contains* them: a bad judgment corrupts one step's content, never the control flow, never the wake, never a gate; and every judgment is asked at the right moment, exactly once, with its answer recorded where the engine reads it. This is the same division of labor olai already chose at its core — the ops layer is deterministic and is the ledger's only committer; the agent proposes, the validator disposes — now applied to the operator, which is where every one of the eight witnesses said it belonged.
+- **Merge action's home:** one-shot kolu terminal with an injected token (leaning), or a `pr.merge` verb on padi (ask 5).
+- **`SKILL.md` home for pi steps:** cloned from the template's `brief` at dispatch into the worktree's `.agents/skills/` (leaning — keeps the orchestrator self-contained), or checked into each repo, with a repo's own skills overriding.
+- **Other repos' vaults:** how the harness writes a foreign roadmap — olai-to-olai surface client, or the lane's agent updates its own repo's vault and the harness only reads. Undecided.
+- **Padi surface version pinning:** is olai's npins pin of kolu also its padi contract pin, or is the hello's skew check the only gate.
+- **Someday:** terminals streamed into olai (`terminalAttach` exists padi-side; the page could host xterm over it). Snapshots on demand cover the night until then.

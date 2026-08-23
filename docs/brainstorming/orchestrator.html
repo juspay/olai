@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>One PR, Overnight</title>
+<style>
+/* olai's own vocabulary: eleven tokens, reef by default, aurora in the dark.
+   Values copied from packages/web/src/client/theme/palettes.ts */
+:root{
+  --paper:#D7F0E8; --desk:#C5E6DC; --panel:#E8F7F2; --pill:#B5DDD2; --ink:#14352F;
+  --muted:#467269; --rule:#9CC9BE; --accent:#B34219; --done:#1E7656; --doing:#8F5A00; --alarm:#C13349;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0A1220; --desk:#121C30; --panel:#1A2742; --pill:#243352; --ink:#D5E8F5;
+    --muted:#7A93B0; --rule:#2A3C58; --accent:#4EE0C8; --done:#7EE0A8; --doing:#F0C04A; --alarm:#F07090;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0A1220; --desk:#121C30; --panel:#1A2742; --pill:#243352; --ink:#D5E8F5;
+  --muted:#7A93B0; --rule:#2A3C58; --accent:#4EE0C8; --done:#7EE0A8; --doing:#F0C04A; --alarm:#F07090;
+}
+body{background:var(--desk);color:var(--ink);font-family:"iA Writer Quattro S","iA Writer Quattro",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;font-size:15px;line-height:1.5;margin:0}
+.wrap{max-width:1120px;margin:0 auto;padding:40px 24px 80px}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
+h1{font-size:32px;letter-spacing:-.01em}
+h2{font-size:19px;margin-top:56px;padding-top:18px;border-top:1px solid var(--rule);display:flex;align-items:baseline;gap:12px}
+h2 .n{font-family:"iA Writer Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--accent);font-weight:500}
+.sub{color:var(--muted);max-width:68ch;margin-top:8px}
+.sub b, .cap b{color:var(--ink)}
+.mono{font-family:"iA Writer Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+.lede{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 11px;font-size:12.5px;background:var(--pill);color:var(--ink)}
+.chip b{font-weight:700}
+.chip.on{background:var(--accent);color:var(--paper)}
+/* tables */
+.tbl{background:var(--panel);border:1px solid var(--rule);border-radius:8px;margin-top:18px;overflow-x:auto}
+.tbl table{border-collapse:collapse;width:100%;font-size:13px;min-width:760px}
+.tbl th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:left;font-weight:600;padding:10px 14px;border-bottom:1px solid var(--rule)}
+.tbl td{padding:9px 14px;border-bottom:1px solid color-mix(in srgb,var(--rule) 45%,transparent);vertical-align:top}
+.tbl tr:last-child td{border-bottom:0}
+.k{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700;border-radius:999px;padding:2px 10px;white-space:nowrap;background:var(--pill)}
+.k i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.k-proc i{background:var(--ink)} .k-mech i{background:var(--doing)} .k-judge i{background:var(--accent)}
+.k-auth i{background:var(--muted)} .k-rev i{background:var(--done)} .k-human i{background:var(--alarm)}
+/* storyboard moment */
+.mo{display:grid;grid-template-columns:104px 1fr;gap:18px;margin-top:42px}
+.rail{position:relative}
+.rail .t{font-family:"iA Writer Mono",ui-monospace,monospace;font-size:15px;font-weight:500}
+.rail .k{margin-top:8px}
+.rail::after{content:"";position:absolute;left:6px;top:62px;bottom:-42px;width:2px;background:color-mix(in srgb,var(--rule) 55%,transparent)}
+.mo:last-of-type .rail::after{display:none}
+.mo h3{font-size:15.5px}
+.mo .cap{color:var(--muted);font-size:13.5px;margin-top:4px;max-width:80ch}
+.duo{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+.duo.solo{grid-template-columns:1fr}
+@media (max-width:900px){.duo{grid-template-columns:1fr}.mo{grid-template-columns:1fr}.rail{display:flex;gap:14px;align-items:center}.rail::after{display:none}.rail .k{margin-top:0}}
+.panel-l{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;margin-bottom:6px}
+/* ===== olai mock: ink frame, paper sheet ===== */
+.app{border-radius:10px;overflow:hidden;border:1px solid var(--rule);background:var(--ink)}
+.hdr{display:flex;align-items:center;gap:10px;padding:9px 14px;color:var(--paper);border-bottom:2px solid var(--accent);font-size:12px}
+.hdr .wm{font-weight:700;font-size:14px;letter-spacing:.01em}
+.hdr .sp{flex:1}
+.hpill{border-radius:999px;padding:2px 9px;background:color-mix(in srgb,var(--paper) 16%,transparent);white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+.hpill i{width:7px;height:7px;border-radius:50%;background:var(--done);display:inline-block}
+.split{display:flex;align-items:stretch}
+.spine{width:158px;flex:none;color:var(--paper);padding:10px 12px;font-size:11.5px;line-height:1.9}
+.spine .sect{color:color-mix(in srgb,var(--paper) 55%,transparent);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;margin-top:8px}
+.spine .cur{color:var(--paper);font-weight:700}
+.spine .dim{color:color-mix(in srgb,var(--paper) 62%,transparent)}
+.sheet{flex:1;background:var(--paper);color:var(--ink);min-width:0}
+.sheet.lone{border-radius:10px;border:1px solid var(--rule);overflow:hidden}
+.crumb{font-size:11.5px;color:var(--muted);padding:10px 16px 0;font-family:"iA Writer Mono",ui-monospace,monospace}
+.pgt{font-size:15px;font-weight:700;padding:2px 16px 8px}
+.psec{padding:10px 16px;border-top:1px solid color-mix(in srgb,var(--rule) 55%,transparent)}
+.psec h4{margin:0 0 8px;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:700;display:flex;gap:8px;align-items:center}
+.psec h4 .cnt{font-family:"iA Writer Mono",monospace;background:var(--pill);border-radius:4px;padding:0 6px;color:var(--ink);letter-spacing:0}
+/* glyph vocabulary — marks.tsx faces */
+.g{width:13px;height:13px;flex:none;display:inline-block;position:relative;top:2px;box-sizing:border-box}
+.g.b::after{content:"";position:absolute;inset:4px;border-radius:50%;background:var(--ink)}
+.g.todo{border:1.6px solid var(--muted);border-radius:3.5px}
+.g.doing{border:1.6px solid var(--accent);border-radius:3.5px;background:linear-gradient(90deg,var(--accent) 0 50%,transparent 50%)}
+.g.done{border:1.6px solid var(--muted);border-radius:3.5px;background:var(--muted)}
+.g.done::after{content:"✓";position:absolute;inset:0;color:var(--paper);font-size:10px;line-height:11px;text-align:center;font-weight:700}
+.gw{color:var(--muted);font-size:12px;width:13px;display:inline-block;text-align:center}
+/* rows in a sheet */
+.nrow{display:flex;gap:9px;align-items:flex-start;padding:4px 0;font-size:13.5px}
+.nrow .props{color:var(--muted);font-family:"iA Writer Mono",monospace;font-size:11px}
+.nrow .props b{color:var(--muted);font-weight:600}
+.nrow.donerow{color:var(--muted)} .nrow.donerow .ttl{text-decoration:line-through}
+.ind1{margin-left:22px} .ind2{margin-left:44px}
+/* step chips on the lane card */
+.steps{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:5px}
+.st{display:inline-flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap}
+.st .g{top:0}
+.st.done{color:var(--muted);text-decoration:line-through}
+.st.doing{color:var(--accent);font-weight:700}
+.st.todo{color:var(--muted)}
+.st.skip{color:var(--muted);text-decoration:line-through;opacity:.65}
+.st.fail{color:var(--alarm);font-weight:700}
+.lanehead{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.lanehead .nm{font-weight:700;font-size:13.5px}
+.lanehead .pr{font-family:"iA Writer Mono",monospace;font-size:11px;color:var(--muted)}
+.pr .ok{color:var(--done)} .pr .bad{color:var(--alarm)}
+/* needs-you + buttons */
+.need{display:flex;gap:10px;align-items:flex-start;padding:7px 0;font-size:13px}
+.need .stripe{width:7px;border-radius:2px;background:var(--alarm);align-self:stretch;flex:none;min-height:34px}
+.btn{display:inline-block;font-size:12px;border-radius:6px;padding:4px 11px;background:var(--pill);color:var(--ink);white-space:nowrap}
+.btn.pri{background:var(--accent);color:var(--paper);font-weight:700}
+.btns{display:flex;gap:6px;flex-wrap:wrap}
+/* log lines */
+.log{font-family:"iA Writer Mono",ui-monospace,monospace;font-size:11.5px;line-height:1.85;color:var(--muted)}
+.log b{color:var(--ink);font-weight:600}
+.log .ok{color:var(--done)} .log .bad{color:var(--alarm)} .log .hm{color:var(--doing)}
+/* fleet rows */
+.fl{display:flex;gap:10px;align-items:baseline;font-size:12px;padding:3px 0;font-family:"iA Writer Mono",monospace}
+.fl .bkt{width:74px;flex:none} .fl .own{margin-left:auto;color:var(--muted)}
+.b-work{color:var(--done)} .b-await{color:var(--doing)} .b-park{color:var(--muted)}
+/* kolu terminal panes — a terminal is dark whatever the theme; a snapshot keeps its own ink */
+.term{background:#0B1416;border:1px solid #22343A;color:#BFCFCC;border-radius:10px;padding:12px 14px;font-family:"iA Writer Mono",ui-monospace,monospace;font-size:11.5px;line-height:1.7;overflow-x:auto}
+.term .hd{color:#5E7A76;text-transform:uppercase;letter-spacing:.08em;font-size:10px;margin-bottom:6px}
+.term .tr{white-space:pre}
+.term .w{color:#7FA3E6} .term .a{color:#E5A44A} .term .p{color:#5C6967} .term .g2{color:#5FC487} .term .rd{color:#E27A86} .term .pi{color:#A98FD6} .term .dim{color:#5E7A76}
+.term.snap{background:#0B1416;border-style:dashed;border-color:#3A5058}
+figure{margin:18px 0 0}
+figcaption{color:var(--muted);font-size:13px;margin-top:8px;max-width:76ch}
+.fig{background:var(--panel);border:1px solid var(--rule);border-radius:10px;padding:16px;overflow-x:auto}
+svg{display:block;max-width:100%;height:auto;color:var(--ink);font-family:"iA Writer Quattro S",ui-sans-serif,system-ui,sans-serif}
+svg .m{font-family:"iA Writer Mono",ui-monospace,monospace}
+.note{border-left:3px solid var(--accent);background:var(--panel);border-radius:0 10px 10px 0;padding:12px 16px;margin-top:18px;font-size:13.5px;color:var(--muted);max-width:82ch}
+.note b{color:var(--ink)}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>One PR, overnight</h1>
+<p class="sub">The orchestrator, played as a single night — the clearest demonstration, because whatever merges at 3am merged with zero trust in anyone being awake. Night is not a mode: the driver, the gates and the executor classes run the same by day, when a <span class="mono">#human</span> gate resolves in minutes instead of at breakfast. <b>Olai is the orchestrator</b> — the dashboard you dispatch from and wake up to — and <b>kolu terminals effectuate everything</b> behind the scenes. Olai works on top of kolu and never launches an agent itself: every process with a model in it is a kolu terminal, pi runs the bounded steps, and the fully bounded ones are code. One example PR, every moment, both sides of the glass — drawn in olai's own vocabulary (reef by day, aurora after dark).</p>
+<div class="lede">
+  <span class="chip">repo <b>olai</b></span>
+  <span class="chip">lane <b>day-repeat-mirrors</b></span>
+  <span class="chip">PR <b>#356</b></span>
+  <span class="chip on">merge <b>auto</b></span>
+  <span class="chip">10:47pm → 3:03am</span>
+</div>
+
+<h2><span class="n">00</span>Executor classes — who acts, per kind of step</h2>
+<p class="sub">Coined for this design (nearest prior art: BPMN's service/script/user tasks; Löwy's volatility axis). The rule it compresses: <b>the less bounded a step, the more harness it deserves — and a fully bounded step deserves no model at all.</b> One constraint over all of it: the driver's only hands are padi verbs and olai ops; anything that runs on the host runs in a kolu terminal.</p>
+<div class="tbl"><table>
+<tr><th>kind</th><th>the step is…</th><th>runs as</th><th>model</th><th>dag-pr steps</th></tr>
+<tr><td><span class="k k-proc"><i></i>procedural</span></td><td>fully bounded — API calls, zero judgment</td><td>driver code in the olai server; a host command becomes a <b>one-shot kolu terminal</b></td><td><b>none</b></td><td class="mono">dispatch · merge · retire</td></tr>
+<tr><td><span class="k k-mech"><i></i>mechanical</span></td><td>bounded + verifiable, needs hands, judgment at the margin</td><td><b>pi</b> in a kolu split · one SKILL.md</td><td>cheap</td><td class="mono">merge-master · ci</td></tr>
+<tr><td><span class="k k-judge"><i></i>judge</span></td><td>read everything, write nothing, output a verdict</td><td>headless <span class="mono">claude&nbsp;-p</span> <b>in a kolu terminal</b>, read-only creds — your subscription</td><td>Fable</td><td class="mono">evidence</td></tr>
+<tr><td><span class="k k-auth"><i></i>agent</span></td><td>open-ended — design, write, respond</td><td><b>Claude Code</b> in the lane's kolu terminal</td><td>Opus</td><td class="mono">implement · refactor · address</td></tr>
+<tr><td><span class="k k-rev"><i></i>reviewer</span></td><td>independent eyes — per-step agents, already true today</td><td>grok / opencode as kolu splits of the author</td><td>theirs</td><td class="mono">review ×2</td></tr>
+<tr><td><span class="k k-human"><i></i>human</span></td><td>a ruling</td><td>a Needs-you card on /orchestrator — the lane parks</td><td>you</td><td class="mono">deferrals</td></tr>
+</table></div>
+
+<h2><span class="n">01</span>The night, moment by moment</h2>
+
+<!-- M1 -->
+<div class="mo">
+  <div class="rail"><div class="t">10:47<span style="font-size:11px">pm</span></div><span class="k k-human"><i></i>you</span></div>
+  <div>
+    <h3>You queue tonight's lanes and go to bed</h3>
+    <p class="cap">Your only act of the night. <span class="mono">/orchestrator</span> is a route beside <span class="mono">/agenda</span> and <span class="mono">/today</span> — the ink frame and the paper sheet are the app you already know; the page draws the roadmap's <i>ready</i> todos as a dispatch list. You tick two, leave the policy on auto, dispatch.</p>
+    <div class="duo">
+      <div><div class="panel-l">olai — the whole frame, /orchestrator</div>
+      <div class="app">
+        <div class="hdr"><span class="wm">olai</span><span class="sp"></span><span class="hpill"><i></i>live</span><span class="hpill">✓ committed · 2m</span><span class="hpill">agent</span></div>
+        <div class="split">
+          <div class="spine">
+            <div class="sect">pins</div>
+            <div class="cur">/orchestrator</div>
+            <div class="sect">days</div>
+            <div class="dim">today · agenda</div>
+            <div class="sect">directory</div>
+            <div class="dim">docs/<br>&nbsp;&nbsp;orchestrator/<br>&nbsp;&nbsp;&nbsp;&nbsp;dag.olai<br>&nbsp;&nbsp;&nbsp;&nbsp;lanes.olai<br>&nbsp;&nbsp;roadmap/</div>
+          </div>
+          <div class="sheet">
+            <div class="crumb">/orchestrator · padi ✓ surface 5.4</div>
+            <div class="psec"><h4>Dispatch tonight</h4>
+              <div class="nrow"><span class="g todo"></span><span><b>day-repeat-mirrors</b> — the day page repeats a mirrored node once per mirror<br><span class="props">feat-day · small · <b>agent</b> claude</span></span><span style="margin-left:auto" class="chip on">✓</span></div>
+              <div class="nrow"><span class="g todo"></span><span><b>torn-file-answer-trim</b> — the torn-file answer keeps its trailing blank run<br><span class="props">inbox · small · <b>agent</b> claude</span></span><span style="margin-left:auto" class="chip on">✓</span></div>
+              <div class="nrow"><span class="gw">⧗</span><span style="color:var(--muted)">surface-cli-olai — waits on kolu<br><span class="props">blocked · not offered tonight</span></span></div>
+            </div>
+            <div class="psec" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="chip on">merge auto</span><span class="chip">park on #human gates</span><span style="flex:1"></span><span class="btn pri">Dispatch 2 lanes ▸</span></div>
+          </div>
+        </div>
+      </div></div>
+      <div><div class="panel-l">kolu — fleet</div>
+      <div class="term"><div class="hd">padi · this host</div>
+<div class="tr"><span class="g2">●</span> daemon up · 0 terminals</div>
+<div class="tr"><span class="dim">the fleet is empty; the night hasn't started</span></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- M2 -->
+<div class="mo">
+  <div class="rail"><div class="t">10:47<span style="font-size:11px">pm</span></div><span class="k k-proc"><i></i>procedural</span></div>
+  <div>
+    <h3>The driver dispatches — zero model tokens, and lanes.olai is just an outline</h3>
+    <p class="cap">The <span class="mono">dispatch</span> procedure (code, in <span class="mono">packages/orchestrator</span>) clones the template under lanes.olai through ops, then effects through padi: <span class="mono">git.worktreeCreate → lifecycle.create → sendInput</span>. Note the left mock: <b>lanes.olai opened as an outline is an ordinary outline</b> — the glyph column already says everything (half-box doing, hourglass blocked). The special drawing is the route, not the file — exactly how /agenda draws ordinary nodes.</p>
+    <div class="duo">
+      <div><div class="panel-l">olai — docs/orchestrator/lanes.olai, the plain outline view</div>
+      <div class="sheet lone">
+        <div class="crumb">docs / orchestrator / lanes.olai</div>
+        <div class="psec">
+          <div class="nrow"><span class="g b"></span><span><b>day-repeat-mirrors</b> <span class="props">&nbsp;<b>agent</b> claude · <b>repo</b> olai · <b>item</b> day-repeat-mirrors · <b>merge</b> auto</span></span></div>
+          <div class="nrow ind1"><span class="g doing"></span><span style="color:var(--accent);font-weight:700">implement + open PR</span>&nbsp;<span class="props"><b>terminal</b> t-4a12</span></div>
+          <div class="nrow ind1"><span class="gw" title="waiting on implement">⧗</span><span style="color:var(--muted)">refactor passes</span></div>
+          <div class="nrow ind1"><span class="gw">⧗</span><span style="color:var(--muted)">review: grok</span></div>
+          <div class="nrow ind1"><span class="gw">⧗</span><span style="color:var(--muted)">review: opencode</span></div>
+          <div class="nrow ind1"><span class="gw">⧗</span><span style="color:var(--muted)">CI green at head</span>&nbsp;<span class="props"><b>kind</b> mechanical · <b>agent</b> pi</span></div>
+          <div class="nrow ind1"><span class="gw">⧗</span><span style="color:var(--muted)">evidence verified</span>&nbsp;<span class="props"><b>kind</b> judge</span></div>
+          <div class="nrow ind1"><span class="gw">⧗</span><span style="color:var(--muted)">merge</span>&nbsp;<span class="props"><b>kind</b> procedural</span></div>
+          <div class="nrow"><span class="g b"></span><span><b>torn-file-answer-trim</b> <span class="props">&nbsp;<b>agent</b> claude · <b>repo</b> olai · <b>merge</b> auto</span></span></div>
+        </div>
+      </div></div>
+      <div><div class="panel-l">kolu — fleet</div>
+      <div class="term"><div class="hd">terminals</div>
+<div class="tr"><span class="w">●</span> t-4a12  olai/day-repeat-mirrors    claude  <span class="w">working</span></div>
+<div class="tr"><span class="w">●</span> t-4a19  olai/torn-file-answer-trim claude  <span class="w">working</span></div>
+<div class="tr"><span class="dim">worktreeCreate → lifecycle.create{cwd,intent} → sendInput(brief)</span></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- M3 -->
+<div class="mo">
+  <div class="rail"><div class="t">11:52<span style="font-size:11px">pm</span></div><span class="k k-auth"><i></i>agent</span></div>
+  <div>
+    <h3>PR opens; reviewers fan out as splits</h3>
+    <p class="cap">The author (Claude Code · Opus) lands the fix and opens #356 — padi's PR sensor sees it, the mirror carries it, the gate <span class="mono">pr-open</span> flips the step. Refactor <b>skips</b> (small change — the template's own rule). Both reviews go ready at once and spawn as <b>splits of the author's terminal</b>, the charter's shape.</p>
+    <div class="duo">
+      <div><div class="panel-l">olai — /orchestrator, the lane's card</div>
+      <div class="sheet lone">
+        <div class="psec">
+          <div class="lanehead"><span class="nm">day-repeat-mirrors</span><span class="pr">#356 · checks <span class="hm" style="color:var(--doing)">pending</span></span></div>
+          <div class="steps">
+            <span class="st done"><span class="g done"></span>implement</span>
+            <span class="st skip"><span class="g todo"></span>refactor</span>
+            <span class="st doing"><span class="g doing"></span>review grok</span>
+            <span class="st doing"><span class="g doing"></span>review opencode</span>
+            <span class="st todo"><span class="gw">⧗</span>address</span>
+            <span class="st todo"><span class="gw">⧗</span>ci</span>
+            <span class="st todo"><span class="gw">⧗</span>evidence</span>
+            <span class="st todo"><span class="gw">⧗</span>merge</span>
+          </div>
+        </div>
+        <div class="psec"><div class="log"><b>23:52</b> #356 open — <i>the day page repeats a mirrored node once per mirror</i><br><b>23:52</b> refactor <span class="hm">skipped</span> — small, rule in template<br><b>23:52</b> reviews fan out — readers of the worktree, writer done</div></div>
+      </div></div>
+      <div><div class="panel-l">kolu — the lane's terminal tree</div>
+      <div class="term"><div class="hd">t-4a12 and its splits</div>
+<div class="tr"><span class="p">●</span> t-4a12  claude   <span class="p">parked</span>   <span class="dim">author, holding the worktree</span></div>
+<div class="tr">  <span class="w">├●</span> t-4b02  grok     <span class="w">working</span>  <span class="dim">review</span></div>
+<div class="tr">  <span class="w">└●</span> t-4b03  opencode <span class="w">working</span>  <span class="dim">review</span></div>
+<div class="tr"><span class="dim">create --parent t-4a12 --cwd worktree — never top-level</span></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- M4 -->
+<div class="mo">
+  <div class="rail"><div class="t">12:34<span style="font-size:11px">am</span></div><span class="k k-rev"><i></i>reviewers</span></div>
+  <div>
+    <h3>Findings return; you could peek — snapshots are one click</h3>
+    <p class="cap">grok finds one real thing; the author addresses it in the terminal that's already there. And the card answers "what is it actually doing?" without leaving olai: <b>a terminal pill expands into a snapshot</b> — the server calls padi's <span class="mono">screen.text</span> at click time. No streaming (that's someday), no polling; a fresh look is another click.</p>
+    <div class="duo">
+      <div><div class="panel-l">olai — the card, expanded on t-4a12</div>
+      <div class="sheet lone">
+        <div class="psec">
+          <div class="lanehead"><span class="nm">day-repeat-mirrors</span><span class="pr">#356 · <span class="hm" style="color:var(--doing)">addressing 1 finding</span></span></div>
+          <div class="log" style="margin-top:6px"><b>00:34</b> grok → <span class="hm">1 finding</span>: mirror id leaks into the day key<br><b>00:34</b> opencode → <span class="ok">0 findings</span> · merge-master <span class="hm">skipped</span> (no conflicts)<br><b>00:34</b> address → author t-4a12</div>
+        </div>
+        <div class="psec"><h4>t-4a12 · snapshot 00:41 <span style="margin-left:auto" class="btn">refetch</span><span class="btn">open in kolu</span></h4>
+          <div class="term snap"><div class="tr"><span class="dim">▐ claude · working</span></div>
+<div class="tr">● Moving the dedupe into dayOf so every</div>
+<div class="tr">  view inherits it — writing the test first…</div>
+<div class="tr"><span class="dim">  esc to interrupt</span></div></div>
+        </div>
+      </div></div>
+      <div><div class="panel-l">how the snapshot travels</div>
+      <div class="term"><div class="hd">one verb, on demand</div>
+<div class="tr">page ▸ procedures.screen{terminal:"t-4a12"}</div>
+<div class="tr">olai server ▸ padi.screen.text("t-4a12")   <span class="dim">unix socket</span></div>
+<div class="tr">◂ the pane's text, drawn in the card</div>
+<div class="tr"><span class="dim">read-only · nothing subscribed · phone gets screen.image</span></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- M5 -->
+<div class="mo">
+  <div class="rail"><div class="t">1:58<span style="font-size:11px">am</span></div><span class="k k-mech"><i></i>mechanical · pi</span></div>
+  <div>
+    <h3>The wrinkle: CI goes red, pi triages it</h3>
+    <p class="cap">The <span class="mono">ci</span> step is a pi split with one skill (dropped into the worktree at dispatch): run odu, watch, <b>classify red as flake or real</b> — rerun twice before believing a flake. This one is real. pi never fixes — it reports; the driver bounces the failure to the author and the step stays open. A rig failure (padi gone, credential rejected) would instead land in Needs-you as <span class="mono">apparatus</span>, re-run rather than judged.</p>
+    <div class="duo">
+      <div><div class="panel-l">olai — lane card</div>
+      <div class="sheet lone">
+        <div class="psec">
+          <div class="lanehead"><span class="nm">day-repeat-mirrors</span><span class="pr">#356 · checks <span class="bad">✗</span></span></div>
+          <div class="steps">
+            <span class="st done"><span class="g done"></span>implement</span>
+            <span class="st done"><span class="g done"></span>reviews</span>
+            <span class="st done"><span class="g done"></span>address</span>
+            <span class="st fail"><span class="g doing"></span>ci ✗ → author</span>
+            <span class="st todo"><span class="gw">⧗</span>evidence</span>
+            <span class="st todo"><span class="gw">⧗</span>merge</span>
+          </div>
+        </div>
+        <div class="psec"><div class="log"><b>01:58</b> ci: odu → <span class="bad">red</span> · e2e day_page_mirrors:41<br><b>01:58</b> classify → <span class="bad">real</span> (2/2 reruns, same assertion) · kind=work, not apparatus<br><b>01:58</b> bounced to author with the failing output · ci stays open</div></div>
+      </div></div>
+      <div><div class="panel-l">kolu — the pi split</div>
+      <div class="term"><div class="hd">t-4c11 · pi · skill: ci-green</div>
+<div class="tr"><span class="pi">pi▸</span> odu run --linux</div>
+<div class="tr"><span class="rd">✗ e2e/day_page_mirrors:41</span> expected 1 row, saw 2</div>
+<div class="tr"><span class="pi">pi▸</span> rerun ×2 → same assertion → <span class="rd">real</span></div>
+<div class="tr"><span class="pi">pi▸</span> report {status:"red", kind:"real", test:"day_page_mirrors:41"}</div>
+<div class="tr"><span class="dim">bounded: run, watch, classify, report. never fix.</span></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- M6 -->
+<div class="mo">
+  <div class="rail"><div class="t">2:31<span style="font-size:11px">am</span></div><span class="k k-auth"><i></i>agent</span></div>
+  <div>
+    <h3>Author fixes; pi re-runs; green at head</h3>
+    <p class="cap">The author guards the dedupe on the mirror's target id and pushes; pi's split — still owning the <span class="mono">ci</span> step — re-runs and reports. The driver flips the mark only when the <b>mirror</b> says so: <span class="mono">pr.checks=pass</span> at the PR's head, from padi's own sensor. The repo is the witness, never the agent's word.</p>
+    <div class="duo solo">
+      <div><div class="panel-l">olai — night-log</div>
+      <div class="sheet lone"><div class="psec"><div class="log">
+<b>02:31</b> author: guard dedupe by target id in dayOf · pushed 9f3ac21<br>
+<b>02:44</b> ci: odu → <span class="ok">green</span> · padi pr.checks=pass @ 9f3ac21 = head → <span class="ok">ci done</span><br>
+<b>02:45</b> evidence → ready</div></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- M7 -->
+<div class="mo">
+  <div class="rail"><div class="t">3:02<span style="font-size:11px">am</span></div><span class="k k-judge"><i></i>judge · fable</span></div>
+  <div>
+    <h3>The judge verifies the evidence — in a kolu terminal, on your subscription</h3>
+    <p class="cap">Olai launches no agent itself, so the judge is <b>one more kolu terminal</b>: <span class="mono">lifecycle.create</span> in the worktree running headless <span class="mono">claude -p</span> — Fable, read-only tools, the evidence contract as its prompt. The driver reads the verdict back with <span class="mono">screen.text</span>, writes it as a prop on the step, kills the terminal. "No deferrals," said in so many words, skips the <span class="mono">#human</span> gate — the template's rule, not the judge's mercy.</p>
+    <div class="duo">
+      <div><div class="panel-l">olai — lane card</div>
+      <div class="sheet lone">
+        <div class="psec">
+          <div class="lanehead"><span class="nm">day-repeat-mirrors</span><span class="pr">#356 · checks <span class="ok">✓</span> · verdict <span class="ok">✓</span></span></div>
+          <div class="steps">
+            <span class="st done"><span class="g done"></span>implement</span>
+            <span class="st done"><span class="g done"></span>reviews</span>
+            <span class="st done"><span class="g done"></span>address</span>
+            <span class="st done"><span class="g done"></span>ci</span>
+            <span class="st done"><span class="g done"></span>evidence</span>
+            <span class="st skip"><span class="g todo"></span>deferrals</span>
+            <span class="st doing"><span class="g doing"></span>merge</span>
+            <span class="st todo"><span class="gw">⧗</span>retire</span>
+          </div>
+        </div>
+        <div class="psec"><div class="log"><b>03:02</b> evidence: <span class="ok">verified</span> — tests named, run, outputs quoted; claims match diff<br><b>03:02</b> deferrals: <span class="ok">none declared</span> → gate skips (rule, not mercy)</div></div>
+      </div></div>
+      <div><div class="panel-l">kolu — the judge terminal</div>
+      <div class="term"><div class="hd">t-4d20 · headless · one-shot</div>
+<div class="tr"><span class="dim">$</span> claude -p --model fable \</div>
+<div class="tr">    --allowedTools "Read,Bash(gh pr view:*),Bash(gh pr diff:*)" \</div>
+<div class="tr">    &lt; .lane/evidence-contract.md</div>
+<div class="tr"><span class="g2">→</span> {"verdict":"verified","deferrals":[],"notes":"…"}</div>
+<div class="tr"><span class="dim">read-only creds · subscription, not API · driver reads via screen.text, then kills</span></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- M8 -->
+<div class="mo">
+  <div class="rail"><div class="t">3:03<span style="font-size:11px">am</span></div><span class="k k-proc"><i></i>procedural</span></div>
+  <div>
+    <h3>Merge and retire — a for-loop, not a promise</h3>
+    <p class="cap">The gate is a conjunction, and it holds. The merge is a host command, so it too goes through kolu: a <b>one-shot terminal</b> running <span class="mono">gh pr merge</span>, the night's only merge-capable token injected into <i>that terminal's env</i> at create — no agent ever saw it. The driver believes the merge when <span class="mono">pr.state=merged</span> arrives on the mirror, then kills every lane terminal, <b>verified against the live list</b> (the twelve-zombie rule), and removes the worktree only after.</p>
+    <div class="duo">
+      <div><div class="panel-l">olai — night-log</div>
+      <div class="sheet lone"><div class="psec"><div class="log">
+<b>03:03</b> gate: checks=pass ∧ mergeable ∧ evidence=verified (merge=auto) → <span class="ok">merge</span><br>
+<b>03:03</b> t-4e01: gh pr merge 356 · mirror: pr.state=<span class="ok">merged</span> · roadmap item → done<br>
+<b>03:03</b> retire: kill t-4a12 t-4b02 t-4b03 t-4c11 t-4e01 · live list excludes all 5 ✓<br>
+<b>03:03</b> worktree removed (after merge confirmed)</div></div></div></div>
+      <div><div class="panel-l">kolu — fleet</div>
+      <div class="term"><div class="hd">terminals</div>
+<div class="tr"><span class="a">●</span> t-4a19  olai/torn-file-answer-trim  claude  <span class="a">awaiting</span></div>
+<div class="tr"><span class="dim">lane 1's five terminals: gone. lane 2 hit something…</span></div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- M9 -->
+<div class="mo">
+  <div class="rail"><div class="t">7:30<span style="font-size:11px">am</span></div><span class="k k-human"><i></i>you</span></div>
+  <div>
+    <h3>Morning: one merged, one waiting on your word</h3>
+    <p class="cap">The other lane finished everything but declared a deferral, so it parked at the <span class="mono">#human</span> gate at 4:12am instead of merging. That's the promise: <b>autonomy up to the gates, never past them.</b> You rule over coffee with two buttons — or take it to chat with the lane as context, if the ruling needs words.</p>
+    <div class="duo solo">
+      <div><div class="panel-l">olai — /orchestrator, morning</div>
+      <div class="sheet lone">
+        <div class="crumb">/orchestrator · while you slept: 2 lanes · 1 merged · 1 needs you</div>
+        <div class="psec"><h4>Needs you <span class="cnt">1</span></h4>
+          <div class="need"><span class="stripe"></span><span style="flex:1"><b>torn-file-answer-trim</b> — parked at <span class="mono">deferrals</span> since 4:12am · #357, checks <span style="color:var(--done)">✓</span>, evidence <span style="color:var(--done)">✓</span><br><span style="color:var(--muted)">deferral: "the same trim applies to pasted answers — separate, filed?"</span></span>
+          <span class="btns"><span class="btn pri">Rule: merge ▸</span><span class="btn">File deferral → roadmap</span><span class="btn">Open PR</span></span></div>
+        </div>
+        <div class="psec"><h4>Done overnight</h4>
+          <div class="nrow donerow"><span class="g done"></span><span><span class="ttl"><b>day-repeat-mirrors</b></span> — #356 merged 3:03am · one CI bounce at 1:58am, recovered<br><span class="props">author 214k tok (subscription) · reviews 61k · pi 9k · judge 38k (subscription) · driver 0</span></span></div>
+        </div>
+        <div class="psec"><h4>Fleet</h4>
+          <div class="fl"><span class="bkt b-await">● awaiting</span><span>t-4a19 · olai/torn-file-answer-trim · claude</span><span class="own">lane</span></div>
+        </div>
+      </div></div>
+    </div>
+  </div>
+</div>
+
+<h2><span class="n">02</span>Who held what — gates as configuration</h2>
+<p class="sub">Agents ignore instructions but cannot ignore a missing credential (the paper's §7: configuration beats instruction). Nothing overnight was <i>trusted</i> not to merge; everything but one one-shot terminal was <i>unable</i> to.</p>
+<div class="tbl"><table>
+<tr><th>actor</th><th>gh credential</th><th>can</th><th>cannot</th></tr>
+<tr><td><span class="k k-auth"><i></i>author</span></td><td class="mono">push</td><td>branch, push, open PR</td><td>merge, admin</td></tr>
+<tr><td><span class="k k-rev"><i></i>reviewers</span></td><td class="mono">read</td><td>read diff, comment</td><td>push, merge</td></tr>
+<tr><td><span class="k k-mech"><i></i>pi (ci)</span></td><td class="mono">read + CI</td><td>run odu, read checks</td><td>push, merge</td></tr>
+<tr><td><span class="k k-judge"><i></i>judge</span></td><td class="mono">read</td><td>read everything</td><td>write anything</td></tr>
+<tr><td><span class="k k-proc"><i></i>merge terminal</span></td><td class="mono">merge — injected at create</td><td>merge, once the gate's conjunction holds</td><td>outlive its one command</td></tr>
+</table></div>
+
+<h2><span class="n">03</span>The architecture under the night</h2>
+<p class="sub">Three layers, each a function of the one below, none holding state of its own — and one rule about hands: <b>the driver's only effectors are padi verbs and olai ops.</b> The <i>composition</i> (which steps, what order, who runs each, which gate) is data on dag.olai, edited as an outline; the <i>primitive verbs</i> are code in a registry.</p>
+<figure><div class="fig">
+<svg viewBox="0 0 1000 400" role="img" aria-label="Architecture: padi mirror, board reading, driver fiber and procedure registry">
+  <style>
+    .bx{fill:none;stroke:currentColor;stroke-opacity:.4;rx:8}
+    .bxa{fill:none;stroke:var(--accent);stroke-width:1.4;rx:8}
+    .t1{font:700 13px "iA Writer Quattro S",ui-sans-serif,sans-serif;fill:currentColor}
+    .t2{font:11.5px "iA Writer Quattro S",ui-sans-serif,sans-serif;fill:currentColor;fill-opacity:.72}
+    .tm{font:10.5px "iA Writer Mono",ui-monospace,monospace;fill:currentColor;fill-opacity:.72}
+    .ar{stroke:currentColor;stroke-opacity:.5;stroke-width:1.2;marker-end:url(#ah2);fill:none}
+    .ara{stroke:var(--accent);stroke-width:1.3;marker-end:url(#ah3);fill:none}
+  </style>
+  <defs>
+    <marker id="ah2" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="currentColor" fill-opacity=".5"/></marker>
+    <marker id="ah3" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="var(--accent)"/></marker>
+  </defs>
+  <!-- kolu column -->
+  <rect x="20" y="40" width="230" height="320" class="bx"/>
+  <text x="36" y="66" class="t1">kolu · padi daemon</text>
+  <text x="36" y="90" class="tm">terminals · urgency · watchStates</text>
+  <text x="36" y="108" class="tm">pr sensor (gh pr view, 30s)</text>
+  <text x="36" y="140" class="t2">every process with a model:</text>
+  <text x="36" y="158" class="tm">claude (author) · grok · opencode</text>
+  <text x="36" y="176" class="tm">pi (mechanical) · claude -p (judge)</text>
+  <text x="36" y="194" class="tm">one-shot: gh pr merge</text>
+  <text x="36" y="226" class="t2">verbs olai calls:</text>
+  <text x="36" y="244" class="tm">lifecycle.create / kill / sendInput</text>
+  <text x="36" y="262" class="tm">git.worktreeCreate · screen.text</text>
+  <!-- olai server -->
+  <rect x="330" y="40" width="360" height="320" class="bx"/>
+  <text x="346" y="66" class="t1">olai server</text>
+  <rect x="346" y="82" width="328" height="64" class="bx"/>
+  <text x="360" y="104" class="t2">mirror (surface client over unix socket)</text>
+  <text x="360" y="124" class="tm">cells.kolu · collections.fleet (+owner overlay)</text>
+  <rect x="346" y="158" width="328" height="64" class="bx"/>
+  <text x="360" y="180" class="t2">reading (lanes/dag/agents.olai — ordinary outlines)</text>
+  <text x="360" y="200" class="tm">cells.board · cells.needsYou · gates.ts (pure)</text>
+  <rect x="346" y="234" width="328" height="106" class="bxa"/>
+  <text x="360" y="256" class="t1" fill="var(--accent)">driver fiber · packages/orchestrator</text>
+  <text x="360" y="276" class="tm">watchStates event → fact on step (ops)</text>
+  <text x="360" y="294" class="tm">gates → marks (set_done / set_doing refuses blocked)</text>
+  <text x="360" y="312" class="tm">PROCEDURES[kind|proc] → padi verbs · ops</text>
+  <text x="360" y="330" class="tm">dispatch · spawn-review · bounce · judge · merge · retire</text>
+  <!-- page -->
+  <rect x="770" y="40" width="210" height="150" class="bx"/>
+  <text x="786" y="66" class="t1">/orchestrator page</text>
+  <text x="786" y="88" class="t2">a route beside /agenda:</text>
+  <text x="786" y="106" class="t2">a special drawing of</text>
+  <text x="786" y="124" class="t2">ordinary nodes</text>
+  <text x="786" y="150" class="tm">needs-you · lanes · fleet</text>
+  <text x="786" y="168" class="tm">snapshot = procedures.screen</text>
+  <!-- arrows -->
+  <path d="M250,110 L346,110" class="ar"/><text x="262" y="102" class="tm">mirror</text>
+  <path d="M690,120 L770,120" class="ar"/><text x="700" y="112" class="tm">cells</text>
+  <path d="M346,290 C300,290 280,240 250,220" class="ara"/><text x="256" y="252" class="tm" fill="var(--accent)">verbs</text>
+  <path d="M770,170 C740,220 700,250 674,270" class="ar"/><text x="700" y="222" class="tm">buttons</text>
+</svg>
+</div>
+<figcaption>The procedure registry is the same shape as ops' TOOLS: <span class="mono">PROCEDURES: Record&lt;name, (lane, step, io) ⇒ Effect&gt;</span>, where <span class="mono">io</span> is exactly two capabilities — the padi client and the ops layer. Adding a pipeline step is an outline edit; adding a new verb is a PR.</figcaption></figure>
+
+<h2><span class="n">04</span>The same night as one diagram</h2>
+<figure><div class="fig">
+<svg viewBox="0 0 1000 580" role="img" aria-label="Swimlane: you, olai page, driver, kolu, GitHub over the night">
+  <style>
+    .ln{stroke:currentColor;stroke-opacity:.14;stroke-width:1}
+    .lane-t{font:700 12.5px "iA Writer Quattro S",ui-sans-serif,sans-serif;fill:currentColor}
+    .ev{font:12px "iA Writer Quattro S",ui-sans-serif,sans-serif;fill:currentColor}
+    .tm2{font:10.5px "iA Writer Mono",ui-monospace,monospace;fill:currentColor;fill-opacity:.55}
+    .ar2{stroke:currentColor;stroke-opacity:.5;stroke-width:1.2;marker-end:url(#ah4)}
+    .bx2{fill:none;stroke:currentColor;stroke-opacity:.35;rx:4}
+  </style>
+  <defs><marker id="ah4" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 z" fill="currentColor" fill-opacity=".5"/></marker></defs>
+  <text x="60" y="24" class="lane-t" text-anchor="middle">you</text>
+  <text x="280" y="24" class="lane-t" text-anchor="middle">olai /orchestrator</text>
+  <text x="500" y="24" class="lane-t" text-anchor="middle">driver (olai server)</text>
+  <text x="720" y="24" class="lane-t" text-anchor="middle">kolu terminals</text>
+  <text x="920" y="24" class="lane-t" text-anchor="middle">GitHub</text>
+  <line x1="60" y1="34" x2="60" y2="565" class="ln"/><line x1="280" y1="34" x2="280" y2="565" class="ln"/><line x1="500" y1="34" x2="500" y2="565" class="ln"/><line x1="720" y1="34" x2="720" y2="565" class="ln"/><line x1="920" y1="34" x2="920" y2="565" class="ln"/>
+  <text x="10" y="62" class="tm2">10:47p</text>
+  <line x1="60" y1="58" x2="276" y2="58" class="ar2"/><text x="90" y="52" class="ev">dispatch 2 lanes</text>
+  <line x1="280" y1="80" x2="496" y2="80" class="ar2"/><text x="310" y="74" class="ev">lanes.olai clones (ops)</text>
+  <line x1="500" y1="102" x2="716" y2="102" class="ar2"/><text x="530" y="96" class="ev">worktree + author terminal + brief</text>
+  <text x="10" y="140" class="tm2">11:52p</text>
+  <line x1="720" y1="136" x2="916" y2="136" class="ar2"/><text x="760" y="130" class="ev">author opens #356</text>
+  <line x1="500" y1="162" x2="716" y2="162" class="ar2"/><text x="530" y="156" class="ev">spawn review splits (grok, opencode)</text>
+  <text x="10" y="200" class="tm2">12:34a</text>
+  <line x1="720" y1="196" x2="504" y2="196" class="ar2"/><text x="540" y="190" class="ev">findings → bounce → addressed</text>
+  <text x="10" y="238" class="tm2">1:58a</text>
+  <line x1="720" y1="234" x2="504" y2="234" class="ar2"/><text x="545" y="228" class="ev">pi: CI red · real → report</text>
+  <line x1="500" y1="256" x2="716" y2="256" class="ar2"/><text x="545" y="250" class="ev">bounce failure → author</text>
+  <text x="10" y="294" class="tm2">2:45a</text>
+  <line x1="720" y1="290" x2="504" y2="290" class="ar2"/><text x="530" y="284" class="ev">green · mirror: checks=pass @ head</text>
+  <text x="10" y="332" class="tm2">3:02a</text>
+  <line x1="500" y1="328" x2="716" y2="328" class="ar2"/><text x="530" y="322" class="ev">create judge: claude -p · fable</text>
+  <line x1="720" y1="350" x2="916" y2="350" class="ar2"/><text x="760" y="344" class="ev">read PR, diff, checks (read-only)</text>
+  <line x1="720" y1="372" x2="504" y2="372" class="ar2"/><text x="545" y="366" class="ev">verdict via screen.text</text>
+  <text x="10" y="410" class="tm2">3:03a</text>
+  <line x1="500" y1="406" x2="716" y2="406" class="ar2"/><text x="530" y="400" class="ev">one-shot terminal: gh pr merge (token in env)</text>
+  <line x1="720" y1="428" x2="916" y2="428" class="ar2"/><text x="790" y="422" class="ev">merge #356</text>
+  <line x1="500" y1="450" x2="716" y2="450" class="ar2"/><text x="545" y="444" class="ev">retire: kill 5, verify list</text>
+  <line x1="500" y1="472" x2="284" y2="472" class="ar2"/><text x="310" y="466" class="ev">night-log · roadmap → done</text>
+  <text x="10" y="510" class="tm2">4:12a</text>
+  <line x1="500" y1="506" x2="284" y2="506" class="ar2"/><text x="300" y="500" class="ev">lane 2 parks at #human gate</text>
+  <text x="10" y="548" class="tm2">7:30a</text>
+  <line x1="280" y1="544" x2="64" y2="544" class="ar2"/><text x="95" y="538" class="ev">Needs-you: 1 ruling</text>
+  <line x1="60" y1="564" x2="276" y2="564" class="ar2"/><text x="95" y="558" class="ev">Rule: merge ▸</text>
+</svg>
+</div>
+<figcaption>Every arrow into GitHub leaves from the kolu column — the driver never touches the forge directly; its writes are the vault (ops) and padi verbs. The judge and the merge are terminals like everything else, just short-lived ones.</figcaption></figure>
+
+<div class="note"><b>What this storyboard assumes</b> — all rulings or in flight: kolu grows pi agent support (in progress, alongside opencode/grok — so <span class="mono">agentBucket</span> works for the pi split); kolu ships the thin padi client package olai's server dials with; <span class="mono">PrInfo</span> grows the merge-gate fields; <span class="mono">olai surface</span> exists for the agents' hands. The reference behind this page: <a href="orchestrator.md">orchestrator.md</a>.</div>
+
+</div>
+</body>
+</html>
