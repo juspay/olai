@@ -797,10 +797,13 @@ export type { Pinned } from "./shelf.ts"
  * an agent and `olai surface capture` both land on — and a second spelling of
  * "is there an inbox yet" is two answers about one directory.
  *
- * WHAT A CAPTURE IS on the way in — `CaptureRequest` (the four things a caller
- * may say), `noteOf` (the text and the link under it), `linkable` (an address
- * made safe to put in a markdown autolink) and `capturingOf` (the attribution
- * merge, and the refusal of a caller who tries to write `captured-by` itself).
+ * WHAT A CAPTURE IS on the way in — `CaptureRequest` (a title and a note, and
+ * nothing else a caller may say), `noteOf` (the note, which is the text) and
+ * `capturingOf` (the attribution the door supplies). There were two more: a
+ * `url` kept under the note as a markdown autolink, with a `linkable` that made
+ * an address safe to put in one, and a free property map — which is what made
+ * the attribution a GUARD rather than a fact about the schema. Both are gone,
+ * so a caller cannot write `captured-by` because there is nowhere to write it.
  * These came down from the deleted `POST /capture` when the verb became a
  * tool: they are the half of that door which was about CAPTURING rather than
  * about HTTP, and they are public for the same reason `captureInto` is —

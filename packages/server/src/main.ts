@@ -4,8 +4,9 @@
  * TWO SUBCOMMANDS, and only one of them is a server. `olai web` IS the
  * process that holds the directory; `olai surface` is a CLIENT of it — the
  * declared surface projected as argv by `@kolu/surface-cli`, exactly as
- * `@kolu/surface-mcp` projects it as tools, over the per-user socket that
- * serve binds.
+ * `@kolu/surface-mcp` projects it as tools, speaking MCP over HTTP to the
+ * `/mcp` that same serve already offers an agent. Not a face of its own: the
+ * same path, the same admission rule, the same members.
  *
  * THERE IS STILL NO SECOND WRITER, which is the principle the old sentence here
  * ("no write CLI, and there never will be") was protecting. Nothing in this
@@ -181,7 +182,9 @@ const HELP = {
     },
   ],
   answer: [
-    "Answers go to stdout as JSON; a refusal goes to stderr, also as JSON, on exit 1.",
+    "A write prints one line — where it landed, and a link to the row it made; --json prints the whole",
+    "record instead. Every other answer goes to stdout as JSON already. A refusal goes to stderr, also as",
+    "JSON, on exit 1.",
     "Exit 2 is a command that was wrong and never left this process, 3 is nothing serving at --url, 130 is Ctrl-C.",
     "Locally the server admits loopback with no credential; through a reverse proxy the login it injects is the",
     "authentication, and is what a capture is recorded as. Off loopback and with no proxy, set $OLAI_TOKEN.",

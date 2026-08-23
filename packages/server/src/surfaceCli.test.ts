@@ -102,10 +102,13 @@ test("`olai surface --help` is a page, not a dump of every verb", async () => {
     "Search",
     // …an example a person can paste…
     'olai surface capture "look into the new cabinets"',
-    // …the two flags every verb takes, and where the answer goes.
+    // …the two flags every verb takes, and where the answer goes — including
+    // the one-line summary a write prints, which is the half a person acts on
+    // and the half the ops layer's own answer has no room for.
     "--url <server>",
     "--json",
-    "Answers go to stdout as JSON",
+    "A write prints one line",
+    "--json prints the whole",
   ]) expect(out).toContain(said)
   // And NOT the flat alphabetical listing the renderer would otherwise print
   // under the page — two listings of one set, of which the flat one reads like

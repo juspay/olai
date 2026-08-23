@@ -270,10 +270,12 @@ Every verb an agent has is a verb here, under the same name, with the same argum
 ```sh
 olai surface --url http://127.0.0.1:7714 get outlines _olai/Inbox.olai
 olai surface --url http://127.0.0.1:7714 search_nodes --text 'is:todo prop:pr'
-olai surface list          # every verb and readable member, no server needed
+olai surface list --url http://127.0.0.1:7714   # every verb and readable member
 ```
 
-Answers go to stdout as JSON; a refusal goes to stderr, also as JSON, on exit 1. Exit 2 is a command that was wrong and never left the process, 3 is nothing serving at `--url`, 130 is Ctrl-C. There is no SDK and there is not going to be one — `jq` is the client library.
+`--url` is on `list` too, and `list` is the one verb that dials nothing — it answers off the projection itself. The flag is uniform rather than clever: every command takes it, so a script looping over the verbs does not break on the one that would have refused it.
+
+A write prints one line — where it landed, and a link to the row — and `--json` prints the whole record instead; every other answer is JSON already. A refusal goes to stderr, also as JSON, on exit 1. Exit 2 is a command that was wrong and never left the process, 3 is nothing serving at `--url`, 130 is Ctrl-C. There is no SDK and there is not going to be one — `jq` is the client library.
 
 `watch` and `--follow` are not offered. The door this speaks to answers one request with one answer and pushes nothing, so there is no subscription to have; a page in a browser is what watches this vault change.
 
