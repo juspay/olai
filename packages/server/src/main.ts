@@ -23,15 +23,36 @@
  */
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
+import { getRuntimeSocketPath } from "@kolu/surface/unix-socket"
 import { identityConfig } from "@olai/identity"
 import { atLevel, toStdout } from "@olai/log"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Option } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 
 import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
 import { gitFlags, gitPin } from "./gitPolicy.ts"
 import { serve } from "./serve.ts"
+
+/**
+ * Where the agent socket goes, from what `--socket` said.
+ *
+ * UNSET IS THE CONVENTION, not a default somebody has to know:
+ * `$XDG_RUNTIME_DIR/olai/surface.sock` (else `/tmp/olai-$UID/…`), which is the
+ * same path `olai surface` walks to last. That is what makes the CLI work with
+ * no configuration and no flag on either side — the two ends agree because
+ * neither one chose.
+ *
+ * `off` BINDS NONE, and it is a word rather than an absent flag because absent
+ * already means the convention. A serve with no socket is the honest shape for
+ * a second worktree that wants the page without fighting the user service for
+ * the one path, and for anywhere a stray socket would be a surprise.
+ */
+const socketFor = (flag: Option.Option<string>): string | null => {
+  const said = Option.getOrUndefined(flag)
+  if (said === "off") return null
+  return getRuntimeSocketPath({ app: "olai", file: "surface.sock", override: said })
+}
 
 /** The directory of outlines the server operates on. */
 const directory = Argument.directory("directory", { mustExist: true }).pipe(
@@ -64,8 +85,14 @@ const web = Command.make("web", {
     ),
     Flag.withDefault("127.0.0.1"),
   ),
+  socket: Flag.string("socket").pipe(
+    Flag.withDescription(
+      "path for the agent socket `olai surface` dials; the per-user runtime path by default, and `off` to bind none",
+    ),
+    Flag.optional,
+  ),
   ...webGit,
-}, ({ commits, directory, host, noCommit, port, pushes }) =>
+}, ({ commits, directory, host, noCommit, port, pushes, socket }) =>
   Effect.gen(function*() {
     const faulted = yield* serve({
       root: directory,
@@ -75,6 +102,7 @@ const web = Command.make("web", {
       clientDist: yield* clientDist,
       allowedOrigins: allowedOrigins(),
       identity: identityConfig(),
+      socketPath: socketFor(socket),
     })
     // Wait to be interrupted — or for the surface runtime to fault, which is
     // the one thing that stops a healthy server on its own. Either way the

@@ -575,6 +575,12 @@ export const WHO: Readonly<Record<Writer, string>> = {
   // tailnet, and a reader looking at a change they do not remember making is
   // owed the door rather than the reassurance.
   capture: "a quick capture",
+  // Also you, and said as a place rather than a tool: the write came through
+  // `olai surface` on the per-user socket, which only this account can dial, so
+  // the reader looking at it is the person who ran it. "a terminal" and not
+  // "the CLI" for the reason `web` is "you" — a reader is owed where they were,
+  // not which transport carried it.
+  cli: "you, at a terminal",
 }
 
 /** Why the repository cannot take a commit right now. Git's own words ride the

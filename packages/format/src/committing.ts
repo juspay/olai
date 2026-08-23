@@ -337,6 +337,7 @@ export const Writer = Schema.Literals([
   "mcp",
   "web",
   "capture",
+  "cli",
   "auto",
 ])
 export type Writer = typeof Writer.Type
