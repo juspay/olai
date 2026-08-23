@@ -42,20 +42,36 @@ import { getRuntimeSocketPath } from "@kolu/surface/unix-socket"
 import type { ResolvedEndpoint, SurfaceCliConnection } from "@kolu/surface-cli"
 import { surface } from "@olai/surface"
 import { Effect, Option } from "effect"
+import { Command, Flag } from "effect/unstable/cli"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
 /** The socket a worktree's own `just run` binds, relative to the checkout. Not
  *  the per-user path, because a dev server and the user service would fight for
  *  that one and the loser would quietly serve nothing. */
-export const DEV_SOCKET_FILE = ".olai-dev/surface.sock"
+const DEV_SOCKET_FILE = ".olai-dev/surface.sock"
 
-/** What the endpoint flags are, as `surfaceCommands` takes them. A shared root
- *  flag, position-independent, so `olai surface --socket … capture …` and
- *  `olai surface capture … --socket …` are the same command. */
-export interface Dialled {
-  readonly socket: Option.Option<string>
+/**
+ * The endpoint flags, and the half of the seam that DECLARES them.
+ *
+ * Here rather than at the mount, beside the resolution that reads them, because
+ * they are one decision: what a user may type about where to dial, and what
+ * this file does with it. A shared root flag, position-independent, so
+ * `olai surface --socket … capture …` and `olai surface capture … --socket …`
+ * are the same command.
+ */
+export const endpointFlags = {
+  socket: Flag.string("socket").pipe(
+    Flag.withDescription("the agent socket to dial"),
+    Flag.optional,
+  ),
 }
+
+/** What a parse of {@link endpointFlags} hands the resolution — DERIVED from
+ *  the flags rather than written out beside them, which is the whole safety
+ *  story of this seam: renaming a flag is a compile error here rather than an
+ *  `undefined` the app dials as the string `"undefined"`. */
+type Dialled = Command.Command.Config.Infer<typeof endpointFlags>
 
 /** The nearest worktree socket at or above `from` — or nothing, which is every
  *  directory that is not a checkout with a server running in it.
@@ -66,7 +82,7 @@ export interface Dialled {
  *  which is the useful sentence. Probing here would replace it with a silent
  *  fall-through to the user service, and a write that lands in the WRONG
  *  directory is far worse than a write that is refused. */
-export const devSocketNear = (from: string): string | undefined => {
+const devSocketNear = (from: string): string | undefined => {
   let at = path.resolve(from)
   for (;;) {
     const candidate = path.join(at, DEV_SOCKET_FILE)

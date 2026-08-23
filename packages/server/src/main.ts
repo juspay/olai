@@ -47,7 +47,7 @@ import { Argument, Command, Flag } from "effect/unstable/cli"
 
 import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
-import { dialOlai } from "./dial.ts"
+import { dialOlai, endpointFlags } from "./dial.ts"
 import { MCP } from "./faces.ts"
 import { bespokeFrom } from "./mcp/tools.ts"
 import { gitFlags, gitPin } from "./gitPolicy.ts"
@@ -183,15 +183,7 @@ const surfaceCmd = Command.make("surface").pipe(
       surface,
       expose: MCP,
       verbs: bespokeFrom(TOOLS, os.userInfo().username),
-      endpoint: {
-        flags: {
-          socket: Flag.string("socket").pipe(
-            Flag.withDescription("the agent socket to dial"),
-            Flag.optional,
-          ),
-        },
-        resolve: dialOlai,
-      },
+      endpoint: { flags: endpointFlags, resolve: dialOlai },
       annotate: {
         capture: { positional: ["title"] },
         read_node: { positional: ["id"] },
