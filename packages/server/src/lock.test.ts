@@ -32,7 +32,9 @@
  *      that no longer exists. Validity lives in the kernel's lock and never in
  *      a file's existence — which is why there is no staleness protocol to get
  *      wrong, and why a machine can never come back from a crash refusing to
- *      serve its own notes.
+ *      serve its own notes. The leftover FILE is swept on the next boot.
+ *   5b. A GRACEFUL STOP UNLINKS THE FILE. The next boot's sweep is what a
+ *      SIGKILL leftover meets.
  *   6. A STALE PID IN THE NOTE FOOLS NOBODY. The pid in the lock file is
  *      DIAGNOSIS, not validity: with a bogus one written over it, the second
  *      olai is still refused (the kernel decides) and the bogus number is not
@@ -45,13 +47,13 @@
  */
 
 import { findLogfmt } from "@olai/log/testlib"
-import { afterAll, expect, test } from "bun:test"
+import { expect, test } from "bun:test"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
 import { BOOT_TIMEOUT, startWeb, stoppedWithin } from "./child.testlib.ts"
-import { lockFor } from "./lock.ts"
+import { lockFor, sweepRuntime } from "./lock.ts"
 import { served } from "./serve.testlib.ts"
 
 /** A test may take three boots' worth of waiting before it is a hang. */
@@ -72,19 +74,18 @@ const BOUND_MS = BOOT_TIMEOUT * 3
  * ONE directory for the file rather than one per test, because what keeps the
  * tests apart is already the VAULT: every one of them serves a fresh `served()`
  * of its own, so their locks are different files inside this directory.
+ *
+ * The directory is the process's, set once in `scripts/bun-test-preload.ts`
+ * and never restored — an afterAll here used to put the real runtime dir
+ * back after this file, so every later serving test locked it.
  */
-const inherited = process.env["XDG_RUNTIME_DIR"]
-const ours = fs.mkdtempSync(path.join(os.tmpdir(), "olai-lock-run-"))
-process.env["XDG_RUNTIME_DIR"] = ours
+const ours = process.env["XDG_RUNTIME_DIR"]
+if (ours === undefined || !ours.includes("olai-test-run-")) {
+  throw new Error(
+    `lock tests need the process runtime dir from bun-test-preload, got ${ours}`,
+  )
+}
 const env: NodeJS.ProcessEnv = { XDG_RUNTIME_DIR: ours }
-
-/** …and put it back, because `bun test` runs every file of this package in one
- *  process: a variable left pointing at a temp directory this file made is a
- *  variable the next file inherits. */
-afterAll(() => {
-  if (inherited === undefined) delete process.env["XDG_RUNTIME_DIR"]
-  else process.env["XDG_RUNTIME_DIR"] = inherited
-})
 
 test("a second olai over one directory refuses to boot", async () => {
   const root = served()
@@ -192,6 +193,8 @@ test("the holder is stopped and the directory is free", async () => {
   await first.address()
   first.kill("SIGINT")
   expect(await stoppedWithin(first.child, BOOT_TIMEOUT)).toBe(true)
+  // And the lock FILE is gone: a graceful stop unlinks it.
+  expect(fs.existsSync(lockFor(root))).toBe(false)
 
   const next = startWeb({ root, env })
   try {
@@ -200,7 +203,7 @@ test("the holder is stopped and the directory is free", async () => {
     // taken while the last one's claim stood.
     expect(await next.address()).toContain("http://127.0.0.1:")
   } finally {
-    next.kill()
+    next.kill("SIGINT")
   }
 }, BOUND_MS)
 
@@ -223,8 +226,14 @@ test("`kill -9` frees the directory: nothing was cleaned up, and nothing had to 
   const next = startWeb({ root, env })
   try {
     expect(await next.address()).toContain("http://127.0.0.1:")
+    // The next boot swept the leftover: the file now names THIS process,
+    // not the SIGKILLed one. (A different digest's leftover is the unit
+    // test below; this is the same-vault half.)
+    const note = fs.readFileSync(lockFor(root), "utf8")
+    expect(note).toContain(`pid=${next.child.pid}`)
+    expect(note).not.toContain(`pid=${first.child.pid}`)
   } finally {
-    next.kill()
+    next.kill("SIGINT")
   }
 }, BOUND_MS)
 
@@ -292,3 +301,81 @@ test("a runtime directory other users can write refuses the boot", async () => {
   fs.chmodSync(path.join(runtime, "olai"), 0o755)
   await refusedWithNoLock(runtime)
 }, BOUND_MS)
+
+/**
+ * Leftovers in THIS file's runtime directory. Each test writes a named file
+ * and asks {@link sweepRuntime} — no server, because the sweep is a function
+ * of the files, not of a boot.
+ */
+const placed = (name: string, body: string): string => {
+  const dir = path.join(ours, "olai")
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 })
+  fs.chmodSync(dir, 0o700)
+  const file = path.join(dir, name)
+  fs.writeFileSync(file, body, { mode: 0o600 })
+  return file
+}
+
+test("a dead-pid lock is swept", () => {
+  const file = placed(
+    "deadpiddeadpidde.lock",
+    `pid=${IMPOSSIBLE_PID}\nroot=${ours}\n`,
+  )
+  expect(sweepRuntime()).toBeGreaterThanOrEqual(1)
+  expect(fs.existsSync(file)).toBe(false)
+})
+
+test("a live lock is not swept", async () => {
+  // Pid-and-root in a file anybody wrote is not a live server: the kernel's
+  // flock is. A real holder, and a leftover beside it, so the sweep has
+  // both answers in one directory.
+  const root = served()
+  const server = startWeb({ root, env })
+  await server.address()
+  const leftover = placed(
+    "leftoverleftoverl.lock",
+    `pid=${IMPOSSIBLE_PID}\nroot=${ours}\n`,
+  )
+  try {
+    expect(sweepRuntime()).toBeGreaterThanOrEqual(1)
+    expect(fs.existsSync(leftover)).toBe(false)
+    expect(fs.existsSync(lockFor(root))).toBe(true)
+  } finally {
+    server.kill("SIGINT")
+    await stoppedWithin(server.child, BOOT_TIMEOUT)
+  }
+}, BOUND_MS)
+
+test("a leftover whose recorded root is gone is swept when nothing holds it", () => {
+  // Flock-free only: a held lock whose root the host cannot stat is left
+  // (the two-brains race). This file has no holder, so the sweep takes
+  // the flock and the name goes.
+  const file = placed(
+    "missingrootmissi.lock",
+    `pid=${process.pid}\nroot=/no/such/olai-vault-root\n`,
+  )
+  expect(sweepRuntime()).toBeGreaterThanOrEqual(1)
+  expect(fs.existsSync(file)).toBe(false)
+})
+
+test("a lock that is a symlink is not followed", () => {
+  const target = path.join(ours, "secret")
+  fs.writeFileSync(target, "do not touch\n", { mode: 0o600 })
+  const file = placed("symlinksymlinksy.lock", "")
+  fs.unlinkSync(file)
+  fs.symlinkSync(target, file)
+  sweepRuntime()
+  expect(fs.readFileSync(target, "utf8")).toBe("do not touch\n")
+  expect(fs.lstatSync(file).isSymbolicLink()).toBe(true)
+})
+
+test("a leftover rendezvous socket is swept, and surface.sock is not", () => {
+  const leftover = placed("0123456789abcdef.sock", "")
+  const live = placed("surface.sock", "")
+  expect(sweepRuntime()).toBeGreaterThanOrEqual(1)
+  expect(fs.existsSync(leftover)).toBe(false)
+  expect(fs.existsSync(live)).toBe(true)
+  fs.unlinkSync(live)
+})
+
+

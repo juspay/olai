@@ -45,6 +45,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
+import { installReaper, killProcessGroup, reap } from "./reaper.ts";
+
 import { After, AfterAll, Before, BeforeAll, Status } from "@cucumber/cucumber";
 import { findLogfmt } from "@olai/log/testlib";
 import { chromium } from "playwright";
@@ -401,49 +403,7 @@ const fixtureDir = (corpus: string): string => {
   return dir;
 };
 
-/**
- * Take a spawned olai, and everything it started, off the box.
- *
- * The child is a process-group leader (`detached: true` at spawn). A kill of
- * the pid alone leaves its ACP agent (and any other grandchild) holding the
- * pipes this worker is still reading — cucumber never prints the summary,
- * odu's log drain hangs, the node is stopped with "output still owed". SIGKILL
- * of the group, then destroy the pipes, is what actually ends the worker.
- */
-const killChild = (child: ChildProcess | undefined): void => {
-  if (!child || child.exitCode !== null) return;
-  child.stdout?.destroy();
-  child.stderr?.destroy();
-  const pid = child.pid;
-  if (pid === undefined) {
-    child.kill("SIGKILL");
-    return;
-  }
-  try {
-    process.kill(-pid, "SIGKILL");
-  } catch {
-    try {
-      child.kill("SIGKILL");
-    } catch {
-      // already gone
-    }
-  }
-};
-
-/** Signal, then wait until the process is actually gone (or a short bound). */
-const reap = (child: ChildProcess | undefined): Promise<void> =>
-  new Promise((resolve) => {
-    if (!child || child.exitCode !== null || child.signalCode !== null) {
-      resolve();
-      return;
-    }
-    const timer = setTimeout(resolve, 2000);
-    events(child).once("exit", () => {
-      clearTimeout(timer);
-      resolve();
-    });
-    killChild(child);
-  });
+const killChild = killProcessGroup;
 
 const shuttingDown = (label: string): string =>
   `the run is shutting down; abandoning the server for ${label}`;
@@ -891,12 +851,11 @@ const makeRepository = (root: string): void => {
 };
 
 /** The synchronous half of the teardown: every child that has a process right
- *  now. This is all `process.on("exit")` can do — it runs no microtasks. */
-const killLive = (): void => {
+ *  now. SIGINT / SIGTERM / `exit` all run this — a cancelled cucumber used
+ *  to skip AfterAll and leak every server it had started. */
+const killLive = installReaper(live, () => {
   stopped = true;
-  for (const child of live) killChild(child);
-  live.clear();
-};
+});
 
 const forgetShared = async (
   entry: Promise<SharedSlot>,
@@ -934,9 +893,6 @@ const killAll = async (): Promise<void> => {
     ...reaping.map(reap),
   ]);
 };
-// A cucumber run killed from the keyboard skips AfterAll; without this, every
-// interrupted run leaks a server holding a port.
-process.on("exit", killLive);
 
 // ── hooks ──────────────────────────────────────────────────────────────
 
