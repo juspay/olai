@@ -33,8 +33,8 @@
  *      a file's existence — which is why there is no staleness protocol to get
  *      wrong, and why a machine can never come back from a crash refusing to
  *      serve its own notes. The leftover FILE is swept on the next boot.
- *   5b. A GRACEFUL STOP UNLINKS THE FILE. Tests and production do this; the
- *      dev loop (`OLAI_PORT_FILE`) keeps the name so `bun --watch` can restart.
+ *   5b. A GRACEFUL STOP UNLINKS THE FILE. The next boot's sweep is what a
+ *      SIGKILL leftover meets.
  *   6. A STALE PID IN THE NOTE FOOLS NOBODY. The pid in the lock file is
  *      DIAGNOSIS, not validity: with a bogus one written over it, the second
  *      olai is still refused (the kernel decides) and the bogus number is not
@@ -52,7 +52,7 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import { BOOT_TIMEOUT, pointRuntime, startWeb, stoppedWithin } from "./child.testlib.ts"
+import { BOOT_TIMEOUT, startWeb, stoppedWithin } from "./child.testlib.ts"
 import { lockFor, sweepRuntime } from "./lock.ts"
 import { served } from "./serve.testlib.ts"
 
@@ -74,8 +74,17 @@ const BOUND_MS = BOOT_TIMEOUT * 3
  * ONE directory for the file rather than one per test, because what keeps the
  * tests apart is already the VAULT: every one of them serves a fresh `served()`
  * of its own, so their locks are different files inside this directory.
+ *
+ * The directory is the process's, set once in `scripts/bun-test-preload.ts`
+ * and never restored — an afterAll here used to put the real runtime dir
+ * back after this file, so every later serving test locked it.
  */
-const ours = pointRuntime("olai-lock-run-")
+const ours = process.env["XDG_RUNTIME_DIR"]
+if (ours === undefined || !ours.includes("olai-test-run-")) {
+  throw new Error(
+    `lock tests need the process runtime dir from bun-test-preload, got ${ours}`,
+  )
+}
 const env: NodeJS.ProcessEnv = { XDG_RUNTIME_DIR: ours }
 
 test("a second olai over one directory refuses to boot", async () => {
@@ -184,8 +193,7 @@ test("the holder is stopped and the directory is free", async () => {
   await first.address()
   first.kill("SIGINT")
   expect(await stoppedWithin(first.child, BOOT_TIMEOUT)).toBe(true)
-  // And the lock FILE is gone: a graceful stop unlinks it. Tests and
-  // production do this; the dev loop (`OLAI_PORT_FILE`) is the exception.
+  // And the lock FILE is gone: a graceful stop unlinks it.
   expect(fs.existsSync(lockFor(root))).toBe(false)
 
   const next = startWeb({ root, env })
@@ -338,7 +346,10 @@ test("a live lock is not swept", async () => {
   }
 }, BOUND_MS)
 
-test("a missing-root lock is swept, even when the pid is alive", () => {
+test("a leftover whose recorded root is gone is swept when nothing holds it", () => {
+  // Flock-free only: a held lock whose root the host cannot stat is left
+  // (the two-brains race). This file has no holder, so the sweep takes
+  // the flock and the name goes.
   const file = placed(
     "missingrootmissi.lock",
     `pid=${process.pid}\nroot=/no/such/olai-vault-root\n`,
@@ -367,18 +378,4 @@ test("a leftover rendezvous socket is swept, and surface.sock is not", () => {
   fs.unlinkSync(live)
 })
 
-test("the dev loop keeps the lock file so bun --watch can restart", async () => {
-  // `OLAI_PORT_FILE` is how `just run` / `just serve` mark the dev loop. A
-  // restart that outran the old teardown still has to find the same named
-  // file; tests and production never set the variable, so they unlink.
-  const root = served()
-  const portFile = path.join(root, "url")
-  const first = startWeb({
-    root,
-    env: { ...env, OLAI_PORT_FILE: portFile },
-  })
-  await first.address()
-  first.kill("SIGINT")
-  expect(await stoppedWithin(first.child, BOOT_TIMEOUT)).toBe(true)
-  expect(fs.existsSync(lockFor(root))).toBe(true)
-}, BOUND_MS)
+

@@ -26,7 +26,6 @@ test("PIN (reaper): SIGINT of the parent kills a detached child", async () => {
       const child = spawn("sleep", ["30"], { detached: true, stdio: "ignore" });
       const live = new Set([child]);
       installReaper(live);
-      process.on("SIGINT", () => process.exit(130));
       process.stdout.write(String(child.pid) + "\\n");
       setInterval(() => {}, 1 << 30);
       `,

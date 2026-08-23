@@ -78,11 +78,22 @@ export const watchRoot = (
     const parent = dirname(root)
     const name = basename(root)
     let watcher: fs.FSWatcher | undefined
+    let beat: ReturnType<typeof setTimeout> | undefined
+    // Confirm after a beat rather than on the watch event itself: an
+    // atomic vault swap reports the outgoing name, and a stat in that
+    // gap would kill `just run`. The 2s poll is the backstop.
+    const confirm = (): void => {
+      if (beat !== undefined) return
+      beat = setTimeout(() => {
+        beat = undefined
+        fire()
+      }, 50)
+    }
     try {
       watcher = fs.watch(parent, (_event, filename) => {
-        if (filename === null || filename === name) fire()
+        if (filename === null || filename === name) confirm()
       })
-      watcher.on("error", () => fire())
+      watcher.on("error", () => confirm())
     } catch {
       // The parent would not take a watch. The poll is then the whole of it.
     }
@@ -90,6 +101,7 @@ export const watchRoot = (
     yield* Effect.addFinalizer(() =>
       Effect.sync(() => {
         settled = true
+        if (beat !== undefined) clearTimeout(beat)
         clearInterval(tick)
         watcher?.close()
       }),

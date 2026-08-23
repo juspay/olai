@@ -33,18 +33,12 @@ import * as path from "node:path"
 import type { LivePolicy } from "./gitPolicy.ts"
 
 import { DEFAULT_IDENTITY_CONFIG, type IdentityConfig } from "@olai/identity"
-import { pointRuntime } from "./child.testlib.ts"
 import { serve } from "./serve.ts"
 
 // child.testlib strips OLAI_PORT_FILE from CLI children. This is the
 // in-process twin: a developer who exported just run's file would have
 // every withServe / encoding.test serve() rewrite it.
 delete process.env.OLAI_PORT_FILE
-
-// In-process serve calls holdVault in this process, which sweeps the runtime
-// directory. One helper with the two-process lock tests, so a `just test`
-// cannot empty the developer's leftover locks.
-pointRuntime("olai-serve-run-")
 
 /** The platform a real server needs: the CLI's own services (stdio, terminal,
  *  file system) and the static layer's (the file-response platform and ETags)

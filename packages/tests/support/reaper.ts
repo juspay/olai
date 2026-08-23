@@ -65,8 +65,18 @@ export const installReaper = (
     live.clear();
   };
   process.on("exit", killLive);
-  process.on("SIGINT", killLive);
-  process.on("SIGTERM", killLive);
+  // A SIGINT/SIGTERM listener disables Node's default termination, so
+  // without an exit the cancelled cucumber would grind to AfterAll over
+  // children already SIGKILL'd. Ending the run after the synchronous kill
+  // is this module's job on cancel; AfterAll is for a run that finished.
+  process.on("SIGINT", () => {
+    killLive();
+    process.exit(130);
+  });
+  process.on("SIGTERM", () => {
+    killLive();
+    process.exit(143);
+  });
   return killLive;
 };
 

@@ -71,17 +71,12 @@
  * that) is avoided by unlinking only in the finalizer, after we have stopped
  * serving: the process that still holds the flock is on its way out.
  *
- * The one exception is the DEV LOOP. `just run` / `just serve` set
- * `OLAI_PORT_FILE` so a `bun --watch` restart can read the last bound address
- * back; that restart is allowed to find the lock file still named, because the
- * kernel has already released the flock. Tests and production do not set the
- * variable, so they unlink. A SIGKILL still cannot, and that is what
- * {@link sweepRuntime} is for.
+ * A SIGKILL cannot unlink, and that is what {@link sweepRuntime} is for.
  *
  * The file's CONTENTS are DIAGNOSIS and never validity: whoever holds the lock
- * writes their pid and root there so the refusal below can name them, and so a
- * sweep can tell a leftover from a live server. No code path decides whether a
- * vault is free by reading it. That split is what makes a recycled pid harmless
+ * writes their pid and root there so the refusal below can name them. No code
+ * path decides whether a vault is free by reading it. That split is what makes
+ * a recycled pid harmless
  * — the worst it can do is put a wrong number in one sentence, never hand a
  * second brain a vault — and the number is sanity-checked before it is read
  * out at all ({@link holderIn}).
@@ -164,13 +159,15 @@ export const lockFor = (root: string): string =>
 /**
  * Drop leftover files in the runtime directory.
  *
- * A `.lock` nothing holds (the kernel's flock is free) is a leftover, as is
- * a held lock whose recorded root no longer exists. Every `.sock` except
- * `surface.sock` is a leftover of the retired rendezvous sockets of #175/#184. A lock another olai is holding, over a directory that still
- * exists, is left alone — a stale pid in that file is diagnosis, not a
- * reason to free the name. `surface.sock` is the live agent face of a
- * running server (the surface-cli lane), and unlinking it would drop every
- * client of that face — it is not a leftover.
+ * A `.lock` nothing holds (the kernel's flock is free) is a leftover. A
+ * lock another olai is holding is left alone, even if its recorded root
+ * cannot be stat'd — unlinking a held name is the two-brains race (a third
+ * olai creates a new inode at that path while the holder keeps the old
+ * one). Held-but-root-gone files are bounded clutter the tmpfs clears at
+ * logout. Every `.sock` except `surface.sock` is a leftover of the retired
+ * rendezvous sockets of #175/#184. `surface.sock` is skipped because
+ * reverted #352-era binaries still hold that name; nothing on master
+ * creates it.
  *
  * Hygiene, not validity: the kernel's flock is still what makes a vault free.
  * This is what stops the runtime directory growing a file per scratch vault
@@ -208,11 +205,12 @@ export const sweepRuntime = (): number => {
  *
  * The kernel's flock is validity, the same as everywhere else in this file.
  * If we can take it, nothing holds this vault and the file is a leftover.
- * If it is busy, another olai is in there: leave it, unless the root it
- * recorded is gone — that process is serving a directory that does not
- * exist, and the name is clutter. A stale pid in a held file is diagnosis
- * and must not free the name (the classic lockfile race: unlink a held
- * file, a third process creates a new inode, two brains).
+ * If it is busy, another olai is in there: leave it. Unlinking a held
+ * lock's name — even when the recorded root cannot be stat'd, as on a
+ * bind-mounted runtime dir whose vault path the host does not see — is
+ * the two-brains race: a third olai creates a new inode at that path
+ * while the holder keeps the old one. A gone-root leftover that is still
+ * held is clutter the tmpfs clears at logout.
  */
 const sweepLock = (path: string): boolean => {
   let fd: number
@@ -245,10 +243,6 @@ const sweepLock = (path: string): boolean => {
   } catch {
     // not ours
   }
-  if (outcome._tag === "busy") {
-    const root = noteIn(path).root
-    if (root !== null && !fs.existsSync(root)) return unlinkQuiet(path)
-  }
   return false
 }
 
@@ -259,14 +253,6 @@ const unlinkQuiet = (path: string): boolean => {
   } catch {
     return false
   }
-}
-
-/** The dev loop (`just run` / `just serve`) remembers the bound URL in this
- *  file so a `bun --watch` restart can rebind it. Production and the tests
- *  never set it. */
-const keepLockFile = (): boolean => {
-  const file = process.env["OLAI_PORT_FILE"]
-  return file !== undefined && file !== ""
 }
 
 /**
@@ -290,22 +276,17 @@ const keepLockFile = (): boolean => {
  * refusal itself was ever decided by reading this.
  */
 const holderIn = (path: string): number | null => {
-  const pid = noteIn(path).pid
+  const pid = noteIn(path)
   return pid !== null && alive(pid) ? pid : null
 }
 
-/** What a holder wrote down. Diagnosis, never validity — see {@link holderIn}. */
-const noteIn = (path: string): { readonly pid: number | null; readonly root: string | null } => {
+/** The pid a holder wrote down. Diagnosis, never validity — see {@link holderIn}. */
+const noteIn = (path: string): number | null => {
   try {
-    const text = fs.readFileSync(path, "utf8")
-    const pid = /^pid=(\d+)$/m.exec(text)?.[1]
-    const root = /^root=(.*)$/m.exec(text)?.[1]
-    return {
-      pid: pid === undefined ? null : Number(pid),
-      root: root === undefined || root === "" ? null : root,
-    }
+    const pid = /^pid=(\d+)$/m.exec(fs.readFileSync(path, "utf8"))?.[1]
+    return pid === undefined ? null : Number(pid)
   } catch {
-    return { pid: null, root: null }
+    return null
   }
 }
 
@@ -372,7 +353,7 @@ export const holdVault = (
           // not take these few bytes costs the NEXT olai a pid in its refusal and
           // costs this one nothing, so it is not worth refusing to serve over.
         }
-        return Effect.succeed({ fd: opened, path, keep: keepLockFile() })
+        return Effect.succeed({ fd: opened, path })
       }),
       (held) =>
         Effect.sync(() => {
@@ -381,8 +362,7 @@ export const holdVault = (
           // unlink would strand that holder on an unlinked inode and a third
           // olai would create a new one — two brains. Unlinking a file we have
           // already stopped serving is the leftover we will not leave behind.
-          // The dev loop keeps the name so a `bun --watch` restart finds it.
-          if (!held.keep) unlinkQuiet(held.path)
+          unlinkQuiet(held.path)
           try {
             fs.closeSync(held.fd)
           } catch {
@@ -396,7 +376,6 @@ export const holdVault = (
 interface Held {
   readonly fd: number
   readonly path: string
-  readonly keep: boolean
 }
 
 /** The lock file, opened for writing without truncating it — truncation would

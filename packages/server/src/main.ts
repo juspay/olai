@@ -144,6 +144,11 @@ function dieWithParent(): void {
       })
       // PR_SET_PDEATHSIG = 1, SIGTERM = 15
       lib.symbols.prctl(1, 15)
+      // getppid() === 1 is the race where the parent died between spawn and
+      // this call. A system systemd unit has PID 1 as parent and would
+      // self-SIGTERM here; olai ships only a user unit (`olai.service`),
+      // whose parent is the user manager, not 1 — so this check and
+      // PDEATHSIG are inert there.
       if (lib.symbols.getppid() === 1) process.kill(process.pid, "SIGTERM")
       return
     } catch {
