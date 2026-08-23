@@ -30,10 +30,26 @@ import { withServe } from "./serve.testlib.ts"
 
 const A_ROW = `{"id":"one","ord":"a0","title":"a row"}\n`
 
+/**
+ * The members these tests call, named once.
+ *
+ * `buildSurfaceFace` answers a structurally-typed client, and asking it for
+ * three members meant writing the same cast at every call. One shape, spelled
+ * where it can be read — and it is the ops/edit pair deliberately: what these
+ * tests are ABOUT is that one of them is on this face and the other is not.
+ */
+interface Face {
+  readonly surface: {
+    readonly ops: { readonly run: (request: unknown) => Effect.Effect<unknown, unknown> }
+    readonly edit: { readonly apply: (request: unknown) => Effect.Effect<unknown, unknown> }
+    readonly pending: { readonly get: (request: unknown) => unknown }
+  }
+}
+
 /** A served directory with a socket of its own, and a client already dialled at
  *  it — torn down together, because a link left open holds the serve's scope. */
 const overTheSocket = async <A>(
-  use: (client: ReturnType<typeof buildSurfaceFace>, root: string) => Promise<A>,
+  use: (face: Face, root: string) => Promise<A>,
   commits: "off" | "manual" = "off",
 ): Promise<A> => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-socket-")))
@@ -53,7 +69,7 @@ const overTheSocket = async <A>(
     return await withServe({ root, socketPath, commits }, async () => {
       const link = await unixSocketLink({ group: surface.group, socketPath })
       try {
-        return await use(buildSurfaceFace(surface, link.dispatch), root)
+        return await use(buildSurfaceFace(surface, link.dispatch) as Face, root)
       } finally {
         await link.dispose()
       }
@@ -64,14 +80,7 @@ const overTheSocket = async <A>(
 }
 
 test("the agent socket serves the AGENT face, and only it", async () => {
-  await overTheSocket(async (client, root) => {
-    const face = client as {
-      readonly surface: {
-        readonly ops: { readonly run: (r: unknown) => Effect.Effect<unknown, unknown> }
-        readonly edit: { readonly apply: (r: unknown) => Effect.Effect<unknown, unknown> }
-      }
-    }
-
+  await overTheSocket(async (face, root) => {
     // An agent's verb, over the socket, landing in the file.
     await Effect.runPromise(
       face.surface.ops.run({ op: "add", file: "a.olai", title: "written over the socket" }),
@@ -97,13 +106,7 @@ test("the agent socket serves the AGENT face, and only it", async () => {
 test("a write through the socket is recorded as `cli`", async () => {
   // The trailer is the permanent half of "who did this", and the socket is a
   // door of its own — so it says so rather than borrowing `mcp`'s name.
-  await overTheSocket(async (client) => {
-    const face = client as {
-      readonly surface: {
-        readonly ops: { readonly run: (r: unknown) => Effect.Effect<unknown, unknown> }
-        readonly pending: { readonly get: (r: unknown) => unknown }
-      }
-    }
+  await overTheSocket(async (face) => {
     await Effect.runPromise(
       face.surface.ops.run({ op: "add", file: "a.olai", title: "a write to attribute" }),
     )
