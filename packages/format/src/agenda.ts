@@ -48,7 +48,7 @@ import { daysBetween, MONTHS, WEEKDAYS, weekdayOf } from "./calendar.ts"
 import { datedIn, DayGroup, groupedOn } from "./dates.ts"
 import { unfinished, type Derived } from "./derive.ts"
 import { keepingDated, type Selected } from "./filter.ts"
-import { type RegularNode, storedMarker, type Unfinished } from "./node.ts"
+import { type RegularNode, storedMarker } from "./node.ts"
 import { type Dated, dayOf, timeOf } from "./occasion.ts"
 
 /**
@@ -67,7 +67,7 @@ const unfinishedWork = (node: RegularNode): boolean => unfinished(storedMarker(n
  *
  * `overdue(n) ⇔ unfinishedWork(n) ∧ day(n.date) < today`, and the two halves
  * are both load-bearing. The MARK half is {@link unfinishedWork} — `todo` or
- * `doing`, the format's own {@link Unfinished}, asked of the node — rather
+ * `doing`, the format's own Unfinished, asked of the node — rather
  * than `mark !== "done"`, which is the trap blockedness is written against
  * one file over: that spelling reads every plain dated bullet as work
  * somebody is late on, which is exactly what an occurrence is not. `doing` is
@@ -244,7 +244,9 @@ export const sameOwed: (a: Owed, b: Owed) => boolean = Schema.toEquivalence(Owed
  * the agenda from outside it counts the very rows the page draws.
  *
  * NODES rather than groups: a group is one outline's worth of them, and "3"
- * on a mark means three things are late, not three files are.
+ * on a mark means three things are late, not three files are. The today
+ * half is dated `todo` and `doing` only, the same as {@link Owed.today}:
+ * occurrences are not rows this page draws, so they are not in the count.
  */
 export const owedOf = (agenda: Agenda): Owed => ({
   overdue: datedInDays(agenda.overdue),
