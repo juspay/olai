@@ -59,7 +59,7 @@ import {
   probe as probeKolu,
   type ProbeFailure,
 } from "@kolu/detect"
-import type { MissingServer } from "@olai/surface"
+import type { ChatServer } from "@olai/surface"
 import { Effect } from "effect"
 
 /** The executable, its verb, and the variable that says which padi. All three
@@ -154,9 +154,14 @@ export const serverOf = (found: Detected): Server | null =>
  * PATH to reach it ({@link EXPECTED}). Every other reason is about a binary
  * that was resolved and started, and names it.
  */
-export const missingFrom = (found: Detected): MissingServer | null =>
+export const missingFrom = (found: Detected): ChatServer | null =>
   found._tag === "silent"
-    ? { name: COMMAND, where: found.kolu, why: found.why }
+    // `missing` is the standing for a server olai could not hand over at all,
+    // which is exactly what this arm is: the roster's other three all describe
+    // a server that WAS handed over and differ only in what the agent then said
+    // about it ({@link ./servers.ts}). Spelled here rather than by the caller
+    // because this function's whole subject is the one standing it produces.
+    ? { name: COMMAND, where: found.kolu, standing: "missing", why: found.why }
     : null
 
 /**

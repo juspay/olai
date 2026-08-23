@@ -270,6 +270,7 @@ describe("what a session that did not get kolu can be told", () => {
     expect(await missing()).toEqual({
       name: "kolu",
       where: bin,
+      standing: "missing",
       why: "it refused to read the daemon's identity: padi transport down",
     })
   })
@@ -280,6 +281,7 @@ describe("what a session that did not get kolu can be told", () => {
     expect(await missing()).toEqual({
       name: "kolu",
       where: bin,
+      standing: "missing",
       why: "it closed the connection without answering",
     })
   })
@@ -343,6 +345,7 @@ describe("what a session that did not get kolu can be told", () => {
     expect(await missing()).toEqual({
       name: "kolu",
       where: null,
+      standing: "missing",
       why: "PADI_SOCKET names a padi on this host, but no `kolu` is on the PATH "
         + "this server was started with — so there is nothing here to reach it through",
     })

@@ -35,6 +35,8 @@
 import type { PermissionOption } from "@agentclientprotocol/sdk"
 import type { Duration } from "effect"
 
+import type { Attached } from "../servers.ts"
+
 /** A `_meta`, as every reader here takes one: an object of unknown fields, or
  *  nothing at all. Spelled once because five signatures below take it. */
 export type Meta = { readonly [key: string]: unknown } | null | undefined
@@ -78,6 +80,24 @@ export interface RawMessages {
   /** The model a turn is RUNNING on, out of one of those messages, or `null`
    *  for a message that says nothing about one. */
   readonly modelIn: (params: unknown) => string | null
+  /**
+   * What the agent says about ITS OWN CONNECTIONS to the MCP servers of this
+   * conversation, out of one of those messages — or `null` for a message that
+   * says nothing about them, which is nearly all of them.
+   *
+   * THE ONE FACT THE PROTOCOL HAS NO PLACE FOR, which is why it is worth
+   * reading off an agent's private channel at all. `session/new` takes a list
+   * of servers and answers with a session id: whether the agent reached any of
+   * them is never on the wire, and #140 could only ever report the failures
+   * olai's own probe found before handing anything over. An agent that
+   * volunteers the other half is one whose panel can stop guessing.
+   *
+   * `null` — including on an agent that forwards messages but says nothing per
+   * server — leaves every row where olai put it, which is an honest "handed
+   * over; nobody has said what became of it" rather than a claim in either
+   * direction ({@link ../servers.ts}).
+   */
+  readonly serversIn: (params: unknown) => ReadonlyArray<Attached> | null
 }
 
 /**

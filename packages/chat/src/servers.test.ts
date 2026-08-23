@@ -1,0 +1,216 @@
+/**
+ * The roster, over values.
+ *
+ * What a person is told this conversation can reach is a sentence worth
+ * asserting without starting a subprocess — and the cases that matter most here
+ * are ones a running agent will not produce on demand: an agent that names a
+ * server olai never handed over, one that reports the `kolu` this host's probe
+ * already refused, a status word no released version has sent. Each is three
+ * lines as a value and a fixture nobody would maintain as a scenario.
+ *
+ * The e2e suite drives the whole thing through a real panel
+ * (`packages/tests/features/the_conversations_servers.feature`) and stays the
+ * regression net for the wiring.
+ */
+
+import { describe, expect, test } from "bun:test"
+
+import type { McpServer } from "@agentclientprotocol/sdk"
+import type { ChatServer } from "@olai/surface"
+
+import { movedBy, rosterOf } from "./servers.ts"
+
+/** Olai's own tool server, as `mcpServersOf` renders it: the http route on this
+ *  process's own listener, with the session's bearer token on a header. */
+const OLAI: McpServer = {
+  type: "http",
+  name: "olai",
+  url: "http://127.0.0.1:7714/mcp",
+  headers: [{ name: "Authorization", value: "Bearer secret" }],
+}
+
+/** ... and kolu's terminals: somebody else's program on this host, spawned by
+ *  absolute path — the file that answered the probe. */
+const KOLU: McpServer = {
+  name: "kolu",
+  command: "/nix/store/abc/bin/kolu",
+  args: ["mcp"],
+  env: [{ name: "PADI_SOCKET", value: "/run/user/1000/padi/padi.sock" }],
+}
+
+/** What `kolu.ts` hands over about a server this host could not give the
+ *  session — the shape and the sentence are its, verbatim. */
+const ABSENT: ChatServer = {
+  name: "kolu",
+  where: "/usr/bin/kolu",
+  standing: "missing",
+  why: "it refused to read the daemon's identity: surface-mcp: padi transport down",
+}
+
+describe("the roster as olai composed it", () => {
+  test("every server handed over is on it, in the order it was handed", () => {
+    expect(rosterOf([OLAI, KOLU], null)).toEqual([
+      { name: "olai", where: OLAI.url, standing: "handed", why: null },
+      { name: "kolu", where: KOLU.command, standing: "handed", why: null },
+    ])
+  })
+
+  test("handing a server over is not the same as the agent having it", () => {
+    // The whole layering, in one assertion. Olai knows what it put on the wire
+    // and cannot know what the session did with it, so nothing here is
+    // `connected` — only an agent's own word moves a row that far, and a tick
+    // drawn on olai's say-so would be the panel making the claim the model made
+    // wrongly.
+    expect(rosterOf([OLAI, KOLU], null).every((server) => server.standing === "handed"))
+      .toBe(true)
+  })
+
+  test("where a server IS follows its transport", () => {
+    // A URL for the route on this process's own listener, an absolute file for
+    // somebody else's program. Both come off the entry the session was given,
+    // so the panel cannot name a path the session was not opened with.
+    const [olai, kolu] = rosterOf([OLAI, KOLU], null)
+    expect(olai?.where).toBe("http://127.0.0.1:7714/mcp")
+    expect(kolu?.where).toBe("/nix/store/abc/bin/kolu")
+  })
+
+  test("an entry of a shape this does not know says where it is, or nothing", () => {
+    // ACP has four MCP transports and olai hands over two. A third arriving one
+    // day should draw a name with no path rather than a guess — and never a
+    // path off some other server's row.
+    const acp = { type: "acp", name: "somewhere", serverId: "s1" } as unknown as McpServer
+    expect(rosterOf([acp], null)).toEqual([
+      { name: "somewhere", where: null, standing: "handed", why: null },
+    ])
+  })
+
+  test("the one it did not get is on the roster too, last, with its sentence", () => {
+    expect(rosterOf([OLAI], ABSENT)).toEqual([
+      { name: "olai", where: OLAI.url, standing: "handed", why: null },
+      ABSENT,
+    ])
+  })
+
+  test("a host with nothing to miss reports nothing missing", () => {
+    // Nothing failed on a machine that is not running kolu, and `kolu.ts`
+    // answers `null` for it. A roster row saying so would be a permanent
+    // complaint on every machine that has never heard of kolu.
+    expect(rosterOf([OLAI], null)).toHaveLength(1)
+  })
+
+  test("a session handed nothing has an empty roster rather than an invented one", () => {
+    expect(rosterOf([], null)).toEqual([])
+  })
+})
+
+describe("the roster as the agent's own report leaves it", () => {
+  const handed = rosterOf([OLAI, KOLU], null)
+
+  test("`connected` is the one word that puts a tick on a row", () => {
+    expect(movedBy(handed, [
+      { name: "olai", status: "connected" },
+      { name: "kolu", status: "connected" },
+    ])).toEqual([
+      { name: "olai", where: OLAI.url, standing: "connected", why: null },
+      { name: "kolu", where: KOLU.command, standing: "connected", why: null },
+    ])
+  })
+
+  test("every other word is a row the agent did not attach, in the agent's words", () => {
+    // POSITIVE RECOGNITION: `needs-auth` and `pending` are not failures in the
+    // sense `failed` is, and none of the three is a connection. A reader can
+    // act on the difference between them — sign the server in, wait, go and
+    // look — which is why the word is carried rather than categorised.
+    expect(movedBy(handed, [
+      { name: "olai", status: "needs-auth" },
+      { name: "kolu", status: "failed" },
+    ])).toEqual([
+      {
+        name: "olai",
+        where: OLAI.url,
+        standing: "unattached",
+        why: "the agent did not attach it: needs-auth",
+      },
+      {
+        name: "kolu",
+        where: KOLU.command,
+        standing: "unattached",
+        why: "the agent did not attach it: failed",
+      },
+    ])
+  })
+
+  test("a word no version has sent yet is not a connection", () => {
+    // The status set is the CLI's and grows without asking anybody here. The
+    // losing direction is a working server drawn as unconfirmed; the other
+    // reading would put a tick over tools that are not there.
+    const moved = movedBy(handed, [{ name: "olai", status: "reticulating" }])
+    expect(moved?.[0]?.standing).toBe("unattached")
+    expect(moved?.[0]?.why).toBe("the agent did not attach it: reticulating")
+  })
+
+  test("a row the agent did not name keeps the standing it had", () => {
+    // An agent naming some of its servers has said nothing about the others.
+    // Read as a downgrade, a row would flicker on every message that happened
+    // to be shorter than the last.
+    const first = movedBy(handed, [
+      { name: "olai", status: "connected" },
+      { name: "kolu", status: "connected" },
+    ])
+    expect(movedBy(first ?? [], [{ name: "olai", status: "connected" }])).toBeNull()
+  })
+
+  test("a server olai never handed over adds no row", () => {
+    // The layer's boundary. The agent's own servers are configured where olai
+    // cannot see, are named at most once a turn by an agent free to reconnect
+    // one in between, and are not named at all on the other leg — so a row for
+    // one could never be kept honest. The panel says "plus the agent's own".
+    expect(movedBy(handed, [
+      { name: "olai", status: "connected" },
+      { name: "deepwiki", status: "connected" },
+    ])).toEqual([
+      { name: "olai", where: OLAI.url, standing: "connected", why: null },
+      { name: "kolu", where: KOLU.command, standing: "handed", why: null },
+    ])
+  })
+
+  test("a probe's own finding is never overwritten by the agent", () => {
+    // This host's `kolu` would not answer olai's probe, so the session was
+    // never given one. An agent reporting a `kolu` is reporting ITS OWN — one
+    // out of somebody's `~/.claude.json` — and letting that turn the row into a
+    // tick would erase the one failure `mcp-fail-visible` exists to show.
+    const withAbsent = rosterOf([OLAI], ABSENT)
+    expect(movedBy(withAbsent, [{ name: "kolu", status: "connected" }])).toBeNull()
+  })
+
+  test("a report that moves nothing is not news", () => {
+    // Asked on every message the agent forwards, and the Claude adapter
+    // forwards one per TURN. A conversation whose servers are all fine would
+    // otherwise republish an identical roster to every open tab forever.
+    expect(movedBy(handed, [])).toBeNull()
+    const connected = movedBy(handed, [{ name: "olai", status: "connected" }])
+    expect(connected).not.toBeNull()
+    expect(movedBy(connected ?? [], [{ name: "olai", status: "connected" }])).toBeNull()
+  })
+
+  test("a row that changes its mind moves again", () => {
+    // The other side of it: a `needs-auth` that becomes `connected` between two
+    // turns is news, and a roster that only ever moved once would leave the
+    // reason up over a server that is now fine.
+    const stuck = movedBy(handed, [{ name: "kolu", status: "needs-auth" }])
+    const fixed = movedBy(stuck ?? [], [{ name: "kolu", status: "connected" }])
+    expect(fixed?.[1]).toEqual({
+      name: "kolu",
+      where: KOLU.command,
+      standing: "connected",
+      why: null,
+    })
+  })
+
+  test("an empty roster has nothing to be moved", () => {
+    // What a panel between two conversations holds. A forwarded message still
+    // in flight from the finished session names rows that belong to a
+    // conversation nobody is in.
+    expect(movedBy([], [{ name: "olai", status: "connected" }])).toBeNull()
+  })
+})

@@ -398,7 +398,7 @@ test("the chat cell is keyed by the field both of its lists carry", () => {
   expect(surface.spec.cells.chat.arrayKey).toBe("name")
   const found = keyingsOf("cells.chat")
   expect(found.get("commands")).toBe("keyed")
-  expect(found.get("missing")).toBe("keyed")
+  expect(found.get("servers")).toBe("keyed")
 })
 
 // The walk itself, since three tests above rest on it reading a schema

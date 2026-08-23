@@ -59,7 +59,7 @@ export function Unopened(
           : "The agent would not open that conversation."}
       </p>
 
-      {/* Its own line and its own id, for `Missing.tsx`'s reason: the REASON is
+      {/* Its own line and its own id, for `Roster.tsx`'s reason: the REASON is
           what this face exists for, and `break-words` because it can carry a
           session id or a method name into a 26rem drawer. */}
       <p

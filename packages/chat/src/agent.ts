@@ -44,9 +44,12 @@
  * The MCP servers a session is given are olai's own internal one — the standard
  * ACP shape, and the only channel the agent has to the ops layer — plus, when
  * this host is running kolu, kolu's terminals ({@link ./kolu.ts}), detected per
- * session rather than at boot. A detection that FAILED is an event like any
- * other (`servers`), so a conversation short of its tools is something the
- * panel can say rather than something a log knew.
+ * session rather than at boot. The whole list travels as an event like any
+ * other (`servers`), with a standing per row ({@link ./servers.ts}), so which
+ * servers a conversation HAS is something the panel can say rather than
+ * something the model gets asked and answers out of a context that never
+ * contained it — and a detection that FAILED is one row of that answer rather
+ * than the only news there is.
  *
  * `fs` capabilities are FALSE in both directions on purpose: this is not an
  * editor, and an agent that could write a file whole would be routing around
@@ -95,7 +98,7 @@ import {
 } from "@olai/acp"
 import { UsageFailure } from "@olai/format"
 import { emitter, reasonOf } from "@olai/log"
-import type { AskAnswer } from "@olai/surface"
+import type { AskAnswer, ChatServer } from "@olai/surface"
 import { Data, type Duration, Effect, Semaphore } from "effect"
 
 import type { Leg } from "./agents/leg.ts"
@@ -114,6 +117,7 @@ import * as Kolu from "./kolu.ts"
 import type { Held, Memory, MemoryFailure } from "./memory.ts"
 import { streamOver, unstartable } from "./pipes.ts"
 import * as Questions from "./questions.ts"
+import { movedBy, rosterOf } from "./servers.ts"
 import { wroteIn } from "./wrote.ts"
 
 /** An MCP server to hand a session, in olai's terms. {@link mcpServersOf}
@@ -439,6 +443,24 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      */
     let given: ReadonlyArray<string> = []
 
+    /**
+     * ... and the same conversation's servers as a person is shown them: every
+     * one it was handed, the one it was meant to have and did not, and how each
+     * stands ({@link ./servers.ts}).
+     *
+     * HELD rather than emitted and forgotten, because it is no longer settled
+     * at session open. Olai composes it there, and the agent refines it
+     * afterwards — a status per server on the Claude adapter's forwarded
+     * `init`, which arrives with the first turn — so there has to be something
+     * for that news to be applied TO. Refilled whenever a session is opened, by
+     * the one place that decides what a session gets.
+     *
+     * A SECOND VALUE beside `given` and not a projection of it: that one is the
+     * permission rule's and this one is the panel's, and the whole point of the
+     * roster is that it holds rows for servers the session was NOT given.
+     */
+    let roster: ReadonlyArray<ChatServer> = []
+
     /** What has been said about each of this conversation's tool calls — which
      *  tool it is, and which agent made it ({@link ./calls.ts}). Per session,
      *  because a call id is only ever looked up inside the session that minted
@@ -447,14 +469,20 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     /** The conversation is over — replaced, reloaded, or dead. Everything keyed
      *  to it goes: the questions nobody is going to answer now, what was said
-     *  about the calls they named, and which model the CLI said it was
-     *  running. One function, because "this session is finished" is one fact
-     *  and four call sites remembering three things each is how one of them
-     *  ends up remembering two. */
+     *  about the calls they named, which model the CLI said it was running, and
+     *  the servers it was running them over. One function, because "this
+     *  session is finished" is one fact and four call sites remembering four
+     *  things each is how one of them ends up remembering three. */
     const leaving = (): void => {
       questions.withdrawAll()
       calls.forget()
       forgetModel()
+      // The servers were HANDED to a conversation that is over, and the next
+      // one is probed fresh before it opens. Emptied rather than left standing
+      // so a forwarded `init` still in flight from the finished session has
+      // nothing to refine — every row it could name belongs to a conversation
+      // nobody is in.
+      roster = []
     }
 
     /**
@@ -806,6 +834,32 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       show(name ?? id)
     }
 
+    /**
+     * ... and what the same message says about the agent's own connections to
+     * this conversation's MCP servers.
+     *
+     * THE ONE FACT ACP HAS NO PLACE FOR, which is the whole warrant for reading
+     * an agent's private channel about it: `session/new` takes `mcpServers` and
+     * answers with a session id, so whether the agent reached any of them is
+     * never on the wire and `mcp-fail-visible` said as much in its own docs.
+     * One agent volunteers it ({@link ./agents/claude.ts}); an agent that does
+     * not leaves every row where the client put it, which reads as "handed
+     * over, and nobody has said what became of it".
+     *
+     * Re-emitted only when something actually MOVED ({@link ./servers.ts}'s
+     * `movedBy`), for {@link show}'s reason one line up: this message arrives
+     * once a turn, and a conversation whose servers are all fine would
+     * otherwise republish an identical roster to every open tab forever.
+     */
+    const readLiveServers = (params: unknown): void => {
+      const said = options.leg.rawMessages?.serversIn(params) ?? null
+      if (said === null) return
+      const next = movedBy(roster, said)
+      if (next === null) return
+      roster = next
+      emit({ _tag: "servers", servers: roster })
+    }
+
     /** The agent's own file would not run, said once for the two doors that
      *  report it — a malformed spawn call, and the `error` event an exec
      *  failure actually arrives on. It names the COMMAND, because the whole
@@ -930,6 +984,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             (params: unknown) => params,
             (context) => {
               readLiveModel(context.params)
+              // The same message, read for the other thing it carries. TWO
+              // readers over one notification rather than one that answers
+              // both: the model moves the header and the servers move the
+              // roster, they are true at different rates, and a single reader
+              // returning a pair would make every message that changed one of
+              // them look like news about both.
+              readLiveServers(context.params)
             },
           ))
           // Allowed without asking when it is one of the tools we handed this
@@ -1179,13 +1240,23 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // Remembered as they are handed over, because "the tools we gave this
         // conversation" is exactly the set the permission handler allows
         // without asking — and it is decided per conversation.
+        //
+        // OFF `handing` AND NOT OFF THE ROSTER BELOW, which is built from the
+        // same array one line down. The roster is a thing to LOOK at and this
+        // is the set that decides which permission requests are answered
+        // without a person, so it is read from the literal list going on the
+        // wire rather than from a display model that could one day grow a row
+        // for a server nobody handed over ({@link ./servers.ts} says why it
+        // deliberately does not).
         given = handing.map((server) => server.name)
-        const absent = Kolu.missingFrom(found)
-        // Before the session, always — including when there is nothing to
-        // report. An empty list is the news on a conversation that has just
-        // been given what the last one lacked, and a panel only ever told about
-        // failures would go on drawing a fixed one.
-        emit({ _tag: "servers", missing: absent === null ? [] : [absent] })
+        // Before the session, always — and now on EVERY conversation rather
+        // than only on a broken one. A roster is the answer to "which servers
+        // does this conversation have?", which is a question about a healthy
+        // session as much as a failed one — and a panel told only about
+        // failures leaves the other answer to the model, which is the incident
+        // this comes from (`mcp-roster-visible`).
+        roster = rosterOf(handing, Kolu.missingFrom(found))
+        emit({ _tag: "servers", servers: roster })
         return handing
       },
     )

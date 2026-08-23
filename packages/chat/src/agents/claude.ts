@@ -36,6 +36,7 @@
 
 import type { PermissionOption } from "@agentclientprotocol/sdk"
 
+import type { Attached } from "../servers.ts"
 import { allowingOurs, type Leg, type Meta, type Spawn } from "./leg.ts"
 
 // ── which permissions are answered without asking ──────────────────────
@@ -369,22 +370,78 @@ export const SDK_MESSAGE = "_claude/sdkMessage"
  * The model a turn is actually running on, out of the CLI message the adapter
  * forwarded.
  *
- * ONE field of one message kind is read. Everything else `init` carries — the
- * tool list, the MCP servers, the permission mode, the slash commands, the CLI
- * version — is learned from the protocol proper or not at all, because a panel
- * that believed a wrapped CLI's private message about any of it would be
- * reading around the protocol it speaks.
+ * TWO fields of one message kind are read, and this is one of them
+ * ({@link liveServersIn} is the other). Everything else `init` carries — the
+ * tool list, the permission mode, the slash commands, the CLI version — is
+ * learned from the protocol proper or not at all, because a panel that believed
+ * a wrapped CLI's private message about any of it would be reading around the
+ * protocol it speaks.
  */
 export const liveModelIn = (params: unknown): string | null => {
+  const model = initIn(params)?.["model"]
+  return typeof model === "string" && model !== "" ? model : null
+}
+
+/**
+ * ... and what the CLI says about its connection to each MCP server of this
+ * conversation.
+ *
+ * THE SECOND FIELD READ HERE, and it needs its own paragraph because the rule
+ * above says why there is not a third: everything the protocol carries is read
+ * where the protocol is spoken, and this is the one thing on `init` the
+ * protocol has no place for at all. ACP's `session/new` takes `mcpServers` and
+ * answers with a session id — whether the agent reached any of them is never on
+ * the wire — so #140 could report only the failures olai's own probe found
+ * BEFORE handing anything over, and said so in its own docs. This is the other
+ * half arriving, from the one agent that volunteers it.
+ *
+ * The MODEL is why the subscription exists and the SERVERS ride it: the
+ * adapter forwards `system`/`init` because {@link OPEN_SESSION_META} asked for
+ * that message and no other, and it carries both. So this costs one more read
+ * of a message already being read, on a channel already open, and an agent
+ * that stops sending the field answers `null` — which leaves every row exactly
+ * where the client put it ({@link ../servers.ts}).
+ *
+ * `mcp_servers` is `{ name, status }[]` on the SDK's own `SDKSystemMessage`,
+ * where `status` is typed as a bare `string`: an OPEN SET, whose members today
+ * are `connected`, `failed`, `needs-auth`, `pending` and `disabled`. It is
+ * carried through verbatim for exactly that reason — the one value that means
+ * yes is matched positively one layer up, and every other word is shown to a
+ * person in the CLI's own spelling rather than flattened into a category this
+ * file would have to keep in step with somebody else's releases.
+ *
+ * ENTRIES ARE DROPPED, NEVER REPAIRED. A row without a name is a row about
+ * nothing, and a row without a status word is one with nothing to say — either
+ * one coerced into a default would be this file inventing the fact it exists to
+ * report. Dropped, they leave the roster row at `handed`, which is what it
+ * already says.
+ */
+export const liveServersIn = (params: unknown): ReadonlyArray<Attached> | null => {
+  const servers = initIn(params)?.["mcp_servers"]
+  if (!Array.isArray(servers)) return null
+  return servers.flatMap((entry): ReadonlyArray<Attached> => {
+    const shape = entry as { readonly name?: unknown; readonly status?: unknown } | null
+    const name = shape?.name
+    const status = shape?.status
+    return typeof name === "string" && name !== ""
+        && typeof status === "string" && status !== ""
+      ? [{ name, status }]
+      : []
+  })
+}
+
+/** The CLI's own `system`/`init` out of a forwarded message, or `undefined` for
+ *  any other message — the adapter forwards what it was asked for and nothing
+ *  says a future version will not be asked for more. Both readers above start
+ *  by asking for it, so the shape test is written once: two copies of "is this
+ *  the init message" is one place for a subtype to be checked and another for
+ *  it to be forgotten. */
+const initIn = (params: unknown): { readonly [key: string]: unknown } | undefined => {
   const message = (params as { readonly message?: unknown } | null)?.message
-  if (typeof message !== "object" || message === null) return null
-  const shape = message as {
-    readonly type?: unknown
-    readonly subtype?: unknown
-    readonly model?: unknown
-  }
-  if (shape.type !== "system" || shape.subtype !== "init") return null
-  return typeof shape.model === "string" && shape.model !== "" ? shape.model : null
+  if (typeof message !== "object" || message === null) return undefined
+  const shape = message as { readonly [key: string]: unknown }
+  if (shape["type"] !== "system" || shape["subtype"] !== "init") return undefined
+  return shape
 }
 
 // ── the leg ────────────────────────────────────────────────────────────
@@ -422,5 +479,6 @@ export const CLAUDE: Leg = {
     openMeta: OPEN_SESSION_META,
     method: SDK_MESSAGE,
     modelIn: liveModelIn,
+    serversIn: liveServersIn,
   },
 }
