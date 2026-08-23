@@ -122,7 +122,11 @@ const whereOf = (server: McpServer): string | null => {
  *   - **a handed row the agent did NOT name** keeps the standing it had. An
  *     agent naming some of its servers has said nothing about the others, and
  *     reading silence as a downgrade would make a row flicker on every message
- *     that happened to be shorter than the last.
+ *     that happened to be shorter than the last. It is {@link ./calls.ts}'s
+ *     rule over a different subject — a frame REFINES and never retracts, so
+ *     an absent field is "nothing has said yet" — and it is written out again
+ *     rather than shared, because that registry is a per-call lookup a
+ *     permission question consults and this is an ordered list published whole.
  *   - **a `missing` row is never touched**, whatever the agent says. That row
  *     is olai's own probe's finding about a server it did NOT hand over, so an
  *     agent reporting a server of that name is reporting its OWN — a `kolu` out
@@ -144,22 +148,33 @@ export const movedBy = (
   roster: ReadonlyArray<ChatServer>,
   said: ReadonlyArray<Attached>,
 ): ReadonlyArray<ChatServer> | null => {
-  let moved = false
-  const next = roster.map((server): ChatServer => {
-    if (server.standing.kind === "missing") return server
-    const reported = said.find((one) => one.name === server.name)
-    if (reported === undefined) return server
-    const standing: ServerStanding = reported.status === CONNECTED
-      ? { kind: "connected" }
-      // The agent's own word, quoted rather than translated — the same rule
-      // #140's four probe sentences follow, and the reason a reader can act on
-      // `needs-auth` (sign the server in) differently from `failed` (it broke).
-      : { kind: "unattached", why: `the agent did not attach it: ${reported.status}` }
-    if (same(server.standing, standing)) return server
-    moved = true
-    return { ...server, standing }
-  })
-  return moved ? next : null
+  const next = roster.map((server) => asSaid(server, said))
+  // A ROW THAT DID NOT MOVE IS THE SAME OBJECT, which is what makes this one
+  // expression rather than a flag threaded through the map above: the map
+  // answers what each row becomes, and this answers whether any of them became
+  // something else. Written with a mutable `moved` set inside the callback, the
+  // two questions are one loop and neither is readable on its own.
+  return next.some((server, index) => server !== roster[index]) ? next : null
+}
+
+/** What one row becomes under a report — itself, when the report leaves it
+ *  where it was. Every arm of "leaves it where it was" is here rather than at
+ *  the caller, because each is a decision about this layer's boundary and the
+ *  identity above is what publishes them all as one answer. */
+const asSaid = (
+  server: ChatServer,
+  said: ReadonlyArray<Attached>,
+): ChatServer => {
+  if (server.standing.kind === "missing") return server
+  const reported = said.find((one) => one.name === server.name)
+  if (reported === undefined) return server
+  const standing: ServerStanding = reported.status === CONNECTED
+    ? { kind: "connected" }
+    // The agent's own word, quoted rather than translated — the same rule
+    // #140's four probe sentences follow, and the reason a reader can act on
+    // `needs-auth` (sign the server in) differently from `failed` (it broke).
+    : { kind: "unattached", why: `the agent did not attach it: ${reported.status}` }
+  return same(server.standing, standing) ? server : { ...server, standing }
 }
 
 /** Whether two standings say the same thing — the whole of what "this report

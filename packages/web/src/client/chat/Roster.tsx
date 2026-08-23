@@ -1,10 +1,10 @@
 /**
  * Which MCP servers this conversation has — the strip under the header.
  *
- * The visible half of `mcp-roster-visible`, and `mcp-fail-visible`'s `Missing`
- * grown into the whole of its own subject. #140 drew the FAILURES and
+ * The visible half of `mcp-roster-visible`. #140 drew the FAILURES and
  * deliberately nothing on a healthy session, on the argument that a working
- * conversation is owed no sentence. The argument the incident makes back is
+ * conversation is owed no sentence ({@link ./Missing.tsx}, which still draws
+ * them and is still that argument). The argument the incident makes back is
  * that "which servers does this conversation have?" is a question people
  * actually ask — and that with nothing on screen to answer it, the thing they
  * ask is the MODEL. It answered wrong: an opencode listed olai and deepwiki,
@@ -25,9 +25,12 @@
  *     person put in their own agent's config are configured where olai cannot
  *     see them. A list that stopped at the last chip would be making the
  *     completeness claim the model made.
- *   - **the reasons** — #140's rows, verbatim, for the servers this
- *     conversation does NOT have: the name, the sentence the probe or the
- *     server or the agent gave, and the file that was probed.
+ *   - **the reasons**, which are {@link ./Missing.tsx}'s and are drawn by it:
+ *     the name, the sentence the probe or the server or the agent gave, and the
+ *     file that was probed. TWO COMPONENTS because they answer two questions —
+ *     which servers are here, and why one of them is not — and a healthy
+ *     conversation answers only the first, so the second is a component that
+ *     is simply absent rather than a branch inside this one.
  *
  * Three arguments about how it is drawn, and each is a thing it deliberately is
  * not:
@@ -71,21 +74,21 @@
  * interruption.
  */
 
-import { type ChatServer, type ServerStanding, whyNot } from "@olai/surface"
+import { type ChatServer, whyNot } from "@olai/surface"
 import { For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
+import { Missing } from "./Missing.tsx"
+import { SAID } from "./standing.ts"
 import type { Chat } from "./state.ts"
 
 export function Roster(props: { readonly chat: Chat }) {
   const servers = () => props.chat.state().servers
-  /** The ones this conversation does NOT have. Both of those standings, because
-   *  the two ways of not having a server want the same row: olai's probe
-   *  refused to hand one over, or the agent could not attach one that was
-   *  handed. Asked as "is there a reason?" rather than by listing the two arms,
-   *  because the union grounds a reason on exactly those two — so this cannot
-   *  fall out of step with them, and a fifth standing has to answer the
-   *  question rather than quietly not match a list. */
+  /** The ones this conversation does NOT have. Asked as "is there a reason?"
+   *  rather than by listing the two standings that have one, because the union
+   *  grounds a reason on exactly those two — so this cannot fall out of step
+   *  with them, and a fifth standing has to answer the question rather than
+   *  quietly not match a list. */
   const absent = () => servers().filter((server) => whyNot(server) !== null)
 
   return (
@@ -112,55 +115,16 @@ export function Roster(props: { readonly chat: Chat }) {
             <span aria-hidden="true">· </span>plus the agent&rsquo;s own
           </span>
         </p>
-        <Show when={absent().length > 0}>
-          {/* The sentences, under the names. Its own testid because "which
-              servers are there" and "why is one of them not" are two questions,
-              and a healthy conversation answers only the first. */}
-          <div class="mt-1 space-y-1" data-testid={TESTID.chatMissing}>
-            <For each={absent()}>{(server) => <Row server={server} />}</For>
-          </div>
-        </Show>
+        <Missing servers={absent()} />
       </section>
     </Show>
   )
 }
 
-/**
- * How each standing is marked and said.
- *
- * A GLYPH AND A WORD, never a colour alone. The colour is the fastest read for
- * somebody who can use it and the only read for nobody: a tick beside a name is
- * legible in a screenshot, in a high-contrast theme and to a reader who cannot
- * tell `done` from `alarm`. The word is what a screen reader gets, and it is
- * the whole sentence rather than the tag — `handed` means nothing to anyone who
- * has not read `../../../../chat/src/servers.ts`.
- *
- * `handed` HAS NO MARK, which is the state's own honesty: there is nothing to
- * report yet. Every row on an agent that says nothing per server is this one,
- * so a glyph here would be a decoration on the majority case and would leave
- * the tick — the thing that is actually news — competing with it.
- */
-const MARK: {
-  readonly [K in ServerStanding["kind"]]: {
-    readonly glyph: string
-    readonly tint: string
-    readonly said: string
-  }
-} = {
-  connected: { glyph: "✓", tint: "text-done", said: "the agent says it attached" },
-  handed: {
-    glyph: "",
-    tint: "",
-    said: "handed to this conversation; the agent has not said whether it attached",
-  },
-  unattached: { glyph: "×", tint: "text-alarm", said: "the agent did not attach it" },
-  missing: { glyph: "×", tint: "text-alarm", said: "missing from this conversation" },
-}
-
 /** One server on the roster: its name, how it stands, and — on hover — where it
  *  is. */
 function Chip(props: { readonly server: ChatServer }) {
-  const mark = () => MARK[props.server.standing.kind]
+  const said = () => SAID[props.server.standing.kind]
   return (
     <span
       class="flex items-baseline gap-1 text-ink"
@@ -171,57 +135,15 @@ function Chip(props: { readonly server: ChatServer }) {
       // pixels, and a test that pinned it would fail the next time somebody
       // improved it (`../../../../../HACKING.md`).
       data-standing={props.server.standing.kind}
-      title={props.server.where === null
-        ? mark().said
-        : `${mark().said} — ${props.server.where}`}
+      title={`${props.server.name} ${said().sentence}${
+        props.server.where === null ? "" : ` — ${props.server.where}`
+      }`}
     >
       <span>{props.server.name}</span>
-      <Show when={mark().glyph !== ""}>
-        <span class={mark().tint} aria-hidden="true">{mark().glyph}</span>
+      <Show when={said().glyph !== ""}>
+        <span class={said().tint} aria-hidden="true">{said().glyph}</span>
       </Show>
-      <span class="sr-only">{mark().said}</span>
+      <span class="sr-only">{said().sentence}</span>
     </span>
-  )
-}
-
-/** One this conversation does not have: what is not here, why not, and — when
- *  there was one — which file was asked. */
-function Row(props: { readonly server: ChatServer }) {
-  return (
-    <div data-testid={TESTID.chatMissingServer} data-server={props.server.name}>
-      <p class="flex items-baseline gap-1.5 text-ink">
-        <span
-          class="inline-block size-1.5 shrink-0 -translate-y-px rounded-full bg-alarm"
-          aria-hidden="true"
-        />
-        <span>
-          <span class="font-semibold">{props.server.name}</span>{" "}
-          {props.server.standing.kind === "missing"
-            ? "is missing from this conversation"
-            : "did not attach to this conversation"}
-        </span>
-      </p>
-      {/* The server's own words, and the reason this strip is worth its
-          pixels. `break-words` because a reason can carry a socket path or an
-          errno string, and a 26rem drawer is not wide enough to be trusted
-          with one. */}
-      <p class="break-words pl-3 text-muted" data-testid={TESTID.chatMissingWhy}>
-        {whyNot(props.server)}
-      </p>
-      {/* WHICH file was asked. The incident #140 comes from was exactly this
-          question: a `kolu` on PATH is not necessarily the host's kolu, and a
-          padi-spawned terminal prepends its own bundled copy. It truncates and
-          keeps the whole of it on the `title`, because a store path is longer
-          than this drawer and the tail of one is the half that identifies it.
-
-          Absent for the one failure that never reached a file, where the
-          reason above is the whole of it — an empty line under it would be
-          this panel implying a path it does not have. */}
-      <Show when={props.server.where}>
-        {(where) => (
-          <p class="truncate pl-3 text-muted/70" title={where()}>{where()}</p>
-        )}
-      </Show>
-    </div>
   )
 }

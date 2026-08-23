@@ -1,0 +1,70 @@
+/**
+ * How each standing is MARKED and SAID — one table, read by both the roster's
+ * chips and the sentences under them.
+ *
+ * Its own module because it was the same wording twice: the chip carried a
+ * per-standing phrase for its tooltip and its screen-reader text, and the
+ * sentence row carried a second one, near-identical, as a ternary at the point
+ * of rendering. Two spellings of "what `missing` means to a person" is one for
+ * the next reader to find and another for them to miss — and they had already
+ * drifted, one saying *missing from this conversation* and the other *is
+ * missing from this conversation*.
+ *
+ * EVERY SENTENCE COMPLETES THE SERVER'S NAME, which is what lets one table
+ * serve both sites: *kolu is missing from this conversation* is what the row
+ * draws with the name in bold and what the chip puts on its `title`, and it is
+ * what a screen reader is given for the chip on its own.
+ *
+ * A GLYPH AND A WORD, never a colour alone. The colour is the fastest read for
+ * somebody who can use it and the only read for nobody: a tick beside a name is
+ * legible in a screenshot, in a high-contrast theme and to a reader who cannot
+ * tell `done` from `alarm`. The sentence is what the screen reader gets, and it
+ * is a whole sentence rather than the tag — `handed` means nothing to anyone
+ * who has not read `../../../../chat/src/servers.ts`.
+ *
+ * `handed` HAS NO MARK, which is the state's own honesty: there is nothing to
+ * report yet. Every row on an agent that says nothing per server is this one,
+ * so a glyph here would be a decoration on the majority case and would leave
+ * the tick — the thing that is actually news — competing with it.
+ *
+ * A RECORD OVER THE CLOSED UNION rather than a lookup with a fallback: a fifth
+ * standing on the wire fails to compile here, which is the same discipline
+ * `../../../../chat/src/chat.ts`'s `EVIDENCE` keeps over the event vocabulary.
+ */
+
+import type { ServerStanding } from "@olai/surface"
+
+export const SAID: {
+  readonly [K in ServerStanding["kind"]]: {
+    /** Beside the name on a chip. Empty for the standing with nothing to
+     *  report. */
+    readonly glyph: string
+    /** The palette word for it, or empty where there is no glyph to tint. */
+    readonly tint: string
+    /** What it means, completing the server's NAME — so one sentence serves
+     *  the chip's tooltip, its screen-reader text and the row under it. */
+    readonly sentence: string
+  }
+} = {
+  connected: {
+    glyph: "✓",
+    tint: "text-done",
+    sentence: "is attached, the agent says",
+  },
+  handed: {
+    glyph: "",
+    tint: "",
+    sentence:
+      "was handed to this conversation; the agent has not said whether it attached",
+  },
+  unattached: {
+    glyph: "×",
+    tint: "text-alarm",
+    sentence: "did not attach to this conversation",
+  },
+  missing: {
+    glyph: "×",
+    tint: "text-alarm",
+    sentence: "is missing from this conversation",
+  },
+}

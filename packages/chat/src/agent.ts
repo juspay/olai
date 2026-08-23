@@ -855,9 +855,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       const said = options.leg.rawMessages?.serversIn(params) ?? null
       if (said === null) return
       const next = movedBy(roster, said)
-      if (next === null) return
-      roster = next
-      emit({ _tag: "servers", servers: roster })
+      if (next !== null) announce(next)
     }
 
     /** The agent's own file would not run, said once for the two doors that
@@ -1222,6 +1220,22 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         )
       })
 
+    /**
+     * The roster moved, so say so — the one place that writes it and the one
+     * place that publishes it.
+     *
+     * TWO SITES CHANGE IT and each has to do both: a session opening composes
+     * a fresh one, and the agent's own report refines the one that is up. Left
+     * as two lines twice, "remember it and publish it" is a rule in somebody's
+     * head — and the half that gets forgotten is silent, because a roster
+     * written and not published looks exactly like a roster nothing has
+     * changed. `entered` above is the same shape for the same reason.
+     */
+    const announce = (next: ReadonlyArray<ChatServer>): void => {
+      roster = next
+      emit({ _tag: "servers", servers: next })
+    }
+
     /** The MCP servers this conversation gets: olai's own tool server, and
      *  kolu's terminals if this host is running kolu. Asked FRESH every time a
      *  session is opened rather than once at boot, so a padi started after olai
@@ -1255,8 +1269,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // session as much as a failed one — and a panel told only about
         // failures leaves the other answer to the model, which is the incident
         // this comes from (`mcp-roster-visible`).
-        roster = rosterOf(handing, Kolu.missingFrom(found))
-        emit({ _tag: "servers", servers: roster })
+        announce(rosterOf(handing, Kolu.missingFrom(found)))
         return handing
       },
     )
