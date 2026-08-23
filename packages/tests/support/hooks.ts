@@ -52,6 +52,7 @@ import { findLogfmt } from "@olai/log/testlib";
 import { chromium } from "playwright";
 import type { Browser } from "playwright";
 
+import { BANNERS, recordBanners } from "./banners.ts";
 import { BROWSER_ARGS } from "./browser.ts";
 import {
   alreadyShared,
@@ -153,6 +154,26 @@ const OPENCODE_TAG = "@opencode";
  *  drew, so every websocket frame the tab is delivered is kept for it
  *  (`world.socketFrames`, which says why that is a tag and not the default). */
 const WIRE_TAG = "@wire";
+
+/**
+ * `@alerts`: this scenario is about the chat panel telling somebody the agent
+ * has stopped on them, so its context is granted the browser's notification
+ * permission and every document in it records what the app asks the service
+ * worker to SHOW (`./banners.ts`).
+ *
+ * A recorder rather than an observation, because there is no other option: an
+ * OS banner is drawn outside the browser and Playwright can neither see one
+ * nor click one. What IS the app's own — the sentence, the dedup tag, and that
+ * it went through `registration.showNotification` at all, which is the only
+ * call that works in an installed PWA — is exactly what the wrapper keeps, and
+ * the real path runs underneath it: a real registered worker, a real
+ * permission, the framework's real seam.
+ *
+ * A TAG rather than the default, for `@wire`'s reason: it replaces a platform
+ * method in every document of the context, and seven hundred scenarios that
+ * never raise a banner should be running the browser's own.
+ */
+const ALERTS_TAG = "@alerts";
 
 /** `@agent-stored`: the fake agent answers `session/list` with two stored
  *  conversations, so the server's boot loads one of them and replays it. Unset,
@@ -1125,6 +1146,16 @@ Before(
       ...(handheld ? PHONE : DESKTOP),
       baseURL: this.baseUrl,
     });
+    // BEFORE the first page, because an init script only reaches documents
+    // that have not been created yet — and the recorder has to be in place
+    // before the app's own boot can raise anything. See {@link ALERTS_TAG}.
+    if (scenario.pickle.tags.some((tag) => tag.name === ALERTS_TAG)) {
+      await this.context.grantPermissions(["notifications"], {
+        origin: this.baseUrl,
+      });
+      await this.context.addInitScript(recordBanners, BANNERS);
+    }
+
     this.page = await this.context.newPage();
 
     // Collected for the whole scenario, asserted on by whichever step cares.

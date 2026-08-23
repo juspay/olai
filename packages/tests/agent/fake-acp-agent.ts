@@ -84,6 +84,9 @@
  *                between the turn's two usage frames, so a scenario can look at
  *                the mid-stream window rather than infer it
  *   ask          ask a structured question and report the answer
+ *   ask later    the same, HELD until released — so a scenario can look away
+ *                before the question lands, which is what the chat panel's
+ *                attention alerts are about
  *   askstrict    ask one with a REQUIRED, typed field, the way an MCP server does
  *   plan         ask to leave plan mode, the way the adapter does
  *   permit       ask permission for an ops tool, which needs no person
@@ -1211,6 +1214,12 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       respond(id, { stopReason: "end_turn" })
       return
     }
+    // `ask later` HOLDS first, which is the only way a scenario can be
+    // somewhere else when the question lands: asking takes the panel open and
+    // a press of Send, and the attention alerts are about a question arriving
+    // at a person who has since looked away. So the scenario asks, goes
+    // elsewhere, and then releases.
+    if (argument === "later") await released()
     const answer = await request("elicitation/create", {
       mode: "form",
       sessionId,

@@ -270,11 +270,15 @@ test("binding off loopback is a warning, not a line among lines", async () => {
 // the two ends of a contract whose packages do not import each other. The
 // source `public/` stands in for the built dist because `web/src/build.ts`
 // copies that directory to the dist root as-is (`publicDir: resolve(CLIENT,
-// "public")`). The "never a service worker" half of the old e2e is NOT
-// asserted here on the shell — a registration would live in the client
-// bundle, and `web/src/client/claims.test.ts` holds that no file spells
-// `serviceWorker`. What this file can see is that the shell itself does not
-// inline one.
+// "public")`).
+//
+// WHICH `/sw.js` this origin serves is asserted here, on the wire, because
+// that is the only place it exists: the source is the framework's constant and
+// the route is `freshStaticLayer`'s, so there is no file in this repo to read
+// it off — and serving the wrong one of the two is a chat panel that cannot
+// raise a notification at all. That the SHELL inlines no registration of its
+// own is the other half; WHICH client file may register one is
+// `web/src/client/claims.test.ts`.
 
 const WEB_CLIENT = path.join(import.meta.dirname, "../../web/src/client")
 
@@ -345,7 +349,29 @@ test("every icon the manifest names is served as the type it claims", async () =
   })
 })
 
-test("the shell names the mark, the viewport, and no service worker", async () => {
+test("/sw.js is the notification worker, and it caches nothing", async () => {
+  await withInstall(async (url) => {
+    const answer = await fetch(`${url}/sw.js`)
+    expect(answer.status).toBe(200)
+    expect(answer.headers.get("content-type") ?? "").toMatch(/^text\/javascript/)
+    // Never cached: a worker a browser will not re-fetch is a worker that
+    // cannot be replaced, which is the freshness contract's own rule.
+    expect(answer.headers.get("cache-control") ?? "").toContain("no-cache")
+
+    const source = await answer.text()
+    // WHICH of the framework's two workers, as the facts that tell them apart.
+    // The self-destructing default unregisters itself, which would take the
+    // notification path down with it; the notify worker answers a press.
+    expect(source).toContain("notificationclick")
+    expect(source).not.toContain("registration.unregister")
+    // ... and the half that keeps "live or nothing" true: it registers no
+    // `fetch` handler at all, so it can never answer a navigation out of a
+    // cache (docs/architecture.md).
+    expect(source).not.toMatch(/addEventListener\(\s*["']fetch["']/)
+  })
+})
+
+test("the shell names the mark and the viewport, and registers nothing itself", async () => {
   await withInstall(async (url) => {
     const answer = await fetch(`${url}/`)
     expect(answer.status).toBe(200)

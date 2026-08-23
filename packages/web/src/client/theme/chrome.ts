@@ -19,6 +19,14 @@
  *
  * The tab mark is a blob, not a `data:` URL: the shell's CSP names `blob:` on
  * `img-src` (favicons count) and refuses `data:`.
+ *
+ * TWO THINGS DECIDE THE MARK now, and they move independently: the palette in
+ * force, and whether the agent is waiting on the reader
+ * (`../chat/attention/badge.ts` — the tab's half of the App Badging API). So
+ * this file holds what the chrome is CURRENTLY showing, and each caller says
+ * only its own half. The alternative — every caller passing both — would make
+ * the badge a second place that knows which theme is in force, and a theme
+ * picked while a question was waiting would rub the dot out.
  */
 
 import { markSvg } from "./mark.ts"
@@ -60,9 +68,15 @@ const icon = (): HTMLLinkElement => {
   return iconLink
 }
 
+/** What the chrome is showing right now: the palette it was last painted in,
+ *  and whether the mark carries the waiting dot. Held because the two move
+ *  independently — see the header. */
+let shown: Palette | undefined
+let waiting = false
+
 const paintIcon = (palette: Palette): void => {
   const url = URL.createObjectURL(
-    new Blob([markSvg(palette)], { type: "image/svg+xml" }),
+    new Blob([markSvg(palette, waiting)], { type: "image/svg+xml" }),
   )
   const previous = iconUrl
   icon().href = url
@@ -72,6 +86,23 @@ const paintIcon = (palette: Palette): void => {
 
 /** Put the chrome in this palette. */
 export const paintChrome = (palette: Palette): void => {
+  shown = palette
   tag().setAttribute("content", palette.colors.paper)
   paintIcon(palette)
+}
+
+/**
+ * Mark the tab, or stop marking it — the same drawing, with a dot on it
+ * (`./mark.ts`).
+ *
+ * A no-op before any palette has been painted, which is the first frame and
+ * nothing else: `followStoredTheme` paints from the client's entry point,
+ * before there is a panel to ask for this. Nothing is drawn from a guess — a
+ * mark in a palette nobody picked is a worse answer than the file the shell
+ * already shipped.
+ */
+export const markWaiting = (mark: boolean): void => {
+  if (mark === waiting) return
+  waiting = mark
+  if (shown !== undefined) paintIcon(shown)
 }

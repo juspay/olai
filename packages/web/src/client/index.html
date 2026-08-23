@@ -90,8 +90,14 @@
          the tab's first paint — the install mark — because the bundle has not
          run yet; chrome.ts replaces it from the palette in force.
          `apple-touch-icon` is iOS's Add to Home Screen, which reads no
-         manifest — so the install mark has to be named twice. There is no
-         service worker and no offline shell: this app is live or nothing. -->
+         manifest — so the install mark has to be named twice.
+
+         The service worker the framework serves at
+         `/sw.js` is REGISTERED (main.tsx) and is deliberately fetch-less — it
+         caches nothing and intercepts nothing, so this app is still live or
+         nothing; what it is for is `registration.showNotification`, the only
+         notification path an installed PWA has, which the chat panel uses to
+         say the agent is waiting on you. -->
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

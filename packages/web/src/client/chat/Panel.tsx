@@ -11,7 +11,15 @@
  * On a phone the toggle is gone from the bar: the thumb strip opens the sheet,
  * and the sheet's scrim puts it away. The TRANSCRIPT is subscribed only while
  * the panel is open; Minimized reads a module-scoped snapshot updated from
- * here (`last.ts`), never the collection.
+ * here (`last.ts`), never the collection — and so does the attention banner's
+ * second line (`attention/asked.ts`), which is the same arrangement with one
+ * difference: it is emptied when the panel shuts, because a stale question in
+ * a system notification is a lie and a stale last message under a pill is not.
+ *
+ * WHAT IS OUTSIDE both shells is {@link Panel} itself, and the one thing it
+ * does: telling a person the agent has stopped on them
+ * (`attention/attention.ts`). It is out there because a question arriving
+ * behind a MINIMIZED panel is the case that feature exists for.
  *
  * Both layouts render the same `Face` — the header, whatever this conversation
  * is short of, and then one of four bodies ({@link ./face.ts}): the
@@ -48,6 +56,8 @@ import {
 import { LAYER, WITHIN } from "../layer.ts"
 import { TESTID } from "../testids.ts"
 import { ICON_BUTTON } from "../readout.ts"
+import { createAsked } from "./attention/asked.ts"
+import { createAttention } from "./attention/attention.ts"
 import { Choose } from "./Choose.tsx"
 import { Composer } from "./Composer.tsx"
 import { DropTarget } from "./DropTarget.tsx"
@@ -64,6 +74,12 @@ import { Transcript } from "./Transcript.tsx"
 import { Unopened } from "./Unopened.tsx"
 
 export function Panel() {
+  // WHETHER A PERSON IS TOLD the agent has stopped on them, and it is out here
+  // — outside the `Show` — because that is the whole point of it: a question
+  // arriving behind a minimized panel is the case it exists for, and a circuit
+  // inside the open dock would go quiet exactly then. It costs the cheap chat
+  // cell and no transcript (`./attention/attention.ts`).
+  createAttention(createChatState())
   return (
     <>
       <Show when={chatOpen()}>
@@ -278,8 +294,11 @@ function Body(props: { readonly chat: Chat }) {
 function DesktopDock() {
   const chat = createChat()
 
-  // Keep the last agent row for the minimized face; dies with this owner.
+  // Keep the last agent row for the minimized face, and the waiting question
+  // for the banner; both die with this owner, which is what makes the second
+  // one honest when the panel shuts (`./attention/asked.ts`).
   createLastAgent(chat)
+  createAsked(chat)
 
   return (
     <aside
@@ -317,6 +336,7 @@ function MobileSheet() {
   let dragged = false
 
   createLastAgent(chat)
+  createAsked(chat)
 
   const heightPct = () => {
     const drag = dragPct()

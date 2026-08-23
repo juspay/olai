@@ -97,7 +97,10 @@ typecheck: install
 # `names.ts` is the table every title resolver reads (PR 2), `Tree.tsx` is what
 # one frame costs every row of the page (PR 6, over the real store merge),
 # `directory.ts`'s broken map has to hold its identity across a frame,
-# `chat/last.ts` is about which rows an effect subscribes to (PR 4), and
+# `chat/last.ts` is about which rows an effect subscribes to (PR 4),
+# `chat/attention/asked.ts` is the same claim one row-kind over and gets its
+# own case because the answer differs — an ask row SETTLES under a key that
+# never moves, so membership alone is not enough — and
 # `chat/declared.ts` is an ASKING that is an effect, over a failure slot every
 # message on screen shares (PR 5). `commit/auto.ts` was here too — a TIMER armed
 # and disarmed by an effect, which a server-resolved run would report as minting
@@ -113,6 +116,7 @@ test: install
       ./packages/web/src/client/Tree.browsertest.ts \
       ./packages/web/src/client/directory.browsertest.ts \
       ./packages/web/src/client/chat/last.browsertest.ts \
+      ./packages/web/src/client/chat/attention/asked.browsertest.ts \
       ./packages/web/src/client/chat/declared.browsertest.ts
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the

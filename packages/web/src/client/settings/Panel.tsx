@@ -25,9 +25,14 @@
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
  * theme, the typeface, how much of a row is drawn by default, what this
- * browser does with finished work, which files the directory column draws, and
- * the two git rows — whether what is waiting records itself, and whether a
- * commit from here is pushed.
+ * browser does with finished work, whether the agent stopping on a question is
+ * announced and whether that makes a sound, which files the directory column
+ * draws, and the two git rows — whether what is waiting records itself, and
+ * whether a commit from here is pushed.
+ * The two ALERT rows meet the test the same way Done does: "tell me when the
+ * agent needs me" is a claim about the reader, and the surface it is about is
+ * a drawer that is SHUT in exactly the case the setting is for — so a switch
+ * on the panel would be a control you can only reach when you do not need it.
  * The DENSITY belongs here for exactly the reason the done preference does: it
  * is a claim about the reader ("I read a tree as a list of titles") rather than
  * about any one outline, so a switch bolted to the outline page would be a
@@ -58,13 +63,15 @@
  * worse than two words for one. This is the surface; that is the mechanism.
  */
 
-import { Show } from "solid-js"
+import { onMount, Show } from "solid-js"
 
 import { type Anchor, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
 import type { GitState } from "@olai/format"
 
+import { askToNotify, bannerConsent, refreshConsent } from "../chat/attention/banner.ts"
 import { createGitPolicy } from "../commit/state.ts"
+import { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } from "./alerts.ts"
 import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
 import { outlinesHidden, setOutlinesHidden } from "./hiddenOutlines.ts"
@@ -111,6 +118,17 @@ const DENSITY_CHOICES: ReadonlyArray<{ value: Density; label: string }> = [
   { value: "cozy", label: "Cozy" },
   { value: "open", label: "Open" },
 ]
+
+/** Alerts: Off / On — whether the agent stopping on a question you cannot see
+ *  reaches you at all. */
+const ALERT_CHOICES = [
+  { value: "off", label: "Off" },
+  { value: "on", label: "On" },
+] as const
+
+/** Alert sound: Off / On — the same pair, because it is the same kind of
+ *  claim one step in. */
+const SOUND_CHOICES = ALERT_CHOICES
 
 /** Hidden outlines: Hidden / Shown — the Done row's pair one subject over,
  *  and the same two words, because it is the same kind of claim: a list of
@@ -205,6 +223,32 @@ export function Panel(props: {
           choices={DONE_CHOICES}
           value={doneHidden() ? "hidden" : "visible"}
           onPick={(value) => setDoneHidden(value === "hidden")}
+        />
+      </Row>
+
+      {/* THE AGENT'S TWO ROWS, and they are here for the same test as Done:
+          "tell me when the agent stops on me" is a claim about the reader, and
+          the panel it is about has nowhere to hang a switch — it is a drawer
+          that is shut in exactly the case this setting is for. Two rows and
+          not one strip of three, because they are two independent facts:
+          being told and being told AUDIBLY, and folding them together would
+          make turning the chime off cost the banner too. Sound is drawn under
+          Alerts and reads as its second half; with alerts off it is frozen
+          rather than hidden, so what it would be is still on screen. */}
+      <Row label="Alerts" pref="alerts" hint={alertsHint()} under={<AllowNotify />}>
+        <Segmented
+          choices={ALERT_CHOICES}
+          value={alertsOn() ? "on" : "off"}
+          onPick={(value) => setAlertsOn(value === "on")}
+        />
+      </Row>
+
+      <Row label="Alert sound" pref="alert-sound" hint={soundHint()}>
+        <Segmented
+          choices={SOUND_CHOICES}
+          value={alertSoundOn() ? "on" : "off"}
+          onPick={(value) => setAlertSoundOn(value === "on")}
+          frozen={!alertsOn()}
         />
       </Row>
 
@@ -327,6 +371,46 @@ export function Panel(props: {
   )
 }
 
+/**
+ * THE ONE GESTURE THAT CAN RAISE THE PERMISSION PROMPT, on the row it belongs
+ * to.
+ *
+ * Alerts are on by default (ruled), so there is no "first enable" press for
+ * the browser's own prompt to ride. The banner asks for itself the first time
+ * it is actually wanted (`../chat/attention/banner.ts`) — which is the moment
+ * the prompt's sentence is about something happening — but Firefox and Safari
+ * both REFUSE a prompt raised from a background event, and a person who was
+ * away when the question arrived is exactly the person that rule is about. So
+ * this is the door that always works: a press, which is what those browsers
+ * were holding out for.
+ *
+ * Drawn only while there is something for it to do — alerts on, and a browser
+ * that has neither granted nor refused. A button offering to ask a question
+ * that has been answered is a control with nothing to do, which is the same
+ * argument the Resume button two rows down makes.
+ */
+function AllowNotify() {
+  // The permission can be changed in browser settings with this page open, so
+  // what it says is re-read when the panel opens rather than trusted from
+  // whenever this module was first loaded.
+  onMount(refreshConsent)
+  return (
+    <Show when={alertsOn() && bannerConsent() === "default"}>
+      <button
+        type="button"
+        // `mt-2` here rather than on a wrapper in `./Row.tsx`: the slot is
+        // rendered bare, so a row whose button is not showing draws nothing at
+        // all — see there.
+        class={`${TARGET} mt-2 rounded-full border border-rule px-3 text-xs text-ink hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent md:min-h-0 md:py-1`}
+        data-testid={TESTID.prefsAllowNotify}
+        onClick={() => void askToNotify(true)}
+      >
+        Allow notifications
+      </button>
+    </Show>
+  )
+}
+
 /** The theme row NAMES the theme in force, which is the promise the retired
  *  header pill carried (`../theme/Chips.tsx`): chips wearing their palettes
  *  say which is which and not which is ON, and the ring that says so
@@ -354,6 +438,55 @@ const densityHint = (): string => {
       return "Every note you have not folded yourself is already open: the " +
         "node's properties, then the note in full. The ¶ folds one back."
   }
+}
+
+/**
+ * WHAT ALERTS IN FORCE MEANS, and the two things a reader has to be told: what
+ * actually happens, and — the part nobody would guess — that nothing happens
+ * while they are looking at the panel. A person who switches this on, watches
+ * a question arrive in front of them and hears nothing would reasonably decide
+ * it is broken.
+ *
+ * The banner is named as the half that needs the browser's permission, and
+ * only where the browser has not granted it: on a page that can already draw
+ * one, a sentence about permissions is a caveat about nothing, which teaches a
+ * reader to stop believing the rest.
+ */
+const alertsHint = (): string => {
+  if (!alertsOn()) {
+    return "The agent stopping on a question is silent. The panel still says so " +
+      "where you can see it: the header's agent button, and the composer."
+  }
+  const said = "A question you cannot see — the panel put away, the window " +
+    "behind something else — chimes, raises a system notification, and marks " +
+    "the app's icon until you come back. A question that arrives in front of " +
+    "you does none of that: the form appearing is the alert."
+  switch (bannerConsent()) {
+    case "granted":
+      return said
+    case "denied":
+      return `${said} This browser has refused notifications for this site, so ` +
+        "there is no banner — the chime and the icon need no permission and " +
+        "still work."
+    case "unsupported":
+      return `${said} This browser has no system notifications, so there is no ` +
+        "banner — the chime and the icon do not need one."
+    default:
+      return `${said} The banner needs this browser's permission, which it has ` +
+        "not been asked for yet."
+  }
+}
+
+/** What the sound row in force means — and, with alerts off, why it is inert
+ *  rather than absent: the choice is still on screen, it just has nothing to
+ *  be about. */
+const soundHint = (): string => {
+  if (!alertsOn()) return "Alerts are off, so there is nothing to make a sound."
+  return alertSoundOn()
+    ? "One short chime with the notification. Browsers will not play a sound " +
+      "on a page nobody has touched yet, so the first one lands after your " +
+      "first click or keystroke here."
+    : "The notification and the icon mark, without a sound."
 }
 
 const doneHint = (): string =>

@@ -505,6 +505,12 @@ export const TESTID = {
    *  half refusing by name, or a call the wire dropped. Absent while nothing
    *  has been refused, which is what makes its PRESENCE the fact. */
   prefsGitRefused: "prefs-git-refused",
+  /** Ask this browser for permission to draw system notifications, on the
+   *  Alerts row. Drawn only while alerts are on and the browser has not
+   *  answered yet — a default-on preference has no "first enable" press to
+   *  hang the prompt on, so this is the gesture that raises it
+   *  (`chat/attention/banner.ts`). */
+  prefsAllowNotify: "prefs-allow-notify",
   /** What every row on the panel has in common, said once: these belong to this
    *  browser and reach no server. */
   prefsScope: "prefs-scope",

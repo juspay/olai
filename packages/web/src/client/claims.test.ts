@@ -187,8 +187,15 @@ test("statusOf is gone: the type carries a tool row's status", () => {
   expect(filesSpelling(/\bstatusOf\b/)).toEqual([])
 })
 
-test("no client file registers a service worker", () => {
-  expect(filesSpelling(/serviceWorker/)).toEqual([])
+// Live or nothing: an offline shell would show outlines that had stopped being
+// true. The origin has a worker again — the framework's fetch-less NOTIFICATION
+// worker, which is the only way an installed PWA can raise a notification at
+// all (`chat/attention/banner.ts`) — and it caches nothing, so the doctrine is
+// untouched. What this sweep now holds is that the REGISTRATION is one call in
+// one file: a second one would be a second policy about what this origin's one
+// worker is, and the register-or-retire invariant is the framework's to own.
+test("only the entry point registers a service worker", () => {
+  expect(filesSpelling(/[Ss]erviceWorker/)).toEqual(["main.tsx"])
 })
 
 test("overlays that hang over the outline mount on overlayRoot", () => {
