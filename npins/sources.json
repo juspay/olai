@@ -9,9 +9,9 @@
       },
       "branch": "master",
       "submodules": false,
-      "revision": "020f05af82fd044322270cf8156f60931dbd98c4",
-      "url": "https://github.com/juspay/kolu/archive/020f05af82fd044322270cf8156f60931dbd98c4.tar.gz",
-      "hash": "sha256-2t7AK4+8wKy4eXEhjkI0D2WWTGmN1eGwyCF9OhnxF+E="
+      "revision": "7a004a8271d46321da758038b672e75600ad25e7",
+      "url": "https://github.com/juspay/kolu/archive/7a004a8271d46321da758038b672e75600ad25e7.tar.gz",
+      "hash": "sha256-hvEhAwmAfs16Rc+xcnQhE7C9nyFxecA/nzfNlMAGs8E="
     },
     "nixpkgs": {
       "type": "Git",
