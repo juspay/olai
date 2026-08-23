@@ -347,6 +347,17 @@ test("a missing-root lock is swept, even when the pid is alive", () => {
   expect(fs.existsSync(file)).toBe(false)
 })
 
+test("a lock that is a symlink is not followed", () => {
+  const target = path.join(ours, "secret")
+  fs.writeFileSync(target, "do not touch\n", { mode: 0o600 })
+  const file = placed("symlinksymlinksy.lock", "")
+  fs.unlinkSync(file)
+  fs.symlinkSync(target, file)
+  sweepRuntime()
+  expect(fs.readFileSync(target, "utf8")).toBe("do not touch\n")
+  expect(fs.lstatSync(file).isSymbolicLink()).toBe(true)
+})
+
 test("a leftover rendezvous socket is swept, and surface.sock is not", () => {
   const leftover = placed("0123456789abcdef.sock", "")
   const live = placed("surface.sock", "")

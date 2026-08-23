@@ -217,7 +217,15 @@ export const sweepRuntime = (): number => {
 const sweepLock = (path: string): boolean => {
   let fd: number
   try {
-    fd = fs.openSync(path, fs.constants.O_RDWR)
+    // Existing leftover, not a create: O_NOFOLLOW so a planted symlink is
+    // not the file we flock, and 0o600 so the open is the same mode the
+    // holder creates with (and so a world-writable `/tmp` path is not an
+    // insecure temp file).
+    fd = fs.openSync(
+      path,
+      fs.constants.O_RDWR | fs.constants.O_NOFOLLOW,
+      0o600,
+    )
   } catch {
     return false
   }
