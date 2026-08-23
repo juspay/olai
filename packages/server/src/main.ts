@@ -1,12 +1,24 @@
 /**
  * `olai web <dir>` — the binary.
  *
- * There is still no CLI PRODUCT (the rewrite plan, decision 3): nothing here
- * adds a node, marks one or moves one, and nothing ever will. The two write
- * surfaces are the browser and the agent's MCP tools, and they are two
- * clients of ONE server: a tab on the websocket, or an HTTP POST at `/mcp`.
- * There is no second process and no stdio face. An agent that is not ours
- * dials the running `olai web`, the same way the panel's agent already does.
+ * TWO SUBCOMMANDS, and only one of them is a server. `olai web` IS the
+ * process that holds the directory; `olai surface` is a CLIENT of it — the
+ * declared surface projected as argv by `@kolu/surface-cli`, exactly as
+ * `@kolu/surface-mcp` projects it as tools, over the per-user socket that
+ * serve binds.
+ *
+ * THERE IS STILL NO SECOND WRITER, which is the principle the old sentence here
+ * ("no write CLI, and there never will be") was protecting. Nothing in this
+ * binary opens the directory except `olai web`, and `olai surface` cannot: it
+ * dials a running server and sends the same verbs an agent sends, so there is
+ * one process writing those files and one gate judging every write. What
+ * changed is the number of CLIENTS — a tab, an agent, and now a terminal — not
+ * the number of writers.
+ *
+ * The verbs are DERIVED. They are `@olai/ops`' tool table and the agent face's
+ * resources, under the names the agent already sees, so a verb cannot mean one
+ * thing to an agent and another in a shell — and a verb added to the table is a
+ * verb here with no code written in this file.
  *
  * It uses Effect's own CLI rather than an argument parser dependency — usage
  * errors are part of the format's error taxonomy, and they may as well come
@@ -24,13 +36,19 @@
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
 import { getRuntimeSocketPath } from "@kolu/surface/unix-socket"
+import { surfaceCommands } from "@kolu/surface-cli"
 import { identityConfig } from "@olai/identity"
+import { TOOLS } from "@olai/ops"
+import { surface } from "@olai/surface"
 import { atLevel, toStdout } from "@olai/log"
 import { Effect, Layer, Option } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 
 import { allowedOrigins } from "./allowedOrigins.ts"
 import { clientDist } from "./clientDist.ts"
+import { dialOlai } from "./dial.ts"
+import { MCP } from "./faces.ts"
+import { bespokeFrom } from "./mcp/tools.ts"
 import { gitFlags, gitPin } from "./gitPolicy.ts"
 import { serve } from "./serve.ts"
 
@@ -122,9 +140,57 @@ const web = Command.make("web", {
     ),
   )
 
+/**
+ * `olai surface <verb>` — the projection.
+ *
+ * A VALUE, not a program: `surfaceCommands` returns the commands and runs
+ * nothing, so this binary keeps its own run edge and mounts them beside `web`.
+ *
+ * `expose: MCP` is the RESOURCES half — the same read-only map the agent face
+ * publishes, so `olai surface get outlines <path>` reads what an agent reads.
+ * `verbs` is the tool table itself, projected by the same `bespokeFrom` the MCP
+ * face is handed, which is what keeps `capture` one verb with one schema rather
+ * than two spellings of it. The identity is `null` here and that is right: this
+ * process is a CLIENT, and who a capture is attributed to is decided by the
+ * door it lands on — the socket's own face, in `serve.ts`, which knows the OS
+ * user.
+ *
+ * `annotate` is CLI-only ergonomics, keyed by verb name and BESIDE the table
+ * rather than inside it: a scalar-ish argument reads better as a position than
+ * as a flag (`olai surface read_node a1b2c3`), and that is a fact about argv
+ * which the MCP face has no use for.
+ */
+const surfaceCmd = Command.make("surface").pipe(
+  Command.withDescription(
+    "call any verb of the running server's surface — the same verbs an agent has",
+  ),
+  Command.withSubcommands([
+    ...surfaceCommands({
+      surface,
+      expose: MCP,
+      verbs: bespokeFrom(TOOLS),
+      endpoint: {
+        flags: {
+          socket: Flag.string("socket").pipe(
+            Flag.withDescription("the agent socket to dial"),
+            Flag.optional,
+          ),
+        },
+        resolve: dialOlai,
+      },
+      annotate: {
+        capture: { positional: ["title"] },
+        read_node: { positional: ["id"] },
+        read_subtree: { positional: ["id"] },
+      },
+      info: { name: "olai" },
+    }),
+  ]),
+)
+
 const olai = Command.make("olai").pipe(
   Command.withDescription("olai — outlines in flat-record JSONL"),
-  Command.withSubcommands([web]),
+  Command.withSubcommands([web, surfaceCmd]),
 )
 
 // `runMain` IS the interrupt, the keep-alive and the exit code, and it is why
