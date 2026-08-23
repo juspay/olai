@@ -636,7 +636,8 @@ export const walkedOn = (
 
 /**
  * The agenda as it stood: every day the set has, sorted per read, then filtered
- * per half.
+ * per half — one filter, {@link owedWalk}, on all three stretches, matching
+ * `agendaOf`'s `owedOn`.
  *
  * BOTH COMPARISONS ARE KEPT AS THEY WERE — `dayOf(today)` behind, the caller's
  * own value ahead and for today's own bucket — because an oracle that quietly
@@ -660,7 +661,11 @@ export const walkedAgenda = (derived: Derived, today: string): Agenda => {
   return { overdue, today: owedWalk(derived, walked.get(today) ?? []), upcoming }
 }
 
-/** What is OWED on one day: dated unfinished work — `todo` or `doing`. */
+/** What is OWED on one day: unfinished work (`todo` or `doing`).
+ *
+ *  The same composition `./agenda.ts`'s `unfinishedWork` is — restated, not
+ *  imported, because this walk is the oracle for that reading and an oracle
+ *  that called the function under test would be asserting itself. */
 const owedWalk = (
   derived: Derived,
   dated: ReadonlyArray<Dated>,
