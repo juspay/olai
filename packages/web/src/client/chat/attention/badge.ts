@@ -38,6 +38,7 @@
  * first two have already happened by the time it runs.
  */
 
+import { grumble } from "../../grumble.ts"
 import { markWaiting } from "../../theme/chrome.ts"
 
 /** Which of the two channels a page in this shape uses. */
@@ -66,12 +67,11 @@ const installed = (): boolean => {
   )
 }
 
-let grumbled = false
-
-const grumble = (cause: unknown): void => {
-  if (grumbled) return
-  grumbled = true
-  console.warn(
+/** Its own key, so a badging refusal cannot be silenced by an unrelated one
+ *  and cannot silence one — `../../grumble.ts`. */
+const noBadge = (cause: unknown): void => {
+  grumble(
+    "app-badge",
     "olai: this browser would not badge the app icon, so the tab's own mark is all there is",
     cause,
   )
@@ -92,7 +92,7 @@ export const wear = (count: number): void => {
       clearAppBadge?: () => Promise<void>
     }
     const asked = count > 0 ? nav.setAppBadge?.(count) : nav.clearAppBadge?.()
-    void asked?.catch(grumble)
+    void asked?.catch(noBadge)
     return
   }
   markWaiting(count > 0)

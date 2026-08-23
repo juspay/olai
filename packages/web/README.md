@@ -247,6 +247,8 @@ Three claims are held about the table, each where it belongs. `layer.test.ts` ho
 
 The read→signal→write→watch circuit over that storage is wired ONCE (`createPreference`, in `preference.ts`): a stored value is its codec — what the entry says, defaults included, and what to write back — plus the one option, `persist: false`, which the drag handles use so a pointermove is not a storage write. Every stored key runs on it, and a test beside the factory holds the claim that only `theme/state.ts` still wires the primitives itself: the theme's first read belongs to the shell's boot script (above), which no module can be.
 
+And what a browser WILL NOT DO for us is one policy, in one file (`grumble.ts`): a browser that refuses to remember a preference, to play a sound, or to badge an icon is a console line, once per key, and never a screen. All three share the three properties that decide it — nothing the reader ASKED for failed, the feature carries on in a shape they can live with, and the only person who wants the detail has gone looking for why. The argument used to live in `preference.ts`, where the first one was written; it moved when there were three, because a policy spelled three times is a policy that comes apart at the fourth.
+
 **What is on it** is a narrower question than "every client-local value", and the rule is: the ones that are a CHOICE and have nowhere else to be made.
 
 - **Theme** — one chip per palette (`theme/Chips.tsx`), moved in from the header pill. The row's hint names the theme in force, which is what the pill promised.

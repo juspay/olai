@@ -63,13 +63,13 @@
  * worse than two words for one. This is the surface; that is the mechanism.
  */
 
-import { onMount, Show } from "solid-js"
+import { Show } from "solid-js"
 
 import { type Anchor, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
 import type { GitState } from "@olai/format"
 
-import { askToNotify, bannerConsent, refreshConsent } from "../chat/attention/banner.ts"
+import { askToNotify, bannerConsent } from "../chat/attention/banner.ts"
 import { createGitPolicy } from "../commit/state.ts"
 import { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } from "./alerts.ts"
 import { density, type Density, setDensity } from "./density.ts"
@@ -390,10 +390,6 @@ export function Panel(props: {
  * argument the Resume button two rows down makes.
  */
 function AllowNotify() {
-  // The permission can be changed in browser settings with this page open, so
-  // what it says is re-read when the panel opens rather than trusted from
-  // whenever this module was first loaded.
-  onMount(refreshConsent)
   return (
     <Show when={alertsOn() && bannerConsent() === "default"}>
       <button

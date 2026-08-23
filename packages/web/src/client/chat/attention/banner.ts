@@ -57,28 +57,54 @@ const seam = createNotify<AskClick>(askedFor)
  *  words, plus the one for a browser that has no notifications at all. */
 export type Consent = NotificationPermission | "unsupported"
 
+/** What the browser says right now. `Notification.permission` and NOT the
+ *  Permissions API, even though both answer: the delivery path reads this one,
+ *  so this one is the truth. (They can disagree — a headless Chromium reports
+ *  `denied` here for an origin the Permissions API calls `granted`, because it
+ *  has nowhere to draw a banner.) */
 const asked = (): Consent =>
   typeof Notification === "undefined" ? "unsupported" : Notification.permission
 
 const [consent, setConsent] = createSignal<Consent>(asked())
 
+const reread = (): void => {
+  setConsent(asked())
+}
+
 /**
  * Whether this browser will draw banners — as a signal, so the preferences row
  * redraws when the answer moves.
  *
- * It is a MIRROR and never a store: the permission belongs to the browser, is
- * changeable and revocable outside this app, and is re-read rather than
- * remembered ({@link refreshConsent}). Nothing decides anything from this
- * except what to SAY — whether a banner is actually drawn is asked of the
- * platform at the moment of drawing one, by the seam.
+ * It is a MIRROR and never a store: the permission belongs to the browser and
+ * is changeable and revocable outside this app, so it is re-read rather than
+ * remembered. Nothing decides anything from this except what to SAY — whether
+ * a banner is actually drawn is asked of the platform at the moment of drawing
+ * one, by the seam.
+ *
+ * IT FOLLOWS THE BROWSER ITSELF, and that is the difference from a value a
+ * consumer has to remember to refresh. A permission revoked in browser
+ * settings with this page open is exactly the case a stale mirror gets wrong,
+ * and "call this when your panel opens" is an obligation the one caller would
+ * meet and the second would not. `navigator.permissions` is the only API that
+ * says WHEN it moved; what it says it moved TO is ignored, for the reason
+ * above.
  */
 export const bannerConsent: Accessor<Consent> = consent
 
-/** Re-read what the browser says. The permission can be changed in browser
- *  settings with this page open, so the panel that reports it asks again when
- *  it opens rather than trusting a value from an hour ago. */
-export const refreshConsent = (): void => {
-  setConsent(asked())
+// A browser without the Permissions API, or one that will not answer for
+// notifications, leaves the mirror moving only when this page asks — which is
+// what it did before, and still covers the case that matters (the ask itself).
+if (typeof navigator !== "undefined" && navigator.permissions !== undefined) {
+  navigator.permissions
+    .query({ name: "notifications" as PermissionName })
+    .then((status) => {
+      status.addEventListener("change", reread)
+    })
+    .catch(() => {
+      // A browser that will not answer for `notifications` is not a failure to
+      // report: the mirror still moves when this page asks, which is the case
+      // that matters, and there is nothing a reader could do about it.
+    })
 }
 
 /** True once anything has raised the prompt on this page — see the header for
@@ -100,7 +126,7 @@ export const askToNotify = async (force = false): Promise<boolean> => {
   if (prompted && !force) return false
   prompted = true
   const allowed = await seam.requestPermission()
-  refreshConsent()
+  reread()
   return allowed
 }
 

@@ -17,24 +17,23 @@
  * conversation, so in practice the context is open long before it is needed.
  *
  * A tab that has never been touched and is chimed at anyway says so on the
- * console, once, and does not throw: it is `../../preference.ts`'s rule for
- * storage a browser will not give us — the thing a person is told when they go
- * looking for why, which is exactly when they open a console. There is no
- * screen for it. Nothing the reader asked for failed, the banner and the badge
- * both still landed, and a strip over somebody's outline saying their browser
- * would not make a noise is worse than the silence it is reporting.
+ * console, once, and does not throw — `../../grumble.ts`, which is where that
+ * whole argument lives. Nothing the reader asked for failed, the banner and
+ * the badge both still landed, and a strip over somebody's outline saying
+ * their browser would not make a noise is worse than the silence it reports.
  */
+
+import { grumble } from "../../grumble.ts"
 
 /** Open once, on the first gesture, and kept for the life of the document. */
 let audio: AudioContext | undefined
 
-/** Said once per page — the console gets the reason, not forty copies of it. */
-let grumbled = false
+/** The one key this module grumbles under: whatever went wrong, what a reader
+ *  has lost is the same thing, and the first reason is the useful one. */
+const NO_CHIME = "chime"
 
-const grumble = (why: string, cause?: unknown): void => {
-  if (grumbled) return
-  grumbled = true
-  console.warn(`olai: no chime — ${why}`, cause)
+const noChime = (why: string, cause?: unknown): void => {
+  grumble(NO_CHIME, `olai: no chime — `, cause)
 }
 
 const unlock = (): void => {
@@ -44,13 +43,13 @@ const unlock = (): void => {
   try {
     audio = new AudioContext()
   } catch (cause) {
-    grumble("this browser would not open an audio context", cause)
+    noChime("this browser would not open an audio context", cause)
     return
   }
   // Constructed inside a gesture it should already be `running`; a browser that
   // hands it back suspended anyway is what `resume` is for.
   void audio.resume().catch((cause: unknown) => {
-    grumble("this browser would not start the audio context", cause)
+    noChime("this browser would not start the audio context", cause)
   })
 }
 
@@ -83,7 +82,7 @@ const PEAK = 0.12
 export const chime = (): void => {
   const ctx = audio
   if (ctx === undefined) {
-    grumble("this page has not been touched yet, so the browser will not play one")
+    noChime("this page has not been touched yet, so the browser will not play one")
     return
   }
   try {
@@ -106,6 +105,6 @@ export const chime = (): void => {
       note.stop(start + NOTE)
     })
   } catch (cause) {
-    grumble("this browser refused to play it", cause)
+    noChime("this browser refused to play it", cause)
   }
 }
