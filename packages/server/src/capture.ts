@@ -118,6 +118,7 @@ import {
   type FailureKind,
   kindOf,
   type OpFailure,
+  outlinePaths,
   type Reading,
   stampOf,
   UsageFailure,
@@ -553,7 +554,7 @@ const capture = (
     runResolved(
       options.ops,
       options.writer,
-      (at) => Result.succeed(captureInto(at, what)),
+      (at) => Result.succeed(captureInto(outlinePaths(at.set), what)),
       true,
     ),
     (written) => written.done,

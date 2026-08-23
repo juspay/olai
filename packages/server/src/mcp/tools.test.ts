@@ -239,6 +239,7 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       "add_mirror",
       "add_node",
       "apply",
+      "capture",
       "commit",
       "create_document",
       "create_outline",
@@ -2099,5 +2100,135 @@ test("a `was` and a bent `after` reach the planner instead of vanishing", async 
   })
 })
 
+// ── capture, the one PLAN arm ──────────────────────────────────────────
+//
+// These came down from `capture.test.ts` when `POST /capture` was retired.
+// They were driven through a real HTTP door because that was the only way to
+// reach the verb; the verb is a tool now, so they are asked of the tool, and
+// what an agent calls and what `olai surface capture` calls are the same thing
+// being asserted here. The wire half of that file — the status table, the CSRF
+// gate, the method arm, the identity header — went with the door.
 
+/** The capture that ended up in the set, whatever file it landed in. */
+const captured = (set: OutlineSet, title: string) => {
+  const found = recordsOf(set)
+    .map((one) => one.node)
+    .find((one) => !("mirror" in one) && one.title === title)
+  if (found === undefined || "mirror" in found) throw new Error(`no capture titled ${title}`)
+  return found
+}
 
+test("a capture lands in a minted inbox, dated and attributed", async () => {
+  await withTools({ "a.olai": HOUSE }, async ({ client, set }) => {
+    const answered = await call(client, "capture", {
+      title: "the thread about cabinets",
+      text: "worth a reply",
+      url: "message://<abc123@mail.example>",
+      props: { from: "joinery@example.com", "message-id": "<abc123@mail.example>" },
+    })
+    expect(answered.isError).toBe(false)
+    // The directory had never captured, so this write MINTED the inbox — the
+    // convention's own answer, not a path this tool spells.
+    expect(answered.structured["file"]).toBe("_olai/Inbox.olai")
+    expect(answered.structured["did"]).toBe("capture")
+
+    const node = captured(await set(), "the thread about cabinets")
+    // The comment, then the pointer, as its own paragraph — a markdown
+    // autolink, because GFM would not have linked this scheme by itself, and
+    // the angle brackets a `Message-Id` carries are encoded so the link holds.
+    expect(node.desc ?? "").toBe("worth a reply\n\n<message://%3Cabc123@mail.example%3E>")
+    // DATED, which is the half a capture made while nobody was looking needs:
+    // it is on the day's journal page as well as in the inbox.
+    expect(typeof node.date).toBe("string")
+  })
+})
+
+test("…and into the inbox the directory already keeps, wherever that is", async () => {
+  await withTools(
+    { "a.olai": HOUSE, "notes/inbox.olai": "" },
+    async ({ client, set }) => {
+      const answered = await call(client, "capture", { title: "buy milk" })
+      expect(answered.isError).toBe(false)
+      expect(answered.structured["file"]).toBe("notes/inbox.olai")
+      // Nothing was minted beside it.
+      expect([...outlinePaths(await set())].sort()).toEqual(["a.olai", "notes/inbox.olai"])
+    },
+  )
+})
+
+test("an agent's door knows nobody, so the capture carries no attribution", async () => {
+  // `bespokeFrom(TOOLS)` with no identity is what this process serves over
+  // `/mcp` and in-process, and the ruling is that such a door omits the
+  // property rather than inventing one. The unix-socket face is the one that
+  // passes an OS user, and it is composed in `serve.ts`.
+  await withTools({ "a.olai": HOUSE }, async ({ client, set }) => {
+    await call(client, "capture", { title: "unattributed", props: { from: "x" } })
+    const node = captured(await set(), "unattributed")
+    const props = "custom" in node ? node.custom : undefined
+    expect(props).toEqual({ from: "x" })
+  })
+})
+
+test("a client may not say who captured this", async () => {
+  await withTools({ "a.olai": HOUSE }, async ({ client, set }) => {
+    // Refused rather than quietly overruled: a capture that succeeds after its
+    // attribution was rewritten is a client told it was recorded as sent.
+    const answered = await call(client, "capture", {
+      title: "x",
+      props: { "captured-by": "someone@else" },
+    })
+    expect(answered.isError).toBe(true)
+    expect(JSON.stringify(answered.structured)).toContain("captured-by")
+
+    // …and a key that is only the same key AFTER the planner trims it is the
+    // same refusal — the review finding an exact comparison used to miss.
+    const padded = await call(client, "capture", {
+      title: "x",
+      props: { "captured-by ": "someone@else" },
+    })
+    expect(padded.isError).toBe(true)
+
+    // Nothing was written by either, not even the inbox one would have minted.
+    expect(outlinePaths(await set())).toEqual(["a.olai"])
+  })
+})
+
+test("an empty capture is refused in the ops layer's own words", async () => {
+  await withTools({ "a.olai": HOUSE }, async ({ client, set }) => {
+    const answered = await call(client, "capture", { title: "" })
+    expect(answered.isError).toBe(true)
+    // A capture of nothing is refused by the write planner, which is the same
+    // sentence an agent's `add_node` gets — this tool adds no rule of its own.
+    expect(outlinePaths(await set())).toEqual(["a.olai"])
+  })
+})
+
+/**
+ * CONCURRENT FIRST CAPTURES all land — the review finding, as the case that
+ * produced it, and the reason the plan arm re-resolves.
+ *
+ * `captureInto` picks `create` for a directory with no inbox, and the ops layer
+ * re-plans the request it was handed rather than re-making that choice. So
+ * before the door resolved a second time, simultaneous captures into a fresh
+ * directory answered one success and a row of refusals — and each refusal told
+ * a client to use `add_node`, a tool a capture door has no way to reach.
+ *
+ * SIX rather than two, because one loser proves less than a handful: the arm
+ * this exercises is the one taken by every call that read the set before the
+ * winner published.
+ */
+test("several captures at once into a directory with no inbox all land", async () => {
+  await withTools({ "a.olai": HOUSE }, async ({ client, set }) => {
+    const many = [1, 2, 3, 4, 5, 6]
+    const answered = await Promise.all(
+      many.map((n) => call(client, "capture", { title: `capture ${n}` })),
+    )
+    expect(answered.map((one) => one.isError)).toEqual(many.map(() => false))
+
+    // …and every one of them is really in the file, not merely answered for.
+    const titles = recordsOf(await set())
+      .map((one) => one.node)
+      .flatMap((one) => "mirror" in one ? [] : [one.title])
+    for (const n of many) expect(titles).toContain(`capture ${n}`)
+  })
+})
