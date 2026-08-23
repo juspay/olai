@@ -4,8 +4,16 @@
  *
  * TWO DOORS resolve a request rather than being handed one: the browser's
  * keystrokes and menu entries (`./runtime.ts`'s `applyEdit`, over `./edit.ts`)
- * and the HTTP capture door (`./capture.ts`). Both are read → resolve → run,
- * and both had the same hole in the middle of it.
+ * and the `capture` TOOL, whose `plan` arm resolves the inbox convention
+ * against the directory (`@olai/ops`' `tools.ts`, dispatched in
+ * `./mcp/tools.ts`). Both are read → resolve → run, and both had the same hole
+ * in the middle of it.
+ *
+ * The second one used to be an HTTP door of its own (`POST /capture`) and used
+ * THIS function; it is a tool now, reached over a socket as readily as
+ * in-process, so it carries the same retry where it is dispatched rather than
+ * importing a helper that wants a local `Ops`. The hole below is the same one,
+ * and the argument for closing it is the argument for closing it there too.
  *
  * ## The hole
  *

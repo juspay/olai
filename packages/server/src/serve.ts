@@ -321,7 +321,6 @@ export const serve = (options: ServeOptions) =>
         // somebody else's. Handed the ops layer directly rather than a runtime
         // member, because nothing about this door is on the surface: no tab
         // draws it and no agent calls it.
-        capture: { ops, writer: "capture", identity: options.identity.headers },
         resync: store.resync,
       }),
       () => runtime.stopped,

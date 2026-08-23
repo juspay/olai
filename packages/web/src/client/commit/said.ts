@@ -570,11 +570,6 @@ export const WHO: Readonly<Record<Writer, string>> = {
   // the thing they turned on, and a commit trailer saying `web` here would have
   // told them they made it.
   auto: "auto-commit",
-  // Also you, and deliberately not said that way: the write came in at
-  // `POST /capture` from a share sheet, a script or another machine on the
-  // tailnet, and a reader looking at a change they do not remember making is
-  // owed the door rather than the reassurance.
-  capture: "a quick capture",
   // Also you, and said as a place rather than a tool: the write came through
   // `olai surface` on the per-user socket, which only this account can dial, so
   // the reader looking at it is the person who ran it. "a terminal" and not

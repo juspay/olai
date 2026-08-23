@@ -149,11 +149,12 @@ export type Capturing = Omit<Capture, "after">
  * `create` that mints one holding exactly this capture.
  *
  * THREE DOORS capture into this directory and none of them names a file: the
- * palette's `⌘K` `+` sends a line, `POST /capture` sends one from a share
- * sheet or a script on the tailnet, and an agent reads the outlines and calls
- * `add_node` or `create_outline` itself (which is why `list_outlines` says the
- * convention in words — the one door that is handed the rule rather than the
- * function). The first two resolve through THIS, and that is the whole reason
+ * palette's `⌘K` `+` sends a line, the `capture` TOOL sends one from an agent
+ * or from `olai surface capture`, and an agent that would rather aim reads the
+ * outlines and calls `add_node` or `create_outline` itself (which is why
+ * `list_outlines` says the convention in words — the one door that is handed
+ * the rule rather than the function). The first two resolve through THIS, and
+ * that is the whole reason
  * it is here rather than in whichever face happened to need it first: it is a
  * statement about the DIRECTORY, the same kind of thing {@link inboxIn} above
  * it is, and a second spelling of "is there an inbox yet, and what do I do

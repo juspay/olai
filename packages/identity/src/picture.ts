@@ -34,7 +34,7 @@
  * the page's own image policy will fetch ({@link remoteImage}).
  *
  * A separate fold from who the person IS ({@link ./identity.ts}) for the
- * reason {@link ./gravatar.ts} is: `POST /capture` wants the login and no
+ * reason {@link ./gravatar.ts} is: a door that records who captured wants the login and no
  * picture at all.
  */
 

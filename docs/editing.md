@@ -387,7 +387,7 @@ The **Capture to the Inbox** row in the palette is the same gesture for a reader
 
 ### …from somewhere that is not olai
 
-The same inbox has a door that is not a page: `POST /capture`, one line from a phone's share sheet, a Raycast script pointed at Mail.app, or a `curl` in something that noticed something ([running.md](running.md#quick-capture-over-http)). It resolves the same convention against the same reading and is the same write — a capture that arrives that way is an ordinary row in the same file, and the **Inbox** entry above lights up for it exactly as it does for a `⌘K` one.
+The same inbox has a door that is not a page: `olai surface capture`, one line from a terminal, a Raycast script pointed at Mail.app, or a cron job that noticed something ([running.md](running.md#quick-capture-from-a-terminal)). It resolves the same convention against the same reading and is the same write — a capture that arrives that way is an ordinary row in the same file, and the **Inbox** entry above lights up for it exactly as it does for a `⌘K` one.
 
 **Two things differ, and both are about the gesture rather than the door.** A capture sent from away carries a **date**, so it is on the day's journal page too — you were not looking at the inbox when you sent it, and a day is where a thing that arrived gets noticed. And it can carry more than a line: a note, a link back to where it came from, and named properties (`prop:message-id`, so a script can tell whether it has captured a mail before). Who sent it is recorded as `captured-by`, read off the tailnet identity in front of the server.
 

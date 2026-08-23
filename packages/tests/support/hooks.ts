@@ -70,6 +70,7 @@ import {
   holdPort,
   isolateEnv,
   releasePort,
+  socketUnder,
   spawnFingerprint,
   workerId,
 } from "./workers.ts";
@@ -258,6 +259,8 @@ let browser: Browser | undefined;
 
 interface RunningServer {
   readonly baseUrl: string;
+  /** The agent socket this server bound — `olai surface`'s way in. */
+  readonly socketPath: string;
   readonly child?: ChildProcess;
   /** Everything this child has printed, for the life of the process.
    *  A box rather than a string so the restart assertion can watch the
@@ -649,7 +652,12 @@ const startServerChild = async (
         throw new Error(shuttingDown(label));
       }
       spawned += 1;
-      return { baseUrl: listening, child, said };
+      return {
+        baseUrl: listening,
+        socketPath: socketUnder(spawnOptions.stateRoot),
+        child,
+        said,
+      };
     }
 
     killChild(child);
@@ -808,7 +816,14 @@ const reusedServer = async (
         `server per corpus.`,
     );
   }
-  return { baseUrl, said: { text: "" } };
+  // A REUSED server bound its socket wherever ITS operator said, and nothing
+  // here can know that — so the companion variable is the answer, and its
+  // absence is reported by the steps that need it rather than guessed at.
+  return {
+    baseUrl,
+    socketPath: process.env.OLAI_SOCKET ?? "",
+    said: { text: "" },
+  };
 };
 
 /** The server serving `corpus`, started on first ask and kept for the run. */
@@ -1139,6 +1154,7 @@ Before(
       const ownCopy = async (): Promise<void> => {
         const own = await scratchServerFor(asked.corpus, spawnOptions);
         this.baseUrl = own.baseUrl;
+        this.socketPath = own.socketPath;
         this.served = own.root;
         this.ownServer = own.child;
       };
@@ -1153,6 +1169,7 @@ Before(
         } else {
           slot.seenPickles.add(scenario.pickle.id);
           this.baseUrl = slot.server.baseUrl;
+          this.socketPath = slot.server.socketPath;
           this.served = slot.server.root;
           this.ownServer = slot.server.child;
           this.scratchShare = { key: featureKey };
@@ -1161,7 +1178,9 @@ Before(
         await ownCopy();
       }
     } else {
-      this.baseUrl = (await serverFor(this.corpus)).baseUrl;
+      const shared = await serverFor(this.corpus);
+      this.baseUrl = shared.baseUrl;
+      this.socketPath = shared.socketPath;
     }
 
     const handheld = scenario.pickle.tags.some((tag) => tag.name === PHONE_TAG);

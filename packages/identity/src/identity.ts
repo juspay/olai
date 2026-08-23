@@ -47,7 +47,7 @@
  * It is NOT a cell. Cells are one value for the process; this value is one
  * value for the REQUEST (or, on the live wire, for the CONNECTION: the
  * upgrade is that request). HTTP paths read it off the request
- * (`GET /olai/who`, `POST /capture`); a tab that is already connected reads
+ * (`GET /olai/who`); a tab that is already connected reads
  * it off the upgrade headers `serveSurfaceApp` hands the per-connection
  * services.
  *
