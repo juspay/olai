@@ -24,10 +24,28 @@
  */
 
 import { findLogfmt } from "@olai/log/testlib"
+import { afterAll } from "bun:test"
 import { type ChildProcess, spawn } from "node:child_process"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
+
+/**
+ * Point this process's runtime directory at a temp dir, and put it back when
+ * the file finishes. In-process `serve` and two-process lock tests both
+ * sweep `$XDG_RUNTIME_DIR/olai`; without this, a `just test` empties the
+ * developer's leftover locks. Called at module load; `afterAll` is why.
+ */
+export const pointRuntime = (label: string): string => {
+  const inherited = process.env["XDG_RUNTIME_DIR"]
+  const ours = fs.mkdtempSync(path.join(os.tmpdir(), label))
+  process.env["XDG_RUNTIME_DIR"] = ours
+  afterAll(() => {
+    if (inherited === undefined) delete process.env["XDG_RUNTIME_DIR"]
+    else process.env["XDG_RUNTIME_DIR"] = inherited
+  })
+  return ours
+}
 
 /**
  * Wait for `child` to be gone, or answer `false` after `ms`.

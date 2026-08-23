@@ -25,7 +25,6 @@ import { type GitPin, UsageFailure } from "@olai/format"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
 import { fixedPolicy } from "@olai/ops"
 import { NodeHttpServer, NodeServices } from "@effect/platform-node"
-import { afterAll } from "bun:test"
 import { Effect, Layer } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
@@ -34,6 +33,7 @@ import * as path from "node:path"
 import type { LivePolicy } from "./gitPolicy.ts"
 
 import { DEFAULT_IDENTITY_CONFIG, type IdentityConfig } from "@olai/identity"
+import { pointRuntime } from "./child.testlib.ts"
 import { serve } from "./serve.ts"
 
 // child.testlib strips OLAI_PORT_FILE from CLI children. This is the
@@ -42,16 +42,9 @@ import { serve } from "./serve.ts"
 delete process.env.OLAI_PORT_FILE
 
 // In-process serve calls holdVault in this process, which sweeps the runtime
-// directory. Point it at a temp dir so a `just test` cannot sweep the
-// developer's `$XDG_RUNTIME_DIR/olai` — which is how the first run of these
-// tests emptied 163k leftover files on this machine. `./lock.test.ts` then
-// overwrites the variable for its own children; afterAll puts this back.
-const inheritedRuntime = process.env["XDG_RUNTIME_DIR"]
-process.env["XDG_RUNTIME_DIR"] = fs.mkdtempSync(path.join(os.tmpdir(), "olai-serve-run-"))
-afterAll(() => {
-  if (inheritedRuntime === undefined) delete process.env["XDG_RUNTIME_DIR"]
-  else process.env["XDG_RUNTIME_DIR"] = inheritedRuntime
-})
+// directory. One helper with the two-process lock tests, so a `just test`
+// cannot empty the developer's leftover locks.
+pointRuntime("olai-serve-run-")
 
 /** The platform a real server needs: the CLI's own services (stdio, terminal,
  *  file system) and the static layer's (the file-response platform and ETags)

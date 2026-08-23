@@ -47,12 +47,12 @@
  */
 
 import { findLogfmt } from "@olai/log/testlib"
-import { afterAll, expect, test } from "bun:test"
+import { expect, test } from "bun:test"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import { BOOT_TIMEOUT, startWeb, stoppedWithin } from "./child.testlib.ts"
+import { BOOT_TIMEOUT, pointRuntime, startWeb, stoppedWithin } from "./child.testlib.ts"
 import { lockFor, sweepRuntime } from "./lock.ts"
 import { served } from "./serve.testlib.ts"
 
@@ -75,18 +75,8 @@ const BOUND_MS = BOOT_TIMEOUT * 3
  * tests apart is already the VAULT: every one of them serves a fresh `served()`
  * of its own, so their locks are different files inside this directory.
  */
-const inherited = process.env["XDG_RUNTIME_DIR"]
-const ours = fs.mkdtempSync(path.join(os.tmpdir(), "olai-lock-run-"))
-process.env["XDG_RUNTIME_DIR"] = ours
+const ours = pointRuntime("olai-lock-run-")
 const env: NodeJS.ProcessEnv = { XDG_RUNTIME_DIR: ours }
-
-/** …and put it back, because `bun test` runs every file of this package in one
- *  process: a variable left pointing at a temp directory this file made is a
- *  variable the next file inherits. */
-afterAll(() => {
-  if (inherited === undefined) delete process.env["XDG_RUNTIME_DIR"]
-  else process.env["XDG_RUNTIME_DIR"] = inherited
-})
 
 test("a second olai over one directory refuses to boot", async () => {
   const root = served()
