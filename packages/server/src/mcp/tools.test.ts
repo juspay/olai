@@ -2230,9 +2230,11 @@ test("an empty capture is refused in the ops layer's own words", async () => {
  *
  * `captureInto` picks `create` for a directory with no inbox, and the ops layer
  * re-plans the request it was handed rather than re-making that choice. So
- * before the door resolved a second time, simultaneous captures into a fresh
+ * before the arm resolved a second time, simultaneous captures into a fresh
  * directory answered one success and a row of refusals — and each refusal told
- * a client to use `add_node`, a tool a capture door has no way to reach.
+ * the caller to use `add_node`, which is advice the `capture` TOOL cannot take:
+ * it resolves one request and runs it, and choosing a different verb is not
+ * something a caller of this verb can do.
  *
  * SIX rather than two, because one loser proves less than a handful: the arm
  * this exercises is the one taken by every call that read the set before the
