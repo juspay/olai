@@ -23,6 +23,13 @@
  * the reasons this cares about AND for reasons it does not, and the platform
  * already keeps the answer. The two listeners are only what WAKES the reading.
  *
+ * `clock.ts` listens to the same event and is NOT the same question: it wants
+ * the MOMENT a reader comes back, to re-read a clock that went stale while
+ * nobody was looking. This wants the STATE, and over two facts rather than
+ * one — a window can be visible and behind an editor. One event, two
+ * questions; folding them would give the clock a predicate it has no use for
+ * and this a wake it would have to debounce.
+ *
  * No teardown beyond the owner's: this is created by the panel, which is
  * mounted for the life of the document (`../Panel.tsx` is drawn open or
  * minimized, never absent), and `onCleanup` is here for the tests rather than
@@ -33,10 +40,8 @@ import { type Accessor, createSignal, onCleanup } from "solid-js"
 
 import { chatOpen } from "../../layout/prefs.ts"
 
-/** What the DOCUMENT says: this page is on screen and the window is in front.
- *  Exported for the sweep of the same question a test would otherwise have to
- *  fake three globals to ask. */
-export const documentInFront = (): boolean =>
+/** What the DOCUMENT says: this page is on screen and the window is in front. */
+const documentInFront = (): boolean =>
   document.visibilityState === "visible" && document.hasFocus()
 
 /**

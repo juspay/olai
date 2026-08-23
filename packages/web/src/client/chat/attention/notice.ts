@@ -31,6 +31,7 @@
 
 import type { ChatState } from "@olai/surface"
 
+import type { Asked } from "./asked.ts"
 import { previewText } from "../last.ts"
 
 /**
@@ -63,15 +64,6 @@ export const askedFor = (data: unknown): AskClick | undefined => {
   return (data as { kind?: unknown }).kind === "ask" ? { kind: "ask" } : undefined
 }
 
-/** The pending question as the open panel last saw it — see {@link ./asked.ts}. */
-export interface Asked {
-  /** The ask row's transcript key — what tells one question from the next, so
-   *  the snapshot can answer "still the same one" without comparing prose. */
-  readonly id: string
-  /** The agent's own words, whole. Clamped here, not there. */
-  readonly text: string
-}
-
 /** A banner, as the seam takes it. */
 export interface Notice {
   /** The dedup key — same tag, same banner replaced. Per conversation. */
@@ -95,7 +87,8 @@ const UNNAMED = "olai"
 /** The question's opening line, collapsed and clamped — or `undefined` where
  *  there are no words at all. `previewText` is the pill's clamp (`../last.ts`),
  *  reused rather than respelled: what "as much as a small face can draw" means
- *  is one decision. */
+ *  is one decision. Exported for the unit test, which is where the blank-line
+ *  and clamp cases read as themselves rather than as a banner's second line. */
 export const firstLine = (text: string): string | undefined => {
   for (const line of text.split("\n")) {
     const said = previewText(line, LINE)

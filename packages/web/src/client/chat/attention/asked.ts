@@ -39,8 +39,23 @@ import {
   untrack,
 } from "solid-js"
 
-import type { Asked } from "./notice.ts"
 import type { Chat } from "../state.ts"
+
+/**
+ * The pending question, as much of it as anything downstream needs.
+ *
+ * It lives HERE rather than beside the banner that quotes it, because this is
+ * where one is produced: a type at its consumer is a dependency pointing the
+ * wrong way, and the banner is not the only thing that could ever want to know
+ * what the panel is waiting on.
+ */
+export interface Asked {
+  /** The ask row's transcript key — what tells one question from the next, so
+   *  the snapshot can answer "still the same one" without comparing prose. */
+  readonly id: string
+  /** The agent's own words, whole. Clamped by whoever draws them. */
+  readonly text: string
+}
 
 /** Two snapshots are the same question when they are the same row saying the
  *  same thing — so a frame that moved neither wakes no banner. */

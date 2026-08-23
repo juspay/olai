@@ -18,7 +18,8 @@
  *     works with the window behind everything else, which is what the badge is
  *     for.
  *   - **anything else** — a plain tab, or an install on a browser without the
- *     API: the tab's own title and favicon carry a dot (`../../theme/mark.ts`).
+ *     API: the tab itself carries a mark, in its name and on its icon
+ *     (`../../theme/chrome.ts`, which owns both halves of that).
  *
  * Never both. `setAppBadge` in a tab is ignored by every browser that
  * implements it, so a page that also wrote the title would be a page whose
@@ -27,33 +28,24 @@
  * same news twice. What decides is one pure function, {@link channelFor}, so
  * "which one is this" is asserted rather than watched for.
  *
- * The count reaches the app badge and NOT the title, deliberately: the badge
- * is a number by contract, and a tab title is a place where "● olai" reads as
- * an unread mark and "●3 olai" reads as a typo. The count that matters is one
- * gesture away in either case, because looking is what clears this.
+ * The count reaches the app badge and not the tab, deliberately: a badge is a
+ * number by contract, and a tab wears a MARK (`../../theme/chrome.ts`, which
+ * owns both halves of what a tab is). The count that matters is one gesture
+ * away in either case, because looking is what clears this.
  *
- * A browser that refuses either — badging denied, storage of any kind
- * irrelevant here — is warned about on the console, once, and never throws:
- * this is the third of three ways a person is told, and the first two have
- * already happened by the time it runs.
+ * A browser that refuses to badge is warned about on the console, once, and
+ * never throws: this is the third of three ways a person is told, and the
+ * first two have already happened by the time it runs.
  */
 
 import { markWaiting } from "../../theme/chrome.ts"
-
-/** What the shell shipped, captured before anything can have moved it. The
- *  title is the app's identity, and putting it BACK is as much of this
- *  module's job as marking it. */
-const PLAIN = typeof document === "undefined" ? "olai" : document.title
-
-/** The tab's title while something is waiting. A mark, not a number — see the
- *  header. */
-const MARKED = `● ${PLAIN}`
 
 /** Which of the two channels a page in this shape uses. */
 export type Channel = "app" | "tab"
 
 /** The rule, whole: the installed icon when there is one to badge, the tab's
- *  own furniture otherwise. */
+ *  own furniture otherwise. Exported for the unit test — what a browser is
+ *  running as cannot be arranged in one. */
 export const channelFor = (badging: boolean, installed: boolean): Channel =>
   badging && installed ? "app" : "tab"
 
@@ -103,6 +95,5 @@ export const wear = (count: number): void => {
     void asked?.catch(grumble)
     return
   }
-  document.title = count > 0 ? MARKED : PLAIN
   markWaiting(count > 0)
 }

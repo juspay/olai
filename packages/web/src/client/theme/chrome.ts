@@ -20,13 +20,20 @@
  * The tab mark is a blob, not a `data:` URL: the shell's CSP names `blob:` on
  * `img-src` (favicons count) and refuses `data:`.
  *
- * TWO THINGS DECIDE THE MARK now, and they move independently: the palette in
+ * TWO THINGS DECIDE THE TAB now, and they move independently: the palette in
  * force, and whether the agent is waiting on the reader
  * (`../chat/attention/badge.ts` — the tab's half of the App Badging API). So
  * this file holds what the chrome is CURRENTLY showing, and each caller says
  * only its own half. The alternative — every caller passing both — would make
  * the badge a second place that knows which theme is in force, and a theme
- * picked while a question was waiting would rub the dot out.
+ * picked while a question was waiting would rub the mark out.
+ *
+ * The TITLE is here for the same reason the icon is, and it is the half a
+ * reader would expect to find somewhere else: what the tab is CALLED is the
+ * chrome around the page exactly as its icon and its status-bar colour are,
+ * and the two are one mark to a person looking at a row of tabs. Owned
+ * together, they cannot come apart; owned apart, "keep these two in step" is a
+ * rule with nowhere to live.
  */
 
 import { markSvg } from "./mark.ts"
@@ -69,10 +76,21 @@ const icon = (): HTMLLinkElement => {
 }
 
 /** What the chrome is showing right now: the palette it was last painted in,
- *  and whether the mark carries the waiting dot. Held because the two move
- *  independently — see the header. */
+ *  and whether the tab is marked. Held because the two move independently —
+ *  see the header. */
 let shown: Palette | undefined
 let waiting = false
+
+/** What the tab was called before anything marked it. Captured the first time
+ *  a mark is asked for rather than at import, so a module that only wants a
+ *  palette does not need a document — and captured at all because putting the
+ *  name BACK is as much of this job as putting the mark on. */
+let plainTitle: string | undefined
+
+/** What a marked tab wears in front of its name. A mark and not a count: the
+ *  number belongs on an app icon, which is a place that has one, and `●3 olai`
+ *  in a title bar reads as a typo. */
+const MARK = "●"
 
 const paintIcon = (palette: Palette): void => {
   const url = URL.createObjectURL(
@@ -92,17 +110,24 @@ export const paintChrome = (palette: Palette): void => {
 }
 
 /**
- * Mark the tab, or stop marking it — the same drawing, with a dot on it
- * (`./mark.ts`).
+ * Mark the tab, or stop marking it: BOTH halves of what a tab is — its NAME,
+ * and its ICON with a dot on it (`./mark.ts`).
  *
- * A no-op before any palette has been painted, which is the first frame and
- * nothing else: `followStoredTheme` paints from the client's entry point,
- * before there is a panel to ask for this. Nothing is drawn from a guess — a
- * mark in a palette nobody picked is a worse answer than the file the shell
- * already shipped.
+ * One call and not two, because they are one fact about one thing. Written
+ * from two places — a title where the badge picks its channel, an icon here —
+ * their agreement would rest on a rule nobody enforces, and a tab reading
+ * "● olai" under a clean icon is the shape that rule failing takes.
+ *
+ * The ICON is a no-op before any palette has been painted, which is the first
+ * frame and nothing else: `followStoredTheme` paints from the client's entry
+ * point, before there is a panel to ask for this. Nothing is drawn from a
+ * guess — a mark in a palette nobody picked is a worse answer than the file
+ * the shell already shipped.
  */
 export const markWaiting = (mark: boolean): void => {
   if (mark === waiting) return
   waiting = mark
+  plainTitle ??= document.title
+  document.title = mark ? `${MARK} ${plainTitle}` : plainTitle
   if (shown !== undefined) paintIcon(shown)
 }

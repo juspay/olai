@@ -73,31 +73,28 @@ export const createAttention = (state: Accessor<ChatState>): void => {
   // in the URL, and the seam hands it over at startup.
   onCleanup(onBannerPress(() => reveal()))
 
-  /** The last reading, so an ARRIVAL can be told from a state. `undefined`
-   *  until the first one, which never alerts — see {@link alarmFor}. */
-  let was: Awaiting | undefined
-
-  createEffect(() => {
+  // A FOLD over the readings, which is what this is: the effect is handed the
+  // last one it took and answers with this one, so "did something ARRIVE" can
+  // be told from "is something waiting" without a mutable cell of our own to
+  // keep in step with the frames. `undefined` is the first reading, which
+  // never alerts ({@link alarmFor}).
+  createEffect<Awaiting | undefined>((was) => {
     const now = state()
     const here: Awaiting = { count: now.asking, watched: watching() }
     const alarm = alarmFor(was, here)
-    was = here
-
     // Alerts off is off for all three devices, and the icon is put BACK rather
     // than left wearing the last count: a preference switched off has to be
     // able to clear what it was doing.
-    if (!alertsOn()) {
-      wear(0)
-      return
+    const on = alertsOn()
+    wear(on ? alarm.badge : 0)
+    if (on && alarm.alert) {
+      if (alertSoundOn()) chime()
+      // The words are taken NOW and the banner raised after — asking for
+      // permission is a round trip, and what a banner is ABOUT must not be
+      // re-read on the other side of one.
+      const notice = noticeOf(now, askPending())
+      void raise(notice)
     }
-
-    wear(alarm.badge)
-    if (!alarm.alert) return
-    if (alertSoundOn()) chime()
-    // The words are taken NOW and the banner raised after — asking for
-    // permission is a round trip, and what it is a banner about must not be
-    // re-read on the other side of it.
-    const notice = noticeOf(now, askPending())
-    void raise(notice)
-  })
+    return here
+  }, undefined)
 }
