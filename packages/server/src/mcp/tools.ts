@@ -36,12 +36,13 @@
  *     nothing else.
  */
 
-import { isOpFailure, kindOf, type OpFailure, type Writer } from "@olai/format"
-import { type Acting, type Asking, type Running, type Tool } from "@olai/ops"
+import { isOpFailure, kindOf, type OpFailure, stampOf, type Writer } from "@olai/format"
+import { type Acting, type Applied, type Asking, type Planning, type Running, type Tool } from "@olai/ops"
 import { type BespokeTool, ToolFailure, type ToolInputSchema } from "@kolu/surface-mcp"
-import { Effect, Schema } from "effect"
+import { Effect, Result, Schema } from "effect"
 
 import type { Request } from "@olai/ops"
+import { resolvedWrite } from "../resolving.ts"
 import type { OlaiSurfaceClient } from "./face.ts"
 
 /** The three ops-layer doors a tool call needs, together. `@olai/ops` names
@@ -63,7 +64,17 @@ type Door = Running & Asking & Acting
  * the adapter: a direct dispatch in the process that holds the store. One
  * path — not a second olai kept beside the first that could answer differently.
  *
- * **And it takes no writer either.** It used to: `chat-agent` for the panel's
+ * **It takes the face's IDENTITY, and nothing else about the face.** `capture`
+ * records `captured-by` from the identity its door already has, omitting the
+ * property when the door has none (ruled, human 2026-08-22) — so this is who
+ * the face KNOWS, decided by the composition root that serves it: the OS user
+ * on the `0700` unix socket, where the peer can only be the owner; nobody over
+ * `/mcp` and nobody in this process, which is an answer and not a gap. It is a
+ * parameter for the same reason the writer once was, and it is bound in the
+ * same place — a tool that could name an identity could name the wrong one, and
+ * an identity a CALLER could send would not be an attribution at all.
+ *
+ * **And it takes no writer.** It used to: `chat-agent` for the panel's
  * agent, `mcp` for somebody's own. That is still exactly the distinction the
  * `X-Olai-Writer` trailer records, and it is still decided by a composition
  * root — but by the one that composes the FACE these tools reach through
@@ -73,8 +84,9 @@ type Door = Running & Asking & Acting
  */
 export const bespokeFrom = (
   tools: ReadonlyArray<Tool>,
+  login: string | null = null,
 ): Record<string, BespokeTool> =>
-  Object.fromEntries(tools.map((tool) => [tool.name, bespoke(tool)]))
+  Object.fromEntries(tools.map((tool) => [tool.name, bespoke(tool, login)]))
 
 /**
  * The surface, as the three doors `@olai/ops`' arms are declared against.
@@ -145,7 +157,7 @@ const landed = <A>(call: Effect.Effect<A, unknown>): Effect.Effect<A, OpFailure>
     (failure) => isOpFailure(failure) ? Effect.fail(failure) : Effect.die(failure),
   )
 
-const bespoke = (tool: Tool): BespokeTool => {
+const bespoke = (tool: Tool, login: string | null): BespokeTool => {
   // Built ONCE — it compiles a `Schema.Struct` — and read twice below, which is
   // what the test for it is asking about.
   const input = argsOf(tool)
@@ -164,7 +176,8 @@ const bespoke = (tool: Tool): BespokeTool => {
     // socket that dropped and was re-dialled is answered by the fresh one, and
     // the tool surface never has to be rebuilt. Typed at this one seam, where
     // `./face.ts` already keeps the framework-forced structural cast.
-    handler: (args, client) => answer(tool, doorFor(client as OlaiSurfaceClient), args),
+    handler: (args, client) =>
+      answer(tool, doorFor(client as OlaiSurfaceClient), args, login),
   }
 }
 
@@ -221,6 +234,7 @@ const answer = (
   tool: Tool,
   door: Door,
   args: unknown,
+  login: string | null,
 ): Effect.Effect<unknown, ToolFailure> =>
   Effect.mapError(
     tool.kind === "write"
@@ -236,8 +250,53 @@ const answer = (
         tool.act(door, args as never),
         (result) => ({ ...(result as object), did: tool.name }),
       )
+      : tool.kind === "plan"
+      ? Effect.map(
+        planned(tool, door, args, login),
+        (applied) => ({ ...applied, did: tool.name }),
+      )
       : tool.ask(door, args as never),
     (failure: OpFailure) => refusal(tool.name, failure),
+  )
+
+/**
+ * A PLAN arm, run: read the directory, resolve the request against it, write —
+ * and resolve ONCE MORE if the write was refused, because the arm may simply
+ * have gone stale.
+ *
+ * THE RACE IS REAL and it is the reason this is not one line. A capture
+ * resolves to `create` when the directory has no inbox and `add` when it has
+ * one; between the listing and the write, somebody else's capture can mint the
+ * very file this one was going to create, and `create` is refused for a file
+ * that exists. Re-resolving turns that into the `add` it should have been.
+ *
+ * The mechanism is `../resolving.ts`'s, which is where the whole argument for
+ * it lives — including why the retry compares the OP and why it fires once. All
+ * this supplies is the two things that differ here: the reading is a LISTING
+ * (the paths, which is what the inbox convention is read off, and the only
+ * shape a face with no store can get) and the run is a surface call that names
+ * no writer, because the face this dispatches at already decided one.
+ */
+const planned = (
+  tool: Extract<Tool, { readonly kind: "plan" }>,
+  door: Door,
+  args: unknown,
+  login: string | null,
+): Effect.Effect<Applied, OpFailure> =>
+  Effect.map(
+    resolvedWrite(
+      Effect.map(door.outlines, (listing): Planning => ({
+        paths: listing.outlines.map((outline) => outline.file),
+        login,
+        // Read PER CALL, so a process left running overnight still dates a
+        // capture today — `asking`'s rule for `date:yesterday`, kept here.
+        now: () => stampOf(new Date()),
+      })),
+      (at) => tool.plan(at, args as never),
+      door.run,
+      true,
+    ),
+    (written) => written.done,
   )
 
 /**

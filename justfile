@@ -31,6 +31,11 @@ dist := justfile_directory() + "/packages/web/dist"
 # `bun --watch` restart, or a later `just run`); `.mcp.json` names
 # production (7714), not this.
 dev_url := justfile_directory() + "/.olai-dev/url"
+# The agent socket a worktree binds for ITSELF, which is what `olai surface`
+# walks up to — so the CLI run inside a checkout talks to that checkout's
+# server. Deliberately not the per-user path: two servers cannot bind one
+# socket, and the one that lost would quietly serve nothing.
+dev_socket := justfile_directory() + "/.olai-dev/surface.sock"
 
 # The e2e shell is the dev shell plus Playwright's browsers, which cost ~600ms
 # of cold `nix develop` that every other leg would pay for nothing. Keyed on
@@ -156,7 +161,8 @@ serve dir="docs" *args: build-client
     trap 'kill 0' EXIT INT TERM
     {{ nix_shell }} bun --watch packages/web/src/build.ts {{ dist }} &
     OLAI_DIST_DIR={{ dist }} OLAI_PORT_FILE={{ dev_url }} \
-      {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} {{ args }}
+      {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} \
+        --socket {{ dev_socket }} {{ args }}
 
 # The one brain: `olai web` on this repo's docs, on an OS-assigned port.
 # Distinct from `serve`: that one is the web edit loop (client bundler

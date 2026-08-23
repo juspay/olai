@@ -47,7 +47,7 @@
  * It is NOT a cell. Cells are one value for the process; this value is one
  * value for the REQUEST (or, on the live wire, for the CONNECTION: the
  * upgrade is that request). HTTP paths read it off the request
- * (`GET /olai/who`, `POST /capture`); a tab that is already connected reads
+ * (`GET /olai/who`); a tab that is already connected reads
  * it off the upgrade headers `serveSurfaceApp` hands the per-connection
  * services.
  *
@@ -55,8 +55,7 @@
  * `surface/system/identity` is which olai this tab is bound to
  * (juspay/kolu#2133). This file is the person on the request.
  *
- * No HTTP, no surface, no Effect. The chip's door and a later capture
- * door both import this. Which picture that person wears is
+ * No HTTP, no surface, no Effect. The chip's door imports this. Which picture that person wears is
  * {@link ./picture.ts}; the whole of what the operator configured, in one
  * value, is {@link ./config.ts}.
  */

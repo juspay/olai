@@ -119,22 +119,22 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
     // any more. It names no `Landing` — the write whose whole promise is that
     // the reader does not move has no anchor, only a FILE to find — and which
     // file that is is `@olai/format`'s (`inbox.ts`'s `captureInto`), because
-    // `POST /capture` captures into the same inbox from a share sheet and a
-    // second copy of "is there an inbox yet, and what do I do about it" is two
-    // answers about one directory.
+    // the `capture` TOOL captures into the same inbox from an agent or from
+    // `olai surface capture`, and a second copy of "is there an inbox yet, and
+    // what do I do about it" is two answers about one directory.
     //
     // The title travels VERBATIM, blank and all: a capture of nothing is
     // refused by the ops layer in its own words ("a node needs a title"),
     // which is the same sentence an agent's `add_node` gets.
     //
-    // It carries NO DATE where the HTTP door's capture does, and that is a
+    // It carries NO DATE where the `capture` tool's does, and that is a
     // difference between two GESTURES rather than a deviation between two
     // faces: both send an `add` and the gate judges them identically. A `⌘K`
     // capture is made by somebody standing in the app with the Inbox door in
     // front of them; one that arrived from a phone while nobody was looking
     // has a day page as the only place it will be noticed.
     case "capture":
-      return Result.succeed(captureInto(at, { title: edit.title }))
+      return Result.succeed(captureInto(outlinePaths(at.set), { title: edit.title }))
     case "pin":
       return pinRequest(at, edit)
     case "move":

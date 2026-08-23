@@ -18,13 +18,18 @@ let
   # subscribe/notify lifecycle and the Effect Schema → JSON Schema bridge that
   # are the two things olai should not be writing by hand
   # (docs/brainstorming/surface-mcp-viewing.md).
+  # @kolu/surface-cli is the FOURTH face on the same surface, and the one this
+  # binary mounts rather than serves: it projects the declared surface as argv,
+  # so `olai surface <verb>` is derived from the same spec and the same verb
+  # table the MCP face reads, instead of a second hand-written client. It is
+  # what retired the bespoke `POST /capture` door.
   # @kolu/log is the logger seam surface imports; a hydrated source resolves
   # its own imports from where it was copied, so its kolu siblings come too —
   # @kolu/url-shape is here for exactly that reason and no other: it is the
   # zero-dependency leaf `@kolu/surface-app/serve` reads its host/port
   # bracketing from, so the URL a listener reports is a URL when the host is an
   # IPv6 literal.
-  names = [ "surface" "surface-app" "surface-mcp" "detect" "log" "url-shape" ];
+  names = [ "surface" "surface-app" "surface-mcp" "surface-cli" "detect" "log" "url-shape" ];
 
   pairs = pkgs: builtins.concatMap
     (name: [ "${pkgs."kolu-${name}"}" "@kolu/${name}" ])

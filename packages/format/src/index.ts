@@ -792,9 +792,19 @@ export type { Pinned } from "./shelf.ts"
  *
  * WHAT A CAPTURE BECOMES — `captureInto`, the one request a captured line is,
  * an `add` into the inbox the directory has or the `create` that mints one
- * holding it. Public because TWO doors resolve through it (the palette's `⌘K`
- * `+` and `POST /capture`, both in `@olai/server`), and a second spelling of
+ * holding it. Public because TWO doors resolve through it — the palette's `⌘K`
+ * `+` in `@olai/server`, and the `capture` tool in `@olai/ops`, which is what
+ * an agent and `olai surface capture` both land on — and a second spelling of
  * "is there an inbox yet" is two answers about one directory.
+ *
+ * WHAT A CAPTURE IS on the way in — `CaptureRequest` (the four things a caller
+ * may say), `noteOf` (the text and the link under it), `linkable` (an address
+ * made safe to put in a markdown autolink) and `capturingOf` (the attribution
+ * merge, and the refusal of a caller who tries to write `captured-by` itself).
+ * These came down from the deleted `POST /capture` when the verb became a
+ * tool: they are the half of that door which was about CAPTURING rather than
+ * about HTTP, and they are public for the same reason `captureInto` is —
+ * two faces compose a capture and neither may do it differently.
  *
  * HOW FULL IT IS — `inboxHeldOf`, the number the sidebar's Inbox door wears,
  * which is the top-level regular nodes of that same outline that still await
@@ -805,11 +815,16 @@ export type { Pinned } from "./shelf.ts"
  * `equals`.
  */
 export {
+  CAPTURED_BY,
+  CaptureRequest,
   type Capturing,
   captureInto,
+  capturingOf,
   InboxHeld,
   inboxHeldOf,
+  linkable,
   NO_INBOX,
+  noteOf,
   sameInboxHeld,
 } from "./inbox.ts"
 
