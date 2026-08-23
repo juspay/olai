@@ -99,6 +99,25 @@ Feature: The panel says which MCP servers a conversation has
     # this one.
     And the panel does not claim the agent attached "kolu"
 
+  @scratch:chat @kolu
+  Scenario: A conversation the agent refused has no roster either
+    # THE OTHER no-conversation face, and the one that is easy to miss: the
+    # roster is composed and announced BEFORE `session/new` is asked, because
+    # it IS the list that call is handed. So an open that comes back a NO
+    # leaves a strip that was drawn on the way to a conversation which then
+    # never existed — answering "which servers does this conversation have?"
+    # about nothing at all, over a body that is busy saying there is no
+    # conversation.
+    #
+    # The first line is load-bearing: without it "the panel says nothing" would
+    # also pass for a roster that had never been drawn, and what is asserted
+    # here is that it is DROPPED.
+    Then the panel says this conversation has "olai"
+    When the agent refuses to new a conversation
+    And I start a new conversation
+    Then the panel says the conversation could not be opened
+    And the panel says nothing about this conversation's servers
+
   @no-agent @scratch:chat @kolu
   Scenario: No conversation, no roster
     # EMPTY MEANS "THERE IS NO CONVERSATION", not "everything arrived" — which

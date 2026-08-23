@@ -1485,7 +1485,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // `trouble` is left alone deliberately: it is drawn inside the transcript
       // and cleared by the next turn, and there is neither a transcript to draw
       // it in nor a next turn to clear it. The face is what says this.
-      move({ status: "idle", unopened: { why: failure.message, what } })
+      //
+      // THE SERVERS GO, for `sessionOver`'s reason met from the other side. The
+      // roster is composed and announced BEFORE `session/new` is asked — it is
+      // the very list that call is handed ({@link ./agent.ts}) — so an open
+      // that comes back a NO leaves a strip answering "which servers does this
+      // conversation have?" about a conversation that does not exist. Empty
+      // means "there is no conversation" on this member
+      // ({@link ../../surface/src/chat.ts}), and this is one of the two faces
+      // where that is true.
+      move({ status: "idle", unopened: { why: failure.message, what }, servers: [] })
     }
 
     /** ... and a conversation is open, so neither half of that is true any
@@ -1510,7 +1519,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      */
     const wentAway = (why: string): void => {
       opened()
-      move({ status: "gone", trouble: why, unopened: null })
+      // ... and the servers go here too, which is the same fact through the
+      // other door: this is the OTHER answer to "the open did not happen", and
+      // an open that reached the wire announced a roster on its way. On the
+      // ordinary path — the process exiting — `sessionOver` has already emptied
+      // it and this is a no-op; the path it is not a no-op on is a verb whose
+      // open never came back, where the roster describes an attempt rather than
+      // a conversation. Written in both halves of the pair because they are one
+      // rule, and a pair where only one half remembers is how the other one
+      // ends up forgetting.
+      move({ status: "gone", trouble: why, unopened: null, servers: [] })
     }
 
     /**

@@ -851,6 +851,33 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * once a turn, and a conversation whose servers are all fine would
      * otherwise republish an identical roster to every open tab forever.
      */
+    /**
+     * Whether a forwarded message is about a conversation OTHER than the one
+     * this panel is in — the fence both readers below sit behind.
+     *
+     * The adapter stamps `sessionId` on every raw message it forwards
+     * (`extNotification("_claude/sdkMessage", { sessionId, message })`,
+     * unconditionally, 0.66.0), and everything one carries is a fact about that
+     * one conversation. Mostly this is already fenced — the panel holds one
+     * conversation at a time and `leaving()` drops what is keyed to the last —
+     * but the residue is real and narrow: an `init` in flight from a session
+     * that has just closed, landing AFTER the next one opened, put the old
+     * conversation's model and its servers on the new one's until the next
+     * turn corrected them.
+     *
+     * A MISMATCH IS WHAT IT REFUSES, never an absence. An id we cannot read, or
+     * a message that arrives before this end has recorded which session it is
+     * in, falls through and is read exactly as before — because the cost of
+     * being wrong the other way is the header going quiet about a `/model` for
+     * the life of a conversation, and this notification is the only thing that
+     * ever reports one. Positive recognition of the fault, in the direction
+     * this file always fails.
+     */
+    const elsewhere = (params: unknown): boolean => {
+      const named = (params as { readonly sessionId?: unknown } | null)?.sessionId
+      return typeof named === "string" && session !== null && named !== session
+    }
+
     const readLiveServers = (params: unknown): void => {
       const said = options.leg.rawMessages?.serversIn(params) ?? null
       if (said === null) return
@@ -973,7 +1000,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // never arrives from, and a handler for a notification nobody sends is
         // a reader's question with no answer in the file. Custom method, so the
         // SDK wants a parser: there is nothing to validate beyond "it is an
-        // object", and `readLiveModel` reads one field out of it.
+        // object", and the two readers below take one field each out of it.
         const raw = options.leg.rawMessages
         const connection = (raw === null
           ? opened
@@ -981,6 +1008,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             raw.method,
             (params: unknown) => params,
             (context) => {
+              // WHOSE SESSION, asked once for both readers. Everything this
+              // notification carries is a fact about ONE conversation — the
+              // model it runs and the servers it got — and the adapter stamps
+              // the session it is about on every one of them.
+              if (elsewhere(context.params)) return
               readLiveModel(context.params)
               // The same message, read for the other thing it carries. TWO
               // readers over one notification rather than one that answers
