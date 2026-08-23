@@ -238,19 +238,10 @@ const sweepLock = (path: string): boolean => {
     // not ours
   }
   if (outcome._tag === "busy") {
-    const root = recordedRoot(path)
+    const root = noteIn(path).root
     if (root !== null && !fs.existsSync(root)) return unlinkQuiet(path)
   }
   return false
-}
-
-const recordedRoot = (path: string): string | null => {
-  try {
-    const root = /^root=(.*)$/m.exec(fs.readFileSync(path, "utf8"))?.[1]
-    return root === undefined || root === "" ? null : root
-  } catch {
-    return null
-  }
 }
 
 const unlinkQuiet = (path: string): boolean => {
@@ -291,13 +282,22 @@ const keepLockFile = (): boolean => {
  * refusal itself was ever decided by reading this.
  */
 const holderIn = (path: string): number | null => {
+  const pid = noteIn(path).pid
+  return pid !== null && alive(pid) ? pid : null
+}
+
+/** What a holder wrote down. Diagnosis, never validity — see {@link holderIn}. */
+const noteIn = (path: string): { readonly pid: number | null; readonly root: string | null } => {
   try {
-    const written = /^pid=(\d+)$/m.exec(fs.readFileSync(path, "utf8"))?.[1]
-    if (written === undefined) return null
-    const pid = Number(written)
-    return alive(pid) ? pid : null
+    const text = fs.readFileSync(path, "utf8")
+    const pid = /^pid=(\d+)$/m.exec(text)?.[1]
+    const root = /^root=(.*)$/m.exec(text)?.[1]
+    return {
+      pid: pid === undefined ? null : Number(pid),
+      root: root === undefined || root === "" ? null : root,
+    }
   } catch {
-    return null
+    return { pid: null, root: null }
   }
 }
 
