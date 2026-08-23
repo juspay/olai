@@ -42,7 +42,7 @@ Talking to the agent is not here. It was, and it was four modules of domain insi
 | `resync.ts` | `POST /olai/resync`: look at the disk now, ignoring mtime+size stamps. Loopback only. The store is entitled not to notice a same-length rewrite; this is the override the e2e harness (and an operator after a `git checkout`) needs, not a test-only door |
 | `manifest.ts` | what an installed olai is: name, description, colours, and the mark |
 | `directory.ts` | the served directory, opened: resolved, annotated onto the log, CLAIMED, and a store over it — in the order the composition root needs and should not have to remember |
-| `lock.ts` | one brain per vault: the kernel-held claim on the served directory, keyed on its realpath, and the sentence a second olai gets instead of a store of its own |
+| `lock.ts` | one brain per vault: the kernel-held claim on the served directory, keyed on its realpath, the sentence a second olai gets instead of a store of its own, unlink of the lock file on a graceful stop, and the boot sweep of leftover `.lock` / `.sock` files |
 | `flock.ts` | `flock(2)` itself, through `bun:ffi`, because the runtime does not expose it |
 | `clientDist.ts` | `OLAI_DIST_DIR`, the one place the built bundle is named |
 | `allowedOrigins.ts` | `OLAI_ALLOWED_ORIGINS`, the one place the websocket's origin allowlist is named |

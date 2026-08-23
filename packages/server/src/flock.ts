@@ -147,9 +147,10 @@ export type Locked =
  *
  * The caller keeps the descriptor OPEN for as long as it wants the claim:
  * closing it — deliberately, or by exiting — is what releases the lock. There
- * is deliberately no `unlock` here for the same reason there is no unlink: the
- * lifetime is the descriptor's, and a second way to end it is a second thing to
- * get wrong.
+ * is deliberately no `unlock` here: the lifetime is the descriptor's, and a
+ * second way to end it is a second thing to get wrong. (The lock FILE is
+ * unlinked by `./lock.ts` on a graceful stop — that is hygiene, not this
+ * claim.)
  *
  * `EINTR` is RETRIED, and the two reviews of this file disagreed about whether
  * that line should exist, so the reasoning is here rather than in a thread.

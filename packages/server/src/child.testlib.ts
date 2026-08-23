@@ -121,6 +121,11 @@ export const startWeb = (options: {
     // The address is read as logfmt; do not inherit a developer's
     // OLAI_LOG=pretty.
     OLAI_LOG: "logfmt",
+    // A private runtime directory, so a unit test that starts a server does
+    // not drop a lock into the developer's `$XDG_RUNTIME_DIR/olai`. An
+    // explicit `env.XDG_RUNTIME_DIR` still wins — lock tests point two
+    // children at one directory of their own.
+    XDG_RUNTIME_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "olai-child-run-")),
     ...options.env,
   }
   // A worktree's `just run` writes OLAI_PORT_FILE; a child that inherited
