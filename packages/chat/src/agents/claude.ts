@@ -36,7 +36,7 @@
 
 import type { PermissionOption } from "@agentclientprotocol/sdk"
 
-import { allowingOurs, type Attached, type Leg, type Meta, type Spawn } from "./leg.ts"
+import { allowingOurs, type Leg, type Meta, type Reported, type Spawn } from "./leg.ts"
 
 // ── which permissions are answered without asking ──────────────────────
 
@@ -403,11 +403,14 @@ export const liveModelIn = (params: unknown): string | null => {
  *
  * `mcp_servers` is `{ name, status }[]` on the SDK's own `SDKSystemMessage`,
  * where `status` is typed as a bare `string`: an OPEN SET, whose members today
- * are `connected`, `failed`, `needs-auth`, `pending` and `disabled`. It is
- * carried through verbatim for exactly that reason — the one value that means
- * yes is matched positively one layer up, and every other word is shown to a
- * person in the CLI's own spelling rather than flattened into a category this
- * file would have to keep in step with somebody else's releases.
+ * are `connected`, `failed`, `needs-auth`, `pending` and `disabled`. WHICH OF
+ * THEM MEANS YES is decided here and nowhere else ({@link CONNECTED}), because
+ * it is a fact about this CLI in exactly the way `mcp__<server>__` is: read one
+ * layer up, one adapter's vocabulary would be the leg-neutral roster's, and the
+ * next agent to report per-server status would have to spell its own words this
+ * one's way. The WORD ITSELF travels beside the verdict, so a person reads
+ * `needs-auth` rather than a category this file would have to keep in step with
+ * somebody else's releases.
  *
  * ENTRIES ARE DROPPED, NEVER REPAIRED. A row without a name is a row about
  * nothing, and a row without a status word is one with nothing to say — either
@@ -415,19 +418,26 @@ export const liveModelIn = (params: unknown): string | null => {
  * report. Dropped, they leave the roster row at `handed`, which is what it
  * already says.
  */
-export const liveServersIn = (params: unknown): ReadonlyArray<Attached> | null => {
+export const liveServersIn = (params: unknown): ReadonlyArray<Reported> | null => {
   const servers = initIn(params)?.["mcp_servers"]
   if (!Array.isArray(servers)) return null
-  return servers.flatMap((entry): ReadonlyArray<Attached> => {
+  return servers.flatMap((entry): ReadonlyArray<Reported> => {
     const shape = entry as { readonly name?: unknown; readonly status?: unknown } | null
     const name = shape?.name
-    const status = shape?.status
+    const said = shape?.status
     return typeof name === "string" && name !== ""
-        && typeof status === "string" && status !== ""
-      ? [{ name, status }]
+        && typeof said === "string" && said !== ""
+      ? [{ name, attached: said === CONNECTED, said }]
       : []
   })
 }
+
+/** The one word this CLI's `init` uses for a server it has. Matched POSITIVELY
+ *  and never widened: every other word it could send — a failure, a
+ *  `needs-auth`, one no version has emitted yet — is read as "not attached",
+ *  which is the direction this bet is safe to lose in. A tick over tools that
+ *  are not there is the direction it may not. */
+const CONNECTED = "connected"
 
 /** The CLI's own `system`/`init` out of a forwarded message, or `undefined` for
  *  any other message — the adapter forwards what it was asked for and nothing

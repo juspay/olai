@@ -30,41 +30,51 @@
  * A RECORD OVER THE CLOSED UNION rather than a lookup with a fallback: a fifth
  * standing on the wire fails to compile here, which is the same discipline
  * `../../../../chat/src/chat.ts`'s `EVIDENCE` keeps over the event vocabulary.
+ *
+ * WHAT IS DELIBERATELY NOT A ROW HERE is whether a standing means this
+ * conversation does not HAVE the server. That is what decides which rows get a
+ * sentence of their own ({@link ./Missing.tsx}), and it is already answered by
+ * a total switch beside the union itself (`@olai/surface`'s `whyNot`) — a
+ * second answer in this table would be a second thing free to disagree with it,
+ * and the disagreement renders as a failure row with no reason under it.
  */
 
 import type { ServerStanding } from "@olai/surface"
 
 export const SAID: {
   readonly [K in ServerStanding["kind"]]: {
-    /** Beside the name on a chip. Empty for the standing with nothing to
-     *  report. */
-    readonly glyph: string
-    /** The palette word for it, or empty where there is no glyph to tint. */
-    readonly tint: string
+    /**
+     * The mark beside the name on a chip, or `null` for the standing with
+     * nothing to report.
+     *
+     * ONE NULLABLE PAIR rather than two fields that have to be blank together:
+     * a glyph and its tint are one decision, and spelled as two empty strings
+     * both `{ glyph: "", tint: "text-alarm" }` and `{ glyph: "×", tint: "" }`
+     * are constructible and both render wrong — an invisible mark, or an
+     * untinted one. This way "no mark" is one fact and the two halves go
+     * together by construction.
+     */
+    readonly mark: { readonly glyph: string; readonly tint: string } | null
     /** What it means, completing the server's NAME — so one sentence serves
      *  the chip's tooltip, its screen-reader text and the row under it. */
     readonly sentence: string
   }
 } = {
   connected: {
-    glyph: "✓",
-    tint: "text-done",
+    mark: { glyph: "✓", tint: "text-done" },
     sentence: "is attached, the agent says",
   },
   handed: {
-    glyph: "",
-    tint: "",
+    mark: null,
     sentence:
       "was handed to this conversation; the agent has not said whether it attached",
   },
   unattached: {
-    glyph: "×",
-    tint: "text-alarm",
+    mark: { glyph: "×", tint: "text-alarm" },
     sentence: "did not attach to this conversation",
   },
   missing: {
-    glyph: "×",
-    tint: "text-alarm",
+    mark: { glyph: "×", tint: "text-alarm" },
     sentence: "is missing from this conversation",
   },
 }

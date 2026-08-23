@@ -32,16 +32,35 @@
  */
 
 import { type ChatServer, whyNot } from "@olai/surface"
-import { For, Show } from "solid-js"
+import { createMemo, For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
 import { SAID } from "./standing.ts"
 
 export function Missing(props: { readonly servers: ReadonlyArray<ChatServer> }) {
+  /**
+   * The rows this component is about, picked out of the whole roster.
+   *
+   * HERE rather than in the caller, because which standings mean "this
+   * conversation does not have it" is this component's own subject — a caller
+   * that pre-filtered would be the rule living one file away from the thing it
+   * is about, and the component could not be read alone.
+   *
+   * Asked as "is there a reason?" rather than by listing the two standings that
+   * have one: `whyNot` is a TOTAL switch over the union
+   * (`../../../../surface/src/chat.ts`), so a fifth standing has to answer the
+   * question rather than quietly not match a list here.
+   *
+   * MEMOIZED, which is the difference between one filter per change and two
+   * fresh arrays per read: `<Show>` reads it and `<For>` reads it, and a fresh
+   * array on the second read is one `mapArray` can never skip — throwing away
+   * exactly what the cell's `arrayKey: "name"` identity declaration buys.
+   */
+  const absent = createMemo(() => props.servers.filter((server) => whyNot(server) !== null))
   return (
-    <Show when={props.servers.length > 0}>
+    <Show when={absent().length > 0}>
       <div class="mt-1 space-y-1" data-testid={TESTID.chatMissing}>
-        <For each={props.servers}>{(server) => <Row server={server} />}</For>
+        <For each={absent()}>{(server) => <Row server={server} />}</For>
       </div>
     </Show>
   )

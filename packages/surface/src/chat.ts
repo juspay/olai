@@ -1070,8 +1070,38 @@ export type ChatServer = typeof ChatServer.Type
  * the call site — that is the question the union exists to make total, and a
  * helper per arm would be a second vocabulary over a closed one.
  */
-export const whyNot = (server: ChatServer): string | null =>
-  "why" in server.standing ? server.standing.why : null
+export const whyNot = (server: ChatServer): string | null => {
+  // A TOTAL SWITCH and not `"why" in standing`, which is the same reading with
+  // the exhaustiveness taken out. This answer is what the panel filters on to
+  // decide which rows get a sentence under the roster, so a fifth standing must
+  // SAY whether it is one of those — an arm that carried a reason meaning
+  // something other than "not here" would otherwise route itself into the
+  // failure list, and one that meant "not here" without a reason would vanish
+  // from it. Neither is a type error under the `in` check; both are here.
+  switch (server.standing.kind) {
+    case "connected":
+    case "handed":
+      return null
+    case "unattached":
+    case "missing":
+      return server.standing.why
+  }
+}
+
+/**
+ * Whether two standings say the same thing.
+ *
+ * DERIVED from the schema, exactly as `@olai/format`'s `sameGit` and
+ * `samePending` are, and for their reason: written out by hand it would be a
+ * field comparison beside the declaration of those same fields, and a field
+ * added to an arm would simply not be compared. What that costs here is a frame
+ * that is NEVER SENT — `@olai/chat`'s roster asks this to decide whether an
+ * agent's report moved anything, so an equality that missed a field would leave
+ * the panel drawing the standing before last, silently, because a roster
+ * written and not published looks exactly like a roster nothing changed.
+ */
+export const sameStanding: (a: ServerStanding, b: ServerStanding) => boolean = Schema
+  .toEquivalence(ServerStanding)
 
 /**
  * The agent is there and there is NO CONVERSATION, because opening one was

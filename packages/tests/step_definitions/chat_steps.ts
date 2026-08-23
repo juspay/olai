@@ -2309,23 +2309,37 @@ Then("there is nothing to type into", async function (this: OlaiWorld) {
 // the panel says the agent attached a named server is the behaviour, and it is
 // what these assert (HACKING.md — tests assert behaviour, not styling).
 
+/** One roster row's standing, waited for. The four steps below differ in one
+ *  word, so the selector shape, the attribute name, the failure label and the
+ *  timeout are chosen once: a fifth standing (the union is designed to grow) is
+ *  then one more registration rather than a fifth copy of this call.
+ *
+ *  HYDRATION_TIMEOUT because the roster cannot exist until the probe has
+ *  answered and the session has been asked for, which is a boot rather than a
+ *  render. */
+const standingIs = (
+  world: OlaiWorld,
+  name: string,
+  standing: string,
+): Promise<void> =>
+  world.expectAttribute(
+    `${CHAT_SERVER}${attr("data-server", name)}`,
+    "data-standing",
+    standing,
+    `the roster row for "${name}"`,
+    HYDRATION_TIMEOUT,
+  );
+
 Then(
   "the panel says this conversation has {string}",
   async function (this: OlaiWorld, name: string) {
-    // HYDRATION_TIMEOUT: the roster cannot exist until the probe has answered
-    // and the session has been asked for, which is a boot rather than a render.
-    await this.page
-      .locator(`${CHAT_SERVER}${attr("data-server", name)}`)
-      .first()
-      .waitFor({ state: "attached", timeout: HYDRATION_TIMEOUT })
-      .catch(async () => {
-        const listed = await this.page.locator(CHAT_SERVER).allInnerTexts();
-        throw new Error(
-          `the panel does not list "${name}" among this conversation's servers, ` +
-            `which is the question this whole feature exists to answer without ` +
-            `asking the model. It lists: ${listed.join(", ") || "nothing"}`,
-        );
-      });
+    await this.expectAttribute(
+      CHAT_SERVER,
+      "data-server",
+      name,
+      "this conversation's server list",
+      HYDRATION_TIMEOUT,
+    );
   },
 );
 
@@ -2337,13 +2351,7 @@ Then(
 Then(
   "the panel says the agent attached {string}",
   async function (this: OlaiWorld, name: string) {
-    await this.expectAttribute(
-      `${CHAT_SERVER}${attr("data-server", name)}`,
-      "data-standing",
-      "connected",
-      `the roster row for "${name}"`,
-      HYDRATION_TIMEOUT,
-    );
+    await standingIs(this, name, "connected");
   },
 );
 
@@ -2354,13 +2362,7 @@ Then(
 Then(
   "the panel does not claim the agent attached {string}",
   async function (this: OlaiWorld, name: string) {
-    await this.expectAttribute(
-      `${CHAT_SERVER}${attr("data-server", name)}`,
-      "data-standing",
-      "handed",
-      `the roster row for "${name}"`,
-      HYDRATION_TIMEOUT,
-    );
+    await standingIs(this, name, "handed");
   },
 );
 
@@ -2440,13 +2442,7 @@ Then(
 Then(
   "the panel says the agent could not attach {string}",
   async function (this: OlaiWorld, name: string) {
-    await this.expectAttribute(
-      `${CHAT_SERVER}${attr("data-server", name)}`,
-      "data-standing",
-      "unattached",
-      `the roster row for "${name}"`,
-      HYDRATION_TIMEOUT,
-    );
+    await standingIs(this, name, "unattached");
     await this.expectAttribute(
       CHAT_MISSING_SERVER,
       "data-server",

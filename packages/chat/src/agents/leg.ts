@@ -35,7 +35,6 @@
 import type { PermissionOption } from "@agentclientprotocol/sdk"
 import type { Duration } from "effect"
 
-
 /** A `_meta`, as every reader here takes one: an object of unknown fields, or
  *  nothing at all. Spelled once because five signatures below take it. */
 export type Meta = { readonly [key: string]: unknown } | null | undefined
@@ -96,7 +95,7 @@ export interface RawMessages {
    * over; nobody has said what became of it" rather than a claim in either
    * direction ({@link ../servers.ts}).
    */
-  readonly serversIn: (params: unknown) => ReadonlyArray<Attached> | null
+  readonly serversIn: (params: unknown) => ReadonlyArray<Reported> | null
 }
 
 /**
@@ -138,8 +137,8 @@ export interface Spawn {
 }
 
 /**
- * What a leg says an agent said about one of ITS OWN connections to an MCP
- * server: the server's name, and the agent's own word for how it stands.
+ * What a leg says an agent reported about one of ITS OWN connections to an MCP
+ * server.
  *
  * Here beside {@link Spawn} and for its reason: this is a payload reading, and
  * what {@link ../servers.ts} then makes of it — a roster row, a standing, a
@@ -147,16 +146,35 @@ export interface Spawn {
  * other way round, the file that is only allowed to be wrong about one agent
  * would have been importing the panel's own vocabulary.
  *
- * The STATUS IS A STRING and deliberately not a vocabulary of ours. It is the
- * wrapped CLI's own field (`connected`, `failed`, `needs-auth`, `pending`,
- * `disabled` are the ones its binary carries today) and an open set that may
- * grow without asking anybody here — so it is carried verbatim, matched
- * positively against the one value that means yes, and shown to a person in
- * the agent's own spelling for everything else.
+ * TWO FIELDS RATHER THAN THE STATUS ALONE, and the split is this interface's
+ * whole point. WHICH WORD MEANS YES is true of one agent — the Claude Code
+ * CLI spells it `connected` — so the leg answers it, exactly as it answers
+ * which prefix names an MCP server's tools. Read one layer up instead, that
+ * one CLI's vocabulary would be the leg-neutral roster's, and the second agent
+ * to report per-server status would have to spell its own words the first
+ * one's way or make the roster grow a branch per leg.
+ *
+ * POSITIVE RECOGNITION, the rule this file exists to keep: `attached` is true
+ * only where the agent said the word its leg knows, and every other word — a
+ * failure, a `needs-auth`, a word no version has sent yet — is false. The
+ * losing direction is a working server drawn as one nobody confirmed; a tick
+ * over tools that are not there is the direction no leg may fail in.
  */
-export interface Attached {
+export interface Reported {
   readonly name: string
-  readonly status: string
+  /** Whether the AGENT says it has this server. */
+  readonly attached: boolean
+  /**
+   * ... and its own word for it, whatever that was.
+   *
+   * Carried verbatim, for the sentence a person reads when the answer is no:
+   * the CLI's status is an open set (`failed`, `needs-auth`, `pending`,
+   * `disabled` today) that grows on somebody else's release schedule, and a
+   * reader can act on `needs-auth` — sign the server in — quite differently
+   * from `failed`. Flattened into a category of ours, both become "it did not
+   * work", which is the log line this whole feature exists to stop showing.
+   */
+  readonly said: string
 }
 
 /**

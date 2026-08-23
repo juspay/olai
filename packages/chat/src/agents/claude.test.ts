@@ -448,24 +448,29 @@ describe("which of this conversation's servers the agent attached", () => {
     },
   })
 
-  test("the `init` message says which servers connected, in the CLI's own words", () => {
+  test("`connected` is the word this CLI uses for a server it has", () => {
+    // WHICH WORD MEANS YES is decided here, because it is a fact about this
+    // adapter in exactly the way `mcp__<server>__` is. The roster one layer up
+    // reads the verdict and never the word (`../servers.test.ts`).
     expect(
       liveServersIn(init([
         { name: "olai", status: "connected" },
         { name: "kolu", status: "connected" },
       ])),
     ).toEqual([
-      { name: "olai", status: "connected" },
-      { name: "kolu", status: "connected" },
+      { name: "olai", attached: true, said: "connected" },
+      { name: "kolu", attached: true, said: "connected" },
     ])
   })
 
-  test("a status that is not `connected` is carried through, never flattened", () => {
-    // The CLI's binary carries `connected`, `failed`, `needs-auth`, `pending`
-    // and `disabled` today, and the SDK types the field as a bare `string` —
-    // an open set. A reader that mapped them onto a vocabulary of ours would
-    // have to be edited on somebody else's release for a person to find out
-    // that their server wants signing in rather than that it broke.
+  test("every other word is NOT attached, and travels verbatim anyway", () => {
+    // POSITIVE RECOGNITION, the rule this file keeps everywhere: a word that is
+    // not the one is read as no, including one no release has sent. And the
+    // word survives, because the CLI's binary carries `connected`, `failed`,
+    // `needs-auth`, `pending` and `disabled` today and the SDK types the field
+    // as a bare `string` — an open set. Flattened into a vocabulary of ours,
+    // this file would have to be edited on somebody else's release for a person
+    // to find out that their server wants signing in rather than that it broke.
     expect(
       liveServersIn(init([
         { name: "kolu", status: "needs-auth" },
@@ -473,10 +478,19 @@ describe("which of this conversation's servers the agent attached", () => {
         { name: "later", status: "a word no version has sent yet" },
       ])),
     ).toEqual([
-      { name: "kolu", status: "needs-auth" },
-      { name: "deepwiki", status: "failed" },
-      { name: "later", status: "a word no version has sent yet" },
+      { name: "kolu", attached: false, said: "needs-auth" },
+      { name: "deepwiki", attached: false, said: "failed" },
+      { name: "later", attached: false, said: "a word no version has sent yet" },
     ])
+  })
+
+  test("the match is the whole word, so a longer one is not a connection", () => {
+    // The same narrowing the tool-name prefix gets, for the same reason: a
+    // status that merely starts with the word is not the word.
+    expect(liveServersIn(init([{ name: "olai", status: "connected-ish" }])))
+      .toEqual([{ name: "olai", attached: false, said: "connected-ish" }])
+    expect(liveServersIn(init([{ name: "olai", status: "Connected" }])))
+      .toEqual([{ name: "olai", attached: false, said: "Connected" }])
   })
 
   test("what we asked to be forwarded is what is read", () => {
@@ -486,7 +500,7 @@ describe("which of this conversation's servers the agent attached", () => {
       liveServersIn({
         message: { ...subscribed, mcp_servers: [{ name: "olai", status: "connected" }] },
       }),
-    ).toEqual([{ name: "olai", status: "connected" }])
+    ).toEqual([{ name: "olai", attached: true, said: "connected" }])
   })
 
   test("another message of the CLI's says nothing about servers", () => {
@@ -536,10 +550,9 @@ describe("which of this conversation's servers the agent attached", () => {
         null,
         "kolu",
       ])),
-    ).toEqual([{ name: "olai", status: "connected" }])
+    ).toEqual([{ name: "olai", attached: true, said: "connected" }])
   })
 })
-
 
 describe("the leg", () => {
   test("reads a tool's name out of the meta, never out of the call id", () => {

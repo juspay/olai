@@ -38,17 +38,27 @@
  */
 
 import type { McpServer } from "@agentclientprotocol/sdk"
-import type { ChatServer, ServerStanding } from "@olai/surface"
+import { type ChatServer, sameStanding, type ServerStanding } from "@olai/surface"
 
-import type { Attached } from "./agents/leg.ts"
+import type { Reported } from "./agents/leg.ts"
 
-/** The one status word that means the agent has the server. Everything else —
- *  including a word no version of anything has sent yet — is
- *  {@link ServerStanding}'s `unattached`, which is the direction this may fail
- *  in: the worst case is a working server drawn as one the agent did not
- *  confirm, and the worst case of the other reading is a tick over tools that
- *  are not there. */
-const CONNECTED = "connected"
+/**
+ * A server this host was meant to give a session and could not, as the PROBE
+ * that found out puts it: what it is called, the file it asked, and why that
+ * was a no.
+ *
+ * Declared here rather than in {@link ./kolu.ts} because it is this module's
+ * INPUT, and because all four standings are minted below: the detection module
+ * answers what it found, and what a roster makes of that — which arm, which
+ * sentence, and the rule that nothing an agent says may overwrite it — is one
+ * vocabulary in one file. `where` is `null` for the one way of failing that
+ * never reached a file.
+ */
+export interface NotHere {
+  readonly name: string
+  readonly where: string | null
+  readonly why: string
+}
 
 /**
  * The roster as OLAI composed it: every server this session was handed, plus
@@ -79,7 +89,7 @@ const CONNECTED = "connected"
  */
 export const rosterOf = (
   handing: ReadonlyArray<McpServer>,
-  missing: ChatServer | null,
+  missing: NotHere | null,
 ): ReadonlyArray<ChatServer> => [
   ...handing.map((server): ChatServer => ({
     name: server.name,
@@ -89,7 +99,15 @@ export const rosterOf = (
     // it. Only an agent's own word moves a row past here ({@link movedBy}).
     standing: { kind: "handed" },
   })),
-  ...missing === null ? [] : [missing],
+  // ... and the one it did not get, as the fourth standing. `missing` is the
+  // arm for a server olai could not hand over AT ALL, which is exactly what a
+  // probe's no is: the other three all describe a server that WAS handed over
+  // and differ only in what the agent then said about it.
+  ...missing === null ? [] : [{
+    name: missing.name,
+    where: missing.where,
+    standing: { kind: "missing", why: missing.why } as const,
+  }],
 ]
 
 /** Where one handed server is, out of the entry the session was given. The two
@@ -146,7 +164,7 @@ const whereOf = (server: McpServer): string | null => {
  */
 export const movedBy = (
   roster: ReadonlyArray<ChatServer>,
-  said: ReadonlyArray<Attached>,
+  said: ReadonlyArray<Reported>,
 ): ReadonlyArray<ChatServer> | null => {
   const next = roster.map((server) => asSaid(server, said))
   // A ROW THAT DID NOT MOVE IS THE SAME OBJECT, which is what makes this one
@@ -163,22 +181,19 @@ export const movedBy = (
  *  identity above is what publishes them all as one answer. */
 const asSaid = (
   server: ChatServer,
-  said: ReadonlyArray<Attached>,
+  said: ReadonlyArray<Reported>,
 ): ChatServer => {
   if (server.standing.kind === "missing") return server
   const reported = said.find((one) => one.name === server.name)
   if (reported === undefined) return server
-  const standing: ServerStanding = reported.status === CONNECTED
+  // WHICH WORD MEANT YES was decided by the leg, which is the file allowed to
+  // be wrong about one agent ({@link ./agents/leg.ts}). What is left here is
+  // the mapping onto a standing, which is true of every agent.
+  const standing: ServerStanding = reported.attached
     ? { kind: "connected" }
     // The agent's own word, quoted rather than translated — the same rule
     // #140's four probe sentences follow, and the reason a reader can act on
     // `needs-auth` (sign the server in) differently from `failed` (it broke).
-    : { kind: "unattached", why: `the agent did not attach it: ${reported.status}` }
-  return same(server.standing, standing) ? server : { ...server, standing }
+    : { kind: "unattached", why: `the agent did not attach it: ${reported.said}` }
+  return sameStanding(server.standing, standing) ? server : { ...server, standing }
 }
-
-/** Whether two standings say the same thing — the whole of what "this report
- *  moved nothing" means, over a union whose arms carry at most one field. */
-const same = (before: ServerStanding, after: ServerStanding): boolean =>
-  before.kind === after.kind
-  && ("why" in before ? before.why : null) === ("why" in after ? after.why : null)

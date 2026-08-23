@@ -18,7 +18,7 @@ import { describe, expect, test } from "bun:test"
 import type { McpServer } from "@agentclientprotocol/sdk"
 import type { ChatServer } from "@olai/surface"
 
-import { movedBy, rosterOf } from "./servers.ts"
+import { movedBy, type NotHere, rosterOf } from "./servers.ts"
 
 /** Olai's own tool server, as `mcpServersOf` renders it: the http route on this
  *  process's own listener, with the session's bearer token on a header. */
@@ -40,13 +40,10 @@ const KOLU: McpServer = {
 
 /** What `kolu.ts` hands over about a server this host could not give the
  *  session — the shape and the sentence are its, verbatim. */
-const ABSENT: ChatServer = {
+const ABSENT: NotHere = {
   name: "kolu",
   where: "/usr/bin/kolu",
-  standing: {
-    kind: "missing",
-    why: "it refused to read the daemon's identity: surface-mcp: padi transport down",
-  },
+  why: "it refused to read the daemon's identity: surface-mcp: padi transport down",
 }
 
 describe("the roster as olai composed it", () => {
@@ -89,7 +86,9 @@ describe("the roster as olai composed it", () => {
   test("the one it did not get is on the roster too, last, with its sentence", () => {
     expect(rosterOf([OLAI], ABSENT)).toEqual([
       { name: "olai", where: OLAI.url, standing: { kind: "handed" } },
-      ABSENT,
+      // The probe answers its own verdict; WHICH STANDING that is, is minted
+      // here — the one module where all four are named and explained.
+      { name: "kolu", where: ABSENT.where, standing: { kind: "missing", why: ABSENT.why } },
     ])
   })
 
@@ -108,10 +107,14 @@ describe("the roster as olai composed it", () => {
 describe("the roster as the agent's own report leaves it", () => {
   const handed = rosterOf([OLAI, KOLU], null)
 
-  test("`connected` is the one word that puts a tick on a row", () => {
+  test("the agent's own verdict is what puts a tick on a row", () => {
+    // WHICH WORD meant yes was the leg's to decide (`./agents/claude.test.ts`),
+    // because it is true of one agent. What is asserted here is the half that
+    // is true of every agent: a verdict of yes becomes `connected`, and nothing
+    // else does.
     expect(movedBy(handed, [
-      { name: "olai", status: "connected" },
-      { name: "kolu", status: "connected" },
+      { name: "olai", attached: true, said: "connected" },
+      { name: "kolu", attached: true, said: "connected" },
     ])).toEqual([
       { name: "olai", where: OLAI.url, standing: { kind: "connected" } },
       { name: "kolu", where: KOLU.command, standing: { kind: "connected" } },
@@ -124,8 +127,8 @@ describe("the roster as the agent's own report leaves it", () => {
     // act on the difference between them — sign the server in, wait, go and
     // look — which is why the word is carried rather than categorised.
     expect(movedBy(handed, [
-      { name: "olai", status: "needs-auth" },
-      { name: "kolu", status: "failed" },
+      { name: "olai", attached: false, said: "needs-auth" },
+      { name: "kolu", attached: false, said: "failed" },
     ])).toEqual([
       {
         name: "olai",
@@ -140,11 +143,12 @@ describe("the roster as the agent's own report leaves it", () => {
     ])
   })
 
-  test("a word no version has sent yet is not a connection", () => {
-    // The status set is the CLI's and grows without asking anybody here. The
-    // losing direction is a working server drawn as unconfirmed; the other
-    // reading would put a tick over tools that are not there.
-    const moved = movedBy(handed, [{ name: "olai", status: "reticulating" }])
+  test("a word this end has never seen still reaches a person", () => {
+    // The status set is the CLI's and grows without asking anybody here, so the
+    // leg answers `attached: false` for a word it does not know — and the WORD
+    // still travels, because "it did not work" is the log line this whole
+    // feature exists to stop putting on screen.
+    const moved = movedBy(handed, [{ name: "olai", attached: false, said: "reticulating" }])
     expect(moved?.[0]?.standing).toEqual({
       kind: "unattached",
       why: "the agent did not attach it: reticulating",
@@ -156,10 +160,10 @@ describe("the roster as the agent's own report leaves it", () => {
     // Read as a downgrade, a row would flicker on every message that happened
     // to be shorter than the last.
     const first = movedBy(handed, [
-      { name: "olai", status: "connected" },
-      { name: "kolu", status: "connected" },
+      { name: "olai", attached: true, said: "connected" },
+      { name: "kolu", attached: true, said: "connected" },
     ])
-    expect(movedBy(first ?? [], [{ name: "olai", status: "connected" }])).toBeNull()
+    expect(movedBy(first ?? [], [{ name: "olai", attached: true, said: "connected" }])).toBeNull()
   })
 
   test("a server olai never handed over adds no row", () => {
@@ -168,8 +172,8 @@ describe("the roster as the agent's own report leaves it", () => {
     // one in between, and are not named at all on the other leg — so a row for
     // one could never be kept honest. The panel says "plus the agent's own".
     expect(movedBy(handed, [
-      { name: "olai", status: "connected" },
-      { name: "deepwiki", status: "connected" },
+      { name: "olai", attached: true, said: "connected" },
+      { name: "deepwiki", attached: true, said: "connected" },
     ])).toEqual([
       { name: "olai", where: OLAI.url, standing: { kind: "connected" } },
       { name: "kolu", where: KOLU.command, standing: { kind: "handed" } },
@@ -182,7 +186,7 @@ describe("the roster as the agent's own report leaves it", () => {
     // out of somebody's `~/.claude.json` — and letting that turn the row into a
     // tick would erase the one failure `mcp-fail-visible` exists to show.
     const withAbsent = rosterOf([OLAI], ABSENT)
-    expect(movedBy(withAbsent, [{ name: "kolu", status: "connected" }])).toBeNull()
+    expect(movedBy(withAbsent, [{ name: "kolu", attached: true, said: "connected" }])).toBeNull()
   })
 
   test("a report that moves nothing is not news", () => {
@@ -190,17 +194,17 @@ describe("the roster as the agent's own report leaves it", () => {
     // forwards one per TURN. A conversation whose servers are all fine would
     // otherwise republish an identical roster to every open tab forever.
     expect(movedBy(handed, [])).toBeNull()
-    const connected = movedBy(handed, [{ name: "olai", status: "connected" }])
+    const connected = movedBy(handed, [{ name: "olai", attached: true, said: "connected" }])
     expect(connected).not.toBeNull()
-    expect(movedBy(connected ?? [], [{ name: "olai", status: "connected" }])).toBeNull()
+    expect(movedBy(connected ?? [], [{ name: "olai", attached: true, said: "connected" }])).toBeNull()
   })
 
   test("a row that changes its mind moves again", () => {
     // The other side of it: a `needs-auth` that becomes `connected` between two
     // turns is news, and a roster that only ever moved once would leave the
     // reason up over a server that is now fine.
-    const stuck = movedBy(handed, [{ name: "kolu", status: "needs-auth" }])
-    const fixed = movedBy(stuck ?? [], [{ name: "kolu", status: "connected" }])
+    const stuck = movedBy(handed, [{ name: "kolu", attached: false, said: "needs-auth" }])
+    const fixed = movedBy(stuck ?? [], [{ name: "kolu", attached: true, said: "connected" }])
     expect(fixed?.[1]).toEqual({
       name: "kolu",
       where: KOLU.command,
@@ -212,6 +216,6 @@ describe("the roster as the agent's own report leaves it", () => {
     // What a panel between two conversations holds. A forwarded message still
     // in flight from the finished session names rows that belong to a
     // conversation nobody is in.
-    expect(movedBy([], [{ name: "olai", status: "connected" }])).toBeNull()
+    expect(movedBy([], [{ name: "olai", attached: true, said: "connected" }])).toBeNull()
   })
 })

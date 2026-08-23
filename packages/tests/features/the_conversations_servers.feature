@@ -99,6 +99,20 @@ Feature: The panel says which MCP servers a conversation has
     # this one.
     And the panel does not claim the agent attached "kolu"
 
+  @no-agent @scratch:chat @kolu
+  Scenario: No conversation, no roster
+    # EMPTY MEANS "THERE IS NO CONVERSATION", not "everything arrived" — which
+    # is the one thing this member changed about #140's, where an empty list was
+    # a healthy session. Servers are handed at session open, so a panel that was
+    # never able to open one has been handed nothing, and there is nothing to
+    # list. A strip drawn here would be answering "which servers does this
+    # conversation have?" about no conversation.
+    #
+    # `@kolu` is deliberate: this host IS running kolu, so the absence is about
+    # there being no session rather than about there being nothing to say.
+    Then the panel says there is no agent
+    And the panel says nothing about this conversation's servers
+
   @opencode @scratch:chat @kolu
   Scenario: An agent that reports nothing per server still gets its servers named
     # The other leg, and the honest floor of this feature. Opencode forwards no

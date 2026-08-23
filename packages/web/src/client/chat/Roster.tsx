@@ -74,7 +74,7 @@
  * interruption.
  */
 
-import { type ChatServer, whyNot } from "@olai/surface"
+import type { ChatServer } from "@olai/surface"
 import { For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
@@ -84,12 +84,6 @@ import type { Chat } from "./state.ts"
 
 export function Roster(props: { readonly chat: Chat }) {
   const servers = () => props.chat.state().servers
-  /** The ones this conversation does NOT have. Asked as "is there a reason?"
-   *  rather than by listing the two standings that have one, because the union
-   *  grounds a reason on exactly those two — so this cannot fall out of step
-   *  with them, and a fifth standing has to answer the question rather than
-   *  quietly not match a list. */
-  const absent = () => servers().filter((server) => whyNot(server) !== null)
 
   return (
     <Show when={servers().length > 0}>
@@ -115,7 +109,13 @@ export function Roster(props: { readonly chat: Chat }) {
             <span aria-hidden="true">· </span>plus the agent&rsquo;s own
           </span>
         </p>
-        <Missing servers={absent()} />
+        {/* THE WHOLE ROSTER, and it picks its own rows out of it: which
+            standings mean "this conversation does not have it" is that
+            component's subject, and a caller that pre-filtered would be the
+            rule living one file away from the thing it is about. It is also
+            the store's own array, so what `<For>` inside it diffs is a stable
+            reference rather than a fresh one per read. */}
+        <Missing servers={servers()} />
       </section>
     </Show>
   )
@@ -125,6 +125,7 @@ export function Roster(props: { readonly chat: Chat }) {
  *  is. */
 function Chip(props: { readonly server: ChatServer }) {
   const said = () => SAID[props.server.standing.kind]
+  const mark = () => said().mark
   return (
     <span
       class="flex items-baseline gap-1 text-ink"
@@ -140,8 +141,8 @@ function Chip(props: { readonly server: ChatServer }) {
       }`}
     >
       <span>{props.server.name}</span>
-      <Show when={said().glyph !== ""}>
-        <span class={said().tint} aria-hidden="true">{said().glyph}</span>
+      <Show when={mark()}>
+        {(one) => <span class={one().tint} aria-hidden="true">{one().glyph}</span>}
       </Show>
       <span class="sr-only">{said().sentence}</span>
     </span>

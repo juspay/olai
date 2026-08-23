@@ -20,8 +20,6 @@ import { delimiter, join } from "node:path"
 import { afterEach, describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
-import { whyNot } from "@olai/surface"
-
 import { mcpServersOf } from "./agent.ts"
 import {
   askOver,
@@ -272,7 +270,7 @@ describe("what a session that did not get kolu can be told", () => {
     expect(await missing()).toEqual({
       name: "kolu",
       where: bin,
-      standing: { kind: "missing", why: "it refused to read the daemon's identity: padi transport down" },
+      why: "it refused to read the daemon's identity: padi transport down",
     })
   })
 
@@ -282,7 +280,7 @@ describe("what a session that did not get kolu can be told", () => {
     expect(await missing()).toEqual({
       name: "kolu",
       where: bin,
-      standing: { kind: "missing", why: "it closed the connection without answering" },
+      why: "it closed the connection without answering",
     })
   })
 
@@ -298,7 +296,7 @@ describe("what a session that did not get kolu can be told", () => {
 
     const found = await missing()
     expect(found).toMatchObject({ name: "kolu", where: bin })
-    const why = found === null ? null : whyNot(found)
+    const why = found?.why ?? null
     expect(why).toStartWith("it could not be started:")
     // ... and NOT the fifth sentence. `talking to it failed: …` is what
     // `askOver` comes back with when our own write loses to a stdin the failed
@@ -346,8 +344,8 @@ describe("what a session that did not get kolu can be told", () => {
     expect(await missing()).toEqual({
       name: "kolu",
       where: null,
-      standing: { kind: "missing", why: "PADI_SOCKET names a padi on this host, but no `kolu` is on the PATH "
-        + "this server was started with — so there is nothing here to reach it through" },
+      why: "PADI_SOCKET names a padi on this host, but no `kolu` is on the PATH "
+        + "this server was started with — so there is nothing here to reach it through",
     })
   })
 })
