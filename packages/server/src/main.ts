@@ -41,7 +41,8 @@ import { identityConfig } from "@olai/identity"
 import { TOOLS } from "@olai/ops"
 import { surface } from "@olai/surface"
 import { atLevel, toStdout } from "@olai/log"
-import { Effect, Layer, Option } from "effect"
+import { dlopen, FFIType } from "bun:ffi"
+import { Effect, Layer } from "effect"
 import { Argument, Command, Flag } from "effect/unstable/cli"
 
 import { allowedOrigins } from "./allowedOrigins.ts"
@@ -326,6 +327,43 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, () => {
     process.stderr.write(`olai web: received ${signal}\n`)
   })
+}
+
+// When the parent dies, this process should die with it. The e2e harness
+// used to leak a server per cancelled run: `detached: true` put each olai
+// in its own process group, so SIGKILL of cucumber (odu's timeout, a
+// Ctrl-C that never reached AfterAll) reparented them to init and they
+// sat on `/tmp` directories that no longer existed. SIGTERM, not SIGKILL,
+// so the lock-file finalizer still runs. Linux only — `prctl` is the
+// syscall; darwin has no equivalent we can call without a helper.
+dieWithParent()
+
+/**
+ * `prctl(PR_SET_PDEATHSIG, SIGTERM)`, then a getppid check for the race
+ * where the parent died between spawn and this call. Best-effort: a
+ * machine without the syscall still serves.
+ */
+function dieWithParent(): void {
+  if (process.platform !== "linux") return
+  for (const name of ["libc.so.6", "libc.so"] as const) {
+    try {
+      const lib = dlopen(name, {
+        prctl: { args: [FFIType.i32, FFIType.i32], returns: FFIType.i32 },
+        getppid: { args: [], returns: FFIType.i32 },
+      })
+      // PR_SET_PDEATHSIG = 1, SIGTERM = 15
+      lib.symbols.prctl(1, 15)
+      // getppid() === 1 is the race where the parent died between spawn and
+      // this call. A system systemd unit has PID 1 as parent and would
+      // self-SIGTERM here; olai ships only a user unit (`olai.service`),
+      // whose parent is the user manager, not 1 — so this check and
+      // PDEATHSIG are inert there.
+      if (lib.symbols.getppid() === 1) process.kill(process.pid, "SIGTERM")
+      return
+    } catch {
+      // try the next soname
+    }
+  }
 }
 
 // The sink is stdout: a person watching a server looks there, and nothing else

@@ -17,9 +17,10 @@
  *     window is a bet on the ephemeral pool, not a closed gap. A claimed
  *     band below `ip_local_port_range` used to make it structural; that
  *     walk died with the initial bind asking the OS;
- *   - the host's XDG cache / `PADI_SOCKET`, so a cache keyed on the served
- *     path (recall does this) or a padi on the laptop would be one thing
- *     every worker wrote. HOME is left alone (see `isolateEnv`).
+ *   - the host's XDG cache / state / runtime / `PADI_SOCKET`, so a cache
+ *     keyed on the served path (recall does this), a padi on the laptop, or
+ *     the one-brain lock files would be one thing every worker wrote. HOME
+ *     is left alone (see `isolateEnv`).
  *
  * Initial binds ask the OS (`--port` omitted; the process default is 0).
  * Two worktrees therefore cannot pick the same number and cannot squat
@@ -110,10 +111,10 @@ export const releasePort = (holder: net.Server): Promise<void> =>
  * Spreads the host env so PATH and the nix-built binary's own variables
  * still work, then takes back the shared stores: XDG cache (recall and
  * friends), XDG state (which conversation this directory's panel was in),
- * `PADI_SOCKET`, and the git identity variables that would make a scratch
- * repo survey THIS checkout. HOME is left alone: overriding it emptied the
- * server's git/user identity and the apply inverse came back empty, so ⌘Z
- * had nothing to replay.
+ * XDG runtime (the one-brain lock), `PADI_SOCKET`, and the git identity
+ * variables that would make a scratch repo survey THIS checkout. HOME is
+ * left alone: overriding it emptied the server's git/user identity and the
+ * apply inverse came back empty, so ⌘Z had nothing to replay.
  *
  * State is SHARED between a scenario's boots and private to that scenario,
  * which is exactly what the memory under test needs: a restarted server is
@@ -131,8 +132,10 @@ export const isolateEnv = (
 ): NodeJS.ProcessEnv => {
   const cache = path.join(stateRoot, "cache");
   const state = path.join(stateRoot, "state");
+  const runtime = path.join(stateRoot, "runtime");
   fs.mkdirSync(cache, { recursive: true });
   fs.mkdirSync(state, { recursive: true });
+  fs.mkdirSync(runtime, { recursive: true, mode: 0o700 });
   // The identity family is taken off the HOST's copy, before the spawn's own
   // extras go on: a developer whose shell exports the documented avatar
   // template (`OLAI_IDENTITY_AVATAR_TEMPLATE='https://github.com/{login}.png'`)
@@ -150,6 +153,11 @@ export const isolateEnv = (
     ...extras,
     XDG_CACHE_HOME: cache,
     XDG_STATE_HOME: state,
+    // A private runtime directory per spawn, so a scratch vault's lock
+    // lands next to that spawn's state and dies with it, rather than in
+    // the developer's `$XDG_RUNTIME_DIR/olai` — which is how 151k leftover
+    // `.lock` files accumulated there.
+    XDG_RUNTIME_DIR: runtime,
   };
   delete env.PADI_SOCKET;
   // A worktree's `just run` writes OLAI_PORT_FILE; a spawned e2e server

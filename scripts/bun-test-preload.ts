@@ -15,7 +15,16 @@
  * thunk threw on `location` at dial time — on the socket's own retry fiber,
  * out of every test's way. Nothing else in this tree branches on `location`
  * existing; a real browser (the e2e suite) never loads this file.
+ *
+ * And one runtime directory for the whole test process, set here before any
+ * file loads, and never restored. An afterAll on the first file that imported
+ * a helper used to put `$XDG_RUNTIME_DIR` back to the developer's
+ * `/run/user/…/olai`, so every later serving test swept and locked it.
  */
+
+import * as fs from "node:fs"
+import * as os from "node:os"
+import * as path from "node:path"
 
 if (typeof globalThis.location === "undefined") {
   // A `URL` has every property the wire reads (`origin`); the cast says this
@@ -23,3 +32,6 @@ if (typeof globalThis.location === "undefined") {
   globalThis.location = new URL("http://olai.invalid") as unknown as Location
 }
 
+process.env["XDG_RUNTIME_DIR"] = fs.mkdtempSync(
+  path.join(os.tmpdir(), "olai-test-run-"),
+)

@@ -177,6 +177,12 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
     expect(env.XDG_STATE_HOME).toBe(path.join(root, "state"));
     expect(env.XDG_STATE_HOME).not.toBe("/tmp/host-state");
     expect(fs.existsSync(env.XDG_STATE_HOME!)).toBe(true);
+    // And RUNTIME, which is where the one-brain lock lands. A spawn that
+    // inherited the host's `/run/user/…/olai` is how 151k leftover `.lock`
+    // files accumulated there.
+    expect(env.XDG_RUNTIME_DIR).toBe(path.join(root, "runtime"));
+    expect(env.XDG_RUNTIME_DIR).not.toBe(process.env.XDG_RUNTIME_DIR);
+    expect(fs.existsSync(env.XDG_RUNTIME_DIR!)).toBe(true);
     // HOME stays the host's: overriding it emptied apply inverse.
     expect(env.HOME).toBe(process.env.HOME);
   } finally {
