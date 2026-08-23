@@ -1,9 +1,9 @@
 /**
  * The picture of a person, from their email claim — one rung of
  * {@link ./picture.ts}'s ladder, and a different fold from who they ARE
- * ({@link ./identity.ts}). The chip wants a URL; a caller that only records
- * WHO somebody is wants the login and nothing else. Complecting the hash with
- * the parse would make that second caller import a picture it does not show.
+ * ({@link ./identity.ts}). The chip wants a URL; a later capture door may
+ * want only the login. Complecting the hash with the parse would make the
+ * second caller import a picture it does not show.
  *
  * WHETHER an email claim reaches this function at all is the ladder's
  * question, not this file's: a claim that is not an address (`srid@github`)

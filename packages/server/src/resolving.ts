@@ -4,17 +4,8 @@
  *
  * TWO DOORS resolve a request rather than being handed one: the browser's
  * keystrokes and menu entries (`./runtime.ts`'s `applyEdit`, over `./edit.ts`)
- * and the `capture` TOOL, whose `plan` arm resolves the inbox convention
- * against the directory (`@olai/ops`' `tools.ts`, dispatched in
- * `./mcp/tools.ts`). Both are read → resolve → run, and both had the same hole
- * in the middle of it.
- *
- * The second one used to be an HTTP door of its own (`POST /capture`) and it
- * used this file already; as a tool it is reached over a socket as readily as
- * in-process, so what it needed was not a second copy of the retry but the same
- * one with the READING and the RUN as parameters — which is {@link
- * resolvedWrite} below, and what {@link runResolved} is now written in terms
- * of.
+ * and the HTTP capture door (`./capture.ts`). Both are read → resolve → run,
+ * and both had the same hole in the middle of it.
  *
  * ## The hole
  *
@@ -68,38 +59,24 @@ export interface Written {
   readonly done: Applied
 }
 
-/**
- * THE MECHANISM, generic over what is READ and how the request is RUN — which
- * is the whole of what its two callers differ by.
- *
- * `runResolved` below reads a whole {@link Reading} out of a local `Ops` and
- * runs under a writer; the `capture` tool reads a LISTING over a surface client
- * that may be a socket away and runs without naming one. Neither difference is
- * about the algorithm, and spelling the algorithm twice put the argument in this
- * header a file away from one of the two places it governs — so the reading is
- * a parameter and the run is a parameter, and the retry is written once.
- *
- * `A` is deliberately unconstrained: what a resolver needs to choose is its own
- * business, and this only ever hands it back.
- */
-export const resolvedWrite = <A>(
-  read: Effect.Effect<A, OpFailure>,
-  resolve: (at: A) => Result.Result<Request, OpFailure>,
-  run: (request: Request) => Effect.Effect<Applied, OpFailure>,
+export const runResolved = (
+  ops: Pick<Ops, "read" | "run">,
+  writer: Writer,
+  resolve: (at: Reading) => Result.Result<Request, OpFailure>,
   /** Whether a refusal may be this resolver's own arm having gone stale — see
    *  the header, and `./edit.ts`'s `reresolves` for which verbs those are. */
   reresolves: boolean,
-): Effect.Effect<{ readonly at: A; readonly request: Request; readonly done: Applied }, OpFailure> =>
+): Effect.Effect<Written, OpFailure> =>
   Effect.gen(function*() {
-    const at = yield* read
+    const at = yield* ops.read
     const first = resolve(at)
     if (Result.isFailure(first)) return yield* Effect.fail(first.failure)
 
-    const ran = yield* Effect.result(run(first.success))
+    const ran = yield* Effect.result(ops.run(first.success, writer))
     if (Result.isSuccess(ran)) return { at, request: first.success, done: ran.success }
     if (!reresolves) return yield* Effect.fail(ran.failure)
 
-    const now = yield* read
+    const now = yield* ops.read
     const again = resolve(now)
     // A resolution that answers the same op was not stale, so the refusal is a
     // real one and travels back in its own words. A resolution that now REFUSES
@@ -108,17 +85,6 @@ export const resolvedWrite = <A>(
     if (Result.isFailure(again) || again.success.op === first.success.op) {
       return yield* Effect.fail(ran.failure)
     }
-    const done = yield* run(again.success)
+    const done = yield* ops.run(again.success, writer)
     return { at: now, request: again.success, done }
   })
-
-/** {@link resolvedWrite} against a local `Ops`, under one writer — the
- *  browser's half, whose reading is the whole set and whose caller needs that
- *  reading back to derive an undo. */
-export const runResolved = (
-  ops: Pick<Ops, "read" | "run">,
-  writer: Writer,
-  resolve: (at: Reading) => Result.Result<Request, OpFailure>,
-  reresolves: boolean,
-): Effect.Effect<Written, OpFailure> =>
-  resolvedWrite(ops.read, resolve, (request) => ops.run(request, writer), reresolves)

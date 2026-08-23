@@ -96,7 +96,6 @@ const withServer = (
       allowedOrigins: [],
       identity: DEFAULT_IDENTITY_CONFIG,
       pin: { commit: "off", push: null },
-      socketPath: null,
     })
     const url = findSaid(said, "serving")?.annotations.url
     expect(typeof url).toBe("string")

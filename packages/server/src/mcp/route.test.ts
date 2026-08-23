@@ -106,6 +106,7 @@ const withRoute = <A>(
       allowedOrigins: [],
       identity: DEFAULT_IDENTITY_CONFIG,
       mcp: { transport, token: TOKEN },
+      capture: { ops, writer: "capture", identity: DEFAULT_IDENTITY_HEADERS },
       resync: Effect.void,
     }))
 

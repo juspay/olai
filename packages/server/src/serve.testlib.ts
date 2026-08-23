@@ -94,14 +94,6 @@ export const withServe = async <A>(
      *  avatar template. Unset is the Tailscale default with no template:
      *  tests that are not about identity should not have to name it. */
     readonly identity?: IdentityConfig
-    /** Where to bind the agent socket, or nothing to bind none.
-     *
-     *  NONE BY DEFAULT, and that is not laziness: the default path is the
-     *  PER-USER one, so a suite that took it would have every concurrent test
-     *  process fighting for a single socket — and the second one to bind would
-     *  quietly serve nothing. A test that wants the socket face names a path of
-     *  its own under its own temporary directory. */
-    readonly socketPath?: string
   },
   body: (said: ReadonlyArray<Logged>) => Promise<A>,
 ): Promise<A> => {
@@ -116,7 +108,6 @@ export const withServe = async <A>(
       clientDist: options.clientDist ?? served(),
       allowedOrigins: [],
       identity: options.identity ?? DEFAULT_IDENTITY_CONFIG,
-      socketPath: options.socketPath ?? null,
       pin: { commit: options.commits ?? "off", push: null },
     })
     return yield* Effect.promise(() => body(said))

@@ -23,14 +23,10 @@
  * log span, so every line says how far into this serve it was emitted.
  */
 
-import type { Logger } from "@kolu/log"
-import { surface } from "@olai/surface"
-import { getRuntimeSocketPath, serveOverUnixSocket } from "@kolu/surface/unix-socket"
 import { AGENT_ENV, roster, whyNoAgent } from "@olai/chat"
 import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
 import { make as makeOps, TOOLS } from "@olai/ops"
-import { type Emit, emitter } from "@olai/log"
 import { Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
 import * as fs from "node:fs"
@@ -44,7 +40,6 @@ import { listen } from "./listener.ts"
 import { clientOver, serveFace } from "./mcp/face.ts"
 import { MCP_PATH, mcpTransport } from "./mcp/route.ts"
 import { bespokeFrom } from "./mcp/tools.ts"
-import { AGENT_FACE } from "./faces.ts"
 import { bind, gitWiring, type Publishers, writerAt } from "./runtime.ts"
 
 export interface ServeOptions {
@@ -68,14 +63,6 @@ export interface ServeOptions {
    *  defaults (`./gitPolicy.ts`'s `openPolicy`); what every browser draws
    *  read-only is the pin itself. */
   readonly pin: GitPin
-  /** Where the agent face's unix socket is bound, or `null` to bind none.
-   *
-   *  Unset on the command line this is `getRuntimeSocketPath({ app: "olai" })`
-   *  — the per-user convention, which is what makes `olai surface` work with no
-   *  configuration at all. `--socket` overrides it, which is what lets a
-   *  worktree's `just run` serve a socket of its own beside the user service
-   *  instead of fighting it for one path. */
-  readonly socketPath: string | null
 }
 
 /**
@@ -89,27 +76,6 @@ export interface ServeOptions {
  * and it is why an unrecoverable fault now unwinds this scope like every other
  * shutdown instead of exiting the process from under its finalizers.
  */
-/**
- * kolu's logger, spoken in olai's voice.
- *
- * `serveOverUnixSocket` narrates its own lifetime and REQUIRES somewhere to do
- * it — a pino-shaped `(fields, message)` pair, which is the seam kolu picked so
- * a consumer's logging settings are not its business. olai logs through Effect,
- * and the socket says what it has to say from Node callbacks, so the fiber's
- * settings are captured once as an {@link Emit} and every line is fired through
- * it — exactly what `./listener.ts` does with the same problem.
- *
- * Here rather than in `@olai/log` because there is one caller: a package that
- * exported this would be a package that depends on kolu's logger to describe
- * olai's, for a seam one file needs.
- */
-const narrating = (say: Emit): Logger => ({
-  debug: (fields, message) => say(Effect.annotateLogs(Effect.logDebug(message), fields)),
-  info: (fields, message) => say(Effect.annotateLogs(Effect.logInfo(message), fields)),
-  warn: (fields, message) => say(Effect.annotateLogs(Effect.logWarning(message), fields)),
-  error: (fields, message) => say(Effect.annotateLogs(Effect.logError(message), fields)),
-})
-
 export const serve = (options: ServeOptions) =>
   Effect.gen(function*() {
     const { root, store } = yield* openDirectory(options.root)
@@ -248,55 +214,6 @@ export const serve = (options: ServeOptions) =>
       transport,
     })
 
-    /**
-     * THE FOURTH CLIENT, and the one that needs no browser and no bearer.
-     *
-     * `/mcp`'s token is minted per process and handed to nobody but the chat,
-     * so from a terminal there was no door at all — which is the whole reason
-     * `POST /capture` existed. This is the general one: the same surface, the
-     * same `AGENT_FACE` allowlist an agent gets, over a `0700` per-user socket
-     * where the MODE is the gate. There is no token to mint, nothing secret to
-     * paste, and nothing to re-issue when a key rotates.
-     *
-     * THE WRITER IS `cli`, so `X-Olai-Writer` says which of the four doors a
-     * commit came through, exactly as `web`, `mcp` and `chat-agent` already do.
-     *
-     * AND THE IDENTITY IS THE OS USER. A `0700` socket in a private directory
-     * can only be dialled by the account that owns it, so who is on the other
-     * end is not a claim anybody makes — it is the only thing the peer can be.
-     * That is the identity a capture is attributed to here (ruled, human
-     * 2026-08-22); `/mcp` and the in-process panel above know nobody and pass
-     * nothing, so a capture through those carries no attribution rather than a
-     * made-up one.
-     *
-     * A FAILURE TO BIND IS NOT A FAILURE TO SERVE. The socket is an extra face
-     * on a server whose reason for existing is the page: another process
-     * already holding the path, or a runtime directory somebody else made
-     * world-readable, must not stop `olai web` from coming up. It is narrated
-     * and the server carries on — the CLI's own "nobody serving at …" is the
-     * far end of the same fact, and it names the path.
-     */
-    if (options.socketPath !== null) {
-      const say = yield* emitter
-      const socket = yield* Effect.promise(() =>
-        serveOverUnixSocket({
-          socketPath: options.socketPath as string,
-          group: surface.group,
-          handlers: writerAt(wired.bound, ops, "cli"),
-          expose: AGENT_FACE,
-          log: narrating(say),
-        })
-      )
-      if (socket.outcome.kind === "listening") {
-        yield* Effect.addFinalizer(() => Effect.sync(() => socket.close()))
-      } else {
-        yield* Effect.annotateLogs(
-          Effect.logWarning("olai: the agent socket was not bound"),
-          { socketPath: socket.socketPath, why: socket.outcome.kind },
-        )
-      }
-    }
-
     // Port 0 plus a remembered URL is how the next process of this
     // worktree asks for the same address: the first boot asks the OS, the
     // file records what it got, and a later boot with `--port 0` reads it
@@ -313,11 +230,15 @@ export const serve = (options: ServeOptions) =>
         port,
         bound: wired.bound,
         mcp: { transport, token },
-        // `POST /olai/resync` — force a re-read of the disk. Handed the
-        // STORE's own operation rather than a runtime member, because nothing
-        // about it is on the surface: no tab draws it and no agent calls it. It
-        // is for the case the watcher cannot see, which is a change made where
-        // no inotify reaches.
+        // The quick-capture door, and the fourth face composed HERE: a share
+        // sheet is not the browser and is not an agent, so it writes as
+        // `capture` and the trailer says which door a line came in by. The
+        // writer travels beside the ops layer, exactly as `bind` above takes
+        // it — a route that named its own would be a route that could name
+        // somebody else's. Handed the ops layer directly rather than a runtime
+        // member, because nothing about this door is on the surface: no tab
+        // draws it and no agent calls it.
+        capture: { ops, writer: "capture", identity: options.identity.headers },
         resync: store.resync,
       }),
       () => runtime.stopped,
