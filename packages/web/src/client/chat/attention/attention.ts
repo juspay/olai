@@ -32,8 +32,8 @@
  * one `if` each rather than one "notify" call: the chime needs only that the
  * page has been touched at some point ({@link ./chime.ts}), the badge needs
  * nothing at all ({@link ./badge.ts}), and only the banner needs the OS's
- * consent ({@link ./banner.ts}) — which the ruling says must not take the
- * other two down with it when it is refused.
+ * consent (`../../notify.ts`, the origin's one seam) — which the ruling says
+ * must not take the other two down with it when it is refused.
  *
  * WHAT IS NOT HERE is a turn ending. Turn-complete is deliberately silent
  * (ruled): an agent that finished will still be finished in five minutes, and
@@ -41,7 +41,7 @@
  * matters with it.
  */
 
-import { type Accessor, createEffect, onCleanup } from "solid-js"
+import { type Accessor, createEffect, onCleanup, untrack } from "solid-js"
 
 import type { ChatState } from "@olai/surface"
 
@@ -49,7 +49,7 @@ import { alertsOn, alertSoundOn } from "../../settings/alerts.ts"
 import { type Awaiting, alarmFor } from "./alarm.ts"
 import { askPending } from "./asked.ts"
 import { wear } from "./badge.ts"
-import { onBannerPress, raise } from "./banner.ts"
+import { notify, onNotifyPress } from "../../notify.ts"
 import { armChime, chime } from "./chime.ts"
 import { noticeOf } from "./notice.ts"
 import { reveal } from "./reveal.ts"
@@ -71,7 +71,7 @@ export const createAttention = (state: Accessor<ChatState>): void => {
   // transcript to take up when it mounts ({@link ./reveal.ts}). It covers the
   // cold start too — a press that had to OPEN this window carries its payload
   // in the URL, and the seam hands it over at startup.
-  onCleanup(onBannerPress(() => reveal()))
+  onCleanup(onNotifyPress(() => reveal()))
 
   // A FOLD over the readings, which is what this is: the effect is handed the
   // last one it took and answers with this one, so "did something ARRIVE" can
@@ -89,11 +89,14 @@ export const createAttention = (state: Accessor<ChatState>): void => {
     wear(on ? alarm.badge : 0)
     if (on && alarm.alert) {
       if (alertSoundOn()) chime()
-      // The words are taken NOW and the banner raised after — asking for
-      // permission is a round trip, and what a banner is ABOUT must not be
-      // re-read on the other side of one.
-      const notice = noticeOf(now, askPending())
-      void raise(notice)
+      // UNTRACKED, and both halves of that matter. The words are taken NOW
+      // rather than on the far side of the permission round trip, because what
+      // a notification is ABOUT must not be re-read after it was raised. And
+      // they are taken WITHOUT subscribing: the conversation's title and the
+      // open panel's snapshot are things this fold has no business waking for
+      // — a session being retitled would otherwise re-run the whole reading.
+      const notice = untrack(() => noticeOf(now, askPending()))
+      void notify(notice)
     }
     return here
   }, undefined)

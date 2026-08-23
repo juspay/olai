@@ -21,24 +21,15 @@
  * (`ChatState.asking`), which the server counts from these very rows and which
  * every tab has whether its panel is open or not; this is only the words.
  *
- * WHAT IT READS is the reactivity lesson `../last.ts` was rewritten for
- * (docs/brainstorming/reactivity-after-the-flip.md §4.4), with one difference
- * that matters. A row's `kind` and `seq` are fixed the moment it exists, so
- * membership is what moves the answer — but an ask row's OUTCOME is not: it
- * goes from `null` to answered under a key that never moves. So an ask row's
- * value IS tracked and every other row's is not, which costs one read per ask
- * in a conversation rather than one per row per token.
+ * WHAT IT READS is `../newest.ts`, which owns the reactivity lesson both this
+ * and the pill's snapshot were written against
+ * (docs/brainstorming/reactivity-after-the-flip.md §4.4) — and the one
+ * departure this makes from it is argued at the pick below.
  */
 
-import {
-  type Accessor,
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-  untrack,
-} from "solid-js"
+import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
 
+import { createNewest } from "../newest.ts"
 import type { Chat } from "../state.ts"
 
 /**
@@ -70,50 +61,33 @@ const [pending, setPending] = createSignal<Asked | undefined>(undefined, {
  *  panel to have seen one. */
 export const askPending: Accessor<Asked | undefined> = pending
 
+
 /**
  * Keep the snapshot for as long as this panel is open.
  *
- * TWO STEPS, like `createLastAgent`: WHICH row is the waiting question is
- * mostly a fact about membership, and what that row SAYS is a fact about one
- * row. The newest waiting one, because a person answers the question in front
- * of them and the newest is the one at the foot of the transcript.
+ * The scan is `../newest.ts`, whose whole subject is the rule this has to
+ * follow — track membership, never what a row says — and the ONE place this
+ * departs from it is the reason the escape hatch is there: a question's
+ * OUTCOME moves from `null` to answered under a key that never moves, so this
+ * pick takes the tracked read itself, for ask rows and no others. That costs
+ * one read per question in a conversation rather than one per row per token.
+ *
+ * The NEWEST waiting one, because a person answers the question in front of
+ * them and the newest is the one at the foot of the transcript.
  */
 export const createAsked = (chat: Chat): void => {
-  const waiting = createMemo<string | undefined>(() => {
-    let bestKey: string | undefined
-    let bestSeq = -1
-    for (const key of chat.rows()) {
-      const at = chat.entry(key)
-      const row = untrack(at)
-      // A key whose value has not landed is the one thing membership cannot
-      // say, so THAT read is tracked — it is what wakes this when the row
-      // arrives.
-      if (row === undefined) {
-        at()
-        continue
-      }
-      // `kind` is fixed the moment a row exists, so everything that is not a
-      // question is dismissed without subscribing to it.
-      if (row.kind !== "ask") continue
-      // ... and a question's OUTCOME is not fixed, so this one is tracked.
-      const live = at()
-      if (live?.kind !== "ask" || live.ask.outcome !== null) continue
-      if (live.seq >= bestSeq) {
-        bestSeq = live.seq
-        bestKey = key
-      }
-    }
-    return bestKey
+  const waiting = createNewest<Asked>(chat, (row, at) => {
+    // `kind` is fixed the moment a row exists, so everything that is not a
+    // question is dismissed without subscribing to it.
+    if (row.kind !== "ask") return undefined
+    // ... and a question's outcome is not, so this row's value is read
+    // tracked. The value it answers with is the one already in hand.
+    at()
+    return row.ask.outcome === null ? { id: row.id, text: row.text } : undefined
   })
 
   createEffect(() => {
-    const key = waiting()
-    const row = key === undefined ? undefined : chat.entry(key)()
-    setPending(
-      row === undefined || row.kind !== "ask"
-        ? undefined
-        : { id: row.id, text: row.text },
-    )
+    setPending(waiting())
   })
 
   // The panel is shut (or replaced): nobody is watching the transcript, so

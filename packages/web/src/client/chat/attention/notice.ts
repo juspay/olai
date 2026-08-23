@@ -21,57 +21,19 @@
  * and that it is waiting, which is the honest sentence, rather than a stale
  * question from the last time the panel was open.
  *
- * THE TAG is per CONVERSATION and not per question, and that is the multi-
- * window discipline the framework's seam asks for (`@kolu/surface-app/notify`):
- * two tabs of the same olai both fire, and the OS REPLACES a same-tag banner
- * rather than stacking a second one. Per question it would stack — one panel,
- * one "the agent is waiting on you", and a pile of them is noise. What is
- * durable here is the badge, which is a count and says so.
+ * THE TAG is per CONVERSATION and not per question, which is the multi-window
+ * discipline the seam asks for (`../../notify.ts`): two tabs of the same olai
+ * both fire, and the OS REPLACES a same-tag notification rather than stacking
+ * a second one. Per question it would stack — one panel, one "the agent is
+ * waiting on you", and a pile of them is noise. What is durable here is the
+ * badge, which is a count and says so.
  */
 
 import type { ChatState } from "@olai/surface"
 
+import type { Notice } from "../../notify.ts"
 import type { Asked } from "./asked.ts"
 import { previewText } from "../last.ts"
-
-/**
- * What clicking the banner asks for: this conversation, at whatever it is
- * waiting on.
- *
- * A struct with one word in it rather than a bare string, because it is what
- * the framework hands BACK through the worker, from a banner that may be older
- * than the tab reading it: {@link askedFor} is the gate that keeps a
- * pre-upgrade shape — or the `{}` a degraded worker substitutes — from being
- * mis-routed as this one.
- *
- * It does NOT name a question, and that is a decision rather than an omission.
- * A press means "the agent is waiting on me, take me there", and what is
- * waiting is a fact the panel has when the press lands and the banner did not
- * necessarily have when it was raised — a question can be answered in another
- * tab in between, and a banner raised over a shut panel never knew which row it
- * was about at all. So the panel answers with what is waiting NOW, which is
- * both simpler and more often right than a row id from five minutes ago.
- */
-export interface AskClick {
-  readonly kind: "ask"
-}
-
-/** Read a click envelope the worker relayed, or `undefined` for anything that
- *  is not one of ours. Handed to `createNotify` as its validator, so a stale
- *  or empty payload is dropped loudly rather than routed. */
-export const askedFor = (data: unknown): AskClick | undefined => {
-  if (typeof data !== "object" || data === null) return undefined
-  return (data as { kind?: unknown }).kind === "ask" ? { kind: "ask" } : undefined
-}
-
-/** A banner, as the seam takes it. */
-export interface Notice {
-  /** The dedup key — same tag, same banner replaced. Per conversation. */
-  readonly tag: string
-  readonly title: string
-  readonly body: string
-  readonly data: AskClick
-}
 
 /** How much of the question's first line a banner is given. Two lines of a
  *  notification on every platform that draws one; past this the OS truncates
@@ -84,15 +46,31 @@ const LINE = 140
  *  so the line reads as the app rather than as an empty box. */
 const UNNAMED = "olai"
 
-/** The question's opening line, collapsed and clamped — or `undefined` where
- *  there are no words at all. `previewText` is the pill's clamp (`../last.ts`),
- *  reused rather than respelled: what "as much as a small face can draw" means
- *  is one decision. Exported for the unit test, which is where the blank-line
- *  and clamp cases read as themselves rather than as a banner's second line. */
-export const firstLine = (text: string): string | undefined => {
-  for (const line of text.split("\n")) {
-    const said = previewText(line, LINE)
+/**
+ * The question's opening line, collapsed and clamped — or `undefined` where
+ * there are no words at all.
+ *
+ * `openingLine` and NOT `firstLine`, which `@olai/format` already exports and
+ * this client already draws documents with (`document/DocRef.tsx`): that one
+ * strips frontmatter and heading marks and answers `""`, so two of the name in
+ * one client is a name a reader resolves wrongly.
+ *
+ * SCANNED rather than split, which is the format's own reason one file over: a
+ * `split` allocates every line of a long question to throw all but one away.
+ * `previewText` is the pill's clamp (`../last.ts`), reused rather than
+ * respelled — what "as much as a small face can draw" means is one decision.
+ *
+ * Exported for the unit test, which is where the blank-line and clamp cases
+ * read as themselves rather than as a banner's second line.
+ */
+export const openingLine = (text: string): string | undefined => {
+  let from = 0
+  while (from <= text.length) {
+    const end = text.indexOf("\n", from)
+    const said = previewText(text.slice(from, end === -1 ? undefined : end), LINE)
     if (said !== "") return said
+    if (end === -1) return undefined
+    from = end + 1
   }
   return undefined
 }
@@ -113,8 +91,8 @@ export const noticeOf = (
  *  whether to get up is owed the size of what is waiting. */
 const bodyOf = (asking: number, asked: Asked | undefined): string => {
   const others = Math.max(0, asking - 1)
-  const more = others === 0 ? "" : others === 1 ? " (and 1 more)" : ` (and ${others} more)`
-  const line = asked === undefined ? undefined : firstLine(asked.text)
+  const more = others === 0 ? "" : ` (and ${others} more)`
+  const line = asked === undefined ? undefined : openingLine(asked.text)
   return line === undefined
     ? `is waiting on your answer${more}`
     : `${line}${more}`

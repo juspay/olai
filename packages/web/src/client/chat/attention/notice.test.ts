@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { askedFor, firstLine, noticeOf } from "./notice.ts"
+import { noticeOf, openingLine } from "./notice.ts"
 
 const conversation = (title: string | null, id = "sess-1") => ({
   session: { id, title, updatedAt: null },
@@ -61,30 +61,15 @@ test("a press asks for the conversation, not a row that may be gone by then", ()
 // ── the first line ──────────────────────────────────────────────────────
 
 test("blank lines above the question are skipped", () => {
-  expect(firstLine("\n   \nWhich timber?\nOak or birch.")).toBe("Which timber?")
+  expect(openingLine("\n   \nWhich timber?\nOak or birch.")).toBe("Which timber?")
 })
 
 test("a question with no words at all has no line", () => {
-  expect(firstLine("   \n\n  ")).toBeUndefined()
+  expect(openingLine("   \n\n  ")).toBeUndefined()
 })
 
 test("a very long first line is clamped rather than left to the OS", () => {
-  const line = firstLine("x".repeat(400))
+  const line = openingLine("x".repeat(400))
   expect(line?.length).toBe(140)
   expect(line?.endsWith("…")).toBe(true)
-})
-
-// ── what comes back through the worker ──────────────────────────────────
-
-test("a click envelope of ours is read", () => {
-  expect(askedFor({ kind: "ask" })).toEqual({ kind: "ask" })
-})
-
-test("anything that is not one of ours is dropped", () => {
-  // What a stale worker or a pre-upgrade banner substitutes. The framework
-  // warns and drops rather than routing it (`@kolu/surface-app/notify`).
-  expect(askedFor({})).toBeUndefined()
-  expect(askedFor(null)).toBeUndefined()
-  expect(askedFor("ask:3")).toBeUndefined()
-  expect(askedFor({ kind: "terminal" })).toBeUndefined()
 })

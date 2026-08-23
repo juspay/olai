@@ -81,11 +81,12 @@ const icon = (): HTMLLinkElement => {
 let shown: Palette | undefined
 let waiting = false
 
-/** What the tab was called before anything marked it. Captured the first time
- *  a mark is asked for rather than at import, so a module that only wants a
- *  palette does not need a document — and captured at all because putting the
- *  name BACK is as much of this job as putting the mark on. */
-let plainTitle: string | undefined
+/** The tab's own NAME, without any mark on it — read the first time one is
+ *  composed rather than at import, so a module that only wants a palette does
+ *  not need a document. Nothing else in this client writes `document.title`
+ *  (`../claims.test.ts` holds that), so reading it once is reading it from the
+ *  one writer there is; the day there is a second, this is where they meet. */
+let name: string | undefined
 
 /** What a marked tab wears in front of its name. A mark and not a count: the
  *  number belongs on an app icon, which is a place that has one, and `●3 olai`
@@ -127,7 +128,13 @@ export const paintChrome = (palette: Palette): void => {
 export const markWaiting = (mark: boolean): void => {
   if (mark === waiting) return
   waiting = mark
-  plainTitle ??= document.title
-  document.title = mark ? `${MARK} ${plainTitle}` : plainTitle
+  paintTitle()
   if (shown !== undefined) paintIcon(shown)
+}
+
+/** The tab's name and whatever is on it, composed. One writer, so the mark
+ *  cannot be applied twice or lost by whoever writes last. */
+const paintTitle = (): void => {
+  name ??= document.title
+  document.title = waiting ? `${MARK} ${name}` : name
 }

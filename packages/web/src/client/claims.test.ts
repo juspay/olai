@@ -161,6 +161,16 @@ test("only SaidLine.tsx reads a said-line's mood", () => {
   expect(filesSpelling(/data-tone=\{/)).toEqual(["SaidLine.tsx"])
 })
 
+// chrome.ts's claim, and the one that makes its title composer honest: what a
+// tab is CALLED is written in one place, so a mark applied to it cannot be
+// clobbered by a second writer and a second writer cannot lose the mark. It is
+// a sweep rather than a comment because the failure is silent — a title set
+// somewhere else looks right until the mark clears and puts back a name from
+// before it.
+test("only theme/chrome.ts writes the tab's title", () => {
+  expect(filesSpelling(/document\.title\s*=/)).toEqual([path.join("theme", "chrome.ts")])
+})
+
 test("only layer.ts spells a z-index", () => {
   expect(filesSpelling(/(?:^|[\s"'`])z-(?:\[\d+\]|\d+|auto)(?=$|[\s"'`])/m)).toEqual(["layer.ts"])
 })
@@ -190,7 +200,7 @@ test("statusOf is gone: the type carries a tool row's status", () => {
 // Live or nothing: an offline shell would show outlines that had stopped being
 // true. The origin has a worker again — the framework's fetch-less NOTIFICATION
 // worker, which is the only way an installed PWA can raise a notification at
-// all (`chat/attention/banner.ts`) — and it caches nothing, so the doctrine is
+// all (`notify.ts`) — and it caches nothing, so the doctrine is
 // untouched. What this sweep now holds is that the REGISTRATION is one call in
 // one file: a second one would be a second policy about what this origin's one
 // worker is, and the register-or-retire invariant is the framework's to own.

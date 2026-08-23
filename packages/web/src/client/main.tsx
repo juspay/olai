@@ -25,7 +25,7 @@ import { trackVisibleViewport } from "./viewport.ts"
 // framework's NOTIFICATION worker (packages/server/src/listener.ts says why):
 // registering it is what makes `registration.showNotification` reachable, and
 // that is the only notification path an installed PWA has at all
-// (`./chat/attention/banner.ts`). It is still not a caching worker — it
+// (`./notify.ts`). It is still not a caching worker — it
 // registers no `fetch` handler, so "live or nothing" is untouched — and on
 // activate it purges whatever an older olai left and reloads the tabs that
 // worker was controlling, which is the self-healing this call used to be

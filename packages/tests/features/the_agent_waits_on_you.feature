@@ -55,7 +55,7 @@ Feature: The agent waits on you, and says so
     # what lets the panel be shut BEFORE it lands: asking takes an open panel
     # and a press of Send.
     When I ask the agent "ask later"
-    And I put the agent panel away
+    And I minimize the agent panel
     And the agent is released
     # The panel was SHUT when the question landed, so this tab has no
     # transcript subscription and no words to quote — the banner says the
@@ -91,7 +91,7 @@ Feature: The agent waits on you, and says so
     # scroll, and the panel was SHUT — so opening it is what mounts the
     # transcript, and the request has to outlive the press until the rows land.
     When I ask the agent "ask later"
-    And I put the agent panel away
+    And I minimize the agent panel
     And the agent is released
     Then a notification says "is waiting on your answer"
     And the tab says something is waiting
@@ -107,7 +107,7 @@ Feature: The agent waits on you, and says so
     # panel and answered from another tab. Here the same tab answers, which is
     # enough to prove it is recomputed rather than dismissed.
     When I ask the agent "ask later"
-    And I put the agent panel away
+    And I minimize the agent panel
     And the agent is released
     Then the tab says something is waiting
     When the notification is pressed
@@ -124,7 +124,7 @@ Feature: The agent waits on you, and says so
     When I set Alerts to "off"
     And I press Escape on the preferences
     And I ask the agent "ask later"
-    And I put the agent panel away
+    And I minimize the agent panel
     And the agent is released
     Then the agent button says the agent is waiting on me
     And no notification has been raised

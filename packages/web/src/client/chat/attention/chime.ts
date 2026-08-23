@@ -33,7 +33,7 @@ let audio: AudioContext | undefined
 const NO_CHIME = "chime"
 
 const noChime = (why: string, cause?: unknown): void => {
-  grumble(NO_CHIME, `olai: no chime — `, cause)
+  grumble(NO_CHIME, `olai: no chime — ${why}`, cause)
 }
 
 const unlock = (): void => {

@@ -36,7 +36,16 @@
  * A browser that refuses to badge is warned about on the console, once, and
  * never throws: this is the third of three ways a person is told, and the
  * first two have already happened by the time it runs.
+ *
+ * `@kolu/surface-app`'s own `setAttention` does this job and is deliberately
+ * NOT used, which is worth writing down rather than leaving as an unremarked
+ * parallel: it is reachable only through `SurfaceAppProvider`, which this root
+ * does not ride (`../../main.tsx`), and it writes BOTH channels
+ * unconditionally where the ruling here is one or the other. What IS taken
+ * from the framework is the predicate — see {@link installed}.
  */
+
+import { isInstalledFromEnv } from "@kolu/surface-app/solid"
 
 import { grumble } from "../../grumble.ts"
 import { markWaiting } from "../../theme/chrome.ts"
@@ -50,21 +59,38 @@ export type Channel = "app" | "tab"
 export const channelFor = (badging: boolean, installed: boolean): Channel =>
   badging && installed ? "app" : "tab"
 
+/** Every way a manifest can ask to be opened — `standalone` is what olai's
+ *  names, and the other two are what a browser may give instead. */
+const INSTALLED_MODES = ["standalone", "minimal-ui", "fullscreen"]
+
 /**
  * Whether this page is running as an INSTALLED app rather than in a tab.
  *
- * `display-mode` covers every way a manifest can ask to be opened —
- * `standalone` is what olai's manifest names, and the other three are what a
- * browser may give instead — and `navigator.standalone` is iOS's own answer,
- * which predates the media query and is still the only one Safari on a home
- * screen gives.
+ * THE PREDICATE IS THE FRAMEWORK'S (`isInstalledFromEnv`), over the two facts
+ * it names: any installed display mode, and iOS Safari's legacy
+ * `navigator.standalone`, which predates the media query and is still the only
+ * answer a home screen gives there. Written here it was a SECOND answer to one
+ * question, and the two had already diverged — the local copy counted
+ * `window-controls-overlay` and the framework does not.
+ *
+ * READ ONCE. A display mode does not change under a running document in any
+ * way this cares about, and `wear` is called on every reading of the
+ * conversation: three `MediaQueryList` objects per call is three allocations
+ * for an answer that settled when the window opened.
  */
+let running: boolean | undefined
+
 const installed = (): boolean => {
-  const legacy = (navigator as { standalone?: boolean }).standalone === true
-  if (legacy) return true
-  return ["standalone", "minimal-ui", "fullscreen", "window-controls-overlay"].some(
-    (mode) => window.matchMedia(`(display-mode: ${mode})`).matches,
-  )
+  running ??= isInstalledFromEnv({
+    // Not read by `isInstalledFromEnv` — it is `canInstallFromEnv`'s field —
+    // and answered honestly rather than faked, because the type asks for it.
+    isSecureContext: window.isSecureContext,
+    displayModeStandalone: INSTALLED_MODES.some(
+      (mode) => window.matchMedia(`(display-mode: ${mode})`).matches,
+    ),
+    navigatorStandalone: (navigator as { standalone?: boolean }).standalone === true,
+  })
+  return running
 }
 
 /** Its own key, so a badging refusal cannot be silenced by an unrelated one
@@ -77,14 +103,16 @@ const noBadge = (cause: unknown): void => {
   )
 }
 
-/**
- * Carry `count` questions on the icon, or clear it with `0`.
- *
- * Idempotent by construction — it writes what the reading says every time
- * rather than tracking what it wrote — so a caller may hand it the same number
- * on every frame.
- */
+/** What the icon is wearing. The caller hands this a number on every reading
+ *  of the conversation — including every focus and blur — so a count that has
+ *  not moved must not be a platform call. The tab channel has the same guard
+ *  one layer down (`../../theme/chrome.ts`); this is the app channel's half. */
+let worn = -1
+
+/** Carry `count` questions on the icon, or clear it with `0`. */
 export const wear = (count: number): void => {
+  if (count === worn) return
+  worn = count
   const badging = "setAppBadge" in navigator
   if (channelFor(badging, installed()) === "app") {
     const nav = navigator as {

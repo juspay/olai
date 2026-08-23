@@ -170,6 +170,18 @@ export function Toggle() {
  * would notice mostly run on a desktop viewport.
  */
 function Face(props: { readonly chat: Chat }) {
+  // WHAT AN OPEN PANEL PUBLISHES for the things outside it: the last agent row
+  // for the minimized face (`./last.ts`), and the waiting question for the
+  // notification (`./attention/asked.ts`). Here rather than in the two shells,
+  // for the reason everything else in this component is here — three things in
+  // a fixed order kept identical in two places 100 lines apart is one place
+  // for the next to be added and another for it to be forgotten. It matters
+  // more for these than for the chrome: both die with this owner, and a shell
+  // that forgot the second would leave a stale question in a system
+  // notification, silently, which is the one thing that snapshot exists to
+  // prevent.
+  createLastAgent(props.chat)
+  createAsked(props.chat)
   // WHICH of the four, decided in one place and asserted without a browser
   // ({@link ./face.ts}) — the precedence has been re-decided once already, and
   // what it decides is which of four things a person is looking at.
@@ -294,12 +306,6 @@ function Body(props: { readonly chat: Chat }) {
 function DesktopDock() {
   const chat = createChat()
 
-  // Keep the last agent row for the minimized face, and the waiting question
-  // for the banner; both die with this owner, which is what makes the second
-  // one honest when the panel shuts (`./attention/asked.ts`).
-  createLastAgent(chat)
-  createAsked(chat)
-
   return (
     <aside
       class={`fixed right-0 top-[var(--height-header)] ${LAYER.page} flex h-[calc(var(--visible-h,100dvh)-var(--height-header))] max-w-full min-w-0 flex-col border-l border-rule/70 bg-desk`}
@@ -334,9 +340,6 @@ function MobileSheet() {
   /** True when the last pointer gesture moved enough to count as a drag
    *  rather than a tap-to-cycle. */
   let dragged = false
-
-  createLastAgent(chat)
-  createAsked(chat)
 
   const heightPct = () => {
     const drag = dragPct()

@@ -69,8 +69,8 @@ import { type Anchor, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
 import type { GitState } from "@olai/format"
 
-import { askToNotify, bannerConsent } from "../chat/attention/banner.ts"
 import { createGitPolicy } from "../commit/state.ts"
+import { askToNotify, notifyConsent } from "../notify.ts"
 import { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } from "./alerts.ts"
 import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
@@ -119,16 +119,13 @@ const DENSITY_CHOICES: ReadonlyArray<{ value: Density; label: string }> = [
   { value: "open", label: "Open" },
 ]
 
-/** Alerts: Off / On — whether the agent stopping on a question you cannot see
- *  reaches you at all. */
+/** Off / On, for both alert rows — being told, and being told AUDIBLY. One
+ *  constant because they are the same pair and a second name for it is a
+ *  second thing to keep in step. */
 const ALERT_CHOICES = [
   { value: "off", label: "Off" },
   { value: "on", label: "On" },
 ] as const
-
-/** Alert sound: Off / On — the same pair, because it is the same kind of
- *  claim one step in. */
-const SOUND_CHOICES = ALERT_CHOICES
 
 /** Hidden outlines: Hidden / Shown — the Done row's pair one subject over,
  *  and the same two words, because it is the same kind of claim: a list of
@@ -245,7 +242,7 @@ export function Panel(props: {
 
       <Row label="Alert sound" pref="alert-sound" hint={soundHint()}>
         <Segmented
-          choices={SOUND_CHOICES}
+          choices={ALERT_CHOICES}
           value={alertSoundOn() ? "on" : "off"}
           onPick={(value) => setAlertSoundOn(value === "on")}
           frozen={!alertsOn()}
@@ -377,7 +374,7 @@ export function Panel(props: {
  *
  * Alerts are on by default (ruled), so there is no "first enable" press for
  * the browser's own prompt to ride. The banner asks for itself the first time
- * it is actually wanted (`../chat/attention/banner.ts`) — which is the moment
+ * it is actually wanted (`../notify.ts`) — which is the moment
  * the prompt's sentence is about something happening — but Firefox and Safari
  * both REFUSE a prompt raised from a background event, and a person who was
  * away when the question arrived is exactly the person that rule is about. So
@@ -391,7 +388,7 @@ export function Panel(props: {
  */
 function AllowNotify() {
   return (
-    <Show when={alertsOn() && bannerConsent() === "default"}>
+    <Show when={alertsOn() && notifyConsent() === "default"}>
       <button
         type="button"
         // `mt-2` here rather than on a wrapper in `./Row.tsx`: the slot is
@@ -457,7 +454,7 @@ const alertsHint = (): string => {
     "behind something else — chimes, raises a system notification, and marks " +
     "the app's icon until you come back. A question that arrives in front of " +
     "you does none of that: the form appearing is the alert."
-  switch (bannerConsent()) {
+  switch (notifyConsent()) {
     case "granted":
       return said
     case "denied":

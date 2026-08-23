@@ -65,19 +65,6 @@ Given("the notification worker is ready", async function (this: OlaiWorld) {
   );
 });
 
-// ── looking away ───────────────────────────────────────────────────────
-
-/** Put the panel away — one of the three things that make the conversation
- *  unwatched (`client/chat/attention/watching.ts`), and the only one a headless
- *  browser can be driven into: it cannot be sent behind another window, and its
- *  tab cannot be hidden. */
-When("I put the agent panel away", async function (this: OlaiWorld) {
-  const panel = this.page.locator(CHAT_PANEL);
-  if (!(await panel.isVisible())) return;
-  await this.page.locator(CHAT_TOGGLE).click();
-  await panel.waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
-});
-
 /**
  * The header toggle carries `data-asking` and always has — the one thing a
  * shut panel says on screen, and a button nobody is looking at.

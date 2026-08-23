@@ -12,8 +12,9 @@
  * Busy pulse still comes from the cheap `chat` cell.
  */
 
-import { type Accessor, createEffect, createMemo, createSignal, untrack } from "solid-js"
+import { type Accessor, createEffect, createSignal } from "solid-js"
 
+import { createNewest } from "./newest.ts"
 import type { Chat } from "./state.ts"
 
 const [lastAgentText, setLastAgentText] = createSignal<string | undefined>(
@@ -60,37 +61,17 @@ export const rememberAgentText = (text: string | undefined): void => {
  * (docs/brainstorming/reactivity-after-the-flip.md §4.4). A thousand-row
  * conversation paid a thousand reads per token.
  *
- * The KEY is memoised off `chat.rows()`, which is the fold's own key list and
- * hands back THE SAME ARRAY for a frame that added no row (`./order.ts`). A
- * row's `kind` and `seq` are fixed the moment it exists, so nothing but
- * membership can move this answer — hence the `untrack` around the entries a
- * scan does resolve.
+ * THE SCAN ITSELF is `./newest.ts`, which is where that rule lives now that a
+ * second reader wants it (`./attention/asked.ts`). What is left here is the
+ * two things this pill actually decides: which row it is about, and that the
+ * ROW is read tracked afterwards — the pick answers with the row's accessor
+ * rather than its text, so a token landing on the last agent message wakes one
+ * read and not a walk.
  */
 export const createLastAgent = (chat: Chat): void => {
-  const last = createMemo<string | undefined>(() => {
-    let bestKey: string | undefined
-    let bestSeq = -1
-    for (const key of chat.rows()) {
-      const entry = chat.entry(key)
-      const row = untrack(entry)
-      // A key whose value has not landed is the one thing membership cannot
-      // say, so THAT read is tracked: it is what wakes this when the row
-      // arrives. Everything else about a row is fixed the moment it exists.
-      if (row === undefined) {
-        entry()
-        continue
-      }
-      if (row.kind !== "agent") continue
-      if (row.seq >= bestSeq) {
-        bestSeq = row.seq
-        bestKey = key
-      }
-    }
-    return bestKey
-  })
+  const last = createNewest(chat, (row, at) => (row.kind === "agent" ? at : undefined))
   createEffect(() => {
-    const key = last()
-    rememberAgentText(key === undefined ? undefined : chat.entry(key)()?.text)
+    rememberAgentText(last()?.()?.text)
   })
 }
 
