@@ -28,10 +28,74 @@
 
 import { codec, type Store as OutlineStore } from "@olai/ops"
 import * as Store from "@olai/store"
-import { Effect } from "effect"
-import { resolve } from "node:path"
+import { Data, Deferred, Effect, Exit, type Scope } from "effect"
+import * as fs from "node:fs"
+import { dirname, basename, resolve } from "node:path"
 
 import { holdVault } from "./lock.ts"
+
+/**
+ * The directory we opened is no longer there.
+ *
+ * Scratch vaults the e2e suite copies into `/tmp` used to outlive the suite:
+ * the harness deleted the tree and the server kept running over a path that
+ * named nothing. A process whose subject has vanished has nothing to serve,
+ * so this is a stop, not a retry.
+ */
+export class RootGone extends Data.TaggedError("RootGone")<{
+  readonly root: string
+}> {
+  override get message(): string {
+    return `the served directory is gone: ${this.root}`
+  }
+}
+
+/**
+ * Settle with {@link RootGone} once `root` is no longer a directory.
+ *
+ * The watch is on the PARENT, because a watch on `root` itself is dropped
+ * when that directory is unlinked and some kernels then say nothing. A
+ * 2-second poll is the backstop for an event the watch lost. Interrupted
+ * with the serve, so a signal does not leave a watcher behind.
+ */
+export const watchRoot = (
+  root: string,
+): Effect.Effect<never, RootGone, Scope.Scope> =>
+  Effect.gen(function*() {
+    const gone = yield* Deferred.make<never, RootGone>()
+    let settled = false
+    const fire = (): void => {
+      if (settled) return
+      try {
+        if (fs.statSync(root).isDirectory()) return
+      } catch {
+        // ENOENT, ENOTDIR, a dangling symlink: the subject is gone.
+      }
+      settled = true
+      Deferred.doneUnsafe(gone, Exit.fail(new RootGone({ root })))
+    }
+    fire()
+    const parent = dirname(root)
+    const name = basename(root)
+    let watcher: fs.FSWatcher | undefined
+    try {
+      watcher = fs.watch(parent, (_event, filename) => {
+        if (filename === null || filename === name) fire()
+      })
+      watcher.on("error", () => fire())
+    } catch {
+      // The parent would not take a watch. The poll is then the whole of it.
+    }
+    const tick = setInterval(fire, 2_000)
+    yield* Effect.addFinalizer(() =>
+      Effect.sync(() => {
+        settled = true
+        clearInterval(tick)
+        watcher?.close()
+      }),
+    )
+    return yield* Deferred.await(gone)
+  })
 
 export interface Directory {
   /** The directory, resolved. Resolved rather than as typed: it is what every

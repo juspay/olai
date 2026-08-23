@@ -135,13 +135,17 @@ test("PIN (teardown): the terminal agent drops in-flight fetches on stop", () =>
 });
 
 test("PIN (teardown): AfterAll kills each server's process group before the browser closes", () => {
-  const src = fs.readFileSync(
+  const hooks = fs.readFileSync(
     path.join(import.meta.dirname, "support", "hooks.ts"),
     "utf8",
   );
-  expect(src).toContain("detached: true");
-  expect(src).toMatch(/process\.kill\(\s*-\s*pid/);
-  const afterAll = src.slice(src.indexOf("AfterAll("));
+  const reaper = fs.readFileSync(
+    path.join(import.meta.dirname, "support", "reaper.ts"),
+    "utf8",
+  );
+  expect(hooks).toContain("detached: true");
+  expect(reaper).toMatch(/process\.kill\(\s*-\s*pid/);
+  const afterAll = hooks.slice(hooks.indexOf("AfterAll("));
   const killAt = afterAll.indexOf("await killAll()");
   const browserAt = afterAll.indexOf("await browser.close()");
   expect(killAt).toBeGreaterThan(-1);

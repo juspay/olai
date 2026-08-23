@@ -32,7 +32,9 @@
  *      that no longer exists. Validity lives in the kernel's lock and never in
  *      a file's existence — which is why there is no staleness protocol to get
  *      wrong, and why a machine can never come back from a crash refusing to
- *      serve its own notes.
+ *      serve its own notes. The leftover FILE is swept on the next boot.
+ *   5b. A GRACEFUL STOP UNLINKS THE FILE. Tests and production do this; the
+ *      dev loop (`OLAI_PORT_FILE`) keeps the name so `bun --watch` can restart.
  *   6. A STALE PID IN THE NOTE FOOLS NOBODY. The pid in the lock file is
  *      DIAGNOSIS, not validity: with a bogus one written over it, the second
  *      olai is still refused (the kernel decides) and the bogus number is not
@@ -51,7 +53,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { BOOT_TIMEOUT, startWeb, stoppedWithin } from "./child.testlib.ts"
-import { lockFor } from "./lock.ts"
+import { lockFor, sweepRuntime } from "./lock.ts"
 import { served } from "./serve.testlib.ts"
 
 /** A test may take three boots' worth of waiting before it is a hang. */
@@ -192,6 +194,9 @@ test("the holder is stopped and the directory is free", async () => {
   await first.address()
   first.kill("SIGINT")
   expect(await stoppedWithin(first.child, BOOT_TIMEOUT)).toBe(true)
+  // And the lock FILE is gone: a graceful stop unlinks it. Tests and
+  // production do this; the dev loop (`OLAI_PORT_FILE`) is the exception.
+  expect(fs.existsSync(lockFor(root))).toBe(false)
 
   const next = startWeb({ root, env })
   try {
@@ -200,7 +205,7 @@ test("the holder is stopped and the directory is free", async () => {
     // taken while the last one's claim stood.
     expect(await next.address()).toContain("http://127.0.0.1:")
   } finally {
-    next.kill()
+    next.kill("SIGINT")
   }
 }, BOUND_MS)
 
@@ -223,8 +228,14 @@ test("`kill -9` frees the directory: nothing was cleaned up, and nothing had to 
   const next = startWeb({ root, env })
   try {
     expect(await next.address()).toContain("http://127.0.0.1:")
+    // The next boot swept the leftover: the file now names THIS process,
+    // not the SIGKILLed one. (A different digest's leftover is the unit
+    // test below; this is the same-vault half.)
+    const note = fs.readFileSync(lockFor(root), "utf8")
+    expect(note).toContain(`pid=${next.child.pid}`)
+    expect(note).not.toContain(`pid=${first.child.pid}`)
   } finally {
-    next.kill()
+    next.kill("SIGINT")
   }
 }, BOUND_MS)
 
@@ -291,4 +302,82 @@ test("a runtime directory other users can write refuses the boot", async () => {
   fs.mkdirSync(path.join(runtime, "olai"), { mode: 0o755 })
   fs.chmodSync(path.join(runtime, "olai"), 0o755)
   await refusedWithNoLock(runtime)
+}, BOUND_MS)
+
+/**
+ * Leftovers in THIS file's runtime directory. Each test writes a named file
+ * and asks {@link sweepRuntime} — no server, because the sweep is a function
+ * of the files, not of a boot.
+ */
+const placed = (name: string, body: string): string => {
+  const dir = path.join(ours, "olai")
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 })
+  fs.chmodSync(dir, 0o700)
+  const file = path.join(dir, name)
+  fs.writeFileSync(file, body, { mode: 0o600 })
+  return file
+}
+
+test("a dead-pid lock is swept", () => {
+  const file = placed(
+    "deadpiddeadpidde.lock",
+    `pid=${IMPOSSIBLE_PID}\nroot=${ours}\n`,
+  )
+  expect(sweepRuntime()).toBeGreaterThanOrEqual(1)
+  expect(fs.existsSync(file)).toBe(false)
+})
+
+test("a live lock is not swept", async () => {
+  // Pid-and-root in a file anybody wrote is not a live server: the kernel's
+  // flock is. A real holder, and a leftover beside it, so the sweep has
+  // both answers in one directory.
+  const root = served()
+  const server = startWeb({ root, env })
+  await server.address()
+  const leftover = placed(
+    "leftoverleftoverl.lock",
+    `pid=${IMPOSSIBLE_PID}\nroot=${ours}\n`,
+  )
+  try {
+    expect(sweepRuntime()).toBeGreaterThanOrEqual(1)
+    expect(fs.existsSync(leftover)).toBe(false)
+    expect(fs.existsSync(lockFor(root))).toBe(true)
+  } finally {
+    server.kill("SIGINT")
+    await stoppedWithin(server.child, BOOT_TIMEOUT)
+  }
+}, BOUND_MS)
+
+test("a missing-root lock is swept, even when the pid is alive", () => {
+  const file = placed(
+    "missingrootmissi.lock",
+    `pid=${process.pid}\nroot=/no/such/olai-vault-root\n`,
+  )
+  expect(sweepRuntime()).toBeGreaterThanOrEqual(1)
+  expect(fs.existsSync(file)).toBe(false)
+})
+
+test("a leftover rendezvous socket is swept, and surface.sock is not", () => {
+  const leftover = placed("0123456789abcdef.sock", "")
+  const live = placed("surface.sock", "")
+  expect(sweepRuntime()).toBeGreaterThanOrEqual(1)
+  expect(fs.existsSync(leftover)).toBe(false)
+  expect(fs.existsSync(live)).toBe(true)
+  fs.unlinkSync(live)
+})
+
+test("the dev loop keeps the lock file so bun --watch can restart", async () => {
+  // `OLAI_PORT_FILE` is how `just run` / `just serve` mark the dev loop. A
+  // restart that outran the old teardown still has to find the same named
+  // file; tests and production never set the variable, so they unlink.
+  const root = served()
+  const portFile = path.join(root, "url")
+  const first = startWeb({
+    root,
+    env: { ...env, OLAI_PORT_FILE: portFile },
+  })
+  await first.address()
+  first.kill("SIGINT")
+  expect(await stoppedWithin(first.child, BOOT_TIMEOUT)).toBe(true)
+  expect(fs.existsSync(lockFor(root))).toBe(true)
 }, BOUND_MS)

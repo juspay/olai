@@ -45,10 +45,11 @@
  *     it. `docs/running.md` says so where a person reads.
  *
  * WHERE THE LOCK IS: `$XDG_RUNTIME_DIR/olai/<digest>.lock`, the per-user
- * runtime directory — owner-only, and cleared by the machine rather than by
- * us. NOT inside the served directory: a vault is somebody's git repository or
- * notes app, and olai does not leave files in it. A vault on a read-only mount
- * still serves.
+ * runtime directory — owner-only. The machine clears it at logout; a graceful
+ * stop unlinks its own file, and the next boot sweeps leftovers, because a
+ * server that stays logged in never gets that logout. NOT inside the served
+ * directory: a vault is somebody's git repository or notes app, and olai does
+ * not leave files in it. A vault on a read-only mount still serves.
  *
  * The digest is over the REALPATH, which is the load-bearing half. A person
  * types `olai web ~/notes` in one terminal and `olai web .` from inside a
@@ -59,17 +60,31 @@
  * resolved — and with the socket retired (#184) this is the only
  * canonicalisation of a served root left in the process.
  *
- * The lock file is NEVER UNLINKED, and that is deliberate: removing a locked
- * file is the classic lockfile race — a second process opens the inode, the
- * holder unlinks it, a third creates a new file at the same path and locks
- * that, and now two processes hold "the lock". The file is a few bytes in a
- * tmpfs the machine clears at logout. Its CONTENTS are DIAGNOSIS and never
- * validity: whoever holds the lock writes their pid there so the refusal below
- * can name them, and no code path decides whether a vault is free by reading
- * it. That split is what makes a recycled pid harmless — the worst it can do is
- * put a wrong number in one sentence, never hand a second brain a vault — and
- * the number is sanity-checked before it is read out at all
- * ({@link holderIn}).
+ * The claim is the KERNEL'S flock, and a graceful stop UNLINKS the file after
+ * that claim is done with it. Validity never moved into the file's existence:
+ * `kill -9` still frees the vault the instant the descriptor closes, and a
+ * leftover file is a leftover file, not a lock. What the unlink is for is the
+ * other half of this directory — tests and short-lived serves used to leave a
+ * file per vault, forever, because "the machine clears the tmpfs at logout"
+ * does not run on a server that stays logged in. The race that makes unlinking
+ * a HELD file two brains (open, unlink, a third creates a new inode and locks
+ * that) is avoided by unlinking only in the finalizer, after we have stopped
+ * serving: the process that still holds the flock is on its way out.
+ *
+ * The one exception is the DEV LOOP. `just run` / `just serve` set
+ * `OLAI_PORT_FILE` so a `bun --watch` restart can read the last bound address
+ * back; that restart is allowed to find the lock file still named, because the
+ * kernel has already released the flock. Tests and production do not set the
+ * variable, so they unlink. A SIGKILL still cannot, and that is what
+ * {@link sweepRuntime} is for.
+ *
+ * The file's CONTENTS are DIAGNOSIS and never validity: whoever holds the lock
+ * writes their pid and root there so the refusal below can name them, and so a
+ * sweep can tell a leftover from a live server. No code path decides whether a
+ * vault is free by reading it. That split is what makes a recycled pid harmless
+ * — the worst it can do is put a wrong number in one sentence, never hand a
+ * second brain a vault — and the number is sanity-checked before it is read
+ * out at all ({@link holderIn}).
  *
  * WHY A FILE AT ALL, when `flock` would take the SERVED DIRECTORY's own
  * descriptor and need no file, no digest and no path convention — and would be
@@ -147,6 +162,115 @@ export const lockFor = (root: string): string =>
   join(runtimeHome(), `${digestOf(canonical(root))}.lock`)
 
 /**
+ * Drop leftover files in the runtime directory.
+ *
+ * A `.lock` nothing holds (the kernel's flock is free) is a leftover, as is
+ * a held lock whose recorded root no longer exists. Every `.sock` except
+ * `surface.sock` is a leftover of the retired rendezvous sockets of #175/#184. A lock another olai is holding, over a directory that still
+ * exists, is left alone — a stale pid in that file is diagnosis, not a
+ * reason to free the name. `surface.sock` is the live agent face of a
+ * running server (the surface-cli lane), and unlinking it would drop every
+ * client of that face — it is not a leftover.
+ *
+ * Hygiene, not validity: the kernel's flock is still what makes a vault free.
+ * This is what stops the runtime directory growing a file per scratch vault
+ * the tests ever started. Best-effort — a file we cannot unlink is left, and
+ * the boot continues.
+ *
+ * Returns how many names it removed, so a boot can say so.
+ */
+export const sweepRuntime = (): number => {
+  const home = runtimeHome()
+  let entries: ReadonlyArray<fs.Dirent>
+  try {
+    if (!isPrivateOwnedDir(home)) return 0
+    entries = fs.readdirSync(home, { withFileTypes: true })
+  } catch {
+    return 0
+  }
+  let swept = 0
+  for (const entry of entries) {
+    if (entry.name === "." || entry.name === "..") continue
+    const full = join(home, entry.name)
+    if (entry.name.endsWith(".sock")) {
+      if (entry.name === "surface.sock") continue
+      if (unlinkQuiet(full)) swept += 1
+      continue
+    }
+    if (!entry.name.endsWith(".lock")) continue
+    if (sweepLock(full)) swept += 1
+  }
+  return swept
+}
+
+/**
+ * Drop one lock file, or leave it.
+ *
+ * The kernel's flock is validity, the same as everywhere else in this file.
+ * If we can take it, nothing holds this vault and the file is a leftover.
+ * If it is busy, another olai is in there: leave it, unless the root it
+ * recorded is gone — that process is serving a directory that does not
+ * exist, and the name is clutter. A stale pid in a held file is diagnosis
+ * and must not free the name (the classic lockfile race: unlink a held
+ * file, a third process creates a new inode, two brains).
+ */
+const sweepLock = (path: string): boolean => {
+  let fd: number
+  try {
+    fd = fs.openSync(path, fs.constants.O_RDWR)
+  } catch {
+    return false
+  }
+  const outcome = lockExclusive(fd)
+  if (outcome._tag === "held") {
+    const gone = unlinkQuiet(path)
+    try {
+      fs.closeSync(fd)
+    } catch {
+      // the descriptor is the claim we just used to decide; losing it now
+      // costs nothing — the name is already gone.
+    }
+    return gone
+  }
+  try {
+    fs.closeSync(fd)
+  } catch {
+    // not ours
+  }
+  if (outcome._tag === "busy") {
+    const root = recordedRoot(path)
+    if (root !== null && !fs.existsSync(root)) return unlinkQuiet(path)
+  }
+  return false
+}
+
+const recordedRoot = (path: string): string | null => {
+  try {
+    const root = /^root=(.*)$/m.exec(fs.readFileSync(path, "utf8"))?.[1]
+    return root === undefined || root === "" ? null : root
+  } catch {
+    return null
+  }
+}
+
+const unlinkQuiet = (path: string): boolean => {
+  try {
+    fs.unlinkSync(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** The dev loop (`just run` / `just serve`) remembers the bound URL in this
+ *  file so a `bun --watch` restart can rebind it. Production and the tests
+ *  never set it. */
+const keepLockFile = (): boolean => {
+  const file = process.env["OLAI_PORT_FILE"]
+  return file !== undefined && file !== ""
+}
+
+/**
  * The pid a holder wrote down — DIAGNOSIS, never validity.
  *
  * Nothing here decides whether the vault is free: the kernel decided that
@@ -201,50 +325,71 @@ const alive = (pid: number): boolean => {
 export const holdVault = (
   root: string,
 ): Effect.Effect<void, VaultInUse | LockUnavailable, Scope.Scope> =>
-  Effect.acquireRelease(
-    Effect.suspend((): Effect.Effect<number, VaultInUse | LockUnavailable> => {
-      const path = lockFor(root)
-      const opened = openLock(path)
-      if (typeof opened !== "number") return Effect.fail(opened)
+  Effect.gen(function*() {
+    const swept = sweepRuntime()
+    if (swept > 0) {
+      yield* Effect.annotateLogs(Effect.logInfo("swept leftover runtime files"), {
+        count: swept,
+      })
+    }
+    yield* Effect.acquireRelease(
+      Effect.suspend((): Effect.Effect<Held, VaultInUse | LockUnavailable> => {
+        const path = lockFor(root)
+        const opened = openLock(path)
+        if (typeof opened !== "number") return Effect.fail(opened)
 
-      // Our descriptor goes with any answer but `held`: we are not serving this
-      // directory, so we hold nothing open over it.
-      const refuse = (failure: VaultInUse | LockUnavailable) => {
-        fs.closeSync(opened)
-        return Effect.fail(failure)
-      }
-      const outcome = lockExclusive(opened)
-      if (outcome._tag === "busy") {
-        return refuse(new VaultInUse({ root, holder: holderIn(path) }))
-      }
-      if (outcome._tag === "failed") {
-        return refuse(new LockUnavailable({ path, reason: outcome.reason }))
-      }
-
-      // Ours now, so say who we are — for the next olai's refusal, and for a
-      // person reading the runtime directory with `cat`. Truncated first: the
-      // file may carry a dead holder's pid, and it is only ever written by
-      // whoever holds the lock.
-      try {
-        fs.ftruncateSync(opened, 0)
-        fs.writeSync(opened, `pid=${process.pid}\nroot=${canonical(root)}\n`, 0)
-      } catch {
-        // The claim is the lock, not the note. A runtime directory that will
-        // not take these few bytes costs the NEXT olai a pid in its refusal and
-        // costs this one nothing, so it is not worth refusing to serve over.
-      }
-      return Effect.succeed(opened)
-    }),
-    (fd) =>
-      Effect.sync(() => {
-        try {
-          fs.closeSync(fd)
-        } catch {
-          // Closing is the release, and a descriptor we cannot close is one the
-          // process is about to lose anyway.
+        // Our descriptor goes with any answer but `held`: we are not serving this
+        // directory, so we hold nothing open over it.
+        const refuse = (failure: VaultInUse | LockUnavailable) => {
+          fs.closeSync(opened)
+          return Effect.fail(failure)
         }
+        const outcome = lockExclusive(opened)
+        if (outcome._tag === "busy") {
+          return refuse(new VaultInUse({ root, holder: holderIn(path) }))
+        }
+        if (outcome._tag === "failed") {
+          return refuse(new LockUnavailable({ path, reason: outcome.reason }))
+        }
+
+        // Ours now, so say who we are — for the next olai's refusal, and for a
+        // person reading the runtime directory with `cat`. Truncated first: the
+        // file may carry a dead holder's pid, and it is only ever written by
+        // whoever holds the lock.
+        try {
+          fs.ftruncateSync(opened, 0)
+          fs.writeSync(opened, `pid=${process.pid}\nroot=${canonical(root)}\n`, 0)
+        } catch {
+          // The claim is the lock, not the note. A runtime directory that will
+          // not take these few bytes costs the NEXT olai a pid in its refusal and
+          // costs this one nothing, so it is not worth refusing to serve over.
+        }
+        return Effect.succeed({ fd: opened, path, keep: keepLockFile() })
       }),
-  ).pipe(Effect.asVoid)
+      (held) =>
+        Effect.sync(() => {
+          // Unlink WHILE the flock still names this inode, then close. Closing
+          // first would let a second olai lock the same file, after which the
+          // unlink would strand that holder on an unlinked inode and a third
+          // olai would create a new one — two brains. Unlinking a file we have
+          // already stopped serving is the leftover we will not leave behind.
+          // The dev loop keeps the name so a `bun --watch` restart finds it.
+          if (!held.keep) unlinkQuiet(held.path)
+          try {
+            fs.closeSync(held.fd)
+          } catch {
+            // Closing is the release, and a descriptor we cannot close is one the
+            // process is about to lose anyway.
+          }
+        }),
+    )
+  })
+
+interface Held {
+  readonly fd: number
+  readonly path: string
+  readonly keep: boolean
+}
 
 /** The lock file, opened for writing without truncating it — truncation would
  *  erase the pid of whoever is holding it, which is the one thing the file is
