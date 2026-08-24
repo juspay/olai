@@ -328,6 +328,13 @@ const UNMOVED = 2
  * room to spare, and is comfortably inside the time it takes a reader to go and
  * read something else.
  *
+ * THE WINDOW OPENS ON A REAL HEIGHT, not on the first act. The first scroll is
+ * often against the `70dvh` guess; the report that replaces it is the
+ * correction this exists for. Starting the hang detector from the guess spent
+ * the landing before that report arrived, on a loaded box, and left the section
+ * off screen. The two seconds are a hang detector after the frame has been
+ * sized, never the wait for the size.
+ *
  * WHAT IT COSTS is the page whose pictures are slower than that: the reader is
  * left where the pre-picture geometry put them, a screen or so short of the
  * section. That is the same direction {@link UNMOVED} fails in, and for the
@@ -339,6 +346,18 @@ const UNMOVED = 2
  * the page can hold it, when the reader takes over, OR when its time is up.
  */
 const CORRECTING = 2_000
+
+/** The overflow box that actually moves this frame, or `null` for the
+ *  window. A split pane is its own scrollport; a lone page usually is not. */
+const scrollPort = (node: HTMLElement): HTMLElement | null => {
+  let el: HTMLElement | null = node.parentElement
+  while (el !== null && el !== document.documentElement) {
+    const { overflowY } = getComputedStyle(el)
+    if (overflowY === "auto" || overflowY === "scroll") return el
+    el = el.parentElement
+  }
+  return null
+}
 
 /**
  * WHAT THE FRAME WAS POINTED AT — the two facts about the document in there
@@ -904,8 +923,10 @@ export function Hypertext(props: { readonly file: string }) {
   createEffect(() => {
     const top = landedAt()
     // Tracked, not read: the frame's height is what makes the arithmetic below
-    // land where the reader will be looking.
-    measured()
+    // land where the reader will be looking — and whether the hang detector
+    // may start, because a correction against the guess is not an act the
+    // two seconds should count from.
+    const height = measured()
     if (top === undefined || frame === undefined || over) return
     if (pointed?.at === undefined || landing.at() === undefined) return
     const box = frame
@@ -920,15 +941,29 @@ export function Hypertext(props: { readonly file: string }) {
         return done()
       }
       box.scrollIntoView({ block: "start" })
-      if (top !== 0) scrollBy({ top, behavior: "instant" })
+      if (top !== 0) {
+        // THE NEAREST SCROLLPORT, not always the window. A split pane is
+        // `overflow-y-auto` (`../pane/Panes.tsx`); `window.scrollBy` there
+        // moves nothing, and the section sits below the fold of the column
+        // the reader is not looking at. On a lone page the window is that
+        // port and this is the same `scrollBy` it always was.
+        const host = scrollPort(box)
+        if (host === null) scrollBy({ top, behavior: "instant" })
+        else host.scrollTop += top
+      }
       // WHERE THAT LEFT THEM, which is what the run after this one compares
       // against. What the act ASKED for is not the same number: a page too
       // short to scroll that far is clamped, and the clamped position is where
       // the reader actually is.
       stood = box.getBoundingClientRect().top
-      // …and how long the next correction has to arrive ({@link CORRECTING}).
-      clearTimeout(correcting)
-      correcting = setTimeout(done, CORRECTING)
+      // THE HANG DETECTOR STARTS ONCE THE FRAME HAS A REAL HEIGHT. A first
+      // act against the 70dvh guess re-arms nothing: the report that replaces
+      // the guess is still owed, and starting the clock from the guess spent
+      // the landing before it arrived.
+      if (height !== undefined) {
+        clearTimeout(correcting)
+        correcting = setTimeout(done, CORRECTING)
+      }
       // ARRIVED, which is what spends the landing (`../router.tsx`'s `landed`).
       // The reader has been taken to the section, so the next time this file
       // moves on disk the frame is re-pointed at its own address and nothing

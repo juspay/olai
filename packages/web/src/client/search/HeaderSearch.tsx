@@ -271,7 +271,10 @@ export function HeaderSearch(props: {
               />
               {/* Down, never sideways — the rows are built not to overflow
                   and this is what keeps that a property of the container. */}
-              <ul class="m-0 max-h-72 list-none overflow-x-hidden overflow-y-auto p-1">
+              <ul
+                class="m-0 max-h-72 list-none overflow-x-hidden overflow-y-auto p-1"
+                data-asked={nodes.answering() ?? undefined}
+              >
                 {/* `<Index>` rather than `<For>`, which is `./Shortlist.tsx`'s
                     rule over the identical rows: they are positional, there
                     are at most eight, and every answer mints fresh items —

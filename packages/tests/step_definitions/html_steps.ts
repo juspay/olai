@@ -192,15 +192,42 @@ Then(
  * element appended by a script that could not style it is as invisible as one
  * that was never appended.
  */
+When("I grow the preview", async function (this: OlaiWorld) {
+  // The late-growth scenario's own event: the fixture exposes `grow`, and
+  // calling it is what makes the page taller. A clock after `load` is not
+  // that event — under load it fires while the reader is still landing.
+  await (await inside(this)).locator("body").evaluate(() => {
+    const grow = (window as unknown as { grow?: () => void }).grow
+    if (typeof grow !== "function") {
+      throw new Error("the preview has no grow() — the fixture did not arm one")
+    }
+    grow()
+  })
+});
+
 Then(
   "the preview drew {int} boxes for {string}",
   async function (this: OlaiWorld, many: number, selector: string) {
     const drawn = (await inside(this)).locator(selector);
-    await this.waitUntil(
-      async () => (await drawn.count()) === many,
-      `${many} element(s) matching ${selector} to be drawn inside the preview ` +
-        `by the page's own script`,
-    );
+    if (many === 0) {
+      // HOLD, not wait-until-gone. A wait for zero is a wait the late-growth
+      // scenario fails under load: a clock after `load` has often already
+      // fired, and the step then times out on boxes that are supposed to
+      // stay. Absence is true NOW, of the frame as it is.
+      await this.waitForFrame();
+      assert.strictEqual(
+        await drawn.count(),
+        0,
+        `${selector} is already in the preview, so the growth this step says ` +
+          "is still ahead has already happened",
+      );
+    } else {
+      await this.waitUntil(
+        async () => (await drawn.count()) === many,
+        `${many} element(s) matching ${selector} to be drawn inside the preview ` +
+          `by the page's own script`,
+      );
+    }
     const boxes = await Promise.all(
       Array.from({ length: many }, (_, at) => drawn.nth(at).boundingBox()),
     );
@@ -1490,7 +1517,18 @@ const REFUSALS = {
 
 Then(
   "the only complaints are the browser refusing what the file may not do",
-  function (this: OlaiWorld) {
+  async function (this: OlaiWorld) {
+    // The frame's CSP refusals are console errors the iframe raises as it
+    // fetches, a beat behind the page being "open". Read immediately, a loaded
+    // runner has not heard them yet — "the browser never refused a picture"
+    // with the fixture still carrying one. Wait for the refusals; the budget
+    // is the hang detector.
+    await this.waitUntil(
+      async () =>
+        this.errors.some((said) => REFUSALS.picture.test(said)) &&
+        this.errors.some((said) => REFUSALS.base.test(said)),
+      "the browser to refuse a picture and a base URI in the preview",
+    );
     const others = this.errors.filter(
       (said) => !Object.values(REFUSALS).some((shape) => shape.test(said)),
     );
@@ -1499,19 +1537,6 @@ Then(
       [],
       `the page reported ${others.length} error(s) that are not refusals:\n  ` +
         others.join("\n  "),
-    );
-    assert.ok(
-      this.errors.some((said) => REFUSALS.picture.test(said)),
-      "the browser never refused a picture in `report.html` — either the policy " +
-        "stopped naming which addresses a preview may fetch, or the fixture " +
-        "stopped carrying the ones it may not",
-    );
-    assert.ok(
-      this.errors.some((said) => REFUSALS.base.test(said)),
-      "the browser never refused `report.html`'s own `<base>` — so either " +
-        "`base-uri 'none'` has left the policy, and a saved page may point " +
-        "every address in itself at the server it came from, or the fixture " +
-        "stopped carrying one",
     );
   },
 );

@@ -581,6 +581,7 @@ export function Composer(props: {
           // — the kind as well as the query, since `/` and `@` can both be
           // armed with nothing typed after them and those are two questions.
           asking={`${found()?.kind ?? ""}:${found()?.query ?? ""}`}
+          asked={nodesNamed.answering() ?? undefined}
           within={() => input}
           onDismiss={dismiss}
         />

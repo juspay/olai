@@ -936,6 +936,10 @@ export function Palette(props: {
                 <ul
                   class="m-0 min-h-0 flex-1 list-none overflow-x-hidden overflow-y-auto p-1 md:max-h-72 md:flex-none"
                   data-testid={TESTID.paletteList}
+                  // WHICH QUERY the rows below answer — the same fact the
+                  // shortlist and the filter bar publish, so a scenario waits
+                  // for THIS search rather than for any rows at all.
+                  data-asked={nodes.answering() ?? undefined}
                 >
                   {/* `<Key>` rather than `<For>`, for the reason the tree uses it
                       (`../Tree.tsx`): the rows are minted fresh on every read, so

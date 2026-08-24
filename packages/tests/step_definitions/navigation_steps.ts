@@ -237,9 +237,19 @@ const scrollTop = (world: OlaiWorld): Promise<number> =>
 When("I scroll to the bottom of the page", async function (this: OlaiWorld) {
   // The hosted faces are a late layout: fallback metrics are taller than
   // Literata's, and a bottom recorded before they swap is a position the
-  // page cannot hold once they have. Wait for them, then scroll, then
-  // read — the number the app will save when the reader leaves.
+  // page cannot hold once they have. Wait for them — and for the page to
+  // actually overflow, which is the event, not fonts.ready. A zoomed node
+  // whose attached document has not arrived yet is shorter than the
+  // window; scrolling it then is a no-op that reads as "the page does not
+  // scroll in this window".
   await this.page.evaluate(() => document.fonts.ready);
+  await this.waitUntil(
+    async () =>
+      this.page.evaluate(
+        () => document.documentElement.scrollHeight > window.innerHeight,
+      ),
+    "the page to be taller than the window",
+  );
   await this.page.evaluate(() => {
     window.scrollTo(0, document.documentElement.scrollHeight);
   });

@@ -1890,12 +1890,20 @@ Then(
 Then(
   "the completion does not offer {string}",
   async function (this: OlaiWorld, value: string) {
-    await this.waitUntil(
-      async () =>
-        (await this.page
-          .locator(`${CHAT_COMPLETION_ROW}${attr("data-value", value)}`)
-          .count()) === 0,
-      `the completion to stop offering "${value}"`,
+    // HOLD, not wait-until-gone. Waiting for a name to disappear is a wait
+    // the `@` list's node half fails under load: the files are up, the test
+    // looks, and the nodes have already landed, so the thing this step is
+    // claiming is absent is present and stays present. Absence after a
+    // frame is the same shape `the palette does not offer` keeps — true
+    // NOW, of the list as it is.
+    await this.waitForFrame();
+    const rows = await this.page
+      .locator(`${CHAT_COMPLETION_ROW}${attr("data-value", value)}`)
+      .count();
+    assert.strictEqual(
+      rows,
+      0,
+      `the completion offers ${JSON.stringify(value)}`,
     );
   },
 );
