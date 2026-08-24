@@ -344,6 +344,22 @@ test("only saying.ts counts SAID_MS down", () => {
   expect(filesSpelling(/\bSAID_MS\b/)).toEqual(["saying.ts"])
 })
 
+// routes.ts's monopoly, and finding 4's (a) from the debate on some of these
+// sweeps (docs/lowy-electricity/debate-2026-08-19.md): ONE door decides "is
+// this string one of our addresses". `routeNamed` is the only reading of the
+// format's grammar in this client, and a `parseAddress(` anywhere else is a
+// second answer free to disagree with the first — a pin and a written link
+// that open two pages for one address, which is the exact shape
+// `address/address.ts` exists to refuse (it delegates: its `routeIn` call is
+// the door's, and `address.test.ts` holds the two to one answer). A codec
+// may SPLIT a URL without recognising anything — `workspace.ts` reads the
+// format's `splitAddress` for its `/s/` rows and hands every page segment
+// back to `routeOf` — so the grip is the grammar's own entry point, where a
+// recognizer must start.
+test("address recognition has one door: parseAddress( is called only in routes.ts", () => {
+  expect(filesSpelling(/parseAddress\s*\(/)).toEqual(["routes.ts"])
+})
+
 // menu/chunk.ts's claim — `DropdownMenu` is not on the first-paint chunk, and
 // nothing may put it back. The split is a fact about the module GRAPH and
 // nothing in the source looks wrong on the day it is undone: one static
@@ -400,6 +416,47 @@ test("nothing outside the menu's chunk imports the menu's chunk", () => {
     [path.join("menu", "Dropdown.tsx"), []],
     [path.join("menu", "Panel.tsx"), [path.join("menu", "Dropdown.tsx")]],
     [path.join("menu", "Confirm.tsx"), [path.join("menu", "Panel.tsx")]],
+  ])
+})
+
+// And the edge those two cannot see: HOW the door itself is spelled, which is
+// finding 4's (b). A `createArrival` call site hands the bundler its
+// `import()` with a LITERAL specifier in the caller, because the bundler
+// READS a literal to cut the chunk — a variable or a computed name compiles
+// and passes every test here while the split quietly goes: the graph back
+// into `main-*.js` behind a specifier the bundler folded in, or a runtime
+// string nothing can resolve. Both `chunk.ts` headers say this in comments
+// next to their own import, and arriving.ts says it in the `@param fetch` —
+// three comments saying one rule, which is the reason the rule lives here.
+//
+// The grip is EVERY dynamic `import(` in the client, since a future chunk is
+// the same law, and the law is the argument's WHOLE SHAPE: one quoted string,
+// closed, then the paren. Checking only the first character lets a computed
+// name in through a literal's clothing — `import("./x" + suffix)` opens with
+// a quote (grok's review of this pin found that) — and the bundler cannot cut
+// on it either. A variable and a template are the same refusal: computed is
+// computed. And the SPELLERS are named, so the sweep cannot pass vacuously the
+// day both chunks fold back into the entry: the two fetch doors, the
+// browsertest's own literal (a test baking its module in), and
+// `layout/Rail.tsx`'s erased TYPE import — the stripper lifts comments, not
+// types, and TypeScript already forces THAT specifier to be a literal.
+test("every dynamic import() the client spells takes a literal the bundler can read", () => {
+  // The opener, then the one shape the bundler can read: a complete quoted
+  // specifier — escapes allowed, the other quote allowed inside — followed by
+  // the closing paren. Anything beyond it (an operator, another argument) is
+  // a computed name in a literal's clothing.
+  const ARG_GEN = /^(?:"(?:\\[\s\S]|[^"\\])*"|'(?:\\[\s\S]|[^'\\])*')\s*\)/
+  const offenders = SOURCES.filter((one) =>
+    [...one.code.matchAll(/\bimport\s*\(\s*/g)].some(
+      (hit) => !ARG_GEN.test(one.code.slice(hit.index + hit[0].length)),
+    ),
+  ).map((one) => one.file)
+  expect(offenders).toEqual([])
+  expect(filesSpelling(/\bimport\s*\(/)).toEqual([
+    path.join("chat", "declared.browsertest.ts"),
+    path.join("layout", "Rail.tsx"),
+    path.join("markdown", "chunk.ts"),
+    path.join("menu", "chunk.ts"),
   ])
 })
 
