@@ -35,6 +35,10 @@
  *                adapter builds out of `structuredPatch`: one `diff` block per
  *                hunk, every one of them under the same path
  *   servers      name the MCP servers this session was handed
+ *   attach <name> <status>  say what the wrapped CLI reports about its
+ *                connection to that server from the NEXT turn on — the
+ *                `mcp_servers` status of the adapter's `init`, which is one
+ *                turn late for the reason `model` is
  *   slow         dawdle, long enough to cancel
  *   deaf         go quiet with our stdin closed, so nothing said back arrives
  *   talkative    keep streaming through a cancel, the way a slow one does
@@ -202,6 +206,12 @@ let mcp: { url: string; headers: Record<string, string> } | null = null
  *  spawning — reporting that they arrived is the whole of what a scenario
  *  about them can ask. */
 let servers: ReadonlyArray<string> = []
+/** What the wrapped CLI says about its connection to each of them, by name —
+ *  the `mcp_servers` status the real adapter forwards on its `init`. Every
+ *  server a session is handed is `connected` unless a scenario says otherwise
+ *  (`attach <name> <status>`), because that is what a working host does and
+ *  what every scenario that is not about this wants. */
+const attachment = new Map<string, string>()
 /** Set by a `session/cancel` notification, cleared when a prompt is accepted. */
 let cancelled = false
 /** Whether we shut our own stdin (`deaf`). Read where the end of that pipe
@@ -798,7 +808,22 @@ const sdkInit = (model: string): void => {
   if (!forwardsInit) return
   notify("_claude/sdkMessage", {
     sessionId,
-    message: { type: "system", subtype: "init", model },
+    message: {
+      type: "system",
+      subtype: "init",
+      model,
+      // The other half of the same message, and the only place on this wire
+      // where a client can learn whether the agent actually reached what it
+      // was handed (`mcp-roster-visible`): ACP's `session/new` answers with a
+      // session id and says nothing per server. Every server the client gave
+      // this session is reported, because that is what the CLI reports — its
+      // OWN servers would be here too on a real host, and a client that drew
+      // rows for those would be drawing a list it cannot keep honest.
+      mcp_servers: servers.map((name) => ({
+        name,
+        status: attachment.get(name) ?? "connected",
+      })),
+    },
   })
 }
 
@@ -1050,6 +1075,20 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // the absence of a word, which is the only shape of that claim a streaming
     // panel can be asked for without waiting to see whether more arrives.
     say(`servers: [${servers.join(" ")}]`)
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
+  if (verb === "attach") {
+    // What the WRAPPED CLI would say about one of them from now on — the real
+    // adapter's `mcp_servers` status, which is how an agent reports a server it
+    // was handed and could not reach (`mcp-roster-visible`). Set here and
+    // observable only from the NEXT turn, for the same reason a `/model` is:
+    // the `init` for a turn is emitted as that turn STARTS, so this one has
+    // already announced the status it began with.
+    const [name, status] = argument.split(/\s+/)
+    if (name !== undefined && status !== undefined) attachment.set(name, status)
+    say(`${name} is ${status} from the next turn`)
     respond(id, { stopReason: "end_turn" })
     return
   }

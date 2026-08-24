@@ -22,6 +22,7 @@ import {
   allowedWithoutAsking,
   CLAUDE,
   liveModelIn,
+  liveServersIn,
   OPEN_SESSION_META,
   parentToolUseIn,
   spawnedIn,
@@ -420,6 +421,138 @@ describe("which model a turn is running on", () => {
   })
 })
 
+/**
+ * The other field of that same message (`mcp-roster-visible`).
+ *
+ * It is worth its own block for the reason the model's is: it is a bet on ONE
+ * agent's private channel, and the near misses are the interesting half — a
+ * status word nobody here has seen, a row with no name, a message of some other
+ * kind. Every one of them is cheap as a value and expensive to stage against a
+ * real CLI, which would have to be talked into failing to connect to something.
+ *
+ * What is being locked is that the STATUS SURVIVES VERBATIM. The one word that
+ * means yes is matched one layer up (`../servers.ts`); this file's job is to
+ * hand that layer the CLI's own spelling and to drop anything it cannot read,
+ * rather than to translate a set that grows on somebody else's release
+ * schedule.
+ */
+describe("which of this conversation's servers the agent attached", () => {
+  /** The `init` message again, with the servers half of it. */
+  const init = (servers: unknown) => ({
+    sessionId: "s1",
+    message: {
+      type: "system",
+      subtype: "init",
+      model: "claude-opus-4-5",
+      mcp_servers: servers,
+    },
+  })
+
+  test("`connected` is the word this CLI uses for a server it has", () => {
+    // WHICH WORD MEANS YES is decided here, because it is a fact about this
+    // adapter in exactly the way `mcp__<server>__` is. The roster one layer up
+    // reads the verdict and never the word (`../servers.test.ts`).
+    expect(
+      liveServersIn(init([
+        { name: "olai", status: "connected" },
+        { name: "kolu", status: "connected" },
+      ])),
+    ).toEqual([
+      { name: "olai", attached: true, said: "connected" },
+      { name: "kolu", attached: true, said: "connected" },
+    ])
+  })
+
+  test("every other word is NOT attached, and travels verbatim anyway", () => {
+    // POSITIVE RECOGNITION, the rule this file keeps everywhere: a word that is
+    // not the one is read as no, including one no release has sent. And the
+    // word survives, because the CLI's binary carries `connected`, `failed`,
+    // `needs-auth`, `pending` and `disabled` today and the SDK types the field
+    // as a bare `string` — an open set. Flattened into a vocabulary of ours,
+    // this file would have to be edited on somebody else's release for a person
+    // to find out that their server wants signing in rather than that it broke.
+    expect(
+      liveServersIn(init([
+        { name: "kolu", status: "needs-auth" },
+        { name: "deepwiki", status: "failed" },
+        { name: "later", status: "a word no version has sent yet" },
+      ])),
+    ).toEqual([
+      { name: "kolu", attached: false, said: "needs-auth" },
+      { name: "deepwiki", attached: false, said: "failed" },
+      { name: "later", attached: false, said: "a word no version has sent yet" },
+    ])
+  })
+
+  test("the match is the whole word, so a longer one is not a connection", () => {
+    // The same narrowing the tool-name prefix gets, for the same reason: a
+    // status that merely starts with the word is not the word.
+    expect(liveServersIn(init([{ name: "olai", status: "connected-ish" }])))
+      .toEqual([{ name: "olai", attached: false, said: "connected-ish" }])
+    expect(liveServersIn(init([{ name: "olai", status: "Connected" }])))
+      .toEqual([{ name: "olai", attached: false, said: "Connected" }])
+  })
+
+  test("what we asked to be forwarded is what is read", () => {
+    // The ask and the read are one bet, exactly as they are for the model.
+    const [subscribed] = OPEN_SESSION_META.claudeCode.emitRawSDKMessages
+    expect(
+      liveServersIn({
+        message: { ...subscribed, mcp_servers: [{ name: "olai", status: "connected" }] },
+      }),
+    ).toEqual([{ name: "olai", attached: true, said: "connected" }])
+  })
+
+  test("another message of the CLI's says nothing about servers", () => {
+    expect(
+      liveServersIn({
+        message: {
+          type: "system",
+          subtype: "compact",
+          mcp_servers: [{ name: "olai", status: "connected" }],
+        },
+      }),
+    ).toBeNull()
+    expect(
+      liveServersIn({
+        message: { type: "result", mcp_servers: [{ name: "olai", status: "connected" }] },
+      }),
+    ).toBeNull()
+  })
+
+  test("an init that names no servers is a message that says nothing, not an empty roster", () => {
+    // `null` and `[]` are two different instructions to the layer above: one
+    // leaves every row where the client put it, and the other would be the
+    // agent reporting on a list with nothing in it. An absent field is the
+    // first.
+    expect(liveServersIn(init(undefined))).toBeNull()
+    expect(liveServersIn(init("olai, kolu"))).toBeNull()
+    expect(liveServersIn({ sessionId: "s1" })).toBeNull()
+    expect(liveServersIn(null)).toBeNull()
+    expect(liveServersIn(undefined)).toBeNull()
+    // ... and an init that carried an EMPTY list really did say so.
+    expect(liveServersIn(init([]))).toEqual([])
+  })
+
+  test("a row that cannot be read is dropped, never repaired", () => {
+    // A row with no name is about nothing and a row with no status has nothing
+    // to say. Defaulting either would be this file inventing the fact it is
+    // here to report; dropped, the roster row stays where the client put it,
+    // which is what it already says.
+    expect(
+      liveServersIn(init([
+        { name: "olai", status: "connected" },
+        { status: "connected" },
+        { name: "", status: "connected" },
+        { name: "kolu" },
+        { name: "kolu", status: "" },
+        { name: "kolu", status: 7 },
+        null,
+        "kolu",
+      ])),
+    ).toEqual([{ name: "olai", attached: true, said: "connected" }])
+  })
+})
 
 describe("the leg", () => {
   test("reads a tool's name out of the meta, never out of the call id", () => {

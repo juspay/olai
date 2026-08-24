@@ -939,53 +939,169 @@ export const Command = Schema.Struct({
 export type Command = typeof Command.Type
 
 /**
- * An MCP server this conversation was supposed to get and did NOT, and why.
+ * How an MCP server STANDS on this conversation — four answers, and which one
+ * is true is decided by who said so.
  *
- * The whole of `mcp-fail-visible`, on the wire. A server that fails to attach
- * used to leave one trace — a debug log line — and a session quietly short of
- * its tools: the panel drew a healthy conversation, the agent could not see
- * kolu's terminals, and the only way to find out which of those two facts was
- * true was to read olai's log from outside the app. Making it a member is what
- * makes it a fact a person can be shown.
+ *   - `connected` — the AGENT reports it attached. The only arm resting on the
+ *     agent's own word, and the only one that may be read as "these tools are
+ *     actually reachable from the conversation".
+ *   - `handed` — olai gave it to the session and nothing has said what became
+ *     of it. The ordinary state on an agent that reports nothing per server
+ *     (ACP's `session/new` answers with a session id and says no more), and
+ *     the state every conversation is in until its agent has spoken.
+ *   - `unattached` — olai handed it over and the agent says it did NOT attach.
+ *     Its `why` is the agent's own word for it.
+ *   - `missing` — olai could not hand it over at all, because its own probe
+ *     said no. `why` is that probe's sentence — the whole of `mcp-fail-visible`
+ *     (`../../chat/src/kolu.ts`).
  *
- * `why` is the SERVER'S OWN SENTENCE wherever there is one — a JSON-RPC error
- * message, an exec failure's reason — with the probe's framing around it and
- * nothing invented. That is the field's whole value: "kolu did not attach"
- * names the symptom every failure shares and is the one thing that never helped
- * anybody, and the four ways of failing want four different things done about
- * them (`../../chat/src/kolu.ts`).
+ * POSITIVE RECOGNITION, which is the rule the legs already read permissions by
+ * (`../../chat/src/agents/leg.ts`): `connected` is claimed only where an agent
+ * said that word, and every other word it could send falls to `unattached`.
+ * A tick on this panel is one somebody asserted, never one inferred from
+ * silence — the losing direction being an agent whose servers are all fine
+ * drawn as merely handed, which is what every conversation looked like before
+ * this member existed.
  *
- * `where` is the file that was probed, absolute. It is here because the incident
- * this member comes from was a question about WHICH binary: a `kolu` on PATH is
- * not necessarily the host's kolu, a padi-spawned terminal prepends its own
+ * A UNION AND NOT A LABEL BESIDE A NULLABLE REASON, which is the shape this
+ * shipped in for a day and is the one thing about it worth a paragraph. `why`
+ * is grounded by the standing and by nothing else — the two arms that mean
+ * "this conversation does not have it" carry one and the two that do not,
+ * cannot. Written flat, each field reads honestly alone and the lie lives in
+ * the pair: `{ standing: "missing", why: null }` is constructible and renders
+ * as a failure with no reason, which is precisely the log line
+ * `mcp-fail-visible` exists to stop putting on screen — and the panel promptly
+ * grew a `why !== null` filter, deriving the standing back out of the field
+ * that depends on it. Discriminated, both are type errors. {@link whyNot} is
+ * the one read that turns it back into a sentence.
+ */
+export const ServerStanding = Schema.Union([
+  /** The agent itself reports it attached. */
+  Schema.Struct({ kind: Schema.Literal("connected") }),
+  /** Olai gave it to the session and nothing has said what became of it. */
+  Schema.Struct({ kind: Schema.Literal("handed") }),
+  /** Olai handed it over and the agent says it did NOT attach. */
+  Schema.Struct({
+    kind: Schema.Literal("unattached"),
+    /** The agent's own word for it. */
+    why: Schema.String,
+  }),
+  /** Olai could not hand it over at all, because its own probe said no. */
+  Schema.Struct({
+    kind: Schema.Literal("missing"),
+    /** The probe's or the server's own sentence. */
+    why: Schema.String,
+  }),
+])
+export type ServerStanding = typeof ServerStanding.Type
+
+/**
+ * An MCP server this conversation has, and how it stands.
+ *
+ * `mcp-roster-visible` on the wire, and `mcp-fail-visible`'s `MissingServer`
+ * with the healthy majority of its own subject put back in. #140 published the
+ * FAILURES and deliberately nothing else, on the argument that a working
+ * conversation is owed no sentence. The incident that filed THIS one is the
+ * other half of that argument arriving: somebody asked an agent which MCP
+ * servers it had, and it answered wrong — opencode listed olai and deepwiki,
+ * omitted kolu, and then called `kolu_lifecycle_create` perfectly. "Which
+ * servers does this conversation have?" is a question people actually ask, and
+ * a panel that answers it only when something is broken leaves the MODEL to
+ * answer it the rest of the time, out of a context that never contained the
+ * answer.
+ *
+ * ONE MEMBER FOR ALL FOUR STANDINGS rather than a healthy list beside the
+ * broken one. A roster split in two is two lists to read in the right order to
+ * learn one thing, and the split would fall exactly where the interesting
+ * question is: whether the server named on the healthy list is the one the
+ * agent could not reach.
+ *
+ * The standing's `why` is the SERVER'S OWN SENTENCE wherever there is one — a
+ * JSON-RPC error message, an exec failure's reason, the agent's own status word
+ * — with the probe's framing around it and nothing invented. That is the
+ * field's whole value: "kolu did not attach" names the symptom every failure
+ * shares and is the one thing that never helped anybody, and the four ways of
+ * failing a probe want four different things done about them
+ * (`../../chat/src/kolu.ts`).
+ *
+ * `where` is where the server IS: the absolute file that was probed or would
+ * be spawned, or the URL of one reached over http. It is here because the
+ * incident #140 comes from was a question about WHICH binary: a `kolu` on PATH
+ * is not necessarily the host's kolu, a padi-spawned terminal prepends its own
  * bundled copy, and one of those was an older build that spawned perfectly and
  * knew nothing (juspay/kolu#2146). A reason without the path leaves the reader
  * where the incident started.
  *
- * `null` is the one failure that never reached a file, and it is the reason this
- * field is nullable at all: an environment that names a padi with no `kolu` on
- * PATH to reach it (`../../chat/src/kolu.ts`). This member shipped with `where`
+ * `null` is the one failure that never reached a file, and it is the reason
+ * that field is nullable at all: an environment that names a padi with no
+ * `kolu` on PATH to reach it (`../../chat/src/kolu.ts`). #140 shipped `where`
  * required on the argument that a server olai can find is one it found on PATH
  * — true of every reason that comes back from a spawn, and not of the one that
  * never got to spawn anything. The absence IS the finding there, so it is spelt
  * as one rather than as a sentinel path that is not a path.
  *
- * A server that is simply NOT INSTALLED is not one of these. Nothing failed on
- * a host that is not running kolu, and a panel reporting an absence as a fault
- * is a panel a reader learns to ignore — which is the same mistake as saying
- * nothing, arrived at from the other side.
+ * A server that is simply NOT INSTALLED is on no arm of this. Nothing failed on
+ * a host that is not running kolu, and a roster row reporting an absence as a
+ * fault is a row a reader learns to ignore — which is the same mistake as
+ * saying nothing, arrived at from the other side.
  */
-export const MissingServer = Schema.Struct({
-  /** What it is called — the same name the session would have been given it
-   *  under, which is the name the agent's own tools would have carried. */
+export const ChatServer = Schema.Struct({
+  /** What it is called — the same name the session was given it under, which
+   *  is the name the agent's own tools carry. */
   name: Schema.String,
-  /** The executable that was probed, absolute — or `null` when the failure was
-   *  that there was nothing to probe. */
+  /** Where it is: the executable that was probed or would be spawned,
+   *  absolute, or the URL of one reached over http — and `null` when the
+   *  failure was that there was nothing to probe. */
   where: Schema.NullOr(Schema.String),
-  /** In the server's or the probe's own words. Never a category. */
-  why: Schema.String,
+  /** How it stands, and — on the two arms that have one — why not. See
+   *  {@link ServerStanding}. */
+  standing: ServerStanding,
 })
-export type MissingServer = typeof MissingServer.Type
+export type ChatServer = typeof ChatServer.Type
+
+/**
+ * Why this conversation does not have that server, or `null` for one nothing
+ * has been said against.
+ *
+ * The one read that turns {@link ServerStanding} back into a sentence, and it
+ * is here rather than at the two call sites because it is the ONLY question
+ * asked of the union that both of them ask: which rows get prose under the
+ * roster, and what that prose says. Which ARM a row is on stays a `switch` at
+ * the call site — that is the question the union exists to make total, and a
+ * helper per arm would be a second vocabulary over a closed one.
+ */
+export const whyNot = (server: ChatServer): string | null => {
+  // A TOTAL SWITCH and not `"why" in standing`, which is the same reading with
+  // the exhaustiveness taken out. This answer is what the panel filters on to
+  // decide which rows get a sentence under the roster, so a fifth standing must
+  // SAY whether it is one of those — an arm that carried a reason meaning
+  // something other than "not here" would otherwise route itself into the
+  // failure list, and one that meant "not here" without a reason would vanish
+  // from it. Neither is a type error under the `in` check; both are here.
+  switch (server.standing.kind) {
+    case "connected":
+    case "handed":
+      return null
+    case "unattached":
+    case "missing":
+      return server.standing.why
+  }
+}
+
+/**
+ * Whether two standings say the same thing.
+ *
+ * DERIVED from the schema, exactly as `@olai/format`'s `sameGit` and
+ * `samePending` are, and for their reason: written out by hand it would be a
+ * field comparison beside the declaration of those same fields, and a field
+ * added to an arm would simply not be compared. What that costs here is a frame
+ * that is NEVER SENT — `@olai/chat`'s roster asks this to decide whether an
+ * agent's report moved anything, so an equality that missed a field would leave
+ * the panel drawing the standing before last, silently, because a roster
+ * written and not published looks exactly like a roster nothing changed.
+ */
+export const sameStanding: (a: ServerStanding, b: ServerStanding) => boolean = Schema
+  .toEquivalence(ServerStanding)
 
 /**
  * The agent is there and there is NO CONVERSATION, because opening one was
@@ -1116,8 +1232,8 @@ export const ChatState = Schema.Struct({
    *  can change it. */
   unopened: Schema.NullOr(Unopened),
   /**
-   * The MCP servers this conversation was meant to get and did not — see
-   * {@link MissingServer}.
+   * The MCP servers this conversation has, and how each one stands — see
+   * {@link ChatServer}.
    *
    * On the CELL rather than in the transcript, and that is the decision: this
    * is a standing property of the conversation, like the model it runs on and
@@ -1127,11 +1243,24 @@ export const ChatState = Schema.Struct({
    * complaint this member exists to end, arrived at one screenful later.
    *
    * Decided per conversation, because the servers are: a padi started after
-   * olai is picked up by the next session, so this empties itself the moment
-   * one attaches. EMPTY is the ordinary case and the one every healthy session
-   * is in — nothing is drawn for it.
+   * olai is picked up by the next session, so a `missing` row here empties
+   * itself the moment one attaches.
+   *
+   * EMPTY IS NOT "everything is fine" — it is "there is no conversation", and
+   * that is the whole difference between this member and the `missing` list it
+   * replaces. A panel between sessions has nothing to say about servers,
+   * because servers are handed at session open; a panel with one lists every
+   * server that conversation got, healthy ones included.
+   *
+   * WHAT IT CANNOT LIST is the agent's OWN servers — whatever the person put in
+   * their `~/.claude.json` or `opencode.json`. Olai never handed those over,
+   * has no probe of its own for them, and is told about them at most once, when
+   * the session opens, by an agent that is free to reconnect one afterwards
+   * without saying so. So a row for one could never be kept honest, and the
+   * panel says "plus the agent's own" instead of pretending this list is the
+   * whole of what the conversation can reach.
    */
-  missing: Schema.Array(MissingServer),
+  servers: Schema.Array(ChatServer),
 })
 export type ChatState = typeof ChatState.Type
 
@@ -1150,7 +1279,7 @@ export const CHAT_OFF: ChatState = {
   asking: 0,
   trouble: null,
   unopened: null,
-  missing: [],
+  servers: [],
 }
 
 /** Why a chat verb said no. `OpFailure`'s four kinds already cover it — `busy`

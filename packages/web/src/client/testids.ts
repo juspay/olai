@@ -1062,16 +1062,31 @@ export const TESTID = {
    *  several agents is broken" are two states, and the second leaves every
    *  other agent's conversations on the screen. */
   chatSessionUnreachable: "chat-session-unreachable",
-  /** The strip under the header naming an MCP server this conversation was
-   *  meant to have and did not. Absent — not empty — on a healthy session.
-   *  One `chatMissingServer` inside it per server. */
+  /** The strip under the header: which MCP servers this conversation has, and
+   *  how each one stands. Absent — not empty — only where there is no
+   *  conversation to have any. One `chatServer` inside it per server. */
+  chatRoster: "chat-roster",
+  /** One server on that strip. `data-server` is its name and `data-standing`
+   *  is how it stands (`connected`, `handed`, `unattached`, `missing`) — the
+   *  state as DATA, because the mark beside the name is styling and a scenario
+   *  that asserted a glyph would be asserting a decision about pixels. */
+  chatServer: "chat-server",
+  /** The line saying the list is not the whole of what the agent can reach.
+   *  Its own id because it is the honesty of the whole strip: olai lists what
+   *  it handed over, and an agent's own servers are configured where olai
+   *  cannot see them. */
+  chatRosterOwn: "chat-roster-own",
+  /** The part of that strip that names the servers this conversation does NOT
+   *  have, in sentences. Absent — not empty — on a conversation that got
+   *  everything. One `chatMissingServer` inside it per server. */
   chatMissing: "chat-missing",
   /** One such server. `data-server` is its name; the reason is the
    *  `chatMissingWhy` inside it. */
   chatMissingServer: "chat-missing-server",
-  /** Why it is not here, in the server's or the probe's own words. Its own id
-   *  because it is the half the whole feature exists for: a strip that named
-   *  the server and not the reason would be the log line again, on screen. */
+  /** Why it is not here, in the server's, the probe's or the agent's own
+   *  words. Its own id because it is the half the whole feature exists for: a
+   *  strip that named the server and not the reason would be the log line
+   *  again, on screen. */
   chatMissingWhy: "chat-missing-why",
   chatTranscript: "chat-transcript",
   /** The panel saying a dragged file would land HERE: drawn over the

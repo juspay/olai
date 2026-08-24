@@ -1,77 +1,76 @@
 /**
- * An MCP server this conversation was meant to have, and does not.
+ * The servers this conversation does NOT have, in sentences — the whole of
+ * `mcp-fail-visible`, drawn under {@link ./Roster.tsx}'s list of the ones it
+ * does.
  *
- * The visible half of `mcp-fail-visible`. A server that failed to attach used
- * to leave a debug log line and a session quietly short of its tools: the panel
- * drew a perfectly healthy conversation, the agent could not see kolu's
- * terminals, and the way to find out which of those was true was to read olai's
- * log from outside the app. The whole of this component is that the two are
- * told apart on screen.
+ * A server that failed to attach used to leave a debug log line and a session
+ * quietly short of its tools: the panel drew a perfectly healthy conversation,
+ * the agent could not see kolu's terminals, and the way to find out which of
+ * those was true was to read olai's log from outside the app. The whole of this
+ * component is that the two are told apart on screen.
  *
- * Three arguments about how it is drawn, and each is a thing it deliberately is
- * not:
+ * ITS OWN COMPONENT, still, now that the roster names the healthy servers as
+ * well. The two answer two questions — *which servers are here* and *why is one
+ * of them not* — and they change for different reasons: a fifth standing moves
+ * the chips, a reworded probe moves these. A conversation that got everything
+ * answers only the first, so this is a component that is absent rather than a
+ * branch inside that one, and its testid is what a scenario asserts the absence
+ * of.
  *
- *   - **it is not an alarm.** Nothing is broken: the conversation works, the
- *     outlines are served, and the agent will answer — it simply has fewer
- *     tools than it might have. So this takes the panel's quiet vocabulary
- *     (`panel` under a `desk`, the header's own 11px mono, muted prose) and one
- *     `alarm` dot, which is the smallest mark this palette has for "something
- *     to look at". A red banner would teach a reader to close the drawer.
- *   - **it is not folded.** The REASON is the feature — "kolu did not attach"
- *     is the sentence every failure shares and the one that never helped
- *     anybody — so hiding it behind a disclosure would ship the log line again,
- *     one click further away. It is two short lines, on a panel nobody sees
- *     unless something actually failed.
- *   - **it is not in the transcript.** This is a standing property of the
- *     session, like the model in the header above it, and not something that
- *     happened at a point in the conversation. A notice row would scroll out of
- *     reach under the first answer — which is where the reader is when they
- *     wonder why the terminals are missing.
+ * The REASON is the feature — "kolu did not attach" is the sentence every
+ * failure shares and the one that never helped anybody — so it is not folded
+ * behind a disclosure, which would ship the log line again one click further
+ * away. Two short lines per server, on rows nobody sees unless something
+ * actually failed.
  *
- * A healthy session renders NOTHING here, and that is not an accident of an
- * empty list: `missing` is empty on every conversation that got what it was
- * meant to, and a host that is not running kolu at all reports no absence
- * either (`../../../../chat/src/kolu.ts` — nothing failed, so nothing is said).
- *
- * It also does not reach the app header's agent toggle, which is the one piece
- * of chrome a shut panel cannot swallow. That bit is spent on `asking` and
- * should stay spent on it: a turn stopped on a question will never finish by
- * itself, so a person who cannot see it is stuck. A conversation short of a
- * tool is not stuck — the agent answers — so what it is owed is a place to be
- * found, not an interruption.
+ * TWO STANDINGS reach here and the sentence is what tells them apart
+ * ({@link ./standing.ts}): olai's own probe refused to hand the server over
+ * (`missing`), or olai handed it over and the AGENT could not attach it
+ * (`unattached`) — which is a fact olai could not report at all until
+ * `mcp-roster-visible`, because ACP's `session/new` says nothing per server.
+ * They want different things done about them, which is why the words differ.
  */
 
-import type { MissingServer } from "@olai/surface"
-import { For, Show } from "solid-js"
+import { type ChatServer, whyNot } from "@olai/surface"
+import { createMemo, For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import type { Chat } from "./state.ts"
+import { SAID } from "./standing.ts"
 
-export function Missing(props: { readonly chat: Chat }) {
-  const missing = () => props.chat.state().missing
-
+export function Missing(props: { readonly servers: ReadonlyArray<ChatServer> }) {
+  /**
+   * The rows this component is about, picked out of the whole roster.
+   *
+   * HERE rather than in the caller, because which standings mean "this
+   * conversation does not have it" is this component's own subject — a caller
+   * that pre-filtered would be the rule living one file away from the thing it
+   * is about, and the component could not be read alone.
+   *
+   * Asked as "is there a reason?" rather than by listing the two standings that
+   * have one: `whyNot` is a TOTAL switch over the union
+   * (`../../../../surface/src/chat.ts`), so a fifth standing has to answer the
+   * question rather than quietly not match a list here.
+   *
+   * MEMOIZED, which is the difference between one filter per change and two
+   * fresh arrays per read: `<Show>` reads it and `<For>` reads it, and a fresh
+   * array on the second read is one `mapArray` can never skip — throwing away
+   * exactly what the cell's `arrayKey: "name"` identity declaration buys.
+   */
+  const absent = createMemo(() => props.servers.filter((server) => whyNot(server) !== null))
   return (
-    <Show when={missing().length > 0}>
-      <section
-        class="shrink-0 border-b border-rule/70 bg-panel px-3 py-1.5"
-        data-testid={TESTID.chatMissing}
-        aria-label="missing tools"
-      >
-        <For each={missing()}>{(server) => <Row server={server} />}</For>
-      </section>
+    <Show when={absent().length > 0}>
+      <div class="mt-1 space-y-1" data-testid={TESTID.chatMissing}>
+        <For each={absent()}>{(server) => <Row server={server} />}</For>
+      </div>
     </Show>
   )
 }
 
-/** One of them: what is not here, why not, and — when the probe had one — which
- *  file it asked. */
-function Row(props: { readonly server: MissingServer }) {
+/** One of them: what is not here, why not, and — when there was one — which
+ *  file was asked. */
+function Row(props: { readonly server: ChatServer }) {
   return (
-    <div
-      class="font-mono text-[0.6875rem] leading-snug"
-      data-testid={TESTID.chatMissingServer}
-      data-server={props.server.name}
-    >
+    <div data-testid={TESTID.chatMissingServer} data-server={props.server.name}>
       <p class="flex items-baseline gap-1.5 text-ink">
         <span
           class="inline-block size-1.5 shrink-0 -translate-y-px rounded-full bg-alarm"
@@ -79,7 +78,7 @@ function Row(props: { readonly server: MissingServer }) {
         />
         <span>
           <span class="font-semibold">{props.server.name}</span>{" "}
-          is missing from this conversation
+          {SAID[props.server.standing.kind].sentence}
         </span>
       </p>
       {/* The server's own words, and the reason this strip is worth its
@@ -87,7 +86,7 @@ function Row(props: { readonly server: MissingServer }) {
           errno string, and a 26rem drawer is not wide enough to be trusted
           with one. */}
       <p class="break-words pl-3 text-muted" data-testid={TESTID.chatMissingWhy}>
-        {props.server.why}
+        {whyNot(props.server)}
       </p>
       {/* WHICH file was asked. The incident this whole feature comes from was
           exactly this question: a `kolu` on PATH is not necessarily the host's

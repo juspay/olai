@@ -78,6 +78,24 @@ export interface RawMessages {
   /** The model a turn is RUNNING on, out of one of those messages, or `null`
    *  for a message that says nothing about one. */
   readonly modelIn: (params: unknown) => string | null
+  /**
+   * What the agent says about ITS OWN CONNECTIONS to the MCP servers of this
+   * conversation, out of one of those messages — or `null` for a message that
+   * says nothing about them, which is nearly all of them.
+   *
+   * THE ONE FACT THE PROTOCOL HAS NO PLACE FOR, which is why it is worth
+   * reading off an agent's private channel at all. `session/new` takes a list
+   * of servers and answers with a session id: whether the agent reached any of
+   * them is never on the wire, and #140 could only ever report the failures
+   * olai's own probe found before handing anything over. An agent that
+   * volunteers the other half is one whose panel can stop guessing.
+   *
+   * `null` — including on an agent that forwards messages but says nothing per
+   * server — leaves every row where olai put it, which is an honest "handed
+   * over; nobody has said what became of it" rather than a claim in either
+   * direction ({@link ../servers.ts}).
+   */
+  readonly serversIn: (params: unknown) => ReadonlyArray<Reported> | null
 }
 
 /**
@@ -116,6 +134,47 @@ export const allowingOurs = (
  *  what a transcript is. */
 export interface Spawn {
   readonly kind?: string
+}
+
+/**
+ * What a leg says an agent reported about one of ITS OWN connections to an MCP
+ * server.
+ *
+ * Here beside {@link Spawn} and for its reason: this is a payload reading, and
+ * what {@link ../servers.ts} then makes of it — a roster row, a standing, a
+ * sentence — is a fact about a conversation that no leg may know. Declared the
+ * other way round, the file that is only allowed to be wrong about one agent
+ * would have been importing the panel's own vocabulary.
+ *
+ * TWO FIELDS RATHER THAN THE STATUS ALONE, and the split is this interface's
+ * whole point. WHICH WORD MEANS YES is true of one agent — the Claude Code
+ * CLI spells it `connected` — so the leg answers it, exactly as it answers
+ * which prefix names an MCP server's tools. Read one layer up instead, that
+ * one CLI's vocabulary would be the leg-neutral roster's, and the second agent
+ * to report per-server status would have to spell its own words the first
+ * one's way or make the roster grow a branch per leg.
+ *
+ * POSITIVE RECOGNITION, the rule this file exists to keep: `attached` is true
+ * only where the agent said the word its leg knows, and every other word — a
+ * failure, a `needs-auth`, a word no version has sent yet — is false. The
+ * losing direction is a working server drawn as one nobody confirmed; a tick
+ * over tools that are not there is the direction no leg may fail in.
+ */
+export interface Reported {
+  readonly name: string
+  /** Whether the AGENT says it has this server. */
+  readonly attached: boolean
+  /**
+   * ... and its own word for it, whatever that was.
+   *
+   * Carried verbatim, for the sentence a person reads when the answer is no:
+   * the CLI's status is an open set (`failed`, `needs-auth`, `pending`,
+   * `disabled` today) that grows on somebody else's release schedule, and a
+   * reader can act on `needs-auth` — sign the server in — quite differently
+   * from `failed`. Flattened into a category of ours, both become "it did not
+   * work", which is the log line this whole feature exists to stop showing.
+   */
+  readonly said: string
 }
 
 /**

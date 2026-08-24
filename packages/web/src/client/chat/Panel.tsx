@@ -21,8 +21,8 @@
  * (`attention/attention.ts`). It is out there because a question arriving
  * behind a MINIMIZED panel is the case that feature exists for.
  *
- * Both layouts render the same `Face` — the header, whatever this conversation
- * is short of, and then one of four bodies ({@link ./face.ts}): the
+ * Both layouts render the same `Face` — the header, which servers this
+ * conversation has, and then one of four bodies ({@link ./face.ts}): the
  * conversation, the explanation that this machine has no agent, the explanation
  * that a live agent would not open one, or the question of WHICH agent a
  * conversation is with ({@link ./Choose.tsx}). So the two shells own their chrome and their
@@ -31,12 +31,13 @@
  * conversation is attached to it, and the chips land in the composer inside.
  * The body only — the header is session controls, and a file cannot go there.
  *
- * Between those two sits {@link Missing}, which draws nothing at all unless this
- * conversation was short of an MCP server it was meant to have. It is OUTSIDE
- * the no-agent fallback and outside the drop target on purpose: it is a fact
- * about the session rather than a part of the conversation, and it belongs
- * where the header's other facts are — above the scroll, and never carried
- * away by it.
+ * Between those two sits {@link Roster}, which names the MCP servers this
+ * conversation has and says which of them the agent reported attaching. It is
+ * OUTSIDE the no-agent fallback and outside the drop target on purpose: it is a
+ * fact about the session rather than a part of the conversation, and it belongs
+ * where the header's other facts are — above the scroll, and never carried away
+ * by it. It draws on every conversation and none at all where there is no
+ * conversation, which is where #140's strip drew only on a broken one.
  */
 
 import { createSignal, Match, Show, Switch } from "solid-js"
@@ -66,7 +67,7 @@ import { faceOf } from "./face.ts"
 import { createHolding } from "./holding.ts"
 import { createLastAgent } from "./last.ts"
 import { Minimized } from "./Minimized.tsx"
-import { Missing } from "./Missing.tsx"
+import { Roster } from "./Roster.tsx"
 import { Busy } from "./Busy.tsx"
 import { NoAgent } from "./NoAgent.tsx"
 import { type Chat, createChat, createChatState } from "./state.ts"
@@ -252,7 +253,7 @@ function Face(props: { readonly chat: Chat }) {
   return (
     <>
       <Header chat={props.chat} onNew={onNew} />
-      <Missing chat={props.chat} />
+      <Roster chat={props.chat} />
       <Switch fallback={<Body chat={props.chat} />}>
         <Match when={face().kind === "no-agent"}>
           <NoAgent />
