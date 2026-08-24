@@ -27,7 +27,9 @@
     "effect": "4.0.0-rc.110"
   },
   "//ws": "Not here any more, and that is the point of serveSurfaceApp: no source in this package names a websocket implementation. `ws` is the hydrated @kolu/surface-app's own peer dependency, declared at the ROOT with the rest of them (bunfig.toml has the argument).",
+  "//devDependencies": "@olai/child is the subprocess socket the process-boundary tests ride (`child.testlib.ts`, `surfaceCli.test.ts`); product spawn is `@olai/chat`'s and `@olai/git`'s. Deliberately not a runtime dependency: nothing in the served binary imports it.",
   "devDependencies": {
+    "@olai/child": "workspace:*",
     "@types/node": "^22.0.0"
   }
 }

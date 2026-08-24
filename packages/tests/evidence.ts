@@ -12,12 +12,10 @@
  * a frame nobody can reproduce.
  */
 import { fileKind, shiftDay } from "@olai/format"
-import { ROW_DIM } from "@olai/web/src/client/blocked.ts"
+import { isoDayOf, ROW_DIM } from "@olai/web/testlib"
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
 import { type Browser, chromium, type Locator, type Page } from "playwright"
-
-import { isoDayOf } from "@olai/web/src/client/clock.ts"
 
 import { BROWSER_ARGS } from "./support/browser.ts"
 
@@ -211,14 +209,14 @@ const SETTLE = 1800
  *  window and {@link PANEL_FITS} are built from. */
 const WIDE = 1100
 
-// ── the chat panel, for the one section that talks to an agent ─────────
+// ── the chat panel, for the sections that talk to an agent ─────────────
 
 /** The panel's own rows and controls, by the test ids the client draws them
  *  with. Spelled here rather than imported from `support/world.ts`: that module
  *  is the SUITE's world (it imports cucumber and a browser it did not open),
  *  and a driver reaching into it would drag the runner into a script that has
  *  no runner. The same reason `reads.ts` builds its own session rather than a
- *  scenario's. */
+ *  scenario's. Shared by every chat section in this file. */
 const CHAT_TOGGLE = '[data-testid="chat-toggle"]'
 const CHAT_PANEL = '[data-testid="chat-panel"]'
 const CHAT_INPUT = '[data-testid="chat-input"]'
@@ -231,15 +229,6 @@ const TESTID_WATCHING = "chat-watching"
 const CHAT_WATCHING = `[data-testid="${TESTID_WATCHING}"]`
 const CHAT_TOOL_ELAPSED = '[data-testid="chat-tool-elapsed"]'
 const CHAT_TOOL_PROGRESS = '[data-testid="chat-tool-progress"]'
-
-/** Open the panel if this browser has not remembered it open. Whether it is
- *  open is a preference the client keeps, so a driver that clicked
- *  unconditionally would close it every other run. */
-const openChat = async (page: Page): Promise<void> => {
-  const panel = page.locator(CHAT_PANEL)
-  if (!(await panel.isVisible())) await page.locator(CHAT_TOGGLE).click()
-  await panel.waitFor()
-}
 
 /** Say something to the agent — the driver's half of the suite's own step. */
 const ask = async (page: Page, text: string): Promise<void> => {
@@ -752,15 +741,8 @@ const said = async (page: Page, locator: string) =>
 
 // ── the conversation ───────────────────────────────────────────────────
 
-/** The panel, its door, and the six things the chat section reads. Spelled
- *  here rather than imported from `support/world.ts`, which is the SUITE's
- *  world and builds a Cucumber one on import — the same reason every other
- *  selector in this file is a literal. */
-const CHAT_TOGGLE = '[data-testid="chat-toggle"]'
-const CHAT_PANEL = '[data-testid="chat-panel"]'
-const CHAT_TRANSCRIPT = '[data-testid="chat-transcript"]'
-const CHAT_INPUT = '[data-testid="chat-input"]'
-const CHAT_SEND = '[data-testid="chat-send"]'
+/** Faces this section photographs that the panel block above does not:
+ *  cancel, interrupt, the queued row, the composer's queue promise. */
 const CHAT_CANCEL = '[data-testid="chat-cancel"]'
 /** The other send: into the turn the agent is running. */
 const CHAT_INTERRUPT = '[data-testid="chat-interrupt"]'
@@ -777,11 +759,12 @@ const AGENT_PATIENCE = 180_000
 
 /** Open the panel and wait until it has an agent to talk to.
  *
- *  It REFUSES an `off` panel by timing out here rather than further down: this
- *  section is about what an agent does with a message, so a run against no
- *  agent has nothing to photograph and the honest place to say so is the first
- *  wait. `AGENT=` on `evidence.sh` is what gives it one. */
-const openChat = async (page: Page): Promise<void> => {
+ *  It REFUSES an `off` panel by timing out here rather than further down: a
+ *  section about what an agent does with a message has nothing to photograph
+ *  against no agent, and the honest place to say so is the first wait.
+ *  `AGENT=` on `evidence.sh` is what gives it one. Both chat sections need
+ *  that wait — the background-task one included. */
+const openChatForAgent = async (page: Page): Promise<void> => {
   if (!(await page.locator(CHAT_PANEL).isVisible())) {
     await page.locator(CHAT_TOGGLE).click()
     await page.locator(CHAT_PANEL).waitFor()
@@ -1061,7 +1044,7 @@ const SECTIONS = {
    * against a real monitor's clock.
    */
   "a-background-task-the-agent-armed": async (page) => {
-    await openChat(page)
+    await openChatForAgent(page)
     await ask(page, "watch")
     // THE ROW, once the clock has something to say. The readout is quiet for
     // its first seconds on purpose (the reads that land instantly must not
@@ -3655,7 +3638,7 @@ const SECTIONS = {
      *  a glance in a transcript full of prose. */
     const WORD = (word: string) => `Say the word ${word} and nothing else.`
 
-    await openChat(page)
+    await openChatForAgent(page)
     await shot(page, "an-idle-conversation")
 
     // ── ONE: the interrupting gesture ────────────────────────────────

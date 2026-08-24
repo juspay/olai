@@ -8,10 +8,12 @@
  * entitled to change; a `data-testid` is a promise.
  *
  * The names themselves are not re-spelled here — they are IMPORTED from the
- * client that writes them. A contract copied into both halves is a contract
- * kept by memory: renaming an attribute over there would still compile over
- * here and fail thirty seconds later as a bare timeout. Imported, the same
- * rename is a type error before the browser ever starts.
+ * client that writes them, through the one door it publishes for this suite:
+ * `@olai/web/testlib` (`imports.test.ts` sweeps this package for anything
+ * deeper). A contract copied into both halves is a contract kept by memory:
+ * renaming an attribute over there would still compile over here and fail
+ * thirty seconds later as a bare timeout. Imported, the same rename is a
+ * type error before the browser ever starts.
  */
 
 import * as assert from "node:assert";
@@ -24,15 +26,16 @@ import * as os from "node:os";
 // Aliased: `NODE_REF` below is the see/after reference ELEMENT (`NodeRefs.tsx`),
 // and this is the ATTRIBUTE a pressable node reference in the chat panel
 // carries. Two different things, one word — so the import says which.
-import { REFERRINGS } from "@olai/web/src/client/backlinks/way.ts";
-import { NODE_REF as CHAT_NODE_REF_ATTR } from "@olai/web/src/client/chat/refs.ts";
-// The client's own long-press deadline, for the same reason the testids are
-// imported rather than re-spelled: a scenario that held a finger for a number
-// this file had guessed would become a tap the day that one moved.
-import { LONG_PRESS_MS } from "@olai/web/src/client/longPress.ts";
+import {
+  LONG_PRESS_MS,
+  NODE_REF as CHAT_NODE_REF_ATTR,
+  REFERRINGS,
+  ROW_TESTID,
+  selector,
+  TESTID,
+  type TestId,
+} from "@olai/web/testlib";
 import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
-import { ROW_TESTID } from "@olai/web/src/client/file/kinds.ts";
-import { selector, type TestId, TESTID } from "@olai/web/src/client/testids.ts";
 import {
   setDefaultTimeout,
   setWorldConstructor,

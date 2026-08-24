@@ -27,7 +27,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import { shiftDay } from "@olai/format";
-import { isoDayOf } from "@olai/web/src/client/clock.ts";
+import { isoDayOf } from "@olai/web/testlib";
 
 import {
   AGENDA_COUNT,

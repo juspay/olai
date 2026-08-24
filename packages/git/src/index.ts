@@ -8,10 +8,12 @@
  * push the current branch. Nothing here says `rev-parse`, and nothing above
  * says it either.
  *
- * It is a LEAF: `effect`, `node:child_process` and `node:fs`, and no workspace
- * sibling at all. That is what the extraction bought — the file was already
- * plumbing that decided nothing, and the two olai-isms it still carried (a
- * writer vocabulary, and an audit convention) are handed in now.
+ * It is a LEAF beside `@olai/child`: `effect`, `@olai/child` and `node:fs`.
+ * The subprocess socket is the sibling's; this package's runner rides it, and
+ * the index gate (#360) stays here — it is the caller's, not the socket's.
+ * That is what the extraction bought — the file was already plumbing that
+ * decided nothing, and the two olai-isms it still carried (a writer
+ * vocabulary, and an audit convention) are handed in now.
  *
  * The `./state` subpath is the half of this package with no subprocess in it,
  * and it is a carve-out with a reason: {@link RepoState} travels the wire, so

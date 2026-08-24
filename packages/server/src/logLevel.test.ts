@@ -10,9 +10,14 @@ import { mkdtempSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
-import { startWeb, stoppedWithin } from "./child.testlib.ts"
+import { startWeb } from "./child.testlib.ts"
 
 const vault = (): string => mkdtempSync(join(tmpdir(), "olai-loglevel-"))
+
+/** How long a quiet boot may take before we believe it will not say `serving`.
+ *  The box is filled by the spawn-time drain; this clock is only the hang
+ *  detector for a negative. */
+const QUIET_MS = 4_000
 
 test("--log-level error with OLAI_LOG_LEVEL unset drops the serving INFO line", async () => {
   const root = vault()
@@ -22,17 +27,13 @@ test("--log-level error with OLAI_LOG_LEVEL unset drops the serving INFO line", 
     env: { OLAI_LOG_LEVEL: "" },
   })
   try {
-    const deadline = Date.now() + 4_000
-    while (Date.now() < deadline && child.child.exitCode === null) {
-      if (findLogfmt(child.said(), "serving") !== undefined) break
-      await Bun.sleep(50)
-    }
-    expect(child.child.exitCode).toBeNull()
+    await Bun.sleep(QUIET_MS)
+    expect(child.exitCode).toBeNull()
     expect(findLogfmt(child.said(), "serving")).toBeUndefined()
     expect(child.said()).not.toContain("level=INFO")
   } finally {
     child.kill("SIGTERM")
-    expect(await stoppedWithin(child.child, 5_000)).toBe(true)
+    await child.wait(5_000, "SIGTERM")
     rmSync(root, { recursive: true, force: true })
   }
 }, 15_000)
@@ -50,7 +51,7 @@ test("OLAI_LOG_LEVEL=info wins over --log-level error", async () => {
     expect(findLogfmt(child.said(), "serving")).toBeDefined()
   } finally {
     child.kill("SIGTERM")
-    expect(await stoppedWithin(child.child, 5_000)).toBe(true)
+    await child.wait(5_000, "SIGTERM")
     rmSync(root, { recursive: true, force: true })
   }
 }, 15_000)

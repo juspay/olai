@@ -146,16 +146,17 @@ export const make = (
       )
     }
 
-    // ── the watcher, and the tree it cannot see on its own ──────────────
+    // ── the watcher, and the tree a recursive watch can miss ─────────────
     //
-    // `fs.watch(root, { recursive: true })` registers the tree AS IT STANDS
-    // when it is armed, and the pinned runtime never follows a directory made
-    // afterwards: the `mkdir` is reported, and then every file that lands
-    // inside the new directory is silent. Both halves are measured
-    // (docs/brainstorming/watcher-fd-cost.md), and the second one is a real
-    // minute of nothing happening — make a folder in a served vault, put a
-    // note in it, and the page waits for the backstop. It is fixed upstream in
-    // a version this repo does not pin, which makes it this package's problem.
+    // Bun 1.4.0's `fs.watch(root, { recursive: true })` follows a directory
+    // made after it is armed — measured, all nine mutation shapes deliver,
+    // including a file created and then edited inside a post-boot folder
+    // (docs/brainstorming/watcher-fd-cost.md). The WALK still arms a watcher
+    // on each directory it enters that nothing covers yet. That cover was
+    // built for 1.3.13's blind spot; on 1.4.0 it is defense in depth, and
+    // it is also what 1.3.13 needed for a path that has been watched once,
+    // removed, and made again (the registry was sticky — measured then).
+    // The backstop still covers whatever a live watcher does not.
     //
     // The WALK is what closes it, because the walk is already the only thing
     // in here that looks at directories: while somebody is watching, one it
@@ -174,8 +175,8 @@ export const make = (
     //     their parent, and the walk that follows arms them in turn;
     //   - the FIRST walk with a watcher live only RECORDS what it finds,
     //     because that tree is the one the root's recursive watch already
-    //     holds and arming a second watcher over every directory of it would
-    //     double a descriptor cost the runtime already charges too much for.
+    //     holds; arming a second watcher over every directory of it is a
+    //     watcher nobody needs.
     //     In practice that walk is the store's boot `refresh`, forked right
     //     behind the watcher — so the window a directory can be born into and
     //     be MISTAKEN for one of the covered is one LISTING wide, which on a
@@ -186,13 +187,13 @@ export const make = (
     //     window is what the backstop owns.
     //
     // A directory that leaves the tree gives its watcher up, and that is
-    // hygiene rather than a second fix: the pinned runtime registers a watch
-    // BY PATH, process-wide and for good, so a path that has been watched once
-    // and is then removed and made again is a handle on an inode nobody can
-    // reach — measured, and no spelling of the same path gets a live one back.
-    // Nothing in here can close that, so the backstop keeps it, exactly as it
-    // kept the whole of this before. What releasing buys is that the set stays
-    // the size of the tree rather than of every directory the tree ever had.
+    // hygiene rather than a second fix: on 1.3.13 the runtime registered a
+    // watch BY PATH, process-wide and for good, so a path that has been
+    // watched once and is then removed and made again is a handle on an
+    // inode nobody can reach — measured then, and no spelling of the same
+    // path got a live one back. Nothing in here can close that, so the
+    // backstop keeps it. What releasing buys is that the set stays the size
+    // of the tree rather than of every directory the tree ever had.
     let covering: Covering | null = null
 
     /** Arm a watcher on a directory the root's own does not reach — nothing

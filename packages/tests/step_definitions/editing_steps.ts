@@ -30,8 +30,7 @@ import { Then, When } from "@cucumber/cucumber";
 import { MARKS } from "@olai/format";
 
 import { shiftDay } from "@olai/format";
-import { isoDayOf } from "@olai/web/src/client/clock.ts";
-import { IDLE_COMMIT } from "@olai/web/src/client/edit/draft.ts";
+import { IDLE_COMMIT, isoDayOf } from "@olai/web/testlib";
 
 import type { Locator } from "playwright";
 

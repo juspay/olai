@@ -23,7 +23,7 @@
 
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
-import { TESTID } from "@olai/web/src/client/testids.ts";
+import { TESTID } from "@olai/web/testlib";
 
 import {
   AFTER_REFS,

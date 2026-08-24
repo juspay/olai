@@ -18,11 +18,13 @@ import * as path from "node:path";
 import { Given, Then, When } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
-import { NEAR } from "@olai/web/src/client/chat/near.ts";
-
-import { selector, TESTID, type TestId } from "@olai/web/src/client/testids.ts";
-
-import { completingIn } from "@olai/web/src/client/chat/completion.ts";
+import {
+  completingIn,
+  NEAR,
+  selector,
+  TESTID,
+  type TestId,
+} from "@olai/web/testlib";
 
 import { retypedAndTaken } from "../support/atonce.ts";
 import { MARKER } from "../support/scripted.ts";
