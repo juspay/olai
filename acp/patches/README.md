@@ -99,11 +99,17 @@ it ended. Per-event streaming is a change one layer further down, in the CLI.
 
 ## Upstreaming
 
-Nothing here has been sent to `agentclientprotocol/claude-agent-acp`, and
-nothing may be without the human's word (the brief's rule: never act on
-another repo without ratification). The patch is written against the compiled
-output because that is what the pin ships; the same change against
-`src/acp-agent.ts` is a mechanical translation of it.
+**Asked, not sent**:
+[claude-agent-acp#1038](https://github.com/agentclientprotocol/claude-agent-acp/issues/1038)
+describes this extension, links to this patch, and asks the maintainers whether
+a PR of it would be welcome. That issue is the whole of what has been done on
+that repo — no branch, no PR — and it was opened on the human's own narrow
+ratification, because acting on somebody else's repository is theirs to allow
+and never this lane's to assume.
+
+The patch is written against the compiled output because that is what the pin
+ships; against `src/acp-agent.ts` the same change is a mechanical translation,
+which is what a PR would carry if the answer is yes.
 
 ## When the pin moves
 
