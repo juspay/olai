@@ -174,6 +174,21 @@ Then(
   },
 );
 
+/** The de-blur itself: the face is OFF the same element, which is what the
+ *  swap is. Its own step because the blur going away is a claim of its own —
+ *  a surface that kept it would be a page permanently pretending to be
+ *  loading, and no assertion about the rendering would notice. */
+Then(
+  "the description of {string} is not waiting",
+  async function (this: OlaiWorld, id: string) {
+    const desc = this.node(id).locator(DESC).first();
+    await this.waitUntil(
+      async () => (await desc.locator(WAITING).count()) === 0,
+      `the note of "${id}" to stop waiting on the renderer`,
+    );
+  },
+);
+
 /**
  * THE CLAIM ABOUT EVERY FRAME, including the ones that are gone: nothing this
  * document ever put in the waiting state was readable when it went in.

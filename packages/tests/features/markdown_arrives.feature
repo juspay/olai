@@ -145,5 +145,6 @@ Feature: The markdown pipeline arrives before it is needed
     When I note where the description of "demo" sits
     And the markdown pipeline arrives
     Then the description of "demo" renders bold text "matte"
+    And the description of "demo" is not waiting
     And the description of "demo" is where it was
     And there should be no page errors

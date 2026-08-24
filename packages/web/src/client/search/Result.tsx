@@ -74,6 +74,7 @@
 import { createMemo, For, Show } from "solid-js"
 
 import { renderTitle } from "../markdown/title.ts"
+import { waitingFace } from "../markdown/waiting.ts"
 
 import type { DirectoryKind } from "../file/icons.tsx"
 import { Glyph } from "../file/icons.tsx"
@@ -187,10 +188,9 @@ export function Result(props: {
                 class="olai-md olai-md-inline min-w-0 flex-1 truncate"
                 // A row whose title is still its own source wears the same
                 // waiting face a tree row and a document body do — blurred and
-                // swept, never read (`../styles.css`). One rule, so a hit in
-                // the palette cannot flash marks a tree row does not.
-                data-markdown={title().waiting ? "waiting" : undefined}
-                aria-busy={title().waiting ? "true" : undefined}
+                // swept, never read (`../markdown/waiting.ts`). One rule, so a
+                // hit in the palette cannot flash marks a tree row does not.
+                {...waitingFace(title().waiting)}
                 // Safe: the same sanitised pipeline NodeTitle uses.
                 innerHTML={title().html}
               />

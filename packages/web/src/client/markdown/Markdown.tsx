@@ -45,6 +45,7 @@ import { createMemo, Show } from "solid-js"
 import { markdownFailure, markdownReady } from "./chunk.ts"
 import { renderMarkdown, renderStreaming } from "./render.ts"
 import { escapeHtml } from "./tags.ts"
+import { waitingFace } from "./waiting.ts"
 
 export function Markdown(props: {
   readonly source: string
@@ -79,12 +80,10 @@ export function Markdown(props: {
           // page moves but the words themselves.
           classList={{ "whitespace-pre-wrap": waiting() }}
           data-testid={props.testid}
-          data-markdown={waiting() ? "waiting" : undefined}
-          // The same state, said to a reader who is not looking at it: what is
-          // under this element is not the answer yet. A blur is nothing to a
-          // screen reader, and the raw source would otherwise be read out as
-          // if it were the text.
-          aria-busy={waiting() ? "true" : undefined}
+          // The waiting face, which every surface holding unrendered source
+          // wears (./waiting.ts, ../styles.css) — this element rather than a
+          // wrapper, because what the rule blurs is what is inside it.
+          {...waitingFace(waiting())}
           // Safe because the pipeline sanitises (see ./render.ts), and because
           // the text of the file it came from is escaped when there is no
           // pipeline yet.

@@ -53,6 +53,7 @@ import { addressIn, shownIn, titleFace } from "./address/address.ts"
 import { Face } from "./address/Face.tsx"
 import { useNames } from "./reading.tsx"
 import { renderTitle } from "./markdown/title.ts"
+import { waitingFace } from "./markdown/waiting.ts"
 
 export function NodeTitle(props: {
   readonly title: string
@@ -87,11 +88,10 @@ export function NodeTitle(props: {
           class="olai-md olai-md-inline"
           // The third answer wears the app's one waiting face — the source
           // this row is holding, blurred and swept, so a title with marks in
-          // it is never READ as marks (./styles.css, ./markdown/title.ts). The
-          // same element throughout: what the pipeline landing does to this
-          // row is take the blur off, not redraw it.
-          data-markdown={drawing().waiting ? "waiting" : undefined}
-          aria-busy={drawing().waiting ? "true" : undefined}
+          // it is never READ as marks (./markdown/waiting.ts). The same
+          // element throughout: what the pipeline landing does to this row is
+          // take the blur off, not redraw it.
+          {...waitingFace(drawing().waiting)}
           // Safe: markdown is sanitised; tags are alphabet-restricted; the empty
           // fallback is escaped. See ./markdown/title.ts and ./markdown/render.ts.
           innerHTML={drawing().html}
