@@ -57,7 +57,7 @@ import { lockFor, sweepRuntime } from "./lock.ts"
 import { served } from "./serve.testlib.ts"
 
 /** A test may take three waits (boot, stop, boot) before it is a hang.
- *  One more BOUND_MS sits outside that sum so bun cannot steal the last
+ *  One more BOOT_TIMEOUT sits outside that sum so bun cannot steal the last
  *  hang detector's sentence with a generic timeout. */
 const BOUND_MS = BOOT_TIMEOUT * 4
 
@@ -268,7 +268,7 @@ test("the lock is the directory's, however the directory was spelled", () => {
   expect(lockFor(link)).toBe(lockFor(root))
   expect(lockFor(`${root}/.`)).toBe(lockFor(root))
   expect(lockFor(elsewhere)).not.toBe(lockFor(root))
-})
+}, BOUND_MS)
 
 /**
  * The OTHER refusal, which had no test: the machine will not answer the
@@ -341,7 +341,7 @@ test("a dead-pid lock is swept", () => {
   )
   expect(sweepRuntime()).toBeGreaterThanOrEqual(1)
   expect(fs.existsSync(file)).toBe(false)
-})
+}, BOUND_MS)
 
 test("a live lock is not swept", async () => {
   // Pid-and-root in a file anybody wrote is not a live server: the kernel's
@@ -374,7 +374,7 @@ test("a leftover whose recorded root is gone is swept when nothing holds it", ()
   )
   expect(sweepRuntime()).toBeGreaterThanOrEqual(1)
   expect(fs.existsSync(file)).toBe(false)
-})
+}, BOUND_MS)
 
 test("a lock that is a symlink is not followed", () => {
   const target = path.join(ours, "secret")
@@ -385,7 +385,7 @@ test("a lock that is a symlink is not followed", () => {
   sweepRuntime()
   expect(fs.readFileSync(target, "utf8")).toBe("do not touch\n")
   expect(fs.lstatSync(file).isSymbolicLink()).toBe(true)
-})
+}, BOUND_MS)
 
 test("a leftover rendezvous socket is swept, and surface.sock is not", () => {
   const leftover = placed("0123456789abcdef.sock", "")
@@ -394,6 +394,6 @@ test("a leftover rendezvous socket is swept, and surface.sock is not", () => {
   expect(fs.existsSync(leftover)).toBe(false)
   expect(fs.existsSync(live)).toBe(true)
   fs.unlinkSync(live)
-})
+}, BOUND_MS)
 
 
