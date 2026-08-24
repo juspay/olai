@@ -538,13 +538,16 @@ export const REPEAT_PICKER = selector(TESTID.repeatPicker);
 export const REPEAT_PICKER_RULE = selector(TESTID.repeatPickerRule);
 export const REPEAT_PICKER_SET = selector(TESTID.repeatPickerSet);
 export const REPEAT_PICKER_CANCEL = selector(TESTID.repeatPickerCancel);
-/** The properties run under a node's note or a document page's path, and one
- *  `key value` line of it. A line carries `data-key`, and `data-system` on
+/** The properties run under a node's title or a document page's path, and one
+ *  `key value` chip of it. A chip carries `data-key`, and `data-system` on
  *  the read-only ones — the node's own facts, which have verbs of their own.
- *  A document's run is custom keys only. */
+ *  A document's run is custom keys only. The value carries `data-door` where it
+ *  turned out to NAME something, and nothing where it stayed text. */
 export const PROPS = selector(TESTID.props);
 export const PROP = selector(TESTID.prop);
 export const PROP_VALUE = selector(TESTID.propValue);
+/** ...and the disclosure a value too long to be a fact is drawn behind. */
+export const PROP_FOLD = selector(TESTID.propFold);
 /** The editor under the row, opened by the `•••` menu's `Add property…` or one
  *  of its `Edit <key>…` entries. Its key box is read-only while an existing
  *  property is being changed — a rename is two ops. */

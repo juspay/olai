@@ -251,6 +251,11 @@ export {
   firstLine,
   isAsset,
   isPicture,
+  /** The path in this directory a relative reference names, whatever kind of
+   *  file it is — the same arithmetic and refusals as the two above with no
+   *  suffix allowlist at the end, for the caller that can ask the directory
+   *  itself whether it serves the answer. */
+  pathedOf,
   PICTURE_EXTENSIONS,
   pictureOf,
   retargetRelative,

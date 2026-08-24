@@ -1,23 +1,32 @@
 /**
- * What hangs under a node's title: the open state, and the one line that is
- * drawn whether it is open or not.
+ * What hangs under a node's title: the facts it carries, which are always
+ * drawn, and the open state under them.
  *
  * The sibling of `NodeLine.tsx`, and for the same reason — a node is drawn in
  * three places (a row in a tree, an entry on a day, the heading of its own
  * page) and "what a node's body IS" must not be three hand-copied sequences
  * that a fourth thing under a node would have to be added to three times.
  *
- * ## The open state, and its three layers
+ * ## The property run, which is NOT part of the open state
  *
- * A row is its title. Opening it adds exactly this, in this order (the quiet
- * outline, human):
+ * A node's custom properties are drawn under its title whether the row is open
+ * or not (`props-doors-autoshow`, and `./props/PropsDrawer.tsx` argues it): a
+ * fact behind a fold is a fact nobody reads, these are short facts by rule, and
+ * the run is built to make five of them cost one line rather than five. Only
+ * the CUSTOM half — the node's own facts are already on the row, in the glyph,
+ * on the date badge and in the address.
+ *
+ * It used to be layer two of the open state, and moving it out is what makes
+ * the list below three lines shorter and the pilcrow's promise exact.
+ *
+ * ## The open state, and what it now adds
+ *
+ * A row is its title and its facts. Opening it adds exactly this, in this
+ * order (the quiet outline, human):
  *
  *   1. the TITLE LINE saying so — the pilcrow accents and the tags brighten,
  *      which is `./note/Mark.tsx` and `./styles.css` and not this file's;
- *   2. the PROPERTIES RUN — every custom property as dim `key value` pairs on
- *      ONE wrapping line, dot-separated, read like a byline under a headline
- *      (`./props/PropsDrawer.tsx`). Never a grid, never a table, never a form;
- *   3. the NOTE, one step dimmer than the title and taking the full pane. The
+ *   2. the NOTE, one step dimmer than the title and taking the full pane. The
  *      brief asked for it to wrap near 62 characters; the human rejected that on
  *      sight ("no need to wrap desc either. just take full width") and
  *      `./touch.ts` keeps the argument for why a measure was wrong here.
@@ -150,6 +159,18 @@ export function NodeBody(props: {
       when={zoomed()}
       fallback={
         <>
+          {/* THE PROPERTY RUN, whether the row is open or not. A ROW draws the
+              CUSTOM properties only: its id, its mark and its date are already
+              on screen — in the glyph, on the date badge, in the address — and
+              repeating them here would put two spellings of one fact under one
+              title. The node's own page is where the full drawer is
+              (`drawerEntries`). Above the clamped note line, because these are
+              the node's facts and that line is the start of its story. */}
+          <PropsDrawer
+            entries={customEntries(customOf(props.shows.node))}
+            from={props.shows.file}
+          />
+
           {/* CLOSED: one clamped dim line under the title, which is either the
               top of the note (`Cozy`) or the window a filter found this row
               through — whatever the density says, because a reader who has
@@ -162,15 +183,10 @@ export function NodeBody(props: {
             )}
           </Show>
 
-          {/* Open: the run, then the note, then what this node sees. */}
+          {/* Open: the note, then what this node sees — and nothing else, which
+              is the whole of what the pilcrow now adds. */}
           <Show when={open()}>
             <div class="olai-row-detail" data-open="true">
-              {/* Layer two. A ROW draws the CUSTOM properties only: its id, its
-                  mark and its date are already on screen — in the glyph, on the
-                  date badge, in the address — and repeating them here would put
-                  two spellings of one fact under one title. The node's own page
-                  is where the full drawer is (`drawerEntries`). */}
-              <PropsDrawer entries={customEntries(customOf(props.shows.node))} />
               <Show when={props.shows.node.desc}>
                 {(desc) => (
                   <div
@@ -212,7 +228,19 @@ export function NodeBody(props: {
         </>
       }
     >
-      {/* Zoomed subject: full note, see, and the document inline. */}
+      {/* Zoomed subject: the facts, then the full note, then see, then the
+          document inline.
+
+          THE FACTS COME FIRST, as they do on a row — the mockup's own line,
+          "facts above the line, story below it"
+          (docs/brainstorming/props-ui.html). They used to sit under the note
+          here and over it there, which was one component reading two ways on
+          two surfaces for no reason anybody had written down.
+
+          And the drawer is drawn WHATEVER the node carries: this is a page
+          about one node, its facts are what the page is for, and the id in
+          particular is what every tool call and every `((` reference takes. */}
+      <PropsDrawer entries={drawerEntries(props.shows.node)} from={props.shows.file} />
       <Show when={props.shows.node.desc}>
         {(desc) => (
           <Note
@@ -222,10 +250,6 @@ export function NodeBody(props: {
           />
         )}
       </Show>
-      {/* Zoomed, the drawer is drawn WHATEVER the node carries: this is a page
-          about one node, its facts are what the page is for, and the id in
-          particular is what every tool call and every `((` reference takes. */}
-      <PropsDrawer entries={drawerEntries(props.shows.node)} />
       <EdgeRefs node={props.shows.node} relation="see" onRemove={props.onUnsee} />
       <Show when={docOf(props.shows)}>
         {(doc) => <DocRef file={doc()} inline />}

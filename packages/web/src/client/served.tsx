@@ -43,6 +43,9 @@ import { type Accessor, createContext, createMemo, type JSX, useContext } from "
 import { sameList } from "./same.ts"
 
 const ServedContext = createContext<Accessor<ReadonlyArray<string>>>()
+/** ...and the same directory as a MEMBERSHIP question — see {@link useServes}
+ *  for why the set is built here rather than at each reader. */
+const ServesContext = createContext<Accessor<(file: string) => boolean>>()
 
 export function ServedProvider(props: {
   /** Every served file's PATH, in the directory's own order — the one list the
@@ -73,11 +76,19 @@ export function ServedProvider(props: {
   // own walk was already holding — and what is left is the comparison, which is
   // the part that has to live here beside the memo it guards.
   const files = createMemo(() => props.paths, undefined, { equals: sameList })
+  // The membership set, off the held list and therefore under its comparison:
+  // one set per directory change, shared by every reader (see `useServes`).
+  const serves = createMemo(() => {
+    const set = new Set(files())
+    return (file: string) => set.has(file)
+  })
   return (
     <ServedContext.Provider value={files}>
-      <HeadContext.Provider value={props.head}>
-        {props.children}
-      </HeadContext.Provider>
+      <ServesContext.Provider value={serves}>
+        <HeadContext.Provider value={props.head}>
+          {props.children}
+        </HeadContext.Provider>
+      </ServesContext.Provider>
     </ServedContext.Provider>
   )
 }
@@ -91,6 +102,29 @@ export const useServed = (): Accessor<ReadonlyArray<string>> => {
     throw new Error("a served-file lookup outside <ServedProvider>")
   }
   return files
+}
+
+/**
+ * The same list asked the other question: DOES THE DIRECTORY HAVE THIS FILE.
+ *
+ * A membership set, derived ONCE beside the list in the provider rather than by
+ * each reader, and that is the whole reason it is a context of its own rather
+ * than an `.includes` at the call site. Its reader is a LEAF DRAWN PER ROW —
+ * the property run, asking whether a value that looks like a path is one
+ * (`./props/door.ts`) — so a page of a thousand rows would otherwise build a
+ * thousand sets, or walk the whole file list once per value drawn.
+ *
+ * It rides the list's own `equals`, so the set is rebuilt when a file arrives
+ * or leaves and on nothing else: a frame that moved a record inside a file
+ * hands back the very same predicate, and a reader holding one is holding
+ * something that stops moving when the answer does.
+ */
+export const useServes = (): Accessor<(file: string) => boolean> => {
+  const serves = useContext(ServesContext)
+  if (serves === undefined) {
+    throw new Error("a served-file membership lookup outside <ServedProvider>")
+  }
+  return serves
 }
 
 /** THE FACES REACH THIS FILE NO LONGER, and the absence is worth a line

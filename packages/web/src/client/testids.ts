@@ -155,17 +155,26 @@ export const TESTID = {
   /** What the last press had to say, keeping the panel open to say it. */
   repeatPickerSaid: "repeat-picker-said",
   // ── the properties drawer ────────────────────────────────────────────
-  /** The drawer under a node's note — and under a document page's path: the
-   *  node's own facts, then the custom properties somebody added. Drawn on a
-   *  ROW only when there is a custom one, always on the node's own page, and
-   *  on a document page when the file wrote frontmatter. */
+  /** The run of chips under a node's title — and under a document page's path:
+   *  the node's own facts, then the custom properties somebody added. Drawn on
+   *  a ROW whenever there is a custom one, open or not; always on the node's
+   *  own page; on a document page when the file wrote frontmatter. */
   props: "props",
-  /** One line of it. `data-key` names the property; `data-system` is present on
-   *  the read-only lines (`id`, `status`, `date`, the stamps), which is how a
+  /** One chip of it. `data-key` names the property; `data-system` is present on
+   *  the read-only chips (`id`, `status`, `date`, the stamps), which is how a
    *  scenario tells a fact from a property without reading a colour. */
   prop: "prop",
-  /** The value on that line, as text — a link when the value is a URL. */
+  /** The value on that chip. `data-door` says what the value turned out to
+   *  NAME, and is the one assertion a scenario makes about a door: `document`,
+   *  `node`, `day` or `away` where the value names something, and ABSENT where
+   *  it names nothing and stays text (`client/props/door.ts`). */
   propValue: "prop-value",
+  /** A value so long it is drawn as its first words with the rest behind a
+   *  disclosure — the mockup's Move 3, and the safety net rather than the goal
+   *  (`client/props/PropsDrawer.tsx`). `open` is the element's own; the chip
+   *  beside it carries no such testid, which is what makes this one's presence
+   *  the assertion that a value folded. */
+  propFold: "prop-fold",
   /** The editor, in place under the row: opened by the `•••` menu's `Add
    *  property…` or one of its `Edit <key>…` entries. `data-key` is the key it
    *  was opened on, absent when it is a new one. */

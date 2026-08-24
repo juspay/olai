@@ -33,8 +33,9 @@
  * ## Matched first, and that is the whole of the ordering
  *
  * The keys a `prop:` clause selected this node on lead, in the order the query
- * named them; the rest follow in the FILE's own order, which is alphabetical
- * (`customEntries`). So `prop:agent=claude-opus` puts `agent` at the front of
+ * named them; the rest follow in the FILE's own order — the order the record
+ * holds them in, which `customEntries` reads and does not sort. So
+ * `prop:agent=claude-opus` puts `agent` at the front of
  * every row, where a line that has to be ellipsized still shows it — the same
  * argument `./place.ts` makes for putting the nearest ancestor first, and for
  * the same reason: what survives a narrow panel is the front.

@@ -23,6 +23,7 @@ import {
   PROP_EDITOR_KEY,
   PROP_EDITOR_SET,
   PROP_EDITOR_VALUE,
+  PROP_FOLD,
   PROP_VALUE,
   PROPS,
 } from "../support/world.ts";
@@ -79,6 +80,147 @@ Then(
       await this.page.locator(`${nodeSelector(id)} ${PROPS}`).count(),
       0,
       "the row draws a properties drawer, and this step says it has nothing to draw",
+    );
+  },
+);
+
+// ── the doors ──────────────────────────────────────────────────────────
+
+/**
+ * The `<a>` a value turned out to be, whatever kind of door it is — an app
+ * `<Link>` and an external anchor are both anchors, which is what makes ONE
+ * step able to say where any chip goes.
+ *
+ * Under the value rather than beside it, because `data-door` sits on the value
+ * (`client/props/PropsDrawer.tsx`) and its ABSENCE is what a scenario asserts
+ * when a value is meant to stay text.
+ */
+const door = (world: OlaiWorld, id: string, key: string) =>
+  line(world, id, key).locator(`${PROP_VALUE} [data-door] a`);
+
+Then(
+  "the property {string} on {string} is a {string} door to {string}",
+  async function (this: OlaiWorld, key: string, id: string, kind: string, href: string) {
+    const found = door(this, id, key);
+    await found.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(
+      await line(this, id, key).locator(PROP_VALUE).locator("[data-door]").getAttribute(
+        "data-door",
+      ),
+      kind,
+      `\`${key}\` on ${JSON.stringify(id)} is not a ${kind} door`,
+    );
+    assert.strictEqual(await found.getAttribute("href"), href);
+  },
+);
+
+/** A value that names nothing: drawn, readable, and NOT a link. The negative
+ *  half of the rule, and the one worth a step of its own — a wrong door is
+ *  worse than no door, so "no door" has to be assertable. */
+Then(
+  "the property {string} on {string} is not a link",
+  async function (this: OlaiWorld, key: string, id: string) {
+    const value = line(this, id, key).locator(PROP_VALUE);
+    await value.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(
+      await value.locator("[data-door]").count(),
+      0,
+      `\`${key}\` on ${JSON.stringify(id)} was drawn as a door, and this step says it names nothing`,
+    );
+    assert.strictEqual(
+      await value.locator("a").count(),
+      0,
+      `\`${key}\` on ${JSON.stringify(id)} is a link with no door behind it`,
+    );
+  },
+);
+
+/** A door out of the app opens a tab of its own, and under the pair that keeps
+ *  the far end from reaching back — the rule a link written into a note already
+ *  follows (`client/markdown/rewrite.ts`). Asserted rather than clicked: a step
+ *  that followed it would be a scenario waiting on somebody else's server. */
+Then(
+  "the property {string} on {string} opens in a tab of its own",
+  async function (this: OlaiWorld, key: string, id: string) {
+    const found = door(this, id, key);
+    await found.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await found.getAttribute("target"), "_blank");
+    const rel = (await found.getAttribute("rel")) ?? "";
+    for (const word of ["noopener", "noreferrer"]) {
+      assert.ok(
+        rel.split(/\s+/).includes(word),
+        `the door on \`${key}\` carries rel=${JSON.stringify(rel)}, without ${word}`,
+      );
+    }
+  },
+);
+
+When(
+  "I follow the property {string} on {string}",
+  async function (this: OlaiWorld, key: string, id: string) {
+    await this.press(door(this, id, key));
+  },
+);
+
+/** THE RUN'S ORDER, key by key — the file's own, and never re-sorted. The whole
+ *  list rather than "contains X", for the reason the breadcrumbs step asserts
+ *  the whole trail: an order is only wrong relative to the rest of it. */
+Then(
+  "the properties on {string} read {string}",
+  async function (this: OlaiWorld, id: string, expected: string) {
+    const chips = this.page.locator(`${nodeSelector(id)} ${PROPS}`).first().locator(PROP);
+    await chips.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.deepStrictEqual(
+      await chips.evaluateAll((found) =>
+        found.map((one) => one.getAttribute("data-key") ?? "")
+      ),
+      expected.split(",").map((key) => key.trim()),
+    );
+  },
+);
+
+/** A value too long to be a fact, drawn as its first words. The presence of the
+ *  fold is the claim; what it holds is asserted by opening it. */
+Then(
+  "the property {string} on {string} is folded",
+  async function (this: OlaiWorld, key: string, id: string) {
+    const fold = line(this, id, key).locator(PROP_FOLD);
+    await fold.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    assert.strictEqual(
+      await fold.getAttribute("open"),
+      null,
+      `the fold on \`${key}\` starts open, and a fold that starts open is the wall`,
+    );
+  },
+);
+
+Then(
+  "the property {string} on {string} is not folded",
+  async function (this: OlaiWorld, key: string, id: string) {
+    const value = line(this, id, key).locator(PROP_VALUE);
+    await value.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(
+      await line(this, id, key).locator(PROP_FOLD).count(),
+      0,
+      `\`${key}\` on ${JSON.stringify(id)} is folded, and this step says it is short enough to read`,
+    );
+  },
+);
+
+When(
+  "I open the property {string} on {string}",
+  async function (this: OlaiWorld, key: string, id: string) {
+    await this.press(line(this, id, key).locator(`${PROP_FOLD} summary`));
+  },
+);
+
+Then(
+  "the property {string} on {string} reads {string}",
+  async function (this: OlaiWorld, key: string, id: string, said: string) {
+    const found = line(this, id, key);
+    await this.waitUntil(
+      async () => oneLine(await found.innerText()).includes(said),
+      `\`${key}\` on ${JSON.stringify(id)} to read ${JSON.stringify(said)}`,
     );
   },
 );
