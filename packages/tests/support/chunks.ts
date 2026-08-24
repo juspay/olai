@@ -27,11 +27,17 @@
 import * as assert from "node:assert";
 import type { Route } from "playwright";
 
-import { ASSET_PREFIX } from "@olai/surface";
+import { ASSET_PREFIX, chunkUrl } from "@olai/surface";
 
 import type { OlaiWorld } from "./world.ts";
 
 export interface Chunk {
+  /** What a request for it looks like — the bundler's naming rule, from
+   *  `@olai/surface` (`chunkUrl`). Exposed because a step may have to ask a
+   *  question this receptacle does not answer: the SHELL naming the chunk in a
+   *  `<link rel="modulepreload">` is a claim about the document, not about the
+   *  network, and it must not be a second copy of the pattern. */
+  readonly url: RegExp;
   /** Sit on every request for it, so a scenario can stand in the moment BEFORE
    *  it lands rather than race it. Register before the page is opened. */
   holdUp: (world: OlaiWorld) => Promise<void>;
@@ -53,7 +59,7 @@ export interface Chunk {
  * the chunk after: `pipeline`, `Dropdown`.
  */
 export const chunkOf = (what: string, module: string): Chunk => {
-  const url = new RegExp(`${ASSET_PREFIX}${module}-[^/]+\\.js$`);
+  const url = chunkUrl(module);
   const asked = (world: OlaiWorld): ReadonlyArray<string> =>
     world.requests.filter((one) => url.test(one));
   const diagnosis = (world: OlaiWorld): string => {
@@ -67,6 +73,7 @@ export const chunkOf = (what: string, module: string): Chunk => {
   };
 
   return {
+    url,
     asked,
     diagnosis,
     holdUp: async (world) => {

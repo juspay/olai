@@ -15,8 +15,14 @@ import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import { chunkOf } from "../support/chunks.ts";
-import { DOCUMENT_BODY, HYDRATION_TIMEOUT, POLL_TIMEOUT } from "../support/world.ts";
-import type { OlaiWorld } from "../support/world.ts";
+import { paintsOn, stopsWaiting, WAITING, waitsIllegibly } from "../support/paints.ts";
+import {
+  DESC,
+  DOCUMENT_BODY,
+  HYDRATION_TIMEOUT,
+  POLL_TIMEOUT,
+} from "../support/world.ts";
+import type { Box, OlaiWorld } from "../support/world.ts";
 
 /**
  * The pipeline, as a chunk a scenario can hold up.
@@ -41,12 +47,29 @@ When("the markdown pipeline arrives", async function (this: OlaiWorld) {
   await PIPELINE.arrive(this);
 });
 
-Then("nothing has asked for the markdown pipeline", function (this: OlaiWorld) {
+/**
+ * The SHELL asked, which is a claim about `index.html` rather than about
+ * anything the app did — so it is asked of the document's own head, and of the
+ * network beside it.
+ *
+ * Both halves matter. The tag alone would pass on a shell that named a chunk
+ * no build ever wrote; the request alone would pass on the old arrangement,
+ * where the first thing to draw markdown started the fetch a round trip late.
+ */
+Then("the shell asked for the markdown pipeline", async function (this: OlaiWorld) {
+  const preloaded = await this.page.evaluate(() =>
+    [...document.querySelectorAll('link[rel="modulepreload"]')].map((link) =>
+      link.getAttribute("href") ?? ""
+    )
+  );
+  assert.ok(
+    preloaded.some((href) => PIPELINE.url.test(href)),
+    `the shell preloads no markdown pipeline:\n  ${preloaded.join("\n  ") || "(no modulepreload at all)"}`,
+  );
   const requested = PIPELINE.asked(this);
-  assert.deepStrictEqual(
-    [...requested],
-    [],
-    `this page fetched the markdown pipeline it should not need:\n  ${requested.join("\n  ")}`,
+  assert.ok(
+    requested.length > 0,
+    `the shell names the pipeline but nothing fetched it\n  ${PIPELINE.diagnosis(this)}`,
   );
 });
 
@@ -97,6 +120,181 @@ Then(
     await this.waitUntil(
       async () => (await title.innerText()).includes("**"),
       `the title of "${id}" to show its own source`,
+    );
+  },
+);
+
+// ── the waiting face ───────────────────────────────────────────────────
+//
+// One rule dresses every surface holding source it cannot render yet
+// (`web/src/client/styles.css`), so these steps are one check asked of four
+// different elements — and the element is always the one WEARING the face
+// rather than the row or the pane around it.
+
+Then("the document is waiting illegibly", async function (this: OlaiWorld) {
+  await waitsIllegibly(
+    this,
+    this.page.locator(`${DOCUMENT_BODY}${WAITING}`),
+    "the document",
+  );
+});
+
+/** The other side of it, for the page whose renderer is never coming: there is
+ *  no answer on its way, so the text somebody wrote IS the answer and has to
+ *  be readable. Same check the de-blur makes below, since "no answer is
+ *  coming" and "the answer came" leave the same page. */
+Then("the document is not waiting", async function (this: OlaiWorld) {
+  await this.documentBody().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await stopsWaiting(
+    this,
+    this.page.locator(`${DOCUMENT_BODY}${WAITING}`),
+    "the document",
+  );
+});
+
+Then(
+  "the title of {string} is waiting illegibly",
+  async function (this: OlaiWorld, id: string) {
+    await waitsIllegibly(
+      this,
+      this.nodeTitle(id).locator(WAITING),
+      `the title of "${id}"`,
+    );
+  },
+);
+
+Then(
+  "the description of {string} is waiting illegibly",
+  async function (this: OlaiWorld, id: string) {
+    await waitsIllegibly(
+      this,
+      this.node(id).locator(DESC).first().locator(WAITING),
+      `the note of "${id}"`,
+    );
+  },
+);
+
+/** The de-blur itself: the face comes OFF the same element, which is what the
+ *  swap IS — and a surface that kept it would be a page permanently pretending
+ *  to load, which no assertion about the rendering would notice. */
+Then(
+  "the title of {string} is not waiting",
+  async function (this: OlaiWorld, id: string) {
+    await stopsWaiting(
+      this,
+      this.nodeTitle(id).locator(WAITING),
+      `the title of "${id}"`,
+    );
+  },
+);
+
+Then(
+  "the description of {string} is not waiting",
+  async function (this: OlaiWorld, id: string) {
+    await stopsWaiting(
+      this,
+      this.node(id).locator(DESC).first().locator(WAITING),
+      `the note of "${id}"`,
+    );
+  },
+);
+
+/**
+ * THE CLAIM ABOUT EVERY FRAME, including the ones that are gone: nothing this
+ * TAB ever put in the waiting state was readable when it went in — every
+ * document it has drawn, since the record is the tab's (`support/paints.ts`).
+ *
+ * Two assertions, and the first is the one that keeps this honest — a
+ * scenario that raced past the waiting state and recorded nothing at all would
+ * otherwise pass for having seen nothing. See `support/paints.ts`.
+ */
+Then("no frame of legible raw markdown was painted", async function (this: OlaiWorld) {
+  const paints = await paintsOn(this.page);
+  assert.ok(
+    paints !== undefined,
+    "no watcher is installed in this tab — the scenario needs the " +
+      "@markdown-paints tag (support/hooks.ts), which arms one in every " +
+      "document of its context",
+  );
+  assert.ok(
+    paints.length > 0,
+    "this page never held markdown source at all, so it proves nothing about " +
+      "the frames that do — was the pipeline held up before anything was " +
+      "opened, and does anything on the page have markdown in it?",
+  );
+  const legible = paints.filter((paint) => paint.legible);
+  assert.deepStrictEqual(
+    legible.map((paint) => `${paint.what}: ${paint.filter} — ${paint.text}`),
+    [],
+    `${legible.length} of ${paints.length} waiting paints were readable markdown source`,
+  );
+});
+
+// ── and the swap ───────────────────────────────────────────────────────
+
+When(
+  "I note where the description of {string} sits",
+  async function (this: OlaiWorld, id: string) {
+    this.blockBefore = await this.box(
+      this.node(id).locator(DESC).first().locator(WAITING),
+      `the note of "${id}"`,
+    );
+  },
+);
+
+/**
+ * A ROW's height, before and after its title stops being its own source.
+ *
+ * A title is one line either way — that is the whole reason the source may be
+ * drawn at all — and the way that stops being true is a rule meant for a block
+ * reaching an inline title: a tree row ellipsizes (`white-space: nowrap`), and
+ * anything that hands the title permission to wrap opens the row under a
+ * reader. Height rather than the corner, because a row that wraps is a row
+ * that GROWS while its top-left stays exactly where it was.
+ */
+When(
+  "I note how tall the row of {string} is",
+  async function (this: OlaiWorld, id: string) {
+    this.blockBefore = await this.box(this.node(id).first(), `the row of "${id}"`);
+  },
+);
+
+Then(
+  "the row of {string} is the same height",
+  async function (this: OlaiWorld, id: string) {
+    const before = this.blockBefore;
+    assert.ok(before !== undefined, "nothing noted how tall the row was");
+    const now = await this.box(this.node(id).first(), `the row of "${id}"`);
+    assert.strictEqual(
+      Math.round(now.height),
+      Math.round(before.height),
+      `the row of "${id}" changed height when its title's rendering landed`,
+    );
+  },
+);
+
+Then(
+  "the description of {string} is where it was",
+  async function (this: OlaiWorld, id: string) {
+    const before = this.blockBefore;
+    assert.ok(before !== undefined, "nothing noted where the note was sitting");
+    const now = await this.box(
+      this.node(id).locator(DESC).first().locator(".olai-md").first(),
+      `the note of "${id}"`,
+    );
+    // The CORNER and the measure, and deliberately not the height: a rendering
+    // of the text is a different shape from the text, and the promise is that
+    // the block does not jump — not that markdown renders to the same number
+    // of lines it was written in.
+    const corner = (box: Box) => ({
+      x: Math.round(box.x),
+      y: Math.round(box.y),
+      width: Math.round(box.width),
+    });
+    assert.deepStrictEqual(
+      corner(now),
+      corner(before),
+      `the note of "${id}" moved when its rendering replaced its source`,
     );
   },
 );

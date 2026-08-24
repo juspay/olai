@@ -4,10 +4,22 @@
  * ./pipeline.ts is a chunk of its own (~390 KB raw, ~95 KB brotli) and the
  * initial paint of an outline does not wait for it: a tree of titles,
  * checkboxes and badges is drawn out of `main-*.js` alone, and this file is
- * what fetches the rest — the first time something on the page turns out to
- * need a markdown parser, and never on a page where nothing does.
+ * what RUNS the rest — the first time something on the page turns out to need
+ * a markdown parser, and never on a page where nothing does.
  *
- * The `import()` below is the WHOLE of the request. `buildSurfaceClient` splits
+ * THE FETCH IS THE SHELL'S, and that is a 2026-08-24 reversal worth reading
+ * before this file's own story: `index.html` carries a
+ * `<link rel="modulepreload">` for the chunk, so the bytes are on their way off
+ * the same head as the entry — behind it and the stylesheet, which is what a
+ * FIRST paint waits on — whatever the page turns out to draw. What that buys is the WAIT — a page of markdown used to
+ * hold the file's own source for a whole round trip after the entry ran, which
+ * is the flash `../styles.css` now blurs and this tag now shortens. What it
+ * costs is the bytes on a page that draws no markdown at all, which the human
+ * ruled worth it (roadmap `markdown-raw-flash`). The split is untouched: the
+ * chunk is still its own immutable file rather than 95 KB inside `main-*.js`,
+ * and the `import()` below is still the only thing that RUNS it.
+ *
+ * The `import()` below is the WHOLE of the split. `buildSurfaceClient` splits
  * on a dynamic import and names chunks with the same `[hash]` the entry gets
  * (kolu#2159), so the pipeline lands in the same immutable `/_olai/assets/` dir and
  * the entry references it by a URL that resolves inside it. Nothing here has to
@@ -27,22 +39,28 @@
  * ## How the rest of the app asks
  *
  * {@link markdownReady} is a SIGNAL read, so a memo that asks becomes a memo
- * that re-runs when the file lands — which is the whole of the "raw text now,
- * rendered a moment later" behaviour in ./render.ts's callers. Asking is also
- * what STARTS the fetch: nothing has to be primed at boot, and a page that
- * never draws markdown never asks. (Solid's own `lazy` works the same way, for
- * the same reason: the thing that needs it is the thing that knows.)
+ * that re-runs when the file lands — which is the whole of the "the source,
+ * illegible, until the renderer lands" behaviour in ./render.ts's callers
+ * (./Markdown.tsx, ./title.ts, and the one rule in ../styles.css they share).
+ * Asking is also what starts the `import()`: nothing is primed at boot, and a
+ * page that never draws markdown never runs the parser. (Solid's own `lazy`
+ * works the same way, for the same reason: the thing that needs it is the
+ * thing that knows.) What it no longer starts on a warm document is the FETCH
+ * — the shell asked for those bytes before this module existed on the page —
+ * which is why the wait between a first paint and a rendering is now about a
+ * frame rather than a round trip.
  *
  * ## When it does not arrive
  *
  * A fetch that fails is remembered ({@link markdownFailure}) and said out loud
  * — in the console, and on the page by whoever was waiting for it
  * (./Markdown.tsx draws the source with a line saying the renderer never
- * came). It is deliberately not a thrown fault: the text is still readable
- * markdown, and taking the page down would be replacing something a reader can
- * read with something they cannot. There is no retry loop either — a reload is
- * the honest answer, and a loop of failing imports is a page that gets slower
- * the longer it is broken.
+ * came, and unblurred: at that point the source IS the answer, and a reader
+ * has to be able to read it). It is deliberately not a thrown fault: the text
+ * is still readable markdown, and taking the page down would be replacing
+ * something a reader can read with something they cannot. There is no retry
+ * loop either — a reload is the honest answer, and a loop of failing imports
+ * is a page that gets slower the longer it is broken.
  */
 
 import { createArrival } from "../arriving.ts"
@@ -65,6 +83,18 @@ const pipeline = createArrival("the markdown renderer", () => import("./pipeline
  * asked.
  */
 export const markdownReady = pipeline.ready
+
+/**
+ * Is it still coming — not here, and not known to be lost.
+ *
+ * The one a SURFACE asks before it dresses itself as unfinished
+ * (`data-markdown="waiting"`, ./waiting.ts): "not ready" is two situations,
+ * and only one of them is going to change. A title that read `!markdownReady()`
+ * instead would stay blurred forever on a page whose renderer never came —
+ * which is the one case where the source a surface is holding IS the answer
+ * and has to be legible.
+ */
+export const markdownWaiting = pipeline.waiting
 
 /** Why it is not coming, once that is known. Reactive, for the one component
  *  that says so on the page (./Markdown.tsx). */

@@ -33,7 +33,7 @@ const NOTE = "house.olai"
 /** A title as a filtered page draws it — the pipeline, since every title here
  *  holds a backtick or a bracket and the fast path refuses those. */
 const lit = (title: string, ...needles: string[]): string =>
-  renderTitle(title, NOTE, { needles })
+  renderTitle(title, NOTE, { needles }).html
 
 const CODE = "run `just check` before pushing"
 const LINK = "see the [cabinet spec](https://example.com/spec#home) first"
@@ -131,7 +131,7 @@ test("unwrapping a spanning link still lights both pieces", () => {
   // Unwrap must not drop either mark.
   const hit = (text: string) =>
     `<mark class="olai-hit" data-testid="hit">${text}</mark>`
-  const html = renderTitle(LINK, NOTE, { needles: ["spec first"], links: false })
+  const html = renderTitle(LINK, NOTE, { needles: ["spec first"], links: false }).html
   expect(html).not.toContain("<a")
   expect(html).toBe(`see the cabinet ${hit("spec")}${hit(" first")}`)
 })

@@ -12,10 +12,15 @@
  *   1. **plain** — the title has no markdown in it at all (./plain.ts), so it
  *      is words and tags and the answer is immediate. Nearly every title.
  *   2. **rendered** — it does have markdown, and ./pipeline.ts is here.
- *   3. **the source, escaped** — it has markdown and the pipeline is still on
- *      its way. What is drawn is what the person wrote, marks and all, and the
- *      memo that asked is re-run when the chunk lands (./chunk.ts). One line
- *      of text either way: nothing moves on the page but the marks.
+ *   3. **the source, escaped and ILLEGIBLE** — it has markdown and the
+ *      pipeline is still on its way. What is drawn is what the person wrote,
+ *      marks and all, blurred and swept by the one rule every waiting markdown
+ *      surface wears (`data-markdown="waiting"`, ../styles.css) — so the row
+ *      is the width its real characters make and nothing moves on the page
+ *      when the words arrive, but no reader ever reads the marks. Which answer
+ *      this is is part of the answer ({@link TitleDrawing}), because the
+ *      caller is what puts that face on. The memo that asked is re-run when
+ *      the chunk lands (./chunk.ts).
  *
  * Ordering matters within (2), and it is the reverse of what it used to be:
  *
@@ -49,7 +54,7 @@
 import type { Element, ElementContent, Root, RootContent, Text } from "hast"
 
 import { NO_NEEDLES } from "../filter/lit.ts"
-import { markdownReady } from "./chunk.ts"
+import { markdownReady, markdownWaiting } from "./chunk.ts"
 import { plainTitle } from "./plain.ts"
 import { hastToHtml, renderToTree, sourceText } from "./render.ts"
 import { escapeHtml, styleTags } from "./tags.ts"
@@ -97,12 +102,55 @@ export interface TitleRender {
  * virtual scroller under the tree, and re-parsing every matched markdown title
  * on every keystroke is the cost this cache exists to refuse.
  */
-const plainTitles = new Map<string, string>()
-const rendered = new Map<string, string>()
+const plainTitles = new Map<string, TitleDrawing>()
+const rendered = new Map<string, TitleDrawing>()
 const CACHE_LIMIT = 1024
 
 /**
- * One title → one HTML string, safe for `innerHTML`.
+ * A title, drawn — and WHICH of the three answers it is.
+ *
+ * The rung is part of the answer because the third one is a STATE the page has
+ * to wear: escaped source is not the title, it is what stands in for the title
+ * while the renderer is on its way, and a caller that could not tell the two
+ * apart would have to draw raw `**` as though it were the words somebody meant
+ * ({@link TitleDrawing.waiting}).
+ */
+export interface TitleDrawing {
+  /** HTML, safe for `innerHTML`. */
+  readonly html: string
+  /**
+   * True for the THIRD answer alone — the escaped source, drawn because
+   * ./chunk.ts has not landed. The caller puts the app's one waiting face on
+   * it (`data-markdown="waiting"`, blurred and swept by ../styles.css), which
+   * is the same face a note and a document body wear for the same reason.
+   *
+   * False for the first two: a plain title is the finished thing, and a
+   * rendered one is the answer itself.
+   */
+  readonly waiting: boolean
+}
+
+/** An answer that is FINISHED — the plain title, the rendering, and the
+ *  escaped source `build` falls back to when the drawing lost words the source
+ *  still accounts for. None of those is waiting for anything. */
+const finished = (html: string): TitleDrawing => ({ html, waiting: false })
+
+/**
+ * Are two drawings the same drawing?
+ *
+ * For the memo a title surface holds this in ({@link ../NodeTitle.tsx},
+ * {@link ../search/Result.tsx}): a drawing is a VALUE, and a memo over an
+ * object compares by identity unless it is told otherwise — so a filtered page
+ * recomputing every row on every keystroke would push a new identity, and a
+ * fresh `innerHTML` write, through every row whose title had not changed at
+ * all. The caches below hand back one object per remembered title for the same
+ * reason; this covers the answers that are not remembered.
+ */
+export const sameDrawing = (was: TitleDrawing, now: TitleDrawing): boolean =>
+  was.html === now.html && was.waiting === now.waiting
+
+/**
+ * One title → one drawing of it, safe for `innerHTML`.
  *
  * THE LADDER IS WRITTEN ONCE — plain, then rendered, then the escaped source —
  * and the caches are conditions on it rather than a second copy of it. It was
@@ -115,7 +163,7 @@ export const renderTitle = (
   title: string,
   from: string,
   options: TitleRender = {},
-): string => {
+): TitleDrawing => {
   const needles = options.needles ?? NO_NEEDLES
   const links = options.links !== false
 
@@ -128,7 +176,9 @@ export const renderTitle = (
   }
   const plain = plainTitle(title, needles)
   if (plain !== null) {
-    return needles.length === 0 ? remember(plainTitles, title, plain) : plain
+    return needles.length === 0
+      ? remember(plainTitles, title, plain)
+      : finished(plain)
   }
 
   const key = `${links ? "a" : "n"}\n${from}\n${needles.join("\u0000")}\n${title}`
@@ -137,20 +187,29 @@ export const renderTitle = (
 
   // Not cached: this is what the title looks like WHILE the chunk is coming,
   // and a cache is exactly the thing that would still be handing it out
-  // afterwards. The read is what re-runs the caller's memo when it lands.
-  if (!markdownReady()) return escapeHtml(title)
+  // afterwards. The read is what re-runs the caller's memo when it lands — and
+  // `waiting` is what has the row draw that source illegibly until it does.
+  //
+  // TWO READS, not one, because "not ready" is two situations: the chunk is on
+  // its way, or it is never coming (./chunk.ts). The source is the same either
+  // way and what a reader may do with it is not — a renderer that failed makes
+  // this escaped source the ANSWER, and an answer has to be legible.
+  if (!markdownReady()) {
+    return { html: escapeHtml(title), waiting: markdownWaiting() }
+  }
 
   return remember(rendered, key, build(title, from, links, needles))
 }
 
 const remember = (
-  cache: Map<string, string>,
+  cache: Map<string, TitleDrawing>,
   key: string,
   html: string,
-): string => {
+): TitleDrawing => {
   if (cache.size >= CACHE_LIMIT) cache.clear()
-  cache.set(key, html)
-  return html
+  const drawing = finished(html)
+  cache.set(key, drawing)
+  return drawing
 }
 
 const build = (
