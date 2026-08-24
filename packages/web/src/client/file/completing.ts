@@ -135,7 +135,11 @@ export type Meant =
 export const meantAt = (of: FileKind, typed: string): Meant => {
   const name = typed.trim()
   if (name === "") return null
-  const ext = FILE_KINDS[of].ext
+  // THE FIRST of the kind's suffixes, which is the one a mint writes — a kind
+  // with several spellings has one a person types (`@olai/format`'s registry).
+  // Both doors here make a kind with exactly one, so this is the general rule
+  // rather than a choice being made.
+  const ext = FILE_KINDS[of].exts[0]
   const carried = fileKind(name)
   if (carried === of) return { file: name }
   // AS TYPED where completing would erase the refusal — the section above.

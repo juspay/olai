@@ -24,9 +24,10 @@
  *     cannot import each other, and two allowlists that drifted apart would
  *     mean either a broken image or a served file nobody meant to serve.
  *   - {@link isAsset} — what the ROUTE may answer at all, which is the same
- *     question asked once more and one step wider: a previewed `.html` is
- *     fetched by URL now, so the page itself and the parts it draws with are
- *     addresses too. Markdown's rule is untouched by that; a relative
+ *     question asked once more and one step wider: the files whose page is
+ *     drawn by POINTING at them are fetched by URL — a previewed `.html`, a
+ *     picture, a `.pdf` — so those and the parts a saved page draws itself
+ *     with are addresses too. Markdown's rule is untouched by that; a relative
  *     `![](…)` still names a picture or nothing.
  *   - {@link bodiedOf} — where a relative `[…](…)` lands. The same arithmetic
  *     as a `doc` and as a picture, asked about the third thing markdown can
@@ -35,7 +36,7 @@
 
 import { type Address, addressOf, printAddress } from "./address.ts"
 import { proseIn } from "./frontmatter.ts"
-import { bodyKind, fileKind } from "./kinds.ts"
+import { bodyKind, FILE_KINDS, isFetched, SVG_EXT } from "./kinds.ts"
 import { isMirror, type Located } from "./node.ts"
 import { headingText } from "./slug.ts"
 
@@ -220,25 +221,28 @@ export const bodiedOf = (from: string, href: string): string | null => {
 const SCHEME = /^(?:[a-zA-Z][a-zA-Z0-9+.-]*:|\/\/)/
 
 /**
- * The extensions a picture may have.
+ * The extensions a picture MARKDOWN MAY NAME.
  *
- * Pictures are the one thing under the served directory that is neither an
- * outline nor a document: nothing loads them, nothing validates them, and they
- * exist only as the target of a relative `![](…)`. So the list is a closed
- * allowlist rather than "not an outline" — `.svg` is deliberately absent,
- * because an SVG is a document that can script, and the outlines themselves
- * are not pictures.
+ * READ OFF THE REGISTRY, minus one, and that subtraction is the whole of what
+ * this list still decides. A picture used to be the one thing under the served
+ * directory that was neither an outline nor a document — nothing loaded one,
+ * nothing validated one, and one existed only as the target of a relative
+ * `![](…)` — so this was a closed allowlist typed out here. A picture is a
+ * KIND now (`./kinds.ts`): it is in the set, it is in the sidebar, and it has a
+ * page. Two hand-kept lists of the same suffixes would be two chances to add
+ * `.heic` to one of them, and the way that reads is a file the sidebar draws
+ * and a document cannot point at, or the reverse.
+ *
+ * WHAT IS SUBTRACTED IS `.svg`, and that is the ruling this list exists to keep
+ * (`@olai/surface`'s `attach.ts` keeps the same one for what may be handed to
+ * an agent): an SVG is a document that can script, and markdown pointing at one
+ * is this app promising to draw a file it has not read. That the kind claims
+ * `.svg` is not the same permission — a picture's PAGE draws it in an `<img>`,
+ * which is the element that will not run it, and the response it is fetched
+ * with says so too (`@olai/server`'s `media.ts`).
  */
-export const PICTURE_EXTENSIONS: ReadonlyArray<string> = [
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".gif",
-  ".webp",
-  ".avif",
-  ".bmp",
-  ".ico",
-]
+export const PICTURE_EXTENSIONS: ReadonlyArray<string> = FILE_KINDS.image.exts
+  .filter((ext) => ext !== SVG_EXT)
 
 /** Whether a path ends in one of these suffixes, case-folded — the matching
  *  RULE, held once for the two lists below it. Case-folding, exact suffix, no
@@ -264,18 +268,26 @@ export const isPicture = (path: string): boolean => suffixed(path, PICTURE_EXTEN
  * embeds — and a preview that drew a page's pictures but refused its
  * stylesheet would be a rule nobody could explain.
  *
- * A CLOSED LIST, and what is missing from it is the argument. `.svg` stays out
- * for the reason it is out of the pictures: an SVG is a document that can
- * script, and a page may pull one into a frame rather than an `<img>`. Data
- * (`.json`, `.csv`) stays out because a page reading data is a page reading
- * FILES, which is a different permission from a page drawing itself, and
- * nothing forced the question yet. Everything the set itself is made of —
- * `.olai`, `.md` — stays out because those already have a page of their own,
- * and a route that also handed them over raw would be a second way to read
- * them with no argument for the first.
+ * A CLOSED LIST, and what is missing from it is the argument. Data (`.json`,
+ * `.csv`) stays out because a page reading data is a page reading FILES, which
+ * is a different permission from a page drawing itself, and nothing has forced
+ * the question — a `.csv` being a KIND now did not force it either, since that
+ * kind's own page is handed the text over the wire and never fetches this
+ * route. Everything the set itself is made of — `.olai`, `.md` — stays out
+ * because those already have a page of their own, and a route that also handed
+ * them over raw would be a second way to read them with no argument for the
+ * first.
  *
- * The `.html` itself is NOT here: which suffix is hypertext is `./kinds.ts`'s
- * single answer, and {@link isAsset} asks it there.
+ * `.svg` USED TO BE HERE AS AN ABSENCE and is now the registry's business: it
+ * is one of the picture kind's suffixes, so {@link isAsset} admits it below,
+ * and what stops a previewed page pulling one into a frame and running it is
+ * the response that answers it rather than a suffix withheld here
+ * (`@olai/server`'s `media.ts` sandboxes an SVG's own response). Withholding
+ * it here would also have withheld it from the `<img>` a picture's PAGE draws,
+ * which is the one thing the ruling never meant to stop.
+ *
+ * The kinds a browser fetches are NOT here either: which suffixes those are is
+ * `./kinds.ts`'s single answer, and {@link isAsset} asks it there.
  *
  * Module-private, unlike {@link PICTURE_EXTENSIONS} beside it, because nothing
  * outside needs the LIST — the route asks {@link isAsset} a question and gets a
@@ -293,17 +305,29 @@ const ASSET_EXTENSIONS: ReadonlyArray<string> = [
 ]
 
 /**
- * Whether a served path is something a previewed page may fetch: the page
- * itself, its pictures, or one of its parts.
+ * Whether a served path is something a browser may fetch: a file whose PAGE is
+ * drawn by pointing at it, or one of the parts a saved page draws itself with.
  *
  * The one predicate the media route judges a request by, and the reason it is
  * here rather than at the route: it is a statement about what a suffix MEANS,
  * which is this package's business, and the route is in a package the client
  * cannot import (`@olai/surface` carries the URL shape, `@olai/server`
  * answers it).
+ *
+ * THE FIRST TERM IS THE REGISTRY'S COLUMN ({@link isFetched}) rather than a
+ * kind named here, and that is what kept this predicate one line while the
+ * viewers arrived: hypertext, a picture and a `.pdf` are drawn by a frame, an
+ * `<img>` and an `<embed>` pointed at the file's own URL, and a `.csv` — text,
+ * unkept, and still handed to its page over the wire — is not. Which of those
+ * is which is one column of one table, not a list to keep in step over here.
+ *
+ * The SECOND term is not redundant with the first, and the difference is one
+ * character of case: the registry matches a suffix exactly, so `SHOT.PNG` is a
+ * file no kind claims, while {@link isPicture} has case-folded since before
+ * there was a picture kind — and a document naming one has always drawn it.
  */
 export const isAsset = (path: string): boolean =>
-  fileKind(path) === "hypertext" || isPicture(path) || suffixed(path, ASSET_EXTENSIONS)
+  isFetched(path) || isPicture(path) || suffixed(path, ASSET_EXTENSIONS)
 
 /**
  * A document, in one line: its first line with anything on it, heading marks

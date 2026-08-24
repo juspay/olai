@@ -6,10 +6,11 @@
  * weight, so the only thing separating an OUTLINE from a DOCUMENT was four
  * characters of extension the eye has to read, and the only thing marking a
  * FOLDER was a triangle it shares with every fold control in the app. Three
- * kinds, one face — four now, since a `.html` in the vault is a fourth thing a
- * row can be. A glyph is the cheapest fix that is also the right one: it
- * is read before the word beside it, it costs no row height, and it is the one
- * thing Workflowy's own quiet leaves room for.
+ * kinds, one face — seven now, since a `.html`, a `.csv`, a picture and a
+ * `.pdf` in the vault are four more things a row can be. A glyph is the
+ * cheapest fix that is also the right one: it is read before the word beside
+ * it, it costs no row height, and it is the one thing Workflowy's own quiet
+ * leaves room for.
  *
  * ## A file of its own, where every other icon in this client is inline
  *
@@ -18,12 +19,12 @@
  * collapse chevron is a fourth). Two things make these ones not that, and both
  * are about the SET rather than about any one of them.
  *
- * They have to agree: four drawings in one column, at one weight, in one
+ * They have to agree: seven drawings in one column, at one weight, in one
  * optical box, chosen by a value the tree already carries. That is a table,
  * and a table wants a home — inline, the folder's box and the folder's shape
  * would sit in one file while the document's sat in another, and the rule that
  * they match would be nowhere. The box is the folder's (18×16): it is the
- * widest of the four, and a square `size-*` letterboxes it — the drawing sits
+ * widest of them, and a square `size-*` letterboxes it — the drawing sits
  * in a cell it does not fill, so a column of "the same size" was a column of
  * different optical sizes. The others meet against the left of that cell and
  * fill its height. The tree still has to reserve the fold-control's width on
@@ -62,8 +63,8 @@
  * the dist root by `../build.ts` so the shipped artifact carries it and not
  * just the source.
  *
- * The OTHER THREE have no upstream, for three different reasons, and each says
- * its own at the function that draws it.
+ * The OTHERS have no upstream, each for its own reason, and each says it at the
+ * function that draws it.
  *
  * The outline, because no icon set has an olai outline in it.
  * It is drawn here, to the set's own metrics rather than to a guess at them:
@@ -82,12 +83,25 @@
  * The hypertext mark, because the icon a set WOULD have for a `.html` is a page
  * with something on it. What is drawn instead is `</>`.
  *
+ * The last three arrived with the viewers, and each answers the same question
+ * this file has answered three times: what can this file be, that nothing else
+ * in a directory is? A GRID is a table and a `.csv` is a table. A FRAMED
+ * PICTURE — a rectangle with a horizon and a sun in it — is the one drawing
+ * everybody already reads as "an image", and it is what an `<img>` shows. And
+ * the `.pdf` is the one that had to take the shape the others turned down: a
+ * SHEET with a folded corner. A page with lines on it was rejected twice above,
+ * for markdown and for hypertext, on the argument that it is a generic file —
+ * and that argument is exactly why it is right here. Every other kind in this
+ * column says what it IS instead of what shape it comes in, so the shape is
+ * free, and a `.pdf` is the one file in a vault whose whole nature is that it
+ * is a sheet of paper somebody laid out and nobody can reflow.
+ *
  * ## They take the row's ink, and that is a decision
  *
  * `currentColor`, never a colour of their own. Pierre's own tree paints its
  * icons per file type (a green markdown, an orange JSON — the probe in this
  * PR's evidence shows it), and that is right for a code host with forty
- * extensions to tell apart. This directory has THREE, and it is Workflowy-quiet:
+ * extensions to tell apart. This directory has SIX, and it is Workflowy-quiet:
  * every row is the column's own ink, the open file's row is the wash, and the
  * glyph is simply part of whichever of those the row already is. It also means
  * no second utility setting `color` on a row that has one — the trap
@@ -113,7 +127,8 @@ export type DirectoryKind = FileKind | "folder"
  *  place because they are one drawing. Held apart — a `viewBox` chosen by one
  *  condition and a shape by another — the folder's 18-wide box and the
  *  folder's paths would be two answers to one question, agreeing by a rule
- *  nothing enforces, and a fourth kind would have to remember both. */
+ *  nothing enforces, and every kind added since would have had to remember
+ *  both. */
 interface Drawn {
   readonly box: string
   readonly shape: () => JSX.Element
@@ -135,6 +150,9 @@ export const GLYPHS: Record<DirectoryKind, Drawn> = {
   document: { box: "0 0 16 16", shape: DocumentPaths },
   outline: { box: "0 0 16 16", shape: OutlinePaths },
   hypertext: { box: "0 0 16 16", shape: HypertextPaths },
+  csv: { box: "0 0 16 16", shape: CsvPaths },
+  image: { box: "0 0 16 16", shape: ImagePaths },
+  pdf: { box: "0 0 16 16", shape: PdfPaths },
 }
 
 /** The cell every tree glyph occupies. Height is the tree's 0.875rem; width
@@ -229,6 +247,86 @@ function OutlinePaths() {
       <circle cx="6" cy="13" r="1" />
       <rect x="9" y="12.25" width="5.5" height="1.5" rx="0.75" />
     </>
+  )
+}
+
+/** A `.csv`: a grid, which is a table, which is what the file is. Two rules
+ *  and not more — a header row across the top and one column division — because
+ *  at fourteen units square a third of either reads as a hatch rather than as
+ *  cells. The header rule sits higher than the middle for the same reason the
+ *  page draws the first row as a header: that is what a `.csv` is written with.
+ *
+ *  STROKED at the set's own 1.5, inset to `2..14`, for the hypertext mark's
+ *  reason — it sits in a column beside a page that occupies `1..15`. */
+function CsvPaths() {
+  return (
+    <g
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <rect x="2" y="2.75" width="12" height="10.5" rx="1.5" />
+      <path d="M2 6.25 H14" />
+      <path d="M8 6.25 V13.25" />
+    </g>
+  )
+}
+
+/** A picture: a frame with a horizon and a sun in it — the one drawing a reader
+ *  does not have to be taught, and the thing an `<img>` puts on the page.
+ *
+ *  The SUN is a filled circle where everything else here is stroked, and that is
+ *  the one exception in this file worth stating: a stroked ring at `r=1` inside
+ *  a 1.5-weight frame reads as a hole rather than as a mark. It is the same
+ *  shape the outline's bullets are drawn as, at the same radius, so the two
+ *  glyphs still belong to one set.
+ *
+ *  Inset to `2..14` for the two beside it. */
+function ImagePaths() {
+  return (
+    <>
+      <g
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect x="2" y="2.75" width="12" height="10.5" rx="1.5" />
+        <path d="M2.75 11.5 L6.25 7.75 L8.75 10.25 L10.25 8.75 L13.25 11.75" />
+      </g>
+      <circle cx="10.25" cy="6" r="1" />
+    </>
+  )
+}
+
+/** A `.pdf`: a sheet with its corner folded, which is the one shape left in
+ *  this column and the right one for the reason the header gives — a printed
+ *  page laid out once and reflowed by nobody.
+ *
+ *  The FOLD is what stops it being the generic file this file rejected twice:
+ *  a plain rectangle is a card, and the turned corner is what says paper. Two
+ *  rules under it, short, so the sheet reads as a page with something on it
+ *  without pretending to say what.
+ *
+ *  Stroked at 1.5 and inset to `3..13` — narrower than its neighbours, because
+ *  a sheet of paper is taller than it is wide and a square one is a card. */
+function PdfPaths() {
+  return (
+    <g
+      fill="none"
+      stroke="currentColor"
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    >
+      <path d="M9 2 H4.5 A1.5 1.5 0 0 0 3 3.5 V12.5 A1.5 1.5 0 0 0 4.5 14 H11.5 A1.5 1.5 0 0 0 13 12.5 V6 Z" />
+      <path d="M9 2 V6 H13" />
+      <path d="M5.75 9.5 H10.25" />
+      <path d="M5.75 11.75 H8.75" />
+    </g>
   )
 }
 

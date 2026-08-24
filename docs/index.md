@@ -5,7 +5,7 @@
 - [search.md](search.md) — one query language, five doors: what matches, the operators (`is:`, `has:`, `date:`, the two stamps `created:` / `changed:`, `prop:`, and `-` to negate), the `"quoted phrase"` and the `OR` that compose them, what a result row shows, and the filter that narrows a page in place — every page that draws nodes, and what narrowing means on each.
 - [git.md](git.md) — the git integration: commit modes, committing on its own, the pill, and the audit view.
 - [chat.md](chat.md) — the chat agent: which agents olai finds and how a conversation is bound to one, ACP and `OLAI_ACP_AGENT`, the node tools, pictures, being told when the agent is waiting on you, and kolu.
-- [format.md](format.md) — the file format and its rules: the record shapes, the fields, status, references (`see`, `@<id>` in prose, and what a zoomed node reads backwards), days, the pinned shelf (`Pins.olai`, and why a pin is an address rather than a field), which files a served directory is made of (`.olai`, `.md`, `.html`), and merge safety.
+- [format.md](format.md) — the file format and its rules: the record shapes, the fields, status, references (`see`, `@<id>` in prose, and what a zoomed node reads backwards), days, the pinned shelf (`Pins.olai`, and why a pin is an address rather than a field), which files a served directory is made of (`.olai`, `.md`, and the four kinds olai only shows — `.html`, `.csv`, the picture suffixes, `.pdf`), and merge safety.
 - [architecture.md](architecture.md) — how the packages fit, and the reasoning behind the layering.
 - [roadmap.olai](roadmap.olai) — the plan, in the format itself.
 - [brainstorming/](brainstorming) — the decisions, and why the alternatives lost.

@@ -378,6 +378,39 @@ test("a bodyless entry is upserted only when its key is new", () => {
   expect(gone.unread).toEqual([])
 })
 
+// …AND A BODY IS OWED ONLY WHERE THERE IS ONE TO READ. A picture and a `.pdf`
+// are bodied files the set keeps nothing of, exactly like a saved page, and
+// there is no text in either for this process to hand anybody: their pages
+// fetch the bytes themselves off `/media/`. So the KEY is announced — that is
+// what puts the file in the sidebar — and the path is not in `unread`, where
+// it would promise a body that, if a raw client ever held the key, would be
+// read off the disk and decoded as UTF-8. Which files those are is the
+// registry's `holds` column (`@olai/format`'s `textKind`), not a list here.
+test("a body is owed for the kinds this process can read, and no others", () => {
+  const born = publishedOf(
+    revision(
+      setOf({ "house.olai": HOUSE }, [
+        ["notes.md", "# hello"],
+        "report.html",
+        "data/sales.csv",
+        "art/handle.png",
+        "reports/q3.pdf",
+      ]),
+    ),
+    NOTHING_HELD,
+  )
+  // Every one of them is announced, so the sidebar lists all five.
+  expect(born.documents.upserts.map(([path]) => path)).toEqual([
+    "art/handle.png",
+    "data/sales.csv",
+    "notes.md",
+    "report.html",
+    "reports/q3.pdf",
+  ])
+  // …and exactly the ones whose body is TEXT are owed a read.
+  expect(born.unread).toEqual(["data/sales.csv", "report.html"])
+})
+
 // ── the heads ──────────────────────────────────────────────────────────
 
 // EVERY SERVED FILE has a head, and the property the wire promises about it: a

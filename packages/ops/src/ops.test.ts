@@ -166,12 +166,15 @@ const gitLog = (root: string): ReadonlyArray<string> =>
 // last one is the whole memory claim — a vault of saved pages costs paths — and
 // the reference below is the other half of it: `doc` is still checked, so the
 // set is still valid or not for the same reasons it was.
-test("a `.html` joins the set as a path; a `.md` brings its text", () =>
+test("the shown kinds join the set as paths; a `.md` brings its text", () =>
   withOps(
     {
       "house.olai": `${HOUSE}{"id":"quote","ord":"b0","title":"quote","doc":"notes.md"}\n`,
       "notes.md": "# cabinets\n",
       "report.html": "<h1>Cabinet quote</h1>\n",
+      "sales.csv": "region,units\nnorth,12\n",
+      "shot.png": "not really a picture, and nothing here reads it\n",
+      "q3.pdf": "%PDF-1.4 not really a pdf either\n",
     },
     (fixture) =>
       Effect.gen(function*() {
@@ -180,16 +183,29 @@ test("a `.html` joins the set as a path; a `.md` brings its text", () =>
           .toEqual([
             ["house.olai", "outline", null],
             ["notes.md", "document", "# cabinets\n"],
+            ["q3.pdf", "pdf", null],
             ["report.html", "hypertext", null],
+            ["sales.csv", "csv", null],
+            ["shot.png", "image", null],
           ])
+        // THE BYTES ARE NEVER READ, which is what `kept: false` buys and why
+        // the two files above hold text no reader of a picture would accept: a
+        // probe that opened them would have to decide what to do with that,
+        // and it does not open them at all.
         // The set loaded, which is what says the `doc` above resolved against
         // the documents found: a reference is checked against PATHS, and those
         // are the half this keeps for every bodied file.
         expect(set.broken).toEqual([])
         // And the bytes are still there for whoever asks for them — read from
-        // the disk on demand, held by nobody.
+        // the disk on demand, held by nobody. That read is the `.csv` page's
+        // as well as the saved page's; a picture and a `.pdf` have one only in
+        // the sense that any path does, since what draws those points a
+        // browser at `/media/` instead.
         expect(yield* Effect.orDie(fixture.store.body("report.html"))).toBe(
           "<h1>Cabinet quote</h1>\n",
+        )
+        expect(yield* Effect.orDie(fixture.store.body("sales.csv"))).toBe(
+          "region,units\nnorth,12\n",
         )
       }),
   ))

@@ -26,16 +26,19 @@
 
 import type { FileKind } from "@olai/format"
 
-import { TESTID } from "../testids.ts"
+import { type TestId, TESTID } from "../testids.ts"
 
 /** What a scenario grips a row of this kind by. Per kind rather than shared,
  *  because a step that says "the documents listed are …" is asking about ONE
  *  kind, and a shared id would make that step quietly true of a directory
  *  holding something else. */
-export const ROW_TESTID: Record<FileKind, string> = {
+export const ROW_TESTID: Record<FileKind, TestId> = {
   outline: TESTID.outlineLink,
   document: TESTID.documentLink,
   hypertext: TESTID.hypertextLink,
+  csv: TESTID.csvLink,
+  image: TESTID.imageLink,
+  pdf: TESTID.pdfLink,
 }
 
 /**
@@ -45,8 +48,16 @@ export const ROW_TESTID: Record<FileKind, string> = {
  * The registry names kinds for the code that branches on them; this is the same
  * set of things said the way somebody looking at their own directory would say
  * them, which is why `hypertext` is a "page" here and nowhere else in the
- * source. A fourth kind owes a WORD here — chosen for a reader rather than
- * inherited from the registry — and the compile error is what asks for it.
+ * source. A kind added to the registry owes a WORD here — chosen for a reader
+ * rather than inherited from it — and the compile error is what asks for it.
+ *
+ * THREE OF THE SIX ARE THE REGISTRY'S OWN WORD, and that is not laziness: a
+ * person looking at their folder says "the csv", "the pdf" and "the image", so
+ * the reader's word and the code's word genuinely coincide there. `image`
+ * rather than "picture" is the one to argue: "picture" is what markdown's rule
+ * calls the subset it may point at (`@olai/format`'s `isPicture`), and a
+ * refusal telling somebody their `.svg` "is a picture" while that rule says it
+ * is not would be this app using one word for two sets.
  *
  * IT MOVED HERE from `../Nothing.tsx`, which is where it was written and whose
  * docstring already promised this: "if a second surface ever has to say a kind
@@ -74,6 +85,9 @@ export const NAMED: Record<FileKind, Named> = {
   outline: { noun: "outline", article: "an" },
   document: { noun: "document", article: "a" },
   hypertext: { noun: "page", article: "a" },
+  csv: { noun: "csv", article: "a" },
+  image: { noun: "image", article: "an" },
+  pdf: { noun: "pdf", article: "a" },
 }
 
 /** ONE of them — "an outline", "a page". Beside the table rather than in the

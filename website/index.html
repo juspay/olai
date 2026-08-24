@@ -522,6 +522,18 @@
     link at another file of your vault, so that opens as a page here rather than
     inside the frame. It hands the address out and never navigates; olai looks
     it up in the files it is serving before it goes anywhere.</p>
+    <p>Three more kinds of file are listed and <strong>shown</strong> the same
+    way, and none of them can be edited here either. A <code>.csv</code> —
+    the bank's export, a spreadsheet saved out — opens as a table, its first
+    row the header; a file with more rows than a page can draw shows the first
+    five hundred and <em>says so</em>, because a table that quietly stops is a
+    table you would trust. A picture — <code>.png</code>, <code>.jpg</code>,
+    <code>.gif</code>, <code>.webp</code>, <code>.svg</code> and the rest —
+    opens at its own size, drawn in an <code>&lt;img&gt;</code>, which is the
+    element that will not run an SVG's script. And a <code>.pdf</code> opens in
+    your browser's own viewer, embedded in the page: pages, zoom, search and
+    print, with nothing bundled to provide them. Each has an address of its own,
+    so <code>/reports/q3.pdf</code> is a link you can paste.</p>
     <div class="cols">
       <div>
         <pre><code># Cabinet specs

@@ -22,7 +22,7 @@ The suite shares constants with `@olai/web` rather than retyping them — a numb
 
 Prefer a shared scratch corpus per **feature** over a private server per scenario. `@share-scratch` at the top of a feature is that opt-in: one copy and one server per worker, and After restores the fixture under the still-running server so overlapping writers can share too. `@own-scratch` on a scenario inside it keeps a private copy, for the things restore cannot make true (a server restart, conversation state, git). A restore that does not put the tree back fails naming the scenario and the files.
 
-This suite is 67 features, 826 scenarios (818 Gherkin `Scenario`/`Scenario Outline` entries; four outlines expand to twelve examples), 556 `@scratch:`. 27 features carry `@share-scratch` (377 sharing scenarios, 20 `@own-scratch` inside them). A 2026-08-19 audit cut ~160 that did not earn the browser; the grammar, the destination refusals, the trash wording, the install fetch and the rest of that list live in the unit suites now. Four browser-only claims the first cut left unpinned (anchor jump, sidebar inner scroll, same-page never-inside-itself, a preview's height after a late picture) are back.
+This suite is 73 features, 906 scenarios (896 Gherkin `Scenario`/`Scenario Outline` entries; five outlines expand to fifteen examples), 630 `@scratch:`. 28 features carry `@share-scratch` (395 sharing scenarios, 25 `@own-scratch` inside them). A 2026-08-19 audit cut ~160 that did not earn the browser; the grammar, the destination refusals, the trash wording, the install fetch and the rest of that list live in the unit suites now. Four browser-only claims the first cut left unpinned (anchor jump, sidebar inner scroll, same-page never-inside-itself, a preview's height after a late picture) are back.
 
 ```
 packages/tests/
@@ -319,6 +319,14 @@ Its last scenario opens a SECOND page in the same context, which is what makes i
 The chips themselves are a ROW of the preferences panel (`features/preferences.feature`), so every scenario here opens that panel to reach one — `showPreferences` in `preferences_steps.ts` is shared for exactly that. What the retired header pill promised, and what the theming feature still asserts under a new name, is that something NAMES the theme in force: it is the Theme row's hint now. Mutation-tested both times — hard-coding the name to "chalk" passed every theming scenario until a step asked.
 
 `features/preferences.feature` carries the same second-tab scenario for the OTHER preference, and it is worth its own sentence because a reload cannot ask the question: deleting `followDoneHidden()` outright passes every other Done scenario in the file, and fails this one. The reload scenario is the boot read, not the write: applying the default at module load (`pref.set(SHOWN, { persist: false })` after the factory) reddens only `It is remembered`. The write is the stored-key step on the hide scenario, which master already shipped. It also holds the two ends of the panel's TAB CYCLE — Shift+Tab out to the trigger, Tab back in to the first control — which is the promise a portalled panel cannot get from document order. Both were sabotage-checked against the fix they are the fence for.
+
+## The one thing this suite's browser cannot draw
+
+Playwright's Chromium ships **no PDF viewer**, and neither does its Firefox (which disables pdf.js by preference). Both were checked rather than assumed. That is a fact about the harness and not about olai — real Chrome draws `fixtures/good/reports/q3.pdf` in its own viewer, toolbar and all — so `features/pdf_csv_and_pictures.feature` asserts the disjunction it can honestly make: **the viewer drew it, or the page says it cannot and hands over the file**.
+
+The half that is worth having is the second one, and it is only assertable *because* this browser has no viewer. A `.pdf` page is an `<object>` rather than an `<embed>` for exactly one word — fallback — so a browser that will not draw a PDF must land on a sentence and a link to the file rather than on an empty rectangle. This is the one browser in the house that can produce that failure, and it does, on every run.
+
+What the viewer itself looks like is evidence rather than a scenario: the PR's own pass drives real Chrome (`google-chrome-stable`, through Playwright's `executablePath`) against the same fixture.
 
 ## Breaking the client on purpose
 

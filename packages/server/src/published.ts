@@ -43,6 +43,7 @@ import {
   nodesOf,
   outlinesIn,
   type Reading,
+  textKind,
 } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import type { DocumentEntry, Head, OutlineEntry } from "@olai/surface"
@@ -91,13 +92,20 @@ export interface Published {
    */
   readonly heads: Change<Head>
   /**
-   * The paths this revision moved whose BODY the set does not keep — what the
-   * body reader has to read before anyone can be handed one (`./bodies.ts`).
+   * The paths this revision moved whose BODY the set does not keep AND WHICH
+   * SOMETHING HERE CAN READ — what the body reader has to read before anyone
+   * can be handed one (`./bodies.ts`).
    *
    * It is here, beside the two collections, because it is the OTHER HALF of the
    * decision below: an upsert this revision withholds from the collection is
    * exactly a body somebody else owes a reader, and the two are decided in one
    * pass so they cannot come to disagree about which those are.
+   *
+   * NOT EVERY WITHHELD UPSERT IS ONE, and that is the half the viewers added: a
+   * picture and a `.pdf` are announced as keys and owe nobody a body, because
+   * there is no text in either to hand over (`@olai/format`'s `holds`). So this
+   * is a subset of the withheld upserts rather than the same list, and the pass
+   * below is where the two part company.
    */
   readonly unread: ReadonlyArray<string>
 }
@@ -144,6 +152,8 @@ export interface Published {
  * function, on a birth or on any other revision. A `git pull` that adds four
  * hundred saved pages announces four hundred keys and opens none of them,
  * because the read is the body reader's and its filter is who is holding what.
+ * And no body is OWED for a file this process cannot read as text at all — see
+ * the pass at the foot of the function.
  */
 /** Whether this file's breakage is a READ that failed, not a parse. The set
  *  folds every decode Result.fail into `broken`; only `unreadable-file` is
@@ -181,12 +191,22 @@ const documentsOf = (
   // One pass, two lists: what to send, and what somebody has to read. A file is
   // in exactly one of them unless it is BOTH new and bodyless, which is a key
   // announced and a body owed — see above.
+  //
+  // A BODY IS OWED ONLY WHERE THERE IS ONE TO READ, which is the registry's
+  // `holds` column asked by name (`textKind`). A picture and a `.pdf` are
+  // bodied files the set keeps nothing of, exactly like a saved page — and
+  // there is no text in either for this process to hand anybody: their pages
+  // fetch the bytes themselves, off the media route. Listing one here would
+  // promise a body that, if a raw client ever held the key, would be read off
+  // the disk and decoded as UTF-8, which is neither the file nor an error. The
+  // KEY is still announced, because membership is what puts a file in the
+  // sidebar.
   const upserts: Array<readonly [string, DocumentEntry]> = []
   const unread: Array<string> = []
   for (const [path, entry] of change.upserts) {
     if (entry.text !== null) upserts.push([path, entry])
     else {
-      unread.push(path)
+      if (textKind(path) !== null) unread.push(path)
       if (held?.documents.entries.has(path) !== true) upserts.push([path, entry])
     }
   }

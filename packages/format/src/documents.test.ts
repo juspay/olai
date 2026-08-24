@@ -187,9 +187,9 @@ test("a raw-space destination is wrapped so a CommonMark parser will read it", (
 
 // Everything this must not reinterpret. A link with a scheme goes where it
 // says, an absolute path is not this app's to resolve, a fragment is the
-// platform's, and a relative path to something that is not a document is
-// somebody pointing at something else.
-test("only a relative link to a document is a document link", () => {
+// platform's, and a relative path to something that has no page is somebody
+// pointing at something else.
+test("only a relative link to a file with a page is a document link", () => {
   for (const href of [
     "https://example.com/a.md",
     "//example.com/a.md",
@@ -198,7 +198,6 @@ test("only a relative link to a document is a document link", () => {
     "/finishes.md",
     "#beds",
     "",
-    "art/handle.png",
     "garden.olai",
     "README",
     "the%ZZ.md",
@@ -208,8 +207,22 @@ test("only a relative link to a document is a document link", () => {
   }
 })
 
-// A closed allowlist, not "anything that is not an outline": `.svg` is a
-// document that can script, and the set's own files are not pictures.
+// A PICTURE IS ONE NOW, and it is the one answer here that changed with the
+// viewers rather than being added beside them. This rule has always been "a
+// file whose content is a BODY", asked of the registry — so the day a picture
+// became a kind with a page, a `[shot](art/handle.png)` in somebody's notes
+// became a link olai can follow, and the picture's page is what it opens.
+// Nothing here widened: the registry did, and this read it.
+test("a relative link to a picture, a csv or a pdf is one too", () => {
+  expect(bodiedOf("notes/palette.md", "../art/handle.png")).toBe("art/handle.png")
+  expect(bodiedOf("notes/palette.md", "sales.csv")).toBe("notes/sales.csv")
+  expect(bodiedOf("notes/palette.md", "../q3.pdf")).toBe("q3.pdf")
+})
+
+// The suffixes MARKDOWN may name, which is the registry's picture kind minus
+// one: `.svg` is a document that can script, so a `![](…)` may not name one
+// even though the picture kind claims it and gives it a page. The set's own
+// files are not pictures either.
 test("only picture extensions are pictures, case-insensitively", () => {
   expect(isPicture("a/shot.png")).toBe(true)
   expect(isPicture("a/SHOT.JPEG")).toBe(true)
@@ -221,17 +234,25 @@ test("only picture extensions are pictures, case-insensitively", () => {
 
 // The other allowlist, one step wider, and the difference between the two is
 // the subject: markdown may name a PICTURE, and the media route may answer
-// anything a previewed page is made of. `.svg` is out of both — an SVG is a
-// document that can script — and the set's own files are out of this one
-// because they have pages of their own.
-test("a page and the parts it draws with are assets, and nothing else is", () => {
+// every file whose page is drawn by POINTING at it, plus the parts a previewed
+// page draws itself with. The set's own text files are out of this one because
+// they have pages of their own that are handed their content over the wire.
+//
+// `.svg` is the entry that moved: it is out of markdown's list above and IN
+// this one, because a picture's page draws it in an `<img>` fetched from here.
+// A `.csv` is the entry that did NOT move — it is a kind with a page, and its
+// page reads the text off the wire, so raw bytes over this route would be a
+// second way to read a file that already has one.
+test("a page, a picture, a pdf and the parts a page draws with are assets", () => {
   expect(isAsset("notes/report.html")).toBe(true)
   expect(isAsset("a/shot.png")).toBe(true)
+  expect(isAsset("a/logo.svg")).toBe(true)
+  expect(isAsset("a/q3.pdf")).toBe(true)
   expect(isAsset("a/page.CSS")).toBe(true)
   expect(isAsset("a/chart.js")).toBe(true)
   expect(isAsset("a/chart.mjs")).toBe(true)
   expect(isAsset("a/text.woff2")).toBe(true)
-  expect(isAsset("a/logo.svg")).toBe(false)
+  expect(isAsset("a/sales.csv")).toBe(false)
   expect(isAsset("a/notes.md")).toBe(false)
   expect(isAsset("a/plan.olai")).toBe(false)
   expect(isAsset("a/data.json")).toBe(false)

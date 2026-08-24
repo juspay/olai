@@ -31,7 +31,8 @@ import { NODE_REF as CHAT_NODE_REF_ATTR } from "@olai/web/src/client/chat/refs.t
 // this file had guessed would become a tap the day that one moved.
 import { LONG_PRESS_MS } from "@olai/web/src/client/longPress.ts";
 import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
-import { selector, TESTID } from "@olai/web/src/client/testids.ts";
+import { ROW_TESTID } from "@olai/web/src/client/file/kinds.ts";
+import { selector, type TestId, TESTID } from "@olai/web/src/client/testids.ts";
 import {
   setDefaultTimeout,
   setWorldConstructor,
@@ -219,6 +220,25 @@ export const SCENARIO_SETUP_TIMEOUT = SERVER_START_TIMEOUT + STEP_GUARD;
  *  selector here the client does not own and the one spelled out locally. */
 export const ROOT = "#root";
 
+/** The sidebar row id for one of the registry's kinds, BY THE KIND'S NAME —
+ *  the client's own table read rather than a fourth, fifth and sixth constant
+ *  beside {@link DOCUMENT_LINK} and {@link HYPERTEXT_LINK}.
+ *
+ *  A kind the registry does not claim THROWS, and that is the point of the
+ *  lookup being here: a scenario that says "the pictures listed are" would
+ *  otherwise grip a selector nobody writes and fail thirty seconds later as a
+ *  timeout, which reads as the app being broken rather than as the step being
+ *  misspelled. */
+export const rowsOfKind = (kind: string): string => {
+  const testid = (ROW_TESTID as Record<string, TestId | undefined>)[kind];
+  if (testid === undefined) {
+    throw new Error(
+      `no served file is a "${kind}" — the kinds are ${Object.keys(ROW_TESTID).join(", ")}`,
+    );
+  }
+  return selector(testid);
+};
+
 /** Which of the three git situations a scenario's server was started into
  *  (`@git:…`) — spelled here, where the world's field is, because `hooks.ts`
  *  already reads this module and a second copy of the three words is a second
@@ -255,17 +275,30 @@ export const OUTLINE_LINK = selector(TESTID.outlineLink);
 export const FILE_DIR = selector(TESTID.fileDir);
 export const FILE_DIR_TOGGLE = selector(TESTID.fileDirToggle);
 /** The glyph in front of a row's name, saying what KIND it is. `data-glyph`
- *  is `outline` / `document` / `hypertext` / `folder` — the fact, not the ink. */
+ *  is one of the registry's kinds or `folder` — the fact, not the ink. */
 export const FILE_GLYPH = selector(TESTID.fileGlyph);
 /** One document entry in the file tree (no second list — same folders). */
 export const DOCUMENT_LINK = selector(TESTID.documentLink);
 /** One `.html` entry in that same tree — its own id, so a step about documents
- *  goes on meaning documents. */
+ *  goes on meaning documents. The three kinds the viewers added have one each
+ *  for the same reason, and a step reaches them through the registry rather
+ *  than through three more constants ({@link ROW_TESTID}). */
 export const HYPERTEXT_LINK = selector(TESTID.hypertextLink);
 /** A `.html` file's page: the sandboxed frame its markup is drawn in, and the
  *  only element of that page this app owns. */
 export const HYPERTEXT_PREVIEW = selector(TESTID.hypertextPreview);
 export const HYPERTEXT_SAID = selector(TESTID.hypertextSaid);
+/** A `.csv` file's page: the table its rows are drawn as, and the line that
+ *  says which rows a page this size left out. */
+export const CSV_TABLE = selector(TESTID.csvTable);
+export const CSV_CLAMP = selector(TESTID.csvClamp);
+/** A picture's page: the `<img>`, which is the element that will not run an
+ *  SVG. */
+export const IMAGE_VIEW = selector(TESTID.imageView);
+/** A `.pdf` file's page: the embed the browser's own viewer draws in. What is
+ *  INSIDE it is the browser's and carries no id of ours, which is the same
+ *  boundary the `.html` frame draws. */
+export const PDF_EMBED = selector(TESTID.pdfEmbed);
 export const BODY_REFUSED = selector(TESTID.bodyRefused);
 /** One document, as a page: `/<file>`. */
 export const DOCUMENT_PAGE = selector(TESTID.documentPage);
@@ -1672,8 +1705,24 @@ export class OlaiWorld extends World {
     return this.fileLink(HYPERTEXT_LINK, file);
   }
 
-  /** One row of the sidebar tree, whichever kind of file it stands for. The
-   *  three kinds have a testid each — a step that says "the documents listed
+  /** One sidebar row of ANY registered kind, by the kind's own name — the
+   *  client's own per-kind id table, read rather than copied
+   *  (`@olai/web`'s `file/kinds.ts`). It is what the viewers' steps grip, so
+   *  a seventh kind is a row in that table and no new step here. A kind the
+   *  registry does not claim is a scenario naming something that cannot
+   *  exist, so it throws rather than timing out on a selector nobody
+   *  writes. */
+  kindRows(kind: string): Locator {
+    return this.page.locator(rowsOfKind(kind));
+  }
+
+  /** ...and one of them, by the path it stands for. */
+  kindLink(kind: string, file: string): Locator {
+    return this.fileLink(rowsOfKind(kind), file);
+  }
+
+  /** One row of the sidebar tree, whichever kind of file it stands for. Each
+   *  kind has a testid of its own — a step that says "the documents listed
    *  are …" is asking about ONE of them — but the SELECTOR shape is one thing,
    *  and it was three copies of the same template string before this. */
   fileLink(testid: string, file: string): Locator {

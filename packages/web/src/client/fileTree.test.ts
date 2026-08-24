@@ -34,7 +34,7 @@ test("a flat directory is one list of files, outlines and documents mixed", () =
 // cannot produce one (every collection it comes from is built from that same
 // registry), and a row with no kind would have no glyph and nowhere to link.
 test("a row's kind is read off its name, and an unclaimed path is not a row", () => {
-  expect(fileTree(["b.md", "a.olai", "README", "art/handle.png"])).toEqual([
+  expect(fileTree(["b.md", "a.olai", "README", "notes/rows.tsv"])).toEqual([
     {
       kind: "file",
       key: "file:a.olai",

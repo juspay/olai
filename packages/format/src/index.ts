@@ -124,11 +124,11 @@ export {
   Document,
   Face,
   faceOf,
-  Hypertext,
   isOutline,
   Markdown,
   Outline,
   outlineDocument,
+  Unkept,
 } from "./document.ts"
 /** A heading's derived id, and the headings of a body — the element half of
  *  the address grammar. Exported because the BROWSER assigns the same ids as
@@ -143,6 +143,16 @@ export { claim, slugOf, slugsIn } from "./slug.ts"
  *  spend it — a leading `---` in one is the thematic break markdown says it is
  *  (`./document.ts` argues both halves). */
 export { proseIn } from "./frontmatter.ts"
+/** WHAT A `.csv` SAYS — its rows, squared off to the rectangle a table needs,
+ *  and bounded. Exported
+ *  because the BROWSER is the only thing that draws one: a `.csv`'s page is
+ *  handed the file's text over the wire like a document's and reads it there,
+ *  so the parse is the format's and the drawing is the client's, exactly as a
+ *  markdown body's is (`./csv.ts` argues the reading). What it answers in is
+ *  NUMBERS — the sentence a reader is told about a clamped file is the
+ *  client's own (`@olai/web`'s `document/clamped.ts`). */
+export { CSV_CELL, CSV_COLUMNS, CSV_ROWS, csvRows, csvTable } from "./csv.ts"
+export type { CsvTable } from "./csv.ts"
 /** The view PATCHED rather than rebuilt, and what a delta says: files upserted,
  *  files gone — Surface's own collection-delta frame, which is the vocabulary
  *  "what changed" already travels this system in.
@@ -178,12 +188,17 @@ export {
   FILE_EXTS,
   FILE_KINDS,
   fileKind,
+  holdsBody,
   holdsText,
+  isFetched,
   OUTLINE_EXT,
+  UNKEPT_KINDS,
   stemOf,
+  SVG_EXT,
+  textKind,
   unkept,
 } from "./kinds.ts"
-export type { BodyKind, FileKind } from "./kinds.ts"
+export type { BodyKind, FileKind, TextKind, UnkeptKind } from "./kinds.ts"
 export type { Split } from "./address.ts"
 /** WHAT A PLACE IS CALLED — `[document]#[element]`, the one grammar every
  *  feature that has to name something trades in

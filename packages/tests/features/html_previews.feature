@@ -1306,12 +1306,44 @@ Feature: A `.html` in the vault
   @scratch:good
   Scenario: A link at anything else in the vault is still the frame's to follow
     # The scope, read as what did NOT change. A link to a part a page draws
-    # itself with — a picture, a stylesheet, a font — names a file olai has no
+    # itself with — a stylesheet, a script, a font — names a file olai has no
     # page for, so the handler leaves the click alone and the frame follows it
     # exactly as it did before any of this: it lands on something that is not a
     # sealed document, says nothing, and the file is put back. That is #206's
     # walk-off story, untouched, and this is the line that says a click on a
     # link olai cannot answer was not quietly turned into a dead one.
+    #
+    # IT USED TO BE A PICTURE HERE, and the swap is the honest record of what
+    # the viewers changed: a picture has a page now, so a link at one is
+    # claimed and opened by the app (the scenario under this one). What is left
+    # on this side of the line is what a page draws itself WITH and olai still
+    # has no page for.
+    Given I open the app
+    And I mark the page
+    When I rewrite "gallery.html" as:
+      """
+      <h1>Gallery</h1>
+      <p><a id="sheet" href="data/report.css">the stylesheet itself</a></p>
+      """
+    And I click the page "gallery.html"
+    Then the preview shows the heading "Gallery"
+    When I click "#sheet" inside the preview
+    # The app did not move — this was never its click…
+    Then the address is "/gallery.html"
+    And the page has not reloaded
+    # …and the frame went, found something that does not greet, and was brought
+    # home to the file, which is where the reader can see it.
+    And the preview shows the heading "Gallery"
+
+  @scratch:good
+  Scenario: A link at a picture opens that picture's page
+    # THE OTHER SIDE OF THE LINE, and the whole of what the viewers changed
+    # about this rule. The handler claims a click by whether the address names
+    # a file olai has a PAGE for (`@olai/format`'s `FILE_EXTS`, read off the
+    # registry and interpolated into the seal's script), and a picture is such
+    # a file now — so this is the `.html`-to-`.html` story one kind over, with
+    # no line of the seal changed. The reader lands where clicking that row in
+    # the sidebar lands.
     Given I open the app
     And I mark the page
     When I rewrite "gallery.html" as:
@@ -1322,12 +1354,13 @@ Feature: A `.html` in the vault
     And I click the page "gallery.html"
     Then the preview shows the heading "Gallery"
     When I click "#shot" inside the preview
-    # The app did not move — this was never its click…
-    Then the address is "/gallery.html"
+    # The APP moved, in place — same address the sidebar's row opens, and no
+    # reload, because this is a route rather than a navigation.
+    Then the document open is "art/handle.png"
+    And the address is "/art/handle.png"
     And the page has not reloaded
-    # …and the frame went, found something that does not greet, and was brought
-    # home to the file, which is where the reader can see it.
-    And the preview shows the heading "Gallery"
+    And the picture drawn is "art/handle.png"
+    And the picture has loaded
 
   @scratch:good @own-scratch
   Scenario: A link to a page the route serves and the directory does not list is dropped

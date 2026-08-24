@@ -52,7 +52,7 @@ import {
   tagText,
   titleParts,
 } from "./derive.ts"
-import type { Hypertext, Markdown } from "./document.ts"
+import type { Markdown, Unkept } from "./document.ts"
 import { type Custom, customOf } from "./custom.ts"
 import { proseIn } from "./frontmatter.ts"
 import { shiftDay, shiftMinutes, shiftMonth, weekdayOf } from "./calendar.ts"
@@ -2522,7 +2522,7 @@ export interface MatchedDocument {
  * own ruling while it matched paths for itself, and it is kept now that this
  * index answers instead.
  */
-export type Bodied = Markdown | Hypertext
+export type Bodied = Markdown | Unkept
 
 /**
  * ONE THING A QUERY SELECTED, whichever kind it is — what a ranked answer is a
@@ -2619,7 +2619,7 @@ const documentHay = (
     }),
     // A file whose body the set does not keep has no prose to look through,
     // which is a different sentence from "it holds none" — nothing here has
-    // read it (`./document.ts`'s `Hypertext`).
+    // read it (`./document.ts`'s `Unkept`).
     //
     // THE PROSE and not the whole body: a `---` block at the top is the
     // document's RECORD, and its keys are answered by `prop:` above, out of
