@@ -154,6 +154,22 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     // assets, a 404 on an asset miss and the SPA fallback that makes
     // `/<file>` a real URL, is the shell half of the call.
     manifest: MANIFEST,
+    // WHICH `/sw.js` this origin serves, and the one thing about it worth
+    // arguing: olai has always been "live or nothing", and the framework's
+    // DEFAULT worker is the self-destructing one that keeps it that way by
+    // retiring anything an older build left registered.
+    //
+    // `notify` is not a step back from that. It registers NO `fetch` handler,
+    // so it intercepts no navigation and caches nothing — it cannot serve a
+    // stale shell, which is the only thing "no service worker" was ever a
+    // shorthand for — and on activate it purges any cache a legacy worker left
+    // and reloads the windows that worker was controlling, which is exactly
+    // what the self-destructing one did. What it adds is the ONE thing an
+    // installed PWA cannot do without a worker: `registration.showNotification`
+    // is the only notification path that works in `standalone` display mode, so
+    // the chat's attention alerts (`packages/web/src/client/chat/attention/`)
+    // have nowhere else to go.
+    serviceWorker: "notify",
     // olai's own FOUR routes: the one that answers with bytes from the SERVED
     // directory rather than from the bundle, the one an agent speaks to, the
     // one that forces a re-read of the disk (`POST /olai/resync`), and the one

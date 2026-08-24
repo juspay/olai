@@ -86,7 +86,8 @@ import { createEffect, createMemo, For, on, onCleanup, onMount, Show } from "sol
 import { SaidLine } from "../SaidLine.tsx"
 import { useShowNode } from "../focus.ts"
 import { useFollow } from "../router.tsx"
-import { TESTID } from "../testids.ts"
+import { selector, TESTID } from "../testids.ts"
+import { revealed, revealing, wholeYet } from "./attention/reveal.ts"
 import { declaringFailure } from "./declared.ts"
 import { ElapsedProvider } from "./elapsing.tsx"
 import { Entry } from "./Entry.tsx"
@@ -98,6 +99,11 @@ import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import { doingOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
+
+/** A question still waiting on somebody — `./AskForm.tsx`'s row with its own
+ *  flag still on. The one thing a press of the attention banner is looking
+ *  for, spelled off the panel's own declared handles rather than off a class. */
+const WAITING_ASK = `${selector(TESTID.chatAsk)}[data-asking="true"]`
 
 export function Transcript(props: { readonly chat: Chat }) {
   const show = useShowNode()
@@ -147,6 +153,51 @@ export function Transcript(props: { readonly chat: Chat }) {
       },
     ),
   )
+
+  /**
+   * SOMEBODY PRESSED THE BANNER, and this is the half of that press the
+   * service worker cannot do: it focuses the window and `./attention/reveal.ts`
+   * opens the panel, and what is left is putting the question on screen.
+   *
+   * It cannot be done at the press. The panel was shut, so opening it is what
+   * MOUNTS this component, and the rows land later still on a subscription
+   * that has only just opened — so the request outlives the press and is taken
+   * up here, when there is a conversation to take it up with. The effect reads
+   * the row list, which is what wakes it again as the transcript arrives.
+   *
+   * A conversation with no waiting form in it is an ordinary outcome, not an
+   * error: the question was answered in another tab between the banner and the
+   * press. The foot of the conversation is the answer to that, which is where
+   * an open lands anyway.
+   *
+   * BUT NOT YET IS NOT THE SAME AS THERE IS NONE, and the two look identical
+   * from here: rows are KEYS, and a key is in the list before its value is, so
+   * a form that has not been drawn yet and a form that was answered elsewhere
+   * both querySelect to nothing. Spent on the first, the press becomes a jump
+   * to the foot of a conversation whose question is further up. So the request
+   * only lets go once the form is FOUND or the conversation has arrived whole
+   * ({@link ./attention/reveal.ts}'s `wholeYet`) — and reading the values is
+   * what wakes this again as they land.
+   *
+   * Cleared once one of those two is true, so a request nobody could answer
+   * cannot sit there and hijack a row that lands ten minutes later. Following
+   * is restored either way — a press is a person arriving at the conversation,
+   * like opening it.
+   */
+  createEffect(() => {
+    if (!revealing()) return
+    const waiting = pane?.querySelector(WAITING_ASK) ?? null
+    // Nothing to show and the conversation is still arriving: stay asked. The
+    // `wholeYet` read subscribes this to the first row it is waiting on, so
+    // that row landing is what brings it back.
+    if (waiting === null && !wholeYet(props.chat.rows(), (key) => props.chat.entry(key)())) {
+      return
+    }
+    following = true
+    if (waiting === null) jump()
+    else waiting.scrollIntoView({ block: "center" })
+    revealed()
+  })
 
   /** An id the agent named, pressed — shown, or nothing when the press landed
    *  on the words around one.

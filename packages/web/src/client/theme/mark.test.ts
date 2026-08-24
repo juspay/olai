@@ -29,6 +29,19 @@ describe("the palm-leaf mark", () => {
     expect(markSvg(reef)).not.toBe(markSvg(pitch))
   })
 
+  test("the waiting dot is the same drawing with one thing added", () => {
+    // The tab's half of the App Badging API (`../chat/attention/badge.ts`).
+    // Held as a difference rather than by shape: what matters is that the
+    // plain mark is untouched and the marked one is not it.
+    for (const palette of PALETTES) {
+      const plain = markSvg(palette)
+      const marked = markSvg(palette, true)
+      expect(marked).not.toBe(plain)
+      expect(marked).toContain(plain.slice(0, plain.indexOf("</svg>")))
+      expect(marked).toContain(`fill="${palette.colors.doing}"`)
+    }
+  })
+
   test("the shipped icon is the mark in the leaf palette", async () => {
     // The install files are this drawing in one row. A geometry edit here that
     // forgot the file, or a leaf retune that forgot the icon, is a tab and a

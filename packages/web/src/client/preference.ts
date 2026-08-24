@@ -49,6 +49,8 @@
 
 import { type Accessor, createSignal } from "solid-js"
 
+import { grumble } from "./grumble.ts"
+
 /** What this browser remembers under `key`, or `null` for nothing — which is
  *  also the answer when storage refuses to be read. */
 export const readPreference = (key: string): string | null => {
@@ -97,11 +99,6 @@ export const parsedJson = (raw: string | null): unknown => {
   }
 }
 
-/** Keys already complained about, so a picker somebody is playing with does
- *  not fill the console with the same sentence forty times. Once per key is
- *  enough to be findable and few enough to be read. */
-const complained = new Set<string>()
-
 /**
  * Remember it, or forget it with `null`.
  *
@@ -111,21 +108,18 @@ const complained = new Set<string>()
  * quietly forgot every theme pick between reloads and there was nowhere to
  * find out why.
  *
- * The console, and deliberately not a surface in the app. There is no screen
- * this belongs on: it is not about the outlines, it did not fail anything the
- * reader asked for, and a banner over somebody's tree saying their theme will
- * not persist is worse than the silence it replaced. This is the cheap half —
- * the thing a person is told when they go looking for why, which is exactly
- * when they open a console.
+ * The console, and deliberately not a surface in the app — `./grumble.ts`,
+ * which is where that argument lives now that three things in this client
+ * make it. Once per key, so a picker somebody is playing with does not fill a
+ * console with forty copies of one line.
  */
 export const writePreference = (key: string, value: string | null): void => {
   try {
     if (value === null) localStorage.removeItem(key)
     else localStorage.setItem(key, value)
   } catch (cause) {
-    if (complained.has(key)) return
-    complained.add(key)
-    console.warn(
+    grumble(
+      key,
       `olai: this browser will not store "${key}", so the setting holds for this tab and is forgotten on reload`,
       cause,
     )

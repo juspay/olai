@@ -19,6 +19,21 @@
  *
  * The tab mark is a blob, not a `data:` URL: the shell's CSP names `blob:` on
  * `img-src` (favicons count) and refuses `data:`.
+ *
+ * TWO THINGS DECIDE THE TAB now, and they move independently: the palette in
+ * force, and whether the agent is waiting on the reader
+ * (`../chat/attention/badge.ts` — the tab's half of the App Badging API). So
+ * this file holds what the chrome is CURRENTLY showing, and each caller says
+ * only its own half. The alternative — every caller passing both — would make
+ * the badge a second place that knows which theme is in force, and a theme
+ * picked while a question was waiting would rub the mark out.
+ *
+ * The TITLE is here for the same reason the icon is, and it is the half a
+ * reader would expect to find somewhere else: what the tab is CALLED is the
+ * chrome around the page exactly as its icon and its status-bar colour are,
+ * and the two are one mark to a person looking at a row of tabs. Owned
+ * together, they cannot come apart; owned apart, "keep these two in step" is a
+ * rule with nowhere to live.
  */
 
 import { markSvg } from "./mark.ts"
@@ -60,9 +75,27 @@ const icon = (): HTMLLinkElement => {
   return iconLink
 }
 
+/** What the chrome is showing right now: the palette it was last painted in,
+ *  and whether the tab is marked. Held because the two move independently —
+ *  see the header. */
+let shown: Palette | undefined
+let waiting = false
+
+/** The tab's own NAME, without any mark on it — read the first time one is
+ *  composed rather than at import, so a module that only wants a palette does
+ *  not need a document. Nothing else in this client writes `document.title`
+ *  (`../claims.test.ts` holds that), so reading it once is reading it from the
+ *  one writer there is; the day there is a second, this is where they meet. */
+let name: string | undefined
+
+/** What a marked tab wears in front of its name. A mark and not a count: the
+ *  number belongs on an app icon, which is a place that has one, and `●3 olai`
+ *  in a title bar reads as a typo. */
+const MARK = "●"
+
 const paintIcon = (palette: Palette): void => {
   const url = URL.createObjectURL(
-    new Blob([markSvg(palette)], { type: "image/svg+xml" }),
+    new Blob([markSvg(palette, waiting)], { type: "image/svg+xml" }),
   )
   const previous = iconUrl
   icon().href = url
@@ -72,6 +105,36 @@ const paintIcon = (palette: Palette): void => {
 
 /** Put the chrome in this palette. */
 export const paintChrome = (palette: Palette): void => {
+  shown = palette
   tag().setAttribute("content", palette.colors.paper)
   paintIcon(palette)
+}
+
+/**
+ * Mark the tab, or stop marking it: BOTH halves of what a tab is — its NAME,
+ * and its ICON with a dot on it (`./mark.ts`).
+ *
+ * One call and not two, because they are one fact about one thing. Written
+ * from two places — a title where the badge picks its channel, an icon here —
+ * their agreement would rest on a rule nobody enforces, and a tab reading
+ * "● olai" under a clean icon is the shape that rule failing takes.
+ *
+ * The ICON is a no-op before any palette has been painted, which is the first
+ * frame and nothing else: `followStoredTheme` paints from the client's entry
+ * point, before there is a panel to ask for this. Nothing is drawn from a
+ * guess — a mark in a palette nobody picked is a worse answer than the file
+ * the shell already shipped.
+ */
+export const markWaiting = (mark: boolean): void => {
+  if (mark === waiting) return
+  waiting = mark
+  paintTitle()
+  if (shown !== undefined) paintIcon(shown)
+}
+
+/** The tab's name and whatever is on it, composed. One writer, so the mark
+ *  cannot be applied twice or lost by whoever writes last. */
+const paintTitle = (): void => {
+  name ??= document.title
+  document.title = waiting ? `${MARK} ${name}` : name
 }

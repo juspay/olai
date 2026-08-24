@@ -17,6 +17,10 @@ import { Then, When } from "@cucumber/cucumber";
 import type { Page } from "playwright";
 
 import {
+  ALERT_SOUND_KEY,
+  ALERTS_KEY,
+} from "@olai/web/src/client/settings/alerts.ts";
+import {
   DENSITY_KEY,
   type Density,
 } from "@olai/web/src/client/settings/density.ts";
@@ -349,6 +353,84 @@ Then(
       stored,
       state === "hidden" ? "true" : "false",
       `this browser keeps "${stored}" under ${DONE_HIDDEN_KEY}`,
+    );
+  },
+);
+
+// ── the two Alert preferences ──────────────────────────────────────────
+//
+// What they DO is `features/the_agent_waits_on_you.feature`; what is here is
+// that they are preferences like the others — a pick that moves this browser,
+// is stored under one key, and says what it means.
+
+const asSwitch = (value: string): "on" | "off" => {
+  if (value !== "on" && value !== "off") {
+    throw new Error(`an alert row is "on" or "off", not "${value}"`);
+  }
+  return value;
+};
+
+When(
+  "I set Alerts to {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "alerts", asSwitch(value));
+  },
+);
+
+When(
+  "I set the alert sound to {string}",
+  async function (this: OlaiWorld, value: string) {
+    await pickChoice(this.page, "alert-sound", asSwitch(value));
+  },
+);
+
+Then(
+  "this browser has stored that alerts are {string}",
+  async function (this: OlaiWorld, value: string) {
+    const stored = await this.stored(ALERTS_KEY);
+    assert.equal(
+      stored,
+      asSwitch(value) === "on" ? "true" : "false",
+      `this browser keeps "${stored}" under ${ALERTS_KEY}`,
+    );
+  },
+);
+
+Then(
+  "this browser has stored that the alert sound is {string}",
+  async function (this: OlaiWorld, value: string) {
+    const stored = await this.stored(ALERT_SOUND_KEY);
+    assert.equal(
+      stored,
+      asSwitch(value) === "on" ? "true" : "false",
+      `this browser keeps "${stored}" under ${ALERT_SOUND_KEY}`,
+    );
+  },
+);
+
+/** The sound row is drawn INERT rather than hidden while alerts are off — the
+ *  Segmented control's own "frozen", which the git rows already wear: a choice
+ *  a reader cannot see is one they cannot ask anybody about. */
+Then("the alert sound cannot be set", async function (this: OlaiWorld) {
+  await showPreferences(this.page);
+  const segments = row(this, "alert-sound").locator(PREFS_CHOICE);
+  await segments.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const disabled = await segments.evaluateAll((all) =>
+    all.map((one) => one.getAttribute("aria-disabled")),
+  );
+  assert.ok(
+    disabled.length > 0 && disabled.every((said) => said === "true"),
+    `the alert sound row's segments say aria-disabled=${JSON.stringify(disabled)}`,
+  );
+});
+
+Then(
+  "the Alerts row explains {string}",
+  async function (this: OlaiWorld, expected: string) {
+    const hint = await hintOf(this, "alerts");
+    assert.ok(
+      hint.includes(expected),
+      `the Alerts row says "${hint}", which does not carry "${expected}"`,
     );
   },
 );

@@ -2,7 +2,7 @@
  * The client entry point. It renders; everything else is a module away.
  */
 
-import { retireServiceWorker } from "@kolu/surface-app/lifecycle"
+import { registerOrRetireServiceWorker } from "@kolu/surface-app/lifecycle"
 import { SurfaceFaultBoundary } from "@kolu/surface-app/solid"
 import { render } from "solid-js/web"
 
@@ -12,6 +12,7 @@ import { followFolders } from "./fold/folders.ts"
 import { followFolds } from "./fold/memory.ts"
 import { trackDesktop } from "./layout/media.ts"
 import { followLayout } from "./layout/prefs.ts"
+import { followAlerts } from "./settings/alerts.ts"
 import { followDensity } from "./settings/density.ts"
 import { followDoneHidden } from "./settings/done.ts"
 import { followOutlinesHidden } from "./settings/hiddenOutlines.ts"
@@ -20,10 +21,18 @@ import { followStoredSize } from "./theme/sizeState.ts"
 import { followStoredTheme } from "./theme/state.ts"
 import { trackVisibleViewport } from "./viewport.ts"
 
-// The paired half of the self-destructing `/sw.js` the server serves: a
-// browser stuck on a cached bundle from an older olai unregisters it here and
-// self-heals on the next load.
-retireServiceWorker()
+// The paired half of the `/sw.js` the server serves, which is now the
+// framework's NOTIFICATION worker (packages/server/src/listener.ts says why):
+// registering it is what makes `registration.showNotification` reachable, and
+// that is the only notification path an installed PWA has at all
+// (`./notify.ts`). It is still not a caching worker — it
+// registers no `fetch` handler, so "live or nothing" is untouched — and on
+// activate it purges whatever an older olai left and reloads the tabs that
+// worker was controlling, which is the self-healing this call used to be
+// entirely about. Where no worker can be registered (a dev server that does
+// not serve one), the framework RETIRES instead, so the origin is never left
+// with a legacy caching worker and no banner.
+void registerOrRetireServiceWorker()
 
 // How much of the page a phone is actually showing, published as two custom
 // properties for whatever is anchored to the bottom of the screen. Started
@@ -42,12 +51,14 @@ followStoredTheme()
 followStoredFont()
 followStoredSize()
 
-// Layout preferences (sidebar open/width, chat open/width/snap), how much of a
+// Layout preferences (sidebar open/width, chat open/width/snap), whether the
+// agent's questions are announced and whether that makes a sound, how much of a
 // row is drawn by default, what a page does with finished work, whether the
 // file tree draws the outlines olai named for itself, what this browser has
 // folded — of the outline and of the directory — and the phone/desktop media
 // query — document-lifetime, like the theme.
 followLayout()
+followAlerts()
 followDensity()
 followDoneHidden()
 followOutlinesHidden()

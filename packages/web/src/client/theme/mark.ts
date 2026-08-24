@@ -5,13 +5,31 @@
  * geometry is the original olai mark; only the colours move. `./chrome.ts`
  * paints this from whichever palette is in force; the files in `public/` are
  * the same drawing in one row, because an installer keeps a file.
+ *
+ * THE DOT is the same drawing with one thing added, and it is the tab's half
+ * of the App Badging API: a browser that will not badge an app icon
+ * (`../chat/attention/badge.ts` says which) still has a favicon, and this is
+ * what "the agent is waiting on you" looks like there. It is drawn LARGE — a
+ * favicon is sixteen pixels, so a dot at the scale it would have on a dock
+ * icon is a smudge — and it is punched through the art on a ring of paper so
+ * it reads as a mark on the icon rather than as one more leaflet.
  */
 
 import type { Palette } from "./palettes.ts"
 
-/** The mark, as an SVG document, in this palette. */
-export const markSvg = (palette: Palette): string => {
-  const { paper, ink, done } = palette.colors
+/** Where the dot sits and how big it is, in the mark's own 512 box: top-right,
+ *  and about a third of the width across so it survives being drawn at 16px. */
+const DOT = { x: 368, y: 144, ring: 128, r: 100 }
+
+/** The mark, as an SVG document, in this palette — with the waiting dot on it
+ *  when something is waiting on the reader. */
+export const markSvg = (palette: Palette, waiting = false): string => {
+  const { paper, ink, done, doing } = palette.colors
+  const dot = waiting
+    ? `
+  <circle cx="${DOT.x}" cy="${DOT.y}" r="${DOT.ring}" fill="${paper}"/>
+  <circle cx="${DOT.x}" cy="${DOT.y}" r="${DOT.r}" fill="${doing}"/>`
+    : ""
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="olai">
   <rect width="512" height="512" rx="92" fill="${paper}"/>
   <g fill="none" stroke="${ink}" stroke-linecap="round" stroke-linejoin="round">
@@ -38,7 +56,7 @@ export const markSvg = (palette: Palette): string => {
     <ellipse cx="352" cy="328" rx="62" ry="24" transform="rotate(10 352 328)"/>
     <ellipse cx="185" cy="378" rx="48" ry="18" transform="rotate(-8 185 378)"/>
     <ellipse cx="327" cy="378" rx="48" ry="18" transform="rotate(8 327 378)"/>
-  </g>
+  </g>${dot}
 </svg>
 `
 }
