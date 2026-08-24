@@ -179,11 +179,13 @@ test("run refuses when the child said more than maxBuffer, quoting the tail", as
 })
 
 test("run throws Hung on a hang, with what the child said", async () => {
+  // 3s is a hang detector, not a wait: the child sleeps 10s. 200ms
+  // lost to spawn under CI load and quoted an empty box.
   try {
     await run(
       process.execPath,
       ["-e", "process.stderr.write('working\\n'); setTimeout(() => {}, 10_000)"],
-      { timeout: 200 },
+      { timeout: 3_000 },
     )
     throw new Error("run should have hung")
   } catch (cause) {
