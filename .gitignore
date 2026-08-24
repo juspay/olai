@@ -33,3 +33,4 @@ node_modules
 /debates
 docs/orchestrator/lanes.olai
 /.claude/settings.local.json
+docs/briefs/
