@@ -77,7 +77,7 @@ import { Key } from "@solid-primitives/keyed"
 import { createMemo, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
-import { endedOf, watchOf } from "./background.ts"
+import { armedOf, endedOf, watchOf } from "./background.ts"
 import { Diff } from "./Diff.tsx"
 import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
 import { OutlineDiff } from "./OutlineDiff.tsx"
@@ -234,8 +234,8 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
             <span
               class="flex min-w-0 shrink items-center gap-1 text-muted/70"
               data-testid={TESTID.chatArmed}
-              data-task={props.entry.armed?.task}
-              data-task-kind={props.entry.armed?.kind}
+              data-task={armedOf(props.entry)?.task}
+              data-task-kind={armedOf(props.entry)?.kind}
             >
               {/* The glyph a watch wears, spoken for a reader who gets no
                   glyphs: without the word, this row's name ends in a bare

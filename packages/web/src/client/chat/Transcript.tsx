@@ -358,10 +358,27 @@ export function Transcript(props: { readonly chat: Chat }) {
                *  ({@link ./background.ts}). Two rules and one rail: an agent in
                *  flight and a task in flight are the same kind of fact to a
                *  reader, and a panel with two spellings of "this is happening"
-               *  is a panel with one of them to learn. They cannot both answer
-               *  for one row — a call either sent an agent out or armed a task
-               *  — so the order between them decides nothing. */
-              const working = createMemo(() => doingOf(entry()) ?? stillOf(entry()))
+               *  is a panel with one of them to learn.
+               *
+               *  ONE ANSWER carrying both halves — the words and which face
+               *  they are — rather than the word from one rule and the name
+               *  from asking a second rule again. Asked twice, the two could
+               *  disagree about which kind of rail this is, which is the shape
+               *  of bug {@link ./lanes.ts} already fixed one field over (a `labelled`
+               *  boolean beside the label it was about).
+               *
+               *  A call can be BOTH — an `Agent` launched asynchronously is a
+               *  spawn and a background task — and the spawn wins, because who
+               *  was sent is the more specific thing to say about it. */
+              const working = createMemo(() => {
+                const row = entry()
+                const spawned = doingOf(row)
+                if (spawned !== null) {
+                  return { said: spawned, name: TESTID.chatSpawnWorking }
+                }
+                const still = stillOf(row)
+                return still === null ? null : { said: still, name: TESTID.chatArmedStill }
+              })
               return (
                 <Show when={entry()}>
                   {(row) => (
@@ -421,7 +438,7 @@ export function Transcript(props: { readonly chat: Chat }) {
                           fact, and a panel with two spellings of "this is
                           happening" is a panel with one of them to learn. */}
                       <Show when={working()}>
-                        {(doing) => (
+                        {(rail) => (
                           <div class={`${RAIL} pb-2 pt-1`}>
                             {/* The NAME is on the words rather than on the rail
                                 around them, so that what a scenario measures is
@@ -431,14 +448,12 @@ export function Transcript(props: { readonly chat: Chat }) {
                                 indent entirely. */}
                             <p
                               class="flex items-center gap-1 font-mono text-[0.6875rem] text-doing"
-                              data-testid={stillOf(entry()) === null
-                                ? TESTID.chatSpawnWorking
-                                : TESTID.chatArmedStill}
+                              data-testid={rail().name}
                               data-lane={row().id}
                               aria-live="polite"
                             >
                               <span class={LIVE_DOT} aria-hidden="true" />
-                              {doing()}
+                              {rail().said}
                             </p>
                           </div>
                         )}
