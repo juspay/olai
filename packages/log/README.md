@@ -122,7 +122,7 @@ import { findLogfmt } from "@olai/log/testlib"
 const url = findLogfmt(serverStdout, "serving")?.url
 ```
 
-It matches the message exactly (two of this server's lines carry a `url=`), unquotes what the encoder quoted, and simply does not match a half-written trailing line — which is what a test polling a spawned process's buffer needs. `lines.test.ts` holds it against lines `formatLogFmt` actually produced, so the pair cannot drift.
+It matches the message exactly (two of this server's lines carry a `url=`), unquotes what the encoder quoted, and simply does not match a half-written trailing line — a chunk that has not yet ended in `\n` is still arriving, even when `message=` already looks right. `lines.test.ts` holds it against lines `formatLogFmt` actually produced, so the pair cannot drift.
 
 ## Logging from a callback
 

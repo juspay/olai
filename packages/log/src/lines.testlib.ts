@@ -117,8 +117,10 @@ export const readLogfmt = (line: string): Readonly<Record<string, string>> => {
  * The first line in `text` whose `message` is exactly `message`, as its fields.
  *
  * `text` is a whole stdout buffer, possibly mid-line: a spawned server's output
- * arrives in chunks, and a test polls it until what it is waiting for is there.
- * A partial last line simply does not match yet.
+ * arrives in chunks, and a test waits on those chunks until the line is there.
+ * Only a `\n`-terminated line is complete — a trailing fragment, even one
+ * whose `message=` already looks right, has not finished arriving. A cut
+ * inside a bare `url=` would otherwise match a truncated address.
  *
  * EXACT rather than a substring, unlike {@link findSaid}: out here the message
  * is the only thing distinguishing one line from another, and two of this
@@ -128,7 +130,13 @@ export const findLogfmt = (
   text: string,
   message: string,
 ): Readonly<Record<string, string>> | undefined => {
-  for (const line of text.split("\n")) {
+  // `split("\n")` on `"a\nb\n"` yields `["a","b",""]`; on `"a\nb"` yields
+  // `["a","b"]`. The last fragment is a finished line only when `text`
+  // itself ended with a newline — otherwise more of it is still arriving.
+  const parts = text.split("\n")
+  const complete = text.endsWith("\n") ? parts : parts.slice(0, -1)
+  for (const line of complete) {
+    if (line === "") continue
     const fields = readLogfmt(line)
     if (fields.message === message) return fields
   }

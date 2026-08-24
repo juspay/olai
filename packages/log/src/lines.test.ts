@@ -72,14 +72,16 @@ test("a line found by message is that line, not a later one that shares a field"
 
   // Both lines carry a `url=`; the message is what tells them apart, and it is
   // matched exactly rather than as a substring for exactly that reason.
-  expect(findLogfmt(`${fallback}\n${serving}`, "serving")?.asked).toBeUndefined()
-  expect(findLogfmt(fallback, "serving")).toBeUndefined()
+  // Trailing `\n`: findLogfmt only matches a finished line.
+  expect(findLogfmt(`${fallback}\n${serving}\n`, "serving")?.asked).toBeUndefined()
+  expect(findLogfmt(`${fallback}\n`, "serving")).toBeUndefined()
 })
 
-// A spawned server's stdout arrives in chunks and a test polls the buffer it
-// has so far. A half-written line must simply not match yet — including one cut
+// A spawned server's stdout arrives in chunks and a test waits on those
+// chunks. A half-written line must simply not match yet — including one cut
 // in the middle of a quoted value, where there is no closing quote to find and
-// the fields read so far are all there is.
+// the fields read so far are all there is, AND one whose message already
+// looks right but whose last field was sliced (a bare `url=` cut mid-port).
 test("a partial trailing line is not a match", () => {
   expect(findLogfmt("timestamp=… level=INFO fiber=#2 message=serv", "serving"))
     .toBeUndefined()
@@ -88,4 +90,10 @@ test("a partial trailing line is not a match", () => {
   expect(findLogfmt(cut, "the agent could not open a session")).toBeUndefined()
   expect(readLogfmt(cut).level).toBe("WARN")
   expect(readLogfmt(cut).message).toBeUndefined()
+
+  const sliced = "timestamp=… level=INFO message=serving url=http://127.0.0.1:40"
+  expect(findLogfmt(sliced, "serving")).toBeUndefined()
+  expect(findLogfmt(`${sliced}429\n`, "serving")?.url).toBe(
+    "http://127.0.0.1:40429",
+  )
 })
