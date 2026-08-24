@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Props UI — chips, doors, and folds</title>
+<style>
+  :root {
+    --ink: #1e3a34; --muted: #5f7a72; --bg: #dde8e3; --card: #eef4f1;
+    --accent: #b5490f; --chipbg: #ffffff; --chipline: #c3d4cd;
+    --mono: "iA Writer Mono", ui-monospace, monospace;
+  }
+  body { background: var(--bg); color: var(--ink); font: 16px/1.55 Georgia, serif; max-width: 60rem; margin: 2rem auto; padding: 0 1.5rem; }
+  h1 { font-size: 1.5rem; } h2 { font-size: 1.1rem; margin-top: 2.2rem; color: var(--accent); }
+  .caption { color: var(--muted); font-size: .9rem; margin: .2rem 0 1rem; }
+  .row { background: var(--card); border: 1px solid var(--chipline); border-radius: 10px; padding: 1rem 1.2rem; margin: .8rem 0; }
+  .title { font-weight: 700; font-size: 1.05rem; }
+  .title .tag { color: var(--muted); font-weight: 400; font-size: .85em; }
+
+  /* BEFORE — the wall */
+  .wall { font-family: var(--mono); font-size: .82rem; margin-top: .6rem; color: var(--ink); }
+  .wall .k { color: var(--muted); }
+  .wall div { padding-left: 4.5em; text-indent: -4.5em; margin: .15rem 0; }
+
+  /* AFTER — chips */
+  .chips { display: flex; flex-wrap: wrap; gap: .4rem .5rem; margin-top: .65rem; }
+  .chip { display: inline-flex; align-items: baseline; gap: .38em; background: var(--chipbg);
+          border: 1px solid var(--chipline); border-radius: 999px; padding: .12rem .65rem;
+          font-size: .82rem; font-family: var(--mono); }
+  .chip .k { color: var(--muted); font-size: .88em; }
+  .chip .v { color: var(--ink); }
+  .chip a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }
+  .chip.date .v { background: #f6dfd2; border-radius: 4px; padding: 0 .3em; }
+  .chip.agentref .v::before { content: "◆ "; color: var(--accent); font-size: .8em; }
+
+  details.chip-fold { display: inline-block; }
+  details.chip-fold summary { list-style: none; cursor: pointer; display: inline-flex; align-items: baseline; gap: .38em;
+          background: var(--chipbg); border: 1px solid var(--chipline); border-radius: 999px;
+          padding: .12rem .65rem; font-size: .82rem; font-family: var(--mono); }
+  details.chip-fold summary .k { color: var(--muted); } details.chip-fold summary .more { color: var(--accent); }
+  details.chip-fold[open] summary { border-radius: 10px 10px 0 0; }
+  details.chip-fold .body { border: 1px solid var(--chipline); border-top: none; border-radius: 0 0 10px 10px;
+          background: var(--chipbg); padding: .5rem .75rem; font-size: .85rem; max-width: 46rem; }
+
+  .note { margin-top: .8rem; padding-top: .7rem; border-top: 1px dashed var(--chipline); font-size: .95rem; }
+  .note em { color: var(--muted); }
+  .verdict { color: var(--muted); font-size: .9rem; }
+  .rule { margin: .35rem 0 .1rem; }
+</style>
+</head>
+<body>
+
+<h1>Props UI — three moves</h1>
+<p class="caption">The same node (markdown-raw-flash's lane) drawn three ways. The data is already fixed (short facts in props, prose in the note); this is what the <em>display</em> should do with it.</p>
+
+<h2>Today — the wall</h2>
+<div class="row">
+  <div class="title">Markdown flashes as RAW SOURCE for a moment before it renders <span class="tag">#now</span> <span class="tag">¶ 0/4</span></div>
+  <div class="wall">
+    <div><span class="k">agent</span> claude-opus ·</div>
+    <div><span class="k">brief</span> briefs/mrf.md ·</div>
+    <div><span class="k">dispatched</span> 2026-08-24 16:20 (fix shape 4 ruled) ·</div>
+    <div><span class="k">merge</span> the human approves personally ·</div>
+    <div><span class="k">worktree</span> .worktrees/markdown-raw-flash</div>
+  </div>
+  <div class="verdict">Every key on its own line, everything the same weight, no doors. Five facts cost five lines.</div>
+</div>
+
+<h2>Move 1 — chips: one wrapping line, label small, value first-class</h2>
+<div class="row">
+  <div class="title">Markdown flashes as RAW SOURCE for a moment before it renders <span class="tag">#now</span> <span class="tag">¶ 0/4</span></div>
+  <div class="chips">
+    <span class="chip agentref"><span class="k">agent</span> <span class="v">claude-opus</span></span>
+    <span class="chip"><span class="k">brief</span> <span class="v"><a href="#">briefs/mrf.md</a></span></span>
+    <span class="chip date"><span class="k">dispatched</span> <span class="v">2026-08-24 16:20</span></span>
+    <span class="chip"><span class="k">merge</span> <span class="v">the human approves personally</span></span>
+    <span class="chip"><span class="k">worktree</span> <span class="v">.worktrees/markdown-raw-flash</span></span>
+  </div>
+  <div class="verdict rule">Five facts, one visual line (wrapping). File order, never alphabetical — the author chose the order.</div>
+</div>
+
+<h2>Move 2 — doors: a value that names a thing IS a link</h2>
+<div class="row">
+  <div class="chips">
+    <span class="chip"><span class="k">brief</span> <span class="v"><a href="#">briefs/mrf.md</a></span></span>
+    <span class="chip"><span class="k">pr</span> <span class="v"><a href="#">#369 @ a1b2c3d</a></span></span>
+    <span class="chip agentref"><span class="k">reviewer</span> <span class="v"><a href="#">pi</a></span></span>
+    <span class="chip date"><span class="k">soak-until</span> <span class="v">2026-08-31</span></span>
+  </div>
+  <div class="verdict rule">A vault path opens the document page. A URL opens the site. A value matching a node id (or an agents.olai title) opens that node — assignment becomes navigation. A date-shaped value gets the date badge the row already speaks.</div>
+</div>
+
+<h2>Move 3 — the fold: a long value shows its key and first words, opens on click</h2>
+<div class="row">
+  <div class="chips">
+    <span class="chip agentref"><span class="k">agent</span> <span class="v">grok</span></span>
+    <details class="chip-fold">
+      <summary><span class="k">verdict</span> <span class="v">DO-NOT-OBJECT at c2704bc6…</span> <span class="more">▾</span></summary>
+      <div class="body">DO-NOT-OBJECT at c2704bc6 — owner map verified against the diff; the wait discipline defaults hold; #360's gate survives with its pin passing; two SHOULDs (…) — <em>and even this belongs in the note, not a prop; the fold is the display forgiving data that broke the rule.</em></div>
+    </details>
+  </div>
+  <div class="verdict rule">The fold is the safety net, not the goal — under the props-are-facts rule it should almost never appear. When it does, the wall never comes back.</div>
+</div>
+
+<h2>The note stays prose, under a quiet divider</h2>
+<div class="row">
+  <div class="chips">
+    <span class="chip agentref"><span class="k">agent</span> <span class="v">claude-opus</span></span>
+    <span class="chip date"><span class="k">dispatched</span> <span class="v">2026-08-24 16:20</span></span>
+  </div>
+  <div class="note"><strong>Filed</strong> by the human 2026-08-22 ~07:40 (saw a <code>.md</code> page arrive as raw text, then become HTML a split second later); ruled then: file for NOW… <em>— markdown, full width, reads like writing. Facts above the line, story below it.</em></div>
+</div>
+
+</body>
+</html>
