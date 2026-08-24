@@ -411,7 +411,7 @@ The names are not written down twice. `support/world.ts` imports the client's ow
 
 ## Waiting, which is the whole of being honest under load
 
-This suite runs parallel, on machines that are also doing something else, so every assertion in it is a race unless it was written not to be. A run on a saturated box is the only way to find out — `sh underload.sh` is that run, and it counts what it dropped rather than leaving five logs to read — and there are exactly four ways to get it wrong. All four are green on an idle laptop.
+This suite runs parallel, on machines that are also doing something else, so every assertion in it is a race unless it was written not to be. A run on a saturated box is the only way to find out — `sh underload.sh` is that run, and it counts what it dropped rather than leaving five logs to read — and there are exactly five ways to get it wrong. All five are green on an idle laptop.
 
 **A value read on its way to its final one.** Most assertions here WAIT: they poll until the page or the file says the thing, and fail saying what they were waiting for. The ones that cannot are the NEGATIVES, and a negative is two different steps that read almost the same:
 
@@ -447,9 +447,9 @@ Both were measured under load, and both failed fifteen seconds later on a file t
 
 **A search asserted before the query it typed has been answered.** The shortlist, the filter bar, the ⌘K palette and the `@` list all publish `data-asked` — which query the rows on screen answer. `support/shortlist.ts` waits on it. A negative (`the palette lists no document`) that held after one frame was reading the previous query's rows.
 
-None of the four mistakes is fixed by a longer timeout, and a step that needed one was asking the wrong question. This one is the sharpest case: the gesture was *lost*, so the fifteen seconds are the budget and not the latency, and a minute would fail the same way.
+None of the five mistakes is fixed by a longer timeout, and a step that needed one was asking the wrong question. This one is the sharpest case: the gesture was *lost*, so the fifteen seconds are the budget and not the latency, and a minute would fail the same way.
 
-**What the four are worth, measured** (2026-08-16, 32-core box, five suites at once, six rounds each — thirty full runs both sides):
+**What the first four were worth, measured** (2026-08-16, 32-core box, five suites at once, six rounds each — thirty full runs both sides; the fifth, a search asserted before `data-asked`, is this file's 2026-08-24 addition):
 
 | | drops | runs that dropped something |
 |---|---|---|

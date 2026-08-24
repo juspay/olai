@@ -67,10 +67,16 @@ one_suite() {
   done
 }
 
+suite_pids=""
 for suite in $(seq 1 "$suites"); do
   one_suite "$suite" &
+  suite_pids="$suite_pids $!"
 done
-wait
+# The busy loops are still running — that is the load. Wait only for the
+# suites; the EXIT trap then kills the loops. A bare `wait` waits on the
+# loops forever, so a finished index never meant the box went quiet.
+# shellcheck disable=SC2086  # $suite_pids is a LIST of pids
+wait $suite_pids
 
 echo
 bun underload.ts "$out"

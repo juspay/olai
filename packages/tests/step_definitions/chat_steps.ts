@@ -22,9 +22,12 @@ import { NEAR } from "@olai/web/src/client/chat/near.ts";
 
 import { selector, TESTID, type TestId } from "@olai/web/src/client/testids.ts";
 
+import { completingIn } from "@olai/web/src/client/chat/completion.ts";
+
 import { retypedAndTaken } from "../support/atonce.ts";
 import { MARKER } from "../support/scripted.ts";
 import { saysThat } from "../support/said.ts";
+import { answered } from "../support/shortlist.ts";
 
 import {
   attr,
@@ -1890,13 +1893,24 @@ Then(
 Then(
   "the completion does not offer {string}",
   async function (this: OlaiWorld, value: string) {
-    // HOLD, not wait-until-gone. Waiting for a name to disappear is a wait
-    // the `@` list's node half fails under load: the files are up, the test
-    // looks, and the nodes have already landed, so the thing this step is
-    // claiming is absent is present and stays present. Absence after a
-    // frame is the same shape `the palette does not offer` keeps — true
-    // NOW, of the list as it is.
-    await this.waitForFrame();
+    // Wait for THIS query's node half (`data-asked`), then HOLD the absence.
+    // One frame is still the previous `@`'s rows — the hold-still this
+    // feature exists to pin. `completingIn` is the composer's own read of
+    // the armed query, so the wait and the box cannot disagree about which
+    // word the list is answering.
+    const panel = this.page.locator(CHAT_COMPLETION);
+    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    if ((await panel.getAttribute("data-kind")) === "name") {
+      const text = await (await chatBox(this)).inputValue();
+      const armed = completingIn(text, text.length);
+      assert.ok(
+        armed !== null && armed.kind === "name",
+        "the @ list is open but the box is not naming",
+      );
+      await answered(this, CHAT_COMPLETION, armed.query);
+    } else {
+      await this.waitForFrame();
+    }
     const rows = await this.page
       .locator(`${CHAT_COMPLETION_ROW}${attr("data-value", value)}`)
       .count();

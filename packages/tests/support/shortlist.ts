@@ -59,7 +59,13 @@ export const answered = async (
   panel: string,
   text: string,
 ): Promise<void> => {
+  // ON the panel or INSIDE it: the shortlist and the palette list carry
+  // `data-asked` on a child; the `@` completion carries it on the panel
+  // itself. One locator, both shapes, so a door that publishes the
+  // attribute cannot fail the wait for having put it one level out.
+  const asked = attr("data-asked", text.trim());
   await world.page
-    .locator(`${panel} ${attr("data-asked", text.trim())}`)
+    .locator(`${panel}${asked}, ${panel} ${asked}`)
+    .first()
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 };
