@@ -3508,16 +3508,17 @@ const SECTIONS = {
     await shot(page, "an-idle-conversation")
 
     // ── ONE: the interrupting gesture ────────────────────────────────
-    // FIRST, and the order is not narrative — it is the one thing this section
-    // has to work around. The pinned adapter (0.66.0) has a defect of its own:
-    // once a session has held a QUEUED turn, a `_session/steering` into any
-    // later turn leaves that turn's `session/prompt` unanswered forever (the
-    // steered words run and stream; only `session/cancel` ends it). It
-    // reproduces with no olai involved — two prompts, the second sent while the
-    // first runs, then a third with a steer into it — and it is why this face
-    // is taken while the conversation is still fresh. Reordered rather than
-    // dropped: the gesture is what the ruling asks for, it works, and pretending
-    // the order did not matter would be the one dishonest thing available here.
+    // FIRST, and the order is not narrative — it is the shape of the guard.
+    // The pinned adapter (0.66.0) leaves a turn's `session/prompt` unanswered
+    // forever if a `_session/steering` is injected into any turn of a session
+    // that has once held a QUEUED one (the steered words run and stream; only
+    // `session/cancel` ends it — reproduced with no olai involved, filed as
+    // claude-agent-acp#1039). So the panel withdraws the gesture from any
+    // conversation that has queued, and the only place left to photograph it
+    // working is a conversation that has not.
+    //
+    // The withdrawal itself is the shot after face TWO's, which is where the
+    // guard becomes true.
     //
     // This one goes INTO the turn in flight, which is why it is a gesture
     // somebody has to make on purpose.
@@ -3540,6 +3541,18 @@ const SECTIONS = {
     console.log(`  the composer promises: ${await textOf(page, CHAT_QUEUES)}`)
     await chatBottom(page)
     await shot(page, "a-send-while-busy-waits-its-turn")
+
+    // ... AND THE INTERRUPTION IS GONE FROM THIS CONVERSATION, from this
+    // moment on. The guard the human ruled in: a session that has queued is one
+    // where steering never settles, so the panel stops offering the gesture
+    // rather than handing somebody a control that hangs their conversation. The
+    // same frame as the shot above — the control is drawn only while a turn is
+    // running, so its absence is only worth photographing here.
+    if ((await page.locator(CHAT_INTERRUPT).count()) !== 0) {
+      throw new Error("the interruption is still offered after a message queued")
+    }
+    console.log("  the interruption is withdrawn: no control while this turn runs")
+    await shot(page, "the-interruption-is-withdrawn")
 
     // ... and the agent takes it up when the essay is over: the hint goes and
     // the answer arrives, in order, with nothing re-sent by anybody.
