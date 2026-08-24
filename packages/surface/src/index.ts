@@ -194,11 +194,14 @@ import {
   CHAT_OFF,
   ChatEntry,
   ChatFailure,
+  ChatServer,
   ChatState,
   OpFailure,
   Conversation,
   Listed,
+  sameStanding,
   Saying,
+  ServerStanding,
   SessionInfo,
   Unreachable,
 } from "./chat.ts"
@@ -575,18 +578,20 @@ export const surface = defineSurface({
       schema: ChatState,
       default: CHAT_OFF,
       verbs: ["get"],
-      /** A COMMAND AND A MISSING SERVER ARE EACH THEIR `name` — the two arrays
+      /** A COMMAND AND A TOOL SERVER ARE EACH THEIR `name` — the two arrays
        *  this cell carries, and both spell their identity the same way
-       *  (`./chat.ts`'s `Command.name` and `MissingServer.name`, required and
+       *  (`./chat.ts`'s `Command.name` and `ChatServer.name`, required and
        *  non-nullable).
        *
        *  This cell has no `equals`, and it moves for reasons that have nothing
        *  to do with either list: a turn going `idle → thinking`, a `usage`
        *  update per report, an `asking` count. Every one of those frames used
-       *  to replace every command and every missing-server row — so
-       *  `chat/Missing.tsx`'s `<For each={missing()}>`, which is keyed by
+       *  to replace every command and every server row — so
+       *  `chat/Roster.tsx`'s `<For each={servers()}>`, which is keyed by
        *  reference, rebuilt the panel a reader was in the middle of reading,
-       *  mid-turn, on every token report. */
+       *  mid-turn, on every token report. The roster is drawn on EVERY
+       *  conversation now rather than only on a broken one, so what that key
+       *  buys has gone from rare to permanent. */
       arrayKey: "name",
     },
     /** What git is doing for this directory — see {@link GitState}. Wire-read-only:
@@ -1425,6 +1430,7 @@ export {
   CHAT_OFF,
   ChatEntry,
   ChatFailure,
+  ChatServer,
   ChatState,
   Command,
   Delivery,
@@ -1432,17 +1438,18 @@ export {
   isOpFailure,
   isRunningStatus,
   kindOf,
-  MissingServer,
   NodeContext,
   NoticeEntry,
   OpFailure,
   RefusalEntry,
   Conversation,
   Listed,
+  sameStanding,
   Saying,
   sayingEnd,
   sayingKey,
   SAYING_MS,
+  ServerStanding,
   SessionInfo,
   Spawned,
   Talking,
@@ -1453,6 +1460,7 @@ export {
   Usage,
   UsageFailure,
   UserEntry,
+  whyNot,
   Wrote,
   YES_NO,
 } from "./chat.ts"

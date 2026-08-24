@@ -296,9 +296,25 @@ Dropping is aimed at the whole panel rather than at the box: while you are dragg
 
 If the machine is running [kolu](https://kolu.dev) — terminals for coding agents — the panel's agent gets kolu's terminals too, and there is nothing to set up: every new conversation looks for the padi daemon this host answers on, and hands the session `kolu mcp` when one is there. It is looked for rather than assumed: olai starts the `kolu` it found and asks it to read something only a running daemon can answer, because a `kolu` on a PATH is not always the one this host is running, and a wrong build will start perfectly well and know nothing.
 
+## Which tool servers a conversation has
+
+**The panel answers it, so you never have to ask the model.** Under the header, where the session title and the model already are, is the list of MCP servers this conversation was handed:
+
+```
+olai ✓  kolu ✓  · plus the agent's own
+```
+
+Ask an agent which MCP servers it has and you are asking the worst-informed thing in the room: nothing in a conversation's context is a record of what it was handed. The incident that filed this feature is exactly that — an agent asked the question listed two servers, left out kolu, and then used kolu's tools perfectly a moment later.
+
+**A tick means the agent said so.** It is the one mark olai will not infer. A name with no tick means olai handed the server over and nothing has said what became of it — which is every row before the first turn (the agent reports its servers as a turn starts, so a brand-new conversation has been handed them and nothing more) and every row for the whole life of a conversation with an agent that does not report per server at all. ACP itself never does: `session/new` answers with a session id and not one word per server. The Claude Code adapter volunteers it on its own channel; opencode does not, and its conversations draw names without ticks rather than ticks nobody asserted.
+
+**`plus the agent's own` is not a hedge for the sake of one.** Olai lists what olai handed over. Whatever your agent is configured with of its own — a server in your `~/.claude.json` or `opencode.json` — is set up somewhere olai never looks, and olai will not draw a row it has no way to keep honest. So the list is exactly as complete as it says it is.
+
+**A server the agent could not attach says so, in the agent's own word.** `needs-auth` and `failed` are different problems with different fixes, so the panel repeats the word rather than flattening it into "did not attach".
+
 ## When a tool server does not arrive
 
-**A server that fails to attach is on screen, not in a log.** If there is a `kolu` on this host's PATH and it would not answer, the panel says so under the header — the name, and the reason the probe or the server itself gave:
+**A server that fails to attach is on screen, not in a log.** If there is a `kolu` on this host's PATH and it would not answer, the panel says so under the roster — the name, and the reason the probe or the server itself gave:
 
 ```
 ● kolu is missing from this conversation
@@ -312,6 +328,6 @@ The reason is the point. Every way of failing looks the same from the outside �
 
 It is per conversation, because the detection is: start a padi and the next conversation has the terminals, with nothing to restart and nothing left on screen saying otherwise.
 
-**A machine that is simply not running kolu sees none of this**, and that is deliberate — nothing failed. What the panel reports is a tool server that was here and would not work, or one something said would be; never the absence of one that was never installed.
+**A machine that is simply not running kolu sees none of this**, and that is deliberate — nothing failed. It has no row on the roster either: what the panel reports is a tool server that was here and would not work, or one something said would be; never the absence of one that was never installed.
 
-What olai cannot report is a server it handed over that the *agent* then failed to connect to: ACP answers `session/new` with a session id and says nothing per server, so that is not a fact this end is ever told. The failures shown are the ones olai found itself.
+An agent's report never overrules the probe. If this host's `kolu` would not answer, the session was never given one — so an agent that reports a `kolu` is reporting a `kolu` of its own, out of its own config, and the row here goes on saying what olai found.

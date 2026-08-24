@@ -59,7 +59,7 @@ import {
   probe as probeKolu,
   type ProbeFailure,
 } from "@kolu/detect"
-import type { MissingServer } from "@olai/surface"
+import type { NotHere } from "./servers.ts"
 import { Effect } from "effect"
 
 /** The executable, its verb, and the variable that says which padi. All three
@@ -145,19 +145,23 @@ export const serverOf = (found: Detected): Server | null =>
  * answer is the one worth telling somebody about, and `null` is what used to be
  * said about both.
  *
- * `@olai/surface`'s own shape rather than one of ours, because there is nothing
- * between this and the wire that would translate it — and a second spelling of
- * "a server, where it was, and why not" is a second thing to keep in step.
+ * THE PROBE'S OWN VERDICT ({@link NotHere}) rather than a finished roster row,
+ * which is a correction: this shipped returning `@olai/surface`'s wire shape,
+ * on #140's argument that there was nothing between here and the wire to
+ * translate it. There is now — {@link ./servers.ts} is the module that builds
+ * the roster, and it is where all four standings are named and explained,
+ * including the rule that this one is never overwritten by anything an agent
+ * says. Minting one of the four here put the panel's vocabulary inside a module
+ * that is otherwise entirely about detecting kolu, and would make a second
+ * optional server's probe a second place that has to know how to spell a row.
  *
  * The path is `null` for exactly one of the ways of failing, and it is the one
  * that never reached a file: a padi named by the environment with no `kolu` on
  * PATH to reach it ({@link EXPECTED}). Every other reason is about a binary
  * that was resolved and started, and names it.
  */
-export const missingFrom = (found: Detected): MissingServer | null =>
-  found._tag === "silent"
-    ? { name: COMMAND, where: found.kolu, why: found.why }
-    : null
+export const missingFrom = (found: Detected): NotHere | null =>
+  found._tag === "silent" ? { name: COMMAND, where: found.kolu, why: found.why } : null
 
 /**
  * Kolu's MCP server if this host is running kolu, and why not if it is not.

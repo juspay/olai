@@ -600,7 +600,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // A fact about the conversation, so it lands on the cell beside the
           // model and the commands rather than as a row: a notice scrolls away
           // and this is true for as long as the session is.
-          move({ missing: event.missing })
+          move({ servers: event.servers })
           return
         case "model":
           move({ model: event.name })
@@ -639,11 +639,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // DEAD agent leaves the rows where they are — nobody asked for that,
           // and the `gone` notice explains them.
           if (event.why === "new") publish(transcript.clear())
-          // The missing servers go with the session they were missing FROM.
-          // The next one is probed fresh and says so before it opens; leaving
-          // the last one's answer up in between would be the panel reporting a
-          // conversation that no longer exists — and, for a dead agent, one
-          // nobody is in.
+          // The servers go with the session they were handed TO. The next one
+          // is probed fresh and says so before it opens; leaving the last
+          // one's roster up in between would be the panel answering "which
+          // servers does this conversation have?" about a conversation that no
+          // longer exists — and, for a dead agent, about one nobody is in.
           // The usage goes with the session it was usage OF. A fresh
           // conversation has spent nothing and a loaded one has spent whatever
           // it spent; either way the number from the last one is about a
@@ -653,7 +653,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             session: null,
             commands: [],
             asking: asking(),
-            missing: [],
+            servers: [],
             usage: null,
           })
           return
@@ -1485,7 +1485,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // `trouble` is left alone deliberately: it is drawn inside the transcript
       // and cleared by the next turn, and there is neither a transcript to draw
       // it in nor a next turn to clear it. The face is what says this.
-      move({ status: "idle", unopened: { why: failure.message, what } })
+      //
+      // THE SERVERS GO, for `sessionOver`'s reason met from the other side. The
+      // roster is composed and announced BEFORE `session/new` is asked — it is
+      // the very list that call is handed ({@link ./agent.ts}) — so an open
+      // that comes back a NO leaves a strip answering "which servers does this
+      // conversation have?" about a conversation that does not exist. Empty
+      // means "there is no conversation" on this member
+      // ({@link ../../surface/src/chat.ts}), and this is one of the two faces
+      // where that is true.
+      move({ status: "idle", unopened: { why: failure.message, what }, servers: [] })
     }
 
     /** ... and a conversation is open, so neither half of that is true any
@@ -1510,7 +1519,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      */
     const wentAway = (why: string): void => {
       opened()
-      move({ status: "gone", trouble: why, unopened: null })
+      // ... and the servers go here too, which is the same fact through the
+      // other door: this is the OTHER answer to "the open did not happen", and
+      // an open that reached the wire announced a roster on its way. On the
+      // ordinary path — the process exiting — `sessionOver` has already emptied
+      // it and this is a no-op; the path it is not a no-op on is a verb whose
+      // open never came back, where the roster describes an attempt rather than
+      // a conversation. Written in both halves of the pair because they are one
+      // rule, and a pair where only one half remembers is how the other one
+      // ends up forgetting.
+      move({ status: "gone", trouble: why, unopened: null, servers: [] })
     }
 
     /**

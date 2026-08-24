@@ -78,8 +78,11 @@ import {
   CHAT_REFUSAL,
   CHAT_REOPEN,
   CHAT_RESEND,
+  CHAT_ROSTER,
+  CHAT_ROSTER_OWN,
   CHAT_SAID,
   CHAT_SEND,
+  CHAT_SERVER,
   CHAT_SESSION,
   CHAT_SESSION_AGENT,
   CHAT_SESSION_UNREACHABLE,
@@ -2294,12 +2297,113 @@ Then("there is nothing to type into", async function (this: OlaiWorld) {
   );
 });
 
+// ── which servers this conversation has ────────────────────────────────
+//
+// The claim is about the PANEL, which is the whole of `mcp-roster-visible`:
+// what the session was handed is already asserted through the agent's own
+// `servers` answer (`a_failed_mcp_server.feature`), and it was asserted there
+// while a person looking at the app could only ever see the failures.
+//
+// THE STANDING IS READ AS DATA, never as a mark. Which glyph says "connected"
+// is a decision about pixels and belongs to whoever is drawing it next; that
+// the panel says the agent attached a named server is the behaviour, and it is
+// what these assert (HACKING.md — tests assert behaviour, not styling).
+
+/** One roster row's standing, waited for. The four steps below differ in one
+ *  word, so the selector shape, the attribute name, the failure label and the
+ *  timeout are chosen once: a fifth standing (the union is designed to grow) is
+ *  then one more registration rather than a fifth copy of this call.
+ *
+ *  HYDRATION_TIMEOUT because the roster cannot exist until the probe has
+ *  answered and the session has been asked for, which is a boot rather than a
+ *  render. */
+const standingIs = (
+  world: OlaiWorld,
+  name: string,
+  standing: string,
+): Promise<void> =>
+  world.expectAttribute(
+    `${CHAT_SERVER}${attr("data-server", name)}`,
+    "data-standing",
+    standing,
+    `the roster row for "${name}"`,
+    HYDRATION_TIMEOUT,
+  );
+
+Then(
+  "the panel says this conversation has {string}",
+  async function (this: OlaiWorld, name: string) {
+    await this.expectAttribute(
+      CHAT_SERVER,
+      "data-server",
+      name,
+      "this conversation's server list",
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+/** ... and the layer above it: the agent itself said it attached. Its own step
+ *  because the two are two facts with two sources — olai knows what it handed
+ *  over, and only the agent knows what it did with it — and a panel that drew
+ *  the second on the strength of the first would be making the claim the model
+ *  made wrongly. */
+Then(
+  "the panel says the agent attached {string}",
+  async function (this: OlaiWorld, name: string) {
+    await standingIs(this, name, "connected");
+  },
+);
+
+/** ... and the honest silence where nobody has said so. `handed` is what a
+ *  conversation looks like before its agent has spoken and on an agent that
+ *  never speaks per server, and it is the state a panel must not quietly
+ *  promote — a tick nobody asserted is exactly what this feature is against. */
+Then(
+  "the panel does not claim the agent attached {string}",
+  async function (this: OlaiWorld, name: string) {
+    await standingIs(this, name, "handed");
+  },
+);
+
+Then(
+  "the panel says the list is not the whole of it",
+  async function (this: OlaiWorld) {
+    // The apostrophe is normalised because the panel sets a TYPOGRAPHIC one and
+    // this claim is about the sentence rather than about the glyph — a step
+    // that spelled `’` would be one more place to edit the day somebody
+    // reworded the line, and would fail for a reason no reader would guess.
+    const said = oneLine(await this.page.locator(CHAT_ROSTER_OWN).innerText())
+      .replace(/[‘’]/g, "'");
+    assert.ok(
+      said.includes("the agent's own"),
+      `the panel lists this conversation's servers without saying that an agent ` +
+        `may have servers of its own that olai never handed it — which makes the ` +
+        `list a completeness claim olai has no way to make. It reads: ${said}`,
+    );
+  },
+);
+
+/** The other side of every claim above: the strip is there at all. Asserted on
+ *  its own where a scenario's point is that a conversation HAS a roster rather
+ *  than which servers are on it. */
+Then("the panel says nothing about this conversation's servers", async function (
+  this: OlaiWorld,
+) {
+  assert.strictEqual(
+    await this.page.locator(CHAT_ROSTER).count(),
+    0,
+    "the panel lists servers for a conversation there is none of — the roster " +
+      "is a property of a session, and a list left standing between two of them " +
+      "describes a conversation nobody is in",
+  );
+});
+
 // ── a server that did not attach ───────────────────────────────────────
 //
-// The claim is about the PANEL, which is the whole of `mcp-fail-visible`: what
-// the session was handed is already asserted through the agent's own `servers`
-// answer (`a_failed_mcp_server.feature`), and it was asserted there while a
-// person looking at the app could see nothing at all.
+// #140's half, unchanged: the SENTENCE, for a server this conversation does not
+// have. It is the half that never helped anybody when it was only a debug log
+// line, and it is why a roster of names alone would not have been enough.
 
 Then(
   "the panel says {string} is missing from this conversation",
@@ -2325,6 +2429,26 @@ Then(
       `the panel names a missing server without the reason "${reason}", which is ` +
         `the half the feature exists for — a name on its own is the debug log ` +
         `line again, on screen. It reads: ${said}`,
+    );
+  },
+);
+
+/** The OTHER way a conversation ends up short of a server, and the one olai
+ *  could not report at all until `mcp-roster-visible`: olai handed it over and
+ *  the AGENT could not attach it. Its own step because the two are different
+ *  facts with different fixes — nothing olai's probe can see is wrong with this
+ *  one — and because the panel says it in the agent's own word rather than in a
+ *  category of ours. */
+Then(
+  "the panel says the agent could not attach {string}",
+  async function (this: OlaiWorld, name: string) {
+    await standingIs(this, name, "unattached");
+    await this.expectAttribute(
+      CHAT_MISSING_SERVER,
+      "data-server",
+      name,
+      "the sentence under the roster",
+      HYDRATION_TIMEOUT,
     );
   },
 );
