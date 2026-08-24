@@ -60,7 +60,7 @@
  * hope.
  */
 
-import { type ChildProcess, spawn } from "node:child_process"
+import { type Child, start as startChild } from "@olai/child"
 
 import {
   client as acpClient,
@@ -115,7 +115,7 @@ import { sameDirectory } from "./directory.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
 import * as Kolu from "./kolu.ts"
 import type { Held, Memory, MemoryFailure } from "./memory.ts"
-import { streamOver, unstartable } from "./pipes.ts"
+import { streamOver } from "./pipes.ts"
 import * as Questions from "./questions.ts"
 import { movedBy, rosterOf } from "./servers.ts"
 import { wroteIn } from "./wrote.ts"
@@ -327,7 +327,7 @@ const BOOT_TIMEOUT = "30 seconds"
 const LOAD_TIMEOUT = "120 seconds"
 
 interface Live {
-  readonly child: ChildProcess
+  readonly child: Child
   readonly connection: ClientConnection
   readonly canList: boolean
   readonly canLoad: boolean
@@ -910,9 +910,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       Effect.gen(function*() {
         const child = yield* Effect.try({
           try: () =>
-            spawn(options.command, [...options.args], {
+            startChild(options.command, [...options.args], {
               cwd: options.cwd,
               stdio: ["pipe", "pipe", "pipe"],
+              // stdout is the ACP protocol; stealing it would be the
+              // transport this file still owns. stderr is drained by the
+              // socket so a pipe nobody reads cannot block the agent.
+              drain: { stdout: false },
             }),
           catch: (cause) => notStarted(reasonOf(cause)),
         })
@@ -925,7 +929,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
          * `OLAI_ACP_AGENT` is a path a PERSON sets, which makes it the likeliest
          * thing here to be wrong — and an exec that fails does so after `spawn`
          * has returned, so the `catch` above has never once seen one. What
-         * happened instead was both halves of {@link ../pipes.ts}'s argument at
+         * happened instead was both halves of `@olai/child`'s argument at
          * their worst: an uncaught `error` event dumped a stack trace on olai's
          * stderr, and the refusal a person got was ``initialize` failed: Cannot
          * call write after a stream was destroyed` — our end of a dead pipe,
@@ -934,38 +938,31 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
          *
          * Raced against the handshake rather than checked after it, so which
          * reason wins is not a question about the order two failures happen in.
-         *
-         * SUBSCRIBED HERE, on the line after the spawn, rather than when the
-         * race runs — `Effect.promise` does not call its thunk until the fiber
-         * reaches it, and between here and there sit the stderr wiring, the
-         * exit handler and `connect`. The exec `error` lands a millisecond or
-         * so after `spawn` returns, so that window has been winning; it does
-         * not have to keep winning, and a listener attached too late is both an
-         * uncaught exception and the destroyed-stream sentence coming back.
-         * `kolu.ts` attaches on the line after its own spawn for the same
-         * reason.
+         * The listener is attached inside `startChild`, on the line after
+         * spawn — not here, and not when the race runs.
          */
-        const started = unstartable(child)
         const failedToStart: Effect.Effect<never, AgentGone> = Effect.flatMap(
-          Effect.promise(() => started),
+          Effect.promise(() => child.unstartable),
           (why) => notStarted(why),
         )
 
         // The agent's stderr is a log sink, not a channel: the adapter
-        // redirects all its console output there, and a pipe nobody drains
-        // eventually blocks the process writing to it. DEBUG while a turn is
-        // fine; WARN when one fails, because that is where opencode dumps its
-        // JSON-RPC errors and the 2026-08-22 silent-send was otherwise
-        // undiagnosable. `OLAI_LOG_LEVEL=debug` is how you ask for the rest.
-        child.stderr?.setEncoding("utf8")
-        child.stderr?.on("data", (chunk: string) => {
-          takeStderr(chunk)
+        // redirects all its console output there. The socket already drains
+        // it; this listener is the residue that turns each chunk into a DEBUG
+        // line and keeps the cap the turn-failure dump reads. `OLAI_LOG_LEVEL=
+        // debug` is how you ask for the rest; WARN when a turn fails, because
+        // that is where opencode dumps its JSON-RPC errors and the 2026-08-22
+        // silent-send was otherwise undiagnosable.
+        child.stderr?.on("data", (chunk: string | Buffer) => {
+          takeStderr(typeof chunk === "string" ? chunk : chunk.toString("utf8"))
         })
 
-        child.on("exit", (code, signal) => {
-          // `stop` nulls `live` then kills, so this handler still has to log
-          // the exit of a child we asked to die — `live?.child !== child`
-          // would drop the one line the operator has for a clean shutdown.
+        // `close` rather than `exit`, and the listener is the one the socket
+        // attached at spawn. `stop` nulls `live` then kills, so this handler
+        // still has to log the exit of a child we asked to die —
+        // `live?.child !== child` would drop the one line the operator has
+        // for a clean shutdown.
+        void child.closed.then(({ code, signal }) => {
           const ours = live?.child === child
           const id = ours ? session : null
           if (ours) {
@@ -1810,7 +1807,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       )
     })
 
-    const stop = Effect.sync(() => {
+    const stop = Effect.promise(async () => {
       stopped = true
       const at = live
       live = null
@@ -1818,7 +1815,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       leaving()
       if (at === null) return
       at.connection.close()
-      if (at.child.exitCode === null) at.child.kill()
+      await at.child.stop()
     })
 
     return {

@@ -30,6 +30,7 @@
  * `Bun.build` takes a plugin array directly, so the build is driven from here.
  */
 
+import { start } from "@olai/child"
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync } from "node:fs"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
@@ -92,12 +93,28 @@ const tailwindUtilities = async (): Promise<string> => {
   }
 
   const out = join(mkdtempSync(join(tmpdir(), "olai-css-")), "styles.css")
-  const tailwind = Bun.spawn(
-    ["bun", cli, "--input", resolve(CLIENT, "styles.css"), "--output", out, "--minify"],
-    { stderr: "inherit", stdout: "inherit" },
-  )
-  const code = await tailwind.exited
-  if (code !== 0) throw new Error(`@tailwindcss/cli exited ${code}`)
+  const tailwind = start("bun", [
+    cli,
+    "--input",
+    resolve(CLIENT, "styles.css"),
+    "--output",
+    out,
+    "--minify",
+  ], {
+    drain: { stdout: true, stderr: true },
+  })
+  // Forward as it arrives so a Nix build log still shows the CLI; the box
+  // is what the hang detector quotes if the CLI never exits.
+  tailwind.stdout?.on("data", (chunk: string | Buffer) => {
+    process.stdout.write(chunk)
+  })
+  tailwind.stderr?.on("data", (chunk: string | Buffer) => {
+    process.stderr.write(chunk)
+  })
+  const close = await tailwind.wait(120_000, "@tailwindcss/cli")
+  if (close.code !== 0) {
+    throw new Error(`@tailwindcss/cli exited ${close.code}:\n${tailwind.said()}`)
+  }
 
   const utilities = await Bun.file(out).text()
   await Bun.$`rm -rf ${dirname(out)}`
