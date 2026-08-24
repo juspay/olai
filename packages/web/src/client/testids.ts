@@ -1262,9 +1262,10 @@ export const TESTID = {
    *  never a reason anything failed — the transcript's own copy of the aside a
    *  keystroke already gets under its row. */
   chatNudge: "chat-nudge",
-  /** The composer saying that what you type now will QUEUE behind the running
-   *  turn rather than land in it — drawn only for an agent that cannot take a
-   *  message mid-turn, and only while a turn is running. */
+  /** The composer PROMISING that what you send now waits its turn at the
+   *  agent and is got to when the running turn is over — drawn while a turn is
+   *  running, and only for an agent that advertised the queue it is a promise
+   *  about. */
   chatQueues: "chat-queues",
   /** A refused write, with its structured detail drawn out. */
   chatRefusal: "chat-refusal",
@@ -1286,12 +1287,21 @@ export const TESTID = {
    *  in `data-delivery` — `refused`, which carries the button that tries
    *  again, or `unanswered`, which deliberately carries none. The words stay in
    *  the bubble above it either way. */
+  /** On a `user` row the agent has not started on: it went out while a turn
+   *  was running and is waiting its turn there. Not a delivery — nothing has
+   *  failed — so it is its own strip, and it goes away when the agent takes
+   *  the message up. */
+  chatQueued: "chat-queued",
   chatDelivery: "chat-delivery",
   chatResend: "chat-resend",
   /** The composer saying the turn is stopped on YOU: the agent asked something
    *  and is waiting for the form above to be answered. */
   chatWaiting: "chat-waiting",
   chatSend: "chat-send",
+  /** The other send: put these words INTO the turn the agent is running. Drawn
+   *  only while there is a turn to interrupt and only for an agent that said it
+   *  takes one — the visible door onto Alt+Enter, which is the same gesture. */
+  chatInterrupt: "chat-interrupt",
   chatCancel: "chat-cancel",
   /** The pictures on a message — pending in the composer, or sent, on the row.
    *  Each one is a `chatAttachment` carrying its file name in `data-name`. */

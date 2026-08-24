@@ -150,6 +150,12 @@ export interface Chat {
     text: string,
     attachments: ReadonlyArray<string>,
     context: ReadonlyArray<string>,
+    /** INTERRUPT the turn the agent is running with this, rather than take a
+     *  place behind it. The deliberate gesture and nothing else: absent, this
+     *  message waits its turn at the agent, which is what pressing enter
+     *  means. Only offered where the agent said it takes one
+     *  (`@olai/surface`'s `Talking.steers`). */
+    steer?: boolean,
   ) => Promise<boolean>
   /** Send a file to the conversation's tmp directory, chunk by chunk, and
    *  answer with what became of it.
@@ -383,11 +389,19 @@ export const createChat = (): Chat => {
           ? null
           : new UsageFailure({ reason: reasons.join("\n") }),
       ),
-    send: (text, attachments, context) =>
+    send: (text, attachments, context, steer) =>
       new Promise((resolve) => {
         setRefused(null)
         run(
-          olai.procedures.chat.send({ text, attachments, context }),
+          // The flag is spelled only when it is TRUE, which is the wire's own
+          // shape for it: an ordinary send says nothing about interrupting,
+          // the way an ordinary row says nothing about a delivery.
+          olai.procedures.chat.send({
+            text,
+            attachments,
+            context,
+            ...(steer === true ? { steer: true } : {}),
+          }),
           (failure) => {
             setRefused(failure)
             resolve(false)

@@ -375,15 +375,38 @@ export const UserEntry = Schema.Struct({
    *  deliberately in tmp. */
   attachments: Schema.optionalKey(Schema.Array(Schema.String)),
   /**
+   * THE AGENT HAS NOT STARTED ON THIS YET — it went out while a turn was still
+   * running, and it is waiting its turn at the agent.
+   *
+   * The one row in this collection that says where a message stands rather than
+   * what became of it, and it is on the ROW because that is where a person is
+   * looking: they pressed send, the words appeared, and the question in their
+   * head is whether anything is happening about them. *queued* answers it
+   * without the panel holding anything — the message really is at the agent,
+   * really is next, and this end is only saying so.
+   *
+   * OLAI'S OWN FACT, and honest for any agent: this end sent a prompt while a
+   * turn of its own was still in flight, and no turn has started on it since.
+   * It is not read off a capability — an agent's `queues` advertisement
+   * ({@link Talking}) is what lets the COMPOSER promise, in advance, that a
+   * message sent now will be got to.
+   *
+   * Absent once the agent takes it up, which is when the turns before it have
+   * ended, and absent on every message sent to an idle agent — those are
+   * started on at once, and a hint that appeared on every message would be a
+   * hint nobody reads. Absent rather than `false` for {@link AgentEntry}'s
+   * `streaming` reason: the writer only ever writes `true`.
+   */
+  queued: Schema.optionalKey(Schema.Literal(true)),
+  /**
    * What became of this message's DELIVERY, when it did not simply go.
    *
-   * Everything typed goes to the agent the moment it is sent — a turn already
-   * running is steered rather than waited on — so a row only carries this when
-   * that delivery did not happen, or cannot be shown to have happened. Two
-   * values, because there are exactly two things this end can honestly know
-   * (see {@link Delivery}), and they were one flag until they were told apart:
-   * a person watching a message go quiet read the same `not sent` a refusal
-   * gives, and pressed the same button under it.
+   * Everything typed goes to the agent the moment it is sent — busy or idle,
+   * one verb — so a row only carries this when that delivery did not happen, or
+   * cannot be shown to have happened. Two values, because there are exactly two
+   * things this end can honestly know (see {@link Delivery}), and they were one
+   * flag until they were told apart: a person watching a message go quiet read
+   * the same `not sent` a refusal gives, and pressed the same button under it.
    *
    * Absent on every row that WENT, rather than a `null` arm — the ordinary
    * message says nothing about this, the same way it says nothing about diffs.
@@ -895,19 +918,41 @@ export const Talking = Schema.Union([
     id: Schema.String,
     name: Schema.String,
     /**
-     * Whether a message sent WHILE A TURN RUNS goes into that turn.
+     * Whether this agent can be INTERRUPTED on purpose — a message put into
+     * the turn it is already running, rather than behind it.
      *
-     * True and what you type lands in the turn the agent is already running,
-     * which is the only moment saying it is worth anything; false and the agent
-     * QUEUES it behind the turn and reaches it when that turn is over. Opencode
-     * is the second (it has no steering method at all), and the composer says
-     * so rather than looking identical and behaving differently — a degradation
-     * a person can see is one they can work with.
+     * What it gates is one control. An ordinary send is the same verb on every
+     * agent now (a plain prompt, busy or idle), so this is not a difference in
+     * what happens when you press enter; it is whether there is a second,
+     * deliberate gesture beside it. False and there is one way to send, which
+     * is the way that always worked.
+     *
+     * THE AGENT'S OWN WORD, out of what it advertised at the handshake, and
+     * false until it has spoken — a panel that has not been told cannot offer
+     * an interruption on an agent's behalf. False for opencode, which has no
+     * such method at all.
      *
      * ON THE AGENT because it is a fact ABOUT one. Beside it, on the state, it
      * was a field a reader could ask with nobody to answer for.
      */
     steers: Schema.Boolean,
+    /**
+     * ... and whether it HOLDS what you send while it is busy, running it when
+     * the turn it is working on is over.
+     *
+     * The composer's standing promise, made before anybody presses anything:
+     * what you send now waits its turn and is got to. True of both agents olai
+     * talks to and established per agent rather than assumed — the Claude Code
+     * adapter advertises the queue at the handshake (`promptQueueing`), and
+     * opencode's was verified against 1.17.9 — because "what happens to a
+     * prompt sent mid-turn" is not something the protocol answers for anybody.
+     *
+     * An agent nothing is known about gets no promise made for it. Nothing else
+     * changes: every send still goes at once, and the message's own row still
+     * says it is waiting ({@link UserEntry}'s `queued`), because that much is
+     * olai's fact about its own turns.
+     */
+    queues: Schema.Boolean,
   }),
   /**
    * Several agents are installed and nobody has said which this conversation is

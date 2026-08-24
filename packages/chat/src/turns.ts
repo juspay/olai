@@ -1,18 +1,24 @@
 /**
- * The turns in flight, and the four questions anybody asks about them.
+ * The turns in flight, IN THE ORDER THEY WENT OUT, and the five questions
+ * anybody asks about them.
  *
- * Usually there are none or one. There are TWO when a person types while an
- * agent that cannot take a message into the turn it is running is running one:
- * the message goes out as an ordinary prompt, the agent queues it behind the
- * turn it is working on ({@link ./agents/opencode.ts} has no steering method at
- * all), and until that queue drains there are two turns this process owns and
- * neither has finished.
+ * There is more than one whenever somebody types while the agent is working,
+ * which since `compact-lost-to-steer` is the ordinary way to send a mid-turn
+ * message on every agent olai talks to: the words go out as a plain prompt, the
+ * agent holds them behind the turn it is working on, and until it gets to them
+ * there are two turns this process owns and neither has finished. It used to be
+ * the opencode-shaped case only, because the Claude leg steered every mid-turn
+ * message into the running turn instead — which is now the gesture somebody
+ * makes on purpose, not what enter does.
  *
- * A SET rather than a slot, and each of the four readers below is the same
- * question asked of it:
+ * A SET rather than a slot, and each of the readers below is the same question
+ * asked of it:
  *
  *   - **is the conversation busy** — the composer's `thinking`, and the guard
  *     that refuses to switch conversations out from under a running turn;
+ *   - **which one is the agent ON** — the oldest, since prompts are taken in
+ *     order. It is what an interruption is aimed at, and what tells a waiting
+ *     row from one being worked on ({@link Turn.key});
  *   - **am I the last one out** — which is what decides whether a turn that
  *     ended may say where the conversation stands. A turn that ends while
  *     another is still going has nothing true left to say about it, and saying
@@ -50,6 +56,20 @@ import type { Fiber } from "effect"
 export interface Turn {
   fiber: Fiber.Fiber<unknown, unknown> | null
   /**
+   * WHOSE message started it — the transcript key of the `user` row this turn
+   * is the delivery of.
+   *
+   * It is here because the SET is what knows the order. A message sent while a
+   * turn is running is waiting behind it at the agent, and the row says so
+   * ({@link ./transcript.ts}'s `queued`) — so something has to answer "which
+   * row is the agent on now", and the only honest answer is "the oldest turn
+   * still running", which is a fact about this collection and nothing else.
+   *
+   * A KEY rather than the row, because this module knows nothing about rows: it
+   * holds what its caller handed it and hands it back.
+   */
+  readonly key: string
+  /**
    * Somebody asked THIS turn to stop.
    *
    * It outlives the turn on purpose, because the thing that needs it is a
@@ -76,22 +96,27 @@ export class Turns {
   }
 
   /**
-   * The ONE turn, or `null` — for the caller that has to aim a steer at it.
+   * The OLDEST turn still running, or `null` — the one the agent is working on
+   * now, with everything else behind it.
    *
-   * An agent that steers never has more than one (a mid-turn message is
-   * steered rather than begun), so this is the whole of that caller's
-   * question. `null` where there are several, deliberately: on the wire where
-   * two turns are possible there is no steering to aim, and a caller that got
-   * one anyway would be aiming at whichever the set happened to yield first.
+   * A `Set` iterates in insertion order, and insertion order is the order these
+   * prompts went on the wire: an agent that holds a mid-turn prompt runs them
+   * in the order it received them (the pinned adapter's `turnQueue` is a FIFO,
+   * and opencode's is too), so the oldest ticket is the one being worked on.
+   *
+   * The FACT THE ROWS ARE DRAWN FROM: everything behind this one is waiting,
+   * and this one is not any more. It is deliberately a read of the set rather
+   * than a flag on each ticket — a flag would be a second copy of the order,
+   * kept in step by whoever remembered to.
    */
-  get only(): Turn | null {
-    if (this.#live.size !== 1) return null
+  get head(): Turn | null {
     return this.#live.values().next().value ?? null
   }
 
-  /** A turn is starting. The ticket is the caller's to fill a fiber into. */
-  open(): Turn {
-    const ticket: Turn = { fiber: null, stopped: false }
+  /** A turn is starting, for the message on `key`. The ticket is the caller's
+   *  to fill a fiber into. */
+  open(key: string): Turn {
+    const ticket: Turn = { fiber: null, key, stopped: false }
     this.#live.add(ticket)
     return ticket
   }

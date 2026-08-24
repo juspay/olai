@@ -318,6 +318,21 @@ const refusesToOpen = (verb: "new" | "load"): boolean =>
  */
 const holdsLoad = (): boolean => existsSync(`${cwd}/${MARKER.holdLoad}`)
 
+/**
+ * Whether this handshake ADVERTISES NOTHING — no queue, no steering.
+ *
+ * Read at `initialize` and off the filesystem, for `refusesToOpen`'s reason: it
+ * is a property of the machine the agent woke up on rather than of anything the
+ * client says, and the client hears it exactly once, before it has said
+ * anything at all.
+ *
+ * What it buys is the panel's OTHER face, on one agent: a conversation with
+ * something that has told olai nothing about itself. Every send still goes and
+ * this file still queues them; what the panel stops doing is promising a person
+ * their message will be got to, and offering them an interruption to press.
+ */
+const silent = (): boolean => existsSync(`${cwd}/${MARKER.saysNothing}`)
+
 /** The client's own two, NEWEST LAST — so a client that takes the first entry
  *  instead of the most recently updated one adopts the wrong conversation. */
 const storedSessions = () =>
@@ -2055,14 +2070,31 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
           loadSession: stored(),
           mcpCapabilities: { http: true },
           ...(stored() ? { sessionCapabilities: { list: {} } } : {}),
+          // IT HOLDS A PROMPT SENT WHILE IT IS BUSY — said where the real
+          // adapter says it, inside the capabilities, in its own `_meta`
+          // corner. Nothing about this file's behaviour depends on saying it
+          // (the read loop has queued prompts behind the running turn all
+          // along); what depends on it is the panel's PROMISE, which is made
+          // only for an agent that said this.
+          ...(silent() ? {} : { _meta: { claudeCode: { promptQueueing: true } } }),
         },
         agentInfo: { name: "fake-acp-agent", version: "0.1.0" },
-        // No steering advertisement, and its absence is a claim: the real
-        // adapter does advertise one (top-level `_meta`), and the client
-        // deliberately does not read it — a steer that goes out to an agent
-        // that never said it could steer is answered by the REQUEST, which is
-        // the only thing that can actually prove it. This file steers fine
-        // without saying so, which is that arrangement under test.
+        // ... and IT TAKES AN INTERRUPTION, in the top-level `_meta` beside
+        // the capabilities, which is where the steering extension's own
+        // contract puts it and where the real adapter puts it.
+        //
+        // IT USED TO SAY NEITHER, deliberately, back when every mid-turn
+        // message was a steer: reading an advertisement then would have been
+        // predicting what the request was about to prove. It is read now
+        // because it decides whether a person is OFFERED an interruption at
+        // all, and a control has to be drawn before anybody can press it. The
+        // request is still the proof — `refuse steering` is the scenario that
+        // says so, on an agent that advertises this and then says no.
+        //
+        // `.agent-says-nothing` takes both away, which is the OTHER agent's
+        // case reachable on this one: a panel that has been told nothing makes
+        // no promise and offers no interruption, and every send still goes.
+        ...(silent() ? {} : { _meta: { steering: { supported: true } } }),
       })
       return
 

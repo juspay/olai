@@ -925,34 +925,143 @@ Feature: Talking to the agent
     Then the chat eventually shows "could not be put back"
 
   @scratch:chat
-  Scenario: A message sent mid-turn STEERS the turn that is running
-    # Three arrangements, and only the third is this one. The box used to be
-    # turned OFF while the agent worked; then a send was accepted and QUEUED,
-    # which held the message out of sight until the turn it should have changed
-    # was over — and dropped it on the next cancel, destroying words nobody had
-    # a copy of. Now it goes to the agent as it is typed, into the turn already
-    # running, which is the only moment saying it is worth anything.
+  Scenario: A message sent mid-turn WAITS ITS TURN, and the row says so
+    # FOUR arrangements, and this is the fourth. The box used to be turned OFF
+    # while the agent worked; then a send was accepted and QUEUED HERE, which
+    # held the message out of sight until the turn was over and dropped it on
+    # the next cancel, destroying words nobody had a copy of; then every
+    # mid-turn send STEERED, which delivered the words at once and tore down
+    # whatever the turn was doing to make room for them. Now a send is one verb:
+    # it goes to the agent as it is typed, and the AGENT holds it behind the
+    # turn it is working on.
+    #
+    # The queue that was deleted is still deleted. What is different is whose
+    # queue it is and that a person can see their message in it.
     When I ask the agent "hold"
     Then the agent is working
     And the chat input takes typing
+    # ... and the composer promises, before anything is pressed, what pressing
+    # send will do — on an agent that said it holds what it is sent.
+    And the composer says a message would queue
     When I ask the agent "done order"
     Then the chat input still has the caret
     # It is a row the moment it is sent, like every other message.
     And the chat eventually shows "done order"
-    # THE CLAIM: the node moves while the first turn is STILL RUNNING. Nothing
-    # has been released and nothing has ended — a queued message could not have
-    # done this, and that is the whole difference.
+    # THE CLAIM, and it is the `/compact` bug stated in miniature: the running
+    # turn is UNTOUCHED. Nothing was injected into it, nothing was pre-empted,
+    # and the node has not moved — the words are at the agent, waiting, which is
+    # what the row says.
+    And node "order" is not done
+    And the chat shows my message "done order" as waiting
+    And the agent is working
+    # ... and when the turn in front of it ends, the agent takes it up: the hint
+    # comes off and the work happens. In that order and by itself — nothing here
+    # re-sent anything.
+    When the agent is released
+    Then my message "done order" is no longer waiting
     And node "order" is done
+    And the agent is idle
+
+  @scratch:chat
+  Scenario: The interrupting gesture puts a message INTO the running turn
+    # The other half, and the whole reason steering still exists: a person who
+    # can see the agent is halfway through the wrong thing wants it to hear them
+    # NOW, and "not that file, the other one" is worth saying at the moment you
+    # notice. That moment is almost never the moment the agent stops.
+    #
+    # It is a SECOND gesture rather than what enter does, because it costs
+    # something: pre-empting a turn tears down what it was doing. So the panel
+    # asks for it to be meant — a button of its own, and Alt+Enter for a hand
+    # already on the keyboard.
+    When I ask the agent "hold"
+    Then the agent is working
+    And the composer offers an interruption
+    When I interrupt the agent with "done order"
+    # THE CLAIM: the node moves while the first turn is STILL RUNNING. Nothing
+    # has been released and nothing has ended — a message that waited its turn
+    # could not have done this, and that is the whole difference between the two
+    # gestures.
+    Then node "order" is done
+    And the agent is working
+    # ... and it is not waiting for anything: it is IN the turn, so there is no
+    # queue it could be in and nothing on the row to say there is.
+    And my message "done order" is no longer waiting
+    When the agent is released
+    Then the agent is idle
+
+  @scratch:chat
+  Scenario: Alt+Enter is the same gesture as the button
+    # A chord nobody can see is a feature only its author knows about; a button
+    # that did something the keyboard could not is the same complaint from the
+    # other side. One gesture, two doors — the arrangement the `/` command list
+    # already has.
+    When I ask the agent "hold"
+    Then the agent is working
+    When I interrupt the agent with "done order" by keyboard
+    Then node "order" is done
     And the agent is working
     When the agent is released
     Then the agent is idle
 
   @scratch:chat
+  Scenario: An agent that advertises nothing is offered nothing, and still works
+    # The losing direction, chosen and walked. Whether a person is OFFERED an
+    # interruption is read off what the agent said about itself at the
+    # handshake — a control drawn for an extension nobody claimed is a control
+    # that refuses when pressed, and a promise made for an agent that never said
+    # it queues is olai speaking for somebody else.
+    #
+    # And what it costs is nothing that matters: the send is the send it always
+    # was, the row says it is waiting because that is olai's own fact about its
+    # own turns, and the agent gets to it.
+    When the agent advertises nothing about itself
+    And the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    And I ask the agent "hold"
+    Then the agent is working
+    And the composer offers no interruption
+    And the composer says nothing about queueing
+    When I ask the agent "done order"
+    Then the chat shows my message "done order" as waiting
+    When the agent is released
+    Then node "order" is done
+    And the agent is idle
+
+  @scratch:chat
+  Scenario: Cancel stops the turn, and the message waiting behind it still runs
+    # #194's ruling, kept word for word: cancel means stop the agent and nothing
+    # else. What changed under it is that there is something behind the turn
+    # again — and it is the AGENT'S queue, not this panel's, so a cancel has no
+    # array to empty and nobody's words to throw away. That was the whole sin of
+    # the queue that got deleted, and it is not reachable from here.
+    # `slow` rather than `hold` because this turn has to STOP when it is told
+    # to, which is the thing being cancelled; `hold` waits for a scenario to
+    # release it and would outlive the press.
+    When I ask the agent "slow"
+    Then the agent is working
+    When I ask the agent "done order"
+    Then the chat shows my message "done order" as waiting
+    When I cancel the turn
+    # The turn stops and says so, once — one press, one notice, however many
+    # messages were behind it.
+    Then the chat says the turn was cancelled
+    # THE CLAIM: the words survived. They were never here to be dropped, and the
+    # agent runs them next, in order.
+    And node "order" is done
+    And my message "done order" is no longer waiting
+    # ... and nothing is marked undelivered: nothing failed to be delivered.
+    And no message is marked undelivered
+
+  @scratch:chat
   Scenario: A message the agent REFUSED stays on screen, and can be sent again
-    # The one way a send can still fail against a live agent: it is mid-turn
-    # and cannot be reached. The words do NOT go into a queue and they do not
-    # go anywhere — they stay in the conversation, in the bubble they were
-    # typed into, marked as not sent, with one press to try again. A person
+    # The one way a send can still fail against a live agent: it was an
+    # INTERRUPTION, and the agent that advertised one refuses it. The
+    # advertisement is what drew the button; the request is what proves what it
+    # does, which is why both exist. The words do NOT go into a queue and they
+    # do not go anywhere — they stay in the conversation, in the bubble they
+    # were typed into, marked as not sent, with one press to try again. A person
     # never has to wonder whether a sentence they typed still exists.
     #
     # THE FIRST OF TWO FACES. This one is a certainty: the agent ANSWERED the
@@ -962,7 +1071,7 @@ Feature: Talking to the agent
     Then the agent is idle
     When I ask the agent "hold"
     Then the agent is working
-    When I ask the agent "done order"
+    When I interrupt the agent with "done order"
     Then the chat shows my message "done order" as "refused"
     # ... in the words a person reads, not only in the attribute the panel
     # carries. Swapping the two faces' sentences left this suite green until
@@ -970,18 +1079,20 @@ Feature: Talking to the agent
     And the strip under my message "done order" reads "not sent"
     # ... and it really did not go: nothing marked anything.
     And node "order" is not done
-    # Pressing it again while the turn is still unreachable changes nothing but
-    # is not silent either — the row stays, the words stay.
+    # SEND AGAIN IS A SEND, never a second interruption: a person pressing it
+    # is asking for their message to go, not for the turn to be broken into
+    # again — and it goes, at once, to wait its turn like any other. So the
+    # mark comes off (a row must not go on advertising a failure that has
+    # stopped being true) and the row says what is true instead: it is waiting.
     When I send the undelivered message again
-    Then the chat shows my message "done order" as "refused"
-    # Once the turn is over there is a turn to start, so the same row's own
-    # words go as an ordinary prompt — and the mark comes off, because a row
-    # must not go on advertising a failure that has stopped being true.
+    Then no message is marked undelivered
+    And the chat shows my message "done order" as waiting
+    And node "order" is not done
+    # ... and the agent gets to it when the turn in front of it ends.
     When the agent is released
-    Then the agent is idle
-    When I send the undelivered message again
     Then node "order" is done
-    And no message is marked undelivered
+    And my message "done order" is no longer waiting
+    And the agent is idle
 
   @scratch:chat
   Scenario: A message the agent never ANSWERED says so, and offers no retry
@@ -999,7 +1110,7 @@ Feature: Talking to the agent
     Then the agent is idle
     When I ask the agent "hold"
     Then the agent is working
-    When I ask the agent "done order"
+    When I interrupt the agent with "done order"
     # The only thing that can end a steer nobody answers is the client's own
     # deadline, so this step — and this step alone in the suite — waits it out.
     Then the chat eventually shows my message "done order" as "unanswered"
@@ -1087,7 +1198,7 @@ Feature: Talking to the agent
     Then the agent is idle
     When I ask the agent "slow"
     Then the agent is working
-    When I ask the agent "done order"
+    When I interrupt the agent with "done order"
     And I cancel the turn
     # The steer answers a moment later, and the row is what it lands on: the
     # words are kept and offered back, never re-sent on somebody's behalf. It

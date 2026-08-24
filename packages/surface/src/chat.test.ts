@@ -57,6 +57,7 @@ const ChatEntryFlat = Schema.Struct({
   stranded: Schema.optionalKey(Schema.Boolean),
   context: Schema.optionalKey(Schema.Array(NodeContext)),
   attachments: Schema.optionalKey(Schema.Array(Schema.String)),
+  queued: Schema.optionalKey(Schema.Boolean),
   delivery: Schema.optionalKey(Delivery),
 })
 
@@ -111,6 +112,17 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       context: [CONTEXT],
       attachments: ["shot.png"],
       delivery: "refused",
+    },
+  },
+  {
+    name: "user (waiting its turn at the agent)",
+    entry: {
+      id: "user:3",
+      seq: 11,
+      since: SINCE,
+      kind: "user",
+      text: "and check the other one",
+      queued: true,
     },
   },
   {
@@ -276,6 +288,10 @@ const REJECTED: ReadonlyArray<{ name: string; row: unknown }> = [
   {
     name: "streaming: false",
     row: { ...HEAD, kind: "agent", streaming: false },
+  },
+  {
+    name: "queued: false",
+    row: { ...HEAD, kind: "user", queued: false },
   },
   {
     name: "stranded: false",

@@ -1035,6 +1035,25 @@ export const surface = defineSurface({
       send: {
         input: Schema.Struct({
           text: Schema.String,
+          /**
+           * INTERRUPT the turn the agent is already running with this, rather
+           * than taking a place behind it.
+           *
+           * The one deliberate gesture, and it is a field on `send` rather than
+           * a verb of its own because it is the SAME message either way: the
+           * row is written, the words go out, and what differs is which turn
+           * hears them. Two procedures would be two places to keep the
+           * attachment claim, the node resolution and the row in step.
+           *
+           * Absent is the default and the default is to WAIT — plain enter
+           * takes a place in the agent's own queue, which is what makes an
+           * interruption something somebody chose. It costs nothing on an idle
+           * agent (there is no turn to interrupt, and the message starts one
+           * either way) and nothing on an agent that cannot be interrupted (it
+           * is sent as the ordinary prompt it would have been), so a stale tab
+           * that sends it cannot lose anybody's words.
+           */
+          steer: Schema.optionalKey(Schema.Boolean),
           /** The pictures this message carries, as the PATHS `attach`
            *  answered with. Absent is the same as empty — a prompt with no
            *  picture is every prompt olai had until now, and a caller should

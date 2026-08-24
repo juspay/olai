@@ -1038,6 +1038,10 @@ export const bind = (
                   input.text,
                   input.attachments ?? [],
                   context.success,
+                  // Straight through: whether this send interrupts the turn in
+                  // flight is a gesture a person made, and this end has no
+                  // second opinion about what they meant by it.
+                  input.steer ?? false,
                 )
               })
             ),

@@ -125,6 +125,28 @@ const SENT = "border border-accent/30 bg-accent/10"
 const bubbleOf = (fate: Delivery | undefined): string =>
   fate === undefined ? SENT : FACE[fate].bubble
 
+/**
+ * WAITING ITS TURN AT THE AGENT, and it is deliberately not a fate.
+ *
+ * Nothing has gone wrong with a queued message: it went out, it is at the
+ * agent, and there is a turn in front of it. So the bubble is left exactly as
+ * an ordinary message's, and what says so is a line under it in the same slot
+ * the delivery strip uses — a person who has just pressed send and is looking
+ * there gets an answer to "is anything happening about this", which is the
+ * question the whole feature exists for.
+ *
+ * `doing` rather than `muted`, which is the palette's own vocabulary read the
+ * way {@link FACE} reads it: this is something in flight, like an unanswered
+ * message is, and unlike a refusal, which is over. It is the same token the
+ * live cue under the transcript uses, so a person watching the panel sees one
+ * colour for "in progress" and not two.
+ *
+ * IT CLEARS ITSELF, from the wire: the server takes the mark off when the turns
+ * in front of this one end, so nothing here has a clock, a timer or an opinion
+ * about how long a turn takes.
+ */
+const WAITING = "queued"
+
 /** What the agent said is not in a file, so there is no path to name — and the
  *  empty string resolves against the served directory itself, which is where
  *  the agent was started and therefore what a relative path in what it says is
@@ -259,6 +281,18 @@ export function Entry(props: {
                 button at all, because a retry there would hand somebody a
                 duplicate they had no way to predict. Nothing retries on its
                 own either way. */}
+            {/* IT HAS NOT BEEN STARTED ON YET — the agent is on something
+                else, and this is next. Above the delivery strip and never
+                beside it: a row is one or the other, since a message that is
+                waiting at the agent is one nothing has failed about. */}
+            <Show when={user().queued}>
+              <div
+                class="mt-1 flex items-center gap-2"
+                data-testid={TESTID.chatQueued}
+              >
+                <span class="font-mono text-[0.6875rem] text-doing">{WAITING}</span>
+              </div>
+            </Show>
             <Show when={user().delivery} keyed>
               {(fate) => (
                 <div

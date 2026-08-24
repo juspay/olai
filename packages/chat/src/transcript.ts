@@ -364,6 +364,51 @@ export class Transcript {
   }
 
   /**
+   * That message is WAITING ITS TURN at the agent — it went out while a turn
+   * was still running, and nothing has started on it.
+   *
+   * A mark like {@link refused}'s and deliberately the same mechanism, because
+   * it is the same kind of thing: something true about a row that could not be
+   * known when the row was written. It differs in what it is ABOUT — where a
+   * delivery says what became of a message, this says where it stands — which
+   * is why it is its own field rather than a third {@link Delivery}: a queued
+   * message has not failed at anything, and a person reading it in the column
+   * of things that went wrong would be told the opposite of the truth.
+   *
+   * Nothing here decides WHEN it is true; {@link ./chat.ts} does, off its own
+   * turns. It comes off in {@link taken}.
+   */
+  queued(key: string): Change {
+    return this.#waiting(key, true)
+  }
+
+  /** ... and the agent has taken it up: the turns it was behind have ended, so
+   *  the row stops saying it is waiting. Called on every turn that ends rather
+   *  than only where a mark was made — a row that never said it was waiting is
+   *  a no-op here, which is what makes the caller's rule "clear whoever is at
+   *  the head now" rather than "remember which rows you marked". */
+  taken(key: string): Change {
+    return this.#waiting(key, false)
+  }
+
+  /** The `queued` field, said or unsaid, on a row that is still there. Private
+   *  for {@link #mark}'s reason: only a user row carries one, and the two
+   *  callers above are the whole of the vocabulary. */
+  #waiting(key: string, waiting: boolean): Change {
+    const current = this.#entries.get(key)
+    if (current === undefined || current.kind !== "user") return EMPTY
+    // ALREADY SO IS NOT NEWS. {@link taken} is called on every turn that ends
+    // and lands mostly on rows that were never waiting — a frame per turn per
+    // tab, saying nothing, on the path a whole conversation goes through. The
+    // no-op belongs here rather than in the caller for `#mark`'s reason: this
+    // is the line that DECIDES the field, so it is the line that knows whether
+    // anything moved.
+    if (waiting === (current.queued === true)) return EMPTY
+    const { queued: _queued, ...content } = contentOf(current)
+    return this.#put(key, waiting ? { ...content, queued: true } : content)
+  }
+
+  /**
    * That message CERTAINLY never reached the agent, and here is what it would
    * take to send it again.
    *

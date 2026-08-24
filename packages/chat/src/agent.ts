@@ -198,9 +198,10 @@ export class AgentGone extends Data.TaggedError("AgentGone")<{
  * not be DELIVERED fails on the error channel instead of answering here. An
  * agent with no steering at all is one of those: it refuses the method, in its
  * own words, and the caller owes a person their words back exactly as it does
- * for a dead pipe or a deadline. There was a capability flag read off
- * `initialize` that predicted this; the request is what proves it, and two
- * answers to one question is one too many.
+ * for a dead pipe or a deadline. The handshake's advertisement decides whether
+ * anybody is OFFERED the gesture ({@link ./agents/leg.ts}'s `advertised`) and
+ * never what became of one that was made: a control has to be drawn before it
+ * can be pressed, and what a request DID is the request's own to say.
  *
  *   - `taken` — the message is in the running turn. Nothing else to do; what
  *     the agent makes of it arrives on the transcript like everything else.
@@ -1075,6 +1076,24 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         )) as InitializeResponse
 
         const capabilities = initialized.agentCapabilities
+        // WHAT IT SAYS IT CAN DO, out of the same answer and read by the leg —
+        // the two facts a panel cannot work out for itself and must not guess
+        // at: whether a message sent while it is busy is HELD (so the composer
+        // may promise it will be got to), and whether it can be INTERRUPTED on
+        // purpose (so the composer may offer the gesture that does it).
+        //
+        // Said as an event rather than kept here, because it is news about the
+        // conversation like the model and the servers are, and the panel's own
+        // state is where facts about the agent live. Emitted before anything
+        // else this connection will say: `initialize` is the first round trip,
+        // and a panel that heard about a turn before it heard about the agent
+        // would draw one frame of an agent it knows nothing about.
+        options.onEvent({
+          _tag: "advertised",
+          steers: options.leg.steering !== null
+            && options.leg.steering.advertised(initialized),
+          queues: options.leg.queues(initialized),
+        })
         // AFTER the handshake, not after `spawn` returns: an exec failure
         // arrives later, and logging "spawned" for a command that never ran
         // is the silent-send class of lie — a line that says the process is

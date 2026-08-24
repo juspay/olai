@@ -508,6 +508,8 @@ It lives in `agent/` rather than `support/` because Cucumber imports everything 
 
 `@agent-stored` is the second knob: with it, the agent answers `session/list` with two stored conversations, so boot loads one and replays it. Without it, nothing is stored and boot opens a fresh session. The two boot paths, chosen by a property of the machine the agent woke up on rather than by anything the client says.
 
+`.agent-says-nothing` is the same idiom over what an agent ADVERTISES: armed, the next handshake carries neither the queue capability nor the steering one, which is the panel's face for an agent it has been told nothing about — no promise that a message sent mid-turn will be got to, and no `interrupt` control to press. It is a dot-file rather than a tag because the handshake happens once, before the client has said anything, so a scenario arms it and restarts. What it must NOT change is the sending: the words still go at once, the row still says it is waiting, and the agent still gets to them.
+
 WHICH of the two is loaded is the thing several of those scenarios are about. A first boot has nothing written down, so it takes the most recently updated — the fallback, and once the whole rule. After a conversation has been PICKED, the server remembers it and a restart comes back to that one however much fresher its sibling is (`chat-restore-wrong`), and falls back to the newest again only when the remembered one has gone. A scenario takes one away with `.agent-forgot-<sessionId>`, a dot-file in the served directory like the `hold` release — the store's walk prunes those, so arming one is not an edit.
 
 The real Claude adapter is for driving the panel by hand: `just serve` resolves the pinned one on demand.
@@ -529,10 +531,12 @@ name is the head of the `toolCallId` (`bash:0`) and the `title` moves under a
 running call; MCP tools spelled `<server>_<tool>`; permission options that lead
 with an ALLOW where the other's lead with the refusal; `session/set_mode` and
 `_session/steering` refused; the model in `configOptions` and changes only in
-method responses. And it QUEUES: one `session/prompt` at a time, because "this
-agent queues what you send now" is a claim a fake that answered two at once
-could not witness. Behaviour is keyed on the prompt text (`done <id>`, `bash`,
-`permit`, `nameless`, `slow`, `silent`).
+method responses. And it QUEUES: one `session/prompt` at a time, because "sends
+wait their turn" is a claim a fake that answered two at once could not witness —
+which since `compact-lost-to-steer` is what every send does on every agent, so
+the scripted Claude agent next door queues the same way and this is no longer
+the leg that behaves differently. Behaviour is keyed on the prompt text
+(`done <id>`, `bash`, `permit`, `nameless`, `slow`, `silent`).
 
 `silent` is the auth failure, whole: one zero-token `usage_update` and then a
 SUCCESSFUL `end_turn`, with no error anywhere. It is a scripted turn rather than

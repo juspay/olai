@@ -135,9 +135,22 @@ export const OPENCODE: Leg = {
   // auto-approval for opencode lives in its own `opencode.json`, outside ACP —
   // olai answers what it is asked and never widens what it answers.
   bypassMode: null,
-  // Refused (`-32601`). A mid-turn message is an ordinary prompt that opencode
-  // queues, and the composer says so.
+  // Refused (`-32601`), so there is no interrupting gesture to offer here —
+  // and, since `compact-lost-to-steer`, nothing else missing either: a message
+  // sent while opencode is working is a plain prompt it takes in order, which
+  // is what a message sent to ANY agent while it is working now is. This leg
+  // was the odd one out and is the one the other converged on.
   steering: null,
+  // YES, and this is the leg answering from what it KNOWS rather than from what
+  // the handshake said — which is the one place the two legs differ on this
+  // fact and not on the behaviour. Opencode advertises no capability either
+  // way; what it does is take one `session/prompt` at a time and answer them in
+  // the order they arrived (verified against 1.17.9, and the fake in the e2e
+  // suite is built to that shape). That is exactly the kind of thing this file
+  // exists to record — a fact about ONE agent, established once, read as a
+  // value — and it is the same standard the spawn command and the permission
+  // spelling above are held to.
+  queues: () => true,
   // Opencode forwards no CLI messages and needs no subscription: what the model
   // is, is in `configOptions` ({@link ./models.ts}), and a change comes back in
   // the method RESPONSE rather than as a pushed update.

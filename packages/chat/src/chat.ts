@@ -48,21 +48,31 @@
  *     is on the wire; what happens next arrives on the transcript, so every open
  *     tab stays in step and a five-minute turn is not a five-minute call. The
  *     turn runs on its own fiber, and the `thinking` state is what says so —
- *     for as long as ANY of them is running, because an agent that cannot take
- *     a message into the turn it is working on gets a second prompt it queues
+ *     for as long as ANY of them is running, because a message typed while the
+ *     agent works is a second prompt the agent holds behind the first
  *     ({@link Turn}).
- *   - **what is typed goes out IMMEDIATELY, always, and this file holds
- *     nothing.** A message sent while a turn runs is STEERED into that turn
- *     ({@link ./agent.ts}'s `steer`), so the agent hears it while it is still
- *     working — which is the only moment saying it is worth anything. There
- *     used to be a queue here: a mid-turn prompt went into an array, waited for
- *     the turn to end, and was thrown away by the next cancel. That destroyed
- *     user words with no copy anywhere — the transcript is not persisted, the
- *     agent's own session is the persistence, and a message that never reached
- *     the session was never in it. The queue is gone rather than fixed, and
- *     with it the reason a cancel had anything to decide: everything typed has
- *     already been delivered, so cancel means stop the agent and nothing else.
- *     Delivery that genuinely fails is said ON THE ROW — `delivery`, and
+ *   - **what is typed goes out IMMEDIATELY, always, as ONE VERB, and this file
+ *     holds nothing.** Every send is a plain `session/prompt`, busy or idle:
+ *     an idle agent starts on it, and a busy one holds it behind the turn it is
+ *     working on and gets to it next, in order. The queue is the AGENT'S, which
+ *     is the whole of the difference from the queue that used to be here — a
+ *     mid-turn prompt went into an array, waited for the turn to end, and was
+ *     thrown away by the next cancel, destroying user words with no copy
+ *     anywhere (the transcript is not persisted; the agent's own session is the
+ *     persistence, and a message that never reached the session was never in
+ *     it). Deleting it (#194) was right. Making STEERING the only delivery in
+ *     its place was not: a steer pre-empts, pre-empting means aborting, and a
+ *     message that only meant to be next in line was tearing down whatever the
+ *     agent was doing — a `/compact`, most visibly, which died with an aborted
+ *     request every time (`compact-lost-to-steer`, the human's screenshot).
+ *     So steering is the gesture somebody makes ON PURPOSE now, and this file
+ *     never learns what the agent is busy with.
+ *   - **a message the agent has not started on says so, on its own row**
+ *     (`queued`), and stops saying it when the turns in front of it end. That
+ *     is this end's own fact about its own turns, not a claim about the agent's
+ *     insides — and it is the visible half of holding nothing: the words are at
+ *     the agent, in the conversation, where a person can see them waiting.
+ *     Delivery that genuinely fails is said on the same row — `delivery`, and
  *     retryable by a person and by nobody else where a retry is honest —
  *     because the alternative to holding words out of sight is not dropping
  *     them, it is showing them.
@@ -157,6 +167,12 @@ export interface Chat {
     text: string,
     attachments: ReadonlyArray<string>,
     context: ReadonlyArray<NodeContext>,
+    /** INTERRUPT the turn in flight with this rather than take a place behind
+     *  it — the one deliberate gesture, and false is the default because
+     *  waiting is. It costs nothing where there is nothing to interrupt or no
+     *  agent that takes an interruption: the message is the plain prompt it
+     *  would have been. */
+    steer?: boolean,
   ) => Effect.Effect<void, OpFailure>
   /** One chunk of a picture into the conversation's own tmp directory,
    *  answering with where the whole file is and what it is called there. See
@@ -325,6 +341,9 @@ const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "nei
   replayEnded: "arrived",
   askSettled: "neither",
   commands: "neither",
+  // The handshake, which is olai asking rather than the agent volunteering —
+  // and which happens before any turn, so it could not be evidence about one.
+  advertised: "neither",
   servers: "neither",
   model: "neither",
   session: "neither",
@@ -411,14 +430,39 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *  knew what to spawn would be a browser that could ask for it. */
     const said = (row: Installed): AgentChoice => ({ id: row.id, name: row.name })
 
-    /** ... and as the panel's own `talking`, which carries one thing more: what
-     *  a message sent mid-turn will DO, which is a fact about this agent and is
-     *  read where the composer says it. */
+    /**
+     * WHAT AN AGENT HAS SAID ABOUT ITSELF before it has said anything: nothing.
+     *
+     * The state a freshly bound agent is in for the length of a handshake, and
+     * the honest one — a panel that has not been told cannot offer an
+     * interruption on somebody's behalf, or promise a person their words will
+     * be got to. Both directions of being wrong here are cheap and only one of
+     * them is: a control that appears a moment late costs a click; a control
+     * that was there before the agent said it took one is a person pressing
+     * *interrupt* at an agent that will refuse it.
+     */
+    const SAYS_NOTHING = { steers: false, queues: false } as const
+
+    /**
+     * ... and what the CURRENT agent has said, once it has.
+     *
+     * Beside {@link talking} rather than inside it because the two move at
+     * different times and for different reasons: WHO this panel is talking to
+     * is decided when somebody picks, and WHAT that agent can do is decided at
+     * the handshake, which is a subprocess and a round trip later. Kept here it
+     * is one assignment per boot; folded into `talking` it would be a field
+     * every writer of that member had to remember not to flatten.
+     */
+    let advertises: { readonly steers: boolean; readonly queues: boolean } = SAYS_NOTHING
+
+    /** ... and as the panel's own `talking`, which carries two things more:
+     *  what this agent SAID it can do ({@link advertises}), which is what the
+     *  composer offers and promises out of. */
     const bound = (row: Installed): Talking => ({
       kind: "agent",
       id: row.id,
       name: row.name,
-      steers: row.leg.steering !== null,
+      ...advertises,
     })
 
     // The cell's own default, with the two fields that differ: an agent is
@@ -596,6 +640,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         case "commands":
           move({ commands: event.commands })
           return
+        case "advertised": {
+          advertises = { steers: event.steers, queues: event.queues }
+          // ON `talking`, because it is a fact about WHO this panel is talking
+          // to and that is the one member that answers for an agent. A frame
+          // with nobody bound is a handshake that finished after its agent was
+          // swapped out, and there is nobody for it to be about.
+          const at = talking
+          if (at !== null) move({ talking: bound(at.row) })
+          return
+        }
         case "servers":
           // A fact about the conversation, so it lands on the cell beside the
           // model and the commands rather than as a row: a notice scrolls away
@@ -750,6 +804,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // about the AGENT: the model is a different agent's answer, a refused
         // open was about a process that is gone, and a banner about it with it.
         opened()
+        // WHAT THE LAST AGENT SAID ABOUT ITSELF IS NOT NEWS ABOUT THIS ONE.
+        // Reset before the state below rather than after, because that state
+        // reads it: a panel that kept the outgoing agent's answers would offer
+        // an interruption on an agent that has not handshaken yet, on the
+        // strength of what a different subprocess once advertised.
+        advertises = SAYS_NOTHING
         move({
           // WHO, and — because it is one member — no longer a question that
           // could still be being asked while it names somebody.
@@ -947,21 +1007,29 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *
      * An agent holds the floor for minutes at a time, and a person watching it
      * work thinks of the next thing well before it is finished. Refusing that
-     * message made them hold it in their head and come back; queueing it made
-     * the panel hold it for them, out of sight, until the turn it should have
-     * changed was over — and then a cancel threw it away. Both were the same
-     * mistake: treating a message typed DURING a turn as a message about the
-     * next one.
+     * message made them hold it in their head and come back; queueing it HERE
+     * made the panel hold it for them, out of sight, until the turn it should
+     * have changed was over — and then a cancel threw it away. Both were the
+     * same mistake, and neither is what happens now.
      *
-     * So it goes to the agent now, and where "now" lands depends on the agent
-     * rather than on this file: an idle one gets a prompt and a working one is
-     * STEERED ({@link deliver}). Either way the row is written first and the
-     * words are on screen before anything is on the wire.
+     * ONE VERB, ONE LANE: it goes out as a plain `session/prompt`, busy or
+     * idle. An idle agent starts on it; a busy one holds it behind the turn it
+     * is working on and gets to it next, in order, which it does itself — this
+     * file keeps no queue and never learns what the agent is busy WITH. That
+     * last part is the whole of the `/compact` fix: a compaction is a turn like
+     * any other from here, so a message sent during one waits for it instead of
+     * tearing it down.
+     *
+     * `steer` is the deliberate exception and the only one — an INTERRUPTION,
+     * asked for by a gesture somebody had to make on purpose
+     * ({@link deliver}). Either way the row is written first and the words are
+     * on screen before anything is on the wire.
      */
     const send = (
       text: string,
       attachments: ReadonlyArray<string>,
       context: ReadonlyArray<NodeContext>,
+      steer = false,
     ): Effect.Effect<void, OpFailure> =>
       Effect.gen(function*() {
         const said = text.trim()
@@ -1006,7 +1074,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             ...(context.length === 0 ? {} : { context }),
           })
           publish(row.change)
-          yield* deliver(row.key, prompt)
+          yield* deliver(row.key, prompt, steer)
         }))
       })
 
@@ -1014,19 +1082,29 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * Get one prompt to the agent NOW, whatever it is doing — and, when that
      * cannot be done, leave the words with the person who typed them.
      *
-     * A working agent is STEERED, which hands the message to the turn already
-     * running and starts nothing; everything else PROMPTS, which starts a turn
-     * this file owns. The ordinary prompt is the fall-through rather than a
-     * second branch, because the two ways of reaching it are the same ending: an
-     * agent that was idle when we looked, and one that turned out to be idle
-     * when the steer got there. That second one is the RACE — olai steers only
-     * while it believes a turn is running, and the agent can settle in between —
-     * and the agent says so rather than inventing a turn ({@link
-     * ./agents/claude.ts}'s `STEER_WHEN_IDLE`).
+     * THE ORDINARY LANE IS THE ONLY LANE unless somebody asked otherwise: a
+     * plain `session/prompt`, which starts a turn this file owns whether or not
+     * another is already running. What the agent does with a second one is the
+     * agent's own business — it holds it behind the first and runs it next, in
+     * order — and that is the point: nothing here has to know what the running
+     * turn IS, so a `/compact` is waited for exactly as a grep is.
+     *
+     * STEERING IS THE ASKED-FOR EXCEPTION, and every condition on it is a
+     * condition on the ASK: somebody made the interrupting gesture, the agent
+     * advertised that it takes one, and there is a turn in flight to put it in.
+     * Any of those missing and this is a plain prompt — which is the safe
+     * direction and the only one it fails in, since the message goes either
+     * way. It is aimed at the turn the agent is ON ({@link Turns.head}), which
+     * with several in flight is the oldest: interrupting the one it is working
+     * on is what interrupting means, and the ones behind it have not started.
+     *
+     * A steer that lands starts NOTHING here — the words are in a turn this
+     * file already owns — so the row is not queued behind anything and the
+     * transcript says nothing about it.
      *
      * UNDER A PERMIT, because the first thing it does is read which lane to take
      * and the last thing it does is take it. Two tabs sending at an idle agent
-     * both read `turn === null` otherwise, and both start a turn: the second
+     * both read `head === null` otherwise, and both start a turn: the second
      * ticket replaces the first, whose end is then correctly silenced as a turn
      * that was superseded — so a real turn would end with the panel saying
      * nothing about it. The ticket answers WHICH turn is speaking; it was never
@@ -1047,7 +1125,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * un-cancelling on their behalf. The ticket the steer was aimed at is what
      * tells them apart — see {@link Turn.stopped}.
      */
-    const deliver = (key: string, prompt: string): Effect.Effect<void> =>
+    const deliver = (
+      key: string,
+      prompt: string,
+      steer: boolean,
+    ): Effect.Effect<void> =>
       sending.withPermit(Effect.gen(function*() {
         const at = talking
         if (at === null) {
@@ -1062,17 +1144,18 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         }
         const agent = at.agent
         // WHICH turn this steer is aimed at, kept rather than re-read: by the
-        // time it answers, it may be over. An agent that steers never has more
-        // than one — a mid-turn message is steered rather than begun — so the
-        // set holds at most this one.
-        const aimed = turns.only
-        // AN AGENT THAT CANNOT STEER GETS AN ORDINARY PROMPT, mid-turn or not,
-        // and the agent queues it behind the turn it is running (opencode
-        // does; the composer says so). Nothing is held here either way — that
-        // is the promise this file's header makes — and what a person loses by
-        // it is the chance to redirect a turn already in flight, which is a
-        // difference they are told about rather than one they discover.
-        if (aimed !== null && at.row.leg.steering !== null) {
+        // time it answers, it may be over. The one the agent is working on,
+        // which is the oldest — the ones behind it are waiting at the agent and
+        // interrupting a turn that has not started is nothing at all.
+        const aimed = turns.head
+        // NOBODY IS INTERRUPTED BY ACCIDENT. Without the gesture this is a
+        // plain prompt, mid-turn or not, and the agent takes it in its turn —
+        // which is what every send did on opencode all along and what every
+        // send does everywhere now. And nobody is interrupted on an agent that
+        // never said it could be: `advertises` is what the composer drew its
+        // control from, and a send arriving with the flag set anyway (a stale
+        // tab) is delivered rather than refused.
+        if (steer && aimed !== null && advertises.steers) {
           const steered = yield* Effect.result(agent.steer(prompt))
           if (steered._tag === "Failure") {
             // WHICH failure it was is the agent's reading, not ours: it is the
@@ -1182,8 +1265,9 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       prompt: string,
     ): Effect.Effect<void> =>
       Effect.gen(function*() {
-        /** A turn was ALREADY running when this one started, which is what a
-         *  mid-turn message is for an agent that cannot steer. */
+        /** A turn was ALREADY running when this one started — which, since
+         *  every send is a plain prompt, is what any message typed while the
+         *  agent works is. The agent holds this one behind that one. */
         const alongside = turns.busy
         if (alongside) {
           yield* Effect.logInfo("message queued behind a running turn").pipe(
@@ -1193,7 +1277,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             }),
           )
         }
-        const ticket = turns.open()
+        const ticket = turns.open(key)
+        // ... AND THE ROW SAYS SO, which is the half a person can see. It is
+        // the only thing standing between "I pressed send and nothing is
+        // happening" and knowing the words are at the agent with a turn in
+        // front of them — and it is a statement about THIS end's own turns
+        // (one went out, none has started on it), never a guess at what the
+        // agent is doing with it. It comes off below, when the turns in front
+        // of it end.
+        if (alongside) publish(transcript.queued(key))
         // The rows go first, and the order is the point. A dead agent's rows
         // are deliberately left where they are, so this turn is starting over a
         // transcript that may hold calls the last one abandoned — and the panel
@@ -1229,15 +1321,22 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
          * What that costs is one direction only, which is why it is the right
          * approximation: a turn that really was silent while a sibling was
          * talking goes unremarked (nothing is claimed), and a turn that drew
-         * something is never accused of silence. The panel only ever holds two
-         * turns for an agent that queues a mid-turn message rather than
-         * steering it, and it errs towards saying nothing.
+         * something is never accused of silence. Several turns at once is the
+         * ordinary shape now — a message typed while the agent works is one —
+         * and this errs towards saying nothing about all of them.
          */
         const quiet = (): boolean => shown === quietSince
 
         const running = yield* Effect.forkDetach(
           Effect.gen(function*() {
             const outcome = yield* Effect.result(at.agent.prompt(prompt))
+            /** Whether the agent was ON this turn — the other end of the same
+             *  order the waiting rows are drawn from, and read BEFORE the ticket
+             *  leaves, which is the only moment it can be asked. What it answers
+             *  is which of several turns a STOP is worth a word about: the one
+             *  that was running, and not the ones behind it that never started
+             *  (the pinned adapter answers `cancelled` for those too). */
+            const led = turns.head === ticket
             // Whether this turn was the LAST one running. The notices go in
             // either way — they are things that happened, and they happened —
             // and only the state is withheld: a turn that ends while another is
@@ -1254,6 +1353,18 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // not strand the running turn's calls. The last one out settles,
             // and settling is idempotent over rows that have already stopped.
             if (current) publish(transcript.settle())
+            // WHOEVER THE AGENT IS ON NOW HAS STOPPED WAITING. This turn is
+            // over, so the message behind it is the one being worked on — and
+            // this row is not waiting for anything either, however it ended.
+            //
+            // Both, and in this order, because they are two different rows in
+            // the ordinary case and the same row in none of them. Asked of the
+            // SET rather than remembered, so a message that was third in line
+            // keeps saying so until the two in front of it have really gone
+            // ({@link ./turns.ts}'s `head`).
+            publish(transcript.taken(key))
+            const next = turns.head
+            if (next !== null) publish(transcript.taken(next.key))
             if (outcome._tag === "Failure") {
               publish(transcript.add("notice", outcome.failure.message))
               // A turn that produced NOTHING is a delivery that failed, and it
@@ -1285,9 +1396,21 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               }
               return
             }
-            // Cancelling means stop, and it means only that now: everything
-            // typed reached the agent when it was typed, so there is nothing
-            // left here for a cancel to decide the fate of.
+            // Cancelling means stop, and it means only that: everything typed
+            // reached the agent when it was typed, so there is nothing left
+            // here for a cancel to decide the fate of. The messages BEHIND the
+            // stopped turn are the agent's — held in its own queue, in its own
+            // order — and this end does not reach into it. (What the pinned
+            // adapter does with them is its own answer, and it is the honest
+            // one: the words run. Verified on the wire, 2026-08-24.)
+            //
+            // ONE NOTICE PER PRESS, and it is the RUNNING turn's: a cancel
+            // stops the conversation, so a message that was still waiting
+            // behind the turn can come back `cancelled` too (the pinned adapter
+            // answers exactly that for one it had queued, while still running
+            // the words — verified on the wire). A person who pressed one
+            // button wants to be told once, about the thing that was actually
+            // stopped, rather than once per message they had waiting.
             //
             // AND IT IS THE ONE SILENCE THAT IS ACCOUNTED FOR, which is why it
             // returns rather than falling through: a turn somebody stopped
@@ -1295,7 +1418,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // arm below would put a second one under it blaming the agent for
             // obeying.
             if (outcome.success === "cancelled") {
-              publish(transcript.add("notice", "cancelled"))
+              if (led) publish(transcript.add("notice", "cancelled"))
               if (current) move({ status: "idle", trouble: null })
               return
             }
@@ -1453,7 +1576,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             reason: "that message is not waiting to be sent — it went, or its conversation did",
           })
         }
-        yield* deliver(id, prompt)
+        // NEVER AS AN INTERRUPTION, whatever the original send was: a retry is
+        // a person asking for a message to go, not for a turn to be broken
+        // into, and the turn the first attempt was aimed at is over — that is
+        // usually why there is a retry at all.
+        yield* deliver(id, prompt, false)
       }))
 
     /**

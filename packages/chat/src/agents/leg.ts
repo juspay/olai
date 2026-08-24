@@ -40,14 +40,19 @@ import type { Duration } from "effect"
 export type Meta = { readonly [key: string]: unknown } | null | undefined
 
 /**
- * How a message reaches a turn that is ALREADY RUNNING, for an agent that has
- * a way — or `null` for one that has none.
+ * How a message reaches a turn that is ALREADY RUNNING — the INTERRUPTING
+ * gesture, for an agent that has a way, or `null` for one that has none.
  *
- * `null` is not a degradation olai hides. An agent without steering takes a
- * mid-turn message as an ordinary prompt and reaches it when the running turn
- * is over, which is a real difference in what saying something now BUYS you —
- * so the composer says it ({@link ../../../web/src/client/chat/Composer.tsx}),
- * rather than the panel looking identical and behaving differently.
+ * NOT WHAT AN ORDINARY SEND DOES, and that is the change `compact-lost-to-steer`
+ * made: every send is a plain `session/prompt`, idle or busy, and the agent
+ * holds a busy one behind the turn it is working on. This is the extra gesture
+ * on top of that — the one a person reaches for on purpose, because they want
+ * the turn in flight to hear them rather than the next one.
+ *
+ * `null` is not a degradation olai hides. An agent without steering has one
+ * way to be sent to, which is the way every agent is sent to; the composer
+ * simply offers nobody a button that would do nothing
+ * ({@link ../../../web/src/client/chat/Composer.tsx}).
  */
 export interface Steering {
   /** The method that carries it. An EXTENSION on every wire that has one,
@@ -65,6 +70,24 @@ export interface Steering {
    *  hears twice; the worst case of reading an unknown outcome as taken is a
    *  message nobody has. */
   readonly taken: (answered: unknown) => boolean
+  /**
+   * Whether THIS agent said, at `initialize`, that it has this — over the whole
+   * handshake response, since an advertisement can sit anywhere in it.
+   *
+   * READ TO DECIDE WHETHER TO OFFER A GESTURE, and never to predict what a
+   * request will do. Those are different questions and only one of them can be
+   * answered before the fact: a control has to be drawn or not drawn before
+   * anybody presses it, and the only honest input to that is what the agent
+   * said about itself. What a steer actually DID is still the request's own
+   * answer, and a refusal still reaches a person as their words back
+   * ({@link ../agent.ts}) — so nothing here is approved by an advertisement,
+   * which is this file's rule read the one way it survives.
+   *
+   * A leg with a steering method whose agent says nothing gets NO GESTURE: the
+   * panel would be showing a person a button for an extension that agent never
+   * claimed, and the default send reaches it either way.
+   */
+  readonly advertised: (initialized: unknown) => boolean
 }
 
 /** What a session's opening call asks the agent to forward, and where the
@@ -249,9 +272,40 @@ export interface Leg {
    *  is one round trip per tool call. */
   readonly bypassMode: string | null
 
-  /** How a message reaches a running turn, or `null` when it cannot and queues
-   *  instead — see {@link Steering}. */
+  /** How a message reaches the turn ALREADY RUNNING, on purpose — or `null`
+   *  for an agent with no such gesture. Never how an ordinary send is
+   *  delivered, which is a plain prompt on every wire — see {@link Steering}. */
   readonly steering: Steering | null
+
+  /**
+   * Whether this agent said, at `initialize`, that it HOLDS a prompt sent
+   * while it is busy — behind the turn it is working on, to be run when that
+   * turn is over.
+   *
+   * The bit the whole default rests on. Core ACP neither defines nor forbids a
+   * mid-turn `session/prompt`, so "what happens if I send one now" is a fact
+   * about the agent rather than about the protocol — which is what makes it
+   * one of these rather than something `../agent.ts` could work out.
+   *
+   * TAKES THE HANDSHAKE because one leg has an ADVERTISEMENT to read (the
+   * pinned Claude Code adapter says `promptQueueing` in `agentCapabilities`)
+   * and the other has a verified fact of its own (opencode answers one prompt
+   * at a time, in order, 1.17.9). Both are the same kind of claim — this agent
+   * holds what you send while it is busy — and a leg answers it however it
+   * honestly can, which is this file's whole arrangement.
+   *
+   * WHAT IT DOES NOT GATE is the send. Every send is a plain prompt whatever
+   * this says, because there is nothing else to do with a message somebody
+   * typed and no client-side queue to put it in — that queue is exactly what
+   * #194 deleted, for reasons that have not stopped being true. What it gates
+   * is what the composer may PROMISE, before anybody presses anything: that a
+   * message sent now waits its turn and is got to.
+   *
+   * The ROW's own *queued* mark is not this. That one is olai's fact — this
+   * message went out while a turn of ours was still running and nothing has
+   * started on it — and it is drawn whoever the agent is.
+   */
+  readonly queues: (initialized: unknown) => boolean
 
   /** The agent's own forwarded messages, or `null` for an agent that forwards
    *  none — see {@link RawMessages}. */

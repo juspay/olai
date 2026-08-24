@@ -6,11 +6,19 @@
  *
  *   - **Enter sends, Shift+Enter is a newline.** A prompt is usually one line
  *     and occasionally several, and the common case should not need a button.
+ *   - **Alt+Enter INTERRUPTS**, and it is the only way to. A plain send goes to
+ *     the agent at once and waits its turn there, which is what it does whether
+ *     the agent is idle or three minutes into something; the modifier asks for
+ *     the words to go INTO the turn in flight instead. Breaking into a turn
+ *     tears down whatever it was doing (a `/compact` most visibly), so it is
+ *     the modifier rather than the default — interruption is always on purpose.
+ *     The same gesture is a button beside `send`, because a chord is no gesture
+ *     at all on a phone.
  *   - **Cancel appears BESIDE send while a turn is running**, rather than
  *     replacing it. Replacing it was right while a mid-turn send was refused:
  *     there was one action available and one place to look for it. Now that a
- *     mid-turn message STEERS the running turn, sending and stopping are two
- *     things a person can genuinely want at the same moment — and they want
+ *     mid-turn message is delivered like every other, sending and stopping are
+ *     two things a person can genuinely want at the same moment — and they want
  *     opposite things, which is exactly why both have to be on screen. The
  *     button says `send` throughout: it used to say `queue` while a turn ran,
  *     back when the panel really did hold the message.
@@ -183,6 +191,20 @@ export function Composer(props: {
 
   const working = () => props.chat.state().status === "thinking"
 
+  /**
+   * Whether there is an INTERRUPTION to offer right now.
+   *
+   * Two conditions and both are about honesty rather than taste. The agent has
+   * to have SAID it takes one — a button for an extension nobody claimed is a
+   * button that refuses — and a turn has to be in flight, because interrupting
+   * an idle agent is sending it a message, which is what the other control does.
+   *
+   * The DEFAULT needs no condition of its own: enter always sends, and what a
+   * send does is the same on every agent, busy or idle. That is the whole
+   * change — the panel used to have to explain which of two different things
+   * pressing enter was about to do.
+   */
+  const interruptible = () => working() && agentIn(props.chat.state())?.steers === true
 
 
   /**
@@ -384,8 +406,15 @@ export function Composer(props: {
    *
    * Only put back into a box that is still empty. If the answer comes back
    * while a person is already typing the next thing, what they are typing wins.
+   *
+   * `interrupt` is the gesture, not a mode: the same message, the same row, the
+   * same everything back if it is refused — what differs is whether the agent
+   * is asked to take it into the turn it is running. It is passed on rather
+   * than checked here, because whether there is anything to interrupt is a
+   * question about a turn and the answer arrives on the wire
+   * ({@link ./state.ts}).
    */
-  const send = async () => {
+  const send = async (interrupt = false) => {
     const text = draft()
     if (
       text.trim() === "" &&
@@ -421,6 +450,7 @@ export function Composer(props: {
       text,
       attachments.map((attachment) => attachment.path),
       context,
+      interrupt,
     )
     if (sent) return
     // THE WORDS AND THE PERMISSION FOR THEM MOVE TOGETHER, on one test rather
@@ -560,9 +590,18 @@ export function Composer(props: {
     // handler does not run while it is up (see ./CompletionMenu.tsx). One
     // mechanism for one rule — a second one here would be a guard nobody could
     // test.
+    //
+    // ALT+ENTER INTERRUPTS, and it is the same send with one thing asked of it:
+    // put these words into the turn the agent is running rather than behind it.
+    // A MODIFIER rather than a second key, because it is a variant of the
+    // gesture somebody is already making — and it is deliberately the awkward
+    // one of the pair, since breaking into a turn is the thing that should take
+    // a decision. Shift+Enter is a newline and stays one; the modifier is read
+    // only where there is an interruption to make, so Alt+Enter at an idle
+    // agent is an ordinary send rather than a key that does nothing.
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault()
-      void send()
+      void send(event.altKey && interruptible())
     }
     // AFTER the send, so a key that moved the caret has moved it:
     // `queueMicrotask` is one turn later, which is when the field's selection
@@ -752,30 +791,27 @@ export function Composer(props: {
             waiting on your answer
           </span>
         </Show>
-        {/* WHAT SAYING IT NOW BUYS YOU, for an agent that cannot take a message
-            into a turn it is already running.
+        {/* WHAT PRESSING SEND NOW DOES, while the agent is working.
 
-            The box never locks and nothing is held here, whichever agent it is
-            — that much is the same. What differs is where the words LAND: an
-            agent with steering hears them while it works, which is the whole
-            reason to type them then, and one without queues them and reaches
-            them when the turn is over. Two panels that look identical and
-            behave differently is the thing this line exists to stop; a
-            degradation a person can see is one they can work with (the ruling,
-            2026-08-21).
+            The box never locks and nothing is held here, which has not changed.
+            What has is that the answer is now the SAME on every agent — the
+            words go out as an ordinary message and the agent gets to them when
+            the turn it is working on is over — so this line is a promise rather
+            than a warning about a degradation. It is drawn only where that
+            queue is a fact somebody established (`queues`, per agent: one
+            advertises it at the handshake and the other was verified), because
+            a promise about an agent nobody has checked is not olai's to make.
 
-            Only while a turn RUNS, because that is the only time it is true —
-            an idle agent takes what you type at once either way — and that is
-            also the moment somebody is deciding whether to say it. */}
-        <Show
-          when={props.chat.state().status === "thinking" &&
-            agentIn(props.chat.state())?.steers === false}
-        >
+            Only while a turn RUNS, because that is the only time it says
+            anything: an idle agent starts on what you type at once, and that is
+            also the moment somebody is deciding whether to say it now or
+            wait. */}
+        <Show when={working() && agentIn(props.chat.state())?.queues === true}>
           <span
             class="font-mono text-[0.6875rem] text-muted"
             data-testid={TESTID.chatQueues}
           >
-            this agent queues what you send now
+            sends wait their turn
           </span>
         </Show>
         {/* Only when the agent offers some: a button that opens nothing lies. */}
@@ -801,16 +837,42 @@ export function Composer(props: {
             cancel
           </button>
         </Show>
+        {/* THE INTERRUPTION, as a control and not only as a chord.
+
+            Alt+Enter is the gesture on a keyboard, and a gesture with no
+            visible door is a feature only its author knows about — worse on a
+            phone, which has no Alt at all and where a turn somebody wants to
+            redirect is exactly as common. So the same send is here as a button
+            of its own, beside the one that waits: two controls that differ in
+            one word, which is the difference they actually have.
+
+            Drawn only while there is something to interrupt AND the agent said
+            it takes one ({@link interruptible}) — three buttons under an idle
+            box would be two of them lying. It sits between `cancel` and `send`
+            deliberately: those are the two ends of what somebody watching a
+            turn wants (stop it, or line something up behind it) and this is the
+            middle one. */}
+        <Show when={interruptible()}>
+          <button
+            type="button"
+            class={`${CONTROL} border-doing px-3 text-doing`}
+            data-testid={TESTID.chatInterrupt}
+            title="send it into the turn the agent is running (Alt+Enter)"
+            onClick={() => void send(true)}
+          >
+            interrupt
+          </button>
+        </Show>
         <button
           type="button"
           class={`${CONTROL} border-transparent bg-accent px-3 font-semibold text-paper hover:opacity-90`}
           data-testid={TESTID.chatSend}
           onClick={() => void send()}
         >
-          {/* ALWAYS "send", because that is always what it does. It used to
-              read "queue" while a turn ran, which was honest about the panel
-              holding the message and is a lie now: what is typed goes to the
-              agent as it is typed, into the turn it is already running. */}
+          {/* ALWAYS "send", because that is always what it does — one verb,
+              busy or idle. It used to read "queue" while a turn ran, back when
+              the panel really did hold the message; the AGENT holds it now, the
+              row says so, and what this button does never changes. */}
           send
         </button>
       </div>

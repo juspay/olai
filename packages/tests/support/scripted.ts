@@ -113,6 +113,13 @@ export const MARKER = {
   /** ... and the next session OPEN, whichever verb asked for it: the window
    *  between picking an agent and having a conversation. */
   holdOpen: ".agent-hold-open",
+  /** Make the next handshake ADVERTISE NOTHING — no queue, no steering. A
+   *  property of the machine rather than of anything the client says, like the
+   *  stored sessions and the refusals beside it, and the one way a scenario can
+   *  look at a panel that has been told nothing about the agent it is talking
+   *  to: no promise about a message sent mid-turn, and no interruption
+   *  offered. */
+  saysNothing: ".agent-says-nothing",
 } as const
 
 /** The release marker, by its old name — {@link MARKER}'s `release`. */

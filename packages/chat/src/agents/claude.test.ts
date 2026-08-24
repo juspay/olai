@@ -25,9 +25,11 @@ import {
   liveServersIn,
   OPEN_SESSION_META,
   parentToolUseIn,
+  QUEUES_WHEN_BUSY,
   spawnedIn,
   STEER_METHOD,
   STEER_WHEN_IDLE,
+  STEERING_ADVERTISED,
   steerTaken,
   toolNameIn,
 } from "./claude.ts"
@@ -167,6 +169,84 @@ describe("which tool a call is", () => {
         EXIT_PLAN_MODE,
       ),
     ).toBeNull()
+  })
+})
+
+/**
+ * The handshake, as the pinned adapter (0.66.0) actually answers it — captured
+ * from the wire on 2026-08-24, trimmed to the two corners read here and the
+ * shape they sit in. The nesting is the point: `promptQueueing` is inside
+ * `agentCapabilities._meta`, and the steering advertisement is beside
+ * `agentCapabilities` rather than inside it, which is where the steering
+ * extension's own contract puts it. A reader that looked in the other place
+ * would answer `false` for an adapter that said `true`.
+ */
+const HANDSHAKE = {
+  protocolVersion: 1,
+  agentCapabilities: {
+    _meta: { claudeCode: { promptQueueing: true } },
+    promptCapabilities: { image: true },
+    loadSession: true,
+  },
+  agentInfo: { name: "@agentclientprotocol/claude-agent-acp", version: "0.66.0" },
+  _meta: {
+    steering: { supported: true },
+    goal: { version: 1, controlMethod: "_session/goal" },
+  },
+}
+
+describe("what the adapter says it can do at the handshake", () => {
+  test("it HOLDS a prompt sent while it is busy, and says so", () => {
+    // The bit the whole default rests on: core ACP has no such capability, so
+    // "what happens if I send one now" is this agent's own answer. Verified on
+    // the wire beside it — a prompt sent 1.5s into a 35-second `/compact`
+    // waited, the compaction completed, and the message ran after.
+    expect(QUEUES_WHEN_BUSY(HANDSHAKE)).toBe(true)
+  })
+
+  test("... and it takes an interruption, said one level out", () => {
+    expect(STEERING_ADVERTISED(HANDSHAKE)).toBe(true)
+  })
+
+  test("an agent that says NEITHER is promised nothing and offered nothing", () => {
+    // Which is every other agent on this wire, and the direction both of these
+    // are safe to lose in: what a person can do is unchanged — the message
+    // still goes, at once — and what the panel stops doing is making claims on
+    // an agent's behalf.
+    const quiet = { protocolVersion: 1, agentCapabilities: {} }
+    expect(QUEUES_WHEN_BUSY(quiet)).toBe(false)
+    expect(STEERING_ADVERTISED(quiet)).toBe(false)
+  })
+
+  test("and neither is read out of the OTHER one's corner", () => {
+    // The near miss that would be invisible: both are `_meta`, one nested
+    // inside the capabilities and one beside them. Swapped, each reader would
+    // answer for an advertisement the agent never made.
+    expect(QUEUES_WHEN_BUSY({ _meta: { claudeCode: { promptQueueing: true } } })).toBe(false)
+    expect(
+      STEERING_ADVERTISED({ agentCapabilities: { _meta: { steering: { supported: true } } } }),
+    ).toBe(false)
+  })
+
+  test("POSITIVE RECOGNITION: only the word itself is yes", () => {
+    // A capability that is present-but-not-true, or truthy-in-some-other-way,
+    // is not a claim this panel may act on — the rule every reader in this file
+    // follows, read at the one place a `_meta` is somebody else's to reshape.
+    expect(QUEUES_WHEN_BUSY({ agentCapabilities: { _meta: { claudeCode: {} } } })).toBe(false)
+    expect(
+      QUEUES_WHEN_BUSY({
+        agentCapabilities: { _meta: { claudeCode: { promptQueueing: "yes" } } },
+      }),
+    ).toBe(false)
+    expect(STEERING_ADVERTISED({ _meta: { steering: {} } })).toBe(false)
+    expect(STEERING_ADVERTISED({ _meta: { steering: "supported" } })).toBe(false)
+  })
+
+  test("a handshake that is not an object at all answers no", () => {
+    for (const nothing of [null, undefined, "", 0, []]) {
+      expect(QUEUES_WHEN_BUSY(nothing)).toBe(false)
+      expect(STEERING_ADVERTISED(nothing)).toBe(false)
+    }
   })
 })
 
