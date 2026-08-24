@@ -1,49 +1,7 @@
 import { expect, test } from "bun:test"
 
 import { atElement, atFile, atNode, filterOf, HOME_ROUTE, hrefOf, narrowedTo, type Route, routeIn, routeOf, samePage } from "./routes.ts"
-
-/** Every route the app can be at, as its own case. A link the app WRITES that
- *  it cannot READ BACK is a page that loads as something else on a reload, and
- *  the round trip is the only thing that catches it. */
-const ROUTES: ReadonlyArray<Route> = [
-  HOME_ROUTE,
-  atFile("house.olai"),
-  atFile("wing/kitchen.olai"),
-  atFile("a file with spaces.olai"),
-  atFile("finishes.md"),
-  atFile("notes/deep/plan.md"),
-  atNode("kitchen"),
-  atNode("a-minted_id9"),
-  { kind: "day", date: "2026-08-10" },
-  { kind: "today" },
-  { kind: "agenda" },
-  { kind: "trash" },
-  // ...and the same pages, narrowed. The filter is part of the address, so it
-  // is part of the round trip: a query the app writes into the bar and cannot
-  // read back is a page that loses its filter on reload.
-  { ...atFile("house.olai"), filter: "is:done" },
-  // The four that grew one under `search-everywhere`. A day and the agenda are
-  // date questions and the trash is read-only, and neither of those is a reason
-  // not to be able to look through what they are showing.
-  { kind: "day", date: "2026-08-10", filter: "is:todo" },
-  { kind: "today", filter: "#home" },
-  { kind: "agenda", filter: "is:blocked" },
-  { kind: "trash", filter: "hinges" },
-  { ...HOME_ROUTE, filter: "#home -is:done" },
-  // A narrowed NODE page is the case the query's position is decided by: the
-  // address is a fragment, and a URL puts its query in front of one.
-  { ...atNode("kitchen"), filter: "date:2026-08-01..2026-08-14" },
-  { ...atNode("kitchen"), filter: "a query with  spaces & an ampersand" },
-  // A quoted phrase is the query that puts a `"` — and the spaces it exists to
-  // keep — into the address. A narrowed page is a link somebody sends, so the
-  // quotes have to survive the trip both ways.
-  { ...atFile("house.olai"), filter: `"pick the hinges" OR knobs` },
-  // …and a document at a place INSIDE it, which is the other thing an address
-  // here carries. A `#` that could not be read back is a link into a section
-  // that lands at the top of the page the moment it is reloaded or shared.
-  atElement("garden.md", "beds"),
-  atElement("notes/report.html", "Q3 revenue"),
-]
+import { ROUTES } from "./routes.testlib.ts"
 
 test("every route survives being written to a URL and read back", () => {
   for (const route of ROUTES) {

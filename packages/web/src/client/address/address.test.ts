@@ -12,7 +12,8 @@
 import { expect, test } from "bun:test"
 
 import type { Names } from "../names.ts"
-import { atFile, atNode, HOME_ROUTE, hrefOf } from "../routes.ts"
+import { atFile, atNode, HOME_ROUTE, hrefOf, routeIn } from "../routes.ts"
+import { ROUTES } from "../routes.testlib.ts"
 import { addressIn, labelIn, nameOf, shownIn } from "./address.ts"
 
 // ── what is an address ─────────────────────────────────────────────────
@@ -29,6 +30,36 @@ test("an address this app would mint is a pin, whatever page it names", () => {
     "/",
   ]) {
     expect(hrefOf(addressIn(address)!)).toBe(address)
+  }
+})
+
+// Finding 4's (a), held where it can fail: the delegation IS the reading.
+// `addressIn` adds NOTHING of its own to "is this string one of our
+// addresses, and which page" — it only decides whether a TITLE is carrying
+// an address at all (the first character, the prose rules, the markdown
+// bracket); the ADDRESS half of every answer is the door's. So it is asked
+// of the SHARED vocabulary — `../routes.testlib.ts`'s table, the same one
+// the bijection is held to: a new computed page is this test's the day it is
+// the bijection's, and a new file kind the day the registry claims it —
+// instead of being asked of a hand list that could rot beside it. A
+// recognizer grown back inside a title reader diverges from the markdown
+// LINK readers (`../router.tsx`) the day a page moves, and this test names
+// the exact spelling where.
+test("a title carrying an address gets the link's own answer — one grammar, one door", () => {
+  const addresses = ROUTES.map(hrefOf)
+  // Every one of these is a link the app mints, so the door recognizes each —
+  // the `?? undefined` never fires; it lines the door's `null` up with a
+  // title's `undefined`, so the two lists compare like to like.
+  const doors = addresses.map((address) => {
+    expect(routeIn(address)).not.toBeNull()
+    return routeIn(address) ?? undefined
+  })
+  expect(addresses.map((address) => addressIn(address))).toEqual(doors)
+  expect(addresses.map((address) => addressIn(`[named it](${address})`))).toEqual(doors)
+  for (const address of ["/etc/passwd", "/notes and things", "/%"]) {
+    expect(routeIn(address)).toBeNull()
+    expect(addressIn(address)).toBeUndefined()
+    expect(addressIn(`[named it](${address})`)).toBeUndefined()
   }
 })
 
