@@ -505,6 +505,41 @@ describe("what a turn leaves behind", () => {
     expect(touched(transcript.begins())).toEqual([])
     expect(touched(transcript.settle())).toEqual([])
   })
+
+  test("a turn that ends beside another closes ITS paragraph and nothing else", () => {
+    // Two turns in a row is the ordinary shape now — a message typed while the
+    // agent works is one — and the answers have to land in paragraphs of their
+    // own. The agent's prose grows the row that is open, so a turn that ended
+    // without closing one left the next turn's first word on the end of its
+    // last sentence: `…the Moon at work.BANANA`, with the question BANANA
+    // answered somewhere above it.
+    const transcript = new Transcript()
+    transcript.say("the tide is, in the end, the most tangible evidence.")
+    transcript.tool("call-1", { title: "Grep", status: "in_progress" })
+    transcript.say("…and here is more of the same answer.")
+
+    transcript.stopSaying()
+    transcript.say("BANANA")
+
+    expect(rows(transcript).map((entry) => entry.text)).toEqual([
+      "the tide is, in the end, the most tangible evidence.",
+      "Grep",
+      "…and here is more of the same answer.",
+      "BANANA",
+    ])
+    // ... and the OTHER turn's call is still running. Stranding it because a
+    // sibling finished would be the panel saying a live grep had been walked
+    // away from, which is why this is not `settle`.
+    expect(asKind(rows(transcript)[1], "tool")?.stranded).toBeUndefined()
+  })
+
+  test("... and closing twice is not news", () => {
+    // Every turn that ends calls it, and most of them have nothing open.
+    const transcript = new Transcript()
+    transcript.say("done")
+    expect(touched(transcript.stopSaying())).toEqual(["agent:1"])
+    expect(transcript.stopSaying()).toEqual(NOTHING)
+  })
 })
 
 describe("when a row arrived", () => {

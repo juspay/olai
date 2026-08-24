@@ -485,6 +485,22 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *  that queues a mid-turn message instead of steering it. Every question
      *  anybody asks about them, and why they are a set, is {@link ./turns.ts}. */
     const turns = new Turns()
+    /**
+     * Whether the cancel a person last pressed has been said out loud yet.
+     *
+     * A cancel stops EVERY turn in flight, so each of them answers `cancelled`
+     * — and the whole point of the press was one decision, so it is worth one
+     * line in the conversation. Which turn gets to say it cannot be the rule:
+     * the answers come back in the agent's own order, and the pinned adapter
+     * answers for a turn it had merely queued as readily as for the one it was
+     * running.
+     *
+     * Reset by {@link cancel}, which is the only thing that makes a press
+     * exist. It says nothing about a turn the agent cancelled on its own —
+     * there is no press for that to be a duplicate of, and a notice about it is
+     * news.
+     */
+    let stopSaid = false
     /** One session change at a time: a load and a new-session racing each other
      *  would leave the transcript holding half of each. */
     const switching = yield* Semaphore.make(1)
@@ -1330,13 +1346,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         const running = yield* Effect.forkDetach(
           Effect.gen(function*() {
             const outcome = yield* Effect.result(at.agent.prompt(prompt))
-            /** Whether the agent was ON this turn — the other end of the same
-             *  order the waiting rows are drawn from, and read BEFORE the ticket
-             *  leaves, which is the only moment it can be asked. What it answers
-             *  is which of several turns a STOP is worth a word about: the one
-             *  that was running, and not the ones behind it that never started
-             *  (the pinned adapter answers `cancelled` for those too). */
-            const led = turns.head === ticket
             // Whether this turn was the LAST one running. The notices go in
             // either way — they are things that happened, and they happened —
             // and only the state is withheld: a turn that ends while another is
@@ -1352,7 +1361,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // other end: a turn that ends while another is still running must
             // not strand the running turn's calls. The last one out settles,
             // and settling is idempotent over rows that have already stopped.
-            if (current) publish(transcript.settle())
+            //
+            // EVERY turn closes its own paragraph, though, which is the half of
+            // settling that is true whoever else is running: the agent's prose
+            // grows the row that is open, so a turn that ended without closing
+            // one leaves the NEXT turn's first words on the end of its last
+            // sentence — two answers in one paragraph, with the question
+            // between them somewhere above.
+            publish(current ? transcript.settle() : transcript.stopSaying())
             // WHOEVER THE AGENT IS ON NOW HAS STOPPED WAITING. This turn is
             // over, so the message behind it is the one being worked on — and
             // this row is not waiting for anything either, however it ended.
@@ -1404,13 +1420,18 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // adapter does with them is its own answer, and it is the honest
             // one: the words run. Verified on the wire, 2026-08-24.)
             //
-            // ONE NOTICE PER PRESS, and it is the RUNNING turn's: a cancel
-            // stops the conversation, so a message that was still waiting
-            // behind the turn can come back `cancelled` too (the pinned adapter
-            // answers exactly that for one it had queued, while still running
-            // the words — verified on the wire). A person who pressed one
-            // button wants to be told once, about the thing that was actually
-            // stopped, rather than once per message they had waiting.
+            // ONE NOTICE PER PRESS, and it belongs to the PRESS rather than to
+            // a turn: a cancel stops the conversation, so every turn in flight
+            // comes back `cancelled` — including a message that was still
+            // waiting behind the running one, which the pinned adapter answers
+            // that way while running its words anyway (verified on the wire).
+            // A person who pressed one button wants to be told once, and the
+            // order the answers come back in is the agent's, so *which* turn
+            // says it cannot be the rule.
+            //
+            // A `cancelled` NOBODY ASKED FOR is always news, which is the other
+            // half of the same test: the agent stopped a turn on its own, and
+            // there is no press for the notice to be a duplicate of.
             //
             // AND IT IS THE ONE SILENCE THAT IS ACCOUNTED FOR, which is why it
             // returns rather than falling through: a turn somebody stopped
@@ -1418,7 +1439,10 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // arm below would put a second one under it blaming the agent for
             // obeying.
             if (outcome.success === "cancelled") {
-              if (led) publish(transcript.add("notice", "cancelled"))
+              if (!ticket.stopped || !stopSaid) {
+                stopSaid = ticket.stopped
+                publish(transcript.add("notice", "cancelled"))
+              }
               if (current) move({ status: "idle", trouble: null })
               return
             }
@@ -1516,6 +1540,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       // reason was a person rather than the turn finishing. It outlives the
       // turn, which is the point — by then the ticket is all that is left of it.
       const asked = turns.stopping()
+      // ... and this press has not been spoken about yet. Reset HERE, beside
+      // the marking and under nothing: `stopping` is what makes a press exist,
+      // so it is the one moment "has this been said" can honestly go back to
+      // no.
+      stopSaid = false
       const quietSince = heard
       yield* Effect.forkDetach(Effect.gen(function*() {
         yield* Effect.sleep(CANCEL_GRACE)

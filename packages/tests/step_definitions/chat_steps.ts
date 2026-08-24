@@ -802,6 +802,22 @@ Then("the chat says the turn was cancelled", async function (this: OlaiWorld) {
   );
 });
 
+/** ... and says it ONCE, which is a claim about a press rather than about a
+ *  turn. A cancel stops everything in flight, so each turn answers `cancelled`
+ *  — one press, one decision, one line. Counted over the notice rows rather
+ *  than over the transcript's text, since a message could contain the word. */
+Then("the chat says it once", async function (this: OlaiWorld) {
+  const cancelled = this.page
+    .locator(CHAT_ENTRY)
+    .filter({ hasText: "cancelled" })
+    .filter({ hasNot: this.page.locator(CHAT_MINE) });
+  assert.strictEqual(
+    await cancelled.count(),
+    1,
+    "the chat reported one press of cancel more than once",
+  );
+});
+
 // ── following the newest line ──────────────────────────────────────────
 
 /** How far the pane is from the bottom, and how far it could be. Both, because

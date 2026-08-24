@@ -206,6 +206,12 @@ export function Composer(props: {
    */
   const interruptible = () => working() && agentIn(props.chat.state())?.steers === true
 
+  /** ... and whether there is a PROMISE to make: this agent holds what it is
+   *  sent while it is busy, and it is busy. The other half of the pair, and the
+   *  half that is true of an agent with no interruption at all — which is what
+   *  makes them two questions rather than one. */
+  const promised = () => working() && agentIn(props.chat.state())?.queues === true
+
 
   /**
    * WHICH NODES THIS MESSAGE IS ABOUT, from the two doors onto one strip.
@@ -736,6 +742,71 @@ export function Composer(props: {
         }}
       />
 
+      {/* WHAT IS GOING ON, on a line of its own above the controls.
+
+          It shared the control row until there were three controls on it: an
+          attach, a slash list, cancel, interrupt and send leave a sentence
+          nowhere to go, and flexbox answers that by squeezing the words into a
+          column two characters wide rather than by dropping any of them. These
+          are three short lines that are true at different moments and never
+          compete for a person's eye with a button — so they get the row, and
+          the controls get theirs.
+
+          The row is drawn only when there is something in it (`Show` per line
+          leaves an empty flex box with a margin otherwise), and the whole strip
+          is 11px mono like every other aside this panel draws. */}
+      <Show when={props.holding.sending() > 0 || props.chat.state().asking > 0 || promised()}>
+        <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+          {/* What is in flight. A picture big enough to notice is a picture
+              whose upload is worth saying is happening. */}
+          <Show when={props.holding.sending() > 0}>
+            <span class="font-mono text-[0.6875rem] text-muted">
+              attaching{props.holding.sending() > 1 ? ` ${props.holding.sending()}` : ""}…
+            </span>
+          </Show>
+          {/* The turn is stopped on a PERSON, and this is where they find out.
+              A blocked question has no clock behind it: nothing times out, the
+              agent will wait as long as it takes, and a form scrolled off the
+              top of a long transcript is otherwise indistinguishable from an
+              agent that is thinking. So the composer — which is where
+              somebody's attention is, because it is where they were about to
+              type — says it, under the box. */}
+          <Show when={props.chat.state().asking > 0}>
+            <span
+              class="font-mono text-[0.6875rem] text-doing"
+              data-testid={TESTID.chatWaiting}
+              aria-live="polite"
+            >
+              waiting on your answer
+            </span>
+          </Show>
+          {/* WHAT PRESSING SEND NOW DOES, while the agent is working.
+
+              The box never locks and nothing is held here, which has not
+              changed. What has is that the answer is now the SAME on every
+              agent — the words go out as an ordinary message and the agent gets
+              to them when the turn it is working on is over — so this line is a
+              promise rather than a warning about a degradation. It is drawn
+              only where that queue is a fact somebody established (`queues`,
+              per agent: one advertises it at the handshake and the other was
+              verified), because a promise about an agent nobody has checked is
+              not olai's to make.
+
+              Only while a turn RUNS, because that is the only time it says
+              anything: an idle agent starts on what you type at once, and that
+              is also the moment somebody is deciding whether to say it now or
+              wait. */}
+          <Show when={promised()}>
+            <span
+              class="font-mono text-[0.6875rem] text-muted"
+              data-testid={TESTID.chatQueues}
+            >
+              sends wait their turn
+            </span>
+          </Show>
+        </div>
+      </Show>
+
       <div class="mt-2 flex items-center gap-2">
         {/* The only way in on a phone, which has no Ctrl+V and nothing to drag
             from. `capture` is deliberately absent: a picture is usually one
@@ -768,52 +839,6 @@ export function Composer(props: {
         >
           +
         </button>
-        {/* What is in flight. A picture big enough to notice is a picture
-            whose upload is worth saying is happening. */}
-        <Show when={props.holding.sending() > 0}>
-          <span class="font-mono text-[0.6875rem] text-muted">
-            attaching{props.holding.sending() > 1 ? ` ${props.holding.sending()}` : ""}…
-          </span>
-        </Show>
-        {/* The turn is stopped on a PERSON, and this is where they find out.
-            A blocked question has no clock behind it: nothing times out, the
-            agent will wait as long as it takes, and a form scrolled off the top
-            of a long transcript is otherwise indistinguishable from an agent
-            that is thinking. So the composer — which is where somebody's
-            attention is, because it is where they were about to type — says
-            it, on the toolbar under the box. */}
-        <Show when={props.chat.state().asking > 0}>
-          <span
-            class="font-mono text-[0.6875rem] text-doing"
-            data-testid={TESTID.chatWaiting}
-            aria-live="polite"
-          >
-            waiting on your answer
-          </span>
-        </Show>
-        {/* WHAT PRESSING SEND NOW DOES, while the agent is working.
-
-            The box never locks and nothing is held here, which has not changed.
-            What has is that the answer is now the SAME on every agent — the
-            words go out as an ordinary message and the agent gets to them when
-            the turn it is working on is over — so this line is a promise rather
-            than a warning about a degradation. It is drawn only where that
-            queue is a fact somebody established (`queues`, per agent: one
-            advertises it at the handshake and the other was verified), because
-            a promise about an agent nobody has checked is not olai's to make.
-
-            Only while a turn RUNS, because that is the only time it says
-            anything: an idle agent starts on what you type at once, and that is
-            also the moment somebody is deciding whether to say it now or
-            wait. */}
-        <Show when={working() && agentIn(props.chat.state())?.queues === true}>
-          <span
-            class="font-mono text-[0.6875rem] text-muted"
-            data-testid={TESTID.chatQueues}
-          >
-            sends wait their turn
-          </span>
-        </Show>
         {/* Only when the agent offers some: a button that opens nothing lies. */}
         <Show when={props.chat.state().commands.length > 0}>
           <button

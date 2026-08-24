@@ -31,6 +31,9 @@ const SECTION = process.env["SECTION"] ?? ""
 const VAULT = process.env["VAULT"]
 /** A real Chrome to drive instead of Playwright's own — see {@link main}. */
 const CHROME = process.env["CHROME"]
+/** Open a real WINDOW rather than a headless one, for a run somebody is
+ *  capturing off a display — see {@link main}. */
+const HEADED = process.env["HEADED"] === "1"
 
 let shots = 0
 /**
@@ -653,6 +656,99 @@ const narrow = async (page: Page, query: string) => {
 
 const said = async (page: Page, locator: string) =>
   (await page.locator(locator).first().textContent().catch(() => null)) ?? "(nothing)"
+
+// ── the conversation ───────────────────────────────────────────────────
+
+/** The panel, its door, and the six things the chat section reads. Spelled
+ *  here rather than imported from `support/world.ts`, which is the SUITE's
+ *  world and builds a Cucumber one on import — the same reason every other
+ *  selector in this file is a literal. */
+const CHAT_TOGGLE = '[data-testid="chat-toggle"]'
+const CHAT_PANEL = '[data-testid="chat-panel"]'
+const CHAT_TRANSCRIPT = '[data-testid="chat-transcript"]'
+const CHAT_INPUT = '[data-testid="chat-input"]'
+const CHAT_SEND = '[data-testid="chat-send"]'
+const CHAT_CANCEL = '[data-testid="chat-cancel"]'
+/** The other send: into the turn the agent is running. */
+const CHAT_INTERRUPT = '[data-testid="chat-interrupt"]'
+/** On a `user` row the agent has not started on. */
+const CHAT_QUEUED = '[data-testid="chat-queued"]'
+/** The composer's promise, while a turn runs, that a send waits its turn. */
+const CHAT_QUEUES = '[data-testid="chat-queues"]'
+
+/** How long a section waits on a LANGUAGE MODEL, where every other wait in
+ *  this file is on a local frame. An essay is thirty seconds and a `/compact`
+ *  was thirty-five on the day this was written; the number is a ceiling that
+ *  fails a wedged run rather than a duration anything is timed against. */
+const AGENT_PATIENCE = 180_000
+
+/** Open the panel and wait until it has an agent to talk to.
+ *
+ *  It REFUSES an `off` panel by timing out here rather than further down: this
+ *  section is about what an agent does with a message, so a run against no
+ *  agent has nothing to photograph and the honest place to say so is the first
+ *  wait. `AGENT=` on `evidence.sh` is what gives it one. */
+const openChat = async (page: Page): Promise<void> => {
+  if (!(await page.locator(CHAT_PANEL).isVisible())) {
+    await page.locator(CHAT_TOGGLE).click()
+    await page.locator(CHAT_PANEL).waitFor()
+  }
+  await chatIdle(page)
+}
+
+/** The panel is IDLE — no turn of ours in flight. Read off the state the panel
+ *  publishes for exactly this (`data-status`), which is the wire's own word
+ *  rather than a guess made out of what is on screen. */
+const chatIdle = (page: Page) =>
+  page.locator(`${CHAT_PANEL}[data-status="idle"]`).waitFor({ timeout: AGENT_PATIENCE })
+
+/** ... and it is WORKING, which is the window every one of these faces lives
+ *  in: a message sent now is a message sent while the agent is busy. */
+const chatWorking = (page: Page) =>
+  page.locator(`${CHAT_PANEL}[data-status="thinking"]`).waitFor({ timeout: AGENT_PATIENCE })
+
+/** Type and press the ordinary send — the gesture, not a call: what is being
+ *  photographed is a person using the composer. */
+const chatSend = async (page: Page, text: string): Promise<void> => {
+  await page.locator(CHAT_INPUT).fill(text)
+  await page.locator(CHAT_SEND).click()
+}
+
+/**
+ * Put the newest rows in frame, and settle.
+ *
+ * The panel follows its own newest line, but every claim this section makes is
+ * about the LAST few rows of a transcript with several essays in it — and a
+ * shot taken while a long paragraph is still growing catches the follow
+ * mid-stride. Scrolling before the shutter is the driver saying what it is
+ * photographing rather than hoping.
+ */
+const chatBottom = async (page: Page): Promise<void> => {
+  await page.locator(CHAT_TRANSCRIPT).evaluate((pane) => {
+    pane.scrollTop = pane.scrollHeight
+  })
+  await page.waitForTimeout(DRAWN)
+}
+
+/**
+ * Wait until the AGENT has said these words. The one thing worth waiting on
+ * where a model is involved — a turn's own end says nothing about what came of
+ * it, and a queued message is proved by its ANSWER arriving.
+ *
+ * The agent's OWN rows and never the whole transcript, which is the difference
+ * between a wait and a tautology: every one of these words was typed into the
+ * composer a moment earlier, so a transcript-wide search matches the question
+ * the instant it is asked and photographs a turn that has not started.
+ */
+const chatSaid = (page: Page, text: string) =>
+  page.waitForFunction(
+    (want: string) =>
+      [...document.querySelectorAll('[data-testid="chat-said"]')].some((row) =>
+        (row as HTMLElement).innerText.includes(want)
+      ),
+    text,
+    { timeout: AGENT_PATIENCE },
+  )
 
 // ── the same filter over the pages that are a query already ────────────
 
@@ -3370,6 +3466,130 @@ const SECTIONS = {
     rewrite("garden.olai", garden)
     await pass("pitch")
   },
+
+  /**
+   * THE FOUR FACES of `compact-lost-to-steer`, in ONE conversation with a REAL
+   * agent — because three of them are claims about a real adapter's queue and
+   * the fourth is a claim about a real `/compact`, and a scripted agent can
+   * only ever restate what this repo already believes.
+   *
+   * It is the one section that needs `AGENT` set to a real one:
+   *
+   *   AGENT=$(sh scripts/acp-agent.sh) bash evidence.sh chat-sends-queue
+   *
+   * Without it the panel comes up with no agent at all and the first wait fails
+   * naming that, which is the honest failure: a section about what an agent does
+   * with a message cannot be run against no agent.
+   *
+   * ONE CONVERSATION, in this order, and the order is load-bearing: the
+   * `/compact` face needs a context worth compacting, and the three faces above
+   * it are what builds one. Every wait is on a STATE the panel publishes or on
+   * words that arrived — never on a clock — because the subject is a language
+   * model and there is no duration to assume (`e2e-localhost-load-flakes`, the
+   * same rule the suite lives by).
+   */
+  "chat-sends-queue": async (page) => {
+    pinnedBy(
+      "the_agent.feature",
+      "A message sent mid-turn WAITS ITS TURN, and the row says so",
+      "The interrupting gesture puts a message INTO the running turn",
+      "Cancel stops the turn, and the message waiting behind it still runs",
+    )
+    /** Long enough that a person can send a second message into it, and dull
+     *  enough that what the model says is not the point. Different subjects so
+     *  two turns cannot be confused in a shot. */
+    const ESSAY = (about: string) =>
+      `Write an 800-word essay about ${about}. Output only the essay, no preamble.`
+    /** One word, so "did the queued message run" is a thing a reader can see at
+     *  a glance in a transcript full of prose. */
+    const WORD = (word: string) => `Say the word ${word} and nothing else.`
+
+    await openChat(page)
+    await shot(page, "an-idle-conversation")
+
+    // ── ONE: the interrupting gesture ────────────────────────────────
+    // FIRST, and the order is not narrative — it is the one thing this section
+    // has to work around. The pinned adapter (0.66.0) has a defect of its own:
+    // once a session has held a QUEUED turn, a `_session/steering` into any
+    // later turn leaves that turn's `session/prompt` unanswered forever (the
+    // steered words run and stream; only `session/cancel` ends it). It
+    // reproduces with no olai involved — two prompts, the second sent while the
+    // first runs, then a third with a steer into it — and it is why this face
+    // is taken while the conversation is still fresh. Reordered rather than
+    // dropped: the gesture is what the ruling asks for, it works, and pretending
+    // the order did not matter would be the one dishonest thing available here.
+    //
+    // This one goes INTO the turn in flight, which is why it is a gesture
+    // somebody has to make on purpose.
+    await chatSend(page, ESSAY("the sea floor"))
+    await chatWorking(page)
+    await page.locator(CHAT_INPUT).fill(WORD("PINEAPPLE"))
+    await page.locator(CHAT_INTERRUPT).click()
+    await chatSaid(page, "PINEAPPLE")
+    await chatBottom(page)
+    await shot(page, "the-interruption-lands-in-the-running-turn")
+    await chatIdle(page)
+
+    // ── TWO: a plain send while the agent is busy ─────────────────────
+    // It lands in the transcript at once, wearing *queued*, and the running
+    // turn is untouched — which is the whole ruling in one frame.
+    await chatSend(page, ESSAY("the tides"))
+    await chatWorking(page)
+    await chatSend(page, WORD("BANANA"))
+    await page.locator(CHAT_QUEUED).first().waitFor()
+    console.log(`  the composer promises: ${await textOf(page, CHAT_QUEUES)}`)
+    await chatBottom(page)
+    await shot(page, "a-send-while-busy-waits-its-turn")
+
+    // ... and the agent takes it up when the essay is over: the hint goes and
+    // the answer arrives, in order, with nothing re-sent by anybody.
+    await chatSaid(page, "BANANA")
+    await chatIdle(page)
+    await chatBottom(page)
+    await shot(page, "the-agent-takes-it-up-in-order")
+
+    // ── THREE: cancel with a message waiting behind the turn ─────────
+    // Cancel stops the turn and touches nothing else: the words behind it are
+    // at the agent, and the agent runs them next.
+    await chatSend(page, ESSAY("the trade winds"))
+    await chatWorking(page)
+    await chatSend(page, WORD("MANGO"))
+    await page.locator(CHAT_QUEUED).first().waitFor()
+    await chatBottom(page)
+    await shot(page, "one-waiting-behind-a-running-turn")
+    await page.locator(CHAT_CANCEL).click()
+    await chatSaid(page, "MANGO")
+    await chatIdle(page)
+    await chatBottom(page)
+    await shot(page, "the-turn-stops-and-the-queued-words-survive")
+
+    // ── FOUR: the symptom, retired ───────────────────────────────────
+    // `/compact` and then a plain send while it runs. The screenshot this bug
+    // was filed off says *Compacting failed: API Error: Request was aborted.
+    // Compaction canceled.* — which was a steer tearing the compaction down.
+    // Nothing steers now unless it is asked to, so the compaction finishes and
+    // the message runs after it.
+    await chatSend(page, "/compact")
+    await chatSaid(page, "Compacting")
+    await chatSend(page, WORD("PAPAYA"))
+    await page.locator(CHAT_QUEUED).first().waitFor()
+    await chatBottom(page)
+    await shot(page, "a-send-during-compaction-waits")
+    await chatSaid(page, "Compacting completed")
+    await chatBottom(page)
+    await shot(page, "the-compaction-completes")
+    await chatSaid(page, "PAPAYA")
+    await chatIdle(page)
+    // The exact sentence from the human's screenshot, asked for by name: a
+    // section that only photographed a good outcome would not have looked.
+    const said = await page.locator(CHAT_TRANSCRIPT).innerText()
+    if (said.includes("Request was aborted") || said.includes("Compacting failed")) {
+      throw new Error("the compaction was aborted — the symptom is not retired")
+    }
+    console.log("  no abort anywhere in the transcript")
+    await chatBottom(page)
+    await shot(page, "the-message-runs-after-the-compaction")
+  },
 } satisfies Record<string, (page: Page) => Promise<void>>
 
 /**
@@ -3472,8 +3692,19 @@ const main = async () => {
   // sees. It is an env knob rather than a per-section field for the same
   // reason `BASE` is one: which BROWSER is being driven is a property of the
   // run, and every other section is identical in either.
+  //
+  // `HEADED=1` drops `--headless=new` and opens a real window, which is only
+  // useful under a display somebody is capturing: it is how a section becomes a
+  // VIDEO with the address bar in frame, since a browser's own chrome is the
+  // one thing no page-level recorder can see. A run with no display fails at
+  // launch naming that, which is the right failure — an evidence run that
+  // silently fell back to headless would produce a file that proves less than
+  // it claims to. Shots are identical either way.
   const browser = await chromium.launch({
-    args: [...BROWSER_ARGS],
+    args: HEADED ? BROWSER_ARGS.filter((flag) => !flag.startsWith("--headless")) : [
+      ...BROWSER_ARGS,
+    ],
+    ...(HEADED ? { headless: false } : {}),
     ...(CHROME === undefined ? {} : { executablePath: CHROME }),
   })
   // A CONTEXT of its own rather than `browser.newPage(options)`, which is the

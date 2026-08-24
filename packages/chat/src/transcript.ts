@@ -561,6 +561,27 @@ export class Transcript {
   }
 
   /**
+   * ... and the half of that which is true for a turn ending while ANOTHER is
+   * still running: its paragraph is finished, and nothing else is.
+   *
+   * Two turns in a row is the ordinary shape now — a message typed while the
+   * agent works is one — and without this they read as ONE ANSWER. The agent's
+   * prose grows the row that is open ({@link #grow}), so the second turn's
+   * first words landed on the end of the first turn's last sentence: `…the Moon
+   * at work.BANANA`, in a transcript where the question BANANA answered is
+   * somewhere above. Closing at each turn's own ending is what puts every
+   * answer in a paragraph of its own.
+   *
+   * It may NOT strand, which is the whole reason it is not {@link settle}: the
+   * calls still in flight belong to the turn that is still running, and marking
+   * them abandoned because a sibling finished would be the panel saying a live
+   * grep had been walked away from.
+   */
+  stopSaying(): Change {
+    return this.#close()
+  }
+
+  /**
    * Mark every call this turn is leaving behind.
    *
    * A call the wire still calls running when its turn is over is a call that

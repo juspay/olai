@@ -1045,8 +1045,11 @@ Feature: Talking to the agent
     Then the chat shows my message "done order" as waiting
     When I cancel the turn
     # The turn stops and says so, once — one press, one notice, however many
-    # messages were behind it.
+    # messages were behind it. The agent answers `cancelled` for every turn it
+    # had in flight, this one's queue included, and in whatever order it likes:
+    # a person who pressed one button is told one thing.
     Then the chat says the turn was cancelled
+    And the chat says it once
     # THE CLAIM: the words survived. They were never here to be dropped, and the
     # agent runs them next, in order.
     And node "order" is done
