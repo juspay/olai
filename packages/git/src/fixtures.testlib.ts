@@ -17,22 +17,51 @@
 import { execFileSync } from "node:child_process"
 
 /**
+ * Who a test's git is. Env beats config, and an empty `GIT_AUTHOR_NAME` (some
+ * CI, some load-bearing shells) is empty, not unset — so a repository-local
+ * `user.name` is not enough. Every spawn this file makes carries these, and
+ * they are the same strings {@link repoAt} writes into the config, so a commit
+ * through either door is the same person.
+ */
+export const GIT_IDENT = {
+  GIT_AUTHOR_NAME: "olai tests",
+  GIT_AUTHOR_EMAIL: "test@olai.invalid",
+  GIT_COMMITTER_NAME: "olai tests",
+  GIT_COMMITTER_EMAIL: "test@olai.invalid",
+} as const
+
+/** The env keys {@link GIT_IDENT} pins — so a test that wants git's own empty
+ *  ident can clear exactly these and nothing else. */
+export const GIT_IDENT_KEYS = Object.keys(GIT_IDENT) as ReadonlyArray<
+  keyof typeof GIT_IDENT
+>
+
+/**
  * Git, in a directory of a test.
  *
  * One spelling of it, because the identity is the load-bearing part — see
- * {@link repoAt}.
+ * {@link repoAt}. Ambient `GIT_AUTHOR_*` is overwritten, empty included: a
+ * fixture that inherited `GIT_AUTHOR_NAME=` used to fail with `fatal: empty
+ * ident name` on the next commit, even after {@link repoAt} had set
+ * `user.name`.
  */
 export const gitIn = (root: string) =>
 (...argv: ReadonlyArray<string>): string =>
-  execFileSync("git", argv, { cwd: root, encoding: "utf8" })
+  execFileSync("git", argv, {
+    cwd: root,
+    encoding: "utf8",
+    env: { ...process.env, ...GIT_IDENT },
+  })
 
 /**
  * A git repository around a directory.
  *
- * The identity is repository-local, so a run depends on nothing in the
- * developer's global config and touches none of it, and the branch is named
- * explicitly so a machine whose `init.defaultBranch` differs reads the same as
- * every other.
+ * The identity is pinned two ways, and both are load-bearing: repository-local
+ * config, so a product `git` that inherits the process env still has a name
+ * once that env is clean; and {@link GIT_IDENT} on every spawn this file
+ * itself makes, so an empty `GIT_AUTHOR_NAME` in the ambient env cannot empty
+ * the ident. The branch is named explicitly so a machine whose
+ * `init.defaultBranch` differs reads the same as every other.
  *
  * The default is a repository whose fixtures are already its first commit, so
  * what a test does afterwards is the whole of what git has to say about it.
@@ -56,21 +85,16 @@ export const repoAt = (
     execFileSync("git", argv, {
       cwd: root,
       stdio: "ignore",
-      ...(env === undefined ? {} : { env: { ...process.env, ...env } }),
+      env: { ...process.env, ...GIT_IDENT, ...env },
     })
   }
   const nobody = options.identity === false
   git(["init", "--quiet", "--initial-branch", "main"])
-  git(["config", "user.email", nobody ? "" : "test@olai.invalid"])
-  git(["config", "user.name", nobody ? "" : "olai tests"])
+  git(["config", "user.email", nobody ? "" : GIT_IDENT.GIT_AUTHOR_EMAIL])
+  git(["config", "user.name", nobody ? "" : GIT_IDENT.GIT_AUTHOR_NAME])
   if (options.seed === false) return
   git(["add", "-A"])
-  git(["commit", "--quiet", "--no-verify", "-m", options.message ?? "fixtures"], {
-    GIT_AUTHOR_NAME: "olai tests",
-    GIT_AUTHOR_EMAIL: "test@olai.invalid",
-    GIT_COMMITTER_NAME: "olai tests",
-    GIT_COMMITTER_EMAIL: "test@olai.invalid",
-  })
+  git(["commit", "--quiet", "--no-verify", "-m", options.message ?? "fixtures"])
 }
 
 /** Every commit subject in a repository, newest first. Three test files had

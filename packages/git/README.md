@@ -75,6 +75,7 @@ Never `--amend` — an audit trail that can be edited after the fact is not one.
 | `LC_ALL=C` | the "not a git repository" classification is a string match, and a translated git would be reported as unusable |
 | `GIT_TERMINAL_PROMPT=0` | a repository that wants a credential fails instead of sitting on a prompt nobody can answer |
 | a 10s budget | a wedged hook or a lock held by another process cannot hold a caller open forever |
+| one git at a time per handle | `git status` refreshes the index and `git commit` writes it; two fibers doing both lose to `index.lock` |
 | `--porcelain -z` | the plain form quotes anything unusual; `-z` does not, and a path may contain a newline |
 | `-uall` | a brand-new outline is untracked, and is exactly what a first commit is for |
 | no pathspec on `status` | the survey is the whole repository: serving `docs/` and being told nothing about a dirty root `README.md` is the bug this package's caller was filed for |
@@ -86,4 +87,4 @@ Never `--amend` — an audit trail that can be edited after the fact is not one.
 
 `./state` is `RepoState` and `Reason` — the vocabulary with no subprocess in it. It exists because those values travel the wire: `@olai/format` re-exports them for its pending schema, the browser imports that schema, and a browser bundle must never reach `node:child_process`.
 
-`./testlib` is `repoAt` — a real repository in the states a commit path has to tell apart, published so the packages above build their fixtures the same way. Real git rather than a fake, because what those tests are about is what git does; a fake would only reproduce what we already believe.
+`./testlib` is `repoAt` — a real repository in the states a commit path has to tell apart, published so the packages above build their fixtures the same way. Real git rather than a fake, because what those tests are about is what git does; a fake would only reproduce what we already believe. Identity is pinned on the spawn (`GIT_AUTHOR_NAME` and friends, never empty) as well as in the repository-local config: env beats config, and an empty `GIT_AUTHOR_NAME` is empty, not unset.

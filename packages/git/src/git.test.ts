@@ -717,3 +717,36 @@ test("a commit that lands leaves the index agreeing with it", async () => {
   expect(run("status", "--porcelain").trim()).toBe("")
   expect(run("ls-files", "-s")).toContain("new.olai")
 })
+
+/**
+ * A survey and a commit at once must not lose to git's `index.lock`.
+ *
+ * `git status` refreshes the index; `git commit` writes it. Two fibers doing
+ * both in one repository used to fail the write with `File exists`, and the
+ * quiet window recorded nothing under load. The handle is the lock: one git
+ * at a time, the whole verb.
+ */
+test("a survey and a commit at once never fight index.lock", async () => {
+  const { root, file } = repo()
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
+
+  const rounds = await asked(root, (handle) =>
+    Effect.all(
+      Array.from({ length: 8 }, () =>
+        Effect.all([
+          handle.commit({ paths: [file], message: "olai: concurrent" }),
+          handle.dirty,
+          handle.state,
+          handle.last(OLAI),
+        ], { concurrency: 4 })),
+      { concurrency: 4 },
+    ))
+
+  for (const [done, dirt] of rounds) {
+    expect(done?._tag === "Failed" ? done.said : "").not.toContain("index.lock")
+    expect(dirt?._tag === "Unusable" ? dirt.said : "").not.toContain("index.lock")
+  }
+  expect(
+    rounds.some(([done]) => done?._tag === "Committed"),
+  ).toBe(true)
+})

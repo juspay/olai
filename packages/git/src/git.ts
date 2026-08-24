@@ -56,7 +56,7 @@
  * than thirteen.
  */
 
-import { Effect } from "effect"
+import { Effect, Semaphore } from "effect"
 import { execFile } from "node:child_process"
 import * as fs from "node:fs"
 import { join, resolve } from "node:path"
@@ -250,19 +250,26 @@ export type Opening =
   | { readonly _tag: "Unusable"; readonly said: string }
 
 export const open = (root: string): Effect.Effect<Opening> =>
-  Effect.map(place(root), (placing) =>
-    placing._tag !== "Placed" ? placing : {
-      _tag: "Opened",
+  Effect.map(place(root), (placing) => {
+    if (placing._tag !== "Placed") return placing
+    // ONE git at a time on this handle. `git status` refreshes the index and
+    // `git commit` writes it; two fibers doing both used to lose to
+    // `index.lock` under load, and the quiet window recorded nothing.
+    const gate = Semaphore.makeUnsafe(1)
+    const hold = <A, E, R>(op: Effect.Effect<A, E, R>) => gate.withPermit(op)
+    return {
+      _tag: "Opened" as const,
       repo: {
         served: placing.placement.prefix,
-        state: state(root, placing.placement),
-        dirty: dirty(root, placing.placement),
-        show: (path) => show(root, path),
-        last: (audit) => last(root, audit),
-        commit: (what) => commit(root, placing.placement, what),
-        push: push(root),
+        state: hold(state(root, placing.placement)),
+        dirty: hold(dirty(root, placing.placement)),
+        show: (path: string) => hold(show(root, path)),
+        last: (audit: Audit) => hold(last(root, audit)),
+        commit: (what: CommitInput) => hold(commit(root, placing.placement, what)),
+        push: hold(push(root)),
       },
-    })
+    }
+  })
 
 const state = (
   root: string,
