@@ -17,7 +17,7 @@ import assert from "node:assert/strict";
 
 import { DataTable, Given, Then, When } from "@cucumber/cucumber";
 
-import { selector, TESTID } from "@olai/web/src/client/testids.ts";
+import { selector, TESTID } from "@olai/web/testlib";
 
 import { attr } from "../support/selectors.ts";
 import { PALETTE_INPUT, PIN_SHELF as SHELF, POLL_TIMEOUT, TITLE_EDITOR } from "../support/world.ts";

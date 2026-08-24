@@ -17,7 +17,7 @@
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
-import { isoDayOf } from "@olai/web/src/client/clock.ts";
+import { isoDayOf } from "@olai/web/testlib";
 
 import {
   CALENDAR,

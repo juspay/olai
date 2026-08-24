@@ -11,7 +11,7 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
-import { SIDEBAR_WIDTH_KEY } from "@olai/web/src/client/layout/prefs.ts";
+import { SIDEBAR_WIDTH_KEY } from "@olai/web/testlib";
 import { retypedAndTaken } from "../support/atonce.ts";
 import { countsNothing, foundCount } from "../support/counted.ts";
 import { answered } from "../support/shortlist.ts";

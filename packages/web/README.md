@@ -849,9 +849,9 @@ One consequence is a RULING rather than a fallout: one node, one fold state. A m
 
 The calendar's month is the remaining stamped reading (`stamped.ts`): a value plus the thing it belongs to, read through a memo that compares them. That is what makes it start over at the right moment, with no effect watching a route to clear anything, and so no frame in which the held value and the thing it belongs to disagree. The stamp is the month it is ANCHORED to, because walking from one outline to another is no reason to snap the calendar back to today.
 
-## No exports, on purpose
+## One subpath, no root: `./testlib`
 
-There is no `main` and no `exports` map, because neither product here is an import. This package produces a **script** — `bun packages/web/src/build.ts <dist>`, run by `default.nix` and by `just build-client` — and the **directory** that script writes. The one file that does cross a package boundary is `src/client/testids.ts`, imported by path from `packages/tests` so that a renamed `data-testid` is a type error rather than a thirty-second timeout. An export list would suggest a library this is not.
+No `.` in the exports map, on purpose: neither product here is an import. This package produces a **script** — `bun packages/web/src/build.ts <dist>`, run by `default.nix` and by `just build-client` — and the **directory** that script writes. What an export list would suggest about THIS package is a library it is not — but "no imports of the app" used to swallow a fact of its own: the browser suite shared this client's names by spelling nineteen paths into `src/`, straight past a manifest that answered for none of them. The honest shape has the one subpath and nothing else: `./testlib` (`src/suite.testlib.ts`), the curated list of names, deadlines, storage keys and two reads the suite may see — the same carve-out `@olai/format`, `@olai/git`, `@olai/log` and `@olai/ops` make, joined late for the reason `docs/lowy-electricity/debate-2026-08-19.md` records as finding 5. Widening what [`@olai/tests`](../tests/README.md) may know is adding to that list and nothing else; the fence at both ends is that package's `imports.test.ts`.
 
 ## The build spawns Tailwind by path
 
@@ -863,7 +863,7 @@ Two other things the build owns and the manifest explains: the Solid JSX transfo
 
 ## Layering
 
-Depends on `format` (for everything derived) and `surface` (for the wire) — not on `server`: the two share a contract, not an import. `tests` depends on this, for the testid names only. [docs/architecture.md](../../docs/architecture.md) has the reasoning.
+Depends on `format` (for everything derived) and `surface` (for the wire) — not on `server`: the two share a contract, not an import. `tests` depends on this, through `./testlib` alone. [docs/architecture.md](../../docs/architecture.md) has the reasoning.
 
 ## Running
 

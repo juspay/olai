@@ -12,12 +12,10 @@
  * a frame nobody can reproduce.
  */
 import { fileKind, shiftDay } from "@olai/format"
-import { ROW_DIM } from "@olai/web/src/client/blocked.ts"
+import { isoDayOf, ROW_DIM } from "@olai/web/testlib"
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
 import { type Browser, chromium, type Locator, type Page } from "playwright"
-
-import { isoDayOf } from "@olai/web/src/client/clock.ts"
 
 import { BROWSER_ARGS } from "./support/browser.ts"
 

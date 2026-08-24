@@ -25,8 +25,8 @@ import {
   type Making,
   MAKING_DOCUMENT,
   MAKING_OUTLINE,
-} from "@olai/web/src/client/file/making.ts";
-import { selector } from "@olai/web/src/client/testids.ts";
+  selector,
+} from "@olai/web/testlib";
 
 import { saysThat } from "../support/said.ts";
 import { HYDRATION_TIMEOUT, POLL_TIMEOUT } from "../support/world.ts";
