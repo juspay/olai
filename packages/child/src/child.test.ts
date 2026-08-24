@@ -145,6 +145,26 @@ test("run answers the exec failure rather than throwing it", async () => {
   expect(result.said).toContain("ENOENT")
 })
 
+test("run refuses when the child said more than maxBuffer, quoting the tail", async () => {
+  // The contract execFile had and this socket inverted: a cap is a loud
+  // refusal, never a silent truncate. Probe shape from #367's review: a
+  // 100 KB child against a 64 KB cap used to answer ok:true with 65536
+  // bytes of tail; a parser of that output would drop the head and still
+  // say the listing was complete.
+  const cap = 64 * 1024
+  const result = await run(
+    process.execPath,
+    ["-e", "process.stdout.write('H'.repeat(100 * 1024))"],
+    { maxBuffer: cap },
+  )
+  expect(result.ok).toBe(false)
+  expect(result.said).toContain("said more than")
+  expect(result.said).toContain(`${cap} bytes`)
+  expect(result.said).toContain("tail quoted")
+  expect(result.out.length).toBe(cap)
+  expect(result.out).toBe("H".repeat(cap))
+})
+
 test("run throws Hung on a hang, with what the child said", async () => {
   try {
     await run(

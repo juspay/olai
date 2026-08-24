@@ -963,6 +963,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // `live?.child !== child` would drop the one line the operator has
         // for a clean shutdown.
         void child.closed.then(({ code, signal }) => {
+          // An exec that never ran has no exit to report: the `error` event
+          // is the news, and `notStarted` already named the file. Logging
+          // "chat agent exited" here was an extra INFO line for a process
+          // that was never a process (#367 NIT 6).
+          if (child.failed() !== undefined) return
           const ours = live?.child === child
           const id = ours ? session : null
           if (ours) {

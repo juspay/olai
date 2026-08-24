@@ -11,31 +11,25 @@
  * these run against the source entry point directly, in a second or two.
  */
 
+import { run } from "@olai/child"
 import { expect, test } from "bun:test"
-import { execFile } from "node:child_process"
 import * as path from "node:path"
-import { promisify } from "node:util"
-
-const run = promisify(execFile)
 
 const MAIN = path.join(import.meta.dirname, "main.ts")
 
 /** One CLI run, with both channels and the code — a refusal is not an error to
- *  this function, it is the answer. */
+ *  this function, it is the answer. A hang throws `Hung` with what the CLI
+ *  printed, rather than burning bun's 30s timeout with no `said`. */
 const olai = async (
   argv: ReadonlyArray<string>,
   env: Readonly<Record<string, string>> = {},
 ): Promise<{ readonly out: string; readonly err: string; readonly code: number }> => {
-  try {
-    const { stdout, stderr } = await run(process.execPath, [MAIN, ...argv], {
-      env: { ...process.env, ...env },
-      maxBuffer: 32 * 1024 * 1024,
-    })
-    return { out: stdout, err: stderr, code: 0 }
-  } catch (thrown) {
-    const said = thrown as { stdout?: string; stderr?: string; code?: number }
-    return { out: said.stdout ?? "", err: said.stderr ?? "", code: said.code ?? -1 }
-  }
+  const result = await run(process.execPath, [MAIN, ...argv], {
+    env: { ...process.env, ...env },
+    maxBuffer: 32 * 1024 * 1024,
+    timeout: 10_000,
+  })
+  return { out: result.out, err: result.err, code: result.code ?? (result.ok ? 0 : 1) }
 }
 
 test("a capture's title is a POSITION, and a note is all else it takes", async () => {

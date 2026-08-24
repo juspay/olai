@@ -22,7 +22,7 @@ const said = await run("git", ["status"], { cwd: root, timeout: 10_000 })
 | `Child.said` / `out` / `err` | drained pipes, so a child nobody is reading cannot block |
 | `Child.wait(ms, why)` | the close, or `Hung` after `ms` with what the child said |
 | `Child.stop` | SIGTERM, then SIGKILL if the grace expires. ESRCH is success |
-| `run` | one-shot: drain both pipes, wait for close. Exec failure is an answer; a hang throws |
+| `run` | one-shot: drain both pipes, wait for close. Exec failure is an answer; a hang throws; a stream past `maxBuffer` is `ok: false` with the tail quoted, never a silent truncate |
 
 **Stdout is not drained by default.** It is often a protocol (ACP, JSON-RPC), and stealing it is worse than not logging it. `run` opts in because the answer *is* the output; a test that reads the serving line does too.
 

@@ -81,7 +81,12 @@ export interface Start {
    * A one-shot ({@link run}) and a test that reads the serving line opt in.
    */
   readonly drain?: { readonly stdout?: boolean; readonly stderr?: boolean }
-  /** Cap on the drained box; the tail is kept. Unset is unbounded. */
+  /**
+   * Cap on each drained stream. Overflow keeps the tail and raises
+   * {@link Child.overrun}; {@link run} answers `ok: false` with that tail
+   * quoted. Unset is unbounded. A silent truncate is how a parser of the
+   * output would drop the head of a `git status` and still say `ok`.
+   */
   readonly maxBuffer?: number
 }
 
@@ -104,6 +109,10 @@ export interface Child {
   readonly said: () => string
   readonly out: () => string
   readonly err: () => string
+  /** True once a drained stream passed {@link Start.maxBuffer}. The box
+   *  still holds the tail; {@link run} refuses rather than handing a parser
+   *  a truncated `ok`. */
+  readonly overrun: () => boolean
   /** `close` — the process is gone AND its stdio has drained. Attached at spawn. */
   readonly closed: Promise<Close>
   /**
@@ -161,13 +170,20 @@ export const start = (
 
   let out = ""
   let err = ""
+  let overrun = false
   const take = (which: "out" | "err", chunk: string): void => {
     if (which === "out") out += chunk
     else err += chunk
     const max = options.maxBuffer
     if (max === undefined) return
-    if (out.length > max) out = out.slice(-max)
-    if (err.length > max) err = err.slice(-max)
+    if (out.length > max) {
+      overrun = true
+      out = out.slice(-max)
+    }
+    if (err.length > max) {
+      overrun = true
+      err = err.slice(-max)
+    }
   }
 
   if (drainStdout && child.stdout !== null) {
@@ -191,7 +207,8 @@ export const start = (
     })
   })
   const closed = new Promise<Close>((resolve) => {
-    child.on("close", (code, signal) => resolve({ code, signal }))
+    child.on("close", (code, signal) =>
+      resolve({ code: code ?? null, signal: signal ?? null }))
   })
 
   const collected = () => ({ said: `${out}${err}`, out, err })
@@ -251,6 +268,7 @@ export const start = (
     said: () => `${out}${err}`,
     out: () => out,
     err: () => err,
+    overrun: () => overrun,
     closed,
     wait,
     stop,
@@ -341,6 +359,17 @@ export const run = async (
       out: child.out(),
       err: child.err(),
       said: drained || failed,
+    }
+  }
+  if (child.overrun()) {
+    const max = options.maxBuffer
+    return {
+      ok: false,
+      code: outcome.close.code,
+      signal: outcome.close.signal,
+      out: child.out(),
+      err: child.err(),
+      said: `${file} said more than ${max} bytes; tail quoted:\n${child.said()}`,
     }
   }
   return {
