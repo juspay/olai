@@ -129,6 +129,99 @@ Feature: Properties on a node, from the web
     And the node "handles" shows no pilcrow
     And there should be no page errors
 
+  Scenario: A chip opened while somebody else writes the same key does not put the old value back
+    # grok's MUST. The box is filled from the value the chip was OPENED on, and
+    # a commit is judged against that snapshot rather than against what the key
+    # holds now — so a blur where nothing was typed writes nothing, even though
+    # the file moved underneath. Judged against the live value instead, this
+    # wrote the stale `review` back over the agent's word, silently.
+    Given I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"stage":"review"}}
+      """
+    And I open the outline "house.olai"
+    And I mark the page
+    When I edit the property "stage" on "handles"
+    Then the property editor on "handles" holds "review"
+    # ...and now somebody else — an agent, another tab — moves the same key.
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"stage":"addressing"}}
+      """
+    And I click away from the property editor on "handles"
+    Then the property editor on "handles" is closed
+    # THE CLAIM: the agent's word stands, on the row and on the disk, and
+    # nothing was said — because nothing was written.
+    And the node "handles" shows the property "stage" holding "addressing"
+    And "house.olai" holds the node "handles" with "stage" set to "addressing"
+    And the node "handles" says nothing about its properties
+    And there should be no page errors
+
+  Scenario: A value that names something keeps its link however long it is
+    # Both reviewers. The fold is for PROSE; a URL and a deep vault path are the
+    # two door kinds most likely to run past it, and folding them took away the
+    # link the door rule had just given them. A name is one token however long.
+    Given I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"pr":"https://github.com/juspay/olai/pull/369#discussion_r1234567890","note":"a sentence long enough to be prose rather than a fact, which is what the fold is for"}}
+      """
+    And I open the outline "house.olai"
+    # 61 characters and still a door.
+    Then the property "pr" on "handles" is a "away" door to "https://github.com/juspay/olai/pull/369#discussion_r1234567890"
+    And the property "pr" on "handles" is not folded
+    # ...while prose of the same length is exactly what still folds.
+    And the property "note" on "handles" is folded
+    And there should be no page errors
+
+  Scenario: A shadow custom key does not open an editor inside the system chip
+    # pi's S2. `custom` is open all the way, so a hand-written record may carry
+    # a custom `date` beside the FIELD of that name — a legal record that only
+    # `set_prop` refuses to MAKE. Both chips are drawn on the node's own page.
+    Given I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","date":"2026-08-10","custom":{"date":"whenever the tiler is free"}}
+      """
+    And I open the node "handles"
+    Then the zoomed node is "handles"
+    # Pressing the CUSTOM chip's key opens exactly one box, and it is not the
+    # system chip's — asked by the chip's own identity rather than its bare key.
+    When I edit the custom property "date" on "handles"
+    Then the property editor on "handles" holds "whenever the tiler is free"
+    And exactly 1 property editor is open on "handles"
+    And the system property "date" on "handles" offers no editor
+    And there should be no page errors
+
+  Scenario: A property holding a LIST is removed by clearing it
+    # pi's S3. `set_prop` writes text, so a list can only be hand-written — but
+    # REMOVAL is exact whatever the key held, which is why the deleted menu
+    # offered `Remove <key>` on a list and no `Edit <key>…`. Excluding the chip
+    # took the removal away with the edit.
+    Given I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"reviewers":["pi","grok"],"stage":"review"}}
+      """
+    And I open the outline "house.olai"
+    And I mark the page
+    Then the node "handles" shows the property "reviewers" holding "pi, grok"
+    When I edit the property "reviewers" on "handles"
+    # Seeded with the members joined, so committing it UNCHANGED writes nothing
+    # and a list cannot be flattened by opening a chip and pressing Enter.
+    Then the property editor on "handles" holds "pi, grok"
+    When I click away from the property editor on "handles"
+    Then the node "handles" shows the property "reviewers" holding "pi, grok"
+    And the node "handles" says nothing about its properties
+    # ...and clearing it takes the key off, exact whatever it held.
+    When I edit the property "reviewers" on "handles"
+    And I type "" into the property editor on "handles"
+    Then the node "handles" shows no property "reviewers"
+    And "house.olai" holds the node "handles" with no "reviewers"
+    And there should be no page errors
+
   Scenario: Escape writes nothing, and neither does opening a chip and leaving it
     When I open the node menu of "handles"
     And I choose "Add property…" from the node menu

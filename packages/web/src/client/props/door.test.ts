@@ -148,6 +148,30 @@ test("a scheme that is not http is not a door", () => {
   expect(doorFor("file:///etc/passwd", ROOT)).toBeNull()
 })
 
+/**
+ * THE TWO SCHEMES THAT WOULD BE A HOLE, named rather than left to follow from
+ * the ones above.
+ *
+ * `isHttp` is a whole-value `http(s)://` prefix and `pathedOf` refuses anything
+ * carrying a scheme, so neither of these was ever reachable — but "a value
+ * cannot become a `javascript:` href" is a security claim about this module,
+ * and a claim nothing asserts is a claim the next edit can quietly drop
+ * (grok, NIT 3). Cased both bare and dressed as something else.
+ */
+test("`javascript:` and `data:` are text, and cannot become an href", () => {
+  for (const value of [
+    "javascript:alert(1)",
+    "JavaScript:alert(1)",
+    "  javascript:alert(1)",
+    "data:text/html,<script>alert(1)</script>",
+    "data:text/plain;base64,YWJj",
+    "javascript:alert(1)#x",
+    "vbscript:msgbox(1)",
+  ]) {
+    expect(doorFor(value, ROOT)).toBeNull()
+  }
+})
+
 test("a date-shaped value is a date even where a node id could have matched", () => {
   const dated: Vault = {
     ...ROOT,

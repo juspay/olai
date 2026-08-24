@@ -67,6 +67,16 @@
  *
  * Anything else is text.
  *
+ * ## Length is not a refusal
+ *
+ * A value that names something is a door HOWEVER LONG IT IS. That is the "whole
+ * value, exactly" rule read the only way it can be: a URL of sixty-one
+ * characters is exactly a name, and the two door kinds most likely to run long
+ * are precisely the two made of paths. The DISPLAY has a length rule — a long
+ * door is clamped to one line (`./PropsDrawer.tsx`'s `Clamped`) — and it is a
+ * rule about pixels, applied after this module has answered. Nothing here asks
+ * how long a value is.
+ *
  * ## Why it is a module and not a branch inside the chip
  *
  * It is five decisions with an order between them and two lookups behind them,

@@ -8,7 +8,7 @@
 
 import { expect, test } from "bun:test"
 
-import { sending, writes } from "./editor.ts"
+import { openedOn, sending, writes } from "./editor.ts"
 
 const PR = { key: "pr", value: "https://x/1" }
 
@@ -47,4 +47,34 @@ test("a new key is trimmed, because a key is a name and the space around one is 
   // The VALUE is not trimmed: it is somebody's text, and a sentence that ends
   // in a space is still that sentence.
   expect(sending(null, "merge", "the human approves ").value).toBe("the human approves ")
+})
+
+// ── which chip the editor is open on ───────────────────────────────────
+
+const custom = (key: string) => ({ key, system: false })
+const system = (key: string) => ({ key, system: true })
+const EDITING = { key: "date", value: "in review" }
+
+test("the editor is open on the chip it was opened from", () => {
+  expect(openedOn(EDITING, custom("date"))).toEqual(EDITING)
+  expect(openedOn(EDITING, custom("agent"))).toBeUndefined()
+  expect(openedOn(undefined, custom("date"))).toBeUndefined()
+  expect(openedOn(null, custom("date"))).toBeUndefined()
+})
+
+/**
+ * THE COLLISION, which a bare-key comparison lost.
+ *
+ * `custom` is open all the way, so a hand-written record may carry a custom
+ * `date` beside the FIELD of that name. Both chips are drawn on a node's own
+ * page, and asked by bare key the editor opened on both — a writable box inside
+ * a chip the drawer calls read-only, and two `data-key="date"` boxes on one
+ * page (pi, S2).
+ */
+test("a SYSTEM chip is never the one, however its key is spelled", () => {
+  expect(openedOn(EDITING, system("date"))).toBeUndefined()
+  expect(openedOn(EDITING, system("id"))).toBeUndefined()
+  // ...and the custom chip of the very same name still is, so the fix narrows
+  // rather than breaks.
+  expect(openedOn(EDITING, custom("date"))).toEqual(EDITING)
 })

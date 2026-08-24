@@ -2,21 +2,23 @@
  * The panel's pure half: what its button says, and what identifies it.
  *
  * The same split every surface it serves already has — `../date/pick.ts` beside
- * `../date/DatePicker.tsx`, `../props/editor.ts` beside `PropEditor.tsx`: the
- * rules a person can get wrong live in a function with a test, and what is left
- * in the component is a form. It matters at the shell too, and for one more
- * reason than taste: three pure modules CALL {@link pressOf}, and a `.ts`
- * reaching into a `.tsx` for a value is a unit test loading a JSX runtime to
- * ask what a button says.
+ * `../date/DatePicker.tsx`, and `../props/editor.ts` beside the chip run that
+ * spends it: the rules a person can get wrong live in a function with a test,
+ * and what is left in the component is a form. It matters at the shell too, and
+ * for one more reason than taste: the pure modules CALL {@link pressOf}, and a
+ * `.ts` reaching into a `.tsx` for a value is a unit test loading a JSX runtime
+ * to ask what a button says.
  */
 
 /**
  * The button, as the two things a reader can see about it.
  *
- * ONE declaration for the three surfaces, and it is one because the two halves
- * are one question. Each of them derives its own answer — `pressOf` in each
- * pure module — and each used to declare this pair for itself, which is the
- * same concept written three times with nothing holding the three together.
+ * ONE declaration for the surfaces that have a button, and it is one because
+ * the two halves are one question. Each derives its own answer — `pressOf` in
+ * each pure module — and each used to declare this pair for itself, which is
+ * the same concept written three times with nothing holding the three together.
+ * (Three, then: the property editor was the third, and it has no button any
+ * more — a chip commits on Enter.)
  *
  * They are derived TOGETHER at each site for a reason worth keeping beside the
  * type: the date picker shipped them as two functions, and they disagreed —
@@ -54,9 +56,12 @@ export interface Press {
  * WRITTEN — the ops layer would take either value from an agent, and what is
  * refused here is a gesture that would produce no write at all.
  *
- * The property editor has a `pressOf` of its own and correctly does not call
- * this one: two boxes, a key that may not be empty and a rename that is not a
- * write this format has ({@link ../props/editor.ts}).
+ * THE PROPERTY EDITOR IS NOT ONE OF THEM ANY MORE, and the absence is worth a
+ * line because it used to be. It is a chip you type in now
+ * (`../props/PropsDrawer.tsx`), with no panel and no button: Enter commits,
+ * Escape cancels, and what a commit would WRITE is still a pure question with a
+ * test — `writes` rather than a `pressOf`, since there is no label to derive
+ * ({@link ../props/editor.ts}).
  */
 export const pressOf = (
   stored: string | undefined,
@@ -77,7 +82,7 @@ export interface PanelIds {
   readonly cancel: string
   /** The line that keeps the panel open saying what the ops layer said. */
   readonly said: string
-  /** What the panel says about a stored value its control cannot hold — the
-   *  two pickers have one, the property editor does not. */
+  /** What the panel says about a stored value its control cannot hold — which
+   *  is the two pickers' case and nobody else's now. */
   readonly notice?: string
 }

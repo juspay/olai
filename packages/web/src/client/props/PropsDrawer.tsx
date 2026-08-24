@@ -30,13 +30,20 @@
  * who has learnt what a date looks like on this row should not have to learn it
  * again one line down.
  *
- * A FOLD, where the value is longer than a fact ({@link FOLDS_PAST}). The
+ * A FOLD, where the value is PROSE longer than a fact ({@link FOLDS_PAST}). The
  * mockup's Move 3, and its own sentence about itself: the fold is the safety
  * net, not the goal — under the props-are-facts rule it should almost never
  * appear, and when it does, the wall never comes back. It is here because the
  * run is drawn on a CLOSED row now: a `merge` holding two sentences used to
  * cost nothing until somebody opened the row, and would otherwise cost every
  * row of the board three lines of prose it did not ask for.
+ *
+ * A LONG DOOR IS NOT PROSE and does not fold — it CLAMPS ({@link Clamped}): one
+ * line, ellipsized by the browser, still a link, the whole of it in the
+ * tooltip. Length was the whole of the fold rule once, and it swallowed the two
+ * door kinds most likely to run past it — a URL and a deep vault path — taking
+ * away the link the door rule had just given them (both reviewers, 2026-08-24).
+ * A name is one token however long it is.
  *
  * ## Where it is written, which is HERE and nowhere else
  *
@@ -141,7 +148,7 @@ import { createMemo, createSignal, Index, Show } from "solid-js"
 
 import type { Entry } from "./drawer.ts"
 import { type Door, doorFor } from "./door.ts"
-import { type Editing, sending, writes } from "./editor.ts"
+import { type Editing, openedOn, sending, writes } from "./editor.ts"
 import { Link } from "../router.tsx"
 import { useNames } from "../reading.tsx"
 import type { Said } from "../saying.ts"
@@ -280,14 +287,17 @@ export function PropsDrawer(props: {
             <Chip
               entry={entry()}
               doorOf={doorOf}
-              // A chip is open when the editor names ITS key. Compared by key
-              // rather than by identity, because the entry is a fresh object
-              // per frame and the editor's copy is the one taken when it opened.
-              open={editing()?.key === entry().key ? (editing() as Editing) : undefined}
+              // A chip is open when the editor is open ON IT — asked by the
+              // chip's own identity ({@link keyOf}) rather than by its bare
+              // key, which is the collision that identity exists to prevent
+              // (`./editor.ts`'s `openedOn`).
+              open={openedOn(editing(), entry())}
               onOpen={props.onSet === undefined
                 ? undefined
                 : () => setEditing({ key: entry().key, value: entry().value })}
-              onCommit={(value) => void commit({ key: entry().key, value: entry().value }, "", value)}
+              // WHAT IT WAS is the SNAPSHOT the editor opened on, handed back by
+              // the chip — never the live entry. See {@link Chip.onCommit}.
+              onCommit={(was, value) => void commit(was, "", value)}
               onCancel={close}
             />
           )}
@@ -347,16 +357,70 @@ function Chip(props: {
   /** Open it. ABSENT wherever the run is read-only, and then no half of this
    *  chip is a button. */
   readonly onOpen?: () => void
-  readonly onCommit: (value: string) => void
+  /**
+   * Commit what was typed — handed back with the SNAPSHOT the editor opened on.
+   *
+   * The snapshot rather than the live entry, and it is the difference between
+   * refusing and clobbering. `writes` asks whether the box differs from what
+   * was opened (`./editor.ts`); asked against the LIVE value instead, a chip
+   * opened on `A` while an agent writes `B` reports a change the person never
+   * made, and clicking away puts `A` back — silently, against this file's own
+   * promise that opening a chip and clicking away writes nothing. The snapshot
+   * is the one the chip is already drawn from, so it is handed back from here
+   * rather than rebuilt at the call site.
+   */
+  readonly onCommit: (was: Editing, value: string) => void
   readonly onCancel: () => void
 }) {
-  const folds = () => props.entry.value.length > FOLDS_PAST
-  // A LIST is not typeable and says so by not offering: the editor writes text,
-  // so a key holding three values would come back as one string with commas in
-  // it (`./drawer.ts`'s `Entry.listed`). Clearing it to remove it is still
-  // exact whatever it held — that is the `+`-less half a reader still has, and
-  // it costs a hand-edit of the file, which is what wrote the list.
-  const opens = () => (props.entry.listed || props.entry.system ? undefined : props.onOpen)
+  /**
+   * WHAT EACH MEMBER OF THIS VALUE NAMES — asked once, because two questions
+   * depend on it: what the value is DRAWN as, and whether it folds at all.
+   *
+   * The system half is asked `NO_DOOR` here rather than at the draw, so that
+   * "a system chip has no doors" and "a system chip folds like prose" are one
+   * decision and cannot come apart.
+   */
+  const doors = createMemo(() => {
+    const ask = props.entry.system ? NO_DOOR : props.doorOf
+    return props.entry.values.map((one) => ask(one))
+  })
+  /**
+   * Does this value fold?
+   *
+   * LENGTH IS NOT THE WHOLE RULE, and it never should have been. The fold is
+   * for PROSE — a value that broke the props-are-short-facts rule — and the
+   * defence in {@link FOLDS_PAST} ("a value this long is prose whatever is
+   * inside it") is true of sentences and false of the two door kinds most
+   * likely to run past 56 characters: a URL and a deep vault path. A value that
+   * NAMES something is one token however long it is, and folding it took away
+   * the link the door rule had just given it (both reviewers, 2026-08-24).
+   *
+   * So a value with a door never folds. What it does instead is CLAMP — one
+   * line, ellipsized, still a link, the whole of it in the pointer's tooltip
+   * ({@link Face}). That is the display folded and the link kept.
+   */
+  const folds = () =>
+    props.entry.value.length > FOLDS_PAST && doors().every((one) => one === null)
+  /**
+   * WHICH CHIPS OPEN FOR EDITING: every custom one, lists included.
+   *
+   * A LIST used to be excluded here, on the argument that the editor writes
+   * text so a key holding three values would come back as one string with
+   * commas in it. That argument covers TYPING OVER one and does not cover
+   * CLEARING one — and clearing is exact whatever the key held, which is why
+   * the deleted menu offered `Remove <key>` on a list and no `Edit <key>…`.
+   * Excluding the chip took the removal with the edit and left `./drawer.ts`
+   * saying removal was still offered when it was not (pi, S3).
+   *
+   * What makes typing over one safe to offer is the no-change guard: the box is
+   * seeded with the joined members, and committing it UNCHANGED writes nothing
+   * (`./editor.ts`'s `writes`), so a list cannot be flattened by opening a chip
+   * and pressing Enter. Flattening now takes deliberately typing over it — and
+   * that is an ordinary `set_prop`, which replaces one key's value outright.
+   *
+   * The SYSTEM half stays out: those are fields with verbs of their own.
+   */
+  const opens = () => (props.entry.system ? undefined : props.onOpen)
   return (
     <span
       class={CHIP}
@@ -378,28 +442,40 @@ function Chip(props: {
               <span class="min-w-0 break-words text-ink" data-testid={TESTID.propValue}>
                 <Values
                   values={props.entry.values}
-                  doorOf={props.entry.system ? NO_DOOR : props.doorOf}
+                  doors={doors()}
                   onOpen={opens()}
                 />
               </span>
             }
           >
-            <Folded value={props.entry.value} onOpen={opens()} />
+            <Folded value={props.entry.value} />
           </Show>
         }
       >
-        {(was) => (
-          <Box
-            testid={TESTID.propEdit}
-            about={props.entry.key}
-            value={was().value}
-            wide
-            focus
-            onCommit={props.onCommit}
-            onLeave={props.onCommit}
-            onCancel={props.onCancel}
-          />
-        )}
+        {(was) => {
+          // READ ONCE, AT THE DRAW, and held — never called back from the
+          // commit. It is the right value either way (an open editor's snapshot
+          // does not move), and reading the `<Show>` accessor from a handler
+          // that fires as the box goes is reading it after this branch has
+          // unmounted, which Solid reports as a stale-value error — a blur IS
+          // that moment, since committing is what closes the editor.
+          const snapshot = was()
+          return (
+            <Box
+              testid={TESTID.propEdit}
+              about={props.entry.key}
+              value={snapshot.value}
+              wide
+              focus
+              // The snapshot this chip was opened on, which is what the box is
+              // drawn from — so what goes back is what a commit has to be
+              // judged against. See {@link Chip.onCommit}.
+              onCommit={(value) => props.onCommit(snapshot, value)}
+              onLeave={(value) => props.onCommit(snapshot, value)}
+              onCancel={props.onCancel}
+            />
+          )
+        }}
       </Show>
     </span>
   )
@@ -451,7 +527,9 @@ function Handle(props: { readonly label: string; readonly onOpen?: () => void })
  */
 function Values(props: {
   readonly values: ReadonlyArray<string>
-  readonly doorOf: (value: string) => Door | null
+  /** What each member names, in the same order — asked ONCE by the chip, which
+   *  needs the same answer to decide whether the value folds at all. */
+  readonly doors: ReadonlyArray<Door | null>
   readonly onOpen?: () => void
 }) {
   return (
@@ -461,7 +539,11 @@ function Values(props: {
           <Show when={index > 0}>
             <span class="text-muted" aria-hidden="true">, </span>
           </Show>
-          <Value value={value()} door={props.doorOf(value())} onOpen={props.onOpen} />
+          <Value
+            value={value()}
+            door={props.doors[index] ?? null}
+            onOpen={props.onOpen}
+          />
         </>
       )}
     </Index>
@@ -545,18 +627,46 @@ function Plain(props: { readonly value: string; readonly onOpen?: () => void }) 
  *  is nobody's deadline takes. */
 function Face(props: { readonly value: string; readonly day: boolean }) {
   return (
-    <Show when={props.day} fallback={props.value}>
+    <Show when={props.day} fallback={<Clamped value={props.value} />}>
       <span class="rounded-full bg-pill px-1.5">{props.value}</span>
     </Show>
   )
 }
 
+/**
+ * A DOOR'S TEXT, on one line, ellipsized where it runs long — the display
+ * folded while the link stays whole.
+ *
+ * A URL and a deep vault path are the two door kinds most likely to run past
+ * {@link FOLDS_PAST}, and they used to be swallowed by the disclosure fold and
+ * lose their link (both reviewers, 2026-08-24). They are not prose: a name is
+ * one token however long it is, so what a long one wants is to be shorter ON
+ * SCREEN, not to be behind a press.
+ *
+ * CSS rather than {@link shortened}, and that is the point of doing it here: an
+ * ellipsis put in by the browser is still the whole string in the DOM, so the
+ * href, the copy, the tooltip and a scenario's `innerText` all read the value
+ * the record holds. Cutting the text would have made the chip say something the
+ * file does not.
+ *
+ * `align-bottom` because an `inline-block` in a baseline row otherwise sits its
+ * own descender below the key beside it.
+ */
+function Clamped(props: { readonly value: string }) {
+  return (
+    <span class="inline-block max-w-[22rem] truncate align-bottom" title={props.value}>
+      {props.value}
+    </span>
+  )
+}
+
 /** A value too long to be a fact: its first words, and the rest one press away.
- *  NO DOOR — a door is for a value that NAMES something, and a value this long
- *  is prose whatever is inside it (`./door.ts`'s "the whole value, exactly").
- *  The KEY is still the way in to editing it, which is exactly why the key is
- *  the gesture that never has an exception. */
-function Folded(props: { readonly value: string; readonly onOpen?: () => void }) {
+ *  Prose only — a value that NAMES something never reaches here, because a name
+ *  is one token however long and gets {@link Clamped} instead (`Chip`'s
+ *  `folds`). The KEY is the way in to editing it, which is exactly why the key
+ *  is the gesture that never has an exception; the summary itself is the
+ *  disclosure and nothing else, which is why it takes no `onOpen`. */
+function Folded(props: { readonly value: string }) {
   const summary = createMemo(() => shortened(props.value))
   return (
     <details class="min-w-0" data-testid={TESTID.propFold}>

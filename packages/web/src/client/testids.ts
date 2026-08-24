@@ -186,8 +186,10 @@ export const TESTID = {
   /** ...and the box the KEY of a NEW property is typed in, drawn only then: a
    *  rename is two ops, so an existing chip's key is not typeable. */
   propEditKey: "prop-edit-key",
-  /** The `+` at the end of the run — the one door onto adding a property, now
-   *  that the `•••` menu carries none. */
+  /** The `+` at the end of the run — the door onto adding a property wherever
+   *  there IS a run. The `•••` carries the other case and only that one: a node
+   *  with no chips has no end for a `+` to sit at, and is offered
+   *  `Add property…` instead. Never both at once. */
   propAdd: "prop-add",
   /** What the last commit had to say, under the run — a refusal quoted
    *  verbatim, or a nudge that rode back on a write that landed. */

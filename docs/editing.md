@@ -259,9 +259,13 @@ A node's **properties** are named facts on it ([format.md](format.md)) — `pr`,
 - a **date** — a day or an instant on one — wears the same date badge the row speaks with, and opens that day's page;
 - `owner/repo#123` opens that GitHub issue or pull request. A bare `#123` does not: which repository it means is a fact nowhere on the screen.
 
+One door kind is a RECORD's only, and the asymmetry is worth knowing: a value that is a **node id** resolves against the ids the page's set declares, and a document's frontmatter is not a record — so `author: pi` is navigation on a node and plain text in a `.md`'s block. The other four kinds work the same on both.
+
 Anything else stays the text it is. A value with a URL *inside* it is not a URL — `#365 https://…/365 @ efc32b13 — reported 12:45` is a paragraph, and pulling the URL out of it would be the display deciding which part of your sentence was the point.
 
-**A value too long to be a fact is drawn as its first words**, with the rest one press away. That fold is a safety net rather than a place to put things: properties are short facts, prose belongs in the note, and the fold is only what stops a record that broke the rule from putting a wall back on every row of the page.
+**Prose too long to be a fact is drawn as its first words**, with the rest one press away. That fold is a safety net rather than a place to put things: properties are short facts, prose belongs in the note, and the fold is only what stops a record that broke the rule from putting a wall back on every row of the page.
+
+**A value that NAMES something never folds, however long it is** — a name is one token, not prose, and a URL and a deep vault path are exactly the two door kinds most likely to run long. What a long door does instead is sit on one line with an ellipsis, still a link, with the whole of it in the pointer's tooltip. The ellipsis is the browser's, so the value in the page is still the value in the file.
 
 **A node's own page draws them all**, read-only ones first: its `id`, the mark it has, its `date`, and the `created`/`changed` stamps when it has them. Those have nowhere else to be read — the id in particular is what every tool call and every `((` reference takes. They are above the note there, as on a row: facts above the line, story below it. **The read-only half takes no links** — each of those is a field with a face of its own, and the `id` would be a link to the page it is drawn on.
 
@@ -275,7 +279,7 @@ Anything else stays the text it is. A value with a URL *inside* it is not a URL 
 
 **The `+` at the end of the run adds one**, and it is the only place a key is ever typed. A rename is not a write this format has — `set_prop` sets ONE key, so changing `pr` to `PR` is removing one property and adding another, which is two ops and therefore two gestures. An existing chip's key is a label, not a box.
 
-**A key holding a LIST is drawn and not typed over**, which only a hand-edited file can produce: the box writes text, so a key holding three values would come back as one string with commas in it. Clearing it to remove it is exact whatever it held, and that path is a hand-edit of the file — the same hand that wrote the list.
+**A key holding a LIST opens like any other**, though only a hand-edited file can produce one. Clearing it removes the key, exact whatever it held — which is the whole reason it opens. Typing over it replaces the list with the text you typed, because `set_prop` writes one key one value and there is no way to write a list back; committing it unchanged writes nothing, so a list cannot be flattened by opening a chip and pressing Enter. Editing a single member is a hand-edit of the file, which is what wrote the list.
 
 **The `•••` menu carries one property entry, and only on a node that has none.** It used to grow *Add property…* plus an *Edit `pr`…* and a *Remove `pr`* **per property** — so a node carrying eight facts had sixteen menu entries about them, and the menu got longer every time you wrote something down. All of that is gone with the panel it opened. What is left is the one case the `+` cannot reach: a node with no properties has no run for a `+` to sit at the end of, and drawing an otherwise-empty run under every row of a tree would cost a line per title. So there is exactly one door at any moment and never two.
 

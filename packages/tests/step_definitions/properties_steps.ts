@@ -262,6 +262,64 @@ When(
   },
 );
 
+/**
+ * The same gesture aimed at ONE HALF of a run drawing both — for the record
+ * that carries a custom key spelling a field's name.
+ *
+ * `custom` is open all the way, so a hand-written `"custom":{"date":…}` sits
+ * beside the `date` FIELD on a node's own page and two chips answer to the same
+ * `data-key`. The suite's ordinary `line()` would match both and Playwright
+ * would refuse the ambiguity; these two steps say which half a scenario means,
+ * which is the same distinction `keyOf` draws in the markup.
+ */
+const half = (world: OlaiWorld, id: string, key: string, system: boolean) =>
+  world.page.locator(
+    `${nodeSelector(id)} ${PROP}${attr("data-key", key)}${
+      system ? attr("data-system", "true") : ":not([data-system])"
+    }`,
+  );
+
+When(
+  "I edit the custom property {string} on {string}",
+  async function (this: OlaiWorld, key: string, id: string) {
+    await this.press(half(this, id, key, false).locator(PROP_KEY));
+    await box(this, id).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+/** A system chip offers no way in at all: no key button, and no box inside it —
+ *  which is the half the bare-key comparison used to open by accident. */
+Then(
+  "the system property {string} on {string} offers no editor",
+  async function (this: OlaiWorld, key: string, id: string) {
+    const chip = half(this, id, key, true);
+    await chip.waitFor({ state: "attached", timeout: POLL_TIMEOUT });
+    assert.strictEqual(
+      await chip.locator(PROP_EDIT).count(),
+      0,
+      `the system \`${key}\` chip holds an edit box, and this step says it is read-only`,
+    );
+    assert.strictEqual(
+      await chip.locator(PROP_KEY).count(),
+      0,
+      `the system \`${key}\` chip's key is a button, and this step says it is a label`,
+    );
+  },
+);
+
+/** HOW MANY boxes are open — one gesture opens one editor, and the count is the
+ *  claim rather than the presence, because the bug this pins drew a second. */
+Then(
+  "exactly {int} property editor is open on {string}",
+  async function (this: OlaiWorld, count: number, id: string) {
+    await this.waitUntil(
+      async () =>
+        (await this.page.locator(`${nodeSelector(id)} ${PROP_EDIT}`).count()) === count,
+      `${count} property editor(s) open on ${JSON.stringify(id)}`,
+    );
+  },
+);
+
 /** The other way in, and the one a reader reaches for first: the VALUE, where
  *  it is not a link. A step of its own because which half answered the press is
  *  the whole of the gesture ruling. */

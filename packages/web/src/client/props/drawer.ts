@@ -71,10 +71,26 @@ export interface Entry {
    * A custom key holding a LIST rather than text — hand-written, since
    * `set_prop` writes only text.
    *
-   * Drawn (it is what the node says) and not offered for EDITING, because the
-   * editor writes text: a key holding three values would come back as one
-   * string with commas in it. Removal is still offered — taking a key off is
-   * exact whatever it held.
+   * DRAWN like any other chip (it is what the node says), each member asked the
+   * door question on its own, and OPENED like any other chip. What differs is
+   * only what the two gestures inside it mean, and it is worth saying plainly:
+   *
+   *   - CLEARING it removes the key, exact whatever it held. That is the whole
+   *     of why the chip opens at all.
+   *   - TYPING OVER it replaces the list with the text typed — one key, one
+   *     value, which is what `set_prop` does. There is no way to write a list
+   *     back, so a member cannot be edited in place; the file is where a list
+   *     is written.
+   *
+   * Committing it UNCHANGED writes nothing (`./editor.ts`'s `writes`), so a
+   * list cannot be flattened by opening a chip and pressing Enter — flattening
+   * takes deliberately typing over it.
+   *
+   * This line used to say a list was "not offered for EDITING" with "removal
+   * still offered", which described the deleted `•••` menu (an `Edit <key>…`
+   * for text and a `Remove <key>` for everything) and stopped being true when
+   * the chip became the one door: excluding the chip took the removal with the
+   * edit and left this comment claiming a gesture nothing offered (pi, S3).
    */
   readonly listed: boolean
 }

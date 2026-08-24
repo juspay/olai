@@ -81,5 +81,42 @@ export const sending = (
 export const writes = (was: Editing | null, key: string, value: string): boolean => {
   const sent = sending(was, key, value)
   if (was === null) return sent.key !== "" && sent.value !== ""
+  // AGAINST THE SNAPSHOT the editor opened on, never against what the key holds
+  // NOW — which is the difference between refusing and clobbering, and is why
+  // the caller hands the snapshot back rather than rebuilding it
+  // (`./PropsDrawer.tsx`'s `Chip.onCommit`).
+  //
+  // The trade it makes is worth naming, because it cuts the other way too (pi,
+  // N3): if an agent moves the key from `A` to `B` while a chip is open and the
+  // person then types the `A` they can still see, this reports nothing to write
+  // and the file keeps `B`, silently. That is the same shape as the clobber and
+  // the opposite outcome, and it is the one to prefer — the quiet loss is a
+  // write that did not happen, where the alternative is a write that undid
+  // somebody else's. Telling the two apart needs the op to carry a `was`, which
+  // no face has for `prop` (`@olai/surface`'s `edit.ts`); until it does, this
+  // side declines rather than guesses.
   return value !== was.value
 }
+
+/**
+ * IS THE EDITOR OPEN ON THIS CHIP — asked by the chip's own identity, never by
+ * its bare key.
+ *
+ * `custom` is open all the way (`@olai/format`'s `custom.ts`), so nothing stops
+ * a hand-written record from carrying a custom `date` beside the field of that
+ * name — a legal record that only `set_prop` refuses to MAKE. On a page drawing
+ * both halves, a bare-key comparison then matches twice: pressing the custom
+ * chip's key opened a second box inside the SYSTEM `date` chip, pre-filled with
+ * the custom value — a writable-looking affordance on a fact the drawer calls
+ * read-only, and two `data-key="date"` boxes on one page (pi, S2).
+ *
+ * That is exactly the collision `PropsDrawer`'s `keyOf` namespacing exists to
+ * prevent one element over, so this asks the same question the same way. An
+ * editor is only ever opened from a CUSTOM chip (`Chip`'s `opens`), so its
+ * namespace is known and a system chip can never be the answer.
+ */
+export const openedOn = (
+  editing: Editing | null | undefined,
+  entry: { readonly key: string; readonly system: boolean },
+): Editing | undefined =>
+  editing != null && !entry.system && editing.key === entry.key ? editing : undefined
