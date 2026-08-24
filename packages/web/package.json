@@ -3,7 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "//exports": "None. This package has two products and neither is an import: a SCRIPT (`bun packages/web/src/build.ts <dist>`, run by default.nix and by `just build-client`) and the directory it writes. The one thing here that IS imported across a package boundary is src/client/testids.ts, and it is imported by path from packages/tests — a declared export list would suggest a library this is not.",
+  "exports": {
+    "./testlib": "./src/suite.testlib.ts"
+  },
+  "//exports": "One subpath and STILL no root, which is the honest shape: this package has two products and neither is an import — a SCRIPT (`bun packages/web/src/build.ts <dist>`, run by default.nix and by `just build-client`) and the directory it writes — so there is no `.` for a resolver to land on. `./testlib` is the one door packages/tests is let in through (src/suite.testlib.ts, a curated list whose header says what went in and why), the same carve-out @olai/format, @olai/git, @olai/log and @olai/ops make, for the same reason. It succeeded the suite's nineteen spells of src/client/ paths, and the fence at its other end is that package's imports.test.ts.",
   "scripts": {
     "typecheck": "tsc --noEmit"
   },

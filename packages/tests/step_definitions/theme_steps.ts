@@ -21,12 +21,12 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 import type { Page } from "playwright";
 
-import { customProperty } from "@olai/web/src/client/theme/css.ts";
 import {
+  customProperty,
   DEFAULT_THEME,
   THEME_ATTRIBUTE,
   THEME_STORAGE_KEY,
-} from "@olai/web/src/client/theme/palettes.ts";
+} from "@olai/web/testlib";
 
 import { manifestOf } from "./install_steps.ts";
 import { hintOf, showPreferences } from "./preferences_steps.ts";

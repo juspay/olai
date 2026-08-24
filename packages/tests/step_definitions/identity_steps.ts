@@ -21,7 +21,7 @@ import { Given, Then } from "@cucumber/cucumber";
 import type { Locator } from "playwright";
 
 import { DEFAULT_IDENTITY_HEADERS, gravatarOf } from "@olai/identity";
-import { selector, TESTID } from "@olai/web/src/client/testids.ts";
+import { selector, TESTID } from "@olai/web/testlib";
 
 import { POLL_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";

@@ -10,7 +10,7 @@
 
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
-import { isoDayOf } from "@olai/web/src/client/clock.ts";
+import { isoDayOf } from "@olai/web/testlib";
 import type { Page } from "playwright";
 
 import { saysThat } from "../support/said.ts";

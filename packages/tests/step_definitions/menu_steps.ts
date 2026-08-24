@@ -26,7 +26,7 @@
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
-import { TESTID } from "@olai/web/src/client/testids.ts";
+import { TESTID } from "@olai/web/testlib";
 
 import { chunkOf } from "../support/chunks.ts";
 

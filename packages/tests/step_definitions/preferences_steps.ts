@@ -19,15 +19,13 @@ import type { Page } from "playwright";
 import {
   ALERT_SOUND_KEY,
   ALERTS_KEY,
-} from "@olai/web/src/client/settings/alerts.ts";
-import {
   DENSITY_KEY,
   type Density,
-} from "@olai/web/src/client/settings/density.ts";
-import { DONE_HIDDEN_KEY } from "@olai/web/src/client/settings/done.ts";
-import { HIDDEN_OUTLINES_KEY } from "@olai/web/src/client/settings/hiddenOutlines.ts";
-import { TESTID } from "@olai/web/src/client/testids.ts";
-import { SIZE_STORAGE_KEY } from "@olai/web/src/client/theme/sizes.ts";
+  DONE_HIDDEN_KEY,
+  HIDDEN_OUTLINES_KEY,
+  SIZE_STORAGE_KEY,
+  TESTID,
+} from "@olai/web/testlib";
 
 import { focusedOn } from "../support/caret.ts";
 import {
