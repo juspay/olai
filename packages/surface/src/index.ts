@@ -1509,9 +1509,10 @@ export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
  *  `who.get` procedure carries. See {@link ./who.ts}. */
 export { WHO_PATH, Who } from "./who.ts"
 
-/** Where the hashed browser bundle lives — see {@link ./bundle.ts}. One
- *  spelling, both halves of the serve. */
-export { ASSET_PREFIX } from "./bundle.ts"
+/** Where the hashed browser bundle lives, and what the bundler names a split
+ *  chunk in it — see {@link ./bundle.ts}. One spelling, both halves of the
+ *  serve, and the two suites that hold a chunk up. */
+export { ASSET_PREFIX, chunkFile, chunkUrl } from "./bundle.ts"
 
 /** What a served `.html` is answered with, how tall it says it is, and which
  *  page of this vault it says a reader clicked — the other contract between the

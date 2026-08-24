@@ -51,7 +51,7 @@ import babelTypeScript from "@babel/preset-typescript"
 // @ts-expect-error — the babel presets ship loose types
 import babelSolid from "babel-preset-solid"
 import { buildSurfaceClient } from "@kolu/surface-app/bun"
-import { ASSET_PREFIX } from "@olai/surface"
+import { ASSET_PREFIX, chunkFile } from "@olai/surface"
 import type { BunPlugin } from "bun"
 
 import { fontCss, FONTS_DIR, HOSTED_WOFF2 } from "@olai/fonts/build"
@@ -197,17 +197,14 @@ const installFonts = (distDir: string): void => {
 }
 
 /** The module the shell is waiting to be told the hashed name of, spelled
- *  ONCE: the placeholder is that path in an `href`, and the chunk is that
- *  module's own basename plus the hash `buildSurfaceClient` gives every output
- *  (`markdown/pipeline.ts` → `pipeline-<hash>.js`; the same rule
- *  `packages/tests/support/chunks.ts` derives a held-up chunk's URL from).
- *  Renaming the module is then one edit here and one in the shell, and a build
- *  that reaches neither fails rather than shipping a preload of nothing. */
+ *  ONCE: the placeholder is that path in an `href`, and the chunk is what
+ *  `@olai/surface`'s `chunkFile` says the bundler will name it — the same rule
+ *  `packages/tests/support/chunks.ts` holds a chunk up by. Renaming the module
+ *  is then one edit here and one in the shell, and a build that reaches neither
+ *  fails rather than shipping a preload of nothing. */
 const PIPELINE_MODULE = "./markdown/pipeline.ts"
 const PIPELINE_PLACEHOLDER = `href="${PIPELINE_MODULE}"`
-const PIPELINE_CHUNK = new RegExp(
-  `^${basename(PIPELINE_MODULE, ".ts")}-[^/]*\\.js$`,
-)
+const PIPELINE_CHUNK = chunkFile(basename(PIPELINE_MODULE, ".ts"))
 
 /**
  * The one hashed name the shell has to know that the helper will not tell it:

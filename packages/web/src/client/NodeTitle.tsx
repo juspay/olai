@@ -88,12 +88,7 @@ export function NodeTitle(props: {
     { equals: sameDrawing },
   )
   return (
-    <Show
-      when={address()}
-      fallback={
-        <TitleHtml drawing={drawing()} />
-      }
-    >
+    <Show when={address()} fallback={<TitleHtml drawing={drawing()} />}>
       {(route) => {
         /** WHAT THIS FACE SAYS AND WHAT IT MAY BE, from the one reading both
          *  faces make of a title (`./address/address.ts`) — and the set's half

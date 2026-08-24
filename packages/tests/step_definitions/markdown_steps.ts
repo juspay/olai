@@ -22,7 +22,7 @@ import {
   HYDRATION_TIMEOUT,
   POLL_TIMEOUT,
 } from "../support/world.ts";
-import type { OlaiWorld } from "../support/world.ts";
+import type { Box, OlaiWorld } from "../support/world.ts";
 
 /**
  * The pipeline, as a chunk a scenario can hold up.
@@ -63,7 +63,7 @@ Then("the shell asked for the markdown pipeline", async function (this: OlaiWorl
     )
   );
   assert.ok(
-    preloaded.some((href) => /pipeline-[^/]+\.js$/.test(href)),
+    preloaded.some((href) => PIPELINE.url.test(href)),
     `the shell preloads no markdown pipeline:\n  ${preloaded.join("\n  ") || "(no modulepreload at all)"}`,
   );
   const requested = PIPELINE.asked(this);
@@ -233,10 +233,10 @@ Then("no frame of legible raw markdown was painted", async function (this: OlaiW
 When(
   "I note where the description of {string} sits",
   async function (this: OlaiWorld, id: string) {
-    const desc = this.node(id).locator(DESC).first().locator(WAITING);
-    const box = await desc.boundingBox();
-    assert.ok(box !== null, `the note of "${id}" is not laid out`);
-    this.blockBefore = { x: box.x, y: box.y, width: box.width };
+    this.blockBefore = await this.box(
+      this.node(id).locator(DESC).first().locator(WAITING),
+      `the note of "${id}"`,
+    );
   },
 );
 
@@ -245,20 +245,22 @@ Then(
   async function (this: OlaiWorld, id: string) {
     const before = this.blockBefore;
     assert.ok(before !== undefined, "nothing noted where the note was sitting");
-    const desc = this.node(id).locator(DESC).first().locator(".olai-md").first();
-    const box = await desc.boundingBox();
-    assert.ok(box !== null, `the note of "${id}" is not laid out`);
+    const now = await this.box(
+      this.node(id).locator(DESC).first().locator(".olai-md").first(),
+      `the note of "${id}"`,
+    );
     // The CORNER and the measure, and deliberately not the height: a rendering
     // of the text is a different shape from the text, and the promise is that
     // the block does not jump — not that markdown renders to the same number
     // of lines it was written in.
+    const corner = (box: Box) => ({
+      x: Math.round(box.x),
+      y: Math.round(box.y),
+      width: Math.round(box.width),
+    });
     assert.deepStrictEqual(
-      { x: Math.round(box.x), y: Math.round(box.y), width: Math.round(box.width) },
-      {
-        x: Math.round(before.x),
-        y: Math.round(before.y),
-        width: Math.round(before.width),
-      },
+      corner(now),
+      corner(before),
       `the note of "${id}" moved when its rendering replaced its source`,
     );
   },

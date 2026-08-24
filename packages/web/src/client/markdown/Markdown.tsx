@@ -74,11 +74,11 @@ export function Markdown(props: {
       when={markdownFailure()}
       fallback={
         <div
+          // The SAME element either way — nothing remounts when the rendering
+          // replaces the source, so nothing on the page moves but the words
+          // themselves. What it LOOKS like while it waits, down to its
+          // `pre-wrap`, is the sheet's (../styles.css).
           class={classes()}
-          // The SAME element either way, dressed differently — nothing
-          // remounts when the rendering replaces the source, so nothing on the
-          // page moves but the words themselves.
-          classList={{ "whitespace-pre-wrap": waiting() }}
           data-testid={props.testid}
           // The waiting face, which every surface holding unrendered source
           // wears (./waiting.ts, ../styles.css) — this element rather than a

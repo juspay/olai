@@ -2595,9 +2595,10 @@ export class OlaiWorld extends World {
   /** Where a block sat before something replaced what is inside it, for the
    *  scenario that claims it did not MOVE — the markdown renderer landing
    *  under a note (`step_definitions/markdown_steps.ts`). Compared against
-   *  itself, like the paper above: the corner and the measure are the claim,
-   *  and no number in it is a fact about this app anybody wrote down. */
-  blockBefore?: { x: number; y: number; width: number };
+   *  itself, like the paper above: the corner and the measure are the claim
+   *  (never the height — a rendering of the text is a different shape from the
+   *  text), and no number in it is a fact about this app anybody wrote down. */
+  blockBefore?: Box;
 
   /** The URLs that left this server. Normally empty and it must stay that way:
    *  the bundle, the stylesheet and the syntax highlighter are all shipped by

@@ -341,7 +341,8 @@ mark.olai-hit {
  *
  * Every markdown surface holds the file's own text until `markdown/chunk.ts`
  * lands — a title in a tree row, a `¶` note, the day's note, a document body,
- * a preview, a referrer, an agent's reply, a palette or search row. That text
+ * a preview, a document attached to a node, an agent's reply, a palette or
+ * search row. That text
  * is the truthful thing to hold: it is the real characters, so the box is the
  * size the words make and the swap to the rendering moves the block itself
  * nowhere. What it must never be is READ: raw `**` and `[](…)` on screen for a
@@ -365,9 +366,29 @@ mark.olai-hit {
  * from the rule colour so it follows every palette, and behind the words
  * rather than over them, so what moves is a band of light and not the text.
  * Under `prefers-reduced-motion` the sweep is a still band — the state still
- * reads as unfinished, and nothing on the page moves. */
-[data-markdown="waiting"] {
+ * reads as unfinished, and nothing on the page moves.
+ *
+ * It animates `background-position`, which is a PAINT property: each waiting
+ * element is re-rastered while it sweeps, and that is a cost taken knowingly.
+ * The compositable spellings need a positioned overlay (a `::after` moved by
+ * `transform`), and this rule has to serve an inline title, where an absolutely
+ * positioned pseudo-element resolves against line boxes rather than a box. One
+ * rule for every surface is the promise; the window it runs in is a frame on a
+ * warm cache and a fetch on a cold one, and the elements wearing it are the few
+ * that hold markdown rather than every row on the page.
+ *
+ * KEYED ON `.olai-md` as well, so the selector has a class to match on: every
+ * surface that can wear this carries it, and a bare attribute selector is one
+ * the style engine must consider against every element in the document. */
+.olai-md[data-markdown="waiting"] {
   filter: blur(0.3em);
+
+  /* The source's own lines are its lines — a wrapped `- item` is not the
+   * shape of the list it will become, and pretending otherwise is the invented
+   * height this whole rule refuses. Here rather than on the component, because
+   * the sheet is the WHOLE of what waiting looks like; an inline title is one
+   * line either way and is left alone. */
+  white-space: pre-wrap;
   background-image: linear-gradient(
     100deg,
     transparent 35%,
@@ -384,7 +405,7 @@ mark.olai-hit {
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  [data-markdown="waiting"] {
+  .olai-md[data-markdown="waiting"] {
     animation: olai-md-waiting 1.2s linear infinite;
   }
 }

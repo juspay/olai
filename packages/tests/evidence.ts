@@ -12,6 +12,7 @@
  * a frame nobody can reproduce.
  */
 import { fileKind, shiftDay } from "@olai/format"
+import { chunkUrl } from "@olai/surface"
 import { isoDayOf, ROW_DIM } from "@olai/web/testlib"
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname } from "node:path"
@@ -229,6 +230,14 @@ const TESTID_WATCHING = "chat-watching"
 const CHAT_WATCHING = `[data-testid="${TESTID_WATCHING}"]`
 const CHAT_TOOL_ELAPSED = '[data-testid="chat-tool-elapsed"]'
 const CHAT_TOOL_PROGRESS = '[data-testid="chat-tool-progress"]'
+
+/** Say something to the agent — the driver's half of the suite's own step. */
+const ask = async (page: Page, text: string): Promise<void> => {
+  const box = page.locator(CHAT_INPUT)
+  await box.waitFor()
+  await box.fill(text)
+  await page.locator(CHAT_SEND).click()
+}
 
 // ── the edge panel, and what a record says afterwards ──────────────────
 
@@ -723,9 +732,7 @@ const chatWorking = (page: Page) =>
 /** Type and press the ordinary send — the gesture, not a call: what is being
  *  photographed is a person using the composer. */
 const chatSend = async (page: Page, text: string): Promise<void> => {
-  const box = page.locator(CHAT_INPUT)
-  await box.waitFor()
-  await box.fill(text)
+  await page.locator(CHAT_INPUT).fill(text)
   await page.locator(CHAT_SEND).click()
 }
 
@@ -999,7 +1006,7 @@ const SECTIONS = {
     // (a call that armed a task is the one call whose point is to outlive its
     // turn), and the STRIP goes on answering from where the reader now is —
     // the arming row is off the top of the pane in this shot.
-    await chatSend(page, "flood")
+    await ask(page, "flood")
     await page.locator(CHAT_TRANSCRIPT).getByText("line 39").first().waitFor()
     await shot(page, "still-out-with-the-row-scrolled-away")
 
@@ -3704,7 +3711,7 @@ const SECTIONS = {
     /** How long the pipeline is held per navigation. Long enough for a
      *  screenshot of a frame; short enough that the section is not a wait. */
     const HELD = 6_000
-    const PIPELINE = /pipeline-[^/]+\.js$/
+    const PIPELINE = chunkUrl("pipeline")
     await page.route(PIPELINE, async (route) => {
       await new Promise((done) => setTimeout(done, HELD))
       await route.continue()
@@ -3718,7 +3725,7 @@ const SECTIONS = {
     const arrived = async (scope: string): Promise<void> => {
       await page.locator(`${scope} ${WAITING}, ${scope}${WAITING}`).first()
         .waitFor({ state: "detached", timeout: 30_000 })
-      await page.waitForTimeout(400)
+      await page.waitForTimeout(DRAWN)
     }
 
     // A title with markdown in it, because this fixture has none: the titles
@@ -3749,7 +3756,7 @@ const SECTIONS = {
     await page.keyboard.press("ControlOrMeta+k")
     await page.locator('[data-testid="palette-input"]').fill("cabinets")
     await page.locator(`[data-testid="palette-item"] ${WAITING}`).first().waitFor()
-    await page.waitForTimeout(400)
+    await page.waitForTimeout(DRAWN)
     await shot(page, "a-palette-row-waiting")
     await arrived('[data-testid="palette-item"]')
     await shot(page, "a-palette-row-arrived")

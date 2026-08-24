@@ -4,10 +4,10 @@
  *
  * There is one waiting state in this app and it must look the same wherever it
  * happens — a document body, a `¶` note, the day's note, a preview, a
- * referrer's body, an agent's reply, a tree row's title, a palette or search
- * row. The LOOK is one rule in ../styles.css, keyed on the attribute below:
- * the source blurred out of legibility and swept, so its box is still the size
- * the real characters make and no reader is shown raw `**` (roadmap
+ * document attached to a node, an agent's reply, a tree row's title, a palette
+ * or search row. The LOOK is one rule in ../styles.css, keyed on the attribute
+ * below: the source blurred out of legibility and swept, so its box is still
+ * the size the real characters make and no reader is shown raw `**` (roadmap
  * `markdown-raw-flash`).
  *
  * This is the other half of it — the two attributes that rule keys on, and the
