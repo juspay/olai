@@ -541,21 +541,32 @@ export const REPEAT_PICKER = selector(TESTID.repeatPicker);
 export const REPEAT_PICKER_RULE = selector(TESTID.repeatPickerRule);
 export const REPEAT_PICKER_SET = selector(TESTID.repeatPickerSet);
 export const REPEAT_PICKER_CANCEL = selector(TESTID.repeatPickerCancel);
-/** The properties run under a node's note or a document page's path, and one
- *  `key value` line of it. A line carries `data-key`, and `data-system` on
+/** The properties run under a node's title or a document page's path, and one
+ *  `key value` chip of it. A chip carries `data-key`, and `data-system` on
  *  the read-only ones — the node's own facts, which have verbs of their own.
- *  A document's run is custom keys only. */
+ *  A document's run is custom keys only. The value carries `data-door` where it
+ *  turned out to NAME something, and nothing where it stayed text. */
 export const PROPS = selector(TESTID.props);
 export const PROP = selector(TESTID.prop);
 export const PROP_VALUE = selector(TESTID.propValue);
-/** The editor under the row, opened by the `•••` menu's `Add property…` or one
- *  of its `Edit <key>…` entries. Its key box is read-only while an existing
- *  property is being changed — a rename is two ops. */
-export const PROP_EDITOR = selector(TESTID.propEditor);
-export const PROP_EDITOR_KEY = selector(TESTID.propEditorKey);
-export const PROP_EDITOR_VALUE = selector(TESTID.propEditorValue);
-export const PROP_EDITOR_SET = selector(TESTID.propEditorSet);
-export const PROP_EDITOR_CANCEL = selector(TESTID.propEditorCancel);
+/** ...and the disclosure a value too long to be a fact is drawn behind. */
+export const PROP_FOLD = selector(TESTID.propFold);
+/** The KEY half of a chip, which is the handle: pressing it opens the value for
+ *  editing whatever the value is. A button only where the surface offers
+ *  writing. */
+export const PROP_KEY = selector(TESTID.propKey);
+/** The box a value is typed in, in place of the chip's value — and, only while
+ *  a NEW property is being named, the box its key is typed in. There is no
+ *  panel and no Save button: Enter commits, Escape cancels, leaving commits
+ *  what changed. */
+export const PROP_EDIT = selector(TESTID.propEdit);
+export const PROP_EDIT_KEY = selector(TESTID.propEditKey);
+/** The `+` at the end of the run — the door onto adding one, drawn wherever
+ *  there is a run to put it at the end of. */
+export const PROP_ADD = selector(TESTID.propAdd);
+/** What the last commit had to say, under the run — a refusal quoted verbatim,
+ *  or a nudge that rode back on a write that landed. */
+export const PROP_SAID = selector(TESTID.propSaid);
 /** The rollup badge beside a title: how many of the tasks under this node are
  *  done. An annotation — the node's OWN mark is the checkbox. */
 export const PROGRESS = selector(TESTID.progress);

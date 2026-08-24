@@ -49,6 +49,11 @@
  * resolved here and travel WITH it ({@link PageReading.names}). One entry per
  * id however many rows point at it, which is why it is a table beside the arms
  * rather than a field repeated inside them.
+ *
+ * A CUSTOM VALUE joins them since `props-doors-autoshow`, and it is the one
+ * pointer that is a QUESTION rather than a declaration: `{"reviewer":"pi"}` is
+ * a string that might be a node's id, and only the set can say. See
+ * {@link namesFor}, where that difference is argued.
  */
 
 import { Schema } from "effect"
@@ -56,12 +61,12 @@ import { Schema } from "effect"
 import { Address } from "./address.ts"
 import { Agenda, type AgendaDay, agendaOf } from "./agenda.ts"
 import { Backlink, backlinksOf, Referrer, referrersTo } from "./backlinks.ts"
-import { Custom } from "./custom.ts"
+import { Custom, customOf } from "./custom.ts"
 import { dailyNotesOn, DayGroup, datedOn } from "./dates.ts"
 import { type Derived, type InTheWay, nodeNamed, nodesOf, Row, rowsOf } from "./derive.ts"
 import type { Face } from "./document.ts"
 import { bodyKind, FileKind, fileKind } from "./kinds.ts"
-import { isPutAway, isTrashed, type LocatedRegular } from "./node.ts"
+import { ID_SHAPE, isPutAway, isTrashed, type LocatedRegular } from "./node.ts"
 import { BrokenFile } from "./set.ts"
 import { pinTargetIn } from "./shelf.ts"
 import { Zoomed, zoom } from "./zoom.ts"
@@ -425,12 +430,35 @@ const trashOf = (derived: Derived, faces: ReadonlyArray<Face>): Shown => {
 /**
  * EVERY ID THIS PAGE POINTS AT, resolved — the names table.
  *
- * Two kinds of pointer, and both are read off the records the reading already
- * carries rather than off the vault: the EDGE fields a node writes (`see`,
- * `after`), which a row draws as a strip of links; and an ADDRESS somebody
+ * Three kinds of pointer, and every one is read off the records the reading
+ * already carries rather than off the vault: the EDGE fields a node writes
+ * (`see`, `after`), which a row draws as a strip of links; an ADDRESS somebody
  * wrote INTO a title, which is the same reading the shelf is built out of
  * (`./shelf.ts`'s `pinTargetIn`) and the last address resolution the browser
- * was still doing locally.
+ * was still doing locally; and a CUSTOM VALUE that turns out to be an id.
+ *
+ * ## The custom half, which is a CANDIDATE rather than a pointer
+ *
+ * The first two are declarations: a `see` names a node, and the format says so.
+ * A `custom` value declares nothing — nothing in olai reads a key in there
+ * (`./custom.ts`) — so `{"reviewer":"pi"}` is a string that MIGHT be the id of
+ * a node in this set and might be somebody's name. Resolving it is exactly what
+ * settles that: an id the set declares comes back named, and one it does not is
+ * simply absent, which is the same honest answer this table already gives for a
+ * dangling `see`. The drawer that spends it draws a door for the first and
+ * plain text for the second (`@olai/web`'s `props/door.ts`) — a wrong door
+ * being worse than no door is the whole reason the question is asked HERE,
+ * where the set is, rather than guessed at in a browser that no longer holds
+ * one.
+ *
+ * ONLY A VALUE SHAPED LIKE AN ID is asked about ({@link ID_SHAPE}), which is
+ * what keeps this from being a lookup per word of somebody's prose: a `merge`
+ * holding a sentence has spaces in it and never reaches the index, and a
+ * `verdict` holding a paragraph is one string tested against one regex. A LIST
+ * value contributes each of its members for the same reason a `see` does —
+ * `{"reviewer":["pi","grok"]}` is two facts, and drawing one of them as a door
+ * and the other as text would be the display inventing a difference the record
+ * does not have.
  *
  * The REQUESTED address joins them, and it is the one entry that is not about a
  * row: the palette's pin row names the page it is standing on, and a `/#id`
@@ -448,6 +476,11 @@ const namesFor = (
     for (const id of node.node.after ?? []) wanted.add(id)
     const written = pinTargetIn(node.node.title)
     if (written !== undefined) wanted.add(written)
+    for (const value of Object.values(customOf(node.node))) {
+      for (const one of typeof value === "string" ? [value] : value) {
+        if (ID_SHAPE.test(one)) wanted.add(one)
+      }
+    }
   }
   const named: Array<Named> = []
   for (const id of wanted) {

@@ -59,9 +59,11 @@
  * typed is still not a row that has changed — nothing is echoed, and what the
  * tree draws is the file.
  *
- * A ROW IS ITS TITLE. What hangs under it is the open state — the properties
- * run and the note (./NodeBody.tsx) — and what opens it is the pilcrow beside
- * the title (./note/Mark.tsx), or, at `Cozy`, the clamped line itself. Where an
+ * A ROW IS ITS TITLE AND THE FACTS IT CARRIES. The custom properties are drawn
+ * under the title as a run of chips whether the row is open or not
+ * (./NodeBody.tsx, ./props/PropsDrawer.tsx); what hangs under THEM is the open
+ * state — the note and what the node sees — and what opens it is the pilcrow
+ * beside the title (./note/Mark.tsx), or, at `Cozy`, the clamped line. Where an
  * untouched row STARTS is this browser's density preference
  * (./settings/density.ts), which is the third thing this tree answers to
  * alongside what is FOLDED (./fold/memory.ts) and whether done rows are drawn
@@ -69,7 +71,7 @@
  * stays on the title line.
  */
 
-import { customOf, isOverdue, type Row, shownRecord } from "@olai/format"
+import { isOverdue, type Row, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, Match, Show, Switch } from "solid-js"
 
@@ -102,9 +104,7 @@ import { hotOf } from "./hot.ts"
 import { LAYER } from "./layer.ts"
 import { NoteMark } from "./note/Mark.tsx"
 import { createNoteExpand } from "./note/expand.ts"
-import { customEntries } from "./props/drawer.ts"
-import type { Editing } from "./props/editor.ts"
-import { PropEditor } from "./props/PropEditor.tsx"
+import { hasBody } from "./body.ts"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { nodeMenuActions } from "./menu/actions.ts"
@@ -255,17 +255,32 @@ function Branch(props: {
   /** Is this row a SECTION — a top-level node of what is being read? */
   const section = () => props.depth === 0
 
-  /** Has this row anything to OPEN? Its note, which is what the pilcrow was
-   *  asked for — and its custom properties, because they moved into the open
-   *  state with it, and a node carrying `stage review` and no note would
-   *  otherwise have written a fact into a place with no door. The node's own
-   *  facts are not on the list: they are already on screen (the glyph, the date
-   *  badge) or on the node's own page. */
+  /**
+   * Has this row anything to OPEN? Its note, which is what the pilcrow was
+   * asked for, and what it SEES, which is drawn under the note and nowhere else
+   * on a row.
+   *
+   * ITS CUSTOM PROPERTIES ARE NOT ON THE LIST ANY MORE. They were, from the day
+   * they moved into the open state — a node carrying `stage review` and no note
+   * would otherwise have written a fact into a place with no door — and
+   * `props-doors-autoshow` took the door away by taking the fold away: the run
+   * is drawn on the row whether it is open or not (`./NodeBody.tsx`), so a
+   * pilcrow that offered to show it would be a pilcrow that opens onto nothing.
+   * That is the same rule this list has always been, applied to a run that
+   * moved.
+   *
+   * `see` is on it for the reason the properties were, and had been missing for
+   * the same reason they were there: `EdgeRefs` is drawn inside the open state
+   * and a row is the one surface that draws it nowhere else, so a node whose
+   * only body is a `see` had a reference nothing on the page could reach.
+   *
+   * The node's own facts are on neither list: they are already on screen (the
+   * glyph, the date badge, the address) or on the node's own page.
+   */
   const openable = () => {
     const shows = shown()
     if (shows === undefined) return false
-    const desc = shows.node.desc
-    return (desc !== undefined && desc !== "") || customEntries(customOf(shows.node)).length > 0
+    return hasBody(shows.node)
   }
 
   /** Both doors to this row's `•••` menu, whether it is open, and the line all
@@ -294,12 +309,23 @@ function Branch(props: {
     setRepeating(true)
   }
 
-  /** Is this row's property editor open, and on WHAT — a property it carries,
-   *  or `null` for one being added? Local to the ROW for the picker's reason:
-   *  the `•••` menu that opened it is closed by the time anything has been
-   *  typed. `undefined` is closed, which is the third state a `null` inside the
-   *  value could not spell (./props/PropEditor.tsx). */
-  const [propping, setPropping] = createSignal<Editing | null | undefined>(undefined)
+  /**
+   * Is this row being asked for an ADD-A-PROPERTY chip?
+   *
+   * The whole of what is left of the `•••`'s property family. A property is
+   * edited in the run of chips under the title now (./props/PropsDrawer.tsx),
+   * and the `+` at the end of that run is the door onto adding one — so the
+   * menu's `Edit <key>…` and `Remove <key>` entries are gone, and with them the
+   * menu that got longer every time somebody wrote a fact down.
+   *
+   * The one case the `+` cannot reach is a node carrying NO property: it has no
+   * run for a `+` to sit at the end of, and drawing an otherwise-empty run
+   * under every row of a tree would cost a line per title. So the entry is
+   * offered exactly then, and what it opens is the run's own editor rather than
+   * a panel of its own — the signal is a flag rather than a value, because
+   * "which property" is not a question this door asks.
+   */
+  const [adding, setAdding] = createSignal(false)
 
   /** This row's edge editing — which panel is open, the writes its two doors
    *  send, and the line that says what came of them (./edges/editing.tsx). The
@@ -559,7 +585,7 @@ function Branch(props: {
               pickDate: openPicker,
               pickRepeat: openRepeat,
               pickEdge: edges.open,
-              pickProp: (editing) => setPropping(editing),
+              addProp: () => setAdding(true),
               pickMove: () => moving.open({ record: props.row.at.node.id, place: props.row.key }),
             })}
           />
@@ -701,26 +727,6 @@ function Branch(props: {
         )}
       </Show>
 
-      {/* The property editor, on the same terms as the picker above: opened
-          from the `•••`, drawn under the line it was opened on, about the node
-          the row SHOWS — a placement carries no properties of its own, so one
-          typed at a mirror lands on its target exactly as a mark does.
-
-          The `when` tests the OPENNESS rather than the value, because `null` is
-          a state it is open in: adding a property nobody has named yet. */}
-      <Show when={propping() !== undefined ? shown() : undefined}>
-        {(shows) => (
-          <div class={PAST_CONTROLS}>
-            <PropEditor
-              editing={propping() ?? null}
-              onSet={(key, value) =>
-                applying({ verb: "prop", id: shows().node.id, key, value }, undo.record)}
-              onClose={() => setPropping(undefined)}
-            />
-          </div>
-        )}
-      </Show>
-
       {/* The edge panel and whatever its writes said, in the same place and on
           the same terms as the picker above: opened from the `•••`, drawn under
           the line it was opened on, about the node the row SHOWS — a placement
@@ -791,6 +797,17 @@ function Branch(props: {
                   // drawn where a node is READ ONLY (a day page) passes neither
                   // (./NodeBody.tsx).
                   onUnsee={(target) => edges.drop("see", target)}
+                  // ...and the run of chips writes at the same gate, about the
+                  // node the row SHOWS: a placement carries no properties of
+                  // its own, so one typed at a mirror lands on its target
+                  // exactly as a mark does.
+                  onProp={(key, value) =>
+                    applying(
+                      { verb: "prop", id: shows().node.id, key, value },
+                      undo.record,
+                    )}
+                  addingProp={adding()}
+                  onAddingPropEnd={() => setAdding(false)}
                 />
               }
             >

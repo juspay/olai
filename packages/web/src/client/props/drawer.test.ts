@@ -1,17 +1,18 @@
 /**
- * What the drawer draws, without a browser: which lines, in what order, as what
+ * What the drawer draws, without a browser: which chips, in what order, as what
  * text.
  *
  * The decisions the component does not make, and the ones that go quietly
  * wrong — a fact drawn twice on one screen, an order that changes under the
- * reader between one frame and the next.
+ * reader between one frame and the next. WHERE A CHIP GOES when it is pressed
+ * is the other half and has its own file (`./door.test.ts`).
  */
 
 import { customOf, type RegularNode } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { expect, test } from "bun:test"
 
-import { customEntries, drawerEntries, isLink, systemEntries } from "./drawer.ts"
+import { customEntries, drawerEntries, systemEntries } from "./drawer.ts"
 
 const nodeOf = (record: string): RegularNode =>
   recordsOf(setOf({ "a.olai": record }))[0]?.node as RegularNode
@@ -20,7 +21,7 @@ test("the id is always a line, because nothing else on the page says it", () => 
   // The ruling this file was rewritten for: an id is what every tool call and
   // every `((` reference takes, and it was readable nowhere.
   expect(systemEntries(nodeOf(`{"id":"order","ord":"a0","title":"t"}`)))
-    .toEqual([{ key: "id", value: "order", system: true, listed: false }])
+    .toEqual([{ key: "id", value: "order", values: ["order"], system: true, listed: false }])
 })
 
 /** The mark is ONE line holding both of what the field holds. The record has
@@ -28,9 +29,15 @@ test("the id is always a line, because nothing else on the page says it", () => 
  *  inventing a shape the format does not have. */
 test("the mark is one line, with its instant when it has one", () => {
   expect(systemEntries(nodeOf(`{"id":"n","ord":"a0","title":"t","doing":true}`))[1])
-    .toEqual({ key: "status", value: "doing", system: true, listed: false })
+    .toEqual({ key: "status", value: "doing", values: ["doing"], system: true, listed: false })
   expect(systemEntries(nodeOf(`{"id":"n","ord":"a0","title":"t","done":"2026-08-01"}`))[1])
-    .toEqual({ key: "status", value: "done 2026-08-01", system: true, listed: false })
+    .toEqual({
+      key: "status",
+      value: "done 2026-08-01",
+      values: ["done 2026-08-01"],
+      system: true,
+      listed: false,
+    })
 })
 
 test("a date is a line; a note, a document and the edges are not", () => {
@@ -60,32 +67,50 @@ test("the custom half is what somebody added, and nothing else", () => {
     `{"id":"n","ord":"a0","title":"t","done":true,"date":"2026-08-10","custom":{"pr":"https://x/1"}}`,
   )
   expect(customEntries(customOf(node))).toEqual([
-    { key: "pr", value: "https://x/1", system: false, listed: false },
+    { key: "pr", value: "https://x/1", values: ["https://x/1"], system: false, listed: false },
   ])
   // ...and the whole drawer is the facts first, then the properties.
   expect(drawerEntries(node).map((entry) => entry.key)).toEqual(["id", "status", "date", "pr"])
 })
 
 /**
- * THE FILE'S OWN ORDER, which for custom keys is alphabetical — not the order
- * they were written in, which the record does not remember.
+ * THE FILE'S OWN ORDER, and never alphabetical — the two are not the same
+ * sentence even though they usually agree.
  *
- * A record's key order is canonical so that two files meaning the same thing
- * are byte for byte the same (`@olai/format`'s `custom.ts`). A drawer keeping
- * "insertion order" would be keeping the order of whatever last wrote the map,
- * and would re-sort itself the next time the file was read.
+ * A record OLAI wrote is alphabetical on disk because the writer canonicalises,
+ * so that two files meaning the same thing are byte for byte the same
+ * (`@olai/format`'s `custom.ts`). A record a hand or an agent edited holds its
+ * keys in the order the person thought about them in, and the parse keeps that
+ * order all the way here. Sorting at the draw would take the author's order
+ * away in the one case where there is one, to no gain in the case where there
+ * is not.
  */
-test("the custom lines are in the file's own order", () => {
-  const node = nodeOf(
+test("the custom chips are in the file's own order, whatever order that is", () => {
+  const canonical = nodeOf(
+    `{"id":"n","ord":"a0","title":"t","custom":{"agent":"claude-opus","pr":"https://x/1","terminal":"485cd9bb"}}`,
+  )
+  expect(customEntries(customOf(canonical)).map((entry) => entry.key))
+    .toEqual(["agent", "pr", "terminal"])
+
+  const handWritten = nodeOf(
     `{"id":"n","ord":"a0","title":"t","custom":{"terminal":"485cd9bb","agent":"claude-opus","pr":"https://x/1"}}`,
   )
-  expect(customEntries(customOf(node)).map((entry) => entry.key)).toEqual(["agent", "pr", "terminal"])
+  expect(customEntries(customOf(handWritten)).map((entry) => entry.key))
+    .toEqual(["terminal", "agent", "pr"])
 })
 
-test("a list is drawn joined, and says that it is one", () => {
+test("a list is drawn joined, says that it is one, and keeps its members", () => {
+  // The joined string is what a search row draws (`../search/props.ts`); the
+  // members are what the run asks the door question of, one at a time.
   const node = nodeOf(`{"id":"n","ord":"a0","title":"t","custom":{"tags":["a","b"]}}`)
   expect(customEntries(customOf(node)))
-    .toEqual([{ key: "tags", value: "a, b", system: false, listed: true }])
+    .toEqual([{ key: "tags", value: "a, b", values: ["a", "b"], system: false, listed: true }])
+})
+
+test("a value that is TEXT is one member, so the run has one rule and not two", () => {
+  const node = nodeOf(`{"id":"n","ord":"a0","title":"t","custom":{"agent":"claude-opus"}}`)
+  expect(customEntries(customOf(node))[0]?.values).toEqual(["claude-opus"])
+  expect(customEntries(customOf(node))[0]?.listed).toBe(false)
 })
 
 test("a document's frontmatter is the same run, over the map", () => {
@@ -96,16 +121,13 @@ test("a document's frontmatter is the same run, over the map", () => {
     agent: "claude-opus",
     owners: ["alice", "bob"],
     date: "2026-09-01",
-  }).map((entry) => entry.key)).toEqual(["agent", "date", "owners"])
+  }).map((entry) => entry.key)).toEqual(["agent", "owners", "date"])
   expect(customEntries({ owners: ["alice", "bob"] }))
-    .toEqual([{ key: "owners", value: "alice, bob", system: false, listed: true }])
-})
-
-test("a link is a value that already is one, and nothing else", () => {
-  expect(isLink("https://github.com/juspay/olai/pull/176")).toBe(true)
-  expect(isLink("http://localhost:3000")).toBe(true)
-  // Nothing here parses a value: a URL is a string that looks like a URL, and
-  // guessing at the rest would make `claude-opus` a link to nowhere.
-  expect(isLink("github.com/juspay/olai")).toBe(false)
-  expect(isLink("485cd9bb")).toBe(false)
+    .toEqual([{
+      key: "owners",
+      value: "alice, bob",
+      values: ["alice", "bob"],
+      system: false,
+      listed: true,
+    }])
 })

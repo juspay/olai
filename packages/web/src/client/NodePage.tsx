@@ -27,6 +27,7 @@ import { Breadcrumbs } from "./Breadcrumbs.tsx"
 import { DateBadge } from "./DateBadge.tsx"
 import { EdgeRefs } from "./edges/EdgeRefs.tsx"
 import { createEdgeEditing } from "./edges/editing.tsx"
+import { useUndo } from "./edit/undoing.ts"
 import { EdgeVerbs } from "./edges/EdgeVerbs.tsx"
 import { Editable } from "./edit/Editable.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
@@ -39,6 +40,7 @@ import { ProgressBadge } from "./ProgressBadge.tsx"
 import { RepeatBadge } from "./RepeatBadge.tsx"
 import { doneHidden } from "./settings/done.ts"
 import { PAGE_TITLE } from "./look.ts"
+import { applying } from "./writes.ts"
 import { TESTID } from "./testids.ts"
 import { useToday } from "./today.tsx"
 import { toneOf } from "./tone.ts"
@@ -74,6 +76,18 @@ function Zoom(props: {
    *  a regular node however it was addressed, so the node is never absent
    *  here. */
   const edges = createEdgeEditing(() => props.zoomed.shows.node)
+  /**
+   * ⌘Z is one stack for this page, whichever hand wrote: the run of chips files
+   * what would take a property back exactly as a keystroke does (./writes.ts).
+   *
+   * IT IS NEW HERE, and it closes a gap the old drawer had and said so — "a
+   * zoomed node draws its drawer and has no door to it", because the `•••`
+   * hangs off a ROW and this page has none. Every property is edited where it
+   * is read now, and this page needs no ADD entry of its own either: the run
+   * here always draws the node's own facts, so it always has an end for the `+`
+   * to sit at (`./props/PropsDrawer.tsx`).
+   */
+  const undo = useUndo()
 
   return (
     <Editable
@@ -153,6 +167,11 @@ function Zoom(props: {
             shows={props.zoomed.shows}
             zoomed
             onUnsee={(target) => edges.drop("see", target)}
+            onProp={(key, value) =>
+              applying(
+                { verb: "prop", id: props.zoomed.shows.node.id, key, value },
+                undo.record,
+              )}
           />
 
           {/* THE TWO EDGE VERBS, on the page rather than in a `•••` menu — the

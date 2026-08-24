@@ -215,6 +215,32 @@ export const bodiedOf = (from: string, href: string): string | null => {
   return resolved !== null && bodyKind(resolved) !== null ? resolved : null
 }
 
+/**
+ * The same arithmetic with NO KIND QUESTION at the end of it: the path in this
+ * directory that a relative reference names, whatever suffix it turns out to
+ * have — or `null` for a string that names no path at all.
+ *
+ * The third sibling of {@link pictureOf} and {@link bodiedOf}, and the one that
+ * asks less rather than more. The other two end at an allowlist because their
+ * callers cannot ask the directory: a markdown renderer rewrites an `href`
+ * without knowing what the vault holds, so "is this a picture" and "does this
+ * have a page" have to be answered from the name. THIS one's caller can ask —
+ * a property value becomes a link only where the tab is holding the path in its
+ * file list (`@olai/web`'s `props/door.ts`) — and existence is a stronger
+ * answer than any suffix rule: it lets an `.olai` be named, which `bodyKind`
+ * refuses because an outline is a tree rather than a body, and it refuses a
+ * `.md` the directory has not got, which `bodiedOf` deliberately allows.
+ *
+ * WHAT IT STILL OWNS is the half that is not the suffix, and it is the half
+ * that matters: {@link relativeTo}'s refusals — no scheme, no `//host`, no
+ * absolute path, no bare fragment — and {@link resolveRelative}'s clamping of
+ * `..` to the served root. Those are one spelling for all three of these, which
+ * is exactly the arrangement the paragraph above {@link relativeTo} is written
+ * to keep.
+ */
+export const pathedOf = (from: string, href: string): string | null =>
+  relativeTo(from, href)
+
 /** A URL scheme, or the `//host` that borrows the page's own. Tested before
  *  resolution, because a `:` is a character a path resolver would happily
  *  treat as part of a file name. */

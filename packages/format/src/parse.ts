@@ -206,13 +206,25 @@ const checkRecord = ({ file, line, node }: Located): ReadonlyArray<OutlineError>
   return errors
 }
 
-/** ISO dates are validated by hand rather than parsed into a date type,
- *  because the stored text is written back verbatim: a date-only `2026-08-10`
- *  that round-tripped through an instant would come back as a datetime, and
- *  the format's stability rests on writers reproducing what they read. So the
- *  check is shape plus calendar reality — `2026-02-30` matches the shape and
- *  is still not a day. */
-const isIsoInstant = (value: string): boolean => {
+/**
+ * ISO dates are validated by hand rather than parsed into a date type, because
+ * the stored text is written back verbatim: a date-only `2026-08-10` that
+ * round-tripped through an instant would come back as a datetime, and the
+ * format's stability rests on writers reproducing what they read. So the check
+ * is shape plus calendar reality — `2026-02-30` matches the shape and is still
+ * not a day.
+ *
+ * EXPORTED, though the rest of this file's spellings are not (`./index.ts`'s
+ * closing paragraph: "the id regex, the edge-field list, the path resolver are
+ * not contract"). This one is, and the difference is that a second reader has
+ * appeared with the same question and no field to ask it about. A `date` field
+ * is checked here and drawn as a badge; a CUSTOM key holding `2026-08-31` is a
+ * date the format gives no meaning to and a drawer still wants to wear the
+ * badge for (`@olai/web`'s `props/door.ts`). Two answers to "is this text a
+ * date" would be a value the validator refuses on one field and a view calls a
+ * date on another — so there is one, and it is the one the validator spends.
+ */
+export const isIsoInstant = (value: string): boolean => {
   const match = /^(\d{4})-(\d{2})-(\d{2})(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?)?$/
     .exec(value)
   if (match === null) return false

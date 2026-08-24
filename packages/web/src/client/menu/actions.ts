@@ -110,11 +110,12 @@ export const nodeMenuActions = (args: {
    *  writes through it too), not to a menu that is closed by the time either is
    *  chosen. */
   readonly pickEdge: (relation: Relation) => void
-  /** Open the row's property editor — on an existing property, or on `null` for
-   *  one being added. The same arrangement the two above are, and for the same
-   *  reason: a key and a value are typed, and the panel belongs to the ROW
-   *  rather than to a menu that is closed by the time either of them is. */
-  readonly pickProp: (editing: { key: string; value: string } | null) => void
+  /** Open the ADD-A-PROPERTY chip in the row's run of chips — the one property
+   *  entry the menu still carries, and only on a node whose run is empty
+   *  (`./verbs.ts` argues where). It carries nothing, because the run knows
+   *  every key and value it draws and a menu that is closed by the time
+   *  anything has been typed could not hold one anyway. */
+  readonly addProp: () => void
   /** Open the row's MOVE-TO picker — the same arrangement the three above are,
    *  for the same reason: a destination is a node somebody has to find, and the
    *  panel belongs to the ROW (⌘⇧M in its editor opens the same one), not to a
@@ -240,8 +241,8 @@ export const nodeMenuActions = (args: {
           case "pick-repeat":
             args.pickRepeat()
             return
-          case "pick-prop":
-            args.pickProp(does.editing)
+          case "add-prop":
+            args.addProp()
             return
           case "pick-move":
             args.pickMove()
