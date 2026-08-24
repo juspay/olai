@@ -20,7 +20,10 @@
  * What is deliberately NOT here is each test's own bound on stopping:
  * `shutdown.test.ts` is ABOUT how long a stop may take, so that number stays
  * where the sentence explaining it is. How long a BOOT may take is not any
- * caller's subject, so that one is here ({@link BOOT_TIMEOUT}).
+ * caller's subject, so that one is here ({@link BOOT_TIMEOUT}) — a hang
+ * detector around the `serving` line, never the wait itself. Callers still
+ * owe the runner a timeout longer than this, or bun's 5s default steals
+ * the failure and says only that something took too long.
  */
 
 import { findLogfmt } from "@olai/log/testlib"
@@ -83,9 +86,11 @@ export interface WebChild {
    *  belonging to the package that owns the format, rather than through a
    *  regex this file would be alone in maintaining.
    *
-   *  Rejects if the child exits first, or after {@link BOOT_TIMEOUT} — with
-   *  everything it said, because "never bound" and "would not boot, and here is
-   *  why" look identical from out here otherwise. */
+   *  The wait is that line, not a deadline: a late caller is answered from
+   *  the box, an early one from the chunk that carries it. Rejects if the
+   *  child exits first, or after {@link BOOT_TIMEOUT} — with everything it
+   *  said, because "never bound" and "would not boot, and here is why" look
+   *  identical from out here otherwise. */
   readonly address: () => Promise<string>
   /** Its exit code, once its pipes have drained. */
   readonly exited: () => Promise<number | null>
@@ -143,15 +148,24 @@ export const startWeb = (options: {
 
   // Both streams into one box, for the life of the child: a server says where
   // it bound on stdout and why it would not boot on stderr, and a caller
-  // asserting on either wants whichever arrived.
+  // asserting on either wants whichever arrived. The `serving` line IS the
+  // listen: waiters sit on these `data` events, not on a poll, because a
+  // wall-clock interval is what load blows through (the flake this wait used
+  // to be).
   let said = ""
+  const notice = new Set<() => void>()
+  const consider = () => {
+    for (const fn of notice) fn()
+  }
   child.stdout?.setEncoding("utf8")
   child.stderr?.setEncoding("utf8")
   child.stdout?.on("data", (chunk: string) => {
     said += chunk
+    consider()
   })
   child.stderr?.on("data", (chunk: string) => {
     said += chunk
+    consider()
   })
 
   // ONE listener for the end of this child, attached at spawn and shared by
@@ -166,33 +180,40 @@ export const startWeb = (options: {
   return {
     child,
     said: () => said,
-    // Polled rather than driven off the `data` event, so that a caller asking
-    // late is answered from the box rather than left waiting for a chunk that
-    // has already arrived.
+    // The `serving` line, not a sleep and not a health poll. A caller asking
+    // late is answered from the box (look once on entry); one asking early
+    // is woken by the chunk that carries the line. {@link BOOT_TIMEOUT} is
+    // only the hang detector.
     address: () =>
       new Promise<string>((resolve, reject) => {
         const look = () => findLogfmt(said, "serving")?.url
-        const stop = () => {
-          clearInterval(poll)
+        let settled = false
+        const finish = (act: () => void) => {
+          if (settled) return
+          settled = true
+          notice.delete(onChunk)
           clearTimeout(timer)
+          act()
         }
-        const poll = setInterval(() => {
+        const onChunk = () => {
           const url = look()
           if (url === undefined) return
-          stop()
-          resolve(url)
-        }, 25)
+          finish(() => resolve(url))
+        }
         const timer = setTimeout(() => {
-          stop()
-          reject(new Error(`the server never said where it was serving:\n${said}`))
+          finish(() =>
+            reject(new Error(`the server never said where it was serving:\n${said}`)))
         }, BOOT_TIMEOUT)
         void closed.then(() => {
           const url = look()
-          stop()
-          if (url === undefined) {
-            reject(new Error(`the server exited before it served:\n${said}`))
-          } else resolve(url)
+          finish(() => {
+            if (url === undefined) {
+              reject(new Error(`the server exited before it served:\n${said}`))
+            } else resolve(url)
+          })
         })
+        notice.add(onChunk)
+        onChunk()
       }),
     exited: () => closed,
     kill: (signal: NodeJS.Signals = "SIGKILL") => {

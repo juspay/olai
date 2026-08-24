@@ -22,14 +22,14 @@
 
 import { DEFAULT_IDENTITY_CONFIG } from "@olai/identity"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
-import { expect, test } from "bun:test"
+import { expect, test as bunTest } from "bun:test"
 import { Effect } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 import * as net from "node:net"
 
-import { startWeb } from "./child.testlib.ts"
+import { BOOT_TIMEOUT, startWeb } from "./child.testlib.ts"
 import { MANIFEST } from "./manifest.ts"
 import { serve } from "./serve.ts"
 import { served, SERVER_LAYERS, withServing } from "./serve.testlib.ts"
@@ -39,6 +39,22 @@ import { served, SERVER_LAYERS, withServing } from "./serve.testlib.ts"
 // port. child.testlib already strips it from CLI children; this is the
 // twin. withPortFile below puts it back for the tests that are about it.
 delete process.env.OLAI_PORT_FILE
+// Twin of startWeb: this file's `run()` does not go through withServe,
+// so it has to say the off switch itself. A PATH `opencode` would otherwise
+// spawn on every in-process boot, which is not what a listen test is about.
+process.env.OLAI_ACP_AGENT = ""
+
+/** Hang detector around a real listen. Longer than {@link BOOT_TIMEOUT} so a
+ *  slow boot fails on the serving line (or bun would steal it at 5s and say
+ *  only that something took too long). The wait itself is the listen, not
+ *  this number. */
+const BOUND_MS = BOOT_TIMEOUT * 2
+
+/** Every test here boots a real listener; bun's hang detector sits outside
+ *  the inner wait so load cannot report as a bare timeout. */
+const test = (name: string, fn: () => Promise<void>): void => {
+  bunTest(name, fn, BOUND_MS)
+}
 
 /** A port with something already listening on it, closed with the test. */
 const occupied = (): Promise<{ port: number; release: () => Promise<void> }> =>
