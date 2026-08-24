@@ -45,19 +45,32 @@ Taken from #941:
 
 Added here, and not in #941:
 
-- **coverage of every task the harness registers**, which is the point: a
-  `Monitor` (`{ taskId, … }`), a `Bash(run_in_background)`
-  (`{ backgroundTaskId, … }`) and an async `Agent` (`{ status:
-  "async_launched", agentId }`) all arm a call now;
-- **correlation off `task_started.tool_use_id`** rather than off the tool's
-  structured answer. The harness names the arming tool use on that frame, and
-  it also names the task's KIND (`task_type`) and the DESCRIPTION it was armed
-  with — none of which the structured answer carries. #941's read stays as the
-  fallback for a runtime whose `task_started` names no tool use;
+- **coverage of the background-launching tools, as a table rather than a
+  branch** (`BACKGROUND_LAUNCHES`): a `Monitor` (`{ taskId, … }`), a
+  `Bash(run_in_background)` (`{ backgroundTaskId, … }`) and an async `Agent` /
+  `Task` (`{ status: "async_launched", agentId }`). **That table is the gate on
+  every arming**, and it is worth being plain about what that means: a tool it
+  does not name — a new one, a renamed one, a renamed answer field — keeps the
+  lifecycle it has always had and completes at launch, which is the unpatched
+  behaviour and the direction this is safe to fail in. Nothing here can invent
+  a live face for a call the harness never registered a task for, and nothing
+  guards against the vocabulary drifting: what would catch that is a run of
+  `packages/tests/tasks.ts`, which prints the timeline for a real `Monitor` and
+  a real background shell;
+- **correlation and metadata off `task_started.tool_use_id`**. The harness
+  names the arming tool use on that frame, and it also names the task's KIND
+  (`task_type`) and the DESCRIPTION it was armed with — none of which the
+  structured answer carries. The ARMING DECISION is still the answer's, as in
+  #941 (see the table above); what `task_started` adds is who the task belongs
+  to and what to call it, and a runtime that omits the tool use there loses the
+  metadata rather than the lifecycle;
 - **`_meta.claudeCode.backgroundTask`** on every frame about such a call —
   `{ taskId, taskType, description }` when it is armed, plus `{ status,
   summary }` when it settles — so a client can draw the task rather than
-  infer one from a status;
+  infer one from a status. (olai itself reads all of that except `taskType`,
+  which says `local_bash` for a monitor and a background shell alike; it is
+  stamped because it is the harness's own word and #865's proposal carries
+  it, not because anything here draws it.)
 - **the settle carries the harness's own SUMMARY** as tool-call content. That
   sentence is where a background shell's EXIT CODE is: *Background command
   "…" failed with exit code 3*. `task_updated` is the guaranteed half of the

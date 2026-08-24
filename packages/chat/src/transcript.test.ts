@@ -428,7 +428,7 @@ describe("tool calls", () => {
     transcript.tool("toolu_01WATCH", {
       title: "Monitor",
       status: "in_progress",
-      armed: { task: "bu13xz2ie", kind: "local_bash", description: "kolu fleet watch" },
+      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
     })
     transcript.tool("toolu_01WATCH", {
       status: "failed",
@@ -439,7 +439,6 @@ describe("tool calls", () => {
       status: "failed",
       armed: {
         task: "bu13xz2ie",
-        kind: "local_bash",
         description: "kolu fleet watch",
         ended: "killed",
       },

@@ -1650,7 +1650,6 @@ Then(
   },
 );
 
-
 Then(
   "the chat says a background task is watching {string}",
   async function (this: OlaiWorld, watching: string) {
@@ -1737,6 +1736,7 @@ Then("the chat says no background task is still running", async function (this: 
     HYDRATION_TIMEOUT,
   );
 });
+
 Then("the chat says no agent is still working", async function (this: OlaiWorld) {
   // A face that outlives the agent is worse than none: it says a fan-out is
   // running when the turn is over.

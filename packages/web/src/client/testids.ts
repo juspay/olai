@@ -1221,9 +1221,9 @@ export const TESTID = {
   chatSpawnWorking: "chat-spawn-working",
   /** WHAT a call left running in the background, on the line of the call that
    *  armed it: the description the task was armed with. `data-task` is the
-   *  harness's own id for the task and `data-task-kind` its own word for the
-   *  kind, so a scenario asserts the FACT rather than the sentence around it.
-   *  Absent on every call that armed nothing. */
+   *  harness's own id for the task, so a scenario asserts the FACT rather than
+   *  the sentence around it. Absent on every call that armed nothing, and on a
+   *  task nobody described. */
   chatArmed: "chat-armed",
   /** ... and how that task ENDED, in the harness's own word — `completed`,
    *  `failed`, `killed`, `stopped`, of which ACP's own status can spell only

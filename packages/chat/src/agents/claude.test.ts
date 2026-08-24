@@ -410,10 +410,13 @@ describe("which call armed a background task", () => {
     },
   }
 
-  test("reads the task, its kind and what it was armed with", () => {
+  test("reads the task and what it was armed with", () => {
+    // ... and NOT the harness's `taskType`, which is on the frame and says
+    // `local_bash` for a monitor and for a background shell alike — see the
+    // note under the reader. A field nothing draws is a field that is wrong the
+    // first time somebody draws it.
     expect(backgroundTaskIn(ARMED)).toEqual({
       task: "bu13xz2ie",
-      kind: "local_bash",
       description: "tick watch",
     })
   })
@@ -460,13 +463,13 @@ describe("which call armed a background task", () => {
   })
 
   test("a field of the wrong shape is dropped, never repaired", () => {
-    // The rule this file's other readers follow: a kind that is not a word and
-    // a description that is not a sentence are said by nobody, and defaulting
-    // either would be inventing the fact the row exists to report. The task
-    // survives, because the task is what was actually said.
+    // The rule this file's other readers follow: a description that is not a
+    // sentence and an ending that is not a word are said by nobody, and
+    // defaulting either would be inventing the fact the row exists to report.
+    // The task survives, because the task is what was actually said.
     expect(
       backgroundTaskIn({
-        claudeCode: { backgroundTask: { taskId: "t", taskType: 7, description: "", status: null } },
+        claudeCode: { backgroundTask: { taskId: "t", description: "", status: null } },
       }),
     ).toEqual({ task: "t" })
   })

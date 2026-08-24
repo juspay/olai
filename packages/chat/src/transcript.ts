@@ -54,7 +54,7 @@
 
 import { isDeepStrictEqual } from "node:util"
 
-import { isRunningStatus } from "@olai/surface"
+import { isRunningStatus, isTaskOut } from "@olai/surface"
 
 import type {
   Armed,
@@ -566,12 +566,13 @@ export class Transcript {
       // work, and the row would say "abandoned" about the very thing the panel
       // was asked to show.
       //
-      // ... UNTIL IT HAS ENDED, which is the half that keeps this honest: an
-      // ended task's row is an ordinary settled call and needs no exemption.
-      // And until the CONVERSATION ends, which is {@link abandon}'s door: a
-      // dead agent's tasks are as abandoned as its calls, because a dead agent
-      // reports the death of nothing.
-      if (!alsoArmed && entry.armed !== undefined && entry.armed.ended === undefined) continue
+      // ... UNTIL IT HAS ENDED, and until the CONVERSATION ends, which is
+      // {@link abandon}'s door: a dead agent's tasks are as abandoned as its
+      // calls, because a dead agent reports the death of nothing. Both halves
+      // are `isTaskOut`'s, in the surface beside the status vocabulary, because
+      // the browser asks the same question about the same row and the two must
+      // not answer differently.
+      if (!alsoArmed && isTaskOut(entry)) continue
       this.#stranded.add(key)
       change = both(change, this.#put(key, contentOf(entry)))
     }

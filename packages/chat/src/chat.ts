@@ -86,6 +86,7 @@ import {
   CHAT_OFF,
   type ChatEntry,
   type ChatState,
+  isTaskOut,
   type NodeContext,
   type OpFailure,
   type Listed,
@@ -546,22 +547,21 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       return waiting
     }
 
-
     /**
      * ... and how many BACKGROUND TASKS are still out, counted off the rows for
      * the same reason and published under the same rule.
      *
-     * A task being out is the row whose `armed` carries no ending and whose
-     * call the wire still calls running — which is the transcript's own
-     * `stranded` doing the second half: an armed row is deliberately not
-     * stranded while its task is alive, so a stranded one is a task whose AGENT
-     * died and whose end nobody will ever report.
+     * WHICH ROWS COUNT is `isTaskOut`'s and not this file's — the same rule the
+     * transcript's own stranding asks and the panel's rail asks, in the surface
+     * beside the status vocabulary. Written out here it was already wrong in one
+     * direction the others were not (it forgot the status), which is a count
+     * that stays above zero after the last rail has gone out — and a count above
+     * zero is a clock ticking in every open tab.
      */
     const watching = (): number => {
       let out = 0
       for (const entry of transcript.entries().values()) {
-        if (entry.kind !== "tool" || entry.stranded === true) continue
-        if (entry.armed !== undefined && entry.armed.ended === undefined) out++
+        if (entry.kind === "tool" && isTaskOut(entry)) out++
       }
       return out
     }
@@ -614,8 +614,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             }),
           )
           // A tool frame is the only frame that can arm a background task or
-          // report the end of one, so it is where the count is re-read.
-          watched()
+          // report the end of one — and only a frame that says something about
+          // one of the two fields the count is made of can move it, which is a
+          // small fraction of the frames a turn sends. The count is a walk of
+          // the rows (`asking` next door makes the argument for that), so the
+          // walk is worth not taking per progress chunk of every call.
+          if (event.armed !== undefined || event.status !== undefined) watched()
           return
         case "asked":
           publish(transcript.ask(event.id, event.message, event.fields, event.parent))

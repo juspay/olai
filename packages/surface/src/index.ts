@@ -1438,6 +1438,8 @@ export {
   FileDiff,
   isOpFailure,
   isRunningStatus,
+  isStillRunning,
+  isTaskOut,
   kindOf,
   NodeContext,
   NoticeEntry,

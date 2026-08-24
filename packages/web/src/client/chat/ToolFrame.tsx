@@ -117,6 +117,26 @@ const LOOK: Record<ToolStatus, { mark: string; tone: string; said: string }> = {
   failed: { mark: "✗", tone: "text-alarm", said: "failed" },
 }
 
+/**
+ * WHAT THE CALL IS SAYING, as a pane — drawn in one of two places on one row
+ * and never in both, which is why it is a component rather than two `<pre>`s
+ * that have to keep agreeing about a class list and a test id.
+ *
+ * The two places are decided by {@link ./background.ts}: an ended task's row
+ * draws it OUTSIDE the fold, because for that row the harness's sentence (with
+ * the exit code in it) is the whole of what there is to read, and every other
+ * call draws it behind the fold with the arguments.
+ */
+function Saying(props: { readonly said: string; readonly tall: boolean }) {
+  return (
+    <pre
+      class="m-0 overflow-auto whitespace-pre-wrap border-t border-rule px-2 py-1 font-mono text-[0.6875rem] text-ink"
+      classList={{ "max-h-64": props.tall, "max-h-32": !props.tall }}
+      data-testid={TESTID.chatToolProgress}
+    >{props.said}</pre>
+  )
+}
+
 export function ToolFrame(props: { readonly entry: ToolEntry }) {
   /** How long this call has been running, or `null` when there is nothing to
    *  say. Reached for rather than handed down ({@link ./elapsing.tsx}), the
@@ -152,11 +172,15 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
       diff,
     }))
   )
+  /** Whether this row's background task has ENDED — asked three times here (the
+   *  fold's contents, and each of the two places what the call is saying can go)
+   *  and answered by {@link ./background.ts} rather than by reading the field,
+   *  so the three cannot come to disagree about where the sentence belongs. */
+  const ended = () => endedOf(props.entry) !== null
   /** There is something to unfold when there is either half of a body. A frame
    *  with neither is one line and nothing to press. */
   const body = () =>
-    props.entry.detail !== undefined
-    || (props.entry.armed?.ended === undefined && props.entry.progress !== undefined)
+    props.entry.detail !== undefined || (!ended() && props.entry.progress !== undefined)
 
   return (
     <div
@@ -223,45 +247,56 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
             following an agent through a tree wants the file more often than
             the arguments. Truncated rather than wrapped — the frame's whole
             promise is one line. */}
-        {/* WHAT IT LEFT RUNNING, on the line, from the moment the task is
-            armed — the description it was armed with, which is what a person
-            recognises "kolu fleet watch…" by and which the call's own title
-            (`Monitor`) is not ({@link ./background.ts}). It shares the slot the
-            locations take, and shares it safely for the spawn chip's reason: a
-            call that arms a background task reports no file it is working in. */}
-        <Show when={watchOf(props.entry)}>
-          {(watching) => (
-            <span
-              class="flex min-w-0 shrink items-center gap-1 text-muted/70"
-              data-testid={TESTID.chatArmed}
-              data-task={armedOf(props.entry)?.task}
-              data-task-kind={armedOf(props.entry)?.kind}
-            >
-              {/* The glyph a watch wears, spoken for a reader who gets no
-                  glyphs: without the word, this row's name ends in a bare
-                  description and reads as a file path. */}
-              <span aria-hidden="true">◷</span>
-              <span class="sr-only">watching&#32;</span>
-              <span class="min-w-0 truncate">{watching()}</span>
-            </span>
-          )}
-        </Show>
-        {/* ... and HOW IT ENDED, in the harness's own word, once there is one.
-            Beside the status mark rather than instead of it: the mark is ACP's
-            answer and this is the harness's, and where they differ — a monitor
-            somebody STOPPED, drawn `✗` because ACP has no other word for it —
-            this is the one that says what happened. */}
-        <Show when={endedOf(props.entry)}>
-          {(ended) => (
-            <span
-              class="shrink-0 text-muted"
-              data-testid={TESTID.chatArmedEnded}
-              data-ended={ended()}
-            >
-              <span aria-hidden="true">·&#32;</span>
-              <span class="sr-only">ended&#32;</span>
-              {ended()}
-            </span>
+        {/* WHAT THE CALL LEFT RUNNING, on the line — and it is ONE gate for
+            both halves of that, so a row that armed nothing (which is nearly
+            every row in nearly every conversation) asks one question instead of
+            three. */}
+        <Show when={armedOf(props.entry)}>
+          {(armed) => (
+            <>
+              {/* WHAT IT IS WATCHING, from the moment the task is armed — the
+                  description it was armed with, which is what a person
+                  recognises "kolu fleet watch…" by and which the call's own
+                  title (`Monitor`) is not ({@link ./background.ts}). It shares
+                  the slot the locations take, and shares it safely for the
+                  spawn chip's reason: a call that arms a background task
+                  reports no file it is working in. */}
+              <Show when={watchOf(props.entry)}>
+                {(watching) => (
+                  <span
+                    class="flex min-w-0 shrink items-center gap-1 text-muted/70"
+                    data-testid={TESTID.chatArmed}
+                    data-task={armed().task}
+                  >
+                    {/* The glyph a watch wears, spoken for a reader who gets no
+                        glyphs: without the word, this row's name ends in a bare
+                        description and reads as a file path. */}
+                    <span aria-hidden="true">◷</span>
+                    <span class="sr-only">watching&#32;</span>
+                    <span class="min-w-0 truncate">{watching()}</span>
+                  </span>
+                )}
+              </Show>
+              {/* ... and HOW IT ENDED, in the harness's own word, once there is
+                  one. Beside the status mark rather than instead of it: the
+                  mark is ACP's answer and this is the harness's, and where they
+                  differ — a monitor somebody STOPPED, drawn `✗` because ACP has
+                  no other word for it — this is the one that says what
+                  happened. */}
+              <Show when={armed().ended}>
+                {(ended) => (
+                  <span
+                    class="shrink-0 text-muted"
+                    data-testid={TESTID.chatArmedEnded}
+                    data-ended={ended()}
+                  >
+                    <span aria-hidden="true">·&#32;</span>
+                    <span class="sr-only">ended&#32;</span>
+                    {ended()}
+                  </span>
+                )}
+              </Show>
+            </>
           )}
         </Show>
         <Show when={props.entry.locations}>
@@ -336,13 +371,8 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
           an ENDED task's row draws it here INSTEAD, because for that row the
           sentence is the whole of what there is to read. While the task is
           still out it stays behind the fold, where the arming blurb belongs. */}
-      <Show when={props.entry.armed?.ended !== undefined && props.entry.progress}>
-        {(said) => (
-          <pre
-            class="m-0 max-h-32 overflow-auto whitespace-pre-wrap border-t border-rule px-2 py-1 font-mono text-[0.6875rem] text-ink"
-            data-testid={TESTID.chatToolProgress}
-          >{said()}</pre>
-        )}
+      <Show when={ended() && props.entry.progress}>
+        {(said) => <Saying said={said()} tall={false} />}
       </Show>
       {/* Keyed BY THE BLOCK'S OWN NAME, the way every other list in this app is
           keyed: a call is reported twice, and the second report carries the
@@ -376,13 +406,8 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
         {/* Progress FIRST: it is the live half, and a reader who unfolded a
             running call did it to see this rather than to re-read what was
             asked for. */}
-        <Show when={props.entry.armed?.ended === undefined && props.entry.progress}>
-          {(progress) => (
-            <pre
-              class="m-0 max-h-64 overflow-auto whitespace-pre-wrap border-t border-rule px-2 py-1 font-mono text-[0.6875rem] text-ink"
-              data-testid={TESTID.chatToolProgress}
-            >{progress()}</pre>
-          )}
+        <Show when={!ended() && props.entry.progress}>
+          {(progress) => <Saying said={progress()} tall={true} />}
         </Show>
         <Show when={props.entry.detail}>
           {(detail) => (

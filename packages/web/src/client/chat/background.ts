@@ -43,7 +43,7 @@
  * the agent's words rather than the task's.
  */
 
-import type { Armed, ChatEntry } from "@olai/surface"
+import { type Armed, type ChatEntry, isTaskOut } from "@olai/surface"
 
 import { isRunning } from "./running.ts"
 
@@ -75,26 +75,26 @@ export const watchOf = (entry: ChatEntry | undefined): string | null =>
  * That the task is STILL OUT THERE, in a word — or `null` for a row with no
  * live half left, which is the cue to draw no rail at all.
  *
- * TWO THINGS HAVE TO BE TRUE and they are {@link ./running.ts}'s, exactly as
- * for a spawn: the wire still calls the call running, and its turn has not
- * walked away from it. The second is the one a status cannot say — and for
- * these rows it is the server that has to have got it right, since a call that
- * armed a task is deliberately NOT stranded when its turn ends
- * ({@link ../../../../chat/src/transcript.ts}). What that leaves this rule to
- * catch is the case the exemption does not cover: a dead agent's conversation
- * reports the death of nothing, so its armed rows are stranded like every other
- * abandoned call and the rail goes out with them.
+ * THE RULE IS `isTaskOut`'s, in the surface beside the status vocabulary,
+ * because the SERVER asks it about the same row — it is what decides which
+ * calls a turn may not strand and how many tasks the conversation still has out
+ * ({@link ../../../../chat/src/transcript.ts}). A rail that went out while the
+ * count stayed up would be a clock ticking in every open tab under a row that
+ * says nothing is happening. What is added here is the KIND check
+ * ({@link ./running.ts}) and the WORD.
+ *
+ * The case that rule catches which the transcript's exemption deliberately does
+ * not: a dead agent's conversation reports the death of nothing, so its armed
+ * rows are stranded like every other abandoned call and the rail goes out with
+ * them.
  *
  * ONE WORD, and it says the least it can. Not *watching*, because a background
  * shell is not watching anything; not the description, because the row already
  * carries it; not a countdown to a monitor's timeout, because a deadline the
  * harness may reset is not a fact this end holds.
  */
-export const stillOf = (entry: ChatEntry | undefined): string | null => {
-  const armed = armedOf(entry)
-  if (armed === null || armed.ended !== undefined) return null
-  return isRunning(entry) ? STILL : null
-}
+export const stillOf = (entry: ChatEntry | undefined): string | null =>
+  isRunning(entry) && isTaskOut(entry) ? STILL : null
 
 /**
  * ... and HOW IT ENDED, in the harness's own word — `null` while it is still

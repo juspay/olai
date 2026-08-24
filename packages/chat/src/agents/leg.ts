@@ -143,15 +143,14 @@ export interface Spawn {
  *
  * `task` is the only field that is always there, because it is the only one
  * every frame about a task carries: the harness says everything else under
- * that id. The other three are said by whichever frame knows them — the frame
- * that ARMS the call names the kind and the description it was armed with, the
- * frame that SETTLES it names how it ended — so a leg answers about the frame
- * in front of it and never accumulates. Holding a row together across frames is
+ * that id. The other two are said by whichever frame knows them — the frame
+ * that ARMS the call names the description it was armed with, the frame that
+ * SETTLES it names how it ended — so a leg answers about the frame in front of
+ * it and never accumulates. Holding a row together across frames is
  * {@link ../transcript.ts}'s job and nobody else's.
  */
 export interface Background {
   readonly task: string
-  readonly kind?: string
   readonly description?: string
   readonly ended?: string
 }

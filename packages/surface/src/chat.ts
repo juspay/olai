@@ -261,10 +261,6 @@ export const Armed = Schema.Struct({
   /** The harness's own id for the task — the word every later frame about it
    *  arrives under, and the one thing that is always said. */
   task: Schema.String,
-  /** What KIND of task, in the harness's own word (`local_bash`, `subagent`,
-   *  …). Absent when the frame that armed the call did not say — the
-   *  acknowledgement alone can arm a call, and it names no kind. */
-  kind: Schema.optionalKey(Schema.String),
   /** The description it was armed WITH — "tick watch", "kolu fleet watch…" —
    *  which is the sentence a person recognises the task by, and which the
    *  call's own title (`Monitor`) is not. Absent for the same reason `kind`
@@ -750,6 +746,41 @@ export const SAYING_MS = 120
  */
 export const isRunningStatus = (status: ToolStatus): boolean =>
   status === "pending" || status === "in_progress"
+
+/**
+ * ... and whether a CALL has not come back — the same question with the two
+ * facts a status alone cannot carry folded in.
+ *
+ * A status is STICKY: an agent that died between announcing a call and
+ * reporting on it leaves that row `pending` for as long as the panel is open,
+ * deliberately, because the row is the honest record of what was said. What
+ * the row adds is olai's own observation that the turn walked away from it
+ * ({@link ToolEntry.stranded}). Three faces in the browser and two rules on the
+ * server ask this pair, which is one more reason than {@link isRunningStatus}
+ * needed to live here.
+ */
+export const isStillRunning = (entry: ToolEntry): boolean =>
+  entry.stranded !== true && isRunningStatus(entry.status)
+
+/**
+ * ... and whether the BACKGROUND TASK this call armed is still out there.
+ *
+ * THE ONE RULE, in the one place both ends can ask it, for
+ * {@link isRunningStatus}'s reason word for word — and it is not a hypothetical
+ * here: this rule is asked by the server twice (which calls a turn may not
+ * strand, and how many tasks a conversation still has out) and by the browser
+ * twice (the rail under the row, and whether its clock has anything to tick
+ * for), and one of those answering differently from the others is a rail that
+ * goes out under a clock that goes on counting.
+ *
+ * TWO HALVES, and the second is why this is not simply "has an `armed` with no
+ * `ended`". The harness's own ending is the ordinary way a task stops being
+ * out — but a call can also reach a terminal ACP status without one (a
+ * cancelled turn resolving what it left outstanding), and a task whose CALL is
+ * over is not a task anybody is going to hear about again.
+ */
+export const isTaskOut = (entry: ToolEntry): boolean =>
+  entry.armed !== undefined && entry.armed.ended === undefined && isStillRunning(entry)
 
 /**
  * One piece of a picture on its way to the conversation's tmp directory.

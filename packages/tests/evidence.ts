@@ -208,7 +208,6 @@ const SETTLE = 1800
  *  window and {@link PANEL_FITS} are built from. */
 const WIDE = 1100
 
-
 // ── the chat panel, for the one section that talks to an agent ─────────
 
 /** The panel's own rows and controls, by the test ids the client draws them

@@ -254,33 +254,35 @@ export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
 export const backgroundTaskIn = (meta: Meta): Background | null => {
   const said = claudeIn(meta)?.["backgroundTask"]
   if (typeof said !== "object" || said === null) return null
-  const task = (said as { readonly taskId?: unknown }).taskId
+  const task = said as { readonly [field: string]: unknown }
+  const id = wordIn(task, "taskId")
   // NO TASK ID, NO TASK. The id is the one field every frame about a task
   // carries, and a row that armed something nobody can name is not a fact
   // worth drawing a live face out of.
-  if (typeof task !== "string" || task === "") return null
-  const shape = said as {
-    readonly taskType?: unknown
-    readonly description?: unknown
-    readonly status?: unknown
-  }
+  if (id === null) return null
+  const description = wordIn(task, "description")
+  // HOW IT ENDED, in the harness's own word — `completed`, `failed`,
+  // `killed`, `stopped`. ACP folds the last three into one status, and a
+  // monitor somebody STOPPED is not a monitor that failed, so the word
+  // travels beside the status rather than being re-derived from it.
+  const ended = wordIn(task, "status")
   return {
-    task,
-    ...(typeof shape.taskType === "string" && shape.taskType !== ""
-      ? { kind: shape.taskType }
-      : {}),
-    ...(typeof shape.description === "string" && shape.description !== ""
-      ? { description: shape.description }
-      : {}),
-    // HOW IT ENDED, in the harness's own word — `completed`, `failed`,
-    // `killed`, `stopped`. ACP folds the last three into one status, and a
-    // monitor somebody STOPPED is not a monitor that failed, so the word
-    // travels beside the status rather than being re-derived from it.
-    ...(typeof shape.status === "string" && shape.status !== ""
-      ? { ended: shape.status }
-      : {}),
+    task: id,
+    ...(description === null ? {} : { description }),
+    ...(ended === null ? {} : { ended }),
   }
 }
+
+/*
+ * What is deliberately NOT read off a background task, for the reason nothing
+ * else here is read without a reader: **`taskType`**, the harness's own kind.
+ * It is on the frame — the patch stamps what `task_started` said, which is
+ * #865's own proposal shape — and it says `local_bash` for a `Monitor` and for
+ * a background shell alike, so it cannot tell a person which kind of thing is
+ * out. What can is the DESCRIPTION, which is what a person armed the task
+ * with. A field carried onto a row that nothing draws is a field that is wrong
+ * the first time somebody draws it.
+ */
 
 /*
  * What is deliberately NOT read off a spawn, and why, because the next person
@@ -323,8 +325,17 @@ const claudeIn = (meta: Meta): { readonly [key: string]: unknown } | undefined =
  *  either, both or neither: a subagent's terminal output arrives with a
  *  `claudeCode` holding only the parent, and a plan exit's with only the
  *  name. */
-const stringIn = (meta: Meta, field: string): string | null => {
-  const value = claudeIn(meta)?.[field]
+const stringIn = (meta: Meta, field: string): string | null =>
+  wordIn(claudeIn(meta), field)
+
+/** ... over any record, which is the half {@link backgroundTaskIn} needs: its
+ *  fields are a level deeper than the corner above, and re-spelling the
+ *  narrowing there made it the fourth copy of a rule this file already names. */
+const wordIn = (
+  said: { readonly [field: string]: unknown } | undefined,
+  field: string,
+): string | null => {
+  const value = said?.[field]
   return typeof value === "string" && value !== "" ? value : null
 }
 

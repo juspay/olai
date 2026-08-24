@@ -1143,12 +1143,6 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
-  // A CALL THE TURN GIVES UP ON. The turn ends normally and this process stays
-  // alive, which is the whole difference from `crash`: the panel goes idle with
-  // a row on it that the wire still calls `in_progress` and never will again,
-  // and then somebody sends something else. A face that asked the CONVERSATION
-  // whether anything was running would light that row back up at that moment —
-  // which is the one this verb exists to catch.
   // A BACKGROUND TASK, ARMED — the one call whose whole point is to outlive
   // the turn it was made in, reported the way the patched adapter reports one
   // (`acp/patches/README.md`): the tool answers the moment the task is
@@ -1237,6 +1231,12 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     return
   }
 
+  // A CALL THE TURN GIVES UP ON. The turn ends normally and this process stays
+  // alive, which is the whole difference from `crash`: the panel goes idle with
+  // a row on it that the wire still calls `in_progress` and never will again,
+  // and then somebody sends something else. A face that asked the CONVERSATION
+  // whether anything was running would light that row back up at that moment —
+  // which is the one this verb exists to catch.
   if (verb === "abandon") {
     const toolCallId = `call-${++nextMcpId}`
     notify("session/update", {

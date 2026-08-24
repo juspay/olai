@@ -175,7 +175,7 @@
                              toolUseResult: message.type === "user" ? message.tool_use_result : undefined,
                              // On the wire since CLI 2.1.216 but not in SDKUserMessage's
                              // type, hence the cast. Validated by parseToolResultMeta.
-@@ -3030,6 +3165,17 @@
+@@ -3030,6 +3165,21 @@
                              // meta and are excluded there.
                              await sendUpdate(notification);
                          }
@@ -183,17 +183,21 @@
 +                        // its own arming result reached the client is closed now the client
 +                        // knows the call — a terminal for a call nobody has been told is
 +                        // running would be a status out of order.
-+                        for (const record of [...session.backgroundTasks.values()]) {
-+                            if (record.launched && record.terminal !== undefined) {
-+                                const terminal = record.terminal;
-+                                record.terminal = undefined;
-+                                await settleBackgroundTask(record.taskId, terminal.status, terminal.summary);
++                        if (session.backgroundTasks.size !== 0) {
++                            // The copy is the settle's, not the loop's: settling
++                            // deletes from the map being walked.
++                            for (const record of [...session.backgroundTasks.values()]) {
++                                if (record.launched && record.terminal !== undefined) {
++                                    const terminal = record.terminal;
++                                    record.terminal = undefined;
++                                    await settleBackgroundTask(record.taskId, terminal.status, terminal.summary);
++                                }
 +                            }
 +                        }
                          break;
                      }
                      case "tool_progress": {
-@@ -4759,6 +4905,12 @@
+@@ -4759,6 +4909,12 @@
              toolUseCache: {},
              emittedToolCalls: new Set(),
              liveBackgroundTasks: new Map(),
@@ -206,7 +210,7 @@
              emittedAssistantText: false,
              owedTrailingIdles: 0,
              messageIdToUuid: new Map(),
-@@ -5836,6 +5988,42 @@
+@@ -5836,6 +5992,49 @@
      return byToolUseId;
  }
  /**
@@ -230,26 +234,33 @@
 +    if ("is_error" in chunk && chunk.is_error) {
 +        return undefined;
 +    }
-+    const name = toolUseCache[chunk.tool_use_id]?.name;
-+    if (typeof toolUseResult !== "object" || toolUseResult === null) {
++    const acknowledgement = BACKGROUND_LAUNCHES[toolUseCache[chunk.tool_use_id]?.name];
++    if (acknowledgement === undefined || typeof toolUseResult !== "object" || toolUseResult === null) {
 +        return undefined;
 +    }
-+    const answered = toolUseResult;
-+    const id = name === "Monitor"
-+        ? answered.taskId
-+        : name === "Bash"
-+            ? answered.backgroundTaskId
-+            : (name === "Agent" || name === "Task") && answered.status === "async_launched"
-+                ? answered.agentId
-+                : undefined;
++    const id = acknowledgement(toolUseResult);
 +    return typeof id === "string" && id.length > 0 ? id : undefined;
 +}
++
++/** ... and the table it reads, so a tool that learns to launch in the
++ *  background is a LINE here rather than a branch — and so that what the gate
++ *  actually is stays legible: a tool this table does not name keeps the
++ *  lifecycle it has always had (complete at launch), which is the unpatched
++ *  behaviour and the safe direction to fail in. */
++const BACKGROUND_LAUNCHES = {
++    Monitor: (answered) => answered.taskId,
++    Bash: (answered) => answered.backgroundTaskId,
++    // #941's own subject, and the one whose answer says WHICH launch it was: a
++    // synchronous subagent answers ordinarily and arms nothing.
++    Agent: (answered) => (answered.status === "async_launched" ? answered.agentId : undefined),
++    Task: (answered) => (answered.status === "async_launched" ? answered.agentId : undefined),
++};
 +
 +/**
   * Convert an SDKAssistantMessage (Claude) to a SessionNotification (ACP).
   * Only handles text, image, and thinking chunks for now.
   */
-@@ -6020,7 +6208,26 @@
+@@ -6020,7 +6219,26 @@
              case "text_editor_code_execution_tool_result":
              case "mcp_tool_result": {
                  const wasEmitted = options?.emittedToolCalls?.has(chunk.tool_use_id) === true;
@@ -277,7 +288,7 @@
                  // Why this is_error result carries harness prose instead of tool
                  // output (user-rejected / interrupted / …), when the SDK said so.
                  // Spread into the claudeCode meta of every update emitted below; the
-@@ -6028,6 +6235,66 @@
+@@ -6028,6 +6246,66 @@
                  // carry `toolName`, which is unknown there).
                  const nonExecution = toolResultMeta?.get(chunk.tool_use_id);
                  const toolUse = toolUseCache[chunk.tool_use_id];

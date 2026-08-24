@@ -7,10 +7,9 @@
  * below is about the stretch AFTER the turn ends, which is exactly the stretch
  * the old panel drew as a finished call.
  *
- * The rows here are the shapes the wire actually produces (a real `Monitor`
+ * The rows here are the shapes the wire actually produces — a real `Monitor`
  * and a real `Bash(run_in_background)`, recorded 2026-08-24 through the pinned
- * adapter and its patch — `acp/patches/README.md`), which is why the kind is
- * the harness's `local_bash` in both.
+ * adapter and its patch (`acp/patches/README.md`).
  */
 
 import { describe, expect, test } from "bun:test"
@@ -42,7 +41,7 @@ describe("what it is watching", () => {
       watchOf(row({
         text: "Monitor",
         status: "in_progress",
-        armed: { task: "bu13xz2ie", kind: "local_bash", description: "kolu fleet watch" },
+        armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
       })),
     ).toBe("kolu fleet watch")
   })

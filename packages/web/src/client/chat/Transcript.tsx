@@ -95,10 +95,9 @@ import { Entry } from "./Entry.tsx"
 import { laneOf, RAIL } from "./lanes.ts"
 import { LIVE_DOT } from "./live.ts"
 import { NEAR } from "./near.ts"
+import { railOf, sameRail } from "./rail.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
-import { stillOf } from "./background.ts"
-import { doingOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
 /** A question still waiting on somebody — `./AskForm.tsx`'s row with its own
@@ -353,32 +352,16 @@ export function Transcript(props: { readonly chat: Chat }) {
                *  stopped, and for one whose CONVERSATION has, so the same memo
                *  answers both "is there anything to draw" and "what does it say"
                *  ({@link ./spawn.ts}). */
-              /** ... and the same rail under a call that armed a BACKGROUND
-               *  TASK, saying the task is still out there
-               *  ({@link ./background.ts}). Two rules and one rail: an agent in
-               *  flight and a task in flight are the same kind of fact to a
-               *  reader, and a panel with two spellings of "this is happening"
-               *  is a panel with one of them to learn.
+              /** ... and the live RAIL under this row, whichever of the two it
+               *  is: a spawned agent still out, or a background task still
+               *  running ({@link ./rail.ts}, which owns the precedence and
+               *  carries the words together with the face they belong to).
                *
-               *  ONE ANSWER carrying both halves — the words and which face
-               *  they are — rather than the word from one rule and the name
-               *  from asking a second rule again. Asked twice, the two could
-               *  disagree about which kind of rail this is, which is the shape
-               *  of bug {@link ./lanes.ts} already fixed one field over (a `labelled`
-               *  boolean beside the label it was about).
-               *
-               *  A call can be BOTH — an `Agent` launched asynchronously is a
-               *  spawn and a background task — and the spawn wins, because who
-               *  was sent is the more specific thing to say about it. */
-              const working = createMemo(() => {
-                const row = entry()
-                const spawned = doingOf(row)
-                if (spawned !== null) {
-                  return { said: spawned, name: TESTID.chatSpawnWorking }
-                }
-                const still = stillOf(row)
-                return still === null ? null : { said: still, name: TESTID.chatArmedStill }
-              })
+               *  Its own equality, because the answer is an OBJECT now and a
+               *  memo over one stops nothing by default: a row that recomputes
+               *  an identical rail would notify the attributes and the words
+               *  under it on every frame of that row. */
+              const working = createMemo(() => railOf(entry()), null, { equals: sameRail })
               return (
                 <Show when={entry()}>
                   {(row) => (
