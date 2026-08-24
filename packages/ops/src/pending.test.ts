@@ -1192,11 +1192,15 @@ describe("--push=auto", () => {
         const pushed = fixture.settlements()
         yield* fixture.observe
         yield* fixture.settled(pushed)
-        while (subjects(fixture).filter((line) => line.startsWith("olai:")).length === 0) {
-          yield* fixture.settled(fixture.settlements())
+        while (true) {
+          const n = fixture.settlements()
+          if (subjects(fixture).filter((line) => line.startsWith("olai:")).length > 0) break
+          yield* fixture.settled(n)
         }
-        while ((yield* fixture.ops.pending).unpushed?.commits !== 0) {
-          yield* fixture.settled(fixture.settlements())
+        while (true) {
+          const n = fixture.settlements()
+          if ((yield* fixture.ops.pending).unpushed?.commits === 0) break
+          yield* fixture.settled(n)
         }
 
         expect(gitIn(bare)("log", "--format=%s", "-1").trim()).toStartWith("olai:")
@@ -1226,8 +1230,10 @@ describe("--push=auto", () => {
         const diverged = fixture.settlements()
         yield* fixture.observe
         yield* fixture.settled(diverged)
-        while ((yield* fixture.ops.git).pushSaid === null) {
-          yield* fixture.settled(fixture.settlements())
+        while (true) {
+          const n = fixture.settlements()
+          if ((yield* fixture.ops.git).pushSaid !== null) break
+          yield* fixture.settled(n)
         }
 
         // The COMMIT stands — a refused push is not a rollback.

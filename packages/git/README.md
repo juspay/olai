@@ -75,7 +75,7 @@ Never `--amend` — an audit trail that can be edited after the fact is not one.
 | `LC_ALL=C` | the "not a git repository" classification is a string match, and a translated git would be reported as unusable |
 | `GIT_TERMINAL_PROMPT=0` | a repository that wants a credential fails instead of sitting on a prompt nobody can answer |
 | a 10s budget | a wedged hook or a lock held by another process cannot hold a caller open forever |
-| one git at a time per handle | `git status` refreshes the index and `git commit` writes it; two fibers doing both lose to `index.lock` |
+| the index gate, per `gitDir` | `git status` (`dirty`) refreshes the index and `git commit` writes it; two fibers doing both lose to `index.lock`. The permit is keyed on the git directory — not on the handle — so a second `open` of the same repository cannot disarm it. Only those two verbs take it: `push` is a network call with the ten-second budget (`whyWaiting` must not queue behind it), and git's own ref lockfiles cover `commit` vs `push` on the refs. `state` / `last` / `show` do not touch the index. |
 | `--porcelain -z` | the plain form quotes anything unusual; `-z` does not, and a path may contain a newline |
 | `-uall` | a brand-new outline is untracked, and is exactly what a first commit is for |
 | no pathspec on `status` | the survey is the whole repository: serving `docs/` and being told nothing about a dirty root `README.md` is the bug this package's caller was filed for |

@@ -676,7 +676,10 @@ export const make = (options: Options): Committing => {
     const git = opening.repo
     // Independent questions, asked together: what state the repository is in,
     // what has moved in it (and how far ahead of its upstream it is, off the
-    // same subprocess), and what olai last recorded there.
+    // same subprocess), and what olai last recorded there. `dirty` may wait
+    // on a `commit` in the same repository — they share the index — but
+    // `state` and `last` do not, which is why these three still start
+    // together rather than in a line.
     const [repo, dirt, last] = yield* Effect.all(
       [git.state, git.dirty, git.last(AUDIT)],
       { concurrency: 3 },
@@ -789,6 +792,7 @@ export const make = (options: Options): Committing => {
       // CONCURRENTLY: each is its own subprocess, and they do not depend on
       // each other. Bounded, because a `git pull` can make a hundred outlines
       // dirty at once and a hundred simultaneous processes is its own problem.
+      // `show` does not take the index, so the bound is still the bound.
       // HEAD's copy is asked for under the name HEAD HAD IT UNDER, which for a
       // rename is the side it came from — read against the name it has now,
       // which HEAD has never had, every node in it reports as created.
@@ -1006,7 +1010,9 @@ export const make = (options: Options): Committing => {
     // uses, and it earns it twice over now that this verb is on the commit path
     // rather than behind a button: `state` is a subprocess AND a synchronous
     // walk of the git directory, so serialising them stalls the loop's own
-    // round trip for no reason.
+    // round trip for no reason. `dirty` may wait on a `commit` (the index);
+    // `state` does not. `push` itself is not on that gate: a network call
+    // with the ten-second budget must not stall `whyWaiting`.
     const [repo, dirt] = yield* Effect.all(
       [opening.repo.state, opening.repo.dirty],
       { concurrency: 2 },

@@ -50,10 +50,17 @@
  * conflict could swallow the resolution. That hole is what decided manual over
  * automatic, and this is where it is closed.
  *
- * A handle is opened once per round rather than kept, because a directory can
- * become a repository while the server is running — and once per round is what
- * makes a directory with twelve dirty outlines cost one `rev-parse` rather
- * than thirteen.
+ * {@link open} itself is cheap and not a cache — a directory can become a
+ * repository while the server is running, and a handle kept for life would
+ * miss that. The ops layer memoizes a positive answer; this file does not
+ * rely on that. What IS keyed for the life of the process is the index gate:
+ * `git status` refreshes the index and `git commit` writes it, and two fibers
+ * doing both lose to `index.lock`. The permit is per `gitDir`, not per
+ * handle, so a second {@link open} of the same repository cannot disarm it.
+ * Only the two index touchers take it (`dirty` and `commit`). `push` is a
+ * network verb with the ten-second budget, and `whyWaiting` must not queue
+ * behind it; git's own ref lockfiles cover `commit` vs `push` on the refs.
+ * `state` / `last` / `show` do not touch the index.
  */
 
 import { Effect, Semaphore } from "effect"
@@ -67,6 +74,27 @@ import type { How, Reason, RepoState } from "./state.ts"
  *  budget is here so a wedged hook or a lock held by another process cannot
  *  hold a caller open forever. */
 const BUDGET = 10_000
+
+/**
+ * The INDEX GATE: one permit per git directory, held by {@link dirty} and
+ * {@link commit} only. See the file header. Keyed on `gitDir` so two handles
+ * of one repository share it; a handle-local semaphore would re-open the
+ * `index.lock` race the moment anyone called {@link open} twice.
+ */
+const indexGates = new Map<string, Semaphore.Semaphore>()
+
+const indexGate = (gitDir: string): Semaphore.Semaphore => {
+  const had = indexGates.get(gitDir)
+  if (had !== undefined) return had
+  const made = Semaphore.makeUnsafe(1)
+  indexGates.set(gitDir, made)
+  return made
+}
+
+const holdIndex = <A, E, R>(
+  gitDir: string,
+  op: Effect.Effect<A, E, R>,
+): Effect.Effect<A, E, R> => indexGate(gitDir).withPermit(op)
 
 interface Said {
   readonly ok: boolean
@@ -252,21 +280,18 @@ export type Opening =
 export const open = (root: string): Effect.Effect<Opening> =>
   Effect.map(place(root), (placing) => {
     if (placing._tag !== "Placed") return placing
-    // ONE git at a time on this handle. `git status` refreshes the index and
-    // `git commit` writes it; two fibers doing both used to lose to
-    // `index.lock` under load, and the quiet window recorded nothing.
-    const gate = Semaphore.makeUnsafe(1)
-    const hold = <A, E, R>(op: Effect.Effect<A, E, R>) => gate.withPermit(op)
+    const gitDir = placing.placement.gitDir
     return {
       _tag: "Opened" as const,
       repo: {
         served: placing.placement.prefix,
-        state: hold(state(root, placing.placement)),
-        dirty: hold(dirty(root, placing.placement)),
-        show: (path: string) => hold(show(root, path)),
-        last: (audit: Audit) => hold(last(root, audit)),
-        commit: (what: CommitInput) => hold(commit(root, placing.placement, what)),
-        push: hold(push(root)),
+        state: state(root, placing.placement),
+        dirty: holdIndex(gitDir, dirty(root, placing.placement)),
+        show: (path: string) => show(root, path),
+        last: (audit: Audit) => last(root, audit),
+        commit: (what: CommitInput) =>
+          holdIndex(gitDir, commit(root, placing.placement, what)),
+        push: push(root),
       },
     }
   })

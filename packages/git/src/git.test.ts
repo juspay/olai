@@ -723,8 +723,8 @@ test("a commit that lands leaves the index agreeing with it", async () => {
  *
  * `git status` refreshes the index; `git commit` writes it. Two fibers doing
  * both in one repository used to fail the write with `File exists`, and the
- * quiet window recorded nothing under load. The handle is the lock: one git
- * at a time, the whole verb.
+ * quiet window recorded nothing under load. The permit is per git directory,
+ * and only those two verbs take it.
  */
 test("a survey and a commit at once never fight index.lock", async () => {
   const { root, file } = repo()
@@ -741,6 +741,48 @@ test("a survey and a commit at once never fight index.lock", async () => {
         ], { concurrency: 4 })),
       { concurrency: 4 },
     ))
+
+  for (const [done, dirt] of rounds) {
+    expect(done?._tag === "Failed" ? done.said : "").not.toContain("index.lock")
+    expect(dirt?._tag === "Unusable" ? dirt.said : "").not.toContain("index.lock")
+  }
+  expect(
+    rounds.some(([done]) => done?._tag === "Committed"),
+  ).toBe(true)
+})
+
+/**
+ * TWO HANDLES, one repository — the gate is per `gitDir`, not per handle.
+ * A handle-local semaphore would pass the test above and still lose here.
+ */
+test("two handles on one repository still never fight index.lock", async () => {
+  const { root, file } = repo()
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
+
+  const opened = await Promise.all([
+    Effect.runPromise(open(root)),
+    Effect.runPromise(open(root)),
+  ])
+  const handles = opened.map((one) => {
+    if (one._tag !== "Opened") throw new Error(`${root} is not a work tree: ${one._tag}`)
+    return one.repo
+  })
+  const left = handles[0]
+  const right = handles[1]
+  if (left === undefined || right === undefined) throw new Error("unreachable")
+
+  const rounds = await Effect.runPromise(
+    Effect.all(
+      Array.from({ length: 8 }, () =>
+        Effect.all([
+          left.commit({ paths: [file], message: "olai: concurrent" }),
+          right.dirty,
+          left.state,
+          right.last(OLAI),
+        ], { concurrency: 4 })),
+      { concurrency: 4 },
+    ),
+  )
 
   for (const [done, dirt] of rounds) {
     expect(done?._tag === "Failed" ? done.said : "").not.toContain("index.lock")
