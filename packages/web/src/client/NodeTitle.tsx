@@ -52,8 +52,8 @@ import { createMemo, Show } from "solid-js"
 import { addressIn, shownIn, titleFace } from "./address/address.ts"
 import { Face } from "./address/Face.tsx"
 import { useNames } from "./reading.tsx"
-import { renderTitle } from "./markdown/title.ts"
-import { waitingFace } from "./markdown/waiting.ts"
+import { renderTitle, sameDrawing } from "./markdown/title.ts"
+import { TitleHtml } from "./markdown/TitleHtml.tsx"
 
 export function NodeTitle(props: {
   readonly title: string
@@ -74,28 +74,24 @@ export function NodeTitle(props: {
    *  other title in the directory: the test short-circuits on the first
    *  character (`./address/address.ts`). */
   const address = createMemo(() => addressIn(props.title))
-  const drawing = createMemo(() =>
-    renderTitle(props.title, props.from, {
-      links: props.links,
-      needles: props.needles,
-    }),
+  /** The drawing, and NOT a fresh identity per recompute: a filtered page
+   *  re-runs this memo on every keystroke, and a title whose HTML has not
+   *  changed must not push a new value through to the element — which is what
+   *  a memo over an object does by default (`===`). */
+  const drawing = createMemo(
+    () =>
+      renderTitle(props.title, props.from, {
+        links: props.links,
+        needles: props.needles,
+      }),
+    undefined,
+    { equals: sameDrawing },
   )
   return (
     <Show
       when={address()}
       fallback={
-        <span
-          class="olai-md olai-md-inline"
-          // The third answer wears the app's one waiting face — the source
-          // this row is holding, blurred and swept, so a title with marks in
-          // it is never READ as marks (./markdown/waiting.ts). The same
-          // element throughout: what the pipeline landing does to this row is
-          // take the blur off, not redraw it.
-          {...waitingFace(drawing().waiting)}
-          // Safe: markdown is sanitised; tags are alphabet-restricted; the empty
-          // fallback is escaped. See ./markdown/title.ts and ./markdown/render.ts.
-          innerHTML={drawing().html}
-        />
+        <TitleHtml drawing={drawing()} />
       }
     >
       {(route) => {

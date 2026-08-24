@@ -196,6 +196,19 @@ const installFonts = (distDir: string): void => {
   console.log(`fonts: ${HOSTED_WOFF2.length} faces from ${fontsDir}`)
 }
 
+/** The module the shell is waiting to be told the hashed name of, spelled
+ *  ONCE: the placeholder is that path in an `href`, and the chunk is that
+ *  module's own basename plus the hash `buildSurfaceClient` gives every output
+ *  (`markdown/pipeline.ts` → `pipeline-<hash>.js`; the same rule
+ *  `packages/tests/support/chunks.ts` derives a held-up chunk's URL from).
+ *  Renaming the module is then one edit here and one in the shell, and a build
+ *  that reaches neither fails rather than shipping a preload of nothing. */
+const PIPELINE_MODULE = "./markdown/pipeline.ts"
+const PIPELINE_PLACEHOLDER = `href="${PIPELINE_MODULE}"`
+const PIPELINE_CHUNK = new RegExp(
+  `^${basename(PIPELINE_MODULE, ".ts")}-[^/]*\\.js$`,
+)
+
 /**
  * The one hashed name the shell has to know that the helper will not tell it:
  * the markdown pipeline's chunk.
@@ -222,19 +235,6 @@ const installFonts = (distDir: string): void => {
  * bundler's naming rule moved), and either way a shell that quietly preloaded
  * nothing would be this fix silently gone.
  */
-/** The module the shell is waiting to be told the hashed name of, spelled
- *  ONCE: the placeholder is that path in an `href`, and the chunk is that
- *  module's own basename plus the hash `buildSurfaceClient` gives every output
- *  (`markdown/pipeline.ts` → `pipeline-<hash>.js`; the same rule
- *  `packages/tests/support/chunks.ts` derives a held-up chunk's URL from).
- *  Renaming the module is then one edit here and one in the shell, and a build
- *  that reaches neither fails rather than shipping a preload of nothing. */
-const PIPELINE_MODULE = "./markdown/pipeline.ts"
-const PIPELINE_PLACEHOLDER = `href="${PIPELINE_MODULE}"`
-const PIPELINE_CHUNK = new RegExp(
-  `^${basename(PIPELINE_MODULE, ".ts")}-[^/]*\\.js$`,
-)
-
 const preloadPipeline = async (
   distDir: string,
   assets: readonly { readonly file: string }[],

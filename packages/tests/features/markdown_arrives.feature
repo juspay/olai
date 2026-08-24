@@ -71,6 +71,22 @@ Feature: The markdown pipeline arrives before it is needed
     And the document shows its own markdown source
     And the document is not waiting
 
+  # ...and the same for a TITLE, which is where the two halves of "not here"
+  # are easiest to confuse: a title that read "the chunk is not ready" would
+  # be blurred forever on this page, because nothing is ever going to make it
+  # ready. There are page errors here for the reason above.
+  @scratch:good
+  Scenario: If it never comes, a title's marks are legible too
+    Given the markdown pipeline never arrives
+    Given I open the outline "house.olai"
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"**take out** the old counters"}
+      """
+    Then the title of "demo" shows its markdown source
+    And the title of "demo" is not waiting
+
   # Titles are the case that decides whether an outline pays for markdown at
   # all: a plain one is drawn immediately, and one with marks in it shows what
   # was written — illegibly — until the pipeline can say better.
@@ -114,9 +130,9 @@ Feature: The markdown pipeline arrives before it is needed
     When I press the palette shortcut
     And I type "counters" into the palette
     Then the palette item for node "demo" is waiting illegibly
-    # Every frame this page has painted so far, asked of the page itself. Asked
-    # HERE as well as at the end because the record belongs to the DOCUMENT,
-    # and the next step loads another one.
+    # Every frame this TAB has painted so far, asked of the page itself. Asked
+    # here as well as at the end so a failure says which surface lost it: the
+    # record spans the whole tab, so the last one covers these four too.
     And no frame of legible raw markdown was painted
     When I close the palette
     # ...and the document body, on its own page.

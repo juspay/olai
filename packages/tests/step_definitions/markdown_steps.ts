@@ -15,7 +15,7 @@ import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import { chunkOf } from "../support/chunks.ts";
-import { paintsOn, WAITING, waitsIllegibly } from "../support/paints.ts";
+import { paintsOn, stopsWaiting, WAITING, waitsIllegibly } from "../support/paints.ts";
 import {
   DESC,
   DOCUMENT_BODY,
@@ -141,14 +141,14 @@ Then("the document is waiting illegibly", async function (this: OlaiWorld) {
 
 /** The other side of it, for the page whose renderer is never coming: there is
  *  no answer on its way, so the text somebody wrote IS the answer and has to
- *  be readable. */
+ *  be readable. Same check the de-blur makes below, since "no answer is
+ *  coming" and "the answer came" leave the same page. */
 Then("the document is not waiting", async function (this: OlaiWorld) {
-  const body = this.documentBody();
-  await body.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  assert.notStrictEqual(
-    await body.getAttribute("data-markdown"),
-    "waiting",
-    "the document is still dressed as though a renderer were coming",
+  await this.documentBody().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await stopsWaiting(
+    this,
+    this.page.locator(`${DOCUMENT_BODY}${WAITING}`),
+    "the document",
   );
 });
 
@@ -174,17 +174,26 @@ Then(
   },
 );
 
+Then(
+  "the title of {string} is not waiting",
+  async function (this: OlaiWorld, id: string) {
+    await stopsWaiting(
+      this,
+      this.nodeTitle(id).locator(WAITING),
+      `the title of "${id}"`,
+    );
+  },
+);
+
 /** The de-blur itself: the face is OFF the same element, which is what the
- *  swap is. Its own step because the blur going away is a claim of its own —
- *  a surface that kept it would be a page permanently pretending to be
- *  loading, and no assertion about the rendering would notice. */
+ *  swap is. */
 Then(
   "the description of {string} is not waiting",
   async function (this: OlaiWorld, id: string) {
-    const desc = this.node(id).locator(DESC).first();
-    await this.waitUntil(
-      async () => (await desc.locator(WAITING).count()) === 0,
-      `the note of "${id}" to stop waiting on the renderer`,
+    await stopsWaiting(
+      this,
+      this.node(id).locator(DESC).first().locator(WAITING),
+      `the note of "${id}"`,
     );
   },
 );

@@ -84,6 +84,18 @@ const pipeline = createArrival("the markdown renderer", () => import("./pipeline
  */
 export const markdownReady = pipeline.ready
 
+/**
+ * Is it still coming — not here, and not known to be lost.
+ *
+ * The one a SURFACE asks before it dresses itself as unfinished
+ * (`data-markdown="waiting"`, ./waiting.ts): "not ready" is two situations,
+ * and only one of them is going to change. A title that read `!markdownReady()`
+ * instead would stay blurred forever on a page whose renderer never came —
+ * which is the one case where the source a surface is holding IS the answer
+ * and has to be legible.
+ */
+export const markdownWaiting = pipeline.waiting
+
 /** Why it is not coming, once that is known. Reactive, for the one component
  *  that says so on the page (./Markdown.tsx). */
 export const markdownFailure = pipeline.failure

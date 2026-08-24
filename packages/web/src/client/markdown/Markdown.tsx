@@ -45,7 +45,7 @@ import { createMemo, Show } from "solid-js"
 import { markdownFailure, markdownReady } from "./chunk.ts"
 import { renderMarkdown, renderStreaming } from "./render.ts"
 import { escapeHtml } from "./tags.ts"
-import { waitingFace } from "./waiting.ts"
+import { busyMark, waitingMark } from "./waiting.ts"
 
 export function Markdown(props: {
   readonly source: string
@@ -83,7 +83,8 @@ export function Markdown(props: {
           // The waiting face, which every surface holding unrendered source
           // wears (./waiting.ts, ../styles.css) — this element rather than a
           // wrapper, because what the rule blurs is what is inside it.
-          {...waitingFace(waiting())}
+          data-markdown={waitingMark(waiting())}
+          aria-busy={busyMark(waiting())}
           // Safe because the pipeline sanitises (see ./render.ts), and because
           // the text of the file it came from is escaped when there is no
           // pipeline yet.

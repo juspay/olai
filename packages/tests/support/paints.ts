@@ -24,6 +24,10 @@
  * and before the frame is painted, which is exactly the boundary the claim is
  * about: what is recorded is what the pixels would have been.
  *
+ * What it records is the TAB's, not one document's ({@link PAINTS}) — every
+ * document this tab draws adds to one list, so a navigation cannot quietly
+ * turn "nothing was ever legible" into "nothing was ever seen".
+ *
  * What it is not is a screenshot differ. "Legible" here is the browser's own
  * computed `filter` — the presence of a blur wide enough that a glyph has no
  * edge left ({@link ILLEGIBLE_PX}) — which is the mechanism the rule works by,
@@ -38,12 +42,24 @@ import type { OlaiWorld } from "./world.ts";
 
 /** The one face the waiting state is named by, everywhere it is worn — a
  *  title, a note, a document body, an agent's reply, a palette row. Written
- *  once here because a scenario asks for it by this name at four surfaces. */
+ *  once here because a scenario asks for it by this name at four surfaces, and
+ *  PASSED to the init script below rather than spelled inside it (the same
+ *  arrangement {@link PAINTS} has, for the same reason). */
 export const WAITING = '[data-markdown="waiting"]';
 
-/** Where the record lives on `window`. Namespaced against everything this app
- *  and the framework do, and PASSED to the init script rather than spelled
- *  inside it, so there is one spelling and not two. */
+/**
+ * Where the record lives: a key in this TAB's `sessionStorage`, namespaced
+ * against everything this app and the framework do, and passed to the init
+ * script rather than spelled inside it so there is one spelling and not two.
+ *
+ * Storage rather than a `window` field because the claim is about the TAB and
+ * not about one document. A page that navigates — this suite's own
+ * `I open the document …`, or anything the app does under load — starts a
+ * fresh global, and a record kept there would read as "nothing ever waited"
+ * for the frames before it. `sessionStorage` is the browser's own word for
+ * "this tab, until it is closed", which is exactly the span the promise
+ * covers.
+ */
 export const PAINTS = "__olaiMarkdownPaints";
 
 /**
@@ -78,11 +94,22 @@ export interface WaitingPaint {
  * SELF-CONTAINED, because Playwright ships this to the browser as source — it
  * closes over nothing and takes its parameters as one argument.
  */
-export const recordPaints = (asked: { key: string; illegiblePx: number }): void => {
-  const held: WaitingPaint[] = [];
-  (globalThis as unknown as Record<string, unknown>)[asked.key] = held;
-
-  const WAITING = '[data-markdown="waiting"]';
+export const recordPaints = (
+  asked: { key: string; illegiblePx: number; waiting: string },
+): void => {
+  /** What this tab has recorded so far — kept in storage, so a document that
+   *  replaces this one goes on adding to the same list. Seeded exactly once:
+   *  a later document must not wipe what an earlier one saw. */
+  const held = (): WaitingPaint[] => {
+    const said = sessionStorage.getItem(asked.key);
+    return said === null ? [] : (JSON.parse(said) as WaitingPaint[]);
+  };
+  if (sessionStorage.getItem(asked.key) === null) {
+    sessionStorage.setItem(asked.key, "[]");
+  }
+  const keep = (paint: WaitingPaint): void => {
+    sessionStorage.setItem(asked.key, JSON.stringify([...held(), paint]));
+  };
 
   /** The blur in force, in px — `none`, `blur(4.8px)`, or a `filter` with
    *  other functions in it too. `0` when nothing there blurs. */
@@ -93,7 +120,7 @@ export const recordPaints = (asked: { key: string; illegiblePx: number }): void 
 
   const look = (element: Element): void => {
     const filter = getComputedStyle(element).filter;
-    held.push({
+    keep({
       what: element.getAttribute("data-testid") ?? element.tagName.toLowerCase(),
       legible: blurOf(filter) < asked.illegiblePx,
       filter,
@@ -106,7 +133,7 @@ export const recordPaints = (asked: { key: string; illegiblePx: number }): void 
       // Set on an element that was already on the page — a title whose node
       // arrived in a live frame, a body swapped under an open page.
       if (record.type === "attributes") {
-        if ((record.target as Element).matches(WAITING)) look(record.target as Element);
+        if ((record.target as Element).matches(asked.waiting)) look(record.target as Element);
         continue;
       }
       // ...or inserted already wearing it, which is every first paint: the
@@ -114,8 +141,8 @@ export const recordPaints = (asked: { key: string; illegiblePx: number }): void 
       // added — a document body arrives inside its pane.
       for (const added of record.addedNodes) {
         if (!(added instanceof Element)) continue;
-        if (added.matches(WAITING)) look(added);
-        for (const inside of added.querySelectorAll(WAITING)) look(inside);
+        if (added.matches(asked.waiting)) look(added);
+        for (const inside of added.querySelectorAll(asked.waiting)) look(inside);
       }
     }
   });
@@ -159,15 +186,27 @@ export const waitsIllegibly = async (
   );
 };
 
+/** ...and the other end of the swap: nothing under `target` is wearing the
+ *  face any more. Its own claim, and polled rather than read once — a surface
+ *  that kept the blur would be a page permanently pretending to load, and no
+ *  assertion about the rendering would have noticed. */
+export const stopsWaiting = async (
+  world: OlaiWorld,
+  target: Locator,
+  what: string,
+): Promise<void> => {
+  await world.waitUntil(
+    async () => (await target.count()) === 0,
+    `${what} to stop waiting on the renderer`,
+  );
+};
+
 /** Every waiting paint this document has made, in order — or `undefined` where
  *  no watcher was installed at all, which is a different failure from a page
  *  that painted none and has to read as one (the scenario is missing its tag,
  *  or the document was replaced by one the tag did not reach). */
 export const paintsOn = (page: Page): Promise<ReadonlyArray<WaitingPaint> | undefined> =>
-  page.evaluate<ReadonlyArray<WaitingPaint> | undefined, string>(
-    (key) =>
-      (globalThis as unknown as Record<string, unknown>)[key] as
-        | WaitingPaint[]
-        | undefined,
-    PAINTS,
-  );
+  page.evaluate<ReadonlyArray<WaitingPaint> | undefined, string>((key) => {
+    const said = sessionStorage.getItem(key);
+    return said === null ? undefined : (JSON.parse(said) as WaitingPaint[]);
+  }, PAINTS);

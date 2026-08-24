@@ -73,8 +73,8 @@
 
 import { createMemo, For, Show } from "solid-js"
 
-import { renderTitle } from "../markdown/title.ts"
-import { waitingFace } from "../markdown/waiting.ts"
+import { renderTitle, sameDrawing } from "../markdown/title.ts"
+import { TitleHtml } from "../markdown/TitleHtml.tsx"
 
 import type { DirectoryKind } from "../file/icons.tsx"
 import { Glyph } from "../file/icons.tsx"
@@ -149,14 +149,25 @@ export function Result(props: {
   readonly onSelect: () => void
   readonly onHover: () => void
 }) {
-  const drawing = createMemo(() => {
-    const from = props.from
-    if (from === undefined) return undefined
-    return renderTitle(props.label, from, {
-      needles: props.needles,
-      links: false,
-    })
-  })
+  /** …and not a fresh identity per keystroke: see `NodeTitle.tsx`'s note. A
+   *  door's list re-runs this on every character typed into it. */
+  const drawing = createMemo(
+    () => {
+      const from = props.from
+      if (from === undefined) return undefined
+      return renderTitle(props.label, from, {
+        needles: props.needles,
+        links: false,
+      })
+    },
+    undefined,
+    {
+      equals: (was, now) =>
+        was === undefined || now === undefined
+          ? was === now
+          : sameDrawing(was, now),
+    },
+  )
   return (
     <button
       type="button"
@@ -184,16 +195,9 @@ export function Result(props: {
             }
           >
             {(title) => (
-              <span
-                class="olai-md olai-md-inline min-w-0 flex-1 truncate"
-                // A row whose title is still its own source wears the same
-                // waiting face a tree row and a document body do — blurred and
-                // swept, never read (`../markdown/waiting.ts`). One rule, so a
-                // hit in the palette cannot flash marks a tree row does not.
-                {...waitingFace(title().waiting)}
-                // Safe: the same sanitised pipeline NodeTitle uses.
-                innerHTML={title().html}
-              />
+              // The same element a tree row draws, waiting face and all, so a
+              // hit in the palette cannot flash marks a row does not.
+              <TitleHtml drawing={title()} class="min-w-0 flex-1 truncate" />
             )}
           </Show>
         </span>

@@ -230,13 +230,6 @@ const CHAT_WATCHING = `[data-testid="${TESTID_WATCHING}"]`
 const CHAT_TOOL_ELAPSED = '[data-testid="chat-tool-elapsed"]'
 const CHAT_TOOL_PROGRESS = '[data-testid="chat-tool-progress"]'
 
-/** Say something to the agent — the driver's half of the suite's own step. */
-const ask = async (page: Page, text: string): Promise<void> => {
-  const box = page.locator(CHAT_INPUT)
-  await box.waitFor()
-  await box.fill(text)
-  await page.locator(CHAT_SEND).click()
-}
 // ── the edge panel, and what a record says afterwards ──────────────────
 
 const EDGE_PANEL = '[data-testid="edge-panel"]'
@@ -730,7 +723,9 @@ const chatWorking = (page: Page) =>
 /** Type and press the ordinary send — the gesture, not a call: what is being
  *  photographed is a person using the composer. */
 const chatSend = async (page: Page, text: string): Promise<void> => {
-  await page.locator(CHAT_INPUT).fill(text)
+  const box = page.locator(CHAT_INPUT)
+  await box.waitFor()
+  await box.fill(text)
   await page.locator(CHAT_SEND).click()
 }
 
@@ -1004,7 +999,7 @@ const SECTIONS = {
     // (a call that armed a task is the one call whose point is to outlive its
     // turn), and the STRIP goes on answering from where the reader now is —
     // the arming row is off the top of the pane in this shot.
-    await ask(page, "flood")
+    await chatSend(page, "flood")
     await page.locator(CHAT_TRANSCRIPT).getByText("line 39").first().waitFor()
     await shot(page, "still-out-with-the-row-scrolled-away")
 
@@ -3709,9 +3704,9 @@ const SECTIONS = {
     /** How long the pipeline is held per navigation. Long enough for a
      *  screenshot of a frame; short enough that the section is not a wait. */
     const HELD = 6_000
-    let held = HELD
-    await page.route(/pipeline-[^/]+\.js$/, async (route) => {
-      await new Promise((done) => setTimeout(done, held))
+    const PIPELINE = /pipeline-[^/]+\.js$/
+    await page.route(PIPELINE, async (route) => {
+      await new Promise((done) => setTimeout(done, HELD))
       await route.continue()
     })
 
@@ -3774,7 +3769,7 @@ const SECTIONS = {
     // Nothing held any more, and the chunk already in this browser's cache:
     // the shell preloaded it with the entry, so what a reader meets is the
     // rendering. The shot is of a page that never looked unfinished.
-    held = 0
+    await page.unroute(PIPELINE)
     await page.goto(`${BASE}/finishes.md`)
     await arrived(DOC_BODY)
     await shot(page, "the-cached-case-is-a-blink")

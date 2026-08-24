@@ -54,7 +54,7 @@ import type { Browser } from "playwright";
 
 import { ALERTS, recordAlerts } from "./alerts.ts";
 import { BROWSER_ARGS } from "./browser.ts";
-import { ILLEGIBLE_PX, PAINTS, recordPaints } from "./paints.ts";
+import { ILLEGIBLE_PX, PAINTS, recordPaints, WAITING } from "./paints.ts";
 import {
   alreadyShared,
   askResync,
@@ -1196,6 +1196,7 @@ Before(
       await this.context.addInitScript(recordPaints, {
         key: PAINTS,
         illegiblePx: ILLEGIBLE_PX,
+        waiting: WAITING,
       });
     }
 
