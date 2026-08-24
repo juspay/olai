@@ -148,7 +148,7 @@ export function Result(props: {
   readonly onSelect: () => void
   readonly onHover: () => void
 }) {
-  const html = createMemo(() => {
+  const drawing = createMemo(() => {
     const from = props.from
     if (from === undefined) return undefined
     return renderTitle(props.label, from, {
@@ -177,16 +177,22 @@ export function Result(props: {
         <span class="flex min-w-0 flex-1 items-center gap-2">
           <Show when={props.of}>{(of) => <Glyph of={of()} />}</Show>
           <Show
-            when={html()}
+            when={drawing()}
             fallback={
               <span class="min-w-0 flex-1 truncate">{props.label}</span>
             }
           >
-            {(markup) => (
+            {(title) => (
               <span
                 class="olai-md olai-md-inline min-w-0 flex-1 truncate"
+                // A row whose title is still its own source wears the same
+                // waiting face a tree row and a document body do — blurred and
+                // swept, never read (`../styles.css`). One rule, so a hit in
+                // the palette cannot flash marks a tree row does not.
+                data-markdown={title().waiting ? "waiting" : undefined}
+                aria-busy={title().waiting ? "true" : undefined}
                 // Safe: the same sanitised pipeline NodeTitle uses.
-                innerHTML={markup()}
+                innerHTML={title().html}
               />
             )}
           </Show>

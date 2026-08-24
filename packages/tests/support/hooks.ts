@@ -54,6 +54,7 @@ import type { Browser } from "playwright";
 
 import { ALERTS, recordAlerts } from "./alerts.ts";
 import { BROWSER_ARGS } from "./browser.ts";
+import { ILLEGIBLE_PX, PAINTS, recordPaints } from "./paints.ts";
 import {
   alreadyShared,
   askResync,
@@ -183,6 +184,21 @@ const WIRE_TAG = "@wire";
  */
 const ALERTS_TAG = "@alerts";
 const ALERTS_DENIED_TAG = "@alerts-denied";
+
+/**
+ * `@markdown-paints`: this scenario is about the frames BEFORE the markdown
+ * renderer landed, so every document in its context watches itself for them
+ * (`./paints.ts`) and keeps what each one looked like.
+ *
+ * A recorder for `@alerts`' reason — there is no other option. The frames it
+ * is about are gone by the time a step could look, and a step that polled for
+ * them would be green on a fast machine for having seen nothing at all.
+ *
+ * A TAG rather than the default, for `@wire`'s reason: it puts a
+ * subtree-wide MutationObserver in every document, and seven hundred scenarios
+ * that are not about a loading state should not be paying for one.
+ */
+const PAINTS_TAG = "@markdown-paints";
 
 /** `@agent-stored`: the fake agent answers `session/list` with two stored
  *  conversations, so the server's boot loads one of them and replays it. Unset,
@@ -1171,6 +1187,15 @@ Before(
       await this.context.addInitScript(recordAlerts, {
         key: ALERTS,
         consent: granted ? ("granted" as const) : ("denied" as const),
+      });
+    }
+    // Same window, and for the same reason it is here rather than in a step:
+    // the paints this watches for are the app's FIRST, so the watcher has to
+    // be in the document before the boot that makes them.
+    if (scenario.pickle.tags.some((tag) => tag.name === PAINTS_TAG)) {
+      await this.context.addInitScript(recordPaints, {
+        key: PAINTS,
+        illegiblePx: ILLEGIBLE_PX,
       });
     }
 

@@ -26,6 +26,7 @@ import { Then, When } from "@cucumber/cucumber";
 
 import { retypedAndPressed, retypedAndTaken } from "../support/atonce.ts";
 import { countsNothing, foundCount } from "../support/counted.ts";
+import { WAITING, waitsIllegibly } from "../support/paints.ts";
 import { inTheMood, saysThat } from "../support/said.ts";
 import { answered } from "../support/shortlist.ts";
 import {
@@ -250,6 +251,20 @@ Then(
       await read(),
       said,
       `palette item for node \`${id}\` does not light ${JSON.stringify(said)}`,
+    );
+  },
+);
+
+/** A hit whose title is still the source it was written in wears the same
+ *  waiting face a tree row and a document body do — one rule, so a palette
+ *  cannot flash marks a page does not (`support/paints.ts`). */
+Then(
+  "the palette item for node {string} is waiting illegibly",
+  async function (this: OlaiWorld, id: string) {
+    await waitsIllegibly(
+      this,
+      paletteNode(this, id).locator(WAITING),
+      `the palette item for node "${id}"`,
     );
   },
 );

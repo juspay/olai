@@ -22,7 +22,15 @@
  * second `Bun.build` plus a hand-rewrite of the shell the helper had just
  * written, because `splitting` was hardcoded off; it is on and unconditional
  * now, so the `import()` in `client/markdown/chunk.ts` is the whole of the
- * request and the chunk lands hashed in the same immutable dir.
+ * SPLIT and the chunk lands hashed in the same immutable dir.
+ *
+ * ONE line of the shell is still olai's to write about that chunk, and it is
+ * the only post-step left: {@link preloadPipeline} rewrites the placeholder
+ * `client/index.html` carries for it, so the browser fetches the pipeline
+ * alongside the entry instead of a round trip after it. The removed
+ * contraption's three moving parts are not back — the hashed name comes off
+ * the build's own asset report, there is no second build, no `<meta>` and no
+ * reader.
  *
  * The Solid transform is a Bun plugin rather than Bun's own JSX handling:
  * Bun's default transform emits `React.createElement`, which Solid does not
@@ -188,6 +196,61 @@ const installFonts = (distDir: string): void => {
   console.log(`fonts: ${HOSTED_WOFF2.length} faces from ${fontsDir}`)
 }
 
+/**
+ * The one hashed name the shell has to know that the helper will not tell it:
+ * the markdown pipeline's chunk.
+ *
+ * `buildSurfaceClient` writes a `<link rel="modulepreload">` for every chunk
+ * the entry imports STATICALLY, and deliberately for none it imports
+ * dynamically — preloading a dynamic chunk is fetching on first paint the very
+ * thing `import()` was written not to fetch (@kolu/surface-app's
+ * modulePreload.ts). For this one chunk olai wants exactly that, and says so
+ * in its own shell rather than upstream, because the reason is olai's: the
+ * pipeline is what every markdown surface waits on, and the wait is what put a
+ * frame of raw source on the page (roadmap `markdown-raw-flash`).
+ *
+ * It is a PLACEHOLDER in index.html, rewritten here — the same arrangement the
+ * entry and the stylesheet already have, and for the same reason: the tag's
+ * place in the head is a decision a reader can see in the shell, and the hashed
+ * name is a fact only the build has. The name comes off the build's own asset
+ * report rather than a second `Bun.build` or a `<meta>` this file writes and
+ * another reads; those three moving parts are what the header above records
+ * being rid of.
+ *
+ * A build that finds no such chunk FAILS: it means the `import()` in
+ * client/markdown/chunk.ts stopped splitting (folded into the entry, or the
+ * bundler's naming rule moved), and either way a shell that quietly preloaded
+ * nothing would be this fix silently gone.
+ */
+const PIPELINE_PLACEHOLDER = `href="./markdown/pipeline.ts"`
+const PIPELINE_CHUNK = /^pipeline-[^/]*\.js$/
+
+const preloadPipeline = async (
+  distDir: string,
+  assets: readonly { readonly file: string }[],
+): Promise<string> => {
+  const chunk = assets.find((asset) => PIPELINE_CHUNK.test(asset.file))
+  if (chunk === undefined) {
+    throw new Error(
+      `no ${PIPELINE_CHUNK.source} in the hashed assets — the markdown pipeline is ` +
+        `not a chunk of its own any more, so the shell has nothing to preload:\n  ` +
+        assets.map((asset) => asset.file).join("\n  "),
+    )
+  }
+  const shell = resolve(distDir, "index.html")
+  const html = await Bun.file(shell).text()
+  if (!html.includes(PIPELINE_PLACEHOLDER)) {
+    throw new Error(
+      `the shell has no ${PIPELINE_PLACEHOLDER} to rewrite (${shell}) — the markdown ` +
+        `pipeline would be fetched only after the entry runs, which is the wait ` +
+        `roadmap \`markdown-raw-flash\` is about`,
+    )
+  }
+  const href = `${ASSET_PREFIX}${chunk.file}`
+  await Bun.write(shell, html.replaceAll(PIPELINE_PLACEHOLDER, `href="${href}"`))
+  return href
+}
+
 const buildClient = async (distDir: string): Promise<void> => {
   const { assets } = await buildSurfaceClient({
     entrypoint: resolve(CLIENT, "main.tsx"),
@@ -227,6 +290,7 @@ const buildClient = async (distDir: string): Promise<void> => {
       .join("")
     console.log(`asset: ${asset.file} ${asset.bytes}B${siblings}`)
   }
+  console.log(`preload: ${await preloadPipeline(distDir, assets)}`)
   // Fonts after the surface client so a wipe of dist does not strand them,
   // and so /fonts/* is a sibling of the icons at the dist root.
   installFonts(distDir)

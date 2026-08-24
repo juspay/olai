@@ -21,11 +21,18 @@
  *
  * ## Before the pipeline arrives, and if it never does
  *
- * Mounting this is what ASKS for the markdown machinery (./chunk.ts): an
- * outline of rows never draws a block of prose, so it never fetches one. Until
- * it lands, what is on the page is the file's own text, set `pre-wrap` so its
- * lines are its lines — the marks are visible for a moment, which is a thing
- * a reader can read, where a blank space or a spinner is not.
+ * Mounting this is what RUNS the markdown machinery (./chunk.ts); the shell
+ * has already fetched it. Until it lands, what is on the page is the file's
+ * own text, set `pre-wrap` so its lines are its lines — and BLURRED out of
+ * legibility, swept, by the one rule every waiting surface wears
+ * (`[data-markdown="waiting"]` in ../styles.css).
+ *
+ * The text is what makes that honest. The box is the size the real characters
+ * make, so the swap is a de-blur and the block itself moves nowhere; a
+ * skeleton of invented gray bars would be a guess at a height, and a spinner
+ * or a blank would be neither the shape nor the words. What no reader gets is
+ * a frame of raw `**` and `[](…)`, which is what this used to paint on every
+ * first render, cache or no cache (roadmap `markdown-raw-flash`).
  *
  * A fetch that fails says so, above that same text. It is the one place in the
  * app that can say it: a title's fallback is a title either way, but a
@@ -73,6 +80,11 @@ export function Markdown(props: {
           classList={{ "whitespace-pre-wrap": waiting() }}
           data-testid={props.testid}
           data-markdown={waiting() ? "waiting" : undefined}
+          // The same state, said to a reader who is not looking at it: what is
+          // under this element is not the answer yet. A blur is nothing to a
+          // screen reader, and the raw source would otherwise be read out as
+          // if it were the text.
+          aria-busy={waiting() ? "true" : undefined}
           // Safe because the pipeline sanitises (see ./render.ts), and because
           // the text of the file it came from is escaped when there is no
           // pipeline yet.

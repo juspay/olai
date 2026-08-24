@@ -12,10 +12,15 @@
  *   1. **plain** — the title has no markdown in it at all (./plain.ts), so it
  *      is words and tags and the answer is immediate. Nearly every title.
  *   2. **rendered** — it does have markdown, and ./pipeline.ts is here.
- *   3. **the source, escaped** — it has markdown and the pipeline is still on
- *      its way. What is drawn is what the person wrote, marks and all, and the
- *      memo that asked is re-run when the chunk lands (./chunk.ts). One line
- *      of text either way: nothing moves on the page but the marks.
+ *   3. **the source, escaped and ILLEGIBLE** — it has markdown and the
+ *      pipeline is still on its way. What is drawn is what the person wrote,
+ *      marks and all, blurred and swept by the one rule every waiting markdown
+ *      surface wears (`data-markdown="waiting"`, ../styles.css) — so the row
+ *      is the width its real characters make and nothing moves on the page
+ *      when the words arrive, but no reader ever reads the marks. Which answer
+ *      this is is part of the answer ({@link TitleDrawing}), because the
+ *      caller is what puts that face on. The memo that asked is re-run when
+ *      the chunk lands (./chunk.ts).
  *
  * Ordering matters within (2), and it is the reverse of what it used to be:
  *
@@ -102,7 +107,36 @@ const rendered = new Map<string, string>()
 const CACHE_LIMIT = 1024
 
 /**
- * One title → one HTML string, safe for `innerHTML`.
+ * A title, drawn — and WHICH of the three answers it is.
+ *
+ * The rung is part of the answer because the third one is a STATE the page has
+ * to wear: escaped source is not the title, it is what stands in for the title
+ * while the renderer is on its way, and a caller that could not tell the two
+ * apart would have to draw raw `**` as though it were the words somebody meant
+ * ({@link TitleDrawing.waiting}).
+ */
+export interface TitleDrawing {
+  /** HTML, safe for `innerHTML`. */
+  readonly html: string
+  /**
+   * True for the THIRD answer alone — the escaped source, drawn because
+   * ./chunk.ts has not landed. The caller puts the app's one waiting face on
+   * it (`data-markdown="waiting"`, blurred and swept by ../styles.css), which
+   * is the same face a note and a document body wear for the same reason.
+   *
+   * False for the first two: a plain title is the finished thing, and a
+   * rendered one is the answer itself.
+   */
+  readonly waiting: boolean
+}
+
+/** An answer that is FINISHED — the plain title, the rendering, and the
+ *  escaped source `build` falls back to when the drawing lost words the source
+ *  still accounts for. None of those is waiting for anything. */
+const drawn = (html: string): TitleDrawing => ({ html, waiting: false })
+
+/**
+ * One title → one drawing of it, safe for `innerHTML`.
  *
  * THE LADDER IS WRITTEN ONCE — plain, then rendered, then the escaped source —
  * and the caches are conditions on it rather than a second copy of it. It was
@@ -115,7 +149,7 @@ export const renderTitle = (
   title: string,
   from: string,
   options: TitleRender = {},
-): string => {
+): TitleDrawing => {
   const needles = options.needles ?? NO_NEEDLES
   const links = options.links !== false
 
@@ -124,23 +158,24 @@ export const renderTitle = (
   // lookup is the first thing that happens.
   if (needles.length === 0) {
     const wasPlain = plainTitles.get(title)
-    if (wasPlain !== undefined) return wasPlain
+    if (wasPlain !== undefined) return drawn(wasPlain)
   }
   const plain = plainTitle(title, needles)
   if (plain !== null) {
-    return needles.length === 0 ? remember(plainTitles, title, plain) : plain
+    return drawn(needles.length === 0 ? remember(plainTitles, title, plain) : plain)
   }
 
   const key = `${links ? "a" : "n"}\n${from}\n${needles.join("\u0000")}\n${title}`
   const hit = rendered.get(key)
-  if (hit !== undefined) return hit
+  if (hit !== undefined) return drawn(hit)
 
   // Not cached: this is what the title looks like WHILE the chunk is coming,
   // and a cache is exactly the thing that would still be handing it out
-  // afterwards. The read is what re-runs the caller's memo when it lands.
-  if (!markdownReady()) return escapeHtml(title)
+  // afterwards. The read is what re-runs the caller's memo when it lands — and
+  // `waiting` is what has the row draw that source illegibly until it does.
+  if (!markdownReady()) return { html: escapeHtml(title), waiting: true }
 
-  return remember(rendered, key, build(title, from, links, needles))
+  return drawn(remember(rendered, key, build(title, from, links, needles)))
 }
 
 const remember = (

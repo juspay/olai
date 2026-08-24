@@ -337,6 +337,63 @@ mark.olai-hit {
   font-family: var(--font-sans);
 }
 
+/* WHILE THE RENDERER IS ON ITS WAY: the source, and NOT A WORD OF IT LEGIBLE.
+ *
+ * Every markdown surface holds the file's own text until `markdown/chunk.ts`
+ * lands — a title in a tree row, a `¶` note, the day's note, a document body,
+ * a preview, a referrer, an agent's reply, a palette or search row. That text
+ * is the truthful thing to hold: it is the real characters, so the box is the
+ * size the words make and the swap to the rendering moves the block itself
+ * nowhere. What it must never be is READ: raw `**` and `[](…)` on screen for a
+ * frame is the flash this rule exists to end (roadmap `markdown-raw-flash`,
+ * the human's shape 4, 2026-08-24).
+ *
+ * So it is blurred out of legibility and swept, and the swap is a DE-BLUR
+ * rather than a redraw. One rule for every surface, keyed on the attribute
+ * that already named the state (`data-markdown="waiting"`), so a title, a
+ * note, a chat message and a whole document behave identically and no surface
+ * can be given a loading face of its own.
+ *
+ * THE BLUR IS IN `em`, which is the whole reason it is one rule: a tree row's
+ * title and a document's body are hidden to the same DEGREE rather than by the
+ * same pixels, at every type size the reader can pick. 0.3em is past the
+ * radius where a glyph keeps an identifiable edge — a `*` and a `#` are a
+ * smudge, and so is the word next to them.
+ *
+ * THE SWEEP IS THE PROGRESS FEEDBACK, and there is nothing else to invent: it
+ * says work is happening over the very shape the answer will land in. Drawn
+ * from the rule colour so it follows every palette, and behind the words
+ * rather than over them, so what moves is a band of light and not the text.
+ * Under `prefers-reduced-motion` the sweep is a still band — the state still
+ * reads as unfinished, and nothing on the page moves. */
+[data-markdown="waiting"] {
+  filter: blur(0.3em);
+  background-image: linear-gradient(
+    100deg,
+    transparent 35%,
+    color-mix(in srgb, var(--color-rule) 70%, transparent) 50%,
+    transparent 65%
+  );
+  background-repeat: no-repeat;
+  background-size: 300% 100%;
+  background-position: 150% 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-markdown="waiting"] {
+    animation: olai-md-waiting 1.2s linear infinite;
+  }
+}
+
+@keyframes olai-md-waiting {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+
 .olai-md :is(pre, th, td) {
   overflow-wrap: normal;
 }

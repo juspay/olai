@@ -105,13 +105,33 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="olai" />
-    <!-- The markdown pipeline is NOT named here, and deliberately not preloaded
-         either: an outline of rows must not fetch it at all, and a preload is a
-         fetch. The page finds it by asking — a dynamic `import()` the bundler
-         splits into its own hashed chunk (src/client/markdown/chunk.ts). -->
-    <!-- The `href` below and the `<script src>` in the body are the two
+    <!-- THE MARKDOWN PIPELINE, FETCHED FROM HERE — and this line is a reversal
+         of what stood in its place (the human, 2026-08-24, roadmap
+         `markdown-raw-flash`). It used to say the chunk must not be preloaded
+         because "an outline of rows must not fetch it at all, and a preload is
+         a fetch", which is why kolu's own preloader follows static imports only
+         and never a `dynamic-import` edge (@kolu/surface-app's modulePreload.ts
+         — so this tag is olai's, written here rather than derived there).
+
+         What that decision bought was bytes on a page that draws no markdown.
+         What it cost was the WAIT, on every page that draws some: the fetch
+         could not start until the entry had run, so the first frame of a
+         document, a note or a chat reply was the file's own source and the
+         rendering came a round trip later. That flash is now covered — the
+         waiting text is blurred and swept (src/client/styles.css) — and this
+         tag is the other half: the chunk is fetched in parallel with the entry
+         at the first byte of the shell, so on a warm cache the skeleton is
+         about a frame, and on a cold one it is honest progress over the real
+         shape of the answer instead of a wait nobody was told about.
+
+         It is a PRELOAD and not an import: nothing here runs the module. A page
+         of plain outline rows still never executes it — the `import()` in
+         src/client/markdown/chunk.ts is still the only thing that does, and is
+         still what the readiness signal hangs on. -->
+    <!-- The `href`s below and the `<script src>` in the body are the three
          placeholders the build rewrites to hashed /_olai/assets/* URLs; they must
          match build.ts byte for byte. -->
+    <link rel="modulepreload" href="./markdown/pipeline.ts" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <!-- The page's own two utilities. Tailwind's preflight zeroes the body
