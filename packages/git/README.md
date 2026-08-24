@@ -2,7 +2,7 @@
 
 Nothing here decides anything. It shells out to `git`, and every answer is a value: a repository that cannot take a commit, a file that moved, a refusal with git's own words on it. What any of that MEANS — which dirty files matter, what a commit message says, who a writer is — belongs to [`@olai/ops`](../ops/README.md).
 
-It was `ops/src/git.ts` until the commit UI grew to see the whole repository. Extracting it was the answer to "should we take a git library?": the handroll is 411 careful lines that already work, `simple-git` is a dependency plus an Effect adapter replacing them, `isomorphic-git` reimplements git and can diverge from the one on your PATH, and `dugite` bundles a binary. A package with **one dependency (`effect`) and no workspace sibling at all** is the anti-bloat answer.
+It was `ops/src/git.ts` until the commit UI grew to see the whole repository. Extracting it was the answer to "should we take a git library?": the handroll is 411 careful lines that already work, `simple-git` is a dependency plus an Effect adapter replacing them, `isomorphic-git` reimplements git and can diverge from the one on your PATH, and `dugite` bundles a binary. A package with **`effect` and `@olai/child`** is the anti-bloat answer: the subprocess socket is the sibling's, this runner rides it, and the index gate stays here.
 
 ## The socket
 

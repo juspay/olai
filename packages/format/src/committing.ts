@@ -35,8 +35,8 @@ import { NodeChange } from "./changes.ts"
  * the package they already import everything else from.
  *
  * They come off the `@olai/git/state` subpath, which is the half of that
- * package with no subprocess in it — the main entry reaches
- * `node:child_process`, and this module is imported by a browser.
+ * package with no subprocess in it — the main entry rides `@olai/child`,
+ * and this module is imported by a browser.
  */
 export { How, Reason, RepoState }
 
