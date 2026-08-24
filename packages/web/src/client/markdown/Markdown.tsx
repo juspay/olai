@@ -21,11 +21,18 @@
  *
  * ## Before the pipeline arrives, and if it never does
  *
- * Mounting this is what ASKS for the markdown machinery (./chunk.ts): an
- * outline of rows never draws a block of prose, so it never fetches one. Until
- * it lands, what is on the page is the file's own text, set `pre-wrap` so its
- * lines are its lines — the marks are visible for a moment, which is a thing
- * a reader can read, where a blank space or a spinner is not.
+ * Mounting this is what RUNS the markdown machinery (./chunk.ts); the shell
+ * has already fetched it. Until it lands, what is on the page is the file's
+ * own text, set `pre-wrap` so its lines are its lines — and BLURRED out of
+ * legibility, swept, by the one rule every waiting surface wears
+ * (`[data-markdown="waiting"]` in ../styles.css).
+ *
+ * The text is what makes that honest. The box is the size the real characters
+ * make, so the swap is a de-blur and the block itself moves nowhere; a
+ * skeleton of invented gray bars would be a guess at a height, and a spinner
+ * or a blank would be neither the shape nor the words. What no reader gets is
+ * a frame of raw `**` and `[](…)`, which is what this used to paint on every
+ * first render, cache or no cache (roadmap `markdown-raw-flash`).
  *
  * A fetch that fails says so, above that same text. It is the one place in the
  * app that can say it: a title's fallback is a title either way, but a
@@ -35,9 +42,10 @@
 
 import { createMemo, Show } from "solid-js"
 
-import { markdownFailure, markdownReady } from "./chunk.ts"
+import { markdownFailure, markdownReady, markdownWaiting } from "./chunk.ts"
 import { renderMarkdown, renderStreaming } from "./render.ts"
 import { escapeHtml } from "./tags.ts"
+import { busyMark, waitingMark } from "./waiting.ts"
 
 export function Markdown(props: {
   readonly source: string
@@ -58,7 +66,13 @@ export function Markdown(props: {
         : renderMarkdown(props.source, props.from)
       : undefined
   )
-  const waiting = (): boolean => html() === undefined
+  /** Is this block still WAITING on the renderer — the arrival's own answer
+   *  (./chunk.ts), not `html() === undefined`, which is "not rendered" and is
+   *  true of a page whose renderer failed as well. The two agree inside this
+   *  branch, since the `<Show>` above sends a failure the other way; reading
+   *  the one answer is what stops that agreement being a thing somebody has to
+   *  keep true. ./title.ts reads the same signal for the same reason. */
+  const waiting = markdownWaiting
   const classes = (): string => `olai-md ${props.class ?? ""}`
 
   return (
@@ -66,13 +80,17 @@ export function Markdown(props: {
       when={markdownFailure()}
       fallback={
         <div
+          // The SAME element either way — nothing remounts when the rendering
+          // replaces the source, so nothing on the page moves but the words
+          // themselves. What it LOOKS like while it waits, down to its
+          // `pre-wrap`, is the sheet's (../styles.css).
           class={classes()}
-          // The SAME element either way, dressed differently — nothing
-          // remounts when the rendering replaces the source, so nothing on the
-          // page moves but the words themselves.
-          classList={{ "whitespace-pre-wrap": waiting() }}
           data-testid={props.testid}
-          data-markdown={waiting() ? "waiting" : undefined}
+          // The waiting face, which every surface holding unrendered source
+          // wears (./waiting.ts, ../styles.css) — this element rather than a
+          // wrapper, because what the rule blurs is what is inside it.
+          data-markdown={waitingMark(waiting())}
+          aria-busy={busyMark(waiting())}
           // Safe because the pipeline sanitises (see ./render.ts), and because
           // the text of the file it came from is escaped when there is no
           // pipeline yet.

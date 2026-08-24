@@ -28,6 +28,7 @@ import {
   renderMarkdown,
   renderStreaming,
 } from "./render.ts"
+import type { TitleRender } from "./title.ts"
 import { renderTitle } from "./title.ts"
 import { TESTID } from "../testids.ts"
 
@@ -444,10 +445,20 @@ test("streaming and final share a footnote id namespace", () => {
 
 // ── titles ─────────────────────────────────────────────────────────────
 
+/** The HTML of a title's drawing.
+ *
+ * A drawing is HTML plus the rung of the ladder it came from (`waiting`), and
+ * every case below has the pipeline installed at the top of this file — so
+ * every one of them is a FINISHED answer and the rung is not what they are
+ * about. What the page does with the third rung is a question about a page:
+ * `packages/tests/features/markdown_arrives.feature`. */
+const titleHtml = (title: string, from: string, options?: TitleRender): string =>
+  renderTitle(title, from, options).html
+
 // Tags are styled AFTER markdown, so a tag inside a construct does not split
 // the construct across two parser runs.
 test("a title keeps both markdown and its tags", () => {
-  const html = renderTitle("**urgent** fix #home", NOTE)
+  const html = titleHtml("**urgent** fix #home", NOTE)
   expect(html).toContain("<strong>urgent</strong>")
   expect(html).toContain(`data-testid="tag"`)
   expect(html).toContain("#home")
@@ -458,7 +469,7 @@ test("a title keeps both markdown and its tags", () => {
 // span — not a slice that also covers the span's attributes (those always
 // contain whitespace, so a vacuous /\s/ would pass on the regressed html).
 test("a title keeps the space before a tag", () => {
-  const html = renderTitle("kitchen remodel #home", NOTE)
+  const html = titleHtml("kitchen remodel #home", NOTE)
   expect(html).toContain("remodel <span")
   expect(html).toContain(`data-testid="tag"`)
   expect(html).toContain("#home")
@@ -466,7 +477,7 @@ test("a title keeps the space before a tag", () => {
 
 // Tag-inside-construct: the cases the pre-markdown split destroyed.
 test("a tag inside bold stays bold", () => {
-  const html = renderTitle("**urgent #home**", NOTE)
+  const html = titleHtml("**urgent #home**", NOTE)
   expect(html).toContain("<strong>")
   expect(html).toContain(`data-testid="tag"`)
   expect(html).toContain("#home")
@@ -476,7 +487,7 @@ test("a tag inside bold stays bold", () => {
 })
 
 test("a tag inside code stays code, not a styled tag", () => {
-  const html = renderTitle("`#home` config", NOTE)
+  const html = titleHtml("`#home` config", NOTE)
   expect(html).toContain("<code>")
   expect(html).toContain("#home")
   // code subtrees are not walked for tags.
@@ -484,7 +495,7 @@ test("a tag inside code stays code, not a styled tag", () => {
 })
 
 test("a link with a URL fragment is not shredded by the tag alphabet", () => {
-  const html = renderTitle("see [spec](https://example.com/x#home)", NOTE)
+  const html = titleHtml("see [spec](https://example.com/x#home)", NOTE)
   expect(html).toContain(`href="https://example.com/x#home"`)
   expect(html).toContain("spec")
   // The fragment is on the href, not a tag in the text.
@@ -493,7 +504,7 @@ test("a link with a URL fragment is not shredded by the tag alphabet", () => {
 })
 
 test("a tag that is the link text stays a link, not a split", () => {
-  const html = renderTitle("[#home](https://example.com)", NOTE)
+  const html = titleHtml("[#home](https://example.com)", NOTE)
   expect(html).toContain(`href="https://example.com"`)
   expect(html).toContain("#home")
   // Inside <a>, tags are not re-styled (skip a subtrees).
@@ -503,20 +514,20 @@ test("a tag that is the link text stays a link, not a split", () => {
 // Empty render of non-empty source → escaped source, never a blank row.
 test("a title that the pipeline empties falls back to the escaped source", () => {
   for (const source of ["---", "***", "___", "<div>plan the trip</div>", "<!-- note -->"]) {
-    const html = renderTitle(source, NOTE)
+    const html = titleHtml(source, NOTE)
     expect(html.length).toBeGreaterThan(0)
     expect(html).not.toBe("")
   }
   // Raw HTML angle brackets must not open an element in the fallback.
-  expect(renderTitle("<div>plan</div>", NOTE)).not.toContain("<div")
-  expect(renderTitle("<div>plan</div>", NOTE)).toContain("plan")
+  expect(titleHtml("<div>plan</div>", NOTE)).not.toContain("<div")
+  expect(titleHtml("<div>plan</div>", NOTE)).toContain("plan")
 })
 
 // Partial loss: the pipeline kept some text but dropped a word inside raw
 // HTML. Falling back only on full emptiness left a title that looked correct
 // while being wrong — worse than the marks.
 test("a title that loses words to raw HTML falls back to the escaped source", () => {
-  const component = renderTitle("Use <Component> here", NOTE)
+  const component = titleHtml("Use <Component> here", NOTE)
   expect(component).toContain("Component")
   expect(component).not.toContain("<Component")
   // Escaped, not the truncated "Use  here".
@@ -524,7 +535,7 @@ test("a title that loses words to raw HTML falls back to the escaped source", ()
   expect(component).toContain("here")
   expect(component).toContain("&lt;")
 
-  const algo = renderTitle("C++ <algorithm>", NOTE)
+  const algo = titleHtml("C++ <algorithm>", NOTE)
   expect(algo).toContain("algorithm")
   expect(algo).toContain("&lt;")
   // Must not be the truncated "C++ " with the word gone.
@@ -533,7 +544,7 @@ test("a title that loses words to raw HTML falls back to the escaped source", ()
 
 // Ordinary markdown still renders — the loss check must not fire on every title.
 test("a normal markdown title does not fall back to escaped source", () => {
-  const html = renderTitle("**urgent** fix #home", NOTE)
+  const html = titleHtml("**urgent** fix #home", NOTE)
   expect(html).toContain("<strong>urgent</strong>")
   expect(html).toContain(`data-testid="tag"`)
   expect(html).not.toContain("**")
@@ -555,27 +566,27 @@ test("a normal markdown title does not fall back to escaped source", () => {
 // estimate, the estimate came out longer than the render, and the row drew
 // `a **b *c* d** e` with a stray `*` in it.
 test("nested emphasis renders rather than falling back to the source", () => {
-  expect(renderTitle("a **b *c* d** e", NOTE)).toBe(
+  expect(titleHtml("a **b *c* d** e", NOTE)).toBe(
     "a <strong>b <em>c</em> d</strong> e",
   )
 })
 
 test("every nesting of the two emphasis marks renders", () => {
-  expect(renderTitle("***x***", NOTE)).toBe("<em><strong>x</strong></em>")
-  expect(renderTitle("**a *b* c**", NOTE)).toBe(
+  expect(titleHtml("***x***", NOTE)).toBe("<em><strong>x</strong></em>")
+  expect(titleHtml("**a *b* c**", NOTE)).toBe(
     "<strong>a <em>b</em> c</strong>",
   )
-  expect(renderTitle("*a **b** c*", NOTE)).toBe("<em>a <strong>b</strong> c</em>")
+  expect(titleHtml("*a **b** c*", NOTE)).toBe("<em>a <strong>b</strong> c</em>")
   // The underscore spellings of the same three.
-  expect(renderTitle("a __b _c_ d__ e", NOTE)).toBe(
+  expect(titleHtml("a __b _c_ d__ e", NOTE)).toBe(
     "a <strong>b <em>c</em> d</strong> e",
   )
-  expect(renderTitle("___x___", NOTE)).toBe("<em><strong>x</strong></em>")
-  expect(renderTitle("_a __b__ c_", NOTE)).toBe("<em>a <strong>b</strong> c</em>")
+  expect(titleHtml("___x___", NOTE)).toBe("<em><strong>x</strong></em>")
+  expect(titleHtml("_a __b__ c_", NOTE)).toBe("<em>a <strong>b</strong> c</em>")
 })
 
 test("nested emphasis beside a tag keeps the emphasis and the pill", () => {
-  const html = renderTitle("**a *b* c** #home", NOTE)
+  const html = titleHtml("**a *b* c** #home", NOTE)
   expect(html).toContain("<strong>a <em>b</em> c</strong>")
   expect(html).toContain(`data-testid="tag"`)
   expect(html).toContain("#home")
@@ -583,7 +594,7 @@ test("nested emphasis beside a tag keeps the emphasis and the pill", () => {
 })
 
 test("nested emphasis inside a link's text keeps the link", () => {
-  const html = renderTitle("see [**a *b* c**](https://example.com/x)", NOTE)
+  const html = titleHtml("see [**a *b* c**](https://example.com/x)", NOTE)
   expect(html).toContain(`href="https://example.com/x"`)
   expect(html).toContain("<strong>a <em>b</em> c</strong>")
   expect(html).not.toContain("[**")
@@ -593,7 +604,7 @@ test("nested emphasis inside a link's text keeps the link", () => {
 // five. Counting the spelling made every `&amp;` a loss, and the row drew the
 // fallback's re-escaped `&amp;amp;`.
 test("a character reference is not read as lost text", () => {
-  const html = renderTitle("Tom &amp; Jerry", NOTE)
+  const html = titleHtml("Tom &amp; Jerry", NOTE)
   expect(html).not.toContain("amp;amp;")
   expect(html.replace(/&#x26;|&amp;/g, "&")).toBe("Tom & Jerry")
 })
@@ -602,14 +613,14 @@ test("a character reference is not read as lost text", () => {
 // pipeline.ts), so they read one string: `(my file.md)` is a destination to
 // the render and would be literal text to a parse that skipped it.
 test("a link whose destination holds a space still renders", () => {
-  const html = renderTitle("see [the spec](my file.md)", NOTE)
+  const html = titleHtml("see [the spec](my file.md)", NOTE)
   expect(html).toContain("the spec")
   expect(html).not.toContain("](")
 })
 
 // Inside a Link (breadcrumb, see-ref): no nested <a>.
 test("a title with links=false unwraps anchors", () => {
-  const html = renderTitle("see [the spec](https://example.com/x)", NOTE, {
+  const html = titleHtml("see [the spec](https://example.com/x)", NOTE, {
     links: false,
   })
   expect(html).toContain("the spec")
@@ -626,7 +637,7 @@ test("a title with links=false unwraps anchors", () => {
 // `includeImageAlt`), and turning that off would draw a bare "shot" here and
 // sail past the weaker assertion.
 test("a picture in a title falls back to the escaped source", () => {
-  const html = renderTitle("shot ![a](art/shot.png)", NOTE)
+  const html = titleHtml("shot ![a](art/shot.png)", NOTE)
   expect(html).toBe("shot ![a](art/shot.png)")
   expect(html).not.toContain("<img")
 })

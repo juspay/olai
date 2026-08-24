@@ -14,11 +14,12 @@
  *
  * That pipeline is ./pipeline.ts, and it is NOT in the bundle an outline's
  * first paint waits for: this file holds the memo, the ids and the tree walks,
- * ./chunk.ts fetches the machinery the first time something asks for it, and
+ * ./chunk.ts runs the machinery the first time something asks for it, and
  * every entry point below is written for the moment before it has arrived.
  * Which is why they are all guarded the same way — a caller reads ./chunk.ts's
- * `markdownReady()` inside its memo, draws the source until it is true, and is
- * re-run by that signal when it turns. Calling one of these without having
+ * `markdownReady()` inside its memo, draws the source (illegibly — see
+ * ./Markdown.tsx) until it is true, and is re-run by that signal when it
+ * turns. Calling one of these without having
  * asked is a throw (./chunk.ts says why), never a quiet empty string.
  *
  * `rewrite` (./rewrite.ts) is a walk over the finished tree rather than a

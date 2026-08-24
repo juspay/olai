@@ -52,7 +52,8 @@ import { createMemo, Show } from "solid-js"
 import { addressIn, shownIn, titleFace } from "./address/address.ts"
 import { Face } from "./address/Face.tsx"
 import { useNames } from "./reading.tsx"
-import { renderTitle } from "./markdown/title.ts"
+import { renderTitle, sameDrawing } from "./markdown/title.ts"
+import { TitleHtml } from "./markdown/TitleHtml.tsx"
 
 export function NodeTitle(props: {
   readonly title: string
@@ -73,24 +74,21 @@ export function NodeTitle(props: {
    *  other title in the directory: the test short-circuits on the first
    *  character (`./address/address.ts`). */
   const address = createMemo(() => addressIn(props.title))
-  const html = createMemo(() =>
-    renderTitle(props.title, props.from, {
-      links: props.links,
-      needles: props.needles,
-    }),
+  /** The drawing, and NOT a fresh identity per recompute: a filtered page
+   *  re-runs this memo on every keystroke, and a title whose HTML has not
+   *  changed must not push a new value through to the element — which is what
+   *  a memo over an object does by default (`===`). */
+  const drawing = createMemo(
+    () =>
+      renderTitle(props.title, props.from, {
+        links: props.links,
+        needles: props.needles,
+      }),
+    undefined,
+    { equals: sameDrawing },
   )
   return (
-    <Show
-      when={address()}
-      fallback={
-        <span
-          class="olai-md olai-md-inline"
-          // Safe: markdown is sanitised; tags are alphabet-restricted; the empty
-          // fallback is escaped. See ./markdown/title.ts and ./markdown/render.ts.
-          innerHTML={html()}
-        />
-      }
-    >
+    <Show when={address()} fallback={<TitleHtml drawing={drawing()} />}>
       {(route) => {
         /** WHAT THIS FACE SAYS AND WHAT IT MAY BE, from the one reading both
          *  faces make of a title (`./address/address.ts`) — and the set's half

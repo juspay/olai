@@ -73,7 +73,8 @@
 
 import { createMemo, For, Show } from "solid-js"
 
-import { renderTitle } from "../markdown/title.ts"
+import { renderTitle, sameDrawing } from "../markdown/title.ts"
+import { TitleHtml } from "../markdown/TitleHtml.tsx"
 
 import type { DirectoryKind } from "../file/icons.tsx"
 import { Glyph } from "../file/icons.tsx"
@@ -148,14 +149,25 @@ export function Result(props: {
   readonly onSelect: () => void
   readonly onHover: () => void
 }) {
-  const html = createMemo(() => {
-    const from = props.from
-    if (from === undefined) return undefined
-    return renderTitle(props.label, from, {
-      needles: props.needles,
-      links: false,
-    })
-  })
+  /** …and not a fresh identity per keystroke: see `NodeTitle.tsx`'s note. A
+   *  door's list re-runs this on every character typed into it. */
+  const drawing = createMemo(
+    () => {
+      const from = props.from
+      if (from === undefined) return undefined
+      return renderTitle(props.label, from, {
+        needles: props.needles,
+        links: false,
+      })
+    },
+    undefined,
+    {
+      equals: (was, now) =>
+        was === undefined || now === undefined
+          ? was === now
+          : sameDrawing(was, now),
+    },
+  )
   return (
     <button
       type="button"
@@ -177,17 +189,15 @@ export function Result(props: {
         <span class="flex min-w-0 flex-1 items-center gap-2">
           <Show when={props.of}>{(of) => <Glyph of={of()} />}</Show>
           <Show
-            when={html()}
+            when={drawing()}
             fallback={
               <span class="min-w-0 flex-1 truncate">{props.label}</span>
             }
           >
-            {(markup) => (
-              <span
-                class="olai-md olai-md-inline min-w-0 flex-1 truncate"
-                // Safe: the same sanitised pipeline NodeTitle uses.
-                innerHTML={markup()}
-              />
+            {(title) => (
+              // The same element a tree row draws, waiting face and all, so a
+              // hit in the palette cannot flash marks a row does not.
+              <TitleHtml drawing={title()} class="min-w-0 flex-1 truncate" />
             )}
           </Show>
         </span>

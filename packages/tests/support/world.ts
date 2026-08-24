@@ -2592,6 +2592,15 @@ export class OlaiWorld extends World {
    *  claim. */
   paperBefore?: string;
 
+  /** A box taken BEFORE something replaced what was inside it, for the
+   *  scenarios that claim the swap changed nothing about it — the markdown
+   *  renderer landing under a note, and under a tree row's title
+   *  (`step_definitions/markdown_steps.ts`). Compared against itself, like the
+   *  paper above: WHICH of its numbers is the claim belongs to the step that
+   *  reads it, and no number in it is a fact about this app anybody wrote
+   *  down. */
+  blockBefore?: Box;
+
   /** The URLs that left this server. Normally empty and it must stay that way:
    *  the bundle, the stylesheet and the syntax highlighter are all shipped by
    *  the server someone pointed at their own outlines, and a request to
