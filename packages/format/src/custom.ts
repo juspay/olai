@@ -80,6 +80,31 @@ export const customKeys = (custom: Custom): ReadonlyArray<string> =>
   Object.keys(custom).sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
 
 /**
+ * The keys of a map in the order THIS MAP holds them — what a DRAWER reads.
+ *
+ * The paragraph above says a map's insertion order "is not a contract and
+ * cannot decide" what a FILE holds, and that stands: {@link customKeys} is
+ * still what a writer spends, and a record olai wrote is alphabetical on disk
+ * because of it. This is the other half of that same sentence — "what a DRAWER
+ * shows is a view's business and could still be anything" — answered once,
+ * here, rather than left to each view to decide by accident.
+ *
+ * WHAT IT IS is the order the keys arrived in, which for a record read off disk
+ * is the order the bytes have them: `JSON.parse` keeps a key order, the schema
+ * decode over it keeps it (`./parse.ts`), and a value put on the wire and read
+ * back keeps it again. So a file a HAND wrote — `agent`, then `brief`, then
+ * `worktree`, because that is the order the person thinks about the lane in —
+ * is drawn the way it was written, and a file olai wrote is drawn
+ * alphabetically because that is how olai wrote it. Neither case is a view
+ * re-sorting anything under the reader.
+ *
+ * `Object.keys` and no comparator is the whole implementation, and it is a
+ * NAMED function anyway: "the drawer does not sort" is a decision, and a bare
+ * `Object.keys(custom)` at a call site is that decision spelled as an accident.
+ */
+export const customOrder = (custom: Custom): ReadonlyArray<string> => Object.keys(custom)
+
+/**
  * The map with one key set, or — for a value that is NOTHING — taken out.
  *
  * Every write of a custom key goes through here, so "absent has one spelling"

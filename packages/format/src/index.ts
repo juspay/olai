@@ -67,6 +67,12 @@
  */
 
 export { parseOutline } from "./parse.ts"
+/** Whether a string is a DATE in this format's sense — a day, or an instant on
+ *  one. The rule the validator runs on `date`, `done` and the stamps, on the
+ *  surface because a view now asks it of text the format gives no meaning to
+ *  (a custom key holding `2026-08-31`), and two answers to it would be a value
+ *  refused as a field and called a date as a property. */
+export { isIsoInstant } from "./parse.ts"
 export { validate } from "./validate.ts"
 /** What a validated set IS: the files that were found, and the one derivation
  *  they were judged against. It is `validate`'s answer rather than a shape
@@ -322,6 +328,10 @@ export {
   Custom,
   customKeys,
   customOf,
+  /** The same keys in the order the MAP holds them, which for a record read off
+   *  disk is the order its bytes have them — what a drawer reads, beside the
+   *  canonical order a writer spends. */
+  customOrder,
   customText,
   CustomValue,
   withCustom,
