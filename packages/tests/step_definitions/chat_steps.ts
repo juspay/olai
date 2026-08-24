@@ -91,6 +91,9 @@ import {
   CHAT_SESSION_UNREACHABLE,
   CHAT_SESSION_LIST,
   CHAT_SESSIONS,
+  CHAT_ARMED,
+  CHAT_ARMED_ENDED,
+  CHAT_ARMED_STILL,
   CHAT_SPAWN,
   CHAT_SPAWN_WORKING,
   CHAT_STRIP,
@@ -1647,6 +1650,93 @@ Then(
   },
 );
 
+
+Then(
+  "the chat says a background task is watching {string}",
+  async function (this: OlaiWorld, watching: string) {
+    // WHAT WAS ARMED, on the line of the call that armed it. The description
+    // rather than the title, because the title of the call is `Bash` or
+    // `Monitor` and the description is the sentence a person recognises their
+    // own watch by — which is the whole of what "how do you know you are
+    // babysitting right now?" was asking for.
+    const armed = this.page.locator(CHAT_ARMED).first();
+    await armed.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    assert.strictEqual(
+      (await armed.textContent())?.includes(watching),
+      true,
+      `the armed call does not say it is watching "${watching}"`,
+    );
+    // ... and the harness's own id for the task travels with it, which is what
+    // makes every later frame about the task land on THIS row.
+    const task = await armed.getAttribute("data-task");
+    assert.ok(
+      task !== null && task !== "",
+      "a background task nobody can name is not one this panel can follow",
+    );
+  },
+);
+
+Then("the chat says that task is still running", async function (this: OlaiWorld) {
+  // THE LIVE HALF, and the one this scenario keeps asking about across two
+  // turns: a task is out there and nothing has said it stopped. The same rail
+  // a spawned agent hangs, because an agent in flight and a task in flight are
+  // one kind of fact to a reader.
+  const still = this.page.locator(CHAT_ARMED_STILL).first();
+  await still.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const armed = await still.getAttribute("data-lane");
+  assert.ok(
+    armed !== null && armed !== "",
+    "a rail that names no call is an indent, not an attribution",
+  );
+  // The same geometry a lane owes: the rail is the claim that something else
+  // is going on under this row, and one drawn level with the conversation says
+  // the agent is doing it.
+  await insetBelow(this, armed ?? "", still, "the task that was armed");
+});
+
+Then(
+  "the chat says that task ended {string}",
+  async function (this: OlaiWorld, ended: string) {
+    // THE DEATH, which is the fact this whole feature exists for — and in the
+    // HARNESS's word, off the attribute rather than the sentence, because ACP
+    // has four statuses and `failed`, `killed` and `stopped` all reach the row
+    // as one of them.
+    await this.page
+      .locator(`${CHAT_ARMED_ENDED}${attr("data-ended", ended)}`)
+      .first()
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  },
+);
+
+Then(
+  "the chat shows the harness saying {string}",
+  async function (this: OlaiWorld, said: string) {
+    // ... and what it SAID about the ending, drawn without unfolding anything.
+    // A task's row is one line for as long as the task runs and then one
+    // sentence, and that sentence is where a background shell's exit code is:
+    // behind the fold it would be the one thing the row was ever going to say,
+    // hidden behind the same click as the arguments.
+    await this.waitUntil(
+      async () => {
+        const shown = await this.page.locator(CHAT_TOOL_PROGRESS).allTextContents();
+        return shown.some((text) => text.includes(said));
+      },
+      `the panel to show the harness saying "${said}"`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+Then("the chat says no background task is still running", async function (this: OlaiWorld) {
+  // A live face that outlives the thing it is about is worse than none: this
+  // rail says a watch is still out, and a watch that has died is exactly what
+  // a person must not be told is running.
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_ARMED_STILL).count()) === 0,
+    "the panel to stop saying a background task is still running",
+    HYDRATION_TIMEOUT,
+  );
+});
 Then("the chat says no agent is still working", async function (this: OlaiWorld) {
   // A face that outlives the agent is worse than none: it says a fan-out is
   // running when the turn is over.

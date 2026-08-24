@@ -298,6 +298,7 @@ test("a tool call's status is spelled where it is meant and where it is drawn", 
   const statuses = /["'`](pending|in_progress)["'`]/
   expect(filesSpelling(statuses)).toEqual([
     path.join("chat", "ToolFrame.tsx"),
+    path.join("chat", "background.test.ts"),
     path.join("chat", "elapsed.test.ts"),
     path.join("chat", "lanes.test.ts"),
     path.join("chat", "rows.testlib.ts"),

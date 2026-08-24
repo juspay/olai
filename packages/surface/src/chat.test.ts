@@ -15,6 +15,7 @@ import { Schema } from "effect"
 
 import {
   type AgentEntry,
+  Armed,
   Ask,
   type ChatEntry,
   ChatEntry as ChatEntryUnion,
@@ -51,6 +52,7 @@ const ChatEntryFlat = Schema.Struct({
   locations: Schema.optionalKey(Schema.Array(Schema.String)),
   parent: Schema.optionalKey(Schema.String),
   spawned: Schema.optionalKey(Spawned),
+  armed: Schema.optionalKey(Armed),
   refusal: Schema.optionalKey(OpFailure),
   ask: Schema.optionalKey(Ask),
   streaming: Schema.optionalKey(Schema.Boolean),

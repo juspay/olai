@@ -1418,6 +1418,7 @@ export {
   AgentEntry,
   type AgentId,
   agentIn,
+  Armed,
   Ask,
   AskAnswer,
   AskChoice,

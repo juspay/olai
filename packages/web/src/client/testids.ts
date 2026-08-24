@@ -1219,6 +1219,23 @@ export const TESTID = {
    *  rail's own box starts at the row's left edge. Absent the moment the call
    *  completes or fails. */
   chatSpawnWorking: "chat-spawn-working",
+  /** WHAT a call left running in the background, on the line of the call that
+   *  armed it: the description the task was armed with. `data-task` is the
+   *  harness's own id for the task and `data-task-kind` its own word for the
+   *  kind, so a scenario asserts the FACT rather than the sentence around it.
+   *  Absent on every call that armed nothing. */
+  chatArmed: "chat-armed",
+  /** ... and how that task ENDED, in the harness's own word — `completed`,
+   *  `failed`, `killed`, `stopped`, of which ACP's own status can spell only
+   *  two. Drawn only once the task has ended, which is what makes its presence
+   *  the death itself; `data-ended` carries the word. */
+  chatArmedEnded: "chat-armed-ended",
+  /** A background task that has not ended: the rail that drops out of the frame
+   *  which armed it, saying it is still out there. The sibling of
+   *  `chatSpawnWorking` and drawn as the same rail — `data-lane` is the armed
+   *  frame's transcript key. Absent the moment the harness reports the task's
+   *  end, and absent for an abandoned call whose agent died. */
+  chatArmedStill: "chat-armed-still",
   /** One file the call REWROTE, drawn as a trimmed line diff. `data-path` is
    *  the file (root-relative when it is under the served directory) and
    *  `data-expanded` says whether the trim has been opened. */

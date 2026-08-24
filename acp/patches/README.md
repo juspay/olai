@@ -1,0 +1,102 @@
+# The one patch this pin carries
+
+`background-tasks-visible.patch` applies to the pinned
+`@agentclientprotocol/claude-agent-acp` 0.66.0 — to its **compiled**
+`dist/acp-agent.js`, because npm is the only channel the adapter ships through
+(`nix/acp-agent.nix` says why that pin is npm-shaped). It is applied by that
+derivation's `postInstall`, so every documented way of starting olai — `nix
+run`, the packaged binary, `just serve`, `just run`, the e2e suite's
+`OLAI_BIN` — gets the same agent.
+
+## What it is for
+
+A background task the agent arms — a `Monitor`, a `Bash(run_in_background)`,
+an async `Agent` — reports its launch and then lives on. On the ACP wire, its
+tool call reached **`completed` at launch**: the acknowledgement was read as
+the call's result. So an armed watch was indistinguishable from a finished
+one, nothing ticked, and its DEATH — the fact a person supervising off a
+monitor must not miss — was never on the wire at all
+(agentclientprotocol/claude-agent-acp#865).
+
+## What came from upstream PR #941, and what olai added
+
+[PR #941](https://github.com/agentclientprotocol/claude-agent-acp/pull/941)
+(open, unmerged, 0 reviews) is the linked PR on #865. **Its approach is the
+basis here** and its scope is not: by its own summary it keeps *async
+Agent/Task* calls in progress and "background Bash retain their existing
+behavior", and it never touches `background_tasks_changed`.
+
+Taken from #941:
+
+- **the shape of the fix** — a launch acknowledgement must not settle the
+  call; the call stays `in_progress` until the harness reports a real terminal
+  state, with the launch's own output still riding the card;
+- **the mapping** — `completed` → `completed`, and `failed` / `killed` /
+  `stopped` → ACP's `failed`, with the provider's own word preserved in
+  `_meta.claudeCode.taskStatus` (ACP has four statuses and the harness has
+  more);
+- **the discipline for reading a tool's structured answer** — trust it only
+  when the CACHED TOOL NAME says which tool answered, so a similarly shaped
+  output from an MCP server can never arm a call (`backgroundLaunchIn`, which
+  is #941's `readAsyncAgentLaunch` generalised);
+- **the ordering races it names** — a terminal that arrives before the launch
+  acknowledgement is held and replayed, duplicates are idempotent, and a call
+  whose `tool_use` was dropped by a cancelled turn is still resolved.
+
+Added here, and not in #941:
+
+- **coverage of every task the harness registers**, which is the point: a
+  `Monitor` (`{ taskId, … }`), a `Bash(run_in_background)`
+  (`{ backgroundTaskId, … }`) and an async `Agent` (`{ status:
+  "async_launched", agentId }`) all arm a call now;
+- **correlation off `task_started.tool_use_id`** rather than off the tool's
+  structured answer. The harness names the arming tool use on that frame, and
+  it also names the task's KIND (`task_type`) and the DESCRIPTION it was armed
+  with — none of which the structured answer carries. #941's read stays as the
+  fallback for a runtime whose `task_started` names no tool use;
+- **`_meta.claudeCode.backgroundTask`** on every frame about such a call —
+  `{ taskId, taskType, description }` when it is armed, plus `{ status,
+  summary }` when it settles — so a client can draw the task rather than
+  infer one from a status;
+- **the settle carries the harness's own SUMMARY** as tool-call content. That
+  sentence is where a background shell's EXIT CODE is: *Background command
+  "…" failed with exit code 3*. `task_updated` is the guaranteed half of the
+  bookend and carries no summary, so it settles the call and the
+  `task_notification` beside it refines the same call with the sentence —
+  which is ACP's own upsert rule rather than a second mechanism;
+- **`background_tasks_changed` as the bound** on the record above: a task that
+  has both settled and left the live set is forgotten. It is never read as a
+  settle in itself — the level carries no status, and closing a call on an
+  absence would invent the one fact this exists to report. (#865's own
+  proposal is to forward that level to the client; this patch does not, and
+  olai draws none of it.)
+
+## What is still NOT on the wire, at the layer below
+
+**A monitor's individual EVENTS are not in the SDK stream at all.** Measured
+2026-08-24 against this pin with `emitRawSDKMessages: true` (the probe in the
+PR): a `Monitor` whose command printed five lines produced `task_started`,
+one `background_tasks_changed` at each end, `task_updated` and
+`task_notification` — and not one frame carrying `tick-1`. The lines reach the
+model (it answers about them, and that answer does reach the client as
+ordinary agent prose) and they reach the task's `output_file` on disk. So the
+adapter has nothing to forward per event, and this patch does not pretend
+otherwise: what it carries is the task's LIFE — armed, still running, and how
+it ended. Per-event streaming is a change one layer further down, in the CLI.
+
+## Upstreaming
+
+Nothing here has been sent to `agentclientprotocol/claude-agent-acp`, and
+nothing may be without the human's word (the brief's rule: never act on
+another repo without ratification). The patch is written against the compiled
+output because that is what the pin ships; the same change against
+`src/acp-agent.ts` is a mechanical translation of it.
+
+## When the pin moves
+
+`patch -p1` fails the build if the context has moved, which is the point: a
+version bump makes this loud rather than silently dropping the behaviour. The
+fix is to re-apply the edits against the new `dist/acp-agent.js` (the anchors
+are all in `toAcpNotifications`' tool-result branch and in the SDK-message
+switch's `task_*` cases) — or to drop the patch if upstream has landed it, and
+say so here.

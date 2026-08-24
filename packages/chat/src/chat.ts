@@ -546,6 +546,34 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       return waiting
     }
 
+
+    /**
+     * ... and how many BACKGROUND TASKS are still out, counted off the rows for
+     * the same reason and published under the same rule.
+     *
+     * A task being out is the row whose `armed` carries no ending and whose
+     * call the wire still calls running — which is the transcript's own
+     * `stranded` doing the second half: an armed row is deliberately not
+     * stranded while its task is alive, so a stranded one is a task whose AGENT
+     * died and whose end nobody will ever report.
+     */
+    const watching = (): number => {
+      let out = 0
+      for (const entry of transcript.entries().values()) {
+        if (entry.kind !== "tool" || entry.stranded === true) continue
+        if (entry.armed !== undefined && entry.armed.ended === undefined) out++
+      }
+      return out
+    }
+
+    /** ... published only when it MOVED. Unlike a question, a task is reported
+     *  on by frames that arrive several times a turn and mostly say nothing
+     *  about it, and a cell republished per tool frame is a cell every open tab
+     *  pays for saying what it already said. */
+    const watched = (): void => {
+      const out = watching()
+      if (out !== state.watching) move({ watching: out })
+    }
     /** The agent's events, as rows and as state. The one place the vocabulary
      *  of {@link ./events.ts} is consumed. */
     const receive = (event: AgentEvent): void => {
@@ -582,8 +610,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               locations: event.locations,
               parent: event.parent,
               spawned: event.spawned,
+              armed: event.armed,
             }),
           )
+          // A tool frame is the only frame that can arm a background task or
+          // report the end of one, so it is where the count is re-read.
+          watched()
           return
         case "asked":
           publish(transcript.ask(event.id, event.message, event.fields, event.parent))
@@ -653,12 +685,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             session: null,
             commands: [],
             asking: asking(),
+            watching: watching(),
             servers: [],
             usage: null,
           })
           return
         case "replayStarted":
           publish(transcript.clear())
+          watched()
           // Emptying the rows is one of the three things that can change how
           // many questions are open, so it is one of the three that recounts.
           // Every clear is preceded by the agent withdrawing what was waiting,
@@ -671,7 +705,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           publish(transcript.settle())
           return
         case "gone":
-          publish(transcript.settle())
+          // ABANDON rather than settle, and this is the one place the
+          // difference matters: a turn ending leaves an armed task alone,
+          // because the task outlives the turn and the harness will report its
+          // end. A dead agent reports nothing ever again — so the tasks it left
+          // out there are abandoned like every other call it never came back
+          // for, and the live faces on those rows go out with it.
+          publish(transcript.abandon())
+          watched()
           publish(transcript.add("notice", event.why))
           // Through the same door the two open verbs use, so a refusal that was
           // about a LIVE agent does not outlive the process it was about.

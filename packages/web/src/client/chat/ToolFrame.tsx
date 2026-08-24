@@ -35,6 +35,22 @@
  * under it belongs to the list, which is the thing that has rows to put a rail
  * beside.
  *
+ * A CALL THAT ARMED A BACKGROUND TASK says so on that line as well — what the
+ * task is watching, and, once the harness has reported it, how the task ENDED
+ * ({@link ./background.ts}). The second is the whole reason this feature
+ * exists: a monitor's death is the fact a person supervising off one must not
+ * miss, and it is not spellable in ACP's four statuses, three of whose endings
+ * arrive as the word `failed`.
+ *
+ * ... and what the harness said about its ENDING escapes the fold, which is
+ * the third thing here that does. A task's row is one line for an hour and
+ * then one sentence — *Background command "…" failed with exit code 3* — and
+ * putting that sentence behind the same click as the arguments would hide the
+ * only thing the row was ever going to say. Its ARMING sentence stays folded,
+ * and the asymmetry is the point: that one is the harness talking TO THE AGENT
+ * (*you will be notified on each event; keep working*), which is six lines of
+ * somebody else's instructions above the one line a person came to read.
+ *
  * A CALL THAT IS STILL RUNNING says HOW LONG on that line too, once it has been
  * running long enough to be worth saying ({@link ./elapsed.ts}). The status
  * mark is the only other thing here that is about time and it cannot answer
@@ -61,6 +77,7 @@ import { Key } from "@solid-primitives/keyed"
 import { createMemo, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
+import { endedOf, watchOf } from "./background.ts"
 import { Diff } from "./Diff.tsx"
 import { diffKey, isUnfolded, toggleFold } from "./folds.ts"
 import { OutlineDiff } from "./OutlineDiff.tsx"
@@ -138,7 +155,8 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
   /** There is something to unfold when there is either half of a body. A frame
    *  with neither is one line and nothing to press. */
   const body = () =>
-    props.entry.detail !== undefined || props.entry.progress !== undefined
+    props.entry.detail !== undefined
+    || (props.entry.armed?.ended === undefined && props.entry.progress !== undefined)
 
   return (
     <div
@@ -205,6 +223,47 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
             following an agent through a tree wants the file more often than
             the arguments. Truncated rather than wrapped — the frame's whole
             promise is one line. */}
+        {/* WHAT IT LEFT RUNNING, on the line, from the moment the task is
+            armed — the description it was armed with, which is what a person
+            recognises "kolu fleet watch…" by and which the call's own title
+            (`Monitor`) is not ({@link ./background.ts}). It shares the slot the
+            locations take, and shares it safely for the spawn chip's reason: a
+            call that arms a background task reports no file it is working in. */}
+        <Show when={watchOf(props.entry)}>
+          {(watching) => (
+            <span
+              class="flex min-w-0 shrink items-center gap-1 text-muted/70"
+              data-testid={TESTID.chatArmed}
+              data-task={props.entry.armed?.task}
+              data-task-kind={props.entry.armed?.kind}
+            >
+              {/* The glyph a watch wears, spoken for a reader who gets no
+                  glyphs: without the word, this row's name ends in a bare
+                  description and reads as a file path. */}
+              <span aria-hidden="true">◷</span>
+              <span class="sr-only">watching&#32;</span>
+              <span class="min-w-0 truncate">{watching()}</span>
+            </span>
+          )}
+        </Show>
+        {/* ... and HOW IT ENDED, in the harness's own word, once there is one.
+            Beside the status mark rather than instead of it: the mark is ACP's
+            answer and this is the harness's, and where they differ — a monitor
+            somebody STOPPED, drawn `✗` because ACP has no other word for it —
+            this is the one that says what happened. */}
+        <Show when={endedOf(props.entry)}>
+          {(ended) => (
+            <span
+              class="shrink-0 text-muted"
+              data-testid={TESTID.chatArmedEnded}
+              data-ended={ended()}
+            >
+              <span aria-hidden="true">·&#32;</span>
+              <span class="sr-only">ended&#32;</span>
+              {ended()}
+            </span>
+          )}
+        </Show>
         <Show when={props.entry.locations}>
           {(locations) => (
             <span
@@ -271,6 +330,20 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
       <Show when={props.entry.wrote}>
         {(wrote) => <Wrote wrote={wrote()} />}
       </Show>
+      {/* WHAT THE HARNESS SAID ABOUT THE TASK'S ENDING, outside the fold —
+          where a background shell's EXIT CODE is. It is the same `progress`
+          the fold draws for every other call, and it is drawn twice nowhere:
+          an ENDED task's row draws it here INSTEAD, because for that row the
+          sentence is the whole of what there is to read. While the task is
+          still out it stays behind the fold, where the arming blurb belongs. */}
+      <Show when={props.entry.armed?.ended !== undefined && props.entry.progress}>
+        {(said) => (
+          <pre
+            class="m-0 max-h-32 overflow-auto whitespace-pre-wrap border-t border-rule px-2 py-1 font-mono text-[0.6875rem] text-ink"
+            data-testid={TESTID.chatToolProgress}
+          >{said()}</pre>
+        )}
+      </Show>
       {/* Keyed BY THE BLOCK'S OWN NAME, the way every other list in this app is
           keyed: a call is reported twice, and the second report carries the
           blocks in a fresh array — under `<For>` that is a new object at the
@@ -303,7 +376,7 @@ export function ToolFrame(props: { readonly entry: ToolEntry }) {
         {/* Progress FIRST: it is the live half, and a reader who unfolded a
             running call did it to see this rather than to re-read what was
             asked for. */}
-        <Show when={props.entry.progress}>
+        <Show when={props.entry.armed?.ended === undefined && props.entry.progress}>
           {(progress) => (
             <pre
               class="m-0 max-h-64 overflow-auto whitespace-pre-wrap border-t border-rule px-2 py-1 font-mono text-[0.6875rem] text-ink"

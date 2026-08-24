@@ -32,6 +32,18 @@ for section in $(SECTION= bun evidence.ts); do
   rm -rf "$work/vault"
   mkdir -p "$work/vault"
   cp -r fixtures/good/. "$work/vault/"
+  # AN AGENT FOR THE ONE SECTION THAT TALKS TO ONE, and none for the rest:
+  # a scripted agent nobody speaks to is a subprocess spawned per section for
+  # nothing (support/serve.sh says so where the switch lives). The scripted one
+  # rather than the real adapter, because a shot has to be reproducible and a
+  # real monitor keeps its own clock.
+  case "$section" in
+    a-background-task-*) agent="$PWD/agent/fake-acp-agent.ts" ;;
+    *) agent="" ;;
+  esac
+  # ... and it has to be in the ENVIRONMENT before the spawn, not on the line
+  # that drives the browser: it is the SERVER that is given an agent.
+  export AGENT="$agent"
   olai_serve "$root" "$work/vault" "$work/server.log"
   SECTION="$section" BASE="$OLAI_URL" SHOTS="$shots" \
     VAULT="$work/vault" bun evidence.ts

@@ -22,7 +22,7 @@ The suite shares constants with `@olai/web` rather than retyping them — a numb
 
 Prefer a shared scratch corpus per **feature** over a private server per scenario. `@share-scratch` at the top of a feature is that opt-in: one copy and one server per worker, and After restores the fixture under the still-running server so overlapping writers can share too. `@own-scratch` on a scenario inside it keeps a private copy, for the things restore cannot make true (a server restart, conversation state, git). A restore that does not put the tree back fails naming the scenario and the files.
 
-This suite is 73 features, 906 scenarios (896 Gherkin `Scenario`/`Scenario Outline` entries; five outlines expand to fifteen examples), 630 `@scratch:`. 28 features carry `@share-scratch` (395 sharing scenarios, 25 `@own-scratch` inside them). A 2026-08-19 audit cut ~160 that did not earn the browser; the grammar, the destination refusals, the trash wording, the install fetch and the rest of that list live in the unit suites now. Four browser-only claims the first cut left unpinned (anchor jump, sidebar inner scroll, same-page never-inside-itself, a preview's height after a late picture) are back.
+This suite is 73 features, 907 scenarios (897 Gherkin `Scenario`/`Scenario Outline` entries; five outlines expand to fifteen examples), 631 `@scratch:`. 28 features carry `@share-scratch` (395 sharing scenarios, 25 `@own-scratch` inside them). A 2026-08-19 audit cut ~160 that did not earn the browser; the grammar, the destination refusals, the trash wording, the install fetch and the rest of that list live in the unit suites now. Four browser-only claims the first cut left unpinned (anchor jump, sidebar inner scroll, same-page never-inside-itself, a preview's height after a late picture) are back.
 
 ```
 packages/tests/
@@ -52,6 +52,9 @@ packages/tests/
 │                           #   one like opencode — and the fake `kolu` every
 │                           #   server finds on PATH
 ├── bin/broken-git/git       # a `git` that is found and fails, for @git:broken
+├── tasks.ts                 # what the PINNED ADAPTER says about a background
+│                            #   task — a driver, not a lane: it needs a real
+│                            #   agent, which is the point of it
 └── fixtures/                # the served directories (see fixtures/README.md)
 ```
 
@@ -149,6 +152,21 @@ It needs no browser and no `.#e2e` shell. The CLIENT is the suite's own (`suppor
 
 `BASE=` runs it against a server you are already running, in which case the vault is whatever that server is serving.
 
+
+## Showing what the ADAPTER says about a background task
+
+```bash
+nix develop -c bash
+cd packages/tests
+bash tasks.sh                  # a Monitor that ticks and ends
+KIND=bash bash tasks.sh        # a background shell that exits 3
+```
+
+`tasks.ts` / `tasks.sh` are the fourth driver here and the only one that talks to no olai at all: it drives the PINNED ADAPTER directly, arms one real background task, and prints what reaches an ACP client beside what the CLI underneath it actually sent.
+
+It exists because `chat-background-tasks-visible` rests on two claims about somebody else's process, and both are the kind a later reader re-decides by assuming. The first is that the adapter as released completes such a call at LAUNCH, which is why olai patches its pin (`acp/patches/README.md`) and which stops being true the day upstream lands its own fix — the timeline is where that shows up. The second is that the task's own EVENTS are on no wire underneath: a monitor's every line reaches the model and the task's output file and no SDK message carries one, so the panel draws the task's life rather than its events. The driver CHECKS that rather than asserting it — a harness frame carrying the monitor's output prints a line saying so, and the day one does, that line is how anybody finds out. The model's own frames are excluded from that check on purpose: the agent is woken per event and says *tick-1 received*, which is the agent's prose and not the task's stream.
+
+It needs a real, authenticated `claude`, so it is a thing a person runs and never a lane — the promises live in `features/the_agent.feature` and in the unit tests, driven by the scripted agent's `watch` verb.
 ## Measuring what a session costs the wire
 
 ```bash

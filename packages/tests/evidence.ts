@@ -208,6 +208,42 @@ const SETTLE = 1800
  *  window and {@link PANEL_FITS} are built from. */
 const WIDE = 1100
 
+
+// ── the chat panel, for the one section that talks to an agent ─────────
+
+/** The panel's own rows and controls, by the test ids the client draws them
+ *  with. Spelled here rather than imported from `support/world.ts`: that module
+ *  is the SUITE's world (it imports cucumber and a browser it did not open),
+ *  and a driver reaching into it would drag the runner into a script that has
+ *  no runner. The same reason `reads.ts` builds its own session rather than a
+ *  scenario's. */
+const CHAT_TOGGLE = '[data-testid="chat-toggle"]'
+const CHAT_PANEL = '[data-testid="chat-panel"]'
+const CHAT_INPUT = '[data-testid="chat-input"]'
+const CHAT_SEND = '[data-testid="chat-send"]'
+const CHAT_ARMED = '[data-testid="chat-armed"]'
+const CHAT_ARMED_ENDED = '[data-testid="chat-armed-ended"]'
+const CHAT_ARMED_STILL = '[data-testid="chat-armed-still"]'
+const CHAT_TRANSCRIPT = '[data-testid="chat-transcript"]'
+const CHAT_TOOL_ELAPSED = '[data-testid="chat-tool-elapsed"]'
+const CHAT_TOOL_PROGRESS = '[data-testid="chat-tool-progress"]'
+
+/** Open the panel if this browser has not remembered it open. Whether it is
+ *  open is a preference the client keeps, so a driver that clicked
+ *  unconditionally would close it every other run. */
+const openChat = async (page: Page): Promise<void> => {
+  const panel = page.locator(CHAT_PANEL)
+  if (!(await panel.isVisible())) await page.locator(CHAT_TOGGLE).click()
+  await panel.waitFor()
+}
+
+/** Say something to the agent — the driver's half of the suite's own step. */
+const ask = async (page: Page, text: string): Promise<void> => {
+  const box = page.locator(CHAT_INPUT)
+  await box.waitFor()
+  await box.fill(text)
+  await page.locator(CHAT_SEND).click()
+}
 // ── the edge panel, and what a record says afterwards ──────────────────
 
 const EDGE_PANEL = '[data-testid="edge-panel"]'
@@ -846,6 +882,64 @@ const retitle = (file: string, id: string, title: string): void =>
   )
 
 const SECTIONS = {
+  /**
+   * A BACKGROUND TASK THE AGENT ARMED (`chat-background-tasks-visible`): the
+   * row it gets, the fact that a turn ending does not take it away, and the
+   * death that lands in no turn at all.
+   *
+   * The claim no `✔` can show is the LAST one: a call that outlives its turn.
+   * Every other running call in this panel is marked as abandoned the moment
+   * its turn ends — deliberately, since nothing will ever report on it again —
+   * and this is the one kind that is not, because the harness is still going to
+   * say how it ended. What that looks like is three frames apart in time and is
+   * exactly what a screenshot can carry: armed and ticking, still ticking a
+   * turn later, and then the ending with the exit code on it.
+   *
+   * IT NEEDS AN AGENT, which is the one thing about this section a reader has
+   * to know: `evidence.sh` names the scripted one for this section only. Its
+   * `watch` verb arms a task the way the patched adapter reports one
+   * (`acp/patches/README.md`) and holds the death until a marker file appears,
+   * so the three shots are a sequence a person can reproduce rather than a race
+   * against a real monitor's clock.
+   */
+  "a-background-task-the-agent-armed": async (page) => {
+    await openChat(page)
+    await ask(page, "watch")
+    // THE ROW, once the clock has something to say. The readout is quiet for
+    // its first seconds on purpose (the reads that land instantly must not
+    // flash one), so waiting for it is waiting for the face this shot is of.
+    await page.locator(CHAT_ARMED).first().waitFor()
+    await page.locator(CHAT_ARMED_STILL).first().waitFor()
+    await page.locator(CHAT_TOOL_ELAPSED).first().waitFor({ timeout: 15_000 })
+    await shot(page, "armed-and-ticking")
+
+    // A SECOND TURN, which is where every other running call would be marked
+    // as one its turn walked away from. This one is still out — so the shot
+    // waits for that turn to have ANSWERED, which is what makes it a different
+    // picture from the one above rather than the same one taken twice.
+    const armedFor = await page.locator(CHAT_TOOL_ELAPSED).first().textContent()
+    await ask(page, "hello")
+    await page.locator(CHAT_TRANSCRIPT).getByText("you said: hello").first().waitFor()
+    await page.locator(CHAT_ARMED_STILL).first().waitFor()
+    // ... and the CLOCK has moved, which is the half of this shot a still
+    // picture can carry: the scripted agent answers in a millisecond, so
+    // waiting for the turn alone would photograph the same second twice.
+    await page
+      .locator(CHAT_TOOL_ELAPSED)
+      .first()
+      .filter({ hasNotText: armedFor ?? "" })
+      .waitFor({ timeout: 15_000 })
+    await shot(page, "still-out-a-turn-later")
+
+    // ... AND THE DEATH, in no turn at all: the marker is this driver standing
+    // in for a monitor's own stream ending, and everything after it arrives
+    // with the conversation idle.
+    writeFileSync(`${VAULT}/.agent-release`, "")
+    await page.locator(CHAT_ARMED_ENDED).first().waitFor()
+    await page.locator(CHAT_TOOL_PROGRESS).first().waitFor()
+    await shot(page, "ended-with-its-exit-code")
+  },
+
   /**
    * THE THREE KINDS OLAI ONLY SHOWS (`pdf-csv-and-pictures`): a `.csv` drawn
    * as a table, a picture drawn in an `<img>`, a `.pdf` drawn by the

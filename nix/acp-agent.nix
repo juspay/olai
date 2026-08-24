@@ -54,10 +54,23 @@ buildNpmPackage {
       # npm's own platform naming: linux-x64, darwin-arm64, …
       nodeArch = "${stdenv.hostPlatform.node.platform}-${stdenv.hostPlatform.node.arch}";
       mods = "$out/lib/node_modules/olai-acp/node_modules";
+      # A path of its own rather than a file in `src`: the src filter above
+      # exists to keep the deps hash tied to the two files npm reads, and this
+      # is read after npm has finished. Named here, so the derivation depends
+      # on the patch's own hash and a change to it rebuilds the adapter.
+      backgroundTasksPatch = ../acp/patches/background-tasks-visible.patch;
     in
     ''
-      entry="${mods}/@agentclientprotocol/claude-agent-acp/dist/index.js"
+      adapter="${mods}/@agentclientprotocol/claude-agent-acp"
+      entry="$adapter/dist/index.js"
       test -f "$entry"
+      # THE ONE PATCH THIS PIN CARRIES, and the whole reason it is applied here
+      # rather than lived with: npm ships the adapter compiled, so what a
+      # `patch -p1` reads is `dist/acp-agent.js` rather than the TypeScript it
+      # was built from. `acp/patches/README.md` says what came from the
+      # upstream PR and what olai added; a version bump makes this FAIL rather
+      # than silently drop the behaviour, which is the auditable direction.
+      patch -p1 -d "$adapter" < ${backgroundTasksPatch}
       claude="${mods}/@anthropic-ai/claude-agent-sdk-${nodeArch}/claude"
       test -x "$claude"
     '' + lib.optionalString stdenv.hostPlatform.isLinux ''

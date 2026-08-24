@@ -18,10 +18,18 @@
  *
  * THE HONEST LIMIT, said out loud because a face that overstates itself is
  * what {@link ./spawn.ts} exists about: this shows what the WIRE calls running,
- * which is not the same as what is running. A call the adapter completes at
- * launch and lets carry on in the background is `completed` on the frame olai
- * sees, so it has no duration here and should not have one — inventing one
- * would mean guessing at the far side of somebody else's process.
+ * which is not the same as what is running. Inventing a duration for anything
+ * else would mean guessing at the far side of somebody else's process.
+ *
+ * WHICH IS WHY THE FIX WENT WHERE IT DID. A background task — a `Monitor`, a
+ * `Bash(run_in_background)` — used to reach `completed` at LAUNCH, its
+ * acknowledgement read as its result, so the longest-running thing in the
+ * conversation was the one row with no clock on it. Nothing here could
+ * honestly have drawn one; what changed is the wire, in the patch olai carries
+ * on its pinned adapter (`acp/patches/README.md`), and this rule then ticks on
+ * such a call for the same reason it ticks on a grep — because the wire says
+ * the call has not come back. It reads no `_meta` and knows no tool names to
+ * do it.
  *
  * TWO THINGS HAVE TO BE TRUE, and they are `doingOf`'s two: the wire has to
  * still call this call running, and the TURN that announced it must not have

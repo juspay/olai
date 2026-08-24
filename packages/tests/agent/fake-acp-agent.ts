@@ -55,6 +55,12 @@
  *                is what a turn that gave up on a call leaves behind: a row the
  *                wire still calls `in_progress`, forever, in a conversation
  *                somebody can go on talking to
+ *   watch        ARM A BACKGROUND TASK the way the patched adapter reports one:
+ *                a call that goes `in_progress` and stays there past the end of
+ *                the turn, carrying the harness's own task on its `_meta`. Its
+ *                DEATH — the two bookends, and the sentence the exit code
+ *                arrives in — lands when a scenario releases it, which is the
+ *                whole point: by then the turn that armed it is long over
  *   twice        report one tool call with the SAME frame sent twice, byte for
  *                byte — the announcement and the completion each repeated
  *   error        answer `session/prompt` with a JSON-RPC error instead of a
@@ -1143,6 +1149,94 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // and then somebody sends something else. A face that asked the CONVERSATION
   // whether anything was running would light that row back up at that moment —
   // which is the one this verb exists to catch.
+  // A BACKGROUND TASK, ARMED — the one call whose whole point is to outlive
+  // the turn it was made in, reported the way the patched adapter reports one
+  // (`acp/patches/README.md`): the tool answers the moment the task is
+  // running, so the call goes `in_progress` and STAYS there, carrying the
+  // harness's own task on its `_meta`. The frames are the shapes a real
+  // `Bash(run_in_background)` produced through that adapter on 2026-08-24,
+  // down to the sentence the exit code arrives in.
+  //
+  // THE DEATH IS AFTER THE TURN, and it has to be: a turn ends, another one
+  // happens, and the task is still out there — which is the whole of what this
+  // feature is about and the thing no row could say before. Released by the
+  // same `.agent-release` a held turn waits on, so a scenario says when.
+  if (verb === "watch") {
+    const toolCallId = `call-${++nextMcpId}`
+    const task = "bwa85c0r2"
+    const description = "kolu fleet watch"
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId,
+        title: "kolu watch --states waiting,awaiting --held-for 60s --nag 10m",
+        status: "pending",
+        rawInput: { command: "kolu watch --states waiting,awaiting", run_in_background: true },
+        _meta: { claudeCode: { toolName: "Bash" } },
+      },
+    })
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId,
+        status: "in_progress",
+        _meta: {
+          claudeCode: {
+            toolName: "Bash",
+            backgroundTask: { taskId: task, taskType: "local_bash", description },
+          },
+        },
+        rawOutput: `Command running in background with ID: ${task}.`,
+        content: [{
+          type: "content",
+          content: { type: "text", text: `Command running in background with ID: ${task}.` },
+        }],
+      },
+    })
+    say("armed the watch; I will keep working.")
+    // The harness's two bookends, in the order they arrive: the guaranteed
+    // patch settles the call, and the notification beside it refines the same
+    // call with the sentence carrying the exit code.
+    void released().then(() => {
+      const ended = {
+        taskId: task,
+        taskType: "local_bash",
+        description,
+        status: "failed",
+      }
+      notify("session/update", {
+        sessionId,
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId,
+          status: "failed",
+          _meta: { claudeCode: { toolName: "Bash", taskStatus: "failed", backgroundTask: ended } },
+        },
+      })
+      const summary = `Background command "${description}" failed with exit code 3`
+      notify("session/update", {
+        sessionId,
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId,
+          status: "failed",
+          _meta: {
+            claudeCode: {
+              toolName: "Bash",
+              taskStatus: "failed",
+              backgroundTask: { ...ended, summary },
+            },
+          },
+          content: [{ type: "content", content: { type: "text", text: summary } }],
+        },
+      })
+    })
+    respond(id, { stopReason: "end_turn" })
+    return
+  }
+
   if (verb === "abandon") {
     const toolCallId = `call-${++nextMcpId}`
     notify("session/update", {

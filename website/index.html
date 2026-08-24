@@ -1417,6 +1417,23 @@ The corner unit is the **risky one** — see
     again afterwards and the panel is busy again, but the calls the old turn
     walked away from stay quiet, because what olai marks is the call rather than
     the conversation.</p>
+    <p>Some calls do not finish when they answer. The agent arms a
+    <strong>monitor</strong> — a command whose every line is an event, a socket
+    it watches, a fleet of terminals — or sends a shell command off to run in
+    the background, and the tool answers at once while the work carries on past
+    the turn. That row now stays live: it carries the description the task was
+    armed with (which is what you recognise your own watch by, since the call
+    is titled <em>Bash</em>), the same ticking clock every running call gets,
+    and a rail under it saying something is still going on down there. And when
+    the task dies, the row says so — in the harness&rsquo;s own word, because
+    <em>failed</em>, <em>killed</em> and <em>stopped</em> are three different
+    endings the protocol spells with one, and with the sentence that carries a
+    background command&rsquo;s exit code drawn without unfolding anything. A
+    monitor&rsquo;s death is exactly the fact you must not miss: the
+    supervision stops, and nothing else on screen says so. A turn ending leaves
+    such a call alone — outliving the turn is the whole point of it — and only
+    the agent dying takes the live face off, because a dead agent will never
+    report the end of anything.</p>
     <p>An agent can send agents of its own, and their work is drawn as theirs.
     A call a subagent made sits <strong>indented behind a rail</strong>, under
     the call that spawned it; the ordinary column stays the main agent’s. Where

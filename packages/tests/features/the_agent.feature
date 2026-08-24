@@ -1506,3 +1506,37 @@ Feature: Talking to the agent
     And the chat eventually shows "archive.zip"
     When I ask the agent "what is this"
     Then the agent's answer mentions "read 70 bytes from shot.png"
+
+  @scratch:chat
+  Scenario: A background task the agent armed is a row of its own, and its death is on it
+    # The incident this is about: an orchestrator armed
+    # `kolu watch --states waiting,awaiting --nag 10m` as a persistent Monitor
+    # and supervised a whole dispatch off its events — and the panel showed
+    # none of it. No arming, no liveness, no death. The human had to ask "how
+    # do you know you are babysitting right now?", and the answer lived only in
+    # the agent's prose.
+    #
+    # Half of the fix is one layer down: the adapter used to complete such a
+    # call at LAUNCH, reading the acknowledgement as the result, so there was
+    # nothing on the wire for any of this to be drawn from
+    # (`acp/patches/README.md`).
+    When I ask the agent "watch"
+    Then the chat says a background task is watching "kolu fleet watch"
+    And the chat says that task is still running
+    And the chat says how long a running call has been going
+    # THE TURN IS OVER, AND SO IS THE NEXT ONE. This is the row that must not
+    # be marked abandoned: a call that armed a task is the one call whose whole
+    # point is to outlive its turn, and every other running call at this point
+    # has been given up on. A row stranded here would put the live face out at
+    # the moment the task starts doing its work.
+    When I ask the agent "hello"
+    Then the chat says that task is still running
+    # ... AND THEN IT DIES, in a turn nobody sent: the harness reports the end
+    # whenever it comes. The word is the harness's own, because ACP has four
+    # statuses and `failed`, `killed` and `stopped` all reach the row as one of
+    # them — and the exit code rides the sentence beside it, outside the fold,
+    # since for this row that sentence is the whole of what there is to read.
+    When the agent is released
+    Then the chat says that task ended "failed"
+    And the chat shows the harness saying "exit code 3"
+    And the chat says no background task is still running

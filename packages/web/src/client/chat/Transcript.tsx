@@ -97,6 +97,7 @@ import { LIVE_DOT } from "./live.ts"
 import { NEAR } from "./near.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
+import { stillOf } from "./background.ts"
 import { doingOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
@@ -252,15 +253,26 @@ export function Transcript(props: { readonly chat: Chat }) {
   const titleOf = (key: string): string | undefined => props.chat.entry(key)()?.text
 
   /**
-   * Whether anything is running in this conversation at all — the half of "is
-   * that agent still going" that a ROW cannot answer ({@link ./spawn.ts}).
+   * Whether anything is running in this conversation at all — WHEN THE PANEL'S
+   * ONE CLOCK TICKS ({@link ./elapsing.tsx}), and nothing else.
+   *
+   * TWO WAYS TO BE RUNNING, and the second is the whole of what this feature
+   * added. A turn in flight is the obvious one. The other is a BACKGROUND TASK
+   * the agent armed and nobody has reported the end of: a monitor spends its
+   * entire life in a conversation whose status is `idle`, which is exactly the
+   * state that used to stop the clock — so the longest-running thing in the
+   * panel was the one row whose readout never moved. The count is the server's
+   * (`ChatState.watching`), counted off the rows it already holds.
    *
    * ONE memo for the whole list rather than one per row, and a BOOLEAN rather
    * than the state: every row's rail would otherwise subscribe to the chat
    * cell, which moves several times a turn as the context usage is revised, and
    * re-run for each of them. A boolean propagates only when it flips.
    */
-  const live = createMemo(() => props.chat.state().status === "thinking")
+  const live = createMemo(() => {
+    const state = props.chat.state()
+    return state.status === "thinking" || state.watching > 0
+  })
 
 
   return (
@@ -341,7 +353,15 @@ export function Transcript(props: { readonly chat: Chat }) {
                *  stopped, and for one whose CONVERSATION has, so the same memo
                *  answers both "is there anything to draw" and "what does it say"
                *  ({@link ./spawn.ts}). */
-              const working = createMemo(() => doingOf(entry()))
+              /** ... and the same rail under a call that armed a BACKGROUND
+               *  TASK, saying the task is still out there
+               *  ({@link ./background.ts}). Two rules and one rail: an agent in
+               *  flight and a task in flight are the same kind of fact to a
+               *  reader, and a panel with two spellings of "this is happening"
+               *  is a panel with one of them to learn. They cannot both answer
+               *  for one row — a call either sent an agent out or armed a task
+               *  — so the order between them decides nothing. */
+              const working = createMemo(() => doingOf(entry()) ?? stillOf(entry()))
               return (
                 <Show when={entry()}>
                   {(row) => (
@@ -411,7 +431,9 @@ export function Transcript(props: { readonly chat: Chat }) {
                                 indent entirely. */}
                             <p
                               class="flex items-center gap-1 font-mono text-[0.6875rem] text-doing"
-                              data-testid={TESTID.chatSpawnWorking}
+                              data-testid={stillOf(entry()) === null
+                                ? TESTID.chatSpawnWorking
+                                : TESTID.chatArmedStill}
                               data-lane={row().id}
                               aria-live="polite"
                             >

@@ -415,6 +415,42 @@ describe("tool calls", () => {
     transcript.tool("call-1", { title: "Grep", status: "completed" })
     expect(asKind(rows(transcript)[0], "tool")?.spawned).toBeUndefined()
   })
+
+  test("a call that ARMED A TASK keeps what it was armed with when it dies", () => {
+    // The same stickiness one field over, and the row where it matters most.
+    // A task's life is split across frames because the life IS split: the
+    // frame that arms the call names the task, its kind and the description,
+    // and the frame that settles it — minutes later, in another turn — names
+    // the task and how it ended. Neither repeats the other, so without the
+    // merge the row a person reads at the moment of death would have lost the
+    // description that says WHICH watch just died.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", kind: "local_bash", description: "kolu fleet watch" },
+    })
+    transcript.tool("toolu_01WATCH", {
+      status: "failed",
+      armed: { task: "bu13xz2ie", ended: "killed" },
+    })
+
+    expect(rows(transcript)[0]).toMatchObject({
+      status: "failed",
+      armed: {
+        task: "bu13xz2ie",
+        kind: "local_bash",
+        description: "kolu fleet watch",
+        ended: "killed",
+      },
+    })
+  })
+
+  test("an ordinary call never arms a task", () => {
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Grep", status: "completed" })
+    expect(asKind(rows(transcript)[0], "tool")?.armed).toBeUndefined()
+  })
 })
 
 describe("what a turn leaves behind", () => {
@@ -479,6 +515,51 @@ describe("what a turn leaves behind", () => {
     const transcript = new Transcript()
     transcript.tool("call-1", { title: "Grep", status: "pending" })
     transcript.begins()
+
+    expect(asKind(rows(transcript)[0], "tool")?.stranded).toBe(true)
+  })
+
+  test("A CALL THAT ARMED A BACKGROUND TASK IS NOT LEFT BEHIND", () => {
+    // The one call whose whole point is to outlive the turn. A monitor armed
+    // in one turn watches for an hour and reports its end in whatever turn is
+    // open when it stops — or in none. Marking it would put out the live face
+    // at the moment the task starts doing its work, and the row would say
+    // "abandoned" about the very thing the panel was asked to show.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+    })
+    transcript.settle()
+    transcript.user("what else is on the list?")
+    transcript.begins()
+    transcript.settle()
+
+    expect(asKind(rows(transcript)[0], "tool")?.stranded).toBeUndefined()
+  })
+
+  test("... until the harness says how it ended, when it is an ordinary row again", () => {
+    // The half that keeps the exemption honest. An ended task's call needs no
+    // exemption — it is settled, like any other call that came back — and the
+    // exemption is read off the TASK's own life rather than off the row having
+    // once armed one. A settled row is not stranded anyway; what this pins
+    // is that the exemption stops applying, so an armed row whose agent died
+    // between the ending and the report is marked like everything else.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie" },
+    })
+    transcript.tool("toolu_01WATCH", {
+      // A harness that reported the ending without moving the status — the
+      // status arm and the task arm are two facts, and this pins the one the
+      // exemption reads.
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", ended: "stopped" },
+    })
+    transcript.settle()
 
     expect(asKind(rows(transcript)[0], "tool")?.stranded).toBe(true)
   })

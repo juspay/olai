@@ -137,6 +137,26 @@ export interface Spawn {
 }
 
 /**
+ * ... and what it says about the BACKGROUND TASK a call armed — a monitor, a
+ * background shell, an agent sent out to outlive this turn. Structural for
+ * {@link Spawn}'s reason.
+ *
+ * `task` is the only field that is always there, because it is the only one
+ * every frame about a task carries: the harness says everything else under
+ * that id. The other three are said by whichever frame knows them — the frame
+ * that ARMS the call names the kind and the description it was armed with, the
+ * frame that SETTLES it names how it ended — so a leg answers about the frame
+ * in front of it and never accumulates. Holding a row together across frames is
+ * {@link ../transcript.ts}'s job and nobody else's.
+ */
+export interface Background {
+  readonly task: string
+  readonly kind?: string
+  readonly description?: string
+  readonly ended?: string
+}
+
+/**
  * What a leg says an agent reported about one of ITS OWN connections to an MCP
  * server.
  *
@@ -242,6 +262,13 @@ export interface Leg {
   /** What this frame says about an agent this call STARTED, or `null` for a
    *  frame that says nothing about one — which is nearly all of them. */
   readonly spawned: (meta: Meta, input: unknown) => Spawn | null
+
+  /** ... and what it says about a BACKGROUND TASK this call armed, or `null`
+   *  for a frame that says nothing about one — see {@link Background}. An agent
+   *  whose wire carries no such fact answers `null` for everything, and its
+   *  background work is drawn as it always was: a call that completed at the
+   *  moment it started. */
+  readonly backgroundTask: (meta: Meta) => Background | null
 
   /** The permission mode to ask a fresh session for, or `null` for an agent
    *  that has none. A refusal is not a boot failure either way:

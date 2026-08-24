@@ -57,6 +57,7 @@ import { isDeepStrictEqual } from "node:util"
 import { isRunningStatus } from "@olai/surface"
 
 import type {
+  Armed,
   AskField,
   AskOutcome,
   ChatEntry,
@@ -506,13 +507,35 @@ export class Transcript {
    * path somebody has to have remembered.
    */
   begins(): Change {
-    return this.#strand()
+    return this.#strand(false)
   }
 
   /** The turn ended: whatever was streaming has stopped, and so has anything
-   *  the agent announced and never reported back on. */
+   *  the agent announced and never reported back on — except a call that armed
+   *  a background task, which is the one kind of call a turn ending says
+   *  nothing about ({@link #strand}). */
   settle(): Change {
-    return both(this.#close(), this.#strand())
+    return both(this.#close(), this.#strand(false))
+  }
+
+  /**
+   * The CONVERSATION is over — the agent died — and that is a different
+   * sentence from a turn ending.
+   *
+   * A turn ending leaves an armed task alone: the task outlives the turn on
+   * purpose, and the harness reports its end whenever that comes, in whatever
+   * turn happens to be open or in none at all. A dead agent reports nothing
+   * ever again, so the tasks it left out there are exactly as abandoned as the
+   * calls it never came back for — and a rail still pulsing under a process
+   * that no longer exists is the failure every live face in this panel is
+   * written against.
+   *
+   * Its own door rather than a flag on {@link settle}, because the two are
+   * asked by different callers about different facts: every turn ends, and a
+   * conversation ends once.
+   */
+  abandon(): Change {
+    return both(this.#close(), this.#strand(true))
   }
 
   /**
@@ -529,11 +552,26 @@ export class Transcript {
    * ends of every turn, and a frame per idle call per turn would be a
    * conversation republishing its whole history to say nothing.
    */
-  #strand(): Change {
+  #strand(alsoArmed: boolean): Change {
     let change: Change = EMPTY
     for (const [key, entry] of this.#entries) {
       if (entry.kind !== "tool" || this.#stranded.has(key)) continue
       if (!isRunningStatus(entry.status)) continue
+      // A CALL THAT ARMED A BACKGROUND TASK IS NOT ONE ITS TURN WALKED AWAY
+      // FROM. It is the one kind of call whose whole point is to outlive the
+      // turn — a monitor watches a PR for an hour, a background build runs while
+      // the conversation moves on — and the harness reports its end whenever
+      // that comes, in whatever turn happens to be open (or in none). Marking it
+      // here would put out the live face at the moment the task starts doing its
+      // work, and the row would say "abandoned" about the very thing the panel
+      // was asked to show.
+      //
+      // ... UNTIL IT HAS ENDED, which is the half that keeps this honest: an
+      // ended task's row is an ordinary settled call and needs no exemption.
+      // And until the CONVERSATION ends, which is {@link abandon}'s door: a
+      // dead agent's tasks are as abandoned as its calls, because a dead agent
+      // reports the death of nothing.
+      if (!alsoArmed && entry.armed !== undefined && entry.armed.ended === undefined) continue
       this.#stranded.add(key)
       change = both(change, this.#put(key, contentOf(entry)))
     }
@@ -578,6 +616,7 @@ export class Transcript {
       readonly locations?: ReadonlyArray<string> | undefined
       readonly parent?: string | undefined
       readonly spawned?: Spawned | undefined
+      readonly armed?: Armed | undefined
     },
   ): Change {
     const key = toolKey(id)
@@ -625,6 +664,16 @@ export class Transcript {
     const spawned = move.spawned === undefined
       ? held?.spawned
       : { ...held?.spawned, ...move.spawned }
+    // ... and what this call ARMED, under the same rule one word deeper and for
+    // the same reason: the fact arrives split across frames because the TASK's
+    // OWN LIFE is. The frame that arms the call names the task, its kind and the
+    // description it was armed with; the frame that settles it names the task
+    // and how it ended, minutes later and in another turn. Neither repeats the
+    // other's fields, so a spread is what keeps the description on the row at
+    // the moment it dies — which is the row a person reads.
+    const armed = move.armed === undefined
+      ? held?.armed
+      : { ...held?.armed, ...move.armed }
     // THE NAME, PICKED ONCE — at the first frame that carries a title, which
     // for a live call is its announcement and for a replayed one is the
     // collapsed frame that is all there ever was of it. Whether the question
@@ -658,6 +707,7 @@ export class Transcript {
       ...(locations === undefined ? {} : { locations }),
       ...(parent === undefined ? {} : { parent }),
       ...(spawned === undefined ? {} : { spawned }),
+      ...(armed === undefined ? {} : { armed }),
     }
     const closed = this.#close()
     // A REPEAT IS NOT A REPORT. Nothing moved, so nothing is written — and the

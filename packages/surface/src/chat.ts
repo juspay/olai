@@ -239,6 +239,53 @@ export const Spawned = Schema.Struct({
 export type Spawned = typeof Spawned.Type
 
 /**
+ * A call that ARMED A BACKGROUND TASK, and what is known about the task.
+ *
+ * The other kind of call that outlives its own result. A `Monitor`, a
+ * `Bash(run_in_background)`, an async `Agent`: the tool answers the moment the
+ * task is running, and the task then lives on — past the frame, past the turn,
+ * and (for a persistent monitor) for the whole of the conversation. What the
+ * agent gets back is an acknowledgement; what a person needs is the task.
+ *
+ * It is on the wire because the WIRE says it: the pinned adapter stamps the
+ * harness's own `task_started` onto the call it names, and the call stays
+ * running until the harness reports a terminal state (`acp/patches/README.md`).
+ * Nothing here is inferred from a tool's name or from an argument — a client
+ * that guessed would be putting a live face on somebody's ordinary call.
+ *
+ * PRESENCE is the fact, like {@link Spawned}'s: a task that named no kind and
+ * carried no description is still a task, so this is a struct with one required
+ * field rather than a nullable string.
+ */
+export const Armed = Schema.Struct({
+  /** The harness's own id for the task — the word every later frame about it
+   *  arrives under, and the one thing that is always said. */
+  task: Schema.String,
+  /** What KIND of task, in the harness's own word (`local_bash`, `subagent`,
+   *  …). Absent when the frame that armed the call did not say — the
+   *  acknowledgement alone can arm a call, and it names no kind. */
+  kind: Schema.optionalKey(Schema.String),
+  /** The description it was armed WITH — "tick watch", "kolu fleet watch…" —
+   *  which is the sentence a person recognises the task by, and which the
+   *  call's own title (`Monitor`) is not. Absent for the same reason `kind`
+   *  is. */
+  description: Schema.optionalKey(Schema.String),
+  /**
+   * How it ENDED, in the harness's own word — and absent for the whole of the
+   * time it is still running, which is what makes the presence of this field
+   * the death itself.
+   *
+   * ACP has four statuses and the harness has more: `completed`, `failed`,
+   * `killed` and `stopped` all reach the row's own `status` as one of two
+   * words, and a monitor somebody STOPPED is not a monitor that failed. So the
+   * word travels beside the status rather than being folded into it — the same
+   * bargain {@link ChatServer}'s `said` strikes with an MCP server's status.
+   */
+  ended: Schema.optionalKey(Schema.String),
+})
+export type Armed = typeof Armed.Type
+
+/**
  * What became of a message that did not land — the two things this end can
  * HONESTLY know, and the difference between them is a button.
  *
@@ -459,6 +506,11 @@ export const ToolEntry = Schema.Struct({
    *  rather than at the moment it first reports back. Absent on every call that
    *  spawned nobody, which is nearly all of them. */
   spawned: Schema.optionalKey(Spawned),
+  /** This call ARMED a background task — see {@link Armed}. The third thing a
+   *  call can leave behind it, beside a spawned agent and a written file, and
+   *  the one that goes on happening after the turn is over. Absent on every
+   *  call that armed nothing, which is nearly all of them. */
+  armed: Schema.optionalKey(Armed),
   /**
    * The TURN this call was announced in has ended, and the call was never
    * reported on.
@@ -484,6 +536,12 @@ export const ToolEntry = Schema.Struct({
    * could make it untrue: the field means "as far as anything here knows, this
    * one never came back", and a frame saying otherwise is anything here
    * knowing.
+   *
+   * NEVER WRITTEN ON A CALL THAT ARMED A BACKGROUND TASK and has not been told
+   * how it ended ({@link Armed}). That call is not one its turn walked away
+   * from: it is the one kind of call whose whole point is to outlive the turn,
+   * and the harness is still going to report on it. Stranding one would put out
+   * the live face at the moment the task is doing its work.
    */
   stranded: Schema.optionalKey(Schema.Literal(true)),
 })
@@ -1219,6 +1277,29 @@ export const ChatState = Schema.Struct({
    * forever.
    */
   asking: Schema.Int,
+  /**
+   * ... and how many BACKGROUND TASKS this conversation has armed and not been
+   * told the end of.
+   *
+   * Its own fact for {@link ChatState.asking}'s reason and one stronger: it is
+   * true at the same time as `idle`, which is the state a monitor spends its
+   * whole life in. A turn arms a watch and ends; the conversation is idle and
+   * something is still running; nothing else on this cell can say that, and a
+   * panel that asked `status` would answer "nothing is happening" about the
+   * thing a person is watching the panel FOR.
+   *
+   * Counted off the rows, like `asking` and for its argument: a task being out
+   * is already written down — it is the row whose `armed` has no ending — and a
+   * tally beside the rows would be the same fact in a second place.
+   *
+   * WHAT READS IT is the panel's one clock (`web/src/client/chat/elapsing.tsx`):
+   * a tab ticks while anything in this conversation is still running, and an
+   * idle conversation with nothing out costs nothing. The number itself is not
+   * drawn today, which is why it is a count rather than a boolean: the rows
+   * that carry the tasks are what a person reads, and a second place to say
+   * "one watch is out" would be a second thing to keep true.
+   */
+  watching: Schema.Int,
   /** The last thing that went wrong where no caller was waiting — a boot that
    *  failed, an agent that died mid-turn. `null` once a turn succeeds. */
   trouble: Schema.NullOr(Schema.String),
@@ -1277,6 +1358,7 @@ export const CHAT_OFF: ChatState = {
   roster: [],
   talking: null,
   asking: 0,
+  watching: 0,
   trouble: null,
   unopened: null,
   servers: [],
