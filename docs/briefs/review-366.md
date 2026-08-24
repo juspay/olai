@@ -1,0 +1,10 @@
+# Review brief: PR #366 — sends queue by default, steering the explicit gesture (compact-lost-to-steer)
+
+You are a REVIEWER (one of two — grok and pi review independently; post separately). PR: https://github.com/juspay/olai/pull/366, head bbe3e6b7, branch compact-lost-to-steer. You are in the author's worktree (`.worktrees/compact-lost-to-steer`) — read, build, run; do not push.
+
+1. Read `HACKING.md` in FULL; review per it.
+2. The four rulings (roadmap `compact-lost-to-steer`): send = plain session/prompt always (the adapter's turnQueue holds it; no client queue state, no compaction awareness); steering = an explicit modifier (Alt+Enter + an interrupt control), only where `_meta.steering.supported`; cancel stops the turn and nothing else (queued words survive); the transcript row wears a queued hint until the agent takes it.
+3. SHARP AXES: (a) the queued hint's truth — what clears it, and can it lie (a hint cleared while the message still waits, or stuck after the agent took it; reconnect/reload mid-queue)? (b) The capability read — a leg WITHOUT promptQueueing (older adapter, other agents): does a busy-send still behave sanely or silently vanish? (c) The two defect fixes (turn-paragraph close; single cancel notice) — regressions risk on the ordinary single-turn path. (d) The #194 history — its cancel-drops-nothing invariant must still hold; check the feature file that pinned #194's behavior. (e) The author's Observed upstream defect (steering-after-queued hangs the prompt): does the PR guard olai against it (e.g. does the UI hang too when upstream hangs?) or merely document it — judge whether shipping reachable-hang-without-guard is acceptable and say so explicitly.
+4. Verify, don't trust: typecheck, unit, the touched e2e features; the evidence is scripted (evidence.ts chat-sends-queue) — re-run if cheap; the /compact face must show no "Request was aborted".
+5. Post a PR COMMENT: OBJECT or DO-NOT-OBJECT, MUST/SHOULD/NIT with file:line, MUSTs with a failure scenario.
+6. Report in this terminal: verdict, comment URL, one line per MUST.
