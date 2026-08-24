@@ -18,7 +18,11 @@
  *     a memo (or a `<Show>`) that asks becomes one that re-runs when the file
  *     lands — and the first ask is what starts the fetch, so a page that never
  *     asks never pays. Solid's own `lazy` works this way for the same reason:
- *     the thing that needs it is the thing that knows.
+ *     the thing that needs it is the thing that knows. (A consumer may decide
+ *     otherwise for its own chunk, and one has: the shell `modulepreload`s the
+ *     markdown pipeline, so asking there starts the EVALUATION and the bytes
+ *     were already on their way — `markdown/chunk.ts` says why. Nothing here
+ *     changes; a preload is a fact about the document, not about this.)
  *   - **a failure is a value, not a throw.** It is remembered, said in the
  *     console, and left for whoever was waiting to put on the page. A page that
  *     is missing a renderer or a menu is still a page somebody can read, and
