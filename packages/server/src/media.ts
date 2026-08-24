@@ -113,14 +113,16 @@ export const mediaLayer = (root: string) =>
                 HttpServerRequest.HttpServerRequest,
                 request.modify({ url: served(target) }),
               ),
-              // ...and an SVG comes back DEFANGED — see {@link INERT}. It is a
-              // map over the engine's own response rather than a second reader
-              // of the file, so the stat, the MIME type, the range and the
-              // `304` are all still the engine's.
+              // ...with a word from this route on top of it: every answer says
+              // {@link NOSNIFF}, and an SVG comes back DEFANGED besides (see
+              // {@link INERT}). It is a map over the engine's own response
+              // rather than a second reader of the file, so the stat, the MIME
+              // type, the range and the `304` are all still the engine's.
               Effect.map((response) =>
-                target.endsWith(SVG_EXT)
-                  ? HttpServerResponse.setHeaders(response, INERT)
-                  : response
+                HttpServerResponse.setHeaders(
+                  response,
+                  target.endsWith(SVG_EXT) ? INERT : NOSNIFF,
+                )
               ),
               // The engine's own misses come back as failures; they are this
               // route's 404 rather than the router's error page.
@@ -133,6 +135,21 @@ export const mediaLayer = (root: string) =>
 
 /** One answer for every way a file is not there. */
 const missing = HttpServerResponse.empty({ status: 404 })
+
+/**
+ * What EVERY file the engine answers is told about its own type: do not
+ * re-decide it.
+ *
+ * The engine names a type from the suffix, and a content sniffer is a second
+ * reader of the same bytes that may reach a different answer — which for a
+ * polyglot (a file that is a valid `.png` and valid HTML at once) is the answer
+ * an attacker chose. Modern browsers do not sniff `application/pdf` or
+ * `image/png` into a document, so this is a belt rather than a demonstrated
+ * hole; it costs one header, it is what the sealed page and the SVG already
+ * say, and a route where two of the answers carry it and the rest do not is a
+ * route somebody has to remember the rule for.
+ */
+const NOSNIFF = { "x-content-type-options": "nosniff" } as const
 
 /**
  * What an `.svg` is answered with, on top of whatever the file engine already

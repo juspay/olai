@@ -29,20 +29,24 @@
  * which is what a screen reader announces and what a scenario reads. Whether a
  * header is bold is a look.
  *
- * THE CLAMP IS SAID. A vault can hold a million-row export and this is a page,
- * not a database viewer, so what is drawn is bounded (`@olai/format`'s
- * `CSV_ROWS`, `CSV_COLUMNS`) — and a table showing the first five hundred rows
- * of twelve thousand with nothing saying so is a lie the reader cannot see. The
- * NUMBERS are the format's and the SENTENCE is ./clamped.ts's, which is the one
- * place this page's own voice is decided — so a change to the wording is one
+ * THE BOUND IS SAID, and it is a bound on the READING and not a slice taken
+ * afterwards. A vault can hold a million-row export and this is a page, not a
+ * database viewer, so the scan stops — rows, columns and the length of one cell
+ * (`@olai/format`'s `csv.ts`, which argues all three) — and a table showing
+ * part of a file with nothing saying so is a lie the reader cannot see. The
+ * FACTS are the format's and the SENTENCE is ./clamped.ts's, which is the one
+ * place this page's own voice is decided, so a change to the wording is one
  * file and one test rather than markup in the middle of a table.
  *
- * WHAT IS NOT DONE, said rather than left to be discovered: the clamp is on the
- * DRAWING and not on the wire, so the whole file's text crosses the socket even
- * when a fraction of it is shown. That is what a `.md` body has always cost,
- * this is the same member, and paging the read would be a second protocol for
- * one kind of file. The day somebody keeps a hundred-megabyte export in a vault
- * it is the READ that has to learn about ranges, for every bodied kind at once.
+ * WHAT IS NOT BOUNDED, said rather than left to be discovered: the WIRE. The
+ * whole file's text crosses the socket even though a fraction of it is read
+ * here — that is what a `.md` body has always cost, this is the same member,
+ * and paging it would be a second protocol for one kind of file. So the memory
+ * a huge `.csv` costs this tab is one string rather than one string plus every
+ * field of every row of it, which is the difference the reading's bound makes
+ * and the whole of what it can make from this side. The day somebody keeps a
+ * hundred-megabyte export in a vault it is the READ that has to learn about
+ * ranges, for every bodied kind at once.
  */
 
 import { csvTable } from "@olai/format"
@@ -96,7 +100,7 @@ export function Csv(props: { readonly file: string }) {
                 with no rows reads as a page that failed to load. What is drawn
                 instead is the line below, which is already the one place this
                 page says what it is not showing. */}
-            <Show when={read().totalRows > 0}>
+            <Show when={read().rows.length > 0}>
               {/* The table is its own scroll container, for the reason a
                   rendered markdown table is (`../styles.css`): a file wide
                   enough to overflow scrolls WITHIN the column instead of

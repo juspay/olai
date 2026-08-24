@@ -117,13 +117,18 @@ export const mediaPath = (url: string): string | null => {
  * — or `null` for a request this route does not answer at all.
  *
  * {@link mediaPath} above, and then the ALLOWLIST: the name must be something a
- * page may fetch, by `@olai/format`'s `isAsset` — the page itself, a picture, a
- * stylesheet, a script, a font. That list is where the argument for each of
- * those lives, and what it leaves out (`.md`, `.olai`, `.svg`, data) is the more
- * interesting half of it. It is WIDER than the allowlist the renderer rewrites a
- * relative `![](…)` against, and deliberately: markdown may still name a picture
- * and nothing else, because that is a rule about what markdown MEANS, while this
- * is a rule about what a browser may ask this server for.
+ * browser fetches for itself, by `@olai/format`'s `isAsset` — every kind whose
+ * PAGE is drawn by pointing at the file (a saved page, a picture `.svg`
+ * included, a `.pdf`), plus the parts a saved page draws itself with. That list
+ * is where the argument for each of those lives, and what it leaves out
+ * (`.md`, `.olai`, `.csv`, data) is the more interesting half of it: those have
+ * pages that are handed their CONTENT, so raw bytes here would be a second way
+ * to read a file that already has one.
+ *
+ * It is WIDER than the allowlist the renderer rewrites a relative `![](…)`
+ * against, and deliberately: markdown may still name a picture and nothing
+ * else — an `.svg` excluded — because that is a rule about what markdown
+ * MEANS, while this is a rule about what a browser may ask this server for.
  */
 export const mediaTarget = (url: string): string | null => {
   const file = mediaPath(url)

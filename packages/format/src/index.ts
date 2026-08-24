@@ -151,7 +151,7 @@ export { proseIn } from "./frontmatter.ts"
  *  markdown body's is (`./csv.ts` argues the reading). What it answers in is
  *  NUMBERS — the sentence a reader is told about a clamped file is the
  *  client's own (`@olai/web`'s `document/clamped.ts`). */
-export { CSV_COLUMNS, CSV_ROWS, csvRows, csvTable } from "./csv.ts"
+export { CSV_CELL, CSV_COLUMNS, CSV_ROWS, csvRows, csvTable } from "./csv.ts"
 export type { CsvTable } from "./csv.ts"
 /** The view PATCHED rather than rebuilt, and what a delta says: files upserted,
  *  files gone — Surface's own collection-delta frame, which is the vocabulary

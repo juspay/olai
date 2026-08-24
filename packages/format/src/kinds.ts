@@ -142,7 +142,7 @@ interface Claim {
    * reason for: `@olai/format`'s `isAsset` is the single allowlist `/media/*`
    * judges a request by (`@olai/server`'s `media.ts`), and what it admits is
    * exactly the kinds whose page is drawn by POINTING at the file — a frame's
-   * `src` for hypertext, an `<img>` for a picture, an `<embed>` for a `.pdf` —
+   * `src` for hypertext, an `<img>` for a picture, an `<object>` for a `.pdf` —
    * plus the parts a saved page draws itself with, which are not kinds at all.
    *
    * It is not derivable from the three columns above, which is why it is a

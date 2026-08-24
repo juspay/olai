@@ -20,40 +20,41 @@ test("a file with nothing in it says so", () => {
   })
 })
 
-// THE CLAMP, which is the half of a bound that makes it honest. A table
-// showing five hundred rows of twelve thousand with nothing saying so is a lie
-// a reader cannot see.
-test("a clamped page says which rows and columns it drew", () => {
+// THE BOUND, said. A table showing five hundred rows of a file that has more,
+// with nothing saying so, is a lie a reader cannot see. What it does NOT say is
+// how many more: the scan stopped, so that number was never read
+// (`@olai/format`'s `csv.ts`).
+test("a bounded page says which rows and columns it drew", () => {
   const rows = csvTable("h\n" + Array.from({ length: 20 }, (_, at) => `r${at}`).join("\n"), {
     rows: 3,
   })
-  expect(clampSaid(rows)).toEqual({
-    tone: "aside",
-    text: "Showing the first 3 of 21 rows.",
-  })
+  expect(clampSaid(rows)).toEqual({ tone: "aside", text: "Showing the first 3 rows." })
 
   const columns = csvTable("a,b,c,d\n1,2,3,4\n", { columns: 2 })
-  expect(clampSaid(columns)?.text).toBe("Showing the first 2 of 4 columns.")
+  expect(clampSaid(columns)?.text).toBe("Showing the first 2 columns.")
 
   // Both axes in one sentence, and only the clauses that are true of this file.
   const both = csvTable("a,b,c\n1,2,3\n4,5,6\n", { rows: 1, columns: 2 })
+  expect(clampSaid(both)?.text).toBe("Showing the first 1 rows, and the first 2 columns.")
+})
+
+// THE CELL IS ITS OWN SENTENCE, because it is a different kind of fact: the
+// other two say which part of the file is on screen, this one says that what is
+// on screen has been shortened. The number is the format's constant, said with
+// its thousands separated.
+test("a page whose cells were cut says that too, in its own sentence", () => {
+  const long = csvTable(`"${"x".repeat(50_000)}",b\n`)
+  expect(clampSaid(long)?.text).toBe("Long cells are cut at 2,000 characters.")
+
+  const both = csvTable(`"${"x".repeat(50_000)}",b\nc,d\n`, { rows: 1 })
   expect(clampSaid(both)?.text)
-    .toBe("Showing the first 1 of 3 rows, and the first 2 of 3 columns.")
+    .toBe("Showing the first 1 rows. Long cells are cut at 2,000 characters.")
 })
 
-// The counts are GROUPED, which is a fact about reading a number off a screen:
-// four digits in a row is a number a reader has to count.
-test("a count in the sentence is grouped in threes", () => {
-  const many = csvTable(Array.from({ length: 12_431 }, (_, at) => `r${at}`).join("\n"), {
-    rows: 500,
-  })
-  expect(clampSaid(many)?.text).toBe("Showing the first 500 of 12,431 rows.")
-})
-
-// An ASIDE and never an alarm, whichever of the two it is saying: nothing was
+// An ASIDE and never an alarm, whichever of the moods it is in: nothing was
 // refused and nothing failed, so a screen reader is told politely rather than
 // interrupted (`../SaidLine.tsx` owns what a mood means).
-test("what it says is an aside, in both moods it has", () => {
+test("what it says is an aside, in every mood it has", () => {
   expect(clampSaid(csvTable(""))?.tone).toBe("aside")
   expect(clampSaid(csvTable("a\nb\nc\n", { rows: 1 }))?.tone).toBe("aside")
 })

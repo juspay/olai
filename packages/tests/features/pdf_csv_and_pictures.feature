@@ -16,7 +16,11 @@ Feature: A `.pdf`, a `.csv` and a picture in the vault
 
     - a `.csv` is parsed on open and drawn as a table, first row as the header,
       and a file bigger than a page draws SAYS what it left out. No silent
-      truncation, and no spreadsheet: nothing here writes one back.
+      truncation, and no spreadsheet: nothing here writes one back. The bound is
+      on the READING — the scan stops at the row, column and cell bounds rather
+      than parsing a million-row export and slicing — which is why it says "the
+      first 500 rows" and not "of 12,431": that total is a number only a full
+      scan knows.
     - a picture is an `<img>` — every spelling, an `.svg` included, which is
       exactly the element that will not run one. `art/diagram.svg` is a fixture
       with teeth for that reason: it carries a script that tries to rename this
@@ -91,7 +95,10 @@ Feature: A `.pdf`, a `.csv` and a picture in the vault
     # no line that is not a row, and the page draws the first row it read as
     # the header.
     And the table draws 499 rows under the header
-    And the csv page says "Showing the first 500 of 701 rows."
+    # NO TOTAL in the sentence, and that is the point rather than a shortfall:
+    # the scan stopped at five hundred rows, so "701" is a number this page
+    # never read.
+    And the csv page says "Showing the first 500 rows."
     And there should be no page errors
 
   @corpus:good

@@ -70,7 +70,9 @@ import { type FileKind, fileKind, holdsBody } from "./kinds.ts"
  * `notes/README.md`, relative to the served root.
  *
  * The rule is the registry's ({@link fileKind}): a suffix no kind claims is not
- * a document, so `notes` and `photo.png` are not paths this grammar can name.
+ * a document, so `notes` and `photo.tiff` are not paths this grammar can name —
+ * while `photo.png` is one, since the day a picture became a kind with a page
+ * of its own. The rule did not move; the table under it did.
  * That is not tidiness — it is the fact the whole grammar rests on, since the
  * suffix is what says whether a `#` after it is a heading or a node, and what
  * keeps an address apart from a computed page that spells no file.

@@ -187,12 +187,17 @@ test("an svg is served with a policy that makes it inert as a document", async (
 
 // …and no other file picks that policy up. A picture is a picture, and a
 // response that sandboxed every one of them would be a claim this route cannot
-// support about files it has not read.
-test("a raster picture is answered without the svg's policy", async () => {
+// support about files it has not read. What every answer DOES carry is
+// `nosniff`: the engine named a type from the suffix, and a sniffer is a second
+// reader of the same bytes that may reach the answer an attacker chose.
+test("a raster picture is answered without the svg's policy, and with nosniff", async () => {
   await withVault(async (url) => {
-    const answer = await fetch(`${url}/media/notes/art/shot.png`)
-    expect(answer.status).toBe(200)
-    expect(answer.headers.get("content-security-policy")).toBeNull()
+    for (const at of ["/media/notes/art/shot.png", "/media/notes/q3.pdf", "/media/notes/page.css"]) {
+      const answer = await fetch(`${url}${at}`)
+      expect([at, answer.status]).toEqual([at, 200])
+      expect([at, answer.headers.get("content-security-policy")]).toEqual([at, null])
+      expect([at, answer.headers.get("x-content-type-options")]).toEqual([at, "nosniff"])
+    }
   })
 })
 
