@@ -174,6 +174,9 @@ Then(
   },
 );
 
+/** The de-blur itself: the face comes OFF the same element, which is what the
+ *  swap IS — and a surface that kept it would be a page permanently pretending
+ *  to load, which no assertion about the rendering would notice. */
 Then(
   "the title of {string} is not waiting",
   async function (this: OlaiWorld, id: string) {
@@ -185,8 +188,6 @@ Then(
   },
 );
 
-/** The de-blur itself: the face is OFF the same element, which is what the
- *  swap is. */
 Then(
   "the description of {string} is not waiting",
   async function (this: OlaiWorld, id: string) {
@@ -200,7 +201,8 @@ Then(
 
 /**
  * THE CLAIM ABOUT EVERY FRAME, including the ones that are gone: nothing this
- * document ever put in the waiting state was readable when it went in.
+ * TAB ever put in the waiting state was readable when it went in — every
+ * document it has drawn, since the record is the tab's (`support/paints.ts`).
  *
  * Two assertions, and the first is the one that keeps this honest — a
  * scenario that raced past the waiting state and recorded nothing at all would
@@ -210,7 +212,7 @@ Then("no frame of legible raw markdown was painted", async function (this: OlaiW
   const paints = await paintsOn(this.page);
   assert.ok(
     paints !== undefined,
-    "no watcher is installed in this document — the scenario needs the " +
+    "no watcher is installed in this tab — the scenario needs the " +
       "@markdown-paints tag (support/hooks.ts), which arms one in every " +
       "document of its context",
   );
