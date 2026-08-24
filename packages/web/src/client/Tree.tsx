@@ -105,8 +105,6 @@ import { LAYER } from "./layer.ts"
 import { NoteMark } from "./note/Mark.tsx"
 import { createNoteExpand } from "./note/expand.ts"
 import { hasBody } from "./body.ts"
-import type { Editing } from "./props/editor.ts"
-import { PropEditor } from "./props/PropEditor.tsx"
 import { NodeBody } from "./NodeBody.tsx"
 import { NodeLine } from "./NodeLine.tsx"
 import { nodeMenuActions } from "./menu/actions.ts"
@@ -311,12 +309,23 @@ function Branch(props: {
     setRepeating(true)
   }
 
-  /** Is this row's property editor open, and on WHAT — a property it carries,
-   *  or `null` for one being added? Local to the ROW for the picker's reason:
-   *  the `•••` menu that opened it is closed by the time anything has been
-   *  typed. `undefined` is closed, which is the third state a `null` inside the
-   *  value could not spell (./props/PropEditor.tsx). */
-  const [propping, setPropping] = createSignal<Editing | null | undefined>(undefined)
+  /**
+   * Is this row being asked for an ADD-A-PROPERTY chip?
+   *
+   * The whole of what is left of the `•••`'s property family. A property is
+   * edited in the run of chips under the title now (./props/PropsDrawer.tsx),
+   * and the `+` at the end of that run is the door onto adding one — so the
+   * menu's `Edit <key>…` and `Remove <key>` entries are gone, and with them the
+   * menu that got longer every time somebody wrote a fact down.
+   *
+   * The one case the `+` cannot reach is a node carrying NO property: it has no
+   * run for a `+` to sit at the end of, and drawing an otherwise-empty run
+   * under every row of a tree would cost a line per title. So the entry is
+   * offered exactly then, and what it opens is the run's own editor rather than
+   * a panel of its own — the signal is a flag rather than a value, because
+   * "which property" is not a question this door asks.
+   */
+  const [adding, setAdding] = createSignal(false)
 
   /** This row's edge editing — which panel is open, the writes its two doors
    *  send, and the line that says what came of them (./edges/editing.tsx). The
@@ -576,7 +585,7 @@ function Branch(props: {
               pickDate: openPicker,
               pickRepeat: openRepeat,
               pickEdge: edges.open,
-              pickProp: (editing) => setPropping(editing),
+              addProp: () => setAdding(true),
               pickMove: () => moving.open({ record: props.row.at.node.id, place: props.row.key }),
             })}
           />
@@ -718,26 +727,6 @@ function Branch(props: {
         )}
       </Show>
 
-      {/* The property editor, on the same terms as the picker above: opened
-          from the `•••`, drawn under the line it was opened on, about the node
-          the row SHOWS — a placement carries no properties of its own, so one
-          typed at a mirror lands on its target exactly as a mark does.
-
-          The `when` tests the OPENNESS rather than the value, because `null` is
-          a state it is open in: adding a property nobody has named yet. */}
-      <Show when={propping() !== undefined ? shown() : undefined}>
-        {(shows) => (
-          <div class={PAST_CONTROLS}>
-            <PropEditor
-              editing={propping() ?? null}
-              onSet={(key, value) =>
-                applying({ verb: "prop", id: shows().node.id, key, value }, undo.record)}
-              onClose={() => setPropping(undefined)}
-            />
-          </div>
-        )}
-      </Show>
-
       {/* The edge panel and whatever its writes said, in the same place and on
           the same terms as the picker above: opened from the `•••`, drawn under
           the line it was opened on, about the node the row SHOWS — a placement
@@ -808,6 +797,17 @@ function Branch(props: {
                   // drawn where a node is READ ONLY (a day page) passes neither
                   // (./NodeBody.tsx).
                   onUnsee={(target) => edges.drop("see", target)}
+                  // ...and the run of chips writes at the same gate, about the
+                  // node the row SHOWS: a placement carries no properties of
+                  // its own, so one typed at a mirror lands on its target
+                  // exactly as a mark does.
+                  onProp={(key, value) =>
+                    applying(
+                      { verb: "prop", id: shows().node.id, key, value },
+                      undo.record,
+                    )}
+                  addingProp={adding()}
+                  onAddingPropEnd={() => setAdding(false)}
                 />
               }
             >

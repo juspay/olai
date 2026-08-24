@@ -81,7 +81,7 @@ import { NoteLine } from "./note/Line.tsx"
 import { plainLine } from "./note/preview.ts"
 import { Note } from "./Note.tsx"
 import { customEntries, drawerEntries } from "./props/drawer.ts"
-import { PropsDrawer } from "./props/PropsDrawer.tsx"
+import { PropsDrawer, type SetProp } from "./props/PropsDrawer.tsx"
 import { EdgeRefs } from "./edges/EdgeRefs.tsx"
 import { ROW_NOTE } from "./touch.ts"
 
@@ -122,6 +122,16 @@ export function NodeBody(props: {
    *  is the rule `onEdit` above already follows: a day page and the agenda draw
    *  a node they do not offer to change. */
   readonly onUnsee?: (target: string) => void
+  /** Write one of the node's properties, from the run of chips under the title
+   *  (`./props/PropsDrawer.tsx`). ABSENT is read-only, which is the rule
+   *  `onEdit` and `onUnsee` above already follow: a day page and the agenda
+   *  draw a node they do not offer to change. */
+  readonly onProp?: SetProp
+  /** The `•••`'s one property entry, asking for the ADD chip — needed only
+   *  where a node carries none, since there is no run for the `+` to sit at the
+   *  end of. Passed straight through; the run owns the editor. */
+  readonly addingProp?: boolean
+  readonly onAddingPropEnd?: () => void
 }) {
   const zoomed = () => props.zoomed === true
   const open = () => props.expanded === true
@@ -169,6 +179,9 @@ export function NodeBody(props: {
           <PropsDrawer
             entries={customEntries(customOf(props.shows.node))}
             from={props.shows.file}
+            onSet={props.onProp}
+            adding={props.addingProp}
+            onAddingEnd={props.onAddingPropEnd}
           />
 
           {/* CLOSED: one clamped dim line under the title, which is either the
@@ -240,7 +253,13 @@ export function NodeBody(props: {
           And the drawer is drawn WHATEVER the node carries: this is a page
           about one node, its facts are what the page is for, and the id in
           particular is what every tool call and every `((` reference takes. */}
-      <PropsDrawer entries={drawerEntries(props.shows.node)} from={props.shows.file} />
+      <PropsDrawer
+        entries={drawerEntries(props.shows.node)}
+        from={props.shows.file}
+        onSet={props.onProp}
+        adding={props.addingProp}
+        onAddingEnd={props.onAddingPropEnd}
+      />
       <Show when={props.shows.node.desc}>
         {(desc) => (
           <Note

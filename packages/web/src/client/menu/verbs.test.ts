@@ -249,34 +249,25 @@ test("a repeating row says CHANGE, and gains the entry that stops it", () => {
 
 // ── the properties ─────────────────────────────────────────────────────
 
-test("every row that draws a node offers to add a property", () => {
-  // Offered on a node carrying none, which is the same rule the two edge verbs
-  // follow: naming a fact about a node is a thing you do to a node that says
-  // nothing yet.
+test("a node carrying NO property is offered the one entry that adds one", () => {
+  // `install` carries none, so there is no run of chips for the `+` to sit at
+  // the end of and this is the door. It carries nothing: what it opens is the
+  // run's own editor (`../props/PropsDrawer.tsx`).
   expect(labels("install")).toContain("Add property…")
-  expect(verb("install", "Add property…").does).toEqual({
-    kind: "pick-prop",
-    editing: null,
-  })
+  expect(verb("install", "Add property…").does).toEqual({ kind: "add-prop" })
 })
 
-test("a property it carries is offered for editing, with what it holds", () => {
-  // The panel is TOLD what it is editing rather than looking it up again off a
-  // row it does not have — so the key and the value in the boxes came from one
-  // read of one record.
-  expect(verb("order", "Edit pr…").does).toEqual({
-    kind: "pick-prop",
-    editing: { key: "pr", value: "https://x/1" },
-  })
-})
-
-test("removing one sends the op's own null, under its key", () => {
-  expect(edit("order", "Remove pr")).toEqual({
-    verb: "prop",
-    id: "order",
-    key: "pr",
-    value: null,
-  })
+test("a node that HAS one is offered nothing at all about properties", () => {
+  // The whole family is gone. `order` carries `pr` and `tags`, which used to be
+  // three entries — `Add property…`, `Edit pr…`, `Remove pr`, `Remove tags` —
+  // and a menu that got longer every time somebody wrote a fact down. Each of
+  // them is a chip on the row now, edited where it is read, with the `+` at the
+  // end of the run for the next one. Two doors onto one write is what this
+  // deletion refuses.
+  expect(labels("order")).not.toContain("Add property…")
+  expect(labels("order")).not.toContain("Edit pr…")
+  expect(labels("order")).not.toContain("Remove pr")
+  expect(labels("order")).not.toContain("Remove tags")
 })
 
 test("the node's own facts have no property entries, because they have verbs", () => {
@@ -287,13 +278,6 @@ test("the node's own facts have no property entries, because they have verbs", (
   expect(labels("order")).not.toContain("Remove date")
   expect(labels("order")).not.toContain("Remove id")
   expect(labels("kitchen")).not.toContain("Remove status")
-})
-
-test("a property holding a LIST may be removed and not edited", () => {
-  // The editor writes text, so a key holding three values would come back as
-  // one string with commas in it. Taking it off is exact whatever it held.
-  expect(labels("order")).toContain("Remove tags")
-  expect(labels("order")).not.toContain("Edit tags…")
 })
 
 test("a placement offers the picker for the node it SHOWS", () => {

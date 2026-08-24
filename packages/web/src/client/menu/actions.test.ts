@@ -72,7 +72,7 @@ const actionsFor = (
     // And once more for the property editor, which is the third panel a menu
     // entry opens and the third chance to hand the `•••` line whatever the
     // opener happened to return.
-    pickProp: opens as unknown as (editing: { key: string; value: string } | null) => void,
+    addProp: opens,
     // …and the fifth panel a menu entry opens, which is the move-to picker.
     pickMove: opens as () => void,
   })

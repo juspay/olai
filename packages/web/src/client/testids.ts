@@ -175,19 +175,23 @@ export const TESTID = {
    *  beside it carries no such testid, which is what makes this one's presence
    *  the assertion that a value folded. */
   propFold: "prop-fold",
-  /** The editor, in place under the row: opened by the `•••` menu's `Add
-   *  property…` or one of its `Edit <key>…` entries. `data-key` is the key it
-   *  was opened on, absent when it is a new one. */
-  propEditor: "prop-editor",
-  propEditorKey: "prop-editor-key",
-  propEditorValue: "prop-editor-value",
-  /** The button that sends it — `Add property` or `Save`. Disabled while the
-   *  key is empty or the value is what it already was. */
-  propEditorSet: "prop-editor-set",
-  propEditorCancel: "prop-editor-cancel",
-  /** What the last press had to say, keeping the editor open to say it — the
-   *  date picker's arrangement, in the same two moods. */
-  propEditorSaid: "prop-editor-said",
+  /** The KEY half of a chip, which is the handle: pressing it opens the value
+   *  for editing, whatever the value is. Drawn as a button only where the
+   *  surface offers writing — a day page and the agenda draw a node they do
+   *  not offer to change, and there it is a plain span. */
+  propKey: "prop-key",
+  /** The box a value is being typed in, in place of the chip's value. `data-key`
+   *  is the property it is on, absent while a new one is being named. */
+  propEdit: "prop-edit",
+  /** ...and the box the KEY of a NEW property is typed in, drawn only then: a
+   *  rename is two ops, so an existing chip's key is not typeable. */
+  propEditKey: "prop-edit-key",
+  /** The `+` at the end of the run — the one door onto adding a property, now
+   *  that the `•••` menu carries none. */
+  propAdd: "prop-add",
+  /** What the last commit had to say, under the run — a refusal quoted
+   *  verbatim, or a nudge that rode back on a write that landed. */
+  propSaid: "prop-said",
 
   /** The rollup badge — `3/5` of the tasks under a node. An annotation beside
    *  the title, never the node's own mark, which is the glyph. */

@@ -1,12 +1,17 @@
 /**
- * The properties drawer and the editor under it: what a node shows, what the
- * two boxes write, and what the file says afterwards.
+ * The run of chips under a node's title: what it shows, where a chip GOES when
+ * it is pressed, what typing in one writes, and what the file says afterwards.
  *
- * Its own file for `date_steps.ts`' reason — the editor is a surface with a
- * state of its own (two boxes, a button whose LABEL is the verb, two ways out
- * that write nothing) — and it keeps the DISK assertions beside the screen ones
- * rather than in `editing_steps.ts`, because a property is named by a key the
- * scenario chose and the pair only reads as one claim together.
+ * Its own file for `date_steps.ts`' reason — a chip is a surface with a state
+ * of its own — and it keeps the DISK assertions beside the screen ones rather
+ * than in `editing_steps.ts`, because a property is named by a key the scenario
+ * chose and the pair only reads as one claim together.
+ *
+ * THE PANEL IS GONE and so are its steps. A property used to be written in a
+ * two-box form under the row, opened from the `•••`; it is written in the chip
+ * now, where it is read. The steps below are shaped like that gesture: press a
+ * chip's key, type, press Enter — with no Save button to name and no panel to
+ * ask whether it is open.
  */
 
 import * as assert from "node:assert";
@@ -18,12 +23,12 @@ import {
   oneLine,
   POLL_TIMEOUT,
   PROP,
-  PROP_EDITOR,
-  PROP_EDITOR_CANCEL,
-  PROP_EDITOR_KEY,
-  PROP_EDITOR_SET,
-  PROP_EDITOR_VALUE,
+  PROP_ADD,
+  PROP_EDIT,
+  PROP_EDIT_KEY,
   PROP_FOLD,
+  PROP_KEY,
+  PROP_SAID,
   PROP_VALUE,
   PROPS,
 } from "../support/world.ts";
@@ -36,12 +41,19 @@ import type { OlaiWorld } from "../support/world.ts";
 const line = (world: OlaiWorld, id: string, key: string) =>
   world.page.locator(`${nodeSelector(id)} ${PROP}${attr("data-key", key)}`);
 
+/** WAITED FOR rather than read once, and that is not politeness: nothing here
+ *  is echoed, so a chip says what the file says — which means a write made one
+ *  step earlier lands on the frame the SERVER publishes, and a scenario that
+ *  read the run the instant it typed would be reading the value it typed over. */
 Then(
   "the node {string} shows the property {string} holding {string}",
   async function (this: OlaiWorld, id: string, key: string, value: string) {
     const found = line(this, id, key).locator(PROP_VALUE);
     await found.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(oneLine(await found.innerText()), value);
+    await this.waitUntil(
+      async () => oneLine(await found.innerText()) === value,
+      `\`${key}\` on ${JSON.stringify(id)} to hold ${JSON.stringify(value)}`,
+    );
   },
 );
 
@@ -170,12 +182,16 @@ Then(
   async function (this: OlaiWorld, id: string, expected: string) {
     const chips = this.page.locator(`${nodeSelector(id)} ${PROPS}`).first().locator(PROP);
     await chips.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.deepStrictEqual(
-      await chips.evaluateAll((found) =>
-        found.map((one) => one.getAttribute("data-key") ?? "")
-      ),
-      expected.split(",").map((key) => key.trim()),
+    const wanted = expected.split(",").map((key) => key.trim());
+    const drawn = async () =>
+      await chips.evaluateAll((found) => found.map((one) => one.getAttribute("data-key") ?? ""));
+    // Waited for, for the reason the step above is: a write lands on the
+    // server's next frame, not on the keystroke that sent it.
+    await this.waitUntil(
+      async () => JSON.stringify(await drawn()) === JSON.stringify(wanted),
+      `the run on ${JSON.stringify(id)} to read ${JSON.stringify(expected)}`,
     );
+    assert.deepStrictEqual(await drawn(), wanted);
   },
 );
 
@@ -225,93 +241,175 @@ Then(
   },
 );
 
-// ── the editor ─────────────────────────────────────────────────────────
+// ── the editor, which is the chip itself ───────────────────────────────
+//
+// There is no panel and no Save button any more. A chip's KEY is its handle
+// and a value that is not a link is a second way in; Enter commits, Escape
+// cancels, leaving commits whatever changed, and clearing the box removes the
+// property — which is the op's own reading of an empty value, not a gesture
+// this face invented (`client/props/editor.ts`).
 
-const editor = (world: OlaiWorld) => world.page.locator(PROP_EDITOR);
+/** The box open on ONE node — never `page.locator(PROP_EDIT)` alone, because a
+ *  page draws a run per row and a step has to say which node it means. */
+const box = (world: OlaiWorld, id: string) =>
+  world.page.locator(`${nodeSelector(id)} ${PROP_EDIT}`).first();
 
-Then("the property editor is open", async function (this: OlaiWorld) {
-  await editor(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-});
-
-Then("the property editor is closed", async function (this: OlaiWorld) {
-  await this.waitUntil(
-    async () => (await editor(this).count()) === 0,
-    "the property editor to be gone from the page",
-  );
-});
-
-/** What the two boxes hold — one step for the pair, because "editing `pr`"
- *  means both of them at once and two steps could pass one at a time. */
-Then(
-  "the property editor holds {string} and {string}",
-  async function (this: OlaiWorld, key: string, value: string) {
-    await editor(this).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    assert.strictEqual(await this.page.locator(PROP_EDITOR_KEY).inputValue(), key);
-    assert.strictEqual(await this.page.locator(PROP_EDITOR_VALUE).inputValue(), value);
+When(
+  "I edit the property {string} on {string}",
+  async function (this: OlaiWorld, key: string, id: string) {
+    await this.press(line(this, id, key).locator(PROP_KEY));
+    await box(this, id).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },
 );
 
-/** The KEY box cannot be typed in while an existing property is being changed:
- *  a rename is a removal and an addition, which is two ops, and this face does
- *  not get gestures an agent cannot make. */
-Then("the property editor's key is fixed", async function (this: OlaiWorld) {
-  assert.strictEqual(
-    await this.page.locator(PROP_EDITOR_KEY).isEditable(),
-    false,
-    "the key box accepts typing, and this step says a rename is two ops",
-  );
+/** The other way in, and the one a reader reaches for first: the VALUE, where
+ *  it is not a link. A step of its own because which half answered the press is
+ *  the whole of the gesture ruling. */
+When(
+  "I press the value of {string} on {string}",
+  async function (this: OlaiWorld, key: string, id: string) {
+    await this.press(line(this, id, key).locator(`${PROP_VALUE} button`));
+  },
+);
+
+Then(
+  "the property editor on {string} holds {string}",
+  async function (this: OlaiWorld, id: string, value: string) {
+    const open = box(this, id);
+    await open.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await open.inputValue(), value);
+  },
+);
+
+Then(
+  "the property editor on {string} is closed",
+  async function (this: OlaiWorld, id: string) {
+    await this.waitUntil(
+      async () => (await this.page.locator(`${nodeSelector(id)} ${PROP_EDIT}`).count()) === 0,
+      `the property editor on ${JSON.stringify(id)} to be gone from the page`,
+    );
+  },
+);
+
+/** Type it and press Enter. `fill` then `Enter`, rather than the panel's old
+ *  button, because the button is what went. */
+When(
+  "I type {string} into the property editor on {string}",
+  async function (this: OlaiWorld, value: string, id: string) {
+    const open = box(this, id);
+    await open.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await open.fill(value);
+    await open.press("Enter");
+  },
+);
+
+When(
+  "I leave the property editor on {string} without pressing Enter",
+  async function (this: OlaiWorld, id: string) {
+    await box(this, id).press("Escape");
+  },
+);
+
+/** ...and the OTHER way out, which is not a way out at all: leaving the box
+ *  commits what changed. A separate step from the row editor's own click-away
+ *  (`editing_steps.ts`), which waits for the caret to leave a LINE — a chip is
+ *  not one, and the receipt here is the box going. */
+When(
+  "I click away from the property editor on {string}",
+  async function (this: OlaiWorld, id: string) {
+    await box(this, id).blur();
+    await this.waitForFrame();
+  },
+);
+
+/** Nothing was said about a write, in either mood — which is what makes
+ *  "opened a chip and left it alone" SILENT rather than refused. A refusal
+ *  would be an alarm line under the run; a nudge would be a quiet one. */
+Then(
+  "the node {string} says nothing about its properties",
+  async function (this: OlaiWorld, id: string) {
+    assert.strictEqual(
+      await this.page.locator(`${nodeSelector(id)} ${PROP_SAID}`).count(),
+      0,
+      "the run said something about a write, and this step says nothing was written",
+    );
+  },
+);
+
+/** The `+` at the end of the run, and the two boxes it opens — the ONE place a
+ *  key is ever typed, since a rename is two ops. */
+When("I add a property on {string}", async function (this: OlaiWorld, id: string) {
+  await this.press(this.page.locator(`${nodeSelector(id)} ${PROP_ADD}`).first());
+  await this.page
+    .locator(`${nodeSelector(id)} ${PROP_EDIT_KEY}`)
+    .first()
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 When(
-  "I write the property {string} holding {string}",
-  async function (this: OlaiWorld, key: string, value: string) {
-    const box = this.page.locator(PROP_EDITOR_KEY);
-    if (await box.isEditable()) await box.fill(key);
-    await this.page.locator(PROP_EDITOR_VALUE).fill(value);
-    await this.press(this.page.locator(PROP_EDITOR_SET));
-    await editor(this).waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  "I write the property {string} holding {string} on {string}",
+  async function (this: OlaiWorld, key: string, value: string, id: string) {
+    const keyBox = this.page.locator(`${nodeSelector(id)} ${PROP_EDIT_KEY}`).first();
+    await keyBox.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await keyBox.fill(key);
+    const valueBox = box(this, id);
+    await valueBox.fill(value);
+    await valueBox.press("Enter");
   },
 );
 
-When("I leave the property editor", async function (this: OlaiWorld) {
-  await this.press(this.page.locator(PROP_EDITOR_CANCEL));
-});
+/** An existing chip's key is not typeable, and that is the format's rule rather
+ *  than the box's: `set_prop` sets ONE key, so a rename is a removal and an
+ *  addition. The KEY BOX is drawn only while a property is being NAMED. */
+Then(
+  "the property editor on {string} offers no key box",
+  async function (this: OlaiWorld, id: string) {
+    assert.strictEqual(
+      await this.page.locator(`${nodeSelector(id)} ${PROP_EDIT_KEY}`).count(),
+      0,
+      "a key box is open, and this step says a rename is two ops",
+    );
+  },
+);
 
 /**
- * Every control of the editor is on the screen and big enough for a thumb.
+ * Every box of the editor is on the screen and big enough for a thumb.
  *
- * The panel is a flex row of two boxes and two buttons, which is a comfortable
- * shape at 1200pt and a claim at 390 — the row wraps, and nothing says so until
- * something has fallen off the side. `min-h` is the other half: the app's rule
- * for anything a finger aims at is 44px, and these inputs carry `md:min-h-0`,
- * so the phone keeps the target and the laptop does not pay for it.
+ * The chip is a pill holding one or two boxes, which is comfortable at 1200pt
+ * and a claim at 390. `min-h` is the other half: the app's rule for anything a
+ * finger aims at is 44px, and these inputs carry `md:min-h-0`, so the phone
+ * keeps the target and the laptop does not pay for it.
  *
  * Asked of the VIEWPORT rather than of a container, because what a person
  * cannot reach is what is off the screen (opencode's nit, review of #179).
  */
-Then("the property editor fits the screen", async function (this: OlaiWorld) {
-  const width = this.viewport().width;
-  for (
-    const [name, selector] of [
-      ["the key box", PROP_EDITOR_KEY],
-      ["the value box", PROP_EDITOR_VALUE],
-      ["the button", PROP_EDITOR_SET],
-      ["cancel", PROP_EDITOR_CANCEL],
-    ] as ReadonlyArray<readonly [string, string]>
-  ) {
-    const box = await this.box(this.page.locator(selector), name);
-    assert.ok(
-      box.x >= -0.5 && box.x + box.width <= width + 0.5,
-      `${name} runs from ${Math.round(box.x)} to ${
-        Math.round(box.x + box.width)
-      } on a ${width}pt screen`,
+Then(
+  "the property editor on {string} fits the screen",
+  async function (this: OlaiWorld, id: string) {
+    const width = this.viewport().width;
+    // Waited for rather than counted once: the editor is opened by a gesture
+    // one step earlier, and Solid draws it on the next frame.
+    await box(this, id).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const boxes = this.page.locator(
+      `${nodeSelector(id)} ${PROP_EDIT_KEY}, ${nodeSelector(id)} ${PROP_EDIT}`,
     );
-    assert.ok(
-      box.height >= 44,
-      `${name} is ${Math.round(box.height)}px tall, under the 44px a thumb is given`,
-    );
-  }
-});
+    const count = await boxes.count();
+    assert.ok(count > 0, "no editor box is open to measure");
+    for (let at = 0; at < count; at += 1) {
+      const found = await this.box(boxes.nth(at), `editor box ${at}`);
+      assert.ok(
+        found.x >= -0.5 && found.x + found.width <= width + 0.5,
+        `editor box ${at} runs from ${Math.round(found.x)} to ${
+          Math.round(found.x + found.width)
+        } on a ${width}pt screen`,
+      );
+      assert.ok(
+        found.height >= 44,
+        `editor box ${at} is ${Math.round(found.height)}px tall, under the 44px a thumb is given`,
+      );
+    }
+  },
+);
 
 // ── and what the directory says ────────────────────────────────────────
 
