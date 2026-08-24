@@ -376,7 +376,11 @@ mark.olai-hit {
   );
   background-repeat: no-repeat;
   background-size: 300% 100%;
-  background-position: 150% 0;
+  /* Where the band sits when nothing is moving it: the middle of the block,
+   * which is what a reader who asked for no motion sees. The sweep below
+   * overrides this for everyone else — a base of the sweep's own starting
+   * position would be a band parked off the edge, which is no band at all. */
+  background-position: 50% 0;
 }
 
 @media (prefers-reduced-motion: no-preference) {
