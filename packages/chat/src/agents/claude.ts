@@ -317,7 +317,10 @@ export const backgroundTaskIn = (meta: Meta): Background | null => {
  *  everything read here is nested somewhere inside somebody else's payload, and
  *  each level of the nesting is a place a shape can change under us. `_meta`,
  *  `claudeCode` and a handshake's capabilities are all the same step. */
-const fieldIn = (value: unknown, field: string): Meta => {
+const fieldIn = (
+  value: unknown,
+  field: string,
+): { readonly [key: string]: unknown } | undefined => {
   if (typeof value !== "object" || value === null) return undefined
   const found = (value as { readonly [key: string]: unknown })[field]
   return typeof found === "object" && found !== null
@@ -328,13 +331,13 @@ const fieldIn = (value: unknown, field: string): Meta => {
 /** ... and the one field of it every advertisement hangs off. Named because
  *  `_meta` is the protocol's own word for "an extension said something here",
  *  and both handshake readers start by asking for one. */
-const metaOf = (value: unknown): Meta => fieldIn(value, "_meta")
+const metaOf = (value: unknown) => fieldIn(value, "_meta")
 
 /** The adapter's own corner of a `_meta`, or `undefined` when there is none —
  *  an absent `_meta`, an absent `claudeCode`, one that is not an object. Every
  *  reader here starts by asking for it, and it is {@link fieldIn} under the one
  *  name this file reads everything out of. */
-const claudeIn = (meta: Meta): Meta => fieldIn(meta, "claudeCode")
+const claudeIn = (meta: Meta) => fieldIn(meta, "claudeCode")
 
 /** One field of that corner, when it is a non-empty string and `null` for
  *  everything else — a field of some other type, the empty string. The two
