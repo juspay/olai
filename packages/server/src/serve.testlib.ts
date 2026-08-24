@@ -39,6 +39,11 @@ import { serve } from "./serve.ts"
 // in-process twin: a developer who exported just run's file would have
 // every withServe / encoding.test serve() rewrite it.
 delete process.env.OLAI_PORT_FILE
+// Twin of startWeb's OLAI_ACP_AGENT: "". None of these in-process boots
+// is about the chat panel, and a real `opencode` on PATH would spawn one
+// per serve() — the load that blows a listen wait. Empty is the documented
+// off switch, so nothing else is probed either.
+process.env.OLAI_ACP_AGENT = ""
 
 /** The platform a real server needs: the CLI's own services (stdio, terminal,
  *  file system) and the static layer's (the file-response platform and ETags)
