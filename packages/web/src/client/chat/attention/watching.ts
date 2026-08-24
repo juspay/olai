@@ -19,6 +19,16 @@
  * that the agent stopped, and the toggle's own `data-asking` is a mark on a
  * button they are not looking at.
  *
+ * ANOTHER TAB OF THIS BROWSER COUNTS, and that is the fourth fact — the one
+ * that is not about this document at all. Two tabs of one olai are two
+ * documents and one PERSON: a question arriving in the tab they are reading
+ * leaves every other tab hidden, unwatched, and ringing about a form already
+ * on their screen. So a watching tab says so on a beat and the others hear it
+ * ({@link ./elsewhere.ts}), and "watched" is an ORIGIN's answer rather than a
+ * document's. The badge goes with it for the same reason: an installed app has
+ * one icon however many windows are open, and badging it while somebody is
+ * looking at one of them is the same nag one surface over.
+ *
  * `hasFocus()` rather than a `blur` flag of our own: `focus`/`blur` fire for
  * the reasons this cares about AND for reasons it does not, and the platform
  * already keeps the answer. The two listeners are only what WAKES the reading.
@@ -36,17 +46,23 @@
  * for the app.
  */
 
-import { type Accessor, createSignal, onCleanup } from "solid-js"
+import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
 
 import { chatOpen } from "../../layout/prefs.ts"
+import { createTicking } from "../../clock.ts"
+import { broadcast, createElsewhere, WATCHED_BEAT } from "./elsewhere.ts"
 
 /** What the DOCUMENT says: this page is on screen and the window is in front. */
 const documentInFront = (): boolean =>
   document.visibilityState === "visible" && document.hasFocus()
 
+/** The name the tabs of one olai say it under. Origin-scoped by the platform,
+ *  which is the whole of how two vaults stay apart ({@link ./elsewhere.ts}). */
+const WATCHED = "olai.chat.watched"
+
 /**
  * Whether the conversation is in front of somebody, as a signal that follows
- * the window and the panel both.
+ * the window, the panel, and the browser's other tabs.
  */
 export const createWatching = (): Accessor<boolean> => {
   const [front, setFront] = createSignal(documentInFront())
@@ -63,5 +79,27 @@ export const createWatching = (): Accessor<boolean> => {
     window.removeEventListener("blur", look)
   })
 
-  return () => front() && chatOpen()
+  /** THIS document's answer, which is what it beats out to the others. */
+  const here = (): boolean => front() && chatOpen()
+
+  const elsewhere = createElsewhere(broadcast(WATCHED))
+  onCleanup(elsewhere.close)
+
+  // THE ONE REPEATING TIMER IN THIS CLIENT is `../../clock.ts`'s, and this is a
+  // caller of it rather than a second one: what a beat and a ticking readout
+  // have in common is not the number but the LIFETIME, which is the whole
+  // argument `createTicking` was written for and the claim `../../claims.test.ts`
+  // holds. Gated on `here`, so it runs only while this tab IS the one being
+  // watched — a browser with olai in every window and nobody at it says
+  // nothing at all — and gated INSIDE the effect as well as through `when`,
+  // because the clock has a value from the moment it is made and a beat on it
+  // would be this tab claiming to be watched before anybody looked.
+  const beat = createTicking(WATCHED_BEAT, here)
+  createEffect(() => {
+    if (!here()) return
+    beat()
+    elsewhere.beat()
+  })
+
+  return () => here() || elsewhere.watched()
 }

@@ -100,7 +100,9 @@ typecheck: install
 # `chat/last.ts` is about which rows an effect subscribes to (PR 4),
 # `chat/attention/asked.ts` is the same claim one row-kind over and gets its
 # own case because the answer differs — an ask row SETTLES under a key that
-# never moves, so membership alone is not enough — and
+# never moves, so membership alone is not enough — `chat/attention/elsewhere.ts`
+# is TWO DOCUMENTS and a bit that decays, which has no single-document shape at
+# all and whose decay is a signal a timer flips, and
 # `chat/declared.ts` is an ASKING that is an effect, over a failure slot every
 # message on screen shares (PR 5). `commit/auto.ts` was here too — a TIMER armed
 # and disarmed by an effect, which a server-resolved run would report as minting
@@ -117,6 +119,7 @@ test: install
       ./packages/web/src/client/directory.browsertest.ts \
       ./packages/web/src/client/chat/last.browsertest.ts \
       ./packages/web/src/client/chat/attention/asked.browsertest.ts \
+      ./packages/web/src/client/chat/attention/elsewhere.browsertest.ts \
       ./packages/web/src/client/chat/declared.browsertest.ts
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the

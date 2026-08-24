@@ -52,7 +52,7 @@ import { findLogfmt } from "@olai/log/testlib";
 import { chromium } from "playwright";
 import type { Browser } from "playwright";
 
-import { BANNERS, recordBanners } from "./banners.ts";
+import { ALERTS, recordAlerts } from "./alerts.ts";
 import { BROWSER_ARGS } from "./browser.ts";
 import {
   alreadyShared,
@@ -156,24 +156,33 @@ const OPENCODE_TAG = "@opencode";
 const WIRE_TAG = "@wire";
 
 /**
- * `@alerts`: this scenario is about the chat panel telling somebody the agent
- * has stopped on them, so its context is granted the browser's notification
- * permission and every document in it records what the app asks the service
- * worker to SHOW (`./banners.ts`).
+ * `@alerts` / `@alerts-denied`: this scenario is about the chat panel telling
+ * somebody the agent has stopped on them, so every document in its context
+ * records the two things the app asks the MACHINE for — the notification and
+ * the chime (`./alerts.ts`) — and is told what this browser has answered about
+ * notifications.
+ *
+ * `@alerts` grants the permission; `@alerts-denied` is the browser that has
+ * refused, which is a ruled behaviour of its own: the notification goes and
+ * the chime and the icon mark stay, because neither needs permission. It is a
+ * second tag rather than a step because the answer has to be in place before
+ * the app's boot, and a step runs after it.
  *
  * A recorder rather than an observation, because there is no other option: an
- * OS banner is drawn outside the browser and Playwright can neither see one
- * nor click one. What IS the app's own — the sentence, the dedup tag, and that
- * it went through `registration.showNotification` at all, which is the only
- * call that works in an installed PWA — is exactly what the wrapper keeps, and
- * the real path runs underneath it: a real registered worker, a real
- * permission, the framework's real seam.
+ * OS banner is drawn outside the browser and a chime is a pressure wave into a
+ * sound card this stage has none of. What IS the app's own — the sentence, the
+ * dedup tag, that it went through `registration.showNotification` at all
+ * (the only call that works in an installed PWA), and that an oscillator was
+ * started — is exactly what the wrappers keep, and the real path runs
+ * underneath: a real registered worker, a real permission, the framework's
+ * real seam, a real audio context opened on a real gesture.
  *
- * A TAG rather than the default, for `@wire`'s reason: it replaces a platform
- * method in every document of the context, and seven hundred scenarios that
- * never raise a banner should be running the browser's own.
+ * A TAG rather than the default, for `@wire`'s reason: it replaces two
+ * platform methods in every document of the context, and seven hundred
+ * scenarios that never raise a banner should be running the browser's own.
  */
 const ALERTS_TAG = "@alerts";
+const ALERTS_DENIED_TAG = "@alerts-denied";
 
 /** `@agent-stored`: the fake agent answers `session/list` with two stored
  *  conversations, so the server's boot loads one of them and replays it. Unset,
@@ -1149,11 +1158,20 @@ Before(
     // BEFORE the first page, because an init script only reaches documents
     // that have not been created yet — and the recorder has to be in place
     // before the app's own boot can raise anything. See {@link ALERTS_TAG}.
-    if (scenario.pickle.tags.some((tag) => tag.name === ALERTS_TAG)) {
-      await this.context.grantPermissions(["notifications"], {
-        origin: this.baseUrl,
+    const granted = scenario.pickle.tags.some((tag) => tag.name === ALERTS_TAG);
+    const refused = scenario.pickle.tags.some(
+      (tag) => tag.name === ALERTS_DENIED_TAG,
+    );
+    if (granted || refused) {
+      if (granted) {
+        await this.context.grantPermissions(["notifications"], {
+          origin: this.baseUrl,
+        });
+      }
+      await this.context.addInitScript(recordAlerts, {
+        key: ALERTS,
+        consent: granted ? ("granted" as const) : ("denied" as const),
       });
-      await this.context.addInitScript(recordBanners, BANNERS);
     }
 
     this.page = await this.context.newPage();

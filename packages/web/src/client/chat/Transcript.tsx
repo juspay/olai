@@ -87,7 +87,7 @@ import { SaidLine } from "../SaidLine.tsx"
 import { useShowNode } from "../focus.ts"
 import { useFollow } from "../router.tsx"
 import { selector, TESTID } from "../testids.ts"
-import { revealed, revealing } from "./attention/reveal.ts"
+import { revealed, revealing, wholeYet } from "./attention/reveal.ts"
 import { declaringFailure } from "./declared.ts"
 import { ElapsedProvider } from "./elapsing.tsx"
 import { Entry } from "./Entry.tsx"
@@ -170,17 +170,29 @@ export function Transcript(props: { readonly chat: Chat }) {
    * press. The foot of the conversation is the answer to that, which is where
    * an open lands anyway.
    *
-   * Cleared once the conversation has ARRIVED, found or not, so a request
-   * nobody could answer cannot sit there and hijack a row that lands ten
-   * minutes later. Following is restored either way — a press is a person
-   * arriving at the conversation, like opening it.
+   * BUT NOT YET IS NOT THE SAME AS THERE IS NONE, and the two look identical
+   * from here: rows are KEYS, and a key is in the list before its value is, so
+   * a form that has not been drawn yet and a form that was answered elsewhere
+   * both querySelect to nothing. Spent on the first, the press becomes a jump
+   * to the foot of a conversation whose question is further up. So the request
+   * only lets go once the form is FOUND or the conversation has arrived whole
+   * ({@link ./attention/reveal.ts}'s `wholeYet`) — and reading the values is
+   * what wakes this again as they land.
+   *
+   * Cleared once one of those two is true, so a request nobody could answer
+   * cannot sit there and hijack a row that lands ten minutes later. Following
+   * is restored either way — a press is a person arriving at the conversation,
+   * like opening it.
    */
   createEffect(() => {
     if (!revealing()) return
-    // Nothing has arrived yet: stay asked, and let the next frame of the
-    // fold's key list wake this again.
-    if (props.chat.rows().length === 0) return
     const waiting = pane?.querySelector(WAITING_ASK) ?? null
+    // Nothing to show and the conversation is still arriving: stay asked. The
+    // `wholeYet` read subscribes this to the first row it is waiting on, so
+    // that row landing is what brings it back.
+    if (waiting === null && !wholeYet(props.chat.rows(), (key) => props.chat.entry(key)())) {
+      return
+    }
     following = true
     if (waiting === null) jump()
     else waiting.scrollIntoView({ block: "center" })

@@ -33,6 +33,16 @@
  * owns both halves of what a tab is). The count that matters is one gesture
  * away in either case, because looking is what clears this.
  *
+ * WHAT THE NUMBER COUNTS is QUESTIONS, not conversations, and it is worth
+ * being exact because a `3` on a dock icon reads as three chats to anybody who
+ * has used another app. It is `ChatState.asking` — how many of this
+ * conversation's questions are still waiting on a person — and olai's panel
+ * holds ONE conversation, so "conversations awaiting" and "questions awaiting"
+ * differ only in the direction of the count: three questions in the one chat,
+ * never three chats. Making it read the other way would take a fact this app
+ * does not have on the wire, which the roadmap item's own scope note rules
+ * out. Said in the same words in `docs/chat.md` and `docs/architecture.md`.
+ *
  * A browser that refuses to badge is warned about on the console, once, and
  * never throws: this is the third of three ways a person is told, and the
  * first two have already happened by the time it runs.

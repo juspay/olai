@@ -285,11 +285,13 @@ A turn that stops on a question does not time out and does not carry on. It hang
 
 **If the conversation is in front of you, the form appearing is the whole of it.** It arrives where you are already looking, the composer says the agent is waiting on you, and nothing rings. A notification about something already on your screen is nagging, and the surest way to make somebody switch these off.
 
+That counts ANOTHER TAB of the same olai, too. Two tabs are two documents and one person: the one you are reading says so to the others, so the tab behind it does not chime about a form you are looking at. A different olai — another directory, another address — is not caught by it, and goes on telling you.
+
 **If it is not** — the window behind an editor, the panel put away, olai on another desktop — three things happen at once:
 
 - **one short chime.** Two notes, a third of a second.
 - **a system notification**, naming the conversation and the first line of what the agent wants, so you can decide whether to get up without getting up. Clicking it brings olai forward, opens the panel and puts the question on screen. With the panel already open when the question landed, the notification quotes it; with the panel shut, olai has not been reading the conversation and says so plainly instead of quoting something it read ten minutes ago.
-- **a mark on the app's icon** — the number waiting, on an installed olai's dock or home-screen icon; a dot on the tab's title and favicon in an ordinary browser tab. **It stays until you look**, not until you dismiss the notification: swiping a banner away does not answer a question, and the mark is the thing that is still true afterwards.
+- **a mark on the app's icon** — the number waiting, on an installed olai's dock or home-screen icon; a dot on the tab's title and favicon in an ordinary browser tab. The number is QUESTIONS and not chats: the panel holds one conversation, so a **2** means that conversation has asked you two things, never that two conversations want you. **It stays until you look**, not until you dismiss the notification: swiping a banner away does not answer a question, and the mark is the thing that is still true afterwards.
 
 **A turn merely FINISHING is silent, on purpose.** An agent that has finished will still have finished in five minutes; a chime for every turn is a chime people switch off, and it would take the one that matters with it.
 

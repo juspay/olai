@@ -20,25 +20,30 @@ Feature: The agent waits on you, and says so
   is running, foreground or background, and a fully closed PWA hears nothing.
   Web Push is out of scope.
 
-  Three of the four devices can be driven here. The banner is recorded at
-  `showNotification` (`support/banners.ts` says why an OS banner cannot be
-  seen), the icon mark is the tab's title and favicon, and the press is the
-  message the worker sends an open window. The CHIME is not: there is no
-  headless way to hear one, so what is asserted about it is the preference row
-  that turns it off, and `client/chat/attention/chime.ts` is the rest.
+  All three devices can be driven here, each at the last inch before it leaves
+  the browser (`support/alerts.ts` says why neither an OS banner nor a sound
+  becomes a DOM node): the banner at `showNotification`, the chime at the
+  oscillator it starts, and the icon mark on the tab's own title and favicon.
+  The press is the message the worker sends an open window — envelope for
+  envelope, id and ackable source and all, so it walks the handshake a real
+  click walks rather than the no-id branch one never takes.
 
-  And ONE OF THE THREE WAYS OF NOT WATCHING can be driven: the panel put away.
+  ONE OF THE FOUR WAYS OF NOT WATCHING can be driven here: the panel put away.
   Headless Chromium reports every page focused and visible whatever is done to
   it — a second tab brought to the front, focus emulation turned off, the page
-  frozen — so a backgrounded WINDOW is not a state this harness can produce.
-  The conjunction is the same one either way (`client/chat/attention/watching.ts`),
-  and the half that only the backgrounded window reaches — a banner quoting the
-  first line of the question, which the open panel's own snapshot supplies — is
-  held by `client/chat/attention/notice.test.ts` and `asked.browsertest.ts`.
+  frozen — so a backgrounded WINDOW is not a state this harness can produce,
+  and neither is a SIBLING TAB that is being read while this one is not. The
+  conjunction is the same one for all four (`client/chat/attention/watching.ts`);
+  the halves only those states reach are held as unit suites — a banner quoting
+  the first line of the question by `notice.test.ts` and `asked.browsertest.ts`,
+  and a sibling tab answering for this one by `elsewhere.browsertest.ts`, which
+  is two documents or it is nothing.
 
   Every scenario is `@scratch:chat` — the agent writes, so the directory is a
   private copy with a server of its own — and `@alerts`, which grants the
-  context notification permission and installs the recorder.
+  context notification permission and installs the recorders. The last one is
+  `@alerts-denied` instead: the same stage with the permission refused, which
+  is the one place the three devices' independence can be seen.
 
   Background:
     Given I open the app
@@ -73,6 +78,8 @@ Feature: The agent waits on you, and says so
     # ... and the mark that STAYS. Not until the banner is dismissed: until
     # somebody looks.
     And the tab says something is waiting
+    # ... and the third device, which needs no permission and no worker.
+    And the chime rang
 
   @scratch:chat @alerts
   Scenario: A question that arrives in front of you is its own alert
@@ -82,6 +89,7 @@ Feature: The agent waits on you, and says so
     When I ask the agent "ask"
     Then the chat shows a question
     And no notification has been raised
+    And no chime rang
     And the tab says nothing is waiting
 
   @scratch:chat @alerts
@@ -128,6 +136,7 @@ Feature: The agent waits on you, and says so
     And the agent is released
     Then the agent button says the agent is waiting on me
     And no notification has been raised
+    And no chime rang
     And the tab says nothing is waiting
     And this browser has stored that alerts are "off"
 
@@ -143,3 +152,22 @@ Feature: The agent waits on you, and says so
     When I set Alerts to "off"
     Then the alert sound cannot be set
     And the Alerts row explains "silent"
+
+  @scratch:chat @alerts-denied
+  Scenario: A browser that has refused notifications still chimes and still marks the tab
+    # The ruled independence, and the reason the three devices are three `if`s
+    # rather than one gate: only the notification needs the OS's consent, and a
+    # reader who refused it once — or whose browser refuses on their behalf —
+    # must not lose the other two with it. Every other scenario here GRANTS the
+    # permission, so a future gate that wrapped all three would pass all of
+    # them; this is the one that would fail.
+    #
+    # `@alerts-denied` is the same stage with `Notification.permission` set to
+    # `denied` and no grant made, which is in place before the app's boot.
+    When I ask the agent "ask later"
+    And I minimize the agent panel
+    And the agent is released
+    Then the agent button says the agent is waiting on me
+    And no notification has been raised
+    And the chime rang
+    And the tab says something is waiting

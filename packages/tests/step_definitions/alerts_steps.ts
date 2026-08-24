@@ -8,28 +8,33 @@
  * notification `/sw.js` and the client's own boot registers it, and these
  * steps wait for it to be ACTIVE because the seam silently declines to deliver
  * through a registration that has none. The permission is real, granted to the
- * context by the `@alerts` tag. The one thing wrapped is `showNotification`
- * itself (`../support/banners.ts`), because an OS banner is drawn outside the
- * browser and there is no headless mode in which it becomes a DOM node.
+ * context by the `@alerts` tag. What is wrapped is the last inch of each of
+ * the two things that LEAVE the browser — `showNotification` and the chime's
+ * oscillators (`../support/alerts.ts`) — because neither becomes a DOM node in
+ * any headless mode.
  *
  * A PRESS is the same story from the other side. Focusing the window, or
  * opening one where none is open, is the worker's own half and needs an OS
  * click nothing here can produce — so what these steps deliver is the message
- * the worker sends the page, on the framework's own channel, which is exactly
- * what the page receives from a real press with a window open.
+ * the worker sends the page, on the framework's own channel, envelope for
+ * envelope: the id, the ackable source and the durable claim a real press
+ * makes the listener walk through. See the press step for why that matters.
+ *
+ * `@alerts-denied` is the same stage with the permission REFUSED, which is a
+ * ruled behaviour of its own: the notification goes and the other two stay.
  */
 
 import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
-import { bannersOn } from "../support/banners.ts";
+import { alertsOn } from "../support/alerts.ts";
 import { CHAT_ASK, CHAT_PANEL, CHAT_TOGGLE, POLL_TIMEOUT, attr } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 /** The message the notification worker posts to an open window when its banner
  *  is pressed, in the framework's own vocabulary (`@kolu/surface-app`'s
  *  `SW_MESSAGE_TYPE`) — and the payload olai puts in it
- *  (`client/chat/attention/notice.ts`'s `AskClick`).
+ *  (`client/notify.ts`'s `NotifyClick`).
  *
  *  Spelled here rather than imported for one reason: it is the WIRE between a
  *  service worker and a page, and a scenario that imported both ends would be
@@ -37,7 +42,7 @@ import type { OlaiWorld } from "../support/world.ts";
  *  holds the client to it is that the framework installs the listener, and what
  *  holds the framework to it is its own suite. A rename upstream fails this
  *  step, loudly, which is the right place for it to fail. */
-const PRESS = { type: "notificationclick", data: { kind: "ask" } };
+const PRESS_TYPE = "notificationclick";
 
 /** A question still waiting on somebody — the panel's own row with its own flag
  *  on, which is what the transcript scrolls to when a press lands. */
@@ -92,11 +97,11 @@ Then(
  *  frame the server sent, so a bare read would race it. */
 const banners = async (world: OlaiWorld, atLeast: number) => {
   await world.waitUntil(
-    async () => (await bannersOn(world.page)).length >= atLeast,
+    async () => (await alertsOn(world.page)).banners.length >= atLeast,
     `${atLeast} notification(s) to be raised`,
     POLL_TIMEOUT,
   );
-  return await bannersOn(world.page);
+  return (await alertsOn(world.page)).banners;
 };
 
 Then(
@@ -126,11 +131,35 @@ Then(
  * form.
  */
 Then("no notification has been raised", async function (this: OlaiWorld) {
-  const raised = await bannersOn(this.page);
+  const raised = (await alertsOn(this.page)).banners;
   assert.deepStrictEqual(
     raised.map((one) => one.body),
     [],
     "a notification was raised where the reader was already looking",
+  );
+});
+
+// ── the chime ──────────────────────────────────────────────────────────
+//
+// A sound has no DOM and no headless ear, so what is asserted is that the
+// module opened oscillators and started them — the one call that makes the
+// noise. HOW MANY is deliberately not a step: `chime.ts` plays a fifth, so a
+// ring is two notes, and a scenario counting notes would be a scenario about
+// the tune.
+
+Then("the chime rang", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await alertsOn(this.page)).notes > 0,
+    "the chime to play",
+    POLL_TIMEOUT,
+  );
+});
+
+Then("no chime rang", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    (await alertsOn(this.page)).notes,
+    0,
+    "a chime played where the reader was already looking",
   );
 });
 
@@ -172,12 +201,45 @@ Then("the tab says nothing is waiting", async function (this: OlaiWorld) {
 
 // ── pressing it ────────────────────────────────────────────────────────
 
+/**
+ * Press it — as the WORKER presses it, envelope for envelope.
+ *
+ * The three fields are the whole point. A real `notificationclick` always
+ * carries an `id`, and the page-side listener then refuses to route until it
+ * has an ACKABLE sender (`event.source`) and a DURABLE claim on that id in
+ * `sessionStorage` — the handshake that stops a still-loading window from
+ * dropping a press, and stops the worker's fallback navigation from firing the
+ * same press twice. A message with no `id` skips all of it down a branch a
+ * real click never takes, so a step that sent one would be exercising a
+ * fallback and calling it the press.
+ *
+ * So: a fresh `id`, and `navigator.serviceWorker.controller` as the source —
+ * the real worker, which is what the page acks to. The ack reaches a worker
+ * with no waiter for this id and is dropped there, which is exactly what
+ * happens to a late ack in production.
+ *
+ * What is still NOT this is the OS click itself and the window focus that
+ * follows it: those are outside the browser and outside a headless stage. This
+ * is the message that click sends an open window, delivered on the channel it
+ * is sent on.
+ */
 When("the notification is pressed", async function (this: OlaiWorld) {
-  await this.page.evaluate((press) => {
+  // A press cannot be acked to a worker that is not controlling this page yet,
+  // and `clients.claim()` is what makes it controller — so wait for it rather
+  // than race it.
+  await this.waitUntil(
+    () => this.page.evaluate(() => navigator.serviceWorker.controller !== null),
+    "the notification worker to be controlling this page",
+    POLL_TIMEOUT,
+  );
+  await this.page.evaluate((type) => {
     navigator.serviceWorker.dispatchEvent(
-      new MessageEvent("message", { data: press }),
+      new MessageEvent("message", {
+        data: { type, data: { kind: "ask" }, id: crypto.randomUUID() },
+        source: navigator.serviceWorker.controller,
+      }),
     );
-  }, PRESS);
+  }, PRESS_TYPE);
 });
 
 Then("the panel is open at the question", async function (this: OlaiWorld) {
