@@ -120,7 +120,9 @@ const untilGone = (pid: number): Promise<void> =>
       if (Date.now() - started >= BOUND_MS) {
         clearInterval(timer);
         reject(
-          new Error(`detached child ${pid} still alive after the parent exited`),
+          new Error(
+            `detached child ${pid} still alive after the parent exited (or that pid was reused)`,
+          ),
         );
       }
     };
@@ -166,12 +168,14 @@ const signaled = async (
   }
 };
 
+// One BOUND_MS more than the three hang detectors, so bun cannot steal
+// the last detector's error with a generic "test timed out".
 test(
   "PIN (reaper): SIGINT of the parent kills a detached child",
   async () => {
     await signaled("SIGINT", 130);
   },
-  BOUND_MS * 3,
+  BOUND_MS * 4,
 );
 
 test(
@@ -179,5 +183,5 @@ test(
   async () => {
     await signaled("SIGTERM", 143);
   },
-  BOUND_MS * 3,
+  BOUND_MS * 4,
 );
