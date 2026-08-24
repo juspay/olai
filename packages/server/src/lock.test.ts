@@ -52,12 +52,30 @@ import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import { BOOT_TIMEOUT, startWeb, stoppedWithin } from "./child.testlib.ts"
+import { BOOT_TIMEOUT, startWeb, type WebChild } from "./child.testlib.ts"
 import { lockFor, sweepRuntime } from "./lock.ts"
 import { served } from "./serve.testlib.ts"
 
-/** A test may take three boots' worth of waiting before it is a hang. */
-const BOUND_MS = BOOT_TIMEOUT * 3
+/** A test may take three waits (boot, stop, boot) before it is a hang.
+ *  One more BOUND_MS sits outside that sum so bun cannot steal the last
+ *  hang detector's sentence with a generic timeout. */
+const BOUND_MS = BOOT_TIMEOUT * 4
+
+/**
+ * The child's close, not a deadline. {@link BOOT_TIMEOUT} is the hang
+ * detector and throws; it is not a `false`. The listener is the one
+ * {@link startWeb} attached at spawn — attaching after kill is the
+ * hazard `stoppedWithin` still has.
+ */
+const stopped = (child: WebChild, why: string): Promise<number | null> =>
+  Promise.race([
+    child.exited(),
+    Bun.sleep(BOOT_TIMEOUT).then(() => {
+      throw new Error(
+        `${why} did not stop within ${BOOT_TIMEOUT}ms:\n${child.said()}`,
+      )
+    }),
+  ])
 
 /**
  * A runtime directory this whole file shares — its children, and THIS process,
@@ -192,7 +210,7 @@ test("the holder is stopped and the directory is free", async () => {
   const first = startWeb({ root, env })
   await first.address()
   first.kill("SIGINT")
-  expect(await stoppedWithin(first.child, BOOT_TIMEOUT)).toBe(true)
+  await stopped(first, "SIGINT")
   // And the lock FILE is gone: a graceful stop unlinks it.
   expect(fs.existsSync(lockFor(root))).toBe(false)
 
@@ -218,7 +236,7 @@ test("`kill -9` frees the directory: nothing was cleaned up, and nothing had to 
   const first = startWeb({ root, env })
   await first.address()
   first.kill("SIGKILL")
-  expect(await stoppedWithin(first.child, BOOT_TIMEOUT)).toBe(true)
+  await stopped(first, "SIGKILL")
   // The lock FILE is still on disk, untouched and still naming the dead pid.
   // That it is there and the vault is free anyway is the property.
   expect(fs.existsSync(lockFor(root))).toBe(true)
@@ -342,7 +360,7 @@ test("a live lock is not swept", async () => {
     expect(fs.existsSync(lockFor(root))).toBe(true)
   } finally {
     server.kill("SIGINT")
-    await stoppedWithin(server.child, BOOT_TIMEOUT)
+    await stopped(server, "SIGINT")
   }
 }, BOUND_MS)
 
