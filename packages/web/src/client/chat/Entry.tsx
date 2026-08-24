@@ -125,7 +125,6 @@ const SENT = "border border-accent/30 bg-accent/10"
 const bubbleOf = (fate: Delivery | undefined): string =>
   fate === undefined ? SENT : FACE[fate].bubble
 
-
 /** What the agent said is not in a file, so there is no path to name — and the
  *  empty string resolves against the served directory itself, which is where
  *  the agent was started and therefore what a relative path in what it says is

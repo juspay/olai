@@ -1088,12 +1088,23 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // else this connection will say: `initialize` is the first round trip,
         // and a panel that heard about a turn before it heard about the agent
         // would draw one frame of an agent it knows nothing about.
-        options.onEvent({
-          _tag: "advertised",
-          steers: options.leg.steering !== null
-            && options.leg.steering.advertised(initialized),
-          queues: options.leg.queues(initialized),
-        })
+        //
+        // UNDER THE SAME `stopped` GUARD the exit path carries, and for its
+        // reason rather than for a schedule anybody has demonstrated: a
+        // handshake that finishes after this module was stopped is news about
+        // a subprocess nobody is talking to, and the one thing it must never
+        // do is attach to whatever replaced it. The swap already drops it
+        // (`../chat.ts` answers a `talking` of `null` with nothing), so this is
+        // the asymmetry closed rather than a bug fixed — one line, and the
+        // pattern is already the file's.
+        if (!stopped) {
+          emit({
+            _tag: "advertised",
+            steers: options.leg.steering !== null
+              && options.leg.steering.advertised(initialized),
+            queues: options.leg.queues(initialized),
+          })
+        }
         // AFTER the handshake, not after `spawn` returns: an exec failure
         // arrives later, and logging "spawned" for a command that never ran
         // is the silent-send class of lie — a line that says the process is

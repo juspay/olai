@@ -918,22 +918,36 @@ export const Talking = Schema.Union([
     id: Schema.String,
     name: Schema.String,
     /**
-     * Whether this agent can be INTERRUPTED on purpose — a message put into
-     * the turn it is already running, rather than behind it.
+     * Whether an INTERRUPTION is on offer — a message put into the turn the
+     * agent is already running, rather than behind it.
      *
      * What it gates is one control. An ordinary send is the same verb on every
-     * agent now (a plain prompt, busy or idle), so this is not a difference in
-     * what happens when you press enter; it is whether there is a second,
-     * deliberate gesture beside it. False and there is one way to send, which
-     * is the way that always worked.
+     * agent (a plain prompt, busy or idle), so this is not a difference in what
+     * happens when you press enter; it is whether there is a second, deliberate
+     * gesture beside it. False and there is one way to send, which is the way
+     * that always worked.
      *
-     * THE AGENT'S OWN WORD, out of what it advertised at the handshake, and
-     * false until it has spoken — a panel that has not been told cannot offer
-     * an interruption on an agent's behalf. False for opencode, which has no
-     * such method at all.
+     * ONE BIT OVER TWO FACTS, decided on the server so that no client
+     * re-derives it:
      *
-     * ON THE AGENT because it is a fact ABOUT one. Beside it, on the state, it
-     * was a field a reader could ask with nobody to answer for.
+     *   - **the agent said so**, at the handshake, and false until it has —
+     *     a panel that has not been told cannot offer an interruption on an
+     *     agent's behalf. False for opencode, which has no such method at all.
+     *   - **and this CONVERSATION has not yet held a message behind a running
+     *     turn.** That half is a guard around somebody else's defect rather
+     *     than a property of anything here: the pinned Claude Code adapter
+     *     (0.66.0) leaves a turn's `session/prompt` unanswered forever if it
+     *     steers one in a session that has ever queued, so the panel would sit
+     *     on *working…* until somebody pressed cancel. Ruled in by the human
+     *     against a known cost — after one message typed during a turn, this
+     *     conversation has no interruption left — and it lifts when the pinned
+     *     adapter does, since `+ new` and opening a stored conversation both
+     *     start a session the defect has not touched.
+     *
+     * ON THE AGENT because the first half is a fact about one, and because
+     * this is the member a composer already asks who it is talking to. Beside
+     * it, on the state, it was a field a reader could ask with nobody to answer
+     * for.
      */
     steers: Schema.Boolean,
     /**

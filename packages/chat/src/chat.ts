@@ -455,15 +455,62 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      */
     let advertises: { readonly steers: boolean; readonly queues: boolean } = SAYS_NOTHING
 
+    /**
+     * Whether THIS CONVERSATION has ever held a message behind a running turn.
+     *
+     * IT WITHDRAWS THE INTERRUPTION, and it is the one place in this file that
+     * works around somebody else's defect rather than stating a rule of its
+     * own. The pinned adapter (0.66.0) leaves a turn's `session/prompt`
+     * unanswered forever if a `_session/steering` is injected into any turn of
+     * a session that has once held a queued one — the steered words run and
+     * stream, and only a cancel ends the turn. Verified on the wire with no
+     * olai in it: fresh sessions steer cleanly, one sequential turn steers
+     * cleanly, two steer cleanly, and one QUEUED turn earlier in the session
+     * poisons every steer after it.
+     *
+     * Before this PR the combination was unreachable — olai never sent a
+     * mid-turn `session/prompt` on this leg — so the queue is what makes it
+     * reachable, and the queue is the default. The human ruled the guard in:
+     * offer nothing that hangs the conversation, and take the safe direction
+     * when a stale tab asks for one anyway (a plain prompt, which is what the
+     * message was going to be).
+     *
+     * WHAT IT COSTS is said out loud because it is not small: after one message
+     * typed during a turn, this conversation has no interruption for the rest
+     * of its life. `+ new` and opening a stored conversation both clear it,
+     * because it is the SESSION the adapter poisons — which is also why it is
+     * dropped on {@link AgentEvent}'s `sessionOver` rather than on anything
+     * about the agent.
+     *
+     * It goes when the adapter is fixed and the pin moves, and not before.
+     */
+    let queuedHere = false
+
     /** ... and as the panel's own `talking`, which carries two things more:
-     *  what this agent SAID it can do ({@link advertises}), which is what the
-     *  composer offers and promises out of. */
+     *  what this agent SAID it can do ({@link advertises}) and whether an
+     *  interruption is still on offer here ({@link queuedHere}), which is what
+     *  the composer offers and promises out of. */
     const bound = (row: Installed): Talking => ({
       kind: "agent",
       id: row.id,
       name: row.name,
-      ...advertises,
+      queues: advertises.queues,
+      // BOTH HALVES, in the one bit the composer reads: the agent said it
+      // takes an interruption, AND this conversation is one where taking it
+      // still ends. A client deriving that from two fields would be a second
+      // copy of a rule this end already knows, which is the argument
+      // `../../web/src/client/chat/busy.ts` makes for every decision like it.
+      steers: advertises.steers && !queuedHere,
     })
+
+    /** Who this panel is talking to, said again — the one door for everything
+     *  that changes what is ON OFFER without changing who is answering: a
+     *  handshake landing, a message taking its place in the agent's queue, a
+     *  conversation ending. Nothing to say when nobody is bound. */
+    const rebind = (): void => {
+      const at = talking
+      if (at !== null) move({ talking: bound(at.row) })
+    }
 
     // The cell's own default, with the two fields that differ: an agent is
     // being started, and the roster is this machine's. Restating the others
@@ -656,16 +703,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         case "commands":
           move({ commands: event.commands })
           return
-        case "advertised": {
+        case "advertised":
           advertises = { steers: event.steers, queues: event.queues }
           // ON `talking`, because it is a fact about WHO this panel is talking
           // to and that is the one member that answers for an agent. A frame
           // with nobody bound is a handshake that finished after its agent was
           // swapped out, and there is nobody for it to be about.
-          const at = talking
-          if (at !== null) move({ talking: bound(at.row) })
+          rebind()
           return
-        }
         case "servers":
           // A fact about the conversation, so it lands on the cell beside the
           // model and the commands rather than as a row: a notice scrolls away
@@ -719,6 +764,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // it spent; either way the number from the last one is about a
           // context that no longer exists, and leaving it up would be the
           // panel answering "should I compact?" about somebody else.
+          // ... and the INTERRUPTION comes back, because what withdrew it was
+          // this session's own history: the adapter's queue bookkeeping is
+          // per-session, so a fresh conversation and a stored one opened are
+          // both clean ({@link queuedHere}). Said in the same breath as the
+          // session going, since it is the same fact.
+          queuedHere = false
           move({
             session: null,
             commands: [],
@@ -726,6 +777,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             servers: [],
             usage: null,
           })
+          rebind()
           return
         case "replayStarted":
           publish(transcript.clear())
@@ -1168,10 +1220,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // plain prompt, mid-turn or not, and the agent takes it in its turn —
         // which is what every send did on opencode all along and what every
         // send does everywhere now. And nobody is interrupted on an agent that
-        // never said it could be: `advertises` is what the composer drew its
-        // control from, and a send arriving with the flag set anyway (a stale
-        // tab) is delivered rather than refused.
-        if (steer && aimed !== null && advertises.steers) {
+        // never said it could be, or in a conversation where interrupting
+        // would not END ({@link queuedHere}): both are what the composer drew
+        // its control from, and a send arriving with the flag set anyway — a
+        // stale tab, a tab that queued in another window — falls through to
+        // the plain prompt it was going to be rather than being refused. That
+        // is the safe direction, and the only one this file fails in.
+        if (steer && aimed !== null && advertises.steers && !queuedHere) {
           const steered = yield* Effect.result(agent.steer(prompt))
           if (steered._tag === "Failure") {
             // WHICH failure it was is the agent's reading, not ours: it is the
@@ -1292,6 +1347,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               ...(state.session === null ? {} : { session: state.session.id }),
             }),
           )
+          // ... AND THE INTERRUPTION IS WITHDRAWN FROM THIS CONVERSATION, from
+          // this moment on ({@link queuedHere}): the adapter cannot settle a
+          // turn it steers once a session has queued, and a control that hangs
+          // the conversation is not one to draw. Said once — the panel is told
+          // when it becomes true, not once per message after that.
+          if (!queuedHere) {
+            queuedHere = true
+            rebind()
+          }
         }
         const ticket = turns.open(key)
         // ... AND THE ROW SAYS SO, which is the half a person can see. It is

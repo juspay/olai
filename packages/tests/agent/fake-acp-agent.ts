@@ -70,6 +70,10 @@
  *   subagent crash  the same, and then FALL OVER while it is still out —
  *                which leaves a `pending` Agent call nothing will ever
  *                complete, on rows a dead agent's panel deliberately keeps
+ *   refuse busy  refuse every `session/prompt` that arrives while a turn is
+ *                RUNNING, from here on — an agent with no queue at all, which
+ *                is neither of the two olai ships against and is the shape an
+ *                older adapter has
  *   refuse steering   turn `_session/steering` into an error from here on, so
  *                a scenario can see what a panel does with words it could not
  *                deliver
@@ -264,6 +268,19 @@ const steered: Array<string> = []
  *  turn is over — which is the one case where a person's words have nowhere to
  *  go but back on the screen. */
 let steerRefused = false
+/**
+ * Whether a `session/prompt` arriving while a turn RUNS is refused outright
+ * (`refuse busy`).
+ *
+ * The world's third leg, and the only one this file does not otherwise have:
+ * both agents olai ships against hold a mid-turn prompt and answer it in
+ * order, so an agent that says NO to one — an older adapter, one that never
+ * grew a queue — was a case reasoned about rather than driven. Refused rather
+ * than swallowed because a refusal is the shape a panel can be right or wrong
+ * about: the row keeps the words, wears *not sent*, and offers to send them
+ * again, which is what a scenario can hold this end to.
+ */
+let busyRefused = false
 /**
  * Whether `_session/steering` is taken and never answered from here on
  * (`swallow steering`).
@@ -1081,6 +1098,21 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "picture") {
     say("here it is:")
     showPicture()
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // From now on this agent will not take a SECOND prompt while it is working —
+  // the third leg of the world, and the one nothing else here is. The two
+  // agents olai ships against both hold a mid-turn prompt (one advertises it,
+  // one was verified), so "what does a busy send do on an agent that neither
+  // queues nor advertises" was reasoned about and never driven: an older
+  // adapter, or one that simply answers a concurrent `session/prompt` with an
+  // error. It is an ORDINARY TURN FAILURE when it happens, which is the claim —
+  // the words stay on the row, marked, with the button that sends them again.
+  if (verb === "refuse" && argument === "busy") {
+    busyRefused = true
+    say("a second message while working will be refused from here on.")
     reply(id, { stopReason: "end_turn" })
     return
   }
@@ -2319,7 +2351,18 @@ readMessages(
     // while it waits can answer it ({@link waiting}). Recorded here rather than
     // in `handle` for the reason the cancel is read here: by the time `handle`
     // runs, this prompt is the turn rather than one behind it.
-    if (message["method"] === "session/prompt") waiting.add(message["id"])
+    if (message["method"] === "session/prompt") {
+      // ... unless this agent will not take one at all while it is working
+      // ({@link busyRefused}). Answered HERE and never enqueued, which is the
+      // whole shape of an agent with no queue: the refusal comes back at once
+      // rather than when the running turn ends, and nothing about the turn in
+      // flight changes.
+      if (busyRefused && running) {
+        refuse(message["id"], -32603, "this agent cannot take a message while it is working")
+        return
+      }
+      waiting.add(message["id"])
+    }
     queue = queue.then(() => handle(message)).catch((cause: unknown) => {
       noise(`fake agent: ${String(cause)}`)
     })

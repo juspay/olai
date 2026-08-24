@@ -1283,15 +1283,15 @@ export const TESTID = {
    *  empty (`Composer.tsx`'s `open` is `rows().length > 0`), so the wait
    *  lives here. */
   chatInput: "chat-input",
-  /** On a `user` row that did not land: the strip saying WHICH way it did not,
-   *  in `data-delivery` — `refused`, which carries the button that tries
-   *  again, or `unanswered`, which deliberately carries none. The words stay in
-   *  the bubble above it either way. */
   /** On a `user` row the agent has not started on: it went out while a turn
    *  was running and is waiting its turn there. Not a delivery — nothing has
    *  failed — so it is its own strip, and it goes away when the agent takes
    *  the message up. */
   chatQueued: "chat-queued",
+  /** On a `user` row that did not land: the strip saying WHICH way it did not,
+   *  in `data-delivery` — `refused`, which carries the button that tries
+   *  again, or `unanswered`, which deliberately carries none. The words stay in
+   *  the bubble above it either way. */
   chatDelivery: "chat-delivery",
   chatResend: "chat-resend",
   /** The composer saying the turn is stopped on YOU: the agent asked something
