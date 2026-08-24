@@ -348,9 +348,13 @@ bun-nix-fresh:
       exit 1
     }
 
-# Update the kolu / nixpkgs pins. npins rewrites npins/default.nix in its own
-# formatter's style, so normalize it here — same rule as bun.nix, and the
-# reason fmt-check needs no exception list. `just check` then names anything
-# the new kolu revision expects that this repo has not moved with it.
+# Update the kolu / nixpkgs / nixpkgs-bun pins. npins rewrites
+# npins/default.nix in its own formatter's style, so normalize it here —
+# same rule as bun.nix, and the reason fmt-check needs no exception list.
+# `just check` then names anything the new kolu revision expects that this
+# repo has not moved with it. nixpkgs-bun tracks NixOS/nixpkgs#556047
+# (`bun-1.4-update`); a bare update follows that branch and cannot drop
+# the bun bump. Drop the pin (and the overlay in nix/nixpkgs.nix) when the
+# PR merges — bun-nixpkgs-catchup.
 update-pins:
     {{ nix_shell }} sh -c 'npins update && nixpkgs-fmt npins/default.nix'

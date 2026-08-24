@@ -738,13 +738,13 @@ test("the backstop notices a change with no watcher and nobody asking", () =>
     { watch: false, backstop: "50 millis" },
   ))
 
-// The blind spot the pinned runtime ships with, and the one this package
-// closes itself: a recursive watch registers the tree it was ARMED on and
-// never follows a directory made afterwards. The `mkdir` is reported — so a
-// new folder's first note has always arrived — and then everything else that
-// lands in that folder is silent until the backstop sweeps a minute later.
-// That is how a new `orchestrator/` outline came to need manual touches before
-// it would load.
+// A directory born after boot is seen without the backstop. On bun 1.3.13
+// the recursive watch did not follow it and this package closed the gap
+// itself (the walk arms a watcher on each new directory). Bun 1.4.0's
+// runtime follows it too — measured, rows 8 and 9 of the mutation table
+// in docs/brainstorming/watcher-fd-cost.md. The test still holds the
+// claim at the store, with the backstop left at sixty seconds so a pass
+// cannot be the sweep.
 //
 // Four writes, and each one is a level of the claim: a directory born after
 // boot, a SECOND file in it with no `mkdir` of its own to announce it, a
