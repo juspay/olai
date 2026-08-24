@@ -42,7 +42,7 @@ import { start } from "@olai/child"
 import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync } from "node:fs"
 import { createRequire } from "node:module"
 import { tmpdir } from "node:os"
-import { dirname, join, resolve } from "node:path"
+import { basename, dirname, join, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { transformAsync } from "@babel/core"
@@ -222,8 +222,18 @@ const installFonts = (distDir: string): void => {
  * bundler's naming rule moved), and either way a shell that quietly preloaded
  * nothing would be this fix silently gone.
  */
-const PIPELINE_PLACEHOLDER = `href="./markdown/pipeline.ts"`
-const PIPELINE_CHUNK = /^pipeline-[^/]*\.js$/
+/** The module the shell is waiting to be told the hashed name of, spelled
+ *  ONCE: the placeholder is that path in an `href`, and the chunk is that
+ *  module's own basename plus the hash `buildSurfaceClient` gives every output
+ *  (`markdown/pipeline.ts` → `pipeline-<hash>.js`; the same rule
+ *  `packages/tests/support/chunks.ts` derives a held-up chunk's URL from).
+ *  Renaming the module is then one edit here and one in the shell, and a build
+ *  that reaches neither fails rather than shipping a preload of nothing. */
+const PIPELINE_MODULE = "./markdown/pipeline.ts"
+const PIPELINE_PLACEHOLDER = `href="${PIPELINE_MODULE}"`
+const PIPELINE_CHUNK = new RegExp(
+  `^${basename(PIPELINE_MODULE, ".ts")}-[^/]*\\.js$`,
+)
 
 const preloadPipeline = async (
   distDir: string,
