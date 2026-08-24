@@ -382,13 +382,6 @@ mark.olai-hit {
  * the style engine must consider against every element in the document. */
 .olai-md[data-markdown="waiting"] {
   filter: blur(0.3em);
-
-  /* The source's own lines are its lines — a wrapped `- item` is not the
-   * shape of the list it will become, and pretending otherwise is the invented
-   * height this whole rule refuses. Here rather than on the component, because
-   * the sheet is the WHOLE of what waiting looks like; an inline title is one
-   * line either way and is left alone. */
-  white-space: pre-wrap;
   background-image: linear-gradient(
     100deg,
     transparent 35%,
@@ -402,6 +395,21 @@ mark.olai-hit {
    * overrides this for everyone else — a base of the sweep's own starting
    * position would be a band parked off the edge, which is no band at all. */
   background-position: 50% 0;
+}
+
+/* A BLOCK's waiting source keeps its own lines — a wrapped `- item` is not
+ * the shape of the list it will become, and pretending otherwise is the
+ * invented height this whole rule refuses. Here rather than on the component,
+ * because the sheet is the WHOLE of what waiting looks like.
+ *
+ * NOT an inline title, and the exclusion is load-bearing rather than tidy: a
+ * tree row ellipsizes, which is `white-space: nowrap` on the span around this
+ * one (`client/NodeLine.tsx`), and every element inside inherits it
+ * (`.olai-md-inline > *` below). A `pre-wrap` here would hand a waiting title
+ * permission to wrap and push the row open — the same bug that rule's own note
+ * records shipping for an afternoon. */
+.olai-md[data-markdown="waiting"]:not(.olai-md-inline) {
+  white-space: pre-wrap;
 }
 
 @media (prefers-reduced-motion: no-preference) {
