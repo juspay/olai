@@ -873,7 +873,11 @@ const SECTIONS = {
     // does.
     await opened(page, "/house.olai", OUTLINE_TREE)
     for (const folder of ["art", "data", "reports"]) {
-      await page.locator(`[data-testid="file-dir-toggle"][data-path="${folder}"]`).click()
+      // The fold button of ONE folder, which is a direct child of its `<li>`
+      // rather than a descendant's: nested folders nest their `li`s, so an
+      // unscoped toggle under a parent matches every toggle inside it (the
+      // suite's own `folderToggle` draws the same distinction).
+      await page.locator(`[data-testid="file-dir"][data-path="${folder}"] > button`).click()
     }
     await page.waitForTimeout(DRAWN)
     await shot(page, "the-sidebar-lists-them")
@@ -902,10 +906,14 @@ const SECTIONS = {
     await page.waitForTimeout(DRAWN)
     await shot(page, "a-big-csv-says-what-it-left-out")
 
-    // A RASTER PICTURE, then a VECTOR one. The svg is the fixture with teeth:
-    // it carries a script that tries to rename this document and mark it, and
-    // an `<img>` runs neither.
-    await opened(page, "/art/handle.png", '[data-testid="image-view"]')
+    // A RASTER PICTURE, then a VECTOR one. `tall.png` rather than
+    // `handle.png`, which is four pixels square: a shot of that is a true
+    // picture of the rule — a small file is drawn at its own size rather than
+    // blown up to fill the column — and an unreadable piece of evidence.
+    //
+    // The svg is the fixture with teeth: it carries a script that tries to
+    // rename this document and mark it, and an `<img>` runs neither.
+    await opened(page, "/art/tall.png", '[data-testid="image-view"]')
     await shot(page, "a-picture-is-a-page")
     await opened(page, "/art/diagram.svg", '[data-testid="image-view"]')
     console.log(`  ${"the svg ran:".padEnd(24)}${
