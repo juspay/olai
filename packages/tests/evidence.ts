@@ -3681,6 +3681,104 @@ const SECTIONS = {
     await chatBottom(page)
     await shot(page, "the-message-runs-after-the-compaction")
   },
+  /**
+   * WHAT EVERY MARKDOWN SURFACE HOLDS WHILE THE RENDERER IS COMING
+   * (`markdown-raw-flash`), face by face: the source it already has, blurred
+   * out of legibility and swept, and then the same element with the rendering
+   * in it.
+   *
+   * The subject is a pair of frames, so every face is photographed TWICE and
+   * the two shots are meant to be read together: `-waiting` is the skeleton,
+   * `-arrived` is a de-blur of the same block in the same place. Nothing in
+   * between is a layout change — the box was always the size the real
+   * characters make, which is the whole argument for drawing the source rather
+   * than inventing gray bars.
+   *
+   * THE WAIT IS MANUFACTURED, and it has to be said out loud: the chunk is
+   * held for {@link HELD} per navigation by a route in front of it, because
+   * the thing being photographed is a frame and a real one is gone before a
+   * shutter can open. What that stands in for is a first visit on a slow link;
+   * what it is NOT is the ordinary case, which is the last pair — the chunk
+   * warm in the cache, the shell having preloaded it, and the skeleton lasting
+   * about a frame.
+   *
+   * IT NEEDS AN AGENT for one of the five faces (the chat panel's), which
+   * `evidence.sh` names for this section as it does for the background task's.
+   */
+  "markdown-waits-illegibly": async (page) => {
+    /** How long the pipeline is held per navigation. Long enough for a
+     *  screenshot of a frame; short enough that the section is not a wait. */
+    const HELD = 6_000
+    let held = HELD
+    await page.route(/pipeline-[^/]+\.js$/, async (route) => {
+      await new Promise((done) => setTimeout(done, held))
+      await route.continue()
+    })
+
+    const WAITING = '[data-markdown="waiting"]'
+    const DOC_BODY = '[data-testid="document-body"]'
+    /** Wait until nothing under `scope` is waiting on the renderer any more —
+     *  the de-blur, as a thing the driver can stand after rather than sleep
+     *  through. */
+    const arrived = async (scope: string): Promise<void> => {
+      await page.locator(`${scope} ${WAITING}, ${scope}${WAITING}`).first()
+        .waitFor({ state: "detached", timeout: 30_000 })
+      await page.waitForTimeout(400)
+    }
+
+    // A title with markdown in it, because this fixture has none: the titles
+    // are plain (`markdown/plain.ts` answers those with no parser at all and
+    // no waiting face, which is the fast path working). Written to the file
+    // the way an agent's `set_title` writes one.
+    retitle("house.olai", "order", "order the **new** cabinets")
+
+    // ── ONE: a document, on its own page ─────────────────────────────
+    await page.goto(`${BASE}/finishes.md`)
+    await page.locator(`${DOC_BODY}${WAITING}`).waitFor()
+    await page.waitForTimeout(700)
+    await shot(page, "a-document-waiting")
+    await arrived(DOC_BODY)
+    await shot(page, "a-document-arrived")
+
+    // ── TWO: a `¶` note under a tree row, and the row's own title ────
+    await page.goto(`${BASE}/house.olai`)
+    await page.locator(`${row("order")} [data-testid="note-mark"]`).first().click()
+    await page.locator(`${row("order")} ${WAITING}`).first().waitFor()
+    await page.waitForTimeout(500)
+    await shot(page, "a-note-and-a-title-waiting")
+    await arrived(row("order"))
+    await shot(page, "a-note-and-a-title-arrived")
+
+    // ── THREE: a search row, which draws that same title ─────────────
+    await page.goto(`${BASE}/house.olai`)
+    await page.keyboard.press("ControlOrMeta+k")
+    await page.locator('[data-testid="palette-input"]').fill("cabinets")
+    await page.locator(`[data-testid="palette-item"] ${WAITING}`).first().waitFor()
+    await page.waitForTimeout(400)
+    await shot(page, "a-palette-row-waiting")
+    await arrived('[data-testid="palette-item"]')
+    await shot(page, "a-palette-row-arrived")
+    await page.keyboard.press("Escape")
+
+    // ── FOUR: what the agent said ────────────────────────────────────
+    await page.goto(`${BASE}/house.olai`)
+    await openChatForAgent(page)
+    await ask(page, "stream")
+    await page.locator(`[data-testid="chat-transcript"] ${WAITING}`).first().waitFor()
+    await page.waitForTimeout(600)
+    await shot(page, "an-agent-reply-waiting")
+    await arrived('[data-testid="chat-transcript"]')
+    await shot(page, "an-agent-reply-arrived")
+
+    // ── FIVE: and the ordinary case ──────────────────────────────────
+    // Nothing held any more, and the chunk already in this browser's cache:
+    // the shell preloaded it with the entry, so what a reader meets is the
+    // rendering. The shot is of a page that never looked unfinished.
+    held = 0
+    await page.goto(`${BASE}/finishes.md`)
+    await arrived(DOC_BODY)
+    await shot(page, "the-cached-case-is-a-blink")
+  },
 } satisfies Record<string, (page: Page) => Promise<void>>
 
 /**
