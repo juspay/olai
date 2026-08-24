@@ -23,16 +23,10 @@
  * than blown up to fill one. Same rule a picture in a document already gets
  * (`../styles.css`), stated here because this page is not markdown.
  *
- * THE REVISION IS IN THE URL, and it is the one thing here that is not
- * obvious. This app stays live: a file replaced on disk redraws the page that
- * is showing it. A `.html` preview gets that for free — its frame is re-pointed
- * and the route answers a page `no-store` — but a picture goes through the
- * platform's file engine, which answers with an `ETag` and a `304`, so a
- * re-render with the same `src` is a request the browser never makes. The
- * revision is the head this file is at (`../served.tsx`), which moves exactly
- * when the file does, so the URL changes exactly when the bytes might have and
- * never on a frame that changed nothing else. The route cuts a query before it
- * decodes a path (`@olai/surface`'s `mediaPath`), so this names the same file.
+ * WHERE THE URL COMES FROM is ./pointed.ts, which is the decision this face
+ * shares with the `.pdf` one next door: the file on the media route, at the
+ * revision it is at, so a picture replaced on disk is re-fetched rather than
+ * served out of the browser's cache.
  *
  * NO EDIT, for `./Hypertext.tsx`'s reason: `write_document` takes a `.md` and
  * nothing else, so a control here would be a door onto a refusal. That is
@@ -40,20 +34,14 @@
  */
 
 import { stemOf } from "@olai/format"
-import { mediaHref } from "@olai/surface"
 
-import { useHead } from "../served.tsx"
 import { TESTID } from "../testids.ts"
+import { usePointed } from "./pointed.ts"
 
 /** The file, and nothing else — ./faces.tsx's `Reading`, spelled here for the
  *  reason ./Csv.tsx spells its own. */
 export function Image(props: { readonly file: string }) {
-  const rev = useHead(() => props.file)
-  const src = () => {
-    const at = rev()
-    const href = mediaHref(props.file)
-    return at === undefined ? href : `${href}?rev=${String(at)}`
-  }
+  const src = usePointed(() => props.file)
 
   return (
     <img

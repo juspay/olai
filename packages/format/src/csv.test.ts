@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { csvClamp, csvRows, csvTable } from "./csv.ts"
+import { csvRows, csvTable } from "./csv.ts"
 
 // The ordinary file, and the whole of what a page draws from one: a header row
 // and the rows under it. Asserted as rows-of-fields rather than as anything the
@@ -63,37 +63,21 @@ test("the table is squared off, and says how wide the file really was", () => {
   expect(table.totalRows).toBe(3)
 })
 
-// THE CLAMP, and the sentence that makes it honest. A table showing five
-// hundred rows of twelve thousand with nothing saying so is a lie a reader
-// cannot see, and this repository's rule is that nothing goes quietly.
-test("a clamped table says what it left out, and an unclamped one says nothing", () => {
+// THE BOUND. What was left out is the READER's sentence and lives with the
+// page that says it (`@olai/web`'s `document/clamped.ts`); what is here is the
+// arithmetic that sentence is derived from, which is what this package owes.
+test("a bounded table says what it drew and what was there", () => {
   const whole = csvTable("a,b\nc,d\n")
   expect(whole.rows).toHaveLength(2)
-  expect(csvClamp(whole)).toBeNull()
+  expect([whole.totalRows, whole.totalColumns]).toEqual([2, 2])
 
   const rows = csvTable("h\n" + Array.from({ length: 20 }, (_, at) => `r${at}`).join("\n"), {
     rows: 3,
   })
   expect(rows.rows).toHaveLength(3)
   expect(rows.totalRows).toBe(21)
-  expect(csvClamp(rows)).toBe("Showing the first 3 of 21 rows.")
 
   const columns = csvTable("a,b,c,d\n1,2,3,4\n", { columns: 2 })
-  expect(csvClamp(columns)).toBe("Showing the first 2 of 4 columns.")
-
-  // Both axes in one sentence, and only the clauses that are true of this file
-  // — a file with nine hundred rows and four columns is owed no word about its
-  // columns, and being told about them anyway teaches a reader to skip the line
-  // that matters.
-  const both = csvTable("a,b,c\n1,2,3\n4,5,6\n", { rows: 1, columns: 2 })
-  expect(csvClamp(both)).toBe("Showing the first 1 of 3 rows, and the first 2 of 3 columns.")
-})
-
-// The counts are GROUPED, which is a fact about reading a number off a screen:
-// four digits in a row is a number a reader has to count.
-test("a count in the clamp is grouped in threes", () => {
-  const many = csvTable(Array.from({ length: 12_431 }, (_, at) => `r${at}`).join("\n"), {
-    rows: 500,
-  })
-  expect(csvClamp(many)).toBe("Showing the first 500 of 12,431 rows.")
+  expect(columns.columns).toBe(2)
+  expect(columns.totalColumns).toBe(4)
 })

@@ -416,7 +416,7 @@ export const TESTID = {
    *  happens to be drawn at. */
   csvTable: "csv-table",
   /** What a `.csv` page is NOT SHOWING, and why — the clamp said out loud
-   *  (`@olai/format`'s `csvClamp`) when the file is bigger than a page draws,
+   *  (`./document/clamped.ts`) when the file is bigger than a page draws,
    *  and "nothing in it" when the file has no rows at all. One id for the two,
    *  because a reader of this page asks one question. Drawn as an ASIDE through
    *  the one component that owns what a mood means (`./SaidLine.tsx`), so a

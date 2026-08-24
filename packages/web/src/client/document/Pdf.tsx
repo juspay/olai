@@ -36,17 +36,18 @@
  * what a PDF viewer is for — the reader pages through a fixed frame rather than
  * the app growing an element tall enough to hold a book.
  *
- * THE REVISION IS IN THE URL for `./Image.tsx`'s reason, word for word: this
- * file goes through the platform's file engine, which answers `304`, so a
- * re-render with the same `src` is a request the browser never makes.
+ * WHERE THE URL COMES FROM is ./pointed.ts, the decision this face shares with
+ * the picture's: the file on the media route, at the revision it is at, so a
+ * `.pdf` replaced on disk is re-fetched rather than served out of the
+ * browser's cache.
  *
  * NO EDIT, for `./Hypertext.tsx`'s reason (./faces.tsx's `edits: false`).
  */
 
 import { mediaHref } from "@olai/surface"
 
-import { useHead } from "../served.tsx"
 import { TESTID } from "../testids.ts"
+import { usePointed } from "./pointed.ts"
 
 /** What the browser is told this is. Spelled here rather than left to the
  *  response's own `Content-Type`, because it is what makes the element ASK for
@@ -58,12 +59,7 @@ const PDF_TYPE = "application/pdf"
 /** The file, and nothing else — ./faces.tsx's `Reading`, spelled here for the
  *  reason ./Csv.tsx spells its own. */
 export function Pdf(props: { readonly file: string }) {
-  const rev = useHead(() => props.file)
-  const src = () => {
-    const at = rev()
-    const href = mediaHref(props.file)
-    return at === undefined ? href : `${href}?rev=${String(at)}`
-  }
+  const src = usePointed(() => props.file)
 
   return (
     <object

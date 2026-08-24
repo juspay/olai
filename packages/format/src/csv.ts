@@ -28,14 +28,21 @@
  * needs a rectangle), so {@link csvTable} is what pads, and it says how wide
  * the widest row was so nothing is silently dropped off the right-hand edge.
  *
- * ## The clamp is the point of the second function
+ * ## The bound is the point of the second function
  *
  * A vault can hold a million-row export. The page is a page — a reader opens it
  * to see what is in the file, not to scroll a database — so {@link csvTable}
- * takes a bound and answers with what it drew AND what was there, and the face
- * says both out loud. That is this repository's never-silently rule applied to
- * a shape rather than to an error: a table showing the first five hundred rows
- * of twelve thousand with nothing saying so is a lie the reader cannot see.
+ * takes a bound and answers with what it drew AND what was there. That is this
+ * repository's never-silently rule applied to a shape rather than to an error:
+ * a table showing the first five hundred rows of twelve thousand with nothing
+ * saying so is a lie the reader cannot see.
+ *
+ * WHAT THIS DOES NOT DO IS SAY IT, and the absence is a layering rather than a
+ * gap. This answers in NUMBERS, because how many rows a file holds is a fact
+ * about the file; the SENTENCE a reader is told is the client's vocabulary
+ * (`@olai/web`'s `document/clamped.ts`), the way what a reader calls each kind
+ * of file is. Nothing else in this package writes a sentence for a person, and
+ * a function that did would be the floor deciding how the roof speaks.
  */
 
 /**
@@ -181,47 +188,4 @@ export const csvTable = (
     Array.from({ length: columns }, (_, at) => row[at] ?? "")
   )
   return { rows, columns, totalRows: all.length, totalColumns }
-}
-
-/**
- * WHAT WAS LEFT OUT, in a sentence — or `null` when the whole file is on the
- * screen.
- *
- * The clamp SAID, which is the half of the bound that makes it honest, and it
- * is here beside the bound rather than in the component for this package's
- * usual reason: the sentence is about the reading, the reading is here, and a
- * face that composed its own would be free to say something the numbers do not
- * support. `@olai/web`'s csv face draws exactly this string.
- *
- * ONE SENTENCE for the two axes, with each clause present only when that axis
- * was actually clamped — a file with nine hundred rows and four columns is not
- * owed a word about its columns, and being told about them anyway is the kind
- * of noise that teaches a reader to stop reading the line that matters.
- *
- * The numbers are GROUPED (`12,431`), which is a fact about reading a number
- * off a screen rather than a locale: the counts here are of rows in a file, the
- * app is written in one language, and `Intl` per render for a thousands
- * separator is a dependency on the reader's machine for four characters.
- */
-export const csvClamp = (table: CsvTable): string | null => {
-  const rows = table.rows.length < table.totalRows
-    ? `the first ${grouped(table.rows.length)} of ${grouped(table.totalRows)} rows`
-    : null
-  const columns = table.columns < table.totalColumns
-    ? `the first ${grouped(table.columns)} of ${grouped(table.totalColumns)} columns`
-    : null
-  if (rows === null && columns === null) return null
-  const both = [rows, columns].filter((clause) => clause !== null).join(", and ")
-  return `Showing ${both}.`
-}
-
-/** A count with thousands separated — see {@link csvClamp}. */
-const grouped = (count: number): string => {
-  const digits = String(count)
-  let out = ""
-  for (let at = 0; at < digits.length; at++) {
-    if (at > 0 && (digits.length - at) % 3 === 0) out += ","
-    out += digits[at]
-  }
-  return out
 }

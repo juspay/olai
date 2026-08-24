@@ -143,23 +143,38 @@ Then("the csv page says nothing was left out", async function (this: OlaiWorld) 
 
 // ── the picture ────────────────────────────────────────────────────────
 
+/**
+ * WHICH FILE an element on the media route is pointed at — asked of the two
+ * faces that draw by pointing, in one place because it is one question.
+ *
+ * The address the app MINTED, compared against the one `@olai/surface` spells:
+ * the same bijection the server reads at the other end, rather than a
+ * `/media/…` string written out over here. THE QUERY IS CUT, because the
+ * revision rides there so a file replaced on disk is re-fetched
+ * (`@olai/web`'s `document/pointed.ts`) and what a step about the file is
+ * asking is which file.
+ */
+const pointedAt = async (
+  world: OlaiWorld,
+  selector: string,
+  attribute: "src" | "data",
+  file: string,
+): Promise<void> => {
+  const element = world.page.locator(selector);
+  await element.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  const at = await element.getAttribute(attribute);
+  assert.ok(at !== null, `the element has no ${attribute}`);
+  assert.strictEqual(
+    at.split("?")[0],
+    mediaHref(file),
+    `the element points at the file the page is for`,
+  );
+};
+
 Then(
   "the picture drawn is {string}",
   async function (this: OlaiWorld, file: string) {
-    const image = this.page.locator(IMAGE_VIEW);
-    await image.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    // The address the app MINTED, compared against the one `@olai/surface`
-    // spells — the same bijection the server reads at the other end, rather
-    // than a `/media/…` string written out here.
-    const src = await image.getAttribute("src");
-    assert.ok(src !== null, "the picture has no src");
-    // The revision rides as a query so a file replaced on disk is re-fetched
-    // (`@olai/web`'s `Image.tsx`); what this step is about is WHICH FILE.
-    assert.strictEqual(
-      src.split("?")[0],
-      mediaHref(file),
-      "the picture points at the file the page is for",
-    );
+    await pointedAt(this, IMAGE_VIEW, "src", file);
   },
 );
 
@@ -192,13 +207,9 @@ Then("no svg has run in this tab", async function (this: OlaiWorld) {
 Then(
   "the pdf drawn is {string}",
   async function (this: OlaiWorld, file: string) {
-    const embed = this.page.locator(PDF_EMBED);
-    await embed.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
-    const data = await embed.getAttribute("data");
-    assert.ok(data !== null, "the pdf embed has no data");
-    assert.strictEqual(data.split("?")[0], mediaHref(file));
+    await pointedAt(this, PDF_EMBED, "data", file);
     assert.strictEqual(
-      await embed.getAttribute("type"),
+      await this.page.locator(PDF_EMBED).getAttribute("type"),
       "application/pdf",
       "the embed asks the browser for a pdf viewer",
     );

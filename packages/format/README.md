@@ -16,7 +16,7 @@ A PICTURE is the one kind claimed by more than one suffix, and that is what the 
 
 `fetched` is the fourth, and it is the one question the other three cannot answer between them: WHERE a reader's copy comes from. Hypertext, a picture and a `.pdf` are drawn by pointing a frame, an `<img>` and an `<object>` at the file's own URL, so `/media/*` answers them (`isAsset` in `src/documents.ts` is that allowlist, and `@olai/server`'s `media.ts` is the route). A `.csv` holds text, is not kept, and is still `false`: its page is handed the file's text on the wire like a document's, so serving the raw bytes as well would be a second way to read a file that already has a page.
 
-`src/csv.ts` is what a `.csv` SAYS: RFC 4180's grammar in one forward scan (a quoted field may hold a comma, a newline and a doubled quote; a blank line is not a row), squared off to the rectangle a table needs, bounded, and — beside the bound — the sentence that says what the bound left out. The sentence is here rather than in the browser for this package's usual reason: a face that composed its own would be free to say something the numbers do not support.
+`src/csv.ts` is what a `.csv` SAYS: RFC 4180's grammar in one forward scan (a quoted field may hold a comma, a newline and a doubled quote; a blank line is not a row), squared off to the rectangle a table needs, and bounded — answering with what it DREW and what was there. The sentence a reader is told about a clamped file is deliberately NOT here: it is the client's vocabulary (`@olai/web`'s `document/clamped.ts`), the way what a reader calls each kind of file is, and nothing else in this package writes a sentence for a person.
 
 ## What a place in the directory is CALLED
 
