@@ -26,11 +26,11 @@ import { NodeServices } from "@effect/platform-node"
 import { Writer } from "@olai/format"
 import * as Store from "@olai/store"
 import { describe, expect, test } from "bun:test"
-import { Duration, Effect, type Scope } from "effect"
+import { Effect, type Scope } from "effect"
 
 import { codec } from "./codec.ts"
 import type { Store as OutlineStore } from "./deps.ts"
-import { gitIn, repoAt, writerOf } from "./fixtures.testlib.ts"
+import { GIT_IDENT, GIT_IDENT_KEYS, gitIn, repoAt, writerOf } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
 import { COMMIT_TOOL, fixedPolicy, whyOf } from "./pending.ts"
 
@@ -61,6 +61,18 @@ interface Fixture {
    *  hangs the republish on, so a test can hold that a refusal really does
    *  reach a browser rather than waiting out the thirty-second sweep. */
   readonly settlements: () => number
+  /** Wait until something has SETTLED since `from` — a commit, a push, a
+   *  refusal. Snapshot `settlements()` before the action that should settle,
+   *  then wait on that number, so a commit that lands before the wait is
+   *  still seen. */
+  readonly settled: (from: number) => Effect.Effect<void>
+  /** Empty the ident, env included. Config alone is not enough: `GIT_AUTHOR_NAME=`
+   *  beats `user.name`, which is how a fixture used to fail with `fatal: empty
+   *  ident name` under a CI shell that had the variable empty rather than
+   *  unset. */
+  readonly unident: () => void
+  /** Put the fixture ident back, env included. */
+  readonly reident: () => void
   /** Hand the loop a survey, exactly as the server's publisher does — which is
    *  the only thing that arms the quiet window. */
   readonly observe: Effect.Effect<void>
@@ -93,6 +105,15 @@ const withRepo = <A>(
   }
   for (const [file, contents] of Object.entries(files)) write(file, contents)
 
+  // Product git inherits process.env. Local config does not win against an
+  // empty `GIT_AUTHOR_NAME`, so the ident is pinned here for the whole
+  // fixture and restored after — including on the empty-ident path, which
+  // clears these itself for the window it is about.
+  const savedIdent = Object.fromEntries(
+    GIT_IDENT_KEYS.map((key) => [key, process.env[key]]),
+  )
+  Object.assign(process.env, GIT_IDENT)
+
   const git = gitIn(root)
   const served = options.serve === undefined ? root : path.join(root, options.serve)
   fs.mkdirSync(served, { recursive: true })
@@ -107,6 +128,12 @@ const withRepo = <A>(
   }
 
   let settlements = 0
+  const waiters: Array<() => void> = []
+  const onSettled = () => {
+    settlements += 1
+    const ready = waiters.splice(0)
+    for (const wake of ready) wake()
+  }
   return Effect.gen(function*() {
     const store: OutlineStore = yield* Store.make({
       root: served,
@@ -122,9 +149,7 @@ const withRepo = <A>(
         push: options.pushes ?? null,
       }),
       ...(options.quiet === undefined ? {} : { quiet: options.quiet }),
-      onSettled: () => {
-        settlements += 1
-      },
+      onSettled,
       context: { mint: () => "minted", now: () => "2026-08-10T09:00:00-04:00" },
     })
     return yield* use({
@@ -135,6 +160,27 @@ const withRepo = <A>(
       remote,
       refresh: Effect.orDie(store.refresh),
       settlements: () => settlements,
+      settled: (from: number) =>
+        Effect.callback<void>((resume) => {
+          let done = false
+          const check = () => {
+            if (done || settlements <= from) return
+            done = true
+            resume(Effect.void)
+          }
+          waiters.push(check)
+          check()
+        }),
+      unident: () => {
+        git("config", "user.email", "")
+        git("config", "user.name", "")
+        for (const key of GIT_IDENT_KEYS) process.env[key] = ""
+      },
+      reident: () => {
+        git("config", "user.email", GIT_IDENT.GIT_AUTHOR_EMAIL)
+        git("config", "user.name", GIT_IDENT.GIT_AUTHOR_NAME)
+        Object.assign(process.env, GIT_IDENT)
+      },
       observe: Effect.flatMap(ops.pending, ops.observe),
     })
   }).pipe(
@@ -142,6 +188,11 @@ const withRepo = <A>(
     Effect.provide(NodeServices.layer),
     Effect.runPromise,
   ).finally(() => {
+    for (const key of GIT_IDENT_KEYS) {
+      const was = savedIdent[key]
+      if (was === undefined) delete process.env[key]
+      else process.env[key] = was
+    }
     fs.rmSync(root, { recursive: true, force: true })
   })
 }
@@ -950,10 +1001,6 @@ describe("the agent's door", () => {
  * hand: the loop is armed by the arrival of a survey and by nothing else.
  */
 describe("--commit=auto: the quiet window", () => {
-  /** Give the window its run, and then some — the one wait these tests share,
-   *  so a change to the fixture's span moves every one of them together. */
-  const past = (quiet: number) => Effect.sleep(Duration.millis(quiet * 6))
-
   test("a write does not commit itself, and says what it is waiting for", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
@@ -974,21 +1021,25 @@ describe("--commit=auto: the quiet window", () => {
   test("a flurry of writes records itself as ONE commit, whoever wrote them", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
-        yield* Effect.forkScoped(fixture.ops.loop)
-
         // Three writes by three different doors, and a file nobody wrote
         // through olai at all — which is the whole claim: the window watches
         // the DIRECTORY, so a `.md` saved in an editor lands in the same
         // commit as an agent's op.
+        //
+        // The loop starts AFTER the flurry. A 40ms window racing the writes
+        // themselves is how this used to flake under load: each observe
+        // re-armed, and when an op took longer than the window the flurry
+        // landed as two commits. What is waiting is the commit, not a
+        // multiple of the span.
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "chat-agent"))
-        yield* fixture.observe
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "install" }, "mcp"))
-        yield* fixture.observe
         fixture.write("notes.md", "the cabinets are late\n")
         yield* fixture.refresh
-        yield* fixture.observe
 
-        yield* past(40)
+        yield* Effect.forkScoped(fixture.ops.loop)
+        const flurry = fixture.settlements()
+        yield* fixture.observe
+        yield* fixture.settled(flurry)
         // ONE, and it is the thing no amount of chrome can show.
         expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
         const pending = yield* fixture.ops.pending
@@ -1009,22 +1060,27 @@ describe("--commit=auto: the quiet window", () => {
    * every thirty seconds and the span is fifteen, so it would close only in
    * the gaps and, on a busy directory, not at all.
    *
-   * IT IS ASSERTED WITHOUT WAITING AFTERWARDS, which is what makes it
-   * discriminating: the surveys run for three times the window, so a loop that
-   * re-armed on each of them has recorded nothing by the time they stop.
+   * The surveys run while the window is armed; what we wait on is the commit
+   * they must not prevent, not a multiple of the span. A second commit after
+   * more of the same surveys is the window having been pushed out.
    */
   test("a survey that says nothing new does not push the window out", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
         yield* Effect.forkScoped(fixture.ops.loop)
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
-
+        const sweep = fixture.settlements()
+        yield* fixture.observe
         for (let round = 0; round < 10; round++) {
           yield* fixture.observe
-          yield* Effect.sleep(Duration.millis(60))
+        }
+        yield* fixture.settled(sweep)
+        expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
+        for (let round = 0; round < 10; round++) {
+          yield* fixture.observe
         }
         expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
-      }), { commits: "auto", quiet: 200 }))
+      }), { commits: "auto", quiet: 40 }))
 
   test("nothing is attempted while the repository is busy, and it records after", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
@@ -1036,7 +1092,8 @@ describe("--commit=auto: the quiet window", () => {
         // here would bury a half-finished merge.
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "chat-agent"))
         yield* fixture.observe
-        yield* past(40)
+        // The repository is not Ready, so the window does not arm — nothing
+        // to wait out.
         expect(subjects(fixture)[0]).not.toStartWith("olai:")
         // A PAUSE rather than a stop: nothing was attempted, so nothing
         // refused, so there is nothing for anybody to resume.
@@ -1051,8 +1108,9 @@ describe("--commit=auto: the quiet window", () => {
         fixture.git("add", "notes.md")
         fixture.git("commit", "--quiet", "--no-edit")
         yield* fixture.refresh
+        const afterMerge = fixture.settlements()
         yield* fixture.observe
-        yield* past(40)
+        yield* fixture.settled(afterMerge)
         expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
       }), { commits: "auto", quiet: 40 }))
 
@@ -1063,13 +1121,14 @@ describe("--commit=auto: the quiet window", () => {
         // An identity nobody set — git's own "Author identity unknown", the
         // failure people actually hit on a fresh machine or under a service
         // account. Every probe answers happily and every commit refuses, which
-        // is the one failure a survey cannot see.
-        fixture.git("config", "user.email", "")
-        fixture.git("config", "user.name", "")
+        // is the one failure a survey cannot see. Env as well as config:
+        // empty `GIT_AUTHOR_NAME` beats `user.name`.
+        fixture.unident()
 
         yield* Effect.orDie(fixture.ops.run({ op: "done", id: "order" }, "web"))
+        const refused = fixture.settlements()
         yield* fixture.observe
-        yield* past(40)
+        yield* fixture.settled(refused)
 
         const stopped = yield* fixture.ops.git
         expect(stopped.status).toBe("error")
@@ -1078,25 +1137,24 @@ describe("--commit=auto: the quiet window", () => {
         // server's memory and nothing told a browser for thirty seconds.
         expect(fixture.settlements()).toBeGreaterThan(0)
 
-        // NOTHING GOES ROUND AGAIN. A second write, a full window, and the
-        // loop is still where git left it.
+        // NOTHING GOES ROUND AGAIN. A second write, and the loop is still
+        // where git left it — the window does not arm while paused.
         fixture.write("notes.md", "and another thing\n")
         yield* fixture.refresh
         yield* fixture.observe
-        yield* past(40)
         expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(0)
 
         // ... and Resume is the one way out. With the identity back, the same
         // waiting work records.
-        fixture.git("config", "user.email", "test@olai.invalid")
-        fixture.git("config", "user.name", "olai tests")
+        fixture.reident()
         yield* fixture.ops.resume
         expect((yield* fixture.ops.git).paused).toBeNull()
         // ... and pressing it again is not an error, it is nothing: two people
         // looking at one directory can both press it.
         yield* fixture.ops.resume
+        const resumed = fixture.settlements()
         yield* fixture.observe
-        yield* past(40)
+        yield* fixture.settled(resumed)
         expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
         expect((yield* fixture.ops.git).paused).toBeNull()
       }), { commits: "auto", quiet: 40 }))
@@ -1112,8 +1170,6 @@ describe("--commit=auto: the quiet window", () => {
  * commit olai makes by whichever door.
  */
 describe("--push=auto", () => {
-  const past = (quiet: number) => Effect.sleep(Duration.millis(quiet * 6))
-
   test("a commit the AGENT asked for is pushed", () =>
     withRepo({ "house.olai": HOUSE }, (fixture) =>
       Effect.gen(function*() {
@@ -1133,8 +1189,19 @@ describe("--push=auto", () => {
         yield* Effect.forkScoped(fixture.ops.loop)
         fixture.write("notes.md", "the cabinets are late\n")
         yield* fixture.refresh
+        const pushed = fixture.settlements()
         yield* fixture.observe
-        yield* past(40)
+        yield* fixture.settled(pushed)
+        while (true) {
+          const n = fixture.settlements()
+          if (subjects(fixture).filter((line) => line.startsWith("olai:")).length > 0) break
+          yield* fixture.settled(n)
+        }
+        while (true) {
+          const n = fixture.settlements()
+          if ((yield* fixture.ops.pending).unpushed?.commits === 0) break
+          yield* fixture.settled(n)
+        }
 
         expect(gitIn(bare)("log", "--format=%s", "-1").trim()).toStartWith("olai:")
         expect((yield* fixture.ops.pending).unpushed?.commits).toBe(0)
@@ -1160,8 +1227,14 @@ describe("--push=auto", () => {
 
         fixture.write("notes.md", "the cabinets are late\n")
         yield* fixture.refresh
+        const diverged = fixture.settlements()
         yield* fixture.observe
-        yield* past(40)
+        yield* fixture.settled(diverged)
+        while (true) {
+          const n = fixture.settlements()
+          if ((yield* fixture.ops.git).pushSaid !== null) break
+          yield* fixture.settled(n)
+        }
 
         // The COMMIT stands — a refused push is not a rollback.
         expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
@@ -1537,8 +1610,9 @@ test("a boot says nothing about a branch that has no upstream at all", () =>
       yield* Effect.forkScoped(fixture.ops.loop)
       fixture.write("notes.md", "the herb bed needs splitting\n")
       yield* fixture.refresh
+      const boot = fixture.settlements()
       yield* fixture.observe
-      yield* Effect.sleep(Duration.millis(240))
+      yield* fixture.settled(boot)
       expect(subjects(fixture).filter((line) => line.startsWith("olai:"))).toHaveLength(1)
     }), { commits: "auto", pushes: "auto", quiet: 40 }))
 
