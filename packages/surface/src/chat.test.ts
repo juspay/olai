@@ -10,7 +10,7 @@
  */
 
 import { ValidationFailure } from "@olai/format"
-import { expect, test } from "bun:test"
+import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
 
 import {
@@ -21,6 +21,7 @@ import {
   ChatEntry as ChatEntryUnion,
   Delivery,
   FileDiff,
+  isTaskOut,
   NodeContext,
   OpFailure,
   Spawned,
@@ -169,6 +170,27 @@ const REPRESENTATIVE: ReadonlyArray<{ name: string; entry: ChatEntry }> = [
       locations: ["house.olai:4"],
       parent: "tool:agent-1",
       spawned: { kind: "Explore" },
+    },
+  },
+  {
+    // The row a background task lives on, with both halves of `armed` on it —
+    // the fields it is armed with and the harness’s own ending — so the
+    // encoding proof has a representative that actually carries the field
+    // rather than one that would pass whatever the union did with it.
+    name: "tool (a background task, ended)",
+    entry: {
+      id: "tool:call-4",
+      seq: 7,
+      since: SINCE,
+      kind: "tool",
+      text: "kolu watch --states waiting,awaiting",
+      status: "failed",
+      progress: 'Background command "kolu fleet watch" failed with exit code 3',
+      armed: {
+        task: "bwa85c0r2",
+        description: "kolu fleet watch",
+        ended: "failed",
+      },
     },
   },
   {
@@ -361,3 +383,70 @@ const _userHasNoStatus: _userHasNoStatus = true
 const _toolStatus: StatusOf<ToolEntry> = "pending"
 void _userHasNoStatus
 void _toolStatus
+
+/**
+ * WHICH ROWS HAVE A TASK STILL OUT — the rule four askings share, as a table.
+ *
+ * It is here rather than in one of the four because it is `isRunningStatus`'s
+ * neighbour and for its reason: the SERVER asks it (which calls a turn may not
+ * strand, and what the strip is told is running) and the BROWSER asks it (the
+ * rail, and whether the panel's clock has anything to tick for), and one of
+ * them answering differently from the others is a rail gone out under a clock
+ * still counting.
+ *
+ * THE SECOND CONJUNCT IS THE POINT of the table. This rule was written out by
+ * hand in three places once, and one of the three forgot the STATUS — a row
+ * whose call went terminal without the harness saying how the task ended kept
+ * the count above zero, which is the strip up and a 1 Hz timer in every open
+ * tab under a row that already says the call is over. The code is right; what
+ * was missing is anything that fails when somebody simplifies it back.
+ */
+describe("which rows have a task still out", () => {
+  const row = (extra: Partial<ToolEntry>): ToolEntry => ({
+    id: "tool:1",
+    seq: 0,
+    since: SINCE,
+    kind: "tool",
+    text: "kolu watch --states waiting,awaiting",
+    status: "in_progress",
+    ...extra,
+  })
+
+  test("armed, no ending, and the wire still calls the call running", () => {
+    expect(isTaskOut(row({ armed: { task: "bu13xz2ie" } }))).toBe(true)
+    // `pending` is a running state — it is what every call is announced with.
+    expect(isTaskOut(row({ status: "pending", armed: { task: "bu13xz2ie" } }))).toBe(true)
+  })
+
+  test("... and NOT once the harness has said how it ended", () => {
+    expect(
+      isTaskOut(row({ status: "failed", armed: { task: "bu13xz2ie", ended: "killed" } })),
+    ).toBe(false)
+    expect(
+      isTaskOut(row({ status: "completed", armed: { task: "bu13xz2ie", ended: "completed" } })),
+    ).toBe(false)
+  })
+
+  test("... and NOT when the CALL went terminal with the ending unsaid", () => {
+    // The case that was already wrong once, and the one no other test covers:
+    // a cancelled turn resolves an armed call to `failed`, the harness never
+    // says what became of the task, and nothing is ever going to. A count that
+    // kept this row would keep the strip up for the life of the panel.
+    expect(isTaskOut(row({ status: "failed", armed: { task: "bu13xz2ie" } }))).toBe(false)
+    expect(isTaskOut(row({ status: "completed", armed: { task: "bu13xz2ie" } }))).toBe(false)
+  })
+
+  test("... and NOT when its own turn walked away from it", () => {
+    // A dead agent's tasks: the exemption that keeps an armed row unstranded
+    // is the transcript's, and it stops at the conversation's end.
+    expect(
+      isTaskOut(row({ stranded: true, armed: { task: "bu13xz2ie" } })),
+    ).toBe(false)
+  })
+
+  test("a row that armed nothing has no task out, however it stands", () => {
+    expect(isTaskOut(row({}))).toBe(false)
+    expect(isTaskOut(row({ status: "completed" }))).toBe(false)
+    expect(isTaskOut(row({ spawned: { kind: "Explore" } }))).toBe(false)
+  })
+})

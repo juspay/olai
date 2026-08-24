@@ -739,7 +739,24 @@ export class Transcript {
     const died = armed?.ended === undefined
       ? EMPTY
       : this.#dies(armed.task, armed.description ?? text, armed.ended, move.progress)
-    const closed = this.#close()
+    // A TOOL FRAME ENDS THE OPEN PARAGRAPH — the agent said something, then it
+    // did something, and the next thing it says is a new paragraph. That is
+    // true of a call made IN THIS TURN and it is the only kind of frame this
+    // rule was written about.
+    //
+    // A FRAME THAT IS ONLY THE LIFE OF A TASK WE ALREADY KNEW ABOUT is not
+    // that: the call was made three hours ago, the frame is the harness
+    // reporting its end, and nothing about the conversation has stopped. Its
+    // arrival mid-answer used to settle the open paragraph, so the rest of the
+    // stream opened a second one UNDER the death — one answer in two halves
+    // with a notice between them.
+    //
+    // The pair is the discriminant, and it needs no list of fields: a row
+    // learns `armed` on the frame that arms it (which IS the agent doing
+    // something, and closes), and every later frame carrying `armed` is a
+    // settle or the sentence that follows one.
+    const lifecycle = held?.armed !== undefined && move.armed !== undefined
+    const closed = lifecycle ? EMPTY : this.#close()
     // A REPEAT IS NOT A REPORT. Nothing moved, so nothing is written — and the
     // strand mark below stays on, which is the half that matters: a row whose
     // turn walked away from it would otherwise start looking like work in
@@ -796,7 +813,10 @@ export class Transcript {
   #dies(task: string, name: string, ended: string, said: string | undefined): Change {
     const already = this.#ended.get(task)
     if (already === undefined) {
-      const { key, change } = this.#row("notice", said ?? endedSaid(name, ended), {})
+      // NOT CLOSING what is open. The death arrives whenever the harness says
+      // so — which may be in the middle of somebody else's answer — and the
+      // answer goes on being one paragraph with this line under it.
+      const { key, change } = this.#row("notice", said ?? endedSaid(name, ended), {}, false)
       this.#ended.set(task, key)
       return change
     }
@@ -912,8 +932,21 @@ export class Transcript {
    *  one before it is published, or the first chunk of it goes out without the
    *  flag that says more is coming. Two minting paths, then — and they are two
    *  because a row that is complete and a row that is still arriving are two
-   *  things, not because anybody wrote the second one twice. */
-  #row<K extends ChatEntry["kind"]>(kind: K, text: string, extra: RowPatch<K>): {
+   *  things, not because anybody wrote the second one twice.
+   *
+   *  `closing` is the one thing a caller may say about the row ABOVE it, and
+   *  there is exactly one caller that says no ({@link #dies}). Writing a row
+   *  normally ENDS the open paragraph, because a row written between two
+   *  chunks of one is the agent having stopped talking and done something. A
+   *  task dying is not the agent doing anything: it is news about a call made
+   *  three hours ago, arriving while somebody's answer is still streaming, and
+   *  closing on it would cut that answer in half around the notice. */
+  #row<K extends ChatEntry["kind"]>(
+    kind: K,
+    text: string,
+    extra: RowPatch<K>,
+    closing = true,
+  ): {
     readonly key: string
     readonly change: Change
   } {
@@ -921,7 +954,7 @@ export class Transcript {
     return {
       key,
       change: both(
-        this.#close(),
+        closing ? this.#close() : EMPTY,
         this.#put(key, { kind, text, ...extra } as Extract<RowContent, { kind: K }>),
       ),
     }

@@ -1354,9 +1354,16 @@ export const ChatState = Schema.Struct({
    * thing a person is watching the panel FOR.
    *
    * Read off the rows, like `asking` and for its argument: a task being out is
-   * already written down — it is the row whose `armed` has no ending — and a
-   * list kept beside the rows would be the same fact in a second place, free to
-   * disagree with the row a person is reading.
+   * already written down, and a list kept beside the rows would be the same
+   * fact in a second place, free to disagree with the row a person is reading.
+   *
+   * WHICH ROWS COUNT is {@link isTaskOut} and is not restated here — that is
+   * how the older, shorter version of this rule ("the row whose `armed` has no
+   * ending") got back into the code once already. It is two conjuncts and the
+   * second is the one that goes missing: a call can reach a terminal ACP status
+   * without the harness ever saying how the task ended, and a list that counted
+   * one of those would keep the strip up and the clock ticking under a row that
+   * already says the call is over.
    *
    * TWO THINGS READ IT, and they are why it is a list rather than the count it
    * started as. The panel's one clock ticks while anything here is still

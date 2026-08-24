@@ -530,6 +530,83 @@ describe("tool calls", () => {
     expect(rows(transcript).length).toBe(2)
     expect(after.upserts.length).toBe(0)
   })
+
+  test("A DEATH MID-ANSWER DOES NOT CUT THE ANSWER IN HALF", () => {
+    // The review's SHOULD 1 (grok, at 71daeb9f). A persistent monitor is out,
+    // somebody asks a question, the agent is mid-paragraph — and the monitor's
+    // timeout fires. A tool frame ends the open paragraph, because normally it
+    // means the agent stopped talking and did something; this frame means a
+    // call made three hours ago just ended, and the agent has not stopped
+    // anything. Closing on it left one answer in two halves with the death
+    // between them.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+    })
+    transcript.settle()
+    transcript.user("what about the fleet?")
+    transcript.begins()
+    transcript.say("Once upon a time the fleet was waiting and ")
+    transcript.tool("toolu_01WATCH", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+    transcript.say("then the rest of the answer continues here.")
+    transcript.settle()
+
+    const said = rows(transcript)
+    // ONE paragraph, whole — not two halves around a notice.
+    const prose = said.filter((entry) => entry.kind === "agent")
+    expect(prose.length).toBe(1)
+    expect(prose[0]?.text).toBe(
+      "Once upon a time the fleet was waiting and then the rest of the answer continues here.",
+    )
+    // ... and the death BELOW it, which is where the ruling puts it.
+    expect(said[said.length - 1]).toMatchObject({
+      kind: "notice",
+      text: "the background task “kolu fleet watch” ended (completed)",
+    })
+  })
+
+  test("... and an ordinary call in the same turn still ends the paragraph", () => {
+    // The rule the exemption is carved out of, kept: a call the agent makes
+    // WHILE it is talking is the agent having stopped to do something, and
+    // what it says afterwards is a new paragraph. Only a frame about a task
+    // already armed is exempt.
+    const transcript = new Transcript()
+    transcript.begins()
+    transcript.say("first I will look")
+    transcript.tool("call-1", { title: "Grep", status: "in_progress" })
+    transcript.say("and here is what I found")
+    transcript.settle()
+
+    const prose = rows(transcript).filter((entry) => entry.kind === "agent")
+    expect(prose.map((entry) => entry.text)).toEqual([
+      "first I will look",
+      "and here is what I found",
+    ])
+  })
+
+  test("... nor does the frame that ARMS a task get the exemption", () => {
+    // The arming frame IS the agent doing something — it made the call — so it
+    // closes like any other. The exemption is for the frames that come back
+    // about a task the row already carries.
+    const transcript = new Transcript()
+    transcript.begins()
+    transcript.say("arming the watch")
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+    })
+    transcript.say("armed; carrying on")
+    transcript.settle()
+
+    const prose = rows(transcript).filter((entry) => entry.kind === "agent")
+    expect(prose.map((entry) => entry.text)).toEqual(["arming the watch", "armed; carrying on"])
+  })
   test("an ordinary call never arms a task", () => {
     const transcript = new Transcript()
     transcript.tool("call-1", { title: "Grep", status: "completed" })

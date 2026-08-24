@@ -42,6 +42,11 @@ Taken from #941:
 - **the ordering races it names** — a terminal that arrives before the launch
   acknowledgement is held and replayed, duplicates are idempotent, and a call
   whose `tool_use` was dropped by a cancelled turn is still resolved.
+  The hold MERGES rather than replaces, which #941 has no equivalent of
+  because it has one bookend to hold: both of ours can beat the arming result
+  and only the notification carries the sentence, so a last-write-wins hold
+  would settle a shell that exited 3 without mentioning the 3 (review SHOULD 3,
+  grok at 71daeb9f).
 
 Added here, and not in #941:
 

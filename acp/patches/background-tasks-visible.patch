@@ -1,6 +1,6 @@
 --- a/dist/acp-agent.js
 +++ b/dist/acp-agent.js
-@@ -1221,6 +1221,95 @@
+@@ -1221,6 +1221,108 @@
              }
              await this.client.sessionUpdate(notification);
          };
@@ -58,7 +58,20 @@
 +                // The bookend raced ahead of the result that arms the call in the
 +                // client: hold it rather than close a call nobody has been told is
 +                // running. Replayed the moment the arming result is forwarded.
-+                record.terminal = { status, summary };
++                //
++                // MERGED, NEVER REPLACED, because BOTH bookends can beat that
++                // result and only one of them carries the sentence. The
++                // guaranteed `task_updated` has no summary and the
++                // `task_notification` beside it has the one with the exit code
++                // in it, so a hold that took the last write would settle a
++                // background shell that exited 3 with no mention of the 3 — the
++                // one fact this whole path exists to deliver. Same rule the
++                // transcript applies when the sentence lands a beat late on a
++                // live call: refine, do not re-state.
++                record.terminal = {
++                    status,
++                    summary: summary ?? record.terminal?.summary,
++                };
 +                return;
 +            }
 +            if (record.settled && summary === undefined) {
@@ -96,7 +109,7 @@
          const resetTurnScratch = () => {
              lastAssistantTotalUsage = null;
              lastAssistantUsage = null;
-@@ -2155,11 +2244,20 @@
+@@ -2155,11 +2257,20 @@
                                      parentToolUseId: message.tool_use_id,
                                      isSubagent: !!message.subagent_type,
                                  });
@@ -117,7 +130,7 @@
                                  // The task settled — no further tool calls can originate
                                  // from it, so its registry entry can be dropped.
                                  session.liveBackgroundTasks.delete(message.task_id);
-@@ -2173,6 +2271,10 @@
+@@ -2173,6 +2284,10 @@
                                  if (message.patch.status === "completed" ||
                                      message.patch.status === "failed" ||
                                      message.patch.status === "killed") {
@@ -128,7 +141,7 @@
                                      session.liveBackgroundTasks.delete(message.task_id);
                                  }
                                  break;
-@@ -2306,6 +2408,35 @@
+@@ -2306,6 +2421,35 @@
                                          }
                                      }
                                  }
@@ -164,7 +177,7 @@
                                  break;
                              default:
                                  unreachable(message, this.logger);
-@@ -3017,6 +3148,10 @@
+@@ -3017,6 +3161,10 @@
                              taskState: session.taskState,
                              emittedToolCalls: session.emittedToolCalls,
                              messageId: messageIdForGrouping(message),
@@ -175,7 +188,7 @@
                              toolUseResult: message.type === "user" ? message.tool_use_result : undefined,
                              // On the wire since CLI 2.1.216 but not in SDKUserMessage's
                              // type, hence the cast. Validated by parseToolResultMeta.
-@@ -3030,6 +3165,21 @@
+@@ -3030,6 +3178,21 @@
                              // meta and are excluded there.
                              await sendUpdate(notification);
                          }
@@ -197,7 +210,7 @@
                          break;
                      }
                      case "tool_progress": {
-@@ -4759,6 +4909,12 @@
+@@ -4759,6 +4922,12 @@
              toolUseCache: {},
              emittedToolCalls: new Set(),
              liveBackgroundTasks: new Map(),
@@ -210,7 +223,7 @@
              emittedAssistantText: false,
              owedTrailingIdles: 0,
              messageIdToUuid: new Map(),
-@@ -5836,6 +5992,49 @@
+@@ -5836,6 +6005,49 @@
      return byToolUseId;
  }
  /**
@@ -260,7 +273,7 @@
   * Convert an SDKAssistantMessage (Claude) to a SessionNotification (ACP).
   * Only handles text, image, and thinking chunks for now.
   */
-@@ -6020,7 +6219,26 @@
+@@ -6020,7 +6232,26 @@
              case "text_editor_code_execution_tool_result":
              case "mcp_tool_result": {
                  const wasEmitted = options?.emittedToolCalls?.has(chunk.tool_use_id) === true;
@@ -288,7 +301,7 @@
                  // Why this is_error result carries harness prose instead of tool
                  // output (user-rejected / interrupted / …), when the SDK said so.
                  // Spread into the claudeCode meta of every update emitted below; the
-@@ -6028,6 +6246,66 @@
+@@ -6028,6 +6259,66 @@
                  // carry `toolName`, which is unknown there).
                  const nonExecution = toolResultMeta?.get(chunk.tool_use_id);
                  const toolUse = toolUseCache[chunk.tool_use_id];
