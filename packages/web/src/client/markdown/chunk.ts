@@ -9,9 +9,9 @@
  *
  * THE FETCH IS THE SHELL'S, and that is a 2026-08-24 reversal worth reading
  * before this file's own story: `index.html` carries a
- * `<link rel="modulepreload">` for the chunk, so the bytes are on their way at
- * the first byte of the document, in parallel with the entry, whatever the page
- * turns out to draw. What that buys is the WAIT — a page of markdown used to
+ * `<link rel="modulepreload">` for the chunk, so the bytes are on their way off
+ * the same head as the entry — behind it and the stylesheet, which is what a
+ * FIRST paint waits on — whatever the page turns out to draw. What that buys is the WAIT — a page of markdown used to
  * hold the file's own source for a whole round trip after the entry ran, which
  * is the flash `../styles.css` now blurs and this tag now shortens. What it
  * costs is the bytes on a page that draws no markdown at all, which the human

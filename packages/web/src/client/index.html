@@ -119,10 +119,11 @@
          document, a note or a chat reply was the file's own source and the
          rendering came a round trip later. That flash is now covered — the
          waiting text is blurred and swept (src/client/styles.css) — and this
-         tag is the other half: the chunk is fetched in parallel with the entry
-         at the first byte of the shell, so on a warm cache the skeleton is
-         about a frame, and on a cold one it is honest progress over the real
-         shape of the answer instead of a wait nobody was told about.
+         tag is the other half: the chunk is fetched off the same head as the
+         entry rather than a round trip after it, so on a warm cache the
+         skeleton is about a frame, and on a cold one it is honest progress
+         over the real shape of the answer instead of a wait nobody was told
+         about.
 
          It is a PRELOAD and not an import: nothing here runs the module. A page
          of plain outline rows still never executes it — the `import()` in
