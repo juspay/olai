@@ -69,6 +69,19 @@ test("wait throws Hung with what the child said, rather than answering false", a
     "process.stderr.write('still here\\n'); setTimeout(() => {}, 10_000)",
   ])
   try {
+    // The chunk is the event; 200ms is only the hang detector after it.
+    // Under CI load the write can land after 200ms, and a clock-first
+    // wait then throws Hung with an empty box — the flake the wait
+    // discipline exists to not have.
+    await new Promise<void>((resolve, reject) => {
+      const look = () => {
+        if (child.err().includes("still here")) resolve()
+      }
+      child.stderr?.on("data", look)
+      look()
+      void child.closed.then(() =>
+        reject(new Error(`the sleeper exited before it said anything:\n${child.said()}`)))
+    })
     try {
       await child.wait(200, "the sleeper")
       throw new Error("wait should have hung")
