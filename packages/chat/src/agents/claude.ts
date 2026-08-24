@@ -36,7 +36,14 @@
 
 import type { PermissionOption } from "@agentclientprotocol/sdk"
 
-import { allowingOurs, type Leg, type Meta, type Reported, type Spawn } from "./leg.ts"
+import {
+  allowingOurs,
+  type Background,
+  type Leg,
+  type Meta,
+  type Reported,
+  type Spawn,
+} from "./leg.ts"
 
 // ── which permissions are answered without asking ──────────────────────
 
@@ -210,6 +217,73 @@ export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
   return typeof asked === "string" && asked !== "" ? { kind: asked } : {}
 }
 
+// ── which call ARMED A BACKGROUND TASK ─────────────────────────────────
+
+/**
+ * What this frame says about a background task this call armed, or `null` for
+ * a frame that says nothing about one — which is nearly every frame.
+ *
+ * THE THIRD READING of that same `_meta` corner, and the one that is not in
+ * the adapter as it ships: `_meta.claudeCode.backgroundTask` is written by the
+ * patch olai carries on its pin (`acp/patches/README.md`), which is PR #941's
+ * approach extended to every task the harness registers. Without it the wire
+ * says a `Monitor` COMPLETED at the instant it started — the acknowledgement
+ * read as the result — so an armed watch and a finished one are the same row,
+ * and the death that a person supervising off a monitor must not miss is on no
+ * frame at all.
+ *
+ * ONE FIELD, READ WHOLE. Unlike {@link spawnedIn} there is no gate-plus-input
+ * pair to assemble here, and that is the point of reading this corner rather
+ * than the tool's own answer: `taskId` is a name the `Monitor` tool gives one
+ * of ITS results and `backgroundTaskId` is what `Bash` gives one of its own,
+ * so a reader that trusted either off a `rawOutput` would arm a live face on
+ * any MCP server that answered with a field by that name. The adapter is the
+ * thing that knows a task was registered, and this reads its answer.
+ *
+ * WHAT EACH FRAME SAYS is deliberately partial, and the union of them is never
+ * assembled here: the arming frame names the task, its kind and the description
+ * it was armed with; the settling frame names the task and how it ENDED. A
+ * frame answers about itself, an absent field reads as "unchanged", and
+ * {@link ../transcript.ts} is what holds the row together — which is the rule
+ * every other field on a tool row already follows.
+ *
+ * An agent that is not this adapter says nothing here and gets nothing: its
+ * background work is drawn exactly as it was, as a call that completed at the
+ * moment it started, which is the losing direction this bet is safe in.
+ */
+export const backgroundTaskIn = (meta: Meta): Background | null => {
+  const said = claudeIn(meta)?.["backgroundTask"]
+  if (typeof said !== "object" || said === null) return null
+  const task = said as { readonly [field: string]: unknown }
+  const id = wordIn(task, "taskId")
+  // NO TASK ID, NO TASK. The id is the one field every frame about a task
+  // carries, and a row that armed something nobody can name is not a fact
+  // worth drawing a live face out of.
+  if (id === null) return null
+  const description = wordIn(task, "description")
+  // HOW IT ENDED, in the harness's own word — `completed`, `failed`,
+  // `killed`, `stopped`. ACP folds the last three into one status, and a
+  // monitor somebody STOPPED is not a monitor that failed, so the word
+  // travels beside the status rather than being re-derived from it.
+  const ended = wordIn(task, "status")
+  return {
+    task: id,
+    ...(description === null ? {} : { description }),
+    ...(ended === null ? {} : { ended }),
+  }
+}
+
+/*
+ * What is deliberately NOT read off a background task, for the reason nothing
+ * else here is read without a reader: **`taskType`**, the harness's own kind.
+ * It is on the frame — the patch stamps what `task_started` said, which is
+ * #865's own proposal shape — and it says `local_bash` for a `Monitor` and for
+ * a background shell alike, so it cannot tell a person which kind of thing is
+ * out. What can is the DESCRIPTION, which is what a person armed the task
+ * with. A field carried onto a row that nothing draws is a field that is wrong
+ * the first time somebody draws it.
+ */
+
 /*
  * What is deliberately NOT read off a spawn, and why, because the next person
  * to open this file will find it in the payload and wonder:
@@ -251,8 +325,17 @@ const claudeIn = (meta: Meta): { readonly [key: string]: unknown } | undefined =
  *  either, both or neither: a subagent's terminal output arrives with a
  *  `claudeCode` holding only the parent, and a plan exit's with only the
  *  name. */
-const stringIn = (meta: Meta, field: string): string | null => {
-  const value = claudeIn(meta)?.[field]
+const stringIn = (meta: Meta, field: string): string | null =>
+  wordIn(claudeIn(meta), field)
+
+/** ... over any record, which is the half {@link backgroundTaskIn} needs: its
+ *  fields are a level deeper than the corner above, and re-spelling the
+ *  narrowing there made it the fourth copy of a rule this file already names. */
+const wordIn = (
+  said: { readonly [field: string]: unknown } | undefined,
+  field: string,
+): string | null => {
+  const value = said?.[field]
   return typeof value === "string" && value !== "" ? value : null
 }
 
@@ -477,6 +560,7 @@ export const CLAUDE: Leg = {
   allowedWithoutAsking,
   parentToolUse: parentToolUseIn,
   spawned: spawnedIn,
+  backgroundTask: backgroundTaskIn,
   bypassMode: BYPASS_MODE,
   steering: {
     method: STEER_METHOD,

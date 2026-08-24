@@ -20,6 +20,7 @@ import { describe, expect, test } from "bun:test"
 
 import {
   allowedWithoutAsking,
+  backgroundTaskIn,
   CLAUDE,
   liveModelIn,
   liveServersIn,
@@ -376,6 +377,118 @@ describe("which call started an agent", () => {
   })
 })
 
+describe("which call armed a background task", () => {
+  /** What the patched adapter stamps when a task is ARMED — the harness's own
+   *  `task_started`, translated onto the call it named. Recorded from a real
+   *  session (`Monitor`, 2026-08-24), which is why the kind is the harness's
+   *  `local_bash` rather than anything a reader might expect a monitor to say. */
+  const ARMED = {
+    claudeCode: {
+      toolName: "Monitor",
+      backgroundTask: {
+        taskId: "bu13xz2ie",
+        taskType: "local_bash",
+        description: "tick watch",
+      },
+    },
+  }
+
+  /** ... and what it stamps when the task settles: the same id, the harness's
+   *  own word for the ending, and the sentence that carries a background
+   *  shell's exit code. */
+  const ENDED = {
+    claudeCode: {
+      toolName: "Bash",
+      taskStatus: "failed",
+      backgroundTask: {
+        taskId: "bwa85c0r2",
+        taskType: "local_bash",
+        description: "Run sleep and exit 3 in background",
+        status: "failed",
+        summary: 'Background command "Run sleep and exit 3 in background" failed with exit code 3',
+      },
+    },
+  }
+
+  test("reads the task and what it was armed with", () => {
+    // ... and NOT the harness's `taskType`, which is on the frame and says
+    // `local_bash` for a monitor and for a background shell alike — see the
+    // note under the reader. A field nothing draws is a field that is wrong the
+    // first time somebody draws it.
+    expect(backgroundTaskIn(ARMED)).toEqual({
+      task: "bu13xz2ie",
+      description: "tick watch",
+    })
+  })
+
+  test("an arming frame says nothing about an ending", () => {
+    // Which is what lets the transcript hold the two together: an absent field
+    // is "unchanged", so the frame that arms a call cannot take an ending back
+    // off a row and the frame that ends one cannot take the description off.
+    expect(backgroundTaskIn(ARMED)?.ended).toBeUndefined()
+  })
+
+  test("reads how it ENDED in the harness's own word, not ACP's", () => {
+    // The whole reason the field is carried: ACP has four statuses, so
+    // `failed`, `killed` and `stopped` all reach the row as `failed`. A
+    // monitor somebody STOPPED did not fail.
+    expect(backgroundTaskIn(ENDED)?.ended).toBe("failed")
+    expect(
+      backgroundTaskIn({ claudeCode: { backgroundTask: { taskId: "t", status: "stopped" } } })
+        ?.ended,
+    ).toBe("stopped")
+  })
+
+  test("a frame that says nothing about a task arms nothing", () => {
+    // Nearly every frame, and every frame from an agent that is not this
+    // adapter — whose background work is then drawn exactly as it was before
+    // any of this: a call that completed at the moment it started.
+    expect(backgroundTaskIn({ claudeCode: { toolName: "Bash" } })).toBeNull()
+    expect(backgroundTaskIn({ claudeCode: {} })).toBeNull()
+    expect(backgroundTaskIn({})).toBeNull()
+    expect(backgroundTaskIn(null)).toBeNull()
+    expect(backgroundTaskIn(undefined)).toBeNull()
+  })
+
+  test("NO TASK ID, NO TASK", () => {
+    // The id is the one field every frame about a task carries — the harness
+    // says everything else under it — so a payload without one is not a task
+    // this end can follow, and a live face drawn on it could never be taken
+    // off by anything.
+    expect(backgroundTaskIn({ claudeCode: { backgroundTask: {} } })).toBeNull()
+    expect(backgroundTaskIn({ claudeCode: { backgroundTask: { taskId: "" } } })).toBeNull()
+    expect(backgroundTaskIn({ claudeCode: { backgroundTask: { taskId: 7 } } })).toBeNull()
+    expect(backgroundTaskIn({ claudeCode: { backgroundTask: "bu13xz2ie" } })).toBeNull()
+    expect(backgroundTaskIn({ claudeCode: { backgroundTask: null } })).toBeNull()
+  })
+
+  test("a field of the wrong shape is dropped, never repaired", () => {
+    // The rule this file's other readers follow: a description that is not a
+    // sentence and an ending that is not a word are said by nobody, and
+    // defaulting either would be inventing the fact the row exists to report.
+    // The task survives, because the task is what was actually said.
+    expect(
+      backgroundTaskIn({
+        claudeCode: { backgroundTask: { taskId: "t", description: "", status: null } },
+      }),
+    ).toEqual({ task: "t" })
+  })
+
+  test("a tool's OWN answer cannot arm a call", () => {
+    // The reading a future reader will reach for, and the reason it is not
+    // here: `taskId` is a name the `Monitor` tool gives one of its results and
+    // `backgroundTaskId` is what `Bash` gives one of its own, so a reader that
+    // trusted either off a payload would put a ticking clock and a live rail on
+    // any MCP server that answered with a field by that name. What the ADAPTER
+    // registered is what this reads.
+    expect(
+      backgroundTaskIn({
+        claudeCode: { toolName: "Monitor", toolResponse: { taskId: "bu13xz2ie" } },
+      }),
+    ).toBeNull()
+  })
+})
+
 describe("which model a turn is running on", () => {
   /** What the adapter forwards under `_claude/sdkMessage`, having been asked to
    *  by {@link OPEN_SESSION_META}: the CLI's own `init`, verbatim, with the
@@ -562,6 +675,12 @@ describe("the leg", () => {
     // direction this file may not fail in.
     expect(CLAUDE.toolNameIn({ claudeCode: { toolName: "Bash" } })).toBe("Bash")
     expect(CLAUDE.toolNameOf("Bash:0")).toBeNull()
+  })
+
+  test("answers about a background task the same way it answers about a spawn", () => {
+    expect(CLAUDE.backgroundTask({ claudeCode: { backgroundTask: { taskId: "t1" } } }))
+      .toEqual({ task: "t1" })
+    expect(CLAUDE.backgroundTask({ claudeCode: { toolName: "Bash" } })).toBeNull()
   })
 
   test("has a bypass mode to ask for, and a way to steer a running turn", () => {

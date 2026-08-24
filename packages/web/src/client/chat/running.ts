@@ -38,6 +38,13 @@
  * amount of asking the conversation gets there. The faces got simpler by
  * getting more correct: they take a row, and a row is what a face is about.
  *
+ * THE PAIR ITSELF IS THE SURFACE'S (`isStillRunning`), because the SERVER asks
+ * it too — it is what decides which calls a turn strands and how many tasks a
+ * conversation still has out. What is left here is the KIND check, which is the
+ * browser's own: this narrows a row of the union to a tool call so the two faces
+ * below can read a stamp off it without an optional chain a line under the check
+ * that ruled the absence out.
+ *
  * WHAT IS NOT HERE is what a status LOOKS like. The mark, the tone and the
  * spoken word stay in the frame that draws them, and the split is not
  * squeamishness about markup: those three change when the panel's look changes
@@ -47,7 +54,7 @@
  * protocol fact behind one edit.
  */
 
-import { type ChatEntry, isRunningStatus, type ToolEntry } from "@olai/surface"
+import { type ChatEntry, isStillRunning, type ToolEntry } from "@olai/surface"
 
 /**
  * Whether this row is a call that has not come back.
@@ -68,4 +75,4 @@ import { type ChatEntry, isRunningStatus, type ToolEntry } from "@olai/surface"
  * and a user row cannot carry one.
  */
 export const isRunning = (entry: ChatEntry | undefined): entry is ToolEntry =>
-  entry?.kind === "tool" && entry.stranded !== true && isRunningStatus(entry.status)
+  entry?.kind === "tool" && isStillRunning(entry)

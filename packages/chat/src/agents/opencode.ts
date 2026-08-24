@@ -131,6 +131,11 @@ export const OPENCODE: Leg = {
   // either. A fan-out renders flat.
   parentToolUse: () => null,
   spawned: () => null,
+  // ... nor whether a call left something RUNNING behind it. opencode's own
+  // background work, if it grows any, will need a fact on this wire before the
+  // panel can draw one: a client that inferred a live task from a tool's name
+  // would be putting a ticking clock on somebody's ordinary call.
+  backgroundTask: () => null,
   // Refused (`-32602`): the modes are `build` and `plan`. Unattended
   // auto-approval for opencode lives in its own `opencode.json`, outside ACP —
   // olai answers what it is asked and never widens what it answers.

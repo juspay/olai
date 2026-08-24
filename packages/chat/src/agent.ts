@@ -631,6 +631,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             // has not made a call yet has produced none — which is the whole
             // of the stretch a person is watching a fan-out through.
             spawned: options.leg.spawned(update._meta, update.rawInput) ?? undefined,
+            // ... and whether it ARMED a background task — a monitor, a
+            // background shell — which is the one kind of call that goes on
+            // happening after this frame, after the turn, and (for a persistent
+            // monitor) for the rest of the conversation. Read off the same
+            // corner for the same reason: ACP has no place to say it, so the
+            // agent that says it is read where everything else true of one
+            // agent is read.
+            armed: options.leg.backgroundTask(update._meta) ?? undefined,
           })
           return
         case "available_commands_update":

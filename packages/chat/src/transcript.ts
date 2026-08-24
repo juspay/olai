@@ -54,9 +54,10 @@
 
 import { isDeepStrictEqual } from "node:util"
 
-import { isRunningStatus } from "@olai/surface"
+import { isRunningStatus, isTaskOut } from "@olai/surface"
 
 import type {
+  Armed,
   AskField,
   AskOutcome,
   ChatEntry,
@@ -210,6 +211,17 @@ const minted = (
  *  the row it names as the agent that made it are the same kind of key, and
  *  two literals for one scheme is one of them being missed the day the scheme
  *  moves. */
+/** WHAT A DEATH SAYS when the harness sent no sentence with it.
+ *
+ * The harness's own summary is what a reader is owed — it names the task and
+ * carries a background shell's exit code — and this is the honest thing to say
+ * when the ending arrived without one: the task, by the name it was armed with,
+ * and the word the harness ended it with. Never a word of ours: `stopped` and
+ * `failed` are the harness's own, and a monitor somebody stopped did not fail.
+ */
+const endedSaid = (name: string, ended: string): string =>
+  `the background task “${name}” ended (${ended})`
+
 const toolKey = (id: string): string => `tool:${id}`
 
 /** Two changes as one. Closing the open entry and writing the next one are two
@@ -283,6 +295,10 @@ export class Transcript {
    * ({@link tool}), which is the only thing that could make the claim untrue.
    */
   #stranded = new Set<string>()
+  /** Which row said a background task DIED, by the task's own id — so the
+   *  sentence the harness sends a beat after the ending refines that row
+   *  instead of minting a second one ({@link #dies}). */
+  #ended = new Map<string, string>()
   /**
    * The calls whose NAME has been picked — the one place "this row has been
    * named" is written down, so that a later frame's title cannot move it.
@@ -322,6 +338,7 @@ export class Transcript {
     this.#entries.clear()
     this.#undelivered.clear()
     this.#stranded.clear()
+    this.#ended.clear()
     this.#named.clear()
     this.#open = null
     this.#seq = 0
@@ -506,13 +523,35 @@ export class Transcript {
    * path somebody has to have remembered.
    */
   begins(): Change {
-    return this.#strand()
+    return this.#strand(false)
   }
 
   /** The turn ended: whatever was streaming has stopped, and so has anything
-   *  the agent announced and never reported back on. */
+   *  the agent announced and never reported back on — except a call that armed
+   *  a background task, which is the one kind of call a turn ending says
+   *  nothing about ({@link #strand}). */
   settle(): Change {
-    return both(this.#close(), this.#strand())
+    return both(this.#close(), this.#strand(false))
+  }
+
+  /**
+   * The CONVERSATION is over — the agent died — and that is a different
+   * sentence from a turn ending.
+   *
+   * A turn ending leaves an armed task alone: the task outlives the turn on
+   * purpose, and the harness reports its end whenever that comes, in whatever
+   * turn happens to be open or in none at all. A dead agent reports nothing
+   * ever again, so the tasks it left out there are exactly as abandoned as the
+   * calls it never came back for — and a rail still pulsing under a process
+   * that no longer exists is the failure every live face in this panel is
+   * written against.
+   *
+   * Its own door rather than a flag on {@link settle}, because the two are
+   * asked by different callers about different facts: every turn ends, and a
+   * conversation ends once.
+   */
+  abandon(): Change {
+    return both(this.#close(), this.#strand(true))
   }
 
   /**
@@ -529,11 +568,27 @@ export class Transcript {
    * ends of every turn, and a frame per idle call per turn would be a
    * conversation republishing its whole history to say nothing.
    */
-  #strand(): Change {
+  #strand(alsoArmed: boolean): Change {
     let change: Change = EMPTY
     for (const [key, entry] of this.#entries) {
       if (entry.kind !== "tool" || this.#stranded.has(key)) continue
       if (!isRunningStatus(entry.status)) continue
+      // A CALL THAT ARMED A BACKGROUND TASK IS NOT ONE ITS TURN WALKED AWAY
+      // FROM. It is the one kind of call whose whole point is to outlive the
+      // turn — a monitor watches a PR for an hour, a background build runs while
+      // the conversation moves on — and the harness reports its end whenever
+      // that comes, in whatever turn happens to be open (or in none). Marking it
+      // here would put out the live face at the moment the task starts doing its
+      // work, and the row would say "abandoned" about the very thing the panel
+      // was asked to show.
+      //
+      // ... UNTIL IT HAS ENDED, and until the CONVERSATION ends, which is
+      // {@link abandon}'s door: a dead agent's tasks are as abandoned as its
+      // calls, because a dead agent reports the death of nothing. Both halves
+      // are `isTaskOut`'s, in the surface beside the status vocabulary, because
+      // the browser asks the same question about the same row and the two must
+      // not answer differently.
+      if (!alsoArmed && isTaskOut(entry)) continue
       this.#stranded.add(key)
       change = both(change, this.#put(key, contentOf(entry)))
     }
@@ -578,6 +633,7 @@ export class Transcript {
       readonly locations?: ReadonlyArray<string> | undefined
       readonly parent?: string | undefined
       readonly spawned?: Spawned | undefined
+      readonly armed?: Armed | undefined
     },
   ): Change {
     const key = toolKey(id)
@@ -625,6 +681,16 @@ export class Transcript {
     const spawned = move.spawned === undefined
       ? held?.spawned
       : { ...held?.spawned, ...move.spawned }
+    // ... and what this call ARMED, under the same rule one word deeper and for
+    // the same reason: the fact arrives split across frames because the TASK's
+    // OWN LIFE is. The frame that arms the call names the task, its kind and the
+    // description it was armed with; the frame that settles it names the task
+    // and how it ended, minutes later and in another turn. Neither repeats the
+    // other's fields, so a spread is what keeps the description on the row at
+    // the moment it dies — which is the row a person reads.
+    const armed = move.armed === undefined
+      ? held?.armed
+      : { ...held?.armed, ...move.armed }
     // THE NAME, PICKED ONCE — at the first frame that carries a title, which
     // for a live call is its announcement and for a replayed one is the
     // collapsed frame that is all there ever was of it. Whether the question
@@ -658,8 +724,39 @@ export class Transcript {
       ...(locations === undefined ? {} : { locations }),
       ...(parent === undefined ? {} : { parent }),
       ...(spawned === undefined ? {} : { spawned }),
+      ...(armed === undefined ? {} : { armed }),
     }
-    const closed = this.#close()
+    // THE DEATH OF A TASK IS ALSO A ROW AT THE BOTTOM ({@link #dies}), and
+    // this is where the transition is seen: the frame that carries an ending
+    // for a row that did not have one. Computed before the repeat guard below
+    // and published after the row itself, so a reader meets the call's own
+    // ending and then the line saying so, in that order.
+    // ONE CALL for both of the shapes that reach it — the ending, and the
+    // sentence that lands a beat after it — because which of the two this is
+    // is a fact about what has been written, and {@link #dies} is what holds
+    // that. A caller deciding it out here would be the same question answered
+    // in two places, one of them by the order two frames happened to arrive in.
+    const died = armed?.ended === undefined
+      ? EMPTY
+      : this.#dies(armed.task, armed.description ?? text, armed.ended, move.progress)
+    // A TOOL FRAME ENDS THE OPEN PARAGRAPH — the agent said something, then it
+    // did something, and the next thing it says is a new paragraph. That is
+    // true of a call made IN THIS TURN and it is the only kind of frame this
+    // rule was written about.
+    //
+    // A FRAME THAT IS ONLY THE LIFE OF A TASK WE ALREADY KNEW ABOUT is not
+    // that: the call was made three hours ago, the frame is the harness
+    // reporting its end, and nothing about the conversation has stopped. Its
+    // arrival mid-answer used to settle the open paragraph, so the rest of the
+    // stream opened a second one UNDER the death — one answer in two halves
+    // with a notice between them.
+    //
+    // The pair is the discriminant, and it needs no list of fields: a row
+    // learns `armed` on the frame that arms it (which IS the agent doing
+    // something, and closes), and every later frame carrying `armed` is a
+    // settle or the sentence that follows one.
+    const lifecycle = held?.armed !== undefined && move.armed !== undefined
+    const closed = lifecycle ? EMPTY : this.#close()
     // A REPEAT IS NOT A REPORT. Nothing moved, so nothing is written — and the
     // strand mark below stays on, which is the half that matters: a row whose
     // turn walked away from it would otherwise start looking like work in
@@ -673,15 +770,62 @@ export class Transcript {
     // apart in silence. It is also cheap where it matters — a field this merge
     // took from the row it is updating IS the row's own value, so a frame that
     // carried nothing new is answered by reference at each of them.
-    if (held !== undefined && isDeepStrictEqual(contentOf(held), content)) return closed
+    // A REPEAT still carries a death: the frame that brings the harness's
+    // sentence says nothing new about the CALL (its ending is already on the
+    // row) and everything about the line at the bottom.
+    if (held !== undefined && isDeepStrictEqual(contentOf(held), content)) {
+      return both(closed, died)
+    }
     // ANYTHING HERE KNOWING. The mark means "as far as this end can tell, that
     // one never came back", and a report about it is this end being told
     // otherwise — so it comes off, and `#put` below re-derives the field from
     // the set rather than from whatever the row was carrying.
     this.#stranded.delete(key)
-    return both(closed, this.#put(key, content))
+    return both(both(closed, this.#put(key, content)), died)
   }
 
+
+  /**
+   * A BACKGROUND TASK ENDED — and the ending lands at the BOTTOM, as a row of
+   * its own, at the moment it happens.
+   *
+   * The ruling this exists for (the human, 2026-08-24, after probing the
+   * design): a task's own row is at its birth position, and a monitor armed at
+   * the top of a three-hour session is three hours of scrollback away by the
+   * time it dies. Editing the death into that row alone puts the one fact a
+   * person supervising off a monitor must not miss somewhere they are not
+   * looking — so it is ALSO said where they are, which in a transcript is the
+   * end of it.
+   *
+   * Not INSTEAD: the arming row keeps its own ending, because it is the record
+   * of what happened to that call and a reader who does scroll back is owed the
+   * whole of it. Two places, one event, and neither of them is a copy of the
+   * other's job.
+   *
+   * THE HARNESS'S OWN SENTENCE where there is one, which is where a background
+   * shell's exit code lives (*Background command "…" failed with exit code 3*).
+   * It arrives on the frame AFTER the one that ends the task — the two bookends
+   * are a guaranteed patch and a summary beside it — so the row is minted on
+   * the ending and REFINED when the sentence lands, keyed by the task
+   * ({@link #ended}) rather than re-minted. A second row would be the same
+   * death reported twice.
+   */
+  #dies(task: string, name: string, ended: string, said: string | undefined): Change {
+    const already = this.#ended.get(task)
+    if (already === undefined) {
+      // NOT CLOSING what is open. The death arrives whenever the harness says
+      // so — which may be in the middle of somebody else's answer — and the
+      // answer goes on being one paragraph with this line under it.
+      const { key, change } = this.#row("notice", said ?? endedSaid(name, ended), {}, false)
+      this.#ended.set(task, key)
+      return change
+    }
+    // The summary, arriving after the ending it belongs to. Nothing to say
+    // until it does, and nothing to say twice once it has.
+    const held = this.#entries.get(already)
+    if (said === undefined || held === undefined || held.text === said) return EMPTY
+    return this.#put(already, { kind: "notice", text: said })
+  }
   /**
    * A question the agent asked, as a row that can be answered.
    *
@@ -788,8 +932,21 @@ export class Transcript {
    *  one before it is published, or the first chunk of it goes out without the
    *  flag that says more is coming. Two minting paths, then — and they are two
    *  because a row that is complete and a row that is still arriving are two
-   *  things, not because anybody wrote the second one twice. */
-  #row<K extends ChatEntry["kind"]>(kind: K, text: string, extra: RowPatch<K>): {
+   *  things, not because anybody wrote the second one twice.
+   *
+   *  `closing` is the one thing a caller may say about the row ABOVE it, and
+   *  there is exactly one caller that says no ({@link #dies}). Writing a row
+   *  normally ENDS the open paragraph, because a row written between two
+   *  chunks of one is the agent having stopped talking and done something. A
+   *  task dying is not the agent doing anything: it is news about a call made
+   *  three hours ago, arriving while somebody's answer is still streaming, and
+   *  closing on it would cut that answer in half around the notice. */
+  #row<K extends ChatEntry["kind"]>(
+    kind: K,
+    text: string,
+    extra: RowPatch<K>,
+    closing = true,
+  ): {
     readonly key: string
     readonly change: Change
   } {
@@ -797,7 +954,7 @@ export class Transcript {
     return {
       key,
       change: both(
-        this.#close(),
+        closing ? this.#close() : EMPTY,
         this.#put(key, { kind, text, ...extra } as Extract<RowContent, { kind: K }>),
       ),
     }

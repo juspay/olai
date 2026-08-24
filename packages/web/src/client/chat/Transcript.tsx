@@ -95,9 +95,9 @@ import { Entry } from "./Entry.tsx"
 import { laneOf, RAIL } from "./lanes.ts"
 import { LIVE_DOT } from "./live.ts"
 import { NEAR } from "./near.ts"
+import { railOf, sameRail } from "./rail.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
-import { doingOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
 /** A question still waiting on somebody — `./AskForm.tsx`'s row with its own
@@ -252,15 +252,27 @@ export function Transcript(props: { readonly chat: Chat }) {
   const titleOf = (key: string): string | undefined => props.chat.entry(key)()?.text
 
   /**
-   * Whether anything is running in this conversation at all — the half of "is
-   * that agent still going" that a ROW cannot answer ({@link ./spawn.ts}).
+   * Whether anything is running in this conversation at all — WHEN THE PANEL'S
+   * ONE CLOCK TICKS ({@link ./elapsing.tsx}), and nothing else.
+   *
+   * TWO WAYS TO BE RUNNING, and the second is the whole of what this feature
+   * added. A turn in flight is the obvious one. The other is a BACKGROUND TASK
+   * the agent armed and nobody has reported the end of: a monitor spends its
+   * entire life in a conversation whose status is `idle`, which is exactly the
+   * state that used to stop the clock — so the longest-running thing in the
+   * panel was the one row whose readout never moved. What is out is the
+   * server's (`ChatState.watching`, read off the rows it already holds), and
+   * the same list the strip above the scroll draws ({@link ./Watching.tsx}).
    *
    * ONE memo for the whole list rather than one per row, and a BOOLEAN rather
    * than the state: every row's rail would otherwise subscribe to the chat
    * cell, which moves several times a turn as the context usage is revised, and
    * re-run for each of them. A boolean propagates only when it flips.
    */
-  const live = createMemo(() => props.chat.state().status === "thinking")
+  const live = createMemo(() => {
+    const state = props.chat.state()
+    return state.status === "thinking" || state.watching.length > 0
+  })
 
 
   return (
@@ -341,7 +353,16 @@ export function Transcript(props: { readonly chat: Chat }) {
                *  stopped, and for one whose CONVERSATION has, so the same memo
                *  answers both "is there anything to draw" and "what does it say"
                *  ({@link ./spawn.ts}). */
-              const working = createMemo(() => doingOf(entry()))
+              /** ... and the live RAIL under this row, whichever of the two it
+               *  is: a spawned agent still out, or a background task still
+               *  running ({@link ./rail.ts}, which owns the precedence and
+               *  carries the words together with the face they belong to).
+               *
+               *  Its own equality, because the answer is an OBJECT now and a
+               *  memo over one stops nothing by default: a row that recomputes
+               *  an identical rail would notify the attributes and the words
+               *  under it on every frame of that row. */
+              const working = createMemo(() => railOf(entry()), null, { equals: sameRail })
               return (
                 <Show when={entry()}>
                   {(row) => (
@@ -401,7 +422,7 @@ export function Transcript(props: { readonly chat: Chat }) {
                           fact, and a panel with two spellings of "this is
                           happening" is a panel with one of them to learn. */}
                       <Show when={working()}>
-                        {(doing) => (
+                        {(rail) => (
                           <div class={`${RAIL} pb-2 pt-1`}>
                             {/* The NAME is on the words rather than on the rail
                                 around them, so that what a scenario measures is
@@ -411,12 +432,12 @@ export function Transcript(props: { readonly chat: Chat }) {
                                 indent entirely. */}
                             <p
                               class="flex items-center gap-1 font-mono text-[0.6875rem] text-doing"
-                              data-testid={TESTID.chatSpawnWorking}
+                              data-testid={rail().name}
                               data-lane={row().id}
                               aria-live="polite"
                             >
                               <span class={LIVE_DOT} aria-hidden="true" />
-                              {doing()}
+                              {rail().said}
                             </p>
                           </div>
                         )}

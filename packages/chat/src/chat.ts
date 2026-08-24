@@ -86,7 +86,9 @@ import {
   CHAT_OFF,
   type ChatEntry,
   type ChatState,
+  isTaskOut,
   type NodeContext,
+  type Watching,
   type OpFailure,
   type Listed,
   type Talking,
@@ -355,6 +357,26 @@ const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "nei
  * what a spawned agent inherits, and a systemd user unit's is not a login
  * shell's ({@link ../../../docs/running.md}).
  */
+/** Whether two answers to "what is still out" say the same thing — the guard on
+ *  republishing the cell, and the reason that reading can be taken on every
+ *  frame which could have moved it.
+ *
+ *  Field by field rather than by reference: the list is a PROJECTION of the
+ *  rows, built fresh each time it is read (deliberately — that is what stops it
+ *  drifting from the rows a person is reading), so a reference test would
+ *  answer "moved" every time and put the whole cell on every open socket once
+ *  per tool frame. */
+const sameWatching = (
+  now: ReadonlyArray<Watching>,
+  before: ReadonlyArray<Watching>,
+): boolean =>
+  now.length === before.length
+  && now.every((task, at) =>
+    task.row === before[at]?.row
+    && task.name === before[at]?.name
+    && task.since === before[at]?.since
+  )
+
 const silence = (agent: string): string =>
   `${agent} ended the turn without saying anything. That is what an agent that ` +
   `cannot reach a model looks like from here — check that it is signed in and ` +
@@ -546,6 +568,42 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       return waiting
     }
 
+    /**
+     * ... and how many BACKGROUND TASKS are still out, counted off the rows for
+     * the same reason and published under the same rule.
+     *
+     * WHICH ROWS COUNT is `isTaskOut`'s and not this file's — the same rule the
+     * transcript's own stranding asks and the panel's rail asks, in the surface
+     * beside the status vocabulary. Written out here it was already wrong in one
+     * direction the others were not (it forgot the status), which is a count
+     * that stays above zero after the last rail has gone out — and a count above
+     * zero is a clock ticking in every open tab.
+     */
+    const watching = (): ReadonlyArray<Watching> => {
+      const out: Array<Watching> = []
+      for (const [key, entry] of transcript.entries()) {
+        if (entry.kind !== "tool" || !isTaskOut(entry)) continue
+        // WHAT TO CALL IT is decided here because the fallback is a field of a
+        // row: the description the task was armed with, and the call's own
+        // title when it was armed with none (a `Monitor` reads better on a
+        // strip than nothing at all does).
+        out.push({ row: key, name: entry.armed?.description ?? entry.text, since: entry.since })
+      }
+      return out
+    }
+
+    /** ... published only when it MOVED. Unlike a question, a task is reported
+     *  on by frames that arrive several times a turn and mostly say nothing
+     *  about it, and a cell republished per tool frame is a cell every open tab
+     *  pays for saying what it already said.
+     *
+     *  A LIST, so "moved" is a comparison rather than a number: the three
+     *  fields are what the strip draws, and a task whose name or stamp has not
+     *  changed is not news to it. */
+    const watched = (): void => {
+      const out = watching()
+      if (!sameWatching(out, state.watching)) move({ watching: out })
+    }
     /** The agent's events, as rows and as state. The one place the vocabulary
      *  of {@link ./events.ts} is consumed. */
     const receive = (event: AgentEvent): void => {
@@ -582,8 +640,16 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               locations: event.locations,
               parent: event.parent,
               spawned: event.spawned,
+              armed: event.armed,
             }),
           )
+          // A tool frame is the only frame that can arm a background task or
+          // report the end of one — and only a frame that says something about
+          // one of the two fields the count is made of can move it, which is a
+          // small fraction of the frames a turn sends. The count is a walk of
+          // the rows (`asking` next door makes the argument for that), so the
+          // walk is worth not taking per progress chunk of every call.
+          if (event.armed !== undefined || event.status !== undefined) watched()
           return
         case "asked":
           publish(transcript.ask(event.id, event.message, event.fields, event.parent))
@@ -653,12 +719,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             session: null,
             commands: [],
             asking: asking(),
+            watching: watching(),
             servers: [],
             usage: null,
           })
           return
         case "replayStarted":
           publish(transcript.clear())
+          watched()
           // Emptying the rows is one of the three things that can change how
           // many questions are open, so it is one of the three that recounts.
           // Every clear is preceded by the agent withdrawing what was waiting,
@@ -671,7 +739,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           publish(transcript.settle())
           return
         case "gone":
-          publish(transcript.settle())
+          // ABANDON rather than settle, and this is the one place the
+          // difference matters: a turn ending leaves an armed task alone,
+          // because the task outlives the turn and the harness will report its
+          // end. A dead agent reports nothing ever again — so the tasks it left
+          // out there are abandoned like every other call it never came back
+          // for, and the live faces on those rows go out with it.
+          publish(transcript.abandon())
+          watched()
           publish(transcript.add("notice", event.why))
           // Through the same door the two open verbs use, so a refusal that was
           // about a LIVE agent does not outlive the process it was about.
@@ -684,7 +759,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }
     }
 
-    /** The roster row with that id, or `null` — the one place a name off the
+/** The roster row with that id, or `null` — the one place a name off the
      *  wire is turned into something startable. A browser that asks for an
      *  agent this machine does not have is a STALE TAB rather than a fault, so
      *  it is refused in words rather than crashed on. */

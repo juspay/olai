@@ -15,6 +15,7 @@
  */
 
 import type {
+  Armed,
   AskField,
   AskOutcome,
   ChatServer,
@@ -121,6 +122,23 @@ export type AgentEvent =
      * agent came back.
      */
     readonly spawned: Spawned | undefined
+    /**
+     * ... and that it ARMED A BACKGROUND TASK — a monitor, a background shell,
+     * an agent sent out to run past this turn ({@link ./agents/leg.ts}'s
+     * `backgroundTask`).
+     *
+     * The third thing a call can leave behind and the only one that goes on
+     * happening: the tool answers at the moment the task starts, so without
+     * this the frame that says "running" and the frame that says "finished" are
+     * the same frame, and everything the harness says afterwards has no row to
+     * land on.
+     *
+     * `undefined` is "unchanged" like everything beside it, and it is load
+     * bearing in both directions: the frame that ARMS the call says nothing
+     * about an ending, and the frame that ENDS it need not repeat the
+     * description it was armed with.
+     */
+    readonly armed: Armed | undefined
   }
   /**
    * The agent asked a person something, and the turn is stopped until it is

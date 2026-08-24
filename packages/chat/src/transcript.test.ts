@@ -415,6 +415,203 @@ describe("tool calls", () => {
     transcript.tool("call-1", { title: "Grep", status: "completed" })
     expect(asKind(rows(transcript)[0], "tool")?.spawned).toBeUndefined()
   })
+
+  test("a call that ARMED A TASK keeps what it was armed with when it dies", () => {
+    // The same stickiness one field over, and the row where it matters most.
+    // A task's life is split across frames because the life IS split: the
+    // frame that arms the call names the task, its kind and the description,
+    // and the frame that settles it — minutes later, in another turn — names
+    // the task and how it ended. Neither repeats the other, so without the
+    // merge the row a person reads at the moment of death would have lost the
+    // description that says WHICH watch just died.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+    })
+    transcript.tool("toolu_01WATCH", {
+      status: "failed",
+      armed: { task: "bu13xz2ie", ended: "killed" },
+    })
+
+    expect(rows(transcript)[0]).toMatchObject({
+      status: "failed",
+      armed: {
+        task: "bu13xz2ie",
+        description: "kolu fleet watch",
+        ended: "killed",
+      },
+    })
+  })
+
+
+  test("A DEATH LANDS AT THE BOTTOM, as a row of its own", () => {
+    // The ruling this exists for: the arming row is at its birth position, and
+    // a monitor armed at the top of a three-hour session is three hours of
+    // scrollback away by the time it dies. So the ending is ALSO said where
+    // the reader is, which in a transcript is the end of it.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+    })
+    transcript.settle()
+    transcript.user("what else is on the list?")
+    transcript.say("this and that")
+    transcript.settle()
+    transcript.tool("toolu_01WATCH", {
+      status: "failed",
+      armed: { task: "bu13xz2ie", ended: "failed" },
+      progress: 'Background command "kolu fleet watch" failed with exit code 3',
+    })
+
+    const said = rows(transcript)
+    // ... at the END, under everything that happened in between, and not in
+    // place of the arming row: that one is the record of the call and keeps
+    // its own ending.
+    expect(said[said.length - 1]).toMatchObject({
+      kind: "notice",
+      text: 'Background command "kolu fleet watch" failed with exit code 3',
+    })
+    expect(said[0]).toMatchObject({ kind: "tool", status: "failed" })
+    expect(asKind(said[0], "tool")?.armed?.ended).toBe("failed")
+  })
+
+  test("the harness's sentence arrives a beat late and REFINES that row", () => {
+    // The two bookends: a guaranteed patch with no summary, and the
+    // notification carrying the sentence a moment later. A second row would be
+    // the same death reported twice — which is exactly what a reader at the
+    // bottom would read it as.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+    })
+    transcript.tool("toolu_01WATCH", { status: "failed", armed: { task: "bu13xz2ie", ended: "killed" } })
+    // Nothing was said with the ending, so the row says the true thing it can.
+    expect(rows(transcript)[1]).toMatchObject({
+      kind: "notice",
+      text: "the background task “kolu fleet watch” ended (killed)",
+    })
+
+    transcript.tool("toolu_01WATCH", {
+      status: "failed",
+      armed: { task: "bu13xz2ie", ended: "killed" },
+      progress: 'Monitor "kolu fleet watch" was stopped',
+    })
+    const said = rows(transcript)
+    expect(said.length).toBe(2)
+    expect(said[1]).toMatchObject({
+      kind: "notice",
+      text: 'Monitor "kolu fleet watch" was stopped',
+    })
+  })
+
+  test("... and every later frame about a dead task says nothing at all", () => {
+    // A repeat is not a report, one row over: the transcript is keyed, and a
+    // death is an event that happened once.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+    })
+    const ending = {
+      status: "failed" as const,
+      armed: { task: "bu13xz2ie", ended: "failed" },
+      progress: "it fell over",
+    }
+    transcript.tool("toolu_01WATCH", ending)
+    const after = transcript.tool("toolu_01WATCH", ending)
+
+    expect(rows(transcript).length).toBe(2)
+    expect(after.upserts.length).toBe(0)
+  })
+
+  test("A DEATH MID-ANSWER DOES NOT CUT THE ANSWER IN HALF", () => {
+    // The review's SHOULD 1 (grok, at 71daeb9f). A persistent monitor is out,
+    // somebody asks a question, the agent is mid-paragraph — and the monitor's
+    // timeout fires. A tool frame ends the open paragraph, because normally it
+    // means the agent stopped talking and did something; this frame means a
+    // call made three hours ago just ended, and the agent has not stopped
+    // anything. Closing on it left one answer in two halves with the death
+    // between them.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+    })
+    transcript.settle()
+    transcript.user("what about the fleet?")
+    transcript.begins()
+    transcript.say("Once upon a time the fleet was waiting and ")
+    transcript.tool("toolu_01WATCH", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+    transcript.say("then the rest of the answer continues here.")
+    transcript.settle()
+
+    const said = rows(transcript)
+    // ONE paragraph, whole — not two halves around a notice.
+    const prose = said.filter((entry) => entry.kind === "agent")
+    expect(prose.length).toBe(1)
+    expect(prose[0]?.text).toBe(
+      "Once upon a time the fleet was waiting and then the rest of the answer continues here.",
+    )
+    // ... and the death BELOW it, which is where the ruling puts it.
+    expect(said[said.length - 1]).toMatchObject({
+      kind: "notice",
+      text: "the background task “kolu fleet watch” ended (completed)",
+    })
+  })
+
+  test("... and an ordinary call in the same turn still ends the paragraph", () => {
+    // The rule the exemption is carved out of, kept: a call the agent makes
+    // WHILE it is talking is the agent having stopped to do something, and
+    // what it says afterwards is a new paragraph. Only a frame about a task
+    // already armed is exempt.
+    const transcript = new Transcript()
+    transcript.begins()
+    transcript.say("first I will look")
+    transcript.tool("call-1", { title: "Grep", status: "in_progress" })
+    transcript.say("and here is what I found")
+    transcript.settle()
+
+    const prose = rows(transcript).filter((entry) => entry.kind === "agent")
+    expect(prose.map((entry) => entry.text)).toEqual([
+      "first I will look",
+      "and here is what I found",
+    ])
+  })
+
+  test("... nor does the frame that ARMS a task get the exemption", () => {
+    // The arming frame IS the agent doing something — it made the call — so it
+    // closes like any other. The exemption is for the frames that come back
+    // about a task the row already carries.
+    const transcript = new Transcript()
+    transcript.begins()
+    transcript.say("arming the watch")
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+    })
+    transcript.say("armed; carrying on")
+    transcript.settle()
+
+    const prose = rows(transcript).filter((entry) => entry.kind === "agent")
+    expect(prose.map((entry) => entry.text)).toEqual(["arming the watch", "armed; carrying on"])
+  })
+  test("an ordinary call never arms a task", () => {
+    const transcript = new Transcript()
+    transcript.tool("call-1", { title: "Grep", status: "completed" })
+    expect(asKind(rows(transcript)[0], "tool")?.armed).toBeUndefined()
+  })
 })
 
 describe("what a turn leaves behind", () => {
@@ -479,6 +676,51 @@ describe("what a turn leaves behind", () => {
     const transcript = new Transcript()
     transcript.tool("call-1", { title: "Grep", status: "pending" })
     transcript.begins()
+
+    expect(asKind(rows(transcript)[0], "tool")?.stranded).toBe(true)
+  })
+
+  test("A CALL THAT ARMED A BACKGROUND TASK IS NOT LEFT BEHIND", () => {
+    // The one call whose whole point is to outlive the turn. A monitor armed
+    // in one turn watches for an hour and reports its end in whatever turn is
+    // open when it stops — or in none. Marking it would put out the live face
+    // at the moment the task starts doing its work, and the row would say
+    // "abandoned" about the very thing the panel was asked to show.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+    })
+    transcript.settle()
+    transcript.user("what else is on the list?")
+    transcript.begins()
+    transcript.settle()
+
+    expect(asKind(rows(transcript)[0], "tool")?.stranded).toBeUndefined()
+  })
+
+  test("... until the harness says how it ended, when it is an ordinary row again", () => {
+    // The half that keeps the exemption honest. An ended task's call needs no
+    // exemption — it is settled, like any other call that came back — and the
+    // exemption is read off the TASK's own life rather than off the row having
+    // once armed one. A settled row is not stranded anyway; what this pins
+    // is that the exemption stops applying, so an armed row whose agent died
+    // between the ending and the report is marked like everything else.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie" },
+    })
+    transcript.tool("toolu_01WATCH", {
+      // A harness that reported the ending without moving the status — the
+      // status arm and the task arm are two facts, and this pins the one the
+      // exemption reads.
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", ended: "stopped" },
+    })
+    transcript.settle()
 
     expect(asKind(rows(transcript)[0], "tool")?.stranded).toBe(true)
   })

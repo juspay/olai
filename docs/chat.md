@@ -228,12 +228,61 @@ The mark at the head of that line is the only other thing on it about time, and 
 
 **It knows nothing about tools**, and that is the point. What earns a number is the status on the wire — the call has not come back — so a shell command, a file watcher, a build, a search, and the tools of some agent olai has never been pointed at all get it, with nothing here having to recognise any of them.
 
-**It shows what the wire calls running**, which is not quite the same as what is running, and the difference is worth knowing: a call the agent finishes at launch and lets carry on in the background arrives here already complete, so it has no duration and should not be given one. Guessing at the far side of somebody else's process is not something this panel will do.
+**It shows what the wire calls running**, which is not quite the same as what is running, and guessing at the far side of somebody else's process is not something this panel will do. That distinction used to cost you the longest-running rows in the panel: a monitor, or a shell command sent off to run in the background, arrived here already complete because the tool answered at launch. The fix went where the problem was — the wire — and is a section of its own below.
 
 **And it stops when the call's TURN does**, which is a stronger promise than it sounds. A status is sticky, and the rows a dead or abandoned call leaves are deliberately still on screen to read — so a call nothing ever reported back on says *pending* for as long as the panel is open, which is the honest record of what happened. A clock asked of that alone would count up all afternoon under a process that stopped at lunchtime, which is the same lie the rail under a spawn is careful not to tell, except that a wrong word stays the same size and a wrong number grows.
 
 *Whether this conversation is busy* is the near-miss, and it is worth saying why it is not the question. Ask again after an agent has died — the rows are still there, that is the point of leaving them — and the new turn makes the panel busy again, so every call the last turn walked away from would light back up at once, each with a clock counting from when it first started. So olai marks what each turn leaves behind, on the call, and a later turn cannot take that back.
 
+
+## When the agent leaves something running
+
+Some calls do not finish when they answer. The agent arms a **monitor** — a command whose every line of output is an event, a websocket it watches, a `kolu watch` over a fleet of terminals — or sends a shell command off with `run_in_background`, and the tool answers immediately: *started, here is the task id*. The work then goes on, past the answer, past the turn, and for a persistent monitor for the rest of the conversation.
+
+That used to be invisible here, and the incident is worth keeping: an orchestrator armed `kolu watch --states waiting,awaiting --held-for 60s --nag 10m` and supervised an entire dispatch off its events, and the panel showed none of it — no arming, no liveness, no death. The person watching had to ask *how do you know you are babysitting right now?*, and the answer — a pid, an event cadence — existed only in the agent's own prose.
+
+**A background task gets the row of the call that armed it, and that row stays live:**
+
+```
+… kolu watch --states waiting,awaiting        ◷ kolu fleet watch   · 12m 4s
+  │ still running…
+```
+
+What is on it is what the harness itself says: the **description** the task was armed with, which is what you recognise your own watch by (the call's title is `Bash`); the **clock**, which is the same readout every running call gets and ticks here for as long as the task is out; and the **rail** under it, the same one a spawned agent hangs, saying something is still going on down there.
+
+**While it is out, it is at the top of the panel too** — a strip under the header, beside the one naming this conversation's tool servers, saying what is running and for how long:
+
+```
+● kolu fleet watch 12m 4s
+```
+
+That is not a second copy of the row. A background task's row is at its *birth position*: a monitor armed at the top of a three-hour session is three hours of scrollback away by the time you wonder whether it is still up — and you wonder at the bottom, where you are. The strip is above the scroll and never carried away by it, so the question has an answer wherever you are reading. It is absent when nothing is running, which is nearly every conversation.
+
+**And its death lands where you are looking.** When the task ends, the strip clears and a fresh row arrives at the bottom of the transcript, at that moment:
+
+```
+Background command "kolu fleet watch" failed with exit code 3
+```
+
+The row that armed it keeps its own ending — it is the record of what happened to that call, and scrolling back to it shows the whole story — but the *news* is delivered at the end of the transcript, because a death edited only into history is a death nobody meets. Where the harness sent no sentence with the ending, the row says the plain thing instead: *the background task "kolu fleet watch" ended (killed)*.
+
+**Its death is on the row too, and that is the point.** A monitor that dies is precisely the fact you must not miss — the supervision stops and nothing else says so:
+
+```
+✗ kolu watch --states waiting,awaiting   ◷ kolu fleet watch   · failed
+  Background command "kolu fleet watch" failed with exit code 3
+```
+
+The word after the description is the **harness's own** — `completed`, `failed`, `killed`, `stopped` — because the protocol's four statuses cannot spell the difference, and a monitor you STOPPED did not fail. The sentence under it is the harness's too, and it is drawn without unfolding anything: for this one row it is the whole of what there is to read, and an exit code behind the same click as the arguments is an exit code nobody sees.
+
+**A turn ending does not touch it.** Every other call still running when a turn ends is marked as one the turn walked away from; this is the one kind of call whose whole point is to outlive the turn, so it is left alone and goes on ticking through the next turn, and the next. What DOES end it is the agent dying — a dead agent will never report anything again, so its tasks are abandoned along with its calls and the live faces go out together.
+
+**The honest limits, per layer**, because they are not all in the same place:
+
+- **What the panel draws** is the task's life: armed, still out, and how it ended — in three places, each answering a different question. The ROW is the record of the call; the STRIP is the standing answer to "is it still up?"; the row at the bottom is the news of its ending. Not its individual events, and the strip says nothing about when it last did something, because nothing knows.
+- **What the wire carries** is exactly that, and only because olai patches the adapter it ships with (`acp/patches/README.md`). As released, that adapter completes such a call at the moment it launches — the acknowledgement read as the result — so an armed watch and a finished one were the same row and there was nothing to draw a clock or a death from. The patch is [PR #941](https://github.com/agentclientprotocol/claude-agent-acp/pull/941)'s approach on [issue #865](https://github.com/agentclientprotocol/claude-agent-acp/issues/865), extended from async agents to every task the harness registers.
+- **What nothing carries** is the events themselves. A monitor's every line reaches the model and the task's own output file, and no message in the stream underneath the adapter carries one — measured, not assumed. What you see instead is the agent's own prose about each event, in the short turns the harness wakes it for, in the agent's voice where it belongs.
+- **An agent that is not Claude Code** says none of this, so its background work is drawn as it always was: a call that completed at the moment it started. Nothing here guesses from a tool's name.
 ## When the agent sends other agents
 
 An agent can spawn agents of its own — one to search, one to read, several at once — and their work comes back to olai on the same wire as everything else the turn does. So it is drawn as what it is: a call a subagent made sits **indented behind a rail**, under the call that spawned it, and the ordinary column is the main agent's own.

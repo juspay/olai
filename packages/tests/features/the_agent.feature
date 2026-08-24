@@ -1506,3 +1506,45 @@ Feature: Talking to the agent
     And the chat eventually shows "archive.zip"
     When I ask the agent "what is this"
     Then the agent's answer mentions "read 70 bytes from shot.png"
+
+  @scratch:chat
+  Scenario: A background task the agent armed is visible from where the reader is, and so is its death
+    # The incident this is about: an orchestrator armed
+    # `kolu watch --states waiting,awaiting --nag 10m` as a persistent Monitor
+    # and supervised a whole dispatch off its events — and the panel showed
+    # none of it. No arming, no liveness, no death. The human had to ask "how
+    # do you know you are babysitting right now?", and the answer lived only in
+    # the agent's prose.
+    #
+    # Half of the fix is one layer down: the adapter used to complete such a
+    # call at LAUNCH, reading the acknowledgement as the result, so there was
+    # nothing on the wire for any of this to be drawn from
+    # (`acp/patches/README.md`).
+    When I ask the agent "watch"
+    Then the chat says a background task is watching "kolu fleet watch"
+    And the chat says that task is still running
+    And the chat says how long a running call has been going
+    # ... and the STRIP says it too, above the scroll. That is not a second copy
+    # of the row: it is the half a row at its birth position cannot serve, since
+    # by the time somebody asks whether their watch is still up, the answer is
+    # an hour of scrollback away.
+    And the strip says "kolu fleet watch" is running
+    # THE TURN IS OVER, AND SO IS THE NEXT ONE — and the next one buries the
+    # arming row, which is what every long session does to it. Two claims here:
+    # the row is NOT marked abandoned (a call that armed a task is the one call
+    # whose whole point is to outlive its turn), and the strip goes on answering
+    # from where the reader now is.
+    When I ask the agent "flood"
+    Then the transcript is scrolled to the newest line
+    And the call that armed the task is out of sight
+    And the chat says that task is still running
+    And the strip says "kolu fleet watch" is running
+    # ... AND THEN IT DIES, in a turn nobody sent. The death lands where the
+    # reader is LOOKING — a fresh row at the bottom, at the moment it happens —
+    # rather than only as an edit to a row an hour up the scroll. The strip
+    # clears with it, and the arming row keeps the record of what it was.
+    When the agent is released
+    Then the newest line says "exit code 3"
+    And the chat says nothing is running in the background
+    And the chat says that task ended "failed"
+    And the chat shows the harness saying "exit code 3"

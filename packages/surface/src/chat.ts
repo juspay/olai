@@ -239,6 +239,49 @@ export const Spawned = Schema.Struct({
 export type Spawned = typeof Spawned.Type
 
 /**
+ * A call that ARMED A BACKGROUND TASK, and what is known about the task.
+ *
+ * The other kind of call that outlives its own result. A `Monitor`, a
+ * `Bash(run_in_background)`, an async `Agent`: the tool answers the moment the
+ * task is running, and the task then lives on — past the frame, past the turn,
+ * and (for a persistent monitor) for the whole of the conversation. What the
+ * agent gets back is an acknowledgement; what a person needs is the task.
+ *
+ * It is on the wire because the WIRE says it: the pinned adapter stamps the
+ * harness's own `task_started` onto the call it names, and the call stays
+ * running until the harness reports a terminal state (`acp/patches/README.md`).
+ * Nothing here is inferred from a tool's name or from an argument — a client
+ * that guessed would be putting a live face on somebody's ordinary call.
+ *
+ * PRESENCE is the fact, like {@link Spawned}'s: a task that named no kind and
+ * carried no description is still a task, so this is a struct with one required
+ * field rather than a nullable string.
+ */
+export const Armed = Schema.Struct({
+  /** The harness's own id for the task — the word every later frame about it
+   *  arrives under, and the one thing that is always said. */
+  task: Schema.String,
+  /** The description it was armed WITH — "tick watch", "kolu fleet watch…" —
+   *  which is the sentence a person recognises the task by, and which the
+   *  call's own title (`Monitor`) is not. Absent for the same reason `kind`
+   *  is. */
+  description: Schema.optionalKey(Schema.String),
+  /**
+   * How it ENDED, in the harness's own word — and absent for the whole of the
+   * time it is still running, which is what makes the presence of this field
+   * the death itself.
+   *
+   * ACP has four statuses and the harness has more: `completed`, `failed`,
+   * `killed` and `stopped` all reach the row's own `status` as one of two
+   * words, and a monitor somebody STOPPED is not a monitor that failed. So the
+   * word travels beside the status rather than being folded into it — the same
+   * bargain {@link ChatServer}'s `said` strikes with an MCP server's status.
+   */
+  ended: Schema.optionalKey(Schema.String),
+})
+export type Armed = typeof Armed.Type
+
+/**
  * What became of a message that did not land — the two things this end can
  * HONESTLY know, and the difference between them is a button.
  *
@@ -273,6 +316,40 @@ export type Delivery = typeof Delivery.Type
  * says: a call nothing has reported a status for is announced `pending`, and
  * that is a value on the row rather than a default every reader re-applies.
  */
+/**
+ * ONE BACKGROUND TASK THIS CONVERSATION STILL HAS OUT — the strip's row, on
+ * the state cell rather than in the transcript.
+ *
+ * The transcript already holds the task: the call that armed it is a row, with
+ * everything on it. What that row cannot be is IN FRONT OF SOMEBODY. A monitor
+ * armed at the top of a three-hour session is at the top of a three-hour
+ * session — unreachable scrollback by the time it matters, and the question it
+ * answers ("is my watch still up?") is asked at the bottom, where the reader
+ * is. So the live half is lifted onto the cell and drawn above the scroll,
+ * exactly as the MCP roster is and for the same reason: a standing property of
+ * the conversation belongs where the header's other facts are.
+ *
+ * The HISTORY stays where it happened. This is not a second copy of the task —
+ * it is the same task named twice, and it is here only while it is out: when
+ * it ends this row is gone from the cell and the ending is a fresh row at the
+ * bottom of the transcript, where the reader is looking now.
+ */
+export const Watching = Schema.Struct({
+  /** The transcript key of the call that armed it — the row that IS this task,
+   *  so the strip and the record are one thing named twice rather than two
+   *  facts to keep in step. Also what the strip draws its list by. */
+  row: Schema.String,
+  /** What to call it: the description the task was armed with, and the call's
+   *  own title when it was armed with none. Decided by the server, because
+   *  the fallback is a field of a row this cell does not carry. */
+  name: Schema.String,
+  /** When it was armed, as an ISO 8601 instant — the same stamp the row wears
+   *  ({@link ToolEntry}'s `since`), so the strip's *running for* and the row's
+   *  own readout count from one moment rather than from two. */
+  since: Schema.String,
+})
+export type Watching = typeof Watching.Type
+
 export const ToolStatus = Schema.Literals([
   "pending",
   "in_progress",
@@ -459,6 +536,11 @@ export const ToolEntry = Schema.Struct({
    *  rather than at the moment it first reports back. Absent on every call that
    *  spawned nobody, which is nearly all of them. */
   spawned: Schema.optionalKey(Spawned),
+  /** This call ARMED a background task — see {@link Armed}. The third thing a
+   *  call can leave behind it, beside a spawned agent and a written file, and
+   *  the one that goes on happening after the turn is over. Absent on every
+   *  call that armed nothing, which is nearly all of them. */
+  armed: Schema.optionalKey(Armed),
   /**
    * The TURN this call was announced in has ended, and the call was never
    * reported on.
@@ -484,6 +566,12 @@ export const ToolEntry = Schema.Struct({
    * could make it untrue: the field means "as far as anything here knows, this
    * one never came back", and a frame saying otherwise is anything here
    * knowing.
+   *
+   * NEVER WRITTEN ON A CALL THAT ARMED A BACKGROUND TASK and has not been told
+   * how it ended ({@link Armed}). That call is not one its turn walked away
+   * from: it is the one kind of call whose whole point is to outlive the turn,
+   * and the harness is still going to report on it. Stranding one would put out
+   * the live face at the moment the task is doing its work.
    */
   stranded: Schema.optionalKey(Schema.Literal(true)),
 })
@@ -692,6 +780,41 @@ export const SAYING_MS = 120
  */
 export const isRunningStatus = (status: ToolStatus): boolean =>
   status === "pending" || status === "in_progress"
+
+/**
+ * ... and whether a CALL has not come back — the same question with the two
+ * facts a status alone cannot carry folded in.
+ *
+ * A status is STICKY: an agent that died between announcing a call and
+ * reporting on it leaves that row `pending` for as long as the panel is open,
+ * deliberately, because the row is the honest record of what was said. What
+ * the row adds is olai's own observation that the turn walked away from it
+ * ({@link ToolEntry.stranded}). Three faces in the browser and two rules on the
+ * server ask this pair, which is one more reason than {@link isRunningStatus}
+ * needed to live here.
+ */
+export const isStillRunning = (entry: ToolEntry): boolean =>
+  entry.stranded !== true && isRunningStatus(entry.status)
+
+/**
+ * ... and whether the BACKGROUND TASK this call armed is still out there.
+ *
+ * THE ONE RULE, in the one place both ends can ask it, for
+ * {@link isRunningStatus}'s reason word for word — and it is not a hypothetical
+ * here: this rule is asked by the server twice (which calls a turn may not
+ * strand, and how many tasks a conversation still has out) and by the browser
+ * twice (the rail under the row, and whether its clock has anything to tick
+ * for), and one of those answering differently from the others is a rail that
+ * goes out under a clock that goes on counting.
+ *
+ * TWO HALVES, and the second is why this is not simply "has an `armed` with no
+ * `ended`". The harness's own ending is the ordinary way a task stops being
+ * out — but a call can also reach a terminal ACP status without one (a
+ * cancelled turn resolving what it left outstanding), and a task whose CALL is
+ * over is not a task anybody is going to hear about again.
+ */
+export const isTaskOut = (entry: ToolEntry): boolean =>
+  entry.armed !== undefined && entry.armed.ended === undefined && isStillRunning(entry)
 
 /**
  * One piece of a picture on its way to the conversation's tmp directory.
@@ -1219,6 +1342,38 @@ export const ChatState = Schema.Struct({
    * forever.
    */
   asking: Schema.Int,
+  /**
+   * ... and the BACKGROUND TASKS this conversation has armed and not been told
+   * the end of — see {@link Watching}.
+   *
+   * Its own fact for {@link ChatState.asking}'s reason and one stronger: it is
+   * true at the same time as `idle`, which is the state a monitor spends its
+   * whole life in. A turn arms a watch and ends; the conversation is idle and
+   * something is still running; nothing else on this cell can say that, and a
+   * panel that asked `status` would answer "nothing is happening" about the
+   * thing a person is watching the panel FOR.
+   *
+   * Read off the rows, like `asking` and for its argument: a task being out is
+   * already written down, and a list kept beside the rows would be the same
+   * fact in a second place, free to disagree with the row a person is reading.
+   *
+   * WHICH ROWS COUNT is {@link isTaskOut} and is not restated here — that is
+   * how the older, shorter version of this rule ("the row whose `armed` has no
+   * ending") got back into the code once already. It is two conjuncts and the
+   * second is the one that goes missing: a call can reach a terminal ACP status
+   * without the harness ever saying how the task ended, and a list that counted
+   * one of those would keep the strip up and the clock ticking under a row that
+   * already says the call is over.
+   *
+   * TWO THINGS READ IT, and they are why it is a list rather than the count it
+   * started as. The panel's one clock ticks while anything here is still
+   * running (`web/src/client/chat/elapsing.tsx`) — an idle conversation with
+   * nothing out costs nothing. And the STRIP draws it, above the scroll, which
+   * is the half a count could not have served: a task's row is at its birth
+   * position in the transcript, and by the time somebody asks whether their
+   * watch is still up, that position is an hour of scrollback away.
+   */
+  watching: Schema.Array(Watching),
   /** The last thing that went wrong where no caller was waiting — a boot that
    *  failed, an agent that died mid-turn. `null` once a turn succeeds. */
   trouble: Schema.NullOr(Schema.String),
@@ -1277,6 +1432,7 @@ export const CHAT_OFF: ChatState = {
   roster: [],
   talking: null,
   asking: 0,
+  watching: [],
   trouble: null,
   unopened: null,
   servers: [],
