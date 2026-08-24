@@ -8,51 +8,20 @@
  * stderr first) and `lock.test.ts` (a SECOND olai over one directory must
  * refuse to boot). What they need of a child is the same three answers —
  * where did it bind, is it gone, and what did it say — and they are here so
- * two copies cannot drift onto different events, which is the fix
- * `stoppedWithin` already is for the first of the three.
+ * two copies cannot drift onto different events.
  *
- * "Did that process stop?" is a BOOLEAN with a deadline, and the caller asserts
- * on it — which is what puts "it did not stop" in the failure message instead
- * of in the runner's summary. A process that never stops does not fail a test,
- * it hangs it, and the runner's own timeout then reports only that something
- * took too long.
- *
- * What is deliberately NOT here is each test's own bound on stopping:
- * `shutdown.test.ts` is ABOUT how long a stop may take, so that number stays
- * where the sentence explaining it is. How long a BOOT may take is not any
- * caller's subject, so that one is here ({@link BOOT_TIMEOUT}) — a hang
- * detector around the `serving` line, never the wait itself. Callers still
- * owe the runner a timeout longer than this, or bun's 5s default steals
- * the failure and says only that something took too long.
+ * The subprocess itself is `@olai/child`'s. What remains here is READINESS:
+ * the `serving` line, which is this server's own interface and not a fact
+ * about subprocesses. The wait discipline — listeners at spawn, wait on the
+ * event, a clock that throws with what the child said — is the socket's
+ * default, so these tests stop re-earning it.
  */
 
+import { type Child, start } from "@olai/child"
 import { findLogfmt } from "@olai/log/testlib"
-import { type ChildProcess, spawn } from "node:child_process"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
-
-/**
- * Wait for `child` to be gone, or answer `false` after `ms`.
- *
- * `close` rather than `exit`, and the difference is load-bearing for one of
- * the two callers: `exit` fires when the process is gone, `close` when its
- * stdio has been drained as well, so a test that reads what the child SAID is
- * guaranteed to have all of it. It costs the other caller nothing — a stopped
- * process closes its pipes — and one event is one fewer thing for the two to
- * disagree about.
- *
- * Call it in the same synchronous block as whatever asks the child to stop:
- * the listener is attached here, and an exit that has already happened has no
- * event left to emit.
- */
-export const stoppedWithin = (child: ChildProcess, ms: number): Promise<boolean> =>
-  Promise.race([
-    new Promise<boolean>((resolve) => {
-      child.on("close", () => resolve(true))
-    }),
-    Bun.sleep(ms).then(() => false),
-  ])
 
 const MAIN = path.join(import.meta.dirname, "main.ts")
 
@@ -75,7 +44,8 @@ const clientDist = (): string =>
 export const BOOT_TIMEOUT = 10_000
 
 export interface WebChild {
-  readonly child: ChildProcess
+  readonly pid: number | undefined
+  readonly exitCode: number | null
   /** Everything it has said, both streams, for the life of the process. The
    *  boot wait fills the same box an assertion afterwards reads, so there is no
    *  gap between the two and no second listener to attach. */
@@ -94,7 +64,17 @@ export interface WebChild {
   readonly address: () => Promise<string>
   /** Its exit code, once its pipes have drained. */
   readonly exited: () => Promise<number | null>
+  /**
+   * The close, or a throw after `ms` with what the child said. The listener
+   * is the one `@olai/child` attached at spawn — attaching after kill is the
+   * hazard the socket exists to not have.
+   */
+  readonly wait: (ms: number, why: string) => Promise<number | null>
   readonly kill: (signal?: NodeJS.Signals) => void
+  readonly stop: (opts?: {
+    readonly graceMs?: number
+    readonly signal?: NodeJS.Signals
+  }) => Promise<number | null>
 }
 
 /**
@@ -137,56 +117,41 @@ export const startWeb = (options: {
   // it would try to rebind that address. An explicit `env.OLAI_PORT_FILE`
   // still wins, because that is a test of the file itself.
   if (options.env?.OLAI_PORT_FILE === undefined) delete env.OLAI_PORT_FILE
-  const child = spawn(
+  const child: Child = start(
     process.execPath,
     [MAIN, "web", options.root, ...extra],
     {
       env,
       stdio: ["ignore", "pipe", "pipe"],
+      // Both streams: a server says where it bound on stdout and why it
+      // would not boot on stderr, and a caller asserting on either wants
+      // whichever arrived.
+      drain: { stdout: true, stderr: true },
     },
   )
 
-  // Both streams into one box, for the life of the child: a server says where
-  // it bound on stdout and why it would not boot on stderr, and a caller
-  // asserting on either wants whichever arrived. The `serving` line IS the
-  // listen: waiters sit on these `data` events, not on a poll, because a
-  // wall-clock interval is what load blows through (the flake this wait used
-  // to be).
-  let said = ""
+  // Readiness is this file's residue: the `serving` line is olai's interface,
+  // not a fact about subprocesses. Waiters sit on these `data` events (the
+  // socket already drains them into the box) rather than on a poll, because
+  // a wall-clock interval is what load blows through.
   const notice = new Set<() => void>()
   const consider = () => {
     for (const fn of notice) fn()
   }
-  child.stdout?.setEncoding("utf8")
-  child.stderr?.setEncoding("utf8")
-  child.stdout?.on("data", (chunk: string) => {
-    said += chunk
-    consider()
-  })
-  child.stderr?.on("data", (chunk: string) => {
-    said += chunk
-    consider()
-  })
-
-  // ONE listener for the end of this child, attached at spawn and shared by
-  // everything below. Attaching per question is how a caller that asks after
-  // the child is already gone waits for an event that will never come again —
-  // the hazard `stoppedWithin` has to warn about, and one this shape does not
-  // have.
-  const closed = new Promise<number | null>((resolve) => {
-    child.on("close", (code: number | null) => resolve(code))
-  })
+  child.stdout?.on("data", consider)
+  child.stderr?.on("data", consider)
 
   return {
-    child,
-    said: () => said,
-    // The `serving` line, not a sleep and not a health poll. A caller asking
-    // late is answered from the box (look once on entry); one asking early
-    // is woken by the chunk that carries the line. {@link BOOT_TIMEOUT} is
-    // only the hang detector.
+    get pid() {
+      return child.pid
+    },
+    get exitCode() {
+      return child.exitCode
+    },
+    said: child.said,
     address: () =>
       new Promise<string>((resolve, reject) => {
-        const look = () => findLogfmt(said, "serving")?.url
+        const look = () => findLogfmt(child.said(), "serving")?.url
         let settled = false
         const finish = (act: () => void) => {
           if (settled) return
@@ -202,22 +167,22 @@ export const startWeb = (options: {
         }
         const timer = setTimeout(() => {
           finish(() =>
-            reject(new Error(`the server never said where it was serving:\n${said}`)))
+            reject(new Error(`the server never said where it was serving:\n${child.said()}`)))
         }, BOOT_TIMEOUT)
-        void closed.then(() => {
+        void child.closed.then(() => {
           const url = look()
           finish(() => {
             if (url === undefined) {
-              reject(new Error(`the server exited before it served:\n${said}`))
+              reject(new Error(`the server exited before it served:\n${child.said()}`))
             } else resolve(url)
           })
         })
         notice.add(onChunk)
         onChunk()
       }),
-    exited: () => closed,
-    kill: (signal: NodeJS.Signals = "SIGKILL") => {
-      if (child.exitCode === null) child.kill(signal)
-    },
+    exited: () => child.closed.then((close) => close.code),
+    wait: (ms, why) => child.wait(ms, why).then((close) => close.code),
+    kill: (signal: NodeJS.Signals = "SIGKILL") => child.kill(signal),
+    stop: async (opts) => (await child.stop(opts)).code,
   }
 }

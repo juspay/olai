@@ -53,7 +53,10 @@
  * {@link open} itself is cheap and not a cache — a directory can become a
  * repository while the server is running, and a handle kept for life would
  * miss that. The ops layer memoizes a positive answer; this file does not
- * rely on that. What IS keyed for the life of the process is the index gate:
+ * rely on that. The subprocess is `@olai/child`'s — git's residue on top is
+ * its env (`LC_ALL=C`, `GIT_TERMINAL_PROMPT=0`), that a hang is an answer
+ * rather than a throw, and the index gate, which is the caller's (#360), not
+ * the socket's. What IS keyed for the life of the process is that gate:
  * `git status` refreshes the index and `git commit` writes it, and two fibers
  * doing both lose to `index.lock`. The permit is per `gitDir`, not per
  * handle, so a second {@link open} of the same repository cannot disarm it.
@@ -63,8 +66,8 @@
  * `state` / `last` / `show` do not touch the index.
  */
 
+import { Hung, run } from "@olai/child"
 import { Effect, Semaphore } from "effect"
-import { execFile } from "node:child_process"
 import * as fs from "node:fs"
 import { join, resolve } from "node:path"
 
@@ -105,16 +108,16 @@ interface Said {
 }
 
 /** Run git, and answer with whether it worked and what it said. Never fails:
- *  every outcome is an answer the caller decides what to do with. */
+ *  every outcome is an answer the caller decides what to do with. The
+ *  subprocess is `@olai/child`'s; the residue on top is git's own env
+ *  (`LC_ALL=C`, `GIT_TERMINAL_PROMPT=0`) and that a hang is an answer rather
+ *  than a throw — a wedged hook cannot fail a write that has already landed. */
 const git = (root: string, argv: ReadonlyArray<string>): Effect.Effect<Said> =>
-  Effect.callback<Said>((resume) => {
-    execFile(
-      "git",
-      [...argv],
-      {
+  Effect.promise(async () => {
+    try {
+      const result = await run("git", [...argv], {
         cwd: root,
         timeout: BUDGET,
-        encoding: "utf8",
         maxBuffer: 32 * 1024 * 1024,
         // `LC_ALL=C` so git's own sentences are the ones {@link NOT_A_REPO}
         // reads — the classification below is a string match, and a translated
@@ -122,17 +125,12 @@ const git = (root: string, argv: ReadonlyArray<string>): Effect.Effect<Said> =>
         // `GIT_TERMINAL_PROMPT=0` so a repository that wants a credential fails
         // instead of sitting on a prompt nobody can answer.
         env: { ...process.env, LC_ALL: "C", GIT_TERMINAL_PROMPT: "0" },
-      },
-      (error, stdout, stderr) => {
-        resume(
-          Effect.succeed({
-            ok: error === null,
-            said: `${stdout}${stderr}`.trim() || (error === null ? "" : error.message),
-            out: stdout,
-          }),
-        )
-      },
-    )
+      })
+      return { ok: result.ok, said: result.said, out: result.out }
+    } catch (cause) {
+      if (!(cause instanceof Hung)) throw cause
+      return { ok: false, said: cause.message, out: cause.out }
+    }
   })
 
 /**

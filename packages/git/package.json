@@ -14,8 +14,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "`effect` and nothing else, deliberately: this is a LEAF beside `format` and `log` (docs/architecture.md), and it is the whole point of the extraction — a package that shells out to git and knows nothing about outlines, writers or a wire. A workspace sibling appearing here would be that knowledge coming back.",
+  "//dependencies": "`effect` and `@olai/child`, deliberately: this is a LEAF beside `format` and `log` (docs/architecture.md) whose subprocess socket is the sibling's. A second workspace sibling here would be knowledge about outlines, writers or a wire coming back.",
   "dependencies": {
+    "@olai/child": "workspace:*",
     "effect": "4.0.0-rc.110"
   },
   "//devDependencies": "@types/node is for `node:child_process` and `node:fs`, which this package IS. @olai/log is here for its `./testlib` collector ONLY — a refusal is reported as a log line, so a test of what it reports has to hear one, and hearing one has exactly one spelling in this tree. Deliberately not a runtime dependency: the levels and the verbs are Effect's, so nothing in src/ imports it.",

@@ -298,6 +298,7 @@
   };
   "@olai/acp" = copyPathToStore ./packages/acp;
   "@olai/chat" = copyPathToStore ./packages/chat;
+  "@olai/child" = copyPathToStore ./packages/child;
   "@olai/fonts" = copyPathToStore ./packages/fonts;
   "@olai/format" = copyPathToStore ./packages/format;
   "@olai/git" = copyPathToStore ./packages/git;

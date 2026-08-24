@@ -64,18 +64,10 @@ const BOUND_MS = BOOT_TIMEOUT * 4
 /**
  * The child's close, not a deadline. {@link BOOT_TIMEOUT} is the hang
  * detector and throws; it is not a `false`. The listener is the one
- * {@link startWeb} attached at spawn — attaching after kill is the
- * hazard `stoppedWithin` still has.
+ * `@olai/child` attached at spawn.
  */
 const stopped = (child: WebChild, why: string): Promise<number | null> =>
-  Promise.race([
-    child.exited(),
-    Bun.sleep(BOOT_TIMEOUT).then(() => {
-      throw new Error(
-        `${why} did not stop within ${BOOT_TIMEOUT}ms:\n${child.said()}`,
-      )
-    }),
-  ])
+  child.wait(BOOT_TIMEOUT, `${why} did not stop within ${BOOT_TIMEOUT}ms`)
 
 /**
  * A runtime directory this whole file shares — its children, and THIS process,
@@ -137,7 +129,7 @@ test("the refusal names the olai that holds the vault", async () => {
     const second = startWeb({ root, env })
     await second.exited()
     expect(second.said()).toContain(
-      `another olai is serving this directory (pid ${first.child.pid})`,
+      `another olai is serving this directory (pid ${first.pid})`,
     )
     expect(second.said()).toContain("one brain per vault")
   } finally {
@@ -196,7 +188,7 @@ test("a symlinked spelling of the vault is the same vault", async () => {
     const second = startWeb({ root: link, env })
     expect(await second.exited()).not.toBe(0)
     expect(second.said()).toContain(
-      `another olai is serving this directory (pid ${first.child.pid})`,
+      `another olai is serving this directory (pid ${first.pid})`,
     )
   } finally {
     first.kill()
@@ -248,8 +240,8 @@ test("`kill -9` frees the directory: nothing was cleaned up, and nothing had to 
     // not the SIGKILLed one. (A different digest's leftover is the unit
     // test below; this is the same-vault half.)
     const note = fs.readFileSync(lockFor(root), "utf8")
-    expect(note).toContain(`pid=${next.child.pid}`)
-    expect(note).not.toContain(`pid=${first.child.pid}`)
+    expect(note).toContain(`pid=${next.pid}`)
+    expect(note).not.toContain(`pid=${first.pid}`)
   } finally {
     next.kill("SIGINT")
   }
