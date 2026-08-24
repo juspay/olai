@@ -25,6 +25,19 @@
       "revision": "afb4584a80bbf779ce0f691509ff902d188c2b3d",
       "url": "https://github.com/nixos/nixpkgs/archive/afb4584a80bbf779ce0f691509ff902d188c2b3d.tar.gz",
       "hash": "sha256-shi1tjDhCGGd0kIgVPNY03V8NBWSTzhMSFDb7IqSoec="
+    },
+    "nixpkgs-bun": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "hesprs",
+        "repo": "nixpkgs"
+      },
+      "branch": "bun-1.4-update",
+      "submodules": false,
+      "revision": "d2f0dc92a749f6a279924d6f427fbaee54f139cc",
+      "url": "https://github.com/nixos/nixpkgs/archive/d2f0dc92a749f6a279924d6f427fbaee54f139cc.tar.gz",
+      "hash": "sha256-/5DvzjBWdKZD9jQwTCM+WKbirVPTumeBLum2xHZ6k1s="
     }
   },
   "version": 8

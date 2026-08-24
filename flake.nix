@@ -1,8 +1,11 @@
 # IMPORTANT: this flake has ZERO inputs *except* `bun2nix` (the kolu
-# convention). nixpkgs and the kolu source are pinned by npins
+# convention). nixpkgs, the kolu source, and the bun-1.4 nixpkgs PR (on
+# hesprs/nixpkgs, branch bun-1.4-update) are pinned by npins
 # (npins/sources.json) and imported via fetchTarball, which keeps `nix
 # develop` cold eval near a second instead of the several the flake input
-# system costs per input. Add a pin, not an input.
+# system costs per input. Add a pin, not an input. bun itself is overlaid
+# from the `nixpkgs-bun` pin (nix/nixpkgs.nix); drop that pin and the
+# overlay when NixOS/nixpkgs#556047 merges (bun-nixpkgs-catchup).
 #
 # `bun2nix` is the ONE documented exception: nixpkgs has no fetchBunDeps /
 # buildBunPackage. Upstream (nix-community/bun2nix) is flake-parts-shaped
