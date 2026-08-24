@@ -14,7 +14,8 @@
 import type { ChatEntry, ToolEntry, UserEntry } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
-import { elapsedOf } from "./elapsed.ts"
+import { HOUR, MINUTE, SECOND } from "../clock.ts"
+import { elapsedOf, outFor } from "./elapsed.ts"
 import { toolRow } from "./rows.testlib.ts"
 
 /** A RUNNING tool row, which is the only kind this rule has anything to say
@@ -175,5 +176,38 @@ describe("a stopwatch may not outlive the turn it was timing", () => {
     expect(clocks).toBe(0)
     expect(elapsedOf(row(), counted)).toBe("5m 0s")
     expect(clocks).toBe(1)
+  })
+})
+
+describe("how long a task has been out", () => {
+  // The strip's own readout ({@link ./Watching.tsx}), which is the row's words
+  // over a STAMP rather than over a row — a task on the state cell has no entry
+  // to ask about.
+  const ARMED = "2026-08-21T12:00:00.000Z"
+  const at = (ms: number) => Date.parse(ARMED) + ms
+
+  test("the same words the row's own readout uses", () => {
+    expect(outFor(ARMED, at(47 * SECOND))).toBe("47s")
+    expect(outFor(ARMED, at(72 * SECOND))).toBe("1m 12s")
+    expect(outFor(ARMED, at(3 * HOUR + 20 * MINUTE))).toBe("3h 20m")
+  })
+
+  test("and NO quiet threshold, which is the difference from the row's", () => {
+    // The row's readout stays quiet for three seconds because most calls land
+    // in a quarter of one and a number that flashes is furniture. A strip is
+    // drawn only about something that is still running, so there is nothing to
+    // suppress: a task armed a second ago has been out for a second.
+    expect(outFor(ARMED, at(SECOND))).toBe("1s")
+    expect(outFor(ARMED, at(0))).toBe("0s")
+  })
+
+  test("a clock behind the server's reads as just armed, never as the future", () => {
+    expect(outFor(ARMED, at(-5 * SECOND))).toBe("0s")
+  })
+
+  test("a stamp that is not a time says nothing", () => {
+    // Somebody else's string is not a duration, and a readout of `NaN` is
+    // worse than none.
+    expect(outFor("whenever", at(SECOND))).toBeNull()
   })
 })

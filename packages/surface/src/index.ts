@@ -1463,6 +1463,7 @@ export {
   Usage,
   UsageFailure,
   UserEntry,
+  Watching,
   whyNot,
   Wrote,
   YES_NO,

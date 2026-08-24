@@ -94,6 +94,9 @@ import {
   CHAT_ARMED,
   CHAT_ARMED_ENDED,
   CHAT_ARMED_STILL,
+  CHAT_WATCHING,
+  CHAT_WATCHING_FOR,
+  CHAT_WATCHING_TASK,
   CHAT_SPAWN,
   CHAT_SPAWN_WORKING,
   CHAT_STRIP,
@@ -1726,6 +1729,83 @@ Then(
   },
 );
 
+
+Then(
+  "the strip says {string} is running",
+  async function (this: OlaiWorld, name: string) {
+    // ABOVE THE SCROLL, which is the whole claim: the strip is outside the
+    // transcript pane, so it answers "is my watch still up?" from wherever the
+    // reader is — including, in this scenario, from the bottom of a
+    // conversation whose arming row is long gone off the top.
+    const task = this.page
+      .locator(`${CHAT_WATCHING} ${CHAT_WATCHING_TASK}`)
+      .filter({ hasText: name })
+      .first();
+    await task.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    // ... naming the ROW it belongs to, so the strip and the record are one
+    // task named twice rather than two facts free to disagree.
+    const row = await task.getAttribute("data-row");
+    assert.ok(
+      row !== null && row !== "",
+      "a strip that names no row is a second copy of the task, not the same one",
+    );
+    // ... and how long it has been out, in the same words the row uses.
+    const said = await task.locator(CHAT_WATCHING_FOR).first().textContent();
+    assert.ok(
+      secondsSaid(said ?? "") !== null,
+      `the strip says it has been running "${said}", which is not a duration`,
+    );
+  },
+);
+
+Then("the call that armed the task is out of sight", async function (this: OlaiWorld) {
+  // The condition the whole strip exists for, made true in a scenario rather
+  // than asserted about a screenshot: the arming row is off the top of the
+  // pane, which is where a monitor armed at the start of a session lives for
+  // the rest of it. Measured against the PANE rather than the window, because
+  // the row is clipped by the pane's own scroll.
+  const gone = await this.page
+    .locator(CHAT_TRANSCRIPT)
+    .evaluate((pane, selector) => {
+      const row = pane.querySelector(selector);
+      if (row === null) return "the arming row is not in the transcript at all";
+      const seen = row.getBoundingClientRect();
+      const within = pane.getBoundingClientRect();
+      return seen.bottom > within.top && seen.top < within.bottom
+        ? "the arming row is still on screen"
+        : null;
+    }, `${CHAT_TOOL}${attr("data-tool-status", "in_progress")}`);
+  assert.strictEqual(gone, null, gone ?? "");
+});
+
+Then("the newest line says {string}", async function (this: OlaiWorld, said: string) {
+  // WHERE THE READER IS, which is the ruling: a death edited into a row an
+  // hour up the scroll is a death nobody meets. The LAST row, not "somewhere
+  // in the transcript" — that weaker claim passes on the arming row's own
+  // ending and would have passed before any of this existed.
+  await this.waitUntil(
+    async () => {
+      const rows = this.page.locator(CHAT_ENTRY);
+      const last = await rows.count();
+      if (last === 0) return false;
+      const text = (await rows.nth(last - 1).textContent()) ?? "";
+      return text.includes(said);
+    },
+    `the newest row to say "${said}"`,
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then("the chat says nothing is running in the background", async function (this: OlaiWorld) {
+  // The strip goes with the task. A standing fact that outlives the thing it
+  // stands for is worse than none: it is the one place a person looks to find
+  // out whether their watch is up.
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_WATCHING).count()) === 0,
+    "the background-task strip to clear",
+    HYDRATION_TIMEOUT,
+  );
+});
 Then("the chat says no background task is still running", async function (this: OlaiWorld) {
   // A live face that outlives the thing it is about is worse than none: this
   // rail says a watch is still out, and a watch that has died is exactly what

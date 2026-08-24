@@ -1225,6 +1225,19 @@ export const TESTID = {
    *  the sentence around it. Absent on every call that armed nothing, and on a
    *  task nobody described. */
   chatArmed: "chat-armed",
+  /** THE STRIP under the header naming what is still running in the background,
+   *  drawn only while something is. Above the scroll, so it is readable from
+   *  wherever the reader is — which is the half a row at its birth position
+   *  cannot serve. */
+  chatWatching: "chat-watching",
+  /** One task on it. `data-row` is the transcript key of the call that armed
+   *  it — the same key that row carries as `data-entry-id` — so a scenario can
+   *  say the strip and the record are one task named twice. */
+  chatWatchingTask: "chat-watching-task",
+  /** ... and how long it has been out, in the same words the row's own readout
+   *  uses. It names the DURATION alone, so what a scenario reads back is the
+   *  number rather than the sentence around it. */
+  chatWatchingFor: "chat-watching-for",
   /** ... and how that task ENDED, in the harness's own word — `completed`,
    *  `failed`, `killed`, `stopped`, of which ACP's own status can spell only
    *  two. Drawn only once the task has ended, which is what makes its presence

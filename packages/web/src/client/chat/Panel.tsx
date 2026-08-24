@@ -31,13 +31,17 @@
  * conversation is attached to it, and the chips land in the composer inside.
  * The body only — the header is session controls, and a file cannot go there.
  *
- * Between those two sits {@link Roster}, which names the MCP servers this
- * conversation has and says which of them the agent reported attaching. It is
- * OUTSIDE the no-agent fallback and outside the drop target on purpose: it is a
- * fact about the session rather than a part of the conversation, and it belongs
- * where the header's other facts are — above the scroll, and never carried away
- * by it. It draws on every conversation and none at all where there is no
- * conversation, which is where #140's strip drew only on a broken one.
+ * Between those two sit the two STRIPS. {@link Roster} names the MCP servers
+ * this conversation has and says which of them the agent reported attaching;
+ * {@link Watching} names the background tasks it still has out. Both are
+ * OUTSIDE the no-agent fallback and outside the drop target on purpose: they
+ * are facts about the session rather than parts of the conversation, and they
+ * belong where the header's other facts are — above the scroll, and never
+ * carried away by it. The roster draws on every conversation and none at all
+ * where there is no conversation (which is where #140's strip drew only on a
+ * broken one); the tasks strip draws only while something is running, because
+ * nearly every conversation runs nothing and a line saying so would be
+ * furniture on every panel in the app.
  */
 
 import { createSignal, Match, Show, Switch } from "solid-js"
@@ -68,6 +72,7 @@ import { createHolding } from "./holding.ts"
 import { createLastAgent } from "./last.ts"
 import { Minimized } from "./Minimized.tsx"
 import { Roster } from "./Roster.tsx"
+import { Watching } from "./Watching.tsx"
 import { Busy } from "./Busy.tsx"
 import { NoAgent } from "./NoAgent.tsx"
 import { type Chat, createChat, createChatState } from "./state.ts"
@@ -254,6 +259,14 @@ function Face(props: { readonly chat: Chat }) {
     <>
       <Header chat={props.chat} onNew={onNew} />
       <Roster chat={props.chat} />
+      {/* ... and what is still RUNNING in it, on the same shelf and for the
+          same reason ({@link ./Watching.tsx}): a background task's own row is
+          at its birth position, and by the time somebody asks whether their
+          watch is still up, that position is an hour of scrollback away. Below
+          the roster rather than above it — the servers are what this
+          conversation HAS, which is true for its whole life, and this is what
+          it is DOING, which is true for minutes at a time. */}
+      <Watching chat={props.chat} />
       <Switch fallback={<Body chat={props.chat} />}>
         <Match when={face().kind === "no-agent"}>
           <NoAgent />

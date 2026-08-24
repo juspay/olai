@@ -211,6 +211,17 @@ const minted = (
  *  the row it names as the agent that made it are the same kind of key, and
  *  two literals for one scheme is one of them being missed the day the scheme
  *  moves. */
+/** WHAT A DEATH SAYS when the harness sent no sentence with it.
+ *
+ * The harness's own summary is what a reader is owed — it names the task and
+ * carries a background shell's exit code — and this is the honest thing to say
+ * when the ending arrived without one: the task, by the name it was armed with,
+ * and the word the harness ended it with. Never a word of ours: `stopped` and
+ * `failed` are the harness's own, and a monitor somebody stopped did not fail.
+ */
+const endedSaid = (name: string, ended: string): string =>
+  `the background task “${name}” ended (${ended})`
+
 const toolKey = (id: string): string => `tool:${id}`
 
 /** Two changes as one. Closing the open entry and writing the next one are two
@@ -284,6 +295,10 @@ export class Transcript {
    * ({@link tool}), which is the only thing that could make the claim untrue.
    */
   #stranded = new Set<string>()
+  /** Which row said a background task DIED, by the task's own id — so the
+   *  sentence the harness sends a beat after the ending refines that row
+   *  instead of minting a second one ({@link #dies}). */
+  #ended = new Map<string, string>()
   /**
    * The calls whose NAME has been picked — the one place "this row has been
    * named" is written down, so that a later frame's title cannot move it.
@@ -323,6 +338,7 @@ export class Transcript {
     this.#entries.clear()
     this.#undelivered.clear()
     this.#stranded.clear()
+    this.#ended.clear()
     this.#named.clear()
     this.#open = null
     this.#seq = 0
@@ -710,6 +726,19 @@ export class Transcript {
       ...(spawned === undefined ? {} : { spawned }),
       ...(armed === undefined ? {} : { armed }),
     }
+    // THE DEATH OF A TASK IS ALSO A ROW AT THE BOTTOM ({@link #dies}), and
+    // this is where the transition is seen: the frame that carries an ending
+    // for a row that did not have one. Computed before the repeat guard below
+    // and published after the row itself, so a reader meets the call's own
+    // ending and then the line saying so, in that order.
+    // ONE CALL for both of the shapes that reach it — the ending, and the
+    // sentence that lands a beat after it — because which of the two this is
+    // is a fact about what has been written, and {@link #dies} is what holds
+    // that. A caller deciding it out here would be the same question answered
+    // in two places, one of them by the order two frames happened to arrive in.
+    const died = armed?.ended === undefined
+      ? EMPTY
+      : this.#dies(armed.task, armed.description ?? text, armed.ended, move.progress)
     const closed = this.#close()
     // A REPEAT IS NOT A REPORT. Nothing moved, so nothing is written — and the
     // strand mark below stays on, which is the half that matters: a row whose
@@ -724,15 +753,59 @@ export class Transcript {
     // apart in silence. It is also cheap where it matters — a field this merge
     // took from the row it is updating IS the row's own value, so a frame that
     // carried nothing new is answered by reference at each of them.
-    if (held !== undefined && isDeepStrictEqual(contentOf(held), content)) return closed
+    // A REPEAT still carries a death: the frame that brings the harness's
+    // sentence says nothing new about the CALL (its ending is already on the
+    // row) and everything about the line at the bottom.
+    if (held !== undefined && isDeepStrictEqual(contentOf(held), content)) {
+      return both(closed, died)
+    }
     // ANYTHING HERE KNOWING. The mark means "as far as this end can tell, that
     // one never came back", and a report about it is this end being told
     // otherwise — so it comes off, and `#put` below re-derives the field from
     // the set rather than from whatever the row was carrying.
     this.#stranded.delete(key)
-    return both(closed, this.#put(key, content))
+    return both(both(closed, this.#put(key, content)), died)
   }
 
+
+  /**
+   * A BACKGROUND TASK ENDED — and the ending lands at the BOTTOM, as a row of
+   * its own, at the moment it happens.
+   *
+   * The ruling this exists for (the human, 2026-08-24, after probing the
+   * design): a task's own row is at its birth position, and a monitor armed at
+   * the top of a three-hour session is three hours of scrollback away by the
+   * time it dies. Editing the death into that row alone puts the one fact a
+   * person supervising off a monitor must not miss somewhere they are not
+   * looking — so it is ALSO said where they are, which in a transcript is the
+   * end of it.
+   *
+   * Not INSTEAD: the arming row keeps its own ending, because it is the record
+   * of what happened to that call and a reader who does scroll back is owed the
+   * whole of it. Two places, one event, and neither of them is a copy of the
+   * other's job.
+   *
+   * THE HARNESS'S OWN SENTENCE where there is one, which is where a background
+   * shell's exit code lives (*Background command "…" failed with exit code 3*).
+   * It arrives on the frame AFTER the one that ends the task — the two bookends
+   * are a guaranteed patch and a summary beside it — so the row is minted on
+   * the ending and REFINED when the sentence lands, keyed by the task
+   * ({@link #ended}) rather than re-minted. A second row would be the same
+   * death reported twice.
+   */
+  #dies(task: string, name: string, ended: string, said: string | undefined): Change {
+    const already = this.#ended.get(task)
+    if (already === undefined) {
+      const { key, change } = this.#row("notice", said ?? endedSaid(name, ended), {})
+      this.#ended.set(task, key)
+      return change
+    }
+    // The summary, arriving after the ending it belongs to. Nothing to say
+    // until it does, and nothing to say twice once it has.
+    const held = this.#entries.get(already)
+    if (said === undefined || held === undefined || held.text === said) return EMPTY
+    return this.#put(already, { kind: "notice", text: said })
+  }
   /**
    * A question the agent asked, as a row that can be answered.
    *

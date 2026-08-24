@@ -88,6 +88,7 @@ import {
   type ChatState,
   isTaskOut,
   type NodeContext,
+  type Watching,
   type OpFailure,
   type Listed,
   type Talking,
@@ -356,6 +357,26 @@ const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "nei
  * what a spawned agent inherits, and a systemd user unit's is not a login
  * shell's ({@link ../../../docs/running.md}).
  */
+/** Whether two answers to "what is still out" say the same thing — the guard on
+ *  republishing the cell, and the reason that reading can be taken on every
+ *  frame which could have moved it.
+ *
+ *  Field by field rather than by reference: the list is a PROJECTION of the
+ *  rows, built fresh each time it is read (deliberately — that is what stops it
+ *  drifting from the rows a person is reading), so a reference test would
+ *  answer "moved" every time and put the whole cell on every open socket once
+ *  per tool frame. */
+const sameWatching = (
+  now: ReadonlyArray<Watching>,
+  before: ReadonlyArray<Watching>,
+): boolean =>
+  now.length === before.length
+  && now.every((task, at) =>
+    task.row === before[at]?.row
+    && task.name === before[at]?.name
+    && task.since === before[at]?.since
+  )
+
 const silence = (agent: string): string =>
   `${agent} ended the turn without saying anything. That is what an agent that ` +
   `cannot reach a model looks like from here — check that it is signed in and ` +
@@ -558,10 +579,15 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      * that stays above zero after the last rail has gone out — and a count above
      * zero is a clock ticking in every open tab.
      */
-    const watching = (): number => {
-      let out = 0
-      for (const entry of transcript.entries().values()) {
-        if (entry.kind === "tool" && isTaskOut(entry)) out++
+    const watching = (): ReadonlyArray<Watching> => {
+      const out: Array<Watching> = []
+      for (const [key, entry] of transcript.entries()) {
+        if (entry.kind !== "tool" || !isTaskOut(entry)) continue
+        // WHAT TO CALL IT is decided here because the fallback is a field of a
+        // row: the description the task was armed with, and the call's own
+        // title when it was armed with none (a `Monitor` reads better on a
+        // strip than nothing at all does).
+        out.push({ row: key, name: entry.armed?.description ?? entry.text, since: entry.since })
       }
       return out
     }
@@ -569,10 +595,14 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     /** ... published only when it MOVED. Unlike a question, a task is reported
      *  on by frames that arrive several times a turn and mostly say nothing
      *  about it, and a cell republished per tool frame is a cell every open tab
-     *  pays for saying what it already said. */
+     *  pays for saying what it already said.
+     *
+     *  A LIST, so "moved" is a comparison rather than a number: the three
+     *  fields are what the strip draws, and a task whose name or stamp has not
+     *  changed is not news to it. */
     const watched = (): void => {
       const out = watching()
-      if (out !== state.watching) move({ watching: out })
+      if (!sameWatching(out, state.watching)) move({ watching: out })
     }
     /** The agent's events, as rows and as state. The one place the vocabulary
      *  of {@link ./events.ts} is consumed. */
@@ -729,7 +759,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       }
     }
 
-    /** The roster row with that id, or `null` — the one place a name off the
+/** The roster row with that id, or `null` — the one place a name off the
      *  wire is turned into something startable. A browser that asks for an
      *  agent this machine does not have is a STALE TAB rather than a fault, so
      *  it is refused in words rather than crashed on. */

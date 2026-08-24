@@ -224,6 +224,8 @@ const CHAT_ARMED = '[data-testid="chat-armed"]'
 const CHAT_ARMED_ENDED = '[data-testid="chat-armed-ended"]'
 const CHAT_ARMED_STILL = '[data-testid="chat-armed-still"]'
 const CHAT_TRANSCRIPT = '[data-testid="chat-transcript"]'
+const TESTID_WATCHING = "chat-watching"
+const CHAT_WATCHING = `[data-testid="${TESTID_WATCHING}"]`
 const CHAT_TOOL_ELAPSED = '[data-testid="chat-tool-elapsed"]'
 const CHAT_TOOL_PROGRESS = '[data-testid="chat-tool-progress"]'
 
@@ -894,6 +896,11 @@ const SECTIONS = {
    * exactly what a screenshot can carry: armed and ticking, still ticking a
    * turn later, and then the ending with the exit code on it.
    *
+   * THE MIDDLE SHOT is the one no ✔ can carry and the reason the section sends
+   * a second turn at all: the arming row is off the top of the pane by then —
+   * which is where a monitor armed at the start of a session lives for the rest
+   * of it — and the strip above the scroll is still answering.
+   *
    * IT NEEDS AN AGENT, which is the one thing about this section a reader has
    * to know: `evidence.sh` names the scripted one for this section only. Its
    * `watch` verb arms a task the way the patched adapter reports one
@@ -909,34 +916,29 @@ const SECTIONS = {
     // flash one), so waiting for it is waiting for the face this shot is of.
     await page.locator(CHAT_ARMED).first().waitFor()
     await page.locator(CHAT_ARMED_STILL).first().waitFor()
+    await page.locator(CHAT_WATCHING).waitFor()
     await page.locator(CHAT_TOOL_ELAPSED).first().waitFor({ timeout: 15_000 })
     await shot(page, "armed-and-ticking")
 
-    // A SECOND TURN, which is where every other running call would be marked
-    // as one its turn walked away from. This one is still out — so the shot
-    // waits for that turn to have ANSWERED, which is what makes it a different
-    // picture from the one above rather than the same one taken twice.
-    const armedFor = await page.locator(CHAT_TOOL_ELAPSED).first().textContent()
-    await ask(page, "hello")
-    await page.locator(CHAT_TRANSCRIPT).getByText("you said: hello").first().waitFor()
-    await page.locator(CHAT_ARMED_STILL).first().waitFor()
-    // ... and the CLOCK has moved, which is the half of this shot a still
-    // picture can carry: the scripted agent answers in a millisecond, so
-    // waiting for the turn alone would photograph the same second twice.
-    await page
-      .locator(CHAT_TOOL_ELAPSED)
-      .first()
-      .filter({ hasNotText: armedFor ?? "" })
-      .waitFor({ timeout: 15_000 })
-    await shot(page, "still-out-a-turn-later")
+    // A TURN THAT BURIES IT, which is what every long session does to an
+    // arming row. Two claims in one picture: the row is not marked abandoned
+    // (a call that armed a task is the one call whose point is to outlive its
+    // turn), and the STRIP goes on answering from where the reader now is —
+    // the arming row is off the top of the pane in this shot.
+    await ask(page, "flood")
+    await page.locator(CHAT_TRANSCRIPT).getByText("line 39").first().waitFor()
+    await shot(page, "still-out-with-the-row-scrolled-away")
 
     // ... AND THE DEATH, in no turn at all: the marker is this driver standing
-    // in for a monitor's own stream ending, and everything after it arrives
-    // with the conversation idle.
+    // in for a monitor's own stream ending. It lands at the BOTTOM, where the
+    // reader is looking, and the strip clears with it.
     writeFileSync(`${VAULT}/.agent-release`, "")
     await page.locator(CHAT_ARMED_ENDED).first().waitFor()
-    await page.locator(CHAT_TOOL_PROGRESS).first().waitFor()
-    await shot(page, "ended-with-its-exit-code")
+    await page.waitForFunction(
+      (selector) => document.querySelector(selector) === null,
+      `[data-testid="${TESTID_WATCHING}"]`,
+    )
+    await shot(page, "the-death-lands-at-the-bottom")
   },
 
   /**

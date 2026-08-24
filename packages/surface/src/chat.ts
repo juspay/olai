@@ -316,6 +316,40 @@ export type Delivery = typeof Delivery.Type
  * says: a call nothing has reported a status for is announced `pending`, and
  * that is a value on the row rather than a default every reader re-applies.
  */
+/**
+ * ONE BACKGROUND TASK THIS CONVERSATION STILL HAS OUT — the strip's row, on
+ * the state cell rather than in the transcript.
+ *
+ * The transcript already holds the task: the call that armed it is a row, with
+ * everything on it. What that row cannot be is IN FRONT OF SOMEBODY. A monitor
+ * armed at the top of a three-hour session is at the top of a three-hour
+ * session — unreachable scrollback by the time it matters, and the question it
+ * answers ("is my watch still up?") is asked at the bottom, where the reader
+ * is. So the live half is lifted onto the cell and drawn above the scroll,
+ * exactly as the MCP roster is and for the same reason: a standing property of
+ * the conversation belongs where the header's other facts are.
+ *
+ * The HISTORY stays where it happened. This is not a second copy of the task —
+ * it is the same task named twice, and it is here only while it is out: when
+ * it ends this row is gone from the cell and the ending is a fresh row at the
+ * bottom of the transcript, where the reader is looking now.
+ */
+export const Watching = Schema.Struct({
+  /** The transcript key of the call that armed it — the row that IS this task,
+   *  so the strip and the record are one thing named twice rather than two
+   *  facts to keep in step. Also what the strip draws its list by. */
+  row: Schema.String,
+  /** What to call it: the description the task was armed with, and the call's
+   *  own title when it was armed with none. Decided by the server, because
+   *  the fallback is a field of a row this cell does not carry. */
+  name: Schema.String,
+  /** When it was armed, as an ISO 8601 instant — the same stamp the row wears
+   *  ({@link ToolEntry}'s `since`), so the strip's *running for* and the row's
+   *  own readout count from one moment rather than from two. */
+  since: Schema.String,
+})
+export type Watching = typeof Watching.Type
+
 export const ToolStatus = Schema.Literals([
   "pending",
   "in_progress",
@@ -1309,8 +1343,8 @@ export const ChatState = Schema.Struct({
    */
   asking: Schema.Int,
   /**
-   * ... and how many BACKGROUND TASKS this conversation has armed and not been
-   * told the end of.
+   * ... and the BACKGROUND TASKS this conversation has armed and not been told
+   * the end of — see {@link Watching}.
    *
    * Its own fact for {@link ChatState.asking}'s reason and one stronger: it is
    * true at the same time as `idle`, which is the state a monitor spends its
@@ -1319,18 +1353,20 @@ export const ChatState = Schema.Struct({
    * panel that asked `status` would answer "nothing is happening" about the
    * thing a person is watching the panel FOR.
    *
-   * Counted off the rows, like `asking` and for its argument: a task being out
-   * is already written down — it is the row whose `armed` has no ending — and a
-   * tally beside the rows would be the same fact in a second place.
+   * Read off the rows, like `asking` and for its argument: a task being out is
+   * already written down — it is the row whose `armed` has no ending — and a
+   * list kept beside the rows would be the same fact in a second place, free to
+   * disagree with the row a person is reading.
    *
-   * WHAT READS IT is the panel's one clock (`web/src/client/chat/elapsing.tsx`):
-   * a tab ticks while anything in this conversation is still running, and an
-   * idle conversation with nothing out costs nothing. The number itself is not
-   * drawn today, which is why it is a count rather than a boolean: the rows
-   * that carry the tasks are what a person reads, and a second place to say
-   * "one watch is out" would be a second thing to keep true.
+   * TWO THINGS READ IT, and they are why it is a list rather than the count it
+   * started as. The panel's one clock ticks while anything here is still
+   * running (`web/src/client/chat/elapsing.tsx`) — an idle conversation with
+   * nothing out costs nothing. And the STRIP draws it, above the scroll, which
+   * is the half a count could not have served: a task's row is at its birth
+   * position in the transcript, and by the time somebody asks whether their
+   * watch is still up, that position is an hour of scrollback away.
    */
-  watching: Schema.Int,
+  watching: Schema.Array(Watching),
   /** The last thing that went wrong where no caller was waiting — a boot that
    *  failed, an agent that died mid-turn. `null` once a turn succeeds. */
   trouble: Schema.NullOr(Schema.String),
@@ -1389,7 +1425,7 @@ export const CHAT_OFF: ChatState = {
   roster: [],
   talking: null,
   asking: 0,
-  watching: 0,
+  watching: [],
   trouble: null,
   unopened: null,
   servers: [],

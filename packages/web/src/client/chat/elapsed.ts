@@ -128,12 +128,36 @@ export const elapsedOf = (
  * keeps its seconds and an hour does not: past an hour the difference a reader
  * cares about is minutes, and by then nobody is watching the last digit.
  */
-const saidOf = (running: number): string => {
+export const saidOf = (running: number): string => {
   if (running < MINUTE) return `${Math.floor(running / SECOND)}s`
   if (running < HOUR) {
     return `${Math.floor(running / MINUTE)}m ${Math.floor((running % MINUTE) / SECOND)}s`
   }
   return `${Math.floor(running / HOUR)}h ${Math.floor((running % HOUR) / MINUTE)}m`
+}
+
+/**
+ * ... and the same words for a thing that is not a row: how long ago an INSTANT
+ * was, which is what the strip above the scroll says about a background task
+ * ({@link ./Watching.tsx}).
+ *
+ * The strip has no row to ask about — a task is on the state cell while it is
+ * out, and a cell carries the stamp rather than the entry — so this takes the
+ * stamp. What it does NOT take is {@link QUIET_MS}: that threshold is about a
+ * frame that would flash a number for a call which lands instantly, and a strip
+ * that is drawn at all is drawn about something still running. A task armed a
+ * second ago says `1s`, which is the true thing.
+ *
+ * `null` for a stamp that is not a time, like its sibling: somebody else's
+ * string is not a duration, and a readout of `NaN` is worse than none.
+ */
+export const outFor = (since: string, now: number): string | null => {
+  const armed = instantOf(since)
+  if (armed === null) return null
+  // A NEGATIVE is a browser whose clock sits behind the server's, and it is
+  // read the way the row's own readout reads one: a task that has just been
+  // armed, never one from the future.
+  return saidOf(Math.max(0, now - armed))
 }
 
 /**

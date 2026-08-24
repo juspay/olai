@@ -445,6 +445,91 @@ describe("tool calls", () => {
     })
   })
 
+
+  test("A DEATH LANDS AT THE BOTTOM, as a row of its own", () => {
+    // The ruling this exists for: the arming row is at its birth position, and
+    // a monitor armed at the top of a three-hour session is three hours of
+    // scrollback away by the time it dies. So the ending is ALSO said where
+    // the reader is, which in a transcript is the end of it.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+    })
+    transcript.settle()
+    transcript.user("what else is on the list?")
+    transcript.say("this and that")
+    transcript.settle()
+    transcript.tool("toolu_01WATCH", {
+      status: "failed",
+      armed: { task: "bu13xz2ie", ended: "failed" },
+      progress: 'Background command "kolu fleet watch" failed with exit code 3',
+    })
+
+    const said = rows(transcript)
+    // ... at the END, under everything that happened in between, and not in
+    // place of the arming row: that one is the record of the call and keeps
+    // its own ending.
+    expect(said[said.length - 1]).toMatchObject({
+      kind: "notice",
+      text: 'Background command "kolu fleet watch" failed with exit code 3',
+    })
+    expect(said[0]).toMatchObject({ kind: "tool", status: "failed" })
+    expect(asKind(said[0], "tool")?.armed?.ended).toBe("failed")
+  })
+
+  test("the harness's sentence arrives a beat late and REFINES that row", () => {
+    // The two bookends: a guaranteed patch with no summary, and the
+    // notification carrying the sentence a moment later. A second row would be
+    // the same death reported twice — which is exactly what a reader at the
+    // bottom would read it as.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+    })
+    transcript.tool("toolu_01WATCH", { status: "failed", armed: { task: "bu13xz2ie", ended: "killed" } })
+    // Nothing was said with the ending, so the row says the true thing it can.
+    expect(rows(transcript)[1]).toMatchObject({
+      kind: "notice",
+      text: "the background task “kolu fleet watch” ended (killed)",
+    })
+
+    transcript.tool("toolu_01WATCH", {
+      status: "failed",
+      armed: { task: "bu13xz2ie", ended: "killed" },
+      progress: 'Monitor "kolu fleet watch" was stopped',
+    })
+    const said = rows(transcript)
+    expect(said.length).toBe(2)
+    expect(said[1]).toMatchObject({
+      kind: "notice",
+      text: 'Monitor "kolu fleet watch" was stopped',
+    })
+  })
+
+  test("... and every later frame about a dead task says nothing at all", () => {
+    // A repeat is not a report, one row over: the transcript is keyed, and a
+    // death is an event that happened once.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+    })
+    const ending = {
+      status: "failed" as const,
+      armed: { task: "bu13xz2ie", ended: "failed" },
+      progress: "it fell over",
+    }
+    transcript.tool("toolu_01WATCH", ending)
+    const after = transcript.tool("toolu_01WATCH", ending)
+
+    expect(rows(transcript).length).toBe(2)
+    expect(after.upserts.length).toBe(0)
+  })
   test("an ordinary call never arms a task", () => {
     const transcript = new Transcript()
     transcript.tool("call-1", { title: "Grep", status: "completed" })

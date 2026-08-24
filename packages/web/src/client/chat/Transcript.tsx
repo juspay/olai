@@ -260,8 +260,9 @@ export function Transcript(props: { readonly chat: Chat }) {
    * the agent armed and nobody has reported the end of: a monitor spends its
    * entire life in a conversation whose status is `idle`, which is exactly the
    * state that used to stop the clock — so the longest-running thing in the
-   * panel was the one row whose readout never moved. The count is the server's
-   * (`ChatState.watching`), counted off the rows it already holds.
+   * panel was the one row whose readout never moved. What is out is the
+   * server's (`ChatState.watching`, read off the rows it already holds), and
+   * the same list the strip above the scroll draws ({@link ./Watching.tsx}).
    *
    * ONE memo for the whole list rather than one per row, and a BOOLEAN rather
    * than the state: every row's rail would otherwise subscribe to the chat
@@ -270,7 +271,7 @@ export function Transcript(props: { readonly chat: Chat }) {
    */
   const live = createMemo(() => {
     const state = props.chat.state()
-    return state.status === "thinking" || state.watching > 0
+    return state.status === "thinking" || state.watching.length > 0
   })
 
 
