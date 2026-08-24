@@ -441,6 +441,62 @@ const recordsIn = (file: string): ReadonlyArray<Record<string, unknown>> => {
 const idsIn = (file: string): ReadonlySet<string> =>
   new Set(recordsIn(file).map((record) => String(record["id"])))
 
+// ── the run of chips under a title ────────────────────────────────────
+
+/** One chip of one row's run, by KEY — never by position, so a line printed
+ *  beside a shot says which fact it is about. */
+const chip = (id: string, key: string) =>
+  `${row(id)} [data-testid="prop"][data-key="${key}"]`
+
+/** THE WHOLE RUN, as one line: `key value` per chip, in the order it is drawn.
+ *  What a screenshot of a row says in text, so the order — which is the file's
+ *  own and never alphabetical — is printed rather than left to the eye. */
+const runOf = async (page: Page, id: string) =>
+  (await page.locator(`${row(id)} [data-testid="prop"]`).evaluateAll((chips) =>
+    // The key and the value are read as two ELEMENTS rather than as the chip's
+    // text, because a chip's `textContent` runs them together — `agent` and
+    // `claude-opus` are two boxes with no whitespace between them, and the line
+    // this prints is meant to be read. Done in the browser because that is
+    // where the elements are; the tidy-up is done outside it, because
+    // `evaluateAll`'s callback is serialised into the page and nothing this
+    // module declares exists there.
+    chips.map((one) => [
+      one.querySelector('[data-testid="prop-key"]')?.textContent ??
+        one.firstElementChild?.textContent ?? "",
+      one.querySelector('[data-testid="prop-value"]')?.textContent ?? "",
+    ])
+  )).map(([key, value]) => `${oneLine(key ?? "")} ${oneLine(value ?? "")}`).join(" · ") ||
+  "(nothing)"
+
+/** WHAT A VALUE TURNED OUT TO NAME, and where it goes — `data-door` and the
+ *  href under it, or the sentence for the value that names nothing.
+ *
+ *  Printed rather than photographed, because the claim this feature rests on is
+ *  a NEGATIVE: `claude-opus` is not a link, a sentence is not a link, and a
+ *  value with a URL inside it is not a URL. A picture of text that is not
+ *  underlined proves less than the absence stated. */
+const doorOn = async (page: Page, id: string, key: string) => {
+  const value = page.locator(`${chip(id, key)} [data-testid="prop-value"]`).first()
+  const said = oneLine(await value.innerText())
+  const door = value.locator("[data-door]").first()
+  if (await door.count() === 0) return `${JSON.stringify(said)} — no door, drawn as text`
+  const kind = await door.getAttribute("data-door")
+  const link = door.locator("a").first()
+  const target = await link.getAttribute("target")
+  return `${JSON.stringify(said)} — ${kind} door to ${await link.getAttribute("href")}${
+    target === null ? "" : ` (target=${target}, rel=${await link.getAttribute("rel")})`
+  }`
+}
+
+/** One node's `custom` map, off the disk the driver is serving — the other half
+ *  of every write this section makes, since a run that changed and a file that
+ *  did not would be an echo rather than a write. */
+const customOn = (file: string, id: string): Record<string, unknown> => {
+  const found = recordsIn(file).find((record) => record["id"] === id)
+  if (found === undefined) throw new Error(`${file} holds no node called ${id}`)
+  return (found["custom"] ?? {}) as Record<string, unknown>
+}
+
 /**
  * The ROOT of the copy a duplicate just made, found the way the op's own
  * promise says to find it: the record this write brought into being that sits
@@ -3697,6 +3753,160 @@ const SECTIONS = {
     console.log("  no abort anywhere in the transcript")
     await chatBottom(page)
     await shot(page, "the-message-runs-after-the-compaction")
+  },
+
+  /**
+   * PROPS ON THE ROW, THE DOORS IN THEM, AND WHERE ONE IS WRITTEN
+   * (`props-doors-autoshow`): the whole of what changed about a node's facts,
+   * on a LANE NODE of the shape the live board writes — `agent`, `brief`,
+   * `dispatched`, `merge`, `reviewer`, `worktree`, `pr`, and a `verdict` that
+   * broke the props-are-short-facts rule.
+   *
+   * THE RECORD IS WRITTEN HERE rather than kept in the corpus, exactly as the
+   * suite's own scenarios write theirs: the subject is a shape the ORCHESTRATOR
+   * produces (`docs/orchestrator/lanes.olai`), and a lane node in the fixtures
+   * would be a corpus about this repository's own workflow
+   * (`fixtures/README.md`). What it points AT is the corpus's own: `finishes.md`
+   * is a document the directory serves, `basil` is a node `garden.olai`
+   * declares, and neither is a coincidence — those are what make the two doors
+   * doors rather than guesses.
+   *
+   * The claims, in the order the shots take them:
+   *
+   *   1. the run is on the row with NO gesture at all — no ¶ pressed, no row
+   *      opened, and no pilcrow on a node whose only body is its facts;
+   *   2. a vault-path chip lands on that document, and a node-id chip on that
+   *      node — the address bar is in frame for both;
+   *   3. a URL chip carries the tab-of-its-own pair, and `agent`, `merge` and a
+   *      `pr` with a URL *inside* it carry no door at all. The last is the
+   *      refusal the whole rule rests on, and it is printed rather than
+   *      photographed because "no link" is not a thing a picture shows;
+   *   4. the node's own page wears the same run, system facts and all;
+   *   5. the ¶ adds the NOTE and nothing the row was already showing;
+   *   6. a chip is edited in place, added from the `+`, and removed by clearing
+   *      it — and the `•••` no longer carries one entry per property.
+   */
+  "props-on-the-row": async (page) => {
+    pinnedBy(
+      "properties.feature",
+      "The first one is added from the menu, and the row says so with no gesture at all",
+      "A node that HAS one adds the next from the `+`, and the menu offers nothing",
+      "A chip is edited in place — press its key, type, press Enter",
+      "Clearing the value removes the property — the op's own reading",
+      "A value that names a document in this directory opens that document",
+      "A value that IS a node's id opens that node — assignment becomes navigation",
+      "A URL is a link out of the tab, and everything else stays text",
+      "A value too long to be a fact is drawn as its first words",
+      "What the pilcrow adds is the note, and never what the row already shows",
+    )
+    rewrite("house.olai", [
+      `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
+      `{"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles"}`,
+      `{"id":"lane","parent":"kitchen","ord":"a1",` +
+        `"title":"markdown flashes as RAW SOURCE for a moment before it renders",` +
+        `"doing":true,` +
+        `"desc":"Filed by the human 2026-08-22 ~07:40 — saw a \`.md\` page arrive as raw text, then become HTML a split second later.",` +
+        `"custom":{"agent":"claude-opus","brief":"finishes.md","dispatched":"2026-08-24 16:20",` +
+        `"merge":"the human approves","reviewer":"basil",` +
+        `"worktree":".worktrees/markdown-raw-flash",` +
+        `"pr":"https://github.com/juspay/olai/pull/369",` +
+        `"verdict":"DO-NOT-OBJECT at c2704bc6 — the owner map verified against the diff, and the wait discipline holds"}}`,
+    ])
+
+    // 1. THE RUN, drawn without anybody pressing anything.
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    console.log(`  the run reads: ${await runOf(page, "lane")}`)
+    console.log(`  pilcrows on the run-only row: ${
+      await page.locator(`${row("handles")} [data-testid="note-mark"]`).count()
+    }`)
+    await shot(page, "the-run-is-on-the-row")
+    await inTheDark(page)
+    await shot(page, "the-run-is-on-the-row-dark")
+    await page.evaluate(() => localStorage.setItem("olai.theme", "chalk"))
+
+    // 2. TWO DOORS, followed. The address bar is what says they landed.
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    await page.locator(chip("lane", "brief")).locator("a").click()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the brief chip landed at: ${await page.evaluate(() => location.pathname)}`)
+    await shot(page, "a-vault-path-chip-opens-the-document")
+
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    await page.locator(chip("lane", "reviewer")).locator("a").click()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the reviewer chip landed at: ${await page.evaluate(() => location.hash)}`)
+    console.log(`  the page is about: ${await textOf(page, '[data-testid="zoom-title"]')}`)
+    await shot(page, "a-node-id-chip-opens-that-node")
+
+    // 3. WHAT IS A DOOR AND WHAT IS NOT — printed, because an absence is not a
+    // thing a screenshot shows.
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    for (const key of ["brief", "reviewer", "dispatched", "pr", "agent", "merge", "worktree"]) {
+      console.log(`  ${key}: ${await doorOn(page, "lane", key)}`)
+    }
+    await shot(page, "which-values-are-doors")
+
+    // 4. THE NODE'S OWN PAGE, wearing the same run with the system half in
+    // front of it — and the id, which is a fact and never a link to itself.
+    await opened(page, "/#lane", '[data-testid="zoom-title"]')
+    console.log(`  the page's run reads: ${await runOf(page, "lane")}`)
+    await shot(page, "the-node-page-wears-the-same-run")
+
+    // 5. WHAT THE ¶ ADDS, which is the note and nothing that was on the row.
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    console.log(`  shut, the row draws: ${await runOf(page, "lane")}`)
+    await page.locator(`${row("lane")} [data-testid="note-mark"]`).first().click()
+    await page.waitForTimeout(DRAWN)
+    console.log(`  open, the row draws: ${await runOf(page, "lane")}`)
+    console.log(`  ...and adds the note: ${await textOf(page, `${row("lane")} [data-testid="desc"]`)}`)
+    await shot(page, "opening-the-row-adds-the-note-and-nothing-else")
+
+    // 6. WRITING ONE, in the chip that draws it.
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    await page.locator(chip("lane", "merge")).locator('[data-testid="prop-key"]').click()
+    await page.waitForTimeout(DRAWN)
+    await shot(page, "a-chip-opens-for-editing-where-it-is-drawn")
+    await page.locator(`${row("lane")} [data-testid="prop-edit"]`).fill("the human approves personally")
+    await page.keyboard.press("Enter")
+    await page.waitForTimeout(DRAWN)
+    console.log(`  after the edit: ${await runOf(page, "lane")}`)
+    console.log(`  on disk: ${JSON.stringify(customOn("house.olai", "lane")["merge"])}`)
+    await shot(page, "the-edit-landed-on-the-row")
+
+    // ...adding one from the `+` at the end of the run.
+    await page.locator(`${row("lane")} [data-testid="prop-add"]`).first().click()
+    await page.waitForTimeout(DRAWN)
+    await shot(page, "the-plus-opens-a-chip-with-two-boxes")
+    await page.locator(`${row("lane")} [data-testid="prop-edit-key"]`).fill("soak-until")
+    await page.locator(`${row("lane")} [data-testid="prop-edit"]`).fill("2026-08-31")
+    await page.keyboard.press("Enter")
+    await page.waitForTimeout(DRAWN)
+    console.log(`  after the add: ${await runOf(page, "lane")}`)
+    console.log(`  the new chip is a: ${await doorOn(page, "lane", "soak-until")}`)
+    await shot(page, "a-new-property-added-from-the-run")
+
+    // ...and removing one by clearing it, which is the op's own reading of an
+    // empty value rather than a second verb.
+    await page.locator(chip("lane", "worktree")).locator('[data-testid="prop-key"]').click()
+    await page.waitForTimeout(DRAWN)
+    await page.locator(`${row("lane")} [data-testid="prop-edit"]`).fill("")
+    await page.keyboard.press("Enter")
+    await page.waitForTimeout(DRAWN)
+    console.log(`  after clearing \`worktree\`: ${await runOf(page, "lane")}`)
+    console.log(`  on disk: ${JSON.stringify(customOn("house.olai", "lane")["worktree"] ?? null)}`)
+    await shot(page, "clearing-a-value-removes-the-property")
+
+    // ...and the MENU, which no longer grows with the data. Two nodes side by
+    // side: the one carrying facts is offered nothing about them, and the one
+    // carrying none is offered the single entry the `+` cannot reach.
+    await openMenu(page, "lane")
+    console.log(`  the menu on a node WITH properties: ${await verbsOf(page)}`)
+    await shot(page, "the-menu-no-longer-carries-a-verb-per-property")
+    await page.keyboard.press("Escape")
+    await page.waitForTimeout(DRAWN)
+    await openMenu(page, "handles")
+    console.log(`  the menu on a node with NONE: ${await verbsOf(page)}`)
+    await shot(page, "one-entry-survives-where-there-is-no-run")
   },
 } satisfies Record<string, (page: Page) => Promise<void>>
 
