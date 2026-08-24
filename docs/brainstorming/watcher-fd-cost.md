@@ -111,7 +111,84 @@ What a per-directory rewrite in olai would have hit is the trap in its other for
 
 A bump is only worth proposing if the watcher still behaves. Nine mutation shapes, each performed in isolation with 500 ms of quiet either side, against a recursive watch of a throwaway copy of the corpus.
 
-One trap, caught by a fact-check and worth naming because it is the kind that survives: the first run edited `Daily/2026/04/note-3.md` as `Daily/2026/03/…`. The generator files note *n* under month `n % 12 + 1`, so note-3 lives in month **04** — meaning the "in-place edit" step was silently measuring a CREATE, and row 1 was reporting row 2's answer. The table below edits a file that provably pre-exists (the script asserts it), and row 1 changed as a result:
+One trap, caught by a fact-check and worth naming because it is the kind that survives: the first run edited `Daily/2026/04/note-3.md` as `Daily/2026/03/…`. The generator files note *n* under month `n % 12 + 1`, so note-3 lives in month **04** — meaning the "in-place edit" step was silently measuring a CREATE, and row 1 was reporting row 2's answer. The table below edits a file that provably pre-exists (the script asserts it), and row 1 changed as a result.
+
+The script, run under the pinned bun against a throwaway copy of the corpus (`bun mutations.ts /path/to/copy`):
+
+```ts
+import * as fs from "node:fs"
+import * as path from "node:path"
+import { setTimeout as sleep } from "node:timers/promises"
+
+const root = path.resolve(process.argv[2]!)
+type Ev = { t: number; event: string; filename: string | null }
+const events: Ev[] = []
+const t0 = Date.now()
+const watcher = fs.watch(root, { recursive: true }, (event, filename) => {
+  events.push({
+    t: Date.now() - t0,
+    event,
+    filename: filename == null ? null : String(filename),
+  })
+})
+const quiet = 500
+const log = (label: string) => {
+  const slice = events.splice(0)
+  console.log(`--- ${label} ---`)
+  if (slice.length === 0) console.log("NO EVENT")
+  else for (const e of slice) console.log(`${e.t}ms ${e.event} ${e.filename}`)
+}
+console.log(`bun=${Bun.version} root=${root}`)
+await sleep(quiet)
+events.length = 0
+
+const existing = path.join(root, "Daily/2026/04/note-3.md")
+if (!fs.existsSync(existing)) throw new Error(`missing ${existing}`)
+fs.appendFileSync(existing, "\nedited in place\n")
+await sleep(quiet)
+log("1 in-place edit of EXISTING file, 3 levels down")
+
+const created = path.join(root, "Daily/2026/04/created-fresh.md")
+fs.writeFileSync(created, "created by write\n")
+await sleep(quiet)
+log("2 create by write, 3 levels down")
+
+fs.appendFileSync(created, "edited again\n")
+await sleep(quiet)
+log("3 edit that file again")
+
+fs.unlinkSync(created)
+await sleep(quiet)
+log("4 delete it")
+
+const src = path.join(root, "rename-src.md")
+const dest = path.join(root, "Daily/2026/04/renamed.md")
+fs.writeFileSync(src, "to be renamed\n")
+await sleep(quiet)
+events.length = 0
+fs.renameSync(src, dest)
+await sleep(quiet)
+log("5 create by rename into a nested dir")
+
+fs.appendFileSync(dest, "edited after rename\n")
+await sleep(quiet)
+log("6 edit the rename-published file")
+
+const sub = path.join(root, "post-boot-dir")
+fs.mkdirSync(sub)
+await sleep(quiet)
+log("7 mkdir a new subdirectory")
+
+const inner = path.join(sub, "inside.md")
+fs.writeFileSync(inner, "inside new dir\n")
+await sleep(quiet)
+log("8 create a file inside that new subdirectory")
+
+fs.appendFileSync(inner, "edited inside\n")
+await sleep(quiet)
+log("9 edit the file inside that new subdirectory")
+watcher.close()
+```
 
 | what happened | 1.3.13 | 1.3.14 | 1.4.0 (this pin) |
 | --- | --- | --- | --- |

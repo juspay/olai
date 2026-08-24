@@ -30,7 +30,7 @@
       "type": "Git",
       "repository": {
         "type": "GitHub",
-        "owner": "nixos",
+        "owner": "hesprs",
         "repo": "nixpkgs"
       },
       "branch": "bun-1.4-update",

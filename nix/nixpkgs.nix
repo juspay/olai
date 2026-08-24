@@ -1,13 +1,14 @@
 # Pinned nixpkgs import — managed by npins (the kolu convention: zero flake
 # inputs; sources arrive via fetchTarball). To update: `just update-pins`.
 #
-# bun is overlaid from NixOS/nixpkgs#556047 (npins pin `nixpkgs-bun`, branch
-# `bun-1.4-update`), not from the nixpkgs-unstable pin. That PR is 1.3.13 →
-# 1.4.0: the watcher rewrite this repo is waiting on
-# (docs/brainstorming/watcher-fd-cost.md). The extra pin records the PR
-# branch at its HEAD, so `just update-pins` follows the PR rather than
-# silently dropping the bump — the kolu-pin lesson, where `branch: master`
-# plus a PR revision meant a later update would jump off the fix.
+# bun is overlaid from NixOS/nixpkgs#556047 (npins pin `nixpkgs-bun`), not
+# from the nixpkgs-unstable pin. That PR is 1.3.13 → 1.4.0: the watcher
+# rewrite this repo is waiting on (docs/brainstorming/watcher-fd-cost.md).
+# The extra pin records the PR's head on the fork that actually carries
+# the branch (`hesprs/nixpkgs`, `bun-1.4-update`) — `nixos/nixpkgs` has no
+# such ref, so a pin that named that owner made `just update-pins` fail
+# and update nothing. `just update-pins` now follows the fork and cannot
+# silently drop the bump.
 #
 # Overlay, not a retarget of nixpkgs: #556047 also marks kilo broken, limits
 # cyberstrike, and retouches anytype's hash, none of which olai's closure

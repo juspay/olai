@@ -31,7 +31,7 @@
   },
   "//devDependencies": "@types/ws is the other half of the `ws` entry above: the hydrated sources are raw TypeScript, so `tsc --noEmit` checks them, and it resolves their types from the same root node_modules their imports resolve from.",
   "devDependencies": {
-    "@types/bun": "^1.2.0",
+    "@types/bun": "^1.4.0",
     "@types/ws": "^8.18.1",
     "typescript": "^5.8.0"
   }
