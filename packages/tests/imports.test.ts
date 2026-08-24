@@ -18,7 +18,7 @@
  * moving back to day one, one import at a time.
  *
  * The second fence is FOR the door, and it is the older rule this file has
- * always held, restated at the place it now lives: the list may re-export no
+ * always held, restated at the place it now lives: the list may reach no
  * COMPONENT. A `.tsx` drags its whole import graph into a process with no
  * browser in it, and the client's graph reaches `wire.ts`, which dials at
  * module scope and throws without a `location`. That is not hypothetical:
@@ -28,8 +28,14 @@
  * first scenario with an error about `connectSurface` — nothing to do with
  * any scenario, and nothing in the diff that looked like a test change. The
  * fix then was to move the constant into a plain module (`chat/near.ts`);
- * the rule now is that the door offers nothing else.
+ * the rule now is that the door's CLOSURE holds no component either: one
+ * ESM module evaluates every module it reaches, so a hop in ANY listed leaf
+ * (`chat/near.ts` re-exporting the component it was extracted from, which is
+ * exactly the historical shape) is the same boot death one import later. The
+ * sweep below is the closure, therefore — not the door file's own text.
  */
+
+import * as path from "node:path";
 
 import { expect, test } from "bun:test";
 
@@ -64,13 +70,43 @@ test("no file in this package reaches the client past ./testlib", () => {
   expect(found).toEqual([]);
 });
 
-test("the door re-exports no component", () => {
-  const found = [
-    ...withoutComments(read("packages/web/src/suite.testlib.ts")).matchAll(
-      /from\s+"([^"]+\.tsx)"/g,
+/** Every RELATIVE specifier a file's code spells, by position rather than
+ *  by statement (a braced list broken over lines is seen; prose is stripped
+ *  first with the shared rule). Reachable-module grammar is this tree's: a
+ *  name, an extension. "@olai/anything" stops the walk — another package's
+ *  discipline is another package's fence. */
+const relativesOf = (file: string): ReadonlyArray<string> =>
+  [
+    ...withoutComments(read(file)).matchAll(
+      /(?:\bfrom\s*|^\s*import\s*|\bimport\(\s*|\brequire\(\s*)["']([^"'\n]+)["']/gm,
     ),
-  ].map((hit) => hit[1]);
-  // Same shape on purpose: a component through the door is the suite dying
-  // at boot again, one connectSurface-style import away.
+  ]
+    .flatMap((hit) => (hit[1] === undefined ? [] : [hit[1]]))
+    .filter((one) => one.startsWith("."));
+
+/** The sibling a relative specifier names, as a root-relative path —
+ *  normalised, because transitives climb (`../complete/trigger.ts`). */
+const beside = (file: string, specifier: string): string =>
+  path.posix.normalize(`${path.posix.dirname(file)}/${specifier}`);
+
+test("the door reaches no component", () => {
+  // A WALK, not one file's text: the door is one ESM module, so its full
+  // closure is what the suite's first import evaluates — and a `.tsx` one
+  // re-export in is the incident this test exists to not need re-learned.
+  const seen = new Set<string>();
+  const found: Array<string> = [];
+  const visit = (file: string): void => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    for (const specifier of relativesOf(file)) {
+      const sibling = beside(file, specifier);
+      if (sibling.endsWith(".tsx")) {
+        found.push(`${file}: ${specifier}`);
+      } else {
+        visit(sibling);
+      }
+    }
+  };
+  visit("packages/web/src/suite.testlib.ts");
   expect(found).toEqual([]);
 });
