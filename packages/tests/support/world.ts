@@ -2592,12 +2592,13 @@ export class OlaiWorld extends World {
    *  claim. */
   paperBefore?: string;
 
-  /** Where a block sat before something replaced what is inside it, for the
-   *  scenario that claims it did not MOVE — the markdown renderer landing
-   *  under a note (`step_definitions/markdown_steps.ts`). Compared against
-   *  itself, like the paper above: the corner and the measure are the claim
-   *  (never the height — a rendering of the text is a different shape from the
-   *  text), and no number in it is a fact about this app anybody wrote down. */
+  /** A box taken BEFORE something replaced what was inside it, for the
+   *  scenarios that claim the swap changed nothing about it — the markdown
+   *  renderer landing under a note, and under a tree row's title
+   *  (`step_definitions/markdown_steps.ts`). Compared against itself, like the
+   *  paper above: WHICH of its numbers is the claim belongs to the step that
+   *  reads it, and no number in it is a fact about this app anybody wrote
+   *  down. */
   blockBefore?: Box;
 
   /** The URLs that left this server. Normally empty and it must stay that way:

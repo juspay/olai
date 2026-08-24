@@ -240,6 +240,37 @@ When(
   },
 );
 
+/**
+ * A ROW's height, before and after its title stops being its own source.
+ *
+ * A title is one line either way — that is the whole reason the source may be
+ * drawn at all — and the way that stops being true is a rule meant for a block
+ * reaching an inline title: a tree row ellipsizes (`white-space: nowrap`), and
+ * anything that hands the title permission to wrap opens the row under a
+ * reader. Height rather than the corner, because a row that wraps is a row
+ * that GROWS while its top-left stays exactly where it was.
+ */
+When(
+  "I note how tall the row of {string} is",
+  async function (this: OlaiWorld, id: string) {
+    this.blockBefore = await this.box(this.node(id).first(), `the row of "${id}"`);
+  },
+);
+
+Then(
+  "the row of {string} is the same height",
+  async function (this: OlaiWorld, id: string) {
+    const before = this.blockBefore;
+    assert.ok(before !== undefined, "nothing noted how tall the row was");
+    const now = await this.box(this.node(id).first(), `the row of "${id}"`);
+    assert.strictEqual(
+      Math.round(now.height),
+      Math.round(before.height),
+      `the row of "${id}" changed height when its title's rendering landed`,
+    );
+  },
+);
+
 Then(
   "the description of {string} is where it was",
   async function (this: OlaiWorld, id: string) {

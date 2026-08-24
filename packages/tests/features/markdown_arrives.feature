@@ -102,8 +102,13 @@ Feature: The markdown pipeline arrives before it is needed
     Then the title of "demo" shows its markdown source
     And the title of "demo" is waiting illegibly
     And the title of "kitchen" styles the tag "home"
-    When the markdown pipeline arrives
+    When I note how tall the row of "demo" is
+    And the markdown pipeline arrives
     Then the title of "demo" renders bold text "take out"
+    And the title of "demo" is not waiting
+    # A title is ONE LINE either way, which is what lets its source be drawn at
+    # all: a waiting face that let it wrap would open the row under a reader.
+    And the row of "demo" is the same height
     And there should be no page errors
 
   # THE CLAIM THE FIX IS: not that the source is gone — it is deliberately
