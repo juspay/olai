@@ -237,9 +237,12 @@ export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
 
 /** One OBJECT-valued field of an object, or `undefined` for anything else — a
  *  missing field, a field of some other type, a value that is not an object at
- *  all. The whole of the narrowing the two handshake readers do, written once
- *  because an advertisement is nested three deep and every level of it is
- *  somebody else's to change. */
+ *  all.
+ *
+ *  The whole of the narrowing every reader in this file does, written once:
+ *  everything read here is nested somewhere inside somebody else's payload, and
+ *  each level of the nesting is a place a shape can change under us. `_meta`,
+ *  `claudeCode` and a handshake's capabilities are all the same step. */
 const fieldIn = (value: unknown, field: string): Meta => {
   if (typeof value !== "object" || value === null) return undefined
   const found = (value as { readonly [key: string]: unknown })[field]
@@ -255,13 +258,9 @@ const metaOf = (value: unknown): Meta => fieldIn(value, "_meta")
 
 /** The adapter's own corner of a `_meta`, or `undefined` when there is none —
  *  an absent `_meta`, an absent `claudeCode`, one that is not an object. Every
- *  reader here starts by asking for it. */
-const claudeIn = (meta: Meta): { readonly [key: string]: unknown } | undefined => {
-  const claude = meta?.["claudeCode"]
-  return typeof claude === "object" && claude !== null
-    ? claude as { readonly [key: string]: unknown }
-    : undefined
-}
+ *  reader here starts by asking for it, and it is {@link fieldIn} under the one
+ *  name this file reads everything out of. */
+const claudeIn = (meta: Meta): Meta => fieldIn(meta, "claudeCode")
 
 /** One field of that corner, when it is a non-empty string and `null` for
  *  everything else — a field of some other type, the empty string. The two
