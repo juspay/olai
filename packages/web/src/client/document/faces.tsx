@@ -141,6 +141,27 @@ function Rendered(props: Reading) {
   // file's own text until then: there is nothing to make a contents out of
   // until something has read the headings. The `<Markdown>` under it is what
   // asks for the chunk; this memo re-runs when it arrives (../markdown/chunk.ts).
+  //
+  // SO THE CONTENTS ARRIVES IN THE SAME FLUSH AS THE BODY'S DE-BLUR, and this
+  // page moves when it does: measured on `finishes.md` (two headings), the body
+  // top goes 181px → 316px at that instant, the contents block being 99px plus
+  // its margins. Raised in review (pi, 2026-08-24) against the flash fix's
+  // ruling — "a de-blur rather than a reflow" — and left as it is, because the
+  // same measurement on master is the same two numbers: this is what a document
+  // page has always done, and the flash work changed only what the frame BEFORE
+  // it looks like.
+  //
+  // What it would take to change it, and why none of it is free: RESERVING the
+  // block's height means inventing one (how many headings? that is the guess
+  // the whole skeleton refuses); READING the headings out of the source without
+  // the pipeline is a second markdown dialect (`#` inside a fence is not a
+  // heading — ../markdown/plain.ts's rule, from the other side); and ORDERING
+  // the two — the contents first, the de-blur a frame later, so the page moves
+  // only while it still says it is loading — means telling `<Markdown>` to hold
+  // back, which is a second readiness path into the one component that owns the
+  // waiting state. The last of those is the one worth having if a reader ever
+  // complains; it is a decision about the CONTENTS rather than about the flash,
+  // and it is the human's.
   const headings = createMemo(() =>
     markdownReady() ? outlineOf(text(), props.file) : [],
   )

@@ -42,7 +42,7 @@
 
 import { createMemo, Show } from "solid-js"
 
-import { markdownFailure, markdownReady } from "./chunk.ts"
+import { markdownFailure, markdownReady, markdownWaiting } from "./chunk.ts"
 import { renderMarkdown, renderStreaming } from "./render.ts"
 import { escapeHtml } from "./tags.ts"
 import { busyMark, waitingMark } from "./waiting.ts"
@@ -66,7 +66,13 @@ export function Markdown(props: {
         : renderMarkdown(props.source, props.from)
       : undefined
   )
-  const waiting = (): boolean => html() === undefined
+  /** Is this block still WAITING on the renderer — the arrival's own answer
+   *  (./chunk.ts), not `html() === undefined`, which is "not rendered" and is
+   *  true of a page whose renderer failed as well. The two agree inside this
+   *  branch, since the `<Show>` above sends a failure the other way; reading
+   *  the one answer is what stops that agreement being a thing somebody has to
+   *  keep true. ./title.ts reads the same signal for the same reason. */
+  const waiting = markdownWaiting
   const classes = (): string => `olai-md ${props.class ?? ""}`
 
   return (

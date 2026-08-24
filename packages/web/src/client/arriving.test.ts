@@ -107,3 +107,55 @@ test("using it before it arrives is a throw, because that is a bug in the caller
   const chunk = createArrival("the ••• menu", heldFetch<string>().fetch)
   expect(() => chunk.now()).toThrow("the ••• menu was used before it arrived")
 })
+
+/**
+ * THE THIRD STATE, and the one this file did not hold when it was written.
+ *
+ * `ready()` answers two questions with one `false`: the chunk is coming, and
+ * the chunk is never coming. Every surface that dresses itself as UNFINISHED
+ * has to tell those apart, and a surface that read `!ready()` for it would go
+ * on saying "loading" at a page nothing is ever going to change — which is
+ * exactly what `markdown/title.ts` did for one commit of this branch: a title
+ * with marks in it stayed blurred forever behind a renderer that had failed.
+ */
+test("waiting is here-not-yet, and a failure is not waiting", async () => {
+  const held = heldFetch<string>()
+  const chunk = createArrival("the markdown renderer", held.fetch)
+
+  // Before anything has asked: nothing is here, and something is coming as
+  // soon as somebody reads it.
+  expect(chunk.waiting()).toBe(true)
+  expect(chunk.ready()).toBe(false)
+
+  held.land("here")
+  await settled()
+  expect(chunk.waiting()).toBe(false)
+  expect(chunk.ready()).toBe(true)
+
+  // ...and the other way out of waiting, which is the one that matters: not
+  // here, not coming, and NOT to be drawn as though it were on its way.
+  const lost = heldFetch<string>()
+  const failed = createArrival("the markdown renderer", lost.fetch)
+  expect(failed.waiting()).toBe(true)
+  lost.fail(new Error("offline"))
+  await settled()
+  expect(failed.ready()).toBe(false)
+  expect(failed.waiting()).toBe(false)
+  expect(failed.failure()).toBeDefined()
+})
+
+test("reading `waiting` is an ask, exactly as reading `ready` is", async () => {
+  // The two are one question asked two ways, so the fetch belongs to neither
+  // of them alone: a surface that only ever asks whether it should draw itself
+  // as unfinished still starts the thing it is waiting for.
+  const held = heldFetch<string>()
+  const chunk = createArrival("the thing", held.fetch)
+  expect(held.started()).toBe(0)
+
+  expect(chunk.waiting()).toBe(true)
+  expect(held.started()).toBe(1)
+
+  chunk.waiting()
+  chunk.ready()
+  expect(held.started()).toBe(1)
+})
