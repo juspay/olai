@@ -1247,6 +1247,10 @@ export const TESTID = {
   chatSessionsRefused: "chat-sessions-refused",
   /** What went wrong where nobody was waiting: a boot, a dead agent. */
   chatTrouble: "chat-trouble",
+  /** The message box. On a name `@`, `data-asked` is WHICH query the NODE
+   *  half has answered — the list itself is not drawn when that answer is
+   *  empty (`Composer.tsx`'s `open` is `rows().length > 0`), so the wait
+   *  lives here. */
   chatInput: "chat-input",
   /** On a `user` row that did not land: the strip saying WHICH way it did not,
    *  in `data-delivery` — `refused`, which carries the button that tries
@@ -1293,8 +1297,8 @@ export const TESTID = {
    *  — `command` or `name` — so a scenario names the list rather than guessing
    *  from what is in it. On a name list, `data-asked` is WHICH query the NODE
    *  half answers (the files are local and up at once); absent while that half
-   *  has not answered. Absent whenever nothing is armed, which includes a
-   *  trigger whose query matches nothing at all. */
+   *  has not answered. The same attribute is on the box (`chatInput`), because
+   *  a trigger whose query matches nothing draws no list. */
   chatCompletion: "chat-completion",
   /** One row of it. `data-value` is the command's name, the file's path or the
    *  node's id — what taking the row is about, and what it writes into the

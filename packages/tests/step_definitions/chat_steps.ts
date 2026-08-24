@@ -1893,21 +1893,17 @@ Then(
 Then(
   "the completion does not offer {string}",
   async function (this: OlaiWorld, value: string) {
-    // Wait for THIS query's node half (`data-asked`), then HOLD the absence.
-    // One frame is still the previous `@`'s rows — the hold-still this
-    // feature exists to pin. `completingIn` is the composer's own read of
-    // the armed query, so the wait and the box cannot disagree about which
-    // word the list is answering.
-    const panel = this.page.locator(CHAT_COMPLETION);
-    await panel.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    if ((await panel.getAttribute("data-kind")) === "name") {
-      const text = await (await chatBox(this)).inputValue();
-      const armed = completingIn(text, text.length);
-      assert.ok(
-        armed !== null && armed.kind === "name",
-        "the @ list is open but the box is not naming",
-      );
-      await answered(this, CHAT_COMPLETION, armed.query);
+    // Wait for THIS query's node half, then HOLD the absence. The
+    // attribute lives on the box (always there) as well as the list
+    // (only while there are rows): a word that named nothing draws no
+    // list, and waiting for the list is a wait the empty answer never
+    // satisfies. `completingIn` is the composer's own read of the
+    // armed query, so the wait and the box cannot disagree about which
+    // word has been answered.
+    const text = await (await chatBox(this)).inputValue();
+    const armed = completingIn(text, text.length);
+    if (armed !== null && armed.kind === "name") {
+      await answered(this, CHAT_INPUT, armed.query);
     } else {
       await this.waitForFrame();
     }

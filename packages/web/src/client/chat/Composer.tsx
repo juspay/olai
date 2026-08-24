@@ -649,6 +649,10 @@ export function Composer(props: {
         ref={input}
         class="w-full resize-none rounded-xl border border-rule/80 bg-paper px-3 py-2 text-sm outline-none focus:border-accent"
         data-testid={TESTID.chatInput}
+        // THE NODE HALF'S ANSWER, on the box rather than only on the list:
+        // a query that named nothing draws no list (`open` is `rows().length
+        // > 0`), and the wait still has to see that the search settled.
+        data-asked={nodesNamed.answering() ?? undefined}
         rows={2}
         placeholder={working() ? "…or say the next thing" : "ask the agent…"}
         value={draft()}
