@@ -3,8 +3,8 @@
  * found valid.
  *
  * ONE COLLECTION. A served directory is a list of DOCUMENTS — outlines,
- * markdown, hypertext — and the nodes are the substructure of one of those
- * arms ({@link ./document.ts}). It was two lists until PR 2 of the
+ * markdown, and the four kinds olai only shows — and the nodes are the
+ * substructure of one of those arms ({@link ./document.ts}). It was two lists until PR 2 of the
  * first-class-documents arc: this module built the union of what each file
  * decoded to and then tore it apart into a `nodes` collection beside a
  * `documents` one, and every feature written since imported the `nodes` half.
@@ -32,11 +32,11 @@ import { Result, Schema } from "effect"
 import {
   bodiedDocument,
   Document,
-  type Hypertext,
   isOutline,
   type Markdown,
   type Outline,
   outlineDocument,
+  type Unkept,
 } from "./document.ts"
 import { OutlineError } from "./errors.ts"
 import { bodyKind } from "./kinds.ts"
@@ -252,11 +252,12 @@ export const markdownAt = (set: OutlineSet, path: string): Markdown | undefined 
  * `.html`.
  *
  * The other narrowing anybody asks for, and it is a different question from
- * "which files have a body": a `.html` is the one file olai only SHOWS —
- * nothing validates it, no op writes it, and the set keeps its path without its
- * bytes — so the validator deciding what a `doc` may point at, the planner
- * refusing a `write_document` and both document reads all mean this list. Four
- * callers asked it with four `.filter`s before it had a name.
+ * "which files have a body": a `.html`, a `.csv`, a picture and a `.pdf` are
+ * the files olai only SHOWS — nothing validates one, no op writes one, and the
+ * set keeps the path without the bytes — so the validator deciding what a `doc`
+ * may point at, the planner refusing a `write_document` and both document
+ * reads all mean this list. Four callers asked it with four `.filter`s before
+ * it had a name.
  */
 export const markdownIn = (set: OutlineSet): ReadonlyArray<Markdown> =>
   set.documents.filter((document): document is Markdown => document.kind === "document")
@@ -266,15 +267,15 @@ export const markdownIn = (set: OutlineSet): ReadonlyArray<Markdown> =>
  * body SLOT for, whether or not it keeps the bytes.
  *
  * The third narrowing, and the one that is about STORAGE rather than about
- * meaning: a `.md` and a `.html` are the files a reader opens as a rendered
- * page, they are published as one collection read a key at a time
- * (`@olai/server`), and the browser knows them as a key set. {@link markdownIn}
- * above is the narrower question — what a `doc` may point at, what an op may
- * write — and the two are not the same list, which is exactly why both have a
- * name.
+ * meaning: a `.md`, a `.html`, a `.csv`, a picture and a `.pdf` are the files
+ * a reader opens as a rendered page, they are published as one collection read
+ * a key at a time (`@olai/server`), and the browser knows them as a key set.
+ * {@link markdownIn} above is the narrower question — what a `doc` may point
+ * at, what an op may write — and the two are not the same list, which is
+ * exactly why both have a name.
  */
-export const bodiedIn = (set: OutlineSet): ReadonlyArray<Markdown | Hypertext> =>
-  set.documents.filter((document): document is Markdown | Hypertext =>
+export const bodiedIn = (set: OutlineSet): ReadonlyArray<Markdown | Unkept> =>
+  set.documents.filter((document): document is Markdown | Unkept =>
     document.kind !== "outline"
   )
 

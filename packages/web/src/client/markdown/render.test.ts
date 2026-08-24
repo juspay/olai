@@ -214,8 +214,19 @@ test("a link that is not a relative document is left exactly as written", () => 
   expect(renderMarkdown("[a](https://example.com/x.md)", NOTE))
     .toContain(`href="https://example.com/x.md"`)
   expect(renderMarkdown("[a](/finishes.md)", NOTE)).toContain(`href="/finishes.md"`)
-  expect(renderMarkdown("[a](art/handle.png)", NOTE)).toContain(`href="art/handle.png"`)
+  expect(renderMarkdown("[a](notes/rows.tsv)", NOTE)).toContain(`href="notes/rows.tsv"`)
   expect(renderMarkdown("[a](house.olai)", NOTE)).toContain(`href="house.olai"`)
+})
+
+// A PICTURE IS A PAGE NOW, so a link to one is rewritten like a link to a
+// document — same rule, unchanged, asked of a registry that claims more kinds
+// (`@olai/format`'s `bodiedOf`). The EMBED is untouched: `![](…)` still
+// resolves through markdown's own picture rule and still becomes a `/media/`
+// URL, which is the distinction this pair holds.
+test("a relative link to a picture opens that picture's page", () => {
+  expect(renderMarkdown("[a](art/handle.png)", NOTE)).toContain(`href="/art/handle.png"`)
+  expect(renderMarkdown("![a](art/handle.png)", NOTE))
+    .toContain(`src="/media/art/handle.png"`)
 })
 
 // An http(s) address is still the address — the test above pins that — but

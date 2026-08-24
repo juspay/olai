@@ -29,6 +29,8 @@ const SECTION = process.env["SECTION"] ?? ""
  *  one. Absent when this file is run by hand against a server somebody else
  *  started, which the two helpers below answer for in their own ways. */
 const VAULT = process.env["VAULT"]
+/** A real Chrome to drive instead of Playwright's own — see {@link main}. */
+const CHROME = process.env["CHROME"]
 
 let shots = 0
 /**
@@ -844,6 +846,86 @@ const retitle = (file: string, id: string, title: string): void =>
   )
 
 const SECTIONS = {
+  /**
+   * THE THREE KINDS OLAI ONLY SHOWS (`pdf-csv-and-pictures`): a `.csv` drawn
+   * as a table, a picture drawn in an `<img>`, a `.pdf` drawn by the
+   * browser's own viewer — and the sidebar that lists all three among the
+   * outlines and documents.
+   *
+   * THE BIG FILE IS WRITTEN HERE rather than kept in the corpus, exactly as
+   * the suite's own scenario writes one: the subject is the relationship
+   * between a bound and a file past it, and a thousand lines of nothing in the
+   * fixtures is a corpus nobody can read (`fixtures/README.md`).
+   *
+   * IT WANTS A REAL CHROME, and that is the one thing about this section a
+   * reader has to know. Playwright's Chromium ships no PDF viewer (nor does
+   * its Firefox, which disables pdf.js by preference), so the `.pdf` page
+   * draws its FALLBACK there — the honest sentence and the link `Pdf.tsx`
+   * puts under an `<object>` for exactly that case. That is a true screenshot
+   * of a browser nobody uses. Run this one with `CHROME=$(command -v
+   * google-chrome-stable)` and every shot is of the browser a person has;
+   * every other section is identical either way.
+   */
+  "pdf-csv-and-pictures": async (page) => {
+    // THE COLUMN FIRST: the three kinds listed among the outlines and the
+    // documents, under the folders they live in. The folders start collapsed,
+    // so this opens the three that hold them — which is also what a reader
+    // does.
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    for (const folder of ["art", "data", "reports"]) {
+      await page.locator(`[data-testid="file-dir-toggle"][data-path="${folder}"]`).click()
+    }
+    await page.waitForTimeout(DRAWN)
+    await shot(page, "the-sidebar-lists-them")
+
+    // THE TABLE. The fixture is small on purpose — the whole file is on the
+    // screen — so the clamp has nothing to say, which is what an unclamped
+    // page has to look like.
+    await opened(page, "/data/sales.csv", '[data-testid="csv-table"]')
+    console.log(`  ${"the header reads:".padEnd(24)}${
+      await textOf(page, '[data-testid="csv-table"] thead')
+    }`)
+    await shot(page, "a-csv-is-a-table")
+
+    // …AND THE CLAMP SAID. Seven hundred rows against a five-hundred-row
+    // bound, and the sentence under the table is the whole point of the shot.
+    const rows = ["row,squared"]
+    for (let at = 1; at <= 700; at++) rows.push(`${at},${at * at}`)
+    rewrite("data/big.csv", rows)
+    await opened(page, "/data/big.csv", '[data-testid="csv-clamp"]')
+    console.log(`  ${"the page says:".padEnd(24)}${
+      await textOf(page, '[data-testid="csv-clamp"]')
+    }`)
+    // The table is five hundred rows tall, so the sentence is at the FOOT of
+    // it: the shot that matters is the one with the clamp in frame.
+    await page.locator('[data-testid="csv-clamp"]').scrollIntoViewIfNeeded()
+    await page.waitForTimeout(DRAWN)
+    await shot(page, "a-big-csv-says-what-it-left-out")
+
+    // A RASTER PICTURE, then a VECTOR one. The svg is the fixture with teeth:
+    // it carries a script that tries to rename this document and mark it, and
+    // an `<img>` runs neither.
+    await opened(page, "/art/handle.png", '[data-testid="image-view"]')
+    await shot(page, "a-picture-is-a-page")
+    await opened(page, "/art/diagram.svg", '[data-testid="image-view"]')
+    console.log(`  ${"the svg ran:".padEnd(24)}${
+      String(await page.evaluate(() => "__olai_svg_ran" in globalThis))
+    }`)
+    await shot(page, "an-svg-is-drawn-and-does-not-run")
+
+    // THE PDF, in whatever viewer this browser has — see the header.
+    await opened(page, "/reports/q3.pdf", '[data-testid="pdf-embed"]')
+    await page.waitForTimeout(SETTLE)
+    await shot(page, "a-pdf-is-the-browser-s-own-viewer")
+
+    // …AND THE ADDRESS ALONE. A reload rather than a click: the whole point of
+    // a prefix-free address is that it is a real URL somebody can paste.
+    await page.goto(`${BASE}/data/sales.csv`)
+    await page.locator('[data-testid="csv-table"]').first().waitFor()
+    await page.waitForTimeout(DRAWN)
+    await shot(page, "the-address-alone-opens-it")
+  },
+
   /**
    * WHO YOU ARE (`who-you-are`): the header's identity icon under a
    * simulated Tailscale-User-Login, and the anonymous icon when the
@@ -3375,7 +3457,17 @@ const main = async () => {
   // touch into the pointer events a long press is made of, so a section about a
   // finger silently held nothing. The rest are the flags that make Chromium
   // survive a container with a small `/dev/shm`, harmless on a laptop.
-  const browser = await chromium.launch({ args: [...BROWSER_ARGS] })
+  //
+  // `CHROME`, when it is set, is a real Chrome to drive INSTEAD of the one
+  // Playwright ships — because the one Playwright ships has no PDF viewer, and
+  // a section whose subject is a `.pdf` would photograph a fallback nobody
+  // sees. It is an env knob rather than a per-section field for the same
+  // reason `BASE` is one: which BROWSER is being driven is a property of the
+  // run, and every other section is identical in either.
+  const browser = await chromium.launch({
+    args: [...BROWSER_ARGS],
+    ...(CHROME === undefined ? {} : { executablePath: CHROME }),
+  })
   // A CONTEXT of its own rather than `browser.newPage(options)`, which is the
   // same thing with an implicit one — except that a touchscreen is a property
   // of the context, and the DevTools session the finger's section opens has to

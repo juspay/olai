@@ -48,6 +48,17 @@ const vault = (): string => {
   fs.writeFileSync(path.join(root, "notes", "chart.js"), "window.drew = true\n")
   fs.writeFileSync(path.join(root, "notes", "finishes.md"), "# Finishes\n")
   fs.writeFileSync(path.join(root, "notes", "secret.env"), "TOKEN=hunter2\n")
+  // The three the viewers added: a `.pdf` a page points an `<object>` at, an
+  // `.svg` a page points an `<img>` at — carrying a script, because the whole
+  // question about an SVG is what happens when somebody reaches it as a
+  // DOCUMENT instead — and a `.csv`, which has a page and is deliberately not
+  // answered here.
+  fs.writeFileSync(path.join(root, "notes", "q3.pdf"), "%PDF-1.4\n")
+  fs.writeFileSync(
+    path.join(root, "notes", "art", "diagram.svg"),
+    `<svg xmlns="http://www.w3.org/2000/svg"><script>top.x=1</script></svg>\n`,
+  )
+  fs.writeFileSync(path.join(root, "notes", "sales.csv"), "region,units\nnorth,12\n")
   return root
 }
 
@@ -96,12 +107,16 @@ test("a served page arrives sealed, with the file's own bytes after the seal", a
 })
 
 // The parts a page draws with, which is what widened this route beyond
-// pictures: a stylesheet and a script beside the file are addresses too.
-test("a page's pictures, stylesheet and script are served", async () => {
+// pictures: a stylesheet and a script beside the file are addresses too — and
+// the kinds whose own PAGE is drawn by pointing an element here, which is what
+// widened it again.
+test("a page's parts, and every file drawn by pointing at it, are served", async () => {
   await withVault(async (url) => {
     for (
       const [at, type] of [
         ["/media/notes/art/shot.png", "image/png"],
+        ["/media/notes/art/diagram.svg", "image/svg+xml"],
+        ["/media/notes/q3.pdf", "application/pdf"],
         ["/media/notes/page.css", "text/css"],
         ["/media/notes/chart.js", "javascript"],
       ] as const
@@ -121,6 +136,10 @@ test("the vault's other files are not served, however they are asked for", async
     for (
       const at of [
         "/media/notes/finishes.md",
+        // A `.csv` has a page and its page is handed the TEXT on the wire, so
+        // raw bytes here would be a second way to read a file that already has
+        // one — the same argument the set's own files get.
+        "/media/notes/sales.csv",
         "/media/a.olai",
         "/media/notes/secret.env",
         "/media/notes/nothing.html",
@@ -132,6 +151,48 @@ test("the vault's other files are not served, however they are asked for", async
       const answer = await fetch(`${url}${at}`, { redirect: "manual" })
       expect([answer.status, at]).toEqual([404, at])
     }
+  })
+})
+
+/**
+ * AN `.svg` COMES BACK DEFANGED, which is the other half of a picture's
+ * promise and the reason `.svg` could join the picture kind at all.
+ *
+ * A picture's page draws one in an `<img>`, which will not run it. This route
+ * is a URL, though, and a URL can be typed into an address bar, followed from a
+ * link, or pulled into a frame by a previewed `.html` next door — and reached
+ * that way an SVG is a DOCUMENT OF THIS ORIGIN, with this app's storage and
+ * this app's cookies in reach. The route's answer is on the RESPONSE, exactly
+ * as the saved page's seal is: `sandbox` with nothing granted (an opaque
+ * origin, and no `allow-scripts`, so nothing in it runs at all) and
+ * `default-src 'none'` behind it.
+ *
+ * A CSP header on a response a browser is loading as an IMAGE is ignored, which
+ * is what makes this free: the picture page is unaffected.
+ */
+test("an svg is served with a policy that makes it inert as a document", async () => {
+  await withVault(async (url) => {
+    const answer = await fetch(`${url}/media/notes/art/diagram.svg`)
+    expect(answer.status).toBe(200)
+    const policy = answer.headers.get("content-security-policy")
+    expect(policy).toContain("sandbox")
+    expect(policy).not.toContain("allow-scripts")
+    expect(policy).toContain("default-src 'none'")
+    expect(answer.headers.get("x-content-type-options")).toBe("nosniff")
+    // The BYTES are the file's own, untouched — this route defangs by saying
+    // what the file may do, never by editing it.
+    expect(await answer.text()).toContain("<script>top.x=1</script>")
+  })
+})
+
+// …and no other file picks that policy up. A picture is a picture, and a
+// response that sandboxed every one of them would be a claim this route cannot
+// support about files it has not read.
+test("a raster picture is answered without the svg's policy", async () => {
+  await withVault(async (url) => {
+    const answer = await fetch(`${url}/media/notes/art/shot.png`)
+    expect(answer.status).toBe(200)
+    expect(answer.headers.get("content-security-policy")).toBeNull()
   })
 })
 

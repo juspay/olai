@@ -97,9 +97,13 @@ const AGREE: ReadonlyArray<readonly [path: string, stem: string]> = [
  *   - **another registered kind.** A `.md` or a `.html` keeps its suffix under
  *     `bySpelling`, which is the reading `./dates.ts` explicitly refused to
  *     write. Every daily note is in here.
- *   - **a file the registry claims nothing about.** `shot.png` and
- *     `house.olai.bak` lose a suffix under `byFinding` that no rule in this
- *     package ever said was one.
+ *   - **a file the registry claims nothing about.** `house.olai.bak` and
+ *     `plan.json` lose a suffix under `byFinding` that no rule in this
+ *     package ever said was one. `shot.png` was one of these until the
+ *     viewers claimed a picture, which is the whole point of the row moving
+ *     rather than being deleted: what the registry claims is what decides,
+ *     and this table is where "the rule sides with the registry" is checked
+ *     rather than assumed.
  *   - **no dot at all**, which is the sharpest case: `lastIndexOf(".")` is
  *     `-1`, `slice(0, -1)` drops the name's LAST CHARACTER, and `README` comes
  *     back as `READM`. Nothing throws and nothing is empty; the answer is just
@@ -118,8 +122,10 @@ const DIVERGE: ReadonlyArray<
   ["Daily/2026/08/2026-08-12.md", "2026-08-12.md", "2026-08-12", "2026-08-12"],
   ["report.html", "report.html", "report", "report"],
   ["notes/report.html", "report.html", "report", "report"],
-  ["shot.png", "shot.png", "shot", "shot.png"],
+  ["shot.png", "shot.png", "shot", "shot"],
+  ["art/diagram.svg", "diagram.svg", "diagram", "diagram"],
   ["house.olai.bak", "house.olai.bak", "house.olai", "house.olai.bak"],
+  ["plan.json", "plan.json", "plan", "plan.json"],
   ["README", "README", "READM", "README"],
   ["docs/README", "README", "READM", "README"],
   ["justfile", "justfile", "justfil", "justfile"],
@@ -217,6 +223,11 @@ describe("the suffix off a path, and the same off a name", () => {
     expect(bareOf("Daily/2026/08/2026-08-12.md")).toBe("Daily/2026/08/2026-08-12")
     expect(bareOf("plan.olai")).toBe("plan")
     expect(bareOf("report.html")).toBe("report")
+    // A kind with several spellings takes off THE ONE THAT CLAIMED THE FILE,
+    // which is the whole reason the walk answers with the suffix it matched
+    // rather than only with the kind.
+    expect(bareOf("art/handle.png")).toBe("art/handle")
+    expect(bareOf("art/diagram.svg")).toBe("art/diagram")
   })
 
   // Same rule about the END of the name: a suffix the registry does not claim
@@ -224,7 +235,7 @@ describe("the suffix off a path, and the same off a name", () => {
   test("a file no kind claims is handed back whole, path and all", () => {
     expect(bareOf("notes/README")).toBe("notes/README")
     expect(bareOf("plan v1.2")).toBe("plan v1.2")
-    expect(bareOf("art/handle.png")).toBe("art/handle.png")
+    expect(bareOf("data/rows.tsv")).toBe("data/rows.tsv")
   })
 
   // The one relationship worth pinning, because it is what makes them one rule:

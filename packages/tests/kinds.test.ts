@@ -56,7 +56,10 @@ test("the sweep is actually reading the repository", () => {
  * description is prose in a string and is deliberately not matched.
  */
 const SPELLED = new RegExp(
-  `["']\\.(?:${Object.values(FILE_KINDS).map((claim) => claim.ext.slice(1)).join("|")})["']`,
+  `["']\\.(?:${
+    Object.values(FILE_KINDS).flatMap((claim) => claim.exts.map((ext) => ext.slice(1)))
+      .join("|")
+  })["']`,
 );
 
 /**
@@ -68,20 +71,31 @@ const SPELLED = new RegExp(
  * list here, a green run that checked nothing, instead of failing.
  *
  * `@olai/surface`'s `attach.ts` answers a DIFFERENT question with a list that
- * happens to share one string: what a person may hand an agent as a path, which
- * is five extensions olai does not serve pages for. Making it read the registry
- * would join two lists that mean different things, and the day one of them
- * moves the other would follow it silently.
+ * overlaps this one: what a person may hand an agent as a path, which is
+ * extensions chosen for what the agent on the far end can open. Making it read
+ * the registry would join two lists that mean different things, and the day one
+ * of them moves the other would follow it silently. That overlap grew when the
+ * viewers landed — a `.pdf`, a `.csv` and every picture are kinds now, and
+ * attachment lists that named them years apart from any of this go on naming
+ * them — so the TESTS of that list are here for the same reason the list is:
+ * they assert what an attachment gate says, in the words it says it, and a
+ * fixture derived from the registry would make the gate agree with the registry
+ * by construction rather than by being right.
  *
  * The fake ACP agent is a THIRD PARTY, and its own comment says why: an agent
  * on the far end of a pipe has no access to olai's constants, so deriving the
  * fixture from the implementation under test would make the scenario agree with
- * the client by construction.
+ * the client by construction. `chat_steps.ts` is that same fixture one layer
+ * out — the bytes a scenario DROPS on the chat window, which are a person's
+ * file and not olai's.
  */
 const MAY_SPELL_IT: ReadonlyArray<string> = [
+  "packages/chat/src/attachments.test.ts",
   "packages/format/src/kinds.ts",
+  "packages/surface/src/attach.test.ts",
   "packages/surface/src/attach.ts",
   "packages/tests/agent/fake-acp-agent.ts",
+  "packages/tests/step_definitions/chat_steps.ts",
 ];
 
 test("no code outside the registry decides by spelling a suffix", () => {
@@ -92,9 +106,10 @@ test("no code outside the registry decides by spelling a suffix", () => {
  * Every surface that draws a kind, and which union it draws over.
  *
  * `FileKind` is every kind there is; `BodyKind` is the ones whose content is a
- * body, which is what a bodied address opens. A table over the second must
- * NOT have an outline in it — that is not a page with a body, and an entry
- * there would be a face nothing can reach.
+ * body — every kind that is not an outline, whether this process can read that
+ * body or only point a browser at it — which is what a bodied address opens. A
+ * table over the second must NOT have an outline in it: that is not a page with
+ * a body, and an entry there would be a face nothing can reach.
  *
  * This list is not what enforces per-kind coverage — the type checker is, on
  * every one of these tables, which is the whole reason they are `Record`s. What
@@ -136,7 +151,7 @@ test("every kind is in every table that draws kinds, and only the bodied ones ar
   for (const table of TABLES) {
     const code = sourceOf(table.file);
     for (const [kind, claim] of Object.entries(FILE_KINDS)) {
-      const wanted = table.over === "FileKind" || claim.holds === "text";
+      const wanted = table.over === "FileKind" || claim.holds !== "nodes";
       if (entered(code, kind) === wanted) continue;
       wrong.push(`${table.file}: ${kind} ${wanted ? "is missing" : "should not be here"}`);
     }

@@ -63,7 +63,7 @@
 
 import { Schema } from "effect"
 
-import { type FileKind, fileKind, holdsText } from "./kinds.ts"
+import { type FileKind, fileKind, holdsBody } from "./kinds.ts"
 
 /**
  * A path that names a file the directory SERVES — `Tasks.olai`,
@@ -205,10 +205,14 @@ export const addressOf = (
   if (named === null) return { kind: "document", path }
   // WHICH KIND OF ELEMENT is the registry's `holds` column and not a list of
   // suffixes read again here: a file whose content is a BODY has headings in
-  // it, and one whose content is records has nodes. A fourth kind that held
-  // records would be a node address by that rule rather than by falling
-  // through the last arm of a ternary (`./kinds.ts`).
-  return holdsText(kind)
+  // it, and one whose content is records has nodes. A kind that held records
+  // would be a node address by that rule rather than by falling through the
+  // last arm of a ternary (`./kinds.ts`). It is `holdsBody` and not
+  // `holdsText`: a picture has no headings and a `.pdf` none this app can
+  // read, and an address into one landing on nothing is what a `.md` whose
+  // heading was renamed already does — where reading them as NODE addresses
+  // would be the grammar claiming a vault's pictures hold records.
+  return holdsBody(kind)
     ? { kind: "heading", path, slug: slug(named) }
     : { kind: "node", id: nodeId(named) }
 }

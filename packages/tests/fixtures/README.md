@@ -8,7 +8,9 @@ only the corpus directories below it are.
 `outside.png` is the exception that proves it: a real picture sitting HERE,
 one directory above every served root, so that the traversal scenario in
 `features/documents.feature` refuses a URL because it climbs and not because
-there is nothing at the end of it.
+there is nothing at the end of it. It is also the one picture in this tree that
+is NOT a member of any set — a picture is a served kind now, so every one under
+a corpus directory is listed, addressed and drawn.
 
 These directories are **read-only to a scenario**. A scenario that has to edit
 the files — everything in `features/it_stays_live.feature` — asks for
@@ -25,7 +27,8 @@ from `broken/` and `tangled/`.
 
 ## `good/` — a set that validates
 
-Three outlines, three documents, a saved `.html` page and two pictures. Between them they exercise one
+Three outlines, three documents, two saved `.html` pages, three pictures, a
+`.csv` and a `.pdf`. Between them they exercise one
 of each thing the view has to draw:
 
 | what | where |
@@ -54,10 +57,13 @@ of each thing the view has to draw:
 | a nested outline | `Daily/2026-08.olai` — the sidebar's file tree, not a path string |
 | a fenced code block, a footnote | `finishes.md` |
 | every mark the markdown pipeline draws, once each | `kitchen-sink.md` |
-| a relative picture | `finishes.md` names `art/handle.png`; `notes/palette.md` names the same file through `../` |
+| a relative picture | `finishes.md` names `art/handle.png`; `notes/palette.md` names the same file through `../`. The same file is a set member with a page of its own, which is the distinction those two rules keep: an `![](…)` is an embed off `/media/`, a `[…](…)` is a link to the picture's page |
 | a `.html` in the vault | `report.html` — a saved page, previewed on its own page, with a hostile script in it that MUST run (2026-08-16: a preview whose own JavaScript is dead is not a preview) and reach none of the four things it tries, and five addresses of which exactly one may be fetched |
 | a `.html` made of files beside it | `quarter.html` with `data/report.css` and `data/chart.js` — a saved dashboard's shape: the page, its stylesheet and its script, each fetched off `/media/`, which is what the preview's evidence screenshot is taken against |
 | a picture whose height is only known once it loads | `art/tall.png` — 1200px tall, no dimensions in the markup, for the preview that has to be re-measured when its pictures land |
+| a `.csv` in the vault | `data/sales.csv` — a header row, a field whose comma is CONTENT (`"steady, no returns"`), a doubled quote that is one quote, and an empty field that is a value. Five rows, so the whole file fits on a page and the clamp has nothing to say; the file bigger than a page is written by the scenario that is about size |
+| a `.pdf` in the vault | `reports/q3.pdf` — a minimal, well-formed PDF 1.4 of one page, generated with correct xref offsets rather than checked in as opaque bytes. Real Chrome draws it in its own viewer; the suite's Chromium ships no viewer at all, which is what makes the honest fallback assertable |
+| an `.svg`, which is a document that can script | `art/diagram.svg` — a fixture with teeth, like `report.html`: it carries a script that tries to rename this document and mark it, and neither may ever happen. Drawn in an `<img>`, and answered by the media route with `default-src 'none'; sandbox` |
 | a cross-file mirror | `kitchen-herbs` (house.olai) mirrors `herbs` (garden.olai) |
 
 `report.html` carries a script that tries four things — write the app's `localStorage`, set a cookie on this app's origin, mark the app's own DOM, and navigate the tab away — and every one of them has to fail. It also rewrites its own paragraph, and that one has to SUCCEED: the file's own JavaScript runs now, and the paragraph is where both halves are read. It is a fixture with teeth on purpose: a preview is only worth having if a file the vault's owner did not write cannot use it as a way in, and a scenario that previewed inert markup would prove nothing about the file that matters. `features/html_previews.feature` reads the evidence that all four failed.

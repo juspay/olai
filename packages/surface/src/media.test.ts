@@ -53,16 +53,24 @@ test("a page and the parts it draws with are served", () => {
   expect(mediaTarget("/media/notes/chart.js")).toBe("notes/chart.js")
   expect(mediaTarget("/media/notes/chart.MJS")).toBe("notes/chart.MJS")
   expect(mediaTarget("/media/fonts/text.woff2")).toBe("fonts/text.woff2")
+  // The three kinds whose PAGE is drawn by pointing at the file — a picture
+  // (every spelling, `.svg` included) and a `.pdf` beside the saved page that
+  // was here first. What each of them is drawn IN is the client's
+  // (`@olai/web`'s faces); that they are fetched from here is this route's.
+  expect(mediaTarget("/media/art/handle.png")).toBe("art/handle.png")
+  expect(mediaTarget("/media/logo.svg")).toBe("logo.svg")
+  expect(mediaTarget("/media/reports/q3.pdf")).toBe("reports/q3.pdf")
 })
 
-// …and everything else is not. The set's own files have pages of their own, so
-// a route handing them over raw would be a second way to read them with no
-// argument for the first; an SVG is a document that can script; a directory is
-// not a file.
-test("anything that is not a page or one of its parts is not served", () => {
+// …and everything else is not. A file whose page is handed its CONTENT — an
+// outline's records, a document's text, a `.csv`'s rows — has a page of its
+// own, so a route handing it over raw would be a second way to read it with no
+// argument for the first. Data nothing has a page for is nobody's, and a
+// directory is not a file.
+test("anything that is not fetched by a page is not served", () => {
   expect(mediaTarget("/media/plan.olai")).toBeNull()
   expect(mediaTarget("/media/notes.md")).toBeNull()
-  expect(mediaTarget("/media/logo.svg")).toBeNull()
+  expect(mediaTarget("/media/data/sales.csv")).toBeNull()
   expect(mediaTarget("/media/data.json")).toBeNull()
   expect(mediaTarget("/media/notes/.env")).toBeNull()
   expect(mediaTarget("/media/")).toBeNull()

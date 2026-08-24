@@ -101,9 +101,12 @@ test("text that names no place is not an address", () => {
       "",
       "#",
       // A suffix no kind of this format claims: `fileKind` is the refinement,
-      // and it is what keeps `today` from being read as a file.
+      // and it is what keeps `today` from being read as a file. `photo.png`
+      // was one of these until the viewers made a picture a kind — which is
+      // the refinement doing its job rather than a rule being relaxed, and the
+      // test below is where a picture's address is read.
       "notes",
-      "photo.png",
+      "photo.tiff",
       "today",
       "notes#install",
       // Outside the served directory, or able to leave the site: `//x.olai` is
@@ -118,6 +121,25 @@ test("text that names no place is not an address", () => {
   ) {
     expect(parseAddress(text)).toBeNull()
   }
+})
+
+// EVERY KIND THE REGISTRY CLAIMS IS AN ADDRESS, which is what makes an address
+// a fact about the path rather than a list kept here: a picture, a `.csv` and
+// a `.pdf` got one the day they got a page, and this file changed by nothing.
+//
+// AN ELEMENT ON ONE IS A HEADING, and that is the one reading worth pinning: a
+// file whose content is a body has headings in it, and one whose content is
+// records has nodes (`./kinds.ts`'s `holds`). A picture has no headings this
+// app can find, so an address into one lands on nothing — exactly as a `.md`
+// whose heading was renamed does — where reading it as a NODE address would be
+// the grammar claiming a vault's pictures hold records.
+test("every kind with a page has an address, and an element on one is a heading", () => {
+  expect(parseAddress("photo.png")).toEqual(document("photo.png"))
+  expect(parseAddress("art/diagram.svg")).toEqual(document("art/diagram.svg"))
+  expect(parseAddress("data/sales.csv")).toEqual(document("data/sales.csv"))
+  expect(parseAddress("reports/q3.pdf")).toEqual(document("reports/q3.pdf"))
+  expect(parseAddress("reports/q3.pdf#summary"))
+    .toEqual(heading("reports/q3.pdf", "summary"))
 })
 
 // An unreadable ELEMENT is not an unreadable address: the document is still

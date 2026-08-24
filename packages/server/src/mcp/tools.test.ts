@@ -802,8 +802,22 @@ const VAULT = {
     "---\nagent: claude-opus\nowners: [alice, bob]\n---\n# The plan\n",
   "empty.md": "",
   "saved/page.html": "<p>from the web</p>",
+  // The other three kinds olai only SHOWS. They are members of the set — the
+  // sidebar lists them, they have addresses and pages — and they are
+  // deliberately not what these two verbs answer for, which is what the
+  // listing below and the refusal further down hold.
+  "data/sales.csv": "region,units\nnorth,12\n",
+  "art/handle.png": "not really a picture\n",
+  "reports/q3.pdf": "%PDF-1.4\n",
 }
 
+// A `.md` AND NOTHING ELSE, which is the sentence that did not change when the
+// registry gained three kinds. What an agent is handed here is what it can
+// WRITE BACK through `write_document` — a document's text, verbatim — so a
+// picture in the answer would be a path the write verb refuses, and a `.csv`
+// would be a body olai reads for a reader to LOOK at rather than one an edit is
+// judged against. Both reads narrow through `markdownIn`/`markdownAt`
+// (`@olai/format`'s set), which is one place rather than a filter per verb.
 test("list_documents is the map of the other kind of file", async () => {
   await withTools(VAULT, async ({ client }) => {
     const answered = await call(client, "list_documents", {})
@@ -891,12 +905,15 @@ test("read_document refuses a path the set does not hold, with the closest one",
     })
     expect(refusedWrite.structured["reason"]).toContain("did you mean `finishes.md`")
 
-    // A `.html` is a file the app SHOWS and the set keeps no body for, so it
-    // is not a document either read will answer — refused by name rather than
-    // handed back empty.
-    const hypertext = await call(client, "read_document", { file: "saved/page.html" })
-    expect(hypertext.isError).toBe(true)
-    expect(hypertext.structured).toMatchObject({ kind: "not-found" })
+    // The kinds the app SHOWS and keeps no body for are not documents either
+    // read will answer — refused by name rather than handed back empty. One
+    // answer for the four of them, because it is one narrowing and not a
+    // filter per kind.
+    for (const file of ["saved/page.html", "data/sales.csv", "art/handle.png", "reports/q3.pdf"]) {
+      const shown = await call(client, "read_document", { file })
+      expect({ file, isError: shown.isError }).toEqual({ file, isError: true })
+      expect({ file, kind: shown.structured["kind"] }).toEqual({ file, kind: "not-found" })
+    }
 
     // AND THE SHAPES A PATH ARGUMENT IS ATTACKED WITH. True by construction —
     // this read never opens a path: `markdownAt` asks the suffix and then

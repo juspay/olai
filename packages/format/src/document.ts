@@ -15,9 +15,9 @@
  * the node-only version unwritable:
  *
  * ```
- * data Document = Outline   Face [Node]
- *               | Markdown  Face Text [Slug]
- *               | Hypertext Face
+ * data Document = Outline  Face [Node]
+ *              | Markdown Face Text [Slug]
+ *              | Unkept    UnkeptKind Face
  * ```
  *
  * A sum of products, no nullable fields, no downcasting. Every arm carries the
@@ -34,12 +34,19 @@
  * collection beside a `documents` one, so a feature has no node-only list to
  * import: the nodes are reachable, through the outline they are written in.
  *
- * ## Three arms, because the registry claims three kinds
+ * ## Three arms, over the six kinds the registry claims
  *
  * Discriminated on `kind`, which is `./kinds.ts`'s own word for the file. A
- * fourth kind added to that table is a compile error at every `Record` and
- * every exhaustive match in the tree, which is the enforcement this replaces a
+ * kind added to that table is a compile error at every `Record` and every
+ * exhaustive match in the tree, which is the enforcement this replaces a
  * review comment with.
+ *
+ * THE ARMS ARE SHAPES AND THE TAGS ARE KINDS, which is what the viewers made
+ * visible: four of the six kinds are a face and nothing else — a `.html`, a
+ * `.csv`, a picture, a `.pdf` — so they share the {@link Unkept} arm and each
+ * carries its own tag, read off the registry's own `UnkeptKind`. Sharing the
+ * arm is not sharing the answer: a caller still switches on `kind` and still
+ * gets the registry's word for the file.
  *
  * THE TAG IS THE SUFFIX SAID TWICE, and that is a decision reversed rather
  * than an oversight. What this replaced carried no tag at all, on the argument
@@ -61,12 +68,12 @@
  * three. Renaming either half would be renaming it everywhere it is already
  * spelled — the table, the wire, the tool descriptions an agent reads.
  *
- * {@link Hypertext} is the arm with nothing but a face, and its emptiness is a
- * decision recorded rather than a gap: a `.html` is the one file olai only ever
- * SHOWS, so the set keeps its path and not its bytes (`./kinds.ts`'s `kept`,
- * which owns that argument). It points at nothing and tags nothing because
- * nothing here has read it — which is honest, and is not the same claim as
- * "it holds no links".
+ * {@link Unkept} is the arm with nothing but a face, and its emptiness is a
+ * decision recorded rather than a gap: those four are the files olai only ever
+ * SHOWS, so the set keeps their paths and not their bytes (`./kinds.ts`'s
+ * `kept`, which owns that argument). One points at nothing and tags nothing
+ * because nothing here has read it — which is honest, and is not the same claim
+ * as "it holds no links".
  *
  * ## The face is DERIVED, and this is where
  *
@@ -109,7 +116,7 @@ import { Custom } from "./custom.ts"
 import { tagsIn, writtenTags } from "./derive.ts"
 import { frontmatterIn, proseIn } from "./frontmatter.ts"
 import { firstLine, linksIn, recordLinks } from "./documents.ts"
-import { fileKind, stemOf } from "./kinds.ts"
+import { fileKind, UNKEPT_KINDS, stemOf } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"
 import { slugsIn } from "./slug.ts"
 
@@ -130,7 +137,7 @@ import { slugsIn } from "./slug.ts"
  */
 export const Face = Schema.Struct({
   /** Its identity: where it is, relative to the served root. The one thing
-   *  every kind has had all along, and the only thing hypertext has. */
+   *  every kind has had all along, and the only thing a shown file has. */
   path: DocumentPath,
   /** What it is CALLED. An outline is called by its filename; a markdown
    *  document by its first non-empty line, heading marks off, since that is the
@@ -150,11 +157,12 @@ export const Face = Schema.Struct({
    * read by {@link ./frontmatter.ts} and answered by `prop:` in the query
    * grammar exactly as a record's `custom` map is.
    *
-   * TOTAL like the other four, and empty for the two kinds that write none: an
+   * TOTAL like the other four, and empty for the five kinds that write none: an
    * outline's records carry their own properties (a file is not one of its
-   * nodes), and a `.html` is the file olai only ever shows. Empty because
-   * NOTHING WROTE ONE, which is the same honest sentence hypertext's empty
-   * `links` and `tags` already say, and not a slot waiting to be filled in.
+   * nodes), and the other four are the files olai only ever shows. Empty
+   * because NOTHING WROTE ONE, which is the same honest sentence the unkept
+   * arm's empty `links` and `tags` already say, and not a slot waiting to be
+   * filled in.
    *
    * `Custom` and not a type of its own: a document's properties ARE a record's
    * properties — one open namespace, no key given a meaning by olai, text or a
@@ -245,29 +253,48 @@ export const Markdown = Schema.Struct({
 export type Markdown = typeof Markdown.Type
 
 /**
- * A `.html`: a page somebody saved or a tool built, sitting in the vault with
- * everything else.
+ * A file olai only ever SHOWS: a saved `.html`, a `.csv` table, a picture, a
+ * `.pdf` — sitting in the vault with everything else.
  *
  * A FACE AND NOTHING ELSE, and the emptiness is `./kinds.ts`'s `kept: false`
- * showing through: nothing validates it, no op writes it, and a vault of saved
- * pages made their bodies the largest thing in the process. So the set holds
- * its path — which is all a `doc` reference was ever checked against — and its
- * body is read when a reader opens it and kept by nobody (`@olai/server`'s
- * `bodies.ts`).
+ * showing through: nothing validates one, no op writes one, and a vault of
+ * saved pages and pictures made their bodies the largest thing in the process.
+ * So the set holds the path — which is all a `doc` reference was ever checked
+ * against — and the content is read, or fetched, when a reader opens it and
+ * kept by nobody (`@olai/server`'s `bodies.ts` for the ones this process can
+ * read, the media route for the ones the browser fetches itself).
  *
  * Its `links` and `tags` are therefore EMPTY BECAUSE NOTHING READ IT, not
  * because a saved page points nowhere. The distinction matters the day the
  * graph is drawn: a `.html` is a vertex with no edges out of it, and it is one
  * for a reason a reader can be told.
+ *
+ * IT IS NAMED FOR `kept` AND NOT FOR "SHOWN", which is the reader's word for
+ * these four and the word this docstring spends: `Shown` is taken, one package
+ * layer up, for what one PAGE shows (`./page.ts`), and one word for two things
+ * in one repository is the ambiguity the registry already refused for
+ * "hypertext". The storage fact is the honest second name — this arm is exactly
+ * the bodied files `unkept` answers `true` for — and it is the fact the arm's
+ * emptiness comes from.
+ *
+ * ONE ARM AND FOUR TAGS, which is the shape this gained with the viewers and
+ * the one place the sum's arm-per-kind rule is worth reading twice. The
+ * discriminant is still the KIND and still the registry's own answer — a `.csv`
+ * says `csv` — so no file is filed under another kind's name, which is what
+ * that rule is about; what four separate structs would add is four identical
+ * declarations of `{ kind, ...Face.fields }` and three more members for every
+ * union decode to walk. The tags are read off {@link ./kinds.ts}'s
+ * `UnkeptKind`, so this arm cannot come to name a kind the table does not
+ * claim, or miss one it does.
  */
-export const Hypertext = Schema.Struct({
-  kind: Schema.Literal("hypertext"),
+export const Unkept = Schema.Struct({
+  kind: Schema.Literals(UNKEPT_KINDS),
   ...Face.fields,
 })
-export type Hypertext = typeof Hypertext.Type
+export type Unkept = typeof Unkept.Type
 
-/** The three things a served file can be. */
-export const Document = Schema.Union([Outline, Markdown, Hypertext])
+/** The three shapes a served file can be, across the six kinds there are. */
+export const Document = Schema.Union([Outline, Markdown, Unkept])
 export type Document = typeof Document.Type
 
 /**
@@ -318,7 +345,7 @@ export const outlineDocument = (
     // A FILE writes no properties of its own here: an outline's named facts
     // are on its records, where `set_prop` puts them, and a `.olai` has no
     // frontmatter to read. Empty because nothing wrote one, which is the same
-    // sentence hypertext's empty `links` says.
+    // sentence the unkept arm's empty `links` says.
     props: {},
     nodes,
   }
@@ -330,25 +357,29 @@ export const outlineDocument = (
  *
  * WHICH ARM is the registry's answer and not the caller's: a caller that picked
  * would be a second reading of `./kinds.ts`'s table, free to disagree with the
- * one that decided the file was bodied in the first place. `text` for a
- * hypertext file is therefore DROPPED rather than refused — the set does not
- * keep that body, and a caller holding one is a caller who read a file this
- * arm has nothing to store it in.
+ * one that decided the file was bodied in the first place. `text` for an
+ * UNKEPT file is therefore DROPPED rather than refused — the set does not keep that
+ * body, and a caller holding one is a caller who read a file this arm has
+ * nothing to store it in.
  *
  * `null` is what a decode that keeps no body hands over, and an unreadable
  * file arrives as an empty one ({@link ./set.ts}'s `assemble` says why): a
  * document the set holds a place for and no content.
  */
-export const bodiedDocument = (file: string, text: string | null): Markdown | Hypertext => {
+export const bodiedDocument = (file: string, text: string | null): Markdown | Unkept => {
   const path = pathOf(file)
   // THE KIND, and not `unkept` beside it, which a review proposed and this
-  // line answers: the arms here are ONE PER KIND, so which arm a file lands on
-  // is the kind's own question. `unkept` asks a different one — does the set
-  // keep this file's BYTES — and they agree today only because the one bodyless
-  // kind is this one. A fourth unkept kind would need an arm of its own, and
-  // branching on `kept` would have quietly filed it under this one's name.
-  if (fileKind(file) === "hypertext") {
-    return { kind: "hypertext", path, title: stemOf(file), links: [], tags: [], props: {} }
+  // line answers: which arm a file lands on is the KIND's own question, and the
+  // tag it carries is that same answer rather than a second one. `unkept` asks
+  // a different question — does the set keep this file's BYTES — and branching
+  // on it would file a kept bodied kind under this arm's name the day one
+  // arrives. What is handed over below is `Exclude<BodyKind, "document">`,
+  // which is assignable to `UnkeptKind` exactly while `document` is the only
+  // bodied kind the set keeps: the day it is not, this line goes red rather
+  // than lying.
+  const kind = fileKind(file)
+  if (kind !== null && kind !== "outline" && kind !== "document") {
+    return { kind, path, title: stemOf(file), links: [], tags: [], props: {} }
   }
   const body = text ?? ""
   // THE PROSE, ONCE — the body with any frontmatter taken off
@@ -383,8 +414,8 @@ export const bodiedDocument = (file: string, text: string | null): Markdown | Hy
  * The one question the wire asks of this sum — a published entry carries a
  * document's text, and `null` means "served, and its body is not here"
  * (`@olai/server`'s `published.ts`, which has the argument). It is a function
- * rather than a field so that the arms stay honest: hypertext has no `body` to
- * be `null`, it has no body.
+ * rather than a field so that the arms stay honest: an unkept file has no
+ * `body` to be `null`, it has no body.
  */
 export const bodyOf = (document: Document): string | null =>
   document.kind === "document" ? document.body : null

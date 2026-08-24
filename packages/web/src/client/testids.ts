@@ -242,7 +242,8 @@ export const TESTID = {
    *  that kind while the column is collapsed. `data-glyph` is one of the
    *  format's kinds — `outline`, `document`, `hypertext` — or `folder`: the
    *  fact, never the ink it is drawn in, which is whatever the row already
-   *  was. */
+   *  was. The full list is the registry's (`@olai/format`'s `kinds.ts`) and
+   *  this comment is deliberately not a second copy of it. */
   fileGlyph: "file-glyph",
   /** One document entry in the file tree. There is no second list: documents
    *  sit under the same folders as outlines. */
@@ -251,6 +252,14 @@ export const TESTID = {
    *  document's, so a step that says how many documents a directory has goes on
    *  meaning documents when a vault gains a saved page. */
   hypertextLink: "hypertext-link",
+  /** One `.csv` entry in the file tree, one picture, one `.pdf` — each its own
+   *  name for {@link hypertextLink}'s reason, said once for the three of them:
+   *  a step that counts the documents of a directory has to go on meaning
+   *  documents when somebody drops a spreadsheet export, a screenshot and a
+   *  receipt into their vault. */
+  csvLink: "csv-link",
+  imageLink: "image-link",
+  pdfLink: "pdf-link",
   /** One document, as a page. `data-file` is which. */
   documentPage: "document-page",
   /** The link inside a node's `doc` reference — the way from a node to its
@@ -401,6 +410,27 @@ export const TESTID = {
    *  (`./SaidLine.tsx`), so a scenario reads its `data-tone` rather than a
    *  colour. */
   hypertextSaid: "hypertext-said",
+  /** A `.csv` file's page: the table its rows are drawn as. The header row is
+   *  a `<th>` and the rest are `<td>`, which is the FACT a scenario reads —
+   *  that the first row of the file is the header — rather than the weight it
+   *  happens to be drawn at. */
+  csvTable: "csv-table",
+  /** What a `.csv` page is NOT SHOWING, and why — the clamp said out loud
+   *  (`@olai/format`'s `csvClamp`) when the file is bigger than a page draws,
+   *  and "nothing in it" when the file has no rows at all. One id for the two,
+   *  because a reader of this page asks one question. Drawn as an ASIDE through
+   *  the one component that owns what a mood means (`./SaidLine.tsx`), so a
+   *  scenario reads its `data-tone` rather than a colour. */
+  csvClamp: "csv-clamp",
+  /** A picture's page: the `<img>` it is drawn in, `src` on the media route.
+   *  An `<img>` for every spelling the picture kind claims, an `.svg`
+   *  included — which is the element that will not run one. */
+  imageView: "image-view",
+  /** A `.pdf` file's page: the embed the browser's own viewer is drawn in,
+   *  pointed at the file on the media route. What is INSIDE it belongs to the
+   *  browser and carries no testid of ours — the same boundary the `.html`
+   *  frame draws, for the same reason. */
+  pdfEmbed: "pdf-embed",
   /** The way into a document's editor: the quiet control on the page header
    *  that turns the rendered body into its source. */
   documentEdit: "document-edit",

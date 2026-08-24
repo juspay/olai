@@ -5,17 +5,20 @@
  * A document is markdown in the served directory, so `![](shot.png)` means a
  * file beside it. A `.html` in the same directory is a PAGE, drawn in a frame
  * whose `src` is this route, so `<img src="art/shot.png">` and
- * `<a href="other.html">` in it mean files beside IT. The browser cannot read
- * any of those; it can only ask for a URL. This route is that URL, and it is
- * the ONE place bytes leave the served directory over HTTP without having gone
- * through the store.
+ * `<a href="other.html">` in it mean files beside IT. A picture and a `.pdf`
+ * are pages of their own, drawn by pointing an `<img>` and an `<object>` here.
+ * The browser cannot read any of those; it can only ask for a URL. This route
+ * is that URL, and it is the ONE place bytes leave the served directory over
+ * HTTP without having gone through the store.
  *
  * It is three decisions and one mechanism of its own:
  *
  *   - WHETHER to answer is `@olai/surface`'s `mediaTarget` — the traversal
  *     guard and the allowlist, written against the same bijection the client
  *     builds these URLs with. What the allowlist admits is `@olai/format`'s
- *     `isAsset`: a page, a picture, a stylesheet, a script, a font;
+ *     `isAsset`: every file whose PAGE is drawn by pointing at it — a saved
+ *     page, a picture, a `.pdf` — and the parts a saved page draws itself with,
+ *     a stylesheet, a script, a font;
  *   - WHAT A PAGE IS ANSWERED WITH is the SEAL (`@olai/surface`'s `seal.ts`,
  *     where the whole security argument is written and where a reviewer should
  *     start): a content policy on the RESPONSE, and the tape measure in front
@@ -27,6 +30,11 @@
  *     process: the engine owns the stat, the directory case, the MIME type, the
  *     byte ranges and the conditional `304` a browser asks for on every second
  *     look at a picture.
+ *
+ * WHAT DOES GO THROUGH THE ENGINE and still gets a word from this route is an
+ * `.svg` — the engine's whole answer, with two headers added that make the file
+ * inert if anybody reaches it as a document rather than as a picture
+ * ({@link INERT}, which is where that argument is written).
  *
  * WHY A PAGE CANNOT GO THROUGH THE ENGINE, since everything else does. The seal
  * is a prefix — the response is the tape measure and then the file, byte for
@@ -48,7 +56,7 @@
  * placed there, in a tree they are already serving whole.
  */
 
-import { fileKind } from "@olai/format"
+import { fileKind, SVG_EXT } from "@olai/format"
 import {
   MEDIA_PREFIX,
   mediaTarget,
@@ -105,6 +113,15 @@ export const mediaLayer = (root: string) =>
                 HttpServerRequest.HttpServerRequest,
                 request.modify({ url: served(target) }),
               ),
+              // ...and an SVG comes back DEFANGED — see {@link INERT}. It is a
+              // map over the engine's own response rather than a second reader
+              // of the file, so the stat, the MIME type, the range and the
+              // `304` are all still the engine's.
+              Effect.map((response) =>
+                target.endsWith(SVG_EXT)
+                  ? HttpServerResponse.setHeaders(response, INERT)
+                  : response
+              ),
               // The engine's own misses come back as failures; they are this
               // route's 404 rather than the router's error page.
               Effect.orElseSucceed(() => missing),
@@ -116,6 +133,43 @@ export const mediaLayer = (root: string) =>
 
 /** One answer for every way a file is not there. */
 const missing = HttpServerResponse.empty({ status: 404 })
+
+/**
+ * What an `.svg` is answered with, on top of whatever the file engine already
+ * said about it — the other half of the picture kind's promise.
+ *
+ * An SVG is a DOCUMENT THAT CAN SCRIPT, and that is the whole of the problem
+ * this closes. A picture's page draws one in an `<img>` (`@olai/web`'s
+ * `Image.tsx`), which is the element that will not run it — but this route is a
+ * URL, and a URL can be typed into an address bar, opened from a link, or
+ * pulled into a frame by a previewed `.html` next door. Reached that way it is
+ * a document of THIS ORIGIN: its script would run beside this app's own, with
+ * this app's storage and this app's cookies, which is exactly what a file
+ * somebody else wrote may never have. Until the viewers, an SVG was simply
+ * refused by the allowlist, at the cost of refusing it to the `<img>` too.
+ *
+ * So the response says what the file may do, rather than the route saying who
+ * may ask for it:
+ *
+ *   - `sandbox` with nothing granted puts a document parsed from these bytes in
+ *     an OPAQUE ORIGIN — no storage, no cookies, no reach into anything of
+ *     ours, and `allow-scripts` withheld, so nothing in it runs at all. It is
+ *     the same directive the saved-page seal spends, at its strictest
+ *     (`@olai/surface`'s `seal.ts`);
+ *   - `default-src 'none'` is the belt to that brace: nothing is fetched even
+ *     if a browser one day parses the file some other way;
+ *   - `nosniff`, because a response this app declares as an image must not be
+ *     re-decided by a content sniffer.
+ *
+ * A CSP header on a response the browser is loading as an IMAGE is ignored,
+ * which is what makes this free: the picture page is unaffected, and the only
+ * reader who meets these directives is the one who reached the URL as a
+ * document — which is precisely the reader this is about.
+ */
+const INERT = {
+  "content-security-policy": "default-src 'none'; sandbox",
+  "x-content-type-options": "nosniff",
+} as const
 
 /** A checked target, as the URL the file engine resolves under the root. */
 const served = (target: string): string =>
