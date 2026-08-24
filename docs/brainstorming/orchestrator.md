@@ -147,6 +147,15 @@ A `judge` step's procedure creates a kolu terminal in the lane's worktree runnin
 
 Volatilities, one owner each: the padi link in one module; board derivation as pure functions over data; pipeline policy on `dag.olai`; gate predicates as a closed set; procedures as a registry keyed by name; the page as a function of cells. The agent proposes, the engine disposes — the split olai already has between ops and the agent, now with a third participant: the driver, which is the only thing that acts, and acts only through padi and ops. Data over vocabulary: a lane, a step, a terminal, a verdict, a snapshot are nodes or records; nothing the harness knows lives outside the board and the mirror.
 
+### Fences, and the rule lifecycle
+
+Yegge's ["Fences, not Sandboxes"](https://yegge.ai/essays/fences-not-sandboxes/) (2026-08-24, read 2026-08-24) is independent confirmation of the two core bets, from a ~50-agent factory:
+
+- **A fence is "any mechanism that turns you away if you aren't supposed to be there"** — his agents self-organized around refusals-at-the-doors, not sandboxes. Our gates are fences: `set_doing` refusing a blocked step, the merge firing only on the gate conjunction. Where we go harder, keep it: he bets on agents *choosing* to respect a refusal; we remove the credential (the paper's §7 says instructions get ignored, missing tokens cannot be). A fence that cannot be jumped beats a fence that is politely respected.
+- **"Amnesiac, interchangeable agents coordinate only via text — so offices outlive their holders, precedents outlive their incidents."** His argument for law is our argument for the board: terminals forget everything; `dag.olai`/`lanes.olai` are the durable text a restart re-reads. Our lapse→rule habit (rebase-under-live-reviewers → the writer-after-readers edge; twelve zombies → the retire step) is his incident→doctrine ladder: custom → advisory → written law → mechanical enforcement.
+- **The warning to adopt: rules need a lifecycle, or the law book buries you.** His system grew 450 uncurated legal artifacts and needed a cleanup officer; rulings that were "just good craftsmanship" had to be elided. So for us: rulings live as nodes (visible, prunable, trashable); a growing rule count is a smell, not progress; and a rule has an exit — when a lapse's mechanical enforcement lands in code, the prose ruling that spawned it is folded into the node that owns the code, not kept as a second copy (the instructions.md-retires-verb-by-verb pattern, applied to rules themselves).
+- **One mouth to humans** — his only-Fable-talks-to-people fence at the Slack/email boundary is our shape too: one chat, one human, and the driver as the only thing that acts.
+
 ## Open questions
 
 - **Merge action's home:** one-shot kolu terminal with an injected token (leaning), or a `pr.merge` verb on padi (ask 5).
