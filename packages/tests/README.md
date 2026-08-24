@@ -419,7 +419,7 @@ The names are not written down twice. `support/world.ts` imports the client's ow
 
 ## Waiting, which is the whole of being honest under load
 
-This suite runs parallel, on machines that are also doing something else, so every assertion in it is a race unless it was written not to be. A run on a saturated box is the only way to find out — `sh underload.sh` is that run, and it counts what it dropped rather than leaving five logs to read — and there are exactly four ways to get it wrong. All four are green on an idle laptop.
+This suite runs parallel, on machines that are also doing something else, so every assertion in it is a race unless it was written not to be. A run on a saturated box is the only way to find out — `sh underload.sh` is that run, and it counts what it dropped rather than leaving five logs to read — and there are exactly five ways to get it wrong. All five are green on an idle laptop.
 
 **A value read on its way to its final one.** Most assertions here WAIT: they poll until the page or the file says the thing, and fail saying what they were waiting for. The ones that cannot are the NEGATIVES, and a negative is two different steps that read almost the same:
 
@@ -451,11 +451,13 @@ Every one of them will take "the page said why it did not" instead, which is the
 | the inverse is filed when the answer comes back | `writes.ts` → `edit/undoing.ts`'s `record` | ⌘Z spends an empty stack: it draws `nothing to undo`, and the late `record` wipes even that, so the page keeps no trace |
 | one write at a time | `palette/Palette.tsx`, `edges/editing.tsx`, `date/DatePicker.tsx` — all `sending` | the second write is dropped where it stands: no op, no sentence, nothing on screen |
 
-Both were measured under load, and both failed fifteen seconds later on a file that never changed. So a scenario that makes a write and then aims something ELSE at the same tab needs the tab's own receipt in between, not the disk's: the palette's remark (`I capture …` now waits for it), the row the page redrew (`the node "…" comes after "…"`), the box re-primed. One of those receipts is a message SHORT, and takes a frame on top: what the edge steps watch is the refs the snapshot drew (`edge_steps.ts`'s `drawnOrSaid`), and the snapshot is one message ahead of the answer on the same wire — so the happy path waits a frame after the chip moves, which is the same ritual `support/caret.ts` already performs for the keys. The disk assertion is still worth making — it is the claim about what LANDED — it just is not a gate.
+Both were measured under load, and both failed fifteen seconds later on a file that never changed. So a scenario that makes a write and then aims something ELSE at the same tab needs the tab's own receipt in between, not the disk's: the palette's remark (`I capture …` now waits for it), the row the page redrew (`the node "…" comes after "…"`), the box re-primed. One of those receipts is a message SHORT, and takes a frame on top: what the edge steps watch is the refs the snapshot drew (`edge_steps.ts`'s `drawnOrSaid`), and the snapshot is one message ahead of the answer on the same wire — so the happy path waits a frame after the chip moves, which is the same ritual `support/caret.ts` already performs for the keys. The disk assertion is still worth making — it is the claim about what LANDED — it just is not a gate. A cold `goto` after a write is the same class: `page.goto` aborts the in-flight apply, so the node leaving the outline is the receipt, not the navigation.
 
-None of the four mistakes is fixed by a longer timeout, and a step that needed one was asking the wrong question. This one is the sharpest case: the gesture was *lost*, so the fifteen seconds are the budget and not the latency, and a minute would fail the same way.
+**A search asserted before the query it typed has been answered.** The shortlist, the filter bar, the ⌘K palette and the `@` list all publish `data-asked` — which query the rows on screen answer. `support/shortlist.ts` waits on it. A negative (`the palette lists no document`) that held after one frame was reading the previous query's rows.
 
-**What the four are worth, measured** (2026-08-16, 32-core box, five suites at once, six rounds each — thirty full runs both sides):
+None of the five mistakes is fixed by a longer timeout, and a step that needed one was asking the wrong question. This one is the sharpest case: the gesture was *lost*, so the fifteen seconds are the budget and not the latency, and a minute would fail the same way.
+
+**What the first four were worth, measured** (2026-08-16, 32-core box, five suites at once, six rounds each — thirty full runs both sides; the fifth, a search asserted before `data-asked`, is this file's 2026-08-24 addition):
 
 | | drops | runs that dropped something |
 |---|---|---|

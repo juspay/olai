@@ -415,8 +415,11 @@ When(
  *  titles). "There is no filter bar" is what says it for that page. */
 Then("tags on this page are pressable", async function (this: OlaiWorld) {
   await this.expectAttribute("main", "data-narrowable", "true", "the page");
-  assert.ok(
-    (await this.page.locator(TAG).count()) > 0,
-    "no tag is drawn, so this proves nothing",
+  // The page kind is narrowable as soon as `main` is drawn; the tags live on
+  // the rows, a snapshot later. Counted immediately, a loaded day page is
+  // still empty — "no tag is drawn, so this proves nothing".
+  await this.waitUntil(
+    async () => (await this.page.locator(TAG).count()) > 0,
+    "a tag to be drawn",
   );
 });

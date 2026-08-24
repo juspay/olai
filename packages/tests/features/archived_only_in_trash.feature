@@ -36,6 +36,10 @@ Feature: What is put away is on the Trash and nowhere else
     And I open the node menu of "order"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
+    # The tab's receipt, before a navigation that would abort the write: a
+    # cold `goto` of /agenda destroys the page while `applying()` is still
+    # in flight, and the agenda then never empties.
+    Then the node "order" is not shown
     And I open the agenda
     # "Nothing is due." — the page's own sentence, because there is nothing
     # owed rather than nothing matching.
@@ -56,6 +60,7 @@ Feature: What is put away is on the Trash and nowhere else
     And I open the node menu of "order"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
+    Then the node "order" is not shown
     And I open the day "2026-08-10"
     # The row goes, and the outline heading that held only it goes with it —
     # the day's own rule for an outline left with nothing, reached here by the
@@ -77,6 +82,7 @@ Feature: What is put away is on the Trash and nowhere else
     And I open the node menu of "demo"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
+    Then the node "demo" is not shown
     And I open the day "2026-08-03"
     Then the day is empty
     And the day "2026-08-03" has nothing on it
@@ -93,6 +99,7 @@ Feature: What is put away is on the Trash and nowhere else
     When I open the node menu of "order"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu
+    Then the node "order" is not shown
     And I open the Trash
     Then the Trash lists the node "order"
     When I open the day "2026-08-10"

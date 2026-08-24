@@ -39,11 +39,33 @@ export const answering = async (
   hit: string,
   text: string,
 ): Promise<void> => {
-  await world.page
-    .locator(`${panel} ${attr("data-asked", text.trim())}`)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await answered(world, panel, text);
   await world.page
     .locator(hit)
+    .first()
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+};
+
+/**
+ * THE QUERY HAS BEEN ANSWERED — without requiring a hit.
+ *
+ * The negative half of {@link answering}: a search that found nothing is still
+ * a search that has answered, and a step that asserts absence after one frame
+ * is a step that reads the previous query's rows under load. Wait for
+ * `data-asked`, then hold whatever the claim is.
+ */
+export const answered = async (
+  world: OlaiWorld,
+  panel: string,
+  text: string,
+): Promise<void> => {
+  // ON the panel or INSIDE it: the shortlist and the palette list carry
+  // `data-asked` on a child; the `@` completion carries it on the panel
+  // itself. One locator, both shapes, so a door that publishes the
+  // attribute cannot fail the wait for having put it one level out.
+  const asked = attr("data-asked", text.trim());
+  await world.page
+    .locator(`${panel}${asked}, ${panel} ${asked}`)
     .first()
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 };

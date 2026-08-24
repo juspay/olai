@@ -22,9 +22,12 @@ import { NEAR } from "@olai/web/src/client/chat/near.ts";
 
 import { selector, TESTID, type TestId } from "@olai/web/src/client/testids.ts";
 
+import { completingIn } from "@olai/web/src/client/chat/completion.ts";
+
 import { retypedAndTaken } from "../support/atonce.ts";
 import { MARKER } from "../support/scripted.ts";
 import { saysThat } from "../support/said.ts";
+import { answered } from "../support/shortlist.ts";
 
 import {
   attr,
@@ -1890,12 +1893,27 @@ Then(
 Then(
   "the completion does not offer {string}",
   async function (this: OlaiWorld, value: string) {
-    await this.waitUntil(
-      async () =>
-        (await this.page
-          .locator(`${CHAT_COMPLETION_ROW}${attr("data-value", value)}`)
-          .count()) === 0,
-      `the completion to stop offering "${value}"`,
+    // Wait for THIS query's node half, then HOLD the absence. The
+    // attribute lives on the box (always there) as well as the list
+    // (only while there are rows): a word that named nothing draws no
+    // list, and waiting for the list is a wait the empty answer never
+    // satisfies. `completingIn` is the composer's own read of the
+    // armed query, so the wait and the box cannot disagree about which
+    // word has been answered.
+    const text = await (await chatBox(this)).inputValue();
+    const armed = completingIn(text, text.length);
+    if (armed !== null && armed.kind === "name") {
+      await answered(this, CHAT_INPUT, armed.query);
+    } else {
+      await this.waitForFrame();
+    }
+    const rows = await this.page
+      .locator(`${CHAT_COMPLETION_ROW}${attr("data-value", value)}`)
+      .count();
+    assert.strictEqual(
+      rows,
+      0,
+      `the completion offers ${JSON.stringify(value)}`,
     );
   },
 );

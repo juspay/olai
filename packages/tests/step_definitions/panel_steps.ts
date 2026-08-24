@@ -14,6 +14,7 @@ import { Then, When } from "@cucumber/cucumber";
 import { SIDEBAR_WIDTH_KEY } from "@olai/web/src/client/layout/prefs.ts";
 import { retypedAndTaken } from "../support/atonce.ts";
 import { countsNothing, foundCount } from "../support/counted.ts";
+import { answered } from "../support/shortlist.ts";
 import {
   APP_HEADER,
   attr,
@@ -279,6 +280,11 @@ When("I take a letter off the header search", async function (this: OlaiWorld) {
 Then(
   "the header search lists the node {string}",
   async function (this: OlaiWorld, title: string) {
+    await answered(
+      this,
+      HEADER_SEARCH_RESULTS,
+      await (await headerBox(this)).inputValue(),
+    );
     await this.page
       .locator(HEADER_SEARCH_ITEM)
       .filter({ hasText: title })
@@ -300,6 +306,11 @@ const documentRow = (world: OlaiWorld, file: string) =>
 Then(
   "the header search lists the document {string}",
   async function (this: OlaiWorld, file: string) {
+    await answered(
+      this,
+      HEADER_SEARCH_RESULTS,
+      await (await headerBox(this)).inputValue(),
+    );
     await documentRow(this, file)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   },

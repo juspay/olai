@@ -27,6 +27,7 @@ import { Then, When } from "@cucumber/cucumber";
 import { retypedAndPressed, retypedAndTaken } from "../support/atonce.ts";
 import { countsNothing, foundCount } from "../support/counted.ts";
 import { inTheMood, saysThat } from "../support/said.ts";
+import { answered } from "../support/shortlist.ts";
 import {
   attr,
   HIT,
@@ -272,9 +273,13 @@ Then(
   "the palette lists the node {string}",
   async function (this: OlaiWorld, title: string) {
     // A debounce and one server round trip sit between the keystroke and the
-    // row, so this waits rather than reads. A row's id is its ADDRESS, and a
-    // node's address is a bare fragment — so `hit-#` tells a node hit from a
-    // document row and from a shell item that happens to share a word.
+    // row, so this waits rather than reads. Wait for THIS query's answer
+    // (`data-asked`) before gripping a row — a wait for any hit is a wait the
+    // previous search satisfies for the next.
+    await answered(this, PALETTE, await (await paletteBox(this)).inputValue());
+    // A row's id is its ADDRESS, and a node's address is a bare fragment — so
+    // `hit-#` tells a node hit from a document row and from a shell item that
+    // happens to share a word.
     await this.page
       .locator(`${PALETTE_ITEM}[data-id^="hit-#"]`)
       .filter({ hasText: title })
@@ -288,10 +293,9 @@ Then(
   async function (this: OlaiWorld, file: string) {
     // Gripped by its `data-id` rather than by the text: the row's label is the
     // document's TITLE, and the id is its address, which is the thing a
-    // scenario means. It waits like a node hit does, and for the same reason —
-    // one reading answers both kinds now (`@olai/format`'s
-    // `matchingDocuments`), so a document row is a debounce and a round trip
-    // away exactly as a record's is.
+    // scenario means. Wait for THIS query first, for `lists the node`'s
+    // reason — a leftover row from the query before is the same id.
+    await answered(this, PALETTE, await (await paletteBox(this)).inputValue());
     await this.page
       .locator(`${PALETTE_ITEM}${attr("data-id", `hit-${file}`)}`)
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -301,12 +305,13 @@ Then(
 Then(
   "the palette lists no document {string}",
   async function (this: OlaiWorld, file: string) {
-    // Read after a frame rather than polled, for `the palette does not offer`'s
-    // reason: the absence has to be true NOW. Asked of the row's own id rather
-    // than of the list's text, because a node hit may well NAME the file this
-    // step is claiming has no row of its own — a top-level node's place line is
-    // the outline it lives in.
-    await this.waitForFrame();
+    // Wait for THIS query to have been answered, then HOLD the absence. One
+    // frame after the keystroke is still the previous search's rows, under
+    // load — the leftover is what "a date filter still lists a document"
+    // named. Asked of the row's own id rather than of the list's text, because
+    // a node hit may well NAME the file this step is claiming has no row of
+    // its own — a top-level node's place line is the outline it lives in.
+    await answered(this, PALETTE, await (await paletteBox(this)).inputValue());
     const rows = await this.page
       .locator(`${PALETTE_ITEM}${attr("data-id", `hit-${file}`)}`)
       .count();

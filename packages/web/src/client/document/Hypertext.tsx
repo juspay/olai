@@ -328,6 +328,13 @@ const UNMOVED = 2
  * room to spare, and is comfortably inside the time it takes a reader to go and
  * read something else.
  *
+ * THE WINDOW OPENS ON A REAL HEIGHT, not on the first act. The first scroll is
+ * often against the `70dvh` guess; the report that replaces it is the
+ * correction this exists for. Starting the hang detector from the guess spent
+ * the landing before that report arrived, on a loaded box, and left the section
+ * off screen. The two seconds are a hang detector after the frame has been
+ * sized, never the wait for the size.
+ *
  * WHAT IT COSTS is the page whose pictures are slower than that: the reader is
  * left where the pre-picture geometry put them, a screen or so short of the
  * section. That is the same direction {@link UNMOVED} fails in, and for the
@@ -339,6 +346,18 @@ const UNMOVED = 2
  * the page can hold it, when the reader takes over, OR when its time is up.
  */
 const CORRECTING = 2_000
+
+/** The overflow box that actually moves this frame, or `null` for the
+ *  window. A split pane is its own scrollport; a lone page usually is not. */
+const scrollPort = (node: HTMLElement): HTMLElement | null => {
+  let el: HTMLElement | null = node.parentElement
+  while (el !== null && el !== document.documentElement) {
+    const { overflowY } = getComputedStyle(el)
+    if (overflowY === "auto" || overflowY === "scroll") return el
+    el = el.parentElement
+  }
+  return null
+}
 
 /**
  * WHAT THE FRAME WAS POINTED AT — the two facts about the document in there
@@ -826,22 +845,18 @@ export function Hypertext(props: { readonly file: string }) {
    * header is accounted for by the rule that already states it, and this file
    * never learns how tall a header is.
    *
-   * TWO SCROLLERS, AND THE SECOND HALF IS THE WINDOW'S — which reads like a bug
-   * in a split, where each pane is an `overflow-y-auto` column
-   * (`../pane/Panes.tsx`), and is not: MEASURED at 1440×900 with a two-pane
-   * address, the column takes the frame to its own top (163px of column scroll)
-   * and the document is 8210px against a 900px window, so `scrollBy` has
-   * somewhere to go and takes it (1298px) — the anchor lands 72px from the top of
-   * the screen. Both scrollers are real at once. It is measured rather than
-   * reasoned because reasoning about it went wrong twice: the shell's own height
-   * rule reads as though the window could not scroll in a split, and a first
-   * attempt to pin this used a page that OVERFLOWED the frame, where the
-   * browser's own scroll inside the iframe does the work and this half could be
-   * deleted with nothing going red. What pins it now is
-   * `html_previews.feature`'s "A previewed section in the pane that is not
-   * focused is on screen", sized like its lone-pane sibling — tall enough to put
-   * the anchor below one screen, short enough to FIT the frame — and checked by
-   * deleting the line below and watching both go red.
+   * THE SECOND HALF IS THE NEAREST SCROLLPORT, not always the window. A split
+   * pane is `overflow-y-auto` (`../pane/Panes.tsx`) inside `SHELL_SPLIT`
+   * (`../layout/sheet.ts`) — a fixed `100dvh` minus the header — so the document
+   * cannot exceed the viewport and `window.scrollBy` has nowhere to go. That is
+   * why the window arithmetic left the section below the column's fold, and why
+   * {@link scrollPort} finds that column. A lone page has no overflow ancestor
+   * (`SHELL_LONE` grows the document) and the path is the `scrollBy` it always
+   * was. What pins the split is `html_previews.feature`'s "A previewed section
+   * in the pane that is not focused is on screen", sized like its lone-pane
+   * sibling — tall enough to put the anchor below one screen, short enough to
+   * FIT the frame — and checked by deleting the column scroll and watching it
+   * go red.
    *
    * IT WAITS FOR THE HEIGHT, and that is why this is an effect over two signals
    * rather than a scroll done when the message arrives. The report lands beside
@@ -904,8 +919,10 @@ export function Hypertext(props: { readonly file: string }) {
   createEffect(() => {
     const top = landedAt()
     // Tracked, not read: the frame's height is what makes the arithmetic below
-    // land where the reader will be looking.
-    measured()
+    // land where the reader will be looking — and whether the hang detector
+    // may start, because a correction against the guess is not an act the
+    // two seconds should count from.
+    const height = measured()
     if (top === undefined || frame === undefined || over) return
     if (pointed?.at === undefined || landing.at() === undefined) return
     const box = frame
@@ -920,15 +937,29 @@ export function Hypertext(props: { readonly file: string }) {
         return done()
       }
       box.scrollIntoView({ block: "start" })
-      if (top !== 0) scrollBy({ top, behavior: "instant" })
+      if (top !== 0) {
+        // THE NEAREST SCROLLPORT, not always the window. A split pane is
+        // `overflow-y-auto` (`../pane/Panes.tsx`); `window.scrollBy` there
+        // moves nothing, and the section sits below the fold of the column
+        // the reader is not looking at. On a lone page the window is that
+        // port and this is the same `scrollBy` it always was.
+        const host = scrollPort(box)
+        if (host === null) scrollBy({ top, behavior: "instant" })
+        else host.scrollTop += top
+      }
       // WHERE THAT LEFT THEM, which is what the run after this one compares
       // against. What the act ASKED for is not the same number: a page too
       // short to scroll that far is clamped, and the clamped position is where
       // the reader actually is.
       stood = box.getBoundingClientRect().top
-      // …and how long the next correction has to arrive ({@link CORRECTING}).
-      clearTimeout(correcting)
-      correcting = setTimeout(done, CORRECTING)
+      // THE HANG DETECTOR STARTS ONCE THE FRAME HAS A REAL HEIGHT. A first
+      // act against the 70dvh guess re-arms nothing: the report that replaces
+      // the guess is still owed, and starting the clock from the guess spent
+      // the landing before it arrived.
+      if (height !== undefined) {
+        clearTimeout(correcting)
+        correcting = setTimeout(done, CORRECTING)
+      }
       // ARRIVED, which is what spends the landing (`../router.tsx`'s `landed`).
       // The reader has been taken to the section, so the next time this file
       // moves on disk the frame is re-pointed at its own address and nothing

@@ -20,6 +20,6 @@ directory rather than the root.
 
 It opens with frontmatter, and every line of that block is one this vault has
 to get right: the page must not draw it, the contents must not list it, the
-document must not be named by it, `#swatches` must not index as a tag somebody
-wrote, `date:` must stay a property rather than becoming a day, and
-`prop:agent=claude-opus` must find this file.
+document must not be named by it, a hash-looking value in that block must not
+index as a tag somebody wrote, a date key must stay a property rather than
+becoming a day, and `prop:agent=claude-opus` must find this file.

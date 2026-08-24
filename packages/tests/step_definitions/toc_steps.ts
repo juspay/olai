@@ -30,6 +30,7 @@ import { Then, When } from "@cucumber/cucumber";
 import {
   detailsOpen,
   DESC,
+  DOCUMENT_BODY,
   HEADINGS,
   HYDRATION_TIMEOUT,
   oneLine,
@@ -135,9 +136,15 @@ Then(
 );
 
 Then("there is no contents on the page", async function (this: OlaiWorld) {
-  // Asked of the whole PAGE, not of the rendered block: a contents is drawn
-  // beside markdown rather than inside it, so looking within would find
-  // nothing whether or not the rule holds.
+  // The BODY first: an absence read off a page that has not drawn its
+  // answer yet is an absence of everything. A note or an attached document
+  // is what these scenarios have instead of a contents; wait for one, then
+  // HOLD that the contents is not there.
+  await this.waitUntil(
+    async () =>
+      (await this.page.locator(`${DESC}, ${DOCUMENT_BODY}`).count()) > 0,
+    "the page to have drawn a note or a document",
+  );
   assert.strictEqual(
     await contents(this).count(),
     0,
@@ -148,7 +155,14 @@ Then("there is no contents on the page", async function (this: OlaiWorld) {
 /** The other half of that scenario, and the half that makes it mean anything:
  *  this note is not spared a contents for want of headings. */
 Then("the note has headings of its own", async function (this: OlaiWorld) {
-  const drawn = await headings(this, "note");
+  // Waited for, not read once: a zoomed note's markdown is a snapshot
+  // behind the heading, and a count of zero on a page still drawing is the
+  // guard firing for the wrong reason (`documents.feature:246` under load).
+  let drawn: Line[] = [];
+  await this.waitUntil(async () => {
+    drawn = await headings(this, "note");
+    return drawn.length > 1;
+  }, "the note to have drawn its headings");
   assert.ok(
     drawn.length > 1,
     `this note has ${drawn.length} heading(s), so the scenario proves nothing`,

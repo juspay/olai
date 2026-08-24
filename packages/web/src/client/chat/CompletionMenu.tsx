@@ -95,6 +95,14 @@ export function CompletionMenu(props: {
    *  not either — `../complete/completing.tsx`'s rule, kept. */
   readonly asking: string
   /**
+   * WHICH QUERY the NODE half answers, when this is a name list — the same
+   * `data-asked` every other search door publishes. Absent while the files
+   * are up and the nodes have not arrived, and what makes "the file rows
+   * held still while the server's rows landed" waitable rather than a
+   * window a loaded runner closes before the next step looks.
+   */
+  readonly asked?: string
+  /**
    * The BOX this list is completing, which is what makes it caret-scoped.
    *
    * The listener below is capture-phase on the document — it has to be, so the
@@ -218,6 +226,7 @@ export function CompletionMenu(props: {
       class={`absolute bottom-full left-2 right-2 ${WITHIN.pop} mb-1 max-h-64 list-none overflow-y-auto rounded border border-rule/70 bg-panel p-1 shadow-lg`}
       data-testid={TESTID.chatCompletion}
       data-kind={props.kind}
+      data-asked={props.asked}
     >
       {/* `<Index>` rather than `<For>`, which is `../search/Shortlist.tsx`'s
           rule over the identical rows: they are positional — the cursor above

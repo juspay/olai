@@ -1134,10 +1134,12 @@ Feature: A `.html` in the vault
     # drawn yet when the reader scrolls away, or this scenario would be
     # asserting that nothing happens after nothing happened.
     #
-    # The growth is deliberately LATER than the correction window, so this is
-    # the far end of the rule: by the time it arrives the landing is over on
-    # both counts, and the frame following its page is a frame following its
-    # page and nothing more.
+    # The growth is the TEST'S OWN EVENT, not a 2500ms clock. A wall-clock
+    # delay after `load` fires while the preceding steps are still running
+    # under load, and a wait for zero boxes then times out on growth that was
+    # supposed to be ahead. `grow()` is called after the reader has scrolled
+    # away — the landing is over because they moved, and the frame following
+    # its page is a frame following its page and nothing more.
     Given I open the app
     And I mark the page
     When I rewrite "notes/deep.html" as:
@@ -1148,17 +1150,15 @@ Feature: A `.html` in the vault
       <div style="height:1200px">a long stretch after it, to read on into</div>
       <div id="later"></div>
       <script>
-        addEventListener("load", function () {
-          setTimeout(function () {
-            for (var i = 0; i < 3; i++) {
-              var row = document.createElement("div")
-              row.className = "row"
-              row.style.height = "400px"
-              row.style.background = "#eef"
-              document.getElementById("later").appendChild(row)
-            }
-          }, 2500)
-        })
+        window.grow = function () {
+          for (var i = 0; i < 3; i++) {
+            var row = document.createElement("div")
+            row.className = "row"
+            row.style.height = "400px"
+            row.style.background = "#eef"
+            document.getElementById("later").appendChild(row)
+          }
+        }
       </script>
       """
     And I rewrite "notes/from.html" as:
@@ -1177,8 +1177,10 @@ Feature: A `.html` in the vault
     And I remember where the page is scrolled
     # …while the page still has its growth ahead of it.
     Then the preview drew 0 boxes for ".row"
-    # …and then it grows, by a screenful and a half.
-    And the preview drew 3 boxes for ".row"
+    # …and then it grows, by a screenful and a half — the test's own event,
+    # after the reader has the page.
+    When I grow the preview
+    Then the preview drew 3 boxes for ".row"
     # THE ASSERTION: the frame followed the page and moved nobody.
     And the page is scrolled where it was left
     And there should be no page errors

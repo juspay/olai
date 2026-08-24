@@ -957,6 +957,9 @@ export const TESTID = {
   palette: "palette",
   paletteScrim: "palette-scrim",
   paletteInput: "palette-input",
+  /** The rows. `data-asked` is WHICH query they answer — absent while they
+   *  answer one the reader has typed past — the same attribute the shortlist
+   *  under every other search box publishes (`search/Shortlist.tsx`). */
   paletteList: "palette-list",
   paletteItem: "palette-item",
   paletteAsk: "palette-ask",
@@ -1033,6 +1036,8 @@ export const TESTID = {
   headerSearch: "header-search",
   /** The phone's door: opens the palette, which is the same modal. */
   headerSearchOpen: "header-search-open",
+  /** The results panel. `data-asked` is WHICH query the rows answer — the
+   *  same attribute the palette list and the shortlist publish. */
   headerSearchResults: "header-search-results",
   headerSearchItem: "header-search-item",
   headerSearchItemPlace: "header-search-item-place",
@@ -1272,6 +1277,10 @@ export const TESTID = {
   chatSessionsRefused: "chat-sessions-refused",
   /** What went wrong where nobody was waiting: a boot, a dead agent. */
   chatTrouble: "chat-trouble",
+  /** The message box. On a name `@`, `data-asked` is WHICH query the NODE
+   *  half has answered — the list itself is not drawn when that answer is
+   *  empty (`Composer.tsx`'s `open` is `rows().length > 0`), so the wait
+   *  lives here. */
   chatInput: "chat-input",
   /** On a `user` row that did not land: the strip saying WHICH way it did not,
    *  in `data-delivery` — `refused`, which carries the button that tries
@@ -1316,8 +1325,10 @@ export const TESTID = {
   /** The shortlist over the message box: the agent's commands under a `/`, what
    *  the served directory holds under an `@`. `data-kind` says which of the two
    *  — `command` or `name` — so a scenario names the list rather than guessing
-   *  from what is in it. Absent whenever nothing is armed, which includes a
-   *  trigger whose query matches nothing at all. */
+   *  from what is in it. On a name list, `data-asked` is WHICH query the NODE
+   *  half answers (the files are local and up at once); absent while that half
+   *  has not answered. The same attribute is on the box (`chatInput`), because
+   *  a trigger whose query matches nothing draws no list. */
   chatCompletion: "chat-completion",
   /** One row of it. `data-value` is the command's name, the file's path or the
    *  node's id — what taking the row is about, and what it writes into the

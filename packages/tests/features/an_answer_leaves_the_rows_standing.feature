@@ -58,7 +58,13 @@ Feature: An answer leaves the rows it did not change standing
     When I type "read @fin" into the chat
     Then the name completion is open
     And the completion offers "finishes.md"
-    And the completion does not offer "catch-up"
+    # Mark as soon as the files are up. Waiting for catch-up to be ABSENT is
+    # a wait the node half fails under load: by the time finishes.md is
+    # visible, the round trip has often already landed, and a wait-until-gone
+    # then times out on a name that is supposed to stay. The claim is that
+    # the file rows survive the node half arriving; marking them now, then
+    # waiting for catch-up, is that claim — whether the window is still open
+    # or has already closed.
     And I mark every element of the "@ menu"
     Then the completion offers "catch-up"
     And the "@ menu" kept every element it had
