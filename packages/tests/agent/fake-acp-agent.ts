@@ -76,6 +76,10 @@
  *   subagent crash  the same, and then FALL OVER while it is still out —
  *                which leaves a `pending` Agent call nothing will ever
  *                complete, on rows a dead agent's panel deliberately keeps
+ *   refuse busy  refuse every `session/prompt` that arrives while a turn is
+ *                RUNNING, from here on — an agent with no queue at all, which
+ *                is neither of the two olai ships against and is the shape an
+ *                older adapter has
  *   refuse steering   turn `_session/steering` into an error from here on, so
  *                a scenario can see what a panel does with words it could not
  *                deliver
@@ -177,6 +181,38 @@ const emit = emitter(OUT)
 const { notify, refuse, request, respond, take, withdraw } = speaking(emit, "agent")
 
 /**
+ * Prompts this agent has READ and not yet started on — its queue, made
+ * askable.
+ *
+ * The queue itself is the promise chain at the bottom of this file, which has
+ * held mid-turn prompts behind the running turn since before anything asked it
+ * to. What this adds is the one question a cancel has to ask of it.
+ */
+const waiting = new Set<unknown>()
+
+/**
+ * ... and the ones a CANCEL answered while they were still waiting.
+ *
+ * THE PINNED ADAPTER'S OWN SHAPE, and worth reproducing because a client is
+ * entitled to be surprised by it: `session/cancel` settles every queued turn
+ * `cancelled` immediately — and the words run anyway, because they were pushed
+ * onto the model's input when they arrived (verified against 0.66.0,
+ * 2026-08-24). So one press of cancel produces a `cancelled` per turn in
+ * flight, in whichever order they come back, and the panel has to say one thing
+ * about it.
+ */
+const settledEarly = new Set<unknown>()
+
+/** An answer to something the client asked — {@link respond} with the one thing
+ *  a queue makes possible on top: a turn already answered while it waited is
+ *  answered ONCE, and goes on to run its words with nothing left to say on the
+ *  wire. */
+const reply = (id: unknown, result: unknown): void => {
+  if (settledEarly.delete(id)) return
+  respond(id, result)
+}
+
+/**
  * Take back every question still on the wire, the way a real agent does when
  * its turn is cancelled: `$/cancel_request` per outstanding id, which aborts
  * the client's handler.
@@ -238,6 +274,19 @@ const steered: Array<string> = []
  *  turn is over — which is the one case where a person's words have nowhere to
  *  go but back on the screen. */
 let steerRefused = false
+/**
+ * Whether a `session/prompt` arriving while a turn RUNS is refused outright
+ * (`refuse busy`).
+ *
+ * The world's third leg, and the only one this file does not otherwise have:
+ * both agents olai ships against hold a mid-turn prompt and answer it in
+ * order, so an agent that says NO to one — an older adapter, one that never
+ * grew a queue — was a case reasoned about rather than driven. Refused rather
+ * than swallowed because a refusal is the shape a panel can be right or wrong
+ * about: the row keeps the words, wears *not sent*, and offers to send them
+ * again, which is what a scenario can hold this end to.
+ */
+let busyRefused = false
 /**
  * Whether `_session/steering` is taken and never answered from here on
  * (`swallow steering`).
@@ -323,6 +372,21 @@ const refusesToOpen = (verb: "new" | "load"): boolean =>
  * stretch in which a second open can be started against the first.
  */
 const holdsLoad = (): boolean => existsSync(`${cwd}/${MARKER.holdLoad}`)
+
+/**
+ * Whether this handshake ADVERTISES NOTHING — no queue, no steering.
+ *
+ * Read at `initialize` and off the filesystem, for `refusesToOpen`'s reason: it
+ * is a property of the machine the agent woke up on rather than of anything the
+ * client says, and the client hears it exactly once, before it has said
+ * anything at all.
+ *
+ * What it buys is the panel's OTHER face, on one agent: a conversation with
+ * something that has told olai nothing about itself. Every send still goes and
+ * this file still queues them; what the panel stops doing is promising a person
+ * their message will be got to, and offering them an interruption to press.
+ */
+const silent = (): boolean => existsSync(`${cwd}/${MARKER.saysNothing}`)
 
 /** The client's own two, NEWEST LAST — so a client that takes the first entry
  *  instead of the most recently updated one adopts the wrong conversation. */
@@ -884,7 +948,7 @@ const usageUpdate = (final: boolean): void => {
  *  cancelled turn. Answers whether it did, so the caller stops there. */
 const endedCancelled = (id: unknown): boolean => {
   if (!cancelled) return false
-  respond(id, { stopReason: "cancelled" })
+  reply(id, { stopReason: "cancelled" })
   return true
 }
 
@@ -965,7 +1029,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
 
   if (verb === "window") {
     say(`the context window is ${size} now.`)
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -984,7 +1048,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "slow" && argument === "steering") {
     steerDelayMs = SLOW_STEER_MS
     say("steering will answer slowly from here on.")
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -994,7 +1058,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       await takeSteering()
       await sleep(50)
     }
-    respond(id, { stopReason: cancelled ? "cancelled" : "end_turn" })
+    reply(id, { stopReason: cancelled ? "cancelled" : "end_turn" })
     return
   }
 
@@ -1030,7 +1094,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       say(`still working ${said}\n`)
       await sleep(700)
     }
-    respond(id, { stopReason: cancelled ? "cancelled" : "end_turn" })
+    reply(id, { stopReason: cancelled ? "cancelled" : "end_turn" })
     return
   }
 
@@ -1040,7 +1104,22 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "picture") {
     say("here it is:")
     showPicture()
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
+    return
+  }
+
+  // From now on this agent will not take a SECOND prompt while it is working —
+  // the third leg of the world, and the one nothing else here is. The two
+  // agents olai ships against both hold a mid-turn prompt (one advertises it,
+  // one was verified), so "what does a busy send do on an agent that neither
+  // queues nor advertises" was reasoned about and never driven: an older
+  // adapter, or one that simply answers a concurrent `session/prompt` with an
+  // error. It is an ORDINARY TURN FAILURE when it happens, which is the claim —
+  // the words stay on the row, marked, with the button that sends them again.
+  if (verb === "refuse" && argument === "busy") {
+    busyRefused = true
+    say("a second message while working will be refused from here on.")
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1050,7 +1129,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "refuse" && argument === "steering") {
     steerRefused = true
     say("steering refused from here on.")
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1061,7 +1140,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "swallow" && argument === "steering") {
     steerSwallowed = true
     say("steering will be swallowed from here on.")
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1071,7 +1150,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "lose") {
     listRefused = true
     say("the conversation store is unreadable")
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1081,7 +1160,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // the absence of a word, which is the only shape of that claim a streaming
     // panel can be asked for without waiting to see whether more arrives.
     say(`servers: [${servers.join(" ")}]`)
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1095,7 +1174,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     const [name, status] = argument.split(/\s+/)
     if (name !== undefined && status !== undefined) attachment.set(name, status)
     say(`${name} is ${status} from the next turn`)
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1127,7 +1206,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       say(ANSWER.slice(at, at + CHUNK))
       if (pace > 0) await sleep(pace)
     }
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1139,7 +1218,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     for (let line = 0; line < 40; line++) {
       say(`line ${line} — ${"the quick brown fox jumps over the lazy dog. ".repeat(3)}\n\n`)
     }
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1250,7 +1329,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       },
     })
     say("started something and gave up on it.")
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1283,7 +1362,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     notify("session/update", { sessionId, update: reported })
     notify("session/update", { sessionId, update: reported })
     say("said the same thing twice.")
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1334,7 +1413,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       },
     })
     say(" — and done.")
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1344,7 +1423,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // and the per-question "Other" box marked with the shared `_meta` key.
     if (!canElicit()) {
       say("the client cannot draw a form, so there is nothing to ask")
-      respond(id, { stopReason: "end_turn" })
+      reply(id, { stopReason: "end_turn" })
       return
     }
     // `ask later` HOLDS first, which is the only way a scenario can be
@@ -1385,7 +1464,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     })
     if (endedCancelled(id)) return
     say(`you answered: ${JSON.stringify(answer)}`)
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1396,7 +1475,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // path where the panel's answer can be refused by the schema it was for.
     if (!canElicit()) {
       say("the client cannot draw a form, so there is nothing to ask")
-      respond(id, { stopReason: "end_turn" })
+      reply(id, { stopReason: "end_turn" })
       return
     }
     const answer = await request("elicitation/create", {
@@ -1414,7 +1493,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     })
     if (endedCancelled(id)) return
     say(`you answered: ${JSON.stringify(answer)}`)
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1435,7 +1514,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     const outcome = (answer as { outcome?: { outcome?: string; optionId?: string } })
       ?.outcome
     say(`permission: ${outcome?.optionId ?? outcome?.outcome ?? "nothing"}`)
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1482,7 +1561,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     const outcome = (answer as { outcome?: { outcome?: string; optionId?: string } })
       ?.outcome
     say(`permission: ${outcome?.optionId ?? outcome?.outcome ?? "nothing"}`)
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1493,7 +1572,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   if (verb === "model") {
     liveModel = argument
     say(`switched to ${argument}.`)
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1508,7 +1587,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       update: { sessionUpdate: "config_option_update", configOptions: configOptions() },
     })
     say("the session's options were re-announced.")
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1566,7 +1645,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       update: { sessionUpdate: "tool_call_update", toolCallId, status: "completed" },
     })
     say(`rewrote \`${file}\`.`)
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1631,7 +1710,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // went out is the scenario contradicting itself in the one place a reader
     // looks to see what happened.
     say(`rewrote \`${file}\` in ${EDITED_HUNKS.length} places.`)
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1780,7 +1859,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
           ? `you answered: ${JSON.stringify(answer)}`
           : `permission: ${outcome?.optionId ?? outcome?.outcome ?? "nothing"}`,
       )
-      respond(id, { stopReason: "end_turn" })
+      reply(id, { stopReason: "end_turn" })
       return
     }
 
@@ -1830,7 +1909,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
         },
       })
       say(" the agent reported back.")
-      respond(id, { stopReason: "end_turn" })
+      reply(id, { stopReason: "end_turn" })
       return
     }
 
@@ -1856,7 +1935,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     // "no agent now" and stepped out of its lane the moment it finished.
     for (const call of [cabinets, note, worktops, first, second]) completed(call)
     say("both agents reported back.")
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1877,7 +1956,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     )
     if (named.length === 0) {
       say("no node in context.")
-      respond(id, { stopReason: "end_turn" })
+      reply(id, { stopReason: "end_turn" })
       return
     }
     for (const { id: node, said } of named) {
@@ -1892,7 +1971,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
           `${said.includes("; trashed") ? ", and it was put away" : ""}.\n`,
       )
     }
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1902,7 +1981,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
   // this exists for: `set_done` refuses one, and an agent still writes them).
   if (verb === "name") {
     say(`look at \`${argument}\`.`)
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1919,14 +1998,14 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       "the note is [the cabinets note](notes/cabinets.md) " +
         "and the row is [the order row](/#order).\n",
     )
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
   if (verb === "done") {
     await useTool("set_done", { id: argument })
     say(`marked \`${argument}\` done.`)
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1940,14 +2019,14 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
     const file = listed.find((one) => one.file !== "_olai/Trash.olai")?.file
     await useTool("add_node", { file, title: argument })
     say(`added \`${argument}\`.`)
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
   if (verb === "search") {
     const found = await useTool("search_nodes", { text: argument })
     say(`searched: ${JSON.stringify(found["structuredContent"])}`)
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
@@ -1967,12 +2046,12 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       const bytes = existsSync(file) ? statSync(file).size : -1
       say(`read ${bytes} bytes from ${basename(file)}\n`)
     }
-    respond(id, { stopReason: "end_turn" })
+    reply(id, { stopReason: "end_turn" })
     return
   }
 
   say(`you said: ${text}`)
-  respond(id, { stopReason: "end_turn" })
+  reply(id, { stopReason: "end_turn" })
 }
 
 // ── the protocol ───────────────────────────────────────────────────────
@@ -2122,11 +2201,11 @@ const steerTurn = (id: unknown, params: Record<string, unknown>): void => {
       return
     }
     if (!running) {
-      respond(id, { outcome: "promptRequired", reason: "noRunningTurn" })
+      reply(id, { outcome: "promptRequired", reason: "noRunningTurn" })
       return
     }
     steered.push(promptTextOf(params))
-    respond(id, { outcome: "injected" })
+    reply(id, { outcome: "injected" })
   }
   if (steerDelayMs === 0) {
     answer()
@@ -2143,20 +2222,37 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
   switch (method) {
     case "initialize":
       capabilities = (params["clientCapabilities"] ?? {}) as Record<string, unknown>
-      respond(id, {
+      reply(id, {
         protocolVersion: 1,
         agentCapabilities: {
           loadSession: stored(),
           mcpCapabilities: { http: true },
           ...(stored() ? { sessionCapabilities: { list: {} } } : {}),
+          // IT HOLDS A PROMPT SENT WHILE IT IS BUSY — said where the real
+          // adapter says it, inside the capabilities, in its own `_meta`
+          // corner. Nothing about this file's behaviour depends on saying it
+          // (the read loop has queued prompts behind the running turn all
+          // along); what depends on it is the panel's PROMISE, which is made
+          // only for an agent that said this.
+          ...(silent() ? {} : { _meta: { claudeCode: { promptQueueing: true } } }),
         },
         agentInfo: { name: "fake-acp-agent", version: "0.1.0" },
-        // No steering advertisement, and its absence is a claim: the real
-        // adapter does advertise one (top-level `_meta`), and the client
-        // deliberately does not read it — a steer that goes out to an agent
-        // that never said it could steer is answered by the REQUEST, which is
-        // the only thing that can actually prove it. This file steers fine
-        // without saying so, which is that arrangement under test.
+        // ... and IT TAKES AN INTERRUPTION, in the top-level `_meta` beside
+        // the capabilities, which is where the steering extension's own
+        // contract puts it and where the real adapter puts it.
+        //
+        // IT USED TO SAY NEITHER, deliberately, back when every mid-turn
+        // message was a steer: reading an advertisement then would have been
+        // predicting what the request was about to prove. It is read now
+        // because it decides whether a person is OFFERED an interruption at
+        // all, and a control has to be drawn before anybody can press it. The
+        // request is still the proof — `refuse steering` is the scenario that
+        // says so, on an agent that advertises this and then says no.
+        //
+        // `.agent-says-nothing` takes both away, which is the OTHER agent's
+        // case reachable on this one: a panel that has been told nothing makes
+        // no promise and offers no interruption, and every send still goes.
+        ...(silent() ? {} : { _meta: { steering: { supported: true } } }),
       })
       return
 
@@ -2171,7 +2267,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         refuse(id, -32000, "the conversation store is unreadable")
         return
       }
-      respond(id, { sessions: stored() ? storedSessions() : [] })
+      reply(id, { sessions: stored() ? storedSessions() : [] })
       return
 
     case "session/new":
@@ -2188,7 +2284,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       // ... and has spent nothing in a window of its own.
       used = 0
       size = 200_000
-      respond(id, { sessionId, configOptions: configOptions() })
+      reply(id, { sessionId, configOptions: configOptions() })
       // NO `init` here, and that is the adapter's own shape: it forwards one
       // per PROMPT, so between opening a session and sending the first one the
       // picker is the only thing that has said which model this is. A client
@@ -2227,7 +2323,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       // this one until its first turn reports.
       used = 0
       size = 200_000
-      respond(id, { configOptions: configOptions() })
+      reply(id, { configOptions: configOptions() })
       notify("session/update", {
         sessionId,
         update: { sessionUpdate: "available_commands_update", availableCommands: COMMANDS },
@@ -2242,7 +2338,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       return
 
     case "session/set_mode":
-      respond(id, {})
+      reply(id, {})
       return
 
     // A client SETTING what the picker picks — the one verb the panel has for
@@ -2263,12 +2359,14 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       }
       currentModel = value
       liveModel = value
-      respond(id, { configOptions: configOptions() })
+      reply(id, { configOptions: configOptions() })
       return
     }
 
     case "session/prompt": {
       const text = promptTextOf(params)
+      // It is not waiting any more: this is the turn now.
+      waiting.delete(id)
       // The flag the steer handler reads, and it must come off however the
       // turn ends — a crash of a turn that left it set would make every later
       // steer claim to have been injected into nothing.
@@ -2311,6 +2409,16 @@ readMessages(
     if (message["method"] === "session/cancel") {
       cancelled = true
       withdrawRequests()
+      // ... and it settles every turn still WAITING, right here, the way the
+      // pinned adapter does ({@link settledEarly}). Their words are not
+      // touched: they are already in this process, they run in their turn, and
+      // what a client learns is that one press of cancel comes back as one
+      // `cancelled` per turn it had in flight.
+      for (const id of waiting) {
+        settledEarly.add(id)
+        respond(id, { stopReason: "cancelled" })
+      }
+      waiting.clear()
       return
     }
     // ... and so must a steer, for the same reason and more so: the whole
@@ -2332,6 +2440,22 @@ readMessages(
       }
       answered(message["error"] ?? message["result"])
       return
+    }
+    // A PROMPT joins the queue before it joins the chain, so a cancel arriving
+    // while it waits can answer it ({@link waiting}). Recorded here rather than
+    // in `handle` for the reason the cancel is read here: by the time `handle`
+    // runs, this prompt is the turn rather than one behind it.
+    if (message["method"] === "session/prompt") {
+      // ... unless this agent will not take one at all while it is working
+      // ({@link busyRefused}). Answered HERE and never enqueued, which is the
+      // whole shape of an agent with no queue: the refusal comes back at once
+      // rather than when the running turn ends, and nothing about the turn in
+      // flight changes.
+      if (busyRefused && running) {
+        refuse(message["id"], -32603, "this agent cannot take a message while it is working")
+        return
+      }
+      waiting.add(message["id"])
     }
     queue = queue.then(() => handle(message)).catch((cause: unknown) => {
       noise(`fake agent: ${String(cause)}`)

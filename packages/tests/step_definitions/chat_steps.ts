@@ -64,6 +64,7 @@ import {
   CHAT_ENTRY_STREAMING,
   CHAT_INPUT,
   CHAT_INSTALL,
+  CHAT_INTERRUPT,
   CHAT_LANE,
   CHAT_LANE_LABEL,
   CHAT_MINE,
@@ -75,6 +76,7 @@ import {
   CHAT_NO_AGENT,
   CHAT_NUDGE,
   CHAT_OUTLINE_CHANGE,
+  CHAT_QUEUED,
   CHAT_QUEUES,
   CHAT_OUTLINE_DIFF,
   CHAT_PANEL,
@@ -184,6 +186,54 @@ When("I ask the agent {string}", async function (this: OlaiWorld, text: string) 
   await this.page.locator(CHAT_SEND).click();
 });
 
+/**
+ * ... and the OTHER send: put these words into the turn the agent is running.
+ *
+ * Its own step rather than a flag on the one above, because it is a different
+ * gesture a person makes on purpose — which is the whole of what
+ * `compact-lost-to-steer` changed. A scenario that meant to interrupt says so,
+ * and every scenario that does not says nothing and gets the ordinary send.
+ *
+ * THE BUTTON, which is the door a phone has. The chord is the same gesture
+ * through the other door and has a step of its own, so a scenario can pin
+ * either — and one scenario pins that they do the same thing.
+ */
+When("I interrupt the agent with {string}", async function (this: OlaiWorld, text: string) {
+  await typeInto(this, text);
+  await this.press(this.page.locator(CHAT_INTERRUPT));
+});
+
+/** The same gesture through the keyboard. Alt+Enter and not a second control:
+ *  a chord nobody can see is a feature only its author knows about, and a
+ *  control that did something the keyboard could not is the other half of the
+ *  same complaint. */
+When(
+  "I interrupt the agent with {string} by keyboard",
+  async function (this: OlaiWorld, text: string) {
+    await typeInto(this, text);
+    await (await chatBox(this)).press("Alt+Enter");
+  },
+);
+
+/** Nothing to interrupt WITH: the agent never said it takes one, or there is no
+ *  turn in flight. Absence is the claim — a control drawn for an extension
+ *  nobody advertised is a control that refuses when pressed. */
+Then("the composer offers no interruption", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_INTERRUPT).count()) === 0,
+    "the composer to offer no interruption",
+    POLL_TIMEOUT,
+  );
+});
+
+/** ... and that it DOES, which is what an agent advertising steering buys a
+ *  person while a turn is running. */
+Then("the composer offers an interruption", async function (this: OlaiWorld) {
+  await this.page
+    .locator(CHAT_INTERRUPT)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
 /** The window `../support/atonce.ts` opens, at this door. */
 When(
   "I retype the chat as {string} and press Enter at once",
@@ -277,6 +327,15 @@ When(
     fs.writeFileSync(path.join(this.scratch(), `.agent-refuse-${verb}`), "");
   },
 );
+
+/** Make the next handshake ADVERTISE NOTHING — no queue, no interruption. The
+ *  same dot-file idiom as the refusals above and for the same reason: what an
+ *  agent says about itself is heard exactly once, before the client has said
+ *  anything, so a scenario arms it and restarts to reach it. What it buys is
+ *  the panel's honest face for an agent it has been told nothing about. */
+When("the agent advertises nothing about itself", function (this: OlaiWorld) {
+  fs.writeFileSync(path.join(this.scratch(), MARKER.saysNothing), "");
+});
 
 /** Make the next `session/load` sit on the wire until `the agent is released`.
  *  That stretch is the one in which the panel is between conversations, which
@@ -627,6 +686,45 @@ Then(
   },
 );
 
+/**
+ * THE ROW SAYS IT IS WAITING — the message went out while a turn was running,
+ * and the agent has not started on it.
+ *
+ * Read on the row rather than off the composer, and that is the difference the
+ * two steps are about: the composer's line is a promise made before anybody
+ * presses anything, and this is the state of ONE message somebody sent. A panel
+ * that said the first and not the second leaves a person watching their own
+ * words with nothing to tell them anything is happening about them.
+ */
+Then(
+  "the chat shows my message {string} as waiting",
+  async function (this: OlaiWorld, text: string) {
+    // The BUBBLE has to still say it, exactly as the delivery steps insist: a
+    // row that reported the state and lost the words would pass on the mark
+    // alone.
+    await myMessage(this, text).waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => (await myRow(this, text).locator(CHAT_QUEUED).count()) > 0,
+      `"${text}" to be marked as waiting its turn`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+/** ... and that it has stopped: the turns in front of it ended, so the agent
+ *  has taken it up. The half that makes the mark worth having — a hint that
+ *  never came off would be a row permanently claiming to be next. */
+Then(
+  "my message {string} is no longer waiting",
+  async function (this: OlaiWorld, text: string) {
+    await this.waitUntil(
+      async () => (await myRow(this, text).locator(CHAT_QUEUED).count()) === 0,
+      `"${text}" to stop saying it is waiting`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
 When("I send the undelivered message again", async function (this: OlaiWorld) {
   // `press` rather than a hand-rolled wait-then-click: it also waits out the
   // frame the click schedules, and the very next step reads the row this
@@ -707,6 +805,22 @@ Then("the chat says the turn was cancelled", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await transcriptText(this)).includes("cancelled"),
     "the chat to report the cancellation",
+  );
+});
+
+/** ... and says it ONCE, which is a claim about a press rather than about a
+ *  turn. A cancel stops everything in flight, so each turn answers `cancelled`
+ *  — one press, one decision, one line. Counted over the notice rows rather
+ *  than over the transcript's text, since a message could contain the word. */
+Then("the chat says it once", async function (this: OlaiWorld) {
+  const cancelled = this.page
+    .locator(CHAT_ENTRY)
+    .filter({ hasText: "cancelled" })
+    .filter({ hasNot: this.page.locator(CHAT_MINE) });
+  assert.strictEqual(
+    await cancelled.count(),
+    1,
+    "the chat reported one press of cancel more than once",
   );
 });
 

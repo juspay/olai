@@ -176,6 +176,32 @@ export type AgentEvent =
   /** The whole slash-command list, replaced rather than merged. */
   | { readonly _tag: "commands"; readonly commands: ReadonlyArray<Command> }
   /**
+   * WHAT THIS AGENT SAID IT CAN DO, once per handshake — the two facts about a
+   * running agent the panel cannot work out for itself.
+   *
+   * Not `initialize`'s payload and deliberately not near it: what crosses is
+   * two booleans a leg read ({@link ./agents/leg.ts}), so nothing above this
+   * file learns that agents advertise anything, let alone where.
+   *
+   * ONCE PER AGENT rather than per session, because that is when it is said:
+   * the handshake happens when a subprocess starts, and every conversation that
+   * subprocess then holds is with the same agent. It arrives AFTER the panel
+   * has been told which agent it is talking to and before that agent's first
+   * turn — so a panel between the two makes no promise and offers no
+   * interruption, which is what a panel that has not been told yet honestly
+   * has.
+   */
+  | {
+    readonly _tag: "advertised"
+    /** It takes a message INTO the turn it is running, if asked on purpose.
+     *  What the composer draws its one interrupting control from. */
+    readonly steers: boolean
+    /** It HOLDS a message sent while it is busy and runs it when the turn is
+     *  over. What lets the composer promise a person their words will be got
+     *  to, on the agent's own word. */
+    readonly queues: boolean
+  }
+  /**
    * The MCP servers this conversation has, and how each one stands — the whole
    * roster, healthy rows included ({@link ./servers.ts}).
    *

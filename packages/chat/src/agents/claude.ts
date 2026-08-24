@@ -309,15 +309,32 @@ export const backgroundTaskIn = (meta: Meta): Background | null => {
  *     to read, and it is not this one.
  */
 
-/** The adapter's own corner of a `_meta`, or `undefined` when there is none —
- *  an absent `_meta`, an absent `claudeCode`, one that is not an object. Every
- *  reader here starts by asking for it. */
-const claudeIn = (meta: Meta): { readonly [key: string]: unknown } | undefined => {
-  const claude = meta?.["claudeCode"]
-  return typeof claude === "object" && claude !== null
-    ? claude as { readonly [key: string]: unknown }
+/** One OBJECT-valued field of an object, or `undefined` for anything else — a
+ *  missing field, a field of some other type, a value that is not an object at
+ *  all.
+ *
+ *  The whole of the narrowing every reader in this file does, written once:
+ *  everything read here is nested somewhere inside somebody else's payload, and
+ *  each level of the nesting is a place a shape can change under us. `_meta`,
+ *  `claudeCode` and a handshake's capabilities are all the same step. */
+const fieldIn = (value: unknown, field: string): Meta => {
+  if (typeof value !== "object" || value === null) return undefined
+  const found = (value as { readonly [key: string]: unknown })[field]
+  return typeof found === "object" && found !== null
+    ? found as { readonly [key: string]: unknown }
     : undefined
 }
+
+/** ... and the one field of it every advertisement hangs off. Named because
+ *  `_meta` is the protocol's own word for "an extension said something here",
+ *  and both handshake readers start by asking for one. */
+const metaOf = (value: unknown): Meta => fieldIn(value, "_meta")
+
+/** The adapter's own corner of a `_meta`, or `undefined` when there is none —
+ *  an absent `_meta`, an absent `claudeCode`, one that is not an object. Every
+ *  reader here starts by asking for it, and it is {@link fieldIn} under the one
+ *  name this file reads everything out of. */
+const claudeIn = (meta: Meta): Meta => fieldIn(meta, "claudeCode")
 
 /** One field of that corner, when it is a non-empty string and `null` for
  *  everything else — a field of some other type, the empty string. The two
@@ -339,19 +356,50 @@ const wordIn = (
   return typeof value === "string" && value !== "" ? value : null
 }
 
+// ── what the adapter says it can do, at the handshake ──────────────────
+
+/**
+ * Whether this agent HOLDS a prompt sent while it is busy, out of what it
+ * advertised at `initialize`.
+ *
+ * THE BIT THE DEFAULT RESTS ON. Core ACP's schema has no such capability — it
+ * neither defines nor forbids a mid-turn `session/prompt` — so what happens to
+ * one is a fact about the agent, and this adapter volunteers it: a `turnQueue`
+ * FIFO, in order, said in `agentCapabilities._meta`. Verified on the wire
+ * (2026-08-24): a prompt sent 1.5s into a 35-second `/compact` waited, the
+ * compaction completed, and the message ran after it.
+ *
+ * It gates NOTHING about delivery — every send is a plain prompt, on this wire
+ * and on the other one, because there is nowhere else for a message to go that
+ * is not the queue #194 deleted. What it gates is what the composer may PROMISE
+ * about an agent that is working ({@link ./leg.ts}'s `queues`).
+ *
+ * Read POSITIVELY, like everything else here: an agent that says nothing is one
+ * this panel makes no promise for, which is the direction this is safe to lose
+ * in.
+ */
+export const QUEUES_WHEN_BUSY = (initialized: unknown): boolean =>
+  claudeIn(metaOf(fieldIn(initialized, "agentCapabilities")))?.["promptQueueing"] === true
+
 // ── steering a turn that is already running ────────────────────────────
 
 /**
  * The request that puts a message INTO the turn already in flight, rather than
  * behind it.
  *
- * A `session/prompt` sent while a turn runs is not this: the adapter enqueues
- * it and the agent reaches it when the running turn is over, which is the same
- * waiting olai used to do for itself with the same words held out of sight.
- * This one is delivered at the SDK's `now` priority — it pre-empts the current
+ * A `session/prompt` sent while a turn runs is not this, and that is now the
+ * ORDINARY path rather than the fallback: the adapter enqueues it and the agent
+ * reaches it when the running turn is over ({@link QUEUES_WHEN_BUSY}). This one
+ * is delivered at the SDK's `now` priority — it pre-empts the current
  * generation and lands between the turn's own steps — so what a person typed
- * reaches the model that is working, which is the whole point of typing it
- * then.
+ * reaches the model that is working.
+ *
+ * PRE-EMPTING MEANS ABORTING, which is why it stopped being the default: the
+ * interrupted cycle is torn down, and a turn whose work cannot survive being
+ * torn down loses it. `/compact` is exactly such a turn — the human's
+ * screenshot is `Compacting failed: API Error: Request was aborted` under a
+ * message that only meant to be next in line. So interruption is a gesture
+ * somebody makes on purpose now, and this is the request behind it.
  *
  * An EXTENSION, hence the leading underscore, and named for the agreed ACP
  * steering wire protocol rather than for one adapter — but it is read here
@@ -359,11 +407,32 @@ const wordIn = (
  * losing direction is the safe one and is the only one it loses in: an agent
  * without this refuses the method, which is a refusal a caller already has to
  * handle (a dead pipe, a deadline) and which reaches a person as the row
- * keeping their words. `initialize` also ADVERTISES the extension, in a
- * top-level `_meta`; reading that would be predicting what the request proves,
- * so nothing here does.
+ * keeping their words.
  */
 export const STEER_METHOD = "_session/steering"
+
+/**
+ * Whether this agent SAID it takes one, out of the handshake — in a top-level
+ * `_meta`, beside `agentCapabilities` rather than inside it, which is where the
+ * steering extension's own contract puts it.
+ *
+ * WHAT CHANGED, and it is worth spelling out because this file used to argue
+ * the other way. While every mid-turn send was a steer, reading the
+ * advertisement would have been predicting what the request was about to prove:
+ * the message was going out regardless, and an agent that refused the method
+ * answered for itself. Now the advertisement decides whether a person is
+ * offered an INTERRUPT at all — a control has to be drawn before anybody can
+ * press it, and the only honest input to that is what the agent said about
+ * itself. The request is still the proof: a steer that goes out and is refused
+ * still comes back as the row keeping its words.
+ *
+ * Read POSITIVELY. An agent that says nothing gets no button, and its person
+ * loses nothing but the interruption — what they type still goes, still at
+ * once, and the agent still gets to it.
+ */
+export const STEERING_ADVERTISED = (initialized: unknown): boolean =>
+  (metaOf(initialized)?.["steering"] as { readonly supported?: unknown } | undefined)
+    ?.supported === true
 
 /**
  * How a steer that found NOTHING RUNNING should behave, in the request's own
@@ -567,7 +636,9 @@ export const CLAUDE: Leg = {
     meta: STEER_WHEN_IDLE,
     timeout: STEER_TIMEOUT,
     taken: steerTaken,
+    advertised: STEERING_ADVERTISED,
   },
+  queues: QUEUES_WHEN_BUSY,
   rawMessages: {
     openMeta: OPEN_SESSION_META,
     method: SDK_MESSAGE,

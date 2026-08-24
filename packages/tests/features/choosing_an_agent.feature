@@ -137,13 +137,18 @@ Feature: Choosing an agent
 
   @opencode @scratch:chat
   Scenario: The composer says what a mid-turn message will do
-    # Opencode has no steering method, so what you type while a turn runs is an
-    # ordinary prompt it queues behind that turn. The box still never locks and
-    # nothing is held here — what differs is where the words LAND, and a
-    # degradation a person can see is one they can work with.
+    # What you type while a turn runs is an ordinary prompt opencode queues
+    # behind that turn — which since `compact-lost-to-steer` is what a mid-turn
+    # message is on EVERY agent olai talks to. This leg was the odd one out and
+    # is the one the other converged on, so the line is a promise now rather
+    # than a warning about a degradation.
+    #
+    # And opencode still has no steering method, so it is the leg with one
+    # gesture where the other has two: nothing here offers an interruption.
     When I choose the agent "opencode"
     And I ask the agent "slow"
     Then the composer says a message would queue
+    And the composer offers no interruption
     When the agent is released
     Then the agent is idle
     And the composer says nothing about queueing

@@ -747,6 +747,41 @@ describe("what a turn leaves behind", () => {
     expect(touched(transcript.begins())).toEqual([])
     expect(touched(transcript.settle())).toEqual([])
   })
+
+  test("a turn that ends beside another closes ITS paragraph and nothing else", () => {
+    // Two turns in a row is the ordinary shape now — a message typed while the
+    // agent works is one — and the answers have to land in paragraphs of their
+    // own. The agent's prose grows the row that is open, so a turn that ended
+    // without closing one left the next turn's first word on the end of its
+    // last sentence: `…the Moon at work.BANANA`, with the question BANANA
+    // answered somewhere above it.
+    const transcript = new Transcript()
+    transcript.say("the tide is, in the end, the most tangible evidence.")
+    transcript.tool("call-1", { title: "Grep", status: "in_progress" })
+    transcript.say("…and here is more of the same answer.")
+
+    transcript.stopSaying()
+    transcript.say("BANANA")
+
+    expect(rows(transcript).map((entry) => entry.text)).toEqual([
+      "the tide is, in the end, the most tangible evidence.",
+      "Grep",
+      "…and here is more of the same answer.",
+      "BANANA",
+    ])
+    // ... and the OTHER turn's call is still running. Stranding it because a
+    // sibling finished would be the panel saying a live grep had been walked
+    // away from, which is why this is not `settle`.
+    expect(asKind(rows(transcript)[1], "tool")?.stranded).toBeUndefined()
+  })
+
+  test("... and closing twice is not news", () => {
+    // Every turn that ends calls it, and most of them have nothing open.
+    const transcript = new Transcript()
+    transcript.say("done")
+    expect(touched(transcript.stopSaying())).toEqual(["agent:1"])
+    expect(transcript.stopSaying()).toEqual(NOTHING)
+  })
 })
 
 describe("when a row arrived", () => {
@@ -929,6 +964,77 @@ describe("questions", () => {
 // place so that neither is constructible, which is what these assert — always
 // both, at every door.
 //
+// A message that is merely WAITING is not one of those marks and must not read
+// as one: it went out, it is at the agent, and there is a turn in front of it.
+// Its own field for its own reason — a row in the column of things that went
+// wrong would tell a person the opposite of the truth.
+
+describe("a message the agent has not started on", () => {
+  test("says so on the row it was typed into, and keeps its words", () => {
+    const transcript = new Transcript()
+    const row = transcript.user("and check the other one")
+
+    const marked = transcript.queued(row.key)
+    // THE SAME ROW, like every other thing that can be true about a message
+    // after it was drawn: no second row, no notice underneath.
+    expect(touched(marked)).toEqual([row.key])
+    expect(rows(transcript)).toHaveLength(1)
+    expect(rows(transcript)[0]).toMatchObject({
+      kind: "user",
+      text: "and check the other one",
+      queued: true,
+    })
+    // ... and it is not a DELIVERY. Nothing has failed, so there is nothing to
+    // offer to send again and nothing kept to send it with.
+    expect(asKind(rows(transcript)[0], "user")?.delivery).toBeUndefined()
+    expect(transcript.undelivered(row.key)).toBeNull()
+  })
+
+  test("and stops saying it when the agent takes it up", () => {
+    const transcript = new Transcript()
+    const row = transcript.user("and check the other one")
+    transcript.queued(row.key)
+
+    transcript.taken(row.key)
+    // ABSENT rather than `false`, for `streaming`'s reason: an ordinary message
+    // says nothing about this, and the writer only ever writes the one value.
+    expect(asKind(rows(transcript)[0], "user")?.queued).toBeUndefined()
+    expect(rows(transcript)[0]?.text).toBe("and check the other one")
+  })
+
+  test("taking up a row that never waited changes nothing", () => {
+    // The caller's rule is "clear whoever is at the head now", asked on every
+    // turn that ends — so most of these land on a row that never carried the
+    // mark, and a no-op is what makes that rule safe to state that simply.
+    const transcript = new Transcript()
+    const row = transcript.user("done order")
+
+    expect(transcript.taken(row.key)).toEqual(NOTHING)
+    expect(asKind(rows(transcript)[0], "user")?.queued).toBeUndefined()
+  })
+
+  test("a row a replaced session took away is not minted to carry it", () => {
+    const transcript = new Transcript()
+    const row = transcript.user("and check the other one")
+    transcript.clear()
+
+    expect(transcript.queued(row.key)).toEqual(NOTHING)
+    expect(transcript.taken(row.key)).toEqual(NOTHING)
+    expect(rows(transcript)).toEqual([])
+  })
+
+  test("only a `user` row can be waiting at all", () => {
+    // The mark is about a message somebody sent. A tool call or a notice has
+    // nobody waiting on it and no words of anybody's on it.
+    const transcript = new Transcript()
+    transcript.add("notice", "cancelled")
+    const [notice] = rows(transcript)
+
+    expect(transcript.queued(notice?.id ?? "")).toEqual(NOTHING)
+    expect(rows(transcript)[0]).not.toHaveProperty("queued")
+  })
+})
+
 // And the mark is TWO marks, which is the other half of the same rule: a
 // refusal is certain and keeps its prompt, a silence is not and keeps none, so
 // the button a person can press exists exactly where pressing it is honest.

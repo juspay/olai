@@ -259,6 +259,31 @@ export function Entry(props: {
                 button at all, because a retry there would hand somebody a
                 duplicate they had no way to predict. Nothing retries on its
                 own either way. */}
+            {/* IT HAS NOT BEEN STARTED ON YET — the agent is on something
+                else, and this is next. Deliberately NOT a fate: nothing has
+                gone wrong with it, so the bubble above is drawn exactly as an
+                ordinary message's and only this line differs. It sits where the
+                delivery strip sits, which is where somebody who has just
+                pressed send is already looking, and answers the question they
+                actually have: is anything happening about this.
+
+                `doing` rather than `muted`, which is {@link FACE}'s own
+                reasoning: this is something in flight, like an unanswered
+                message and unlike a refusal, which is over — and it is the
+                token the live cue under the transcript already uses, so one
+                colour means in progress rather than two.
+
+                IT CLEARS ITSELF, from the wire: the server takes the mark off
+                when the turns in front of this one end, so nothing here holds a
+                clock or an opinion about how long a turn takes. */}
+            <Show when={user().queued}>
+              <div
+                class="mt-1 flex items-center gap-2"
+                data-testid={TESTID.chatQueued}
+              >
+                <span class="font-mono text-[0.6875rem] text-doing">queued</span>
+              </div>
+            </Show>
             <Show when={user().delivery} keyed>
               {(fate) => (
                 <div

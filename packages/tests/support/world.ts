@@ -906,8 +906,9 @@ export const CHAT_CHOOSE_AGENT = selector(TESTID.chatChooseAgent);
 export const CHAT_CHOOSE_CANCEL = selector(TESTID.chatChooseCancel);
 /** One agent the no-agent face tells you how to install. */
 export const CHAT_INSTALL = selector(TESTID.chatInstall);
-/** The composer saying a message sent now will QUEUE behind the running turn
- *  rather than land in it — drawn only for an agent that cannot steer. */
+/** The composer PROMISING that a message sent now waits its turn at the agent
+ *  and is got to when the running turn is over — drawn while a turn runs, for
+ *  an agent whose queue is a fact olai has rather than a guess. */
 export const CHAT_QUEUES = selector(TESTID.chatQueues);
 /** The strip between the transcript and the box while the panel is busy —
  *  what a person sees when a turn or a boot is in flight and nothing has
@@ -986,9 +987,17 @@ export const CHAT_INPUT = selector(TESTID.chatInput);
  *  `data-delivery`, and the button that tries again — which only one of the two
  *  faces has. The words stay in the bubble above both. */
 export const CHAT_DELIVERY = selector(TESTID.chatDelivery);
+/** The strip on a `user` row the agent has not started on: it went out while a
+ *  turn was running and is waiting its turn there. Not a delivery — nothing has
+ *  failed — and it goes away when the agent takes the message up. */
+export const CHAT_QUEUED = selector(TESTID.chatQueued);
 export const CHAT_RESEND = selector(TESTID.chatResend);
 export const CHAT_WAITING = selector(TESTID.chatWaiting);
 export const CHAT_SEND = selector(TESTID.chatSend);
+/** The other send: put these words INTO the turn the agent is running. Drawn
+ *  only while there is a turn to interrupt and only for an agent that said it
+ *  takes one — the visible door onto Alt+Enter, which is the same gesture. */
+export const CHAT_INTERRUPT = selector(TESTID.chatInterrupt);
 export const CHAT_CANCEL = selector(TESTID.chatCancel);
 /** The shortlist over the message box, and one row of it. Both lists the
  *  composer completes draw the same box — the agent's commands under a `/`,

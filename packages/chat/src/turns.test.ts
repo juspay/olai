@@ -8,16 +8,23 @@
  * subprocess, holding a turn open and typing into it — so they are asserted
  * here, the way {@link ./calls.ts}' and {@link ./questions.ts}' rules are, and
  * the e2e suite drives the same shape through a real panel
- * (`features/choosing_an_agent.feature`, the queued-message scenarios).
+ * (`features/the_agent.feature`, the queued-message scenarios).
  *
  * WHAT EACH TEST IS ABOUT is the difference from a SLOT, because that is what
  * this replaced and what a future reader might think would do: a slot holds the
  * newest, and every case below is one where the newest is the wrong answer.
+ * Since `compact-lost-to-steer` there is a second question with the same shape
+ * — WHICH one the agent is working on — and the answer is the other end of the
+ * same order: the oldest.
  */
 
 import { describe, expect, test } from "bun:test"
 
 import { Turns } from "./turns.ts"
+
+/** The row a turn is the delivery of. Distinct per turn in every test here,
+ *  because telling two messages apart is the whole of what the key is for. */
+const row = (which: number): string => `user:${which}`
 
 describe("whether the conversation is busy", () => {
   test("nothing running is not busy", () => {
@@ -29,8 +36,8 @@ describe("whether the conversation is busy", () => {
     // `thinking`. A slot holding the newest answered this correctly by
     // accident and answered {@link Turns.leave} wrongly by the same token.
     const turns = new Turns()
-    const first = turns.open()
-    const second = turns.open()
+    const first = turns.open(row(1))
+    const second = turns.open(row(2))
     expect(turns.busy).toBe(true)
     turns.leave(first)
     expect(turns.busy).toBe(true)
@@ -42,7 +49,7 @@ describe("whether the conversation is busy", () => {
 describe("which turn may say where the conversation stands", () => {
   test("the only one, when it is the only one", () => {
     const turns = new Turns()
-    expect(turns.leave(turns.open())).toBe(true)
+    expect(turns.leave(turns.open(row(1)))).toBe(true)
   })
 
   test("the LAST one out, and never the first", () => {
@@ -50,8 +57,8 @@ describe("which turn may say where the conversation stands", () => {
     // running has nothing true left to say, and saying it anyway marks a
     // thinking panel idle — and settles a transcript whose calls are live.
     const turns = new Turns()
-    const first = turns.open()
-    const second = turns.open()
+    const first = turns.open(row(1))
+    const second = turns.open(row(2))
     expect(turns.leave(first)).toBe(false)
     expect(turns.leave(second)).toBe(true)
   })
@@ -60,8 +67,8 @@ describe("which turn may say where the conversation stands", () => {
     // A queued message can come back first: the agent reached it after the
     // turn it was behind, but the two answers race back through this process.
     const turns = new Turns()
-    const first = turns.open()
-    const second = turns.open()
+    const first = turns.open(row(1))
+    const second = turns.open(row(2))
     expect(turns.leave(second)).toBe(false)
     expect(turns.leave(first)).toBe(true)
   })
@@ -71,27 +78,51 @@ describe("which turn may say where the conversation stands", () => {
     // `ensuring` that covers an interrupt — and a second `true` would mark the
     // panel idle over a turn that is still running.
     const turns = new Turns()
-    const only = turns.open()
+    const only = turns.open(row(1))
     expect(turns.leave(only)).toBe(true)
     expect(turns.leave(only)).toBe(false)
   })
 })
 
-describe("the one turn a steer can be aimed at", () => {
-  test("is the only one, where there is exactly one", () => {
-    const turns = new Turns()
-    const only = turns.open()
-    expect(turns.only).toBe(only)
+describe("which turn the agent is ON", () => {
+  test("nothing, when nothing is running", () => {
+    expect(new Turns().head).toBeNull()
   })
 
-  test("is nothing at all where there are none, or several", () => {
+  test("the OLDEST, never the newest", () => {
+    // What every message typed while an agent works now produces: a second
+    // prompt the agent holds behind the first. The first is the one being
+    // worked on and the one an interruption is aimed at; the second is waiting,
+    // and its row says so.
     const turns = new Turns()
-    expect(turns.only).toBeNull()
-    turns.open()
-    turns.open()
-    // An agent that steers never has two; a caller that got one anyway would be
-    // aiming at whichever the set happened to yield first.
-    expect(turns.only).toBeNull()
+    const first = turns.open(row(1))
+    turns.open(row(2))
+    expect(turns.head).toBe(first)
+  })
+
+  test("... and the next one along when that one ends", () => {
+    // The mark coming off: the message behind it has stopped waiting, because
+    // the agent has taken it up. A third stays where it is.
+    const turns = new Turns()
+    const first = turns.open(row(1))
+    const second = turns.open(row(2))
+    const third = turns.open(row(3))
+    expect(turns.head).toBe(first)
+    turns.leave(first)
+    expect(turns.head).toBe(second)
+    turns.leave(second)
+    expect(turns.head).toBe(third)
+  })
+
+  test("the one still running, when a LATER turn finishes first", () => {
+    // The order is the order they went out, not the order they come back: a
+    // queued turn the agent dropped (a cancel) leaves the running one at the
+    // head, which is where it was.
+    const turns = new Turns()
+    const first = turns.open(row(1))
+    const second = turns.open(row(2))
+    turns.leave(second)
+    expect(turns.head).toBe(first)
   })
 })
 
@@ -101,8 +132,8 @@ describe("what a cancel is about", () => {
     // finishing — and a steer aimed at it came back "nothing to steer" and
     // started a fresh turn the person had just pressed a button to end.
     const turns = new Turns()
-    const first = turns.open()
-    const second = turns.open()
+    const first = turns.open(row(1))
+    const second = turns.open(row(2))
     const asked = turns.stopping()
     expect(asked).toEqual([first, second])
     expect(first.stopped).toBe(true)
@@ -115,7 +146,7 @@ describe("what a cancel is about", () => {
 
   test("the mark OUTLIVES the turn, which is what it is for", () => {
     const turns = new Turns()
-    const only = turns.open()
+    const only = turns.open(row(1))
     turns.stopping()
     turns.leave(only)
     expect(only.stopped).toBe(true)
@@ -125,8 +156,8 @@ describe("what a cancel is about", () => {
     // What the grace period asks after waiting: are any of the turns I was
     // pressed for still there?
     const turns = new Turns()
-    const first = turns.open()
-    const second = turns.open()
+    const first = turns.open(row(1))
+    const second = turns.open(row(2))
     const asked = turns.stopping()
     turns.leave(first)
     expect(asked.every((ticket) => !turns.has(ticket))).toBe(false)
@@ -141,8 +172,8 @@ describe("what a shutdown takes", () => {
     // owns; one left running past a shutdown is one nothing will ever report
     // on. A slot interrupted the newest and orphaned the rest.
     const turns = new Turns()
-    const first = turns.open()
-    const second = turns.open()
+    const first = turns.open(row(1))
+    const second = turns.open(row(2))
     expect(turns.drain()).toEqual([first, second])
     expect(turns.busy).toBe(false)
     expect(turns.has(first)).toBe(false)

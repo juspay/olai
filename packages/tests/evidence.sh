@@ -3,6 +3,11 @@
 #
 #   SHOTS=/somewhere bash evidence.sh
 #   PORT=7801 SHOTS=/somewhere bash evidence.sh   # pin a port (optional)
+#   SHOTS=/somewhere bash evidence.sh a-section another   # just these
+#
+# Named sections rather than all of them, because one of them needs something
+# the rest do not and costs real money: `chat-sends-queue` drives a REAL agent
+# (`AGENT=$(sh scripts/acp-agent.sh)`) through four turns of a real model.
 #
 # Expects to be run from packages/tests, inside `nix develop .#e2e`, with the
 # client already built (`just build-client`).
@@ -26,7 +31,16 @@ work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT
 mkdir -p "$shots"
 
-for section in $(SECTION= bun evidence.ts); do
+# Named on the command line, or every one the driver knows. The array is what
+# keeps "one name with a hyphen in it" and "the whole list" the same shape.
+sections=("$@")
+if [ ${#sections[@]} -eq 0 ]; then
+  # Word splitting is the point: the driver prints one name per line.
+  # shellcheck disable=SC2207
+  sections=($(SECTION= bun evidence.ts))
+fi
+
+for section in "${sections[@]}"; do
   echo
   echo "── $section ──────────────────────────────────────────────"
   rm -rf "$work/vault"
