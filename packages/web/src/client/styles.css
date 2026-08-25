@@ -114,12 +114,23 @@
  * reserve unchanged (a document's contents must still land `… < 96px` from the
  * top, `toc_steps.ts`).
  *
- * 2.5rem is the measured section row (~39px @ 18px root) with a little slack;
- * it is the ONLY spelling of that number — if the row's padding changes, this
- * is the line to move. Node pages draw the same `<Tree>`, so both are covered
- * by the one selector. */
-:root:has([data-testid="outline-tree"]) {
-  --height-pinned-section: 2.5rem;
+ * 3.5rem is the TALLER of the two faces the pinned line has, with a little
+ * slack on top: the laptop line measures ~2.2rem (the ~39px of the PR's
+ * live dump), but below `md` the same cells are `h-11` finger targets
+ * (`src/client/touch.ts`) — 2.75rem — plus the line's `py-1`, so the phone's
+ * pinned row is 3.25rem and a 2.5rem reserve would stop 0.75rem short of it
+ * (measured on a 390px window: the row spans y=72–130.5, a jump lands at
+ * 116.5). The reserve is the MAX of the two layouts rather than a breakpoint
+ * pair: one number cannot drift out of sync with itself, and the extra ~1rem
+ * on a laptop is far under the landing's 96px ceiling. It is the ONLY spelling
+ * of it — a change to the rows' heights means a change here.
+ *
+ * Keyed on the class the tree draws ITSELF (`.olai-tree`), not on a
+ * `data-testid`: testids are the suite's hook, and a rename of one must not
+ * quietly unmate a product rule. Node pages draw the same `<Tree>`, so both
+ * are covered by the one selector. */
+:root:has(.olai-tree) {
+  --height-pinned-section: 3.5rem;
 }
 
 /* The FRAME is ink; the PAGE is a paper sheet sitting in it. Unstyled

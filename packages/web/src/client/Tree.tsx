@@ -156,7 +156,11 @@ export function Tree(props: {
   // the note.
   return (
     <ul
-      class={`my-0 list-none ${ROOT_RAIL}`}
+      // `olai-tree` is the PRODUCT's own hook: `styles.css` reserves a jump's
+      // band on pages that draw a tree (the pinned section row below the bar),
+      // and that rule must not hang off the suite's testid — a rename of one
+      // should not unmate the other.
+      class={`olai-tree my-0 list-none ${ROOT_RAIL}`}
       data-sweep=""
       data-testid={TESTID.outlineTree}
     >

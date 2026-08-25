@@ -53,26 +53,44 @@ Feature: The header sticks
 
   # The bar is not all that pins. On a page that draws a tree, a SECTION row
   # holds its place under the bar while its branch scrolls past
-  # (`client/Tree.tsx`) — another ~40px of the reading that is not free space.
-  # A jump landing a row in that band used to leave the reader looking at it
-  # through the back of the pinned heading (measured: the row would stop at
-  # y=71.5px, on the pinned `kitchen` row's span, versus ≥116.5px after the
-  # fix). The reserve therefore accounts for whatever is actually pinned: the
-  # bar alone on non-tree pages, bar + section row on tree pages
-  # (`styles.css`'s `scroll-padding-top`).
+  # (`client/Tree.tsx`) — ~40px of the reading here, ~58px on a phone, that is
+  # not free space. A jump landing a row in that band used to leave the reader
+  # looking at it through the back of the pinned heading (measured: the row
+  # would stop at y=71.5px, ON the pinned `kitchen` row's span, versus ≥134px
+  # after the fix). The reserve therefore accounts for whatever is actually
+  # pinned: the bar alone on non-tree pages, bar + section row on tree pages
+  # (`styles.css`'s `scroll-padding-top`), and the row height it accounts for
+  # is the taller of the two faces the sticky line has.
   #
   # THE REVERT CHECK: with the extra reserve removed (the sole
-  # `--height-pinned-section` override gone), this scenario turns
-  # deterministically red — the row stops at the bar's bottom edge and
-  # `elementFromPoint` at its top names `/kitchen`, the pinned row itself:
-  # 0/10 luck involved. The window must be short like the Outline's for the
-  # same reason it gives there: a window taller than the page has nothing
-  # pinned to assert against.
+  # `--height-pinned-section` override gone), BOTH this scenario and its phone
+  # twin below turn deterministically red — the row stops at the bar's bottom
+  # edge and `elementFromPoint` at its top names `/kitchen`, the pinned row
+  # itself: 0/10 luck involved. The window must be short like the Outline's
+  # for the same reason it gives there: a window taller than the page has
+  # nothing pinned to assert against.
   @corpus:good @abp
   Scenario: A jump to a row lands below the pinned section, not behind it
     # A row deep enough in the fixture that the window still has room to put
     # past it: `install` is mid-tree, and near the end the browser would stop
     # short and pass for the wrong reason.
+    When I open the outline "house.olai"
+    And the window is shorter than the page
+    And a jump lands the row "install" at the top of the window
+    Then the app header is at the top of the viewport
+    And the row "install" is clear of the pinned section "kitchen"
+    And there should be no page errors
+
+  # ...and the face the first cut of the reserve actually missed: below `md`
+  # the sticky line is h-11 + py-1 — 3.25rem to the laptop's ~2.2, so a
+  # reserve sized off the laptop's measurement still stops 0.75rem short of
+  # the phone's pinned bottom (measured on a 390px window: the pinned
+  # `kitchen` row spans y=72–130.5, and a 2.5rem reserve landed the target at
+  # 116.5). Same scenario, handset context; the window-shortening step keeps
+  # the 390px width, which is what makes `h-11` fire and this pin mean
+  # anything.
+  @corpus:good @phone @abp
+  Scenario: A jump to a row lands below the pinned section on a phone, not behind it
     When I open the outline "house.olai"
     And the window is shorter than the page
     And a jump lands the row "install" at the top of the window
