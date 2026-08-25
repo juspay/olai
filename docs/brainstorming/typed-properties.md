@@ -18,13 +18,18 @@ worktree    .worktrees/doc-backlinks-index
 
 ```ts
 type PropType =
-  | { kind: "text" }                        // the default — every key today
-  | { kind: "sum";  of: readonly string[] } // merge: one of "auto" | "human"
-  | { kind: "date" }                        // dispatched: an ISO date or datetime, nothing else
-  | { kind: "int" }                         // pr: 193 — a number, not a string that has one in it
-  | { kind: "path" }                        // worktree: path-shaped, may point anywhere
-  | { kind: "doc" }                         // brief: a path that names a served document
-  | { kind: "ref";  under?: NodeId }        // agent: a node under a parent; item: any node in the set
+  | { kind: "text" }                  // the default — every key today
+  | { kind: "date" }                  // dispatched: an ISO date or datetime, nothing else
+  | { kind: "int" }                   // pr: 193 — a number, not a string that has one in it
+  | { kind: "path" }                  // worktree: path-shaped, may point anywhere
+  | { kind: "doc" }                   // brief: a path that names a served document
+  | { kind: "ref";  under?: NodeId }  // one of a parent's children — absent parent = the declaration's OWN children
+  | { kind: "node" }                  // any node id in the set — item
+
+// There is deliberately no "sum" — an enum IS a ref. The variants are nodes:
+// merge's declaration has children `auto` and `human`, and the value must be
+// one of its children's titles. agents-roster is the same thing that happens
+// to live elsewhere. One mechanism; adding a variant is adding a child.
 ```
 
 A vault's declarations are one map:
@@ -32,7 +37,7 @@ A vault's declarations are one map:
 ```ts
 type PropDeclarations = ReadonlyMap<PropKey, PropType>
 // e.g.
-// merge      → { kind: "sum", of: ["auto", "human"] }
+// merge      → { kind: "ref" }                             // variants = its own children: auto, human
 // dispatched → { kind: "date" }
 // worktree   → { kind: "path" }
 // brief      → { kind: "doc" }
@@ -77,12 +82,14 @@ Data, not config — the olai way. Lean: a file read by NAME, like `Pins.olai` a
 
 ```
 _olai/Properties.olai:
-  {"id":"prop-merge","title":"merge","props":{"type":"sum","of":"auto | human"}}
+  {"id":"prop-merge","title":"merge","props":{"type":"ref"}}
+  {"id":"prop-merge-auto","parent":"prop-merge","title":"auto"}
+  {"id":"prop-merge-human","parent":"prop-merge","title":"human"}
   {"id":"prop-dispatched","title":"dispatched","props":{"type":"date"}}
   {"id":"prop-agent","title":"agent","props":{"type":"ref","under":"agents-roster"}}
 ```
 
-One node per key; the title IS the key; the type is spelled in the node's own props. Editing the vocabulary is editing an outline — no config file, no restart, and the declarations page is readable in olai like anything else. (Bootstrap: `prop-*` nodes' own `type`/`of`/`under` props are checked against a built-in table, the one place the recursion grounds.)
+One node per key; the title IS the key; the type is spelled in the node's own props — and an enum's variants are its CHILDREN, not a list encoded into a string (no `"of":"auto | human"`; a pipe-separated string inside a prop is exactly the sloppiness this feature refuses). Adding a variant is adding a child row. Editing the vocabulary is editing an outline — no config file, no restart, and the declarations page is readable in olai like anything else. (Bootstrap: `prop-*` nodes' own `type`/`under` props are checked against a built-in table, the one place the recursion grounds.)
 
 Alternative considered: per-outline declarations (frontmatter or a root node). Rejected lean: props are one namespace across the vault — `merge` on a lane and `merge` anywhere else should mean one thing, or the key's meaning depends on where you're standing.
 
@@ -96,14 +103,14 @@ The live board uses **140+ distinct keys**. The core — every key used more tha
    pr        // 180  { kind: "int" }
    agent     // 138  { kind: "ref", under: "agents-roster" }
    repo      // 138  { kind: "ref", under: "repos-roster" }   // olai, kolu, xyne-boxes, drishti — a roster, not a hardcoded sum
-   item      // 131  { kind: "ref" }                          // any node in the set
-   verdict   // 101  { kind: "sum", of: ["verified","failed"] }  // the reasoning goes in the note
+   item      // 131  { kind: "node" }                         // any node in the set
+   verdict   // 101  { kind: "ref" }   // children: verified, failed — reasoning goes in the note
    brief     // 101  { kind: "doc" }
    sha       //  90  text                                     (hex pattern possible)
    merged    //  69  text                                     // holds the merge COMMIT — a sha, not a date; name says otherwise. typing would have caught the drift
    worktree  //  64  { kind: "path" }
    retired   //  42  { kind: "date" }
-   merge     //  28  { kind: "sum", of: ["auto","human"] }
+   merge     //  28  { kind: "ref" }   // children: auto, human
    approved  //  25  { kind: "date" }                         // "by the human 2026-08-19 — gate open; merge after…" → date here, story in the note
    dispatched//  19  { kind: "date" }
 ```
@@ -117,12 +124,28 @@ Real sloppy values the fence would have refused: `agent: "claude-opus (the #336 
 - A `date`-typed prop still does not put the node on a day page. Property ≠ mark (format.md's standing rule). **Typing constrains the value; it grants no meaning.**
 - No required keys, no schemas-per-node-kind, no defaults. A node may carry any subset of keys, as today. This is one rule about values, not a record system.
 
+## Search already knows properties — types make it sharper
+
+Today (built, shipping): `prop:pr` (carries the key), `prop:agent=claude-opus` (equality), `prop:stage="in review"` (quoted values), `-prop:agent` (negation); hits carry the custom map. All string-shaped.
+
+**Ruled (the human, 2026-08-25): typed keys gain SPANS**, reusing the syntax `created:` already has — meaningful only because the type says the values compare:
+
+```
+prop:dispatched=2026-08-20..        ← every lane dispatched since the 20th
+prop:pr=190..200                    ← PRs in a range — int makes ".." honest
+prop:merge=auto is:todo             ← equality on a ref, exactly as today
+```
+
+A range on an untyped (text) key stays refused — comparing strings as if they were dates is the lie types exist to prevent.
+
 ## Cost
 
 The check is local — one node's props against one small map — so it rides every write without joining the O(n) sweep's catalogue. `ref` reads an existing index. Nothing walks.
 
-## Open
+## Ruled (the human, 2026-08-25, question tool)
 
-- Normalization: does `date` accept `2026-08-25 10:06` and store `2026-08-25T10:06`, or refuse anything non-ISO? (Lean: accept obvious spellings, store one.)
-- `doc` vs `path`: two kinds as drawn, or one `path` with `within: "vault"`? (Drawn as two — a served document is a different promise than a string that looks like a path.)
-- Migration: existing sloppy values (the screenshot's own lane) become broken the moment their keys are declared. Declare-then-clean, or a `--warn` grace mode? (Lean: declare on a clean board; the orchestrator's next dispatch writes typed values from day one.)
+- **Declarations live in `_olai/Properties.olai`**, read by name like Pins/Inbox/Trash — one node per key, variants as children.
+- **`date` accepts obvious spellings and stores ISO** — `2026-08-25 10:06` → `2026-08-25T10:06`, the day-page's existing leniency. Prose stapled on is still refused.
+- **Typed search: spans for date/int** (section above); equality for ref/text as today.
+- **Migration is clean-then-declare**: retire finished lanes (they're history), fix the few live values, then declare — a declaration never lands on a board with violations, and no grace machinery is built.
+- `doc` and `path` stay two kinds (a served document is a different promise than a path-shaped string).
