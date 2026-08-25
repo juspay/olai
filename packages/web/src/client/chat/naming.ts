@@ -89,6 +89,11 @@ export interface Offer {
   readonly value: string
   /** What a person READS to choose it: a file's own name, a node's title. */
   readonly label: string
+  /** THE OUTLINE A NODE ROW's label is written in, so the menu draws the
+   *  title the way every other face does — markdown and `#tags` in their own
+   *  hues (`./CompletionMenu.tsx`). Absent for a file row: a path is a path,
+   *  not prose. */
+  readonly from?: string
   /** Where it sits, and — for a node — the id the row writes, first, because a
    *  truncated line loses its end and the id is the only always-unique half. */
   readonly hint: string
@@ -131,6 +136,7 @@ export const offers = (
       section: "nodes",
       value: node.id,
       label: node.label,
+      from: node.from,
       hint: hintFor(node),
     })),
   ]

@@ -58,6 +58,8 @@ import type { Accessor } from "solid-js"
 
 import type { Moved } from "@olai/format"
 
+import { renderTitle } from "../markdown/title.ts"
+import { TitleHtml } from "../markdown/TitleHtml.tsx"
 import { Shortlist, type ShortlistTestids } from "../search/Shortlist.tsx"
 import { TESTID } from "../testids.ts"
 import { PANEL_OUT } from "../pill.ts"
@@ -117,7 +119,18 @@ export function MovePicker(props: {
       }}
     >
       <p class="m-0 mb-1 text-xs text-muted">
-        Move <span class="text-ink">{props.moved.title}</span> under…
+        Move{" "}
+        {/* Drawn as a title, since that is what it is: markdown and `#tags`
+            in their pills and hues through the one pipeline
+            (`../markdown/title.ts`) — the row being moved reads as in the
+            tree, so what the reader is relocating is not a second, flatter
+            spelling of it. The pipeline rather than `../NodeTitle.tsx`, as
+            in the list below: this panel is no page, and a title naming an
+            address reads as written. */}
+        <span class="text-ink">
+          <TitleHtml drawing={renderTitle(props.moved.title, props.moved.file)} />
+        </span>{" "}
+        under…
       </p>
 
       <Shortlist

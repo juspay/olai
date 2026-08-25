@@ -102,6 +102,16 @@ export interface Choice {
   /** The node's properties — the third line, for the `((` rows only. A tag
    *  completion is not a node and has none. */
   readonly props?: ReadonlyArray<NodeProp>
+  /**
+   * THE FILE THE LABEL'S PROSE IS WRITTEN IN — set for every row whose label
+   *  is a title or a tag, so what the row draws passes through `renderTitle`
+   *  (`../search/Result.tsx`): a `((` row's title shows its `#tags` styled
+   *  and in their own hues, exactly as the edge panel and the palette do, and
+   *  a tag row shows the tag WORN — the pill, its colour — which is the whole
+   *  of what choosing the row writes. A day row's label is a phrase, not
+   *  prose from a file, and carries none.
+   */
+  readonly from?: string
   readonly choose: () => void
   /**
    * WHICH ANSWER THIS ROW CAME FROM, as the act of spending it —
@@ -264,6 +274,11 @@ export const createCompletion = (field: {
           return {
           id: written,
           label: written,
+          // Not written ANYWHERE yet: the tag renders with no file to belong
+          // to (it is the whole of the prose here, so nothing resolves against
+          // one) — but rendered it is, wearing its own hue, because "this is
+          // what you get" is the row's claim.
+          from: "",
           hint: `${tag.count}`,
           taking: tags.taking,
           // The tag AND NOTHING ELSE — no trailing space, which is what
@@ -289,6 +304,7 @@ export const createCompletion = (field: {
         return nodes.hits().map((hit) => ({
           id: hit.id,
           label: hit.title,
+          from: hit.file,
           place: nodePlace(hit),
           props: nodeProps(hit),
           taking: nodes.taking,

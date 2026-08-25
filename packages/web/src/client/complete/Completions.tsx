@@ -139,6 +139,7 @@ export function Completions(props: { readonly listing: Listing }) {
                   hint={choice().hint}
                   place={choice().place}
                   props={choice().props}
+                  from={choice().from}
                   active={index === props.listing.active()}
                   testids={COMPLETION_ROW}
                   id={choice().id}

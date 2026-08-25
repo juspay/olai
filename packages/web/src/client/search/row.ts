@@ -55,10 +55,12 @@ export interface HitRow {
   /** Where taking it goes. */
   readonly route: Route
   /**
-   * The file a NODE hit is written in — handed to `renderTitle` so a markdown
-   * title in the palette or the header box is the same HTML a tree row draws.
-   * Absent on a document hit: that label is the file's face, not a title in
-   * an outline, and stays a text node.
+   * The file the row's label's PROSE is written in — handed to `renderTitle`
+   * so a markdown title in the palette or the header box is the same HTML a
+   * tree row draws. Both kinds carry it now: a node's is its outline, a
+   * document hit's is its own path, because a document face's title is prose
+   * the format tags the same way (its tags are read off it, docs/format.md),
+   * so a `#tag` there wears a pill — and its hue — like anywhere else.
    */
   readonly from?: string
 }
@@ -87,6 +89,11 @@ export const hitRow = (hit: SearchHit): HitRow => {
     // trail of titles above it; a document hangs under nothing, and the honest
     // answer to "where is this" is the file it is.
     place: path,
+    // ...and the label renders LIKE A NODE'S: a document face's title is prose
+    // the format tags (`@olai/format`'s document face), so a `#tag` in it is
+    // styled — and coloured — exactly as it is on every other search row, and
+    // the query's words light in it where they sit.
+    from: path,
     props: documentProps(hit),
     route: atFile(path),
   }

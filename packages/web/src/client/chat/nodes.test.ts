@@ -60,6 +60,7 @@ test("a row reads the title, and says where it sits", () => {
   ).toEqual([{
     id: "hinges",
     label: "pick the hinges",
+    from: "house.olai",
     place: "install the cabinets · kitchen remodel",
     note: false,
   }])

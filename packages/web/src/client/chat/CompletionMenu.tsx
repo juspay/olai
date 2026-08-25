@@ -20,10 +20,12 @@
  * same thing for the times a hand is already there.
  */
 
-import { createEffect, Index, on, onCleanup, onMount, Show } from "solid-js"
+import { createEffect, createMemo, Index, on, onCleanup, onMount, Show } from "solid-js"
 
 import { listKey } from "../keys.ts"
 import { WITHIN } from "../layer.ts"
+import { renderTitle, sameDrawing } from "../markdown/title.ts"
+import { TitleHtml } from "../markdown/TitleHtml.tsx"
 import { createCursor } from "../search/cursor.ts"
 import { spend, type Taking } from "../settled.ts"
 import { TESTID } from "../testids.ts"
@@ -49,6 +51,13 @@ import { topmostWhileOpen } from "../topmost.ts"
 export interface MenuRow {
   readonly value: string
   readonly label: string
+  /**
+   * The file the label's prose is written in, when it IS prose: a node row's
+   *  label is a title, and a title draws its `#tags` styled in their own hues
+   *  — the same HTML a tree row's is, through `../markdown/title.ts`.
+   *  Absent for a command or a file path, which are spelled as they arrive.
+   */
+  readonly from?: string
   readonly hint?: string
   /**
    * WHICH BLOCK this row belongs to, if the list has more than one kind of row
@@ -76,6 +85,39 @@ export interface MenuRow {
    * above is drawn on for a different reason.
    */
   readonly taking: Taking
+}
+
+/** A row's label: the real character, plus — for the rows whose label IS
+ *  a title — what a title is drawn as. Kept its own component for the memo:
+ *  the list re-derives on every keystroke, and `sameDrawing` is what keeps a
+ *  title whose HTML has not moved from rewriting its own DOM
+ *  (`../search/Result.tsx`, the same arrangement). */
+function RowLabel(props: { readonly row: MenuRow }) {
+  const drawing = createMemo(
+    () =>
+      props.row.from === undefined
+        ? undefined
+        : renderTitle(props.row.label, props.row.from, {
+          // The row is a <button>: nested anchors are invalid markup, so a
+          // markdown link in a title is unwrapped the way a search row's is.
+          links: false,
+        }),
+    undefined,
+    {
+      equals: (was, now) =>
+        was === undefined || now === undefined
+          ? was === now
+          : sameDrawing(was, now),
+    },
+  )
+  return (
+    <Show
+      when={drawing()}
+      fallback={<span class="font-mono">{props.row.label}</span>}
+    >
+      {(drawn) => <TitleHtml drawing={drawn()} />}
+    </Show>
+  )
 }
 
 export function CompletionMenu(props: {
@@ -270,7 +312,7 @@ export function CompletionMenu(props: {
                 {/* The space between them is a real character as well as a
                     margin: what the eye reads as two words has to be two words
                     when the row is copied or read aloud, and `ml-2` is neither. */}
-                <span class="font-mono">{row().label}</span>{" "}
+                <RowLabel row={row()} />{" "}
                 <span class="ml-1 text-muted">{row().hint}</span>
               </button>
             </li>

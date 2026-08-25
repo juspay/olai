@@ -40,6 +40,8 @@ import type { Referrer } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, createSignal, Show } from "solid-js"
 
+import { renderTitle } from "../markdown/title.ts"
+import { TitleHtml } from "../markdown/TitleHtml.tsx"
 import { only } from "../narrow.ts"
 import { useReading } from "../reading.tsx"
 import { atFile, atNode, hrefOf, type Route } from "../routes.ts"
@@ -110,7 +112,13 @@ function Section(props: { readonly found: ReadonlyArray<Referrer> }) {
                   data-testid={TESTID.documentReferrer}
                   href={hrefOf(row().opens)}
                 >
-                  {row().calls}
+                  {/* A referrer's title is rendered like every other
+                      title: its `#tags` are styled and hued
+                      (`../markdown/title.ts`) — inside the anchor, so its
+                      links stay unwrapped (`links` false). */}
+                  <TitleHtml
+                    drawing={renderTitle(row().calls, row().callsFrom, { links: false })}
+                  />
                 </a>
                 {/* WHERE it was written, muted beside it — a title in a list of
                     strangers means nothing, and for a record it is the outline
@@ -136,6 +144,9 @@ interface Row {
   readonly key: string
   readonly opens: Route
   readonly calls: string
+  /** The file the title's prose is written in (`../NodeTitle.tsx`): the
+   *  outline for a record, the document's own path for a body. */
+  readonly callsFrom: string
   /** `undefined` for a document's own body, which has said its file already. */
   readonly where?: string
 }
@@ -160,11 +171,13 @@ const rowOf = (one: Referrer): Row =>
       key: `doc:${one.face.path}`,
       opens: atFile(one.face.path),
       calls: one.face.title,
+      callsFrom: one.face.path,
     }
     : {
       key: `node:${one.at.node.id}`,
       opens: atNode(one.at.node.id),
       calls: one.at.node.title,
+      callsFrom: one.at.file,
       where: one.face.path,
     }
 

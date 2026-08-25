@@ -97,6 +97,10 @@ export interface NodeMatch {
   /** The node's own title, or its id for a row with nothing written in it: a
    *  label has to say something, and the id is the only thing such a node has. */
   readonly label: string
+  /** The outline the label's prose lives in — handed through to the menu row
+   *  so the title renders the way every face draws a title: its `#tags` in
+   *  their own hues, never as two extra characters of grey text. */
+  readonly from: string
   /** Where it sits — the ancestors nearest first, or the file for a node at the
    *  top of one. `../search/place.ts`'s answer, which is what the ⌘K palette,
    *  the header box, the `((` widget and the edge panel all draw. */
@@ -134,6 +138,7 @@ export const nodeMatches = (
   hits.map((hit) => ({
     id: hit.id,
     label: hit.title.trim() === "" ? hit.id : hit.title,
+    from: hit.file,
     place: nodePlace(hit),
     note: hit.matched !== undefined && !SHOWN_ON_THE_ROW.has(hit.matched),
   }))
