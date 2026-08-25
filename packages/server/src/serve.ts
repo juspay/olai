@@ -35,6 +35,7 @@ import * as path from "node:path"
 
 import * as Chat from "@olai/chat"
 import { openDirectory } from "./directory.ts"
+import { watchValidator } from "./divergence.ts"
 import { watchFault } from "./fault.ts"
 import { openPolicy } from "./gitPolicy.ts"
 import { listen } from "./listener.ts"
@@ -79,6 +80,11 @@ export interface ServeOptions {
  */
 export const serve = (options: ServeOptions) =>
   Effect.gen(function*() {
+    // BEFORE THE STORE, because the store validates as it boots and every
+    // validation after the first is one the shadow compares. It is where the
+    // incremental validator shouts in this process (`./divergence.ts`); it
+    // decides nothing about a write and comes off with this scope.
+    yield* watchValidator(options.root)
     const { root, store } = yield* openDirectory(options.root)
 
     // The chat publishes through the surface, and the surface is seeded from
