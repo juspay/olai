@@ -281,21 +281,37 @@ hm-module:
 #     cost the fold). Two of the three moved to the server with
 #     `vault-in-browser`'s PR 4, where they are re-answered per subscriber per
 #     published revision, which is the unit the ratios are about. Each pair must
-#     answer the same value or the run fails.
+#     answer the same value or the run fails;
 #   - `list_documents`, timed as a read of the remembered byte count against
 #     the UTF-8 encode of every body it replaced
 #     (`packages/ops/src/documents.bench.ts`, added with `perf-list-documents-bytes`).
 #     Its own corpus — 5k `.md`, sized for a listing rather than for a
 #     directory of outlines — and the two arms must answer the same listing or
-#     the run fails.
+#     the run fails;
+#   - a SCOPED QUERY, timed as the narrowing against the corpus walk it replaced
+#     (`packages/format/src/scope.bench.ts`, added with `perf-filter-scope` —
+#     the roadmap node's own gate said "bench artifact", and the lane's rule is
+#     that a perf number is a reported artifact and never a gate). Both arms are
+#     in the tree: the "before" is the walk kept as the differential's reference
+#     implementation (`@olai/format/testlib/scope`), so a reader re-running this
+#     gets the pair rather than one laptop's milliseconds. It prints four
+#     scopes, and the last is a CONTROL — no scope at all, which is the same
+#     walk on both sides and reports as 1.0× or the run is measuring something
+#     else. Beside each ratio is what the arm SELECTED, and the two arms must
+#     answer the same number or the run fails: two walks answering different
+#     numbers of records are two walks nobody may compare, and the one shape a
+#     flattering ratio takes is a narrowing that reported magnificently by
+#     answering nothing. Its vault is trees rather than the flat corpus the
+#     matcher's is: a vault whose records have no parents at all is a vault
+#     where `under:` holds nothing.
 #
-# Four of the six run the SAME generated vault (`@olai/format/testlib`'s
+# Four of the seven run the SAME generated vault (`@olai/format/testlib`'s
 # `vaultOf` — the patcher, the tag completion, the day readings and the search
 # index), so what a write costs the view and what a completion, a calendar or a
 # search box asks of the view it leaves are numbers about one directory; the
-# matcher generates a corpus of its own, sized for keystrokes rather than for a
-# directory, and the document listing another, sized for a vault of `.md`. The
-# MERGE under all of
+# matcher, the document listing and the scoped query each generate a corpus of
+# their own — one sized for keystrokes, one for a vault of `.md`, one made of
+# TREES. The MERGE under all of
 # it is not timed here and should not be: it is the framework's, and
 # `@kolu/surface`'s own `src/solid/collectionDeltas.bench.ts` measures it end to
 # end. Size the vault with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS /
@@ -307,6 +323,7 @@ bench: install
     {{ nix_shell }} bun packages/format/src/filter.bench.ts
     {{ nix_shell }} bun packages/format/src/vocabulary.bench.ts
     {{ nix_shell }} bun packages/format/src/dates.bench.ts
+    {{ nix_shell }} bun packages/format/src/scope.bench.ts
     {{ nix_shell }} bun packages/index/src/index.bench.ts
     {{ nix_shell }} bun packages/ops/src/documents.bench.ts
 

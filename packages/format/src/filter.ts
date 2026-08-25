@@ -2237,10 +2237,15 @@ const within = (date: string, clause: DaysClause): boolean =>
  * file-then-line order — the door for a caller searching the DIRECTORY.
  *
  * TWO LINES over {@link selecting}, and they are the two this door adds: the
- * candidates are the whole set narrowed by a {@link Scope}, and what was put
+ * candidates are the corner of the set a {@link Scope} names, and what was put
  * away is decided from the question — the query named the archive ({@link
  * Filter} `speaksOfTrash`), or the caller said its scope already holds it
  * ({@link Scope.trashed}). One boolean per call, read before the walk.
+ *
+ * A NARROWED QUERY WALKS THE NARROWING, which is what a scope always meant and
+ * what it now costs: `file:` reads one file's records and `under:` descends one
+ * subtree, rather than reading the corpus and throwing the rest away
+ * ({@link inScopeOf}).
  *
  * MIRRORS ARE NOT HERE, for the reason nothing in the query layer answers with
  * one: a mirror is a second PLACEMENT of a node, so a hit for it would be the
@@ -2278,19 +2283,132 @@ export const matching = (
   ),
 ]
 
-/** The set's own regular records, in file-then-line order, narrowed to a scope
- *  — {@link matching}'s candidates, and the whole of what it holds over
- *  {@link selecting}. Mirrors are skipped for the reason nothing in the query
- *  layer answers with one: a mirror is a second PLACEMENT of a node, so a hit
- *  for it would be the same node twice, once at a place no write lands. */
-function* inScopeOf(derived: Derived, scope: Scope): Generator<LocatedRegular> {
-  const inScope = scoping(derived, scope)
-  for (const located of derived.nodes) {
+/**
+ * The set's own regular records, in file-then-line order, narrowed to a scope
+ * — {@link matching}'s candidates, and the whole of what it holds over
+ * {@link selecting}.
+ *
+ * WHAT A SCOPE NARROWS IS THE WALK, which is the whole of this function and was
+ * not true until `perf-filter-scope`. A scope used to be a PREDICATE run over
+ * `derived.nodes`: a query scoped to one outline read every record in the
+ * directory to throw all but one file's away, and an `under:` read every record
+ * AND walked the ancestry of each ({@link scoping}), so narrowing a search cost
+ * strictly more than not narrowing it. Both scopes name a corner the derivation
+ * already holds an index of, so both are a reading of one:
+ *
+ *   - `file:` is {@link Derived.byFile}, which is that map's whole purpose —
+ *     one file's records, in the order they are on disk, which inside one file
+ *     IS corpus order;
+ *   - `under:` is {@link Derived.children} DESCENDED from the named node
+ *     ({@link descendedFrom}), which is the same set the ancestor walk decided
+ *     one node at a time, read the one way that costs the subtree rather than
+ *     the vault.
+ *
+ * The answer is the same SET in the same ORDER either way, and that is a claim
+ * a harness makes rather than this paragraph: `./scope.testlib.ts` keeps the
+ * walk this replaced as a reference implementation, and `./scope.test.ts` runs
+ * the two against each other over generated corpora and over this repository's
+ * own vault.
+ *
+ * MIRRORS ARE SKIPPED for the reason nothing in the query layer answers with
+ * one: a mirror is a second PLACEMENT of a node, so a hit for it would be the
+ * same node twice, once at a place no write lands.
+ *
+ * IT IS THE OTHER HALF THAT COMPOSES WITH AN INDEX. When something has already
+ * narrowed the search to a list of ids (`@olai/index`), this walk is not run at
+ * all and {@link namedInScope} tests those candidates instead — see the note
+ * there for why the scope stays a predicate on that side.
+ */
+const inScopeOf = (derived: Derived, scope: Scope): Iterable<LocatedRegular> => {
+  const { file, under } = scope
+  if (under !== undefined) return descendedFrom(derived, under, file)
+  if (file !== undefined) return regularsIn(derived.byFile.get(file) ?? [])
+  return regularsIn(derived.nodes)
+}
+
+/** The records of a corpus reading that are not placements — the one line both
+ *  candidate walks here share, spelled once so the two cannot come to disagree
+ *  about what a candidate IS. A GENERATOR: nothing is copied, and the caller
+ *  that was handed the whole corpus allocates nothing at all. */
+function* regularsIn(records: ReadonlyArray<Located>): Generator<LocatedRegular> {
+  for (const located of records) {
     if (isMirror(located.node)) continue
-    const at = located as LocatedRegular
-    if (!inScope(at)) continue
-    yield at
+    yield located as LocatedRegular
   }
+}
+
+/**
+ * EVERYTHING AT OR UNDER A NODE, in corpus order — `under:`, answered by
+ * descending {@link Derived.children} rather than by asking every record in the
+ * directory who its ancestors are.
+ *
+ * IT IS {@link ancestorsOf} READ BACKWARDS, and it has to be exactly that: a
+ * record is in an `under:` scope when its canonical parent chain reaches the
+ * named node, so that walk's own stopping rules are what this one inherits
+ * rather than re-decides.
+ *
+ *   - A MIRROR IS NOT DESCENDED THROUGH, which is the trap this function exists
+ *     not to fall into. `ancestorsOf` STOPS at a parent that is a placement — a
+ *     set the validator has already condemned, where walking on would put a
+ *     node in a scope the `path` on its own hit says it is not in — so a record
+ *     written beneath a mirror is under NOTHING above that mirror, and a
+ *     descent that recursed into a placement's children would admit records the
+ *     walk it replaces never did. The placement itself is not yielded either,
+ *     for {@link inScopeOf}'s reason.
+ *   - A ROOT THAT IS A PLACEMENT, or that nothing claims, names an EMPTY corner
+ *     rather than the subtree it points at. That is those same two rules read
+ *     at the top: the ancestor walk stops at it, so nothing beneath it is in
+ *     scope, and the record itself is a mirror the query layer never answers
+ *     with — or is not there at all.
+ *   - CYCLE-SAFE by the same guard from the other end. A parent loop is a set
+ *     the validator rejects, and both walks are drawn over sets its own error
+ *     messages describe: `ancestorsOf` stops when the chain repeats an id it
+ *     has already seen, and this stops when the descent reaches one — which
+ *     admits exactly the same records, because a chain that closes puts every
+ *     member of the loop above every other one.
+ *
+ * A RECORD NAMES AN ID and an id names one record, which is {@link
+ * Derived.byId}'s rule and the one thing here that is not a walk of an index: a
+ * set where two records claim one id is a set the validator REFUSES, so nothing
+ * is ever published at one. It is the same rule {@link namedInScope} already
+ * stands on, and it is asserted of every corpus the harness generates, so a
+ * divergence found there is a divergence in this walk rather than in a fixture.
+ *
+ * SORTED, because a descent arrives in tree order and the answer this door
+ * promises is the SET'S own — {@link byCorpus}, the comparator every reverse
+ * index in `./derive.ts` promises its members in, and what the walk over
+ * `derived.nodes` used to give for free. The cost is the corner's size and not
+ * the corpus's, which is the entire point of having descended.
+ *
+ * A `file:` BESIDE IT is applied here rather than composed outside, because the
+ * two are a CONJUNCTION and the subtree is the cheaper half to start from:
+ * `parent` is same-file placement by the format, so a subtree is nearly always
+ * one file's records already, and the rest is a string comparison per record of
+ * it rather than a second index reading.
+ */
+const descendedFrom = (
+  derived: Derived,
+  under: string,
+  file: string | undefined,
+): ReadonlyArray<LocatedRegular> => {
+  const root = derived.byId.get(under)
+  if (root === undefined || isMirror(root.node)) return []
+  // At OR under: "everything beneath `install`" includes `install`, which is
+  // what a reader filtering a zoomed page is looking at.
+  const found: Array<LocatedRegular> = [root as LocatedRegular]
+  const seen = new Set<string>([under])
+  const descending: Array<string> = [under]
+  while (descending.length > 0) {
+    for (const child of derived.children.get(descending.pop() as string) ?? []) {
+      if (isMirror(child.node)) continue
+      if (seen.has(child.node.id)) continue
+      seen.add(child.node.id)
+      found.push(child as LocatedRegular)
+      descending.push(child.node.id)
+    }
+  }
+  const own = file === undefined ? found : found.filter((at) => at.file === file)
+  return own.sort(byCorpus)
 }
 
 /**
@@ -2446,14 +2564,32 @@ export const ranked = (
 }
 
 /**
- * The scope, as one predicate.
+ * The scope, as one predicate — {@link namedInScope}'s answer, and only its.
+ *
+ * A PREDICATE IS THE RIGHT SHAPE FOR CANDIDATES and the wrong one for a corpus,
+ * which is the whole of why there are two spellings of one rule in this file
+ * rather than one. Handed a list of ids something else already narrowed
+ * (`@olai/index`), what a scope has to do is TEST each of them, and the cost is
+ * the list's — a few rows, or at worst the share of the directory the index is
+ * willing to hand back. Handed nothing, testing is the wrong verb entirely, and
+ * {@link inScopeOf} descends an index instead of asking every record in the
+ * vault whether it is in a corner of it.
+ *
+ * So the two compose rather than fight: the index restricts the search to what
+ * might match, this restricts THAT to the corner asked about, and neither ever
+ * pays for the whole set. The one thing they must not do is disagree about
+ * membership, and that is a suite rather than a sentence: `@olai/index`'s
+ * `scope.index.test.ts` runs the same differential this file's other walk is
+ * held to (`./scope.testlib.ts`) with the table plugged into it, so every case
+ * is asked off a candidate list and off the corpus and compared.
  *
  * `under` is answered by walking UP from each node — `ancestorsOf`, which is
  * this package's one answer to "what is above this node", cycle guard and all.
  * A second walk written here would be a second answer: that one stops at a
  * parent that is missing or is a mirror (a set the validator has already
  * condemned), and one that walked straight through would put a node in a scope
- * the `path` on its own hit says it is not in.
+ * the `path` on its own hit says it is not in. {@link descendedFrom} is that
+ * same walk read backwards, and its header is where the two are held together.
  */
 const scoping = (
   derived: Derived,
