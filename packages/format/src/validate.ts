@@ -305,24 +305,49 @@ export const following = (
  *
  * {@link viewOf}'s two halves with the corpus taken out of both: the patch, and
  * the identity check narrowed to the paths that were WRITTEN. It answers
- * `undefined` for the three reasons that function rebuilds — the patcher
- * declined, a written file is not filed where it was written, or it is filed
- * holding something other than what was written — and its caller spends the
- * same rebuild {@link viewOf}'s last line does.
+ * `undefined` for the four reasons that function rebuilds — the patcher
+ * declined, a written file is not filed where it was written, it is filed
+ * holding something other than what was written, or the write is one this
+ * delta cannot describe at all (below) — and its caller spends the same rebuild
+ * {@link viewOf}'s last line does.
  *
  * THE DELTA IS BUILT HERE, out of the documents themselves, which is the whole
  * of why the narrowing is sound: a caller cannot hand in a `written` and a
  * delta that disagree, because there is one of them. A `.md` contributes no
- * upsert — the fold writes one beside an outline in a single op — for the
- * reason {@link Derived.byFile} has no key for a file holding no records.
+ * upsert — the fold writes one beside an outline in a single op — and that is
+ * the same sentence {@link isSet} says from the other side: {@link
+ * Derived.byFile} keys the RECORDS a path holds, and a path holding a body
+ * holds none, so a file with nothing in it is spelt as no key at all rather
+ * than as an empty one.
+ *
+ * **LAST-WINS BY PATH, over the WHOLE list**, and that is the one thing this
+ * had to be told rather than left to read naturally. {@link withDocuments}
+ * decides a path by the last document in `written` that names it, whatever kind
+ * it is; a loop that filtered to the outlines first would decide it by the last
+ * OUTLINE, and a `written` naming one path in two kinds would then leave the
+ * set holding the body and the view still holding the outline's records — a
+ * view that is not about the set, arrived at through the guard rather than
+ * caught by it (pi's probe on PR 397; the whole-corpus check declined the same
+ * input). The two halves of the one argument are read the one way, and a path
+ * whose surviving document holds no records while the view files some there is
+ * a write this cannot describe: it DECLINES, which is the answer the corpus
+ * walk gave. No op the plan layer builds can produce such a list — the two
+ * document verbs write no outline at all — but the door is exported, and a
+ * safety argument that rests on a caller's good taste is not one.
  */
 const viewAfter = (
   before: Derived,
   written: ReadonlyArray<Document>,
 ): Derived | undefined => {
+  const surviving = new Map<string, Document>()
+  for (const document of written) surviving.set(document.path, document)
   const upserts: Array<readonly [file: string, entry: FileNodes]> = []
-  for (const document of written) {
-    if (isOutline(document)) upserts.push([document.path, { nodes: document.nodes }])
+  for (const [file, document] of surviving) {
+    if (isOutline(document)) {
+      upserts.push([file, { nodes: document.nodes }])
+    } else if (before.byFile.has(file)) {
+      return undefined
+    }
   }
   const view = patched(before, { upserts, removes: [] })
   if (view === undefined) return undefined

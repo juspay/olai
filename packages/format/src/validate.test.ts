@@ -975,3 +975,74 @@ test("a written file the view would file differently is not patched onto", () =>
   expect([...after.derived.byFile.keys()]).toEqual([...alsoAfter.derived.byFile.keys()])
   expect(after.derived.nodes).toEqual(alsoAfter.derived.nodes)
 })
+
+test("one path written in two KINDS leaves a view of the set, not of the outline", () => {
+  // pi's probe on PR 397, pinned. `withDocuments` decides a path by the LAST
+  // document that names it, whatever kind it is; the narrowed check used to
+  // build its delta from the last OUTLINE — so a list naming one path in two
+  // kinds left the set holding the body and the view holding the outline's
+  // records, and the identity check passed because it compared the view against
+  // the upsert it had built rather than against the document that survived.
+  // That is a view which is not about its set, reached THROUGH the guard rather
+  // than caught by it, and an ordinary write after it carries the lie forward.
+  //
+  // No op the plan layer builds can produce such a list — the two document
+  // verbs write no outline at all — but the door is exported, and the argument
+  // for the narrowing is that one argument builds both halves. It has to be
+  // read the ONE way for that to be true.
+  const before = vault()
+  const mixed: ReadonlyArray<Document> = [
+    outlineOf(`{"id":"q","ord":"a","title":"an outline at this path"}`, "c.olai"),
+    bodiedDocument("c.olai", "a body where the records would have been"),
+  ]
+
+  const after = following(before, mixed)
+  // THE PROPERTY, and it is the whole of what this pins: the view is about the
+  // set. A body holds no records, so the surviving document files nothing —
+  // and the outline's id reached nothing, where it used to reach a phantom.
+  expect(isAbout(after)).toBe(true)
+  expect(after.derived.byFile.has("c.olai")).toBe(false)
+  expect(after.derived.byId.has("q")).toBe(false)
+  // The set really did take the body, which is what makes the view above the
+  // interesting answer rather than a write that did nothing.
+  expect(documentAt(after.set, "c.olai")?.kind).toBe("document")
+  // ...and a plain write THROUGH the returned reading stays about its set, so
+  // nothing was deferred: the old spelling stayed consistently wrong from here.
+  const then = following(after, [outlineOf(`{"id":"x","ord":"a","title":"later"}`, "a.olai")])
+  expect(isAbout(then)).toBe(true)
+  expect(then.derived.byId.has("q")).toBe(false)
+})
+
+test("...and where that path HELD records, it is a write the door declines", () => {
+  // The other half of the same reading. A body landing where the view files
+  // records is a change this delta cannot describe — `byFile` spells "no
+  // records" as no key, and there is no upsert for a path whose surviving
+  // document is not an outline — so it DECLINES and rebuilds, which is the
+  // answer the whole-corpus walk gave on the same input.
+  const before = vault()
+  const asOutline = outlineOf(`{"id":"q","ord":"a","title":"an outline at this path"}`, "b.olai")
+  const mixed: ReadonlyArray<Document> = [
+    asOutline,
+    bodiedDocument("b.olai", "a body where the records were"),
+  ]
+
+  const after = following(before, mixed)
+  expect(isAbout(after)).toBe(true)
+  // A rebuild, said the way this file says it: an untouched file's grouping is
+  // a fresh array rather than the one the reading came in holding.
+  expect(carriedAcross(before, after, "a.olai")).toBe(false)
+  expect(after.derived.byFile.has("b.olai")).toBe(false)
+  expect(after.derived.byId.has("y")).toBe(false)
+  expect(after.derived.byId.has("q")).toBe(false)
+
+  // And the door it replaced reaches the same answer on the same input, which
+  // is the claim this change rests on, made at the input where the narrowing
+  // could have parted from the walk.
+  const alsoAfter = reading(withDocuments(before.set, mixed), {
+    read: before,
+    delta: { upserts: [["b.olai", { nodes: asOutline.nodes }]], removes: [] },
+  })
+  expect(isAbout(alsoAfter)).toBe(true)
+  expect(alsoAfter.derived.byFile.has("b.olai")).toBe(false)
+  expect(alsoAfter.derived.byId.has("q")).toBe(false)
+})
