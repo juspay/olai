@@ -342,6 +342,13 @@ export const AGENT: ExposeMap<typeof surface.spec> = {
   "ops.run": "tool",
   "git.commit": "tool",
   "ops.outlines": "tool",
+  // The reading the `capture` TOOL resolves against, and the one member here
+  // that is not itself a tool: which outlines there are, which is what the
+  // inbox convention is read off (`@olai/ops`' `Planning`). It is exposed for
+  // the same reason `ops.run` is — a tool this face advertises lands through it
+  // — and it is `"tool"` like its neighbours because this map reads MEMBERSHIP
+  // and nothing else (see below).
+  "ops.paths": "tool",
   "ops.node": "tool",
   "ops.subtree": "tool",
   "ops.documents": "tool",

@@ -74,6 +74,7 @@ import {
   NodeRequest,
   OpFailure,
   OutlineAnswer,
+  PathsAnswer,
   SubtreeAnswer,
   SubtreeRequest,
   WriteRequest,
@@ -104,6 +105,24 @@ export const opsProcedures = {
    *  No input: the question has no parameters, and a `Schema.Struct({})` would
    *  be an empty object a caller has to spell. */
   outlines: { output: OutlineAnswer, error: OpFailure },
+  /**
+   * The outline PATHS of the served directory — the same question with the
+   * records left out, and the one member here that answers no tool.
+   *
+   * It is what a PLAN arm reads (`@olai/ops`' `Planning`): a capture is aimed
+   * by the inbox convention over the file NAMES, and a face with no store of
+   * its own — which is every agent reached over this surface — could only get
+   * them by asking {@link outlines} and dropping the counts, so a capture cost
+   * the directory's records and paid twice when the race made it resolve again
+   * (roadmap `perf-capture-paths`).
+   *
+   * WHY NOT A NARROWED {@link outlines}: `list_outlines` is what an agent reads
+   * to CHOOSE a file, and the counts and roots are what it chooses by. Two
+   * questions, two answers, each costing what it says.
+   *
+   * No input, for {@link outlines}' reason.
+   */
+  paths: { output: PathsAnswer, error: OpFailure },
   /** One node in full, or the id nothing here declares — `read_node`. */
   node: { input: NodeRequest, output: NodeAnswer, error: OpFailure },
   /** A node and what hangs under it, nested — or a whole OUTLINE, every

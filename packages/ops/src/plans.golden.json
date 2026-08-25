@@ -1,0 +1,254 @@
+[
+  {
+    "what": "add under a parent, with edges and properties",
+    "sha": "a2262626b7b7d6c1"
+  },
+  {
+    "what": "add at the top level of an outline, with a subtree and a forward reference",
+    "sha": "9c19e94487a89b5c"
+  },
+  {
+    "what": "add into a file the set could not read — the writable gate",
+    "sha": "d3401643f637e6bc"
+  },
+  {
+    "what": "add into a path that is not an outline at all",
+    "sha": "c471a54a085e1117"
+  },
+  {
+    "what": "add under an id nothing declares — the did-you-mean",
+    "sha": "65190b310d47ee79"
+  },
+  {
+    "what": "todo on a bullet",
+    "sha": "ed6f8aa51e0f085c"
+  },
+  {
+    "what": "doing, which the order gate judges",
+    "sha": "c8f44f14f1bda022"
+  },
+  {
+    "what": "done on the node it was waiting for",
+    "sha": "e3253f35f1951f41"
+  },
+  {
+    "what": "doing again, now that the way is clear",
+    "sha": "35f5041205c3c2a4"
+  },
+  {
+    "what": "cancelled over open work below it",
+    "sha": "9d55b810dfb3be2f"
+  },
+  {
+    "what": "done over unfinished work below it — refused, naming what stands there",
+    "sha": "976382da5b52d801"
+  },
+  {
+    "what": "todo undone, back to a bullet",
+    "sha": "595276650c1709f5"
+  },
+  {
+    "what": "a mark on a mirror — refused, naming the node",
+    "sha": "66f195de4c5e6ab9"
+  },
+  {
+    "what": "title",
+    "sha": "74b478a600589b65"
+  },
+  {
+    "what": "title with a stale `was` — refused without reading the set",
+    "sha": "f8fcf6503956a2db"
+  },
+  {
+    "what": "desc",
+    "sha": "fb6a81c6aff60e7f"
+  },
+  {
+    "what": "desc cleared",
+    "sha": "786af8d2899a90e7"
+  },
+  {
+    "what": "date",
+    "sha": "be4444b0ad604bf2"
+  },
+  {
+    "what": "date cleared",
+    "sha": "08fcc4a2933c5dd8"
+  },
+  {
+    "what": "repeat, canonicalised",
+    "sha": "72806961dc865fe2"
+  },
+  {
+    "what": "repeat cleared",
+    "sha": "42e35e1934674684"
+  },
+  {
+    "what": "prop written",
+    "sha": "ddd0010948942199"
+  },
+  {
+    "what": "prop removed",
+    "sha": "eff7b51eacc56e63"
+  },
+  {
+    "what": "prop shadowing a field the format has — refused toward the verb that writes it",
+    "sha": "f9d6d305f0d89058"
+  },
+  {
+    "what": "move under another parent",
+    "sha": "955a4507ddebd065"
+  },
+  {
+    "what": "move to the top level",
+    "sha": "7e7c27c551514e1e"
+  },
+  {
+    "what": "move under its own descendant — refused, naming the loop",
+    "sha": "ceab13813c15fd8a"
+  },
+  {
+    "what": "split a title in two",
+    "sha": "cae8483eed641e1e"
+  },
+  {
+    "what": "merge into the sibling above",
+    "sha": "b220071c0687a02b"
+  },
+  {
+    "what": "merge the first row of a file — refused, there is nothing above it",
+    "sha": "2cc107b766d44053"
+  },
+  {
+    "what": "duplicate a subtree",
+    "sha": "99d8e8bc3c52b573"
+  },
+  {
+    "what": "duplicate a placement — refused, a mirror is not a subtree",
+    "sha": "66f195de4c5e6ab9"
+  },
+  {
+    "what": "trash a node and what is under it",
+    "sha": "c06abe052c22415d"
+  },
+  {
+    "what": "trash an id nothing declares — refused with the near miss",
+    "sha": "d29277a85bbc461a"
+  },
+  {
+    "what": "untrash whose recorded outline is nowhere — refused",
+    "sha": "a1f79abb5e4b6797"
+  },
+  {
+    "what": "create an outline, seeded",
+    "sha": "1178aa0350205c6d"
+  },
+  {
+    "what": "create an outline that already exists — refused",
+    "sha": "304b3468b9b82d4a"
+  },
+  {
+    "what": "create an empty outline",
+    "sha": "415e9f3fa12b28af"
+  },
+  {
+    "what": "untrash by the recorded chain, now that the source file is back",
+    "sha": "aa13417010eb7ec4"
+  },
+  {
+    "what": "untrash into a named file",
+    "sha": "a9d7f73f3d7f6f0f"
+  },
+  {
+    "what": "empty an outline that is not the trash — refused",
+    "sha": "a48876512c0c05af"
+  },
+  {
+    "what": "empty the trash",
+    "sha": "96464f80dc08e5b6"
+  },
+  {
+    "what": "empty a trash that now holds nothing — refused",
+    "sha": "fcb65a15884e9707"
+  },
+  {
+    "what": "see added",
+    "sha": "58107e67fda010cf"
+  },
+  {
+    "what": "see removed",
+    "sha": "920529d844f5a81c"
+  },
+  {
+    "what": "see naming an id nothing declares — refused with the near miss",
+    "sha": "3b44ffdef7d2c131"
+  },
+  {
+    "what": "after added",
+    "sha": "1feb123ea3dd29bb"
+  },
+  {
+    "what": "after closing a loop — refused, naming the loop",
+    "sha": "1aeaad8969649fd7"
+  },
+  {
+    "what": "after removed",
+    "sha": "e3635ff17b445ace"
+  },
+  {
+    "what": "mirror placed in another file",
+    "sha": "5439dbef4b292ad0"
+  },
+  {
+    "what": "mirror inside what it shows — refused, naming the loop",
+    "sha": "e8a40a2d77c764f9"
+  },
+  {
+    "what": "unmirror the placement",
+    "sha": "345caa6e05d69791"
+  },
+  {
+    "what": "unmirror a node that is not a placement — refused",
+    "sha": "e14afe5e546ee706"
+  },
+  {
+    "what": "write a document, whole",
+    "sha": "c417e49c7e6fe233"
+  },
+  {
+    "what": "write a document with a stale `was` — refused",
+    "sha": "7897666829aff551"
+  },
+  {
+    "what": "write a path that is not a document — refused with the near miss",
+    "sha": "8319ae73bb83b8ad"
+  },
+  {
+    "what": "create a document",
+    "sha": "3b6f3566512a9c72"
+  },
+  {
+    "what": "create a document that already exists — refused",
+    "sha": "189bbf56c47939b0"
+  },
+  {
+    "what": "update several fields of one node at once",
+    "sha": "d9487265c7bb46e5"
+  },
+  {
+    "what": "update whose `was` has gone stale — refused",
+    "sha": "184af79fc7252ec5"
+  },
+  {
+    "what": "apply a run of ops, each seeing the last one's work",
+    "sha": "65e16f014f82954e"
+  },
+  {
+    "what": "apply whose third op is refused — the index is named and nothing lands",
+    "sha": "f6a0a8c47a71a3c4"
+  },
+  {
+    "what": "trash a node others point at, which is allowed",
+    "sha": "7ec7a723af8277c2"
+  }
+]

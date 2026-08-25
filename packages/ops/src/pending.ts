@@ -67,6 +67,7 @@
 
 import {
   armedOn,
+  brokenBy,
   COMMIT_MODES,
   type CommitMode,
   type CommitRequest,
@@ -85,7 +86,8 @@ import {
   nodesOf,
   NOTHING_PENDING,
   type Other,
-  outlinePaths,
+  type OutlineError,
+  outlineNames,
   type Pending,
   policyOf,
   QUIET_MS,
@@ -591,6 +593,14 @@ interface Survey {
   readonly last: Pending["last"]
 }
 
+/** What the two facts about the FILES of a set are for a directory that has
+ *  never loaded: no file is served and none is broken. Two constants rather
+ *  than a branch per reader, and they are the one thing left that a `null`
+ *  snapshot needs — the readings themselves are the floor's, held with the set
+ *  they describe, and there is no set here to hold one against. */
+const NO_FILES: ReadonlySet<string> = new Set()
+const NO_ERRORS: ReadonlyMap<string, ReadonlyArray<OutlineError>> = new Map()
+
 /** The survey for a directory nothing was asked about — `--commit=off`, a
  *  directory that is not a work tree, a git that could not be asked. Spelled
  *  once, because three arms answer with it and a fourth field added to the
@@ -809,10 +819,14 @@ export const make = (options: Options): Committing => {
       // one memoised value, and the memo was for the first one — a walk of
       // every record in the corpus, run on every write and every thirty-second
       // sweep. Slice 2 made it a lookup, and a cache for two sets of file names
-      // is machinery outliving its reason.
+      // is machinery outliving its reason. The two sets are not built HERE any
+      // more either, which is not a cache coming back: they are held with the
+      // set that answers them, by the floor, for every caller that asks
+      // (`@olai/format`'s `outlineNames` and `brokenBy` — roadmap
+      // `perf-homes-files`).
       const served: Pick<Derived, "byFile"> = at?.derived ?? { byFile: new Map() }
-      const known = new Set(at === undefined || at === null ? [] : outlinePaths(at.set))
-      const broken = new Set((at?.set.broken ?? []).map((entry) => entry.file))
+      const known = at === null ? NO_FILES : outlineNames(at.set)
+      const broken = at === null ? NO_ERRORS : brokenBy(at.set)
 
       // A file that cannot be read on ONE side is dropped from BOTH, and that
       // is the whole reason `unreadable` exists rather than being a silent

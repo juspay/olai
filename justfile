@@ -224,7 +224,7 @@ hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
 # What a keystroke costs — on a generated vault, and for the newest of them in
-# a real git repository. ELEVEN of them, and each is a
+# a real git repository. TWELVE of them, and each is a
 # LEG rather than a scratch file, because slice 3 of `model-indices` ran its
 # numbers as a one-off and a benchmark nobody can re-run is a number nobody can
 # check — and deliberately NOT a dependency of `check`, since a timing that
@@ -393,11 +393,36 @@ hm-module:
 #     the dangling placements taken out and `.md` files put in: a directory
 #     nobody could publish is one where the narrowing declines every time, and a
 #     directory holding no documents measures the `.md` walk at zero.
+#   - FOUR TOOL-CALL WALKS, one row each (`packages/ops/src/walks.bench.ts`,
+#     added with the ops bundle — `perf-capture-paths`, `perf-batch-assemble`,
+#     `perf-homes-files`, `perf-didyoumean`). Four costs in one PR, so four rows
+#     rather than a blended figure nobody pays: where a CAPTURE lands (the whole
+#     outline listing against the paths-only question, and a race pays it twice),
+#     a BATCH at ten and a hundred ops (the fold that re-assembled the directory
+#     per op against the one that splices what the op wrote into the set the
+#     last one left), a FOLD CLICK twenty times over one revision (the two
+#     all-files structures built per call against the two held with the set),
+#     and a REFUSED REFERENCE (the did-you-mean walked against the same offer
+#     off the index the ids are held in). Two of the rows carry the honest
+#     inside as well as the headline, which is the point of them: the batch row
+#     prints what ONE OP's set-building costs beside the end-to-end figure,
+#     because a fold op is a serialise, a parse, a set and a patched view and
+#     this changed one of the four — and the refusal row runs TWO id spaces,
+#     the vault generator's own (`f160n2`, one alphabet, where a bound read off
+#     the characters rules little out) and MINTED ids (eight base-36
+#     characters, which is what the minter produces and what a directory an
+#     agent has been writing into is made of). Every row checks its arms answer
+#     the same thing before a figure is quoted. The gates are in the SUITE, not
+#     here: the equalities (`packages/ops/src/walks.test.ts`,
+#     `following.equivalence.test.ts`, `format/src/set.walks.test.ts`,
+#     `format/src/suggest.test.ts`) and the counts (that file's identity
+#     assertions, `set.walks`'s comparisons, `suggest.walks`'s matrices).
 #
-# Five of the eleven run the SAME generated vault (`@olai/format/testlib`'s
-# `vaultOf` — the patcher, the tag completion, the day readings and the search
-# index), so what a write costs the view and what a completion, a calendar or a
-# search box asks of the view it leaves are numbers about one directory; the
+# SIX of the twelve run the SAME generated vault (`@olai/format/testlib`'s
+# `vaultOf` — the patcher, the tag completion, the day readings, the search
+# index and the four tool-call walks), so what a write costs the view and what a
+# completion, a calendar, a search box or a capture asks of the view it leaves
+# are numbers about one directory; the
 # matcher, the document listing, the scoped query and the standing views each
 # generate a corpus of their own — one sized for keystrokes, one for a vault of
 # `.md`, one made of TREES, one with a third of its files holding no date at
@@ -426,6 +451,7 @@ bench: install
     {{ nix_shell }} bun packages/server/src/published.bench.ts
     {{ nix_shell }} bun packages/ops/src/standing.bench.ts
     {{ nix_shell }} bun packages/format/src/validate.bench.ts
+    {{ nix_shell }} bun packages/ops/src/walks.bench.ts
 
 # A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
 # instead of the nix-built binary. `/tmp/olai-dev` is how two worktrees

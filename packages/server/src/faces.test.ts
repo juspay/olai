@@ -275,6 +275,10 @@ test("the agent's face is what it can SEE plus the doors its tools land through"
       ...Object.keys(MCP),
       "ops.run",
       "ops.outlines",
+      // Not a tool of its own: the reading the `capture` tool's plan arm
+      // resolves against (`perf-capture-paths`), which is a door its tools land
+      // through exactly as `ops.run` is.
+      "ops.paths",
       "ops.node",
       "ops.subtree",
       "ops.documents",

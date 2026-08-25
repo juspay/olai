@@ -258,6 +258,7 @@ const doorOver = (client: OlaiSurfaceClient): Door => ({
   commit: (request) => Effect.orDie(client.surface.git.commit(request)),
   push: Effect.orDie(client.surface.git.push({})),
   outlines: landed(client.surface.ops.outlines(undefined)),
+  paths: landed(client.surface.ops.paths(undefined)),
   node: (request) => landed(client.surface.ops.node(request)),
   subtree: (request) => landed(client.surface.ops.subtree(request)),
   search: (request) => landed(client.surface.search.nodes(request)),
@@ -369,16 +370,22 @@ const answer = (
  *
  * THE RACE IS REAL and it is the reason this is not one line. A capture
  * resolves to `create` when the directory has no inbox and `add` when it has
- * one; between the listing and the write, somebody else's capture can mint the
+ * one; between the reading and the write, somebody else's capture can mint the
  * very file this one was going to create, and `create` is refused for a file
  * that exists. Re-resolving turns that into the `add` it should have been.
  *
  * The mechanism is `../resolving.ts`'s, which is where the whole argument for
  * it lives — including why the retry compares the OP and why it fires once. All
- * this supplies is the two things that differ here: the reading is a LISTING
- * (the paths, which is what the inbox convention is read off, and the only
- * shape a face with no store can get) and the run is a surface call that names
- * no writer, because the face this dispatches at already decided one.
+ * this supplies is the two things that differ here: the reading is the outline
+ * PATHS (what the inbox convention is read off, and the only shape a face with
+ * no store can get) and the run is a surface call that names no writer, because
+ * the face this dispatches at already decided one.
+ *
+ * IT USED TO ASK FOR THE LISTING and drop everything but the file names, which
+ * is the whole corpus materialised per capture — and the retry above means
+ * twice. `ops.paths` is the same question without the records
+ * (`perf-capture-paths`); the listing is still what `list_outlines` answers,
+ * counts and all.
  */
 const planned = (
   tool: Extract<Tool, { readonly kind: "plan" }>,
@@ -388,8 +395,8 @@ const planned = (
 ): Effect.Effect<Applied, OpFailure> =>
   Effect.map(
     resolvedWrite(
-      Effect.map(door.outlines, (listing): Planning => ({
-        paths: listing.outlines.map((outline) => outline.file),
+      Effect.map(door.paths, (listed): Planning => ({
+        paths: listed.paths,
         login,
         // Read PER CALL, so a process left running overnight still dates a
         // capture today — `asking`'s rule for `date:yesterday`, kept here.
