@@ -1,13 +1,19 @@
 <!doctype html>
+<!--
+  This page is the pitch: why to try olai, and pictures of what a person sees.
+  Spec, refusals, MCP tool names, and operator grammar belong in docs/.
+  Touch this file only if the reason to try olai changed, or a picture of
+  something a person sees is now wrong.
+-->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>olai — a git-native outliner: memory for the AI era</title>
-<meta name="description" content="Outlines as one .olai line per node, prose as Markdown documents attached to them. Git merges and reviews all of it, and an agent edits it through the same gate your keyboard does.">
+<title>olai — a git-native outliner</title>
+<meta name="description" content="An outliner that lives in files you own. Indent, check off, search. Markdown sits beside the outline. Git records every edit.">
 <link rel="canonical" href="https://olai.kolu.dev/">
-<meta property="og:title" content="olai — a git-native outliner: memory for the AI era">
-<meta property="og:description" content="Outlines as one .olai line per node, prose as Markdown documents attached to them. Git merges and reviews all of it, and an agent edits it through the same gate your keyboard does.">
+<meta property="og:title" content="olai — a git-native outliner">
+<meta property="og:description" content="An outliner that lives in files you own. Indent, check off, search. Markdown sits beside the outline. Git records every edit.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://olai.kolu.dev/">
 <meta property="og:site_name" content="olai">
@@ -18,8 +24,8 @@
 <meta property="og:image:height" content="1260">
 <meta property="og:image:alt" content="olai — a git-native outliner. A palm leaf in ink on sea-glass paper.">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="olai — a git-native outliner: memory for the AI era">
-<meta name="twitter:description" content="Outlines as one .olai line per node, prose as Markdown documents attached to them. Git merges and reviews all of it, and an agent edits it through the same gate your keyboard does.">
+<meta name="twitter:title" content="olai — a git-native outliner">
+<meta name="twitter:description" content="An outliner that lives in files you own. Indent, check off, search. Markdown sits beside the outline. Git records every edit.">
 <meta name="twitter:image" content="https://olai.kolu.dev/og.png">
 <meta name="twitter:image:alt" content="olai — a git-native outliner. A palm leaf in ink on sea-glass paper.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -126,11 +132,13 @@
     font-family: var(--display); font-style: italic; font-weight: 400;
     font-size: clamp(1.45rem, 2.4vw, 1.85rem);
     line-height: 1.25; margin-top: 1.3rem; text-wrap: balance;
-    max-width: 18ch;
+    max-width: 13ch;
   }
   .hero p.sub { color: var(--muted); margin-top: 1rem; max-width: 34rem; }
   .run {
     margin-top: 1.8rem; cursor: pointer;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
     box-shadow: 0 10px 28px -18px color-mix(in srgb, var(--ink) 50%, transparent);
   }
   .run-hint { font-size: 0.82rem; color: var(--muted); margin-top: 0.7rem; }
@@ -187,7 +195,7 @@
   .box.doing { border-color: var(--accent); background: linear-gradient(to right, var(--accent) 50%, transparent 50%); }
   .row .t { min-width: 0; }
   .strike { text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); color: var(--muted); }
-  .rollup, .marklbl, .pill, .grp { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+  .rollup, .pill { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
   .tagchip { color: color-mix(in srgb, var(--muted) 80%, transparent); }
   .hit { background: color-mix(in srgb, var(--accent) 30%, transparent); border-radius: 2px; padding: 0 1px; color: var(--ink); }
   .dimrow { opacity: 0.6; }
@@ -197,28 +205,9 @@
     padding: 0 0.5em; white-space: nowrap; flex: none;
   }
   .pill.late { border-color: var(--alarm); color: var(--alarm); }
-  .pill .occ { margin-right: 0.4em; opacity: 0.7; }
   .row .pill { margin-left: auto; }
-  .dirent {
-    display: flex; align-items: center; gap: 0.5rem; border-radius: 0.375rem;
-    padding: 0.25rem 0.5rem; font-size: 0.85rem;
-  }
-  .dirent.late { background: color-mix(in srgb, var(--alarm) 10%, transparent); color: var(--alarm); font-weight: 600; }
-  .owed {
-    margin-left: auto; border-radius: 999px; padding: 0 0.5em;
-    font-family: var(--mono); font-size: 0.72rem;
-    background: color-mix(in srgb, var(--muted) 15%, transparent); color: var(--muted);
-  }
-  .owed.late { background: var(--alarm); color: var(--paper); font-weight: 600; }
-  .panel .dirent + .caption { margin: 0.15rem 0 0.6rem; }
-  .note { color: var(--muted); font-size: 0.85rem; padding-left: 2.7rem; }
   .pilcrow { color: var(--muted); font-size: 0.8rem; padding-left: 2.7rem; opacity: 0.7; }
   .docref { font-family: var(--mono); font-size: 0.75rem; color: var(--accent); padding-left: 2.7rem; margin-top: 0.1rem; }
-  .mdoc h3 { font-size: 1.05rem; margin-bottom: 0.3rem; font-family: var(--display); font-style: italic; font-weight: 500; }
-  .mdoc p { font-size: 0.88rem; margin-top: 0.4rem; }
-  .mdoc ul { margin: 0.5rem 0 0 1.3rem; font-size: 0.88rem; }
-  .mdoc code { font-size: 0.78rem; }
-  .marklbl { margin-left: auto; padding-left: 1rem; flex: none; }
 
   main { counter-reset: chap; }
   section { padding: 4.2rem 0; counter-increment: chap; }
@@ -239,9 +228,6 @@
   @media (max-width: 56rem) { .cols { grid-template-columns: minmax(0, 1fr); } }
   .wrap > p + p, .cols > div:not(.panel) > p + p { margin-top: 0.95rem; }
 
-  .diff .add { color: var(--done); }
-  .diff .del { color: var(--alarm); }
-  .diff .ctx { color: var(--muted); }
   .caption { font-size: 0.82rem; color: var(--muted); margin-top: 0.55rem; }
 
   table.keys { border-collapse: collapse; width: 100%; }
@@ -283,23 +269,9 @@
   .day.now .dayname .lead { text-transform: uppercase; letter-spacing: 0.07em; }
   .day.far { opacity: 0.62; }
   .quiet { font-size: 0.68rem; font-style: italic; color: var(--muted); opacity: 0.7; margin-left: 0.6rem; }
-  .quiet.long { margin-top: 2.1rem; margin-bottom: 2.1rem; }
   .quiet.short { margin-top: 1.2rem; margin-bottom: 1.2rem; }
   .trail { font-size: 0.75rem; color: var(--muted); margin-top: 0.2rem; padding-left: 1.4rem; }
   .spine .row .pill { margin-left: 0; }
-
-  .picker { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.4rem 0 0.1rem 2.8rem; font-size: 0.8rem; color: var(--muted); }
-  .field, .btn {
-    font-size: 0.78rem; border-radius: 6px;
-    padding: 0.18rem 0.55rem; background: var(--paper); color: var(--ink);
-    box-shadow: 0 0 0 1px var(--rule);
-  }
-  .field { font-family: var(--mono); }
-  .btn.quiet { box-shadow: none; color: var(--muted); }
-
-  .walk { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.65rem; font-size: 0.9rem; }
-  .walk .arw { color: var(--muted); }
-  .walk .stop { display: flex; align-items: baseline; gap: 0.4rem; }
 
   .chat .msg { max-width: 85%; border-radius: 12px; padding: 0.55rem 0.85rem; margin-top: 0.7rem; }
   .chat .you { margin-left: auto; background: color-mix(in srgb, var(--accent) 12%, var(--panel)); }
@@ -327,13 +299,7 @@
   .fdiff .ln.gap, .fdiff .more { color: var(--muted); }
   .fdiff .more { padding: 0.2rem 0.5rem; }
 
-  .prefs .prow { padding: 0.8rem 0; border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); }
-  .panel .file + .prow { border-top: none; padding-top: 0.2rem; }
-  .prefs .lbl { font-weight: 700; font-size: 0.85rem; }
-  .prefs .hint, .prefs .scope { color: var(--muted); font-size: 0.78rem; }
-  .prefs .hint { margin-top: 0.35rem; }
-  .prefs .scope { border-top: 1px solid color-mix(in srgb, var(--rule) 70%, transparent); padding-top: 0.7rem; }
-  .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.55rem; --ring: var(--accent); --ring-gap: var(--panel); }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-top: 0.7rem; --ring: var(--accent); --ring-gap: var(--panel); }
   .chip {
     font-family: var(--mono); font-size: 0.68rem; line-height: 1.75;
     border-radius: 999px; padding: 0 0.55em;
@@ -342,9 +308,6 @@
     cursor: pointer;
   }
   .chip.on { box-shadow: 0 0 0 1px var(--ring-gap), 0 0 0 3px var(--ring); }
-  .seg { display: inline-flex; border-radius: 8px; overflow: hidden; margin-top: 0.5rem; font-size: 0.78rem; box-shadow: 0 0 0 1px var(--rule); }
-  .seg span { padding: 0.18rem 0.65rem; color: var(--muted); }
-  .seg span.on { background: var(--well); color: var(--ink); }
 
   .tablewrap { overflow-x: auto; margin-top: 1.8rem; }
   table.cmp { border-collapse: collapse; width: 100%; font-size: 0.95rem; }
@@ -383,8 +346,8 @@
   <div class="wrap">
     <a class="wordmark" href="#">olai</a>
     <nav class="site" aria-label="On this page">
-      <a href="#format">format</a>
       <a href="#compare">why</a>
+      <a href="#agenda">due</a>
       <a href="#find">search</a>
       <a href="#agent">agent</a>
       <a href="#commit">git</a>
@@ -400,12 +363,11 @@
     <div class="hero-copy">
       <p class="kicker">a git-native outliner</p>
       <h1>olai</h1>
-      <p class="tag">Memory for the AI era.</p>
-      <p class="sub">Outlines are <code>.olai</code> files, one line per node.
-      Longer content is Markdown, sitting beside them. Everything is tracked
-      in git, and an agent writes through the same door your keyboard does.</p>
+      <p class="tag">An outliner that lives in files you own.</p>
+      <p class="sub">Indent, check off, search. Markdown sits beside the
+      outline. Git records every edit.</p>
       <pre class="run" id="install" title="click to copy"><code>nix run github:juspay/olai -- web path/to/outlines</code></pre>
-      <p class="run-hint">one directory. a browser. the same operations layer for you and the agent.</p>
+      <p class="run-hint">one directory. a browser. that’s the whole install.</p>
     </div>
 
     <div class="hero-stage">
@@ -425,43 +387,11 @@
   </div>
 </div>
 
-<section id="format">
-  <div class="wrap">
-    <h2>The file format</h2>
-    <p class="lead">Each outline is a <code>.olai</code> file: one JSON object
-    per line, one node per line. Nodes have stable ids and parent pointers, so
-    line-based git merges are safe and moving a subtree changes one field.
-    See the <a href="https://github.com/juspay/olai/blob/master/docs/format.md">format spec</a>.</p>
-    <div class="cols">
-      <div>
-        <pre><code>{"id":"kitchen","ord":"a","title":"Kitchen renovation"}
-{"id":"demo","parent":"kitchen","ord":"a0",
- "title":"Demolition","done":"2026-08-09T14:02:11-04:00"}
-{"id":"order","parent":"kitchen","ord":"a1",
- "title":"Order the new cabinets #blocking",
- "doing":true,"date":"2026-08-07","after":["demo"],
- "doc":"cabinets.md",
- "desc":"Measure twice — the corner unit is the risky one."}</code></pre>
-        <p class="caption">The outline above, as stored on disk.</p>
-      </div>
-      <div>
-        <pre class="diff"><code><span class="ctx">$ git diff</span>
-<span class="del">-{"id":"order","parent":"kitchen","ord":"a1", … }</span>
-<span class="add">+{"id":"order","parent":"now","ord":"a1", … }</span></code></pre>
-        <p class="caption">Moving a subtree changes the <code>parent</code>
-        field. Children reference <code>order</code> by id and are
-        unaffected.</p>
-      </div>
-    </div>
-  </div>
-</section>
-
 <section id="compare">
   <div class="wrap">
     <h2>Compared to Workflowy and Dynalist</h2>
-    <p class="lead">olai keeps the outlining model those tools established —
-    indent, move, mirror, check off. The difference is where the data lives
-    and what can reach it.</p>
+    <p class="lead">Same outlining model — indent, move, mirror, check off.
+    The difference is where the data lives.</p>
     <div class="tablewrap">
       <table class="cmp">
         <thead>
@@ -470,198 +400,24 @@
         <tbody>
           <tr><td>Storage</td><td>A hosted database</td><td>Plain files in a directory you choose</td></tr>
           <tr><td>Sync</td><td>Their cloud</td><td>git, or anything that moves files</td></tr>
-          <tr><td>History</td><td>In-app version history</td><td><code>git log</code>; every edit is a reviewable commit</td></tr>
-          <tr><td>Concurrent edits</td><td>Resolved by their server</td><td>Line-based git merges</td></tr>
-          <tr><td>Search</td><td>Keyword, in their app</td><td>The same query language everywhere — a box in the header, the ⌘K palette, a filter that narrows the outline in place, and an agent's own tools — with <code>is:done</code>, <code>has:desc</code>, <code>date:</code>, <code>changed:</code>, <code>prop:</code> and <code>-not</code> meaning one thing in all four, over files you can also grep yourself</td></tr>
-          <tr><td>Programmatic access</td><td>Vendor API, where one exists</td><td>Any agent over ACP or MCP; any text tool</td></tr>
+          <tr><td>History</td><td>In-app version history</td><td><code>git log</code></td></tr>
+          <tr><td>Search</td><td>Keyword, in their app</td><td>Filter the page you’re on, or search the whole directory</td></tr>
           <tr><td>Source</td><td>Proprietary</td><td><a href="https://github.com/juspay/olai">Open source</a> (AGPL-3.0)</td></tr>
         </tbody>
       </table>
     </div>
-  </div>
-</section>
-
-<section id="markdown">
-  <div class="wrap">
-    <h2>Markdown documents</h2>
-    <p class="lead">Notes are Markdown. Longer content goes in <code>.md</code>
-    files, referenced from the outline by the <code>doc</code> field. Each
-    document gets its own page and appears in the sidebar's file tree — and
-    the page edits: <em>Edit</em> turns the rendered body into its source,
-    <em>Save</em> is one operation through the same layer the agent's
-    <code>write_document</code> uses, and a file that changed on disk while
-    you were typing refuses the save in plain words instead of being silently
-    overwritten, in either direction. New documents come from the sidebar's
-    path box, or from the day page's <em>+ day note</em> — which creates that day's
-    note where your vault already keeps them. Clicking a calendar day never
-    writes: every day opens that day's page. A document that opens with a
-    <code>---</code> block writes its own <strong>properties</strong> there:
-    the block is kept off the rendered page, out of the document's name and out
-    of its table of contents, and its keys answer <code>prop:</code> exactly as
-    a node's do.</p>
-    <p>A <code>.html</code> file in the directory — a saved article, a report
-    a build wrote, a dashboard something exported — is listed and previewed the
-    same way, and is read rather than edited. <strong>The page works</strong>:
-    its own JavaScript runs, its own stylesheet paints, and a link to another
-    file of your vault opens that file's own page in olai — the address, the
-    heading and the sidebar entry a click in the directory would have given you. It runs in a sandboxed frame whose origin is
-    nobody's, so nothing in there can reach the app around it — no cookies, no
-    storage, no reading the page it sits in — and every fetch it makes is
-    answered by one place: your own directory, on this server. A remote image,
-    an inlined one, a form posting somewhere, or an address climbing out of the
-    vault is refused before the request is made, so a saved page that merely
-    carries somebody else's addresses reaches nobody. (A page that goes out of
-    its way to leave — a script navigating its own frame — can, once; no
-    browser gives a page's embedder a way to stop that. olai brings the frame
-    back when a document does not identify itself as one of your own files,
-    which bounds how far a page can drag it — but a page that runs code can
-    claim to be one of yours, so that is a limit on looping and not a proof of
-    where the frame is.) One extra script rides along, olai's own, doing two
-    jobs: reporting how tall the page is, so the frame is the height of what it
-    holds instead of a fixed slice of the screen, and noticing when you click a
-    link at another file of your vault, so that opens as a page here rather than
-    inside the frame. It hands the address out and never navigates; olai looks
-    it up in the files it is serving before it goes anywhere.</p>
-    <p>Three more kinds of file are listed and <strong>shown</strong> the same
-    way, and none of them can be edited here either. A <code>.csv</code> —
-    the bank's export, a spreadsheet saved out — opens as a table, its first
-    row the header; a file with more rows than a page can draw shows the first
-    five hundred and <em>says so</em>, because a table that quietly stops is a
-    table you would trust. A picture — <code>.png</code>, <code>.jpg</code>,
-    <code>.gif</code>, <code>.webp</code>, <code>.svg</code> and the rest —
-    opens at its own size, drawn in an <code>&lt;img&gt;</code>, which is the
-    element that will not run an SVG's script. And a <code>.pdf</code> opens in
-    your browser's own viewer, embedded in the page: pages, zoom, search and
-    print, with nothing bundled to provide them. Each has an address of its own,
-    so <code>/reports/q3.pdf</code> is a link you can paste.</p>
-    <div class="cols">
-      <div>
-        <pre><code># Cabinet specs
-
-The corner unit is the **risky one** — see
-[the measurements](measurements.md).
-
-- 600&#8239;mm base × 4
-- corner carousel × 1</code></pre>
-        <p class="caption">cabinets.md — a plain Markdown file next to the
-        outline, editable with any editor.</p>
-      </div>
-      <div class="panel mdoc">
-        <div class="file">/cabinets.md · attached to “Order the new cabinets”</div>
-        <h3>Cabinet specs</h3>
-        <p>The corner unit is the <strong>risky one</strong> — see
-        <a href="#markdown">the measurements</a>.</p>
-        <ul>
-          <li>600&#8239;mm base × 4</li>
-          <li>corner carousel × 1</li>
-        </ul>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="daily">
-  <div class="wrap">
-    <h2>Daily notes</h2>
-    <p class="lead">A Markdown file named for a date — <code>2026-08-12.md</code>,
-    anywhere in the directory — is that day’s note. No setting says so, and it
-    can live wherever your vault already puts it. Open the day and the note is
-    on top, with everything dated that day underneath it. Relative links
-    between your Markdown files keep working from there.</p>
-    <div class="cols">
-      <div>
-        <pre><code>Daily/
-  2026/
-    08/
-      2026-08-12.md   ← the 12th
-      2026-08-10-recap.md  ← not a daily note</code></pre>
-        <p class="caption">Convention, not configuration: the basename has to
-        be the date and nothing else.</p>
-      </div>
-      <div class="panel mdoc">
-        <div class="file">/d/2026-08-12</div>
-        <h3>2026-08-12</h3>
-        <p>Fog on the water. Only the ferry has a deadline, so it went
-        first.</p>
-        <div class="file" style="margin-top:1rem">kitchen.olai</div>
-        <div class="row"><span class="box"></span><span class="t">Book the plumber</span><span class="pill">2026-08-12</span></div>
-        <div class="row"><span class="box done"></span><span class="t strike">Pick the counter stone</span><span class="pill"><span class="occ">done</span>2026-08-12T16:20:03-04:00</span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section id="marks">
-  <div class="wrap">
-    <h2>Task status</h2>
-    <p class="lead">A node can carry one of three marks: <code>done</code>,
-    <code>doing</code>, or <code>todo</code>. A node with no mark is not a task
-    and gets no checkbox.</p>
-    <div class="cols">
-      <div class="panel">
-        <div class="row"><span class="box done"></span><span class="t strike">completed task</span><span class="marklbl">done</span></div>
-        <div class="row"><span class="box doing"></span><span class="t">task in progress</span><span class="marklbl">doing</span></div>
-        <div class="row"><span class="box"></span><span class="t">task not started</span><span class="marklbl">todo</span></div>
-        <div class="row"><span class="bullet">●</span><span class="t">a note</span><span class="marklbl">no mark</span></div>
-      </div>
-      <div class="panel">
-        <div class="row"><span class="bullet">●</span><span class="t"><strong>read this book</strong> <span class="rollup">1/3</span></span></div>
-        <div class="row d1"><span class="box done"></span><span class="t strike">chapter one</span></div>
-        <div class="row d1"><span class="box"></span><span class="t">the streams chapter</span></div>
-        <div class="row d1"><span class="box"></span><span class="t">exercises</span></div>
-        <p class="caption"><code>1/3</code> is a display annotation. A parent's
-        status is never computed from its children.</p>
-      </div>
-    </div>
-    <div class="cols">
-      <div class="panel">
-        <div class="file">⌘⇧Enter, on the row</div>
-        <p class="walk">
-          <span class="stop"><span class="bullet">●</span> no mark</span>
-          <span class="arw">→</span>
-          <span class="stop"><span class="box"></span> todo</span>
-          <span class="arw">→</span>
-          <span class="stop"><span class="box doing"></span> doing</span>
-          <span class="arw">→</span>
-          <span class="stop"><span class="bullet">●</span> no mark</span>
-        </p>
-        <p class="caption"><code>done</code> is not a stop on the ring.</p>
-      </div>
-      <div>
-        <p>Two keys write all three. <kbd>⌘</kbd>+<kbd>Enter</kbd> finishes
-        something, and takes that back: <code>done</code> is the mark with an
-        instant on it, which is what puts the work on that day’s page.
-        <kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>Enter</kbd> walks the mark on, one step
-        round the answers a person gives about work they have <em>not</em>
-        finished. The last stop is an answer rather than a gap — a node
-        carrying no mark is not an unfinished one, and walking to it is how you
-        say a row was never a task.</p>
-        <p>Finishing something is a thing you mean, not a thing to do on the
-        way past, so nothing stamps a completion while you are walking round —
-        and the walk will not take finished work backwards. Press it on a
-        finished row and the write is refused, in the same words an agent gets:
-        <em>nothing should decide on your behalf that finished work is not
-        finished</em>. ⌘Enter takes the <code>done</code> off, and the walk
-        carries on from there.</p>
-        <p>A <code>done</code> on a parent is a claim about the whole branch,
-        because hiding what is finished takes the subtree with the row. So the
-        claim has to be true: ticking off a branch that still holds an
-        unfinished task is refused, naming them — and filing new work under a
-        branch somebody called finished last week takes that mark back off
-        instead of turning you away. Nobody’s note goes quietly missing under
-        a sentence that has gone stale.</p>
-      </div>
-    </div>
+    <p class="caption">Outlines are ordinary files. The
+    <a href="https://github.com/juspay/olai/blob/master/docs/format.md">format spec</a>
+    is there if you want it.</p>
   </div>
 </section>
 
 <section id="agenda">
   <div class="wrap">
-    <h2>Dates, and what is owed</h2>
-    <p class="lead">A node can carry a <code>date</code>: the day it is
-    scheduled for. The mark says whether it is work. Read together they answer
-    a third question, and no field stores the answer — <code>/agenda</code> is
-    that reading, taken of every outline at once.</p>
+    <h2>What’s due</h2>
+    <p class="lead">Dated work from every outline, on one page. Late things
+    sit above today. A birthday isn’t a task — it stays on its day and never
+    turns red.</p>
     <div class="cols">
       <div class="panel">
         <div class="file">/agenda · 2026-08-12</div>
@@ -685,7 +441,7 @@ The corner unit is the **risky one** — see
 
           <div class="day near">
             <span class="dot"></span>
-            <p class="dayname"><a href="#daily">Sat, Aug 15</a><span class="away">in 3 days</span></p>
+            <p class="dayname">Sat, Aug 15<span class="away">in 3 days</span></p>
             <div class="row"><span class="box"></span><span class="t">Template the countertop</span></div>
             <p class="trail">Kitchen renovation</p>
           </div>
@@ -701,148 +457,11 @@ The corner unit is the **risky one** — see
         </div>
       </div>
       <div>
-        <pre><code>overdue(n) ⇔ n carries todo or doing
-             ∧ day(n.date) &lt; today</code></pre>
-        <p class="caption">Derived when the page is drawn, stored nowhere, and
-        spelled once — the days above now on the spine and the tone of every
-        date badge are the same predicate. <code>day()</code> is the first ten
-        characters and the comparison is plain string order: dates are text.</p>
-        <p><strong>Overdue is a definition, not a
-        flag.</strong> Nobody sets it and nothing stores it. <code>done</code>
-        extinguishes it by construction — finished work is late at nothing —
-        and a date with no mark is an <em>occurrence</em>: a delivery, a
-        birthday, a ferry. It draws no checkbox, its pill never takes the
-        attention tone, and it stays on its day page and in the calendar —
-        never on the agenda. When its day passes it simply leaves. A day going
-        by is not a failure of a bullet.</p>
-      </div>
-    </div>
-    <div class="cols">
-      <div>
-        <p><strong>One spine of time, and now is a place on it.</strong> Every
-        day the directory owes something on is a dot on one continuous line,
-        oldest first. Above the today mark is what SLIPPED — the one answer no
-        day page can give, because a slipped task is on a day nobody visits.
-        The mark itself is today, drawn whether or not anything is due on it.
-        Below it the future recedes: the line's ink fades, whole entries fade
-        with it, and the next seven days that have anything are the days you
-        see — each one a link to its own page, and days with nothing do not
-        appear.</p>
-        <p><strong>Days say how far away they FEEL.</strong> <em>Mon, Aug 24</em>
-        and <em>in 6 days</em>; <em>Yesterday</em>, in the attention tone, over
-        a row whose pill reads <em>1 day late</em>. Dates in the file are ten
-        characters and always will be — but a page that made you subtract them
-        to work out whether something was urgent was making you do the one job
-        it exists for. The silences between listed days are content too: a wait
-        long enough to notice says how long it was, and the room every wait
-        takes grows with it, so a fifty-day gap reads as longer than a two-day
-        one without costing a screen.</p>
-        <p>A task nobody dated is absent entirely: it has no <em>when</em> to be
-        late against, and inventing one is what this format refuses to do. So is
-        one you moved to the Trash — putting something away takes it off your
-        days and off this page, which is the whole of what putting it away
-        means. An empty agenda says <em>Nothing is due.</em>, draws no line at
-        all and offers nothing to press — every row on it lives somewhere else,
-        and that is where it is changed.</p>
-        <p><strong>A date is set on the row.</strong> Press the date beside a
-        title and the picker opens in place under it; a row with no date has no
-        pill to press, so its way in is the <strong>•••</strong> menu —
-        <em>Set date…</em>, or <em>Change date…</em> on a row that has one. What
-        is written is the ten characters you picked, never a timestamp this app
-        invented on the way, because the control is the browser’s own
-        <code>&lt;input type="date"&gt;</code> and a date is text.</p>
-      </div>
-      <div>
-        <div class="panel">
-          <div class="file">kitchen.olai</div>
-          <div class="row"><span class="box"></span><span class="t">Book the plumber</span><span class="pill">2026-08-12</span></div>
-          <div class="picker">
-            <span>Scheduled for</span>
-            <span class="field">2026-08-19</span>
-            <span class="btn">Set date</span>
-            <span class="btn quiet">Cancel</span>
-          </div>
-        </div>
-        <p class="caption">Empty the box and the button becomes <em>Clear
-        date</em> — the <strong>•••</strong> menu's own verb, and the same
-        write.</p>
-      </div>
-    </div>
-    <div class="cols">
-      <div>
-        <p><strong>A dated node can come back.</strong> Give it a repeat rule
-        and completing it does two things: it stamps the node done, as always,
-        and it captures the <em>next occurrence</em> — a fresh node on the day
-        the rule names, same title, same note, same rule, marked
-        <code>todo</code>, placed right below the one you finished. The old row
-        keeps its own date and the instant it was finished, so eleven weeks of
-        bins are eleven rows on eleven days rather than one row whose date kept
-        moving and could prove none of them.</p>
-        <p><strong>The grammar is four shapes and it is spelled in the
-        file.</strong> <code>every day</code>, <code>every week on
-        monday</code>, <code>every month</code>, <code>every year</code> — no
-        intervals, no end dates, no counts, no cron. A
-        <code>.olai</code> is read by people, and <code>0 0 * * 1</code> says
-        the same thing in a dialect that has to be learned. The picker is a
-        list of exactly those rules, because there is nothing to type that is
-        not on it.</p>
-        <p>The rule moves to the occurrence it makes, which is what a
-        recurrence with one live head means — so undoing a completion leaves
-        the new occurrence standing (it is still owed) and ticking the old row
-        again makes no second one. And the next date counts from the row's
-        <em>own</em> day, never from today: finish a weekly chore three weeks
-        late and the next one is the week after the one you just did. Nothing
-        here quietly skips a backlog forward.</p>
-        <p>Everywhere else it is simply a dated node — on this page, on its
-        day, in the calendar's dots, overdue when it goes past. An agent writes
-        the same rule with <code>set_repeat</code> and gets the same
-        occurrence out of <code>set_done</code>, because the deciding happens
-        in one place under both faces.</p>
-      </div>
-      <div>
-        <div class="panel">
-          <div class="file">chores.olai</div>
-          <div class="row"><span class="box done"></span><span class="t">Put the bins out</span><span class="pill">2026-08-17</span></div>
-          <div class="row"><span class="box"></span><span class="t">Put the bins out</span><span class="pill">2026-08-24</span><span class="pill">↻ every week on monday</span></div>
-        </div>
-        <p class="caption">One completion, two rows: what happened on Monday
-        the 17th, and what is owed on Monday the 24th.</p>
-      </div>
-    </div>
-    <div class="cols">
-      <div>
-        <p><strong>And the directory says so before you open it.</strong>
-        Overdue is the one answer no day page can give — and a page nobody
-        opens cannot give it either. So the <em>Agenda</em> entry in the
-        directory carries the news: work that has slipped puts it in the app's
-        alarm, with the count of what is late on it; work that is merely on
-        today wears the same chip in the quiet face a date badge takes when it
-        is <em>not</em> late. Neither, and it is the entry it always was — a
-        door, not news.</p>
-        <p>When both are true the alarm wins the row whole and prints the late
-        number alone: one claim per readout, and the number that decides
-        whether to press is that one. The other is still spoken — the entry's
-        own label reads <em>Agenda — 3 overdue, 1 on today</em> — and shown in
-        full one click away. Collapse the column and the same alarm rides the
-        rail as a dot; on a phone it is inside the same sheet, behind the same
-        burger.</p>
-        <p><strong>It is the page's own count, not a second opinion.</strong>
-        The client makes exactly one reading of what is owed and both things
-        that show it read that: the page lists the rows, the entry counts them.
-        A number beside the word can never disagree with the rows behind it,
-        and it moves with the files — tick a late task off in the tree and the
-        alarm goes down without a reload.</p>
-      </div>
-      <div>
-        <div class="panel">
-          <div class="file">the directory</div>
-          <div class="dirent late"><span class="t">Agenda</span><span class="chip late">3</span></div>
-          <p class="caption">something has slipped</p>
-          <div class="dirent"><span class="t">Agenda</span><span class="chip">2</span></div>
-          <p class="caption">nothing late; two things are on today</p>
-          <div class="dirent"><span class="t">Agenda</span></div>
-          <p class="caption">nothing owed</p>
-        </div>
+        <p>A file named for the day — <code>2026-08-12.md</code>, anywhere in
+        the directory — is that day’s note. Open the day and the note is on
+        top, with everything dated that day underneath it.</p>
+        <p>Weekly chores come back as a fresh row on the next date, so eleven
+        Mondays are eleven rows, not one row whose date kept moving.</p>
       </div>
     </div>
   </div>
@@ -850,29 +469,10 @@ The corner unit is the **risky one** — see
 
 <section id="find">
   <div class="wrap">
-    <h2>Finding, and filtering in place</h2>
-    <p class="lead">One query language, four doors: the box in the header, the
-    ⌘K palette, an agent’s <code>search_nodes</code>, and the filter that
-    narrows the page in front of you. The first three list what they found —
-    the two in the browser draw at most eight rows and say <code>8 of 20
-    matches</code> underneath when there were more, and nothing at all when
-    there were not; the fourth takes rows away and leaves the rest standing
-    where they live.
-    The two that list also find <strong>documents</strong>: a <code>.md</code>
-    or a saved page is a hit of its own, looked for in four places that line up
-    with a node’s one for one — what it is called, its path, the tags in its
-    prose, and <em>the prose itself</em>. Both kinds come back in one ranked
-    list, so a document whose title holds the word outranks a node that only
-    mentions it in a note. What a document does not have, it does not pretend
-    to: an operator over a field it lacks — <code>is:done</code>,
-    <code>has:date</code> — selects none of them. What it <em>does</em> have is
-    <strong>frontmatter</strong>: the <code>---</code> block at the top of a
-    <code>.md</code>, whose keys are the same properties a node carries, so
-    <code>prop:agent=claude-opus</code> answers with both kinds in one list —
-    and the block itself stays off the rendered body, out of the title and out
-    of the table of contents. The document's own page draws those keys as the
-    same quiet run a node's page does, under the path; a file that wrote none
-    draws nothing there.</p>
+    <h2>Stay on the page</h2>
+    <p class="lead">The box above the outline hides what doesn’t match. A tag
+    you click does the same. The address holds the query, so a narrowed page
+    is a link you can send.</p>
     <div class="cols">
       <div class="panel">
         <div class="file">/house.olai?q=%23home+OR+alcove</div>
@@ -881,111 +481,13 @@ The corner unit is the **risky one** — see
         <div class="noteline">…measure the <span class="hit">alcove</span> before ordering.</div>
         <div class="row d1 dimrow"><span class="bullet">●</span><span class="t">install the cabinets</span></div>
         <div class="row d2"><span class="box"></span><span class="t">pick the hinges <span class="tagchip"><span class="hit">#home</span></span></span></div>
-        <p class="caption">A match is drawn with the ancestors that lead to it,
-        so a bare title still says what it is about — and every row says WHICH
-        it is. The query's words are lit where they sit; a row drawn only as
-        the ancestry leading somewhere is dim; and a row found behind its ¶
-        draws one clamped line of the note around the hit, since its title
-        holds nothing you typed. The collapse you left on <em>install</em> is
-        suspended while the filter is on, and comes back when it clears.</p>
+        <p class="caption">Matches stay where they live. Ancestors stay so a
+        bare title still makes sense.</p>
       </div>
       <div>
-        <p><strong>Words are substrings; operators say what a node
-        <em>is</em>.</strong> <code>is:done</code> / <code>is:doing</code> /
-        <code>is:todo</code> read the mark a node <em>stores</em> — a parent
-        whose children are all ticked is not <code>is:done</code> unless
-        somebody ticked it. <code>has:desc</code>, <code>has:date</code>,
-        <code>has:see</code> ask what the record carries.
-        Two are <em>derived</em> rather than read off the record:
-        <code>is:blocked</code> is a node waiting, because something it must
-        come after is a task nobody has finished — the same reading that dims
-        the row and writes its <code>blocked by</code> line — and
-        <code>is:mirrored</code> is a node drawn somewhere else as well,
-        because you put it on a list. <code>date:2026-08</code> takes a day,
-        a month, a year or a range
-        (<code>date:2026-08-01..2026-08-14</code>), reading the same two dates
-        the journal reads — or it takes the words:
-        <code>date:yesterday</code>, <code>date:last-week</code>,
-        <code>date:this-month</code>, counted from the day you ask on and
-        composing with a range like any other value
-        (<code>date:last-week..</code>). <code>prop:pr</code> and
-        <code>prop:agent=claude-opus</code> ask after a property you put on a
-        node yourself — by key, or by key and value; a <code>.md</code>'s
-        properties are its YAML frontmatter, and answer the same two.
-        <code>-</code> in front of
-        any of them takes it back out.</p>
-        <p><strong>And two ask what olai did, rather than what you
-        said.</strong> When olai captures a node it stamps the instant; when it
-        writes to one afterwards it re-stamps another. Both are put on by the
-        tool and by no verb you can type — so a node has a
-        <code>created</code> from the moment olai made it, a
-        <code>changed</code> only once something has been written to it since,
-        and a node older than the stamps has neither.
-        <code>created:</code> and <code>changed:</code> read those,
-        and they take every value <code>date:</code> takes — so
-        <code>changed:today</code> is what you touched today,
-        <code>created:last-week</code> is what arrived, and
-        <code>-changed:last-month</code> is what has gone quiet. They are not
-        the same question as <code>date:</code>: one node can be scheduled for
-        the 10th, captured on the 1st and last written this morning.
-        <strong>And the stamps carry seconds, so the values reach further down
-        than a day does.</strong> <code>changed:1h</code> is what you touched in
-        the last hour, <code>created:30m</code> what arrived in the last half
-        hour — a number and one of four letters, <code>m</code> minutes,
-        <code>h</code> hours, <code>d</code> days, <code>w</code> weeks.
-        Written bare it means <em>within the last</em>; at the end of a range
-        it is that moment itself, so <code>created:..1h</code> is older than an
-        hour and <code>changed:2h..30m</code> is a window, and the ends mix
-        with the words (<code>created:yesterday..3h</code>). A rolling window
-        is not a calendar one, and you can have either:
-        <code>created:1d</code> is the last twenty-four hours where
-        <code>created:today</code> is since midnight.
-        <strong>And nothing invents a past for the ones that have
-        none</strong> — no span reaches an unstamped node, however wide,
-        because a ledger does not make up a past it did not see. What finds
-        them is the negation, <code>-has:created</code>; what says when they
-        were really written is <code>git log</code>.</p>
-        <p><strong>Quote a phrase, or say <code>OR</code>.</strong>
-        <code>"kitchen remodel"</code> is one substring where two words are
-        two, so quoting is how the order of the words gets into a query — and a
-        quoted token is <em>text</em> rather than an operator, which is the only
-        way to search for the note that explains what <code>is:done</code>
-        means. <code>walnut OR birch</code> is either one; it joins the tokens
-        on each side of it and binds <em>tighter</em> than the space between
-        two tokens, so <code>#home kitchen OR bathroom</code> is
-        <code>#home</code> and one of the other two rather than every bathroom
-        in the directory. In capitals, because <code>or</code> is a word people
-        write.</p>
-        <p><strong>An operator it does not know is refused, not guessed at.</strong>
-        <code>is:open</code> answers with the values <code>is:</code> takes
-        rather than quietly searching for that text and finding nothing, and a
-        date no calendar could hold — <code>date:2026-13</code> — is refused on
-        the same terms rather than answered with an empty page. The refusal
-        quotes what you typed, case and all. A colon anywhere else —
-        <code>TODO:</code>, a URL — is just a word.</p>
-        <p><strong>Clicking a <span class="tagchip">#tag</span> filters by
-        it</strong>, and the filter lives in the address (<code>?q=</code>), so
-        a narrowed page is a link you can send and the back button works.
-        Trashed nodes stay out of every reading until a query says
-        <code>is:trashed</code>.</p>
-        <p><strong>The box is above every page that draws nodes</strong> — an
-        outline, a zoomed node, a day, the agenda, the Trash — and it means the
-        same thing on each: what did not match goes, what did stays where it
-        lives. A day and the agenda keep no ancestors because their rows
-        already carry them; the Trash searches <em>within</em> what was put
-        away, since that page is the trash and the box is asking about the
-        rows in front of you. The one page with no filter is a document: it is
-        prose, and this grammar selects nodes.</p>
-        <p>The same words reach an agent unchanged, with a scope a person gets
-        from the page they are on: <code>search_nodes</code> takes
-        <code>under</code> (a node and everything beneath it) and
-        <code>file</code>. One matcher, four callers — so
-        <code>is:done</code> cannot come to mean two things. It also takes
-        <code>withDesc</code>, which brings each hit’s note back with it, so
-        “every one of these, with what was written under it” is one call
-        rather than one call and a read per row. Off unless asked for: a note
-        is prose with no bound, and the boxes in the browser ask this same
-        question on every keystroke.</p>
+        <p><code>is:done</code>, <code>date:last-week</code>, a quoted phrase,
+        <code>OR</code> — the rest of the query language is in the
+        <a href="https://github.com/juspay/olai/blob/master/docs/search.md">search docs</a>.</p>
       </div>
     </div>
   </div>
@@ -993,10 +495,9 @@ The corner unit is the **risky one** — see
 
 <section id="type">
   <div class="wrap">
-    <h2>Keyboard editing</h2>
-    <p class="lead">Click a title to edit it in place. Each edit is one
-    operation through the same layer the agent uses, and each lands as a git
-    commit.</p>
+    <h2>Type like an outliner</h2>
+    <p class="lead">Click a title to edit it in place. Enter makes the next
+    line. Tab indents. The rest is the usual outliner muscle memory.</p>
     <div class="cols">
       <table class="keys">
         <tr><td><kbd>Enter</kbd></td><td>commit, and open the next line</td></tr>
@@ -1013,353 +514,43 @@ The corner unit is the **risky one** — see
         <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>M</kbd></td><td>move it under a node you search for, anywhere</td></tr>
         <tr><td><kbd>Shift</kbd>+<kbd>Enter</kbd></td><td>write the note under it</td></tr>
         <tr><td><kbd>Esc</kbd></td><td>drop what you were typing</td></tr>
-        <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>Z</kbd></td><td>put that edit back</td></tr>
-        <tr><td><kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>P</kbd></td><td>pin this page to the sidebar, or unpin it</td></tr>
       </table>
     </div>
-    <p>Splitting and merging are one operation each rather than a sequence the
-    browser performs, which is what makes them safe: a merge joins two titles,
-    joins their notes, hands the row above everything that hung under the row
-    you were in, and puts that record in the Trash with its id — all of it, or
-    none of it. Whatever the merged row carried that a single node cannot carry
-    twice — its mark, its date, what it waited on — goes to the Trash with the
-    record, and a line under the row says so rather than letting you find out
-    later. Splitting is the same trade the other way: the half that comes off is
-    a new row, so it starts as a bullet, and everything that described the row
-    you were in stays with it.</p>
-    <p class="lead">Undo is an inverse rather than a restore: it replays the
-    edit that reverses yours, judged against the outline as it is now — so it
-    never takes back what an agent or another tab did in the meantime, and one
-    that no longer fits says why.</p>
-    <p class="lead"><strong>Drag a bullet</strong> and the row goes with
-    everything under it. A line shows where it would land before you let go —
-    and it moves sideways as well as up and down, because a gap between two rows
-    reads the same whether you are joining that level or becoming the last child
-    of the row above it. Where the line starts is the answer. Hold a row near
-    the top or bottom of the window and the page comes to you; with a finger,
-    hold the bullet until the row lifts and then it follows your thumb — until
-    that moment nothing is claimed, so a flick still scrolls the page.</p>
-    <p>Everything works on <strong>more than one row</strong> too:
-    <kbd>⌘</kbd>-click a title to add it to the pick, <kbd>Shift</kbd>-click to
-    take everything between, <kbd>Shift</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd> to start
-    picking from a caret, <kbd>⌘</kbd>+<kbd>A</kbd> to widen, or drag across the
-    rows. That last one has a rule worth knowing, because press-and-pull already
-    means something: <strong>where the pull begins decides</strong>. Start on the
-    words and it is the browser’s own text selection, unchanged. Start on the
-    outline’s empty space — the rail beside an indented branch, the page below
-    the last row — and it picks every row it passes over. Then the keys are
-    the keys you already know, several times over — <kbd>Tab</kbd>,
-    <kbd>Shift</kbd>+<kbd>Tab</kbd>,
-    <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>↑</kbd>/<kbd>↓</kbd>,
-    <kbd>⌘</kbd>+<kbd>Enter</kbd>, or a drag by any of their bullets. A pick and
-    a caret are never both live, which is what lets them share those keys. Each
-    is the single-row operation repeated, in the order that produces the shape
-    you asked for, so an agent asked to do the same thing makes the same calls —
-    and <kbd>⌘</kbd>+<kbd>Z</kbd> walks it back a row at a time.</p>
-    <p>Three characters open a short list under the line you are typing.
-    <kbd>!</kbd> takes a day in words — <em>tomorrow</em>, <em>next fri</em>,
-    <em>aug 20</em> — and every row says the date it means, so nobody has to
-    press Enter to find out which Friday. <kbd>#</kbd> and <kbd>@</kbd>
-    complete over the tags this set already uses, two namespaces rather than
-    two spellings of one. <kbd>(</kbd><kbd>(</kbd> searches the whole
-    directory — the same search ⌘K runs — and the node you pick is placed here
-    as a mirror. Walk any of them with the arrows, take one with Enter, dismiss
-    with Esc. The first and the last are the same two operations an agent has,
-    <code>set_date</code> and <code>add_mirror</code>; the middle one is just
-    text, because a tag lives in the title.</p>
-    <p>Not everything has a key. Hover a row and the <strong>•••</strong> in the
-    gutter carries the rest — on a phone there is no room for one, so hold a
-    finger on the row (anywhere but the bullet, which is the handle) and the
-    same menu opens: the three marks and clearing one, setting,
-    changing or clearing a date — the same picker the row’s own pill opens —
-    setting, changing or stopping a repeat rule on a dated row, from the
-    picker its own <code>↻</code> pill opens —
-    retiring one placement of a mirrored node, duplicating a row and everything
-    under it — the copy lands as the sibling below with ids of its own, so it is
-    a second thing rather than a second view of the first, and
-    <kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>D</kbd> is the same verb from the keyboard —
-    moving the row under a node you search for, anywhere in the directory —
-    the panel lists what it finds and says, before you press Enter, which of
-    them cannot take it: another outline (every outline is an independent tree),
-    the row’s own subtree, the Trash, or the parent it already has;
-    <kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>M</kbd> is that one from the keyboard —
-    moving a subtree to the Trash —
-    it asks first, and says how many rows go with it — and copying the subtree
-    as tab-indented plain text. Those go on the same undo stack, so ⌘Z takes a
-    menu edit back too — all but the retire, which has no ⌘Z at all, and
-    <code>((</code> is how that line comes back instead.
-    Nothing you put away is deleted by putting it away: the Trash keeps the subtree whole,
-    ids and all — on disk it is <code>_olai/Trash.olai</code>, the one trash for
-    the served directory, which is why nothing that pointed at it breaks — and the sidebar’s
-    Trash is where you read it, with <em>Put back</em> on the rows that were put
-    away, restoring each where it came from. <strong>A row you put away leaves
-    every other page with it</strong> — off its day, out of the calendar’s dots,
-    off the agenda even if it was late — because putting something away is
-    saying you are done looking at it; the Trash is the one page that shows it,
-    and <code>is:trashed</code> is how you go looking on purpose. (The titles above them are the
-    signposts the trash wrote to remember which outline they left and where they hung; they are not
-    rows anybody put away, so they have nothing to put back.) It is a place to
-    look and to restore from rather than one to edit. Every one of those is the
-    same operation an agent would
-    perform, which is a rule olai holds itself to: both faces can do the same
-    things to a directory.</p>
-    <p><strong>And the Trash can be emptied — the one thing in olai that
-    permanently deletes.</strong> <em>Empty trash</em> sits beside the heading
-    on that page and takes every record in the trash, subtrees and
-    signposts alike. It asks first, and the question says how many rows go —
-    counted over what the trash holds rather than over what the page happens
-    to be drawing, so narrowing the Trash with the filter box does not narrow
-    what you are agreeing to — and it says outright that nothing in olai puts
-    them back and that what survives is whatever git has already recorded.
-    It is refused while anything outside the Trash still points into it, since
-    ids come along when a subtree is put away and deleting those records would
-    leave live rows naming nothing; the refusal names each of them. An empty
-    Trash does not offer the verb at all. There is still no delete key: this
-    one names no node, reaches no live outline, and can only take rows you
-    already put away and can still see. And if something is put away between
-    the moment you read that sentence and the moment you press it, the write
-    is refused naming both counts rather than taking the newcomer with it.
-    <code>empty_trash</code> is the same operation for an agent.</p>
-    <p><strong>A node can point at other nodes, and that is writable from
-    either end now.</strong> The menu’s <em>Link to a node…</em> and <em>Wait
-    for a node…</em> each open a panel under the row: what this node says now,
-    with an <strong>×</strong> on each, and a box that searches the whole
-    directory — the same search ⌘K runs. A zoomed node has the two as controls
-    under its own lines, because a heading has no ••• to hang them off. They are
-    <code>set_see</code> and <code>set_after</code>, the same two an agent has,
-    and a dependency that would close a loop is refused in the ops layer’s own
-    words, naming the loop: nothing is greyed out first, because the reason is
-    worth more than the absence. A node’s page draws what it <em>declares</em>
-    beside what is <em>in its way</em> — the second is derived, and only the
-    first is yours to change.</p>
-    <p><strong>And a zoomed node says what points back at it.</strong> A
-    <em>Referenced by …</em> line under the heading, shut until you open it,
-    holding what <em>sees</em> this node and what <em>mentions</em> it by its
-    <code>@id</code> — the same handle the chat’s <code>@</code> writes into a
-    sentence. Every reference in an outline points one way on disk, so this is
-    the reverse read out of the same live view the page is drawn from: write
-    <code>@herbs</code> in a note in another file and the herb bed’s page gains
-    a row while you are looking at it. A second <em>placement</em> of a node is
-    not a reference — a mirror is a view of the thing rather than a remark
-    about it — and neither is an ordering edge, which the page already draws
-    both ways.</p>
-    <p><strong>So does a document.</strong> A <em>Referred to by …</em> line
-    under its body, on the same terms: the node that <em>attaches</em> it with
-    <code>doc</code>, the note that <em>links</em> it, and the other document
-    whose prose does. It names the record rather than the file the record sits
-    in — “<em>install the cabinets</em>”, not “<em>house.olai</em>” — because a
-    link is always some record’s. A link written at one of the document’s own
-    headings counts: whoever wrote <code>brief.md#scope</code> is talking about
-    <code>brief.md</code>.</p>
-    <p><strong>And the sidebar starts files as well as listing them.</strong>
-    <em>+ New outline</em> and <em>+ New document</em> ask for a path, relative
-    to the directory you are serving. The extension is the door’s own half, so
-    you may leave it off: <code>Foo</code> and <code>Foo.olai</code> are the
-    same ask at <em>+ New outline</em>, and <code>notes/plan</code> makes
-    <code>notes/plan.olai</code>. Type the OTHER kind’s extension and the box
-    says so in a sentence of its own; everything else — a path that exists, or
-    climbs out of the directory — comes back as the very operation an agent’s
-    <code>create_outline</code> and <code>create_document</code> are judged by,
-    in its own words rather than a browser’s guess at them.</p>
-    <p>The <kbd>⌘</kbd>+<kbd>K</kbd> palette is the same verbs without the
-    mouse. Zoomed into a node, it lists what that node can take — mark it,
-    clear its mark or its date, move it to the Trash, asking the same question
-    first — which is the one place the ••• could not reach, since it hangs off
-    a row and a zoom is a page. A refusal is shown in the palette rather than
-    swallowed by it, and ⌘Z takes any of it back.</p>
-    <p><strong>And what you keep coming back to gets a shelf.</strong> A row’s
-    ••• offers <em>Pin to sidebar</em>; <kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>P</kbd>
-    pins the <em>page</em> you are on — including the query you narrowed it
-    with, so a saved search is a pin rather than a fourth kind of thing — and
-    the pins sit in the directory column between the month and the files, one
-    click from wherever you are. Drag to reorder, <kbd>×</kbd> to take one
-    off.</p>
-    <p><strong>A saved search gets a name where the thought arrives.</strong>
-    Narrow a page and press <kbd>⌘</kbd>+<kbd>⇧</kbd>+<kbd>P</kbd> and olai asks
-    what to call it, in the palette's own box: type a name and
-    <kbd>Enter</kbd>, or <kbd>Enter</kbd> alone to keep it unnamed. A query is
-    the one part of an address nothing in your directory can name — three
-    narrowings of the agenda are three rows called <em>Agenda</em> — which is
-    why that press asks and no other one does. The name is not a new kind of
-    thing either: the row's title becomes
-    <code>[What is late](/agenda?q=is%3Atodo)</code>, the markdown link you
-    would have typed yourself, and the <kbd>✎</kbd> on a shelf row changes it
-    later — or takes it off, leaving a door drawn by whatever it points at.</p>
-    <p>The shelf is a <em>file</em>, and that is the point: a
-    <code>Pins.olai</code> in the directory — minted at
-    <code>_olai/Pins.olai</code>, or wherever you already keep one — with one
-    ordinary node per pin, whose title is the address it opens. Nothing is stored in the browser, nothing
-    new was added to the format, and an agent keeps the shelf with the tools it
-    already has — <code>add_node</code> pins, <code>move_node</code> reorders,
-    <code>set_title</code> renames, <code>trash_node</code> unpins. Nothing stores a copy of a node’s name
-    either, so renaming one anywhere renames it on the shelf — and opening
-    <code>Pins.olai</code> shows the same faces the shelf does, because a title
-    that is nothing but an address is drawn as the page it names wherever it is
-    written. What the editor opens is the address itself.</p>
-    <p><strong>And a thought that arrives while you are reading something else
-    does not cost you your place.</strong> <kbd>⌘</kbd>+<kbd>K</kbd>,
-    <kbd>+</kbd>, the line, <kbd>Enter</kbd>: it becomes a node in the
-    directory’s inbox — an <code>Inbox.olai</code>, created the first time you
-    capture at <code>_olai/Inbox.olai</code>, or wherever you already keep one
-    — while your page, your scroll and the address stay exactly where they
-    were, and the box empties for the next line.</p>
-    <p><strong>And a thought that arrives while you are nowhere near
-    olai</strong> goes to the same inbox, through a door that is not a page:
-    <code>olai surface capture</code>, one line from a terminal, a Raycast
-    script pointed at Mail.app, or a cron job that noticed something. A title
-    and a note, and you say which vault with <code>--url</code> every time —
-    there is no default and nothing remembered, because a capture that goes to
-    the wrong directory looks exactly like one that did not. It arrives dated,
-    so it is on the day’s journal page as well as in the inbox, and it prints
-    one line back: where it landed, and a link to the row it made. There is no
-    second face to configure — the command speaks the same protocol at the same
-    address an agent does, so from another machine it is the same reverse proxy
-    that already fronts the page, and whoever that proxy says you are is what
-    the capture is recorded as.</p>
-    <p><strong>And the files olai names for itself stay out of your
-    list.</strong> The shelf, the inbox and the trash live under
-    <code>_olai/</code>, and the file tree does not draw them: the shelf is
-    already above the tree, <em>Inbox</em> sits beside Agenda (wearing how
-    many captures it holds), and <em>Trash</em> is the door at the foot of
-    the column. They are in the directory either way — search
-    finds them, an agent lists them, git records them — and one preference
-    (<em>Hidden outlines → Shown</em>) puts the rows back for a day you want to
-    read <code>Pins.olai</code> as an outline.</p>
+    <p class="caption">The full map — dragging, the palette, pins, the inbox —
+    is in the <a href="https://github.com/juspay/olai/blob/master/docs/editing.md">editing docs</a>.</p>
   </div>
 </section>
 
 <section id="prefs">
   <div class="wrap">
-    <h2>Preferences, and the palettes</h2>
-    <p class="lead">One door in the app header, and the rows behind it: the
-    theme, the typeface, what a page does with finished work, whether the file
-    tree draws the outlines olai names for itself, and whether a commit from
-    here is pushed. All of them are this browser’s, which is the
-    panel’s own first claim about itself: two machines reading the same
-    outlines are entitled to look different, and the served directory neither
-    knows nor cares.</p>
-    <div class="cols">
-      <div class="panel prefs">
-        <div class="file">preferences</div>
-        <div class="prow">
-          <div class="lbl">Theme</div>
-          <div class="chips">
-            <span class="chip on" data-theme="reef">reef</span>
-            <span class="chip" data-theme="leaf">leaf</span>
-            <span class="chip" data-theme="manuscript">manuscript</span>
-            <span class="chip" data-theme="bloom">bloom</span>
-            <span class="chip" data-theme="sky">sky</span>
-            <span class="chip" data-theme="chalk">chalk</span>
-            <span class="chip" data-theme="aurora">aurora</span>
-            <span class="chip" data-theme="pitch">pitch</span>
-            <span class="chip" data-theme="ember">ember</span>
-            <span class="chip" data-theme="dusk">dusk</span>
-          </div>
-          <p class="hint">reef is in force. Press a chip — the whole page
-          follows. Every colour here is this one table.</p>
-        </div>
-        <div class="prow">
-          <div class="lbl">Font</div>
-          <div class="field">Atkinson Hyperlegible Next</div>
-          <p class="hint">The page is set in Atkinson Hyperlegible Next.</p>
-        </div>
-        <div class="prow">
-          <div class="lbl">Done</div>
-          <div class="seg"><span class="on">Visible</span><span>Hidden</span></div>
-          <p class="hint">Finished work is shown.</p>
-        </div>
-        <div class="prow">
-          <div class="lbl">Hidden outlines</div>
-          <div class="seg"><span class="on">Hidden</span><span>Shown</span></div>
-          <p class="hint">Outlines olai names for itself — under _olai/ — are
-          left out of the file tree; the shelf, the Inbox beside Agenda, and
-          the Trash below are their doors. They stay in the directory: search
-          and agents read them unchanged.</p>
-        </div>
-        <div class="prow">
-          <div class="lbl">Git commit</div>
-          <div class="seg"><span>Off</span><span class="on">Auto-commit</span></div>
-          <p class="hint">The server records what is waiting when writes stop
-          arriving for 15 seconds, so a burst of work is one commit — including
-          writes an agent made, and with no browser open. A commit or a push
-          git refuses pauses it until you press Resume.</p>
-        </div>
-        <div class="prow">
-          <div class="lbl">Git push</div>
-          <div class="seg"><span>Off</span><span class="on">Auto-push</span></div>
-          <p class="hint">Every commit olai makes here is pushed after it is
-          recorded — the button’s, an agent’s, and the server’s own.</p>
-        </div>
-        <p class="scope">These are this browser’s. They are stored here, reach
-        every tab you have olai open in, and are never sent to the server. The
-        two git rows are the exception: committing and pushing are facts about
-        this directory, so they are the server’s — the same in every browser,
-        and remembered there rather than here.</p>
-      </div>
-      <div class="stack">
-        <div class="panel" data-theme="ember">
-          <div class="file">kitchen.olai · ember</div>
-          <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
-          <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
-          <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
-          <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
-        </div>
-        <div class="panel" data-theme="bloom">
-          <div class="file">kitchen.olai · bloom</div>
-          <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
-          <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
-          <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
-          <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
-        </div>
-        <p class="caption">The same rows, in two of the palettes. A palette is
-        eleven colours with a name; picking one writes <code>data-theme</code> on
-        <code>&lt;html&gt;</code>, the tab mark follows, and the stored pick
-        lands there before the first paint, so a reload never flashes the
-        wrong one.</p>
-      </div>
+    <h2>How it looks</h2>
+    <p class="lead">Ten palettes. Press a chip — this page follows.</p>
+    <div class="chips" role="list">
+      <span class="chip on" data-theme="reef" role="listitem">reef</span>
+      <span class="chip" data-theme="leaf" role="listitem">leaf</span>
+      <span class="chip" data-theme="manuscript" role="listitem">manuscript</span>
+      <span class="chip" data-theme="bloom" role="listitem">bloom</span>
+      <span class="chip" data-theme="sky" role="listitem">sky</span>
+      <span class="chip" data-theme="chalk" role="listitem">chalk</span>
+      <span class="chip" data-theme="aurora" role="listitem">aurora</span>
+      <span class="chip" data-theme="pitch" role="listitem">pitch</span>
+      <span class="chip" data-theme="ember" role="listitem">ember</span>
+      <span class="chip" data-theme="dusk" role="listitem">dusk</span>
     </div>
     <div class="cols">
-      <div>
-        <p><strong>Four of the ten are dark grounds.</strong> There is no
-        <em>system</em> chip and no auto: the operating system’s preference is
-        not consulted at all, because two ways to be dark are two answers that
-        can disagree — with each other, and with the reader who already said
-        what they wanted. A page nobody has picked on reads in
-        <code>reef</code>, the lagoon; <code>chalk</code> is still a pick, and
-        the one palette that promises WCAG AA on every pair it paints. A unit
-        test holds every row to a reading floor, and <code>chalk</code> to the
-        full set, pair by pair.</p>
+      <div class="panel" data-theme="ember">
+        <div class="file">kitchen.olai · ember</div>
+        <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
+        <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
+        <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
+        <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
       </div>
-      <div>
-        <p><strong>Done: Visible or Hidden lives in Prefs, and nowhere
-        else.</strong> The floating pill that sat above the outline was a
-        second door for the same preference, and it retired into this row.
-        “I do not want to look at finished work” is a claim about the reader,
-        so it applies to every page and follows across tabs. Hiding finished
-        work is a row not drawn: never a node marked, never a file written.</p>
-      </div>
-    </div>
-    <div class="cols">
-      <div>
-        <p><strong>The two git rows are the SERVER’s.</strong> Committing and
-        pushing are facts about the directory, not about whoever is looking at
-        it — whether a branch is pushed is not something one colleague’s laptop
-        gets to decide for everybody else, and a directory nobody has a tab
-        open on should still be recording. So those two rows set the server’s
-        policy, it is remembered there (outside the vault, so it never travels
-        with a <code>git pull</code>), and every browser draws the same
-        answer.</p>
-      </div>
-      <div>
-        <p><strong>And an operator can take them away.</strong>
-        <code>olai web ~/outlines --commit=auto --push=off</code>, or the same
-        two as home-manager options: give a flag and that row is drawn in the
-        state it comes to, read-only, with the flag on screen: <em>Set by the
-        server: --commit=auto.</em> Never hidden, never overridable from a
-        browser. Give none and both rows stay live for whoever is looking — and
-        the theme, the typeface, the size and the rest are untouched either
-        way, because those really are personal view choices no server has an
-        opinion about.</p>
+      <div class="panel" data-theme="bloom">
+        <div class="file">kitchen.olai · bloom</div>
+        <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">2/4</span></span></div>
+        <div class="row d1"><span class="box done"></span><span class="t strike">Demolition</span></div>
+        <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span><span class="pill late">2026-08-07</span></div>
+        <div class="row d1"><span class="box"></span><span class="t">Book the plumber</span></div>
       </div>
     </div>
   </div>
@@ -1367,150 +558,22 @@ The corner unit is the **risky one** — see
 
 <section id="agent">
   <div class="wrap">
-    <h2>Agents, over ACP</h2>
-    <p class="lead">The chat panel connects to agents that speak
-    <a href="https://agentclientprotocol.com">ACP</a>, and it finds the ones you
-    have: Claude Code is bundled, and an <code>opencode</code> on the server’s
-    PATH is offered beside it. A chat is bound to ONE of them, chosen when it
-    starts, and the header says which — with several installed every new chat
-    asks, and the conversation you come back to comes back on its own agent.
-    The <b>chats</b> list is every installed agent’s, grouped by whose they
-    are, and picking one switches the panel to the agent that has it.
-    <code>OLAI_ACP_AGENT</code> points the Claude side at a different CLI, and
-    <code>OLAI_AGENT_PATH</code> says where to look for the rest.
-    Olai hands an agent no filesystem — a fixed set of tools that name nodes
-    and whole documents, never bytes — so every write it asks olai for is
-    validated before it lands. What a
-    coding assistant brings with it is its own: it edits files on the authority
-    it already has in a terminal, and olai neither grants that nor pretends it
-    away. It shows it.</p>
-    <p>Files go in by paste, by drag, or by the picker: drag a screenshot, a
-    PDF or a text file onto the conversation — several at once if you like —
-    and the panel lights up the area that will take it while you are still
-    holding it. The agent is handed the path to read, not the bytes. They live
-    in a temporary directory of that conversation's own, never under the
-    directory being served, and go away with it. A picture shows itself; a
-    document shows its name and size. Anything olai will not take is refused
-    where you dropped it, by name.</p>
-    <p>A tool call is one folded line, and what the call <em>changed</em> is not
-    folded away. There are two kinds of change and the panel draws them
-    differently, because they are different things. A write through olai’s node
-    tools shows what changed about the <strong>node</strong>, in the same words
-    the commit panel uses for the same edit — <em>marked done</em>, <em>note
-    rewritten</em>, <em>moved</em> — and the outline it landed in. A file the
-    agent rewrote with its own tools shows a <strong>diff</strong>: the path,
-    how many lines came and went, and the change itself, with the unchanged
-    stretches collapsed so the first thing you read is what moved. It is
-    trimmed to a few rows and expands where it stands. An outline never gets a
-    text diff — one line per node means a text diff of one is a single enormous
-    line with everything on it changing at once.</p>
-    <p>A call that is still going says <strong>how long it has been going</strong>,
-    on that same line and ticking — <em>47s</em>, <em>1m 12s</em> — once it has
-    been running long enough to be worth saying, so the reads that land
-    instantly never flash a number. The status dot cannot answer that: it looks
-    the same a quarter of a second in and four minutes in, and the question you
-    actually have is which. Nothing about it knows what tool is running — a
-    shell command, a watcher, a build and a search all get it because the wire
-    says the call has not come back — and it stops the moment that call&rsquo;s turn
-    does, so a call an agent died in the middle of, or simply gave up on, does
-    not leave a clock counting under work nothing is doing. Not even later: ask
-    again afterwards and the panel is busy again, but the calls the old turn
-    walked away from stay quiet, because what olai marks is the call rather than
-    the conversation.</p>
-    <p>Some calls do not finish when they answer. The agent arms a
-    <strong>monitor</strong> — a command whose every line is an event, a socket
-    it watches, a fleet of terminals — or sends a shell command off to run in
-    the background, and the tool answers at once while the work carries on past
-    the turn. That row now stays live: it carries the description the task was
-    armed with (which is what you recognise your own watch by, since the call
-    is titled <em>Bash</em>), the same ticking clock every running call gets,
-    and a rail under it saying something is still going on down there. And when
-    the task dies, the row says so — in the harness&rsquo;s own word, because
-    <em>failed</em>, <em>killed</em> and <em>stopped</em> are three different
-    endings the protocol spells with one, and with the sentence that carries a
-    background command&rsquo;s exit code drawn without unfolding anything. A
-    monitor&rsquo;s death is exactly the fact you must not miss: the
-    supervision stops, and nothing else on screen says so. While it is out it
-    is <strong>on a strip under the header</strong> as well, beside the one
-    naming this conversation&rsquo;s tool servers &mdash; because the row is at its
-    birth position, and a watch armed at the top of a three-hour session is
-    three hours of scrollback away by the time you wonder whether it is still
-    up. And when it ends, the strip clears and the news arrives as a fresh row
-    at the <strong>bottom</strong> of the transcript, where you are actually
-    reading; the row that armed it keeps its own ending, as the record of what
-    happened to that call. A turn ending leaves
-    such a call alone — outliving the turn is the whole point of it — and only
-    the agent dying takes the live face off, because a dead agent will never
-    report the end of anything.</p>
-    <p>An agent can send agents of its own, and their work is drawn as theirs.
-    A call a subagent made sits <strong>indented behind a rail</strong>, under
-    the call that spawned it; the ordinary column stays the main agent’s. Where
-    a stretch of one agent’s work begins, the lane says whose it is — the
-    description that agent was sent with — and then stops repeating itself, so
-    a subagent that reads ten files gets one name and ten rows. The name comes
-    back whenever the thread is picked up again, which is what makes two agents
-    running at once readable: their calls interleave, and each stretch says
-    which of them it was. A question a subagent stops to ask — permission for a
-    tool, or options to pick from — is a row like its calls, so the form is
-    drawn in that agent’s lane and the lane <strong>names who is asking</strong>
-    wherever it sits: you are sent to a blocked form from the composer and the
-    header rather than scrolling down to it, so there is no row above you have
-    read. A turn that spawned nobody looks exactly as it always did.</p>
-    <p>A row can hand the agent the node it stands for. <em>Ask agent</em> in
-    the row menu arms the box with that node — a chip above what you type,
-    removable until you send — and the turn is then about <strong>that
-    node</strong> rather than about whatever your sentence re-describes. What
-    the agent is handed is the node’s id, the same handle its tools take, with
-    the title and where it lives; not a copy of its contents, which would stop
-    being true the moment anything wrote. It points back, too: an id in the
-    conversation is pressable, and pressing one brings that row onto the page.
-    Nothing had to be invented for that — an agent already writes ids in
-    backticks, and one becomes pressable exactly when your outlines declare
-    it.</p>
-    <p><b>A turn that stops on you does not time out.</b> A question form,
-    a permission prompt, a plan approval — the turn hangs until somebody
-    notices, so the panel makes sure you do. When the conversation is in front
-    of you the form arriving IS the alert and nothing rings. When it is not —
-    the window behind an editor, the panel put away — one short chime, a
-    system notification naming the conversation and the first line of what the
-    agent wants, and a mark on the app’s icon — the number of questions that
-    chat has asked you, never a count of chats — that stays until you look
-    rather than until you swipe the notification away. Clicking it brings olai
-    forward, opens the panel and puts the question on screen. A turn merely
-    <em>finishing</em> is deliberately silent: an agent that has finished will
-    still have finished in five minutes, and a chime for every turn is a chime
-    people switch off. Two rows in the preferences decide it — alerts, and
-    their sound — both on by default. The limit is honest: the alerts ride the
-    same live connection everything else does, so they reach you in the
-    background but a completely closed olai is not listening.</p>
-    <p><strong>Which tool servers the conversation has is on screen</strong>,
-    under the header, so it is never a question for the model — ask an agent
-    which MCP servers it has and you are asking the worst-informed thing in the
-    room. The panel lists what olai handed this conversation, ticks the ones the
-    agent itself reported attaching, and says <em>plus the agent’s own</em>,
-    because whatever your agent is configured with of its own is set up
-    somewhere olai never looks. A tick is never inferred: a name without one
-    means the server was handed over and nothing has said what became of it.</p>
-    <p>A server that does not arrive is named on the same list, in sentences. If
-    this machine has an MCP server the conversation was meant to be handed —
-    kolu’s terminals, when kolu is running here — and it would not answer, the
-    panel gives the reason the server itself gave and the file that was probed;
-    if the agent is the one that could not attach it, the panel repeats the
-    agent’s own word for why. A session quietly short of its tools looks exactly
-    like a healthy one, and the difference is not something to go and read a log
-    for.</p>
+    <h2>An agent in the same notebook</h2>
+    <p class="lead">Chat lives in a side panel. You keep the keyboard. The
+    agent ticks boxes and rewrites the markdown, and you see it happen.
+    Git records both of you.</p>
     <div class="cols">
       <div class="panel chat">
-        <div class="file">chat · any ACP agent</div>
+        <div class="file">chat</div>
         <div class="ctx"><span>◦</span><span>Book the plumber</span></div>
         <div class="msg you">plumber's booked — tick it off</div>
-        <div class="op"><b>✓</b> set_done · book-plumber</div>
+        <div class="op"><b>✓</b> marked done · Book the plumber</div>
         <div class="wrote"><span>✓</span><span>Book the plumber</span><span class="said">marked done</span></div>
         <div class="in">kitchen.olai</div>
         <div class="msg agent">Done. Marked “Book the plumber” as done.</div>
 
         <div class="msg you">the base units are carcass-only — say so in the doc</div>
-        <div class="op"><b>✓</b> Edit · cabinets.md</div>
+        <div class="op"><b>✓</b> cabinets.md</div>
         <div class="fdiff">
           <p class="path"><span class="name">cabinets.md</span><span class="plus">+3</span><span class="minus">−2</span></p>
           <div class="body">
@@ -1530,27 +593,21 @@ The corner unit is the **risky one** — see
         <div class="row"><span class="bullet">●</span><span class="t"><strong>Kitchen renovation</strong> <span class="rollup">3/4</span></span></div>
         <div class="row d1"><span class="box doing"></span><span class="t">Order the new cabinets <span class="tagchip">#blocking</span></span></div>
         <div class="row d1"><span class="box done"></span><span class="t strike">Book the plumber</span></div>
-        <p class="caption">The open page updates because the file on disk
-        changed. The keyboard and the agent write through the same operations
-        layer.</p>
+        <p class="caption">The page updates because the file on disk
+        changed.</p>
       </div>
     </div>
+    <p class="caption">How to point an agent at a running olai is in the
+    <a href="https://github.com/juspay/olai/blob/master/docs/chat.md">chat docs</a>.</p>
   </div>
 </section>
 
 <section id="commit">
   <div class="wrap">
-    <h2>Git integration</h2>
-    <p class="lead">Writes go to disk immediately and are committed when you
-    choose — everything the repository has waiting, outlines and the files
-    beside them, ticked one by one if you want a smaller commit, and pushed
-    from the same panel. Or turn on Auto-commit and stop choosing: a burst of
-    work, yours and an agent’s together, becomes one commit fifteen seconds
-    after the writes stop — and, with Auto-push beside it, is already on the
-    remote. Both are the server’s, so a directory with no tab open on it
-    records and shares itself too. Commit messages are prefixed with
-    <code>olai:</code>, so
-    <code>git log --grep '^olai'</code> shows the audit trail.</p>
+    <h2>Every edit is a commit</h2>
+    <p class="lead">Writes go to disk immediately. Commit from the panel when
+    you’re ready — or turn on Auto-commit, and a quiet moment becomes one
+    commit.</p>
     <div class="cols">
       <div>
         <pre><code>┌─ Changes ─────────────────────────────────┐
@@ -1572,16 +629,9 @@ The corner unit is the **risky one** — see
 └───────────────────────────────────────────┘</code></pre>
       </div>
       <div>
-        <pre><code>{
-  "mcpServers": {
-    "olai": {
-      "type": "http",
-      "url": "http://127.0.0.1:7714/mcp"
-    }
-  }
-}</code></pre>
-        <p class="caption">The same tools are available over MCP for agents
-        running in a terminal — they dial the running server. There is no write CLI.</p>
+        <p>Commit messages start with <code>olai:</code>, so
+        <code>git log --grep '^olai'</code> is the trail. The rest is in the
+        <a href="https://github.com/juspay/olai/blob/master/docs/git.md">git docs</a>.</p>
       </div>
     </div>
   </div>
@@ -1593,7 +643,8 @@ The corner unit is the **risky one** — see
     <a class="wordmark" href="#">olai</a>
     <span><a href="https://github.com/juspay/olai">github.com/juspay/olai</a></span>
     <span><a href="https://github.com/juspay/olai/blob/master/docs/index.md">docs</a></span>
-    <span><a href="https://github.com/juspay/olai/blob/master/docs/roadmap.olai">roadmap — in the format itself</a></span>
+    <span><a href="https://github.com/juspay/olai/blob/master/docs/running.md">how to run it</a></span>
+    <span><a href="https://github.com/juspay/olai/blob/master/docs/roadmap.olai">roadmap</a></span>
     <span><a href="https://kolu.dev">kolu.dev</a></span>
   </div>
 </footer>
