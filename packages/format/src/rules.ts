@@ -370,7 +370,7 @@ export const reportDeclarations = (
   derived: Derived,
   errors: Array<OutlineError>,
 ): void => {
-  const file = propertiesIn([...derived.byFile.keys()])
+  const file = propertiesIn(derived.byFile.keys())
   if (file === undefined) return
   const declared = new Set<string>()
   // THE FILE'S RECORDS IN LINE ORDER, which is the order the READING walks too

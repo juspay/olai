@@ -340,7 +340,7 @@ const DECLARED = new WeakMap<Derived, PropDeclarations>()
 
 /** The walk itself — {@link declarationsOf} with the memo taken off. */
 const declaringIn = (derived: Derived): PropDeclarations => {
-  const file = propertiesIn([...derived.byFile.keys()])
+  const file = propertiesIn(derived.byFile.keys())
   if (file === undefined) return NO_TYPING
   const declarations = new Map<string, Declared>()
   for (const located of declaringIn0(derived, file)) {

@@ -102,8 +102,25 @@ export const sameInboxHeld: (a: InboxHeld, b: InboxHeld) => boolean =
  * child does not inflate it, a placement does not, a done row does not, and
  * a finished branch does not.
  */
-export const inboxHeldOf = (set: OutlineSet, derived: Derived): InboxHeld => {
-  const file = inboxIn(outlinePaths(set))
+export const inboxHeldOf = (set: OutlineSet, derived: Derived): InboxHeld =>
+  inboxHeldIn(derived, inboxIn(outlinePaths(set)))
+
+/**
+ * How full a NAMED file is — {@link inboxHeldOf} with the convention walk
+ * lifted out of it, for the caller that carries which file the inbox is across
+ * revisions instead of re-deriving it per one (`./conventions.ts`,
+ * `perf-filename-conventions`). The shelf's twin one file over
+ * (`./shelf.ts`'s `shelfIn`), and it takes a `Derived` alone for the same
+ * reason that one does: with the file already named there is nothing left here
+ * the SET can answer.
+ *
+ * `undefined` is the answer "this directory has no inbox", which is `0` —
+ * the same value an empty, a torn and an all-done one wear ({@link NO_INBOX}).
+ */
+export const inboxHeldIn = (
+  derived: Derived,
+  file: string | undefined,
+): InboxHeld => {
   if (file === undefined) return NO_INBOX
   const count = rootsOf(derived, file).filter((root) => awaiting(derived, root)).length
   return { count }

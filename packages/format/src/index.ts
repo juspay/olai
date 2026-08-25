@@ -949,8 +949,13 @@ export type { ErrorCode, Stage } from "./errors.ts"
  * sidebar draws it (`@olai/surface`'s `pins` cell). `pinTargetIn` is public
  * beside the reading because the browser holds it up against its own address
  * parser, which is what keeps one title from having two answers.
+ *
+ * `shelfIn` is the same reading with the convention walk lifted out — the
+ * server carries which file the shelf IS across revisions rather than
+ * re-deriving it per one (`./conventions.ts`), and it is public for that one
+ * caller.
  */
-export { NO_PINS, pinTargetIn, sameShelf, Shelf, shelfOf } from "./shelf.ts"
+export { NO_PINS, pinTargetIn, sameShelf, Shelf, shelfIn, shelfOf } from "./shelf.ts"
 export type { Pinned } from "./shelf.ts"
 
 /**
@@ -981,7 +986,9 @@ export type { Pinned } from "./shelf.ts"
  * branch). Public because it crosses, the way
  * the shelf does: the server answers it per revision and the sidebar draws
  * it (`@olai/surface`'s `inbox` cell). `sameInboxHeld` is the cell's
- * `equals`.
+ * `equals`. `inboxHeldIn` is that reading with the convention walk lifted
+ * out, for the server's carrier (`./conventions.ts`) — the shelf's twin one
+ * file over.
  */
 export {
   CAPTURED_BY,
@@ -990,11 +997,37 @@ export {
   captureInto,
   capturingOf,
   InboxHeld,
+  inboxHeldIn,
   inboxHeldOf,
   NO_INBOX,
   noteOf,
   sameInboxHeld,
 } from "./inbox.ts"
+
+/**
+ * A BY-NAME ANSWER CARRIED ACROSS REVISIONS (./conventions.ts).
+ *
+ * Which file a directory calls its shelf, its inbox or its declarations moves
+ * only when a file is added, removed or renamed — and the walk that answers it
+ * is over every served file. This holds the answer with the path set it was
+ * read from and re-asks it only for the paths the store says a revision moved,
+ * so a caller that keeps one pays the walk per path-set change and the check
+ * per WRITE, rather than either per revision (`perf-filename-conventions`).
+ *
+ * Public because the caller that keeps one is `@olai/server`'s `runtime.ts`,
+ * where the shelf and the inbox count are re-answered per published revision —
+ * and `PathsMoved` with it, because what a carrier is handed is the snapshot's
+ * own two lists. The WALKS themselves stay this package's three named
+ * questions (`pinsIn`, `inboxIn`, `propertiesIn`, `./node.ts`).
+ */
+export {
+  type Convention,
+  conventionRecorded,
+  conventionServed,
+  type ConventionWalk,
+  type PathSet,
+  type PathsMoved,
+} from "./conventions.ts"
 
 /**
  * WHAT ONE PAGE SHOWS (./page.ts) — the reading the browser is handed in place

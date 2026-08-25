@@ -46,11 +46,14 @@
  * which the sidebar draws and used to work out for itself over a copy of
  * every outline in the browser (`docs/brainstorming/vault-in-browser.md`
  * §6's item 5, and the inbox door's count). Each connector is the whole of
- * it — recompute `@olai/format`'s `shelfOf` / `inboxHeldOf` on every
+ * it — re-read `@olai/format`'s `shelfIn` / `inboxHeldIn` on every
  * published revision and write the cell, whose `equals` keeps a revision
  * that moved nothing about that reading from sending anything. That is §2's
  * mechanism, and the reason the browser needs no token to ask on: the
- * server is the one that knows when the directory moved.
+ * server is the one that knows when the directory moved. WHICH FILE each of
+ * the two reads is not re-derived per revision — that answer moves only when
+ * a file is added, removed or renamed, so it is carried with the path set it
+ * describes (`conventions.ts`, and the two bindings beside the cells).
  *
  * And two facts belong to neither: what GIT is doing for the directory, and
  * what is WAITING to be committed to it. Both are the ops layer's — the only
@@ -68,18 +71,23 @@
  */
 
 import {
+  type Convention,
+  conventionRecorded,
+  conventionServed,
   type InboxHeld,
-  inboxHeldOf,
+  inboxHeldIn,
+  inboxIn,
   NO_INBOX,
   NO_PINS,
   NOTHING_PENDING,
+  pinsIn,
   sameDated,
   sameMoving,
   sameOwed,
   sameNarrowing,
   samePageReading,
   type Shelf,
-  shelfOf,
+  shelfIn,
 } from "@olai/format"
 import { type Ops, type Request, type Status, type Store } from "@olai/ops"
 import type {
@@ -577,6 +585,49 @@ export const bind = (
         },
       )
 
+    /**
+     * WHICH FILE the shelf is, and which one the inbox is — carried from one
+     * published revision to the next rather than re-derived per one
+     * (`@olai/format`'s `conventions.ts`, `perf-filename-conventions`).
+     *
+     * Both readings below are re-answered on every revision and both used to
+     * start by walking every served file: the basename of each folded and
+     * compared, the matches collected and sorted, for an answer that moves only
+     * when a file is ADDED, REMOVED or RENAMED. A keystroke in one outline paid
+     * for the whole directory to be told the shelf is still `Pins.olai`, and
+     * the cell's `equals` then swallowed the frame having already bought the
+     * work.
+     *
+     * TWO CARRIERS AND NOT ONE, because the two questions are asked of two
+     * different lists and that difference is deliberate: the inbox is found
+     * among the outlines the SET SERVES (an empty or torn `Inbox.olai` has no
+     * records and so no entry in `byFile`, and the door and the count must
+     * name the file a capture would land in), while the shelf is found among
+     * the files the DERIVATION HOLDS RECORDS FOR, which is where its rows come
+     * from. One carrier over one of the two lists would be one of the two
+     * readings quietly answering about the other.
+     *
+     * WHETHER THE PATH SET MOVED IS ASKED OF THE SNAPSHOT'S OWN DELTA — the
+     * `changed` / `removed` the store publishes beside the value, which is
+     * the same pair the projection below slices a revision by. A comparison of
+     * the whole path set would be the walk under a different name; these two
+     * lists are the size of the WRITE. What that rests on is spelled out where
+     * the check is (`@olai/format`'s `conventions.ts`), including the count
+     * that catches a departure a `resync` left unnamed — and, here, that a
+     * connector sees EVERY published revision in order, since a delta names
+     * only what moved since the last one. That is the store's own arrangement
+     * (`SubscriptionRef` publishes to an unbounded `PubSub`) and it is
+     * already load-bearing one member down: the projection below slices a
+     * revision against the one it published last.
+     *
+     * ONE FIBER EACH, which is what makes a plain binding safe here: a
+     * connector is one `runForEach` over the revision stream, so these are
+     * read and written on that stream's own stack and never from two places at
+     * once — the same arrangement `held` above keeps for the projection.
+     */
+    let shelfFile: Convention | undefined
+    let inboxFile: Convention | undefined
+
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
       cells: {
         errors: {
@@ -661,13 +712,15 @@ export const bind = (
             }),
         },
         /**
-         * THE PINNED SHELF, recomputed per published revision.
+         * THE PINNED SHELF, re-read per published revision — over a file this
+         * connector already knows the name of (`shelfFile` beside the cells:
+         * which outline the shelf IS moves only when the path set does).
          *
          * ITS OWN CONNECTOR rather than a line in the directory binding below,
          * and the difference is what it reads: that one PROJECTS a revision —
          * this file's per-file slices, written in one order for one reason —
          * where this one asks a QUESTION of the set (`@olai/format`'s
-         * `shelfOf`) and publishes the answer. A tab tolerates the skew between
+         * `shelfIn`) and publishes the answer. A tab tolerates the skew between
          * them the way it tolerates every other cross-member skew (the design
          * doc's cross-file consistency paragraph); what it would not tolerate is
          * the two being one statement whose order somebody has to reason about.
@@ -675,7 +728,11 @@ export const bind = (
          * A revision that moved no pin writes the same value, which the cell's
          * `equals` swallows (`@olai/surface`'s spec) — so the frames a tab gets
          * are the times its shelf actually changed, which includes a node it
-         * pins being RETITLED in some other file.
+         * pins being RETITLED in some other file. What the equality never
+         * swallowed is the WORK, which is why the convention walk in front of
+         * this reading is carried rather than re-run: a retitle moves the
+         * shelf and must reach here, and it does not move which file the shelf
+         * is.
          *
          * A store that has never published has no shelf rather than an unknown
          * one: an empty shelf draws nothing, which is what a directory with no
@@ -688,17 +745,26 @@ export const bind = (
             Stream.runForEach(
               SubscriptionRef.changes(wiring.store.snapshot),
               (snapshot) =>
-                Effect.sync(() =>
-                  cell.set(snapshot === null ? NO_PINS : shelfOf(snapshot.value.derived))
-                ),
+                Effect.sync(() => {
+                  if (snapshot === null) return cell.set(NO_PINS)
+                  const derived = snapshot.value.derived
+                  shelfFile = conventionRecorded(pinsIn, derived, snapshot, shelfFile)
+                  cell.set(shelfIn(derived, shelfFile.file))
+                }),
             ),
         },
         /**
-         * HOW FULL THE INBOX IS, recomputed per published revision — the
+         * HOW FULL THE INBOX IS, re-read per published revision — the
          * shelf's twin, one integer over. The door that wears the number
          * already knows which file the inbox is (the paths); this is how
          * many of those captures still await processing (a finished
          * branch does not).
+         *
+         * Its own carrier (`inboxFile`) and not the shelf's, over the
+         * outlines the SET SERVES rather than the files the derivation holds
+         * records for: an empty or torn `Inbox.olai` has no entry in
+         * `byFile`, and the count has to be about the file a capture would
+         * actually land in (`@olai/format`'s `inbox.ts` argues it).
          *
          * A store that has never published has none rather than an unknown
          * count: the chip hides at zero, which is what a directory with no
@@ -711,13 +777,12 @@ export const bind = (
             Stream.runForEach(
               SubscriptionRef.changes(wiring.store.snapshot),
               (snapshot) =>
-                Effect.sync(() =>
-                  cell.set(
-                    snapshot === null
-                      ? NO_INBOX
-                      : inboxHeldOf(snapshot.value.set, snapshot.value.derived),
-                  )
-                ),
+                Effect.sync(() => {
+                  if (snapshot === null) return cell.set(NO_INBOX)
+                  const { set, derived } = snapshot.value
+                  inboxFile = conventionServed(inboxIn, set, snapshot, inboxFile)
+                  cell.set(inboxHeldIn(derived, inboxFile.file))
+                }),
             ),
         },
         /** The whole directory binding, because one revision is one write of

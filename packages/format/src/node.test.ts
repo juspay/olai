@@ -110,6 +110,18 @@ test("a directory's shelf is whichever outline is called that, wherever it sits"
   // Shallowest first, then path order — the inbox's rule, because it is the
   // same walk.
   expect(pinsIn(["deep/down/Pins.olai", PINS, "a/Pins.olai"])).toBe(PINS)
+  // TWO SPELLINGS OF ONE NAME at one depth is the tie the walk actually has to
+  // break, and it breaks it on path order like any other pair: `P` sorts before
+  // `p`. Pinned here because the walk is a running minimum rather than a sort
+  // (`outlineCalled`), so "which of these two" is a comparison somebody could
+  // get backwards without any list looking wrong.
+  expect(pinsIn(["pins.olai", "Pins.olai"])).toBe("Pins.olai")
+  expect(pinsIn(["Pins.olai", "pins.olai"])).toBe("Pins.olai")
+  // …and it is a MINIMUM and not a first-match, so the order the caller hands
+  // the files over in cannot change the answer. A map's keys and a set are
+  // both legal here, which is what the two readers of a derivation pass.
+  expect(pinsIn(new Set(["a/Pins.olai", "Pins.olai"]))).toBe("Pins.olai")
+  expect(pinsIn(new Map([["a/Pins.olai", 1], ["Pins.olai", 2]]).keys())).toBe("Pins.olai")
 })
 
 // WHERE OLAI MINTS ONE is a different question from where it FINDS one, and
