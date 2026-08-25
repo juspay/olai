@@ -354,7 +354,7 @@ type Decoded = ReturnType<typeof decodedOf> extends Map<string, infer V> ? V : n
 const HELD = new Map<string, Decoded>()
 
 const decoded = (file: string, text: string): Decoded => {
-  const key = `${file} ${text}`
+  const key = `${file}\0${text}`
   const found = HELD.get(key)
   if (found !== undefined) return found
   const parsed = decodedOf({ [file]: text }).get(file) as Decoded

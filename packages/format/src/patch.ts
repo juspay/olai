@@ -362,8 +362,30 @@ const refiled = <K extends Listed, Filed extends Member<K> = Member<K>>(
     /** Where an entry IS — the file its survival is judged by, and the place it
      *  is ordered on. */
     readonly at: (one: Member<K>) => Located
-    /** The order this index promises its members in: corpus order for three of
-     *  the four, and the format's sibling order for `children`. */
+    /**
+     * The order this index promises its members in: corpus order for three of
+     * the four, and the format's sibling order for `children`.
+     *
+     * A FIFTH INDEX REGISTERS ITS ORDER IN THE DIFFERENTIAL, and this is the
+     * place that says so because it is the place its author is standing. What
+     * {@link spliced} costs is bought with this comparator, and what proves the
+     * splice is `./splice.test.ts` — but that harness names the indexes it
+     * covers BY HAND (`casesFor`), while {@link Listed} is structural: a new
+     * client of this function compiles in with no cases, no corner floors and
+     * no mutation proof, and every assertion over there goes on passing while
+     * saying nothing about it. So an index added here is added there, as its
+     * `(at, order)` pair.
+     *
+     * AND WHAT THE PAIR HAS TO DECLARE IS ITS TIES. The splice places an
+     * arriving member AFTER every member it compares equal to, which is what
+     * the rebuild's stable sort did — and that rule decides nothing for the
+     * four here, because each of their orders ends in {@link byCorpus} and a
+     * tie there means one file and one line, while a survivor and an arrival
+     * are never in one file. The differential asserts exactly that of every key
+     * it is handed, so an order that CAN tie the two sides — one keyed on a day,
+     * a name, a path alone — trips that assertion the moment its cases are
+     * registered, and is a silent reordering if they never are.
+     */
     readonly order?: (one: Located, other: Located) => number
   },
 ): Refiled<Member<K>> => {
@@ -1075,6 +1097,16 @@ const owing = (
       owingOn(arriving.get(key) ?? NOTHING)
     if (owed === held) continue
     map ??= carrying(edit.before, "owedByDay")
+    // A NEGATIVE TALLY IS THIS STEP'S ONE NEW FAILURE SHAPE, and it is named
+    // rather than guarded (pi, on this PR). The recount this replaced could not
+    // go below zero by construction — it counted a list — while a DIFFERENCE
+    // can, if the carried tally and the day's members ever disagree about what
+    // that day owes, and `owed > 0` would then file the day as owing nothing
+    // rather than as wrong. It cannot happen over a view this file's own
+    // assumption holds for (the header: the tallies ARE the buckets counted),
+    // and what would catch it is the oracle rather than a throw here — a
+    // patcher that threw on a keystroke is a worse answer than a patcher that
+    // declines, and this step has no decline to give.
     if (filedAt(map, key, owed, owed > 0)) rekeyed = true
   }
   return map === undefined ? before : inKeyOrder(map.sealed(), rekeyed, byDayKey)

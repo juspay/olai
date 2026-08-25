@@ -770,8 +770,19 @@ export const nodesOf = (
 
 /**
  * Sibling order, as the format defines it: `ord` is a fractional index over
- * base62, so plain string comparison IS the sort, and file order breaks ties
+ * base62, so plain string comparison IS the sort, and the LINE breaks ties
  * rather than leaving them to the engine.
+ *
+ * THE LINE AND NOT THE FILE, which is what this comparator itself settles —
+ * said precisely here because two callers now lean on the difference. Siblings
+ * share a parent and `parent` is same-file by the format, so the line is the
+ * whole answer for every set the validator accepts. Where it is NOT — a set
+ * that has been condemned, whose children come from two files — this leaves the
+ * pair equal, and where the ORDER of that pair is answered is one level up:
+ * {@link derive}'s walk is in corpus order and its sort is stable, so the file
+ * decides by the pair rather than by this function. A caller that MERGES two
+ * lists instead of sorting one cannot get that for free and has to spell the
+ * pair out, which is exactly what `./patch.ts`'s `bySibling` is.
  *
  * Exported because a WRITER needs it too — placing a node among its siblings is
  * the same question a reader asks, and a second comparator would be a second
