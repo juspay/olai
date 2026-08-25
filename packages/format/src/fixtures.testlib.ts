@@ -295,6 +295,44 @@ export const vaultOf = (
   return corpus
 }
 
+/**
+ * A {@link vaultOf} corpus with the placements that point at nothing taken out
+ * — the same vault, VALIDATABLE.
+ *
+ * `vaultOf` writes a mirror into a file naming a record of the file BEFORE it,
+ * and skips a file whose generated path collides with one already written — so
+ * a handful of those mirrors name a file the directory does not hold. That is
+ * fine for the benches the vault was built for (`derive` and the patcher both
+ * answer over sets the validator condemns), and it is fatal for a leg that
+ * PUBLISHES its revisions: a directory with one finding in it is a directory
+ * nobody publishes, so every revision after the first would be a refusal.
+ *
+ * Here rather than in either leg that wants it — it was written inside
+ * `./validate.bench.ts` and `./conventions.bench.ts` needed the same vault for
+ * the same reason, which is the moment a fixture stops being one file's.
+ */
+export const settled = (held: ReadonlyMap<string, string>): ReadonlyMap<string, string> => {
+  const declared = new Set<string>()
+  for (const text of held.values()) {
+    for (const line of text.split("\n")) {
+      if (line !== "") declared.add(String((JSON.parse(line) as { id: string }).id))
+    }
+  }
+  return new Map(
+    [...held].map(([file, text]) => [
+      file,
+      text
+        .split("\n")
+        .filter((line) => {
+          if (line === "") return false
+          const record = JSON.parse(line) as { readonly mirror?: string }
+          return record.mirror === undefined || declared.has(record.mirror)
+        })
+        .join("\n"),
+    ]),
+  )
+}
+
 /** Paths a directory really holds — see {@link vaultOf}. Drawn from the same
  *  stream the records are, so the whole vault is one seed's answer. */
 const pathOf = (random: () => number, at: number): string => {

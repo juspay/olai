@@ -63,6 +63,7 @@ import {
   nodesOf,
   outlineOf,
   retitled,
+  settled,
   timed,
   vaultOf,
 } from "./fixtures.testlib.ts"
@@ -95,39 +96,11 @@ const DOCS = Number(process.env["OLAI_BENCH_DOCS"] ?? 500)
 
 // ── the directory ──────────────────────────────────────────────────────
 
-/**
- * The vault, with the placements that point at nothing taken out.
- *
- * `vaultOf` writes a mirror into a file naming a record of the file BEFORE it,
- * and skips a file whose generated path collides with one already written — so
- * a handful of those mirrors name a file the directory does not hold. That is
- * fine for the benches this vault was built for (`derive` and the patcher both
- * answer over sets the validator condemns), and it is fatal here: a directory
- * with one finding in it is a directory nobody publishes, so the narrowing
- * would decline on every edit and both arms would be timed doing nothing.
- */
-const settled = (held: ReadonlyMap<string, string>): ReadonlyMap<string, string> => {
-  const declared = new Set<string>()
-  for (const text of held.values()) {
-    for (const line of text.split("\n")) {
-      if (line !== "") declared.add(String((JSON.parse(line) as { id: string }).id))
-    }
-  }
-  return new Map(
-    [...held].map(([file, text]) => [
-      file,
-      text
-        .split("\n")
-        .filter((line) => {
-          if (line === "") return false
-          const record = JSON.parse(line) as { readonly mirror?: string }
-          return record.mirror === undefined || declared.has(record.mirror)
-        })
-        .join("\n"),
-    ]),
-  )
-}
-
+/** The vault a directory could actually publish: the placements that point at
+ *  nothing taken out, since a directory with one finding in it is one nobody
+ *  publishes and the narrowing would decline on every edit
+ *  ({@link ./fixtures.testlib.ts}'s `settled`, written here and moved there
+ *  when a second leg wanted the same pruning — `./conventions.bench.ts`). */
 const corpus = settled(vaultOf({ files: FILES, records: RECORDS }))
 const paths = [...corpus.keys()].sort(byPath)
 

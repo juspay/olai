@@ -188,8 +188,23 @@ export const pinTargetIn = (title: string): string | undefined => {
  * a parser rather than a list of prefixes), and a row this could not draw is a
  * row `Pins.olai`'s own page still draws as an ordinary heading or note.
  */
-export const shelfOf = (derived: Derived): Shelf => {
-  const file = pinsIn([...derived.byFile.keys()])
+export const shelfOf = (derived: Derived): Shelf =>
+  shelfIn(derived, pinsIn(derived.byFile.keys()))
+
+/**
+ * The shelf of a NAMED file — {@link shelfOf} with the convention walk lifted
+ * out of it, for the caller that carries that answer across revisions rather
+ * than re-deriving it per one (`./conventions.ts`, `perf-filename-conventions`).
+ *
+ * TWO FUNCTIONS AND NOT A DEFAULTED ARGUMENT, because `undefined` is an answer
+ * here and not an absence of one: a directory with no shelf file draws nothing,
+ * and a caller passing `undefined` is saying that rather than declining to
+ * say anything. The one above stays the plain reading — what the shelf IS, over
+ * a view and nothing else — and it is what the differential holds the carried
+ * answer against (`./conventions.test.ts`), the way #387 kept its rebuild in
+ * the module the sharing lives in.
+ */
+export const shelfIn = (derived: Derived, file: string | undefined): Shelf => {
   if (file === undefined) return NO_PINS
   return rootsOf(derived, file).flatMap((located) => {
     const node = located.node

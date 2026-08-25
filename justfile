@@ -224,7 +224,7 @@ hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
 # What a keystroke costs — on a generated vault, and for the newest of them in
-# a real git repository. THIRTEEN of them, and each is a
+# a real git repository. FOURTEEN of them, and each is a
 # LEG rather than a scratch file, because slice 3 of `model-indices` ran its
 # numbers as a one-off and a benchmark nobody can re-run is a number nobody can
 # check — and deliberately NOT a dependency of `check`, since a timing that
@@ -433,17 +433,42 @@ hm-module:
 #     the ratio is a function of how thickly the corpus points at itself, and
 #     that density is printed rather than left to be inferred. Size it with
 #     OLAI_BENCH_OUTLINES / OLAI_BENCH_BODIES / OLAI_BENCH_RECORDS /
-#     OLAI_BENCH_PAGES / OLAI_BENCH_EDITS.
+#     OLAI_BENCH_PAGES / OLAI_BENCH_EDITS;
+#   - the TWO SIDEBAR READINGS per published revision — the pinned shelf and
+#     how full the inbox is, timed as they stood against the same two readings
+#     over a CARRIED convention (`packages/format/src/conventions.bench.ts`,
+#     added with `perf-filename-conventions`). Each of them began by asking
+#     WHICH FILE it is about, which is every served basename sliced, folded and
+#     compared — per revision, which is per keystroke — for an answer that
+#     moves only when a file is added, removed or renamed. THREE ROWS, because
+#     the shape of the revision is the whole claim: a keystroke and a `git
+#     pull` of twenty, neither of which moves a path and which between them are
+#     nearly every revision there is; and a FILE CREATED every time, which is
+#     the honest null — the path set moves, the walk runs, and the row reports
+#     as 1.0× or thereabouts. Beside each ratio is the count of WALKS the row
+#     actually spent out of the two per revision it used to, so a row whose
+#     ratio is one says why out loud. Both arms are in the tree for the scoped
+#     query's reason — the "before" is `shelfOf` / `inboxHeldOf`, the plain
+#     readings, kept as that lane's differential reference — and the two are
+#     compared at every revision before a figure is quoted, so a divergence
+#     throws rather than printing a ratio nobody may believe. Its vault is
+#     `vaultOf` SETTLED (the placements that point at nothing taken out, since
+#     this leg publishes its revisions) with a shelf and an inbox put in: a
+#     directory with neither is one where both readings answer nothing and half
+#     of what is timed never happens. It reads OLAI_BENCH_FILES /
+#     OLAI_BENCH_RECORDS / OLAI_BENCH_EDITS.
 #
-# FIVE of the thirteen run the SAME generated vault (`@olai/format/testlib`'s
+# FIVE of the fourteen run the SAME generated vault (`@olai/format/testlib`'s
 # `vaultOf`, unmodified — the patcher, the tag completion, the day readings, the
 # search index and the four tool-call walks), so what a write costs the view and
 # what a completion, a calendar, a search box or a capture asks of the view it
-# leaves are numbers about one directory. TWO MORE BUILD ON IT and say so in
+# leaves are numbers about one directory. THREE MORE BUILD ON IT and say so in
 # their own rows, which is why they are not in that count: the published
-# revision's puts the other kinds of file in beside the outlines, and the
-# validation's takes the dangling placements out and puts `.md` in — each
-# because the leg would otherwise measure a third of its subject at zero. The
+# revision's puts the other kinds of file in beside the outlines, the
+# validation's takes the dangling placements out and puts `.md` in, and the
+# sidebar readings' takes the same placements out and puts a shelf and an
+# inbox in — each because the leg would otherwise measure a third of its
+# subject at zero. The
 # matcher, the document listing, the scoped query, the standing views and the
 # referrers each generate a corpus of their own — one sized for keystrokes, one
 # for a vault of `.md`, one made of TREES, one with a third of its files holding
@@ -476,6 +501,7 @@ bench: install
     {{ nix_shell }} bun packages/format/src/validate.bench.ts
     {{ nix_shell }} bun packages/format/src/pointing.bench.ts
     {{ nix_shell }} bun packages/ops/src/walks.bench.ts
+    {{ nix_shell }} bun packages/format/src/conventions.bench.ts
 
 # A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
 # instead of the nix-built binary. `/tmp/olai-dev` is how two worktrees

@@ -566,7 +566,7 @@ export const INBOX = `Inbox${OUTLINE_EXT}`
  * or `notes/inbox.olai`, goes on capturing into the file it has, and nothing
  * migrates.
  */
-export const inboxIn = (files: ReadonlyArray<string>): string | undefined =>
+export const inboxIn = (files: Iterable<string>): string | undefined =>
   outlineCalled(files, INBOX)
 
 /**
@@ -734,14 +734,14 @@ export const isPutAway = (file: string): boolean =>
 /** The directory's shelf, or `undefined` when it has none — {@link inboxIn}'s
  *  question one convention over, answered by the same walk so that one
  *  directory cannot have two answers depending on who asked. */
-export const pinsIn = (files: ReadonlyArray<string>): string | undefined =>
+export const pinsIn = (files: Iterable<string>): string | undefined =>
   outlineCalled(files, PINS)
 
 /** The directory's property declarations, or `undefined` when it has none —
  *  {@link pinsIn}'s question one convention over, answered by the same walk for
  *  the same reason: one directory, one answer, whoever asked. A vault with no
  *  such file declares no key, and every key in it is text. */
-export const propertiesIn = (files: ReadonlyArray<string>): string | undefined =>
+export const propertiesIn = (files: Iterable<string>): string | undefined =>
   outlineCalled(files, PROPERTIES)
 
 /**
@@ -764,16 +764,64 @@ export const propertiesIn = (files: ReadonlyArray<string>): string | undefined =
  * PATH ORDER is the set's own ({@link ./paths.ts}), rather than a compare
  * spelled here: there is one answer in this package to "which file comes
  * first", and a second one would be a directory whose inbox depended on who
- * was asking.
+ * was asking. It is asked as a running minimum ({@link nearerOf}) rather than
+ * as a sort, which is also what makes the answer independent of the ORDER the
+ * files arrive in — a caller may hand over a list, a map's keys or a set, and
+ * a directory that holds two still has one answer.
+ *
+ * ITERABLE and not a list, for that last reason and for one more: the two
+ * readers that ask this of a derivation were spelling it
+ * `propertiesIn([...derived.byFile.keys()])`, which is a copy of every served
+ * path built to be walked once and dropped ({@link ./rules.ts},
+ * {@link ./typing.ts}, once per write each).
  */
 const outlineCalled = (
-  files: ReadonlyArray<string>,
+  files: Iterable<string>,
   name: string,
-): string | undefined =>
-  files
-    .filter((file) => basenameOf(file).toLowerCase() === name.toLowerCase())
-    .sort((a, b) => depthOf(a) - depthOf(b) || byPath(a, b))
-    .at(0)
+): string | undefined => {
+  const called = name.toLowerCase()
+  let held: string | undefined
+  for (const file of files) {
+    if (basenameOf(file).toLowerCase() !== called) continue
+    held = held === undefined ? file : nearerOf(held, file)
+  }
+  return held
+}
 
+/**
+ * Of two files a directory calls the same thing, the one a convention MEANS —
+ * {@link outlineCalled}'s tie rule as a comparison of two, which is what makes
+ * the walk above a running minimum rather than a filtered list that is then
+ * sorted.
+ *
+ * The rule is unchanged and reads the same way: shallowest wins, then path
+ * order. What changed is that the walk no longer ALLOCATES — a list of the
+ * matches, a sort over it, and (in {@link depthOf}) an array of segments per
+ * comparison — for an answer that is one string. The walk is over every served
+ * file, and {@link ./conventions.ts} is what stopped it being run per revision;
+ * what it spends per file is worth spelling out for the times it does run.
+ *
+ * A TIE IS UNREACHABLE and is therefore not a case of its own: two paths of
+ * equal depth that compare equal under {@link byPath} are the same string, and
+ * a directory does not serve one file twice. `held` is kept when they tie,
+ * which is what the stable sort answered as well.
+ */
+const nearerOf = (held: string, file: string): string => {
+  const deeper = depthOf(file) - depthOf(held)
+  return deeper < 0 || (deeper === 0 && byPath(file, held) < 0) ? file : held
+}
 
-const depthOf = (file: string): number => file.split("/").length
+/** How many segments deep a path sits — COUNTED rather than split, so a
+ *  comparison of two files allocates nothing. `a.olai` is 1 and
+ *  `wing/a.olai` is 2, which is `split("/").length` exactly. */
+const depthOf = (file: string): number => {
+  let depth = 1
+  for (let at = 0; at < file.length; at++) {
+    if (file.charCodeAt(at) === SEPARATOR) depth++
+  }
+  return depth
+}
+
+/** `/` as {@link depthOf} counts it — the one character a path is made of
+ *  segments by, and the same one {@link ./paths.ts} sorts first. */
+const SEPARATOR = "/".charCodeAt(0)
