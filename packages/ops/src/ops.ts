@@ -65,6 +65,7 @@ import {
 } from "./pending.ts"
 import { type Context, plan } from "./plan.ts"
 import * as Query from "./query.ts"
+import { standing } from "./standing.ts"
 import { sortOfWrite } from "./sorted.ts"
 import { asking, type Asking } from "./tools.ts"
 
@@ -384,6 +385,17 @@ export const make = (options: Options): Ops => {
    */
   const index = openIndex()
 
+  /**
+   * THE FIVE STANDING VIEWS, sharing per revision ({@link ./standing.ts}).
+   *
+   * Here for the search index's reason one line up: what it holds is a fact
+   * about THIS served directory — the answers its open subscriptions are
+   * looking at — so it is built where the store is named, a server serving two
+   * directories builds two without saying so, and a test that builds an `Ops`
+   * gets the shared path rather than a path only production takes.
+   */
+  const views = standing(context.now)
+
   const commits = makeCommits({
     store: options.store,
     root: options.root,
@@ -557,8 +569,22 @@ export const make = (options: Options): Ops => {
     // over the WHOLE reading rather than the derivation alone, for `page`'s
     // reason: what a query selects is asked of one page, and which page an
     // address names is a question about files as well as records.
-    narrowing: (request) =>
-      Effect.map(read, (at) => Query.narrowing(at, request, context.now())),
+    //
+    // …and through {@link ./standing.ts}, like the four other STANDING views
+    // below it: this is not asked once and answered, it is held open by every
+    // tab that has the filter box in front of somebody, and the framework gives
+    // each of them a poll loop of its own. What that module adds is that one
+    // question at one revision is answered ONCE however many are watching, and
+    // that a revision which moved nothing this answer read does not rebuild it
+    // at all. The read is still the gated one and the answer is still
+    // {@link ./query.ts}'s — nothing is decided there and nothing new is
+    // decided here.
+    //
+    // THE CLOCK GOES IN rather than being read at the call, which is the one
+    // visible difference: the narrowing's relative words count from the instant
+    // its answer was COMPUTED, which is once per question per revision instead
+    // of once per subscriber per read.
+    narrowing: (request) => Effect.map(read, (at) => views.narrowing(at, request)),
     // The transcript's backticks, over the same gated read and with no clock in
     // it: an id names what it names whatever day it is asked on.
     named: (request) => Effect.map(read, (at) => Query.named(at.derived, request)),
@@ -573,17 +599,17 @@ export const make = (options: Options): Ops => {
     // half of the set is prose. The day they are counted against is the
     // REQUEST's, never `context.now()` — the reader's clock is the only one
     // that can say what is late for them (`./query.ts`'s `owed`).
-    dated: (request) => Effect.map(read, (at) => Query.dated(at.derived, request)),
-    owed: (request) => Effect.map(read, (at) => Query.owed(at.derived, request)),
+    dated: (request) => Effect.map(read, (at) => views.dated(at, request)),
+    owed: (request) => Effect.map(read, (at) => views.owed(at, request)),
     // THE PAGE, over the same gated read — the WHOLE reading rather than the
     // derivation alone, because two of the questions a page asks are about
     // files rather than about records: which paths the directory serves, and
     // which of them is a day's note (`Query.homes`' argument, one door along).
-    page: (request) => Effect.map(read, (at) => Query.page(at, request)),
+    page: (request) => Effect.map(read, (at) => views.page(at, request)),
     // The move picker's preview, over the same gated read and over the
     // derivation alone: every rule it previews is about records and where they
     // are drawn.
-    moving: (request) => Effect.map(read, (at) => Query.moving(at.derived, request)),
+    moving: (request) => Effect.map(read, (at) => views.moving(at, request)),
     // The COMPLETION's door, over the same gated read: the vocabulary the set
     // has already written down, ranked and capped for a popup. Also the
     // browser's alone, and also nothing decided here — what counts as a tag,
