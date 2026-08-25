@@ -618,7 +618,23 @@ const unwritten = (): void => {
   if (lazy() !== layer) {
     throw new Error("the lazy arm did not hand its layer back — it wrote to something")
   }
-  if (eager()[0].size !== changed.size) throw new Error("the eager arm did not copy the layer")
+  // WHAT THE RECONSTRUCTION ASSUMES, asked of the LAYER rather than of itself.
+  // The eager arm hand-builds the three the constructor used to copy, and the
+  // two empty ones are only right because every write above re-set a key
+  // `base` already had: a key it lacked would have gone into the layer's
+  // `appended` and moved its size, and the arm would then be copying two empty
+  // sets where the constructor copied one holding something. `size` is the
+  // arithmetic that says so from outside — `base.size - gone.size +
+  // appended.size` — and it is the only reading of those two `Layer` keeps that
+  // does not need them exported. Asking the arm whether its own `new
+  // Map(changed)` came out the size of `changed` was the fence here before, and
+  // it could not fail (#392, pi).
+  if (layer.size !== base.size) {
+    throw new Error(
+      `the layer holds ${layer.size} of ${base.size} keys — it added or dropped one,` +
+        " so the empty sets this arm copies are not the ones the constructor did",
+    )
+  }
   const [asEager, asLazy] = alternating([eager, lazy] as const)
   const made = (arm: () => unknown): { readonly maps: number; readonly sets: number } => {
     const kept: Array<unknown> = []
