@@ -81,11 +81,11 @@ const sequence = () => {
 }
 
 test("one Enter, one commit — the blur its close fires stands down", () => {
-  // THE BUG THIS FILE WAS ASKED TO PIN RED (chip-blur-double-commit-2):
-  // today this sequence is TWO sends — the commit, then the blur the commit's
-  // close fired, sending the same write again — and the ops layer's
-  // no-change guard draws that second send as the spurious "already says … —
-  // nothing would change" note under the run.
+  // THE PINNED ONE (chip-blur-double-commit-2): this sequence used to be TWO
+  // sends — the commit, then the blur the commit's close fired, sending the
+  // same write again — and the ops layer's no-change guard drew that second
+  // send as the spurious "already says … — nothing would change" note under
+  // the run.
   const gestures = sequence()
   gestures.enter()
   gestures.blur() // the one the unmount fires

@@ -134,21 +134,14 @@ export type ClosedBy = "enter" | "escape" | null
  * The ORDER the events arrive in is the browser's, and it is hostile: a key
  * closes the box, and removing the focused box FIRES the blur at the gesture
  * whose close that already was. So the box listens for the gesture only while
- * none has answered, and records the first one that does.
- *
- * THE `enter` ROW IS THE PINNED BUG, shipped law modelled faithfully for one
- * commit so the pin beside it (`./editor.test.ts`, and the chip scenarios in
- * @olai/tests' `properties.feature`) can hold it RED: Enter answers the box,
- * and yet this table leaves the blur ARMED — the commit does not own the
- * close — so one Enter is heard as two sends of the same write and the ops
- * layer's no-change guard converts the second into the spurious "already says
- * … — nothing would change" note of `chip-blur-double-commit-2`. The law the
- * header argues is `closedBy === null`; the row flips one commit later, with
- * the red pin already standing watch. (`closedBy !== "escape"` is not — and
- * never was — an alternative law somebody prefers: it is the bug, spelled as
- * one predicate so the flip is the whole of the fix.)
+ * none has answered, and the first key to answer owns the close: the blur its
+ * wake fires stands down. What used to make the `enter` row the exception —
+ * one Enter heard twice, the second send drawn as the no-change guard's
+ * "already says … — nothing would change" note (`chip-blur-double-commit-2`,
+ * and the add chip's focus-out answered the same law without it being the one
+ * filed) — was the absence of this record, not a rule somebody preferred.
  */
-export const leavingCommits = (closedBy: ClosedBy): boolean => closedBy !== "escape"
+export const leavingCommits = (closedBy: ClosedBy): boolean => closedBy === null
 
 /**
  * IS THE EDITOR OPEN ON THIS CHIP — asked by the chip's own identity, never by
