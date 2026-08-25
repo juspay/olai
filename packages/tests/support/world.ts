@@ -217,6 +217,11 @@ export const QUIET_WINDOW_STEP_TIMEOUT = QUIET_WINDOW_TIMEOUT + STEP_GUARD;
 /** The `Before` hook may have to boot a server before it can open a page. */
 export const SCENARIO_SETUP_TIMEOUT = SERVER_START_TIMEOUT + STEP_GUARD;
 
+/** After a sharing scenario: drain in-flight writes (one resync) then
+ *  restore then resync. Each POST is bounded by {@link SERVER_START_TIMEOUT};
+ *  this envelope is both, plus the guard. */
+export const AFTER_SHARE_TIMEOUT = SERVER_START_TIMEOUT * 2 + STEP_GUARD;
+
 // ── the UI contract ────────────────────────────────────────────────────
 
 /** The mount point — `index.html`'s, not the client's, so it is the one

@@ -1083,6 +1083,14 @@ test("a base the store has moved past is a StaleWrite naming where it is", () =>
       expect(read("a.txt")).toBe("alpha, from us")
     })))
 
+test("PIN (stage): an interrupted write discards temps, not only a failed one", () => {
+  const src = fs.readFileSync(path.join(import.meta.dirname, "store.ts"), "utf8")
+  const gate = src.slice(src.indexOf("Every file staged before any is renamed"))
+  expect(gate).toContain("Effect.onExit(")
+  expect(gate).toContain("Exit.isSuccess(exit)")
+  expect(gate.indexOf("Effect.onError(")).toBe(-1)
+})
+
 test("a set the codec refuses is not written and leaves no temp behind", () =>
   withStore({ "a.txt": "alpha" }, ({ listing, read, store }) =>
     Effect.gen(function*() {

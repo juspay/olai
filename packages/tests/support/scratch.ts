@@ -5,10 +5,10 @@
  * By default that is a private copy and a private server, thrown away with
  * the scenario. Features opt in with `@share-scratch` at the top: every
  * `@scratch:` scenario on this worker shares one copy and one server, and
- * After restores the tree to the fixture and asks the still-running server
- * to re-read (`POST /olai/resync`). Overlapping writers can share because
- * the next scenario starts from the original corpus, not from the last
- * one's leftovers.
+ * After drains in-flight writes, restores the tree to the fixture, and
+ * asks the still-running server to re-read (`POST /olai/resync`).
+ * Overlapping writers can share because the next scenario starts from the
+ * original corpus, not from the last one's leftovers.
  *
  * Sharing is per worker, never across workers. `--parallel` is one process
  * per worker; one olai per directory is a kernel lock
@@ -41,8 +41,9 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 /** `@share-scratch` on a feature: its `@scratch:` scenarios share one copy
- *  and one server per worker. After each, the tree is restored to the
- *  fixture and the server re-reads, so overlapping writers can share. */
+ *  and one server per worker. After each, in-flight writes drain, the tree
+ *  is restored to the fixture, and the server re-reads, so overlapping
+ *  writers can share. */
 export const SHARE_TAG = "@share-scratch";
 /** `@own-scratch` on a scenario inside a sharing feature: keep a private
  *  copy, because restore cannot make this one's state true (it restarts
@@ -249,8 +250,9 @@ export const unrestoredError = (
 
 /**
  * Ask the still-running server to re-read the restored files. Returns
- * only once `Store.resync` has published — the contract the next scenario's
- * first load needs. Bytes on disk are not that contract.
+ * only once in-flight writes have finished and `Store.resync` has
+ * published — the contract the next scenario's first load needs. Bytes
+ * on disk are not that contract.
  */
 export const askResync = async (
   baseUrl: string,
@@ -270,4 +272,30 @@ export const askResync = async (
         })`,
     );
   }
+};
+
+/**
+ * Put a shared scratch back to its fixture, and do not return until the
+ * still-running server has re-read that tree.
+ *
+ * THE ORDER IS THE CONTRACT. Closing the tab can still have a write in
+ * flight — a blur commit, a last key the page sent before the socket
+ * dropped — and restoring under that write is how After left
+ * `.olai-<pid>-<n>.tmp` on the tree. So: wait until no `run` is in
+ * flight (`POST /olai/resync` waits on that before it probes), THEN put
+ * the bytes back, THEN ask it to look again. A leftover after the second
+ * look is a restore that did not take.
+ */
+export const restoreShared = async (
+  baseUrl: string,
+  served: string,
+  fixture: string,
+  origin: ReadonlyMap<string, string>,
+  timeoutMs: number,
+): Promise<ReadonlyArray<string>> => {
+  await askResync(baseUrl, timeoutMs);
+  if (sameTree(filesOf(served), origin)) return [];
+  restoreTree(served, fixture);
+  await askResync(baseUrl, timeoutMs);
+  return leftovers(origin, served);
 };

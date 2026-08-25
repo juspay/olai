@@ -35,7 +35,7 @@ import {
 import { recordsOf } from "@olai/format/testlib"
 import * as Store from "@olai/store"
 import { describe, expect, test } from "bun:test"
-import { Effect, Result, SubscriptionRef } from "effect"
+import { Deferred, Effect, Fiber, Result, SubscriptionRef } from "effect"
 
 import { codec } from "./codec.ts"
 import type { Store as OutlineStore } from "./deps.ts"
@@ -211,6 +211,56 @@ test("the shown kinds join the set as paths; a `.md` brings its text", () =>
   ))
 
 // ── the write path ─────────────────────────────────────────────────────
+
+test("PIN (idle): idle is already true when nothing is writing", () =>
+  withOps({ "house.olai": HOUSE }, (fixture) => fixture.ops.idle))
+
+test("PIN (idle): idle does not complete while a run is in the gate", () => {
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-ops-idle-")))
+  fs.writeFileSync(path.join(root, "house.olai"), HOUSE)
+  return Effect.gen(function*() {
+    const store = yield* Store.make({
+      root,
+      codec,
+      watch: false,
+      settle: "10 millis",
+    })
+    const hold = yield* Deferred.make<void>()
+    const entered = yield* Deferred.make<void>()
+    const gated: typeof store = {
+      ...store,
+      commit: (write) =>
+        Effect.andThen(
+          Deferred.succeed(entered, undefined),
+          Effect.andThen(Deferred.await(hold), store.commit(write)),
+        ),
+    }
+    const ops = Ops.make({
+      store: gated,
+      root,
+      policy: fixedPolicy({ commit: "off", push: null }),
+      context: steady(),
+    })
+    yield* ops.idle
+    const writing = yield* Effect.forkChild(
+      ops.run({ op: "done", id: "order" }, "web"),
+      { startImmediately: true },
+    )
+    yield* Deferred.await(entered)
+    const idling = yield* Effect.forkChild(ops.idle, { startImmediately: true })
+    expect(idling.pollUnsafe()).toBeUndefined()
+    yield* Deferred.succeed(hold, undefined)
+    yield* Fiber.join(idling)
+    const applied = yield* Fiber.join(writing)
+    expect(applied).toMatchObject({ id: "order", file: "house.olai" })
+  }).pipe(
+    Effect.scoped,
+    Effect.provide(NodeServices.layer),
+    Effect.runPromise,
+  ).finally(() => {
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+})
 
 test("a mark lands on disk as bytes the parser reads back", () =>
   withOps({ "house.olai": HOUSE }, (fixture) =>

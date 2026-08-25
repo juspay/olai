@@ -235,12 +235,14 @@ export const serve = (options: ServeOptions) =>
         port,
         bound: wired.bound,
         mcp: { transport, token, identity: options.identity },
-        // `POST /olai/resync` — force a re-read of the disk. Handed the
-        // STORE's own operation rather than a runtime member, because nothing
-        // about it is on the surface: no tab draws it and no agent calls it. It
-        // is for the case the watcher cannot see, which is a change made where
-        // no inotify reaches.
-        resync: store.resync,
+        // `POST /olai/resync` — force a re-read of the disk. Waits for
+        // in-flight writes first (`ops.idle`): a probe while a `run` is
+        // still staging is a look at `.olai-*.tmp`, not at the tree the
+        // next reader will be served. Then the store's own forget-and-probe.
+        // Nothing about it is on the surface: no tab draws it and no agent
+        // calls it. It is for the case the watcher cannot see, which is a
+        // change made where no inotify reaches.
+        resync: Effect.andThen(ops.idle, store.resync),
       }),
       () => runtime.stopped,
     )
