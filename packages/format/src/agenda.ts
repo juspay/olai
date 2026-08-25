@@ -46,21 +46,10 @@ import { Schema } from "effect"
 import { daysBetween, MONTHS, WEEKDAYS, weekdayOf } from "./calendar.ts"
 
 import { datedIn, DayGroup, groupedOn } from "./dates.ts"
-import { unfinished, type Derived } from "./derive.ts"
+import { dayAt, type Derived, unfinishedWork } from "./derive.ts"
 import { keepingDated, type Selected } from "./filter.ts"
-import { type RegularNode, storedMarker } from "./node.ts"
+import type { RegularNode } from "./node.ts"
 import { type Dated, dayOf, timeOf } from "./occasion.ts"
-
-/**
- * Is this node WORK that nobody has finished?
- *
- * {@link unfinished} asked of the mark the node stores — one composition,
- * because {@link isOverdue} and {@link owedOn} are the same question with and
- * without the day, and two `storedMarker` walks would be two chances to write
- * `!== "done"` again. Named apart from `unfinished` so a node-taking helper
- * cannot shadow the mark-taking one, which is how the old local survived.
- */
-const unfinishedWork = (node: RegularNode): boolean => unfinished(storedMarker(node))
 
 /**
  * Should this have happened by now?
@@ -237,11 +226,17 @@ export const sameOwed: (a: Owed, b: Owed) => boolean = Schema.toEquivalence(Owed
 /**
  * The counts, taken from an agenda that has already been read.
  *
- * It takes the ANSWER rather than the set, which is the point of it: a second
- * walk that counted late work its own way would be a second reading of one
- * directory, free to disagree with the page listing it — the same argument
- * {@link nothingDue} is spelled here for, one predicate up. So whatever marks
- * the agenda from outside it counts the very rows the page draws.
+ * It takes the ANSWER rather than the set, which is the point of it: a page
+ * that counted its own rows a second way would be free to disagree with the
+ * rows it had just drawn — the same argument {@link nothingDue} is spelled here
+ * for, one predicate up.
+ *
+ * WHAT MARKS THE PAGE FROM OUTSIDE IT DOES NOT COME THROUGH HERE ANY MORE, and
+ * that is {@link owedNow}'s whole subject: this one is for a caller with an
+ * agenda in hand, and there is only one — the tests and the benchmark that hold
+ * the two spellings to one answer. Nothing that ships reads an agenda for its
+ * counts, because building one to count it is what `perf-agenda-history-walk`
+ * was filed on.
  *
  * NODES rather than groups: a group is one outline's worth of them, and "3"
  * on a mark means three things are late, not three files are. The today
@@ -252,6 +247,45 @@ export const owedOf = (agenda: Agenda): Owed => ({
   overdue: datedInDays(agenda.overdue),
   today: datedIn(agenda.today),
 })
+
+/**
+ * The counts, WITHOUT reading an agenda: what the mark outside the page prints.
+ *
+ * The two numbers are the whole of what a subscriber wanted, and getting them
+ * out of {@link agendaOf} meant DRESSING every overdue node in the directory to
+ * throw the dressing away — {@link ./dates.ts}'s `groupedOn` situates each row,
+ * which is an ancestry walk, a mirror resolution and a rollup per node, for two
+ * integers, per subscriber, per published revision (roadmap
+ * `perf-agenda-history-walk`). Both numbers are ADDITIONS over an index the
+ * patcher keeps here ({@link Derived.owedByDay}): the days that have gone,
+ * added up, and today's own tally read off a key.
+ *
+ * WHICH IS A SECOND READING OF THE DIRECTORY, and it is worth saying plainly
+ * rather than leaving for somebody to notice. {@link owedOf} above declines to
+ * be one on purpose — a count taken off the agenda cannot disagree with the
+ * agenda — and this one gives that up, because the structure that made
+ * disagreement impossible also made the answer cost the page. What replaces it
+ * is not an argument but a GATE: the two spellings are held to each other over
+ * generated corpora and over a corpus of real writes, at every boundary either
+ * of them can move on (`./occasion.test.ts`, `@olai/ops`' `owed.index.test.ts`),
+ * and `./dates.bench.ts` divides one by the other. A house that keeps one
+ * reading gets agreement for free; a house that keeps two has to prove it, and
+ * the proof is the reason this is allowed to exist.
+ *
+ * THE SAME TWO BOUNDARIES the page has, and they are the same two lines of code:
+ * what is LATE is the days strictly before {@link dayOf} of today, and TODAY is
+ * the key the caller's own value names — deliberately not `dayOf(today)`, which
+ * is {@link agendaOf}'s standing decision for that bucket and is argued there.
+ */
+export const owedNow = (derived: Derived, today: string): Owed => {
+  const now = dayOf(today)
+  let overdue = 0
+  for (const [date, owed] of derived.owedByDay) {
+    if (date >= now) break
+    overdue += owed
+  }
+  return { overdue, today: derived.owedByDay.get(today) ?? 0 }
+}
 
 /**
  * The same agenda narrowed to what a query selected — every day of the line,
@@ -337,13 +371,20 @@ const datedInDays = (days: ReadonlyArray<AgendaDay>): number =>
  * not overdue — so a node here is here for its `date` and can be on no other
  * day of this half.
  *
- * A WALK OF THE DAYS BEFORE TODAY, in the index's own key order, which is what
- * replaced sorting every day the set has per read ({@link Derived.byDay}): it
- * takes them from the front and stops at today. A directory ten years into a
- * daily habit has three and a half thousand days in it, and this used to sort
- * all of them to find the handful that owe something — per subscriber, per
- * published revision, since `vault-in-browser`'s PR 4 put the counting on the
- * server.
+ * A WALK OF THE DAYS THAT OWE SOMETHING, in the index's own key order, and
+ * stopping at today ({@link Derived.owedByDay}). Two indexes replaced two
+ * different walks here. The first was sorting every day the set has per read,
+ * which {@link Derived.byDay}'s promised key order took away
+ * (`perf-dates-index`); the second was VISITING every day that has gone —
+ * three and a half thousand of them for a directory ten years into a daily
+ * habit — to discover that all but a handful had nothing owed on them
+ * (`perf-agenda-history-walk`). A day is in `owedByDay` exactly when
+ * {@link owedOn} has something for it, so this walks the days it draws and no
+ * others, and the day's own list is one lookup away for dressing them.
+ *
+ * The COUNT beside this page does not come through here at all any more
+ * ({@link owedNow}): situating a row is an ancestry walk and a rollup, and two
+ * integers are not worth one per late node in the directory.
  */
 const behind = (
   derived: Derived,
@@ -351,9 +392,13 @@ const behind = (
 ): ReadonlyArray<AgendaDay> => {
   const gone: Array<AgendaDay> = []
   const now = dayOf(today)
-  for (const [date, dated] of derived.byDay) {
+  for (const date of derived.owedByDay.keys()) {
     if (date >= now) break
-    const groups = owedOn(derived, dated)
+    // NOT `?? []`: a key of `owedByDay` is a key of `byDay` by construction,
+    // and a day owing something whose bucket had gone would be an index the
+    // patcher had let drift — which the differential is what catches, not a
+    // fallback here that would draw an empty day instead.
+    const groups = owedOn(derived, derived.byDay.get(date) as ReadonlyArray<Dated>)
     if (groups.length > 0) gone.push({ date, groups })
   }
   return gone
@@ -389,16 +434,30 @@ const owedOn = (
  * the day — a day is listed exactly when `owedOn` has something for it — rather
  * than with a nomination rule that could quietly disagree with it and leave a
  * heading over an empty section.
+ *
+ * IT STARTS AT TOMORROW rather than stepping there. This used to walk
+ * {@link Derived.byDay} from its first key and `continue` over every day that
+ * had already gone — a decade of daily notes skipped one at a time to reach the
+ * seven days this answer is about, per subscriber, per published revision
+ * (`perf-agenda-history-walk`). {@link Derived.days} is the same keys as an
+ * array, so where to begin is a binary search ({@link dayAt}).
+ *
+ * THE GUARD STAYS, and it is not redundant: {@link dayAt} answers with the first
+ * day NOT BEFORE `today`, which is `today` itself when the set has that day —
+ * and today is not ahead. So the jump lands the walk at or just before its first
+ * candidate and the comparison that was always here decides, unmoved, which is
+ * what keeps this a change to where the walk STARTS and not to what it answers.
  */
 const aheadOf = (
   derived: Derived,
   today: string,
 ): ReadonlyArray<AgendaDay> => {
   const ahead: Array<AgendaDay> = []
-  for (const [date, dated] of derived.byDay) {
+  for (let at = dayAt(derived.days, today); at < derived.days.length; at++) {
+    const date = derived.days[at] as string
     if (date <= today) continue
     if (ahead.length === UPCOMING_DAYS) break
-    const groups = owedOn(derived, dated)
+    const groups = owedOn(derived, derived.byDay.get(date) as ReadonlyArray<Dated>)
     if (groups.length > 0) ahead.push({ date, groups })
   }
   return ahead

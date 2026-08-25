@@ -44,6 +44,7 @@ import {
   Located,
   LocatedRegular,
   type Node,
+  type RegularNode,
   Status,
   storedMarker,
   type TargetField,
@@ -306,11 +307,63 @@ export interface Derived {
    * rather than restates.
    */
   readonly byDay: ReadonlyMap<string, ReadonlyArray<Dated>>
+  /**
+   * A DAY → HOW MUCH IT OWES: the unfinished dated work sitting on it, counted
+   * ({@link owingOn}). A day that owes nothing is ABSENT, exactly as a day
+   * nothing is on at all is absent from {@link Derived.byDay} above.
+   *
+   * {@link Derived.byDay} COUNTED, and nothing else — one number per key of
+   * that index, taken from the very list that index holds, so the two cannot
+   * come to disagree about what a day owes. It is not a second fold over the
+   * records: the patcher recounts the days an edit TOUCHED out of the buckets
+   * it has just re-filed ({@link ./patch.ts}'s `dating`), which is the only
+   * place a day's members can have moved.
+   *
+   * WHY A COUNT IS AN INDEX AT ALL, where every other reading of this set is
+   * derived at view time: the two numbers a mark outside the agenda prints
+   * (`./agenda.ts`'s `Owed`, read by its `owedNow`) are re-answered per
+   * subscriber per published revision, and answering them used to mean DRESSING every overdue
+   * node in the directory — an ancestry walk, a rollup and a blocker list per
+   * row — to produce two integers (roadmap `perf-agenda-history-walk`). A
+   * vault with years of days behind it paid all of that on every keystroke
+   * anywhere in it.
+   *
+   * KEYS IN DAY ORDER, like the index it counts and for the same readers: what
+   * is LATE is the days before today, so the count is a walk of these keys that
+   * stops at today — and the agenda's back half walks exactly the days this map
+   * holds ({@link ./agenda.ts}'s `behind`), since a day owing nothing is not a
+   * day that page draws.
+   *
+   * ITS KEY SET MOVES ON ITS OWN, which is why it is a map of its own rather
+   * than a second column on `byDay`: a task finished on a day the calendar
+   * still has something on takes that day out of THIS index and leaves the
+   * other one exactly where it was.
+   */
+  readonly owedByDay: ReadonlyMap<string, number>
+  /**
+   * Every day the set has, in day order — {@link Derived.byDay}'s keys as an
+   * ARRAY, so a reading that begins in the MIDDLE of the line can jump to it.
+   *
+   * A map's keys can only be stepped from the front. Two readings begin
+   * somewhere else — the calendar at a month, the agenda's forward half at
+   * tomorrow — and each of them reached its starting point by walking every
+   * earlier day and doing nothing with it (`perf-agenda-history-walk`:
+   * `continue` over ten years of daily notes, per month paged, per subscriber,
+   * per published revision). An array is what makes that a BINARY SEARCH
+   * ({@link dayAt}) instead.
+   *
+   * THE SAME KEYS AND THE SAME ORDER as `byDay`, never a second opinion about
+   * which days the set has: it is built from that map, and rebuilt from it
+   * whenever the patcher moves that map's key set — which is the same edit that
+   * re-sorts those keys, and nearly no edit at all ({@link ./patch.ts}'s
+   * `dating`).
+   */
+  readonly days: ReadonlyArray<string>
 }
 
 /** The fields of {@link Derived} that are INDEXES — every one of them but the
- *  flat reading, which is a list and is {@link Derived.byFile} read the other
- *  way rather than a table of its own. */
+ *  two LISTS, which are {@link Derived.byFile} read the other way and
+ *  {@link Derived.byDay}'s keys rather than tables of their own. */
 export type Index = {
   [K in keyof Derived]: Derived[K] extends ReadonlyMap<string, unknown> ? K : never
 }[keyof Derived]
@@ -329,7 +382,7 @@ export type Index = {
  * each index already says who reads it and how.
  *
  * EXHAUSTIVE BY THE TYPE, which is the point of it being a table rather than a
- * word at each of eleven call sites, where it began. An index added to
+ * word at each of a dozen call sites, where it began. An index added to
  * {@link Derived} fails the typecheck until somebody says how it is read — and
  * the benchmark and the property test read their two lists out of THIS, so a
  * row that moves moves everywhere rather than in three places out of four.
@@ -369,6 +422,9 @@ export const READ: { readonly [K in Index]: Read } = {
   /** WALKED: the agenda's two directions and the calendar's month step this
    *  map's entries (`./agenda.ts`, `./dates.ts`). */
   byDay: "whole",
+  /** WALKED: what is late is this map's keys up to today, added up — the count
+   *  and the page's own back half both step them (`./agenda.ts`). */
+  owedByDay: "whole",
 }
 
 /**
@@ -605,7 +661,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   const children = new Map<string, Array<Located>>()
   const namedBy = new Map<string, Array<{ at: Located; fields: Array<TargetField> }>>()
   const taggedBy = new Map<string, Array<LocatedRegular>>()
-  const days = new Map<string, Array<Dated>>()
+  const dated = new Map<string, Array<Dated>>()
 
   for (const located of nodes) {
     if (!byId.has(located.node.id)) byId.set(located.node.id, located)
@@ -613,7 +669,7 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
     parentInto(children, located)
     nameInto(namedBy, located)
     tagInto(taggedBy, located)
-    dateInto(days, located)
+    dateInto(dated, located)
   }
 
   // Sorted rather than trusted: a set assembled file by file already arrives
@@ -627,7 +683,19 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
   // The one index here whose KEYS are promised in an order the walk does not
   // already give ({@link Derived.byDay}): a set is in corpus order, and the days
   // its records name arrive in no order at all.
-  const byDay = new Map([...days].sort(([one], [other]) => byDayKey(one, other)))
+  const byDay = new Map([...dated].sort(([one], [other]) => byDayKey(one, other)))
+  // The two READINGS of that index that are kept beside it rather than taken
+  // per read: which days there are, in order, and how much each owes
+  // ({@link Derived.days}, {@link Derived.owedByDay}). Both are functions of
+  // `byDay` alone — one walk of the map that was just sorted — which is what
+  // lets the patcher carry them and recount only the days an edit touched.
+  const days: Array<string> = []
+  const owedByDay = new Map<string, number>()
+  for (const [day, own] of byDay) {
+    days.push(day)
+    const owed = owingOn(own)
+    if (owed > 0) owedByDay.set(day, owed)
+  }
 
   const { status, mirrorsOf } = resolutions(nodes, byId)
   const { after, edgesTo } = orderings(byId, nodes)
@@ -644,6 +712,8 @@ export const derive = (nodes: ReadonlyArray<Located>): Derived => {
     namedBy,
     taggedBy,
     byDay,
+    owedByDay,
+    days,
   }
 }
 
@@ -844,6 +914,77 @@ const resolutions = (
 export const unfinished = (
   mark: Status | undefined,
 ): mark is Exclude<Status, "done"> => mark !== undefined && mark !== "done"
+
+/**
+ * Is this node WORK that nobody has finished?
+ *
+ * {@link unfinished} asked of the mark the node STORES — one composition,
+ * because the agenda's predicates and {@link owingOn} below are the same
+ * question asked with and without a day, and a second `storedMarker` walk
+ * would be a second chance to write `!== "done"` again. Named apart from
+ * {@link unfinished} so a node-taking helper cannot shadow the mark-taking one,
+ * which is how the old local survived.
+ *
+ * HERE rather than in `./agenda.ts`, where it was spelled and where every
+ * reader of it still lives, because the index this file keeps is counted with
+ * it ({@link Derived.owedByDay}) and a fold cannot live above the reading it
+ * feeds — the same rule that put {@link ./occasion.ts}'s `dateInto` one module
+ * below the day readings.
+ */
+export const unfinishedWork = (node: RegularNode): boolean =>
+  unfinished(storedMarker(node))
+
+/**
+ * How much one day OWES — {@link Derived.owedByDay}'s value, from
+ * {@link Derived.byDay}'s list.
+ *
+ * ONE ENTRY PER RECORD falls out rather than being deduplicated, and it is the
+ * whole reason this is a filter and a length rather than the `Set` of records
+ * the day PAGE builds (`./dates.ts`'s `groupedOn`). A record's two dates are
+ * its `date` and a dated `done` ({@link ./occasion.ts}'s `datesOf`), and the
+ * second is filed only for a record whose mark IS `done` — which is not
+ * unfinished work. So the owed half of a day holds at most the `date` entry of
+ * any record, and a node scheduled and finished on one day contributes nothing
+ * here rather than contributing twice.
+ *
+ * Counted rather than collected, which is the point of the index: what asks
+ * this wants a number, and the rows behind it are dressed where a page actually
+ * draws them.
+ */
+export const owingOn = (dated: ReadonlyArray<Dated>): number => {
+  let owed = 0
+  for (const one of dated) {
+    if (unfinishedWork(one.at.node)) owed++
+  }
+  return owed
+}
+
+/**
+ * WHERE A DAY SITS ON THE LINE, or where it would: the first index of `days`
+ * that is not before `value`, by binary search.
+ *
+ * {@link Derived.days} is what makes this possible and this is the whole of
+ * what it is for — a reading that starts at a month or at tomorrow jumps here
+ * instead of stepping over every earlier day to reach it
+ * (`perf-agenda-history-walk`).
+ *
+ * TOTAL IN `value`, and deliberately not "a day": a MONTH (`2026-08`) is a
+ * shorter prefix and lands on that month's first day, and a DATETIME lands past
+ * its own day — both of which are what plain code-point order over ISO text
+ * already means, and both of which its two callers spend. An answer of
+ * `days.length` means every day the set has is before `value`, which is a
+ * caller's empty walk rather than a missing answer.
+ */
+export const dayAt = (days: ReadonlyArray<string>, value: string): number => {
+  let low = 0
+  let high = days.length
+  while (low < high) {
+    const middle = (low + high) >>> 1
+    if ((days[middle] as string) < value) low = middle + 1
+    else high = middle
+  }
+  return low
+}
 
 /**
  * The children of a node that are TASKS, each with the mark that makes it one.

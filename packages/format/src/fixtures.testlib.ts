@@ -671,3 +671,61 @@ const owedWalk = (
   dated: ReadonlyArray<Dated>,
 ): ReadonlyArray<DayGroup> =>
   groupedOn(derived, dated.filter((one) => unfinished(storedMarker(one.at.node))))
+
+// ── ...and the day readings as they stood before the JUMP ──────────────
+//
+// The second half of the same trade, one node on (`perf-agenda-history-walk`).
+// `Derived.byDay` made the ANSWERS a lookup and left one thing walked: a map's
+// keys can only be stepped from the front, so a reading that begins at a month
+// or at tomorrow reached its starting point by skipping every earlier day one
+// at a time — and the two counts a mark prints were the whole agenda assembled
+// and then counted, every overdue node in the directory situated for two
+// integers.
+//
+// What is written out below is those two readings in the shape they had between
+// the two nodes: an index read, with the skip still in it. Its one caller is
+// `./dates.bench.ts`, where it is the BEFORE arm — the walk above is the wrong
+// thing to divide the jump by, because it measures the index this branch did
+// not change. Held to the same answer as everything else in that file's guard,
+// which is what stops a "before" that quietly answers something else.
+
+/** Which days of one month have anything, reached by STEPPING to the month —
+ *  `./dates.ts`'s `datedDays` as it stood, over the index's keys. */
+export const skippedDays = (
+  derived: Derived,
+  month: string,
+): ReadonlyArray<string> => {
+  const days: Array<string> = []
+  for (const day of derived.byDay.keys()) {
+    const own = monthOf(day)
+    if (own < month) continue
+    if (own > month) break
+    days.push(day)
+  }
+  return days
+}
+
+/** The agenda, assembled the way it was: every day BEFORE today visited whether
+ *  or not it owes anything, and the days ahead reached by skipping over all of
+ *  them again — `./agenda.ts`'s `behind` and `aheadOf` as they stood. */
+export const skippedAgenda = (derived: Derived, today: string): Agenda => {
+  const overdue: Array<AgendaDay> = []
+  const now = dayOf(today)
+  for (const [date, dated] of derived.byDay) {
+    if (date >= now) break
+    const groups = owedWalk(derived, dated)
+    if (groups.length > 0) overdue.push({ date, groups })
+  }
+  const upcoming: Array<AgendaDay> = []
+  for (const [date, dated] of derived.byDay) {
+    if (date <= today) continue
+    if (upcoming.length === UPCOMING_DAYS) break
+    const groups = owedWalk(derived, dated)
+    if (groups.length > 0) upcoming.push({ date, groups })
+  }
+  return {
+    overdue,
+    today: owedWalk(derived, derived.byDay.get(today) ?? []),
+    upcoming,
+  }
+}

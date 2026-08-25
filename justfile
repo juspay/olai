@@ -277,11 +277,19 @@ hm-module:
 #   - the DAY READINGS, each timed as an index read against the corpus walk it
 #     replaced (`packages/format/src/dates.bench.ts`, added with `Derived.byDay`
 #     — the roadmap node `perf-dates-index` named three full-vault walks, so it
-#     prints three PAIRS rather than one blended figure, plus what the index
+#     prints a ROW per bullet rather than one blended figure, plus what the index
 #     cost the fold). Two of the three moved to the server with
 #     `vault-in-browser`'s PR 4, where they are re-answered per subscriber per
-#     published revision, which is the unit the ratios are about. Each pair must
-#     answer the same value or the run fails;
+#     published revision, which is the unit the ratios are about. It carries a
+#     SECOND node now (`perf-agenda-history-walk`), which is why three of its
+#     four rows have a middle arm: what that index left standing was the SKIP to
+#     where a reading starts and the whole agenda assembled to be counted, so
+#     each of those rows prints the reading as it stood BETWEEN the two nodes as
+#     well as the corpus walk under both — two ratios, because they answer two
+#     questions. The counts a mark outside the agenda prints are their own row
+#     for the same reason: they are an index read now and not a reading of the
+#     agenda, which is the whole of what that node asked for. Every arm of every
+#     row must answer the same value or the run fails;
 #   - `list_documents`, timed as a read of the remembered byte count against
 #     the UTF-8 encode of every body it replaced
 #     (`packages/ops/src/documents.bench.ts`, added with `perf-list-documents-bytes`).

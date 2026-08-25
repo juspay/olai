@@ -29,7 +29,6 @@
  */
 
 import {
-  agendaOf,
   ancestorTitles,
   backlinksOf,
   blockersOf,
@@ -76,7 +75,7 @@ import {
   type OpFailure,
   type OutlineError,
   type Owed,
-  owedOf,
+  owedNow,
   type OwedRequest,
   type OutlineSet,
   outlinePaths,
@@ -610,11 +609,22 @@ export const dated = (derived: Derived, request: DatedRequest): DatedAnswer =>
  * HOW MUCH IS OWED as of the reader's own today — the two numbers the
  * directory's own entry wears (`@olai/web`'s `agenda/owed.ts`).
  *
- * `owedOf` over `agendaOf` and never a count of its own, which is
- * `@olai/format`'s own ruling about this number read across a wire: the mark
- * beside the word counts THE ROWS THE AGENDA PAGE DRAWS, so a second walk that
- * added up late work its own way would be a second reading of one directory,
- * free to disagree with the page one click away.
+ * `@olai/format`'s {@link owedNow} and never a count of its own, which is the
+ * same restraint every other door here keeps: what is late, what a mark is and
+ * which day a value falls on are that package's rulings, and this layer
+ * contributes the gate the request arrives through.
+ *
+ * IT USED TO BE `owedOf` OVER `agendaOf` — the whole agenda read, then counted
+ * — because a count taken off the page's own answer cannot disagree with the
+ * page one click away. What that cost is what `perf-agenda-history-walk` was
+ * filed on: building the answer means situating every overdue node in the
+ * directory (an ancestry walk, a mirror resolution and a rollup each), and this
+ * door is re-answered per subscriber per published revision to produce two
+ * integers. The counts are an index the patcher keeps now, and the guarantee
+ * that used to be structural is a GATE instead: `./owed.index.test.ts` asks
+ * both spellings after every write of a real corpus, at boundaries either could
+ * move on. NOTHING HERE DECIDES ANY OF THAT, which is the shape of this layer
+ * and the reason this function is one line either way.
  *
  * TODAY comes from the REQUEST rather than from this layer's clock, and that is
  * the one thing this reading takes from the caller. The dates in the files are
@@ -623,7 +633,7 @@ export const dated = (derived: Derived, request: DatedRequest): DatedAnswer =>
  * it on tomorrow's arithmetic all evening ({@link OwedRequest}).
  */
 export const owed = (derived: Derived, request: OwedRequest): Owed =>
-  owedOf(agendaOf(derived, request.today))
+  owedNow(derived, request.today)
 
 // ── one page, and one gesture over the whole set ───────────────────────
 

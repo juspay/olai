@@ -10,6 +10,7 @@ import {
   nothingDue,
   owedFact,
   owedIn,
+  owedNow,
   owedOf,
   quietBetween,
   UPCOMING_DAYS,
@@ -422,6 +423,145 @@ test("nothing due is nothing counted", () => {
   })
 })
 
+// ── ...counted off the index instead ───────────────────────────────────
+//
+// `perf-agenda-history-walk`: the two numbers a mark outside the page prints
+// are an addition over `Derived.owedByDay` now, where they were the whole
+// agenda read and then counted. Two spellings of one answer, so what these
+// cases are is the SEAM between them — asserted here at the boundaries either
+// one can move on, and held to each other over generated corpora
+// (./occasion.test.ts) and over a corpus of real writes (`@olai/ops`'
+// owed.index.test.ts).
+
+test("the counts off the index are the counts off the page, on the same set", () => {
+  // The whole fixture, at every day it has an answer for: before it, on each of
+  // its own days, and past the end of it. One case rather than one per day,
+  // because what is asserted is that the two spellings agree AT ALL OF THEM —
+  // a divergence at one day is what a fixed `TODAY` would walk past.
+  for (
+    const today of [
+      "2026-08-01",
+      "2026-08-03",
+      "2026-08-04",
+      "2026-08-05",
+      "2026-08-10",
+      TODAY,
+      "2026-08-14",
+      "2026-08-20",
+      "2026-08-22",
+      "2027-01-01",
+    ]
+  ) {
+    expect([today, owedNow(SET, today)]).toEqual([today, owedOf(agendaOf(SET, today))])
+  }
+  // ...and it is not two zeroes agreeing: the day the rest of this file reads
+  // owes something on both halves.
+  expect(owedNow(SET, TODAY)).toEqual({ overdue: 2, today: 1 })
+})
+
+test("the day rolls over and the same task moves from Today to late, once", () => {
+  // THE FIRST OF THE TWO CLASSIC WRONGNESS SPOTS. A task is owed on its day and
+  // late the morning after, and nothing about the set changes in between — only
+  // the day the reader is standing on. An index summed with `<=` instead of `<`
+  // answers the first of these three with 1 late, which is a mark shouting at
+  // somebody about work they have all day to do.
+  const due = derive(
+    nodesOfFiles({
+      "work.olai": `{"id":"posts","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-11"}`,
+    }),
+  )
+  expect(owedNow(due, "2026-08-10")).toEqual({ overdue: 0, today: 0 })
+  expect(owedNow(due, "2026-08-11")).toEqual({ overdue: 0, today: 1 })
+  expect(owedNow(due, "2026-08-12")).toEqual({ overdue: 1, today: 0 })
+  // The page it marks says the same three things, which is the claim.
+  for (const today of ["2026-08-10", "2026-08-11", "2026-08-12"]) {
+    expect([today, owedNow(due, today)]).toEqual([today, owedOf(agendaOf(due, today))])
+  }
+})
+
+test("an INSTANT for today counts what a plain day counts, on both spellings", () => {
+  // The same boundary reached the other way: the day travels from a browser and
+  // arrives as whatever that tab's clock minted. `"2026-08-11" < "2026-08-11T09:00"`
+  // is true — a prefix is less than what extends it — so a count that compared
+  // the raw value would read work due TODAY as late.
+  //
+  // TODAY'S OWN BUCKET IS ASKED FOR BY THE CALLER'S VALUE VERBATIM, which is
+  // `agendaOf`'s standing decision and is deliberately kept here: a datetime
+  // names no key of the day index, so it counts nothing on today — and the two
+  // spellings agree about that, which is what this pins.
+  const due = derive(
+    nodesOfFiles({
+      "work.olai": `{"id":"posts","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-11"}`,
+    }),
+  )
+  const instant = "2026-08-11T09:00:00-04:00"
+  expect(owedNow(due, instant).overdue).toBe(0)
+  expect(owedNow(due, instant)).toEqual(owedOf(agendaOf(due, instant)))
+})
+
+test("finishing today's work today empties the count, and the day with it", () => {
+  // THE SECOND CLASSIC WRONGNESS SPOT. `done` is what takes a record OUT of the
+  // owed tally, and a dated `done` puts that same record on today's page — so
+  // the day stays in the journal and leaves the owed index, and a count keyed
+  // off the journal would go on printing 1.
+  const before = `{"id":"ferry","ord":"a0","title":"book the ferry","todo":true,"date":"2026-08-12"}`
+  const after =
+    `{"id":"ferry","ord":"a0","title":"book the ferry","done":"2026-08-12T10:00:00-04:00","date":"2026-08-12"}`
+  const open = derive(nodesOfFiles({ "life.olai": before }))
+  const shut = derive(nodesOfFiles({ "life.olai": after }))
+
+  expect(owedNow(open, TODAY)).toEqual({ overdue: 0, today: 1 })
+  expect(owedNow(shut, TODAY)).toEqual({ overdue: 0, today: 0 })
+  // The day is still ON the calendar — it holds the instant the work was
+  // finished at — and it owes nothing, which is the two indexes saying two
+  // different true things about one day.
+  expect(shut.byDay.has(TODAY)).toBe(true)
+  expect(shut.owedByDay.has(TODAY)).toBe(false)
+  expect(owedNow(shut, TODAY)).toEqual(owedOf(agendaOf(shut, TODAY)))
+})
+
+test("finishing LATE work today takes it off the late count on the same read", () => {
+  // The other half of the same boundary, and the one a reader feels: a task
+  // that slipped is finished this morning, so it is late at nothing from that
+  // revision on — and its own day keeps whatever else is on it.
+  const late = `{"id":"posts","ord":"a0","title":"dig the post holes","todo":true,"date":"2026-08-10"}`
+  const done =
+    `{"id":"posts","ord":"a0","title":"dig the post holes","done":"2026-08-12T10:00:00-04:00","date":"2026-08-10"}`
+  const owing = derive(nodesOfFiles({ "work.olai": late }))
+  const settled = derive(nodesOfFiles({ "work.olai": done }))
+
+  expect(owedNow(owing, TODAY)).toEqual({ overdue: 1, today: 0 })
+  expect(owedNow(settled, TODAY)).toEqual({ overdue: 0, today: 0 })
+  // The 10th is still a day the journal has — the task is still scheduled for
+  // it — and it owes nothing now.
+  expect(settled.byDay.has("2026-08-10")).toBe(true)
+  expect(settled.owedByDay.has("2026-08-10")).toBe(false)
+  expect(owedNow(settled, TODAY)).toEqual(owedOf(agendaOf(settled, TODAY)))
+})
+
+test("a day the index holds owes exactly what that day's page draws", () => {
+  // What `Derived.owedByDay` MEANS, pinned once against the rows: a day is in
+  // it when the agenda draws it, and its number is that day's rows counted.
+  // Occurrences, finished work and undated work are all in the set below and
+  // none of them is in the tally.
+  expect([...SET.owedByDay]).toEqual([["2026-08-03", 1], ["2026-08-10", 1], [
+    "2026-08-12",
+    1,
+  ], ["2026-08-14", 1]])
+  // ...and the days the journal holds are strictly more, which is what makes
+  // the two maps worth keeping apart.
+  expect(SET.days).toEqual([
+    "2026-08-03",
+    "2026-08-04",
+    "2026-08-05",
+    "2026-08-10",
+    "2026-08-12",
+    "2026-08-14",
+    "2026-08-20",
+    "2026-08-22",
+  ])
+})
+
 test("nothing put away is owed: the archive is the trash's and no page else's", () => {
   // The 2026-08-17 ruling, read on the page it was reported against. A node in
   // an archive still says `todo` and still names a day — and it is on no
@@ -445,8 +585,13 @@ test("nothing put away is owed: the archive is the trash's and no page else's", 
   const agenda = agendaOf(archived, TODAY)
   expect(agenda.overdue).toEqual([])
   expect(nothingDue(agenda)).toBe(true)
-  // And the mark outside the page counts what the page draws, which is nothing.
+  // And the mark outside the page counts what the page draws, which is nothing
+  // — both spellings of it, because the exclusion is at the FOLD and the count
+  // index is a reading of what that fold filed, so an archive that reached one
+  // of them would have reached the day index first.
   expect(owedOf(agenda)).toEqual({ overdue: 0, today: 0 })
+  expect(owedNow(archived, TODAY)).toEqual({ overdue: 0, today: 0 })
+  expect(archived.owedByDay.size).toBe(0)
 })
 
 test("a leftover Archive.olai is owed on no agenda either", () => {
@@ -463,6 +608,8 @@ test("a leftover Archive.olai is owed on no agenda either", () => {
   expect(agenda.overdue).toEqual([])
   expect(nothingDue(agenda)).toBe(true)
   expect(owedOf(agenda)).toEqual({ overdue: 0, today: 0 })
+  expect(owedNow(leftover, TODAY)).toEqual({ overdue: 0, today: 0 })
+  expect(leftover.owedByDay.size).toBe(0)
 })
 
 // ── the agenda, narrowed ───────────────────────────────────────────────
