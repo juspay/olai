@@ -410,6 +410,7 @@ export type { HasCustom } from "./custom.ts"
 export {
   canonicalDate,
   declarationsOf,
+  declaredFor,
   NO_TYPING,
   offsetIn,
   PROP_KINDS,

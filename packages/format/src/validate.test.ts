@@ -742,7 +742,7 @@ test("a declaration the built-in table does not know is a broken declarations fi
   })
   expect(codes(errors)).toEqual(["bad-prop"])
   expect(errors[0]?.file).toBe("_olai/Properties.olai")
-  expect(errors[0]?.message).toContain("is not one of `text`, `date`, `int`")
+  expect(errors[0]?.message).toContain("which is not a property type — write one of `text`, `date`, `int`")
 })
 
 test("a declaration with no type at all says so", () => {

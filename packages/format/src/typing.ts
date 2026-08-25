@@ -34,10 +34,12 @@
  * (`{kind: "ref", under: "agents-roster"}`) and is the same mechanism pointed
  * at a different place.
  *
- * **A ref value is an ID, and display resolves it to the title** — the pin and
- * mirror rule, for the pin and mirror reason: names rename, ids don't. Variant
- * ids are chosen short at declaration time (`auto`, `human`), which is safe
- * because the duplicate-id fence makes any clash loud at add-time.
+ * **A ref value is an ID** — the pin and mirror rule, for the pin and mirror
+ * reason: names rename, ids don't. Variant ids are chosen short at declaration
+ * time (`auto`, `human`), which is safe because the duplicate-id fence makes any
+ * clash loud at add-time — and SHORT because the id is what is drawn: nothing
+ * resolves a ref value to its variant's title yet, and doing so is the same door
+ * work `pr` is waiting on rather than this module's.
  *
  * ## Where the declarations are
  *
@@ -95,12 +97,20 @@
  * validator already builds (`byId`, `children`); `doc` reads the `.md` set the
  * `doc` FIELD's rule already carries. Nothing here walks the corpus, which is
  * what lets the check ride every write rather than joining the whole-set sweep.
+ *
+ * ONE READER ABOVE DOES WALK, and it is named here so the sentence above stays
+ * true rather than nearly true: a `ref` or `node` value is a REFERENCE, so the
+ * two ops that take records OUT of the set have to ask who still names what is
+ * going (`@olai/ops`' `namingByProp`). No index can answer that — which keys
+ * are references is a fact about what the vault DECLARES, not about the format,
+ * so `namedBy` structurally cannot hold it. That walk is per REMOVAL, guarded on
+ * the vault declaring such a key at all, and never on the write path.
  */
 
 import { Result } from "effect"
 
 import type { CustomValue } from "./custom.ts"
-import { type Derived, rootsOf } from "./derive.ts"
+import type { Derived } from "./derive.ts"
 import { resolveRelative } from "./documents.ts"
 import {
   isRegular,
@@ -186,6 +196,24 @@ export type PropDeclarations = ReadonlyMap<string, Declared>
 export const NO_TYPING: PropDeclarations = new Map()
 
 /**
+ * WHAT A KEY A RECORD ACTUALLY WROTE DECLARES — the map read the way its keys
+ * were put in ({@link keyOf}: trimmed and folded).
+ *
+ * Every reader on the WRITE side goes through this rather than through a bare
+ * `.get`, and that is the whole of what makes the fence agree with the query
+ * grammar: a record carrying `PR` is asking about the key a vault declared as
+ * `pr`, exactly as `prop:PR` is. A `get` on the raw key would have made those
+ * two words one thing to a search and two things to the gate.
+ */
+export const declaredFor = (
+  declarations: PropDeclarations,
+  key: string,
+): Declared | undefined => {
+  const folded = key.trim().toLowerCase()
+  return folded === "" ? undefined : declarations.get(folded)
+}
+
+/**
  * The property key a declaration node's own `type` is written under, and the
  * one its `under` is.
  *
@@ -197,14 +225,23 @@ export const NO_TYPING: PropDeclarations = new Map()
 export const TYPE_KEY = "type"
 export const UNDER_KEY = "under"
 
-/** One built-in type: whether a value holds, and how a refusal names what the
- *  key takes. A pair rather than a predicate, for {@link ./errors.ts}'s reason
- *  one layer up — a rule and the sentence it says are two facts about the same
- *  thing, and one declared in one place and worded in another is a pair that
- *  drifts. */
+/**
+ * One built-in type: what the key takes, and WHAT IS WRONG with a value that
+ * does not — the sentence, not a boolean.
+ *
+ * A pair rather than a predicate, for {@link ./errors.ts}'s reason one layer
+ * up: a rule and the sentence it says are two facts about the same thing, and
+ * one declared in one place and worded in another is a pair that drifts. It
+ * ANSWERS WITH THE SENTENCE rather than with a yes, which is the half `under`
+ * needed — an id that exists and is a MIRROR is wrong for a reason a generic
+ * "not a node in the set" would misreport, and a branch outside the table
+ * would be the drift this shape exists to prevent.
+ */
 interface Grounded {
   readonly takes: string
-  readonly holds: (value: string, derived: Derived) => boolean
+  /** What is wrong with this value — or `undefined`, which is nearly every
+   *  value. The clause completes "`under` is `x`, which …". */
+  readonly wrong: (value: string, derived: Derived) => string | undefined
 }
 
 /**
@@ -227,11 +264,29 @@ interface Grounded {
 export const BOOTSTRAP: ReadonlyMap<string, Grounded> = new Map<string, Grounded>([
   [TYPE_KEY, {
     takes: `one of ${PROP_KINDS.map((kind) => `\`${kind}\``).join(", ")}`,
-    holds: (value) => isPropKind(value),
+    wrong: (value) =>
+      isPropKind(value) ? undefined : `is not a property type — write one of ${
+        PROP_KINDS.map((kind) => `\`${kind}\``).join(", ")
+      }${didYouMean(value, PROP_KINDS)}`,
   }],
   [UNDER_KEY, {
     takes: "the id of a node in the set — where a `ref`'s variants live",
-    holds: (value, derived) => derived.byId.has(value),
+    // A MIRROR IS NOT A PLACE VARIANTS LIVE, and it is the one wrong value here
+    // that would otherwise pass. A placement has no children of its own
+    // ({@link ./node.ts}: children hang off the node a mirror points at), so a
+    // declaration pointed at one would be accepted, produce an EMPTY variant
+    // list, and then refuse every value of that key with "nothing is declared
+    // under it YET" — a sentence naming the wrong problem, about a mistake in a
+    // file nobody was looking at. So it is refused where it is made, in the
+    // words every op that names a node already uses ({@link wrongNode}).
+    wrong: (value, derived) => {
+      const located = derived.byId.get(value)
+      if (located !== undefined && isRegular(located)) return undefined
+      return located !== undefined
+        ? "is a mirror — a second placement rather than a node of its own, so " +
+          "nothing hangs under it. Name the node it points at."
+        : `no node declares${didYouMean(value, derived.byId.keys())}`
+    },
   }],
 ])
 
@@ -288,15 +343,64 @@ const declaringIn = (derived: Derived): PropDeclarations => {
   const file = propertiesIn([...derived.byFile.keys()])
   if (file === undefined) return NO_TYPING
   const declarations = new Map<string, Declared>()
-  for (const located of rootsOf(derived, file)) {
-    const key = located.node.title.trim()
-    if (key === "" || shadowFor(key) !== undefined || BOOTSTRAP.has(key)) continue
-    if (declarations.has(key)) continue
+  for (const located of declaringIn0(derived, file)) {
+    const key = keyOf(located.node.title)
+    if (key === undefined || declarations.has(key)) continue
     const type = typeIn(derived, located)
     if (type === undefined) continue
     declarations.set(key, { type, at: located.node.id })
   }
   return declarations
+}
+
+/**
+ * THE DECLARATIONS FILE'S TOP-LEVEL RECORDS, IN LINE ORDER — and the line order
+ * is the reconciliation rather than an implementation detail.
+ *
+ * `rootsOf` would give them in SIBLING order (by `ord`), and the rule that
+ * reports a duplicate key walks the file's records as they are ON DISK
+ * ({@link ./rules.ts}'s `reportDeclarations`, which has to, since it also asks
+ * about the variants). Two orders is two answers to one question the moment a
+ * hand-written file has an `ord` that disagrees with its line order: the
+ * reading would keep one declaration and the rule would report the other as the
+ * second claim, so a vault could be told to fix the very line its values were
+ * being checked against.
+ *
+ * LINE ORDER wins because it is the one the REPORT is anchored in — a finding
+ * names `file:line`, findings sort by line, and "the second claim is the
+ * mistake" is a sentence about what a reader is looking at. It is also the
+ * duplicate-id rule's own order one level up, which is the same rule about the
+ * same kind of clash.
+ */
+const declaringIn0 = (
+  derived: Derived,
+  file: string,
+): ReadonlyArray<LocatedRegular> =>
+  (derived.byFile.get(file) ?? [])
+    .filter((at): at is LocatedRegular => isRegular(at) && at.node.parent === undefined)
+
+/**
+ * THE KEY A DECLARATION'S TITLE NAMES — trimmed and FOLDED — or `undefined` for
+ * a title that names no usable key.
+ *
+ * FOLDED is the other reconciliation, and it is the same one `prop:` already
+ * made: the query grammar folds its tokens and the key scan folds the map's
+ * keys, because a property is something somebody typed into a map that gives no
+ * key a spelling ({@link ./filter.ts}'s `propKeyOf`). A vault declaring `pr`
+ * and a record carrying `PR` are one key to a reader and to a search, so they
+ * have to be one key to the fence as well — otherwise `prop:PR=190..200` is a
+ * span while `set_prop {"key":"PR"}` is untyped, which is the grammar and the
+ * gate disagreeing about the same word.
+ *
+ * ONE FUNCTION, for the reason everything else here is one: the reading, the
+ * rule that reports a duplicate and every lookup on the write path all have to
+ * fold the same way, and three spellings of `.trim().toLowerCase()` is three
+ * places for one of them to stop.
+ */
+export const keyOf = (title: string): string | undefined => {
+  const key = title.trim().toLowerCase()
+  if (key === "" || shadowFor(key) !== undefined || BOOTSTRAP.has(key)) return undefined
+  return key
 }
 
 /**
@@ -314,7 +418,15 @@ const typeIn = (derived: Derived, located: LocatedRegular): PropType | undefined
   if (said === undefined || !isPropKind(said)) return undefined
   if (said !== "ref") return under === undefined ? { kind: said } : undefined
   if (under === undefined) return { kind: "ref" }
-  return derived.byId.has(under) ? { kind: "ref", under } : undefined
+  // THE TABLE DECIDES, not a second test spelled here — which is the whole of
+  // what {@link Grounded} is for: a declaration this reading ACCEPTED and the
+  // rule REPORTED would be a key that is silently untyped and reported clean,
+  // and a declaration the reading accepted and the rule did not would be worse
+  // still (a mirror as `under`, an empty variant list, and every value of the
+  // key refused for a reason nobody could act on).
+  return BOOTSTRAP.get(UNDER_KEY)?.wrong(under, derived) === undefined
+    ? { kind: "ref", under }
+    : undefined
 }
 
 /** One of the declaration node's own two properties, as text — `undefined` for
@@ -434,7 +546,14 @@ export const canonicalDate = (
   }
   const said = zone ?? offset
   if (said === null || said === undefined) return undefined
-  return `${date}T${pad(hour)}:${minute}:${second ?? "00"}${said}`
+  // `Z` AND `+00:00` ARE ONE OFFSET AND TWO SPELLINGS, which is exactly the
+  // thing this function exists to stop having. `./stamp.ts` writes the numeric
+  // form for every offset including zero (`offsetOf(0)` is `+00:00`), so that
+  // is the one this format holds — and a hand-written `…Z` is folded into it at
+  // a door, and named as a broken file when it arrives on disk. Left alone, UTC
+  // would have been the single zone in which two files meaning the same thing
+  // differ byte for byte.
+  return `${date}T${pad(hour)}:${minute}:${second ?? "00"}${said === "Z" ? "+00:00" : said}`
 }
 
 /**
@@ -562,7 +681,7 @@ export const wrongValue = (
   key: string,
   value: CustomValue,
 ): string | undefined => {
-  const declared = typed.declarations.get(key)
+  const declared = declaredFor(typed.declarations, key)
   if (declared === undefined) return undefined
   if (typeof value !== "string") {
     for (const member of value) {
@@ -657,12 +776,38 @@ const wrongRef = (
   const said = variants.length === 0
     ? `nothing is declared under \`${under ?? declared.at}\` yet, so it has no legal value`
     : under === undefined
-    ? `is ${variants.map((one) => `\`${one}\``).join(" | ")}`
-    : `names a node under \`${under}\` — those are ${
-      variants.map((one) => `\`${one}\``).join(", ")
-    }`
+    ? `is ${listed(variants, " | ")}`
+    : `names a node under \`${under}\` — those are ${listed(variants, ", ")}`
+  // The DID-YOU-MEAN is over every variant, capped or not: the cap is about
+  // what a sentence can carry, and the one id worth reading may well be the
+  // hundredth. Which is the same split `./suggest.ts` already makes for an
+  // unknown node id — offer the near miss, do not list the id space.
   return `${named} ${said} — got ${quoted(value)}${didYouMean(value, variants)}`
 }
+
+/**
+ * HOW MANY VARIANTS A REFUSAL SPELLS OUT before it stops counting.
+ *
+ * An enum is two or three words and reads whole; a ROSTER is data, and a vault
+ * is entitled to grow one to two hundred nodes — at which point "those are …"
+ * is a paragraph with the one id worth reading somewhere in the middle of it.
+ * That is the failure `@olai/ops`' `notFound` already names about node ids ("a
+ * vault of a few thousand put its whole id space in one refusal"), met here by
+ * the other road: the values ARE a list this module holds, so it can say the
+ * first of them and then say how many more there are.
+ *
+ * Eight, because the enums this is really for have two to four members and the
+ * cap should never fire on one — a refusal that says "and 0 more" would be a
+ * cap that had started deciding things.
+ */
+const NAMED_AT_MOST = 8
+
+/** The variants a refusal shows, capped — the first few and a count, never a
+ *  wall. `join`ed with the separator the sentence is built around, since a sum
+ *  reads as `a | b` and a roster as a list. */
+const listed = (all: ReadonlyArray<string>, between: string): string =>
+  all.slice(0, NAMED_AT_MOST).map((one) => `\`${one}\``).join(between) +
+  (all.length > NAMED_AT_MOST ? `, and ${all.length - NAMED_AT_MOST} more` : "")
 
 /** `node`: any node in the set, by id — and a MIRROR is not one, which is the
  *  sentence every op that names a node already says ({@link
@@ -719,7 +864,7 @@ export const storedValue = (
   value: string,
   now: string,
 ): Result.Result<string, string> => {
-  const declared = typed.declarations.get(key)
+  const declared = declaredFor(typed.declarations, key)
   // An undeclared key and a key declared `text` are the same value verbatim,
   // and they reach that answer by two different roads: nobody typed the first,
   // and somebody DECLARED the second to be prose. Trimming either would be this
@@ -771,48 +916,57 @@ export const wrongDeclaration = (
       `only a TOP-LEVEL node of this file declares one — what hangs under a ` +
       `declaration is its variants, named by their ids.`
   }
-  const key = node.title.trim()
-  if (key === "") {
+  const written = node.title.trim()
+  if (written === "") {
     return "a declaration's title IS the property key, and this one has none."
   }
-  const shadow = shadowFor(key)
+  const shadow = shadowFor(written)
   if (shadow !== undefined) {
-    return `\`${key}\` is what a node's own fields already answer, so no property ` +
+    return `\`${written}\` is what a node's own fields already answer, so no property ` +
       `may be called that — ${shadow.door}.`
   }
   // The two bootstrap words are RESERVED, and this is where that is said. A
   // vault that declared `type` would be declaring the word a declaration says
   // its own type in — two answers about one key, in the one file where the
   // recursion is supposed to stop ({@link BOOTSTRAP}).
-  if (BOOTSTRAP.has(key)) {
-    return `\`${key}\` is what a declaration in this file says about ITSELF, so it ` +
+  if (BOOTSTRAP.has(written.toLowerCase())) {
+    return `\`${written}\` is what a declaration in this file says about ITSELF, so it ` +
       `cannot also be a key this vault declares — the built-in table is where the ` +
       `types of these two stop being read out of a file.`
   }
-  if (declared.has(key)) {
-    return `\`${key}\` is already declared by an earlier node in this file; a key has ` +
-      `one type across the vault, or its meaning depends on where the reader is ` +
-      `standing.`
+  // FOLDED, and asked through the same {@link keyOf} the reading uses: `merge`
+  // and `Merge` are one key to `prop:` and to the fence, so declaring both is
+  // declaring one key twice rather than two keys once. The sentence quotes both
+  // spellings where they differ, because "already declared" about a word that
+  // is not on the screen is a sentence nobody can act on.
+  const key = keyOf(written)
+  if (key !== undefined && declared.has(key)) {
+    return `\`${written}\` is already declared by an earlier node in this file${
+      key === written ? "" : ` (as \`${key}\`, and a property key is folded for case)`
+    }; a key has one type across the vault, or its meaning depends on where the ` +
+      `reader is standing.`
   }
   // THE BOOTSTRAP, applied: each of the two words the table knows, checked
-  // against the table rather than against a rule spelled here.
+  // against the table rather than against a rule spelled here — and worded by
+  // it too, which is what lets `under` say the one thing a generic sentence
+  // would get wrong ({@link Grounded}).
   for (const [word, grounded] of BOOTSTRAP) {
     const value = customText(located, word)
-    if (value === undefined || grounded.holds(value, derived)) continue
-    return `\`${word}\` is \`${value}\`, which is not ${grounded.takes}${
-      word === TYPE_KEY ? didYouMean(value, PROP_KINDS) : didYouMean(value, derived.byId.keys())
-    }`
+    if (value === undefined) continue
+    const wrong = grounded.wrong(value, derived)
+    if (wrong === undefined) continue
+    return `\`${word}\` is \`${value}\`, which ${wrong}`
   }
   const said = customText(located, TYPE_KEY)
   if (said === undefined) {
-    return `\`${key}\` declares a property key but does not say its \`${TYPE_KEY}\` — ` +
+    return `\`${written}\` declares a property key but does not say its \`${TYPE_KEY}\` — ` +
       `${BOOTSTRAP.get(TYPE_KEY)?.takes ?? ""}.`
   }
   // The one rule about the PAIR, which no per-word table can hold: `under` says
   // where a `ref` finds its variants, and every other kind takes its values
   // from nowhere in particular.
   if (said !== "ref" && customText(located, UNDER_KEY) !== undefined) {
-    return `\`${UNDER_KEY}\` says where a \`ref\`'s variants live, and \`${key}\` is a ` +
+    return `\`${UNDER_KEY}\` says where a \`ref\`'s variants live, and \`${written}\` is a ` +
       `\`${said}\` — which takes its values from nowhere in particular.`
   }
   return undefined

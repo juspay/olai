@@ -1068,21 +1068,22 @@ const propClause = (
     : { kind: "prop", key, value: held }
 }
 
-/** What a key DECLARES, folded — `undefined` for one nobody declared, which is
- *  every key in a vault with no `_olai/Properties.olai` and most keys in one
- *  that has. A scan rather than a lookup for {@link propKeyOf}'s reason: the
- *  map is keyed by the title somebody wrote and the token arrived folded, so a
- *  `get` would find one spelling and miss the other. It runs once per clause,
- *  over the keys a vault actually types. */
+/**
+ * What a key DECLARES — `undefined` for one nobody declared, which is every key
+ * in a vault with no `_olai/Properties.olai` and most keys in one that has.
+ *
+ * A PLAIN LOOKUP, and that is the reconciliation rather than a shortcut: the
+ * map's own keys are folded ({@link ../typing.ts}'s `keyOf`) and this token
+ * arrived folded from the tokenizer, so the two spellings meet without either
+ * side scanning. It used to fold the map per clause, which worked here and left
+ * the WRITE side reading the map exactly — so `prop:PR` was a span while
+ * `set_prop {"key":"PR"}` was untyped, the grammar and the gate disagreeing
+ * about one word. The fold now happens once, where the map is built.
+ */
 const declaredKind = (
   declarations: PropDeclarations,
   key: string,
-): PropType["kind"] | undefined => {
-  for (const [name, declared] of declarations) {
-    if (name.toLowerCase() === key) return declared.type.kind
-  }
-  return undefined
-}
+): PropType["kind"] | undefined => declarations.get(key)?.type.kind
 
 /**
  * Does this value read as a RANGE of days or of whole numbers?

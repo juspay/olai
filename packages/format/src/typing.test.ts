@@ -27,6 +27,7 @@ import {
   storedValue,
   type Typed,
   variantsOf,
+  wrongDeclaration,
   wrongValue,
 } from "./typing.ts"
 import { Result } from "effect"
@@ -135,9 +136,10 @@ test("a ref WITH `under` takes them from that node, and a mirror filed there is 
   expect(variantsOf(derived, agent!)).toEqual(["claude", "grok", "pi"])
 })
 
-test("the variants are IDS, and the titles are what display resolves them to", () => {
+test("the variants are IDS, and a title is not one", () => {
   // `auto` is the id; `automatic` is the title. The value is the id, which is
-  // the pin and mirror rule: names rename, ids don't.
+  // the pin and mirror rule: names rename, ids don't. Nothing resolves the id
+  // to the title for display yet — the id is what a chip draws.
   expect(wrong("merge", "auto")).toBeUndefined()
   expect(wrong("merge", "automatic")).toBeDefined()
 })
@@ -264,7 +266,12 @@ const NORMALISED: ReadonlyArray<readonly [string, string]> = [
   // A value that already carries an offset keeps it — it names ONE instant, and
   // re-stamping it with the writer's zone would move it.
   ["2026-08-25T10:06:00-07:00", "2026-08-25T10:06:00-07:00"],
-  ["2026-08-25T10:06Z", "2026-08-25T10:06:00Z"],
+  ["2026-08-25T10:06Z", "2026-08-25T10:06:00+00:00"],
+  // `Z` AND `+00:00` ARE ONE OFFSET AND TWO SPELLINGS: the numeric one is what
+  // `set_done` writes for every offset including zero, so it is the one this
+  // format holds — and UTC does not get to be the single zone in which two
+  // files meaning the same thing differ byte for byte.
+  ["2026-08-25T10:06:00Z", "2026-08-25T10:06:00+00:00"],
   // Seconds and no further (`./stamp.ts`'s rule), so a fraction is dropped
   // rather than carried into a spelling nothing else writes.
   ["2026-08-25T10:06:07.482-04:00", "2026-08-25T10:06:07-04:00"],
@@ -377,4 +384,85 @@ test("a declaration the reading cannot make is skipped rather than guessed at", 
   // duplicate id and the same argument: the second claim is the mistake.
   expect([...declarationsOf(bent).keys()]).toEqual(["twice"])
   expect(declarationsOf(bent).get("twice")?.type).toEqual({ kind: "int" })
+})
+
+// ── the review's corners ───────────────────────────────────────────────
+
+test("a MIRROR cannot be where a ref's variants live", () => {
+  // grok and pi, from two directions. A placement has no children of its own,
+  // so a declaration pointed at one used to be ACCEPTED, produce an empty
+  // variant list, and then refuse every value of that key with "nothing is
+  // declared under it YET" — a sentence about the wrong problem, in a file
+  // nobody was looking at. It is refused where the mistake is made now.
+  const bent = derive(nodesOfFiles({
+    ...FILES,
+    "_olai/Properties.olai":
+      `{"id":"p","ord":"a0","title":"agent","custom":{"type":"ref","under":"a-mirror"}}`,
+  }))
+  // The key is NOT declared, so no value of it is refused for the wrong reason.
+  expect(declarationsOf(bent).has("agent")).toBe(false)
+  // ...and the declarations file itself is what says so.
+  expect(wrongDeclaration(bent, bent.byId.get("p")!, new Set()))
+    .toContain("is a mirror — a second placement rather than a node of its own")
+})
+
+test("a ref's variants are capped in the sentence, and the did-you-mean is not", () => {
+  // A roster is DATA and a vault may grow one to two hundred nodes; a refusal
+  // that listed them all would be the whole id space in one sentence, which is
+  // the failure `notFound` already names about node ids. What must NOT be
+  // capped is the near miss: the one id worth reading may be the hundredth.
+  const many = Array.from(
+    { length: 30 },
+    (_, at) => `{"id":"agent-${at}","parent":"roster","ord":"a${at}","title":"agent ${at}"}`,
+  )
+  const big = derive(nodesOfFiles({
+    "_olai/Properties.olai":
+      `{"id":"p","ord":"a0","title":"agent","custom":{"type":"ref","under":"roster"}}`,
+    "r.olai": [`{"id":"roster","ord":"a0","title":"the agents"}`, ...many].join("\n"),
+  }))
+  const said = wrongValue(
+    { declarations: declarationsOf(big), derived: big, documents: new Set() },
+    "a.olai",
+    "agent",
+    "agent-29x",
+  )
+  expect(said).toContain("and 22 more")
+  expect(said).toContain("did you mean `agent-29`?")
+})
+
+test("a key is FOLDED, so the fence and the query grammar mean one word", () => {
+  // pi's reconciliation: the map used to be keyed as written and read exactly
+  // on the write path while `prop:PR` folded — so one spelling was a span and
+  // the other was untyped. A record carrying `PR` is asking about `pr`.
+  expect(wrong("PR", "#193")).toContain("is a whole number")
+  expect(wrong("Pr", "193")).toBeUndefined()
+  expect(stored("PR", "  193  ")).toBe("193")
+  // ...and the sentence quotes the key AS THE RECORD WROTE IT, since that is
+  // the word somebody has to go and find.
+  expect(wrong("PR", "#193")).toContain("`PR`")
+})
+
+test("the declarations are read in LINE order, which is the order a duplicate is reported in", () => {
+  // Two claims on one key whose `ord` disagrees with their line order. The
+  // reading keeps the EARLIER LINE and the rule reports the later one, so a
+  // vault is never told to fix the very line its values are checked against.
+  const crossed = derive(nodesOfFiles({
+    "_olai/Properties.olai": [
+      `{"id":"p-first","ord":"a9","title":"pr","custom":{"type":"int"}}`,
+      `{"id":"p-second","ord":"a0","title":"pr","custom":{"type":"date"}}`,
+    ].join("\n"),
+  }))
+  expect(declarationsOf(crossed).get("pr")).toEqual({ type: { kind: "int" }, at: "p-first" })
+})
+
+test("a key declared twice differing only in case is one key declared twice", () => {
+  const twice = derive(nodesOfFiles({
+    "_olai/Properties.olai": [
+      `{"id":"p1","ord":"a0","title":"merge","custom":{"type":"ref"}}`,
+      `{"id":"p2","ord":"a1","title":"Merge","custom":{"type":"date"}}`,
+    ].join("\n"),
+  }))
+  expect([...declarationsOf(twice).keys()]).toEqual(["merge"])
+  expect(wrongDeclaration(twice, twice.byId.get("p2")!, new Set(["merge"])))
+    .toContain("a property key is folded for case")
 })

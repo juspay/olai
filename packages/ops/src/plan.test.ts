@@ -18,6 +18,7 @@ import {
   outlinePaths,
   serializeOutline,
   standingBefore,
+  validate,
   AddRequest,
   type WriteRequest as Request,
 } from "@olai/format"
@@ -4499,3 +4500,101 @@ describe("typed properties", () => {
     expect((copy[0] as RegularNode).custom).toEqual({ merge: "auto" })
   })
 })
+
+// ── the review's corners ───────────────────────────────────────────────
+
+describe("typed properties, further", () => {
+  // grok's MUST. `namedBy` is `targetsOf` read backwards, and `targetsOf` is
+  // the FORMAT's list of fields — so a reference living inside `custom` under a
+  // declared `ref`/`node` key is invisible to it. Without this, `empty_trash`
+  // deletes a node a live lane still names and answers SUCCESS, leaving the
+  // very dangling value the validator refuses on the next load.
+  test("empty_trash names the records that point into the archive by a typed property", () => {
+    const held = setOf({
+      ...DECLARED,
+      "lanes.olai":
+        `{"id":"lane","ord":"a0","title":"the props lane","custom":{"agent":"grok"}}`,
+    }, ["briefs/pdb.md"])
+    const emptied = after(held, { op: "trash", id: "grok" })
+    const failure = refused(emptied, { op: "empty", file: "_olai/Trash.olai" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("still has a record pointed INTO it")
+    // The KEY is the field, so the entry reads exactly as a `see` or an `after`
+    // one beside it and names the word to re-point.
+    expect(failure.message).toContain("`lane` (`agent`, lanes.olai:1)")
+  })
+
+  test("...and a vault that declares no reference key pays no walk and refuses nothing", () => {
+    // The guard, asked as a behaviour rather than as a comment: the same
+    // removal on a board whose only declared keys are values goes through.
+    const values = setOf({
+      "_olai/Properties.olai": `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+      "agents.olai": [
+        `{"id":"roster","ord":"a0","title":"the agents"}`,
+        `{"id":"grok","parent":"roster","ord":"a0","title":"Grok"}`,
+      ].join("\n"),
+      "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent":"grok"}}`,
+    })
+    const emptied = after(values, { op: "trash", id: "grok" })
+    expect(planned(emptied, { op: "empty", file: "_olai/Trash.olai" }).id)
+      .toBe("_olai/Trash.olai")
+  })
+
+  // pi's SHOULD. A capture is a TREE, and a sentence about a key with no title
+  // in front of it is a sentence whose subject the caller has to go and find.
+  test("a birth refusal names WHICH node of the capture it is about", () => {
+    const failure = refused(board(), {
+      op: "add",
+      file: "lanes.olai",
+      title: "a new lane",
+      children: [{ title: "the second step", props: { merge: "maybe" } }],
+    })
+    expect(failure.message).toStartWith("`the second step` carries a property this vault refuses")
+    expect(failure.message).toContain("`merge` is `auto` | `human`")
+    expect(failure.message).toContain("Nothing was written.")
+  })
+
+  // pi's NIT, and the one this whole design rests on: what a DOOR writes is
+  // what the VALIDATOR accepts. Asserted over the SET a plan produces rather
+  // than over the string it returns, which is the half a unit test of the
+  // normaliser cannot reach.
+  test("what every door writes, the validator accepts — the whole lifecycle", () => {
+    // BORN carrying loose spellings...
+    const born = after(board(), {
+      op: "add",
+      file: "lanes.olai",
+      id: "fresh",
+      title: "a fresh lane",
+      props: { dispatched: "2026-8-30", pr: "  194  ", merge: "human" },
+    })
+    expect(Result.isSuccess(validate(born))).toBe(true)
+    expect(customOf(born, "fresh")).toEqual({
+      dispatched: "2026-08-30",
+      pr: "194",
+      merge: "human",
+    })
+    // ...EDITED through the other door class...
+    const edited = after(born, {
+      op: "update",
+      id: "fresh",
+      props: { dispatched: "2026-08-31T09:00:00-04:00" },
+    })
+    expect(Result.isSuccess(validate(edited))).toBe(true)
+    // ...COPIED, which carries approved values and can invent none...
+    const copied = after(edited, { op: "duplicate", id: "fresh" })
+    expect(Result.isSuccess(validate(copied))).toBe(true)
+    // ...and REMOVED, which is not a value and is never fenced.
+    const cleared = after(copied, { op: "prop", id: "fresh", key: "pr", value: null })
+    expect(Result.isSuccess(validate(cleared))).toBe(true)
+    expect(customOf(cleared, "fresh")["pr"]).toBeUndefined()
+  })
+})
+
+/** One node's property map, off a set — the disk half of the lifecycle claim
+ *  above, read through the format's own accessor rather than by reaching into
+ *  a record this file assembled. */
+const customOf = (set: OutlineSet, id: string): Record<string, unknown> => {
+  const found = recordsOf(set).find((at) => at.node.id === id)
+  if (found === undefined) throw new Error(`no node \`${id}\` in the set`)
+  return { ...(found.node as RegularNode).custom }
+}

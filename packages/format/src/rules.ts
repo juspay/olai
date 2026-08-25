@@ -45,7 +45,7 @@ import { isMirror, isRegular, type Located, propertiesIn, type Site } from "./no
 import { byPath } from "./paths.ts"
 import { markdownIn, type OutlineSet } from "./set.ts"
 import { didYouMean } from "./suggest.ts"
-import { type Typed, wrongDeclaration, wrongValue } from "./typing.ts"
+import { keyOf, type Typed, wrongDeclaration, wrongValue } from "./typing.ts"
 
 // ── the verdict ────────────────────────────────────────────────────────
 
@@ -373,11 +373,17 @@ export const reportDeclarations = (
   const file = propertiesIn([...derived.byFile.keys()])
   if (file === undefined) return
   const declared = new Set<string>()
+  // THE FILE'S RECORDS IN LINE ORDER, which is the order the READING walks too
+  // ({@link ../typing.ts}'s `declaringIn0` argues why the two must be one
+  // order), and the keys are collected FOLDED through the same `keyOf` — so
+  // "the first declaration wins" and "the second claim is reported" are two
+  // sentences about one record rather than two answers about two.
   for (const located of derived.byFile.get(file) ?? []) {
     const wrong = wrongDeclaration(derived, located, declared)
     if (wrong === undefined) {
       if (isRegular(located) && located.node.parent === undefined) {
-        declared.add(located.node.title.trim())
+        const key = keyOf(located.node.title)
+        if (key !== undefined) declared.add(key)
       }
       continue
     }

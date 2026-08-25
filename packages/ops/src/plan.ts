@@ -35,6 +35,7 @@ import {
   countedChildren,
   type Custom,
   declarationsOf,
+  declaredFor,
   isTrashed,
   derive,
   type Derived,
@@ -316,6 +317,32 @@ interface Scope extends Reading {
  * declarations file once; what this function adds is the lazy `.md` set, whose
  * memo is this closure.
  */
+/**
+ * WHICH NODE OF THE CAPTURE a refusal is about — the locus a value refusal owes
+ * and a `set_prop` one does not.
+ *
+ * A capture is a TREE, and a bad value in it is a fact about one node of that
+ * tree. `set_prop` names its subject by construction (the caller sent one id);
+ * `add_node` sends thirteen nodes and gets back a sentence about a key, and
+ * "`merge` is `auto` | `human`" with no title in front of it is a sentence
+ * whose subject the caller has to go and find. Which is exactly the reason
+ * {@link misplacedAfter} beside this leads with the title too, and why the
+ * refusal for a capture nested too deep does.
+ *
+ * THE TITLE AND NOT THE ID, because a capture's node may not have one yet: an
+ * id is minted for it, and a refusal naming `n7` would name something the
+ * caller never wrote. It is the same choice `misplacedAfter` makes one function
+ * over.
+ *
+ * AND NOTHING IS WRITTEN, said out loud, because that is the half a capture's
+ * caller cannot assume: thirteen nodes went in, and the answer is about one.
+ */
+const locus = (capture: Capture, failure: OpFailure): OpFailure =>
+  new UsageFailure({
+    reason: `\`${capture.title}\` carries a property this vault refuses: ` +
+      `${failure.message} Nothing was written.`,
+  })
+
 /** A capture that carries no properties at all — the third mint site's answer
  *  ({@link planMark}'s next occurrence, which copies a title, a note and a
  *  rule and nothing else). One value rather than a fresh `{}`, and a NAME
@@ -969,7 +996,7 @@ const emit = (
   // reaches them — a capture nests, and every generation of it comes through
   // here (docs/brainstorming/typed-properties.md: births are gated too).
   const stored = typedProps(scope, file, capture.props)
-  if (Result.isFailure(stored)) return stored.failure
+  if (Result.isFailure(stored)) return locus(capture, stored.failure)
   into.records.push(capturedNode(scope, capture, at, stored.success))
   if ((capture.see?.length ?? 0) > 0 || (capture.waitsOn?.length ?? 0) > 0) {
     into.wires.push({ id: at.id, see: capture.see, after: capture.waitsOn })
@@ -4768,19 +4795,77 @@ const planCreateDocument = (
  * the records being deleted is one thing to re-point and reads as one.
  */
 const heldBy = (scope: Scope, going: ReadonlySet<string>): ReadonlyArray<string> => {
-  const held = new Map<string, string>()
-  for (const id of going) {
-    for (const naming of scope.derived.namedBy.get(id) ?? []) {
-      if (going.has(naming.at.node.id)) continue
-      held.set(
-        naming.at.node.id,
-        `\`${naming.at.node.id}\` (${
-          naming.fields.map((field) => `\`${field}\``).join(", ")
-        }, ${naming.at.file}:${naming.at.line})`,
-      )
-    }
+  const held = new Map<string, { at: Located; fields: Set<string> }>()
+  const file = (naming: { at: Located; fields: Iterable<string> }): void => {
+    if (going.has(naming.at.node.id)) return
+    const entry = held.get(naming.at.node.id) ??
+      { at: naming.at, fields: new Set<string>() }
+    for (const field of naming.fields) entry.fields.add(field)
+    held.set(naming.at.node.id, entry)
   }
-  return [...held.values()]
+  for (const id of going) {
+    for (const naming of scope.derived.namedBy.get(id) ?? []) file(naming)
+  }
+  for (const naming of namingByProp(scope, going)) file(naming)
+  return [...held.values()].map((entry) =>
+    `\`${entry.at.node.id}\` (${
+      [...entry.fields].map((field) => `\`${field}\``).join(", ")
+    }, ${entry.at.file}:${entry.at.line})`
+  )
+}
+
+/**
+ * The records naming one of these ids through a TYPED PROPERTY — the half
+ * `namedBy` structurally cannot see.
+ *
+ * `namedBy` is `targetsOf` read backwards, and `targetsOf` is the format's list
+ * of FIELDS that name a record. A `ref` or a `node` value is a reference that
+ * lives inside `custom`, where the format gives no key a meaning — so which
+ * keys are references is a fact about what the VAULT declares
+ * (`@olai/format`'s `typing.ts`), not about the format, and no index built by
+ * `derive` could hold it without the declarations.
+ *
+ * Left out, `empty_trash` would delete a node a live lane's `agent` still names
+ * and answer SUCCESS, leaving the very dangling value the validator refuses on
+ * the next load — a write that lands and immediately breaks the set. Which is
+ * the exact failure this whole function exists to prevent for the other four
+ * relations.
+ *
+ * IT WALKS, and the guard is what makes that affordable: a vault that declares
+ * no `ref` and no `node` key — every vault before this feature, and most after
+ * it — pays one map read and no walk at all. Where there IS one, the walk is
+ * per removal (`remove_mirror`, `empty_trash`), never per write.
+ *
+ * THE KEY IS THE FIELD in the sentence, which is what makes the refusal
+ * actionable: `` `lane` (`agent`, orchestrator/lanes.olai:12) `` reads exactly
+ * as the `see`/`after` entries beside it, and names the word to re-point.
+ */
+const namingByProp = (
+  scope: Scope,
+  going: ReadonlySet<string>,
+): ReadonlyArray<{ at: Located; fields: ReadonlyArray<string> }> => {
+  const referring = new Set<string>()
+  for (const [key, declared] of scope.typed.declarations) {
+    if (declared.type.kind === "ref" || declared.type.kind === "node") referring.add(key)
+  }
+  if (referring.size === 0) return []
+  const found: Array<{ at: Located; fields: ReadonlyArray<string> }> = []
+  for (const at of scope.derived.nodes) {
+    const custom = isMirror(at.node) ? undefined : at.node.custom
+    if (custom === undefined) continue
+    const fields: Array<string> = []
+    for (const [key, value] of Object.entries(custom)) {
+      // FOLDED, through the format's own reading, so a record writing `Agent`
+      // is found by a vault declaring `agent` — the same word to the fence, to
+      // `prop:` and to this.
+      if (declaredFor(scope.typed.declarations, key) === undefined) continue
+      if (!referring.has(key.trim().toLowerCase())) continue
+      const held = typeof value === "string" ? [value] : value
+      if (held.some((one) => going.has(one))) fields.push(key)
+    }
+    if (fields.length > 0) found.push({ at, fields })
+  }
+  return found
 }
 
 /** {@link heldBy} of one record — what `remove_mirror` asks about the placement

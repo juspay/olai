@@ -2173,7 +2173,7 @@ test("a range on a date key reuses `created:`'s own syntax, whole", () => {
 
 test("equality on a ref is exactly as it was, and the value is the id", () => {
   expect(onBoard("prop:merge=auto")).toEqual(["l-189", "l-200"])
-  // The TITLE is what display resolves an id to; it is not what a query holds.
+  // The TITLE is not what a query holds — nor, today, what a chip draws.
   expect(onBoard("prop:merge=automatic")).toEqual([])
 })
 
