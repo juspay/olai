@@ -39,6 +39,7 @@ import {
   REF_DROP,
   rowReads,
   SEE_REFS,
+  TAG,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 import { focusedOn } from "../support/caret.ts";
@@ -279,6 +280,42 @@ Then("the caret is still on the edge panel's ×", async function (this: OlaiWorl
       "them, and a control that is replaced takes the focus with it.",
   );
 });
+
+/**
+ * What a chip SAYS about its target's title, and what a press there does.
+ *
+ * The chip is a FACT about the held node — its one gesture is its `×` — but
+ * its words run the same title pipeline as everywhere else, so a tag the
+ * target's title carries is drawn as the pressable-looking pill it is
+ * everywhere. A press of THAT is the panel's own business: the filter router
+ * lives a span of DOM away, the page behind the panel would narrow, and the
+ * write a person was half through would vanish with the panel. The press is
+ * claimed at the chip (`preventDefault`, the panel's `one press, one door`
+ * idiom — `client/edges/EdgePanel.tsx`), and these two steps are the
+ * witnesses: the pill is drawn, and pressing it narrows nothing.
+ */
+Then(
+  "the name the panel holds for {string} styles the tag {string}",
+  async function (this: OlaiWorld, target: string, tag: string) {
+    await (await panelOf(this))
+      .locator(`${EDGE_HELD} ${attr("data-ref", target)} ${TAG}`)
+      .filter({ hasText: tag })
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+When(
+  "I press the tag {string} the panel's name for {string} carries",
+  async function (this: OlaiWorld, tag: string, target: string) {
+    await this.press(
+      (await panelOf(this))
+        .locator(`${EDGE_HELD} ${attr("data-ref", target)} ${TAG}`)
+        .filter({ hasText: tag })
+        .first(),
+    );
+  },
+);
 
 /** The panel's own `×`. Waits for the chip to GO, for the reason the choose
  *  above waits for one to arrive. */

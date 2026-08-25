@@ -181,11 +181,14 @@ export function Result(props: {
    *  (`../markdown/tags.ts`). Everything the line's surround carries — the
    *  layout, the muted mono voice, the testid — stays on the wrapper span
    *  below, the row's own. No `needles`: what the query found is the hit,
-   *  and the hit is in the label. */
+   *  and the hit is in the label. NO LINKS: this is a crumb inside a
+   *  `<button>`, exactly what the label's `links: false` is about. */
   const placeDrawing = createMemo(
     () => {
       const place = props.place
-      return place === undefined || place === "" ? undefined : renderTitle(place, "")
+      return place === undefined || place === ""
+        ? undefined
+        : renderTitle(place, "", { links: false })
     },
     undefined,
     {

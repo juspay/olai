@@ -277,3 +277,24 @@ Feature: Writing a node's edges — `see` and `after`
     When I search the edge panel for "hinges"
     Then the edge panel hit "pick the hinges" shows the property "agent" holding "claude-opus"
     And there should be no page errors
+
+  Scenario: the names the panel holds are words, not doors
+    # Every name the panel holds is a TITLE, and a title is run through the
+    # one pipeline: the chip for `garden` wears its `#outdoors` as the pill,
+    # in its own hue. The chip is a FACT though — its one gesture is its `×`
+    # — so the pill's press must not be the page's business either: the
+    # filter router lives a span of DOM under the panel, and an unclaimed
+    # press would narrow the tree out from under an open write. The chip
+    # claims the press; the page's filter is the witness.
+    When I open the node menu of "handles"
+    And I choose "Link to a node…" from the node menu
+    Then the see panel is open on "handles"
+    When I search the edge panel for "garden"
+    And I choose "garden #outdoors" from the edge panel
+    Then the edge panel holds "garden"
+    And the name the panel holds for "garden" styles the tag "#outdoors"
+    When I press the tag "#outdoors" the panel's name for "garden" carries
+    Then the edge panel holds "garden"
+    And the address is exactly "/house.olai"
+    And the page has not reloaded
+    And there should be no page errors

@@ -118,7 +118,22 @@ export function MovePicker(props: {
         props.onClose()
       }}
     >
-      <p class="m-0 mb-1 text-xs text-muted">
+      <p
+        class="m-0 mb-1 text-xs text-muted"
+        onClick={(event) => {
+          // The heading is not read through — the picker is an open write:
+          // its pill must not filter the tree (and unseat the panel) any
+          // more than its anchor would navigate from under one. The filter
+          // router reads `preventDefault` (`@olai/surface`'s `ours`) — the
+          // same claiming the search rows do (`../search/Result.tsx`).
+          if (
+            event.target instanceof Element &&
+            event.target.closest("[data-tag]") !== null
+          ) {
+            event.preventDefault()
+          }
+        }}
+      >
         Move{" "}
         {/* Drawn as a title, since that is what it is: markdown and `#tags`
             in their pills and hues through the one pipeline
@@ -128,7 +143,11 @@ export function MovePicker(props: {
             in the list below: this panel is no page, and a title naming an
             address reads as written. */}
         <span class="text-ink">
-          <TitleHtml drawing={renderTitle(props.moved.title, props.moved.file)} />
+          <TitleHtml
+            drawing={renderTitle(props.moved.title, props.moved.file, {
+              links: false,
+            })}
+          />
         </span>{" "}
         under…
       </p>

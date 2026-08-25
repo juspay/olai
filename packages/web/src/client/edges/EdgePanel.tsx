@@ -74,6 +74,7 @@ import { useNames } from "../reading.tsx"
 import { Shortlist, type ShortlistTestids } from "../search/Shortlist.tsx"
 import { TESTID } from "../testids.ts"
 import { PANEL_OUT } from "../pill.ts"
+import { NodeTitle } from "../NodeTitle.tsx"
 import { DropRef } from "./DropRef.tsx"
 import { namedBy } from "./named.ts"
 import { linking, type Relation, relating, unlinking } from "./relation.ts"
@@ -154,7 +155,27 @@ export function EdgePanel(props: {
           <Key each={held()} by="id">
             {(one) => (
               <li class="flex items-center gap-1 rounded border border-rule/70 px-1.5 py-0.5 text-sm text-ink">
-                <span data-ref={one().id}>{one().title}</span>
+                <span
+                  onClick={(event) => {
+                    // A chip is a FACT about this node, not a door: the pill
+                    // of a tag inside it must not filter the tree beneath an
+                    // open write panel, and a markdown anchor inside it is
+                    // unlinked by the title pipeline below — the face's words
+                    // are what they are, the chip's gesture is `×` alone.
+                    if (
+                      event.target instanceof Element &&
+                      event.target.closest("[data-tag]") !== null
+                    ) {
+                      event.preventDefault()
+                    }
+                  }}
+                  data-ref={one().id}
+                >
+                  {/* The same names, the same pipeline as `../NodeRefs.tsx`:
+                      markdown and tags wear their pills and hues, a link
+                      unwraps — a chip is read in place, never followed. */}
+                  <NodeTitle title={one().title} from={one().from} links={false} />
+                </span>
                 {/* The same × the drawn row carries, saying the same sentence
                     (`./DropRef.tsx`) — two doors onto one op, named once. */}
                 <DropRef

@@ -37,9 +37,23 @@ describe("the hue a tag is handed", () => {
     expect(tagHue("#alice")).not.toBe(tagHue("@alice"))
   })
 
-  test("the tag's pill carries its hue as the property the sheet reads", () => {
-    expect(tagStyle("#now")).toBe(`${TAG_HUE_PROPERTY}: ${tagHue("#now")}`)
+  test("the pill carries the hue the sheet reads", () => {
+    expect(tagStyle("#now")).toBe(`${TAG_HUE_PROPERTY}: ${tagHue("#now")}`
+    )
     expect(tagStyle("#now")).toMatch(/^--tag-hue: [0-9]{1,3}$/)
+  })
+
+  test("the gold samples are THE hash", () => {
+    // Hash change that still spreads and case-folds would leave the
+    // contract standing but the vocabulary remapped — a remap no reader
+    // asked for. The wheel itself is the map's stable fact, so these five
+    // PIN it: a change of hash trips here, on the same day the faces' tests
+    // would still find tags spread and signed.
+    expect(tagHue("#now")).toBe(119)
+    expect(tagHue("#home")).toBe(216)
+    expect(tagHue("@bob")).toBe(46)
+    expect(tagHue("@alice")).toBe(193)
+    expect(tagHue("#alice")).toBe(315)
   })
 
   test("neighbours spread apart", () => {

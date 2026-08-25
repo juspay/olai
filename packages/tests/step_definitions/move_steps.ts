@@ -29,6 +29,7 @@ import {
   MOVE_SAID,
   MOVE_SEARCH,
   POLL_TIMEOUT,
+  TAG,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 import { saysThat } from "../support/said.ts";
@@ -41,6 +42,21 @@ const pickerOf = async (world: OlaiWorld) => {
   await picker.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   return picker;
 };
+
+/** A press at the HEADING's tag: the heading names the row through the same
+ *  title pipeline everything else uses, so its `#tag` is the pill — and the
+ *  pill's press would otherwise fall to the page's filter router, narrowing
+ *  the tree out from under an open write panel. The heading claims it, and
+ *  this step points at it alone (`p` is the heading; the hits are buttons),
+ *  so the scenario proves the claim rather than the press. */
+When(
+  "I press the tag {string} in the open move picker",
+  async function (this: OlaiWorld, tag: string) {
+    await this.press(
+      (await pickerOf(this)).locator(`p ${TAG}`).filter({ hasText: tag }).first(),
+    );
+  },
+);
 
 /** One destination row, by the title a scenario names it with. */
 const hitOf = async (world: OlaiWorld, title: string) =>

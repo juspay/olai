@@ -184,6 +184,13 @@ Feature: The trash can be seen into, taken out of, and emptied
     And I choose "Link to a node…" from the node menu
     Then the see panel is open on "catch-up"
     When I search the edge panel for "knobs"
+    # The hit's place line names its ancestry — `kitchen remodel #home` — and
+    # its `#home` is drawn as the pill every tag wears now, below the row's
+    # title. The press below LANDS on that pill: one press is one door, and
+    # the row's button claims a press AT its pill — a press that instead
+    # filtered the tree would hide `house.olai` from itself, `kitchen` and
+    # every descendant, and the pick would fall out from under this click
+    # (found while this suite's own run broke here at 30s, #378).
     And I choose "pick the knobs" from the edge panel
     Then "Daily/2026-08.olai" holds the node "catch-up" seeing "knobs"
     When I open the node menu of "catch-up"
@@ -197,8 +204,9 @@ Feature: The trash can be seen into, taken out of, and emptied
     Then "_olai/Trash.olai" holds the node "knobs"
     When I open the Trash
     # Seven: source-file signposts for both piles, the ancestor titles above
-    # each (`kitchen remodel #home` → `install the cabinets` for knobs,
-    # `August 2026` for catch-up), and the two rows themselves.
+    # each (`kitchen remodel #home` → `install the cabinets` for knobs — the
+    # same crumb the pill-press above lands on, here a RECORD line),
+    # `August 2026` for catch-up, and the two rows themselves.
     And I press Empty trash
     Then the Trash asks "Permanently delete all 7 rows in the Trash? Nothing in olai puts them back — the records leave the trash the way every other write does, so what survives is whatever git has already recorded."
     When I confirm emptying the Trash

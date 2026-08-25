@@ -284,3 +284,19 @@ Feature: Moving a row to a parent you search for
     # wrong one and then a right one.
     And the tab has asked to judge this move 1 times
     And there should be no page errors
+
+  Scenario: The heading's tag is words too, while the panel is open
+    # The heading names the row through the one title pipeline, so `kitchen
+    # remodel #home`'s tag is the pill there — and a press of a pill that fell
+    # through to the page's filter router would narrow the tree out from
+    # under an open write panel (`client/move/MovePicker.tsx` claims it the
+    # same way the search rows do). The press leaves the pick and the page
+    # as they were.
+    When I click the title of "kitchen"
+    And I press "ControlOrMeta+Shift+m"
+    Then the move picker is open on "kitchen"
+    When I press the tag "#home" in the open move picker
+    Then the move picker is open on "kitchen"
+    And the address is exactly "/house.olai"
+    And the page has not reloaded
+    And there should be no page errors
