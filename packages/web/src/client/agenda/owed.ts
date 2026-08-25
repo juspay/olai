@@ -13,9 +13,10 @@
  *
  * WHAT IT IS A TABLE OVER is two integers off the wire (../dates.ts's `owed`
  * stream), which is `docs/brainstorming/vault-in-browser.md`'s PR 4: the
- * counting is `@olai/format`'s `owedOf` over `agendaOf`, on the server, where
- * the set is. Nothing here reads a directory, and there is no longer one on this
- * side to read.
+ * counting is `@olai/format`'s `owedNow`, on the server, where the set is —
+ * an index read since `perf-agenda-history-walk`, where it was the agenda
+ * assembled and counted. Nothing here reads a directory, and there is no longer
+ * one on this side to read.
  *
  * ## Two faces, and why they are the two the date badge already has
  *
@@ -107,13 +108,15 @@ const PAINT: Record<Face, { readonly entry: string; readonly chip: string; reado
  * all.
  *
  * IT TAKES THE COUNTS, and it used to take the `Agenda` and count them itself.
- * The counting is `@olai/format`'s `owedOf` either way and always was — what
- * changed is WHICH SIDE OF THE WIRE calls it, which is
- * `docs/brainstorming/vault-in-browser.md`'s PR 4: the two numbers arrive on
- * the `owed` stream (../dates.ts) and this table paints them. The rule that
- * made this take an answer rather than a set to walk survives the move intact
- * and is now enforced by a wire: there is no directory on this side to count a
- * second way.
+ * The counting is `@olai/format`'s either way — what changed is WHICH SIDE OF
+ * THE WIRE calls it, which is `docs/brainstorming/vault-in-browser.md`'s PR 4:
+ * the two numbers arrive on the `owed` stream (../dates.ts) and this table
+ * paints them. The rule that made this take an answer rather than a set to walk
+ * survives the move intact and is now enforced by a wire: there is no directory
+ * on this side to count a second way. (WHICH function does the counting over
+ * there moved once more with `perf-agenda-history-walk` — `owedNow` off an
+ * index, not `owedOf` off an agenda — and nothing on this side could tell,
+ * which is what the wire is for.)
  *
  * `undefined` is the frame before the first answer arrives, and it draws
  * NOTHING rather than a zero: a mark that claimed "nothing is late" out of a
