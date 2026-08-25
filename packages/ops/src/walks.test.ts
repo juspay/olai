@@ -181,7 +181,11 @@ test("...and a second fold click costs the question, not the directory", () => {
   const counted = counting(at.set, at.derived)
   const asking = { ids: ["n0-0"], files: ["wing/room-00.olai", "nowhere.olai"] }
 
-  Query.homes({ set: counted.set, derived: counted.derived }, asking)
+  // The reading, with the counting halves swapped in and the rest of it left
+  // alone — the pointing index included, which this question does not read and
+  // a literal would have to invent.
+  const reading = { ...at, set: counted.set, derived: counted.derived }
+  Query.homes(reading, asking)
   const first = counted.touched.paths
   // The FIRST ask builds the two readings the set holds — a walk of the file
   // list, once, which is what "held with the snapshot" means.
@@ -189,7 +193,7 @@ test("...and a second fold click costs the question, not the directory", () => {
 
   counted.touched.paths = 0
   for (let click = 0; click < 20; click++) {
-    Query.homes({ set: counted.set, derived: counted.derived }, asking)
+    Query.homes(reading, asking)
   }
   // ...and every ask after it touches nothing at all: twenty fold clicks over
   // one revision cost twenty lookups.
