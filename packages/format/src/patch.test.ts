@@ -31,10 +31,10 @@
  * floors this file asserts are the same counts they were.
  *
  * WHAT "the same" MEANS here is a decision, and it is made in {@link readable}
- * rather than left to a deep-equality helper: three of the eleven indexes promise
+ * rather than left to a deep-equality helper: some of the indexes promise
  * an ORDER their keys are read in, and the rest are asked one key at a time.
- * Comparing all ten by key order would hold the patcher to a promise no reader
- * spends; comparing none of them would let it silently reorder the two that a
+ * Comparing them all by key order would hold the patcher to a promise no reader
+ * spends; comparing none of them would let it silently reorder the ones a
  * reader does.
  *
  * AND IT MUST REALLY PATCH. A patcher that declined every time would satisfy
@@ -72,7 +72,7 @@ const viewOf = (corpus: Corpus): Derived => derive(recordsOf(setOf(corpus)))
  * named them; `byFile`, because the flat list of records IS that map read in
  * order, so a key in the wrong place is a corpus in the wrong order.
  *
- * The other eight are asked one key at a time — `derived.children.get(id)`,
+ * The rest are asked one key at a time — `derived.children.get(id)`,
  * `derived.status.get(id)` — and are sorted here so the comparison is about
  * what they ANSWER. Their values are compared in order all the same, including
  * the two that are sets: `mirrorsOf` and `edgesTo` promise corpus order to
@@ -91,12 +91,21 @@ const viewOf = (corpus: Corpus): Derived => derive(recordsOf(setOf(corpus)))
  * map would answer every one of those three correctly on the first read and
  * wrongly on the next, which is exactly the class of bug a key-order comparison
  * catches and a by-key one cannot.
+ *
+ * `owedByDay` is beside it for that reason and one more: what is LATE is its
+ * keys added up to today, so a key in the wrong place is a count that stops at
+ * the wrong day. And `days` is compared as the array it is — {@link
+ * Derived.days} is `byDay`'s keys, so a patch that let the two part company
+ * would have every binary search over it land somewhere the map does not agree
+ * with (`perf-agenda-history-walk`).
  */
 const readable = (derived: Derived): unknown => ({
   nodes: derived.nodes,
   byId: [...derived.byId],
   byFile: [...derived.byFile],
   byDay: [...derived.byDay],
+  owedByDay: [...derived.owedByDay],
+  days: derived.days,
   namedBy: [...derived.namedBy],
   children: byKey(derived.children),
   status: byKey(derived.status),
@@ -190,8 +199,8 @@ test("a view patched again and again is still the derived view", () => {
   // DERIVED view every time, so nothing an edit leaves behind is ever handed
   // to the next one.
   //
-  // What a patch leaves behind stopped being nothing. Seven of the eleven
-  // indexes are carried as layers (`./overlay.ts`), and a layer accumulates
+  // What a patch leaves behind stopped being nothing. The indexes read by key
+  // are carried as layers (`./overlay.ts`), and a layer accumulates
   // across a session: the keys this edit dropped, the ones it appended and the
   // order they went in, all folded into whatever the next patch is handed,
   // until the half rule flattens it and a new base is taken. `./overlay.test.ts`
@@ -369,15 +378,19 @@ test("an index the edit says nothing about is the map the last view held", () =>
   const before: Corpus = {
     "a.olai": `{"id":"p","ord":"a","title":"p"}`,
     "b.olai": `{"id":"q","ord":"a","title":"q","after":["p"]}\n` +
-      `{"id":"r","ord":"b","title":"r #tag","date":"2026-08-20"}\n` +
+      `{"id":"r","ord":"b","title":"r #tag","date":"2026-08-20","todo":true}\n` +
       `{"id":"under","ord":"c","title":"under","parent":"r"}`,
   }
   const typed = `{"id":"p","ord":"a","title":"p again"}`
   const view = viewOf(before)
   // The four hold something to begin with, so sharing them is a claim about
-  // this edit and not about four maps that were empty anyway.
+  // this edit and not about four maps that were empty anyway — and so do the
+  // two the day index carries, which is why `r` is scheduled AND unfinished:
+  // a dated bullet nobody marked is on a day and owes nothing, so a corpus
+  // without the mark would compare two empty count maps and say nothing.
   expect([view.children.size, view.namedBy.size, view.taggedBy.size, view.byDay.size])
     .toEqual([1, 1, 1, 1])
+  expect([view.owedByDay.size, view.days.length]).toEqual([1, 1])
 
   const next = patched(view, editing("a.olai", typed))
   expect(next).toBeDefined()
@@ -386,6 +399,12 @@ test("an index the edit says nothing about is the map the last view held", () =>
   expect((next as Derived).namedBy).toBe(view.namedBy)
   expect((next as Derived).taggedBy).toBe(view.taggedBy)
   expect((next as Derived).byDay).toBe(view.byDay)
+  // ...and the two readings carried BESIDE the day index, which are the same
+  // claim one step on: an edit that names no day recounts none and re-lists
+  // none, so the count map and the day line are the very values that stood
+  // (`perf-agenda-history-walk`).
+  expect((next as Derived).owedByDay).toBe(view.owedByDay)
+  expect((next as Derived).days).toBe(view.days)
 })
 
 test("a mirror chain that dangled resolves the moment its target arrives", () => {

@@ -130,6 +130,31 @@ test("the taping view answers exactly what the reading answers", () => {
   expect(seen).toEqual([...was.derived.byId.keys()])
 })
 
+test("the taping view stands in for EVERY field of the derivation", () => {
+  // THE FENCE THIS FILE OWES ITS EXISTENCE TO. A view built from the index
+  // table alone covers the maps and silently drops everything else, so a field
+  // added to `Derived` reads as `undefined` through it — a missing table
+  // dressed as an empty one, which is how `perf-agenda-history-walk`'s `days`
+  // met the calendar's binary search. The type is what stops the next one
+  // (`./tape.ts`'s `LISTS` is exhaustive by `Exclude<keyof Derived, Index>`);
+  // this says the wiring agrees with the type.
+  const was = at({ day: "2026-03-04" })
+  const view = taping(was).reading.derived
+  const named = Object.keys(was.derived)
+  expect(named.length).toBeGreaterThan(10)
+  for (const field of named) {
+    const stood = (view as unknown as Record<string, unknown>)[field]
+    const real = (was.derived as unknown as Record<string, unknown>)[field]
+    expect([field, stood === undefined]).toEqual([field, false])
+    // A map is stood in for by a wrapper answering the same entries; anything
+    // else is handed over as it is.
+    if (real instanceof Map) {
+      expect([field, [...(stood as ReadonlyMap<string, unknown>)]])
+        .toEqual([field, [...real]])
+    } else expect([field, stood]).toEqual([field, real])
+  }
+})
+
 test("the served files are compared by the FACE, not by the object", () => {
   // `assemble` builds a fresh array per revision, so identity alone would
   // answer `false` every time and the check would be the feature turned off.

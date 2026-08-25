@@ -59,7 +59,7 @@
 
 import { Order, Schema } from "effect"
 
-import { type Derived, Situated, situate } from "./derive.ts"
+import { dayAt, type Derived, Situated, situate } from "./derive.ts"
 import { fileKind, stemOf } from "./kinds.ts"
 import type { LocatedRegular } from "./node.ts"
 import { type Dated, monthOf, Occasioned } from "./occasion.ts"
@@ -70,11 +70,19 @@ import { byPath } from "./paths.ts"
  * order.
  *
  * A WALK OF THE MONTH'S OWN KEYS, and nothing else: {@link Derived.byDay} holds
- * its days in order, so this steps into the month, takes what is there and stops
- * at the first day past it. What it costs is the days the month HAS, where the
- * walk it replaces cost the directory — every record of every outline, per
- * month a reader paged to, per subscriber, per published revision
- * (`perf-dates-index`).
+ * its days in order, so this takes what is inside the month and stops at the
+ * first day past it. What it costs is the days the month HAS, where the walk it
+ * replaces cost the directory — every record of every outline, per month a
+ * reader paged to, per subscriber, per published revision (`perf-dates-index`).
+ *
+ * IT JUMPS INTO THE MONTH rather than stepping to it. Getting to the month was
+ * the half that index did not fix: the keys of a map can only be walked from the
+ * front, so paging to March cost every day of every year before it, one
+ * `continue` each (`perf-agenda-history-walk`). {@link Derived.days} is those
+ * same keys as an array and {@link dayAt} is a binary search over it — asked
+ * with the MONTH, which is a shorter prefix than a day and therefore lands on
+ * the first day the month can hold, since a day of that month extends it and
+ * every earlier day is less than it in the code-point order these are kept in.
  *
  * DAYS, not counts: the calendar draws a dot, and a number nothing prints is a
  * fact with no reader. Days outside the month are left out, so a caller that
@@ -89,10 +97,9 @@ export const datedDays = (
   month: string,
 ): ReadonlyArray<string> => {
   const days: Array<string> = []
-  for (const day of derived.byDay.keys()) {
-    const own = monthOf(day)
-    if (own < month) continue
-    if (own > month) break
+  for (let at = dayAt(derived.days, month); at < derived.days.length; at++) {
+    const day = derived.days[at] as string
+    if (monthOf(day) > month) break
     days.push(day)
   }
   return days

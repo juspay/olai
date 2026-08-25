@@ -359,6 +359,31 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
 
     let live: Live | null = null
     let session: string | null = null
+    /**
+     * Sessions this panel has LEFT, still named so a leftover notification
+     * about one can be recognised after `session` has gone null.
+     *
+     * `elsewhere` used to require a current session to refuse a mismatch, so
+     * nulling `session` at the start of a new/load — which is what makes the
+     * next `entered` the source of truth — also turned the fence off for the
+     * whole open. A forwarded `init` still in flight from the conversation
+     * that just closed, or a `session/update` chunk of it, then landed on the
+     * next roster and the next transcript. The kolu probe sits in that
+     * window (asked fresh per conversation) and is what made the race load-
+     * shaped: a slow probe is a long gap with `session === null` after
+     * `sessionOver` has already emptied the panel.
+     *
+     * A SET rather than the last id, because two opens in a row can still
+     * have the first conversation's leftovers on the wire after the second
+     * has been left too.
+     *
+     * Append-mostly for the panel's life: an id leaves only when that same
+     * conversation is re-entered. No ceiling. The set is never iterated, a
+     * lookup is O(1), and a member is one short session id per conversation
+     * this process has left — dozens a day, not a thing that grows with the
+     * transcript.
+     */
+    const closed = new Set<string>()
 
     /** Annotations that belong on a lifecycle line: the session when we have
      *  one, plus whatever the event itself carries. */
@@ -475,6 +500,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  session is finished" is one fact and four call sites remembering four
      *  things each is how one of them ends up remembering three. */
     const leaving = (): void => {
+      // Named first, while `session` is still the one being left: the four
+      // call sites used to null it and THEN call this, which made the closed
+      // set a no-op. {@link fromElsewhere} is what a leftover is recognised
+      // by, and it reads this set.
+      if (session !== null) closed.add(session)
       questions.withdrawAll()
       calls.forget()
       forgetModel()
@@ -482,7 +512,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       // one is probed fresh before it opens. Emptied rather than left standing
       // so a forwarded `init` still in flight from the finished session has
       // nothing to refine — every row it could name belongs to a conversation
-      // nobody is in.
+      // nobody is in. That covers the gap BEFORE the next roster is announced;
+      // the closed set covers the gap after, when the next conversation's
+      // handed rows are already up and the leftover would have something to
+      // refine.
       roster = []
     }
 
@@ -577,6 +610,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }
 
     const onUpdate = (notification: SessionNotification): void => {
+      // WHOSE SESSION, the same fence the forwarded `init` sits behind. A
+      // chunk of the conversation that just closed, landing after
+      // `sessionOver` has emptied the transcript, is how a new conversation
+      // failed to empty: the panel showed the last turn's words in a
+      // conversation nobody had spoken in. Replay is not this — a load
+      // un-closes the id it is about to replay, below, before the frames
+      // land.
+      if (fromElsewhere(notification.sessionId, session, closed)) return
       const update = notification.update
       switch (update.sessionUpdate) {
         case "agent_message_chunk": {
@@ -874,17 +915,20 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * conversation's model and its servers on the new one's until the next
      * turn corrected them.
      *
-     * A MISMATCH IS WHAT IT REFUSES, never an absence. An id we cannot read, or
-     * a message that arrives before this end has recorded which session it is
-     * in, falls through and is read exactly as before — because the cost of
-     * being wrong the other way is the header going quiet about a `/model` for
-     * the life of a conversation, and this notification is the only thing that
-     * ever reports one. Positive recognition of the fault, in the direction
-     * this file always fails.
+     * Closed-and-mismatch, never absence. An id we cannot read, or a message
+     * that arrives before this end has recorded which session it is in AND is
+     * not about one we have left, falls through — because the cost of being
+     * wrong the other way is the header going quiet about a `/model` for the
+     * life of a conversation (this notification is the only thing that ever
+     * reports one), and a load's replay names the conversation before
+     * {@link entered} records it. Positive recognition of the fault, in the
+     * direction this file always fails. The rule itself is {@link fromElsewhere},
+     * next to `adopt`: one line, and the line the leftover-session flake is
+     * drawn out of.
      */
     const elsewhere = (params: unknown): boolean => {
       const named = (params as { readonly sessionId?: unknown } | null)?.sessionId
-      return typeof named === "string" && session !== null && named !== session
+      return fromElsewhere(named, session, closed)
     }
 
     const readLiveServers = (params: unknown): void => {
@@ -972,11 +1016,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           const id = ours ? session : null
           if (ours) {
             live = null
-            session = null
             // Before anything else it emits: a form left live on a dead wire is a
             // control that does nothing, and pressing it is how a person finds
-            // out.
+            // out. {@link leaving} names the session being left, so it runs
+            // before `session` is cleared.
             leaving()
+            session = null
           }
           tell(
             Effect.logInfo("chat agent exited"),
@@ -1279,6 +1324,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     ): Effect.Effect<void> =>
       Effect.gen(function*() {
         session = id
+        // Coming back into a conversation we left makes its leftovers news
+        // about THIS visit. Load un-closes before the replay too, because the
+        // frames land before this runs.
+        closed.delete(id)
         emit({ _tag: "session", id, title })
         yield* lifecycle(Effect.logInfo("conversation opened"), { how })
         yield* note(
@@ -1369,6 +1418,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       Effect.gen(function*() {
         // Before the flag below, because a detection is not a replay.
         const mcpServers = [...(yield* servers)]
+        // THIS conversation is the one we are coming back to. Leftover frames
+        // from a previous visit of it are now news about this one — and the
+        // replay that follows names this id before {@link entered} records it.
+        // Closed it when we left; un-close before the frames land, or the
+        // load of a conversation we just left would draw nothing.
+        closed.delete(id)
         // Everything between these two is history. The flag is set before the
         // call because a load replays THEN answers.
         replaying = true
@@ -1816,8 +1871,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       stopped = true
       const at = live
       live = null
-      session = null
       leaving()
+      session = null
       if (at === null) return
       at.connection.close()
       await at.child.stop()
@@ -1830,10 +1885,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       cancel,
       newSession: opening((at) =>
         Effect.gen(function*() {
-          session = null
           // BEFORE the break, so the question is settled on the row it is
           // drawn on rather than after that row has been cleared away.
+          // {@link leaving} names the session being left, so it runs before
+          // `session` is cleared — nulling first is what used to turn the
+          // leftover fence off for the whole of the next open.
           leaving()
+          session = null
           emit({ _tag: "sessionOver", why: "new" })
           yield* fresh(at)
         })
@@ -1849,8 +1907,8 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
             }
             const stored = yield* storedFor(at)
             const wanted = stored.find((entry) => entry.id === id)
-            session = null
             leaving()
+            session = null
             emit({ _tag: "sessionOver", why: "load" })
             // Re-opening the conversation this panel is the memory OF puts it
             // back on its model, exactly as a restart does; opening any other
@@ -1981,6 +2039,31 @@ const ask = (
  */
 export const goneOf = (cause: unknown): Gone =>
   cause instanceof RequestError ? "refused" : "unanswered"
+
+/**
+ * Whether a notification is about a conversation this panel is not in.
+ *
+ * A named session is about one conversation. It is from elsewhere when that
+ * conversation is one this panel has LEFT, or when this panel is IN a
+ * conversation and this is not it.
+ *
+ * A MISMATCH while we are in none is not elsewhere on its own: a load's
+ * replay, and an `init` that beats `session/new`'s answer, both arrive before
+ * this end has recorded which session it is in. Closed is what names the
+ * session they must not be about. An unnamed notification is not a mismatch
+ * either — absence is a shape we have not seen, and dropping one would go
+ * quiet about a `/model` for the life of a conversation.
+ *
+ * Exported for its own test: it is one line, and it is the line the leftover-
+ * session flake is drawn out of.
+ */
+export const fromElsewhere = (
+  named: unknown,
+  current: string | null,
+  closed: ReadonlySet<string>,
+): boolean =>
+  typeof named === "string" &&
+  (closed.has(named) || (current !== null && named !== current))
 
 const notify = (
   at: Live,

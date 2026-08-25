@@ -74,6 +74,26 @@ import { Schema } from "effect"
  *  anybody remembering to say so. */
 const INDEXES = Object.keys(READ) as ReadonlyArray<Index>
 
+/**
+ * …and every field of a derivation that is NOT an index, which today is the two
+ * LISTS: the flat reading of the corpus and the days in order.
+ *
+ * IT IS EXHAUSTIVE BY THE TYPE, and that is the whole reason it is a table
+ * rather than two names written into the view below. A view built from
+ * {@link READ} alone covers the maps and silently DROPS everything else — a
+ * field added to `Derived` would read as `undefined` through the taping view,
+ * so an answer that spent it would throw or, worse, quietly answer about
+ * nothing. That is not hypothetical: `perf-agenda-history-walk` added
+ * {@link Derived.days} while this was written against the maps alone, and the
+ * calendar's binary search met an `undefined` array the moment the two met.
+ * `Exclude<keyof Derived, Index>` is what makes the next one a typecheck
+ * failure here instead.
+ */
+const LISTS: { readonly [K in Exclude<keyof Derived, Index>]: null } = {
+  nodes: null,
+  days: null,
+}
+
 /** A value read out of an index, or the absence of one — taped as it stands.
  *  `undefined` IS a value here (see the header's second bullet). */
 type Held = unknown
@@ -88,8 +108,9 @@ export interface Tape {
   readonly keyed: Map<Index, Map<string, Held>>
   /** The indexes this run walked, in any of the ways a map can be walked. */
   readonly walked: Set<Index>
-  /** Whether it asked for the flat reading of the corpus. */
-  nodes: boolean
+  /** The LISTS it asked for — each is one value and is held against one
+   *  comparison ({@link LISTS}). */
+  readonly lists: Set<keyof typeof LISTS>
   /** Whether it read the served files, and whether it read the broken ones. */
   documents: boolean
   broken: boolean
@@ -189,11 +210,11 @@ class Taped<V> implements ReadonlyMap<string, V> {
  * a granularity nobody spends ({@link carriedSet} is what answers for them).
  * What is wrapped is the derivation, index by index.
  *
- * `nodes` is a GETTER and has to be: on a patched view the flat reading is
- * built the first time somebody asks ({@link Derived.nodes}), so a view built
- * by spreading the derivation would flatten the corpus on the way past — one
- * array per record in the directory, per answer, for a reading most answers
- * never ask for.
+ * EVERY FIELD OF THE DERIVATION IS STOOD IN FOR — the maps by a taping wrapper
+ * ({@link INDEXES}) and the lists by a getter ({@link LISTS}) — and both lists
+ * are exhaustive by the type rather than by memory. A view that covered only
+ * what somebody thought of would answer `undefined` for the rest, which is a
+ * missing table dressed as an empty one.
  */
 export const taping = (
   at: Reading,
@@ -201,30 +222,41 @@ export const taping = (
   const tape: Tape = {
     keyed: new Map(),
     walked: new Set(),
-    nodes: false,
+    lists: new Set(),
     documents: false,
     broken: false,
   }
-  const view: Record<string, unknown> = {
-    get nodes(): unknown {
-      tape.nodes = true
-      return at.derived.nodes
-    },
-  }
+  const view: Record<string, unknown> = {}
   // ONE WRAPPER PER INDEX THE ANSWER ACTUALLY NAMES, minted on the way past and
   // kept: most of the five read two or three of the eleven, and the two
   // cheapest — a month of the calendar, a move picker's preview — read exactly
   // one. Eleven allocations to answer a question that costs a fifth of a
   // millisecond is a tax on the arm this module exists to make cheaper.
-  // ENUMERABLE, like the fields it stands in for: a view whose indexes were
-  // hidden from a spread would be a `Derived` that quietly lost ten of its
-  // eleven tables the first time somebody copied one.
+  //
+  // ENUMERABLE, like the fields they stand in for: a view whose tables were
+  // hidden from a spread would be a `Derived` that quietly lost eleven of its
+  // thirteen fields the first time somebody copied one.
   for (const which of INDEXES) {
     let held: Taped<unknown> | undefined
     Object.defineProperty(view, which, {
       enumerable: true,
       get: () =>
         held ??= new Taped(at.derived[which] as ReadonlyMap<string, unknown>, which, tape),
+    })
+  }
+  // …and the LISTS, which are one value each and are taped as one. Getters for
+  // the reason the wrappers above are lazy and then some: on a patched view
+  // {@link Derived.nodes} is built the first time somebody asks, so a view that
+  // read its own fields while building itself would flatten the corpus on the
+  // way past — one array per record in the directory, per answer, for a reading
+  // most answers never ask for.
+  for (const which of Object.keys(LISTS) as ReadonlyArray<keyof typeof LISTS>) {
+    Object.defineProperty(view, which, {
+      enumerable: true,
+      get: () => {
+        tape.lists.add(which)
+        return at.derived[which]
+      },
     })
   }
   const set: OutlineSet = {
@@ -257,7 +289,9 @@ export const taping = (
  */
 export const stillHolds = (tape: Tape, was: Reading, now: Reading): boolean => {
   if (was === now) return true
-  if (tape.nodes && !carriedNodes(was.derived, now.derived)) return false
+  for (const which of tape.lists) {
+    if (!carriedList(was.derived, now.derived, which)) return false
+  }
   if (tape.documents && !carriedSet(was.set, now.set).documents) return false
   if (tape.broken && !carriedSet(was.set, now.set).broken) return false
   for (const which of tape.walked) {
@@ -305,9 +339,9 @@ const carried = (was: unknown, now: unknown): boolean => {
 interface Carried {
   readonly against: Derived
   readonly indexes: Map<Index, boolean>
-  /** The flat reading, which is not an index and is the largest single thing
-   *  here: `undefined` until somebody's tape has asked for it. */
-  nodes?: boolean
+  /** The two LISTS, which are not indexes and one of which is the largest
+   *  single thing here — absent until somebody's tape has asked for one. */
+  readonly lists: Map<keyof typeof LISTS, boolean>
 }
 
 /** Keyed on the PREVIOUS derivation, holding what it was last compared
@@ -342,26 +376,30 @@ const carriedIndex = (was: Derived, now: Derived, which: Index): boolean => {
 }
 
 /**
- * Whether the FLAT reading says what it said — memoised beside the indexes and
+ * Whether one of the LISTS says what it said — memoised beside the indexes and
  * for a sharper version of their reason.
  *
- * It is one array per record in the directory, so an answer that walks the
- * corpus and is re-validated per revision per question would pay the corpus
- * again per question. It is also the reading a patched view builds LAZILY
- * ({@link Derived.nodes}), so asking it here can be the thing that builds it —
- * which is exactly right when a tape asked for it and would be a corpus-sized
- * allocation for nothing if this ran on a tape that did not.
+ * {@link Derived.nodes} is one array per record in the directory, so an answer
+ * that walks the corpus and is re-validated per revision per question would pay
+ * the corpus again per question. It is also the reading a patched view builds
+ * LAZILY, so asking it here can be the thing that builds it — exactly right
+ * when a tape asked for it, and a corpus-sized allocation for nothing on a tape
+ * that did not, which is why this runs only for the lists a tape names.
  */
-const carriedNodes = (was: Derived, now: Derived): boolean => {
+const carriedList = (was: Derived, now: Derived, which: keyof typeof LISTS): boolean => {
   const held = comparing(was, now)
-  return held.nodes ??= carried(was.nodes, now.nodes)
+  const answered = held.lists.get(which)
+  if (answered !== undefined) return answered
+  const same = carried(was[which], now[which])
+  held.lists.set(which, same)
+  return same
 }
 
 /** The pair's row, minted on first ask — {@link comparedIndexes}' one writer. */
 const comparing = (was: Derived, now: Derived): Carried => {
   const held = comparedIndexes.get(was)
   if (held !== undefined && held.against === now) return held
-  const fresh: Carried = { against: now, indexes: new Map() }
+  const fresh: Carried = { against: now, indexes: new Map(), lists: new Map() }
   comparedIndexes.set(was, fresh)
   return fresh
 }

@@ -6,13 +6,33 @@
  * blockedness: anything cached here would be a second answer to a question git
  * already answers, and it would be wrong the moment somebody edits a file in
  * vim. So every reading is a fresh one — `git status --porcelain` names every
- * dirty file in the repository, `git show HEAD:<file>` is the committed side of
- * each served outline, the working side is the store's own last-good parse, and
- * the comparison is `@olai/format`'s (`changesOf`), which has no git in it at
- * all.
+ * dirty file in the repository, the working side is the store's own last-good
+ * parse, and the comparison is `@olai/format`'s (`changesOf`), which has no git
+ * in it at all.
  *
- * Cost is bounded by what is dirty. A clean directory is one `rev-parse`, one
- * `status`, and no parsing whatsoever.
+ * THE ONE EXCEPTION, and it is not a second answer to anything: the copy a
+ * COMMIT holds of a file ({@link ./committed.ts}). That is not a question about
+ * the working tree at all — it is a question about an immutable object, asked
+ * as `<sha>:<path>` and remembered under that same pair — so no edit anybody
+ * makes anywhere can make a remembered answer wrong. It used to be a
+ * `git show HEAD:<file>` subprocess plus a full parse PER DIRTY OUTLINE PER
+ * REVISION, which under manual commit made typing slower the longer a commit
+ * was deferred (`perf-git-per-write`). Read that file for why staleness is
+ * impossible by construction rather than by a call somebody has to remember.
+ *
+ * Cost is bounded by what CHANGED, not by what is waiting. THREE SUBPROCESSES A
+ * REVISION whatever the directory holds — `status`, `symbolic-ref` and the
+ * audit `log`, asked together — plus ONE MORE where anything is dirty: the
+ * `rev-parse` naming the commit the remembered copies are filed under. A
+ * `show` is spent only on an outline whose copy at that commit has not been
+ * read yet, so a keystroke with fifty dirty outlines spends none. A clean
+ * directory parses nothing whatsoever.
+ *
+ * The `rev-parse` that finds the REPOSITORY (where its git directory is, where
+ * the served root sits in it) is not one of those: it is paid once, when the
+ * handle opens, and a positive answer is kept for the life of the process
+ * ({@link repository}). Two different questions with one command's name — worth
+ * saying, because they sit two sentences apart.
  *
  * The one thing that cannot be derived is WHO wrote it — git only knows the
  * bytes moved — so that is a counter this module keeps in memory and clears on
@@ -66,7 +86,6 @@ import {
   NOTHING_PENDING,
   type Other,
   outlinePaths,
-  parseOutline,
   type Pending,
   policyOf,
   QUIET_MS,
@@ -78,8 +97,9 @@ import {
   type Wrote,
 } from "@olai/format"
 import * as Git from "@olai/git"
-import { Duration, Effect, Result, Stream, SubscriptionRef } from "effect"
+import { Duration, Effect, Stream, SubscriptionRef } from "effect"
 
+import { type Committed, remembering } from "./committed.ts"
 import type { Store } from "./deps.ts"
 import { AUDIT, signed } from "./message.ts"
 
@@ -350,6 +370,19 @@ export interface Options {
    *  a product decision and lives with the rule (`@olai/format`'s
    *  {@link QUIET_MS}); this is only how long this instance waits. */
   readonly quiet?: Duration.Input
+  /**
+   * HEAD's side of the dirty outlines — {@link ./committed.ts}'s
+   * `remembering()` where nobody says otherwise, which is every composition
+   * this program has.
+   *
+   * Handed in so the DIFFERENTIAL can run this whole layer against an arm that
+   * remembers nothing (`./committed.testlib.ts`'s `forgetful`, which is the
+   * per-file `git show HEAD:<file>` this file used to do inline) and hold the
+   * two to the same answer at every step of a scripted git session
+   * (`./pending.equivalence.test.ts`). A cache whose reference implementation
+   * is not in the tree is a cache nobody can check.
+   */
+  readonly committed?: Committed
 }
 
 /**
@@ -579,6 +612,11 @@ interface Detail {
 }
 
 export const make = (options: Options): Committing => {
+  /** HEAD's side of the dirty outlines, remembered per commit — see
+   *  {@link ./committed.ts}. One per served directory, which is one per
+   *  {@link Committing}, so what it holds goes when the directory does. */
+  const committedSide = options.committed ?? remembering()
+
   /** What this server DOES about commits, ASKED EVERY TIME rather than derived
    *  once: the policy moves while the server runs (`git.setPolicy`), and a mode
    *  read at boot would be a loop that never noticed being turned on. */
@@ -746,7 +784,8 @@ export const make = (options: Options): Committing => {
   /**
    * The two sides, parsed and compared.
    *
-   * The COMMITTED side comes out of git and through the format's own parser.
+   * The COMMITTED side comes out of git and through the format's own parser —
+   * once per commit rather than once per revision ({@link ./committed.ts}).
    * The WORKING side is the store's last-good parse of the same file, which is
    * the same bytes read by the probe that keeps the page live — so a page and
    * this panel can never disagree about what a file says, and nothing is read
@@ -789,42 +828,39 @@ export const make = (options: Options): Committing => {
         return true
       })
 
-      // CONCURRENTLY: each is its own subprocess, and they do not depend on
-      // each other. Bounded, because a `git pull` can make a hundred outlines
-      // dirty at once and a hundred simultaneous processes is its own problem.
-      // `show` does not take the index, so the bound is still the bound.
-      // HEAD's copy is asked for under the name HEAD HAD IT UNDER, which for a
+      // THE COMMITTED SIDE, in one ask. What it costs is a `rev-parse` for the
+      // commit and a `show` for each outline whose copy at THAT commit has not
+      // been read yet — which after the first revision of a session is the
+      // outlines that have just become dirty, and usually none at all.
+      //
+      // The copy is asked for under the name HEAD HAD IT UNDER, which for a
       // rename is the side it came from — read against the name it has now,
       // which HEAD has never had, every node in it reports as created.
-      const committed = readable.map(was)
-      const heads = yield* Effect.all(committed.map((one) => git.show(one.ask)), {
-        concurrency: 8,
-      })
+      const asks = readable.map(was)
+      const copies = yield* committedSide.at(git, asks.map((one) => one.ask))
 
       const before = new Map<string, ReadonlyArray<Node>>()
       const after = new Map<string, ReadonlyArray<Node>>()
       readable.forEach((one, at) => {
-        const head = heads[at]
+        const asked = asks[at]
         // ... and keyed under it too, in the namespace the working side uses:
         // `changesOf` matches by id ACROSS files, so a node in both maps under
         // two names is one node that moved. See {@link Was} for why the name
         // asked for and the name keyed by are not the same string.
-        const key = committed[at]?.key ?? one.file
-        if (head !== undefined && head !== null) {
-          const parsed = parseOutline(key, head)
-          if (Result.isFailure(parsed)) {
-            // The COMMITTED copy does not parse. Rare, and not this working
-            // tree's doing — but nothing can be said about what changed in it.
-            //
-            // Unless it was never an outline at all: a rename INTO the format
-            // — a `.md` becoming a `.olai`, which is the migration this was
-            // filed during — has no committed outline to compare against, and
-            // that is an absence rather than a fault to report.
-            if (fileKind(key) === "outline") unreadable.add(one.file)
-            return
-          }
-          before.set(key, parsed.success.nodes.map((located) => located.node))
+        const key = asked?.key ?? one.file
+        const copy = asked === undefined ? undefined : copies.get(asked.ask)
+        if (copy?._tag === "Unparsed") {
+          // The COMMITTED copy does not parse. Rare, and not this working
+          // tree's doing — but nothing can be said about what changed in it.
+          //
+          // Unless it was never an outline at all: a rename INTO the format
+          // — a `.md` becoming a `.olai`, which is the migration this was
+          // filed during — has no committed outline to compare against, and
+          // that is an absence rather than a fault to report.
+          if (fileKind(key) === "outline") unreadable.add(one.file)
+          return
         }
+        if (copy?._tag === "Nodes") before.set(key, copy.nodes)
         // A dirty file the set does not list has left the disk, and an absent
         // `after` side is exactly how that reads: every node in it is gone.
         if (known.has(one.file)) {

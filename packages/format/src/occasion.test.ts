@@ -47,11 +47,29 @@
  * reader holds after an edit came out of `patch`, and an incremental fold that
  * agreed with the walk only when rebuilt from scratch would be the one failure
  * this whole file exists to catch.
+ *
+ * ## The second index, and the second walk it replaced
+ *
+ * `perf-agenda-history-walk` did the same trade one reading further on. The two
+ * COUNTS a mark outside the agenda prints used to be `owedOf` over the whole
+ * agenda — every overdue node in the directory situated, to be thrown away —
+ * and they are now an addition over {@link Derived.owedByDay}, which the patcher
+ * keeps beside the day index. So there are two spellings of one number where
+ * there was one, and the SAME WALK is the oracle for the new one: `owedNow` is
+ * asked of every generated corpus beside `owedOf(walkedAgenda(…))`, at both
+ * todays, on the derived view and on the patched one.
+ *
+ * The generator already writes the corners that move an owed count — a mark
+ * arriving, a mark leaving, `done` carrying an instant, the trash, a mirror —
+ * because they are the corners a DAY reading can be wrong in too, which is what
+ * makes one file the right home for both claims. What is late is what is on a
+ * day and unfinished, so a generator that could not fool the first walk cannot
+ * fool the second either.
  */
 
 import { expect, test } from "bun:test"
 
-import { type Agenda, type AgendaDay, agendaOf, owedIn, owedOf } from "./agenda.ts"
+import { type Agenda, type AgendaDay, agendaOf, owedIn, owedNow, owedOf } from "./agenda.ts"
 import { datedDays, datedOn, type DayGroup } from "./dates.ts"
 import { byDayKey, derive, type Derived } from "./derive.ts"
 import {
@@ -223,6 +241,11 @@ test("every day reading answers what the walk it replaced answered", () => {
         for (const [day, bucket] of walked) {
           expect(view.byDay.get(day)).toEqual(bucket as never)
         }
+        // ...and the DAY LINE is those keys, which is the whole of what it
+        // promises: every binary search into it (the calendar's month, the
+        // agenda's tomorrow) lands on a key the map answers for, or lands
+        // somewhere the two have quietly parted company.
+        expect(view.days).toEqual([...walked.keys()].sort(byDayKey))
 
         // The calendar's dots, month by month — including one the corpus has
         // nothing in, which must be an empty answer rather than a refusal.
@@ -243,6 +266,12 @@ test("every day reading answers what the walk it replaced answered", () => {
         if (owedIn(agenda) > 0) owed++
         saying(story, () => {
           expect(agendaSaid(agenda)).toBe(agendaSaid(walkedAgenda(view, today)))
+          // THE COUNTS OFF THE INDEX, against the counts off the walk — the
+          // second claim this file makes (`perf-agenda-history-walk`). Asked of
+          // the WALK's agenda rather than of the one above, so that a bug in
+          // the indexed agenda cannot make the two spellings of the count agree
+          // with each other and with nothing else.
+          expect(owedNow(view, today)).toEqual(owedOf(walkedAgenda(view, today)))
         })
       }
     }
