@@ -1168,6 +1168,13 @@ export const bind = (
         ops: {
           run: impl(writing(wiring.ops, wiring.writer).ops.run),
           outlines: () => wiring.ops.outlines,
+          // The plan arm's reading, and the one member here answering no tool:
+          // which files the inbox convention is read off. It is a procedure of
+          // its own rather than the listing narrowed for the reason
+          // `@olai/surface`'s own declaration gives — a capture asking
+          // `list_outlines` paid for every record in the directory to keep the
+          // names.
+          paths: () => wiring.ops.paths,
           node: ({ input }) => wiring.ops.node(input),
           subtree: ({ input }) => wiring.ops.subtree(input),
           documents: () => wiring.ops.documents,

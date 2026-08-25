@@ -88,6 +88,7 @@ import {
   PropRequest,
   type OpFailure,
   OutlineAnswer,
+  type PathsAnswer,
   type PushResult,
   type Reading,
   REPEAT_GRAMMAR,
@@ -198,6 +199,20 @@ interface Described {
 export interface Asking {
   /** Every outline under the served directory — `list_outlines`. */
   readonly outlines: Effect.Effect<OutlineAnswer, OpFailure>
+  /**
+   * The outline PATHS of that same directory, and no tool at all: this is the
+   * reading a PLAN arm needs ({@link Planning}), which is why it is here beside
+   * the six an agent asks rather than in the table.
+   *
+   * It is here and not derived from {@link Asking.outlines} because deriving it
+   * is exactly what cost too much: a capture would have the whole corpus
+   * materialised to keep the file names off the answer, twice when the race
+   * makes it resolve again (`./query.ts`'s `paths`, roadmap
+   * `perf-capture-paths`). Every face can answer it — the ops layer off its own
+   * gated read, a surface client off one procedure — which is the property the
+   * plan arm was built around.
+   */
+  readonly paths: Effect.Effect<PathsAnswer, OpFailure>
   /** One node in full, or the id nothing here declares — `read_node`. */
   readonly node: (request: NodeRequest) => Effect.Effect<NodeAnswer, OpFailure>
   /** A node and what hangs under it, nested — or a whole outline, every
@@ -253,6 +268,7 @@ export const asking = (
   outlines: Effect.map(read, (at) => ({
     outlines: Query.outlines(at.set, at.derived),
   })),
+  paths: Effect.map(read, (at) => Query.paths(at.set)),
   node: (request) =>
     Effect.map(read, (at) => Query.detail(at.derived, request.id) ?? { missing: request.id }),
   // ONE OF THE TWO READS THAT CAN REFUSE FROM THE WALK ITSELF — see the note
@@ -306,9 +322,12 @@ export interface Acting {
  * a world, so the table stays a declaration.
  *
  * THREE FACTS, and each is one a resolver genuinely cannot compute. `paths` is
- * the directory's outline listing, which is what the inbox convention is read
- * off (`@olai/format`'s `captureInto`) — the paths and not a `Reading`, so a
- * face with no store of its own can supply it from `ops.outlines`. `login` is
+ * the directory's outline PATHS, which is what the inbox convention is read off
+ * (`@olai/format`'s `captureInto`) — the paths and not a `Reading`, so a face
+ * with no store of its own can supply them, and since `perf-capture-paths` it
+ * supplies them from the question that answers exactly this
+ * ({@link Asking.paths} / `ops.paths`) rather than from the listing with the
+ * counts dropped off it. `login` is
  * who the DOOR knows and may be nobody, because an attribution a caller could
  * send would not be one. `now` is the clock, read PER CALL rather than
  * captured, so a server left running overnight still dates a capture today —

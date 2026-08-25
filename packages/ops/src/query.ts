@@ -78,10 +78,12 @@ import {
   owedNow,
   type OwedRequest,
   type OutlineSet,
+  outlineNames,
   outlinePaths,
   type OutlineSummary,
   type PageReading,
   type PageRequest,
+  type PathsAnswer,
   parseFilter,
   pageOf,
   rankedTogether,
@@ -108,6 +110,7 @@ import {
 import type { Index } from "@olai/index"
 import { Result } from "effect"
 
+import { askedOf } from "./asked.ts"
 import { noSuchDocument, notLoaded, outlineAt } from "./refusals.ts"
 
 /**
@@ -535,12 +538,17 @@ export const named = (
  * request that said so would be this layer holding an opinion about a
  * browser's storage.
  *
- * NEITHER HALF IS A WALK. An id is a `byId` lookup over an index the
- * derivation already carries, and a file is a membership test against the two
- * lists the SET is made of — so what this costs is the size of the QUESTION,
- * which is what one reader has actually collapsed, rather than the size of the
- * directory. That is the whole of the change: the scan did not move to the
- * server, it stopped existing.
+ * NEITHER HALF IS A WALK — and that sentence was half true until
+ * `perf-homes-files`. An id is a `byId` lookup over an index the derivation
+ * already carries, which it always was. A file is a membership test against the
+ * two lists the SET is made of, which it reads as — but both of those lists
+ * were BUILT HERE, per call: a `Set` of every outline path in the directory and
+ * a map of every broken file, allocated to answer a handful of `has`, once per
+ * fold and unfold a reader presses. The two are held with the set now
+ * (`@olai/format`'s `outlineNames` and `brokenBy`), so what this costs is the
+ * size of the QUESTION — what one reader has actually collapsed — rather than
+ * the size of the directory, and the sentence is a fact rather than an
+ * intention. The scan did not move to the server; it stopped existing.
  */
 export const homes = (
   /** BOTH HALVES of the reading, and each half answers one half of the
@@ -566,7 +574,7 @@ export const homes = (
   // unreadable, and a caller reading that as "nothing can be concluded" would
   // keep the folds of every node that used to be in it, for good. So it is the
   // two facts the set actually holds: served, and not among the broken.
-  const served = new Set(outlinePaths(at.set))
+  const served = outlineNames(at.set)
   const broken = brokenBy(at.set)
   const loaded = [...new Set(request.files)].filter(
     (file) => served.has(file) && !broken.has(file),
@@ -976,7 +984,7 @@ export const subtree = (
     // The GATE and its sentence together, one door over in the planner, because
     // the write that places a node at a file's top level asks the identical
     // question and owes the identical answer ({@link outlineAt}).
-    const outline = outlineAt(at.set, request.file)
+    const outline = outlineAt(askedOf(at.set), request.file)
     if (Result.isFailure(outline)) return Result.fail(outline.failure)
     const broken = brokenIn(at.set, request.file)
     if (broken !== undefined) return Result.fail(notLoaded(request.file, broken))
@@ -1065,6 +1073,31 @@ export const outlines = (
     }
   })
 }
+
+/**
+ * The outline PATHS — the same directory, asked the question a capture actually
+ * has.
+ *
+ * WHY IT IS NOT {@link outlines}. A capture is aimed by a convention over the
+ * file NAMES (`@olai/format`'s `captureInto`), and the face that resolves one
+ * may hold no store at all — an agent's `capture` over a socket — so the only
+ * reading it could get was the LISTING, which counts the regular records of
+ * every file in the directory to answer with a `nodes` and a `roots` that
+ * resolution throws away. On a vault that is the whole corpus materialised per
+ * capture, and twice when the capture race makes the resolver read again
+ * (roadmap `perf-capture-paths`). The listing keeps those counts, because
+ * `list_outlines` is read by an agent CHOOSING a file; this door is for the one
+ * that already knows what it is looking for.
+ *
+ * THE SET ALONE, no derivation, which is the whole shape of the saving: the
+ * paths are a narrowing of the documents the set is made of, held with it
+ * (`@olai/format`'s `outlinePaths`), and no record is looked at. A file that
+ * did not parse is still an outline this directory serves and is in the list —
+ * the same rule the listing follows, where such a file is a row rather than an
+ * omission, and the right one here too: an inbox nobody can read is still the
+ * inbox, and `create`-ing a second one over it would be the worse answer.
+ */
+export const paths = (set: OutlineSet): PathsAnswer => ({ paths: outlinePaths(set) })
 
 // ── the documents ──────────────────────────────────────────────────────
 

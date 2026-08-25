@@ -47,7 +47,7 @@ import {
   type Node,
   nodesOf,
   type OutlineSet,
-  outlinePaths,
+  outlineNames,
   type Sort,
 } from "@olai/format"
 
@@ -123,6 +123,6 @@ export const sortOfWrite = (
   // just brought a file into being is a lie the panel would draw, so the
   // arrival of the FILE is the change, in the word the format already has for
   // a thing that was not there before.
-  const known = new Set(outlinePaths(before))
+  const known = outlineNames(before)
   return files.some((planned) => !known.has(planned.file)) ? "created" : undefined
 }

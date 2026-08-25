@@ -43,7 +43,7 @@ import {
 import { isMirror, type Located, type Site } from "./node.ts"
 import { byPath } from "./paths.ts"
 import { markdownIn, type OutlineSet } from "./set.ts"
-import { didYouMean } from "./suggest.ts"
+import { didYouMeanDeclared } from "./suggest.ts"
 
 // ── the verdict ────────────────────────────────────────────────────────
 
@@ -246,8 +246,8 @@ export const reportUnknownTargets = (
 ): void => {
   for (const id of dangling) {
     // Once per unknown id rather than once per record naming it: the sentence
-    // is the same for every one of them, and the suggestion behind it walks
-    // every declared id in the set.
+    // is the same for every one of them, and the suggestion behind it is a
+    // question about every declared id in the set.
     const said = suggest(id, derived)
     for (const naming of derived.namedBy.get(id) ?? []) {
       for (const field of naming.fields) {
@@ -441,6 +441,12 @@ const siteOf = ({ file, line }: Located): Site => ({ file, line })
 /** "did you mean", over the ids the set declares. The rule itself is
  *  {@link ./suggest.ts}'s, because the ops layer refuses the same unknown
  *  target one moment earlier — at the plan, before the write — and two copies
- *  of the budget would be two answers to one question. */
+ *  of the budget would be two answers to one question.
+ *
+ *  THE MAP AND NOT ITS KEYS, which is the whole of what `perf-didyoumean`
+ *  changed here: a file with a dozen dangling references asks this a dozen
+ *  times per write ({@link reportUnknownTargets}), and the door that takes the
+ *  map answers off an index held against it rather than walking every id per
+ *  ask. Same offer, ties included. */
 const suggest = (id: string, derived: Derived): string =>
-  didYouMean(id, derived.byId.keys())
+  didYouMeanDeclared(id, derived.byId)

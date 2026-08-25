@@ -34,8 +34,9 @@ import { describe, expect, test } from "bun:test"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
-import { failed, planned, readingOf, setOf, succeeded } from "./fixtures.testlib.ts"
+import { failed, planned, readingOf, setOf, steady, succeeded } from "./fixtures.testlib.ts"
 import { folding } from "./following.ts"
+import { scoping } from "./plan.ts"
 import {
   dated,
   detail,
@@ -1050,7 +1051,7 @@ describe("a document listing's sizes are a recompute from the body", () => {
     agree(set)
     const made = planned(set, { op: "doc", file: "note.md", text: next })
     const folded = succeeded(
-      folding(readingOf(set))(made),
+      folding(scoping(readingOf(set), steady()))(made),
       "`write_document` to apply",
     )
     agree(folded.set)

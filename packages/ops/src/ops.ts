@@ -63,7 +63,7 @@ import {
   type Policy,
   type Status,
 } from "./pending.ts"
-import { type Context, plan } from "./plan.ts"
+import { type Context, plan, scoping } from "./plan.ts"
 import * as Query from "./query.ts"
 import { standing } from "./standing.ts"
 import { sortOfWrite } from "./sorted.ts"
@@ -434,7 +434,7 @@ export const make = (options: Options): Ops => {
           })
         }
 
-        const planned = plan(snapshot.value, context, request)
+        const planned = plan(scoping(snapshot.value, context), request)
         if (Result.isFailure(planned)) return yield* planned.failure
         const { files, documents = [], ...about } = planned.success
 

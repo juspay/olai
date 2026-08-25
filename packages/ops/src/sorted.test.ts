@@ -14,7 +14,7 @@ import { describe, expect, test } from "bun:test"
 import { Result } from "effect"
 
 import { readingOf, setOf, steady } from "./fixtures.testlib.ts"
-import { plan } from "./plan.ts"
+import { plan, scoping } from "./plan.ts"
 import { sortOfWrite } from "./sorted.ts"
 
 const KITCHEN = [
@@ -30,7 +30,7 @@ const house = (): OutlineSet => setOf({ "house.olai": KITCHEN })
  *  it was about. */
 const sorting = (set: OutlineSet, request: Request): Sort | undefined => {
   const at = readingOf(set)
-  const planned = plan(at, steady(), request)
+  const planned = plan(scoping(at, steady()), request)
   if (Result.isFailure(planned)) {
     throw new Error(
       `expected \`${request.op}\` to plan, and it refused: ${planned.failure.message}`,

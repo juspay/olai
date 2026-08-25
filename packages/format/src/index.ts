@@ -143,8 +143,10 @@ export {
   markdownIn,
   nodesIn,
   OutlineSet,
+  outlineNames,
   outlinePaths,
   outlinesIn,
+  withDocuments,
 } from "./set.ts"
 /** WHICH FILE COMES FIRST — the order a directory is read in, and the one
  *  spelling of it: the set is assembled in it, the patcher places an arriving
@@ -746,7 +748,13 @@ export {
  *  {@link HomesAnswer} is the sixth and is a batch of a smaller question still:
  *  WHERE these ids are, and whether the set has anything from these files —
  *  asked by a reader holding a memory of records it saw earlier and needing to
- *  tell a node that MOVED from one that is gone. */
+ *  tell a node that MOVED from one that is gone.
+ *
+ *  {@link PathsAnswer} is the seventh and the smallest of them: the outline
+ *  PATHS, for the caller that is aiming a capture rather than reading a
+ *  directory. It is not the listing narrowed — the listing keeps its counts,
+ *  and this exists so that asking for the names does not cost the records
+ *  ({@link PathsAnswer} argues it). */
 
 export {
   DEFAULT_SUBTREE_DEPTH,
@@ -765,6 +773,7 @@ export {
   OutlineAnswer,
   OutlineRoots,
   OutlineSummary,
+  PathsAnswer,
   Placed,
   Placement,
   Reference,
@@ -847,8 +856,16 @@ export { composed, MESSAGE_PREFIX } from "./message.ts"
  *  the validator refuses the same id on load. One question at two moments — a
  *  second copy of the budget, or of the sentence, would let the two disagree
  *  about what a misspelling is. `nearestId` is the rule for a caller that wants
- *  the candidate rather than the wording. */
-export { didYouMean, nearestId } from "./suggest.ts"
+ *  the candidate rather than the wording.
+ *
+ *  FOUR RATHER THAN TWO, and the pair to reach for is the `Declared` one: it
+ *  answers the same offer over the MAP of ids a set declares, off an index held
+ *  against that map, which is what keeps a burst of refusals from walking the
+ *  vault once each (`./suggest.ts` argues it, roadmap `perf-didyoumean`). The
+ *  plain pair stays for the candidates that are not a `Derived` map — a
+ *  directory's outlines, its documents — where a handful of paths is the whole
+ *  list and an index would cost more than the walk. */
+export { didYouMean, didYouMeanDeclared, nearestDeclared, nearestId } from "./suggest.ts"
 
 export { ordBetween } from "./ord.ts"
 /** `nothing` and `heldCustom` are the writer's two rules about absence — one

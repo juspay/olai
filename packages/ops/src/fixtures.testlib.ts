@@ -19,7 +19,7 @@
 import type { Node, OpFailure, OutlineSet, RegularNode, WriteRequest } from "@olai/format"
 import { Result } from "effect"
 
-import { type Context, plan, type Plan } from "./plan.ts"
+import { type Context, plan, type Plan, scoping } from "./plan.ts"
 import { readingOf } from "@olai/format/testlib"
 
 /** The pairing a snapshot carries, built from text — `@olai/format`'s, like
@@ -64,7 +64,7 @@ export const steady = (): Context => {
 export const planning = (
   set: OutlineSet,
   request: WriteRequest,
-): Result.Result<Plan, OpFailure> => plan(readingOf(set), steady(), request)
+): Result.Result<Plan, OpFailure> => plan(scoping(readingOf(set), steady()), request)
 
 /**
  * A `Result` this layer produced, unwrapped — and the DIAGNOSTIC, which is the

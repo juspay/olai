@@ -111,7 +111,9 @@ It declares `OpFailure` as its error channel, which is what the editor is built 
 
 ## And one group NO browser may reach
 
-`src/ops.ts` is the AGENT's door — `ops.run` over `@olai/format`'s `WriteRequest` union, and the three query answers that had no procedure. It is the other half of the sentence above: a keyboard sends intents and an agent names ops, deliberately different vocabularies over one write gate, and `edit.apply` is untouched by any of it.
+`src/ops.ts` is the AGENT's door — `ops.run` over `@olai/format`'s `WriteRequest` union, and the query answers that had no procedure. It is the other half of the sentence above: a keyboard sends intents and an agent names ops, deliberately different vocabularies over one write gate, and `edit.apply` is untouched by any of it.
+
+One member there answers no tool at all: **`ops.paths`**, the outline PATHS of the served directory. It is the reading a PLAN arm resolves against — a capture is aimed by the inbox convention over the file names, and a face with no store of its own could only get them by asking `ops.outlines` and dropping the counts, which materialises every record in the directory to hand back a list of names, twice when the capture race makes the resolver read again (`perf-capture-paths`). It is a second question rather than a narrowing of the first: `list_outlines` keeps its counts and its roots, because those are what an agent CHOOSES a file by.
 
 Two things about it are worth reading before the file:
 

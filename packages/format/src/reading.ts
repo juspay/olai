@@ -239,6 +239,34 @@ export const OutlineAnswer = Schema.Struct({
 })
 export type OutlineAnswer = typeof OutlineAnswer.Type
 
+/**
+ * THE OUTLINE PATHS AND NOTHING ELSE — the same directory, asked the smaller
+ * question.
+ *
+ * It exists for the one caller that never wanted the listing: a CAPTURE is
+ * aimed by a convention read off the file NAMES ({@link ./inbox.ts}'s
+ * `captureInto`), and a face with no store of its own — an agent's `capture`
+ * over a socket — had no way to ask for them except by asking what every
+ * outline HOLDS. That answer counts the regular records of every file in the
+ * directory and throws all of it away but the paths, and the retry the capture
+ * race needs asks for it twice (roadmap `perf-capture-paths`).
+ *
+ * NOT A NARROWING OF {@link OutlineAnswer}, and not derived from one: the
+ * listing keeps its counts and its roots, because `list_outlines` is what an
+ * AGENT reads to choose a file and those are what it chooses by. This is a
+ * second question with a smaller answer, which is what makes the two doors
+ * honest — one costs the directory's records and says so, the other costs its
+ * names.
+ *
+ * IN PATH ORDER, which is the set's own ({@link ./set.ts}'s `assemble`) — the
+ * inbox convention reads it (shallowest first, then path order), so the order
+ * is part of the answer rather than an accident of the walk.
+ */
+export const PathsAnswer = Schema.Struct({
+  paths: Schema.Array(Schema.String),
+})
+export type PathsAnswer = typeof PathsAnswer.Type
+
 // ── the documents ──────────────────────────────────────────────────────
 
 /**
