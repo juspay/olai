@@ -30,7 +30,7 @@ import { addressOf } from "./address.ts"
 import { type Agenda, keepingOwed, owedIn } from "./agenda.ts"
 import { type DayGroup, datedIn } from "./dates.ts"
 import { derive, type Row } from "./derive.ts"
-import type { Face } from "./document.ts"
+import type { Document, Face } from "./document.ts"
 import {
   keeping,
   keepingDated,
@@ -50,7 +50,9 @@ import {
   showsPutAway,
 } from "./narrowing.ts"
 import { type PageRequest, type Shown, shownOf } from "./page.ts"
-import type { BrokenFile } from "./set.ts"
+import { pointingOf } from "./pointing.ts"
+import type { BrokenFile, OutlineSet } from "./set.ts"
+import type { Reading } from "./validate.ts"
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
@@ -92,6 +94,16 @@ const facesOf = (paths: ReadonlyArray<string>): ReadonlyArray<Face> =>
 const FACES = facesOf(FILES)
 const READABLE: ReadonlyArray<BrokenFile> = []
 
+/** The {@link Reading} these cases are read through — the derivation above, the
+ *  faces standing in for the served files, and the links index those faces
+ *  amount to (`./pointing.ts`). The set is a stand-in and is cast as one: what
+ *  a page reads off it is the two arrays. */
+const READING: Reading = {
+  set: { documents: FACES, broken: READABLE } as unknown as OutlineSet,
+  derived: SET,
+  pointing: pointingOf(FACES as unknown as ReadonlyArray<Document>),
+}
+
 const at = (path: string): PageRequest => ({ kind: "at", address: addressOf(path, null)! })
 const node = (id: string): PageRequest => ({ kind: "at", address: addressOf("", id)! })
 
@@ -114,7 +126,7 @@ const PAGES: ReadonlyArray<readonly [string, PageRequest]> = [
  *  nothing. */
 const QUERIES = ["door", "walnut", "is:done", "is:todo", "is:trashed door", "zzz", "#home"]
 
-const shownAt = (request: PageRequest): Shown => shownOf(SET, FACES, READABLE, request)
+const shownAt = (request: PageRequest): Shown => shownOf(READING, request)
 
 const selectedBy = (matches: NarrowingAnswer["matches"]): Selected =>
   new Map(matches.map((one) => [one.id as string, one]))
@@ -285,7 +297,7 @@ test("an empty box and a query the grammar refused both select nothing", () => {
 // ── the envelope, and the wire ─────────────────────────────────────────
 
 test("the answer carries the words it answers, and survives the wire", () => {
-  const answer = narrowingOf(SET, FACES, READABLE, {
+  const answer = narrowingOf(READING, {
     page: at("house.olai"),
     text: "door",
   }, TODAY)
@@ -300,7 +312,7 @@ test("two answers that select the same nodes for the same reasons are the same",
   // What keeps a revision that moved no match off the wire — the whole of the
   // fix, in the line the server binds as this member's `isEqual`.
   const ask = (text: string) =>
-    narrowingOf(SET, FACES, READABLE, { page: at("house.olai"), text }, TODAY)
+    narrowingOf(READING, { page: at("house.olai"), text }, TODAY)
   expect(sameNarrowing(ask("door"), ask("door"))).toBe(true)
   expect(sameNarrowing(ask("door"), ask("hinges"))).toBe(false)
 })

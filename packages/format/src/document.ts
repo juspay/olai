@@ -468,3 +468,21 @@ export const isMarkdown = (document: Document): document is Markdown =>
  *  that (`@olai/ops`' codec's `match`), so this is the verdict already reached
  *  said in the type. */
 const pathOf = (file: string): DocumentPath => file as DocumentPath
+
+/**
+ * WHETHER TWO REVISIONS OF ONE FILE SAY THE SAME THING ABOUT IT — the face's
+ * own equivalence, derived from the schema rather than written out.
+ *
+ * Derived, so a field added to {@link Face} is compared without anybody
+ * remembering to compare it — `samePageReading`'s reason (`./page.ts`), one
+ * layer down and for a value the wire carries per served file.
+ *
+ * TWO CALLERS, and they ask it of the same pair for the same reason. The tape
+ * holds two revisions' served files to it, so that a `.md` whose BODY changed
+ * and whose face did not is not a reason to redraw every open page
+ * (`./tape.ts`); and the links index carries a file's entries across a revision
+ * exactly when this answers `true` (`./pointing.ts`). A second spelling would
+ * be two answers to "did this file move" inside one revision — one deciding
+ * whether an answer stands and the other deciding what it would say.
+ */
+export const sameFace: (a: Face, b: Face) => boolean = Schema.toEquivalence(Face)

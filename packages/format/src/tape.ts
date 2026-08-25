@@ -63,16 +63,59 @@
  */
 
 import { type Derived, type Index, READ } from "./derive.ts"
-import { Face } from "./document.ts"
+import { type Face, sameFace } from "./document.ts"
 import type { BrokenFile, OutlineSet } from "./set.ts"
 import type { Reading } from "./validate.ts"
-import { Schema } from "effect"
 
 /** Every index of a derivation, by name — {@link READ} read for its keys,
  *  which is exhaustive by that table's type. An index added to `Derived` gets
  *  a row there or the package does not compile, and it is taped here without
  *  anybody remembering to say so. */
 const INDEXES = Object.keys(READ) as ReadonlyArray<Index>
+
+/**
+ * …and every OTHER by-key table a reading carries, which today is the one the
+ * links index is: {@link Reading.pointing}, the set's own links filed backwards
+ * (`./pointing.ts`).
+ *
+ * IT IS EXHAUSTIVE BY THE TYPE, for {@link LISTS}'s reason and against the same
+ * failure one field over. A view built from {@link READ} alone covers the
+ * derivation's maps and nothing else — a table added BESIDE the derivation
+ * would be handed through untaped, and a tape that is too NARROW is a wrong
+ * page (the header's second paragraph, which is the one direction that is not
+ * merely a wasted rebuild). `Exclude<keyof Reading, …>` is what makes the next
+ * one a typecheck failure here rather than a page that stops redrawing.
+ *
+ * The two fields taken out are the ones that are not by-key tables at all: the
+ * SET, whose two arrays are compared whole ({@link carriedSet}), and the
+ * DERIVATION, which is {@link INDEXES} and {@link LISTS} above.
+ */
+const BESIDE: {
+  readonly [K in Exclude<keyof Reading, "set" | "derived">]: (
+    at: Reading,
+  ) => ReadonlyMap<string, unknown>
+} = {
+  pointing: (at) => at.pointing,
+}
+
+/** Every table a keyed read can be taped against — the derivation's indexes,
+ *  and the reading's own beside them. One vocabulary, so a row of the tape says
+ *  which map it is about and {@link tableIn} can find that map again. */
+type Table = Index | keyof typeof BESIDE
+
+/** WHICH MAP a table names, at a given reading — the one place the two homes
+ *  are told apart, so nothing else here has to know that most of them live
+ *  inside the derivation and one does not.
+ *
+ *  THE TABLE ANSWERS, not a name written here: {@link BESIDE} is a row per
+ *  member and each row IS the reach, so a second one beside the derivation is a
+ *  line filled in there rather than a second arm of a test on a literal. The
+ *  two vocabularies are disjoint by construction — {@link Index} is `Derived`'s
+ *  own keys — so which side a table is on is a membership question. */
+const tableIn = (at: Reading, which: Table): ReadonlyMap<string, unknown> =>
+  which in BESIDE
+    ? BESIDE[which as keyof typeof BESIDE](at)
+    : (at.derived[which as Index] as ReadonlyMap<string, unknown>)
 
 /**
  * …and every field of a derivation that is NOT an index, which today is the two
@@ -105,9 +148,9 @@ type Held = unknown
  */
 export interface Tape {
   /** index → the keys this run asked for, and what each one answered with. */
-  readonly keyed: Map<Index, Map<string, Held>>
+  readonly keyed: Map<Table, Map<string, Held>>
   /** The indexes this run walked, in any of the ways a map can be walked. */
-  readonly walked: Set<Index>
+  readonly walked: Set<Table>
   /** The LISTS it asked for — each is one value and is held against one
    *  comparison ({@link LISTS}). */
   readonly lists: Set<keyof typeof LISTS>
@@ -140,7 +183,7 @@ class Taped<V> implements ReadonlyMap<string, V> {
 
   constructor(
     private readonly of: ReadonlyMap<string, V>,
-    private readonly which: Index,
+    private readonly which: Table,
     private readonly tape: Tape,
   ) {
     const held = tape.keyed.get(which)
@@ -273,7 +316,20 @@ export const taping = (
       return at.set.broken
     },
   }
-  return { reading: { set, derived: view as unknown as Derived }, tape }
+  // …and the tables that ride BESIDE the derivation ({@link BESIDE}), wrapped
+  // exactly as its own are and onto the READING rather than onto the view. Not
+  // a spread of a prepared object: a spread READS every getter it copies, which
+  // would mint a wrapper per table on every run and undo the laziness two loops
+  // up.
+  const reading = { set, derived: view as unknown as Derived } as Record<string, unknown>
+  for (const which of Object.keys(BESIDE) as ReadonlyArray<keyof typeof BESIDE>) {
+    let held: Taped<unknown> | undefined
+    Object.defineProperty(reading, which, {
+      enumerable: true,
+      get: () => held ??= new Taped(tableIn(at, which), which, tape),
+    })
+  }
+  return { reading: reading as unknown as Reading, tape }
 }
 
 /**
@@ -299,10 +355,10 @@ export const stillHolds = (tape: Tape, was: Reading, now: Reading): boolean => {
   if (tape.documents && !carriedSet(was.set, now.set).documents) return false
   if (tape.broken && !carriedSet(was.set, now.set).broken) return false
   for (const which of tape.walked) {
-    if (!carriedIndex(was.derived, now.derived, which)) return false
+    if (!carriedIndex(was, now, which)) return false
   }
   for (const [which, own] of tape.keyed) {
-    const index = now.derived[which] as ReadonlyMap<string, unknown>
+    const index = tableIn(now, which)
     for (const [key, held] of own) if (!carried(held, index.get(key))) return false
   }
   return true
@@ -342,7 +398,7 @@ const carried = (was: unknown, now: unknown): boolean => {
  *  ask, so a comparison nobody needs is never made. */
 interface Carried {
   readonly against: Derived
-  readonly indexes: Map<Index, boolean>
+  readonly indexes: Map<Table, boolean>
   /** The two LISTS, which are not indexes and one of which is the largest
    *  single thing here — absent until somebody's tape has asked for one. */
   readonly lists: Map<keyof typeof LISTS, boolean>
@@ -357,7 +413,7 @@ const comparedIndexes = new WeakMap<Derived, Carried>()
 /**
  * Whether a whole index says what it said — the answer a WALK is held against.
  *
- * ONE COMPARISON PER INDEX PER REVISION PAIR, however many questions walked it:
+ * ONE COMPARISON PER TABLE PER REVISION PAIR, however many questions walked it:
  * the calendar's month, the agenda's two directions and what a browser is owed
  * all walk `byDay`, and they are three questions about one map.
  *
@@ -367,14 +423,11 @@ const comparedIndexes = new WeakMap<Derived, Carried>()
  * produced a different answer. Comparing the two walks in step says both things
  * at once and costs one pass.
  */
-const carriedIndex = (was: Derived, now: Derived, which: Index): boolean => {
-  const held = comparing(was, now)
+const carriedIndex = (was: Reading, now: Reading, which: Table): boolean => {
+  const held = comparing(was.derived, now.derived)
   const answered = held.indexes.get(which)
   if (answered !== undefined) return answered
-  const same = sameIndex(
-    was[which] as ReadonlyMap<string, unknown>,
-    now[which] as ReadonlyMap<string, unknown>,
-  )
+  const same = sameIndex(tableIn(was, which), tableIn(now, which))
   held.indexes.set(which, same)
   return same
 }
@@ -463,8 +516,6 @@ const carriedSet = (was: OutlineSet, now: OutlineSet): CarriedSet => {
   comparedSets.set(was, fresh)
   return fresh
 }
-
-const sameFace: (a: Face, b: Face) => boolean = Schema.toEquivalence(Face)
 
 const sameFaces = (was: ReadonlyArray<Face>, now: ReadonlyArray<Face>): boolean => {
   if (was === now) return true
