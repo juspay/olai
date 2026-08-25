@@ -100,6 +100,26 @@ test("the mark walk is the same chord with shift, on either platform", () => {
   expect(editKey(key("Enter", { meta: true, shift: true }), "line")).toBe("walk")
 })
 
+test("calling a row off is the third member of the Enter family", () => {
+  // ALT alone, on either platform's naming: `Ctrl` finishes, `Ctrl+Shift`
+  // walks, `Alt` cancels. It used to be `null` here, which is why there was a
+  // modifier left to give the fourth mark.
+  expect(editKey(key("Enter", { alt: true }), "line")).toBe("cancel-mark")
+  // And it is exactly ALT WITHOUT SHIFT. `Alt+Shift` is the MOVE pair on the
+  // arrows, so the chord that means "move this row" two keys over stays
+  // unclaimed here rather than quietly meaning "call it off".
+  expect(editKey(key("Enter", { alt: true, shift: true }), "line")).toBeNull()
+  // A modifier that already claims the key wins, as it does for the walk.
+  expect(editKey(key("Enter", { ctrl: true, alt: true }), "line")).toBe("toggle")
+})
+
+test("no mark key is a note's, the fourth mark's included", () => {
+  // A note is prose; the keys that edit a ROW are the row's. All three are dead
+  // in one, and the third is dead there by the same branch rather than by
+  // omission — `field === "block"` returns before any of them is read.
+  expect(editKey(key("Enter", { alt: true }), "block")).toBeNull()
+})
+
 test("the walk does not eat the note's key, and the note does not eat the walk", () => {
   // The regression this ordering exists for: `Shift+Enter` is the note and
   // `Ctrl+Shift+Enter` is the walk, so the note's branch has to name the two
@@ -321,6 +341,7 @@ test("every editing key is written down for a person", () => {
     "up",
     "down",
     "toggle",
+    "cancel-mark",
     "walk",
     "note",
     "prev",

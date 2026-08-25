@@ -687,13 +687,23 @@ export const createEditor = (
     prev: () => enqueue(() => step(-1)),
     next: () => enqueue(() => step(1)),
     // The MARK is a fact about the node a row SHOWS — which is what the
-    // checkbox beside it draws — so a mirror ticks off its target. Both mark
-    // keys name that id, and neither says where the write goes: `toggle` sends
-    // the mark and lets the server read the direction, `walk` sends neither
-    // and lets it read both. What a row carries is a fact about the set, and
-    // this tab is looking at a frame of it.
+    // checkbox beside it draws — so a mirror ticks off its target. All three
+    // mark keys name that id, and none of them says where the write goes: the
+    // two `toggle`s send the mark and let the server read the direction, `walk`
+    // sends neither and lets it read both. What a row carries is a fact about
+    // the set, and this tab is looking at a frame of it.
     toggle: (at) =>
       enqueue(() => structural((held) => ({ verb: "toggle", id: held.id, mark: "done" }), at)),
+    // The FOURTH MARK's key, and the same verb one word over: `toggle` already
+    // took the mark it is about, so calling a row off and taking that back is
+    // the one intent the server reads the direction of (`../../server`'s
+    // `edit.ts`). It is not on the `walk` ring, and that is the ring's own
+    // argument — a mark that stamps an instant and lands on a day's page is not
+    // a thing to pass through on the way to `doing`.
+    "cancel-mark": (at) =>
+      enqueue(() =>
+        structural((held) => ({ verb: "toggle", id: held.id, mark: "cancelled" }), at)
+      ),
     walk: (at) => enqueue(() => structural((held) => ({ verb: "walk", id: held.id }), at)),
     // The DUPLICATE names the ROW's own record, where the two mark keys above
     // name what the row SHOWS — the same split `split` and `merge` make, and

@@ -51,6 +51,8 @@ const VERB: Readonly<Record<Sort, string>> = {
   gone: "gone",
   done: "done",
   undone: "undone",
+  cancelled: "cancelled",
+  uncancelled: "uncancelled",
   doing: "doing",
   "not-doing": "not-doing",
   moved: "move",

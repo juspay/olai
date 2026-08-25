@@ -532,10 +532,10 @@ Then(
  *  that DOES write (see the step below it). */
 const HELD = Math.floor(IDLE_COMMIT / 3);
 
-/** The mark is a WORD in the step rather than three steps, because the format
- *  has three of them and a menu that can write all three should be asked about
- *  all three the same way. The field IS the mark's name on disk, which is why
- *  no table translates it. */
+/** The mark is a WORD in the step rather than one step per mark, because the
+ *  format has four of them and a menu that can write all four should be asked
+ *  about all four the same way. The field IS the mark's name on disk, which is
+ *  why no table translates it — and why `cancelled` needed nothing here. */
 Then(
   "{string} holds a node marked {word} titled {string}",
   async function (this: OlaiWorld, file: string, mark: string, title: string) {
@@ -695,13 +695,13 @@ Then(
 );
 
 /**
- * A record carrying NONE of the three marks — which is what "unmarked" is on
- * disk, and the answer the format draws as no box at all.
+ * A record carrying NONE of the marks — which is what "unmarked" is on disk,
+ * and the answer the format draws as no box at all.
  *
  * Asked of the record rather than of the page, because the page can only say
  * that no box is drawn and the claim being made is stronger: the field is gone.
- * Over `MARKS` rather than three named fields, so a fourth mark could not
- * arrive and leave this quietly passing.
+ * Over `MARKS` rather than named fields, so a fourth mark could not arrive and
+ * leave this quietly passing — and one did, and it did not.
  */
 Then(
   "{string} holds the node {string} with no mark",
