@@ -12,13 +12,18 @@
   },
   "//dependencies": "The runtime dependencies of the hydrated @kolu/* sources, declared HERE at the root rather than in the member that imports them: the isolated linker (bunfig.toml) symlinks only the root package's direct dependencies into the root node_modules, and that is where node_modules/@kolu/<name>/src/*.ts resolves its own imports by walking up. Every entry is at the exact version the pinned kolu declares — PEER dependencies included, because a peer is a runtime import like any other and the arrangement it names (`the app supplies the runtime`) is exactly the one this list is. `ws` is here for that reason and not because any olai source imports it: @kolu/surface-app's serving half is a Node websocket server. `@modelcontextprotocol/sdk` and `ts-pattern` are the same case one package over — @kolu/surface-mcp is built on the SDK's low-level Server and matches on its connection state with ts-pattern; no olai source imports either. This is not maintained by memory — scripts/check-kolu-deps.sh reads the pinned kolu's own manifests and fails `just check` when this list drifts from them.",
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.96",
     "@effect/platform-browser": "4.0.0-rc.110",
     "@effect/platform-node": "4.0.0-rc.110",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@parcel/watcher": "^2.5.1",
     "@solid-primitives/rootless": "^1.5.3",
     "@solid-primitives/scheduled": "^1.5.3",
     "effect": "4.0.0-rc.110",
+    "p-limit": "^7.3.1",
+    "simple-git": "^3.36.0",
     "solid-js": "^1.9.0",
+    "string-argv": "^0.3.2",
     "ts-pattern": "^5.9.0",
     "ws": "^8.21.0"
   },
