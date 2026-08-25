@@ -47,6 +47,7 @@ import {
 } from "./conventions.ts"
 import type { Derived } from "./derive.ts"
 import { bodiedDocument, type Document } from "./document.ts"
+import { bodyKind } from "./kinds.ts"
 import type { OutlineError } from "./errors.ts"
 import { nodesOf, outlineOf, seeded } from "./fixtures.testlib.ts"
 import { inboxHeldIn, inboxHeldOf } from "./inbox.ts"
@@ -84,13 +85,19 @@ const START: Corpus = {
 }
 
 /**
- * The corpus decoded the way the store's codec decodes one: a `.md` is a
- * BODY and everything else is an outline to parse (`@olai/ops`' `codec.ts`).
+ * The corpus decoded the way the store's codec decodes one: a file whose
+ * content is a BODY decodes to its bytes and everything else is an outline to
+ * parse (`@olai/ops`' `codec.ts`, the same branch in the same words).
  *
- * Spelled here rather than taken from `./fixtures.testlib.ts`'s `decodedOf`,
- * which parses every file as an outline: the whole reason a `.md` is in this
- * harness at all is that the set SERVES it and the grouping never sees it,
- * which is the difference the two carriers are built on.
+ * WHICH IS WHICH IS THE REGISTRY'S, never a suffix spelled here
+ * ({@link ./kinds.ts}'s `bodyKind`): a harness that decided by name would be
+ * a second answer to what a served file IS, which is the one thing that file
+ * exists to prevent.
+ *
+ * Spelled at all rather than taken from `./fixtures.testlib.ts`'s `decodedOf`,
+ * which parses every file as an outline: the whole reason a document is in
+ * this harness is that the set SERVES it and the grouping never sees it, which
+ * is the difference the two carriers are built on.
  */
 const decoded = (
   files: Corpus,
@@ -99,7 +106,7 @@ const decoded = (
     Object.entries(files).map(([path, text]) => [
       path,
       Result.succeed<Document>(
-        path.endsWith(".md") ? bodiedDocument(path, text) : outlineOf(text, path),
+        bodyKind(path) !== null ? bodiedDocument(path, text) : outlineOf(text, path),
       ),
     ]),
   )
@@ -111,7 +118,7 @@ const deltaOf = (before: Corpus, after: Corpus): SetDelta => ({
   upserts: Object.entries(after)
     .filter(([file, text]) => before[file] !== text)
     .map(([file, text]) =>
-      [file, { nodes: file.endsWith(".md") ? [] : nodesOf(text, file) }] as const
+      [file, { nodes: bodyKind(file) === null ? nodesOf(text, file) : [] }] as const
     ),
   removes: Object.keys(before).filter((file) => !(file in after)),
 })
@@ -549,10 +556,11 @@ const POOL = [
 ] as const
 
 /** One file's records — its own id space, so a path may come and go without
- *  ever colliding with another's claim. A `.md` holds prose instead, which is
- *  a file the set serves and the grouping never sees. */
+ *  ever colliding with another's claim. A file whose content is a BODY holds
+ *  prose instead ({@link ./kinds.ts}'s `bodyKind`, the decode's own question):
+ *  the set serves it and the grouping never sees it. */
 const holding = (at: number, revision: number): string =>
-  (POOL[at] as string).endsWith(".md")
+  bodyKind(POOL[at] as string) !== null
     ? `a note, revised ${revision}`
     : `{"id":"g${at}","ord":"a0","title":"file ${at} at ${revision}","todo":true}`
 

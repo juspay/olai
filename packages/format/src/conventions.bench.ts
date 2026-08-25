@@ -55,6 +55,7 @@ import { deltaOf } from "./corpora.testlib.ts"
 import { alternating, decodedOf, retitled, settled, vaultOf } from "./fixtures.testlib.ts"
 import { inboxHeldIn, inboxHeldOf } from "./inbox.ts"
 import { inboxIn, pinsIn } from "./node.ts"
+import { fileKind, OUTLINE_EXT } from "./kinds.ts"
 import { assemble } from "./set.ts"
 import { shelfIn, shelfOf } from "./shelf.ts"
 import { type Reading, validate } from "./validate.ts"
@@ -148,9 +149,13 @@ const revisionsOf = (
 
 /** The paths of the vault, in the order it was generated — a row that edits
  *  "one file" has to name one, and naming the same one every revision would
- *  measure a delta the patcher has already seen. */
+ *  measure a delta the patcher has already seen.
+ *
+ *  The OUTLINES of it, asked of the registry rather than of a suffix spelled
+ *  here ({@link ./kinds.ts}): a keystroke is a record edited, and a row that
+ *  picked a document would be timing a delta with no records in it. */
 const edited = (files: Corpus, which: number): string => {
-  const paths = Object.keys(files).filter((path) => path.endsWith(".olai"))
+  const paths = Object.keys(files).filter((path) => fileKind(path) === "outline")
   return paths[which % paths.length] as string
 }
 
@@ -177,7 +182,7 @@ const ROWS: ReadonlyArray<readonly [string, (files: Corpus, revision: number) =>
     "a file created",
     (files, revision) => ({
       ...files,
-      [`fresh/note${revision}.olai`]: JSON.stringify({
+      [`fresh/note${revision}${OUTLINE_EXT}`]: JSON.stringify({
         id: `fresh${revision}`,
         ord: "a0",
         title: `a new file ${revision}`,
