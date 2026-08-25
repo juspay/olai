@@ -2,6 +2,8 @@
 
 One `.olai` file per outline. One JSON object per line; one line per node. Every `.olai` file under the served directory is an independent tree: no cross-file parents. Cross-file relations are mirrors and edges, by bare id.
 
+That is a rule about a `parent` FIELD and not about where a node may end up. A subtree moves between outlines whole — `move_node` with a `parent` or a `file` in another outline, and `trash_node` on the way to `_olai/Trash.olai` — and it keeps its ids, so what it lands under is a parent in the file it landed in and every mirror, edge and typed reference aimed at it goes on resolving. Ids are unique across the whole served directory (below), which is the entire mechanism: nothing has to be re-pointed, because nothing ever left the namespace it was pointed at in.
+
 ```jsonl
 {"id":"order","parent":"kitchen","ord":"a1","title":"order the new cabinets","date":"2026-08-10","after":["demo"]}
 ```

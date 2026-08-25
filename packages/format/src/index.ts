@@ -1077,22 +1077,25 @@ export {
 
 /**
  * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING (./moving.ts) — the move-to
- * picker's preview of the planner's verdict, and the law it quotes.
+ * picker's preview of the planner's verdict.
  *
  * Public for the reason above: the picker judges an arbitrary node of the
  * directory against another one, which is a question about the SET and not
  * about any page, so it is asked over the wire and re-answered per revision.
- * `SAME_FILE` comes through the same door because the app's other cross-file
- * gesture — a row dragged over another outline's pane — reads it in the
- * browser, and two copies of a sentence is how two faces of one rule start
- * disagreeing in the small words.
+ *
+ * `SAME_FILE` used to come through this door as well, for the app's other
+ * cross-file gesture — a row dragged over another outline's pane. It is gone
+ * with the law it spelled: `move_node` crosses outlines now, so a destination
+ * in another file is an ordinary destination and there is no shared sentence
+ * left to keep two faces honest about. What the drag still cannot do is a fact
+ * about that GESTURE rather than about the set, and it says so in its own words
+ * (`@olai/web`'s `drag/aim.ts`).
  */
 export {
   Moved,
   MovingAnswer,
   MovingRequest,
   movingOf,
-  SAME_FILE,
   sameMoving,
   sameMovingRequest,
 } from "./moving.ts"

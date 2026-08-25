@@ -982,6 +982,93 @@ test("a document the set could not read is refused, not answered empty", async (
 
 // ── writing ────────────────────────────────────────────────────────────
 
+/**
+ * A subtree BETWEEN two outlines, through the tool an agent actually calls —
+ * the half of `move-across-outlines` no planner test can reach, because what is
+ * claimed here is that the widened schema is what the FACE advertises and that
+ * both files go through one write gate onto the disk.
+ *
+ * The corpus points at what moves from the other outline, on purpose: `shed`
+ * is a placement of `install` and `fence` waits on it. If this were the
+ * recreation it used to have to be — capture a copy under fresh ids, trash the
+ * original — both of those would be naming ids nothing declares, and the set
+ * would not validate. It does, and the two records are byte-identical
+ * afterwards, which is the promise said as a diff.
+ */
+test("move_node carries a subtree into another outline, and nothing pointing at it moves", async () => {
+  await withTools(
+    {
+      "house.olai": HOUSE,
+      "garden.olai": [
+        `{"id":"garden","ord":"a0","title":"the garden"}`,
+        `{"id":"fence","parent":"garden","ord":"a0","title":"mend the fence","after":["install"]}`,
+        `{"id":"shed","parent":"garden","ord":"a1","mirror":"install"}`,
+        "",
+      ].join("\n"),
+    },
+    async ({ client, read }) => {
+      const pointing = read("garden.olai") ?? ""
+
+      const answer = await call(client, "move_node", { id: "install", parent: "garden" })
+      expect(answer.isError).toBe(false)
+      expect(answer.structured).toMatchObject({
+        did: "move_node",
+        id: "install",
+        file: "garden.olai",
+      })
+
+      // It LEFT one file and ARRIVED in the other, keeping the id and the mark
+      // it was carrying — moving is not editing.
+      expect(read("house.olai")).not.toContain(`"id":"install"`)
+      expect(read("garden.olai")).toContain(
+        `{"id":"install","parent":"garden","ord":"a2","title":"install them","doing":"2026-08-02"`,
+      )
+
+      // …and the two records that NAME it are untouched, line for line. That is
+      // the whole promise: an id is unique across the served directory, so
+      // nothing had to be re-pointed and nothing was.
+      const named = pointing.split("\n").filter((one) => one.includes("install"))
+      expect(named).toHaveLength(2)
+      for (const line of named) expect(read("garden.olai")).toContain(line)
+    },
+  )
+})
+
+/** `file` is the other half of the pair, and it is the top level of that
+ *  outline — the same field `add_node` and `untrash_node` take, arriving on the
+ *  verb that used to refuse the whole question. */
+test("move_node with a `file` lands the subtree at that outline's top level", async () => {
+  await withTools(
+    { "house.olai": HOUSE, "garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}\n` },
+    async ({ client, read }) => {
+      const answer = await call(client, "move_node", { id: "kitchen", file: "garden.olai" })
+      expect(answer.isError).toBe(false)
+      // The outline it left holds nothing at all, and is still there.
+      expect(read("house.olai")).toBe("")
+      const arrived = read("garden.olai") ?? ""
+      // The whole subtree, in the order it left, under the ids it always had.
+      expect(arrived.split("\n").filter((one) => one !== "").map((one) => JSON.parse(one).id))
+        .toEqual(["garden", "kitchen", "demo", "order", "install"])
+      expect(arrived).toContain(`{"id":"demo","parent":"kitchen"`)
+    },
+  )
+})
+
+/** The one rule the crossing adds, met where an agent meets it: the trash has
+ *  two verbs of its own, and this is neither of them. */
+test("move_node refuses a trash at either end, toward the verb that does that job", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
+    await call(client, "trash_node", { id: "demo" })
+    const into = await call(client, "move_node", { id: "order", file: "_olai/Trash.olai" })
+    expect(into.isError).toBe(true)
+    expect(String(into.structured["reason"])).toContain("`trash_node`")
+
+    const out = await call(client, "move_node", { id: "demo", parent: "order" })
+    expect(out.isError).toBe(true)
+    expect(String(out.structured["reason"])).toContain("`untrash_node`")
+  })
+})
+
 test("a write through a tool changes the directory", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
     const answer = await call(client, "set_done", { id: "order" })

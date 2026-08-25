@@ -936,8 +936,22 @@ export const Edit = Schema.Union([
   Schema.Struct({
     verb: Schema.Literal("place"),
     id: Id,
-    /** The parent it sat under — `null` for the top level of its file. */
+    /** The parent it sat under — `null` for the top level of the outline
+     *  named below. */
     parent: Schema.NullOr(Id),
+    /**
+     * The OUTLINE it sat in — carried because a `move_node` may now take a row
+     * out of one and into another, and then "the top level of its file" is a
+     * different file than it was.
+     *
+     * Only load-bearing when {@link parent} is `null`: with a parent, the file
+     * is wherever that parent lives and a second answer could only disagree
+     * with it (the ops layer's own rule, spelled once on `add_node`'s pair and
+     * read the same way here). Optional, because a placement recorded before
+     * anything crossed still means what it said, and because the reorder
+     * gestures that emit one — a drag, the pin shelf — cannot cross.
+     */
+    file: Schema.optionalKey(Schema.String),
     /** The sibling it sat immediately AFTER — `null` when it was the first of
      *  them, which is a place a neighbour cannot name. Recorded as a NODE
      *  rather than as an index: ids survive what another writer does to the

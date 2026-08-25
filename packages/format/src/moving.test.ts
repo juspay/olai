@@ -1,13 +1,19 @@
 /**
- * The five things the move-to picker will not do, and the words it says about
- * each — plus the ANSWER the wire carries them on.
+ * The things the move-to picker will not do, and the words it says about each —
+ * plus the ANSWER the wire carries them on.
  *
  * The rules are the ops layer's (`@olai/ops`' `plan.ts`'s `planMove`) read one
  * gesture earlier, so what is worth pinning here is not that they exist — the
- * write would be refused either way — but that the picker says the RIGHT one.
- * Four of them are true at once about a node in the Trash (it is archived, it
- * is in another file, it is not this row's parent, it is not this row), and a
- * reader who is told the wrong true thing has been told nothing.
+ * write would be refused either way — but that the picker says the RIGHT one,
+ * and that it says NOTHING where the planner would write. Several are true at
+ * once about a node in the Trash (it is archived, it is not this row's parent,
+ * it is not this row), and a reader who is told the wrong true thing has been
+ * told nothing.
+ *
+ * ONE OF THEM IS GONE, and its absence is tested beside the rest: another
+ * outline. `move_node` crosses files now, so a destination this reading dims is
+ * a destination the planner would have taken — which is the one thing the
+ * header's standing rule forbids.
  *
  * It moved here with the reading (`docs/brainstorming/vault-in-browser.md`'s
  * PR 10): the picker judges an arbitrary node the SEARCH offered against the
@@ -152,23 +158,24 @@ test("...and may go anywhere else in its file, including beside what it shows", 
 
 // ── the other three refusals ───────────────────────────────────────────
 
-test("a destination in another outline is refused, naming both files", () => {
-  const why = whyNot(INSTALL, at("herbs"), derived) ?? ""
-  expect(why).toContain("`garden.olai`")
-  expect(why).toContain("`house.olai`")
-  // The LAW, in the one spelling this app has for it (`SAME_FILE`) — the
-  // same sentence a row dragged over another file's pane is refused with.
-  expect(why).toContain("Every outline is an independent tree")
+test("a destination in another outline is not refused at all any more", () => {
+  // The fence this module used to be most of. `move_node` carries a row and
+  // everything under it into another outline with its id
+  // (`@olai/ops`' `planMove`), so the picker's search of the whole set now
+  // OFFERS what it finds there rather than dimming it — and this reading, whose
+  // standing rule is that it must never refuse what the planner would allow,
+  // has nothing left to say about a different file.
+  expect(whyNot(INSTALL, at("herbs"), derived)).toBeNull()
 })
 
-test("an archived destination says it is put away, NOT that it is another file", () => {
-  // Both are true, and only one of them is the news. This is the ordering the
-  // header is about: an archive is another file by construction, so a
-  // cross-file test asked first would answer every archived row with the wrong
-  // sentence.
+test("an archived destination still says it is put away", () => {
+  // The one thing another outline can still be, and the reason the Trash test
+  // stands where the cross-file one used to: an archive is an outline like any
+  // other to a search, and what the reader needs told is that work put away is
+  // not somewhere to move work TO.
   const why = whyNot(INSTALL, at("tiles"), derived) ?? ""
   expect(why).toContain("put away")
-  expect(why).not.toContain("independent tree")
+  expect(why).toContain("Put back")
 })
 
 test("the row's CURRENT parent is refused, and says what it would have done", () => {
@@ -200,7 +207,9 @@ test("the answer carries the row as the set says it now, and a verdict per desti
   expect(said.refusals).toHaveLength(3)
   expect(said.refusals[0]).toBeNull()
   expect(said.refusals[1]).toContain("inside the row you are moving")
-  expect(said.refusals[2]).toContain("Every outline is an independent tree")
+  // …and the third is a node of `garden.olai`, which the picker will now carry
+  // the row to: a verdict of `null` is the answer that lets `Enter` write.
+  expect(said.refusals[2]).toBeNull()
 })
 
 test("a MIRROR is moved as the placement it is, and called by what it shows", () => {

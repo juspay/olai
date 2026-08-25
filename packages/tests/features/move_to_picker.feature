@@ -14,11 +14,19 @@ Feature: Moving a row to a parent you search for
   `Enter` carries the row, with everything under it, under the node chosen.
   What lands is one `move_node`, the op an agent sends.
 
-  THE LIMITS ARE SAID RATHER THAN HIDDEN, and that is most of what these
-  scenarios are about. Every hit the search finds is drawn, including the ones
-  the row cannot go under — its own subtree, another outline, the Trash, the
-  parent it already has — and each says why, at the AIM: the sentence appears as
-  the cursor arrives on the row, before `Enter`, which is the shape #238 shipped
+  ANOTHER OUTLINE IS A DESTINATION, and that is the newest thing here. The
+  search is of the whole directory, so it finds rows of every file; picking one
+  carries the row and everything under it into that outline, KEEPING EVERY ID,
+  so the mirrors and edges pointing at what moved go on resolving. It used to be
+  drawn dimmed with a sentence about independent trees — a fence around the
+  planner rather than around the format, and the reason a cross-file move had to
+  be faked by writing the branch out again under new ids.
+
+  THE LIMITS THAT REMAIN ARE SAID RATHER THAN HIDDEN, and that is most of what
+  these scenarios are about. Every hit the search finds is drawn, including the
+  ones the row cannot go under — its own subtree, the Trash, the parent it
+  already has — and each says why, at the AIM: the sentence appears as the
+  cursor arrives on the row, before `Enter`, which is the shape #238 shipped
   for a drop over another file's pane. A picker that quietly dropped those rows
   would be teaching a rule this app does not have, and a reader hunting for a
   title they can see would be debugging a search.
@@ -153,16 +161,44 @@ Feature: Moving a row to a parent you search for
     Then the move picker is open on "knobs"
     And there should be no page errors
 
-  Scenario: Enter on a cross-file destination writes nothing at all
-    # The aim is the answer: the sentence was on screen before the key, the
-    # picker stays open, and the row has not moved.
-    When I click the title of "knobs"
+  # ── across outlines, which is the door an agent got at the same time ──
+
+  Scenario: A destination in ANOTHER OUTLINE carries the row there, subtree and all
+    # The gesture this scenario exists for is the one that used to be dimmed:
+    # `compost` lives in `garden.olai` and the row lives in `house.olai`.
+    # `install` holds three rows and an attached document, and what lands is one
+    # `move_node` naming a parent in another file — the op an agent sends.
+    When I click the title of "install"
     And I press "ControlOrMeta+Shift+m"
     And I search the move picker for "the compost heap"
-    And I press "Enter"
-    Then the move picker is open on "knobs"
-    And the move picker refuses with "Every outline is an independent tree"
-    And the node "knobs" is a child of "install"
+    And I choose "the compost heap" from the move picker
+    Then the node "install" in "garden.olai" sits under "compost"
+    # …with everything under it, under the ids it always had. That is what makes
+    # this a move rather than a copy written out again somewhere else, and it is
+    # why `hinges`' `after` edges still name rows in the outline it left.
+    And the node "handles" in "garden.olai" sits under "install"
+    And the node "knobs" in "garden.olai" sits under "install"
+    # …and it is off THIS page, because this page is another file now. The row
+    # did not vanish; it is somewhere a reader can open.
+    And the node "install" is not shown
+    And no move picker is open
+    And the page has not reloaded
+    And there should be no page errors
+
+  Scenario: ⌘Z brings a row back from the outline it was carried into
+    # One stack whichever hand made the edit, and the inverse of a crossing is
+    # the same `place` every other move records — the parent AND the neighbour
+    # the row left, read where the write is judged, so the row comes back
+    # between `order` and `kitchen-herbs` rather than at the end of them.
+    When I click the title of "install"
+    And I press "ControlOrMeta+Shift+m"
+    And I search the move picker for "the compost heap"
+    And I choose "the compost heap" from the move picker
+    Then the node "install" in "garden.olai" sits under "compost"
+    When I press "ControlOrMeta+z"
+    Then the node "install" in "house.olai" sits under "kitchen"
+    And the node "order" comes before "install"
+    And the node "handles" is a child of "install"
     And there should be no page errors
 
   Scenario: The reason is about the row the cursor is ON, and moves with it

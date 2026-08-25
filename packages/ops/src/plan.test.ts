@@ -71,7 +71,11 @@ const after = (set: OutlineSet, request: Request): OutlineSet => {
 
 /** The children of a node, in the order the format sorts them — which is what
  *  a placement assertion is actually about. */
-const childOrder = (nodes: ReadonlyArray<Node>, parent: string): ReadonlyArray<string> =>
+const childOrder = (
+  nodes: ReadonlyArray<Node>,
+  /** `undefined` is the top level of the file, which is a row like any other. */
+  parent: string | undefined,
+): ReadonlyArray<string> =>
   nodes
     .filter((node) => node.parent === parent)
     .slice()
@@ -2227,14 +2231,18 @@ describe("move", () => {
     expect(record(nodes, "order").parent).toBeUndefined()
   })
 
-  test("a parent in another file is refused, with the reason spelled out", () => {
+  test("a parent in another file is a MOVE now, not a refusal", () => {
+    // The sentence that used to stand here ("every outline is an independent
+    // tree, so a parent is always in the same file; archiving is what moves a
+    // subtree between them") was a fact about this planner rather than about
+    // the format — the block below is what it became.
     const set = setOf({
       "a.olai": `{"id":"x","ord":"a0","title":"x"}`,
       "b.olai": `{"id":"y","ord":"a0","title":"y"}`,
     })
-    expect(refused(set, { op: "move", id: "x", parent: "y" }).message).toContain(
-      "independent tree",
-    )
+    const result = planned(set, { op: "move", id: "x", parent: "y" })
+    expect(fileOf(result, "a.olai")).toEqual([])
+    expect(record(fileOf(result, "b.olai"), "x").parent).toBe("y")
   })
 
   test("moving a node under its own descendant is refused before the validator sees it", () => {
@@ -2302,6 +2310,318 @@ describe("move", () => {
   })
 })
 
+
+// ── move, across outlines ──────────────────────────────────────────────
+//
+// THE PROMISE, tested as a DIFFERENTIAL rather than as a list of assertions:
+// the ids do not change, so what points at the subtree must go on pointing at
+// it and must say the same thing about it — `file` being the one answer that
+// moved. That is the property the ops-expressible cross-file move never had
+// (recreate under fresh ids, trash the original: the ids cannot even be reused,
+// since one is unique across the set INCLUDING the trash, so every inbound
+// reference detaches in silence).
+//
+// The corpus therefore aims one of every inbound relation the format has at the
+// subtree, from another outline in each case, so a rule that quietly dropped
+// one is visible here rather than in somebody's vault six weeks later.
+
+/** A vault that DECLARES a `node` key, so a property naming a node is a
+ *  reference the set RESOLVES rather than a string that looks like one — the
+ *  kind `empty_trash` already refuses a deletion for, and the one an id-changing
+ *  recreation would strand without a word. */
+const OWNER = `{"id":"prop-owner","ord":"a0","title":"owner","custom":{"type":"node"}}`
+
+const crossing = (): OutlineSet =>
+  setOf({
+    "_olai/Properties.olai": OWNER,
+    "house.olai": [
+      `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
+      `{"id":"install","parent":"kitchen","ord":"a0","title":"install the cabinets"}`,
+      `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles","todo":true}`,
+      `{"id":"knobs","parent":"install","ord":"a1","title":"pick the knobs","todo":true}`,
+      `{"id":"demo","parent":"kitchen","ord":"a1","title":"take out the old counters"}`,
+    ].join("\n"),
+    "garden.olai": [
+      `{"id":"garden","ord":"a0","title":"the garden"}`,
+      `{"id":"beds","parent":"garden","ord":"a0","title":"the raised beds","see":["install"],"after":["knobs"]}`,
+      `{"id":"paths","parent":"garden","ord":"a1","title":"the paths","todo":true,"blocks":["handles"],"custom":{"owner":"install"}}`,
+      `{"id":"garden-install","parent":"garden","ord":"a2","mirror":"install"}`,
+    ].join("\n"),
+  })
+
+/** Who NAMES this id, and with which field — `@olai/format`'s own reverse
+ *  index, which is "does anything still point at this record" asked the way the
+ *  ops layer asks it. Flattened to strings so two readings of two sets compare
+ *  by value rather than by identity. */
+const namersOf = (set: OutlineSet, id: string): ReadonlyArray<string> =>
+  (derive(recordsOf(set)).namedBy.get(id) ?? [])
+    .flatMap((naming) => naming.fields.map((field) => `${naming.at.node.id}.${field}`))
+    .slice()
+    .sort()
+
+/** The subtree that travels, root first. */
+const SUBTREE = ["install", "handles", "knobs"] as const
+
+describe("move across outlines", () => {
+  test("a parent in another outline carries the subtree there, ids intact", () => {
+    const result = planned(crossing(), { op: "move", id: "install", parent: "garden" })
+    // BOTH ENDS IN ONE PLAN, which is what makes it atomic: the outline it left
+    // and the outline it arrived in are the two files this write touches, and
+    // the write gate judges the whole set they make.
+    expect(result.files.map((one) => one.file).slice().sort())
+      .toEqual(["garden.olai", "house.olai"])
+    expect(result.file).toBe("garden.olai")
+    expect(result.summary).toBe("move: install the cabinets")
+
+    expect(fileOf(result, "house.olai").map((one) => one.id)).toEqual(["kitchen", "demo"])
+
+    const arrived = fileOf(result, "garden.olai")
+    // Shaped exactly as it left: only the ROOT is re-parented, and what hung
+    // under it still hangs under it.
+    expect(record(arrived, "install").parent).toBe("garden")
+    expect(childOrder(arrived, "install")).toEqual(["handles", "knobs"])
+    // …LAST among its new siblings, which is `move_node`'s own default.
+    expect(childOrder(arrived, "garden"))
+      .toEqual(["beds", "paths", "garden-install", "install"])
+  })
+
+  test("`file` alone lands it at the top level of that outline", () => {
+    const arrived = fileOf(
+      planned(crossing(), { op: "move", id: "install", file: "garden.olai" }),
+      "garden.olai",
+    )
+    expect(record(arrived, "install").parent).toBeUndefined()
+    expect(childOrder(arrived, "install")).toEqual(["handles", "knobs"])
+  })
+
+  test("`before` / `after` name siblings in the outline it is going TO", () => {
+    const arrived = fileOf(
+      planned(crossing(), { op: "move", id: "install", parent: "garden", before: "paths" }),
+      "garden.olai",
+    )
+    expect(childOrder(arrived, "garden"))
+      .toEqual(["beds", "install", "paths", "garden-install"])
+  })
+
+  /**
+   * THE PROMISE. Every referrer answers the same after the write as before it —
+   * same records, same fields — because nothing was re-pointed and nothing had
+   * to be: an id is unique across the whole set, so the node never left the
+   * namespace those references are written in.
+   */
+  test("every reference into the subtree resolves, and says the same thing", () => {
+    const before = crossing()
+    const was = Object.fromEntries(SUBTREE.map((id) => [id, namersOf(before, id)]))
+    // The differential is only worth what the corpus names, so what it names is
+    // pinned: a fixture that quietly stopped pointing at the subtree would make
+    // every assertion below pass over nothing.
+    expect(was).toEqual({
+      install: ["beds.see", "garden-install.mirror"],
+      handles: ["paths.blocks"],
+      knobs: ["beds.after"],
+    })
+
+    const now = after(before, { op: "move", id: "install", parent: "garden" })
+    expect(Object.fromEntries(SUBTREE.map((id) => [id, namersOf(now, id)]))).toEqual(was)
+
+    // …and the SET IS VALID, which is the half a reverse index cannot say: the
+    // validator resolves `mirror`, `after`, `blocks` and `see` targets, and the
+    // typed `ref` property this vault declares — which is a reference `namedBy`
+    // does not carry, and the one an id-changing recreation would strand.
+    const verdict = validate(now)
+    if (Result.isFailure(verdict)) {
+      throw new Error(
+        `the set is invalid after the move: ${
+          verdict.failure.map((one) => `${one.code} — ${one.message}`).join("; ")
+        }`,
+      )
+    }
+    expect(record(nodesOf(verdict.success.derived, "garden.olai").map((one) => one.node), "paths").custom)
+      .toEqual({ owner: "install" })
+
+    // The `file` is the ONLY answer that moved.
+    for (const id of SUBTREE) {
+      expect(verdict.success.derived.byId.get(id)?.file).toBe("garden.olai")
+    }
+  })
+
+  test("the ordering graph was file-agnostic already, and the move proves it", () => {
+    // `beds` waits on `knobs`, and `paths` blocks `handles` — two edges written
+    // in `garden.olai` about nodes that live in `house.olai`. After the move
+    // both ends of both are in one file, and the derivation says exactly what
+    // it said before, which is the point: an `after` never knew what it crossed.
+    const waiting = (set: OutlineSet, id: string) =>
+      standingBefore(derive(recordsOf(set)), id).map((one) => one.at.node.id).slice().sort()
+    const before = crossing()
+    const now = after(before, { op: "move", id: "install", parent: "garden" })
+    expect(waiting(before, "beds")).toEqual(["knobs"])
+    expect(waiting(now, "beds")).toEqual(["knobs"])
+    expect(waiting(before, "handles")).toEqual(["paths"])
+    expect(waiting(now, "handles")).toEqual(["paths"])
+  })
+
+  test("a `doc` is re-aimed at the outline it arrived in", () => {
+    // The one field that is RELATIVE to the file naming it, which is why this
+    // is the archive's own `carryingDoc` rather than a second answer: the path
+    // is rewritten so it still names the same document, and the document is not
+    // touched at all.
+    const set = setOf({
+      "house.olai": `{"id":"install","ord":"a0","title":"install the cabinets","doc":"finishes.md"}`,
+      "notes/garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}`,
+    }, ["finishes.md"])
+    const arrived = fileOf(
+      planned(set, { op: "move", id: "install", parent: "garden" }),
+      "notes/garden.olai",
+    )
+    expect(record(arrived, "install").doc).toBe("../finishes.md")
+  })
+
+  test("nothing is re-stamped but the record that moved", () => {
+    // A same-file move stamps `changed` on the row it moved, and a crossing is
+    // that same write with a second file in it — so the root is stamped and the
+    // subtree travels untouched, exactly as an archive carries one. Marks,
+    // dates and `created` are nobody's to rewrite here: moving is not editing.
+    const arrived = fileOf(
+      planned(crossing(), { op: "move", id: "install", parent: "garden" }),
+      "garden.olai",
+    )
+    expect(record(arrived, "install").changed).toBe(STAMP)
+    expect(record(arrived, "handles")).toEqual({
+      id: "handles",
+      parent: "install",
+      ord: "a0",
+      title: "choose the handles",
+      todo: true,
+    })
+  })
+
+  test("a subtree of unfinished work re-opens a `done` it lands under, across files", () => {
+    // DOOR TWO, which never cared which file the landing was in: `handles` is a
+    // `todo`, `garden` is a branch somebody called finished, and done-hidden
+    // would sweep the arriving work straight off the page.
+    const set = setOf({
+      "house.olai": [
+        `{"id":"install","ord":"a0","title":"install the cabinets"}`,
+        `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles","todo":true}`,
+      ].join("\n"),
+      "garden.olai": `{"id":"garden","ord":"a0","title":"the garden","done":"2026-08-03"}`,
+    })
+    const result = planned(set, { op: "move", id: "install", parent: "garden" })
+    expect(record(fileOf(result, "garden.olai"), "garden").done).toBeUndefined()
+    expect(result.nudge).toContain("marked done over work that is not finished")
+    expect(result.summary).toContain("reopened: the garden")
+  })
+
+  // ── the refusals ─────────────────────────────────────────────────────
+
+  test("an outline the set does not hold is refused, never minted", () => {
+    const failure = refused(crossing(), { op: "move", id: "install", file: "shed.olai" })
+    expect(failure._tag).toBe("NotFoundFailure")
+    expect(failure.message).toContain("`shed.olai` is not an outline")
+  })
+
+  test("moving INTO the trash is refused toward `trash_node`", () => {
+    const set = setOf({
+      "house.olai": `{"id":"install","ord":"a0","title":"install the cabinets"}`,
+      "_olai/Trash.olai": `{"id":"tiles","ord":"a0","title":"the tiles nobody liked"}`,
+    })
+    // Both doors into it: the file named outright, and a parent that happens to
+    // live there.
+    for (
+      const request of [
+        { op: "move", id: "install", file: "_olai/Trash.olai" },
+        { op: "move", id: "install", parent: "tiles" },
+      ] as const
+    ) {
+      expect(refused(set, request).message).toContain("`trash_node`")
+    }
+  })
+
+  test("moving OUT of the trash is refused toward `untrash_node`", () => {
+    // Load-bearing rather than tidy. `untrash_node` tidies the scaffold the
+    // archive wrote above the node and re-opens the `done` marks that were true
+    // while the branch was over and stop being true the moment it is live
+    // again; a move would leave both behind.
+    const set = setOf({
+      "house.olai": `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
+      "_olai/Trash.olai": `{"id":"tiles","ord":"a0","title":"the tiles nobody liked"}`,
+    })
+    expect(refused(set, { op: "move", id: "tiles", parent: "kitchen" }).message)
+      .toContain("`untrash_node`")
+  })
+
+  test("...but reordering INSIDE the trash still works, because nothing crosses", () => {
+    const set = setOf({
+      "_olai/Trash.olai": [
+        `{"id":"tiles","ord":"a0","title":"the tiles nobody liked"}`,
+        `{"id":"grout","ord":"a1","title":"the grout"}`,
+      ].join("\n"),
+    })
+    const nodes = fileOf(
+      planned(set, { op: "move", id: "grout", before: "tiles" }),
+      "_olai/Trash.olai",
+    )
+    expect(childOrder(nodes, undefined)).toEqual(["grout", "tiles"])
+  })
+
+  test("a cross-file parent inside what the row DRAWS is still a loop", () => {
+    // The rule that OUTLIVES the file rule, and the reason the two were never
+    // one question. Containment is per-file, so a cross-file parent cannot fold
+    // a branch into itself — but DRAWING crosses files by construction, and
+    // that is exactly the cycle a crossing can make: a Now list lives in one
+    // outline and mirrors work that lives in another.
+    const set = setOf({
+      "now.olai": [
+        `{"id":"now","ord":"a0","title":"Now"}`,
+        `{"id":"now-install","parent":"now","ord":"a0","mirror":"install"}`,
+      ].join("\n"),
+      "house.olai": [
+        `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
+        `{"id":"install","parent":"kitchen","ord":"a0","title":"install the cabinets"}`,
+        `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles"}`,
+      ].join("\n"),
+    })
+    const failure = refused(set, { op: "move", id: "now", parent: "handles" })
+    expect(failure.message).toContain("`now` → `now-install` → `install` → `handles`")
+    expect(failure.message).toContain("never ends")
+    // …and a destination in that same other outline which the row does NOT
+    // draw is an ordinary move, which is what keeps the rule a rule.
+    const moved = fileOf(planned(set, { op: "move", id: "now", parent: "kitchen" }), "house.olai")
+    expect(record(moved, "now").parent).toBe("kitchen")
+    expect(record(moved, "now-install").parent).toBe("now")
+  })
+
+  test("a sibling anchor that is not one of the DESTINATION's rows is not-found", () => {
+    // `demo` is a sibling in the outline the row is LEAVING, which is not the
+    // row it is being placed among.
+    expect(
+      refused(crossing(), { op: "move", id: "install", parent: "garden", before: "demo" })._tag,
+    ).toBe("NotFoundFailure")
+  })
+
+  test("an outline that did not parse is not written from a set that lost it", () => {
+    // Both ends, because both are rewritten: a crossing re-emits the outline it
+    // left as well as the one it arrived in, so a file whose records the set
+    // does not hold has to stop the write from either side.
+    const broken = setOf(
+      { "house.olai": `{"id":"install","ord":"a0","title":"install the cabinets"}` },
+      [],
+      { "garden.olai": `{"id":"garden","ord":"a0"` },
+    )
+    expect(refused(broken, { op: "move", id: "install", file: "garden.olai" }).message)
+      .toContain("Fix the file first")
+
+    const leaving = setOf(
+      { "garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}` },
+      [],
+      { "house.olai": `{"id":"install","ord":"a0"` },
+    )
+    // The record is not in the set at all when its own file did not parse, so
+    // the refusal is the one about the ID rather than about the file.
+    expect(refused(leaving, { op: "move", id: "install", file: "garden.olai" })._tag)
+      .toBe("NotFoundFailure")
+  })
+})
 // ── create ─────────────────────────────────────────────────────────────
 
 describe("create", () => {

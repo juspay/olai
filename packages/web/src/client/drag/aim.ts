@@ -5,10 +5,17 @@
  * With one page on screen there was nothing here to decide: the pointer was
  * over the rows or it was over nothing, and `./plan.ts` answered either way.
  * With two, a pointer names a PAGE before it names a gap, and the page it names
- * has an answer of its own to give — because the placement a drop sends is a
- * parent and a sibling in ONE FILE (`@olai/format`'s rule: every outline is an
- * independent tree), and the page under the pointer may hold no row of the file
- * the drag is carrying.
+ * has an answer of its own to give — because what a drop measures is a gap
+ * BETWEEN ROWS OF THE CARRIED FILE (`./dragging.ts` builds the candidates that
+ * way, and `./plan.ts` reads a depth off them), and the page under the pointer
+ * may hold no such row.
+ *
+ * THAT IS A LIMIT OF THIS GESTURE AND NOT OF THE SET, which is a distinction
+ * this module used to be able to skip and no longer can. `move_node` carries a
+ * row into another outline now, ids intact, and the move-to picker (⌘⇧M) sends
+ * exactly that. A drag has no arithmetic for a pane it is not carrying rows of
+ * — there is no gap to measure and no depth to read — so what it says is what
+ * is true: not here, and here is where.
  *
  * SO AN AIM IS ONE OF TWO THINGS, and never neither-nor-both: a LANDING, which
  * is the same arithmetic and the same indicator an in-pane drop has always had,
@@ -18,15 +25,14 @@
  * caller that can forget to.
  *
  * THE REFUSAL IS RAISED HERE RATHER THAN AT THE WRITE, and that is the whole
- * design decision this module is. The ops layer refuses a cross-file `move_node`
- * in its own words, so a drop could simply be sent and quoted — but two things
- * are wrong with that. The indicator would have PROMISED a landing the release
- * could not keep, which is the one thing this gesture has never done (the
- * carried rows are left out of the candidates rather than guarded against;
- * `Placed.into` is `null` rather than checked at the drop). And worse, a drop at
- * the TOP LEVEL of the other pane's file names `parent: null`, which is not a
- * refusable request at all — it is a legal move to the top of the row's OWN
- * file, and it would land silently in a pane nobody was pointing at.
+ * design decision this module is. The indicator would otherwise have PROMISED a
+ * landing the release could not keep, which is the one thing this gesture has
+ * never done (the carried rows are left out of the candidates rather than
+ * guarded against; `Placed.into` is `null` rather than checked at the drop). And
+ * there is nothing at the far end to catch it either: a drop at the TOP LEVEL of
+ * the other pane names `parent: null`, which is not a refusable request — it is
+ * a legal move to the top of the row's OWN file — so a release nobody stopped
+ * here would land the row somewhere the pointer was never pointing.
  *
  * WHAT IT IS NOT is a second policy about files. A page offers a landing
  * exactly when it draws a row the carried file could sit beside, which is the
@@ -35,7 +41,6 @@
  * and this is it saying so out loud instead of saying nothing.
  */
 
-import { SAME_FILE } from "@olai/format"
 import type { Box } from "./lines.ts"
 import { type Landing, type Placed, planDrop } from "./plan.ts"
 
@@ -117,21 +122,22 @@ const aimedAt = (
  * The words a page with no landing has for the row over it.
  *
  * Two cases, and they are two different pieces of news rather than one message
- * with a hole in it. A page of ANOTHER FILE is the format's rule, and it is
- * said in the ops layer's own terms (`ops/src/plan.ts` refuses the same move in
- * nearly these words) so a person who then reads a refusal from an agent's
- * `move_node` reads one story — and the law half of it is `@olai/format`'s `moving.ts`,
- * shared with the move-to picker, which has to say the same thing about a
- * destination it found in another outline. A page of the SAME file with nothing left is the
- * gesture having eaten its own candidates — every row drawn there is inside
- * what the hand is holding — which is not about files at all.
+ * with a hole in it. A page of ANOTHER FILE is about the GESTURE: a drag lands
+ * a row in a gap between rows of the file it is carrying, and this pane draws
+ * none — so it names the door that CAN send the row there rather than a law,
+ * because there is no longer a law to name (`move_node` crosses outlines, and
+ * `⌘⇧M` is that same op with a search in front of it). A page of the SAME file
+ * with nothing left is the gesture having eaten its own candidates — every row
+ * drawn there is inside what the hand is holding — which is not about files at
+ * all.
  */
 const whyNot = (field: Aimed, carried: string): string =>
   field.file === carried
     ? `every row drawn in \`${field.file}\` here is inside what you are carrying, ` +
       `so there is nowhere in this pane to put it`
-    : `\`${field.file}\` is another file, and this row lives in \`${carried}\`. ` +
-      SAME_FILE
+    : `\`${field.file}\` is another file, and this row lives in \`${carried}\` — a ` +
+      `drag lands between rows of the outline it is carrying, and this pane draws ` +
+      `none of them. Use Move to… (⌘⇧M) to send it to another outline.`
 
 /**
  * What a pointer at `(x, y)` is asking of these pages — the ONE thing this

@@ -623,8 +623,34 @@ test("back into a branch that now holds nothing else drops the anchor", () => {
 })
 
 test("back to the top level is `parent: null`, like an outdent", () => {
+  // No `file` on the edit, which is a placement recorded before a row could
+  // leave its outline: "the top level" means the one it is in, exactly as it
+  // always did.
   expect(asked({ verb: "place", id: "handles", parent: null, after: "kitchen" }))
     .toEqual({ op: "move", id: "handles", parent: null, after: "kitchen" })
+})
+
+test("back to the top level of ANOTHER outline names that outline", () => {
+  // What the `file` on a place is for. `move_node` carries a row between
+  // outlines now, so an undo of a top-level row's crossing has to say which
+  // top level — `parent: null` alone would put it back at the top of wherever
+  // it had got to. The neighbour is still resolved against the set as it
+  // stands, in the outline it is going back to rather than the one it is in.
+  const set = setOf({
+    "house.olai": HOUSE,
+    "garden.olai": `{"id":"herbs","ord":"a0","title":"the herb bed"}`,
+  })
+  expect(
+    asked({ verb: "place", id: "herbs", parent: null, file: "house.olai", after: null }, reading(set)),
+  ).toEqual({ op: "move", id: "herbs", parent: null, file: "house.olai", before: "kitchen" })
+})
+
+test("...and with a parent the file decides nothing, so it does not travel", () => {
+  // The ops layer's own rule about the pair, kept rather than re-argued: a
+  // parent is in its own file, and a second answer beside it could only
+  // disagree.
+  expect(asked({ verb: "place", id: "handles", parent: "kitchen", file: "house.olai", after: "demo" }))
+    .toEqual({ op: "move", id: "handles", parent: "kitchen", after: "demo" })
 })
 
 test("putting back a row nothing declares is not found", () => {
@@ -733,7 +759,7 @@ test("a move records where the row SAT — its parent, and the row above it", ()
   // `install` is third among the kitchen's children, so the place it leaves is
   // "under kitchen, after order" whichever of the four moves took it away.
   const back: ReadonlyArray<Edit> = [
-    { verb: "place", id: "install", parent: "kitchen", after: "order" },
+    { verb: "place", id: "install", parent: "kitchen", file: "house.olai", after: "order" },
   ]
   expect(inverse({ verb: "move", id: "install", how: "in" })).toEqual(back)
   expect(inverse({ verb: "move", id: "install", how: "out" })).toEqual(back)
@@ -742,12 +768,16 @@ test("a move records where the row SAT — its parent, and the row above it", ()
 
 test("the FIRST of its siblings records `after: null` — a place with no neighbour", () => {
   expect(inverse({ verb: "move", id: "demo", how: "down" }))
-    .toEqual([{ verb: "place", id: "demo", parent: "kitchen", after: null }])
+    .toEqual([{ verb: "place", id: "demo", parent: "kitchen", file: "house.olai", after: null }])
 })
 
-test("a top-level row records `parent: null` and the row above it in the file", () => {
+test("a top-level row records `parent: null`, the OUTLINE, and the row above it", () => {
+  // The file is the half that only matters here, and it is why a place carries
+  // one at all: with a parent, the parent's own file is the answer — with none,
+  // "the top level" is the top level of a named outline, and `move_node` can
+  // carry a row out of it into another.
   expect(inverse({ verb: "move", id: "loose", how: "in" }))
-    .toEqual([{ verb: "place", id: "loose", parent: null, after: "kitchen" }])
+    .toEqual([{ verb: "place", id: "loose", parent: null, file: "house.olai", after: "kitchen" }])
 })
 
 test("the picker's move records the place it leaves, like every other one", () => {
@@ -756,14 +786,14 @@ test("the picker's move records the place it leaves, like every other one", () =
   // `place` back, with the neighbour, and not "under my old parent" (which
   // would put a row that was third among its siblings at the end of them).
   expect(inverse({ verb: "under", id: "install", parent: "loose" }))
-    .toEqual([{ verb: "place", id: "install", parent: "kitchen", after: "order" }])
+    .toEqual([{ verb: "place", id: "install", parent: "kitchen", file: "house.olai", after: "order" }])
 })
 
 test("an undo is itself undoable: a place records the place it leaves", () => {
   // What makes redo the same machinery as undo rather than a second stack with
   // rules of its own — every replay answers with what would replay IT.
   expect(inverse({ verb: "place", id: "handles", parent: "kitchen", after: null }))
-    .toEqual([{ verb: "place", id: "handles", parent: "install", after: null }])
+    .toEqual([{ verb: "place", id: "handles", parent: "install", file: "house.olai", after: null }])
 })
 
 test("a toggle records the mark it replaced, and `null` for none", () => {

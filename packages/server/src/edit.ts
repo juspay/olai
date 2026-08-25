@@ -146,10 +146,15 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
     // layer's own default (last — `move_node` with a `parent` and no anchor,
     // which is the request `move in` above ends at). So there is nothing here
     // to read off the snapshot, and every refusal is `planMove`'s own: a parent
-    // in another file, a parent inside the subtree being moved, an id nothing
-    // declares. The picker draws the first two before `Enter` as well
-    // (`@olai/format`'s `moving.ts`), which is an aim and not a fence —
+    // inside the subtree being moved, a parent inside what it draws, a trash at
+    // either end, an id nothing declares. The picker draws those before `Enter`
+    // as well (`@olai/format`'s `moving.ts`), which is an aim and not a fence —
     // this request is still the one an agent's `move_node` sends.
+    //
+    // THE PARENT MAY BE IN ANOTHER OUTLINE and nothing here changes for it: a
+    // `move_node` naming a parent lands in the parent's file, so the picker's
+    // search of the whole set reaches every outline the directory holds without
+    // this arm learning a second field.
     case "under":
       return Result.succeed({ op: "move", id: edit.id, parent: edit.parent })
     case "toggle": {
@@ -603,6 +608,13 @@ const moveRequest = (
  * "back to the top of this branch" means the top as it now reads. When there
  * is nothing there at all the anchor is dropped and the ops layer's own
  * default — last — is the only place it can go.
+ *
+ * THE OUTLINE IS PART OF THE PLACE, and that is what a cross-file `move_node`
+ * made true: "the top level of its file" is a different file once a row has
+ * been carried to another one, so an undo that named only a parent of `null`
+ * would put the row back at the top of wherever it had got to. It travels on
+ * the request only where it decides something — with a parent, the parent's
+ * file is the answer and a second one could only disagree with it.
  */
 const placeRequest = (
   derived: Derived,
@@ -610,18 +622,32 @@ const placeRequest = (
 ): Resolved => {
   const located = derived.byId.get(edit.id)
   if (located === undefined) return Result.fail(notFound(derived, edit.id))
+  // Where it is going BACK to, which is where its old NEIGHBOURS are rather
+  // than where the row is now. A placement minted before this field existed
+  // means the row's own file, which is what "the top level" said while nothing
+  // could cross.
+  const parent = edit.parent === null ? undefined : derived.byId.get(edit.parent)
+  const home = parent?.file ?? edit.file ?? located.file
+  const into = edit.parent === null && edit.file !== undefined ? { file: edit.file } : {}
   if (edit.after !== null) {
-    return Result.succeed({ op: "move", id: edit.id, parent: edit.parent, after: edit.after })
+    return Result.succeed({
+      op: "move",
+      id: edit.id,
+      parent: edit.parent,
+      ...into,
+      after: edit.after,
+    })
   }
   // The first row that is not this one — `find` rather than a filtered copy,
   // because the answer is one sibling and the list it is drawn from is every
   // top-level record in the set when the parent is `null`.
-  const first = siblingsOf(derived, located.file, edit.parent ?? undefined)
+  const first = siblingsOf(derived, home, edit.parent ?? undefined)
     .find((sibling) => sibling.node.id !== edit.id)
   return Result.succeed({
     op: "move",
     id: edit.id,
     parent: edit.parent,
+    ...into,
     ...(first === undefined ? {} : { before: first.node.id }),
   })
 }
@@ -1203,6 +1229,13 @@ const placementOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
     verb: "place",
     id,
     parent: located.node.parent ?? null,
+    // The OUTLINE, always, because a place is a place in a directory rather
+    // than in a file the row is assumed not to leave. It decides nothing when
+    // there is a parent (the parent's file does), and it is the whole of the
+    // answer when there is not: `move_node` crosses outlines, so an undo of a
+    // top-level row's move that named no file would put it back at the top of
+    // wherever it had got to.
+    file: located.file,
     after: above?.node.id ?? null,
   }]
 }
