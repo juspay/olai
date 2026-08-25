@@ -37,10 +37,14 @@ const loose = (): { readonly root: string; readonly file: string } => {
   return { root, file }
 }
 
-/** The same directory, with a repository and one commit in it. */
-const repo = (): { readonly root: string; readonly file: string } => {
+/** The same directory, with a repository and one commit in it — or with the
+ *  repository and NO commit, which is the shape `head` has to answer `null`
+ *  for. */
+const repo = (
+  options: { readonly seed?: boolean } = {},
+): { readonly root: string; readonly file: string } => {
   const made = loose()
-  repoAt(made.root)
+  repoAt(made.root, options)
   return made
 }
 
@@ -547,13 +551,48 @@ test("an unrecognised trailer arrives verbatim rather than swallowed", async () 
   expect((await asked(root, (git) => git.last(OLAI)))?.trailer).toBe("some-other-tool")
 })
 
-test("show is HEAD's copy, and null for a file HEAD has never had", async () => {
+test("show is the named commit's copy, and null for a file it never had", async () => {
   const { root, file } = repo()
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
 
-  expect(await asked(root, (git) => git.show("a.olai")))
+  const head = await asked(root, (git) => git.head)
+  expect(head).toMatch(/^[0-9a-f]{40}$/)
+  expect(await asked(root, (git) => git.show(head ?? "", "a.olai")))
     .toBe(`{"id":"a","ord":"a0","title":"a"}\n`)
-  expect(await asked(root, (git) => git.show("never.olai"))).toBe(null)
+  expect(await asked(root, (git) => git.show(head ?? "", "never.olai"))).toBe(null)
+})
+
+/**
+ * WHICH COMMIT, and the shapes where there is not one.
+ *
+ * The pairing is the point: a caller that keeps what {@link Repo.show} answered
+ * keeps it under this sha, so a commit landing here has to produce a DIFFERENT
+ * one — that is what makes a remembered copy impossible to serve for the wrong
+ * revision (`@olai/ops`' `committed.ts`). A repository with no commits yet
+ * answers `null` rather than a sentinel, which is the same answer a git that
+ * could not be asked gives, and the same answer `show` would give for every
+ * path in it.
+ */
+test("head names the commit, moves when a commit lands, and is null before the first", async () => {
+  const { root, file } = repo({ seed: false })
+  expect(await asked(root, (git) => git.head)).toBe(null)
+
+  const run = git(root)
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "first")
+  const first = await asked(root, (git) => git.head)
+  expect(first).toMatch(/^[0-9a-f]{40}$/)
+
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
+  run("commit", "--quiet", "-am", "second")
+  const second = await asked(root, (git) => git.head)
+  expect(second).toMatch(/^[0-9a-f]{40}$/)
+  expect(second).not.toBe(first)
+
+  // ... and the first sha still answers what it always answered, which is the
+  // property the cache one package up is built on.
+  expect(await asked(root, (git) => git.show(first ?? "", "a.olai")))
+    .toBe(`{"id":"a","ord":"a0","title":"a"}\n`)
 })
 
 /**
@@ -577,10 +616,11 @@ test("show names a file the way the repository does, from a served subdirectory"
   run("commit", "--quiet", "-m", "more fixtures")
 
   const served = path.join(root, "notes")
-  expect(await asked(served, (git) => git.show("notes/b.olai")))
+  const head = (await asked(served, (git) => git.head)) ?? ""
+  expect(await asked(served, (git) => git.show(head, "notes/b.olai")))
     .toBe(`{"id":"b","ord":"a0","title":"b"}\n`)
   // The one the served spelling could not reach at all.
-  expect(await asked(served, (git) => git.show("above.md"))).toBe("one level up\n")
+  expect(await asked(served, (git) => git.show(head, "above.md"))).toBe("one level up\n")
 })
 
 test("git refusing is a warning with git's own words in a field, and a Failed", async () => {

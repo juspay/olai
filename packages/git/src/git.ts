@@ -3,13 +3,20 @@
  *
  * {@link open} is the socket: it answers with an {@link Opening} — a
  * {@link Repo}, a directory that is not a work tree, or a git that could not be
- * asked — and everything else is a method on the handle. Four questions and two
+ * asked — and everything else is a method on the handle. Five questions and two
  * verbs, each a subprocess and each total: whether the repository can take a
  * commit right now, what has moved in it and how far ahead of its upstream it
- * is, what HEAD had in one of the served files, what was last recorded under a
- * caller's own audit filter — then commit exactly these paths with exactly this
- * message, and push the current branch. What those answers MEAN is
- * `@olai/ops`' `pending.ts`'s.
+ * is, which commit HEAD names, what THAT commit had in one of the repository's
+ * files, what was last recorded under a caller's own audit filter — then commit
+ * exactly these paths with exactly this message, and push the current branch.
+ * What those answers MEAN is `@olai/ops`' `pending.ts`'s.
+ *
+ * The FIFTH is the newest, and it is one question split in two on purpose
+ * (`perf-git-per-write`): a caller that reads a file out of history and keeps
+ * what it read is keeping it about a COMMIT, so this socket hands out the
+ * commit's name and takes it back rather than spelling `HEAD` inside the
+ * command. `HEAD:<path>` is a question whose answer moves; `<sha>:<path>` is a
+ * question about an object git has already frozen.
  *
  * The WHOLE REPOSITORY is what those questions are about, and that is
  * `commit-whole-repo`'s correction: the survey used to be pathspec'd to the
@@ -63,7 +70,7 @@
  * Only the two index touchers take it (`dirty` and `commit`). `push` is a
  * network verb with the ten-second budget, and `whyWaiting` must not queue
  * behind it; git's own ref lockfiles cover `commit` vs `push` on the refs.
- * `state` / `last` / `show` do not touch the index.
+ * `state` / `last` / `head` / `show` do not touch the index.
  */
 
 import { Hung, run } from "@olai/child"
@@ -249,9 +256,24 @@ export interface Repo {
    *  of those matter is a statement about the format, and this file has none of
    *  that in it. */
   readonly dirty: Effect.Effect<Dirt>
-  /** One file of the REPOSITORY as HEAD has it, named the way {@link Dirty}
-   *  names it — repo-root-relative — or `null` when HEAD does not have it. */
-  readonly show: (path: string) => Effect.Effect<string | null>
+  /** Which commit HEAD names, or `null` where it names none — a branch with no
+   *  commits yet, a git that could not answer.
+   *
+   *  What a caller that means to REMEMBER anything it read out of history has to
+   *  have: an answer about a NAMED COMMIT stays true forever, and an answer
+   *  about `HEAD` stops being true the moment somebody commits. */
+  readonly head: Effect.Effect<string | null>
+  /** One file of the REPOSITORY as a NAMED COMMIT has it — named the way
+   *  {@link Dirty} names it, repo-root-relative — or `null` when that commit
+   *  does not have it.
+   *
+   *  The COMMIT is the caller's word rather than `HEAD` spelled in here, and
+   *  that is the whole of `perf-git-per-write`: `HEAD:<path>` is a question
+   *  whose answer moves under a caller that keeps it, and `<sha>:<path>` is a
+   *  question about an object git has already made immutable — so the answer can
+   *  be remembered under the name it was asked about and cannot go stale.
+   *  {@link Repo.head}'s answer is what used to be meant. */
+  readonly show: (commit: string, path: string) => Effect.Effect<string | null>
   /** The last commit the caller's own audit filter claims, or `null` for a
    *  repository that has none. */
   readonly last: (audit: Audit) => Effect.Effect<Recorded | null>
@@ -285,7 +307,8 @@ export const open = (root: string): Effect.Effect<Opening> =>
         served: placing.placement.prefix,
         state: state(root, placing.placement),
         dirty: holdIndex(gitDir, dirty(root, placing.placement)),
-        show: (path: string) => show(root, path),
+        head: head(root),
+        show: (commit: string, path: string) => show(root, commit, path),
         last: (audit: Audit) => last(root, audit),
         commit: (what: CommitInput) =>
           holdIndex(gitDir, commit(root, placing.placement, what)),
@@ -541,8 +564,27 @@ const tracking = (header: string): Upstream | null => {
 }
 
 /**
- * HEAD's copy covers every file of a repository with no commits yet, and every
- * file that is new, with the same `null`.
+ * WHICH COMMIT, before anything is asked about one.
+ *
+ * `--verify` because the answer has to be one object or none: a branch with no
+ * commits yet, and a git that could not be asked at all, are the same `null`
+ * here — and they are the same answer one call down too, since a commit that
+ * cannot be named holds no copy of anything. Classifying them apart would be a
+ * distinction no caller of this file can act on.
+ *
+ * A DETACHED HEAD answers with the commit it is sitting on, which is right and
+ * is why this is not `symbolic-ref`: what {@link show} needs is the object,
+ * and a rebase's detached head has one like any other.
+ */
+const head = (root: string): Effect.Effect<string | null> =>
+  Effect.map(
+    git(root, ["rev-parse", "--verify", "HEAD"]),
+    (said) => (said.ok ? said.out.trim() : null),
+  )
+
+/**
+ * A commit's copy covers every file that commit does not have, and every file
+ * that is new, with the same `null`.
  *
  * REPO-ROOT-RELATIVE, which is the spelling {@link Dirty} hands out and the one
  * name a file has that is the same wherever olai is serving from. It took the
@@ -550,15 +592,21 @@ const tracking = (header: string): Upstream | null => {
  * under the served root and unable to name anything above it — so a rename INTO
  * a served subdirectory (`git mv Notes.md docs/Notes.olai`) had no way to ask
  * for the side it came from, and the caller fell back to asking for a name HEAD
- * has never had. `HEAD:<path>` is repo-root-relative in git's own object syntax
- * whatever directory it runs in, so this is a prefix that had nothing to do.
+ * has never had. `<commit>:<path>` is repo-root-relative in git's own object
+ * syntax whatever directory it runs in, so this is a prefix that had nothing to
+ * do.
+ *
+ * THE COMMIT IS A PARAMETER, and the reason is the one {@link Repo.show} gives:
+ * a caller that remembers what came back is remembering it about a commit, and
+ * `HEAD` is the one name that does not stay put.
  */
 const show = (
   root: string,
+  commit: string,
   path: string,
 ): Effect.Effect<string | null> =>
   Effect.map(
-    git(root, ["show", `HEAD:${path}`]),
+    git(root, ["show", `${commit}:${path}`]),
     (shown) => (shown.ok ? shown.out : null),
   )
 

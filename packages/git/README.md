@@ -24,16 +24,19 @@ Answering `null` for both of the last two is exactly the collapse that left a pe
 
 ## The handle
 
-Six verbs, and they are business questions rather than the commands behind them — nothing here says `rev-parse`, and nothing above says it either:
+Seven verbs, and they are business questions rather than the commands behind them — nothing here says `rev-parse`, and nothing above says it either:
 
 | verb | answers |
 |---|---|
 | `state` | whether the repository can take a commit right now, and why not when it cannot |
 | `dirty` | every file in the REPOSITORY git thinks has moved, and how far ahead of its upstream the branch is |
-| `show(path)` | one file of the repository as HEAD has it (repo-root-relative, the way `dirty` names it), or `null` when HEAD does not |
+| `head` | which commit HEAD names, or `null` where it names none |
+| `show(commit, path)` | one file of the repository as THAT commit has it (repo-root-relative, the way `dirty` names it), or `null` when it does not have it |
 | `last(audit)` | the newest commit matching a caller's own audit filter |
 | `commit(what)` | commit exactly these paths with exactly this message |
 | `push` | send the current branch to the upstream it already tracks |
+
+`head` and `show` are one question split in two on purpose (`perf-git-per-write`). `HEAD:<path>` is a question whose answer moves — somebody commits, and what a caller wrote down is a lie. `<sha>:<path>` is a question about an object git has already frozen, so an answer to it can be REMEMBERED under the pair it was asked about and can never go stale. The caller that does the remembering is `@olai/ops`' `committed.ts`; this package only makes the honest question askable.
 
 Plus one property, `served`: where the served directory sits from the repository root (`""` at the root, `"docs/"` inside one). WHERE it sits — that, and the git directory — is asked once when the handle is opened and then belongs to the handle. Git speaks repo-relative paths and the callers speak served-root-relative ones, and a consumer that had to carry that around would be a consumer this volatility had leaked into.
 
@@ -75,7 +78,7 @@ Never `--amend` — an audit trail that can be edited after the fact is not one.
 | `LC_ALL=C` | the "not a git repository" classification is a string match, and a translated git would be reported as unusable |
 | `GIT_TERMINAL_PROMPT=0` | a repository that wants a credential fails instead of sitting on a prompt nobody can answer |
 | a 10s budget | a wedged hook or a lock held by another process cannot hold a caller open forever |
-| the index gate, per `gitDir` | `git status` (`dirty`) refreshes the index and `git commit` writes it; two fibers doing both lose to `index.lock`. The permit is keyed on the git directory — not on the handle — so a second `open` of the same repository cannot disarm it. Only those two verbs take it: `push` is a network call with the ten-second budget (`whyWaiting` must not queue behind it), and git's own ref lockfiles cover `commit` vs `push` on the refs. `state` / `last` / `show` do not touch the index. |
+| the index gate, per `gitDir` | `git status` (`dirty`) refreshes the index and `git commit` writes it; two fibers doing both lose to `index.lock`. The permit is keyed on the git directory — not on the handle — so a second `open` of the same repository cannot disarm it. Only those two verbs take it: `push` is a network call with the ten-second budget (`whyWaiting` must not queue behind it), and git's own ref lockfiles cover `commit` vs `push` on the refs. `state` / `last` / `head` / `show` do not touch the index. |
 | `--porcelain -z` | the plain form quotes anything unusual; `-z` does not, and a path may contain a newline |
 | `-uall` | a brand-new outline is untracked, and is exactly what a first commit is for |
 | no pathspec on `status` | the survey is the whole repository: serving `docs/` and being told nothing about a dirty root `README.md` is the bug this package's caller was filed for |
