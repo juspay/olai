@@ -95,7 +95,7 @@ process.stdin.on("data", (chunk: string) => {
       case "session/load": {
         const sessionId = message.params?.sessionId ?? "sess-1"
         leftoverSaid(sessionId)
-        leftoverInit("sess-1")
+        leftoverInit(sessionId)
         respond(message.id, {})
         continue
       }

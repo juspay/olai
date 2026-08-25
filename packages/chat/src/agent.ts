@@ -376,6 +376,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * A SET rather than the last id, because two opens in a row can still
      * have the first conversation's leftovers on the wire after the second
      * has been left too.
+     *
+     * Append-mostly for the panel's life: an id leaves only when that same
+     * conversation is re-entered. No ceiling. The set is never iterated, a
+     * lookup is O(1), and a member is one short session id per conversation
+     * this process has left — dozens a day, not a thing that grows with the
+     * transcript.
      */
     const closed = new Set<string>()
 
