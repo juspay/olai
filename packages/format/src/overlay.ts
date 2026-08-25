@@ -6,7 +6,7 @@
  * one clone of an entry per key in the directory, so that the revision a
  * reader is holding could not move under them. On a 21,552-record vault the
  * `byId` clone alone is ABOUT HALF of a patch, which `patch.bench.ts` prints
- * as `patch+clone` against `patch` — and the eleven together are most of what
+ * as `patch+clone` against `patch` — and all of them together are most of what
  * is left once the work the edit really caused is taken out. This is the lever
  * open question 1 of `docs/brainstorming/model-indices.md` named: a LAYER over
  * the map the last patch left standing, holding the entries this one changed,
@@ -29,7 +29,7 @@
  * IT DELETES, and that is the whole of what changed here. The first layer kept
  * `base`'s key set exactly — size, `has` and `keys` were the underlying map's
  * own answers and cost nothing — and the price of that was that only ONE of its
- * caller's eleven maps could have one, since a patch drops keys from nearly all
+ * caller's maps could have one, since a patch drops keys from nearly all
  * of them (a tag nothing writes any more has to leave that index rather than
  * stand there empty). This file used to say so and stop there, which was a fact
  * about the layer as BUILT dressed as one about layers. A tombstone set

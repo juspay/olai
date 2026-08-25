@@ -1,7 +1,8 @@
 /**
- * The two things about the ACP client that can be asserted without a protocol:
- * WHICH conversation a boot opens in, and what it says when the executable it
- * was pointed at will not run.
+ * The things about the ACP client that can be asserted without a protocol:
+ * WHICH conversation a boot opens in, what it says when the executable it
+ * was pointed at will not run, and whether a leftover notification is about
+ * a conversation this panel is not in.
  *
  * `OLAI_ACP_AGENT` is a path a PERSON sets, which makes it the likeliest thing
  * in this package to be wrong — a typo, a moved binary, a nix path that was
@@ -20,7 +21,7 @@ import { RequestError } from "@agentclientprotocol/sdk"
 import { describe, expect, test } from "bun:test"
 import { Effect } from "effect"
 
-import { adopt, goneOf, make } from "./agent.ts"
+import { adopt, fromElsewhere, goneOf, make } from "./agent.ts"
 import { CLAUDE } from "./agents/claude.ts"
 import type { Stored } from "./events.ts"
 import type { Memory } from "./memory.ts"
@@ -147,5 +148,47 @@ describe("what a failure says about whether the message went", () => {
     ) {
       expect(goneOf(cause)).not.toBe("unreachable")
     }
+  })
+})
+
+describe("whose session a leftover notification is about", () => {
+  // The hole: `elsewhere` used to require a current session to refuse a
+  // mismatch, so the window between leaving one conversation and entering
+  // the next — `session === null` — let a forwarded `init` (or a chunk of
+  // the last turn) land on the next roster and the next transcript.
+
+  const closed = new Set(["old"])
+
+  test("a leftover from a conversation we left is from elsewhere, even in none", () => {
+    // THE PIN. `session` is null for the whole of a new/load, including
+    // after the next roster has been announced. A named leftover has to be
+    // recognised by having been left, not by failing to match a current id
+    // we do not have yet.
+    expect(fromElsewhere("old", null, closed)).toBe(true)
+  })
+
+  test("a leftover is from elsewhere once we are in the next conversation too", () => {
+    expect(fromElsewhere("old", "new", closed)).toBe(true)
+  })
+
+  test("the conversation we are in is not from elsewhere", () => {
+    expect(fromElsewhere("new", "new", closed)).toBe(false)
+  })
+
+  test("a load's replay is not from elsewhere: we are in none, and it is not closed", () => {
+    // Replay names the conversation before `entered` records it. Refusing
+    // every named message while `session` is null would draw a load as empty.
+    expect(fromElsewhere("loading", null, closed)).toBe(false)
+  })
+
+  test("an unnamed notification is not a mismatch", () => {
+    // Absence is a shape we have not seen. Dropping one would go quiet about
+    // a `/model` for the life of a conversation.
+    expect(fromElsewhere(undefined, null, closed)).toBe(false)
+    expect(fromElsewhere(undefined, "new", closed)).toBe(false)
+  })
+
+  test("a different conversation than the one we are in is from elsewhere", () => {
+    expect(fromElsewhere("other", "new", new Set())).toBe(true)
   })
 })

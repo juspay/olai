@@ -27,10 +27,19 @@
  * moves in one diff (PR 10, whose law forbids flipping routes one at a time) —
  * so what crosses here is exactly the badge, which is what §3's Sidebar row
  * names. That the page and the badge are then two readings of one directory
- * for the length of this sequence is honest and bounded: they are the SAME
- * function over the SAME set (`owedOf` over `agendaOf`), so the most they can
- * differ by is a frame, which is the skew the design doc's cross-file
- * consistency paragraph already accounts for.
+ * for the length of this sequence is honest and bounded: they are asked of the
+ * SAME REVISION of the same set, so the most they can differ by is a frame,
+ * which is the skew the design doc's cross-file consistency paragraph already
+ * accounts for.
+ *
+ * They stopped being the same FUNCTION with `perf-agenda-history-walk`: the
+ * badge is `owedNow` over an index the patcher keeps, where it was `owedOf`
+ * over the whole agenda assembled and thrown away, because two integers are not
+ * worth situating every overdue node in a directory per subscriber per
+ * revision. What holds the two spellings to one answer is a differential rather
+ * than a shared call (`@olai/format`'s `occasion.test.ts`, `@olai/ops`'
+ * `owed.index.test.ts`), which changes nothing that crosses this wire — the
+ * member is still the two counts and still nothing else.
  *
  * The DAY-NOTE marks the same grid draws are not here either, and never will
  * be: a day's note is a document NAMED for the date, so the question is asked
