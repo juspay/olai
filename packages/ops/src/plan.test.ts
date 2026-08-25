@@ -752,8 +752,9 @@ describe("done and doing", () => {
     expect(planned(set, { op: "done", id: "c2" }).nudge)
       .toContain("every task under `the trip` is done now")
 
-    // Not while another task is still open, and not when the parent is already
-    // done — neither is news.
+    // Not while another task is still open, and not when the parent has
+    // already SETTLED — neither is news, and the second is worse than not
+    // news: it is a write the next call refuses.
     const half = setOf({
       "a.olai": [
         `{"id":"p","ord":"a0","title":"the trip"}`,
@@ -770,6 +771,29 @@ describe("done and doing", () => {
       ].join("\n"),
     })
     expect(planned(already, { op: "done", id: "c1" }).nudge).toBeUndefined()
+
+    // …NOR WHEN THE PARENT IS CANCELLED, and this is the case the fourth mark
+    // brought (grok, review of #391). The test above pinned `done` alone, and
+    // the predicate under it was `!== "done"` — which a cancelled parent walks
+    // straight through. The state is not hypothetical: it is the one this
+    // lane's own no-cascade ruling PRODUCES. Cancel a branch, and the rows
+    // under it keep their marks and stay owed; finish the last of them and the
+    // old spelling said "mark it done too" about a node `set_done` refuses
+    // outright — "is cancelled. Undo that first" — which is a suggestion whose
+    // only possible outcome is the refusal it walks into.
+    const calledOff = setOf({
+      "a.olai": [
+        `{"id":"p","ord":"a0","title":"the trip","cancelled":"2026-08-25"}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"pack","doing":true}`,
+      ].join("\n"),
+    })
+    const finished = planned(calledOff, { op: "done", id: "c1" })
+    expect(record(fileOf(finished, "a.olai"), "c1").done).toBe(STAMP)
+    expect(finished.nudge).toBeUndefined()
+    // …and the sentence it would have suggested really is refused, which is
+    // what makes the silence above the right answer rather than a missing one.
+    expect(refused(calledOff, { op: "done", id: "p" }).message)
+      .toContain("is cancelled. Undo that first")
 
     // And not while something DEEPER under the parent is open. The suggestion
     // must never name a write the gate below would refuse: `the trip` cannot

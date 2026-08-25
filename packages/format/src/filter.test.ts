@@ -52,6 +52,29 @@ const CORPUS = {
 
 const derived = derive(nodesOfFiles(CORPUS))
 
+/**
+ * THE SAME CORPUS WITH TWO OF ITS TARGETS CALLED OFF — `demo` (which `order`
+ * waits on) and `order` (which `install` and `hinges` both wait on).
+ *
+ * A second derivation rather than more records in the first, which is the
+ * reason `./dates.test.ts` keeps two: the corpus above is what every other
+ * assertion in this file stands on, and a fourth mark added INTO it would move
+ * answers that are about something else. Everything here is that corpus with
+ * two values replaced, so what the assertions using it are about is the marks
+ * and nothing else.
+ *
+ * The two shapes a settling mark comes in are both here on purpose: `demo`
+ * carries an INSTANT and no `date` of its own, so the only thing that can put
+ * it on a day is the mark; `order` carries a bare `true` beside a real `date`,
+ * which is the shape that says the state was reached and declines to say when.
+ */
+const CALLED_OFF = derive(nodesOfFiles({
+  ...CORPUS,
+  "house.olai": CORPUS["house.olai"]
+    .replace(`"done":"2026-08-03"`, `"cancelled":"2026-08-03T11:00:00-04:00"`)
+    .replace(`"doing":true,"date":"2026-08-10"`, `"cancelled":true,"date":"2026-08-10"`),
+}))
+
 /** The day every query below is asked on — a THURSDAY, deliberately: a week
  *  computed from the middle of one is wrong in both directions when the
  *  arithmetic is off, where a Monday hides half the mistakes. The corpus sits
@@ -198,7 +221,7 @@ test("a hollow stamp is a stamp the record does not carry", () => {
   expect(selectsIn(condemned, "created:2000..2100")).toEqual(["real"])
 })
 
-test("`date:` reads the two dates a journal reads — scheduled, and finished", () => {
+test("`date:` reads the three dates a journal reads — scheduled, finished, called off", () => {
   // `order` is scheduled for the 10th; `demo` was finished on the 3rd.
   expect(selects("date:2026-08-10")).toEqual(["order"])
   expect(selects("date:2026-08-03")).toEqual(["demo"])
@@ -207,6 +230,24 @@ test("`date:` reads the two dates a journal reads — scheduled, and finished", 
   expect(selects("date:2026-08-01")).toEqual([])
   // ...and `hinges` carries `todo:2026-08-11`.
   expect(selects("date:2026-08-11")).toEqual([])
+
+  // THE THIRD, over the corpus that has one (grok, review of #391). This test
+  // named "the two dates" and ran only over the corpus where that was still
+  // true, so `date:` reaching a cancelled instant was a claim `datesOf` made
+  // and nothing here asked about. `CALLED_OFF` is the same corpus with `demo`
+  // called off at 11:00 on the 3rd instead of finished, and `order` called off
+  // — the day each of them lands on is the day the mark's instant names, and
+  // the SCHEDULED half is untouched, which is what says this widened rather
+  // than swapped one reading for another.
+  expect(selectsIn(CALLED_OFF, "date:2026-08-03")).toEqual(["demo"])
+  expect(selectsIn(CALLED_OFF, "date:2026-08-10")).toEqual(["order"])
+  // `order` carries a bare `cancelled: true` beside its `date`, and a mark
+  // holding `true` says the state was reached and declines to say when — so
+  // the only day it is on is the one it is scheduled for.
+  expect(selectsIn(CALLED_OFF, "has:date")).toEqual(["basil", "demo", "order"])
+  // …and the unsettled marks are still on no day, whichever corpus is asked.
+  expect(selectsIn(CALLED_OFF, "date:2026-08-01")).toEqual([])
+  expect(selectsIn(CALLED_OFF, "date:2026-08-11")).toEqual([])
 })
 
 // `has:date` is `date:` with no bounds rather than a test of the `date` FIELD,
@@ -1024,17 +1065,6 @@ test("`is:mirrored` composes and negates", () => {
 })
 
 // ── the fourth mark, at this door ──────────────────────────────────────
-
-/** The corpus with two of its targets CALLED OFF rather than left open:
- *  `demo` (which `order` waits on) and `order` (which `install` and `hinges`
- *  both wait on). Everything else is the corpus above, so what the assertions
- *  below are about is the marks and nothing else. */
-const CALLED_OFF = derive(nodesOfFiles({
-  ...CORPUS,
-  "house.olai": CORPUS["house.olai"]
-    .replace(`"done":"2026-08-03"`, `"cancelled":"2026-08-03T11:00:00-04:00"`)
-    .replace(`"doing":true,"date":"2026-08-10"`, `"cancelled":true,"date":"2026-08-10"`),
-}))
 
 /**
  * `is:cancelled` selects the STORED mark, and `is:marked` takes it in.

@@ -1646,8 +1646,25 @@ const nudged = (
   const above = node.parent === undefined
     ? undefined
     : scope.derived.byId.get(node.parent)?.node
-  return above !== undefined && !isMirror(above) && storedMarker(above) !== "done" &&
-      unfinishedWithin(scope.derived, above.id).every((task) => task.node.id === node.id)
+  if (above === undefined || isMirror(above)) return undefined
+  // ...AND THE PARENT MUST NOT HAVE SETTLED ALREADY, which is the same "a
+  // suggestion the very next call would refuse" rule read one mark further
+  // (grok, review of #391). This was `!== "done"`, and it was right while `done`
+  // was the only mark a suggestion could land on top of: a done parent needs no
+  // nudge to be done. A CANCELLED parent is not `done`, so that spelling let the
+  // sentence through — and the write it suggests is exactly the one
+  // {@link WALKING_BACK} refuses, in a state this lane's own no-cascade ruling
+  // PRODUCES: cancel a parent, finish the last task still standing under it,
+  // and the answer would say "mark it done too" about a node that has to be
+  // un-cancelled first.
+  //
+  // The predicate is the one this file already reads everywhere else, so a
+  // fifth mark needs nothing here: a bullet is not settled, and neither is
+  // unfinished work.
+  const held = storedMarker(above)
+  if (!(held === undefined || unfinished(held))) return undefined
+  return unfinishedWithin(scope.derived, above.id)
+      .every((task) => task.node.id === node.id)
     ? `every task under \`${above.title}\` is done now — mark it done too if ` +
       `the branch is finished.`
     : undefined
