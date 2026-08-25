@@ -23,6 +23,8 @@ import type { FileDiff } from "@olai/surface"
 import { createMemo, For, Show } from "solid-js"
 
 import { GLYPH, SAID } from "../changes.ts"
+import { renderTitle } from "../markdown/title.ts"
+import { TitleHtml } from "../markdown/TitleHtml.tsx"
 import { TESTID } from "../testids.ts"
 import { isUnfolded, toggleFold } from "./folds.ts"
 import { outlineDiffOf } from "./outline.ts"
@@ -105,7 +107,16 @@ export function OutlineDiff(props: {
                   <span class="w-3 shrink-0 text-muted" aria-hidden="true">
                     {GLYPH[change.sort]}
                   </span>
-                  <span class="min-w-0 truncate text-ink">{change.title}</span>
+                  {/* A TITLE, drawn the way a title is drawn anywhere: its
+                      `#tags` are pills in their own hues through the same
+                      pipeline the tree's rows read (`../markdown/title.ts`),
+                      not two characters of grey. The pipeline, not
+                      `../NodeTitle.tsx`: this panel is no page, and a title
+                      that names an address is spelled as written here, the
+                      same contract a search row keeps (`../search/row.ts`). */}
+                  <span class="min-w-0 truncate text-ink">
+                    <TitleHtml drawing={renderTitle(change.title, change.file)} />
+                  </span>
                   <span class="ml-auto shrink-0 text-muted">{SAID[change.sort]}</span>
                 </li>
               )}

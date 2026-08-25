@@ -4,8 +4,8 @@
  * A row is its title (`./settings/density.ts`). Everything a node carries —
  * every property, its note, its references — waits for the open state, and the
  * ruling that makes the quiet outline liveable rather than merely quiet is that
- * exactly ONE fact may ride inline after the title, in the same dim voice the
- * tags are now in (human, the quiet outline). Not a column, not a badge, not a
+ * exactly ONE fact may ride inline after the title, muted beside the words as a
+ * byline is (human, the quiet outline). Not a column, not a badge, not a
  * box: a word after the words, the way a byline follows a headline.
  *
  * Which fact, in order:

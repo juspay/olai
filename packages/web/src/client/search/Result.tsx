@@ -174,6 +174,30 @@ export function Result(props: {
           : sameDrawing(was, now),
     },
   )
+  /** The place line, run through the same title pipeline: its `#tags` wear
+   *  the same pills and hues, so a crumb reads like the crumb a search
+   *  landed from — the ancestors carry the reader's vocabulary to the row,
+   *  and an unstyled crumb was the last hole a tag could fall through
+   *  (`../markdown/tags.ts`). Everything the line's surround carries — the
+   *  layout, the muted mono voice, the testid — stays on the wrapper span
+   *  below, the row's own. No `needles`: what the query found is the hit,
+   *  and the hit is in the label. NO LINKS: this is a crumb inside a
+   *  `<button>`, exactly what the label's `links: false` is about. */
+  const placeDrawing = createMemo(
+    () => {
+      const place = props.place
+      return place === undefined || place === ""
+        ? undefined
+        : renderTitle(place, "", { links: false })
+    },
+    undefined,
+    {
+      equals: (was, now) =>
+        was === undefined || now === undefined
+          ? was === now
+          : sameDrawing(was, now),
+    },
+  )
   return (
     <button
       type="button"
@@ -189,7 +213,25 @@ export function Result(props: {
       // shut the panel and land the click on nothing. Preventing the default
       // on mousedown keeps focus where it is and still lets `click` fire.
       onMouseDown={(event) => event.preventDefault()}
-      onClick={() => props.onSelect()}
+      onClick={(event) => {
+        // A click on a TAG inside this row is the ROW's, not the tag's: the
+        // label and the place line draw the title pipeline
+        // (`../markdown/tags.ts`), so their `#tags` wear pills the page's
+        // filter router would narrow on (`../filter/tag.ts`,
+        // `../pane/PageView.tsx`). The way the row says the press is already
+        // answered is `preventDefault` (`@olai/surface/press.ts`'s `ours`) —
+        // the same rule a breadcrumb holds — and ONLY when the tag is what
+        // was pressed: saying it universally kills a click on the row
+        // ITSELF, whose navigation downstream IS the default the same router
+        // keys on.
+        if (
+          event.target instanceof Element &&
+          event.target.closest("[data-tag]") !== null
+        ) {
+          event.preventDefault()
+        }
+        props.onSelect()
+      }}
     >
       <span class="flex w-full min-w-0 items-center gap-3">
         <span class="flex min-w-0 flex-1 items-center gap-2">
@@ -215,13 +257,14 @@ export function Result(props: {
           )}
         </Show>
       </span>
-      <Show when={props.place}>
-        {(place) => (
+      <Show when={placeDrawing()}>
+        {(drawn) => (
           <span
             class="w-full min-w-0 truncate font-mono text-[0.6875rem] text-muted"
             data-testid={props.testids.place}
           >
-            {place()}
+            {/* Tags styled and hued, like the label. */}
+            <TitleHtml drawing={drawn()} />
           </span>
         )}
       </Show>

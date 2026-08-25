@@ -19,6 +19,8 @@
 import { Key } from "@solid-primitives/keyed"
 import { Show } from "solid-js"
 
+import { renderTitle } from "../markdown/title.ts"
+import { TitleHtml } from "../markdown/TitleHtml.tsx"
 import { TESTID } from "../testids.ts"
 import { Reference } from "./Reference.tsx"
 
@@ -58,7 +60,16 @@ export function ContextChips(props: {
                   two things. */}
               <span class="text-muted" aria-hidden="true">◦</span>
               <Reference id={node().id} class="min-w-0 truncate">
-                {node().title}
+                {/* The one reading every face makes of a title: its `#tags`
+                    styled and in their own hues (`../markdown/title.ts`) —
+                    through the pipeline itself, not `../NodeTitle.tsx`: the
+                    chip knows only the id and the words (`./chips.ts`), so
+                    there is no file to resolve pictures against, and no page
+                    to resolve an address against either. `links` false
+                    because the Reference is a <button>. */}
+                <TitleHtml
+                  drawing={renderTitle(node().title, "", { links: false })}
+                />
               </Reference>
               <Show when={props.onRemove}>
                 {(remove) => (

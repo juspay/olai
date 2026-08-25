@@ -25,6 +25,8 @@ import type { DirtyOutline, NodeChange } from "@olai/format"
 import { For, Show } from "solid-js"
 
 import { GLYPH, SAID } from "../changes.ts"
+import { renderTitle } from "../markdown/title.ts"
+import { TitleHtml } from "../markdown/TitleHtml.tsx"
 import { Moved } from "./Moved.tsx"
 import { HOW, HOW_TONE, localOf } from "./said.ts"
 import type { Selection } from "./selection.ts"
@@ -91,7 +93,18 @@ export function Outlines(props: {
                   <span class="w-3 shrink-0 text-muted" aria-hidden="true">
                     {GLYPH[change.sort]}
                   </span>
-                  <span class="min-w-0 truncate">{change.title}</span>
+                  {/* Drawn as a title, because it IS one: its `#tags` wear
+                      their pills and hues through the one pipeline
+                      (`../markdown/title.ts`) — same words, same marks, here
+                      as in the outline they belong to, because a title whose
+                      colour changes between the tree and this panel is two
+                      answers about one row. The pipeline, not
+                      `../NodeTitle.tsx`: this panel is no page, so a title
+                      naming an address is spelled as written (the
+                      `../search/row.ts` contract). */}
+                  <span class="min-w-0 truncate">
+                    <TitleHtml drawing={renderTitle(change.title, change.file)} />
+                  </span>
                   <span class="ml-auto shrink-0 text-xs text-muted">
                     {SAID[change.sort]}
                   </span>

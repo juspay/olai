@@ -39,6 +39,7 @@ import type { Element, ElementContent, Root } from "hast"
 import { HIT_CLASS, NO_NEEDLES, runsIn } from "../filter/lit.ts"
 import { TAG_ATTRIBUTE } from "../filter/tag.ts"
 import { TESTID } from "../testids.ts"
+import { tagStyle } from "../theme/tagInk.ts"
 import { isAnchor } from "./anchors.ts"
 
 /**
@@ -51,10 +52,15 @@ import { isAnchor } from "./anchors.ts"
  * loudest thing in the row.
  *
  * The ruling is that tags stay INLINE, exactly where they are written, and are
- * quieted by CONTRAST rather than by a container — dim ink, no background, no
- * border, no radius, nothing to move them out of the sentence. They BRIGHTEN on
- * hover and while the row is open, which is the whole of their affordance: a tag
- * you are pointing at, or a row you have opened, is a tag you are about to use.
+ * quieted by CONTRAST rather than by a container — no background, no border, no
+ * radius, nothing to move them out of the sentence. Their ink is no longer one
+ * dim grey: it is each tag's OWN hue (`../theme/tagInk.ts` — the hue from the
+ * tag's folded text, the palette's lightness and chroma), so two tags on one
+ * row are two marks and one tag is one colour wherever it is drawn. They
+ * BRIGHTEN on hover and while the row is open — to the accent, not to a
+ * brighter hue: that is the whole of their affordance, a tag you are pointing
+ * at, or a row you have opened, is a tag you are about to use, and the
+ * affordance overrides the identity exactly while it lasts.
  *
  * `olai-tag` is here for that: the states are keyed on the row's TITLE SPAN
  * (`../NodeLine.tsx`'s `TITLE_OPEN`), which no inline utility can express, so
@@ -302,7 +308,7 @@ export const taggedHtml = (
       // rather than reasoned about at each call.
       html += `<span class="${TAG_CLASS}" data-testid="${TESTID.tag}" ${TAG_ATTRIBUTE}="${
         escapeText(written)
-      }">${markedHtml(text, landed, at, to)}</span>`
+      }" style="${tagStyle(written)}">${markedHtml(text, landed, at, to)}</span>`
     }
     at = to
   }
@@ -347,6 +353,13 @@ const pill = (
     className: TAG_CLASS.split(" "),
     dataTestid: TESTID.tag,
     dataTag: written,
+    // THE ONE COLOUR FACT, as the custom property the sheet answers
+    // (`../theme/tagInk.ts`): the tag's own hue, so `#now` is `#now` on every
+    // face and `#now #home` is two marks on any one of them. Last, and in the
+    // same position on the string-written pill above — `hast-util-to-html`
+    // emits properties in order, and the two paths promising byte-identity
+    // (./plain.test.ts) includes this.
+    style: tagStyle(written),
   },
   // A PILL IS LIT LIKE ANY OTHER TEXT — `#deferral` typed into the box, or
   // pressed, lands on the tag itself, and a row that lit every word but the one

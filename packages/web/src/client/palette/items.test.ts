@@ -38,7 +38,10 @@ test("a document hit becomes a row that opens the document", () => {
   expect(item.label).toBe("Cabinets")
   expect(item.place).toBe("notes/cabinets.md")
   expect(item.of).toBe("document")
-  expect(item.from).toBeUndefined()
+  // The face title renders like every title: markdown and `#tags` styled and
+  // hued (`renderTitle`), and relative pictures resolve against the document's
+  // own directory — the same contract a node's title has about its outline.
+  expect(item.from).toBe("notes/cabinets.md")
   expect(item.action).toEqual({
     kind: "route",
     route: atFile("notes/cabinets.md"),

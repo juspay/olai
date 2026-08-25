@@ -9,6 +9,7 @@ import {
   THEME_ATTRIBUTE,
   THEME_STORAGE_KEY,
 } from "./palettes.ts"
+import { TAG_INK } from "./tagInk.ts"
 
 /** What the built sheet's palette section says. Generated once — it is a pure
  *  function of the table — and asked questions, rather than each question
@@ -39,6 +40,21 @@ describe("the generated palette blocks", () => {
     // colours in force and not this would read dark under light chrome.
     for (const palette of PALETTES) {
       expect(paletteBlock(palette)).toContain(`color-scheme: ${palette.scheme};`)
+    }
+  })
+
+  test("every theme's block carries the tag ink of its scheme", () => {
+    // `./css.ts`'s claim to `../styles.css`: a tag's hue is the one the pill
+    // carries inline, and the palette block is the OTHER hand of the answer —
+    // drop these two declarations and the pill's ink has no owner while the
+    // AA test (./tagInk.test.ts), which reads the same table, stays green ask
+    // of nothing. The exact declarations, for the same reason the token
+    // sweep above them is exact.
+    for (const palette of PALETTES) {
+      const ink = TAG_INK[palette.scheme]
+      const block = paletteBlock(palette)
+      expect(block).toContain(`--tag-ink-l: ${ink.l};`)
+      expect(block).toContain(`--tag-ink-c: ${ink.c};`)
     }
   })
 

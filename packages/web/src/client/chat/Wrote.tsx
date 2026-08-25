@@ -23,6 +23,8 @@ import type { Wrote as Written } from "@olai/surface"
 import { Show } from "solid-js"
 
 import { GLYPH, SAID } from "../changes.ts"
+import { renderTitle } from "../markdown/title.ts"
+import { TitleHtml } from "../markdown/TitleHtml.tsx"
 import { TESTID } from "../testids.ts"
 import { Reference } from "./Reference.tsx"
 
@@ -45,13 +47,31 @@ export function Wrote(props: { readonly wrote: Written }) {
             agent makes through the ops layer draws one of these. `id` is the
             reply's own — a row that came back without one says the same words
             and simply does not point. */}
+        {/* A NODE'S TITLE is drawn as one wherever it appears: its `#tags`
+            wear pills in their own hues through the one pipeline
+            (`../markdown/title.ts`), here as on a tree row. The pipeline,
+            not `../NodeTitle.tsx`: this strip is no page, so a title naming
+            an address shows the address as written — and `links` false,
+            because the reference arm is a <button>. */}
         <Show
           when={props.wrote.id}
-          fallback={<span class="min-w-0 truncate text-ink">{props.wrote.title}</span>}
+          fallback={
+            <span class="min-w-0 truncate text-ink">
+              <TitleHtml
+                drawing={renderTitle(props.wrote.title, props.wrote.file ?? "", {
+                  links: false,
+                })}
+              />
+            </span>
+          }
         >
           {(id) => (
             <Reference id={id()} class="min-w-0 truncate">
-              {props.wrote.title}
+              <TitleHtml
+                drawing={renderTitle(props.wrote.title, props.wrote.file ?? "", {
+                  links: false,
+                })}
+              />
             </Reference>
           )}
         </Show>

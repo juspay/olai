@@ -26,6 +26,7 @@ import {
   PALETTES,
   THEME_ATTRIBUTE,
 } from "./palettes.ts"
+import { TAG_INK } from "./tagInk.ts"
 
 /** The custom property a token is read through — Tailwind's namespace, so that
  *  `text-ink` and `--color-ink` are one decision and not two. */
@@ -50,13 +51,21 @@ export const selectorFor = (palette: Palette): string => {
   return palette.name === DEFAULT_THEME ? `:root, ${named}` : named
 }
 
-/** One theme's block: its `color-scheme`, then its colours. */
+/** One theme's block: its `color-scheme`, then its colours — and the two
+ *  numbers a tag's hue is rendered through ({@link ./tagInk.ts}). Those ride
+ *  the same block rather than the base sheet, because the scheme is the
+ *  palette's own fact and a `--tag-ink-l` answered anywhere else would be a
+ *  second place able to disagree with it. Not `--color-` namespaced: they are
+ *  not colours, and `./css.test.ts`'s token sweep counts the eleven. */
 export const paletteBlock = (palette: Palette): string => {
+  const ink = TAG_INK[palette.scheme]
   const declarations = [
     `  color-scheme: ${palette.scheme};`,
     ...PALETTE_TOKENS.map(
       (token) => `  ${customProperty(token)}: ${palette.colors[token]};`,
     ),
+    `  --tag-ink-l: ${ink.l};`,
+    `  --tag-ink-c: ${ink.c};`,
   ]
   return `${selectorFor(palette)} {\n${declarations.join("\n")}\n}`
 }

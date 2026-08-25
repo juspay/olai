@@ -351,6 +351,7 @@ export function Composer(props: {
         return offers(files(), nodesNamed.hits(), completing.query).map((offer) => ({
           value: offer.value,
           label: offer.label,
+          from: offer.from,
           hint: offer.hint,
           section: offer.section,
           // WHICH ANSWER THE ROW CAME FROM, carried on the row so a KEY cannot

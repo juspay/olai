@@ -4,7 +4,7 @@
  * The quiet outline's ruling in one component: a folded row is its title, plus
  * at most ONE hot fact (`./hot.ts`) — and, when the row is collapsed, the count
  * of finished work it is holding back (`./hidden.ts`). Both are drawn in the
- * same muted voice as the tags beside them, both are `shrink-0` so an
+ * muted voice of a byline, both are `shrink-0` so an
  * ellipsizing title never eats them, and neither is a box, a pill or a column.
  *
  * A component rather than two `<Show>`s at the drawing site, because the RULE is

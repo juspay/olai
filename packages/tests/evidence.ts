@@ -3137,6 +3137,65 @@ const SECTIONS = {
    * the whole thing was ruled from: a pill, pressed, lighting up on the rows
    * that carry it.
    */
+  /**
+   * EVERY TAG ITS OWN COLOUR — one page, several marks; the same tag the
+   * same hue on a second face; light and dark on the same document; and the
+   * tag-completion popup, the one face whose tags used to be plain charcoal
+   * text in a font-mono list.
+   *
+   * An OUTLINE stands for all four claims: the tree is the first face, the
+   * palette the second, the row editor's popover the third — and the whole
+   * page is legible enough in both halves of the table to say the fourth.
+   */
+  "tags-wear-their-own-colours": async (page) => {
+    rewrite("house.olai", [
+      `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home #renovation","doing":"2026-08-01"}`,
+      `{"id":"paint","parent":"kitchen","ord":"a0","title":"paint the alcove"}`,
+      `{"id":"counter","parent":"kitchen","ord":"a1","title":"price the counter #errand #review"}`,
+      `{"id":"send","parent":"kitchen","ord":"a2","title":"send the brochure @alice @bob"}`,
+      `{"id":"doors","parent":"kitchen","ord":"a3","title":"choose the doors #idea #someday #bug"}`,
+      `{"id":"weekend","ord":"a1","title":"weekend list #now #garden #reading #work"}`,
+    ])
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    await shot(page, "several-tags-one-page")
+
+    // THE SAME TAG, the same hue, two faces in one frame: the tree reads
+    // `kitchen remodel #home #renovation` and the ⌘K answer to `paint`
+    // names its row in the label and its parent — with the same two tags —
+    // in the place line. The palette is a popover: row and tree read
+    // together in one shot.
+    await page.keyboard.press("ControlOrMeta+k")
+    await page.locator('[data-testid="palette-input"]').waitFor()
+    await page.locator('[data-testid="palette-input"]').fill("paint")
+    await page.waitForTimeout(600)
+    await shot(page, "the-same-hue-on-two-faces")
+    await page.keyboard.press("Escape")
+
+    // The WHY, in one frame: every tag the set holds, in its own hue. Open
+    // the row and type the trigger — the popup above the caret is the one
+    // face the tags were always plain grey text on.
+    await page.locator(title("kitchen")).first().click()
+    await page.locator(TITLE_EDITOR).first().waitFor()
+    await page.keyboard.press("End")
+    await page.keyboard.type(" #")
+    await page.waitForTimeout(400)
+    await shot(page, "completion-tags-wear-their-colours")
+    // The typed ` #` is the probe's, not the title's: put the title back to
+    // what the stand wrote before the dark half photographs it.
+    await page.keyboard.press("ControlOrMeta+a")
+    await page.keyboard.type("kitchen remodel #home #renovation")
+    await page.keyboard.press("Enter")
+    await page.waitForTimeout(300)
+
+    // ...AND THE OTHER HALF OF THE TABLE: the hue is the tag's, the palette
+    // owns the reading floor — the same page in the dark says the same words
+    // in the same hues, legible both ways (`tagInk.test.ts` measures every
+    // hue against every palette; this frame is what it looks like).
+    await page.evaluate(() => localStorage.setItem("olai.theme", "aurora"))
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    await shot(page, "the-same-hues-in-the-dark")
+  },
+
   "a-filtered-row-says-why": async (page) => {
     pinnedBy(
       "filter_in_place.feature",

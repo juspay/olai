@@ -24,6 +24,7 @@ import { installPipeline } from "./chunk.ts"
 import * as pipeline from "./pipeline.ts"
 import { plainTitle } from "./plain.ts"
 import { TAG_CLASS } from "./tags.ts"
+import { tagStyle } from "../theme/tagInk.ts"
 import { renderTitle } from "./title.ts"
 
 installPipeline(pipeline)
@@ -120,9 +121,9 @@ test("a phrase spanning two rendered pieces lights both", () => {
   // would mark haystack[0, …) instead of `#home`.
   expect(lit("**urgent** #home", "urgent #home")).toBe(
     `<strong>${hit("urgent")}</strong>${hit(" ")}` +
-      `<span class="${TAG_CLASS}" data-testid="tag" data-tag="#home">${
-        hit("#home")
-      }</span>`,
+      `<span class="${TAG_CLASS}" data-testid="tag" data-tag="#home" style="${
+        tagStyle("#home")
+      }">${hit("#home")}</span>`,
   )
 })
 
@@ -196,8 +197,12 @@ test("a tag OUTSIDE the code span in the same title is still a pill", () => {
   const html = lit("`#home` is not, #home is #kitchen")
   expect(html).toBe(
     `<code>#home</code> is not, ` +
-      `<span class="${TAG_CLASS}" data-testid="tag" data-tag="#home">#home</span>` +
-      ` is <span class="${TAG_CLASS}" data-testid="tag" data-tag="#kitchen">#kitchen</span>`,
+      `<span class="${TAG_CLASS}" data-testid="tag" data-tag="#home" style="${
+        tagStyle("#home")
+      }">#home</span>` +
+      ` is <span class="${TAG_CLASS}" data-testid="tag" data-tag="#kitchen" style="${
+        tagStyle("#kitchen")
+      }">#kitchen</span>`,
   )
 })
 
