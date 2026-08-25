@@ -11,4 +11,4 @@
 - [brainstorming/](brainstorming) — the decisions, and why the alternatives lost.
 - [RCA/](RCA) — root-cause analyses of things that went wrong.
 
-Developing is [../HACKING.md](../HACKING.md), and the website is [olai.kolu.dev](https://olai.kolu.dev).
+Developing is [../HACKING.md](../HACKING.md). The public site, [olai.kolu.dev](https://olai.kolu.dev), is the pitch; these pages are how to use it.

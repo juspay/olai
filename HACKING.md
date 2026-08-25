@@ -7,7 +7,7 @@
   - Tests assert behavior, not styling. No class names, colors, or pixel values in assertions — unless the styling system itself is under test.
 - Docs
   - docs/* is up to date
-  - website/ is up to date
+  - website/ is the pitch, not a changelog. Spec belongs in docs/. Touch it only if the reason to try olai changed, or a picture of something a person sees is now wrong. MCP tool names, refusals, and operator grammar do not belong on the landing page.
   - All local packages have a concise README.md
 - Web
   - UI components are encapsulated & isolated
