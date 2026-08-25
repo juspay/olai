@@ -224,7 +224,7 @@ hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
 # What a keystroke costs — on a generated vault, and for the newest of them in
-# a real git repository. TEN of them, and each is a
+# a real git repository. ELEVEN of them, and each is a
 # LEG rather than a scratch file, because slice 3 of `model-indices` ran its
 # numbers as a one-off and a benchmark nobody can re-run is a number nobody can
 # check — and deliberately NOT a dependency of `check`, since a timing that
@@ -333,6 +333,30 @@ hm-module:
 #     Its vault is `vaultOf` with the OTHER kinds put in beside the outlines:
 #     a directory of nothing but `.olai` is one where the documents collection
 #     is empty and a third of what is measured is never asked anything;
+#   - ONE WRITE with TABS OPEN, timed as what the five standing views cost the
+#     server per published revision at one, three and ten subscribers on one
+#     question (`packages/ops/src/standing.bench.ts`, added with
+#     `perf-streams-per-tab`). The unit is the leg's whole argument: a page, the
+#     filter over it, the calendar, what is owed and the move picker are held
+#     OPEN, and the framework gives every subscriber its own poll loop — so what
+#     a write costs is what one answer costs times the number of people looking
+#     at it, and a benchmark of one answer would print a number nobody pays.
+#     TWO EDITS per row, because the change is two claims bought separately: the
+#     write lands INSIDE the file the question is about (the answer really did
+#     move, so this row is the SHARE alone) and ELSEWHERE (which is what nearly
+#     every write is for nearly every open question, and where the pre-check
+#     answers and the rebuild does not happen). What is timed is the POLL LOOP
+#     and not the read — the framework asks each subscriber's own `isEqual`
+#     after every re-read, and leaving that out would price a third of the
+#     change at zero. Both arms are in the tree for the scoped query's reason
+#     (the "before" is `standing.ts`'s own `rebuilding`, which is also the
+#     differential's reference), and the two are replayed against each other at
+#     the end of the run, so a divergence throws rather than printing a ratio
+#     nobody may believe. Its vault is the harness's rather than `vaultOf`: a
+#     third of its files hold no date at all, which is the shape a real
+#     directory has and the only one under which the calendar's and the
+#     agenda's pre-check can be measured at all. It reads OLAI_BENCH_FILES /
+#     OLAI_BENCH_RECORDS like the five that share the other vault;
 #   - ONE KEYSTROKE's COMMIT PANEL, timed and COUNTED at one, ten and fifty
 #     dirty outlines (`packages/ops/src/pending.bench.ts`, added with
 #     `perf-git-per-write`). The complaint that node was filed on is not that a
@@ -370,13 +394,14 @@ hm-module:
 #     nobody could publish is one where the narrowing declines every time, and a
 #     directory holding no documents measures the `.md` walk at zero.
 #
-# Five of the ten run the SAME generated vault (`@olai/format/testlib`'s
+# Five of the eleven run the SAME generated vault (`@olai/format/testlib`'s
 # `vaultOf` — the patcher, the tag completion, the day readings and the search
 # index), so what a write costs the view and what a completion, a calendar or a
 # search box asks of the view it leaves are numbers about one directory; the
-# matcher, the document listing and the scoped query each generate a corpus of
-# their own — one sized for keystrokes, one for a vault of `.md`, one made of
-# TREES — and the commit panel's is not a vault at all but a real repository in
+# matcher, the document listing, the scoped query and the standing views each
+# generate a corpus of their own — one sized for keystrokes, one for a vault of
+# `.md`, one made of TREES, one with a third of its files holding no date at
+# all — and the commit panel's is not a vault at all but a real repository in
 # a temporary directory, since what it times is subprocesses. The MERGE under
 # all of
 # it is not timed here and should not be: it is the framework's, and
@@ -385,7 +410,10 @@ hm-module:
 # OLAI_BENCH_EDITS — and turning the last one up to 900 is what makes the
 # patcher's layer grow past half the id map and flatten, which it prints the
 # edit of. Size the document listing with OLAI_BENCH_DOCS; the published
-# revision reads OLAI_BENCH_FILES / OLAI_BENCH_RECORDS like the four above it.
+# revision and the standing views read OLAI_BENCH_FILES / OLAI_BENCH_RECORDS
+# like the four above them — the standing views over a vault of their own
+# (`@olai/ops`' `standing.testlib.ts`), for the reason that leg's own paragraph
+# gives.
 bench: install
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
     {{ nix_shell }} bun packages/format/src/filter.bench.ts
@@ -396,6 +424,7 @@ bench: install
     {{ nix_shell }} bun packages/ops/src/documents.bench.ts
     {{ nix_shell }} bun packages/ops/src/pending.bench.ts
     {{ nix_shell }} bun packages/server/src/published.bench.ts
+    {{ nix_shell }} bun packages/ops/src/standing.bench.ts
     {{ nix_shell }} bun packages/format/src/validate.bench.ts
 
 # A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
