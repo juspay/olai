@@ -47,6 +47,7 @@ import {
   selecting,
 } from "./filter.ts"
 import { seeded } from "./fixtures.testlib.ts"
+import { bodyKind, fileKind, unkept } from "./kinds.ts"
 import { isMirror, type LocatedRegular } from "./node.ts"
 import { parseOutline } from "./parse.ts"
 import { assemble } from "./set.ts"
@@ -506,9 +507,16 @@ const sampled = <T>(
 
 // ── corpora, as readings ───────────────────────────────────────────────
 
-/** JSONL and markdown by path, decoded — the map `assemble` takes, kept beside
- *  {@link readingOfVault} because the invalidation test holds one and
- *  re-assembles it with a file replaced. */
+/**
+ * JSONL and markdown by path, DECODED — the map `assemble` takes, kept beside
+ * {@link readingOfVault} because the invalidation test holds one and
+ * re-assembles it with a file replaced.
+ *
+ * Which arm a path is on is asked of the REGISTRY and never of its spelling:
+ * `./kinds.ts` is the one place that says what a file of the set is, and an
+ * `endsWith` here would be a second answer to it — which the sweep in
+ * `@olai/tests`' `kinds.test.ts` fails a run over.
+ */
 export const decodedVault = (
   vault: ReadonlyMap<string, string>,
 ): Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>> => {
@@ -516,7 +524,9 @@ export const decodedVault = (
   for (const [file, text] of vault) {
     decoded.set(
       file,
-      file.endsWith(".olai")
+      // A file with no BODY KIND is an outline — the one kind that holds
+      // records rather than text, which is what makes it the else of this.
+      bodyKind(file) === null
         ? parseOutline(file, text)
         : Result.succeed<Document>(bodiedDocument(file, text)),
     )
@@ -539,9 +549,13 @@ export const readingOfVault = (vault: ReadonlyMap<string, string>): Reading =>
  * about it may be about its contents — the differential compares two answers
  * and holds no opinion about what either says.
  *
- * `.olai` and `.md` and nothing else: those are the two arms a set has bodies
- * for, and a suffix this does not know is a file the vault's own loader would
- * hold the PATH of, which is not a record and not in any scope.
+ * WHAT IS READ is what the set holds CONTENT for, asked of the REGISTRY
+ * ({@link ./kinds.ts}) rather than of a suffix written out here — an `endsWith`
+ * would be a second answer to the one place that says what a file of the set is,
+ * and the sweep in `@olai/tests`' `kinds.test.ts` fails a run over one. A kind
+ * the set keeps only the PATH of is not read (there is no text to hand over),
+ * and a file no kind claims at all is not part of the set — neither is a record,
+ * and neither is in any scope.
  */
 export const vaultAt = (dir: string): ReadonlyMap<string, string> => {
   const vault = new Map<string, string>()
@@ -549,7 +563,7 @@ export const vaultAt = (dir: string): ReadonlyMap<string, string> => {
     for (const entry of fs.readdirSync(path.join(dir, at), { withFileTypes: true })) {
       const file = at === "" ? entry.name : `${at}/${entry.name}`
       if (entry.isDirectory()) walk(file)
-      else if (file.endsWith(".olai") || file.endsWith(".md")) {
+      else if (fileKind(file) !== null && !unkept(file)) {
         vault.set(file, fs.readFileSync(path.join(dir, file), "utf8"))
       }
     }
