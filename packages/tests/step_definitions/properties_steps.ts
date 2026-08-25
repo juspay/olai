@@ -17,6 +17,7 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
+import { keysSettled } from "../support/settling.ts";
 import {
   attr,
   nodeSelector,
@@ -358,6 +359,7 @@ When(
     await open.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await open.fill(value);
     await open.press("Enter");
+    await keysSettled(this);
   },
 );
 
@@ -365,6 +367,7 @@ When(
   "I leave the property editor on {string} without pressing Enter",
   async function (this: OlaiWorld, id: string) {
     await box(this, id).press("Escape");
+    await keysSettled(this);
   },
 );
 
@@ -413,6 +416,7 @@ When(
     const valueBox = box(this, id);
     await valueBox.fill(value);
     await valueBox.press("Enter");
+    await keysSettled(this);
   },
 );
 

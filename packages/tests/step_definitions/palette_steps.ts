@@ -28,6 +28,7 @@ import { retypedAndPressed, retypedAndTaken } from "../support/atonce.ts";
 import { countsNothing, foundCount } from "../support/counted.ts";
 import { WAITING, waitsIllegibly } from "../support/paints.ts";
 import { inTheMood, saysThat } from "../support/said.ts";
+import { keysSettled, pressed } from "../support/settling.ts";
 import { answered } from "../support/shortlist.ts";
 import {
   attr,
@@ -55,10 +56,7 @@ When("I press the palette shortcut", async function (this: OlaiWorld) {
   // on Darwin, where Ctrl+K is kill-line, Control elsewhere — which is exactly
   // the test `web/src/client/keys.ts` makes. The suite already presses chords
   // that way (`I press "ControlOrMeta+z"`).
-  await this.page.keyboard.press("ControlOrMeta+k");
-  await this.page
-    .locator(PALETTE)
-    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await pressed(this, "ControlOrMeta+k");
 });
 
 Then("the command palette is open", async function (this: OlaiWorld) {
@@ -104,10 +102,7 @@ When("I press the palette scrim", async function (this: OlaiWorld) {
  *  make the step below it read as a race. This is also the gesture a person
  *  makes when they are done capturing. */
 When("I close the palette", async function (this: OlaiWorld) {
-  await this.page.keyboard.press("Escape");
-  await this.page
-    .locator(PALETTE)
-    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  await pressed(this, "Escape");
 });
 
 /** The palette's box, waited for — the one spelling of "how long a scenario
@@ -162,7 +157,7 @@ When(
   async function (this: OlaiWorld, text: string) {
     const input = await fillPalette(this, text);
     await input.press("Enter");
-    await this.waitForFrame();
+    await keysSettled(this);
   },
 );
 
@@ -371,7 +366,7 @@ When(
 /**
  * A row that WRITES, and the click's own RECEIPT.
  *
- * A frame is not an answer — `support/caret.ts`'s whole argument, one key
+ * A frame is not an answer — `support/settling.ts`'s whole argument, one key
  * layer down — so this waits for the thing the palette DOES about the row
  * rather than for a repaint. There are exactly four, and every row this step
  * is pointed at produces one of them:
@@ -520,13 +515,14 @@ When(
   async function (this: OlaiWorld, line: string) {
     const input = await fillPalette(this, `+ ${line}`);
     await input.press("Enter");
-    // The frame first: the send clears the slot synchronously, so a poll
-    // started before it would find the LAST capture's remark and stop there.
-    await this.waitForFrame();
-    await this.waitUntil(
-      async () => (await this.page.locator(PALETTE_SAID).count()) > 0,
-      `the palette to say what came of capturing ${JSON.stringify(line)}`,
-    );
+    // ONE WAIT, and it is the same one every key in this suite ends with. The
+    // remark is set in the `.then` of the round trip, and the count is held
+    // until that round trip has answered AND the frames after it are committed
+    // — a continuation of the answer runs as a microtask, long before the
+    // frames the release waits for. So this covers what the frame-then-poll
+    // pair was reaching for, without a poll that could find the LAST capture's
+    // remark and stop there.
+    await keysSettled(this);
   },
 );
 

@@ -18,9 +18,10 @@
  * spelling and the same one the client's keyboard map is written against — so
  * a scenario says the chord a person presses rather than a synthetic event.
  *
- * And every gesture here waits for the CLIENT'S own answer to it before the
- * next one is aimed at the page. What that answer looks like, and why nothing
- * else in the harness can stand in for it, is `support/caret.ts`.
+ * And every key here waits for the CLIENT'S own answer to it before the next
+ * gesture is aimed at the page — one wait, whichever key it was, off the count
+ * the app shell publishes. What it promises and what it deliberately does not
+ * is `support/settling.ts`.
  */
 
 import * as assert from "node:assert";
@@ -34,12 +35,8 @@ import { IDLE_COMMIT, isoDayOf } from "@olai/web/testlib";
 
 import type { Locator } from "playwright";
 
-import {
-  aimedAtTheLine,
-  leavingTheLine,
-  nothingIsBeingTyped,
-  pressed,
-} from "../support/caret.ts";
+import { leavingTheLine, nothingIsBeingTyped } from "../support/caret.ts";
+import { pressed, typed } from "../support/settling.ts";
 import { retypedAndTaken } from "../support/atonce.ts";
 import { announcedAs, saysNothing, saysThat } from "../support/said.ts";
 import {
@@ -116,8 +113,7 @@ When("I start the first line", async function (this: OlaiWorld) {
 // ── typing ─────────────────────────────────────────────────────────────
 
 When("I type {string}", async function (this: OlaiWorld, text: string) {
-  await aimedAtTheLine(this);
-  await this.page.keyboard.type(text);
+  await typed(this, text);
 });
 
 When(
@@ -126,10 +122,14 @@ When(
     // Select-all inside the field, which is what a person retyping a title
     // does. An empty `text` is the whole point of one scenario: the field is
     // cleared and the write is refused.
-    await aimedAtTheLine(this);
-    await this.page.keyboard.press("ControlOrMeta+a");
-    if (text === "") await this.page.keyboard.press("Backspace");
-    else await this.page.keyboard.type(text);
+    //
+    // ⌘A is waited for like every other key, and it is the one that most
+    // wanted it: pressed at a row the client has not taken the caret back for,
+    // it selects the PAGE, and what is typed after it lands beside the title
+    // rather than replacing it.
+    await pressed(this, "ControlOrMeta+a");
+    if (text === "") await pressed(this, "Backspace");
+    else await typed(this, text);
   },
 );
 
@@ -139,7 +139,6 @@ When(
 When(
   "I retype the row as {string} and press Enter at once",
   async function (this: OlaiWorld, text: string) {
-    await aimedAtTheLine(this);
     await retypedAndTaken(this, await openEditor(this), text);
   },
 );
@@ -147,14 +146,17 @@ When(
 // ── the keys ───────────────────────────────────────────────────────────
 
 When("I press {string}", async function (this: OlaiWorld, key: string) {
-  await aimedAtTheLine(this);
   await pressed(this, key);
 });
 
 /** The same key, with nothing waited for afterwards — which is how a person
  *  types: faster than a round trip. What the scenario then asserts is that the
  *  writes still landed in the order the keys were pressed, which is the write
- *  queue's whole job. */
+ *  queue's whole job.
+ *
+ *  The two steps that say `without waiting` are the two that MEAN the race,
+ *  and they are the whole of the exception: everything else in this suite goes
+ *  through `../support/settling.ts`. */
 When(
   "I press {string} without waiting",
   async function (this: OlaiWorld, key: string) {

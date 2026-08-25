@@ -11,6 +11,7 @@ import * as assert from "node:assert";
 import { Given, Then, When } from "@cucumber/cucumber";
 
 import { childOf, notChildOf } from "../support/nesting.ts";
+import { pressed } from "../support/settling.ts";
 import {
   APP_HEADER,
   attr,
@@ -455,8 +456,7 @@ When(
     const mark = noteMark(this, id);
     await mark.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await mark.focus();
-    await this.page.keyboard.press(" ");
-    await this.waitForFrame();
+    await pressed(this, " ");
   },
 );
 

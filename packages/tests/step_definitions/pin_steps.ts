@@ -20,6 +20,7 @@ import { DataTable, Given, Then, When } from "@cucumber/cucumber";
 import { selector, TESTID } from "@olai/web/testlib";
 
 import { attr } from "../support/selectors.ts";
+import { keysSettled, pressed } from "../support/settling.ts";
 import { PALETTE_INPUT, PIN_SHELF as SHELF, POLL_TIMEOUT, TITLE_EDITOR } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -98,8 +99,7 @@ When(
 /** The chord — the page's own door onto the shelf, and a TOGGLE over one
  *  address, so the same press takes it back off. */
 When("I pin the page", async function (this: OlaiWorld) {
-  await this.page.keyboard.press("ControlOrMeta+Shift+p");
-  await this.waitForFrame();
+  await pressed(this, "ControlOrMeta+Shift+p");
 });
 
 When("I follow the pin {string}", async function (this: OlaiWorld, address: string) {
@@ -144,7 +144,7 @@ When("I name the pin {string}", async function (this: OlaiWorld, name: string) {
   await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await box.fill(name);
   await box.press("Enter");
-  await this.waitForFrame();
+  await keysSettled(this);
 });
 
 /**

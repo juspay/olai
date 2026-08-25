@@ -23,6 +23,8 @@
 import { BusyFailure, isOpFailure, type OpFailure } from "@olai/surface"
 import { Effect, Result } from "effect"
 
+import { quiescence } from "./quiescence.ts"
+
 /** Anything a bound procedure hands back: a declared `OpFailure`, or one of the
  *  framework's own transport failures, which have no place in the panel and are
  *  reported as trouble. */
@@ -53,10 +55,20 @@ export const run = <A>(
  * failures being data.
  */
 export const runAsync = <A>(effect: Call<A>): Promise<Result.Result<A, OpFailure>> =>
-  Effect.runPromise(Effect.result(effect)).then((outcome) =>
-    Result.isSuccess(outcome)
-      ? Result.succeed(outcome.success)
-      : Result.fail(asFailure(outcome.failure))
+  // AND THE ONE PLACE A KEY'S CALL CAN BE RECOGNISED AS ONE. Being the single
+  // edge is what makes that possible at all: a call started while a key is
+  // being handled is that key's, and this tab has not finished with the key
+  // until the server has answered it — which is what `./quiescence.ts`
+  // publishes, and where the list of what it does and does not cover is. Every
+  // other call is untouched, because it did not start inside a key's dispatch:
+  // a subscription arriving, a pointer's write, an upload's chunk loop, the
+  // traffic of a turn already running.
+  quiescence.holding(
+    Effect.runPromise(Effect.result(effect)).then((outcome) =>
+      Result.isSuccess(outcome)
+        ? Result.succeed(outcome.success)
+        : Result.fail(asFailure(outcome.failure))
+    ),
   )
 
 /** A failure the panel can draw. The declared ones already are one — recognised

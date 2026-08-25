@@ -14,6 +14,7 @@ import { Then, When } from "@cucumber/cucumber";
 import { SIDEBAR_WIDTH_KEY } from "@olai/web/testlib";
 import { retypedAndTaken } from "../support/atonce.ts";
 import { countsNothing, foundCount } from "../support/counted.ts";
+import { keysSettled, pressed } from "../support/settling.ts";
 import { answered } from "../support/shortlist.ts";
 import {
   APP_HEADER,
@@ -229,13 +230,11 @@ When("I wait for the agent to go idle", async function (this: OlaiWorld) {
 // ── the panel chords ───────────────────────────────────────────────────
 
 When("I press the sidebar shortcut", async function (this: OlaiWorld) {
-  await this.page.keyboard.press("ControlOrMeta+\\");
-  await this.waitForFrame();
+  await pressed(this, "ControlOrMeta+\\");
 });
 
 When("I press the chat shortcut", async function (this: OlaiWorld) {
-  await this.page.keyboard.press("ControlOrMeta+j");
-  await this.waitForFrame();
+  await pressed(this, "ControlOrMeta+j");
 });
 
 // ── the header's search box ────────────────────────────────────────────
@@ -275,6 +274,7 @@ When("I take a letter off the header search", async function (this: OlaiWorld) {
   const box = await headerBox(this);
   await box.click();
   await box.press("Backspace");
+  await keysSettled(this);
 });
 
 Then(

@@ -28,6 +28,7 @@ import {
 } from "@olai/web/testlib";
 
 import { focusedOn } from "../support/caret.ts";
+import { pressed } from "../support/settling.ts";
 import {
   APP_HEADER,
   attr,
@@ -101,7 +102,7 @@ Then("the preferences are shut", async function (this: OlaiWorld) {
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
 });
 When("I press Escape on the preferences", async function (this: OlaiWorld) {
-  await this.page.keyboard.press("Escape");
+  await pressed(this, "Escape");
 });
 
 // ── where the caret is ─────────────────────────────────────────────────
@@ -111,15 +112,15 @@ When("I focus the preferences trigger", async function (this: OlaiWorld) {
 });
 
 When("I press Enter", async function (this: OlaiWorld) {
-  await this.page.keyboard.press("Enter");
+  await pressed(this, "Enter");
 });
 
 When("I press Tab", async function (this: OlaiWorld) {
-  await this.page.keyboard.press("Tab");
+  await pressed(this, "Tab");
 });
 
 When("I press Shift+Tab", async function (this: OlaiWorld) {
-  await this.page.keyboard.press("Shift+Tab");
+  await pressed(this, "Shift+Tab");
 });
 
 Then("the preferences panel has the focus", async function (this: OlaiWorld) {

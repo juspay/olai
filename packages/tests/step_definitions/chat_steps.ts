@@ -28,6 +28,7 @@ import {
 
 import { retypedAndTaken } from "../support/atonce.ts";
 import { MARKER } from "../support/scripted.ts";
+import { keysSettled } from "../support/settling.ts";
 import { saysThat } from "../support/said.ts";
 import { answered } from "../support/shortlist.ts";
 
@@ -214,6 +215,7 @@ When(
   async function (this: OlaiWorld, text: string) {
     await typeInto(this, text);
     await (await chatBox(this)).press("Alt+Enter");
+    await keysSettled(this);
   },
 );
 
@@ -262,6 +264,7 @@ When(
   "I type {string} into the chat a letter at a time",
   async function (this: OlaiWorld, text: string) {
     await (await chatBox(this)).pressSequentially(text);
+    await keysSettled(this);
   },
 );
 
@@ -2241,6 +2244,7 @@ Then(
 
 When("I accept the completion", async function (this: OlaiWorld) {
   await this.page.locator(CHAT_INPUT).press("Enter");
+  await keysSettled(this);
 });
 
 /** The pointer's door onto the same row, for the hand that is already there. */
@@ -2324,6 +2328,7 @@ When(
   "I press {string} in the chat",
   async function (this: OlaiWorld, key: string) {
     await this.page.locator(CHAT_INPUT).press(key);
+    await keysSettled(this);
   },
 );
 

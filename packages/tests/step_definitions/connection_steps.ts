@@ -22,6 +22,7 @@ import { Then, When } from "@cucumber/cucumber";
 import { findLogfmt } from "@olai/log/testlib";
 
 import { startOwnServer, stopOwnServer } from "../support/hooks.ts";
+import { pressed } from "../support/settling.ts";
 import {
   CONNECTION,
   FILTER_INPUT,
@@ -157,8 +158,11 @@ Then("the page under it takes neither a press nor a chord", async function (this
   // the window (`client/palette/Palette.tsx`), and a palette opening over a
   // frozen page would be a door offering to search a directory nothing can ask
   // about.
-  await this.page.keyboard.press("ControlOrMeta+k");
-  await this.page.waitForTimeout(250);
+  // The counter rather than a slept quarter-second: the client says when it
+  // has finished with a key (`../support/settling.ts`), so "the palette did
+  // not open" is asked of a page that is demonstrably done with ⌘K rather than
+  // of one that merely has not got round to it yet.
+  await pressed(this, "ControlOrMeta+k");
   assert.strictEqual(
     await this.page.locator(PALETTE).count(),
     0,

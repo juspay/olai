@@ -16,7 +16,7 @@
  * and it is absent while they answer one the reader has typed past. So that is
  * what this waits on, and then for the list under it.
  *
- * Its own module for `./caret.ts`'s reason, word for word: this is a RITUAL
+ * Its own module for `./settling.ts`'s reason, word for word: this is a RITUAL
  * rather than a step, more than one step file wants it, and two of them waiting
  * for the client's answer two different ways is how one of them stops waiting
  * properly. It was two copies differing only in a pair of selectors.

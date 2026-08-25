@@ -180,7 +180,7 @@ When(
     const row = rows(this).filter({ hasText: label }).first();
     await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     await row.click();
-    // The same receipt Enter is waited on with (`../support/caret.ts`): a
+    // The list going is the widget's own answer (`../support/caret.ts`): a
     // completion taken removes the trigger it was typed after, so the list
     // going IS the client saying it took one. Without it the next step reads a
     // line the pointer has not finished rewriting.
