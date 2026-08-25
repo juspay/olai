@@ -294,16 +294,16 @@ export const samePageRequest: (a: PageRequest, b: PageRequest) => boolean = Sche
  *
  * THE WHOLE READING, and not three of its parts. Two of the questions here are
  * about FILES rather than about records — which paths the directory serves at
- * all, and which of them is a day.s note (`Query.homes`. argument one door
+ * all, and which of them is a day's note (`Query.homes`' argument one door
  * along, and the near miss it exists to avoid) — and a third is about what
  * points at a document, which is an index of its own (`./pointing.ts`). Those
  * are the three fields of a {@link Reading}, so the parameter is the reading:
  * a caller holds one, and four parameters were an invitation to hand over one
- * revision.s set beside another.s view, which is the very thing that value
+ * revision's set beside another's view, which is the very thing that value
  * exists to make unsayable.
  *
  * A `Document` IS a {@link Face} plus its content (`./document.ts` spreads the
- * face into every arm), so the set.s own documents are read as they stand — no
+ * face into every arm), so the set's own documents are read as they stand — no
  * projection per page per revision, and no second list to keep in step with the
  * one the directory was assembled from.
  */

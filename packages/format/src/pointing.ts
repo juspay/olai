@@ -277,9 +277,14 @@ const moved = (
   const arriving = new Map<string, Array<Face>>()
   let here = 0
   let there = 0
+  // THE PROJECTION on BOTH sides, though only this one's KEYS are ever read:
+  // a `Document` is a `Face` plus its content, so handing the document itself in
+  // would put a `.md`'s whole body in a map for the length of one carry — which
+  // is the retention this index takes the face to avoid, and a departing side
+  // that grew a second reader tomorrow would grow it silently.
   const left = (document: Document): void => {
     touched.add(document.path)
-    pointInto(departing, document)
+    pointInto(departing, faceOf(document))
   }
   const joined = (document: Document): void => {
     touched.add(document.path)

@@ -90,8 +90,12 @@ const INDEXES = Object.keys(READ) as ReadonlyArray<Index>
  * SET, whose two arrays are compared whole ({@link carriedSet}), and the
  * DERIVATION, which is {@link INDEXES} and {@link LISTS} above.
  */
-const BESIDE: { readonly [K in Exclude<keyof Reading, "set" | "derived">]: null } = {
-  pointing: null,
+const BESIDE: {
+  readonly [K in Exclude<keyof Reading, "set" | "derived">]: (
+    at: Reading,
+  ) => ReadonlyMap<string, unknown>
+} = {
+  pointing: (at) => at.pointing,
 }
 
 /** Every table a keyed read can be taped against — the derivation's indexes,
@@ -101,11 +105,17 @@ type Table = Index | keyof typeof BESIDE
 
 /** WHICH MAP a table names, at a given reading — the one place the two homes
  *  are told apart, so nothing else here has to know that most of them live
- *  inside the derivation and one does not. */
+ *  inside the derivation and one does not.
+ *
+ *  THE TABLE ANSWERS, not a name written here: {@link BESIDE} is a row per
+ *  member and each row IS the reach, so a second one beside the derivation is a
+ *  line filled in there rather than a second arm of a test on a literal. The
+ *  two vocabularies are disjoint by construction — {@link Index} is `Derived`'s
+ *  own keys — so which side a table is on is a membership question. */
 const tableIn = (at: Reading, which: Table): ReadonlyMap<string, unknown> =>
-  which === "pointing"
-    ? at.pointing
-    : (at.derived[which] as ReadonlyMap<string, unknown>)
+  which in BESIDE
+    ? BESIDE[which as keyof typeof BESIDE](at)
+    : (at.derived[which as Index] as ReadonlyMap<string, unknown>)
 
 /**
  * …and every field of a derivation that is NOT an index, which today is the two
