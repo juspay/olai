@@ -127,8 +127,16 @@ const FLOOR = 3
  *
  * All three fail the same safe way: the group is dropped, the rest of the query
  * still narrows, and a query with nothing left walks the corpus.
+ *
+ * EXPORTED, though nothing outside this package narrows anything: the bench
+ * needs to tell the two reasons a query walked apart — the grammar had no word
+ * to look up, or the table looked and declined a crowd — and it was doing that
+ * with `word.length >= 3` written out again, which is a third spelling of the
+ * rule this package says must have one, in UTF-16 units rather than in the code
+ * points it is actually counted in (pi's review of `cca1b21`). One spelling,
+ * reachable by whoever has to ask the same question.
  */
-const lookupable = (word: string): boolean =>
+export const lookupable = (word: string): boolean =>
   longEnough(word) && !word.includes("\0") && word.isWellFormed()
 
 /** At least {@link FLOOR} code points, counted no further than it needs to be.
@@ -165,9 +173,17 @@ const longEnough = (word: string): boolean => {
  * rows and both paths are under a millisecond: declining there would be a
  * heuristic firing constantly to save nothing, and the answer would be the same
  * either way.
+ *
+ * BOTH ARE EXPORTED so the soak can STEER ACROSS the line rather than guess at
+ * where it is. That is not a knob a caller turns — nothing outside this package
+ * reads them at runtime — but a test whose whole subject is "the same
+ * incrementally maintained table, above the threshold and then below it" has to
+ * size its corpus off the real number, and a `1024` written out in the test
+ * would be a second spelling that goes on passing after this one moves
+ * (`./index.test.ts`, on both reviewers' finding about `cca1b21`).
  */
-const CROWD = 4
-const CROWD_FLOOR = 1024
+export const CROWD = 4
+export const CROWD_FLOOR = 1024
 
 /** Which arm of the set a candidate is from. The two travel in one table and
  *  one query — a directory search asks both halves the same question at the
@@ -216,6 +232,23 @@ export interface Index {
    *  catches is the maintenance bug that has no other symptom, an index that
    *  answers correctly while growing a row per edit forever. */
   readonly rows: () => number
+  /**
+   * What the table WEIGHS, in bytes — the pages SQLite holds for it.
+   *
+   * A reading for the bench, and it exists because of where these postings
+   * live. The design priced the engine on DISK ("index ≈ 3× the text",
+   * docs/brainstorming/search-index.md) and this implementation put it in
+   * memory instead, for the life of the process, which is a different bill
+   * nobody had been shown: a figure the leg prints is the difference between
+   * that trade being made and being assumed (pi's review of `cca1b21`).
+   *
+   * `page_count × page_size`, which is core SQLite rather than the `dbstat`
+   * extension a build may lack — the whole database, which is this table and
+   * its keys and nothing else. It is the postings ALONE: the fold they were
+   * built from is not stored (`content=''`), and the JavaScript beside them is
+   * two maps of pointers at arrays the reading already holds.
+   */
+  readonly bytes: () => number
   readonly close: () => void
 }
 
@@ -278,6 +311,11 @@ export const open = (): Index => {
   )
   const dropRec = db.prepare<void, [string]>(`delete from rec where file = ?`)
   const dropHay = db.prepare<void, [number]>(`delete from hay where rowid = ?`)
+  /** The two halves of {@link Index.bytes}, prepared beside every other
+   *  statement rather than composed as text when asked: a pragma is a query
+   *  here like any other. */
+  const pages = db.prepare<{ page_count: number }, []>(`pragma page_count`)
+  const pageSize = db.prepare<{ page_size: number }, []>(`pragma page_size`)
   const looked = db.prepare<{ kind: Kind; key: string }, [string, number]>(
     `select rec.kind as kind, rec.key as key
        from hay join rec on rec.rowid = hay.rowid
@@ -447,6 +485,13 @@ export const open = (): Index => {
       // selects so much of the directory that finding out which part costs more
       // than reading all of it ({@link CROWD}). One row over the share is how
       // that is known, and the limit is why knowing it was cheap.
+      //
+      // THE LIMIT AND THIS LINE ARE ONE MECHANISM and neither survives without
+      // the other: a `limit` with no decline behind it hands back a TRUNCATED
+      // list, which is the one thing candidates may never be — over-inclusion
+      // is free and under-inclusion is a hit nobody finds. Taking this line out
+      // does not make the index slower, it makes it wrong, and the soak says so
+      // at the superset assertion rather than at a missing row.
       if (found.length > crowd) return null
       const nodes = new Set<string>()
       const paths = new Set<string>()
@@ -454,6 +499,7 @@ export const open = (): Index => {
       return { nodes, documents: paths }
     },
     rows: () => held,
+    bytes: () => (pages.get()?.page_count ?? 0) * (pageSize.get()?.page_size ?? 0),
     close: () => db.close(),
   }
 }

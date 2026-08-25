@@ -281,16 +281,22 @@ export const search = (
    * are run over INSTEAD of the corpus (`@olai/index`).
    *
    * OPTIONAL, and not as a feature flag: this function's answer is the same
-   * with it and without it, which is a claim the tests make rather than one
-   * this comment does (`./search.index.test.ts`, over generated corpora and a
-   * soak of random writes). What the index changes is what has to be READ to
-   * arrive at the answer — a shortlist of candidates instead of every record
-   * and every body in the directory — and it can only ever hand back MORE than
-   * the query selects, which the matcher below then narrows exactly as it
-   * narrows the corpus. So a caller with no index is a caller paying what
-   * search cost before there was one, and every test in this package that calls
-   * `search` directly is deliberately one of them: the two paths are compared,
-   * so both are walked.
+   * with it and without it, which is a claim two suites make rather than one
+   * this comment does. `@olai/index`'s own `index.test.ts` is the algorithm's
+   * — the grammar's corners, a generated corpus, and a soak of random writes
+   * that steers the directory across the size where the table starts declining
+   * and back; `./search.index.test.ts` is the SEAM's, and is this layer's for
+   * that reason: it asks every query through this door and through the corpus
+   * walk after each of thirteen writes made by the real gate, which is where an
+   * index one revision behind would show up and nowhere else.
+   *
+   * What the index changes is what has to be READ to arrive at the answer — a
+   * shortlist of candidates instead of every record and every body in the
+   * directory — and it can only ever hand back MORE than the query selects,
+   * which the matcher below then narrows exactly as it narrows the corpus. So a
+   * caller with no index is a caller paying what search cost before there was
+   * one, and every test in this package that calls `search` directly is
+   * deliberately one of them: the two paths are compared, so both are walked.
    *
    * It is handed IN for the same reason the clock is. This stays a pure
    * function of a snapshot; the table is one per served directory and its

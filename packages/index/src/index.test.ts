@@ -49,7 +49,7 @@ import {
 import { seeded, vaultOf } from "@olai/format/testlib"
 import { Result } from "effect"
 
-import { type Index, open } from "./index.ts"
+import { CROWD_FLOOR, type Index, open } from "./index.ts"
 
 /** The day the grammar's relative words count from. A constant, so a `date:`
  *  case says the same thing in January. */
@@ -401,18 +401,43 @@ const WORDS = [
 
 const TAGS = ["#home", "#office", "#later"]
 
+/**
+ * A word in EVERY record, so the soak has a query it knows the selectivity of.
+ *
+ * Everything else the generator writes is drawn, which is what makes the corpus
+ * a corpus; this one is planted, because one thing the soak has to steer is not
+ * the text but the SHARE of the directory a query selects — a word in
+ * everything is a crowd once the table is big enough and is not one before
+ * ({@link CROWD_FLOOR} in `./index.ts`), and there is no way to cross that line
+ * on purpose with a word whose frequency is a coin toss.
+ */
+const EVERYWHERE = "item"
+
 /** One file's JSONL — a root and its children, marked, dated, tagged and noted
  *  by the seeded stream so the corpus has something for every operator in the
- *  query pool to select on. */
-const fileOf = (random: () => number, at: number, records: number): string => {
+ *  query pool to select on.
+ *
+ *  `props` is not drawn, and that is the one deliberate thing in here besides
+ *  {@link EVERYWHERE}: a property ARRIVING and a property LEAVING are two write
+ *  shapes, and a coin toss per record would give the soak both eventually and
+ *  neither reliably. A rewrite alternates, so every file that is rewritten
+ *  twice has had its whole `custom` map added and then taken away. */
+const fileOf = (
+  random: () => number,
+  at: number,
+  records: number,
+  props: boolean,
+): string => {
   const root = `f${at}r`
-  const lines = [JSON.stringify({ id: root, ord: "a0", title: `file ${at} ${pick(random)}` })]
+  const lines = [
+    JSON.stringify({ id: root, ord: "a0", title: `file ${at} ${EVERYWHERE} ${pick(random)}` }),
+  ]
   for (let which = 1; which < records; which++) {
     const record: Record<string, unknown> = {
       id: `f${at}n${which}`,
       parent: root,
       ord: `a${which}`,
-      title: `${pick(random)} ${pick(random)} ${which} ${
+      title: `${pick(random)} ${EVERYWHERE} ${pick(random)} ${which} ${
         TAGS[Math.floor(random() * TAGS.length)] as string
       }`,
     }
@@ -420,7 +445,7 @@ const fileOf = (random: () => number, at: number, records: number): string => {
     else if (random() < 0.2) record["done"] = `2026-08-0${which % 9}T09:00:00-04:00`
     if (random() < 0.25) record["desc"] = `a note about ${pick(random)} and ${pick(random)}`
     if (random() < 0.2) record["date"] = `2026-08-${String((which % 28) + 1).padStart(2, "0")}`
-    if (random() < 0.15) record["custom"] = { agent: pick(random), pr: `#${which}` }
+    if (props) record["custom"] = { agent: pick(random), pr: `#${which}` }
     lines.push(JSON.stringify(record))
   }
   return lines.join("\n")
@@ -428,6 +453,18 @@ const fileOf = (random: () => number, at: number, records: number): string => {
 
 const pick = (random: () => number): string =>
   WORDS[Math.floor(random() * WORDS.length)] as string
+
+/** One line of a file, as an object again — what the two write shapes that move
+ *  a RECORD rather than a file need, and the reason they are done on the text
+ *  rather than on parsed records: the soak's unit is a decoded file, so a shape
+ *  that rewrites two of them has to hand `parseOutline` the lines it wants. */
+const linesOf = (text: string): Array<Record<string, unknown>> =>
+  text.split("\n").filter((line) => line !== "").map(
+    (line) => JSON.parse(line) as Record<string, unknown>,
+  )
+
+const textOf = (lines: ReadonlyArray<Record<string, unknown>>): string =>
+  lines.map((line) => JSON.stringify(line)).join("\n")
 
 /** The queries the soak re-asks after every write. Mixed on purpose: words the
  *  index can narrow by, words it cannot, operators it never sees, and the
@@ -454,6 +491,10 @@ const POOL: ReadonlyArray<string> = [
   "zzzzzzzz",
   "#home",
   "office",
+  // The word in every record ({@link EVERYWHERE}) — asked every round like the
+  // rest, so the two answers are compared at every size the corpus passes
+  // through and not only at the sizes the phase boundaries look at.
+  EVERYWHERE,
 ]
 
 const recordCount = (at: Reading): number => {
@@ -464,19 +505,91 @@ const recordCount = (at: Reading): number => {
   return count
 }
 
-test("index and corpus stay in step through a soak of random writes", () => {
+/** Every record including the mirrors — what `byId` should hold one entry per,
+ *  and therefore how a soak notices it has generated a corpus no validator
+ *  would accept. It matters here more than it looks: two records claiming one
+ *  id is the ONE corpus where a candidate list and the corpus walk could
+ *  legitimately differ (`filter.ts`'s `namedInScope` says why), so a generator
+ *  that drifted into minting one would turn a real divergence into a mystery
+ *  rather than into this line. */
+const claimCount = (at: Reading): number => {
+  let count = 0
+  for (const [, records] of at.derived.byFile) count += records.length
+  return count
+}
+
+/**
+ * THE SOAK, and it is STEERED rather than merely random.
+ *
+ * A random walk over write shapes reaches the shapes it happens to draw and
+ * stays whatever size it started at, which left two holes both reviewers found
+ * in `cca1b21`: the corpus never crossed {@link CROWD_FLOOR}, so the decline
+ * was only ever exercised on a STATIC vault with no writes behind it; and four
+ * write shapes — a file renamed, a record moved between files, a mirror
+ * arriving, a property leaving — were traced to `follow` by reading and
+ * generated by nothing.
+ *
+ * So the soak has PHASES. Each names a corpus size and whether the word planted
+ * in every record ({@link EVERYWHERE}) should be a crowd at that size, and the
+ * writes are biased toward reaching it: under the floor, then well over it,
+ * then back under. Both answers are compared after every round at every size on
+ * the way, so what is under test is the seam the reviewers named — one
+ * incrementally maintained table crossing the threshold in both directions,
+ * rather than two fresh ones either side of it.
+ */
+test("index and corpus stay in step through a soak that crosses the decline threshold", () => {
   const index = opened()
   try {
     const random = seeded(20260824)
-    const FILES = 24
     const RECORDS = 9
-    const ROUNDS = 60
+
+    /**
+     * Where the corpus is steered, and what the crowd word must do there.
+     *
+     * `files × RECORDS` against {@link CROWD_FLOOR} is the whole arithmetic,
+     * read off the real constant rather than off a number copied into this
+     * file: forty files is ~360 rows and the table answers a word in all of
+     * them; a hundred and eighty is ~1,620 and the same word is a crowd it
+     * declines. The third phase is not a formality — coming back DOWN is the
+     * direction a table maintained by dropping rows can get wrong, and a run
+     * that only ever grew would never ask it.
+     */
+    const PHASES = [
+      { files: 40, rounds: 14, declines: false },
+      { files: 180, rounds: 30, declines: true },
+      { files: 40, rounds: 22, declines: false },
+    ] as const
 
     const decoded = new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>()
-    for (let at = 0; at < FILES; at++) {
-      const path = `note${at}.olai`
-      decoded.set(path, parseOutline(path, fileOf(random, at, RECORDS)))
+    /**
+     * The JSONL each outline holds, kept beside the decoded map.
+     *
+     * Two of the write shapes below move RECORDS rather than files — a rename
+     * carries a file's lines to another path, a cross-file move carries one
+     * line out of one file and into another — and a decoded `Outline` is
+     * records, not text. Keeping the text is what lets those two be written the
+     * way a person writes them, as lines, and handed to the real
+     * `parseOutline` like every other file here.
+     */
+    const texts = new Map<string, string>()
+    let minted = 0
+    let rewrites = 0
+
+    const filed = (path: string, text: string): string => {
+      texts.set(path, text)
+      decoded.set(path, parseOutline(path, text))
+      return path
     }
+    const mintFile = (): string => {
+      const at = minted++
+      return filed(`note${at}.olai`, fileOf(random, at, RECORDS, at % 2 === 0))
+    }
+    const unfiled = (path: string): void => {
+      texts.delete(path)
+      decoded.delete(path)
+    }
+
+    for (let at = 0; at < PHASES[0].files; at++) mintFile()
     for (let at = 0; at < 6; at++) {
       const path = `doc${at}.md`
       decoded.set(
@@ -488,94 +601,232 @@ test("index and corpus stay in step through a soak of random writes", () => {
     }
 
     let read = reading(assemble(decoded))
-    let minted = FILES
     let narrowed = 0
     let found = 0
+    let declined = 0
+    let answered = 0
+    /** One counter per write shape, so a shape that quietly stopped being
+     *  generated — a guard whose arithmetic went wrong, a branch nothing can
+     *  reach — fails the run rather than reducing the soak to the easy cases it
+     *  already had. */
+    const shapes = {
+      rewrite: 0,
+      remove: 0,
+      mint: 0,
+      document: 0,
+      rename: 0,
+      move: 0,
+      mirror: 0,
+    }
+    let round = 0
 
-    for (let round = 0; round < ROUNDS; round++) {
-      const changed: Array<string> = []
-      const removed: Array<string> = []
-      // Which arm a path is on is asked of the REGISTRY, never of its spelling:
-      // `@olai/format`'s `kinds.ts` is the one place that says what a file of
-      // the set is, and a `endsWith` here would be a second answer to it (the
-      // sweep in `@olai/tests`' `kinds.test.ts` fails on one).
-      const outlines = [...decoded.keys()].filter((path) => bodyKind(path) === null)
-      const markdown = [...decoded.keys()].filter((path) => bodyKind(path) !== null)
+    for (const phase of PHASES) {
+      for (let step = 0; step < phase.rounds; step++) {
+        round += 1
+        const changed: Array<string> = []
+        const removed: Array<string> = []
+        // Which arm a path is on is asked of the REGISTRY, never of its
+        // spelling: `@olai/format`'s `kinds.ts` is the one place that says what
+        // a file of the set is, and an `endsWith` here would be a second answer
+        // to it (the sweep in `@olai/tests`' `kinds.test.ts` fails on one).
+        const outlines = [...decoded.keys()].filter((path) => bodyKind(path) === null)
+        const markdown = [...decoded.keys()].filter((path) => bodyKind(path) !== null)
+        const living = (): ReadonlyArray<string> => outlines.filter((path) => texts.has(path))
 
-      // One to three files move per round, which is the shape of a write: a
-      // keystroke touches one, a bulk gesture a handful, a `git pull` more.
-      const moves = 1 + Math.floor(random() * 3)
-      for (let move = 0; move < moves; move++) {
-        const roll = random()
-        if (roll < 0.55 && outlines.length > 0) {
-          // REWRITTEN — the common case, and the one where a row whose text
-          // moved and whose index entry did not would show up.
-          const path = outlines[Math.floor(random() * outlines.length)] as string
-          decoded.set(path, parseOutline(path, fileOf(random, minted++, RECORDS)))
-          changed.push(path)
-        } else if (roll < 0.7 && outlines.length > 4) {
-          // GONE — the case where a row outlives the file it came from, which
-          // is invisible to a query that never happens to select it.
-          const path = outlines[Math.floor(random() * outlines.length)] as string
-          decoded.delete(path)
-          removed.push(path)
-        } else if (roll < 0.85) {
-          // NEW.
-          const path = `note${minted}.olai`
-          decoded.set(path, parseOutline(path, fileOf(random, minted++, RECORDS)))
-          changed.push(path)
-        } else if (markdown.length > 0) {
-          // A DOCUMENT swapped under its path — the other arm, whose identity
-          // the index tracks the same way and whose body is the expensive text.
-          const path = markdown[Math.floor(random() * markdown.length)] as string
-          decoded.set(
-            path,
-            Result.succeed<Document>(
-              bodiedDocument(
-                path,
-                `---\nagent: ${pick(random)}\n---\n\nprose about ${pick(random)} and ${
-                  pick(random)
-                }\n`,
+        /** How hard this round pulls toward the phase's size. A keystroke moves
+         *  one file and a `git pull` moves a dozen, and both are real: the pull
+         *  is what gets the corpus across the threshold in a handful of rounds
+         *  rather than in eighty. */
+        const owed = phase.files - outlines.length
+        const moves = Math.abs(owed) > 12 ? 12 : 1 + Math.floor(random() * 3)
+
+        for (let move = 0; move < moves; move++) {
+          // The STEER comes first: while the corpus is far from the phase's
+          // size, every move is the one that closes the gap. Once it is there,
+          // the roll below picks a shape.
+          if (owed > 12) {
+            changed.push(mintFile())
+            shapes.mint += 1
+            continue
+          }
+          const alive = living()
+          if (owed < -12 && alive.length > 4) {
+            const path = alive[move % alive.length] as string
+            unfiled(path)
+            removed.push(path)
+            shapes.remove += 1
+            continue
+          }
+          if (alive.length === 0) continue
+
+          const roll = random()
+          const anOutline = (): string => alive[Math.floor(random() * alive.length)] as string
+
+          if (roll < 0.34) {
+            // REWRITTEN — the common case, and the one where a row whose text
+            // moved and whose index entry did not would show up. The property
+            // map alternates with the rewrite count, so a file rewritten twice
+            // has had `custom` put on every record and then taken off again,
+            // which is the prop-REMOVE shape that was in neither pool.
+            rewrites += 1
+            changed.push(
+              filed(anOutline(), fileOf(random, minted++, RECORDS, rewrites % 2 === 0)),
+            )
+            shapes.rewrite += 1
+          } else if (roll < 0.44 && alive.length > 4) {
+            // GONE — the case where a row outlives the file it came from, which
+            // is invisible to a query that never happens to select it.
+            const path = anOutline()
+            unfiled(path)
+            removed.push(path)
+            shapes.remove += 1
+          } else if (roll < 0.54) {
+            // NEW.
+            changed.push(mintFile())
+            shapes.mint += 1
+          } else if (roll < 0.64 && markdown.length > 0) {
+            // A DOCUMENT swapped under its path — the other arm, whose identity
+            // the index tracks the same way and whose body is the expensive
+            // text.
+            const path = markdown[Math.floor(random() * markdown.length)] as string
+            decoded.set(
+              path,
+              Result.succeed<Document>(
+                bodiedDocument(
+                  path,
+                  `---\nagent: ${pick(random)}\n---\n\nprose about ${pick(random)} and ${
+                    pick(random)
+                  }\n`,
+                ),
               ),
-            ),
-          )
-          changed.push(path)
+            )
+            changed.push(path)
+            shapes.document += 1
+          } else if (roll < 0.76) {
+            // RENAMED — one path leaving and another arriving holding the same
+            // records. Two entries in one delta, and the shape where a row
+            // still filed under the old path would go on answering for a file
+            // that is not there any more.
+            const from = anOutline()
+            const text = texts.get(from) as string
+            unfiled(from)
+            removed.push(from)
+            changed.push(filed(`moved${minted++}.olai`, text))
+            shapes.rename += 1
+          } else if (roll < 0.88 && alive.length > 1) {
+            // A RECORD MOVED BETWEEN FILES — the shape that rewrites two files
+            // at once and carries one id from one to the other, which is where
+            // a table keyed by FILE could leave that record indexed twice.
+            const from = anOutline()
+            const to = anOutline()
+            if (from !== to) {
+              const out = linesOf(texts.get(from) as string)
+              const into = linesOf(texts.get(to) as string)
+              const root = into[0]
+              if (out.length > 2 && root !== undefined) {
+                const carried = out.pop() as Record<string, unknown>
+                carried["parent"] = root["id"]
+                carried["ord"] = `y${into.length}`
+                into.push(carried)
+                changed.push(filed(from, textOf(out)), filed(to, textOf(into)))
+                shapes.move += 1
+              }
+            }
+          } else {
+            // A MIRROR ARRIVES — a second PLACEMENT of a record that lives in
+            // another file. The index must hold no row for it (a candidate the
+            // matcher drops on sight), and the file it lands in must still
+            // re-index cleanly around it.
+            const into = anOutline()
+            const target = [...read.derived.byId].find(([, at]) =>
+              at.file !== into && !isMirror(at.node)
+            )
+            const lines = linesOf(texts.get(into) as string)
+            const root = lines[0]
+            if (target !== undefined && root !== undefined) {
+              lines.push({
+                id: `m${minted++}`,
+                parent: root["id"],
+                ord: `y${lines.length}`,
+                mirror: target[0],
+              })
+              changed.push(filed(into, textOf(lines)))
+              shapes.mirror += 1
+            }
+          }
         }
-      }
-      if (changed.length + removed.length === 0) continue
+        if (changed.length + removed.length === 0) continue
 
-      const set = assemble(decoded)
-      // EVERY SEVENTH ROUND IS A REBUILD, offered no previous reading at all —
-      // which is what a first load is, and what the patcher falls back to when
-      // it declines (a `git pull` that rewrote the directory). Every file's
-      // records are then a new array, so the index re-indexes the whole corpus,
-      // and the row count below is what says it did so without leaving the old
-      // rows behind. A soak of patches alone would never reach that path.
-      read = round % 7 === 6 ? reading(set) : reading(set, {
-        read,
-        delta: {
-          upserts: changed.map(
-            (file) =>
-              [file, { nodes: nodesIn(decoded.get(file)) as ReadonlyArray<Located> }] as const,
-          ),
-          removes: removed,
-        },
-      })
+        const set = assemble(decoded)
+        // EVERY SEVENTH ROUND IS A REBUILD, offered no previous reading at all
+        // — which is what a first load is, and what the patcher falls back to
+        // when it declines (a `git pull` that rewrote the directory). Every
+        // file's records are then a new array, so the index re-indexes the
+        // whole corpus, and the row count below is what says it did so without
+        // leaving the old rows behind. A soak of patches alone would never
+        // reach that path.
+        //
+        // The upserts are DEDUPED and a path may be in both lists: one round
+        // can rename a file and mint another at the same path, or rewrite a
+        // file it earlier removed. That is the codec's own contract — removals
+        // first, then changes — and generating it is cheaper than forbidding
+        // it.
+        read = round % 7 === 6 ? reading(set) : reading(set, {
+          read,
+          delta: {
+            upserts: [...new Set(changed)].map(
+              (file) =>
+                [file, { nodes: nodesIn(decoded.get(file)) as ReadonlyArray<Located> }] as const,
+            ),
+            removes: removed,
+          },
+        })
 
-      for (const text of POOL) {
-        const answer = same(read, index, text)
-        if (answer.narrowed) narrowed += 1
-        found += answer.hits
+        // The generator has not minted a corpus no validator would take — see
+        // {@link claimCount}. Asked BEFORE the comparison, because a duplicate
+        // id would fail the comparison for a reason that is about this fixture
+        // rather than about the index.
+        expect(read.derived.byId.size).toBe(claimCount(read))
+
+        for (const text of POOL) {
+          const answer = same(read, index, text)
+          if (answer.narrowed) narrowed += 1
+          found += answer.hits
+        }
+        // The maintenance invariant, checked every round rather than at the
+        // end: an index that answers correctly while keeping a row per edit
+        // forever has no other symptom, and by the last round the arithmetic
+        // would no longer say which round it started in.
+        expect(index.rows()).toBe(recordCount(read) + bodiedIn(read.set).length)
+
+        // ...and which side of the threshold this round landed on, COUNTED
+        // rather than asserted per round: the corpus is being steered toward
+        // the phase's size and arrives over several rounds, so what has to hold
+        // every round is only that the two answers agree, which `same` above
+        // has just said for this very word.
+        if (index.narrow(read, parseFilter(EVERYWHERE, NOW)) === null) declined += 1
+        else answered += 1
       }
-      // The maintenance invariant, checked every round rather than at the end:
-      // an index that answers correctly while keeping a row per edit forever
-      // has no other symptom, and by the last round the arithmetic would no
-      // longer say which round it started in.
-      expect(index.rows()).toBe(recordCount(read) + bodiedIn(read.set).length)
+
+      // AT THE END OF THE PHASE the corpus is where it was steered, and the
+      // table's own decision about the crowd word is the phase's claim. This is
+      // the assertion the whole shape exists for: ONE table, written to all the
+      // way here, declines above the floor and answers below it — and answers
+      // the same thing either way, which is what makes the decline a decision
+      // about cost rather than about meaning.
+      expect(recordCount(read) > CROWD_FLOOR).toBe(phase.declines)
+      expect(index.narrow(read, parseFilter(EVERYWHERE, NOW)) === null).toBe(phase.declines)
+      expect(same(read, index, EVERYWHERE).hits).toBeGreaterThan(0)
     }
 
-    expect(narrowed).toBeGreaterThan(ROUNDS * 5)
-    expect(found).toBeGreaterThan(ROUNDS * 5)
+    // Both sides of the threshold were really visited, and every write shape
+    // was really generated. Without these the run above could satisfy every
+    // comparison in it having tested one size and three shapes.
+    expect(declined).toBeGreaterThan(10)
+    expect(answered).toBeGreaterThan(10)
+    expect(Object.entries(shapes).filter(([, count]) => count === 0)).toEqual([])
+    expect(narrowed).toBeGreaterThan(round * 5)
+    expect(found).toBeGreaterThan(round * 5)
   } finally {
     index.close()
   }

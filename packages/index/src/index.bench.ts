@@ -9,7 +9,7 @@
  * of `just check` — a timing that fails a lane on a busy machine teaches nobody
  * anything.
  *
- * THREE THINGS ARE MEASURED, and they are three different questions:
+ * FOUR THINGS ARE MEASURED, and they are four different questions:
  *
  *   - {@link QUERIES} — one query, answered both ways, over a spread of
  *     SELECTIVITY. That spread is the finding rather than a detail of the
@@ -22,6 +22,11 @@
  *     query of a process pays and nothing after it does. It is printed rather
  *     than amortised away because it is a real second of somebody's first
  *     keystroke on a large vault;
+ *   - the MEMORY — what the table WEIGHS, per row and in all. The design priced
+ *     this engine on disk and the implementation put it in memory for the life
+ *     of the process, which is a different bill and was an unpriced one until a
+ *     reviewer said so; {@link weight} takes the figure and says why it has to
+ *     be taken where it is;
  *   - the FOLLOW — what one write costs the table. Two arms: a revision that
  *     moved one file, which is a keystroke, and a revision that moved nothing,
  *     which is every query after it. The second is the one that has to be
@@ -42,7 +47,10 @@ import {
   assemble,
   bodiedDocument,
   bodiedIn,
+  documentHayOf,
   type Document,
+  hayOf,
+  isMirror,
   matching,
   matchingDocuments,
   narrowableBy,
@@ -51,6 +59,7 @@ import {
   parseFilter,
   parseOutline,
   reading,
+  type RegularNode,
   type Reading,
 } from "@olai/format"
 import {
@@ -64,7 +73,7 @@ import {
 } from "@olai/format/testlib"
 import { Result } from "effect"
 
-import { open } from "./index.ts"
+import { lookupable, open } from "./index.ts"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
 const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 21)
@@ -117,7 +126,7 @@ for (let at = 0; at < DOCS; at++) {
 
 let read: Reading = reading(assemble(decoded))
 const records = read.derived.byId.size
-const bytes = [...decoded.values()].reduce(
+const prose = [...decoded.values()].reduce(
   (total, entry) =>
     total + (Result.isSuccess(entry) && entry.success.kind === "document"
       ? entry.success.body.length
@@ -125,11 +134,68 @@ const bytes = [...decoded.values()].reduce(
   0,
 )
 
+/**
+ * EVERY BYTE THE TABLE IS BUILT FROM — the denominator the memory figure below
+ * is a multiple of, and it is the whole indexed corpus rather than the prose
+ * alone: the records' four folded fields are text the table holds trigrams of
+ * exactly as a body is. Measured through the same two functions the index
+ * itself indexes with, so the ratio is about the same strings.
+ *
+ * It is the figure the brainstorm's on-disk estimate ("index ≈ 3× the text")
+ * has to be compared against, which is the whole reason it is computed rather
+ * than the prose count being reused for it.
+ */
+const indexed = [...read.derived.byFile.values()].reduce(
+  (total, own) =>
+    total + own.reduce(
+      (each, at) => each + (isMirror(at.node) ? 0 : hayOf(at.node as RegularNode).length),
+      0,
+    ),
+  0,
+) + bodiedIn(read.set).reduce((total, one) => total + documentHayOf(one).length, 0)
+
 const index = open()
+
+/**
+ * WHAT THE TABLE WEIGHS, measured HERE — before anything else has touched it,
+ * because this process gets exactly one honest chance at the question.
+ *
+ * The brainstorm priced the engine ON DISK ("index ≈ 3× the text", with "zero
+ * process memory" as the reason to put it there) and the implementation put the
+ * same postings in memory instead, for the life of the process. That is a
+ * defensible trade and it was an unpriced one until a reviewer said so (pi on
+ * `cca1b21`), which is the objection this whole leg exists to answer: adoption
+ * is a number, not a feeling.
+ *
+ * TWO FIGURES, because they answer two questions and neither substitutes:
+ *
+ *   - what the TABLE holds — SQLite's own page count, exact and repeatable, and
+ *     the number to multiply when somebody asks what a vault ten times this
+ *     size would cost. It is the postings alone: the fold they were built from
+ *     is not stored (`content=''`), and the JavaScript beside them is two maps
+ *     of pointers at arrays the reading already holds;
+ *   - what the PROCESS pays — the resident-set delta across that build, which
+ *     is the honest end-to-end figure and is noisy in a way the first is not.
+ *     It is measured on the FIRST fill of this process's only long-lived table,
+ *     which is why it is up here rather than beside the BUILD timings below: a
+ *     second table built after this one reuses pages the allocator already
+ *     holds and reads as costing almost nothing, which would be a flattering
+ *     number rather than a true one.
+ */
+Bun.gc(true)
+const residentBefore = process.memoryUsage().rss
+index.narrow(read, parseFilter("upkeep11", NOW))
+Bun.gc(true)
+const weight = {
+  table: index.bytes(),
+  rows: index.rows(),
+  resident: process.memoryUsage().rss - residentBefore,
+}
 
 console.log(
   `corpus: ${FILES} outlines of ${RECORDS} records (${records} records), ` +
-    `${DOCS} documents holding ${(bytes / 1e6).toFixed(2)} MB of prose`,
+    `${DOCS} documents holding ${(prose / 1e6).toFixed(2)} MB of prose — ` +
+    `${(indexed / 1e6).toFixed(2)} MB of folded text in all`,
 )
 console.log(runtimeSaid())
 console.log()
@@ -201,7 +267,7 @@ const rows = QUERIES.map((text) => {
     // a crowd ({@link CROWD}), or it answered.
     why: candidates !== null
       ? `${candidates.nodes.size + candidates.documents.size} candidates`
-      : narrowableBy(filter, (word) => word.length >= 3) === null
+      : narrowableBy(filter, lookupable) === null
       ? "nothing to look up"
       : "declined — a crowd",
   }
@@ -234,6 +300,15 @@ const built = median(
   }),
 )
 console.log(`BUILD  a cold table over the whole corpus: ${built.toFixed(1)}ms`)
+
+/** ...and what it WEIGHS, taken at the top of the run where the figure is
+ *  honest ({@link weight} says why it could not be taken here). */
+console.log(
+  `MEMORY table ${(weight.table / 1e6).toFixed(1)} MB over ${weight.rows} rows ` +
+    `(${Math.round(weight.table / weight.rows)} bytes each, ` +
+    `${(weight.table / indexed).toFixed(2)}× the folded text) · ` +
+    `rss +${(weight.resident / 1e6).toFixed(1)} MB across that build`,
+)
 
 /**
  * WHAT A WRITE COSTS THE TABLE — one file re-decoded and the index brought

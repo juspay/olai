@@ -20,6 +20,7 @@ const found = index.narrow(reading, filter) // candidates, or null
 | `open()` | one table, in memory, for one served directory. It **throws** on a runtime whose SQLite cannot make one, rather than handing back a working olai with a quietly slower search that nothing on any screen explains |
 | `narrow(at, filter)` | bring the table level with this reading, then answer this query — `{nodes, documents}` of things that *might* match, or `null` for **ask the corpus** |
 | `rows()` | how many rows the table holds. A reading for a test and a bench: an index that answers correctly while growing a row per edit forever has no other symptom |
+| `bytes()` | what the table weighs — SQLite's own page count. A reading for the bench, and it exists because the design priced this engine on disk and the implementation put it in memory (below) |
 | `close()` | done with the directory |
 
 `null` and an empty `{nodes, documents}` are opposite answers. `null` is "this table has nothing to say about that query"; empty is "it looked, and nothing can match".
@@ -46,7 +47,11 @@ Levelling costs what *moved*: the reading's `byFile` names each file's records b
 
 ### Proven, not argued
 
-[`src/index.test.ts`](src/index.test.ts) asks the same question twice — once off the table, once off the corpus — and fails on the first pair that differs. Over a vault written by hand for the corners of the grammar (phrases, `OR`, negation, every operator, non-ASCII, an emoji, the archive, scopes, a `.html` whose bytes nobody read), over a generated one, and over a **soak**: random writes against a living reading, both answers compared after every one, and the row count checked against what the reading holds. [`@olai/ops`'s `search.index.test.ts`](../ops/src/search.index.test.ts) makes the same comparison where the writes are real — a temp directory, the store, the write gate — which is where an index one revision behind would show up and nowhere else.
+[`src/index.test.ts`](src/index.test.ts) asks the same question twice — once off the table, once off the corpus — and fails on the first pair that differs. Over a vault written by hand for the corners of the grammar (phrases, `OR`, negation, every operator, non-ASCII, an emoji, the archive, scopes, a `.html` whose bytes nobody read, and a record whose title carries a `NUL` and half a surrogate pair), over a generated one, and over a **soak**.
+
+The soak is *steered*, not merely random. A random walk reaches the shapes it happens to draw and stays whatever size it started at, so it has phases: the corpus is written up past the size where the table starts declining a crowd, and back down under it, with both answers compared after every round on the way. Seven write shapes are generated and each is asserted to have fired — a file rewritten, removed, minted, a document swapped under its path, a file **renamed**, a record **moved between files**, a **mirror** arriving — plus a full rebuild every seventh round instead of a patch, and a property map that alternates on rewrite so `custom` is added and then taken away. Every round checks the row count against the reading and that no two records claim one id.
+
+[`@olai/ops`'s `search.index.test.ts`](../ops/src/search.index.test.ts) makes the same comparison where the writes are real — a temp directory, the store, the write gate — which is where an index one revision behind would show up and nowhere else.
 
 ## When it declines
 
@@ -56,16 +61,27 @@ A lookup that would hand back more than a quarter of the directory (with a floor
 
 | query | hits | walk | index | |
 |---|---|---|---|---|
-| `"of file 11"` | 220 | 14.2ms | 0.93ms | 15× |
-| `upkeep11` | 162 | 14.4ms | 0.73ms | 20× |
-| `zzzzzzzz` | 0 | 11.8ms | 0.16ms | 73× |
-| `walnut` | 200 | 13.3ms | 0.55ms | 24× |
-| `note about` | 3,920 | 14.6ms | 8.6ms | 1.7× |
-| `record` | 19,600 | 13.7ms | 15.6ms | 0.9× — declined, a crowd |
+| `"of file 11"` | 220 | 15.7ms | 0.91ms | 17× |
+| `upkeep11` | 162 | 12.8ms | 0.76ms | 17× |
+| `zzzzzzzz` | 0 | 12.5ms | 0.16ms | 80× |
+| `brass timber` | 200 | 13.0ms | 0.90ms | 15× |
+| `walnut` | 200 | 13.2ms | 0.50ms | 26× |
+| `note about` | 3,920 | 15.0ms | 8.3ms | 1.8× |
+| `record` | 19,600 | 15.3ms | 17.4ms | 0.9× — declined, a crowd |
 
-Building the cold table over that corpus is ~110ms, paid by the first query of a process and nothing after it. Keeping it level costs ~1.1ms for a write that rewrote one 21-record file, and ~0.4ms for a query at a revision that moved nothing — which is the number that has to stay small, since it is paid per query for as long as the process runs.
+Building the cold table over that corpus is ~121ms, paid by the first query of a process and nothing after it. Keeping it level costs ~1.1ms for a write that rewrote one 21-record file, and ~0.3ms for a query at a revision that moved nothing — which is the number that has to stay small, since it is paid per query for as long as the process runs.
 
-Run it on your own machine before quoting it: the ratios are the claim, the milliseconds are one laptop's.
+## What it weighs
+
+The design priced this engine **on disk** — "index ≈ 3× the text", with *zero process memory* as the reason to put it there ([brainstorming/search-index.md](../../docs/brainstorming/search-index.md)). This implementation puts the same postings **in memory**, held for the life of the process. That trade is deliberate — a file beside somebody's vault is a file to invalidate, version, garbage-collect and explain — and it went unpriced until a reviewer said so, so the bench prints it:
+
+```
+MEMORY table 6.0 MB over 20780 rows (291 bytes each, 3.44× the folded text) · rss +6.7 MB across that build
+```
+
+**291 bytes per indexed record or document**, and the brainstorm's on-disk estimate turns out to hold in memory too: 3.44× the folded text the table was built from. That is the postings alone — the fold itself is not stored (`content=''`), and the JavaScript beside them is two maps of pointers at arrays the reading already holds, one entry per *file* rather than per record. Multiply the per-row figure for a vault ten times this size.
+
+Run any of it on your own machine before quoting it: the ratios are the claim, the milliseconds are one laptop's.
 
 ## What is deliberately not here
 
