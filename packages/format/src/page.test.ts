@@ -31,12 +31,14 @@ import { addressOf } from "./address.ts"
 import { agendaOf } from "./agenda.ts"
 import { backlinksOf, referrersTo } from "./backlinks.ts"
 import { dailyNotesOn, datedOn } from "./dates.ts"
-import { derive, nodesOf, rowsOf } from "./derive.ts"
-import type { Face } from "./document.ts"
+import { derive, type Derived, nodesOf, rowsOf } from "./derive.ts"
+import type { Document, Face } from "./document.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
 import { PageReading, type PageRequest, pageOf, samePageReading } from "./page.ts"
-import type { BrokenFile } from "./set.ts"
+import { pointingOf } from "./pointing.ts"
+import type { BrokenFile, OutlineSet } from "./set.ts"
+import type { Reading } from "./validate.ts"
 import { zoom } from "./zoom.ts"
 
 const HOUSE = [
@@ -77,12 +79,34 @@ const DOCUMENTS = [
 
 const READABLE: ReadonlyArray<BrokenFile> = []
 
+/**
+ * The three-field {@link Reading} these cases are read through — a derivation,
+ * the faces standing in for the served files, and the links index those faces
+ * amount to (`./pointing.ts`).
+ *
+ * The SET is a stand-in and is cast as one: what a page reads off it is the two
+ * arrays, and the fixtures above write faces rather than whole documents
+ * because a face is all these claims are about. The index is built from the
+ * same faces by the same fold the validator runs, so a case that gives a face
+ * links gets the referrers those links amount to and nothing has to be kept in
+ * step by hand.
+ */
+const readingAt = (
+  derived: Derived,
+  faces: ReadonlyArray<Face>,
+  broken: ReadonlyArray<BrokenFile> = READABLE,
+): Reading => ({
+  set: { documents: faces, broken } as unknown as OutlineSet,
+  derived,
+  pointing: pointingOf(faces as unknown as ReadonlyArray<Document>),
+})
+
 const readAt = (
   request: PageRequest,
   files = FILES,
   broken = READABLE,
   set = SET,
-) => pageOf(set, facesOf([...files, ...DOCUMENTS]), broken, request).shows
+) => pageOf(readingAt(set, facesOf([...files, ...DOCUMENTS]), broken), request).shows
 
 const at = (path: string, element: string | null = null): PageRequest => ({
   kind: "at",
@@ -125,8 +149,8 @@ test("an outline the directory does not have is a nothing that names it", () => 
 
 test("a directory with no outlines at all is the other nothing", () => {
   const nothing = { kind: "nothing", sought: "outline", requested: null } as const
-  expect(pageOf(SET, [], READABLE, at("shed.olai")).shows).toEqual(nothing)
-  expect(pageOf(SET, [], READABLE, HOME).shows).toEqual(nothing)
+  expect(pageOf(readingAt(SET, []), at("shed.olai")).shows).toEqual(nothing)
+  expect(pageOf(readingAt(SET, []), HOME).shows).toEqual(nothing)
 })
 
 test("a document route opens that document, by path", () => {
@@ -252,7 +276,7 @@ test("the trash draws each archive that has something in it, and counts the SET"
 // ── the names table ────────────────────────────────────────────────────
 
 test("every id this page points at is resolved, once each", () => {
-  const reading = pageOf(SET, facesOf(FILES), READABLE, at("house.olai"))
+  const reading = pageOf(readingAt(SET, facesOf(FILES)), at("house.olai"))
   // `install` sees `herbs`; `linky`'s TITLE addresses the same node. One entry.
   expect(reading.names).toEqual([
     { id: "herbs", title: "the herb bed", file: "garden.olai" },
@@ -263,12 +287,12 @@ test("an id nothing declares is absent — the honest dangling link", () => {
   const set = derive(nodesOfFiles({
     "house.olai": `{"id":"a","ord":"a0","title":"a","see":["gone"]}`,
   }))
-  expect(pageOf(set, facesOf(["house.olai"]), READABLE, at("house.olai")).names)
+  expect(pageOf(readingAt(set, facesOf(["house.olai"])), at("house.olai")).names)
     .toEqual([])
 })
 
 test("the address the page IS gets a name too — the palette's pin row asks it", () => {
-  const reading = pageOf(SET, facesOf(FILES), READABLE, node("herbs"))
+  const reading = pageOf(readingAt(SET, facesOf(FILES)), node("herbs"))
   expect(reading.names.some((one) => one.id === "herbs")).toBe(true)
 })
 
@@ -284,12 +308,12 @@ const PROPPED = derive(nodesOfFiles({
 }))
 
 test("a custom value that IS a node id is resolved — the door's question, asked where the set is", () => {
-  const reading = pageOf(PROPPED, facesOf(["lanes.olai", "agents.olai"]), READABLE, at("lanes.olai"))
+  const reading = pageOf(readingAt(PROPPED, facesOf(["lanes.olai", "agents.olai"])), at("lanes.olai"))
   expect(reading.names).toEqual([{ id: "pi", title: "pi", file: "agents.olai" }])
 })
 
 test("a custom value naming nothing is absent, and prose never reaches the index", () => {
-  const reading = pageOf(PROPPED, facesOf(["lanes.olai", "agents.olai"]), READABLE, at("lanes.olai"))
+  const reading = pageOf(readingAt(PROPPED, facesOf(["lanes.olai", "agents.olai"])), at("lanes.olai"))
   // `nobody` is id-shaped and declares nothing; `merge` holds a sentence, which
   // is not id-shaped at all. Neither is a name, and the drawer draws both as
   // the plain text they are.
@@ -299,7 +323,7 @@ test("a custom value naming nothing is absent, and prose never reaches the index
 })
 
 test("each member of a LIST value is asked about on its own", () => {
-  const reading = pageOf(PROPPED, facesOf(["lanes.olai", "agents.olai"]), READABLE, at("lanes.olai"))
+  const reading = pageOf(readingAt(PROPPED, facesOf(["lanes.olai", "agents.olai"])), at("lanes.olai"))
   // `two` carries `["pi","stranger"]`: the first is a node, the second is not,
   // and one entry answers for both rows that name it.
   expect(reading.names.map((one) => one.id)).toEqual(["pi"])
@@ -354,9 +378,10 @@ test("a document page is `referrersTo`, exactly", () => {
       props: {},
     },
   ] as unknown as ReadonlyArray<Face>
-  const shows = pageOf(SET, faces, READABLE, at("notes/finishes.md")).shows
+  const reading = readingAt(SET, faces)
+  const shows = pageOf(reading, at("notes/finishes.md")).shows
   expect(shows.kind === "document" ? shows.referrers : undefined)
-    .toEqual(referrersTo(addressOf("notes/finishes.md", null)!, faces, SET))
+    .toEqual(referrersTo(addressOf("notes/finishes.md", null)!, reading.pointing, SET))
 })
 
 test("a document page carries the frontmatter its face already has", () => {
@@ -376,7 +401,7 @@ test("a document page carries the frontmatter its face already has", () => {
       props: { agent: "claude-opus", owners: ["alice", "bob"] },
     },
   ] as unknown as ReadonlyArray<Face>
-  const shown = pageOf(SET, faces, READABLE, at("notes/finishes.md")).shows
+  const shown = pageOf(readingAt(SET, faces), at("notes/finishes.md")).shows
   expect(shown.kind === "document" ? shown.props : undefined).toEqual({
     agent: "claude-opus",
     owners: ["alice", "bob"],
@@ -408,9 +433,7 @@ const EVERY_ROUTE: ReadonlyArray<PageRequest> = [
 for (const request of EVERY_ROUTE) {
   test(`the wire carries every field of ${JSON.stringify(request)}`, () => {
     const reading = pageOf(
-      ARCHIVED,
-      facesOf([...WITH_TRASH, ...DOCUMENTS]),
-      READABLE,
+      readingAt(ARCHIVED, facesOf([...WITH_TRASH, ...DOCUMENTS])),
       request,
     )
     const back = decode(JSON.parse(JSON.stringify(encode(reading))))
@@ -423,8 +446,8 @@ for (const request of EVERY_ROUTE) {
 }
 
 test("two readings of one set are the same reading, and a moved set is not", () => {
-  const before = pageOf(SET, facesOf(FILES), READABLE, at("house.olai"))
-  expect(samePageReading(before, pageOf(SET, facesOf(FILES), READABLE, at("house.olai"))))
+  const before = pageOf(readingAt(SET, facesOf(FILES)), at("house.olai"))
+  expect(samePageReading(before, pageOf(readingAt(SET, facesOf(FILES)), at("house.olai"))))
     .toBe(true)
   const moved = derive(
     RECORDS.map((one) =>
@@ -433,6 +456,6 @@ test("two readings of one set are the same reading, and a moved set is not", () 
         : one
     ) as ReadonlyArray<Located>,
   )
-  expect(samePageReading(before, pageOf(moved, facesOf(FILES), READABLE, at("house.olai"))))
+  expect(samePageReading(before, pageOf(readingAt(moved, facesOf(FILES)), at("house.olai"))))
     .toBe(false)
 })

@@ -69,6 +69,7 @@ import { bodyKind, FileKind, fileKind } from "./kinds.ts"
 import { ID_SHAPE, isPutAway, isTrashed, type LocatedRegular } from "./node.ts"
 import { BrokenFile } from "./set.ts"
 import { pinTargetIn } from "./shelf.ts"
+import type { Reading } from "./validate.ts"
 import { Zoomed, zoom } from "./zoom.ts"
 
 /**
@@ -291,26 +292,26 @@ export const samePageRequest: (a: PageRequest, b: PageRequest) => boolean = Sche
  * package's own testlib, and `@olai/ops`' fixtures). What this answers is a
  * PAGE.
  *
- * THE FACES as well as the derivation, because two of the questions here are
- * about FILES rather than about records: which paths the directory serves at
- * all, and which of them is a day's note. That is `Query.homes`' argument one
- * door along, and the near miss it exists to avoid.
+ * THE WHOLE READING, and not three of its parts. Two of the questions here are
+ * about FILES rather than about records — which paths the directory serves at
+ * all, and which of them is a day.s note (`Query.homes`. argument one door
+ * along, and the near miss it exists to avoid) — and a third is about what
+ * points at a document, which is an index of its own (`./pointing.ts`). Those
+ * are the three fields of a {@link Reading}, so the parameter is the reading:
+ * a caller holds one, and four parameters were an invitation to hand over one
+ * revision.s set beside another.s view, which is the very thing that value
+ * exists to make unsayable.
  *
  * A `Document` IS a {@link Face} plus its content (`./document.ts` spreads the
- * face into every arm), so the caller hands the set's own documents over as
- * they stand — no projection per page per revision, and no second list to keep
- * in step with the one the directory was assembled from.
+ * face into every arm), so the set.s own documents are read as they stand — no
+ * projection per page per revision, and no second list to keep in step with the
+ * one the directory was assembled from.
  */
-export const pageOf = (
-  derived: Derived,
-  faces: ReadonlyArray<Face>,
-  broken: ReadonlyArray<BrokenFile>,
-  request: PageRequest,
-): PageReading => {
-  const shows = shownOf(derived, faces, broken, request)
+export const pageOf = (at: Reading, request: PageRequest): PageReading => {
+  const shows = shownOf(at, request)
   return {
     shows,
-    names: namesFor(derived, shows, request.kind === "at" ? request.address : null),
+    names: namesFor(at.derived, shows, request.kind === "at" ? request.address : null),
   }
 }
 
@@ -324,12 +325,9 @@ const outlinesAmong = (faces: ReadonlyArray<Face>): ReadonlyArray<string> =>
  *  {@link pageOf} minus its second half. Exported for the one caller that wants
  *  the rows and nothing else: the page's NARROWING (`./narrowing.ts`), which
  *  matches over the records this page draws and resolves no id at all. */
-export const shownOf = (
-  derived: Derived,
-  faces: ReadonlyArray<Face>,
-  broken: ReadonlyArray<BrokenFile>,
-  request: PageRequest,
-): Shown => {
+export const shownOf = (at: Reading, request: PageRequest): Shown => {
+  const { derived } = at
+  const faces = at.set.documents
   // THE PAGES THE APP CLAIMED BY NAME FIRST, and then the address — the same
   // reading order the browser's parser uses, because it is the same precedence:
   // a computed page is a word that app took, and an address is everything else.
@@ -378,7 +376,7 @@ export const shownOf = (
     return {
       kind: "document",
       file,
-      referrers: referrersTo(address, faces, derived),
+      referrers: referrersTo(address, at.pointing, derived),
       // TOTAL, like the face: empty is the honest none, not an omitted field.
       props: face.props,
     }
@@ -405,7 +403,7 @@ export const shownOf = (
     }
   }
   if (isTrashed(file)) return trashOf(derived, faces)
-  const unreadable = broken.find((one) => one.file === file)
+  const unreadable = at.set.broken.find((one) => one.file === file)
   return unreadable === undefined
     ? { kind: "outline", file, rows: rowsOf(derived, file) }
     : { kind: "broken", file: unreadable }

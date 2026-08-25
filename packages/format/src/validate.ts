@@ -38,6 +38,7 @@ import { derive, type Derived } from "./derive.ts"
 import type { OutlineError } from "./errors.ts"
 import type { Located } from "./node.ts"
 import { patched, type SetDelta } from "./patch.ts"
+import { type Pointing, pointingOf, repointed } from "./pointing.ts"
 import {
   danglingIn,
   markdownPaths,
@@ -83,6 +84,19 @@ import { shadowed } from "./shadow.ts"
 export interface Reading {
   readonly set: OutlineSet
   readonly derived: Derived
+  /**
+   * WHAT POINTS WHERE — the set's own links, filed backwards
+   * ({@link ./pointing.ts}).
+   *
+   * A THIRD MEMBER rather than a thirteenth index inside the derivation, and
+   * that module's header argues it: `derive` is handed the RECORDS and
+   * `patch` is handed a delta of them, so neither has ever been shown a face —
+   * while the SET and the reading this one follows are exactly what is in hand
+   * at the one place a reading is made. It travels here for the reason the two
+   * above travel together: an index of one revision's documents held against
+   * another's set is a plausible answer about the wrong directory.
+   */
+  readonly pointing: Pointing
 }
 
 /**
@@ -164,7 +178,7 @@ export const validate = (
   // both halves and puts them in order).
   return errors.length > 0
     ? Result.fail(reportOf(set, errors))
-    : Result.succeed({ set, derived })
+    : Result.succeed({ set, derived, pointing: view.pointing })
 }
 
 /**
@@ -191,10 +205,10 @@ export const validate = (
  * set-holding caller comes through is the patcher AND that guard, together, and
  * nobody has to remember the second half.
  */
-export const reading = (set: OutlineSet, previous?: Previous): Reading => ({
-  set,
-  derived: viewOf(set, previous).derived,
-})
+export const reading = (set: OutlineSet, previous?: Previous): Reading => {
+  const view = viewOf(set, previous)
+  return { set, derived: view.derived, pointing: view.pointing }
+}
 
 /**
  * THE SET FLATTENED, for the rebuild that is handed a list — once per
@@ -262,17 +276,28 @@ const recordsIn = (set: OutlineSet): ReadonlyArray<Located> =>
  * to happen anyway — one derivation now where a missed file used to cost two.
  */
 const viewOf = (set: OutlineSet, previous: Previous | undefined): Taken => {
+  // WHAT POINTS WHERE is carried across the same step and by its own rule
+  // ({@link ./pointing.ts}). It reads the two SETS rather than the delta, so it
+  // is offered whenever a previous reading is — including on the revisions the
+  // derivation gives up on, since a patcher that declined over a duplicate id
+  // has said nothing at all about what any file points at.
+  const pointing = previous === undefined
+    ? pointingOf(set.documents)
+    : repointed(previous.read.pointing, previous.read.set.documents, set.documents)
   if (previous !== undefined) {
     const view = patched(previous.read.derived, previous.delta)
-    if (view !== undefined && isSet(view, set)) return { derived: view, patched: true }
+    if (view !== undefined && isSet(view, set)) {
+      return { derived: view, pointing, patched: true }
+    }
   }
-  return { derived: derive(recordsIn(set)), patched: false }
+  return { derived: derive(recordsIn(set)), pointing, patched: false }
 }
 
 /** A view, and whether it was PATCHED from the reading this validation follows
  *  — see {@link viewOf}'s last paragraph for who asks and why. */
 interface Taken {
   readonly derived: Derived
+  readonly pointing: Pointing
   readonly patched: boolean
 }
 

@@ -34,6 +34,7 @@ import { unkept } from "./kinds.ts"
 import { isMirror, isPutAway, type Located, type LocatedRegular, storedMarker } from "./node.ts"
 import { type Dated, datesOf, dayOf, monthOf } from "./occasion.ts"
 import { parseOutline } from "./parse.ts"
+import { pointingOf } from "./pointing.ts"
 import { bodiedDocument, type Document, type Outline } from "./document.ts"
 import { assemble, outlinesIn, type OutlineSet } from "./set.ts"
 import type { Reading } from "./validate.ts"
@@ -137,6 +138,11 @@ export const setOf = (
 export const readingOf = (set: OutlineSet): Reading => ({
   set,
   derived: derive(recordsOf(set)),
+  // …and the third member, built the same way: the set's own links, filed
+  // backwards (`./pointing.ts`). A `Reading` is what a page is drawn from, so a
+  // fixture that left this out would be a reading whose document pages had no
+  // referrers and no way to say so.
+  pointing: pointingOf(set.documents),
 })
 
 /** One file's worth of JSONL that must NOT parse, and the errors it produces —
