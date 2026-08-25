@@ -111,6 +111,44 @@ test("only the files the probe re-decoded are upserted", () => {
   // The document that moved in the same tick is the OTHER collection's upsert,
   // and each one names only its own keys.
   expect(published.documents.upserts.map(([path]) => path)).toEqual(["notes.md"])
+  // ...AND THE MAP AGREES WITH THE DELTA, which is the assertion this fixture
+  // was one line short of and the whole of grok's MUST on `bcc15008`. The
+  // revision drops an outline and adds a `.md`, so the DIRECTORY holds two files
+  // before and two after and the outlines birth nothing — and a rule that read
+  // membership off that count would carry a map still holding `garden.olai`,
+  // telling an open subscriber to drop a key every fresh one would go on
+  // reading. What a collection HOLDS and what it SAID have to be the same thing
+  // in both directions.
+  expect(published.outlines.entries.has("garden.olai")).toBe(false)
+  expect([...published.outlines.entries.keys()]).toEqual(["house.olai"])
+  expect([...published.heads.entries.keys()]).toEqual(["house.olai", "notes.md"])
+})
+
+// ...AND THE INVERSE, because the two collections are two readings of one rule
+// and a fix that only reached the outlines would look exactly like this test
+// passing. A `.md` leaves as an outline arrives: the documents collection is
+// the one that must not keep the key, and the file count is still still.
+test("a key that leaves as another kind arrives is dropped from its own map", () => {
+  const before = publishedOf(
+    revision(setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]])),
+    NOTHING_HELD,
+  )
+  const published = publishedOf(
+    revision(
+      setOf({ "house.olai": HOUSE, "garden.olai": GARDEN }),
+      { changed: ["garden.olai"], removed: ["notes.md"] },
+      2,
+    ),
+    before,
+  )
+
+  expect(published.documents.removes).toEqual(["notes.md"])
+  expect(published.documents.entries.has("notes.md")).toBe(false)
+  expect([...published.documents.entries.keys()]).toEqual([])
+  expect([...published.outlines.entries.keys()]).toEqual(["garden.olai", "house.olai"])
+  // ...and the file the revision did not touch keeps the entry it was published
+  // with, rebuilt map or not.
+  expect(published.outlines.entries.get("house.olai")?.rev).toBe(1)
 })
 
 // `rev` IS THE CHANGE TOKEN, which is the half of the sentence above two
@@ -207,6 +245,14 @@ test("a file that did not move keeps the entry it was published with", () => {
     ),
     NOTHING_HELD,
   )
+  // TAKEN BEFORE THE NEXT REVISION, and that is not a formality: the map the
+  // first revision hands out is the map the second one carries forward
+  // ({@link publishedOf} — the revision passed in is consumed), so a `toBe`
+  // read off `first` AFTERWARDS would be reading `second`'s own map and would
+  // hold whatever it holds. What is being asserted is about the ENTRY, so the
+  // entry is what is kept.
+  const garden = first.outlines.entries.get("garden.olai")
+  const notes = first.documents.entries.get("notes.md")
   const second = publishedOf(
     revision(
       setOf({
@@ -219,17 +265,63 @@ test("a file that did not move keeps the entry it was published with", () => {
     first,
   )
 
-  expect(second.outlines.entries.get("garden.olai")).toBe(
-    first.outlines.entries.get("garden.olai")!,
-  )
+  expect(second.outlines.entries.get("garden.olai")).toBe(garden!)
   expect(second.outlines.entries.get("garden.olai")?.rev).toBe(1)
   expect(second.outlines.entries.get("house.olai")?.rev).toBe(2)
   // An untouched document is not re-published either — which is what keeps an
   // open reader's body from arriving again every time a neighbour is saved.
-  expect(second.documents.entries.get("notes.md")).toBe(
-    first.documents.entries.get("notes.md")!,
-  )
+  expect(second.documents.entries.get("notes.md")).toBe(notes!)
   expect(second.documents.upserts).toEqual([])
+})
+
+// A FILE THAT ARRIVES LANDS WHERE THE SET PUTS IT, which is the one thing a
+// carried map cannot do for itself: `Map` appends, so a new key written into
+// the map the wire already holds would sit at the END of a list every other key
+// of which is in path order — and that order is the order a FRESH subscriber's
+// snapshot arrives in. So a birth rebuilds its collection's map, and this is
+// what says so, with the born file drawn to sort FIRST (where appending is most
+// obviously wrong) and into the MIDDLE (where it is least obviously wrong).
+//
+// The equivalence harness holds the same claim over corpora
+// (`./published.equivalence.test.ts`, and its `misplacing` mutant is exactly
+// this failure); this is the fixture small enough to write the answer down.
+test("a file that arrives takes its place in the listing, not the end of it", () => {
+  const before = publishedOf(
+    revision(setOf({ "house.olai": HOUSE, "wing.olai": GARDEN }, [["notes.md", "# hello"]])),
+    NOTHING_HELD,
+  )
+  expect([...before.heads.entries.keys()]).toEqual(["house.olai", "notes.md", "wing.olai"])
+
+  const born = publishedOf(
+    revision(
+      setOf({ "aaa.olai": GARDEN, "house.olai": HOUSE, "mid.olai": GARDEN, "wing.olai": GARDEN }, [[
+        "notes.md",
+        "# hello",
+      ]]),
+      { changed: ["aaa.olai", "mid.olai"] },
+      2,
+    ),
+    before,
+  )
+
+  expect([...born.heads.entries.keys()]).toEqual([
+    "aaa.olai",
+    "house.olai",
+    "mid.olai",
+    "notes.md",
+    "wing.olai",
+  ])
+  expect([...born.outlines.entries.keys()]).toEqual([
+    "aaa.olai",
+    "house.olai",
+    "mid.olai",
+    "wing.olai",
+  ])
+  // ...and the files that did NOT arrive keep the entries they were published
+  // with, rebuilt map or not: what is rebuilt is the map, never the entries in
+  // it.
+  expect(born.heads.entries.get("house.olai")?.rev).toBe(1)
+  expect(born.outlines.entries.get("wing.olai")?.rev).toBe(1)
 })
 
 // The other kind of bodied file, and the whole memory claim as a projection:

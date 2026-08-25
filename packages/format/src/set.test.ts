@@ -8,7 +8,7 @@ import type { OutlineError } from "./errors.ts"
 import { failureOf, outlineOf, recordsOf } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
 import { byPath } from "./paths.ts"
-import { apart, assemble, markdownIn, outlinePaths } from "./set.ts"
+import { apart, assemble, documentAt, markdownIn, outlinePaths } from "./set.ts"
 
 type Decoded = Result.Result<Document, ReadonlyArray<OutlineError>>
 
@@ -323,4 +323,58 @@ test("the inverse holds for the pair path order exists to settle", () => {
   expect(outlinePaths(set)).toEqual(["wing/kitchen.olai", "wing.olai"])
   expect(assemble(apart(set))).toEqual(set)
   expect(outlinePaths(assemble(apart(set)))).toEqual(["wing/kitchen.olai", "wing.olai"])
+})
+
+// ── the point lookup, against the walk it replaced ──────────────────────
+
+/**
+ * `documentAt` IS A BINARY SEARCH over the order {@link assemble} promises
+ * (`perf-published-maps`), which is a change to how the answer is ARRIVED AT
+ * and to nothing else — so what is asked here is the equivalence: every path,
+ * and a handful that are not paths at all, looked up both ways.
+ *
+ * The corpus is chosen to break it rather than to demonstrate it. `wing.olai`
+ * beside `wing/kitchen.olai` is the pair the test above exists for — a search
+ * comparing with `<` instead of {@link byPath} looks in the wrong half for
+ * exactly one of them — and the misses are the cases where a search that fell
+ * off either end would answer with a neighbour instead of with nothing.
+ */
+test("a file found by search is the file a walk finds", () => {
+  const files: Record<string, Decoded> = {}
+  for (const path of [
+    "wing.olai",
+    "wing/kitchen.olai",
+    "wing/attic.olai",
+    "_olai/Inbox.olai",
+    "_olai/Trash.olai",
+    "Areas.olai",
+    "areas.olai",
+    "a.olai",
+    "a/b.olai",
+    "a/b/c.olai",
+    "zzz.olai",
+  ]) files[path] = outline(path, `{"id":"${path.replace(/[^a-z]/gi, "")}","ord":"a","title":"t"}`)
+  for (const path of ["notes.md", "wing/notes.md", "a/b/notes.md", "art/handle.png"]) {
+    files[path] = document(path, "n\n")
+  }
+  const set = assemble(decoded(files))
+  const walked = (path: string): Document | undefined =>
+    set.documents.find((document) => document.path === path)
+
+  for (
+    const path of [
+      ...Object.keys(files),
+      // ...and the paths that are NOT there: before the first, after the last,
+      // between two neighbours, a prefix of one, and one a segment longer.
+      "",
+      "AAAA.olai",
+      "zzzz.olai",
+      "wing",
+      "wing/",
+      "wing/kitchen",
+      "wing/kitchen.olai/deeper.olai",
+      "b.olai",
+      "_olai/Pins.olai",
+    ]
+  ) expect(documentAt(set, path)).toBe(walked(path) as never)
 })

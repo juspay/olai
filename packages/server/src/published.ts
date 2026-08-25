@@ -33,17 +33,91 @@
  * `manifest`: whether a directory has a set at all is a fact about the store
  * having published anything, which is answered where the snapshot is read
  * (`runtime.ts`) and needs no projection.
+ *
+ * ── WHAT A REVISION COSTS ──────────────────────────────────────────────
+ *
+ * A REVISION IS THE SIZE OF WHAT MOVED, not the size of the directory, and
+ * that is the whole of `perf-published-maps`. It used to be the other way: each
+ * of the three collections walked its own list of every served file and built
+ * its own fresh `Map` of every entry, so one keystroke saved into one outline
+ * of a two-thousand-file vault rebuilt about three maps of two thousand keys
+ * — every write, every open tab, forever.
+ *
+ * So the map a collection holds is now MOVED from revision to revision rather
+ * than rebuilt: the entries the wire already has are the very map object the
+ * next revision hands out, with this revision's changed files written into it.
+ * The store already says which files those are ({@link Moved}), and the set
+ * already says where a path is (`@olai/format`'s `documentAt`, a binary search
+ * over the order `assemble` puts the list in), so nothing here has to walk a
+ * directory to find out.
+ *
+ * TWO CONSEQUENCES, and both are load-bearing.
+ *
+ * The revision handed in is CONSUMED. `publishedOf` writes into the maps of the
+ * `published` argument and hands them back inside the revision it returns, so a
+ * caller must not go on reading the old one — which is exactly what the one
+ * caller does (`./runtime.ts` replaces `held` with what this returns, on the
+ * same synchronous stack that writes the deltas, so no reader can be between
+ * the two). A caller that wanted both revisions at once would have to say so,
+ * and nothing does.
+ *
+ * A COLLECTION'S OWN MEMBERSHIP REBUILDS ITS MAP; a value moving does not. A
+ * file arriving or leaving is rare — it is a file being created or deleted, not
+ * a file being written — so the walk is paid there and nowhere else, and it has
+ * to be paid there: `Map` keeps insertion order, so writing a new path into the
+ * held map would put it at the END while every other key is in the set's own
+ * path order, and the order of `entries` is the order a fresh subscriber's
+ * snapshot arrives in. Writing an EXISTING key leaves it exactly where it was,
+ * which is why the common revision disturbs nothing.
+ *
+ * ITS OWN, and never the DIRECTORY'S — the correction grok's review of
+ * `bcc15008` made. A revision that drops an outline and adds a `.md` moves no
+ * file count at all, and the outlines still lost a key; a rule written against
+ * the directory would have carried a map still holding it, with the wire told
+ * to drop it and every later revision reusing the same shell. Each collection
+ * asks about its own keys ({ changeOf}), and the one question none of them
+ * can answer alone — a departure the store cannot NAME — is asked once as
+ * `complete` in { publishedOf}, where the argument and the failure that
+ * made it necessary are written down.
+ *
+ * WHAT KEEPS THE REUSED MAP FROM SWALLOWING A DELTA. A map whose identity
+ * survives a revision is the one thing that can quietly go stale — a subscriber
+ * folding by identity would skip an update it needed — so the rule here is that
+ * an entry the wire is told about and an entry the map holds are written in the
+ * SAME statement: `upserts` reads its values back out of `entries`, so there is
+ * no path on which the collection holds one thing and the delta says another.
+ * The claim is not left to the reading: `./published.equivalence.test.ts`
+ * replays an op corpus against this projection and against the walk it replaced
+ * ({@link ./published.testlib.ts}'s `publishedAsWalked`) and holds the two to
+ * the same delta sequence and the same final `readAll`, and proves the harness
+ * can see the hazard by injecting it.
+ *
+ * WHAT IT RESTS ON, said out loud because it is now load-bearing rather than
+ * merely true: {@link Moved}'s `changed` names every path the probe DECODED, so
+ * a file that ARRIVED is always in it — a new path has no cached stamp and
+ * cannot be skipped. `removed` is weaker: it is the listing's diff against a
+ * stamp table a `resync` is entitled to forget, so a DEPARTURE can go unnamed.
+ * So a named departure is taken at its word (it can only be true — the store
+ * does not invent one) and an unnamed one is caught by arithmetic (`complete`,
+ * below). `removed` still decides what an OPEN subscriber is told, which is
+ * exactly what it decided before.
  */
 
 import {
-  bodiedIn,
   bodyOf,
   type BrokenFile,
+  type Document,
+  documentAt,
   faceOf,
+  isBodied,
+  isOutline,
+  type Markdown,
   nodesOf,
-  outlinesIn,
+  type Outline,
+  type OutlineSet,
   type Reading,
   textKind,
+  type Unkept,
 } from "@olai/format"
 import type { Snapshot } from "@olai/store"
 import type { DocumentEntry, Head, OutlineEntry } from "@olai/surface"
@@ -51,7 +125,15 @@ import type { DocumentEntry, Head, OutlineEntry } from "@olai/surface"
 /** Which paths a revision moved — the store's own diff, and the only part of a
  *  snapshot the slicing rule below reads. Named rather than taken as the whole
  *  `Snapshot`, so the one generic thing in this file is not pinned to the
- *  app's set type to read two arrays off it. */
+ *  app's set type to read two arrays off it.
+ *
+ *  IT IS NOT THE WHOLE OF THE MEMBERSHIP CHANGE, and the reuse in this file is
+ *  written against exactly how far it goes: a file the set did not hold a moment
+ *  ago is always in `changed` (a new path has no stamp to be skipped by), and no
+ *  path is in both lists (`@olai/store`'s `absorb` — a file edited and then
+ *  deleted is removed, one deleted and then written is changed). `removed` is
+ *  the weaker half: a departure a `resync` swallowed is in neither list, which
+ *  is what `complete` ({@link publishedOf}) is for. */
 type Moved = Pick<Snapshot<unknown>, "changed" | "removed">
 
 /** One collection's revision: what it holds now, and what moved to get there.
@@ -59,12 +141,36 @@ type Moved = Pick<Snapshot<unknown>, "changed" | "removed">
  *  which is what a sidebar shows). */
 export interface Change<T> {
   /** What the collection holds now — the value a fresh subscription is
-   *  snapshotted from. Built whole each revision and never mutated after. */
+   *  snapshotted from.
+   *
+   *  THE VERY MAP THE LAST REVISION HANDED OUT, with this revision written into
+   *  it, unless this collection's own membership moved (see the header). So its identity is stable
+   *  across most revisions and its CONTENTS are this revision's — which is safe
+   *  in exactly one arrangement and this is it: the entries and the deltas
+   *  below are written in one statement each, on one synchronous stack, and the
+   *  previous revision is consumed rather than kept. */
   readonly entries: Map<string, T>
   /** The entries whose file MOVED, and the keys whose file is gone: this
-   *  revision's deltas, for the subscriptions already open. */
+   *  revision's deltas, for the subscriptions already open. The values are read
+   *  back out of {@link Change.entries}, never built a second time, so what the
+   *  collection holds and what it said are one object. */
   readonly upserts: ReadonlyArray<readonly [string, T]>
   readonly removes: ReadonlyArray<string>
+}
+
+/**
+ * ...and the one fact about a revision the WIRE has no use for: which of the
+ * upserted keys this revision INTRODUCED.
+ *
+ * It used to be read off the previous revision's own map — "the collection did
+ * not have this key before this revision" — and that is a question the map can
+ * no longer be asked, because it IS this revision's map. So the slicing rule
+ * answers it while it still knows, and the one reader that needs it
+ * ({@link documentsOf}, deciding whether a bodyless entry may be written over a
+ * key somebody is showing) takes it from here.
+ */
+interface Sliced<T> extends Change<T> {
+  readonly born: ReadonlySet<string>
 }
 
 export interface Published {
@@ -86,9 +192,10 @@ export interface Published {
    * the sidebar stops showing, and a bodied file's head is always here to open
    * its body against. It is two `changeOf` calls, because these are two
    * collections with two held revisions of their own; what holds them together
-   * is that the bodied list is a FILTER of this one, taken through one `keyOf`
-   * in one function. `./published.test.ts` asserts the containment, and that is
-   * the belt to this brace.
+   * is that the bodied list is a FILTER of this one, taken through one
+   * predicate in one function (`@olai/format`'s `isBodied`).
+   * `./published.test.ts` asserts the containment, and that is the belt to this
+   * brace.
    */
   readonly heads: Change<Head>
   /**
@@ -170,13 +277,16 @@ const documentsOf = (
    *  {@link OutlineEntry.broken}; a document's READ failure is this
    *  entry's `refused`. A parse failure is not. */
   broken: ReadonlyMap<string, BrokenFile>,
+  /** Both {@link changeOf}'s own — the files this revision re-decoded, and
+   *  whether the store's diff accounts for every one that left. */
+  decoded: ReadonlyArray<Document>,
+  complete: boolean,
 ): Pick<Published, "documents" | "unread"> => {
   // The BODIED half of the directory: this member is what a reader opens as a
   // page, and an outline is published as its records next door.
-  const documents = bodiedIn(snapshot.value.set)
-  const change = changeOf(
-    documents,
-    (document) => document.path,
+  const change = changeOf<Markdown | Unkept, DocumentEntry>(
+    snapshot.value.set,
+    isBodied,
     (document) => ({
       rev: snapshot.rev,
       text: bodyOf(document),
@@ -185,8 +295,10 @@ const documentsOf = (
       // kept — so its refusal arrives later, from `./bodies.ts`.
       refused: isUnread(broken.get(document.path)),
     }),
+    decoded,
     snapshot,
     held?.documents,
+    complete,
   )
   // One pass, two lists: what to send, and what somebody has to read. A file is
   // in exactly one of them unless it is BOTH new and bodyless, which is a key
@@ -201,13 +313,17 @@ const documentsOf = (
   // the disk and decoded as UTF-8, which is neither the file nor an error. The
   // KEY is still announced, because membership is what puts a file in the
   // sidebar.
+  //
+  // WHICH KEYS ARE NEW is the slice's own answer (`born`) rather than a
+  // question asked of the previous revision's map, which is a map this one now
+  // holds — see {@link Sliced}.
   const upserts: Array<readonly [string, DocumentEntry]> = []
   const unread: Array<string> = []
   for (const [path, entry] of change.upserts) {
     if (entry.text !== null) upserts.push([path, entry])
     else {
       if (textKind(path) !== null) unread.push(path)
-      if (held?.documents.entries.has(path) !== true) upserts.push([path, entry])
+      if (change.born.has(path)) upserts.push([path, entry])
     }
   }
   return { documents: { ...change, upserts }, unread }
@@ -223,35 +339,128 @@ const documentsOf = (
  * would hold different `rev` for the same untouched file. What a collection
  * HOLDS and what it SAID have to be the same thing.
  *
+ * SO DOES THE MAP THEY SIT IN, which is the whole of what `perf-published-maps`
+ * changed here: the collection's entries are carried from one revision to the
+ * next rather than rebuilt around them. The three shapes below are the three
+ * things a revision can do to a collection, in the order they cost:
+ *
+ *   - IT MOVED NOTHING HERE — the commonest revision of all, since a probe that
+ *     re-decoded one `.md` is nothing at all to the outlines. The map is handed
+ *     straight on and nothing is allocated but the two empty delta lists.
+ *   - IT MOVED FILES THIS COLLECTION ALREADY HELD — a save. Those keys are
+ *     written into the held map, and every other key keeps both its entry and
+ *     its place.
+ *   - MEMBERSHIP MOVED — a file of THIS collection arrived or left. The map is
+ *     rebuilt from the set, because `Map` appends and the ORDER of `entries` is
+ *     the set's (the header has this). An unchanged file's entry is still the
+ *     one it was published with; what is rebuilt is the map, not the entries in
+ *     it.
+ *
+ * THE THIRD IS ASKED OF THIS COLLECTION AND NEVER OF THE DIRECTORY, which is
+ * the correction grok's review of `bcc15008` made and the one thing about this
+ * rule that is easy to get wrong. The directory's FILE COUNT is not a
+ * collection's membership: a revision that drops an outline and adds a `.md`
+ * — the shape a `git pull` takes when a note is rewritten as a page — leaves
+ * that count exactly where it was, births nothing in the outlines, and would
+ * carry a map still holding the key the store had just named as gone. An open
+ * subscriber would be told to drop it and a fresh one would go on reading it,
+ * for the life of the process. So each collection asks about its OWN keys:
+ * {@link Sliced.born} for what arrived, `removes` for what left, and `complete`
+ * ({@link publishedOf}) for the departures the store cannot name at all.
+ *
  * The store's `changed` names every path it re-decoded — outlines and
- * documents together, since it is talking about a directory — so the entries
- * are what says which of them is a key of THIS collection. A path that changed
- * and is not an entry here belongs to the other one.
+ * documents together, since it is talking about a directory — so the SET is
+ * what says which of them is a key of THIS collection: the paths are looked up
+ * ONCE for all three ({@link publishedOf}'s `decoded`) and each collection
+ * offers them to its own predicate. A path that changed and is not this
+ * collection's belongs to the other one; a path that changed and is in no set
+ * at all (a file the probe read and a later probe lost) is nobody's.
  */
-const changeOf = <S, T>(
-  sources: ReadonlyArray<S>,
-  keyOf: (source: S) => string,
+const changeOf = <S extends Document, T>(
+  set: OutlineSet,
+  /** WHICH FILES ARE THIS COLLECTION'S, asked one file at a time — the same
+   *  predicate `@olai/format`'s own list narrowings are written with, so the
+   *  key set below and `bodiedIn`/`outlinesIn` cannot come to mean different
+   *  files. */
+  holds: (document: Document) => document is S,
   build: (source: S) => T,
+  /** The files this revision re-decoded that the set still holds, in the
+   *  store's own order — looked up once and offered to all three collections
+   *  ({@link publishedOf}). */
+  decoded: ReadonlyArray<Document>,
   moved: Moved,
   previous: Change<T> | undefined,
-): Change<T> => {
+  /** Whether the store's diff ACCOUNTS FOR every file that left — see
+   *  `complete` in {@link publishedOf}. `false` is a departure named by nobody,
+   *  which no collection can rule out for itself. */
+  complete: boolean,
+): Sliced<T> => {
   const held = previous?.entries
-  const changed = new Set(moved.changed)
-  const entries = new Map<string, T>()
-  for (const source of sources) {
-    const key = keyOf(source)
-    const published = changed.has(key) ? undefined : held?.get(key)
-    entries.set(key, published ?? build(source))
+  // WHAT MOVED IN THIS COLLECTION: the revision's own re-decoded files, offered
+  // to this collection's predicate. The order is the store's, which is the
+  // order the deltas below go out in.
+  const touched = decoded.filter(holds)
+  // A collection may not be told to drop a key it never had.
+  const removes = moved.removed.filter((path) => held?.has(path) === true)
+  const born = new Set(
+    touched.flatMap((document) => (held?.has(document.path) === true ? [] : [document.path])),
+  )
+
+  // THIS COLLECTION'S MEMBERSHIP MOVED, SO ITS MAP IS REBUILT; anything else
+  // moves the map it was handed. The three clauses are the three ways a key set
+  // can change and there is no fourth: a key arrived (`born` — an arrival is
+  // always re-decoded, so it is always here), a key left and the store said so
+  // (`removes`, already narrowed to keys this collection actually held), or a
+  // key left and the store could not say so (`complete`, which no collection
+  // can answer for itself). Nothing is left for a delete to do on the carried
+  // arm, which is why there is not one — and why the arm cannot leave a key
+  // behind.
+  const entries = held !== undefined && complete && born.size === 0 && removes.length === 0
+    ? held
+    : rebuilt(set, holds, build, new Set(touched.map((document) => document.path)), held)
+  if (entries === held) {
+    for (const document of touched) entries.set(document.path, build(document))
   }
   return {
     entries,
-    upserts: moved.changed.flatMap((path) => {
-      const entry = entries.get(path)
-      return entry === undefined ? [] : [[path, entry] as const]
+    // READ BACK OUT OF `entries`, never built a second time: the collection and
+    // the delta are one object, which is what keeps a map whose identity
+    // survives a revision from ever holding something the wire was not told.
+    upserts: touched.flatMap((document) => {
+      const entry = entries.get(document.path)
+      return entry === undefined ? [] : [[document.path, entry] as const]
     }),
-    // A collection may not be told to drop a key it never had.
-    removes: moved.removed.filter((path) => held?.has(path) === true),
+    removes,
+    born,
   }
+}
+
+/**
+ * The map, built whole from the set — what a MEMBERSHIP change costs, and the
+ * first revision of a store.
+ *
+ * It is the walk this file used to do three times per revision, kept for the
+ * one thing only a walk can do: put the keys in the set's own order. An
+ * unchanged file's entry comes from the held map, so what is rebuilt is the map
+ * and never the entries — a rebuilt entry would carry this revision's number
+ * for a file no delta named (see above).
+ */
+const rebuilt = <S extends Document, T>(
+  set: OutlineSet,
+  holds: (document: Document) => document is S,
+  build: (source: S) => T,
+  /** The paths this revision re-decoded that are keys HERE — the ones whose
+   *  entry may not be carried across. */
+  touched: ReadonlySet<string>,
+  held: ReadonlyMap<string, T> | undefined,
+): Map<string, T> => {
+  const entries = new Map<string, T>()
+  for (const document of set.documents) {
+    if (!holds(document)) continue
+    const published = touched.has(document.path) ? undefined : held?.get(document.path)
+    entries.set(document.path, published ?? build(document))
+  }
+  return entries
 }
 
 /**
@@ -261,6 +470,12 @@ const changeOf = <S, T>(
  * entries with another's, which is the same "in the wrong order or with a
  * piece left out" this file exists as one function to prevent. `null` is the
  * first revision, when the wire holds nothing.
+ *
+ * IT IS CONSUMED, and that is the one thing a caller has to know: the maps in
+ * `published` are written into and handed back inside the revision this
+ * returns, so the value passed in is not a value to go on reading. The header
+ * says why, and `./runtime.ts` — the one caller — replaces `held` with the
+ * result on the same stack that writes the deltas.
  *
  * Every file the set lists gets an entry, including the outlines that hold no
  * nodes and the ones that did not parse: a key that went missing would be an
@@ -278,19 +493,80 @@ export const publishedOf = (
   // the writers. It used to be a `Map.groupBy` of every record, run on every
   // revision of a directory that can hold any number of both.
   const broken = new Map(set.broken.map((file) => [file.file, file] as const))
+  /**
+   * THE FILES THIS REVISION RE-DECODED, looked up ONCE for all three
+   * collections — a binary search per changed path over the order `assemble`
+   * promises (`@olai/format`'s `documentAt`), rather than a walk of the
+   * directory and rather than the same three searches done three times.
+   *
+   * A changed path the set no longer holds is left out here and is nobody's: it
+   * is a file a probe read and a later probe lost, and the walk this replaced
+   * came to the same nothing by never finding it in a source list.
+   */
+  const decoded = snapshot.changed.flatMap((path) => {
+    const document = documentAt(set, path)
+    return document === undefined ? [] : [document]
+  })
+  /**
+   * WHETHER THE STORE'S DIFF ACCOUNTS FOR EVERY FILE THAT LEFT — the one
+   * membership question no collection can answer for itself, asked once here.
+   *
+   * It is here because the store's diff is NOT total about departures.
+   * `Snapshot.removed` is the LISTING's diff, taken against the stamp table the
+   * last probe left — and `resync` forgets that table (`@olai/store`'s
+   * `probe.forget`, which is the door a `git checkout`, an rsync or a harness
+   * putting a fixture back comes through), so a file deleted before one is
+   * re-listed as gone and named as removed by NOBODY. The walk this replaced
+   * could not be hurt by that: it re-derived membership from the set every
+   * revision, and a key nothing removed simply was not there to rebuild. A
+   * projection that carries its maps can be, and was — one deleted file after a
+   * resync stayed in the sidebar for the life of the process
+   * (`quick_capture.feature`, "the sidebar offers no Inbox").
+   *
+   * So it is ARITHMETIC over the heads, which are the one collection that holds
+   * every served file: what the wire holds, plus the files that arrived, minus
+   * the files the store NAMED as gone and the set really no longer lists,
+   * against what the set now lists. They agree exactly when nothing left
+   * unannounced. Constant time, no walk, and it is `@olai/format`'s `viewOf`
+   * move one layer up — a delta that does not line up with the set it is about
+   * turns into a REBUILD rather than into a view holding something the set does
+   * not.
+   *
+   * WHAT IT IS NOT is a collection's membership, and conflating the two is
+   * exactly the bug grok's review of `bcc15008` found: a revision that drops an
+   * outline and adds a `.md` leaves this arithmetic and the file count both
+   * untouched, and the outlines still lost a key. Which keys a COLLECTION lost
+   * is that collection's own `removes`, and {@link changeOf} reads it there.
+   *
+   * What this does NOT do is invent a delta: a file that left unannounced is
+   * dropped from what a fresh subscriber reads and is in nobody's `removes`,
+   * because `removes` is the store's own list and the walk published exactly
+   * the same nothing. An open reader keeps that key until it reconnects, on
+   * this projection and on the one before it alike.
+   */
+  const files = published?.heads.entries
+  const complete = files === undefined ||
+    files.size +
+          decoded.filter((document) => !files.has(document.path)).length -
+          snapshot.removed.filter((path) =>
+            files.has(path) && documentAt(set, path) === undefined
+          ).length ===
+      set.documents.length
 
   return {
-    outlines: changeOf(
-      outlinesIn(set),
-      (outline) => outline.path,
+    outlines: changeOf<Outline, OutlineEntry>(
+      set,
+      isOutline,
       (outline) => ({
         rev: snapshot.rev,
         nodes: nodesOf(derived, outline.path),
         broken: broken.get(outline.path) ?? null,
         face: faceOf(outline),
       }),
+      decoded,
       snapshot,
       published?.outlines,
+      complete,
     ),
     // THE HEAD OF EVERY FILE, withheld from nobody and cut from the SET's own
     // document list. This is what a reader watches for "the file moved" and
@@ -301,17 +577,25 @@ export const publishedOf = (
     // slices one fact rather than three: a head whose face disagreed with the
     // body beside it would be a title the palette draws for prose the page does
     // not have.
-    heads: changeOf(
-      set.documents,
-      (document) => document.path,
+    heads: changeOf<Document, Head>(
+      set,
+      everyFile,
       (document) => ({
         rev: snapshot.rev,
         face: faceOf(document),
         broken: broken.get(document.path) ?? null,
       }),
+      decoded,
       snapshot,
       published?.heads,
+      complete,
     ),
-    ...documentsOf(snapshot, published, broken),
+    ...documentsOf(snapshot, published, broken, decoded, complete),
   }
 }
+
+/** The heads' membership, which is every served file — the one collection whose
+ *  predicate narrows nothing. Spelled as a predicate anyway rather than given
+ *  the whole list, so all three collections are the same statement and there is
+ *  no second shape here for a reader to hold in mind. */
+const everyFile = (_document: Document): _document is Document => true

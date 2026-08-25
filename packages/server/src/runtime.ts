@@ -384,13 +384,24 @@ export const bind = (
      */
     const revisions = inMemoryChannel<void>()
 
-    /** The revision the wire is holding — `null` until the store has published
-     *  one. Each collection's entries are that revision's own map, replaced
-     *  whole by the connector below and never mutated after, which is what lets
-     *  `readAll` hand one over as it is: a fresh subscription's snapshot and the
-     *  deltas an open one is watching are two readings of one map rather than
-     *  two copies to keep in step. Kept WHOLE rather than as its pieces, so the
-     *  next revision is derived from one thing (see {@link publishedOf}). */
+    /**
+     * The revision the wire is holding — `null` until the store has published
+     * one. Each collection's entries are that revision's own map, and `readAll`
+     * hands one over as it is: a fresh subscription's snapshot and the deltas an
+     * open one is watching are two readings of one map rather than two copies to
+     * keep in step. Kept WHOLE rather than as its pieces, so the next revision
+     * is derived from one thing (see {@link publishedOf}).
+     *
+     * IT IS THE SAME MAP most revisions, and that is the projection's own
+     * arrangement rather than something to be read into: since
+     * `perf-published-maps` a collection's entries are CARRIED from one revision
+     * to the next and written into, so a revision costs the size of what moved
+     * and not the size of the directory. What that requires of this file is one
+     * line and it is the line below — `held` is REPLACED with what the
+     * projection returns, on the same synchronous stack that writes the deltas,
+     * and the value handed in is not read again. Nothing else here may keep a
+     * previous revision, and nothing does.
+     */
     let held: Published | null = null
     /** What a collection reads before the store has published anything. One
      *  value rather than a fresh map per call: `readAll` is asked on every
@@ -719,6 +730,10 @@ export const bind = (
               (snapshot) =>
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(null)
+                  // THE PROJECTION CONSUMES WHAT IT IS HANDED, so these two
+                  // lines are one statement and the second may never be moved
+                  // below the writes: `held` is what `readAll` reads, and after
+                  // the call it is the value this returns and nothing else.
                   const revision = publishedOf(snapshot, held)
                   held = revision
                   const collections = published?.collections
