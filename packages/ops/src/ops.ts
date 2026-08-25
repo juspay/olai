@@ -534,7 +534,6 @@ export const make = (options: Options): Ops => {
       return
     }
     waiters.push(finish)
-    if (inflight === 0) finish()
   })
   const tracked = (
     request: Request,

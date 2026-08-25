@@ -261,11 +261,18 @@ test("PIN (drain-then-restore): a stage file that lands during drain is restored
   fs.writeFileSync(path.join(root, "house.olai"), "{x}\n");
   const origin = filesOf(fixture);
   let posts = 0;
+  let atSecond: { tmp: boolean; house: string } | undefined;
   const server = http.createServer((req, res) => {
     if (req.method === "POST") {
       posts += 1;
       if (posts === 1) {
         fs.writeFileSync(path.join(root, ".olai-1-0.tmp"), "staging\n");
+      }
+      if (posts === 2) {
+        atSecond = {
+          tmp: fs.existsSync(path.join(root, ".olai-1-0.tmp")),
+          house: fs.readFileSync(path.join(root, "house.olai"), "utf8"),
+        };
       }
       res.statusCode = 204;
       res.end();
@@ -290,6 +297,7 @@ test("PIN (drain-then-restore): a stage file that lands during drain is restored
       5_000,
     );
     expect(posts).toBe(2);
+    expect(atSecond).toEqual({ tmp: false, house: "{}\n" });
     expect(left).toEqual([]);
     expect(fs.existsSync(path.join(root, ".olai-1-0.tmp"))).toBe(false);
     expect(fs.readFileSync(path.join(root, "house.olai"), "utf8")).toBe("{}\n");
