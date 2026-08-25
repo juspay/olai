@@ -100,6 +100,7 @@ Which server the suite drives is two decisions, not one — **who owns the proce
 | `OLAI_CORPUS` | Only read with `OLAI_URL`: which fixture corpus that one server is serving (default `good`). A scenario needing a different one fails immediately, with the command to run instead — better than quietly asserting against the wrong outlines. |
 | `HEADLESS` | `false` opens a visible browser. Anything else (or unset) is headless. |
 | `OLAI_TEST_VERBOSE` | Stream the server child's stdout/stderr into the test output. |
+| `OLAI_TEST_SLOW` | The multiplier Chromium slows this scenario's RENDERER by (`Emulation.setCPUThrottlingRate`). Unset, or `1`, is a browser nobody touched and no CDP session at all. It is how a race only a loaded box loses is reproduced on a quiet one — see *Making it flake on purpose*. |
 | `CUCUMBER_TAGS` | Replaces the default tag filter (`not @skip`). `CUCUMBER_TAGS='@corpus:tangled'` runs only the tangled-corpus scenarios. |
 | `CUCUMBER_PARALLEL` | Worker count. Unset, the suite sizes itself to the machine (`os.availableParallelism() - 1`, floored at 1, capped at 4) so a laptop and a CI box both run parallel by default without a flag. Set it to override, including `=1` for a serial run. |
 | `CUCUMBER_RETRY` | Scenario retry budget. Default 0 — a local run should show a real failure the first time. |
@@ -257,6 +258,12 @@ RUNS=6  SUITES=5 sh underload.sh    # five suites at once, as a shared box is
 `underload.sh` / `underload.ts` are NOT part of the suite either. They exist because the failures this section is about are one scenario in six hundred, never the same one twice — so the fact worth having is a CENSUS over thirty runs and not a log of one, and `underload.ts` reads the cucumber message streams back into exactly that: which scenarios went, how often, on which step, and what each said.
 
 **The two knobs are two different questions, and mixing them answers neither.** `BUSY` pins the cores and leaves this the only suite on the box, so whatever fails under it failed on LOAD. `SUITES` starts several at once, which is what a box shared between worktrees actually looks like, and is the only way to reach the failures that need a STRANGER on the machine rather than a slow one — the shared-port collisions this suite used to have were found that way and nothing else would have found them.
+
+```bash
+OLAI_TEST_SLOW=20 bun run test features/zoom_and_navigate.feature:113
+```
+
+**And a third question, which neither of those can ask: what does the PAGE lose when the page is slow?** `OLAI_TEST_SLOW` is Chromium's own CPU throttle, and it slows the renderer alone — the server, the harness and the wire keep full speed. That is what makes it a load *simulator* rather than a load test, and it is exactly the right instrument for a race between what the page does and what the page is asked about, because it widens that window and nothing else. It is also the only one of the three a REVIEWER can re-run: `BUSY=48` needs a box to spare and thirty runs to say anything, while the scroll-restore race this arrived with went 1/30 green at `=20` and 30/30 green after the fix, on the same laptop, in a quarter of an hour each way. A number a reviewer can reproduce is worth more than a number they have to believe.
 
 ## Fixture corpora
 
@@ -437,7 +444,7 @@ The names are not written down twice. `support/world.ts` imports the client's ow
 
 ## Waiting, which is the whole of being honest under load
 
-This suite runs parallel, on machines that are also doing something else, so every assertion in it is a race unless it was written not to be. A run on a saturated box is the only way to find out — `sh underload.sh` is that run, and it counts what it dropped rather than leaving five logs to read — and there are exactly five ways to get it wrong. All five are green on an idle laptop.
+This suite runs parallel, on machines that are also doing something else, so every assertion in it is a race unless it was written not to be. A run on a saturated box is the only way to find out — `sh underload.sh` is that run, and it counts what it dropped rather than leaving five logs to read — and there are exactly six ways to get it wrong. All six are green on an idle laptop.
 
 **A value read on its way to its final one.** Most assertions here WAIT: they poll until the page or the file says the thing, and fail saying what they were waiting for. The ones that cannot are the NEGATIVES, and a negative is two different steps that read almost the same:
 
@@ -471,11 +478,13 @@ Every one of them will take "the page said why it did not" instead, which is the
 
 Both were measured under load, and both failed fifteen seconds later on a file that never changed. So a scenario that makes a write and then aims something ELSE at the same tab needs the tab's own receipt in between, not the disk's: the palette's remark (`I capture …` now waits for it), the row the page redrew (`the node "…" comes after "…"`), the box re-primed. One of those receipts is a message SHORT, and takes a frame on top: what the edge steps watch is the refs the snapshot drew (`edge_steps.ts`'s `drawnOrSaid`), and the snapshot is one message ahead of the answer on the same wire — so the happy path waits a frame after the chip moves, which is the same ritual `support/caret.ts` already performs for the keys. The disk assertion is still worth making — it is the claim about what LANDED — it just is not a gate. A cold `goto` after a write is the same class: `page.goto` aborts the in-flight apply, so the node leaving the outline is the receipt, not the navigation.
 
+**A press aimed at a control something is pinned over.** Playwright hit-tests the point it is about to press, and when something else is on top the action is RETRIED — every attempt re-running "scroll into view if needed", so a press that could not land where it was aimed is rescued by scrolling the page to wherever the browser had to put it for the press to reach. Nothing says so; the step passes. It stays invisible until a scenario is about WHERE THE PAGE IS, and then it is fatal: `zoom_and_navigate.feature`'s scroll restore scrolled to the bottom, pressed a bullet lying under the pinned `kitchen` section heading (`client/Tree.tsx` — a section holds its place while its own branch scrolls past), and was rescued to the top before the navigation, so the client remembered 0 and put the reader back at 0, correctly, against a number the step had sampled before any of it. `world.press` measures it first now — `elementFromPoint` at the point the press would land — and the test is `sticky` ALONE, which is the app's own distinction rather than a guess. Something sticky holds its place IN THE FLOW (`AppHeader.tsx` argues that choice for the bar): it is chrome the page scrolls under, it will still be where it is next frame, and moving the page is what a reader does to reach what it covers — so one arithmetic scroll clears the control, the short way out among the directions the page has room for. Something `fixed` is an overlay over the whole app (the drawer, its scrim, both faces of the chat panel) and scrolling the page out from under one is not a reader's answer to it; neither is anything else on top, which is on its way somewhere. Both are left exactly alone, because waiting for them to go is what Playwright already does and does correctly. What is NOT left alone is a control whose centre is off the screen — `elementFromPoint` answers `null` there, which is not a cover but is not pressable either, so it is scrolled into view first and then asked again: a press that needs a scroll to reach at all is the very case the retry would have rescued silently. A scenario that RECORDS where the reader is must record it after that reach, which is what `I scroll to the bottom of the page, keeping the bullet of "…" pressable` says and the plain sentence does not.
+
 **A search asserted before the query it typed has been answered.** The shortlist, the filter bar, the ⌘K palette and the `@` list all publish `data-asked` — which query the rows on screen answer. `support/shortlist.ts` waits on it. A negative (`the palette lists no document`) that held after one frame was reading the previous query's rows.
 
-None of the five mistakes is fixed by a longer timeout, and a step that needed one was asking the wrong question. This one is the sharpest case: the gesture was *lost*, so the fifteen seconds are the budget and not the latency, and a minute would fail the same way.
+None of the six mistakes is fixed by a longer timeout, and a step that needed one was asking the wrong question. This one is the sharpest case: the gesture was *lost*, so the fifteen seconds are the budget and not the latency, and a minute would fail the same way.
 
-**What the first four were worth, measured** (2026-08-16, 32-core box, five suites at once, six rounds each — thirty full runs both sides; the fifth, a search asserted before `data-asked`, is this file's 2026-08-24 addition):
+**What the first four were worth, measured** (2026-08-16, 32-core box, five suites at once, six rounds each — thirty full runs both sides; the fifth, a search asserted before `data-asked`, is this file's 2026-08-24 addition, and the sixth, a press rescued by a scroll, its 2026-08-25 one):
 
 | | drops | runs that dropped something |
 |---|---|---|
@@ -492,6 +501,8 @@ The seventeen port drops went to zero, and so did the four faces of the disk-as-
 | STRANGER | `RUNS=20 SUITES=5` | 100 | 17 | 18 | 0 |
 
 Port/lock did not move: it is still zero, the way the 2026-08-16 wait-honesty run left it. The remaining drops are other classes (a scroll-restore that missed 267px, a CSP-picture assertion, 15s waits); they are counted, not fixed, here. Taken on `399cf308`, before `#296` restored overlapping writers onto a shared scratch.
+
+The scroll-restore drop counted there is closed: it was the sixth waiting mistake above, and it is measured under `OLAI_TEST_SLOW=20` rather than by waiting for a loaded box to lose the race again.
 
 ## The scripted agents
 
