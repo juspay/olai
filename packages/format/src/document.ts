@@ -16,7 +16,7 @@
  *
  * ```
  * data Document = Outline  Face [Node]
- *              | Markdown Face Text [Slug]
+ *              | Markdown Face Text Bytes [Slug]
  *              | Unkept    UnkeptKind Face
  * ```
  *
@@ -115,7 +115,7 @@ import { Address, addressOf, DocumentPath, printAddress, Slug, Tag } from "./add
 import { Custom } from "./custom.ts"
 import { tagsIn, writtenTags } from "./derive.ts"
 import { frontmatterIn, proseIn } from "./frontmatter.ts"
-import { firstLine, linksIn, recordLinks } from "./documents.ts"
+import { bytesOf, firstLine, linksIn, recordLinks } from "./documents.ts"
 import { fileKind, UNKEPT_KINDS, stemOf } from "./kinds.ts"
 import { isMirror, Located } from "./node.ts"
 import { slugsIn } from "./slug.ts"
@@ -239,6 +239,11 @@ export type Outline = typeof Outline.Type
  * reaches an open page through the machinery that was already there and there
  * is one answer to what the directory says right now.
  *
+ * `bytes` is what the body WEIGHS as UTF-8 — remembered here at decode so a
+ * listing does not re-encode every served `.md` to report a size
+ * (`list_documents`, `@olai/ops`' `query.ts`). {@link ./documents.ts}'s
+ * `bytesOf` is how it is measured; this is that answer given a field.
+ *
  * `headings` is what makes a document ADDRESSABLE BELOW THE FILE, which is the
  * sentence the whole arc turns on: the slugs of its headings, in document
  * order, deduped the way the page that draws them dedupes (`./slug.ts`). They
@@ -248,6 +253,12 @@ export const Markdown = Schema.Struct({
   kind: Schema.Literal("document"),
   ...Face.fields,
   body: Schema.String,
+  /**
+   * The body's size in UTF-8 bytes. Total, like the rest of the face: an empty
+   * document weighs nothing, and a listing that had to re-derive this from
+   * `body` would be the cost this field exists to stop paying.
+   */
+  bytes: Schema.Int,
   headings: Schema.Array(Slug),
 })
 export type Markdown = typeof Markdown.Type
@@ -404,6 +415,10 @@ export const bodiedDocument = (file: string, text: string | null): Markdown | Un
     // field of this face that is not derived from prose at all.
     props: frontmatterIn(body),
     body,
+    // THE WEIGHT, ONCE — `bytesOf` is the definition of the number a listing
+    // reports, and calling it here (cached with the decode) is what makes a
+    // listing O(documents) rather than O(the bytes of every served `.md`).
+    bytes: bytesOf(body),
     headings: slugsIn(body),
   }
 }

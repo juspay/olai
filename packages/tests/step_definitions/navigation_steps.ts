@@ -234,7 +234,8 @@ Given("the window is shorter than the page", async function (this: OlaiWorld) {
 const scrollTop = (world: OlaiWorld): Promise<number> =>
   world.page.evaluate(() => window.scrollY);
 
-When("I scroll to the bottom of the page", async function (this: OlaiWorld) {
+/** The page, as far down as it goes. */
+const toTheBottom = async (world: OlaiWorld): Promise<void> => {
   // The hosted faces are a late layout: fallback metrics are taller than
   // Literata's, and a bottom recorded before they swap is a position the
   // page cannot hold once they have. Wait for them — and for the page to
@@ -242,24 +243,66 @@ When("I scroll to the bottom of the page", async function (this: OlaiWorld) {
   // whose attached document has not arrived yet is shorter than the
   // window; scrolling it then is a no-op that reads as "the page does not
   // scroll in this window".
-  await this.page.evaluate(() => document.fonts.ready);
-  await this.waitUntil(
+  await world.page.evaluate(() => document.fonts.ready);
+  await world.waitUntil(
     async () =>
-      this.page.evaluate(
+      world.page.evaluate(
         () => document.documentElement.scrollHeight > window.innerHeight,
       ),
     "the page to be taller than the window",
   );
-  await this.page.evaluate(() => {
+  await world.page.evaluate(() => {
     window.scrollTo(0, document.documentElement.scrollHeight);
   });
-  await this.waitForFrame();
-  this.scrolledTo = await scrollTop(this);
+  await world.waitForFrame();
+};
+
+/** WHERE THE READER IS, recorded for the assertion that says they were put
+ *  back there. Read LAST, after everything this step does to the page, because
+ *  it is the position the next navigation will be leaving — not the position
+ *  the scroll asked for. */
+const leftItHere = async (world: OlaiWorld): Promise<void> => {
+  world.scrolledTo = await scrollTop(world);
   assert.ok(
-    this.scrolledTo > 0,
+    world.scrolledTo > 0,
     "the page does not scroll in this window, so scrolling it proves nothing",
   );
+};
+
+When("I scroll to the bottom of the page", async function (this: OlaiWorld) {
+  await toTheBottom(this);
+  await leftItHere(this);
 });
+
+/**
+ * …and the same, stopping short of the bottom if going all the way there would
+ * tuck the bullet the scenario is about to press under the pinned section
+ * heading.
+ *
+ * THE BOTTOM IS THE HOSTILE PLACE, and that is worth saying rather than
+ * working around quietly. A section holds its place at the top of the reading
+ * while its own branch scrolls past (`client/Tree.tsx`), so at the very bottom
+ * of `house.olai` the pinned `kitchen` heading lies exactly over
+ * `install`'s bullet — an `elementFromPoint` survey of that page finds it is
+ * the one row in the window whose bullet cannot be pressed. A reader who
+ * wanted it would nudge the page; Playwright instead retries the click and
+ * rescues it by scrolling, and where that scroll lands under load is the top.
+ * The reader then really did leave the page at 0, the client really did
+ * remember 0, and the assertion below was comparing against a number sampled
+ * before any of it — which is the whole of the flake this step exists to end.
+ *
+ * So the reach is taken FIRST and the position recorded AFTER it: what this
+ * step promises is a reader as far down the page as they can be while the
+ * thing they are about to press is still theirs to press.
+ */
+When(
+  "I scroll to the bottom of the page, keeping the bullet of {string} pressable",
+  async function (this: OlaiWorld, id: string) {
+    await toTheBottom(this);
+    await this.intoReach(this.within(id, ZOOM), `the bullet of "${id}"`);
+    await leftItHere(this);
+  },
+);
 
 /** Wait for the page to be at a position, and say where it actually is when it
  *  never gets there — a timeout that only says "it did not scroll" leaves the

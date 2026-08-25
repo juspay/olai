@@ -52,6 +52,7 @@ import {
   type WriteRequest as Request,
   type WriteResult as Applied,
 } from "@olai/format"
+import { open as openIndex } from "@olai/index"
 import { type Duration, Effect, Result, SubscriptionRef } from "effect"
 
 import type { Store } from "./deps.ts"
@@ -350,6 +351,29 @@ export const make = (options: Options): Ops => {
     now: () => stampOf(new Date()),
   }
 
+  /**
+   * ONE SEARCH INDEX FOR THIS DIRECTORY, opened where the store is named.
+   *
+   * Here rather than a layer up because a table is a fact about a served
+   * directory, exactly as the write gate and the commit loop below are, and
+   * because the one door that spends it is inside this package. A server
+   * serving two directories builds two of these and never has to say so; a
+   * test that builds an `Ops` gets one for free, which is deliberate — the
+   * indexed path is then what this package's own suite exercises, rather than
+   * a path only production takes.
+   *
+   * IT THROWS IF IT CANNOT BE OPENED, which is that package's own decision
+   * (`@olai/index`'s `open`) and is why nothing here has a fallback in it: a
+   * runtime whose SQLite cannot make the table would otherwise serve a
+   * quietly slower vault and tell nobody, and the corpus walk is still exactly
+   * what `Query.search` does for every query the table declines.
+   *
+   * NOTHING CLOSES IT, and that is the truth rather than an omission. An `Ops`
+   * has no teardown — the store's scope owns the directory's lifetime — and
+   * what this holds is an in-memory table that goes when the process does.
+   */
+  const index = openIndex()
+
   const commits = makeCommits({
     store: options.store,
     root: options.root,
@@ -480,7 +504,7 @@ export const make = (options: Options): Ops => {
     // each envelope ({@link ./tools.ts}'s `asking`), so the answer an agent
     // gets through a surface procedure and the answer a local tool call gets
     // are the same statement rather than two that agree.
-    ...asking(read, context.now),
+    ...asking(read, context.now, index),
     // The BROWSER's half of the same matcher, over the same gated read — and
     // over the WHOLE reading rather than the derivation alone, for `page`'s
     // reason: what a query selects is asked of one page, and which page an

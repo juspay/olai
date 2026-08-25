@@ -2,6 +2,7 @@ import { expect, test } from "bun:test"
 
 import { printAddress } from "./address.ts"
 import {
+  bytesOf,
   docOf,
   bodiedOf,
   bracketSpacedLinks,
@@ -301,4 +302,24 @@ test("frontmatter is not the first line", () => {
 test("an empty document previews as nothing", () => {
   expect(firstLine("")).toBe("")
   expect(firstLine("\n \n")).toBe("")
+})
+
+// ── what a document weighs ─────────────────────────────────────────────
+//
+// UTF-8 bytes, never UTF-16 units. A listing that reported `text.length`
+// would agree on every ASCII fixture and drift the moment a body held an
+// emoji — which is why the cases below are the ones they are.
+
+test("an empty body weighs nothing", () => {
+  expect(bytesOf("")).toBe(0)
+})
+
+test("ASCII is one byte per character", () => {
+  expect(bytesOf("hello\n")).toBe(6)
+})
+
+test("an emoji is four UTF-8 bytes, not two UTF-16 units", () => {
+  expect("👋".length).toBe(2)
+  expect(bytesOf("👋")).toBe(4)
+  expect(bytesOf("hello 👋🔥\n")).not.toBe("hello 👋🔥\n".length)
 })

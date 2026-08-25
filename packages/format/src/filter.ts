@@ -44,6 +44,7 @@ import { Schema } from "effect"
 
 import {
   ancestorsOf,
+  byCorpus,
   type Derived,
   isBlocked,
   isMirrored,
@@ -164,6 +165,34 @@ const foldOf = (
     : [],
   desc: node.desc === undefined ? [] : [node.desc.toLowerCase()],
 })
+
+/**
+ * THE SAME FOLD, RUN TOGETHER — the one string an index outside this file has
+ * to hold if the candidates it hands back are to be a SUPERSET of what {@link
+ * matching} selects.
+ *
+ * A word is looked for in four fields ({@link SEARCH_FIELDS}); an index is
+ * looked in once. So what it holds is the four with a newline between them, and
+ * the seam that makes is the only interesting thing here: it can OVER-INCLUDE
+ * and it cannot UNDER-INCLUDE. A needle straddling the join is a candidate this
+ * record then FAILS when {@link matchOf} is run over it, which costs one
+ * comparison; a needle inside one field is a candidate that same call confirms.
+ * There is no third case, and that asymmetry is the whole safety argument for
+ * narrowing a search with an index at all — a candidate the matcher rejects is
+ * free, and one it never sees is a hit nobody finds.
+ *
+ * OFF THE FOLD THE MATCHER ALREADY KEEPS, never a second lowercasing of the
+ * same text: {@link haystacksOf} is the cache, so a record folded for a
+ * keystroke is indexed out of that fold and a record indexed first is folded
+ * once for both. Two spellings of "the text of this record" is exactly how an
+ * index comes to answer a question the matcher is not asking, and it is the
+ * whole reason this lives here rather than in the package that keeps the index
+ * (`@olai/index`).
+ */
+export const hayOf = (node: RegularNode): string => {
+  const hay = haystacksOf(node)
+  return SEARCH_FIELDS.map((field) => hay[field].join("\n")).join("\n")
+}
 
 /** What counts as the start of a word inside a field. A `const`, because this
  *  is the innermost loop of a scan over every node of the set and a regex
@@ -1721,6 +1750,57 @@ export const needlesOf = (filter: Filter): ReadonlyArray<string> => {
 export const needlesFrom = (text: string, now: string): ReadonlyArray<string> =>
   needlesOf(parseFilter(text, now))
 
+/**
+ * WHAT AN INDEX MAY NARROW BY — the query read as a conjunction of
+ * alternatives, WORDS ONLY, or `null` when nothing in it can narrow anything.
+ *
+ * {@link needlesOf} next door is the other reading of the same groups and they
+ * must not be confused: that one flattens every word a query lights, because a
+ * highlight is a picture and the shape it came from does not matter. This one
+ * KEEPS THE SHAPE, because an index that intersected the flattened list would
+ * answer `chen OR remo` with the records holding both — which is the one way a
+ * narrowing can be WRONG rather than merely wide.
+ *
+ * A GROUP IS DROPPED WHOLE unless every alternative in it is a positive word
+ * the caller can look up, and the rule follows from the same asymmetry
+ * {@link hayOf} states. A group that survives is a promise: every record the
+ * query can select holds one of these words, so intersecting them can only
+ * throw away records that were never going to match. A group holding a CLAUSE
+ * (`is:todo OR kitchen`) promises nothing about text; a NEGATED word promises
+ * the opposite; a word the caller cannot look up is a word it would find
+ * nothing for. Any of the three and the group narrows nothing — so it is left
+ * out, the surviving groups still narrow, and a query with no survivor at all
+ * is `null`: ask the corpus, which is what every query cost before this.
+ *
+ * WHICH WORDS THOSE ARE IS THE CALLER'S QUESTION, and it is a predicate rather
+ * than a length because every reason a word cannot be looked up is a fact about
+ * an ENGINE and none of them is a fact about this grammar: a trigram table
+ * cannot answer a needle of two characters, and the one olai uses cannot be
+ * asked about a needle carrying a `NUL` or half a surrogate pair at all
+ * (`@olai/index` spells its own list and says why). A grammar that knew any of
+ * that would be a grammar with a storage engine in it, and the next engine
+ * would have to be argued with this file rather than with its own.
+ */
+export const narrowableBy = (
+  filter: Filter,
+  lookupable: (word: string) => boolean,
+): ReadonlyArray<ReadonlyArray<string>> | null => {
+  if (filter.kind !== "asking") return null
+  const groups: Array<ReadonlyArray<string>> = []
+  for (const group of filter.groups) {
+    const words: Array<string> = []
+    for (const one of group) {
+      if (one.kind !== "term" || one.negated || !lookupable(one.word)) {
+        words.length = 0
+        break
+      }
+      words.push(one.word)
+    }
+    if (words.length > 0) groups.push(words)
+  }
+  return groups.length === 0 ? null : groups
+}
+
 /** One run of a text a needle landed on — half-open, in the text's OWN
  *  offsets, so a caller slices the string it handed in. */
 export interface Lit {
@@ -2170,16 +2250,30 @@ const within = (date: string, clause: DaysClause): boolean =>
  * A PAGE narrowing itself is the other caller and does not come through here:
  * it holds the records it draws and hands them to {@link selecting} directly
  * (`./narrowing.ts`).
+ *
+ * `named` IS AN INDEX'S ANSWER, and it is the whole of what one is allowed to
+ * say: ids that MIGHT match, in any order and with anything extra in them, from
+ * whatever narrowed the search (`@olai/index`). What comes back is the same
+ * list this door has always answered with — the ids are resolved through the
+ * set's own `byId`, put in the set's own order and run through the same
+ * {@link selecting} the corpus walk is — so an index can make this door FASTER
+ * and cannot make it say anything different. An id nothing declares, a mirror,
+ * a record outside the scope and a record the query does not actually select
+ * all fall out here, which is why over-inclusion is the only failure an index
+ * is permitted (see {@link hayOf}). Omitted is the corpus, which is what every
+ * caller meant before there was an index and what one still means when the
+ * grammar gives it nothing to narrow by ({@link narrowableBy}).
  */
 export const matching = (
   derived: Derived,
   filter: Filter,
   scope: Scope = {},
+  named?: Iterable<string>,
 ): ReadonlyArray<Matched> => [
   ...selecting(
     derived,
     filter,
-    inScopeOf(derived, scope),
+    named === undefined ? inScopeOf(derived, scope) : namedInScope(derived, scope, named),
     scope.trashed === true || (filter.kind === "asking" && filter.speaksOfTrash),
   ),
 ]
@@ -2197,6 +2291,50 @@ function* inScopeOf(derived: Derived, scope: Scope): Generator<LocatedRegular> {
     if (!inScope(at)) continue
     yield at
   }
+}
+
+/**
+ * The same candidates, off a list of IDS instead of off the corpus — the other
+ * half of what {@link matching} adds to {@link selecting} once something has
+ * narrowed the search.
+ *
+ * SORTED, and that is the line that matters rather than the lookup. What ties
+ * are broken by, one layer up, is the set's own order: {@link ranked} sorts by
+ * score with a STABLE sort, so two equally-scored hits come back in the order
+ * they were handed over, and a door that showed them in whatever order an index
+ * happened to return would move rows under the cursor between two keystrokes
+ * that scored the same. `byCorpus` is the format's own answer to what that
+ * order is — the same comparator every reverse index in `./derive.ts` promises
+ * its members in — so the answer is the corpus walk's answer and not merely one
+ * with the same members in it.
+ *
+ * It is a LIST and not a generator, which is what a sort makes it; the walk it
+ * replaces stays lazy. The cost is the answer's size rather than the corpus's,
+ * which is the entire point of having been handed candidates.
+ *
+ * AN ID NAMES ONE RECORD, and that is `byId`'s rule rather than an assumption
+ * made here: the first claim wins, which is the same reading every reference in
+ * the format resolves through. A set where two records claim one id is a set
+ * the validator REFUSES, so nothing is ever published at one and no door
+ * reaches this with one — which is worth saying out loud, because that is the
+ * single corpus where a candidate list and the corpus walk could differ: the
+ * walk would yield both records and a list of ids can only name one.
+ */
+const namedInScope = (
+  derived: Derived,
+  scope: Scope,
+  named: Iterable<string>,
+): ReadonlyArray<LocatedRegular> => {
+  const inScope = scoping(derived, scope)
+  const found: Array<LocatedRegular> = []
+  for (const id of named) {
+    const located = derived.byId.get(id)
+    if (located === undefined || isMirror(located.node)) continue
+    const at = located as LocatedRegular
+    if (!inScope(at)) continue
+    found.push(at)
+  }
+  return found.sort(byCorpus)
 }
 
 /**
@@ -2634,6 +2772,19 @@ const documentHay = (
   return now
 }
 
+/** {@link hayOf} over the other kind of thing a query selects, and it holds the
+ *  identical argument one field-table along: the four places a word is looked
+ *  for in a document, run together with a newline, so an index outside this
+ *  file can look once and over-include rather than twice and disagree. Off
+ *  {@link documentHay}, which is the fold the matcher itself reads — and here
+ *  that is not only tidiness: a body is the largest string in the process, and
+ *  a second lowercasing of every one of them is what an index would otherwise
+ *  cost to build. */
+export const documentHayOf = (document: Bodied): string => {
+  const hay = documentHay(document)
+  return DOCUMENT_FIELDS.map((field) => hay[field].join("\n")).join("\n")
+}
+
 /**
  * Which documents a query selects, and why — {@link matching}'s twin.
  *
@@ -2668,16 +2819,32 @@ const documentHay = (
  * The archive rule does not reach here either. What is put away is an
  * `_olai/Trash.olai`, which is an outline; a `.md` beside one is a document like
  * any other.
+ *
+ * ## What an index may say here
+ *
+ * `named` is {@link matching}'s own argument one arm over — paths that MIGHT
+ * match, from whatever narrowed the search — and it is spent DIFFERENTLY, which
+ * is a fact about the two arms rather than an inconsistency. There the ids are
+ * resolved and sorted, because the corpus is the thing being avoided and there
+ * are tens of thousands of records. Here the list is walked and each document
+ * asked whether it was named, because a directory holds documents in the
+ * hundreds and the expensive part of this loop was never reaching the next
+ * document — it was FOLDING one, which is a body, and which the membership test
+ * now skips. Walking the list also keeps the order for free: it arrives in the
+ * set's own path order and leaves in it.
  */
 export const matchingDocuments = (
   documents: ReadonlyArray<Bodied>,
   filter: Filter,
   scope: Scope = {},
+  named?: Iterable<string>,
 ): ReadonlyArray<MatchedDocument> => {
   if (filter.kind !== "asking") return []
   if (scope.file !== undefined || scope.under !== undefined) return []
+  const only = named === undefined ? null : new Set(named)
   const out: Array<MatchedDocument> = []
   for (const document of documents) {
+    if (only !== null && !only.has(document.path)) continue
     const match = documentMatchOf(document, filter)
     if (match !== null) out.push({ at: document, match })
   }

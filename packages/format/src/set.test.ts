@@ -3,6 +3,7 @@ import { Result } from "effect"
 
 import { printAddress } from "./address.ts"
 import { bodiedDocument, type Document } from "./document.ts"
+import { bytesOf } from "./documents.ts"
 import type { OutlineError } from "./errors.ts"
 import { failureOf, outlineOf, recordsOf } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
@@ -101,6 +102,9 @@ test("a markdown document carries a face", () => {
   // WRITTEN, because a canonical spelling is what an address promises and it is
   // what a reader of this test wants to see.
   expect(plan.links.map(printAddress)).toEqual(["brief.md#scope"])
+  // Remembered at decode: a listing that re-encoded `body` to report this
+  // would be paying the cost this field exists to stop paying.
+  expect(plan.bytes).toBe(bytesOf(plan.body))
 })
 
 // An OUTLINE has one too, and its face is read off the records: what its nodes
