@@ -224,7 +224,7 @@ hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
 # What a keystroke costs — on a generated vault, and for the newest of them in
-# a real git repository. ELEVEN of them, and each is a
+# a real git repository. TWELVE of them, and each is a
 # LEG rather than a scratch file, because slice 3 of `model-indices` ran its
 # numbers as a one-off and a benchmark nobody can re-run is a number nobody can
 # check — and deliberately NOT a dependency of `check`, since a timing that
@@ -392,9 +392,26 @@ hm-module:
 #     same flattering ratio wearing a different face. Its vault is `vaultOf` with
 #     the dangling placements taken out and `.md` files put in: a directory
 #     nobody could publish is one where the narrowing declines every time, and a
-#     directory holding no documents measures the `.md` walk at zero.
+#     directory holding no documents measures the `.md` walk at zero;
+#   - a DOCUMENT PAGE's referrers, timed as the links index against the walk of
+#     every face it replaced (`packages/format/src/pointing.bench.ts`, added
+#     with `perf-doc-backlinks-index`). Both arms are in the tree for the
+#     scoped query's reason — the "before" is that walk kept as this lane's
+#     differential reference (`@olai/format`'s `pointing.testlib.ts`) — and
+#     the two must answer the same referrers or the run throws. FOUR numbers,
+#     because the index is a TRADE and printing one half would be quoting the
+#     good one: the read for pages that HAVE referrers, the read for a page
+#     nothing points at (which is most pages, and the row where the shape
+#     shows), and the write both ways — the whole directory folded again
+#     against the two sets stepped through, with the count of edits that handed
+#     the index straight on uncloned. Its vault is `.md`-heavy on purpose: what
+#     a read still pays is the walk of the files that really do point here, so
+#     the ratio is a function of how thickly the corpus points at itself, and
+#     that density is printed rather than left to be inferred. Size it with
+#     OLAI_BENCH_OUTLINES / OLAI_BENCH_BODIES / OLAI_BENCH_RECORDS /
+#     OLAI_BENCH_PAGES / OLAI_BENCH_EDITS.
 #
-# Five of the eleven run the SAME generated vault (`@olai/format/testlib`'s
+# Five of the twelve run the SAME generated vault (`@olai/format/testlib`'s
 # `vaultOf` — the patcher, the tag completion, the day readings and the search
 # index), so what a write costs the view and what a completion, a calendar or a
 # search box asks of the view it leaves are numbers about one directory; the
@@ -426,6 +443,7 @@ bench: install
     {{ nix_shell }} bun packages/server/src/published.bench.ts
     {{ nix_shell }} bun packages/ops/src/standing.bench.ts
     {{ nix_shell }} bun packages/format/src/validate.bench.ts
+    {{ nix_shell }} bun packages/format/src/pointing.bench.ts
 
 # A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
 # instead of the nix-built binary. `/tmp/olai-dev` is how two worktrees

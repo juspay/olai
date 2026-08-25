@@ -459,6 +459,8 @@ This suite runs parallel, on machines that are also doing something else, so eve
 
 Asking the holding form of a write passes only when the round trip happens to land inside one animation frame. Asking the waiting form of "nothing was written" passes instantly and proves nothing. Where a count is the claim, it is both: wait for the number, then hold it, because the second of two writes lands a moment after the first.
 
+A one-shot `isVisible()` to pick WHICH element to wait on is the same mistake: the overlay is always in the DOM and always carries `data-connection`, so `the connection is "retired"` waits on that attribute (and, after a restart, on the handshake in the server log) rather than sampling whether the freeze dialog is up this tick. A miss on a phone has no pill to fall through to (`on_a_phone.feature:79`).
+
 **A file the write has not minted yet** — `_olai/Trash.olai`, which the first trash creates, and `_olai/Inbox.olai`, which the first capture does. A waiting reader goes through `world.servedNodesSoFar`, which answers "nothing there yet" for a file that is not there; a step that WRITES the served directory goes through `world.servedNodes`, which throws. The reason either is right is on the method.
 
 **A key pressed before the page has answered the last one.** The one that costs the most to debug, because it fails four steps later on something that reads nothing like the cause: `Escape` closes a draft that has not opened yet and the draft opens behind it, so every ⌘Z after that is dead; `Tab` walks the browser's focus ring out of the row, so the next key finds no editor; `⌘A` selects the page, so the title typed after it lands beside the old one instead of replacing it.

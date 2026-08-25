@@ -75,6 +75,7 @@ import {
   type Located,
   LocatedRegular,
 } from "./node.ts"
+import { type Pointing, pointingAt } from "./pointing.ts"
 
 /**
  * How one record refers to another: an edge somebody wrote with `set_see`, or a
@@ -217,23 +218,39 @@ export type Referrer = typeof Referrer.Type
  * addresses it points at and a face is small enough to travel
  * ({@link ./document.ts}).
  *
- * A LOOKUP OVER THE FACES and then a walk of ONE FILE: a face says whether its
- * document points here at all, and only for the outlines that do are the
- * records asked which of them wrote it — through {@link recordLinks}, the same
- * function that built the face, so the two cannot come to disagree about
- * whether a record points somewhere.
+ * A LOOKUP IN THE LINKS INDEX and then a walk of ONE FILE. It was a walk of
+ * every FACE until `perf-doc-backlinks-index`: a face says whether its document
+ * points here at all, so the question cost every link of every file in the
+ * directory, per revision, per tab sitting on a page with a body — while the
+ * node-to-node direction next door had had its reverse index since
+ * `model-indices`. {@link ./pointing.ts} is that same reading kept rather than
+ * re-made, and it answers "which documents point here" in one lookup; the
+ * records of those documents are then asked which of THEM wrote it, through
+ * {@link recordLinks}, the same function that built the face, so the two cannot
+ * come to disagree about whether a record points somewhere.
+ *
+ * THE COMPARISON IS THE SAME ONE and it is now made only where an answer is
+ * being drawn. {@link points} below used to be applied to every link of every
+ * face in the directory, which is why it compares a PATH rather than printing
+ * an address (`printAddress` allocates). It is applied to one file's records
+ * now, and the printing it avoided is paid once per link at the FOLD instead —
+ * a written key per link of the files a revision moved, against a written key
+ * per read, which is the whole trade this index is.
  *
  * WHAT IS PUT AWAY IS ON THE TRASH AND NOWHERE ELSE (#226), which is this
  * module's standing rule read once more: a referrer written in an
  * `_olai/Trash.olai` is left out, the same way it is left out of search, of the
- * agenda and of blockedness.
+ * agenda and of blockedness. It is left out HERE rather than at the fold, like
+ * every other index of this format: an index that knew about `_olai/Trash.olai`
+ * would be the storage rule wired into a fold about what a file points at.
  *
  * A LINK ONTO A HEADING POINTS AT THE DOCUMENT, which is the one place this
  * reading is not a string comparison. `[the scope](brief.md#scope)` is a
  * reference to `brief.md` — the reader who opens that file is who wants to
  * know — and a page that showed it only under the heading would answer half the
  * question and hide the other half. The reverse does not hold: asking about the
- * heading is asking about the heading.
+ * heading is asking about the heading. The index files that link under BOTH
+ * keys so this holds at the lookup as well as at the record walk.
  *
  * A DOCUMENT DOES NOT REFER TO ITSELF, and that is one line rather than a
  * caller's job: a `.md` whose own body links a heading of itself is talking
@@ -241,7 +258,9 @@ export type Referrer = typeof Referrer.Type
  */
 export const referrersTo = (
   address: Address,
-  faces: ReadonlyArray<Face>,
+  /** Which documents point at this address at all ({@link ./pointing.ts}) —
+   *  the set's own links, filed backwards and kept that way. */
+  pointing: Pointing,
   /** The records, for attributing an outline's link to the one that wrote it.
    *  `byFile` is the index that makes it a lookup rather than a corpus walk. */
   derived: Pick<Derived, "byFile">,
@@ -249,11 +268,9 @@ export const referrersTo = (
   // WRITTEN and compared, because a canonical spelling is what the grammar
   // promises: two addresses that name one place print one string, so nothing
   // here has to know how the arms are shaped.
-  // NO STRING IS BUILT for a document or a heading, and that is the difference
-  // between a lookup and a walk: this is applied to every link of every face in
-  // the directory, on every frame a document's page is open, and
-  // `printAddress` allocates. A path IS the comparison for those two arms —
-  // and it is the arm a page asks about.
+  // NO STRING IS BUILT for a document or a heading, and that is what keeps the
+  // record walk below cheap on a file that holds a lot of them: a path IS the
+  // comparison for those two arms, and it is the arm a page asks about.
   const here = address.kind === "node" ? null : address.path
   const points = (link: Address): boolean => {
     if (address.kind === "node") return link.kind === "node" && link.id === address.id
@@ -264,9 +281,8 @@ export const referrersTo = (
       link.slug === address.slug
   }
   const found: Array<Referrer> = []
-  for (const face of faces) {
+  for (const face of pointingAt(pointing, address)) {
     if (face.path === here || isPutAway(face.path)) continue
-    if (!face.links.some(points)) continue
     const records = derived.byFile.get(face.path)
     // A face with no records behind it is a BODY — the link is the document's
     // own, and there is nothing finer to name.
