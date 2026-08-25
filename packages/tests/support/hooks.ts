@@ -972,6 +972,46 @@ const fixtureStatus = (): string | null => {
   }
 };
 
+/**
+ * A BUSY BOX, ON A BOX THAT IS NOT — Chromium's own CPU throttle, applied to
+ * this scenario's page.
+ *
+ * The flake this exists for is the shape the suite keeps meeting: a race the
+ * loaded CI box loses and a quiet laptop wins, so the person sent to fix it
+ * cannot see it and the person reviewing the fix cannot see it either.
+ * `zoom_and_navigate.feature`'s scroll restore was measured 60/60 green here
+ * and ~10-50% red there. Under `OLAI_TEST_SLOW=20` it went red 29 times in
+ * 30, on the same laptop, in a quarter of an hour — and a fix that turns that
+ * red green is a fix a reviewer can re-run rather than take on trust.
+ *
+ * It is the RATE, not a flag: `Emulation.setCPUThrottlingRate` takes the
+ * multiplier by which every task in the renderer is slowed, so the number in
+ * the environment is the number the browser is given. 1 (or unset) is a
+ * browser nobody touched, and the whole of this function is skipped — no CDP
+ * session is opened for the seven hundred scenarios that do not want one.
+ *
+ * ONLY THE RENDERER is slowed. The server, the harness and the wire run at
+ * full speed, which is what makes this a load SIMULATOR and not a load test:
+ * it widens the window between what the page does and what the page is asked
+ * about, which is where every race in this class lives.
+ */
+const slowThisPage = async (world: OlaiWorld): Promise<void> => {
+  const asked = process.env.OLAI_TEST_SLOW;
+  if (asked === undefined || asked === "") return;
+  const rate = Number(asked);
+  if (!Number.isFinite(rate) || rate < 1) {
+    throw new Error(
+      `OLAI_TEST_SLOW is ${JSON.stringify(asked)}; it is the multiplier ` +
+        `Chromium slows the renderer by, so it must be a number >= 1 ` +
+        `(1 is a browser nobody touched, 20 is the setting that reproduces ` +
+        `the scroll-restore race).`,
+    );
+  }
+  if (rate === 1) return;
+  const session = await world.context.newCDPSession(world.page);
+  await session.send("Emulation.setCPUThrottlingRate", { rate });
+};
+
 let fixturesWere: string | null = null;
 
 BeforeAll(async () => {
@@ -1201,6 +1241,7 @@ Before(
     }
 
     this.page = await this.context.newPage();
+    await slowThisPage(this);
 
     // Collected for the whole scenario, asserted on by whichever step cares.
     this.errors = [];

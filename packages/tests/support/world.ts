@@ -1248,6 +1248,84 @@ export const expectBefore = async (
  *  than in whichever step file compares titles. */
 export const readable = (text: string): string => oneLine(text.replace(/#/g, ""));
 
+/** What {@link OlaiWorld.intoReach} measured: whether the point a press would
+ *  land on belongs to the control, what is there instead, and — when that
+ *  something is pinned in the flow — how far the page has to move for the
+ *  control to come out from under it. `clearBy` is a `scrollBy` argument, so
+ *  negative moves the page UP, which moves the control DOWN the screen; 0 is
+ *  "the page has no room to do it either way". */
+interface Cover {
+  readonly pressable: boolean;
+  readonly pinned: boolean;
+  readonly clearBy: number;
+  /** What is on top, and the control itself — named the way the DOM names
+   *  them, for the sentence a refusal is reported with. */
+  readonly by: string;
+  readonly control: string;
+  /** Where the page is, and the furthest down it goes — the other half of that
+   *  sentence, because "it will not move" and "it is already there" read the
+   *  same from outside. */
+  readonly at: number;
+  readonly furthest: number;
+}
+
+const coverOf = (target: Locator): Promise<Cover> =>
+  target.evaluate((el) => {
+    const named = (node: Element | null): string => {
+      if (node === null) return "nothing";
+      const held = node as HTMLElement;
+      const testid = held.dataset?.testid;
+      const key = held.dataset?.rowKey;
+      const tag = node.tagName.toLowerCase();
+      if (testid !== undefined) return `<${tag} data-testid="${testid}">`;
+      if (key !== undefined) return `<${tag} data-row-key="${key}">`;
+      return `<${tag}>`;
+    };
+    const at = Math.round(window.scrollY);
+    const furthest = Math.max(
+      0,
+      Math.round(document.documentElement.scrollHeight - window.innerHeight),
+    );
+    const where = { at, furthest };
+    const box = el.getBoundingClientRect();
+    const hit = document.elementFromPoint(
+      box.x + box.width / 2,
+      box.y + box.height / 2,
+    );
+    // NOTHING ON TOP, said three ways: the point IS the control, is inside it,
+    // or is an ancestor of it — a control the pointer reaches through its own
+    // row is not covered by that row, and what to do about anything else is
+    // Playwright's business rather than ours.
+    if (hit === null || hit === el || el.contains(hit) || hit.contains(el)) {
+      return { ...where, pressable: true, pinned: false, clearBy: 0, by: named(hit), control: named(el) };
+    }
+    // The nearest thing over it that HOLDS ITS PLACE IN THE FLOW. Walked up
+    // from the hit rather than read off it: what a pointer lands on is a word
+    // inside a pinned row, and the box that has to be cleared is the row's.
+    let pinned: Element | null = null;
+    for (let node: Element | null = hit; node !== null; node = node.parentElement) {
+      if (getComputedStyle(node).position === "sticky") {
+        pinned = node;
+        break;
+      }
+    }
+    const covered = { ...where, pressable: false, by: named(hit), control: named(el) };
+    if (pinned === null) return { ...covered, pinned: false, clearBy: 0 };
+    const over = pinned.getBoundingClientRect();
+    // The two ways out, each a whole pixel past the boundary — a control whose
+    // edge is exactly the cover's edge is still under it — and then the room
+    // the page has for each: scrolling UP is what moves the control DOWN, so
+    // what it needs is the page's distance from the top.
+    const down = over.bottom - box.top + 1;
+    const up = box.bottom - over.top + 1;
+    const roomToMoveDown = at;
+    const roomToMoveUp = furthest - at;
+    const canDown = roomToMoveDown >= down;
+    const canUp = roomToMoveUp >= up;
+    const clearBy = canDown && (!canUp || down <= up) ? -down : canUp ? up : 0;
+    return { ...covered, pinned: true, clearBy, by: named(pinned) };
+  });
+
 /** A laid-out box, in CSS pixels — what `boundingBox`/`getBoundingClientRect`
  *  both answer with. */
 export interface Box {
@@ -1903,8 +1981,71 @@ export class OlaiWorld extends World {
     modifiers?: ReadonlyArray<"Alt" | "Shift">,
   ): Promise<void> {
     await target.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // A press this suite makes has to be a press a READER could make. The half
+    // of that Playwright does not do for us is {@link intoReach} — its own
+    // paragraph says what the alternative costs.
+    await this.intoReach(target);
     await target[gesture](modifiers === undefined ? {} : { modifiers: [...modifiers] });
     await this.waitForFrame();
+  }
+
+  /**
+   * PUT A CONTROL WHERE IT CAN BE PRESSED — out from under whatever is pinned
+   * over it — and say so loudly when the page will not move far enough.
+   *
+   * What this exists for is a rescue Playwright performs in silence. A click
+   * hit-tests the point it is about to press; when something else is on top,
+   * the action is RETRIED, and every attempt re-runs "scroll into view if
+   * needed" — so a press that could not land where it was aimed is answered by
+   * scrolling the page to wherever the browser had to put it. Nothing says so
+   * and the step passes, which is fine until the scenario is about WHERE THE
+   * PAGE IS. `zoom_and_navigate.feature`'s scroll restore is: it scrolled to
+   * the bottom, pressed a bullet lying under the pinned `kitchen` section
+   * heading (`client/Tree.tsx` — a section holds its place while its own
+   * branch scrolls past), and under load was rescued to the top before the
+   * navigation. The client then remembered 0, restored 0, and had done nothing
+   * wrong; the scenario had asked for a press nobody could make, against a
+   * position sampled before the rescue.
+   *
+   * STICKY IS THE TEST, and it is the app's own distinction rather than a
+   * guess. Something `sticky` holds its place IN THE FLOW (`AppHeader.tsx`
+   * argues that choice for the bar): it is chrome the page scrolls under, it
+   * will still be where it is next frame, and moving the page is exactly what
+   * a reader does to reach what it covers. Something `fixed` is an overlay
+   * over the whole app — the drawer, its scrim, both faces of the chat panel —
+   * and scrolling the page out from under one of those is not a reader's
+   * answer to it; neither is anything else on top, which is on its way
+   * somewhere. Both are left exactly as they were, because waiting for them to
+   * go is what Playwright already does, and does correctly.
+   *
+   * WHICH WAY IS ARITHMETIC, and the room decides it. The control can be moved
+   * DOWN the screen (the page scrolls up) or UP it (the page scrolls down),
+   * and the shorter of the two is preferred — but only among the ones the page
+   * can actually do, which is the whole point at the BOTTOM of a page, where
+   * one of the two does not exist and asking for it is a no-op that reads as
+   * "the correction did not work".
+   *
+   * ONE CORRECTION, then the state is read again — never a loop that nudges
+   * until something works. A pinned box holds one position while the page
+   * moves under it, so one move clears it or nothing will, and "nothing will"
+   * is a scenario asking for the impossible: it throws naming what is on top
+   * and where the page already is, rather than leaving the page to be scrolled
+   * somewhere nobody chose.
+   */
+  async intoReach(target: Locator, what?: string): Promise<void> {
+    const before = await coverOf(target);
+    if (before.pressable || !before.pinned) return;
+    await this.page.evaluate((by) => window.scrollBy(0, by), before.clearBy);
+    await this.waitForFrame();
+    const after = await coverOf(target);
+    if (after.pressable) return;
+    throw new Error(
+      `${what ?? after.control} is under ${after.by}, which is pinned there, ` +
+        `and the page will not come out from under it: it is at ${after.at}px ` +
+        `of ${after.furthest}px. A press here is a press no reader could make ` +
+        `— left alone, Playwright answers one by scrolling the page until it ` +
+        `lands, which leaves the reader somewhere nobody chose.`,
+    );
   }
 
   /** Click a node's own control. */

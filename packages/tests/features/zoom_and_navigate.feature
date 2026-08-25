@@ -117,10 +117,19 @@ Feature: Zoom and navigate
     # chose, and coming back landed wherever the redraw happened to leave
     # things. The window is made short because the page has to be taller than
     # what is showing for any of this to mean anything.
+    #
+    # "keeping the bullet pressable" is the other half of being honest about
+    # where the reader was: at the very bottom of this page the pinned
+    # `kitchen` heading lies exactly over `install`'s bullet, so a press
+    # aimed there is one no reader could make — and Playwright answers a press
+    # like that by scrolling the page until it lands, which on a slow box left
+    # the reader at 0 before the navigation ever happened. The client then
+    # remembered 0 and put them back at 0, correctly, and this scenario failed
+    # for a position nobody was ever at.
     Given the window is shorter than the page
     And I open the outline "house.olai"
     And I mark the page
-    And I scroll to the bottom of the page
+    And I scroll to the bottom of the page, keeping the bullet of "install" pressable
     When I zoom into the node "install"
     Then the page is at the top
     When I go back
