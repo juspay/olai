@@ -33,6 +33,8 @@ import {
   chainOf,
   countedChildren,
   type Custom,
+  declarationsOf,
+  declaredFor,
   isTrashed,
   derive,
   type Derived,
@@ -43,6 +45,7 @@ import {
   type LocatedRegular,
   MARKS,
   type MirrorNode,
+  markdownIn,
   type Node,
   nodeNamed,
   type Status,
@@ -64,6 +67,7 @@ import {
   REPEAT_GRAMMAR,
   retargetRelative,
   storedMarker,
+  storedValue,
   targetsOf,
   unfinished,
   unfinishedWithin,
@@ -71,6 +75,7 @@ import {
   UsageFailure,
   ValidationFailure,
   type Capture,
+  type Typed,
   type Minted,
   NESTING,
   type WriteRequest as Request,
@@ -257,8 +262,89 @@ const planRepeat = (scope: Scope, request: Extract<Request, { op: "repeat" }>): 
  */
 export interface Scope extends Reading {
   readonly context: Context
+  /**
+   * WHAT THIS VAULT DECLARES ABOUT ITS PROPERTY KEYS, and the two readings the
+   * check needs beside it (`@olai/format`'s `Typed`).
+   *
+   * On the scope rather than fetched at each door because there are five doors
+   * and they are one rule: `set_prop`, `add_node`'s `props` (children
+   * included), `apply`, `update` and `capture` all reach {@link typedProps} or
+   * {@link planProp}, which is the plan/validate seam the design names
+   * (docs/brainstorming/typed-properties.md: births are gated too).
+   *
+   * BESIDE `asked` rather than inside it: `asked` is what THIS CALL asked for,
+   * and this is what the VAULT says about every call — two lifetimes, and the
+   * per-batch context is the one that made the distinction worth spelling.
+   *
+   * `documents` is LAZY, and that is the one thing worth knowing about the
+   * shape: the `.md` paths are a walk of every document in the directory, and
+   * exactly one of the seven kinds reads them (`doc`). A vault that declares no
+   * `doc` key — which is most vaults, and every vault before this feature —
+   * never pays for it.
+   */
+  readonly typed: Typed
   readonly asked: Asked
 }
+
+/**
+ * The scope's typing half, built once per plan.
+ *
+ * `declarationsOf` is memoised per VIEW one package down, so a batch of a
+ * hundred ops re-reading it through a hundred scopes still walks the
+ * declarations file once; what this function adds is the lazy `.md` set, whose
+ * memo is this closure.
+ *
+ * EXPORTED for the sequencer ({@link ./following.ts}), which rebuilds a scope
+ * against the set each op would leave — and REBUILT there rather than carried,
+ * which is the opposite of what `asked` does one field over and is right for
+ * the opposite reason: `asked` is expensive and is carried while the writes
+ * cannot have moved it, where this is a map read off a view that has just
+ * changed. A batch whose first op declares a key must be judged by its second
+ * op against that declaration.
+ */
+export const typedIn = (at: Reading): Typed => {
+  let documents: ReadonlySet<string> | undefined
+  return {
+    declarations: declarationsOf(at.derived),
+    derived: at.derived,
+    get documents(): ReadonlySet<string> {
+      return documents ??= new Set(markdownIn(at.set).map((entry) => entry.path))
+    },
+  }
+}
+
+/**
+ * WHICH NODE OF THE CAPTURE a refusal is about — the locus a value refusal owes
+ * and a `set_prop` one does not.
+ *
+ * A capture is a TREE, and a bad value in it is a fact about one node of that
+ * tree. `set_prop` names its subject by construction (the caller sent one id);
+ * `add_node` sends thirteen nodes and gets back a sentence about a key, and
+ * "`merge` is `auto` | `human`" with no title in front of it is a sentence
+ * whose subject the caller has to go and find. Which is exactly the reason
+ * {@link misplacedAfter} beside this leads with the title too, and why the
+ * refusal for a capture nested too deep does.
+ *
+ * THE TITLE AND NOT THE ID, because a capture's node may not have one yet: an
+ * id is minted for it, and a refusal naming `n7` would name something the
+ * caller never wrote. It is the same choice `misplacedAfter` makes one function
+ * over.
+ *
+ * AND NOTHING IS WRITTEN, said out loud, because that is the half a capture's
+ * caller cannot assume: thirteen nodes went in, and the answer is about one.
+ */
+const locus = (capture: Capture, failure: OpFailure): OpFailure =>
+  new UsageFailure({
+    reason: `\`${capture.title}\` carries a property this vault refuses: ` +
+      `${failure.message} Nothing was written.`,
+  })
+
+/** A capture that carries no properties at all — the third mint site's answer
+ *  ({@link planMark}'s next occurrence, which copies a title, a note and a
+ *  rule and nothing else). One value rather than a fresh `{}`, and a NAME
+ *  rather than a literal at the call, because "an occurrence is born carrying
+ *  none of the last one's facts" is a decision. */
+const NO_PROPS: Readonly<Record<string, string>> = {}
 
 /**
  * A scope, from the reading a caller holds and the two impure things.
@@ -284,6 +370,7 @@ export const scoping = (at: Reading, context: Context): Scope => ({
   ...at,
   context,
   asked: askedOf(at.set),
+  typed: typedIn(at),
 })
 
 /** A field set to a value, or removed when the value is `null`. `undefined` is
@@ -618,7 +705,7 @@ const planAdd = (
   // ANCHORED: this capture's root carries a placement, so its own `after` names
   // the sibling it lands after and is the caller's business rather than
   // {@link misplacedAfter}'s. Every node below it is the other case.
-  const built = captured(scope, into, request, { id, parent, ord, below: NESTING }, true)
+  const built = captured(scope, into, request, file, { id, parent, ord, below: NESTING }, true)
   if (Result.isFailure(built)) return Result.fail(built.failure)
   const minted = built.success
 
@@ -810,6 +897,9 @@ const capturedNode = (
   scope: Scope,
   capture: Capture,
   at: At,
+  /** The capture's properties, already judged and already normalised into the
+   *  spelling each declared key stores ({@link typedProps}). */
+  stored: Readonly<Record<string, string>>,
 ): RegularNode => {
   const node: Draft<RegularNode> = {
     id: at.id,
@@ -823,9 +913,12 @@ const capturedNode = (
   // The properties, through the SAME writer one `set_prop` per key would reach
   // (`@olai/format`'s `withCustom`), so "a key holding nothing is a key the
   // file does not carry" is one rule and not a second one spelled for captures.
-  // The keys were judged by {@link propKey} in {@link emit} before anything got
-  // here; what is left is writing them.
-  const props = Object.entries(capture.props ?? {})
+  // The keys were judged by {@link propKey} and the VALUES by
+  // {@link typedProps} in {@link emit} before anything got here — which is also
+  // why the map handed in is used rather than `capture.props`: what a declared
+  // key stores is the NORMALISED value, and a record built from the raw one
+  // would be the door writing something the validator is about to refuse.
+  const props = Object.entries(stored)
   if (props.length > 0) {
     let custom: Custom = {}
     for (const [key, value] of props) custom = withCustom(custom, key.trim(), value)
@@ -889,6 +982,10 @@ const emit = (
   scope: Scope,
   into: Minting,
   capture: Capture,
+  /** The outline this whole capture lands in — the one thing a `doc`-typed
+   *  property is judged against, since a captured node has no record to look
+   *  its own file up from ({@link typedProps}). */
+  file: string,
   /** Where this node lands, and how many further generations may hang off it. */
   at: At & { readonly below: number },
 ): OpFailure | null => {
@@ -904,7 +1001,15 @@ const emit = (
     const named = propKey(key.trim())
     if (named !== undefined) return named
   }
-  into.records.push(capturedNode(scope, capture, at))
+  // ...and the VALUES, judged in the same breath and for the same reason: a
+  // value that does not fit what its key declares is a fact about that node,
+  // and the refusal is worth reading at the node it is about rather than after
+  // the whole tree has been walked. THE CHILDREN ARE COVERED because this walk
+  // reaches them — a capture nests, and every generation of it comes through
+  // here (docs/brainstorming/typed-properties.md: births are gated too).
+  const stored = typedProps(scope, file, capture.props)
+  if (Result.isFailure(stored)) return locus(capture, stored.failure)
+  into.records.push(capturedNode(scope, capture, at, stored.success))
   if ((capture.see?.length ?? 0) > 0 || (capture.waitsOn?.length ?? 0) > 0) {
     into.wires.push({ id: at.id, see: capture.see, after: capture.waitsOn })
   }
@@ -930,7 +1035,7 @@ const emit = (
     const ord = nextOrd(previous)
     const id = idFor(scope, into.taken, child.id)
     if (Result.isFailure(id)) return id.failure
-    const refused = emit(scope, into, child, {
+    const refused = emit(scope, into, child, file, {
       id: id.success,
       parent: at.id,
       ord,
@@ -980,6 +1085,8 @@ const captured = (
   scope: Scope,
   into: Minting,
   capture: Capture,
+  /** The outline the whole tree lands in — see {@link emit}'s own parameter. */
+  file: string,
   at: At & { readonly below: number },
   /** Whether the ROOT of this capture has a placement anchor — true for
    *  `add_node`, whose `after` at the top level names the sibling it lands
@@ -990,7 +1097,7 @@ const captured = (
 ): Result.Result<ReadonlyArray<RegularNode>, OpFailure> => {
   const bent = misplacedAfter(capture, anchored, at.below)
   if (bent !== undefined) return Result.fail(bent)
-  const refused = emit(scope, into, capture, at)
+  const refused = emit(scope, into, capture, file, at)
   return refused !== null ? Result.fail(refused) : wiring(scope, into)
 }
 
@@ -1496,7 +1603,7 @@ const recurring = (
       mark: "todo",
       date: nextDate,
       ...(node.desc === undefined ? {} : { desc: node.desc }),
-    }, { id, parent: node.parent, ord: ordFor(ords.success, id) }),
+    }, { id, parent: node.parent, ord: ordFor(ords.success, id) }, NO_PROPS),
     date: nextDate,
     repeat: node.repeat,
   }
@@ -2126,6 +2233,61 @@ const propKey = (key: string): OpFailure | undefined => {
 }
 
 /**
+ * THE ONE SEAM the typed-properties rule is asked at — a map of properties
+ * checked and NORMALISED, or the refusal naming what a key may hold.
+ *
+ * ONE FUNCTION AND ONE CALL SITE PER DOOR CLASS, deliberately, and that is a
+ * fact about this file rather than about the rule. There are two classes: an
+ * EDIT on a node that exists ({@link planProp}, which `apply` and `update`
+ * both fold into, so all three arrive here through one line) and a BIRTH
+ * ({@link emit}, which every capture walks — `add_node`, `create_outline`'s
+ * seed, quick capture, and every child of any of them). Scattering the check
+ * per planner would put the same three lines in five places and make the
+ * planner's own decomplecting a five-way merge.
+ *
+ * THE SENTENCE IS THE FORMAT'S (`@olai/format`'s `storedValue`, which
+ * normalises and then checks with the very function the validator reports
+ * through). Nothing is worded here: a person moving between a refused
+ * `set_prop` and a broken file has to read one wording, and this layer's job
+ * is to raise it as a `usage` refusal one moment before the validator would
+ * raise it as a finding about bytes. A `usage` failure and not a `validation`
+ * one, because nothing has been written and there are no rows to carry — the
+ * same shape a key spelled like a field gets ({@link propKey}).
+ *
+ * IT ANSWERS WITH VALUES rather than with a verdict, and that is the half a
+ * caller must not skip: `dispatched` written `2026-08-25 10:06` is STORED as
+ * the instant `set_done` would write, with the offset of the clock this write
+ * is being stamped with. Writing the map that came in, having checked this
+ * one, would be the door writing something the validator is about to refuse.
+ *
+ * `file` is the outline the properties LAND IN, and exactly one of the seven
+ * kinds reads it: a `doc` value is a path relative to the outline that names
+ * it, the same arithmetic the `doc` FIELD is resolved with. An edit resolves
+ * the node to get it; a capture already knows, because where it lands is what
+ * the capture ops decided before they built anything.
+ *
+ * THE FIRST BAD VALUE REFUSES THE WHOLE CALL, and a capture is one plan — so
+ * one refused value is one refused call and nothing is written, which is the
+ * same promise a single `set_prop` makes.
+ */
+const typedProps = (
+  scope: Scope,
+  file: string,
+  props: Readonly<Record<string, string>> | undefined,
+): Result.Result<Readonly<Record<string, string>>, OpFailure> => {
+  if (props === undefined) return Result.succeed(NO_PROPS)
+  const stored: Record<string, string> = {}
+  for (const [key, value] of Object.entries(props)) {
+    const said = storedValue(scope.typed, file, key.trim(), value, scope.context.now())
+    if (Result.isFailure(said)) {
+      return Result.fail(new UsageFailure({ reason: said.failure }))
+    }
+    stored[key] = said.success
+  }
+  return Result.succeed(stored)
+}
+
+/**
  * One custom key, set or taken off — the only writer of `custom`, and the one
  * op in this file whose subject is a key rather than a field.
  *
@@ -2155,7 +2317,28 @@ const planProp = (
   const named = propKey(key)
   if (named !== undefined) return Result.fail(named)
 
-  const value = request.value
+  // WHAT THE KEY DECLARES, if anything — the value normalised into the one
+  // spelling this vault stores it in, or the refusal naming what it may hold,
+  // through the one seam every prop-writing planner reaches
+  // ({@link typedProps}). `apply` and `update` arrive here too: both fold into
+  // this planner rather than writing a property themselves.
+  //
+  // A REMOVAL IS NOT A VALUE and is not checked: `null` and `""` take the key
+  // off, and there is nothing left for a declaration to be about.
+  //
+  // The NODE is resolved first for the one thing the seam needs and this
+  // request does not carry — the file the property lands in, which is what a
+  // `doc` value is relative to. The refusal for a miss is the one
+  // {@link planEdit} would give a moment later, reached through the same
+  // {@link regularAt}, so a bad id is not answered twice in two voices.
+  let value: string | null = request.value
+  if (value !== null && value !== "") {
+    const located = regularAt(scope, request.id)
+    if (Result.isFailure(located)) return Result.fail(located.failure)
+    const said = typedProps(scope, located.success.file, { [key]: value })
+    if (Result.isFailure(said)) return Result.fail(said.failure)
+    value = said.success[key] ?? value
+  }
   return planEdit(
     scope,
     request.id,
@@ -2712,7 +2895,7 @@ const planCreate = (
   if (Result.isFailure(chosen)) return Result.fail(chosen.failure)
   const id = chosen.success
 
-  const built = captured(scope, into, seed, {
+  const built = captured(scope, into, seed, file, {
     id,
     // Top level of a file that does not exist yet, so there is nobody to place
     // it among: the first key, the one an `add` mints with no siblings.
@@ -4632,19 +4815,77 @@ const planCreateDocument = (
  * the records being deleted is one thing to re-point and reads as one.
  */
 const heldBy = (scope: Scope, going: ReadonlySet<string>): ReadonlyArray<string> => {
-  const held = new Map<string, string>()
-  for (const id of going) {
-    for (const naming of scope.derived.namedBy.get(id) ?? []) {
-      if (going.has(naming.at.node.id)) continue
-      held.set(
-        naming.at.node.id,
-        `\`${naming.at.node.id}\` (${
-          naming.fields.map((field) => `\`${field}\``).join(", ")
-        }, ${naming.at.file}:${naming.at.line})`,
-      )
-    }
+  const held = new Map<string, { at: Located; fields: Set<string> }>()
+  const file = (naming: { at: Located; fields: Iterable<string> }): void => {
+    if (going.has(naming.at.node.id)) return
+    const entry = held.get(naming.at.node.id) ??
+      { at: naming.at, fields: new Set<string>() }
+    for (const field of naming.fields) entry.fields.add(field)
+    held.set(naming.at.node.id, entry)
   }
-  return [...held.values()]
+  for (const id of going) {
+    for (const naming of scope.derived.namedBy.get(id) ?? []) file(naming)
+  }
+  for (const naming of namingByProp(scope, going)) file(naming)
+  return [...held.values()].map((entry) =>
+    `\`${entry.at.node.id}\` (${
+      [...entry.fields].map((field) => `\`${field}\``).join(", ")
+    }, ${entry.at.file}:${entry.at.line})`
+  )
+}
+
+/**
+ * The records naming one of these ids through a TYPED PROPERTY — the half
+ * `namedBy` structurally cannot see.
+ *
+ * `namedBy` is `targetsOf` read backwards, and `targetsOf` is the format's list
+ * of FIELDS that name a record. A `ref` or a `node` value is a reference that
+ * lives inside `custom`, where the format gives no key a meaning — so which
+ * keys are references is a fact about what the VAULT declares
+ * (`@olai/format`'s `typing.ts`), not about the format, and no index built by
+ * `derive` could hold it without the declarations.
+ *
+ * Left out, `empty_trash` would delete a node a live lane's `agent` still names
+ * and answer SUCCESS, leaving the very dangling value the validator refuses on
+ * the next load — a write that lands and immediately breaks the set. Which is
+ * the exact failure this whole function exists to prevent for the other four
+ * relations.
+ *
+ * IT WALKS, and the guard is what makes that affordable: a vault that declares
+ * no `ref` and no `node` key — every vault before this feature, and most after
+ * it — pays one map read and no walk at all. Where there IS one, the walk is
+ * per removal (`remove_mirror`, `empty_trash`), never per write.
+ *
+ * THE KEY IS THE FIELD in the sentence, which is what makes the refusal
+ * actionable: `` `lane` (`agent`, orchestrator/lanes.olai:12) `` reads exactly
+ * as the `see`/`after` entries beside it, and names the word to re-point.
+ */
+const namingByProp = (
+  scope: Scope,
+  going: ReadonlySet<string>,
+): ReadonlyArray<{ at: Located; fields: ReadonlyArray<string> }> => {
+  const referring = new Set<string>()
+  for (const [key, declared] of scope.typed.declarations) {
+    if (declared.type.kind === "ref" || declared.type.kind === "node") referring.add(key)
+  }
+  if (referring.size === 0) return []
+  const found: Array<{ at: Located; fields: ReadonlyArray<string> }> = []
+  for (const at of scope.derived.nodes) {
+    const custom = isMirror(at.node) ? undefined : at.node.custom
+    if (custom === undefined) continue
+    const fields: Array<string> = []
+    for (const [key, value] of Object.entries(custom)) {
+      // FOLDED, through the format's own reading, so a record writing `Agent`
+      // is found by a vault declaring `agent` — the same word to the fence, to
+      // `prop:` and to this.
+      if (declaredFor(scope.typed.declarations, key) === undefined) continue
+      if (!referring.has(key.trim().toLowerCase())) continue
+      const held = typeof value === "string" ? [value] : value
+      if (held.some((one) => going.has(one))) fields.push(key)
+    }
+    if (fields.length > 0) found.push({ at, fields })
+  }
+  return found
 }
 
 /** {@link heldBy} of one record — what `remove_mirror` asks about the placement

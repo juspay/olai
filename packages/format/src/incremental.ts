@@ -103,13 +103,16 @@ import { isMirror, type Located, targetsOf } from "./node.ts"
 import { claimsAreUnique, recordsIn, type SetDelta, touchedBy } from "./patch.ts"
 import {
   reportAfterCycles,
+  reportDeclarations,
   reportDocs,
   reportMirrorCycles,
   reportParentCycles,
   reportParents,
+  reportPropValues,
   reportUnknownTargets,
 } from "./rules.ts"
 import type { OutlineSet } from "./set.ts"
+import { declarationsOf, type PropDeclarations, sameTyping } from "./typing.ts"
 
 /**
  * WHAT ONE VALIDATION LEAVES FOR THE NEXT — the whole of the state this
@@ -130,6 +133,19 @@ import type { OutlineSet } from "./set.ts"
 export interface Ledger {
   readonly errors: ReadonlyArray<OutlineError>
   readonly known: ReadonlySet<string>
+  /**
+   * ...and the VOCABULARY that verdict was reached against — what the vault
+   * declared about its property keys ({@link ./typing.ts}).
+   *
+   * A third field for a third whole-corpus-ish reading, and it is carried for a
+   * different reason from `known`: that one is expensive to rebuild, and this
+   * one is cheap (one small file's top level) and is carried to be COMPARED.
+   * A value is checked against a declaration, so a declaration that moved puts
+   * every value in the directory back in question — and there is no index from
+   * a key to the records that carry it, nor should there be, since the whole
+   * point of the check is that it reads one node's props and nothing else.
+   */
+  readonly typing: PropDeclarations
 }
 
 /**
@@ -274,8 +290,50 @@ export const incrementally = (
   const walking = lost.some((file) => !known.has(file))
   reportDocs(walking ? derived.nodes : fresh, known, errors)
 
-  return { ledger: { errors, known }, walked: moving || walking }
+  // The DECLARATIONS themselves, whole and every time — one node per key a
+  // vault actually types ({@link ./rules.ts}'s `reportDeclarations` argues why
+  // that rule is not narrowed at all).
+  reportDeclarations(derived, errors)
+  const typing = declarationsOf(derived)
+  // ...and the VALUES, which are the touched records unless something a value
+  // could be pointing AT stopped being legal. Two ways that happens, and fact 2
+  // is what makes them the only two: every untouched record was found clean, so
+  // a value there can only have gone bad if what it named went away. A key that
+  // gained a variant, a roster that grew, a document that arrived — each of
+  // those can turn a bad value good and none of them can turn a good one bad,
+  // so none of them is here.
+  const walkingProps = !sameTyping(ledger.typing, typing) || walking || shrank(gone, derived)
+  reportPropValues(walkingProps ? derived.nodes : fresh, {
+    declarations: typing,
+    derived,
+    documents: known,
+  }, errors)
+
+  return { ledger: { errors, known, typing }, walked: moving || walking || walkingProps }
 }
+
+/**
+ * Did this edit take something OUT of a domain a `ref` or a `node` value could
+ * be naming?
+ *
+ * Three shapes, and they are one question asked of the records that LEFT: the
+ * id is gone; the id is still claimed but by a placement rather than a node
+ * (neither kind is a legal `node` value, and `variantsOf` counts regular
+ * children only); or the record hangs off a different parent, which is how a
+ * variant leaves a roster without leaving the set. `parent` may not cross
+ * files, so a reparenting is always visible in the touched files' own records
+ * — which is what keeps this a walk of what moved rather than of the corpus.
+ *
+ * `byId` is "the record that claims this id" and that is exact here, because
+ * fact 3 has already been asked: a patched view holds one record per id.
+ */
+const shrank = (gone: ReadonlyArray<Located>, derived: Derived): boolean =>
+  gone.some((at) => {
+    const now = derived.byId.get(at.node.id)
+    return now === undefined ||
+      isMirror(now.node) !== isMirror(at.node) ||
+      now.node.parent !== at.node.parent
+  })
 
 /**
  * Whether the edit moved anything the three cycle walks can see.

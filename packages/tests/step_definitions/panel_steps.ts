@@ -293,6 +293,33 @@ Then(
   },
 );
 
+/**
+ * ...and the row that is NOT there — the half a span assertion is made of.
+ *
+ * A search that lists two nodes proves what it FOUND; what a range has to
+ * prove is what it left out, since the failure a typed span exists to prevent
+ * is an answer with too much in it (`1000` inside `190..200`, which is what a
+ * string comparison says). So this is asserted AFTER the answer has arrived —
+ * `answered` waits for the results to be about the query that was typed —
+ * because a row absent from a panel that has not answered yet is absent for
+ * the wrong reason.
+ */
+Then(
+  "the header search does not list the node {string}",
+  async function (this: OlaiWorld, title: string) {
+    await answered(
+      this,
+      HEADER_SEARCH_RESULTS,
+      await (await headerBox(this)).inputValue(),
+    );
+    assert.strictEqual(
+      await this.page.locator(HEADER_SEARCH_ITEM).filter({ hasText: title }).count(),
+      0,
+      `the header search lists ${JSON.stringify(title)}, and this step says it does not`,
+    );
+  },
+);
+
 /** One DOCUMENT row of the header's results, by path.
  *
  *  By `data-id`, for `palette_steps.ts`'s reason: the label is the file's NAME

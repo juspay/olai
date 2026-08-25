@@ -62,6 +62,8 @@ import { datesOf, dayOf, monthOf } from "./occasion.ts"
 import { basenameOf } from "./paths.ts"
 import { nothing } from "./write.ts"
 import {
+  mintedInto,
+  PROPERTIES,
   isLeftoverArchive,
   isTrashed,
   isMirror,
@@ -71,6 +73,11 @@ import {
   settles,
   storedMarker,
 } from "./node.ts"
+import {
+  isDigitRun,
+  type PropDeclarations,
+  type PropType,
+} from "./typing.ts"
 
 // ── the four fields a word is looked for in ────────────────────────────
 
@@ -401,7 +408,46 @@ type Clause =
    * answer attached, and it is the one the design was written for: every lane
    * this agent ran, in one query, out of facts nobody had to re-parse by eye.
    */
-  | { readonly kind: "prop"; readonly key: string; readonly value: string | null }
+  | {
+    readonly kind: "prop"
+    readonly key: string
+    readonly value: string | null
+    /**
+     * ...and a SPAN is the third thing a `prop:` can ask, on a key whose
+     * declaration says its values COMPARE ({@link ../typing.ts}).
+     *
+     * `prop:records=190..200`, `prop:dispatched=2026-08-20..` — the syntax `created:`
+     * already has, reused rather than invented, because a range of days is a
+     * range of days whichever field it is read of. It is meaningful ONLY on a
+     * declared `date` or `int` key: comparing strings as if they were dates is
+     * the lie types exist to prevent, so the same token on an untyped key is
+     * REFUSED with the reason rather than answered as an equality nothing
+     * matches ({@link propClause}).
+     *
+     * `value` is `null` beside it, and the two are never both present: a clause
+     * asks one question of a key. It is an optional field rather than a third
+     * arm of this union because everything else about a `prop:` clause — how
+     * the key is folded and scanned, whether the hit reports it, that a
+     * document answers it too — is the same question and would have been two
+     * copies of it.
+     */
+    readonly span?: PropSpan
+  }
+
+/**
+ * A span asked of a PROPERTY, and what kind of comparison it is.
+ *
+ * TWO ARMS, because the two kinds compare differently and the difference is not
+ * cosmetic. A `date` is TEXT — ISO is a prefix ordering, and this package
+ * compares stored date text everywhere rather than parsing an instant
+ * ({@link daysClause} says why) — so its bounds are strings, exactly the ones
+ * `created:` mints. An `int` is a NUMBER, which is the whole of what declaring
+ * a key `int` bought: `9..10` must not answer `100`, and a string comparison
+ * says it does.
+ */
+export type PropSpan =
+  | { readonly of: "date"; readonly from: string | null; readonly to: string | null }
+  | { readonly of: "int"; readonly from: number | null; readonly to: number | null }
 
 /**
  * One thing a query can be satisfied BY — a word to find or a clause to hold —
@@ -735,7 +781,31 @@ const NOTHING_QUOTED =
  * {@link JOINER} is the one token this does not reach, and its own note says
  * why the exception is what keeps the rule.
  */
-export const parseFilter = (text: string, now: string): Filter => {
+export const parseFilter = (
+  text: string,
+  now: string,
+  /**
+   * WHAT THE VAULT DECLARES about its property keys, for the doors that have
+   * read it — and ABSENT, not empty, for the one that has not.
+   *
+   * It is what makes `prop:records=190..200` a span rather than an equality against
+   * eight characters ({@link propClause}), so every door that MATCHES hands it
+   * over: `search_nodes` and the two search boxes through `@olai/ops`' query,
+   * and the box that narrows a page through `./narrowing.ts`. The door that
+   * does not is the tab's own read of its filter box, which parses for the
+   * words to light and the refusals to draw and selects nothing — it holds no
+   * vault to read a declaration out of, and the server it asks holds the
+   * answer. The consequence is named honestly rather than hidden: that box
+   * cannot DRAW the refusal for a range on an untyped key, so such a query
+   * comes back with no rows, which is the answer it already gave before this
+   * parameter existed. docs/search.md says so.
+   *
+   * `undefined` and `NO_TYPING` are deliberately different: an empty map is a
+   * vault that was read and declares nothing, and a range there IS refused,
+   * naming the key nobody typed.
+   */
+  declarations?: PropDeclarations,
+): Filter => {
   const groups: Array<Array<Alternative>> = []
   const namedProps: Array<Extract<Clause, { kind: "prop" }>> = []
   const refusals: Array<Refusal> = []
@@ -764,7 +834,7 @@ export const parseFilter = (text: string, now: string): Filter => {
       continue
     }
     read = true
-    const alternative = alternativeOf(token, now)
+    const alternative = alternativeOf(token, now, declarations)
     const joined = joining
     joining = false
     if ("reason" in alternative) {
@@ -819,7 +889,8 @@ export const parseFilter = (text: string, now: string): Filter => {
 const alternativeOf = (
   token: Token,
   now: string,
-): Alternative | { readonly reason: string } => {
+  declarations: PropDeclarations | undefined,
+): Alternative | Refused => {
   // Only quotes can leave a token with no word in it — a bare `-` is the
   // character itself — and TRIMMED, because a needle of one space is in every
   // node ever written exactly as an empty one is.
@@ -830,10 +901,14 @@ const alternativeOf = (
   const name = colon === -1 ? "" : token.text.slice(0, colon)
   if (!isOperator(name)) return asTerm
   const value = token.text.slice(colon + 1)
-  const clause = clauseOf(name, value, now)
-  return clause === null
-    ? { reason: teaching(name, value) }
-    : { kind: "clause", clause, negated: token.negated }
+  const clause = clauseOf(name, value, now, declarations)
+  if (clause === null) return { reason: teaching(name, value) }
+  // An operator that wrote its own sentence, which is `prop:` alone
+  // ({@link Refused}) — passed through rather than replaced by the table's,
+  // because the table's would be true and useless: "prop: takes a key and a
+  // value" is not what a reader who typed a range on an untyped key needs.
+  if ("reason" in clause) return clause
+  return { kind: "clause", clause, negated: token.negated }
 }
 
 /**
@@ -868,7 +943,12 @@ const inCostOrder = (groups: ReadonlyArray<Group>): ReadonlyArray<Group> => {
  * a compile error here and in {@link teaching}, which are the two places an
  * operator has to say something.
  */
-const clauseOf = (name: Operator, value: string, now: string): Clause | null => {
+const clauseOf = (
+  name: Operator,
+  value: string,
+  now: string,
+  declarations: PropDeclarations | undefined,
+): Clause | Refused | null => {
   switch (name) {
     case "is":
       return isIsValue(value) ? { kind: "is", value } : null
@@ -882,8 +962,23 @@ const clauseOf = (name: Operator, value: string, now: string): Clause | null => 
     case "changed":
       return daysClause(name, value, now)
     case "prop":
-      return propClause(value)
+      return propClause(value, now, declarations)
   }
+}
+
+/**
+ * A refusal an operator wrote ITSELF, rather than falling through to
+ * {@link teaching}'s table.
+ *
+ * One operator does ({@link propClause}), and it is the only one that could:
+ * every other operator's values are a list this file holds, so "what you may
+ * write" is the same sentence whatever was typed. A `prop:` value depends on
+ * what the VAULT declares about that key, so the refusal has to say what the
+ * key is — and a table of sentences indexed by operator name has nowhere to put
+ * that.
+ */
+interface Refused {
+  readonly reason: string
 }
 
 /**
@@ -926,14 +1021,126 @@ const hasClause = (value: string): Clause | null => {
  * the nodes whose `stage` holds the empty string — which is no node at all,
  * since a key holding nothing is a key the file does not carry.
  */
-const propClause = (value: string): Clause | null => {
+const propClause = (
+  value: string,
+  now: string,
+  declarations: PropDeclarations | undefined,
+): Clause | Refused | null => {
   if (value === "") return null
   const at = value.indexOf("=")
   if (at === -1) return { kind: "prop", key: value, value: null }
   const key = value.slice(0, at)
   const held = value.slice(at + 1)
   if (key === "" || held === "") return null
-  return { kind: "prop", key, value: held }
+  // NOT CONSULTED IS NOT UNTYPED, and the two are told apart by the map being
+  // absent rather than empty. A door that has not read the vault has no
+  // standing to say a key is undeclared: a tab parsing its own filter box holds
+  // no vocabulary (see {@link parseFilter}), and refusing `prop:records=190..200`
+  // there would draw a refusal under a query the server is busy ANSWERING —
+  // the app disagreeing with itself in front of the reader. So an unconsulted
+  // parse reads what it always read: an equality on the text.
+  if (declarations === undefined) return { kind: "prop", key, value: held }
+  // FOLDED, because everything about `prop:` is: the token arrived folded, the
+  // key scan folds, and a reader who typed `prop:PR` is asking about the key
+  // written `pr` ({@link propKeyOf}). A declarations map is keyed by the title
+  // somebody wrote, so the fold happens here rather than in the map.
+  const kind = declaredKind(declarations, key)
+  if (kind === "date") {
+    const span = spanOf(held, now)
+    return span === null
+      ? { reason: `prop:${key} is a date — ${DAY_VALUES}` }
+      : { kind: "prop", key, value: null, span: { of: "date", ...span } }
+  }
+  if (kind === "int") {
+    const span = intSpan(held)
+    return span === null
+      ? {
+        reason: `prop:${key} is a whole number — write one (${key}=193), or a range ` +
+          `of them (${key}=190..200, ${key}=190.., ${key}=..200)`,
+      }
+      : { kind: "prop", key, value: null, span: { of: "int", ...span } }
+  }
+  // EVERY OTHER KEY IS AN EQUALITY, exactly as it always was — and a value that
+  // READS AS A RANGE is refused instead of answered, which is the one thing
+  // typing adds at this door for a key nobody typed.
+  return readsAsRange(held, now)
+    ? { reason: untypedRange(key, kind) }
+    : { kind: "prop", key, value: held }
+}
+
+/**
+ * What a key DECLARES — `undefined` for one nobody declared, which is every key
+ * in a vault with no `_olai/Properties.olai` and most keys in one that has.
+ *
+ * A PLAIN LOOKUP, and that is the reconciliation rather than a shortcut: the
+ * map's own keys are folded ({@link ../typing.ts}'s `keyOf`) and this token
+ * arrived folded from the tokenizer, so the two spellings meet without either
+ * side scanning. It used to fold the map per clause, which worked here and left
+ * the WRITE side reading the map exactly — so `prop:PR` was a span while
+ * `set_prop {"key":"PR"}` was untyped, the grammar and the gate disagreeing
+ * about one word. The fold now happens once, where the map is built.
+ */
+const declaredKind = (
+  declarations: PropDeclarations,
+  key: string,
+): PropType["kind"] | undefined => declarations.get(key)?.type.kind
+
+/**
+ * Does this value read as a RANGE of days or of whole numbers?
+ *
+ * The test that decides whether an untyped key's value is refused or is the
+ * equality it has always been, and it is deliberately the WHOLE reading rather
+ * than "does it contain `..`". A property value may hold those two characters
+ * for reasons that are nobody's range — `prop:worktree=../sibling`,
+ * `prop:version=1.0..2.0` — and refusing those would be this grammar breaking
+ * queries that work today in order to teach a lesson about a query nobody
+ * wrote. What IS refused is a value that would have been a span if the key had
+ * been declared: `190..200`, `2026-08-01..2026-08-14`, `last-week..`. Those are
+ * the ones where answering an equality is the silent nothing.
+ */
+const readsAsRange = (value: string, now: string): boolean =>
+  value.includes(RANGE) && (spanOf(value, now) !== null || intSpan(value) !== null)
+
+/** The sentence a range on a key that cannot compare gets — naming what the key
+ *  IS, since the fix differs: an undeclared key wants a declaration, and a
+ *  declared `ref` or `path` wants a different question. */
+const untypedRange = (key: string, kind: PropType["kind"] | undefined): string =>
+  `prop:${key} takes a value, not a range — ${
+    kind === undefined
+      ? `nothing declares \`${key}\`, so its values are text`
+      : `\`${key}\` is declared \`${kind}\``
+  }, and comparing text as if it were a date or a number is what a range would ` +
+  `be doing. Declare the key \`date\` or \`int\` in \`${mintedInto(PROPERTIES)}\` to ask for a span.`
+
+/**
+ * A RANGE OF WHOLE NUMBERS, or one number as the span of itself — or `null` for
+ * a value an `int` key cannot be asked about.
+ *
+ * `intSpan("193")` is `193..193` rather than an equality, and that is the
+ * point of the key being declared: `0193` and `193` are one number and two
+ * strings, so a reader who typed either is asking the same question. What the
+ * declaration refuses on the WRITE side is the second spelling ever reaching a
+ * file ({@link ../typing.ts}'s `isDigitRun`); what it buys on the read side is
+ * that the query does not have to know that.
+ *
+ * The bounds themselves are digit runs, and a sign or a decimal point is
+ * refused rather than coerced: `Number("1e3")` is a thousand and `1e3` is not a
+ * number anybody typed into a range.
+ */
+const intSpan = (
+  value: string,
+): { readonly from: number | null; readonly to: number | null } | null => {
+  const at = value.indexOf(RANGE)
+  if (at === -1) return isDigitRun(value) ? { from: Number(value), to: Number(value) } : null
+  const left = value.slice(0, at)
+  const right = value.slice(at + RANGE.length)
+  if (left === "" && right === "") return null
+  if (left !== "" && !isDigitRun(left)) return null
+  if (right !== "" && !isDigitRun(right)) return null
+  return {
+    from: left === "" ? null : Number(left),
+    to: right === "" ? null : Number(right),
+  }
 }
 
 /**
@@ -967,12 +1174,7 @@ const teaching = (name: Operator, value: string): string => {
     case "date":
     case "created":
     case "changed":
-      return `${name}: takes a day, month or year (2026-08-10, 2026-08, 2026), ` +
-        `a relative word (${RELATIVE_TEACHING}), ` +
-        `${DURATION_TEACHING}, ` +
-        "or a range of any of them (2026-08-01..2026-08-14, ..2026-08-10, " +
-        "last-week.., 2h..30m). A bare duration is the range it opens: 1h is 1h.., " +
-        "within the last hour"
+      return `${name}: takes ${DAY_VALUES}`
     case "prop":
       // The one operator whose values are not a list this file holds — any key
       // is a key — so what it teaches is the SHAPE, and the two shapes are the
@@ -980,6 +1182,7 @@ const teaching = (name: Operator, value: string): string => {
       return "prop: takes a property key (prop:pr) or a key and a value (prop:agent=claude-opus)"
   }
 }
+
 
 /** A year, a month or a day — the three lengths an ISO prefix comes in. The
  *  SHAPE only; {@link datePart} is what says the numbers are possible. */
@@ -1132,6 +1335,28 @@ const DURATION_SHAPE = /^(\d{1,6})([a-z]+)$/
 export const DURATION_TEACHING = `a duration back from now (${
   [...DURATION_UNITS].map(([unit, { named }]) => `1${unit} = 1 ${named}`).join(", ")
 }; no month or year units)`
+
+/**
+ * THE DAY GRAMMAR'S VALUES, in full — the clause of a refusal, without the
+ * operator's name in front of it.
+ *
+ * Split out for the second door that teaches this vocabulary, which is a
+ * `date`-TYPED PROPERTY ({@link propClause}): the same values in the same
+ * grammar read of a different place, so a reader refused at
+ * `prop:dispatched=soon` is taught what a reader refused at `created:soon` is.
+ * Which is the argument {@link teaching} already makes about its three day
+ * operators, one operator further out.
+ *
+ * HERE rather than beside {@link teaching}, which is where it reads: it is
+ * built from the two tables below it, so a constant declared up there would be
+ * evaluated before either of them existed.
+ */
+const DAY_VALUES = "a day, month or year (2026-08-10, 2026-08, 2026), " +
+  `a relative word (${RELATIVE_TEACHING}), ` +
+  `${DURATION_TEACHING}, ` +
+  "or a range of any of them (2026-08-01..2026-08-14, ..2026-08-10, " +
+  "last-week.., 2h..30m). A bare duration is the range it opens: 1h is 1h.., " +
+  "within the last hour"
 
 /**
  * A duration, as the moment it names — or `null` for a value that is not one.
@@ -1385,6 +1610,25 @@ const edgesOf = (meaning: Meaning): Span =>
  * durations cost this arm nothing.
  */
 const daysClause = (of: DayReading, value: string, now: string): Clause | null => {
+  const span = spanOf(value, now)
+  return span === null ? null : { kind: "days", of, from: span.from, to: span.to }
+}
+
+/**
+ * THE DAY GRAMMAR'S VALUE, as two bounds — {@link daysClause} with the
+ * operator's own name taken off.
+ *
+ * Split out for the second reader, which is a `date`-TYPED PROPERTY
+ * ({@link propClause}): `prop:dispatched=2026-08-20..` is the same value in the
+ * same grammar read of a different place, and a second parse of it would be a
+ * second answer to "what does `last-week..` mean" — refused at one operator and
+ * accepted at another, or worse, agreeing today. Which is exactly the argument
+ * the three day operators already share this function for.
+ */
+const spanOf = (
+  value: string,
+  now: string,
+): { readonly from: string | null; readonly to: string | null } | null => {
   const at = value.indexOf(RANGE)
   if (at === -1) {
     const meaning = meaningOf(value, now)
@@ -1399,8 +1643,6 @@ const daysClause = (of: DayReading, value: string, now: string): Clause | null =
     // other side of the same moment, older than an hour.
     const edges = edgesOf(meaning)
     return {
-      kind: "days",
-      of,
       from: edges.from,
       // ...and the high end is the only thing the sugar changes: a duration
       // opens upward, every other form closes at its own end.
@@ -1418,8 +1660,6 @@ const daysClause = (of: DayReading, value: string, now: string): Clause | null =
   // it — which is what {@link edgesOf} buys, and why a duration needed no line
   // of range parsing written for it.
   return {
-    kind: "days",
-    of,
     from: low === null ? null : edgesOf(low).from,
     to: high === null ? null : edgesOf(high).to,
   }
@@ -2139,11 +2379,46 @@ const propKeyOf = (
     // A key holding NOTHING is a key the file does not carry (./write.ts), so
     // `prop:x` is false for it — the same rule `has:` reads, one map in.
     if (nothing(value)) continue
-    if (clause.value === null) return key
     const held = typeof value === "string" ? [value] : value
+    // A SPAN reads the value UNFOLDED, which is the one place this function's
+    // folding rule stops and has to. A stored date carries a `T` and may carry
+    // a `Z` (`./stamp.ts`), and its bounds do not — so folding the value would
+    // compare `2026-08-25t10:06:00z` against `2026-08-25`, which is a different
+    // string ordering and answers a different question. Case is a difference a
+    // search must not be sensitive to in something somebody TYPED; a canonical
+    // date is not that.
+    if (clause.span !== undefined) {
+      if (held.some((one) => inSpan(clause.span as PropSpan, one))) return key
+      continue
+    }
+    if (clause.value === null) return key
     if (held.some((one) => one.toLowerCase() === clause.value)) return key
   }
   return null
+}
+
+/**
+ * Is one stored value inside the span the clause asks for?
+ *
+ * TWO COMPARISONS FOR TWO KINDS, which is the whole of what the declaration
+ * bought. A date is compared as TEXT with {@link within}'s own reading, so the
+ * bounds a `created:` mints and the bounds a `prop:dispatched=` mints are read
+ * by one function; a whole number is compared as a NUMBER, because `9..10`
+ * answering `100` is exactly the lie a string comparison tells about digits.
+ *
+ * A VALUE THAT IS NOT OF THE KIND IS SIMPLY NOT IN THE SPAN — never an error
+ * here. The write gate and the validator are what keep a declared key's values
+ * canonical ({@link ../typing.ts}); by the time a query is asked, a value that
+ * is not a number under an `int` key is a value in a file somebody is already
+ * being told to fix, and a search is not the second place to tell them.
+ */
+const inSpan = (span: PropSpan, value: string): boolean => {
+  if (span.of === "int") {
+    if (!isDigitRun(value)) return false
+    const held = Number(value)
+    return (span.from === null || held >= span.from) && (span.to === null || held <= span.to)
+  }
+  return spanned(value, span.from, span.to)
 }
 
 /** Whether a record carries a field — the WRITER's own rule for absence
@@ -2237,12 +2512,20 @@ const carries = (node: RegularNode, field: CarriedField): boolean =>
  * paragraph above claimed more than it delivered.
  */
 const within = (date: string, clause: DaysClause): boolean =>
-  (clause.from === null || date >= clause.from) &&
-  (clause.to === null ||
-    date <= clause.to ||
+  spanned(date, clause.from, clause.to)
+
+/** The same reading over two loose bounds, for the second caller that has no
+ *  `DaysClause` to hand: a `date`-typed PROPERTY ({@link inSpan}). One
+ *  function, because "is this stored date text inside these two bounds" must
+ *  not have two answers — the salvage below in particular, which is the kind of
+ *  clause a second copy would be written without. */
+const spanned = (date: string, from: string | null, to: string | null): boolean =>
+  (from === null || date >= from) &&
+  (to === null ||
+    date <= to ||
     // The value is ON the bound's own moment and carries more after it — the
     // one case where being the longer string must not put it outside.
-    date.startsWith(clause.to))
+    date.startsWith(to))
 
 /**
  * Every node in the SET that the query selects, in the set's own

@@ -113,6 +113,27 @@ const CATALOGUE = {
   /** `doc` does not name an `.md` file under the served directory. */
   "missing-doc": "set",
   /**
+   * A PROPERTY does not fit what its key declares — or a declaration in
+   * `_olai/Properties.olai` does not say a type this format knows
+   * ({@link ./typing.ts}).
+   *
+   * ONE code for the two, the way `bad-repeat` is one for the rule and the
+   * date it repeats from: they are the same finding read from the two ends of
+   * one arrangement — this file says what `merge` may hold, and this record
+   * holds something else — and a reader who has to fix one is standing in
+   * front of the other. The message is where the difference is said.
+   *
+   * `set-across-files`, because two of the seven kinds resolve a BARE ID that
+   * may live in any file (`ref` and `node`, and a declaration's own `under`),
+   * so an unreadable file can INVENT "no node declares it" rather than merely
+   * hide it — which is the guess the staging rule forbids. The other five are
+   * decided by the record and the declarations file, so the reach is wider
+   * than they need; that costs nothing, because a withheld finding still
+   * refuses the set ({@link ./validate.ts} counts the raw findings and
+   * {@link ./rules.ts}'s `reportOf` only decides what is SHOWN).
+   */
+  "bad-prop": "set-across-files",
+  /**
    * The DIRECTORY could not be read — not a record in it. EACCES on a folder,
    * a mount that went away, a disk with no room to answer a stat.
    *

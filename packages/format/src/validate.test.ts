@@ -629,3 +629,191 @@ test("an unknown parent is reported even when a file did not parse", () => {
   )
   expect(codes(errors)).toEqual(["unknown-parent", "not-json"])
 })
+
+// ── typed properties ───────────────────────────────────────────────────
+//
+// The other half of the fence `@olai/ops` puts in front of a WRITE: a hand edit
+// has no door to be refused at, so a value that does not fit what its key
+// declares makes the file broken, NAMING THE KEY — exactly how every other
+// validation rule reports (`./typing.ts`).
+
+/** A vault that declares three keys, with a roster for the ref to point at.
+ *  Spread into each case below with one record replaced, so what an assertion
+ *  is about is the value and not the fixture. */
+const DECLARING = {
+  "_olai/Properties.olai": [
+    `{"id":"prop-merge","ord":"a0","title":"merge","custom":{"type":"ref"}}`,
+    `{"id":"auto","parent":"prop-merge","ord":"a0","title":"automatic"}`,
+    `{"id":"human","parent":"prop-merge","ord":"a1","title":"the human merges"}`,
+    `{"id":"prop-dispatched","ord":"a1","title":"dispatched","custom":{"type":"date"}}`,
+    `{"id":"prop-pr","ord":"a2","title":"pr","custom":{"type":"int"}}`,
+  ].join("\n"),
+}
+
+test("a declared vault whose values fit loads", () => {
+  expectValid({
+    ...DECLARING,
+    "lanes.olai":
+      `{"id":"lane","ord":"a0","title":"a lane","custom":{"merge":"auto","dispatched":"2026-08-25T10:06:00-04:00","pr":"193"}}`,
+  })
+})
+
+test("a hand edit that lands a bad value is a broken file naming the key", () => {
+  const errors = errorsOf({
+    ...DECLARING,
+    "lanes.olai":
+      `{"id":"lane","ord":"a0","title":"a lane","custom":{"merge":"AUTO: grok review folded + CI green"}}`,
+  })
+  expect(codes(errors)).toEqual(["bad-prop"])
+  expect(errors[0]?.file).toBe("lanes.olai")
+  expect(errors[0]?.line).toBe(1)
+  expect(errors[0]?.message).toContain("`merge` is `auto` | `human`")
+})
+
+test("one finding per KEY, in the order the record's own bytes hold them", () => {
+  const errors = errorsOf({
+    ...DECLARING,
+    "lanes.olai":
+      `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"#193","dispatched":"whenever"}}`,
+  })
+  expect(codes(errors)).toEqual(["bad-prop", "bad-prop"])
+  expect(errors[0]?.message).toContain("`pr`")
+  expect(errors[1]?.message).toContain("`dispatched`")
+})
+
+// An undeclared key is text and always was — which is the whole of "typing is
+// opt-in per key", asked of the file that types three of them.
+test("an undeclared key beside declared ones is left entirely alone", () => {
+  expectValid({
+    ...DECLARING,
+    "lanes.olai":
+      `{"id":"lane","ord":"a0","title":"a lane","custom":{"terminal":"a-uuid-with (a remark)","merge":"human"}}`,
+  })
+})
+
+// The ref value goes stale the way a dangling `after` edge does: nothing about
+// the lane changed, and the roster it pointed into did.
+test("a ref value whose target is deleted is flagged like a dangling edge", () => {
+  const files = {
+    "_olai/Properties.olai":
+      `{"id":"prop-agent","ord":"a0","title":"agent","custom":{"type":"ref","under":"roster"}}`,
+    "agents.olai": [
+      `{"id":"roster","ord":"a0","title":"the agents"}`,
+      `{"id":"claude","parent":"roster","ord":"a0","title":"Claude"}`,
+      `{"id":"grok","parent":"roster","ord":"a1","title":"Grok"}`,
+    ].join("\n"),
+    "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent":"grok"}}`,
+  }
+  expectValid(files)
+  const errors = errorsOf({
+    ...files,
+    "agents.olai": files["agents.olai"].split("\n").slice(0, 2).join("\n"),
+  })
+  expect(codes(errors)).toEqual(["bad-prop"])
+  expect(errors[0]?.file).toBe("lanes.olai")
+  expect(errors[0]?.message).toContain("names a node under `roster`")
+})
+
+// A `doc` value is resolved against the naming outline's own directory, which
+// is the `doc` FIELD's arithmetic and not a second copy of it.
+test("a doc value resolves relative to the outline that names it", () => {
+  const declaring = {
+    "_olai/Properties.olai": `{"id":"prop-brief","ord":"a0","title":"brief","custom":{"type":"doc"}}`,
+  }
+  expectValid({
+    ...declaring,
+    "orchestrator/lanes.olai":
+      `{"id":"lane","ord":"a0","title":"a lane","custom":{"brief":"../briefs/pdb.md"}}`,
+  }, ["briefs/pdb.md"])
+  const errors = errorsOf({
+    ...declaring,
+    "orchestrator/lanes.olai":
+      `{"id":"lane","ord":"a0","title":"a lane","custom":{"brief":"briefs/pdb.md"}}`,
+  }, ["briefs/pdb.md"])
+  expect(codes(errors)).toEqual(["bad-prop"])
+  expect(errors[0]?.message).toContain("orchestrator/briefs/pdb.md")
+})
+
+// ── where the recursion grounds ────────────────────────────────────────
+
+test("a declaration the built-in table does not know is a broken declarations file", () => {
+  const errors = errorsOf({
+    "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"stage","custom":{"type":"colour"}}`,
+  })
+  expect(codes(errors)).toEqual(["bad-prop"])
+  expect(errors[0]?.file).toBe("_olai/Properties.olai")
+  expect(errors[0]?.message).toContain("which is not a property type — write one of `text`, `date`, `int`")
+})
+
+test("a declaration with no type at all says so", () => {
+  const errors = errorsOf({
+    "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"stage"}`,
+  })
+  expect(codes(errors)).toEqual(["bad-prop"])
+  expect(errors[0]?.message).toContain("does not say its `type`")
+})
+
+test("`under` on something that is not a ref, and `under` naming nothing", () => {
+  expect(
+    errorsOf({
+      "_olai/Properties.olai":
+        `{"id":"p","ord":"a0","title":"stage","custom":{"type":"date","under":"roster"}}`,
+      "a.olai": `{"id":"roster","ord":"a0","title":"the roster"}`,
+    })[0]?.message,
+  ).toContain("takes its values from nowhere in particular")
+  expect(
+    errorsOf({
+      "_olai/Properties.olai":
+        `{"id":"p","ord":"a0","title":"stage","custom":{"type":"ref","under":"rostr"}}`,
+      "a.olai": `{"id":"roster","ord":"a0","title":"the roster"}`,
+    })[0]?.message,
+  ).toContain("did you mean `roster`?")
+})
+
+test("a key declared twice is reported on the SECOND claim, not the first", () => {
+  const errors = errorsOf({
+    "_olai/Properties.olai": [
+      `{"id":"p1","ord":"a0","title":"merge","custom":{"type":"int"}}`,
+      `{"id":"p2","ord":"a1","title":"merge","custom":{"type":"date"}}`,
+    ].join("\n"),
+  })
+  expect(codes(errors)).toEqual(["bad-prop"])
+  expect(errors[0]?.line).toBe(2)
+  expect(errors[0]?.message).toContain("already declared by an earlier node")
+})
+
+test("a variant may not pretend to be a declaration", () => {
+  const errors = errorsOf({
+    "_olai/Properties.olai": [
+      `{"id":"prop-merge","ord":"a0","title":"merge","custom":{"type":"ref"}}`,
+      `{"id":"auto","parent":"prop-merge","ord":"a0","title":"auto","custom":{"type":"int"}}`,
+    ].join("\n"),
+  })
+  expect(codes(errors)).toEqual(["bad-prop"])
+  expect(errors[0]?.line).toBe(2)
+  expect(errors[0]?.message).toContain("only a TOP-LEVEL node of this file declares one")
+})
+
+test("a key spelled like a field, and the two words the bootstrap reserves", () => {
+  expect(
+    errorsOf({
+      "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"done","custom":{"type":"text"}}`,
+    })[0]?.message,
+  ).toContain("`set_done` writes it")
+  expect(
+    errorsOf({
+      "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"type","custom":{"type":"text"}}`,
+    })[0]?.message,
+  ).toContain("says about ITSELF")
+})
+
+// The declarations file is found BY NAME, wherever it sits — `pinsIn`'s rule
+// one convention over, so a vault keeping one at the root types just the same.
+test("the declarations file is found by name wherever it sits", () => {
+  const errors = errorsOf({
+    "Properties.olai": `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+    "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"#193"}}`,
+  })
+  expect(codes(errors)).toEqual(["bad-prop"])
+  expect(errors[0]?.file).toBe("lanes.olai")
+})

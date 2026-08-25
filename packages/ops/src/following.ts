@@ -80,7 +80,7 @@ import {
 import { Result } from "effect"
 
 import { askedOf, carried } from "./asked.ts"
-import type { Plan, Scope } from "./plan.ts"
+import { type Plan, type Scope, typedIn } from "./plan.ts"
 
 /**
  * The fold over the planner: the reading each op is judged against, carried
@@ -171,7 +171,11 @@ export const folding = (from: Scope): Folding => {
       base = askedOf(next.set)
       wrote = new Map()
     }
-    at = { ...next, context: at.context, asked: asked ?? base }
+    // `typed` is REBUILT rather than carried, where `asked` above is carried:
+    // it is a map read off the view this op would leave, and a batch whose
+    // first op declares a key has to be judged by its second against that
+    // declaration ({@link ../plan.ts}'s `typedIn`).
+    at = { ...next, context: at.context, asked: asked ?? base, typed: typedIn(next) }
     return Result.succeed(at)
   }
 }

@@ -894,6 +894,11 @@ const SEARCH_COUNT = '[data-testid="search-count"]'
  *  about one grammar (`web/src/client/refusals.tsx`); the bar's own row is
  *  {@link FILTER_REFUSAL}, which is a different slot on a different surface. */
 const SEARCH_REFUSAL = '[data-testid="search-refusal"]'
+/** WHAT THE RUN OF CHIPS SAID about a write — a refusal quoted verbatim, or a
+ *  nudge that rode back on one that landed (`web/src/client/props/PropsDrawer.tsx`).
+ *  Named here because the typed-properties section's whole subject is that this
+ *  line carries the ops layer's own sentence rather than a silent revert. */
+const PROP_SAID = '[data-testid="prop-said"]'
 /** …and the rows of it that are DOCUMENTS, told apart the same way: a served
  *  file's row carries its whole path in `data-id`, so a shot can print WHICH
  *  file it matched rather than the name a folder may repeat. The header's box
@@ -4021,7 +4026,7 @@ const SECTIONS = {
         `"custom":{"agent":"claude-opus","brief":"finishes.md","dispatched":"2026-08-24 16:20",` +
         `"merge":"the human approves","reviewer":"basil",` +
         `"worktree":".worktrees/markdown-raw-flash",` +
-        `"pr":"https://github.com/juspay/olai/pull/369",` +
+        `"records":"https://github.com/juspay/olai/pull/369",` +
         `"verdict":"DO-NOT-OBJECT at c2704bc6 — the owner map verified against the diff, and the wait discipline holds"}}`,
     ])
 
@@ -4219,6 +4224,124 @@ const SECTIONS = {
     await arrived(DOC_BODY)
     await shot(page, "the-cached-case-is-a-blink")
   },
+
+  /**
+   * TYPED PROPERTIES (`typed-properties`): a key that declares what its values
+   * are, the refusal a value that does not fit earns at the chip, and the span
+   * a declared number makes honest.
+   *
+   * THE ONLY SECTION SERVED A CORPUS OTHER THAN `good/`, and that is the
+   * feature's own shape rather than a convenience: a declaration fences a key
+   * across the WHOLE vault, so typing `pr` in `good/` would have made its
+   * `pr: https://…/179` a broken file and taken a dozen shots about the chip
+   * run down with it. `fixtures/typed/` is that second vault, and
+   * `fixtures/README.md` says why there are two.
+   *
+   * The claims, in the order the shots take them:
+   *
+   *   1. the board as it stands — four lanes carrying typed facts, and one
+   *      UNDECLARED key holding prose beside them, because "typing is opt-in
+   *      per key" is only visible where both are on one screen;
+   *   2. THE REFUSAL AT THE CHIP, which is the one product change here: a value
+   *      that does not fit is turned away with the ops layer's own sentence
+   *      under the run — and the row and the file both still say what they
+   *      said, which is what makes it a refusal rather than a revert;
+   *   3. the same refusal offering the variant a near miss was a typo of;
+   *   4. a value that FITS, stored as the ONE spelling — `2026-8-30` typed,
+   *      `2026-08-30` on disk;
+   *   5. `prop:records=190..200` ANSWERING, with the lane at 1000 left out, which is
+   *      the whole of what comparing as a number bought;
+   *   6. a range on a key nobody declared, refused with the reason rather than
+   *      answered with an empty list and no sentence;
+   *   7. and `_olai/Properties.olai` READ AS AN OUTLINE — the vocabulary is a
+   *      page somebody can open, with the variants as the children they are.
+   */
+  "typed-properties": async (page) => {
+    pinnedBy(
+      "typed_properties.feature",
+      "A typed refusal lands in the chip run, in the ops layer's own words",
+      "The refusal offers the variant a value is a typo of",
+      "A value that FITS lands, and lands as the one stored spelling",
+      "A span on an int key answers, and compares as a number",
+      "A range on a key nobody declared is refused, with the reason",
+      "The Properties file reads as an ordinary outline",
+    )
+
+    // 1. THE BOARD, as the fixture declares it.
+    await opened(page, "/lanes.olai", OUTLINE_TREE)
+    for (const id of ["backlinks", "props", "chips", "far"]) {
+      console.log(`  ${id.padEnd(10)}${await runOf(page, id)}`)
+    }
+    await shot(page, "a-board-whose-keys-declare-their-types")
+
+    /** One value typed into one chip, with whatever the run said about it —
+     *  the gesture all three write legs make, so the wait that makes a shot
+     *  reproducible has one spelling rather than three. */
+    const typed = async (id: string, key: string, value: string, name: string) => {
+      await opened(page, "/lanes.olai", OUTLINE_TREE)
+      await page.locator(chip(id, key)).locator('[data-testid="prop-key"]').click()
+      await page.waitForTimeout(DRAWN)
+      await page.locator(`${row(id)} [data-testid="prop-edit"]`).fill(value)
+      await page.keyboard.press("Enter")
+      await page.waitForTimeout(SETTLE)
+      const said = await page.locator(`${row(id)} ${PROP_SAID}`).first().textContent()
+        .catch(() => null)
+      console.log(`  typed ${JSON.stringify(value)} into \`${key}\``)
+      console.log(`  the run says:  ${said === null ? "(nothing)" : said.replace(/\s+/g, " ").trim()}`)
+      console.log(`  on disk:       ${JSON.stringify(customOn("lanes.olai", id)[key] ?? null)}`)
+      await shot(page, name)
+    }
+
+    // 2. THE REFUSAL, at the chip, in the ops layer's own words.
+    await typed(
+      "chips",
+      "merge",
+      "AUTO: grok review folded + CI green",
+      "a-typed-refusal-under-the-run",
+    )
+    await inTheDark(page)
+    await shot(page, "a-typed-refusal-under-the-run-dark")
+    await page.evaluate(() => localStorage.setItem("olai.theme", "chalk"))
+
+    // 3. ...and it offers the variant a near miss was a typo of.
+    await typed("chips", "agent", "clade", "the-refusal-offers-the-nearest-variant")
+
+    // 4. A VALUE THAT FITS, stored as the one spelling.
+    await typed("chips", "dispatched", "2026-8-30", "an-accepted-spelling-stored-as-one")
+
+    /** One query put to the header box, with the rows it answered — the door
+     *  the span is asked at, and the door the refusal is drawn at. */
+    const asks = async (query: string, name: string) => {
+      await opened(page, "/lanes.olai", OUTLINE_TREE)
+      const box = page.locator(HEADER_SEARCH)
+      await box.click()
+      await box.fill(query)
+      await page.waitForTimeout(SETTLE)
+      const rows = await page.locator('[data-testid="header-search-item"]').allInnerTexts()
+      console.log(`  ${query.padEnd(26)}${
+        rows.length === 0
+          ? "(no rows)"
+          : rows.map((one) => one.replace(/\s+/g, " ").trim()).join(" · ")
+      }`)
+      const refused = await page.locator(SEARCH_REFUSAL).first().textContent().catch(() => null)
+      if (refused !== null) console.log(`  ${"...and refuses:".padEnd(26)}${refused.trim()}`)
+      await shot(page, name)
+      await page.keyboard.press("Escape")
+      await page.waitForTimeout(DRAWN)
+    }
+
+    // 5. THE SPAN ANSWERING. `far` carries 1000, which a string comparison puts
+    // inside `190..200` — so its absence from the rows is the claim.
+    await asks("prop:records=190..200", "a-span-on-a-declared-int")
+    // 6. ...and a range on a key nobody declared, refused with the reason.
+    await asks("prop:terminal=190..200", "a-range-on-an-untyped-key-is-refused")
+
+    // 7. THE DECLARATIONS, read as the outline they are.
+    await opened(page, "/_olai/Properties.olai", OUTLINE_TREE)
+    console.log(`  the declarations page draws: ${await runOf(page, "prop-merge")}`)
+    console.log(`  and the roster one:          ${await runOf(page, "prop-agent")}`)
+    await shot(page, "the-declarations-read-as-an-outline")
+  },
 } satisfies Record<string, (page: Page) => Promise<void>>
 
 /**
@@ -4270,6 +4393,24 @@ const COLUMN_FITS = 1200
  * division this file's opening line already draws: the promises live in the
  * features, and this is what a person looks at.
  */
+/**
+ * WHICH PAGE a section is warmed up on, for the one served a corpus that has
+ * no `house.olai` in it.
+ *
+ * The warm-up is a page that draws a TREE — it is what makes the first real
+ * shot a shot of a settled app rather than of a first paint — so it has to name
+ * an outline the corpus actually holds. `good/`'s is `house.olai` and that is
+ * the default; `typed/`'s is `lanes.olai` (`evidence.sh` chooses the corpus,
+ * and `fixtures/README.md` says why there are two).
+ *
+ * A TABLE beside {@link SHAPES} rather than a branch inside `main`, for that
+ * table's reason: one entry per section that differs, and every other section
+ * says nothing.
+ */
+const WARMS_UP_AT: Partial<Record<Section, string>> = {
+  "typed-properties": "/lanes.olai",
+}
+
 const SHAPES: Partial<Record<Section, Parameters<Browser["newContext"]>[0]>> = {
   // The browser tests' own handset, to the pixel and the scale factor
   // (`support/hooks.ts`'s `PHONE`): an iPhone 13's 390×844, a touch screen and
@@ -4346,7 +4487,7 @@ const main = async () => {
   )
   const page = await context.newPage()
   page.on("pageerror", (error) => console.error("PAGE ERROR", error))
-  await page.goto(`${BASE}/house.olai`)
+  await page.goto(`${BASE}${WARMS_UP_AT[name] ?? "/house.olai"}`)
   await page.locator(OUTLINE_TREE).first().waitFor()
   await page.waitForTimeout(600)
   await SECTIONS[name](page)

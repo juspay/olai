@@ -43,16 +43,19 @@ import {
   danglingIn,
   markdownPaths,
   reportAfterCycles,
+  reportDeclarations,
   reportDocs,
   reportDuplicateIds,
   reportMirrorCycles,
   reportOf,
   reportParentCycles,
   reportParents,
+  reportPropValues,
   reportUnknownTargets,
 } from "./rules.ts"
 import { type OutlineSet, outlinesIn } from "./set.ts"
 import { shadowed } from "./shadow.ts"
+import { declarationsOf, type Typed } from "./typing.ts"
 
 /**
  * A set, and the view it was JUDGED against.
@@ -145,6 +148,14 @@ export const validate = (
   // building this walks every document in the directory
   // ({@link ./rules.ts}'s `markdownPaths`).
   const known = markdownPaths(set)
+  // WHAT THE VAULT DECLARES about its property keys, read once and handed to
+  // both halves of the typing rule below ({@link ./typing.ts}). One small
+  // file's top level — the same shape and the same cost as the shelf's reading
+  // one convention over — so it is built here rather than inside a rule that
+  // would build it per record, and it LEAVES with the shadow so the narrowed
+  // arm can tell a vocabulary that moved from one that did not.
+  const declarations = declarationsOf(derived)
+  const typed: Typed = { declarations, derived, documents: known }
   reportDuplicateIds(all, derived, errors)
   reportParents(all, derived, errors)
   reportParentCycles(all, derived, errors)
@@ -152,6 +163,8 @@ export const validate = (
   reportAfterCycles(all, derived, errors)
   reportMirrorCycles(all, derived, errors)
   reportDocs(all, known, errors)
+  reportDeclarations(derived, errors)
+  reportPropValues(all, typed, errors)
 
   // THE UNDERSTUDY, and it decides nothing: it runs the narrowed validator over
   // the same set and the same view, compares its verdict with the one above,
@@ -168,6 +181,7 @@ export const validate = (
     derived,
     errors,
     known,
+    declarations,
   )
 
   // Any error at all refuses the set, INCLUDING one that was withheld: the

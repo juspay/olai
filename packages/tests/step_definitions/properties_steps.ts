@@ -17,6 +17,7 @@
 import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
+import { saysThat } from "../support/said.ts";
 import { keysSettled } from "../support/settling.ts";
 import {
   attr,
@@ -500,6 +501,35 @@ Then(
           (node) => node["id"] === id && customOf(node)[key] === undefined,
         ),
       `${file} to hold ${JSON.stringify(id)} with no \`${key}\` at all`,
+    );
+  },
+);
+
+/**
+ * WHAT THE RUN SAID ABOUT A REFUSED WRITE — the typed-properties seam, read
+ * where a person reads it.
+ *
+ * `says nothing about its properties` above is the silent half of the same
+ * line; this is the loud one, and it is a separate step rather than a
+ * parameter because the two are opposite claims and a scenario should not be
+ * able to write the wrong one by leaving an argument off. The TONE is asserted
+ * with the words: a refusal is an `alarm`, and a refusal drawn in the mood of a
+ * remark is a sentence a reader is entitled to scroll past.
+ *
+ * The words are the OPS LAYER'S, verbatim, which is the whole claim — so the
+ * step takes the fragment a scenario cares about and `saysThat` asks whether
+ * the line contains it, rather than pinning a whole sentence that a better
+ * wording would have to break a test to improve.
+ */
+Then(
+  "the node {string} refuses the property write with {string}",
+  async function (this: OlaiWorld, id: string, said: string) {
+    await saysThat(
+      this,
+      `${nodeSelector(id)} ${PROP_SAID}`,
+      said,
+      `refusal under the run on \`${id}\``,
+      "alarm",
     );
   },
 );

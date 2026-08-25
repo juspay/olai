@@ -595,6 +595,26 @@ export const inboxIn = (files: ReadonlyArray<string>): string | undefined =>
 export const PINS = `Pins${OUTLINE_EXT}`
 
 /**
+ * The outline a directory DECLARES ITS PROPERTY TYPES in — one node per key,
+ * the title IS the key, and an enum's variants are that node's children
+ * ({@link ./typing.ts}, where what a declaration says is read).
+ *
+ * The fourth filename in this file that means something, and it means it the
+ * way the other three do: BY ITS NAME, with no field on any record saying so.
+ * Which is the whole of why declarations are DATA rather than config — editing
+ * the vocabulary is editing an outline, the file is readable in olai like any
+ * other, and adding a variant is adding a child row.
+ *
+ * NOTHING MINTS THIS ONE, which is where it parts company with the three
+ * above: the shelf, the inbox and the trash are files olai made because
+ * somebody pressed something, and there is no gesture that declares a key. A
+ * directory with no such file has no typed key, which is the state every vault
+ * starts in — typing is opt-in per key ({@link ./typing.ts}) — so the mint has
+ * nothing to make.
+ */
+export const PROPERTIES = `Properties${OUTLINE_EXT}`
+
+/**
  * THE DIRECTORY OLAI MINTS ITS OWN FILES INTO.
  *
  * A served directory is somebody's — their outlines, their notes, their names,
@@ -716,6 +736,13 @@ export const isPutAway = (file: string): boolean =>
  *  directory cannot have two answers depending on who asked. */
 export const pinsIn = (files: ReadonlyArray<string>): string | undefined =>
   outlineCalled(files, PINS)
+
+/** The directory's property declarations, or `undefined` when it has none —
+ *  {@link pinsIn}'s question one convention over, answered by the same walk for
+ *  the same reason: one directory, one answer, whoever asked. A vault with no
+ *  such file declares no key, and every key in it is text. */
+export const propertiesIn = (files: ReadonlyArray<string>): string | undefined =>
+  outlineCalled(files, PROPERTIES)
 
 /**
  * The one outline a directory CALLS by a given name, or `undefined`.

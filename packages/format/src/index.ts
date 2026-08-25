@@ -394,6 +394,35 @@ export {
 } from "./custom.ts"
 export type { HasCustom } from "./custom.ts"
 
+/**
+ * ...AND WHAT A KEY MAY DECLARE ITSELF TO BE (./typing.ts).
+ *
+ * The map above stays open all the way; this is the fence a vault puts around
+ * ONE key by declaring it in `_olai/Properties.olai`, and everything in it is
+ * public because the rule is worn at two doors: the validator refuses a file
+ * (in this package) and the write planner refuses a call (`@olai/ops`), in one
+ * sentence, which is what `wrongValue` and `storedValue` are.
+ *
+ * `PROP_KINDS` and `PROPERTIES` are on the surface because they are the
+ * VOCABULARY a tool description and a doc page teach; `declarationsOf` and
+ * `variantsOf` because a reader above resolves a value the way the checker
+ * does; `canonicalDate` because the one stored spelling of a date has to be one
+ * function, wherever it is asked.
+ */
+export {
+  canonicalDate,
+  declarationsOf,
+  declaredFor,
+  NO_TYPING,
+  offsetIn,
+  PROP_KINDS,
+  storedValue,
+  variantsOf,
+  wrongValue,
+} from "./typing.ts"
+export type { Declared, PropDeclarations, PropType, Typed } from "./typing.ts"
+export { PROPERTIES, propertiesIn } from "./node.ts"
+
 export {
   ancestorsOf,
   /** The crumbs' titles, outermost first — what every reader of an ancestry

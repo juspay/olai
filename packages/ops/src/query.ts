@@ -43,6 +43,7 @@ import {
   datedAnswer,
   type DatedRequest,
   type Derived,
+  declarationsOf,
   type Detail,
   type DocumentBody,
   type DocumentSummary,
@@ -306,7 +307,13 @@ export const search = (
    */
   index?: Index | undefined,
 ): SearchAnswer => {
-  const filter = parseFilter(query.text, now)
+  // THE VAULT'S OWN VOCABULARY, handed to the grammar — which is what makes
+  // `prop:records=190..200` a span rather than an equality against the eight
+  // characters between the equals and the space (`@olai/format`'s `typing.ts`).
+  // Read per ask, off the reading this search is answered from, so a
+  // declaration written a moment ago is in force for the next query; it is one
+  // small file's top level, which is the same cost the shelf's reading is.
+  const filter = parseFilter(query.text, now, declarationsOf(at.derived))
   // A query the grammar could not read answers with no hits AND WITH THE
   // REASON. An empty one answers with no hits and nothing to say — there is no
   // question to have refused.

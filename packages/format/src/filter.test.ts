@@ -15,7 +15,8 @@ import {
   relativeSpan,
   shownRecord,
 } from "./filter.ts"
-import { nodesOfFiles } from "./fixtures.testlib.ts"
+import { nodesOfFiles, seeded } from "./fixtures.testlib.ts"
+import { declarationsOf } from "./typing.ts"
 import { isPutAway } from "./node.ts"
 
 /** One corpus, standing in for a directory: marks, dates, notes, edges, tags,
@@ -2099,5 +2100,219 @@ test("no run a needle produces is ever empty, whatever the fold did", () => {
         expect(text.slice(one.at, one.end), `${text} / ${needle}`).not.toBe("")
       }
     }
+  }
+})
+
+// ── typed spans ────────────────────────────────────────────────────────
+//
+// A range on a property is meaningful only where the key's DECLARATION says
+// its values compare (`./typing.ts`), so the grammar is handed the vault's
+// vocabulary and the answer differs by what it says. Every case below is one
+// corpus asked twice: once with the declarations, once without.
+
+/** A board that types two keys and leaves a third alone — the shape the live
+ *  one is being migrated to (`docs/brainstorming/typed-properties.md`). */
+const BOARD = {
+  "_olai/Properties.olai": [
+    `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+    `{"id":"prop-dispatched","ord":"a1","title":"dispatched","custom":{"type":"date"}}`,
+    `{"id":"prop-merge","ord":"a2","title":"merge","custom":{"type":"ref"}}`,
+    `{"id":"auto","parent":"prop-merge","ord":"a0","title":"automatic"}`,
+    `{"id":"human","parent":"prop-merge","ord":"a1","title":"the human merges"}`,
+  ].join("\n"),
+  "lanes.olai": [
+    `{"id":"l-189","ord":"a0","title":"the backlinks lane","custom":{"pr":"189","dispatched":"2026-08-19T09:00:00-04:00","merge":"auto"}}`,
+    `{"id":"l-193","ord":"a1","title":"the props lane","custom":{"pr":"193","dispatched":"2026-08-25T10:06:00-04:00","merge":"human"}}`,
+    `{"id":"l-200","ord":"a2","title":"the chip lane","custom":{"pr":"200","dispatched":"2026-08-21","merge":"auto"}}`,
+    `{"id":"l-1000","ord":"a3","title":"the far lane","custom":{"pr":"1000"}}`,
+    `{"id":"l-none","ord":"a4","title":"an unboarded lane","custom":{"terminal":"a-uuid"}}`,
+  ].join("\n"),
+}
+
+const board = derive(nodesOfFiles(BOARD))
+const typing = declarationsOf(board)
+
+/** What a query selects on the board, WITH the vault's vocabulary in hand —
+ *  which is what every door that matches has (`@olai/ops`' `query.ts`). */
+const onBoard = (text: string, today = TODAY): ReadonlyArray<string> =>
+  matching(board, parseFilter(text, today, typing)).map(({ at }) => at.node.id)
+
+test("a range on an int key is a span, and it compares as a NUMBER", () => {
+  expect(onBoard("prop:pr=190..200")).toEqual(["l-193", "l-200"])
+  // The whole of what declaring the key bought: `9..200` as text would put
+  // `1000` inside, because `"1000" < "200"`.
+  expect(onBoard("prop:pr=9..200")).toEqual(["l-189", "l-193", "l-200"])
+  expect(onBoard("prop:pr=200..")).toEqual(["l-200", "l-1000"])
+  expect(onBoard("prop:pr=..190")).toEqual(["l-189"])
+})
+
+test("a bare number on an int key is that number, compared as one", () => {
+  expect(onBoard("prop:pr=193")).toEqual(["l-193"])
+  // ONE SHAPE, at the read as at the write: a leading zero is the second
+  // spelling of a number, and it is refused here in the same words the write
+  // gate refuses it in rather than quietly coerced. A grammar that accepted
+  // `0193` would be teaching that there are two ways to write it.
+  expect(parseFilter("prop:pr=0193", TODAY, typing).kind).toBe("refused")
+})
+
+test("a range on a date key reuses `created:`'s own syntax, whole", () => {
+  expect(onBoard("prop:dispatched=2026-08-20..")).toEqual(["l-193", "l-200"])
+  expect(onBoard("prop:dispatched=..2026-08-20")).toEqual(["l-189"])
+  expect(onBoard("prop:dispatched=2026-08-19..2026-08-21")).toEqual(["l-189", "l-200"])
+  // A bare day is that day's span, so a stored INSTANT on it is inside — the
+  // reading `created:2026-08-25` already has.
+  expect(onBoard("prop:dispatched=2026-08-25")).toEqual(["l-193"])
+  // ...and the relative words come with it, counted from the day the query is
+  // asked on, because it is one parse rather than a second one written here.
+  expect(onBoard("prop:dispatched=this-month", "2026-08-25")).toEqual([
+    "l-189",
+    "l-193",
+    "l-200",
+  ])
+})
+
+test("equality on a ref is exactly as it was, and the value is the id", () => {
+  expect(onBoard("prop:merge=auto")).toEqual(["l-189", "l-200"])
+  // The TITLE is not what a query holds — nor, today, what a chip draws.
+  expect(onBoard("prop:merge=automatic")).toEqual([])
+})
+
+test("a range on an untyped key is REFUSED, with the reason", () => {
+  const refused = parseFilter("prop:terminal=190..200", TODAY, typing)
+  expect(refused.kind).toBe("refused")
+  const reason = refused.kind === "refused" ? refused.refusals[0]?.reason ?? "" : ""
+  expect(reason).toContain("nothing declares `terminal`")
+  expect(reason).toContain("Declare the key `date` or `int`")
+})
+
+test("a range on a key declared something that cannot compare names what it IS", () => {
+  const refused = parseFilter("prop:merge=190..200", TODAY, typing)
+  expect(refused.kind).toBe("refused")
+  expect(refused.kind === "refused" ? refused.refusals[0]?.reason : "").toContain(
+    "`merge` is declared `ref`",
+  )
+})
+
+// The rule is "reads as a range", not "contains two dots" — because a property
+// value holds those two characters for reasons that are nobody's range, and
+// refusing them would break queries that work today to teach a lesson about a
+// query nobody wrote.
+test("a value that merely CONTAINS `..` is the equality it always was", () => {
+  expect(parseFilter("prop:worktree=../sibling", TODAY, typing).kind).toBe("asking")
+  expect(parseFilter("prop:version=1.0..2.0", TODAY, typing).kind).toBe("asking")
+})
+
+test("a value an int key cannot be asked about is refused, teaching the shape", () => {
+  const refused = parseFilter("prop:pr=lots", TODAY, typing)
+  expect(refused.kind).toBe("refused")
+  expect(refused.kind === "refused" ? refused.refusals[0]?.reason : "").toContain(
+    "prop:pr is a whole number",
+  )
+})
+
+test("a value a date key cannot be asked about is taught the day grammar", () => {
+  const refused = parseFilter("prop:dispatched=soon", TODAY, typing)
+  expect(refused.kind).toBe("refused")
+  expect(refused.kind === "refused" ? refused.refusals[0]?.reason : "").toContain(
+    "prop:dispatched is a date",
+  )
+})
+
+// The door with no vocabulary is the tab's own read of its filter box, which
+// parses for the words to light and the refusals to draw and selects nothing
+// (`@olai/web`'s `pane/PageView.tsx`). It must PARSE rather than refuse, or the
+// app would draw a refusal under a query the server is busy answering.
+test("with no declarations in hand, a span token is the equality it used to be", () => {
+  const bare = parseFilter("prop:pr=190..200", TODAY)
+  expect(bare.kind).toBe("asking")
+  expect(bare.kind === "asking" ? bare.namedProps[0] : undefined).toEqual({
+    kind: "prop",
+    key: "pr",
+    value: "190..200",
+  })
+})
+
+test("a span still reports WHICH key answered, like every other prop clause", () => {
+  const [hit] = matching(board, parseFilter("prop:pr=190..200", TODAY, typing))
+  expect(hit?.match.props).toEqual(["pr"])
+})
+
+// ── the span property ──────────────────────────────────────────────────
+
+/**
+ * SPAN ANSWERS ≡ FILTER-BY-COMPARISON, over generated typed corpora.
+ *
+ * The claim the whole feature rests on, and the one a table of examples cannot
+ * make: whatever the grammar builds out of a range, the rows it selects are
+ * exactly the rows whose stored value compares inside it. The oracle is the
+ * comparison written out in plain arithmetic here — a number is a number, a
+ * date is ISO text — which is deliberately NOT the code under test: `inSpan`
+ * reads a clause the parser built, and this reads the bounds a person typed.
+ */
+const roll = seeded(0x7139)
+
+/** A corpus of lanes carrying an int and a date, generated. Ids carry the
+ *  values so a failure names what it was about rather than a serial number. */
+const GENERATED = Array.from({ length: 120 }, (_, at) => {
+  const pr = Math.floor(roll() * 2000)
+  const day = 1 + Math.floor(roll() * 28)
+  // Both stored widths, because they compare differently at a bound: a day is
+  // ten characters and an instant is a whole clock face after it.
+  const dispatched = roll() < 0.5
+    ? `2026-08-${String(day).padStart(2, "0")}`
+    : `2026-08-${String(day).padStart(2, "0")}T${String(at % 24).padStart(2, "0")}:00:00-04:00`
+  return { id: `g-${at}`, pr, dispatched }
+})
+
+const generated = derive(nodesOfFiles({
+  "_olai/Properties.olai": [
+    `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+    `{"id":"prop-dispatched","ord":"a1","title":"dispatched","custom":{"type":"date"}}`,
+  ].join("\n"),
+  "lanes.olai": GENERATED.map((lane, at) =>
+    `{"id":"${lane.id}","ord":"a${at}","title":"lane ${at}","custom":{"pr":"${lane.pr}","dispatched":"${lane.dispatched}"}}`
+  ).join("\n"),
+}))
+const generatedTyping = declarationsOf(generated)
+
+test("an int span selects exactly the lanes whose number is in it", () => {
+  for (let round = 0; round < 60; round++) {
+    const low = Math.floor(roll() * 2000)
+    const high = low + Math.floor(roll() * 500)
+    // All four shapes a range comes in, so an open end is covered as often as
+    // a closed one.
+    const [from, to] = [roll() < 0.25 ? null : low, roll() < 0.25 ? null : high]
+    const text = `prop:pr=${from ?? ""}..${to ?? ""}`
+    if (from === null && to === null) continue
+    const asked = matching(generated, parseFilter(text, TODAY, generatedTyping))
+      .map(({ at }) => at.node.id)
+    const oracle = GENERATED
+      .filter((lane) => (from === null || lane.pr >= from) && (to === null || lane.pr <= to))
+      .map((lane) => lane.id)
+    expect({ text, asked }).toEqual({ text, asked: oracle })
+  }
+})
+
+test("a date span selects exactly the lanes whose stored date is in it", () => {
+  for (let round = 0; round < 60; round++) {
+    const low = 1 + Math.floor(roll() * 28)
+    const high = low + Math.floor(roll() * 10)
+    const day = (which: number) => `2026-08-${String(Math.min(which, 31)).padStart(2, "0")}`
+    const [from, to] = [roll() < 0.25 ? null : day(low), roll() < 0.25 ? null : day(high)]
+    const text = `prop:dispatched=${from ?? ""}..${to ?? ""}`
+    if (from === null && to === null) continue
+    const asked = matching(generated, parseFilter(text, TODAY, generatedTyping))
+      .map(({ at }) => at.node.id)
+    // The oracle compares ISO TEXT, which is what the format stores and what a
+    // prefix ordering makes honest — and it holds a bound's own width the way
+    // `within` does: a value ON the upper bound's day carries a clock face
+    // after it and is still that day.
+    const oracle = GENERATED
+      .filter((lane) =>
+        (from === null || lane.dispatched >= from) &&
+        (to === null || lane.dispatched <= to || lane.dispatched.startsWith(to))
+      )
+      .map((lane) => lane.id)
+    expect({ text, asked }).toEqual({ text, asked: oracle })
   }
 })

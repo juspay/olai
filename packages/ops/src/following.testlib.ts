@@ -41,7 +41,7 @@ import { Result } from "effect"
 
 import { askedOf } from "./asked.ts"
 import type { Folding } from "./following.ts"
-import type { Scope } from "./plan.ts"
+import { type Scope, typedIn } from "./plan.ts"
 
 /** One decoded file, as `assemble` takes it — the map this arm carries between
  *  ops is a map of them. */
@@ -75,7 +75,10 @@ export const assembling = (from: Scope): Folding => {
 
     const next = reading(assemble(files), { read: at, delta: { upserts, removes: [] } })
     // THE ASKING, FRESH — one per op, which is what the carried arm replaces.
-    at = { ...next, context: at.context, asked: askedOf(next.set) }
+    // The TYPING is fresh on both arms and so is not what this differential is
+    // about: it is a map read off the view each op leaves, which is exactly what
+    // the sequencer does with it too.
+    at = { ...next, context: at.context, asked: askedOf(next.set), typed: typedIn(next) }
     return Result.succeed(at)
   }
 }

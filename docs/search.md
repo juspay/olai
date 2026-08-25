@@ -45,6 +45,7 @@ One matcher was never quite the whole of it, because the question and the answer
 | `created:2026-08` `changed:today` `created:last-week..` | the two STAMPS — when olai captured the node, and when it last wrote to it. Every value `date:` takes, and not the same question — see below |
 | `prop:pr` | carries that custom property at all — `has:` asked of a map with no fixed list of keys |
 | `prop:agent=claude-opus` | carries it holding that value; a list matches on any member |
+| `prop:records=190..200` `prop:dispatched=2026-08-20..` | an inclusive SPAN, on a key the vault declares `int` or `date` — every value `date:` takes, either end optional. A range on any other key is refused — see below |
 | `-anything` | takes that word or operator back out — ONE leading dash. A second one is a character, not a second negation: `--force` is a word people write, so `--is:done` looks for that text and finds it wherever somebody typed it |
 
 `date:` reads the three dates a journal reads — what the node is scheduled for, when it was finished, and when it was CALLED OFF. A dated `doing` or `todo` is on no day here, exactly as on the day page ([format.md](format.md)).
@@ -84,6 +85,27 @@ Comparison is over text, so a duration is a **wall-clock** subtraction: an hour 
 **What day it is comes from the SERVER's clock, at every door** — the same clock a `done` mark is stamped with. That used to be two clocks: the filter matched in the browser, so it counted from the tab's own local day while the doors that asked the server counted from the server's, and the two could name different days for `date:today` across a time-zone boundary. Since the filter became a question ([vault-in-browser](brainstorming/vault-in-browser.md)) there is one clock and nothing to disagree about. The resolution is still a pure function of the word and a day handed in, which is what lets a test pin the boundaries rather than pass until next Monday.
 
 **So `date:today` means the day it is where the files are**, on a tab in another time zone as much as on the machine serving them. The asker's day is deliberately NOT on the request, and that decision outlived the change that removed the disagreement: a day on the wire is a clock the wire has to be trusted about, `search_nodes` would grow a field an agent has to fill in to get today, and the server's answer would start depending on whichever browser last asked. A page left open past midnight re-reads its query against the new day, because the question is asked again rather than remembered.
+
+### Typed keys compare
+
+A key the vault DECLARES `int` or `date` in `_olai/Properties.olai` ([format.md](format.md#typed-properties)) gains **spans**, in the syntax `created:` already has — because the declaration is what makes `..` honest:
+
+```
+prop:records=190..200               a count in a range
+prop:dispatched=2026-08-20..        every lane dispatched since the 20th
+prop:dispatched=last-week..today    the day words, unchanged
+prop:merge=auto is:todo             equality on a ref, exactly as before
+```
+
+**An `int` compares as a NUMBER**, which is the whole of what declaring it bought: `prop:records=9..200` does not answer `1000`, and a string comparison says it does. A bare number is that number however it is written; a leading zero is refused at the query exactly as it is refused at the write, because there is one spelling of a number.
+
+**A `date` compares as ISO TEXT**, at each bound's own width, and it takes every value `date:` takes — days, months, years, the twelve relative words, durations, and any of them at either end of a range. A bare day is that day's span, so a stored instant on it is inside.
+
+**A range on any other key is REFUSED, with the reason.** Comparing strings as if they were dates is the lie types exist to prevent, so `prop:stage=a..b` is turned away naming what `stage` is — undeclared, or declared something that does not compare — and pointing at the declaration that would make the question answerable. The rule is "reads as a range", not "contains two dots": `prop:worktree=../sibling` and `prop:version=1.0..2.0` are the equalities they always were, because refusing those would break queries that work today to teach a lesson about a query nobody wrote.
+
+**A ref's value is the variant's ID.** `prop:merge=auto`, never `prop:merge=automatic` — the id is what the file holds and what a chip draws, for the reason a pin's is: names rename, ids don't. **The key is folded** here as everywhere: `prop:PR` asks about the key a vault declared as `pr`, and the fence reads it the same way.
+
+**One door does not draw the untyped-range refusal**, and it is named here rather than hidden: the box that filters a page in place parses in the browser, which holds no vault to read a declaration out of, so it cannot know that `stage` is untyped. The server answers the query either way — a span on a typed key works there — but a range on an untyped key comes back with no rows and no sentence, which is the answer that box already gave before spans existed. The three doors that ask the server for a SEARCH (the header box, the palette, an agent's `search_nodes`) draw the refusal in full.
 
 `prop:` reads a node's `custom` map ([format.md](format.md)) and nothing else. A field is not a property however much the word looks like one: `prop:done` finds nothing, because a mark is a field and `is:done` is how it is asked about — one way to ask each question. The key and the value are folded like every other token, since a property is something somebody typed into a map that gives no key a spelling. `prop:stage=` is refused rather than selecting nothing: a key holding nothing is a key the file does not carry, so an empty value could only ever be a query that quietly found none.
 
