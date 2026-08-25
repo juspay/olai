@@ -124,7 +124,14 @@ export const writes = (was: Editing | null, key: string, value: string): boolean
  *
  * One type for both editors: the chip's single box and the add chip's pair
  * answer for themselves in `./PropsDrawer.tsx`, and the law they answer to is
- * this one.
+ * this one. THE RECORD IS BORN WITH THE OPEN: each editor holds it as a `let`
+ * inside its component, and the `<Show>` that mounts the box DISPOSES the
+ * component on the close, so closing is also the reset — `leavingCommits`'s
+ * `null` then genuinely means "nothing has answered THIS open". An editor
+ * that kept its component alive and only hid the box would owe the record a
+ * reset of its own, and that is a design to refuse rather than to support:
+ * the pin suite (`./editor.test.ts`'s reopen sequence, and the same chip
+ * edited twice in @olai/tests' `properties.feature`) is written against it.
  */
 export type ClosedBy = "enter" | "escape" | null
 

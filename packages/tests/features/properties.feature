@@ -129,6 +129,31 @@ Feature: Properties on a node, from the web
     And the node "handles" says nothing about its properties
     And there should be no page errors
 
+  Scenario: The same chip edited twice — every open answers for itself
+    # THE REMOUNT, DRIVEN. The editor's answer-record is born with the open:
+    # closing disposes the box and REOPENING mints the next editor, so the
+    # second open's blur must still carry the gesture. An editor that kept
+    # the first open's record (a hidden box instead of a disposed one) would
+    # read this second leaving as the first Enter's echo and swallow it —
+    # the typed "submitted" never sent, the file still saying "addressing":
+    # the pinned bug reborn as a silent miss.
+    When I open the node menu of "handles"
+    And I choose "Add property…" from the node menu
+    And I write the property "stage" holding "review" on "handles"
+    When I edit the property "stage" on "handles"
+    And I type "addressing" into the property editor on "handles"
+    Then the node "handles" shows the property "stage" holding "addressing"
+    # Second open, the other half of the rule: typed, then clicked away.
+    When I edit the property "stage" on "handles"
+    Then the property editor on "handles" holds "addressing"
+    When I type "submitted" into the property editor on "handles" without pressing Enter
+    And I click away from the property editor on "handles"
+    Then the property editor on "handles" is closed
+    And the node "handles" shows the property "stage" holding "submitted"
+    And "house.olai" holds the node "handles" with "stage" set to "submitted"
+    And the node "handles" says nothing about its properties
+    And there should be no page errors
+
   Scenario: A value that is not a link is the second way in
     # The gesture rule, in the direction a reader reaches first. A link goes
     # where it says; everything else in a chip opens it.
