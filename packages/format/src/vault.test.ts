@@ -36,8 +36,44 @@ import { datesOf, monthOf } from "./occasion.ts"
 const view = derive(recordsOf(setOf(Object.fromEntries(vaultOf({ files: 1000, records: 21 })))))
 
 test("the vault is the directory the published numbers name", () => {
-  expect(view.byFile.size).toBe(980)
-  expect(view.nodes.length).toBe(21_552)
+  expect(view.byFile.size).toBe(981)
+  expect(view.nodes.length).toBe(21_551)
+})
+
+/**
+ * THE SETTLING MARKS, BOTH OF THEM, and the second one is why this test is
+ * here at all.
+ *
+ * `cancelled` went into the generator with the fourth mark (2026-08-25) for
+ * this file's own reason: it is keyed into `Derived.byDay` exactly as a dated
+ * `done` is, and it is un-owed exactly as one is — so a vault with none in it
+ * measures the whole of the fourth mark's contribution to `dates.bench.ts`'s
+ * four rows at zero, and prints *costs nothing* where what it printed was *was
+ * never asked*.
+ *
+ * BOTH VALUE SHAPES, because they reach different code: an INSTANT puts the
+ * node on that day, and a bare `true` says the state was reached and declines
+ * to say when — which is on no day at all, and is the shape everything written
+ * before olai stamped instants still has.
+ */
+test("both settling marks are in it, dated and bare", () => {
+  const marks = view.nodes.filter(isRegular).map((at) => at.node)
+  const carrying = (mark: "done" | "cancelled", value: "instant" | "bare"): number =>
+    marks.filter((node) =>
+      value === "bare" ? node[mark] === true : typeof node[mark] === "string"
+    ).length
+
+  for (const mark of ["done", "cancelled"] as const) {
+    expect(carrying(mark, "instant")).toBeGreaterThan(0)
+    expect(carrying(mark, "bare")).toBeGreaterThan(0)
+  }
+
+  // …and the dated ones really reach the day index, which is the claim the
+  // benches' rows are about rather than a fact about the records.
+  const onDays = marks.filter((node) =>
+    datesOf(node).some((dated) => dated.occasion === "cancelled")
+  )
+  expect(onDays.length).toBeGreaterThan(0)
 })
 
 test("every index a bench prints a number about has something in it", () => {

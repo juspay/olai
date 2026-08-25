@@ -479,10 +479,15 @@ describe("done and doing", () => {
   // every capture onto the day it was written down and `/today` would stop
   // being about what happened. Finishing is the event a day page is about;
   // starting and filing are not.
-  test("only `done` carries an instant — the other two say `true`", () => {
-    const marked = (op: "done" | "doing" | "todo"): RegularNode =>
+  test("the SETTLING marks carry an instant — the other two say `true`", () => {
+    const marked = (op: "done" | "cancelled" | "doing" | "todo"): RegularNode =>
       record(fileOf(planned(house(), { op, id: "order" }), "house.olai"), "order")
     expect(marked("done").done).toBe(STAMP)
+    // `cancelled` is stamped for `done`'s reason, read once more: deciding to
+    // stop is an EVENT the day is about, and the mark exists precisely so the
+    // vault can say when it was taken (the human, 2026-08-25). Clearing a mark
+    // — what "not happening" used to be — left a bullet with no instant on it.
+    expect(marked("cancelled").cancelled).toBe(STAMP)
     expect(marked("doing").doing).toBe(true)
     expect(marked("todo").todo).toBe(true)
   })
@@ -537,6 +542,153 @@ describe("done and doing", () => {
     const cleared = planned(marked, { op: "todo", id: "x", undo: true })
     expect(record(fileOf(cleared, "a.olai"), "x").todo).toBeUndefined()
     expect(cleared.summary).toBe("not-todo: x")
+  })
+
+  /**
+   * `set_cancelled`, the fourth mark's own verb — what it writes, what it
+   * refuses, and the two things it deliberately does NOT do.
+   */
+  test("`cancelled` is a mark that SETTLES, and is gated like one", () => {
+    const result = planned(house(), { op: "cancelled", id: "order" })
+    expect(record(fileOf(result, "house.olai"), "order").cancelled).toBe(STAMP)
+    expect(result.summary).toBe("cancelled: order the cabinets")
+
+    // It clears whatever was there, like every other mark: the format allows
+    // one, so this is what makes the write valid rather than tidy.
+    expect(record(fileOf(result, "house.olai"), "order").doing).toBeUndefined()
+
+    // Taking it off says so in the commit line, off the same table.
+    const off = planned(
+      setOf({ "a.olai": `{"id":"x","ord":"a0","title":"x","cancelled":"2026-08-01"}` }),
+      { op: "cancelled", id: "x", undo: true },
+    )
+    expect(record(fileOf(off, "a.olai"), "x").cancelled).toBeUndefined()
+    expect(off.summary).toBe("uncancelled: x")
+
+    // A node that is already cancelled is not quietly re-marked, whichever
+    // mark is asked for — the `done` rule read one settling mark over, and it
+    // exists for the same reason: the instant it was called off at is on that
+    // day's journal page, and nothing overwrites one on your behalf.
+    const called = setOf({
+      "a.olai": `{"id":"x","ord":"a0","title":"x","cancelled":"2026-08-01"}`,
+    })
+    for (const op of ["todo", "doing", "done"] as const) {
+      expect(refused(called, { op, id: "x" }).message).toContain("is cancelled. Undo that first")
+    }
+    expect(refused(called, { op: "cancelled", id: "x" }).message).toContain("already cancelled")
+
+    // …and the pair the old spelling would have let through: a DONE node may
+    // not be quietly called off either, which would have thrown away the
+    // instant the work was finished at.
+    const finished = setOf({
+      "a.olai": `{"id":"x","ord":"a0","title":"x","done":"2026-08-01"}`,
+    })
+    expect(refused(finished, { op: "cancelled", id: "x" }).message)
+      .toContain("is done. Undo that first")
+
+    // THE ORDER IS NOT A LAW FOR IT. `set_doing` is the one verb the `after`
+    // graph gates, and calling work off is a decision rather than an
+    // instruction to start: a blocked node can always be cancelled.
+    const blocked = setOf({
+      "a.olai": `{"id":"one","ord":"a0","title":"one","todo":true}\n` +
+        `{"id":"two","ord":"a1","title":"two","todo":true,"after":["one"]}`,
+    })
+    expect(record(fileOf(planned(blocked, { op: "cancelled", id: "two" }), "a.olai"), "two")
+      .cancelled).toBe(STAMP)
+  })
+
+  /**
+   * THE FOURTH MARK'S SECOND RULING at the write gate: it is NOT gated on the
+   * branch below it, and it does not re-open a stale mark above it.
+   *
+   * Both of `set_done`'s doors exist because done-HIDING sweeps a done row with
+   * its subtree, and nothing hides a cancelled row. So there is nothing for a
+   * refusal to protect and nothing for an arrival to repair — what is left
+   * standing stays on the page, and the answer NAMES it instead.
+   */
+  test("cancelling a branch refuses nothing, and says what it left standing", () => {
+    const set = setOf({
+      "a.olai": [
+        `{"id":"p","ord":"a0","title":"the trip","todo":true}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"pack","todo":true}`,
+        `{"id":"c2","parent":"p","ord":"a1","title":"a note"}`,
+      ].join("\n"),
+    })
+    const result = planned(set, { op: "cancelled", id: "p" })
+    expect(record(fileOf(result, "a.olai"), "p").cancelled).toBe(STAMP)
+    // The remark, in door one's own two vocabularies — and saying out loud
+    // that nothing was hidden and nothing refused.
+    expect(result.nudge).toContain("`the trip` is cancelled, but 1 task under it is")
+    expect(result.nudge).toContain("`pack` (`c1`, todo)")
+    expect(result.nudge).toContain("Nothing was hidden and nothing was refused")
+    // The bullet is not among them: it is not work.
+    expect(result.nudge).not.toContain("a note")
+
+    // Nothing left standing, nothing to say.
+    const settled = setOf({
+      "a.olai": [
+        `{"id":"p","ord":"a0","title":"the trip","todo":true}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"pack","done":true}`,
+      ].join("\n"),
+    })
+    expect(planned(settled, { op: "cancelled", id: "p" }).nudge).toBeUndefined()
+  })
+
+  /**
+   * DOOR TWO does not fire for it: a settling mark is not open work ARRIVING,
+   * so a `done` above stays exactly as it was.
+   *
+   * The predicate is `unfinished` rather than `mark !== "done"`, which is the
+   * whole of the fix — spelled the old way, cancelling a row under a finished
+   * branch would have taken that branch's `done` off, re-opening work somebody
+   * finished because somebody else called one row in it off.
+   */
+  test("cancelling under a done ancestor leaves that mark alone", () => {
+    const set = setOf({
+      "a.olai": [
+        `{"id":"p","ord":"a0","title":"the trip","done":"2026-08-01"}`,
+        `{"id":"c1","parent":"p","ord":"a0","title":"pack","todo":true}`,
+      ].join("\n"),
+    })
+    // The set is one a git merge can produce (a mark in one branch, a task
+    // under it in another) — which is exactly the shape door two repairs, and
+    // exactly the shape it must not repair for a mark that settles.
+    const result = planned(set, { op: "cancelled", id: "c1" })
+    expect(record(fileOf(result, "a.olai"), "p").done).toBe("2026-08-01")
+    expect(result.nudge).toBeUndefined()
+
+    // …where the same write with `todo` DOES re-open it, which is the contrast
+    // that says this is a decision rather than a gap.
+    const opened = planned(
+      setOf({
+        "a.olai": [
+          `{"id":"p","ord":"a0","title":"the trip","done":"2026-08-01"}`,
+          `{"id":"c1","parent":"p","ord":"a0","title":"pack","cancelled":true}`,
+        ].join("\n"),
+      }),
+      { op: "cancelled", id: "c1", undo: true },
+    )
+    expect(record(fileOf(opened, "a.olai"), "p").done).toBe("2026-08-01")
+  })
+
+  /**
+   * A RECURRENCE STOPS rather than rolling forward, which is the one place the
+   * two settling marks part company at this verb.
+   *
+   * Finishing this week's occurrence says the chore goes on; calling it off
+   * says it does not. The rule stays ON the record, so the decision is
+   * reversible: un-cancelling gives back a dated node with its rule intact.
+   */
+  test("cancelling a repeating node spawns nothing and keeps the rule", () => {
+    const set = setOf({
+      "a.olai":
+        `{"id":"x","ord":"a0","title":"water the plants","todo":true,"date":"2026-08-25","repeat":"every week on monday"}`,
+    })
+    const result = planned(set, { op: "cancelled", id: "x" })
+    const nodes = fileOf(result, "a.olai")
+    expect(nodes.length).toBe(1)
+    expect(record(nodes, "x").repeat).toBe("every week on monday")
+    expect(result.captured).toBeUndefined()
   })
 
   test("undoing a mark that is not there is refused", () => {
@@ -923,8 +1075,11 @@ describe("done over open work: the claim is refused", () => {
     // Title for the person, id and mark for the agent — {@link heldUp}'s shape.
     expect(failure.message).toContain("`pack` (`c2`, todo)")
     expect(failure.message).toContain("Done-hidden hides a done node WITH its subtree")
-    // The other half of the ruling: an unmarked bullet is not unfinished work,
-    // so clearing a mark is the second way out and the refusal says so.
+    // The other half of the ruling: the way out is to SETTLE what is not
+    // happening, and since 2026-08-25 there is a mark for that — the refusal
+    // names it, with clearing the mark kept as the second way (an unmarked
+    // bullet is not unfinished work either).
+    expect(failure.message).toContain("or cancel it if it is not happening")
     expect(failure.message).toContain("take the mark off")
   })
 
@@ -973,6 +1128,40 @@ describe("done over open work: the claim is refused", () => {
     })
     expect(record(fileOf(planned(set, { op: "done", id: "p" }), "a.olai"), "p").done)
       .toBe(STAMP)
+  })
+
+  /**
+   * THE FOURTH MARK'S FIRST RULING, at this door: a cancelled child does not
+   * hold a parent's `done` up (the human, 2026-08-25).
+   *
+   * It is the refusal's own sentence taken at its word. The gate has always
+   * said the way past it is to settle what is not happening — and "clear the
+   * mark" was the only spelling of that, which left a bullet: no mark, no
+   * instant, no day, indistinguishable from a line nobody ever called work.
+   * `cancelled` is the honest spelling, and the branch below reads exactly as
+   * settled to this walk as a `done` does.
+   */
+  test("a cancelled child settles, so the parent's `done` is not refused", () => {
+    const set = trip(
+      `{"id":"c1","parent":"p","ord":"a0","title":"book the ferry","done":true}`,
+      `{"id":"c2","parent":"p","ord":"a1","title":"pack the tent","cancelled":"2026-08-25"}`,
+      `{"id":"c3","parent":"p","ord":"a2","title":"a note about ferries"}`,
+    )
+    expect(record(fileOf(planned(set, { op: "done", id: "p" }), "a.olai"), "p").done)
+      .toBe(STAMP)
+
+    // Deep, too, and through a cancelled branch: this walk reads each node's
+    // OWN stored mark at every level, so a `todo` under a cancelled parent is
+    // still unfinished work and still names itself in the refusal. Cancelling
+    // a parent is not a cascade — a mark is a stored fact, never computed from
+    // what hangs below (docs/format.md's Status).
+    const deep = trip(
+      `{"id":"c1","parent":"p","ord":"a0","title":"the tent","cancelled":true}`,
+      `{"id":"g1","parent":"c1","ord":"a0","title":"find the poles","todo":true}`,
+    )
+    const failure = refused(deep, { op: "done", id: "p" })
+    expect(failure.message).toContain("1 unfinished task")
+    expect(failure.message).toContain("`find the poles` (`g1`, todo)")
   })
 
   // Archived work is over: nothing in an `_olai/Trash.olai` is open work, and

@@ -45,6 +45,8 @@ import {
   LocatedRegular,
   type Node,
   type RegularNode,
+  type Settled,
+  settles,
   Status,
   storedMarker,
   type TargetField,
@@ -906,14 +908,18 @@ const resolutions = (
  *
  * A TYPE GUARD rather than a boolean, because the rule is a fact about the
  * value and {@link InTheWay} already says so in its type: what is in the way
- * is `Exclude<Status, "done">`. `undefined` — a node nobody marked — is not
+ * is `Exclude<Status, Settled>`. `undefined` — a node nobody marked — is not
  * unfinished work; it is not work. The trap this is written against is
  * spelling it `mark !== "done"`, which reads every plain bullet as something
- * outstanding.
+ * outstanding — and the SECOND trap, which the fourth mark walked into, is
+ * spelling it `mark !== "done"` once the list has two words in it: that reads a
+ * cancelled task as work somebody still owes, which is the one thing "not
+ * happening" says it is not. {@link ./node.ts}'s `settles` is the list, asked
+ * here rather than restated.
  */
 export const unfinished = (
   mark: Status | undefined,
-): mark is Exclude<Status, "done"> => mark !== undefined && mark !== "done"
+): mark is Exclude<Status, Settled> => mark !== undefined && !settles(mark)
 
 /**
  * Is this node WORK that nobody has finished?
@@ -931,30 +937,32 @@ export const unfinished = (
  * feeds — the same rule that put {@link ./occasion.ts}'s `dateInto` one module
  * below the day readings.
  *
- * ## A FOURTH MARK LANDS HERE, and this is the contract
+ * ## THE FOURTH MARK LANDED HERE, and this is the contract it kept
  *
  * WHAT COUNTS AS UNFINISHED WORK is decided in exactly two places, and they
- * are twins: THIS predicate (through {@link unfinished}, which spells
- * `!== undefined && !== "done"`) and {@link ./node.ts}'s `Unfinished`, which
- * is `MARKS` with `done` filtered out. Both are written as "everything that
- * is not `done`" — which is exactly right for three marks and is a decision
- * disguised as an omission for a fourth.
+ * are twins: THIS predicate (through {@link unfinished}) and
+ * {@link ./node.ts}'s `Unfinished`, which is `MARKS` with the settling marks
+ * filtered out. Both used to be written as "everything that is not `done`" —
+ * exactly right for three marks, and a decision disguised as an omission for a
+ * fourth. Both now ask {@link ./node.ts}'s `settles` of the mark, which is one
+ * LIST rather than one word.
  *
- * So a mark added to {@link ./node.ts}'s `MARKS` and nowhere else is, by
- * DEFAULT, unfinished work: a dated node carrying it stays overdue, stays in
- * {@link Derived.owedByDay}'s tally, stays on the agenda, keeps its date badge
- * burning and goes on blocking whatever waits on it. That is the right default
- * for a mark that means somebody still has to do this, and the wrong one for a
- * mark that SETTLES — the roadmap's `cancelled` is the case, and it settles the
- * way `done` does (a struck-through row and an instant, not a task nobody has
- * got to).
+ * A mark added to `MARKS` and nowhere else is, by DEFAULT, unfinished work: a
+ * dated node carrying it stays overdue, stays in {@link Derived.owedByDay}'s
+ * tally, stays on the agenda, keeps its date badge burning and goes on blocking
+ * whatever waits on it. That is the right default for a mark that means
+ * somebody still has to do this, and the wrong one for a mark that SETTLES.
+ * `cancelled` is that case (the human, 2026-08-25) and it took the one seam
+ * this header promised: naming it in `SETTLED` is what made a cancelled task
+ * un-owed on the count, the page, the badge and the blocker arrow at once.
+ * A reading that had spelled the rule for itself would be the one left saying a
+ * cancelled task is still owed — and there was none, which is what the
+ * contract was for.
  *
- * A settling mark therefore has to be named in these two and only these two,
- * and every reading follows: the count, the page, the badge, the blocker
- * arrow. THAT IS WHY THE PREDICATE IS ONE COMPOSITION — the lane that adds the
- * mark touches one seam rather than hunting the readings, and a reading that
- * had spelled the rule for itself would be the one left saying a cancelled
- * task is still owed.
+ * WHAT SETTLING DOES NOT MEAN is that the two marks are interchangeable. Every
+ * reading that asks WHICH mark still gets a different answer — a day page names
+ * the occasion, a glyph draws a check or a cross, a commit line says `done:` or
+ * `cancelled:`. What they share is that nobody is waiting.
  */
 export const unfinishedWork = (node: RegularNode): boolean =>
   unfinished(storedMarker(node))
@@ -1047,6 +1055,30 @@ const tasksUnder = (
  *
  * `undefined` when nothing under it is a task — there is no progress to show
  * rather than progress of zero.
+ *
+ * ## A CANCELLED CHILD LEAVES THE DENOMINATOR
+ *
+ * The fourth mark's second open question (2026-08-25), and the answer is that
+ * `3/5` counts the things that are HAPPENING. A cancelled child is neither
+ * finished nor outstanding, and the two other answers are both worse:
+ *
+ *   - **counted as done** (`3/5` where two were finished and one was called
+ *     off) makes the numerator a lie about how much got done, on the one
+ *     annotation a reader trusts to say exactly that;
+ *   - **left in the denominator as outstanding** (`2/5` that can never reach
+ *     `5/5`) makes the rollup permanently unfinishable, which is the reading a
+ *     settling mark exists to end. Nobody is waiting on that child, so nothing
+ *     should go on counting it as something still to do.
+ *
+ * Dropped, `2/4` says four things are on and two are finished, and the branch
+ * can reach `4/4` by finishing them. A parent whose children were ALL cancelled
+ * has a total of zero and shows no rollup at all — which is the sentence
+ * directly above read once more: nothing under it is happening, so there is no
+ * progress to show rather than progress of zero.
+ *
+ * The row does not lose the fact — the cancelled child is still drawn, struck
+ * through, on its own line. What it loses is a claim in a two-integer badge
+ * that has nowhere to put "and one is not happening".
  */
 export const Progress = Schema.Struct({
   done: Schema.Int,
@@ -1056,14 +1088,16 @@ export type Progress = typeof Progress.Type
 
 export const progressOf = (derived: Derived, id: string): Progress | undefined => {
   const tasks = tasksUnder(derived, id)
-  if (tasks.length === 0) return undefined
   // Counted in place rather than filtered: this runs once per drawn row, and
   // the answer is two integers.
   let done = 0
+  let total = 0
   for (const task of tasks) {
+    if (task.status === "cancelled") continue
+    total += 1
     if (task.status === "done") done += 1
   }
-  return { done, total: tasks.length }
+  return total === 0 ? undefined : { done, total }
 }
 
 /**
@@ -1123,17 +1157,20 @@ export const unfinishedWithin = (
  * page names the node, and a caller left to look the mark up again is a caller
  * free to look it up differently.
  *
- * `Exclude<Status, "done">` says the whole rule in the type: what is in the way
- * is unfinished WORK. A node with no status is absent from this shape entirely
- * — it is not a task, so there is nothing under it to finish — which is not a
- * second sentence but the same one, since {@link unfinished} is the predicate
- * both this and {@link unfinishedWithin} are built from, about the two
- * different kinds of edge.
+ * `Exclude<Status, Settled>` says the whole rule in the type: what is in the
+ * way is unfinished WORK. A node with no status is absent from this shape
+ * entirely — it is not a task, so there is nothing under it to finish — and so
+ * is a CANCELLED one, which is the same sentence with the fourth mark in it:
+ * work that is not happening is not work anybody is waiting for. Neither is a
+ * second rule, since {@link unfinished} is the predicate both this and
+ * {@link unfinishedWithin} are built from, about the two different kinds of
+ * edge.
  */
 export const InTheWay = Schema.Struct({
   at: LocatedRegular,
-  /** `./node.ts`'s {@link Unfinished}, which is {@link Status} minus `done` —
-   *  the rule in the type, read off the one list rather than written out. */
+  /** `./node.ts`'s {@link Unfinished}, which is {@link Status} minus the marks
+   *  that settle — the rule in the type, read off the one list rather than
+   *  written out. */
   status: Unfinished,
 })
 export type InTheWay = typeof InTheWay.Type
@@ -1275,22 +1312,27 @@ const waitingOn = (
  * What is standing in each node's way — the whole of blockedness, derived like
  * everything else here and stored nowhere.
  *
- * `a after b` means b blocks a WHILE b is a task that is not done — with the
- * three marks there are, while b is `doing` or `todo`. A target with NO status
+ * `a after b` means b blocks a WHILE b is a task nobody has settled — with the
+ * four marks there are, while b is `doing` or `todo`. A target with NO status
  * never blocks: it is not a task, there is nothing under it to finish, so
- * there is nothing to wait for. The trap this rule is written against is
- * spelling it `status !== "done"`, which reads every plain bullet as an
- * obstacle that can never be cleared — and adding `todo` did not narrow that
- * trap by one case, since the unmarked node is still the one that must not
- * block (docs/format.md).
+ * there is nothing to wait for. Nor does a CANCELLED one: "not happening" ends
+ * the wait exactly as finishing does, so anything `after` it unblocks the
+ * moment the mark lands (the human, 2026-08-25). The trap this rule is written
+ * against is spelling it `status !== "done"`, which reads every plain bullet as
+ * an obstacle that can never be cleared — and, once a second settling mark
+ * exists, reads work somebody called off as an obstacle nobody can clear at
+ * all, since the way to clear it is the very mark being ignored
+ * (docs/format.md).
  *
  * ONE predicate, read at BOTH ENDS of the arrow, which is the racket
  * reference's own shape (`olai/query.rkt`'s `live?`): "a node this can be said
  * about" and "a node that still stands in the way" are the same question asked
  * from either side, and two spellings of it would be two chances to disagree
  * about what unfinished work is. So a done node is waiting on nothing — it has
- * happened, and the order it happened in is no longer a question — and a
- * bullet is neither blocked nor blocking, because a bullet is not work.
+ * happened, and the order it happened in is no longer a question — a CANCELLED
+ * one is waiting on nothing either, since it is not going to happen and the
+ * order is no longer a question for that reason instead, and a bullet is
+ * neither blocked nor blocking, because a bullet is not work.
  *
  * ARCHIVED is that same answer arrived at from the other side, and it also
  * goes both ways. Work that was put away is not blocking anything: archiving

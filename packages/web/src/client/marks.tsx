@@ -1,12 +1,19 @@
 /**
- * The four things a node's glyph can BE, drawn.
+ * The five things a node's glyph can BE, drawn.
  *
  * One vocabulary, one width: a bullet, an empty box (`todo`), a half-filled box
- * (`doing`), a checked box (`done`) — and the hourglass that stands in for any
- * of the marks when the node cannot start yet. The faces are CSS and SVG rather
- * than the text glyphs (`☑ ◧ ☐ •`) they replaced, so every theme paints them
- * from the same tokens, a font change cannot reshape them, and they all measure
- * the same across.
+ * (`doing`), a checked box (`done`), a CROSSED box (`cancelled`) — and the
+ * hourglass that stands in for any of the marks when the node cannot start yet.
+ * The faces are CSS and SVG rather than the text glyphs (`☑ ◧ ☐ •`) they
+ * replaced, so every theme paints them from the same tokens, a font change
+ * cannot reshape them, and they all measure the same across.
+ *
+ * THE CROSS IS WHERE THE FOURTH MARK IS SAID, and it is the only place: a
+ * cancelled title is struck through in exactly the muted ink a done one is
+ * (./tone.ts says why), because what a strike says is "nobody is waiting on
+ * this", which is the one property the two settling marks share. Everything
+ * that tells them apart is in this column, at the width of a glyph — a check
+ * for the work that happened, a cross for the work that will not.
  *
  * WHAT DRAWS THEM is `./Glyph.tsx` — one column in the gutter, so a reader
  * scanning a tree looks in one place to sort a row rather than at a dot and then
@@ -18,13 +25,15 @@
  * paragraph in it. `todo` says it where someone meant it; everything else is a
  * bullet.
  *
- * BLOCKED IS THE FIFTH FACE, and it belongs in this column rather than beside
+ * BLOCKED IS THE LAST FACE, and it belongs in this column rather than beside
  * the title (resolved 2026-08-11, human): what a task cannot start yet is the
  * same KIND of fact as whether it has started, so it is answered where a reader
  * already looks. It replaces the box rather than crowding it, toned with the
  * mark it stands in for, so `doing`-but-waiting and `todo`-but-waiting read as
- * the two different things they are. Only those two can wear it: a done node is
- * waiting on nothing and an unmarked one is not work.
+ * the two different things they are. Only those two can ever wear it: a SETTLED
+ * node is waiting on nothing — done work has happened and cancelled work is not
+ * going to, so the order is no longer a question either way
+ * (`@olai/format`'s `blockage`) — and an unmarked one is not work.
  *
  * ## The tones, and why exactly one of them is a colour
  *
@@ -43,19 +52,30 @@
 import type { InTheWay, Status } from "@olai/format"
 import { Match, Switch } from "solid-js"
 
-/** The five faces the glyph column can draw — a closed set so a typo is a
+/** The six faces the glyph column can draw — a closed set so a typo is a
  *  compile error rather than a `Switch` that matches nothing and draws no
  *  glyph. `bullet` is what a node with no mark is. */
-export type MarkFace = "bullet" | "checked" | "doing" | "empty" | "waiting"
+export type MarkFace =
+  | "bullet"
+  | "checked"
+  | "crossed"
+  | "doing"
+  | "empty"
+  | "waiting"
 
 /** Which face a mark wears, what it is called, and the ink it takes. `doing`
- *  is the one accent in the column; `done` recedes into the muted ink beside
- *  the strike its title carries. */
+ *  is the one accent in the column; the two settling marks recede into muted
+ *  ink beside the strike their titles carry, and are told apart by their SHAPE
+ *  rather than by a colour — `done` takes the palette's own finished token,
+ *  `cancelled` the plain muted ink, and the check against the cross is what a
+ *  reader actually reads. Keyed by `Status`, so a fifth mark is a missing key
+ *  here rather than a row that draws no glyph at all. */
 export const FACE: Record<
   Status,
   { readonly face: Exclude<MarkFace, "waiting" | "bullet">; readonly hint: string; readonly tone: string }
 > = {
   done: { face: "checked", hint: "done", tone: "text-done" },
+  cancelled: { face: "crossed", hint: "cancelled", tone: "text-muted" },
   doing: { face: "doing", hint: "doing", tone: "text-accent" },
   todo: { face: "empty", hint: "not started", tone: "text-muted" },
 }
@@ -115,6 +135,24 @@ export function Face(props: { readonly face: MarkFace }) {
               scales with the box, inherits the muted tone done now takes. */}
           <span
             class="absolute left-[0.12rem] top-[0.02rem] h-[0.4rem] w-[0.22rem] rotate-45 border-b-[1.5px] border-r-[1.5px] border-current"
+            aria-hidden="true"
+          />
+        </span>
+      </Match>
+      <Match when={props.face === "crossed"}>
+        <span class={`${BOX} relative bg-transparent`}>
+          {/* An X drawn as two rotated bars, the checkmark's own trick one
+              stroke further: no SVG, scales with the box, inherits the muted
+              tone a cancelled row takes. Inside the box rather than instead of
+              it, so the four marks measure the same across and the column stays
+              a column — and a CROSS rather than an empty box with a strike over
+              it, which at this size is the `todo` face with a smudge. */}
+          <span
+            class="absolute left-1/2 top-1/2 h-[0.5rem] w-[1.5px] -translate-x-1/2 -translate-y-1/2 rotate-45 bg-current"
+            aria-hidden="true"
+          />
+          <span
+            class="absolute left-1/2 top-1/2 h-[0.5rem] w-[1.5px] -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-current"
             aria-hidden="true"
           />
         </span>

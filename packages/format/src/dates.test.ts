@@ -65,6 +65,15 @@ const MARKED = derive(
       // A dated `todo` that is ALSO scheduled: the `date` places it, the
       // `todo` adds nothing, and it is one row rather than two.
       `{"id":"tiles","ord":"a6","title":"pick the tiles","todo":"2026-08-11","date":"2026-08-14"}`,
+      // CALLED OFF at an instant, scheduled for nothing — the fourth mark's
+      // half of the same shape `header` has, and the whole of ruling two: the
+      // day tells the story of itself including what was called off.
+      `{"id":"skylight","ord":"a7","title":"cut a skylight","cancelled":"2026-08-11T16:20:00-04:00"}`,
+      // Scheduled one day, called off another: two dates, two days, one row
+      // each — `survey` one settling mark over.
+      `{"id":"deck","ord":"a8","title":"rebuild the deck","cancelled":"2026-08-12T10:00:00-04:00","date":"2026-08-11"}`,
+      // A `cancelled` that says only that the state was reached, on no day.
+      `{"id":"gutters","ord":"a9","title":"clear the gutters","cancelled":true}`,
     ].join("\n"),
   }),
 )
@@ -178,7 +187,7 @@ test("a node is on the day its mark was dated", () => {
 
 test("a node carrying two dates is on both days, once each", () => {
   expect(idsOf(MARKED, "2026-08-11")).toContain("survey")
-  expect(idsOf(MARKED, "2026-08-12")).toEqual(["survey"])
+  expect(idsOf(MARKED, "2026-08-12")).toEqual(["survey", "deck"])
   expect(occasionOf("2026-08-11", "survey")).toBe("date")
   expect(occasionOf("2026-08-12", "survey")).toBe("done")
 })
@@ -192,9 +201,35 @@ test("two dates on one day are one row", () => {
 })
 
 // `true` says the state was reached and declines to say when — the shape
-// everything written before `done` carried instants still has.
+// everything written before `done` carried instants still has, and the fourth
+// mark takes it the same way.
 test("a mark with no date is on no day", () => {
   expect(idsOf(MARKED, "2026-08-11")).not.toContain("demo")
+  expect(idsOf(MARKED, "2026-08-11")).not.toContain("gutters")
+})
+
+/**
+ * RULING TWO, at the reading it is about: a cancelled node is on the day it
+ * was called off, and the row SAYS which of its dates put it there.
+ *
+ * The whole of the argument is in the occasion word. A journal is a record of
+ * what happened and what is coming, and a decision to stop is one of the
+ * things that happens — a Tuesday on which three things shipped and two were
+ * dropped is not a Tuesday on which three things shipped. `cancelled` is
+ * therefore a third occasion rather than a second reading of `done`: both are
+ * settling instants, and the page prints the word in front of the time, so
+ * nobody has to infer from a strike which of the two a row is.
+ */
+test("a node is on the day it was CALLED OFF, and the row says so", () => {
+  expect(idsOf(MARKED, "2026-08-11")).toContain("skylight")
+  expect(occasionOf("2026-08-11", "skylight")).toBe("cancelled")
+  expect(datedDays(MARKED, "2026-08").includes("2026-08-11")).toBe(true)
+
+  // Two dates, two days, one row each — and the `date` half keeps the day it
+  // names, so a page does not lose what the work was scheduled for.
+  expect(idsOf(MARKED, "2026-08-11")).toContain("deck")
+  expect(occasionOf("2026-08-11", "deck")).toBe("date")
+  expect(occasionOf("2026-08-12", "deck")).toBe("cancelled")
 })
 
 /**
@@ -231,18 +266,26 @@ test("only the read fields light a month's days", () => {
   ])
 })
 
-// One order over both fields: a bare date is the day itself and comes first,
-// and the instants follow in the order they happened.
+// One order over ALL THREE fields: a bare date is the day itself and comes
+// first, and the instants follow in the order they happened — whichever
+// settling mark each one came off, since what is sorted is the VALUE.
 test("a day's rows are in time order across the fields", () => {
-  expect(idsOf(MARKED, "2026-08-11")).toEqual(["survey", "quote", "header"])
+  expect(idsOf(MARKED, "2026-08-11"))
+    .toEqual(["survey", "deck", "quote", "header", "skylight"])
 })
 
 // The row carries the date it is THERE for, not whatever else the node stores
-// — a completion instant on the day it was completed.
+// — a settling instant on the day the work was settled.
 test("a row shows the date that put it on the day", () => {
   const [row] = rowsOn(MARKED, "2026-08-12")
   expect(row!.date).toBe("2026-08-12T09:15:00-04:00")
   expect(row!.status).toBe("done")
+
+  // …and the fourth mark's row carries its own instant and its own mark, which
+  // is what the page draws the strike and the glyph off.
+  const called = rowsOn(MARKED, "2026-08-12")[1]
+  expect(called!.date).toBe("2026-08-12T10:00:00-04:00")
+  expect(called!.status).toBe("cancelled")
 })
 
 // One row per RECORD, which is not the same promise as one row per id: these

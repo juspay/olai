@@ -58,6 +58,8 @@ import {
   ordBetween,
   outlinePaths,
   OUTLINE_EXT,
+  type Settled,
+  settles,
   shadowFor,
   siblingsOf,
   standingBefore,
@@ -165,6 +167,7 @@ export const plan = (
     case "add":
       return planAdd(scope, request)
     case "done":
+    case "cancelled":
     case "doing":
     case "todo":
       return planMark(scope, request)
@@ -1113,10 +1116,12 @@ const wiring = (
 // ── the marks ──────────────────────────────────────────────────────────
 
 /** The commit subject for taking a mark OFF, one per mark — racket's wording
- *  for the two it had, and the same shape for the third. A table rather than a
- *  conditional, so a fourth mark is a missing key and not a silent default. */
+ *  for the two it had, and the same shape for the two that followed. A table
+ *  rather than a conditional, so a fifth mark is a missing key and not a silent
+ *  default; it is what named `cancelled` here the day the format's list grew. */
 const UNMARKED = {
   done: "undone",
+  cancelled: "uncancelled",
   doing: "not-doing",
   todo: "not-todo",
 } as const satisfies Record<Status, string>
@@ -1124,21 +1129,31 @@ const UNMARKED = {
 /**
  * What a mark is WORTH on disk.
  *
- * ONLY `done` IS STAMPED, and it is stamped with the INSTANT it was made rather
- * than the day: finishing something happens AT a moment, "some time on Tuesday"
- * is the answer to a question nobody asked, and the day view reads the day off
- * the front of the value either way (`@olai/format`'s `dayOf`), so the time
- * costs a reader nothing and orders a day's finished work.
+ * THE SETTLING MARKS ARE STAMPED, and each with the INSTANT it was made rather
+ * than the day: finishing something happens AT a moment, calling something off
+ * happens at a moment, "some time on Tuesday" is the answer to a question
+ * nobody asked, and the day view reads the day off the front of the value
+ * either way (`@olai/format`'s `dayOf`), so the time costs a reader nothing and
+ * orders a day's settled work.
  *
  * `doing` and `todo` store `true` (resolved 2026-08-11, human). The symmetry
- * argument — three answers to one question, written by one op — loses to what a
- * date on a mark now MEANS: it puts the node on that day (docs/format.md's
- * Days). A stamped `todo` would file everything on the day it was captured, so
- * a day page would fill up with work that was written down then rather than
- * done then, and `/today` would drift into a capture log. Finishing is the
- * event a journal is about; filing is not, and neither is starting. Nothing is
- * lost for a person who wants one: `set_date` schedules, and a hand-written
- * date on any mark still reads (the format takes all three).
+ * argument — one answer per mark, written by one op — loses to what a date on a
+ * mark now MEANS: it puts the node on that day (docs/format.md's Days). A
+ * stamped `todo` would file everything on the day it was captured, so a day
+ * page would fill up with work that was written down then rather than done
+ * then, and `/today` would drift into a capture log. Finishing is the event a
+ * journal is about; filing is not, and neither is starting. Nothing is lost for
+ * a person who wants one: `set_date` schedules, and a hand-written date on any
+ * mark still reads (the format takes all four).
+ *
+ * `cancelled` JOINED THE STAMPED SIDE and not the `true` side (the human,
+ * 2026-08-25), and it is the same test read once more: is this an event the day
+ * is about? Deciding to stop is. It is the half of a Tuesday that the finished
+ * work does not report, and the whole reason the mark exists rather than the
+ * gesture it replaced — clearing a mark left a bullet with no instant on it, so
+ * "we dropped this" was a thing the vault could not tell you the date of.
+ * `settles` is asked rather than the two words compared, so this reads off the
+ * one list `unfinishedWork`'s contract names.
  *
  * One function because two ops ask: marking a node that exists, and capturing
  * one that arrives already marked. Two spellings would be two answers to "what
@@ -1146,7 +1161,7 @@ const UNMARKED = {
  * change.
  */
 const marker = (scope: Scope, mark: Status): string | true =>
-  mark === "done" ? scope.context.now() : true
+  settles(mark) ? scope.context.now() : true
 
 /**
  * A record about to be written, stamped `changed` — the one place a write says
@@ -1200,6 +1215,26 @@ const borne = (scope: Scope, node: RegularNode): RegularNode => {
   return next
 }
 
+/**
+ * What a write over an ALREADY-SETTLED node is refused with, one sentence per
+ * settling mark.
+ *
+ * A TABLE, and keyed by {@link Settled}, so a third settling mark is a missing
+ * key here rather than a refusal quietly telling somebody their cancelled node
+ * "is done". Each sentence names the way out, which is the same two calls an
+ * agent makes and the same two gestures the web asks for: undo the mark, then
+ * write the new one.
+ */
+const WALKING_BACK = {
+  done: (title: string) =>
+    `\`${title}\` is done. Undo that first — nothing should decide on your ` +
+    `behalf that finished work is not finished.`,
+  cancelled: (title: string) =>
+    `\`${title}\` is cancelled. Undo that first — nothing should decide on ` +
+    `your behalf that work somebody called off is back on, and the instant it ` +
+    `was called off at is on that day's page.`,
+} as const satisfies Record<Settled, (title: string) => string>
+
 const planMark = (
   scope: Scope,
   request: Extract<Request, { op: Status }>,
@@ -1222,16 +1257,23 @@ const planMark = (
       new UsageFailure({ reason: `\`${node.title}\` is already ${mark}` }),
     )
   }
-  // Any mark that is not `done`, over a node that IS done, walks finished work
-  // backwards. `doing` and `todo` both do it, and neither may do it quietly.
-  if (!undo && mark !== "done" && stored === "done") {
-    return Result.fail(
-      new UsageFailure({
-        reason:
-          `\`${node.title}\` is done. Undo that first — nothing should decide on your ` +
-          `behalf that finished work is not finished.`,
-      }),
-    )
+  // A mark over a node that is already SETTLED walks a decision backwards, and
+  // no mark may do it quietly. It was `done` alone; `cancelled` joined it, and
+  // the rule that covers both is the one this now spells — any mark, over a
+  // node carrying a settling mark, is refused, and the "already X" refusal
+  // above has taken the same-mark case out of the way first.
+  //
+  // WHY THE FOURTH MARK IS ON THIS SIDE OF THE LINE, since "not happening"
+  // sounds like the cheap answer to undo: a `cancelled` carries an INSTANT and
+  // sits on that day's journal page (`@olai/format`'s `datesOf`), exactly as a
+  // `done` does. Overwriting it takes a day's entry off a page with no sentence
+  // anywhere saying so — which is the very thing the `done` refusal is written
+  // against, one settling mark over. It also covers the pair the old spelling
+  // let through: `done` → `cancelled` would have silently thrown away the
+  // instant work was finished at, and `cancelled` → `done` the instant it was
+  // called off at.
+  if (!undo && stored !== undefined && settles(stored)) {
+    return Result.fail(new UsageFailure({ reason: WALKING_BACK[stored](node.title) }))
   }
   // THE ONE VERB THE ORDER IS A LAW FOR — the mark above walks finished work
   // backwards and is refused for all three, this one is refused for `doing`
@@ -1244,7 +1286,9 @@ const planMark = (
   }
 
   // DOOR ONE ({@link sweepingOpenWork}): a `done` may not be written over
-  // unfinished work in the branch below it.
+  // unfinished work in the branch below it. `set_cancelled` IS NOT GATED HERE
+  // and that is the fourth mark's first open question, answered — see
+  // {@link stillStanding}, which is the advisory that replaces it.
   if (!undo && mark === "done") {
     const sweeping = sweepingOpenWork(scope, file, node)
     if (sweeping !== undefined) return Result.fail(sweeping)
@@ -1278,7 +1322,7 @@ const planMark = (
   // untrue by the very same write. What is said instead is {@link recurring}'s
   // own news, which is the thing a reader of this write actually wants.
   const said = again === undefined
-    ? nudged(scope, node, mark, undo)
+    ? nudged(scope, file, node, mark, undo)
     : `\`${node.title}\` repeats ${node.repeat} — the next one is on ${again.spawned.date}.`
 
   const records = replacing(recordsOf(scope, file), node.id, touched(scope, next))
@@ -1286,6 +1330,12 @@ const planMark = (
   // DOOR TWO ({@link arriving}): this write is what MAKES the node unfinished
   // work, so it is an arrival under whatever stands above it. The node's own
   // parent chain, never its own mark — a node is not above itself.
+  //
+  // A SETTLING MARK IS NOT AN ARRIVAL, which is why the test is `unfinished`
+  // and not `mark !== "done"`: `cancelled` leaves the node as un-owed as `done`
+  // does, so a stale ancestor above it is not made stale by this write and
+  // taking its mark off would be re-opening a finished branch because somebody
+  // called one row in it off.
   //
   // A SPAWN IS AN ARRIVAL TOO, and it is the one way a `done` can be one: the
   // occurrence it brings into being is born `todo`, which is open work landing
@@ -1295,7 +1345,7 @@ const planMark = (
   return Result.succeed(arriving(
     scope,
     { file, parent: node.parent },
-    () => !undo && (mark !== "done" || again !== undefined),
+    () => !undo && (unfinished(mark) || again !== undefined),
     {
       files: [{
         file,
@@ -1376,6 +1426,17 @@ interface Recurrence {
  * the spawned occurrence away — the write that made it was a write, and a
  * recurrence with one live head is exactly what the set then has
  * (docs/format.md's Days).
+ *
+ * ONLY `done` SPAWNS, AND `cancelled` DELIBERATELY DOES NOT (2026-08-25). The
+ * two marks settle alike everywhere a WAIT is the question, and a recurrence is
+ * not that question: it asks what comes NEXT. Finishing this week's occurrence
+ * says the chore goes on; calling it off says it does not — "not happening"
+ * that spawned next week's would be the software arguing with the person who
+ * just wrote it down. So the rule stays ON the cancelled record, which is
+ * exactly what makes the decision reversible: un-cancelling gives back a dated
+ * node with its rule intact, and the next `done` on it starts the series again.
+ * Stopping a recurrence outright is still `repeat: null` (`Stop repeating` on
+ * the row), which is the verb for it and says so.
  */
 const recurring = (
   scope: Scope,
@@ -1528,12 +1589,20 @@ const heldUp = (scope: Scope, node: RegularNode): OpFailure | undefined => {
 }
 
 /**
- * What the rollup has to say about a `done` that has just been written — and
- * it is a REMARK, never a refusal.
+ * What a mark that has just been written has to say about the branch — and it
+ * is a REMARK, never a refusal.
  *
- * ONE THING IS LEFT TO NOTICE, and it is the one worth noticing: the last
- * unfinished task under a parent going done, which is the moment somebody
- * might want to tick the parent too — and now can, whatever else hangs off it.
+ * TWO THINGS ARE LEFT TO NOTICE, one per settling mark, and they are opposite
+ * halves of the same question about the rows below:
+ *
+ *   - a `done` finishing the LAST unfinished task under a parent, which is the
+ *     moment somebody might want to tick the parent too — and now can, whatever
+ *     else hangs off it;
+ *   - a `cancelled` written over a branch that is still FULL of unfinished
+ *     work ({@link stillStanding}), which is the fourth mark's answer to
+ *     "should this be gated like `set_done`". It is not, and this sentence is
+ *     why that costs nothing: what is under it stays on the screen, still owed,
+ *     and the answer says so by name.
  *
  * IT USED TO HAVE A SECOND ARM, and knowing which one it was is the whole
  * history of this file's two gates: a branch ticked done over tasks nobody
@@ -1556,11 +1625,14 @@ const heldUp = (scope: Scope, node: RegularNode): OpFailure | undefined => {
  */
 const nudged = (
   scope: Scope,
+  file: string,
   node: RegularNode,
   mark: Status,
   undo: boolean,
 ): string | undefined => {
-  if (undo || mark !== "done") return undefined
+  if (undo) return undefined
+  if (mark === "cancelled") return stillStanding(scope, file, node)
+  if (mark !== "done") return undefined
 
   // The parent as it reads AFTER this write. The snapshot still calls the node
   // being marked unfinished, so "nothing else is open" is what is asked —
@@ -1579,6 +1651,69 @@ const nudged = (
     ? `every task under \`${above.title}\` is done now — mark it done too if ` +
       `the branch is finished.`
     : undefined
+}
+
+/**
+ * What a `cancelled` leaves STANDING under it — the advisory, and the whole of
+ * this lane's answer to the first of its two open questions: **does
+ * `set_cancelled` need a children gate like `set_done`'s?**
+ *
+ * IT DOES NOT, and the reason is that the gate it would copy is not about
+ * marks at all — it is about HIDING. {@link sweepingOpenWork} refuses a `done`
+ * over open work because done-hiding drops a done row WITH its subtree
+ * (`@olai/format`'s `withoutDone`), so the write would take work off the one
+ * view whose whole job is showing what is left, and take it off silently. That
+ * is the entire argument, and every clause of it turns on the sweep.
+ *
+ * Nothing hides a cancelled row. `withoutDone` reads the STORED `done` and
+ * nothing else — a deliberate reading, not an oversight this lane declined to
+ * fix: the Prefs switch a person set is called "hide done", and widening it to
+ * mean "hide settled" would take rows off a page on the strength of a word
+ * nobody typed. A cancelled row stays where it is, struck through, with
+ * everything under it still drawn, still counted as owed, still burning its
+ * date badge and still blocking whatever waits on it. Nothing vanishes, so
+ * there is nothing for a refusal to protect.
+ *
+ * SO WHAT IS THERE IS A CONTRADICTION A READER CAN SEE, which is a different
+ * kind of thing from one they cannot, and the format already has a name for how
+ * those are handled: a remark. "This is not happening" over three rows that
+ * still say they are is worth one sentence and is not worth a refusal —
+ * refusing it would mean a person who has just decided to drop a project has to
+ * walk the branch bottom-up before the vault will let them write down the
+ * decision, which is exactly the shape of gate that gets a tool lied to.
+ *
+ * NOR DOES A CANCELLED ANCESTOR RE-OPEN, at the other door: work arriving under
+ * one leaves the mark alone ({@link arriving}'s predicate is `unfinished`).
+ * Same argument from the same end — door two exists because arriving work would
+ * be swept off the page by a stale `done` above it, and a stale `cancelled`
+ * above it sweeps nothing. Capturing a task under a cancelled branch is a
+ * perfectly ordinary thing to do, and it says nothing about the branch.
+ *
+ * WHAT THE SENTENCE SAYS is what is left, named in both vocabularies exactly as
+ * the refusal one function down names them — title and id, with the mark each
+ * carries, capped at {@link NAMED_AT_MOST} — and what to do about it, which is
+ * a `cancelled` on each of them if they are not happening either. Trashed
+ * branches are exempt as they are everywhere: work put away is over.
+ */
+const stillStanding = (
+  scope: Scope,
+  file: string,
+  node: RegularNode,
+): string | undefined => {
+  if (isTrashed(file)) return undefined
+  const open = unfinishedWithin(scope.derived, node.id)
+  if (open.length === 0) return undefined
+
+  const one = open.length === 1
+  const named = capped(open, (task) => {
+    const mark = scope.derived.status.get(task.node.id)
+    return `\`${task.node.title}\` (\`${task.node.id}\`, ${mark})`
+  })
+  return `\`${node.title}\` is cancelled, but ${open.length} ` +
+    `${one ? "task under it is" : "tasks under it are"} still unfinished and ` +
+    `still owed: ${named}. Nothing was hidden and nothing was refused — cancel ` +
+    `${one ? "it" : "them"} too if ${one ? "it is" : "they are"} not happening ` +
+    `either.`
 }
 
 // ── done must not come to stand over open work ─────────────────────────
@@ -1698,9 +1833,10 @@ const sweepingOpenWork = (
       `${one ? "task" : "tasks"}, so it cannot be marked done yet: ${named}. ` +
       `Done-hidden hides a done node ` +
       `WITH its subtree, so this would sweep ${one ? "it" : "them"} off the ` +
-      `page. Finish ${one ? "that" : "those"} first — or take the mark off ` +
+      `page. Finish ${one ? "that" : "those"} first — or cancel ` +
       `${one ? "it" : "them"} if ${one ? "it is" : "they are"} not happening, ` +
-      `since an unmarked bullet is not unfinished work.`,
+      `since a cancelled task has settled and stands in nobody's way (and ` +
+      `neither does an unmarked bullet, if you would rather take the mark off).`,
   })
 }
 

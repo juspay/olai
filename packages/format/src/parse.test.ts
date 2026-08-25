@@ -4,6 +4,7 @@ import { Result } from "effect"
 import type { OutlineError } from "./errors.ts"
 import { FIXTURE_FILE, outlineOf } from "./fixtures.testlib.ts"
 import { parseOutline } from "./parse.ts"
+import { serializeOutline } from "./write.ts"
 
 /** The errors of a line-level failure. Written as a helper so every test below
  *  reads as "this text, these errors" and nothing else. The other half — "this
@@ -179,9 +180,9 @@ test("an id that is not a slug is a bad-id", () => {
   expect(outlineOf(`{"id":"A_z-09","ord":"a","title":"t"}`).nodes.length).toBe(1)
 })
 
-// The three marks are exclusive. A merge that kept both sides of an edit is
+// The four marks are exclusive. A merge that kept both sides of an edit is
 // exactly how a record ends up claiming two, and it must not load — whichever
-// two they are, since they are three answers to one question.
+// two they are, since they are four answers to one question.
 test("two marks on one record are refused", () => {
   const errors = errorsOf(`{"id":"a","ord":"a","title":"t","done":true,"doing":"2026-08-10"}`)
   expect(codes(errors)).toEqual(["several-marks"])
@@ -198,6 +199,45 @@ test("two marks on one record are refused", () => {
     .toEqual({ id: "a", ord: "a", title: "t", todo: true })
   expect(outlineOf(`{"id":"a","ord":"a","title":"t","todo":"2026-08-11"}`).nodes.length)
     .toBe(1)
+})
+
+/**
+ * THE FOURTH MARK, THROUGH THE CODEC — read, and written back byte for byte.
+ *
+ * The codec is one round trip and this is the whole of what a new field has to
+ * survive: the parser must take it (an instant, or the bare `true` a hand can
+ * write), the exclusion rule must count it beside the other three, and the
+ * writer must put it back in canonical order — which is the seam a field can
+ * silently fall through, since a field the writer's `ORDER` does not name never
+ * reaches disk at all (`write.test.ts` holds that one from the other end).
+ */
+test("the cancelled mark round-trips, and is exclusive with the other three", () => {
+  const line = `{"id":"a","ord":"a","title":"t","cancelled":"2026-08-25T15:40:03-04:00"}`
+  const parsed = outlineOf(line)
+  expect(parsed.nodes[0]?.node).toEqual({
+    id: "a",
+    ord: "a",
+    title: "t",
+    cancelled: "2026-08-25T15:40:03-04:00",
+  })
+  // Byte for byte, which is the format's whole bet on line-based git merges:
+  // two files that mean the same thing must not differ.
+  expect(serializeOutline(parsed.nodes.map((one) => one.node))).toBe(`${line}\n`)
+
+  // A bare `true` is legal too — the shape everything written before olai
+  // stamped instants still has, and what a hand writes.
+  expect(outlineOf(`{"id":"a","ord":"a","title":"t","cancelled":true}`).nodes[0]?.node)
+    .toEqual({ id: "a", ord: "a", title: "t", cancelled: true })
+
+  // And it is a mark, so it is exclusive with each of the other three rather
+  // than with `done` alone.
+  for (const other of [`"done":true`, `"doing":true`, `"todo":true`]) {
+    expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","cancelled":true,${other}}`)))
+      .toEqual(["several-marks"])
+  }
+  // The ISO check reaches it with the rest of the marks, off the same list.
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","cancelled":"2026-02-30"}`)))
+    .toEqual(["bad-date"])
 })
 
 // Shape is not enough: `2026-02-30` matches the pattern and is still not a

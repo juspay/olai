@@ -18,11 +18,12 @@ Feature: The ••• menu writes
     Given I open the outline "house.olai"
     And I mark the page
 
-  Scenario: A row with no mark is offered all three, and nothing to clear
+  Scenario: A row with no mark is offered all four, and nothing to clear
     When I open the node menu of "handles"
     Then the node menu offers "Mark todo"
     And the node menu offers "Mark doing"
     And the node menu offers "Complete"
+    And the node menu offers "Cancel"
     And the node menu does not offer "Clear mark"
 
   Scenario: Marking a node writes the mark, and the page follows the file

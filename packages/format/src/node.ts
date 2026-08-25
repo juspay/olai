@@ -30,7 +30,7 @@ import { basenameOf, byPath } from "./paths.ts"
 const Marker = Schema.Union([Schema.Literal(true), Schema.String])
 
 /**
- * The three MARKS a record may carry, at most one of them, in the order a
+ * The four MARKS a record may carry, at most one of them, in the order a
  * reader resolves them.
  *
  * One list, because three questions read it: the per-line rule that refuses a
@@ -39,9 +39,35 @@ const Marker = Schema.Union([Schema.Literal(true), Schema.String])
  * somewhere and three marks everywhere else.
  *
  * The order is precedence, and it decides only what a set the validator has
- * ALREADY condemned looks like — the marks are exclusive on disk.
+ * ALREADY condemned looks like — the marks are exclusive on disk. The two that
+ * SETTLE lead it ({@link SETTLED}), so a record a git merge left saying two
+ * things at once resolves to the one that ended the wait.
+ *
+ * `cancelled` is the fourth, and it landed last (the human, 2026-08-25):
+ * **"not happening" is a stored fact.** It was said by CLEARING a mark, which
+ * left a bullet — a row indistinguishable from a line nobody ever called work,
+ * carrying no instant, landing on no day, and telling a reader who came back to
+ * it in a month nothing at all. The mark says it, records when it was said, and
+ * — like `done` and unlike the other two — ENDS THE WAIT: see {@link SETTLED}.
  */
-export const MARKS = ["done", "doing", "todo"] as const
+export const MARKS = ["done", "cancelled", "doing", "todo"] as const
+
+/**
+ * The marks that END THE WAIT — `done`, and now `cancelled`.
+ *
+ * THE ONE LIST that says what settling IS, and the reason the fourth mark was
+ * one seam rather than a hunt through the readings. `./derive.ts`'s
+ * `unfinishedWork` carries the contract for both of us and its header is where
+ * the argument lives; what is here is the vocabulary that argument names.
+ *
+ * The two are NOT interchangeable and nothing here says they are: `done` is
+ * work that HAPPENED and `cancelled` is work that will not, which is the whole
+ * difference a journal page, a glyph and a commit line each draw. What they
+ * share is exactly one property — nobody is waiting on either — and that
+ * property is what every reading below asks about: what a day still owes, what
+ * a badge burns for, what an arrow blocks, what a branch holds up.
+ */
+export const SETTLED = ["done", "cancelled"] as const
 
 /**
  * What a node's checkbox shows: one of the {@link MARKS}. STORED, on the node
@@ -69,12 +95,29 @@ export const MARKS = ["done", "doing", "todo"] as const
 export const Status = Schema.Literals(MARKS)
 export type Status = typeof Status.Type
 
+/** A mark that ends the wait — {@link SETTLED} as a type, so the exclusion
+ *  below and `./derive.ts`'s predicate narrow to the same two words. */
+export type Settled = (typeof SETTLED)[number]
+
 /**
- * The marks that mean WORK NOBODY HAS FINISHED — {@link MARKS} without `done`.
+ * Does this mark END THE WAIT? Asked of a mark rather than of a node, so the
+ * one caller that has narrowed already ({@link storedMarker}'s answer) and the
+ * ones that have not ask the same question.
+ *
+ * A TYPE GUARD, so `Exclude<Status, Settled>` is reachable by narrowing rather
+ * than by a cast — which is what lets {@link Unfinished} below be a filter of
+ * the one list instead of a second list.
+ */
+export const settles = (mark: Status): mark is Settled =>
+  (SETTLED as ReadonlyArray<Status>).includes(mark)
+
+/**
+ * The marks that mean WORK NOBODY HAS FINISHED — {@link MARKS} without the two
+ * that {@link SETTLED} names.
  *
  * FILTERED from that list rather than spelled beside it, which is the same
  * restraint {@link Status} keeps one line up: two literal lists is two places a
- * fourth mark would have to be added, and the one that was forgotten would fail
+ * fifth mark would have to be added, and the one that was forgotten would fail
  * silently — a mark that blocks nothing, in a shape whose whole subject is what
  * is standing in the way (`./derive.ts`'s `InTheWay`).
  *
@@ -83,44 +126,52 @@ export type Status = typeof Status.Type
  * type alone cannot be encoded.
  *
  * THE FILTER IS A DECISION and not only a saving, which is the half the
- * paragraph above does not say: "everything that is not `done`" reads a mark
- * nobody has thought about yet as work somebody still owes. A fourth mark that
- * SETTLES rather than waits — the roadmap's `cancelled` — has to be excluded
- * HERE and in `./derive.ts`'s `unfinishedWork` (which spells the same rule of a
- * node's stored mark, and whose header carries the contract for both), and
- * those two are the whole list: what is late, what a day owes, what a badge
- * burns for and what an arrow blocks all read one of them.
+ * paragraph above does not say: "everything that is not `done`" — which is what
+ * this was — reads a mark nobody has thought about yet as work somebody still
+ * owes. That was exactly right for three marks and a decision disguised as an
+ * omission for the fourth, so what it filters by is now the SETTLING list and
+ * not one word: a mark that ends the wait has to be excluded HERE and in
+ * `./derive.ts`'s `unfinished` (which spells the same rule of a mark, and whose
+ * `unfinishedWork` header carries the contract for both), and those two are the
+ * whole list — what is late, what a day owes, what a badge burns for and what
+ * an arrow blocks all read one of them.
  */
 export const Unfinished = Schema.Literals(
-  MARKS.filter((mark): mark is Exclude<Status, "done"> => mark !== "done"),
+  MARKS.filter((mark): mark is Exclude<Status, Settled> => !settles(mark)),
 )
 export type Unfinished = typeof Unfinished.Type
 
 /**
- * The three MARK fields a record may carry, at most one of them.
+ * The four MARK fields a record may carry, at most one of them.
  *
  * ONE declaration, spread into {@link RegularNode} below and read back by
  * `./reading.ts`'s {@link Detail} — because a mark on an answer is the
  * record's own value handed over verbatim, and a second spelling of these
- * three beside the answer would be free to stop meaning what the file means.
+ * four beside the answer would be free to stop meaning what the file means.
  *
- * The `satisfies` is the closure, and it is the whole reason the three are
- * written out rather than folded: a fourth {@link MARKS} entry becomes a
- * missing key HERE, named by the compiler, at the one place the format
- * declares what a record holds — rather than a mark that is writable,
- * plannable and derivable everywhere and readable back nowhere.
+ * The `satisfies` is the closure, and it is the whole reason they are written
+ * out rather than folded: a fifth {@link MARKS} entry becomes a missing key
+ * HERE, named by the compiler, at the one place the format declares what a
+ * record holds — rather than a mark that is writable, plannable and derivable
+ * everywhere and readable back nowhere. It is what named `cancelled` at this
+ * line the moment the list above grew.
  *
  * EXPORTED, and not through `./index.ts`: `./reading.ts` is one module over and
  * needs it, and the package's rule is that a spelling a rule happens to use is
- * not contract. A consumer outside this package that wanted these three would
+ * not contract. A consumer outside this package that wanted these four would
  * be re-deriving what a record holds; what it should reach for is `Detail`,
  * which already carries them.
  */
 export const STAMPED = {
   done: Schema.optionalKey(Marker),
+  /** Work that is NOT HAPPENING. The fourth MARK, stamped with the instant the
+   *  call was made exactly as `done` is — because a decision to stop is an
+   *  event, it belongs on the day it was taken, and a bare `true` would put it
+   *  on no day at all ({@link SETTLED}, and `./occasion.ts`). */
+  cancelled: Schema.optionalKey(Marker),
   doing: Schema.optionalKey(Marker),
-  /** Work that has not started. The third MARK, and stored like the other two
-   *  — a node is a task because someone said so, never by default. */
+  /** Work that has not started. A stored mark like every other one here — a
+   *  node is a task because someone said so, never by default. */
   todo: Schema.optionalKey(Marker),
 } satisfies { readonly [M in Status]: unknown }
 
@@ -217,9 +268,11 @@ const DOORS = {
   title: "`set_title` writes the title",
   mirror: "`add_mirror` places a node in a second location",
   done: "`set_done` writes it, and records the instant",
+  cancelled: "`set_cancelled` writes it, and records the instant",
   doing: "`set_doing` writes it, and records the instant",
   todo: "`set_todo` writes it, and records the instant",
-  status: "the mark is `done`, `doing` or `todo` — `set_done` / `set_doing` / `set_todo` write it",
+  status:
+    "the mark is `done`, `cancelled`, `doing` or `todo` — `set_done` / `set_cancelled` / `set_doing` / `set_todo` write it",
   date: "`set_date` writes it, and validates the day",
   repeat: "`set_repeat` writes the repeat rule, and completing the node hands it to the next occurrence",
   desc: "`set_desc` writes the note",
@@ -356,7 +409,7 @@ export const isRegular = (at: Located): at is LocatedRegular => !isMirror(at.nod
 /**
  * What a record claims about itself, which IS its status — and `undefined` for
  * one claiming nothing, the one spelling of absence this format has. Read in
- * {@link MARKS} order, which is precedence: the three are mutually exclusive on
+ * {@link MARKS} order, which is precedence: the four are mutually exclusive on
  * disk, so it only decides what a set the validator has already condemned looks
  * like.
  *

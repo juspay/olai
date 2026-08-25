@@ -8,18 +8,21 @@
  * its own, because `Derived.byDay` (./derive.ts) is the fold of it over a set —
  * and a fold cannot live above the reading it feeds.
  *
- * TWO fields put a node on a day, and that is the 2026-08-11 decision: `date`,
- * which is what the node is scheduled for, and a dated `done` —
- * `{"done":"2026-08-11T15:40:03-04:00"}` is a node someone finished at that
- * instant (docs/format.md). A journal that showed what was scheduled but not
- * what was finished would be missing the half of the day that actually
- * happened. So both are read, one node can be on two days, and which of its
- * dates put it on a given day travels with it ({@link Occasion}) rather than
- * being guessed at by whoever draws the row.
+ * THREE fields put a node on a day. `date`, which is what the node is scheduled
+ * for; a dated `done` — `{"done":"2026-08-11T15:40:03-04:00"}` is a node
+ * someone finished at that instant (the 2026-08-11 decision); and a dated
+ * `cancelled`, which is a node someone CALLED OFF at that instant (the human,
+ * 2026-08-25). A journal that showed what was scheduled but not what was
+ * finished would be missing the half of the day that actually happened; one
+ * that showed what was finished but not what was called off would be missing
+ * the decisions, which are the other thing a day is a record of. So all three
+ * are read, one node can be on two days, and which of its dates put it on a
+ * given day travels with it ({@link Occasion}) rather than being guessed at by
+ * whoever draws the row.
  *
- * A dated `doing` or `todo` is read by NEITHER. The format allows a date on any
- * of the three marks; a journal is narrower than the format on purpose, and
- * {@link datesOf} is where that line is drawn and argued.
+ * A dated `doing` or `todo` is read by NONE of them. The format allows a date
+ * on any of the four marks; a journal is narrower than the format on purpose,
+ * and {@link datesOf} is where that line is drawn and argued.
  *
  * Dates are TEXT here, as they are everywhere else in this package: the format
  * validates them as ISO and stores them verbatim, so a day is a prefix and a
@@ -41,6 +44,7 @@ import {
   type Located,
   type LocatedRegular,
   type RegularNode,
+  settles,
   storedMarker,
 } from "./node.ts"
 
@@ -82,24 +86,28 @@ export const timeOf = (value: string): string | undefined =>
     : undefined
 
 /**
- * WHY a node is on a day: which of its two dates put it there.
+ * WHY a node is on a day: which of its three dates put it there.
  *
  * `date` is what the node is scheduled FOR; `done` is when the work was
- * finished. Two different sentences about the same day, and a reader looking at
- * a day page is entitled to know which one they are reading — so the answer is
- * carried rather than inferred from the fields, which is a thing a view could
- * only get wrong.
+ * finished; `cancelled` is when it was called off. Three different sentences
+ * about the same day, and a reader looking at a day page is entitled to know
+ * which one they are reading — so the answer is carried rather than inferred
+ * from the fields, which is a thing a view could only get wrong. It is also
+ * the word the pill PRINTS (`web/src/client/DateBadge.tsx` draws the occasion
+ * verbatim in front of the time), which is how a day page says out loud that
+ * this row is here because somebody stopped it.
  *
- * TWO, and not one per mark. `doing` and `todo` may carry dates — the format
- * takes an ISO value on any of the three — and a day page reads NEITHER
+ * THREE, and not one per mark. `doing` and `todo` may carry dates — the format
+ * takes an ISO value on any of the four — and a day page reads NEITHER
  * (resolved 2026-08-11, human, from seeing it live). A journal is a record of
- * what happened and what is coming: finishing is an event, and being scheduled
- * is a plan, but "this was filed on Tuesday" and "this was picked up on
- * Tuesday" are facts about a task's paperwork. Read as days they buried the
- * 11th under every item captured that morning. The values stay legal and stay
- * on disk untouched; these views simply do not ask about them.
+ * what happened and what is coming: finishing is an event, CALLING SOMETHING OFF
+ * IS AN EVENT (the human, 2026-08-25), and being scheduled is a plan — but
+ * "this was filed on Tuesday" and "this was picked up on Tuesday" are facts
+ * about a task's paperwork. Read as days they buried the 11th under every item
+ * captured that morning. The values stay legal and stay on disk untouched;
+ * these views simply do not ask about them.
  */
-export const Occasion = Schema.Literals(["date", "done"])
+export const Occasion = Schema.Literals(["date", "done", "cancelled"])
 export type Occasion = typeof Occasion.Type
 
 /** A date a record carries, and the field that carried it — the pair, named
@@ -111,8 +119,9 @@ export type Occasion = typeof Occasion.Type
  *  the browser rather than being derived there. */
 export const Occasioned = Schema.Struct({
   occasion: Occasion,
-  /** The value, verbatim: for a node here because it was finished today, the
-   *  completion instant, and not whatever it was scheduled for. */
+  /** The value, verbatim: for a node here because it was settled today, the
+   *  instant it was finished or called off at, and not whatever it was
+   *  scheduled for. */
   date: Schema.String,
 })
 export type Occasioned = typeof Occasioned.Type
@@ -133,17 +142,25 @@ export interface Dated extends Occasioned {
 
 /**
  * The dates one record puts on a calendar, in PRECEDENCE order: what it is
- * scheduled for, then when it was finished.
+ * scheduled for, then the instant it was SETTLED at — finished, or called off.
  *
- * TWO FIELDS ARE READ — `date` and `done` — and this is the whole of the rule
- * (resolved 2026-08-11, human). A dated `doing` or `todo` is a legal record and
- * is passed over here: the format lets any mark carry an ISO value, and what a
- * JOURNAL is for is narrower than what the format allows. A day answers "what
- * is on, and what got done"; "this was filed on Tuesday" and "this was picked
- * up on Tuesday" are facts about a task rather than about the day, and read as
- * days they bury the day's real answer under everything captured that morning.
- * Nothing is written or rewritten to make that true — the values stay on disk,
- * and a reader that wants them can read them off the node.
+ * THREE FIELDS ARE READ — `date`, `done` and `cancelled` — and this is the
+ * whole of the rule (2026-08-11 for the first two, human; 2026-08-25 for the
+ * third, human). A dated `doing` or `todo` is a legal record and is passed over
+ * here: the format lets any mark carry an ISO value, and what a JOURNAL is for
+ * is narrower than what the format allows. A day answers "what is on, what got
+ * done, and what got called off"; "this was filed on Tuesday" and "this was
+ * picked up on Tuesday" are facts about a task rather than about the day, and
+ * read as days they bury the day's real answer under everything captured that
+ * morning. Nothing is written or rewritten to make that true — the values stay
+ * on disk, and a reader that wants them can read them off the node.
+ *
+ * THE TWO SETTLING MARKS ARE READ THE SAME WAY AND MEAN DIFFERENT THINGS, which
+ * is why they are two occasions rather than one. The day tells the whole story
+ * of itself, and a decision to stop is part of that story — a Tuesday on which
+ * three things shipped and two were dropped is not a Tuesday on which three
+ * things shipped. The ROW says which: struck through either way, with the
+ * occasion word in front of the time.
  *
  * A mark holding `true` is on no day either. It says the state was reached and
  * declines to say when, which is a legal record and is the shape everything
@@ -158,14 +175,21 @@ export interface Dated extends Occasioned {
  *
  * The order decides exactly one thing, and only for a node whose two dates land
  * on the SAME day: which occasion that day names (`./dates.ts`'s `datedOn`).
- * `date` first, because the checkbox has already said the work is finished and
- * the day it was scheduled for is not written anywhere else.
+ * `date` first, because the glyph has already said the work is settled and the
+ * day it was scheduled for is not written anywhere else.
  */
 export const datesOf = (node: RegularNode): ReadonlyArray<Occasioned> => {
   const dates: Array<Occasioned> = []
   if (node.date !== undefined) dates.push({ occasion: "date", date: node.date })
-  if (storedMarker(node) === "done" && typeof node.done === "string") {
-    dates.push({ occasion: "done", date: node.done })
+  // The SETTLING mark, whichever of the two it is, and it is asked as the
+  // record's own mark rather than as a field that happens to be present — the
+  // paragraph above says why. `settles` narrows to exactly the two words that
+  // are also keys on the record, so the value is read at the key the mark
+  // names and there is no third spelling of the pair.
+  const mark = storedMarker(node)
+  if (mark !== undefined && settles(mark)) {
+    const value = node[mark]
+    if (typeof value === "string") dates.push({ occasion: mark, date: value })
   }
   return dates
 }

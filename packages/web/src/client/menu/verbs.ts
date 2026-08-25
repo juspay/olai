@@ -167,15 +167,36 @@ export interface Verb {
   readonly confirm?: string
 }
 
-/** The three marks in MENU order, which is the order a task moves through
- *  rather than {@link MARKS}' precedence order — a reader looking for "start
- *  this" should not have to read past "finish it". `Complete` is Workflowy's
- *  word for the same gesture `Ctrl+Enter` performs. */
-const MARK_LABEL: ReadonlyArray<readonly [Status, string]> = [
-  ["todo", "Mark todo"],
-  ["doing", "Mark doing"],
-  ["done", "Complete"],
-]
+/**
+ * What each mark is CALLED in the menu, and where it sits.
+ *
+ * TWO FACTS PER MARK IN ONE TABLE, keyed by {@link Status}, so a fifth mark is
+ * a missing key here — named by the compiler — rather than a mark that is
+ * writable at every other door and simply absent from the one a mouse uses.
+ * The list this replaced was an array of pairs and could not say that: a mark
+ * left out of it compiled clean and was offered nowhere.
+ *
+ * `at` is MENU order, which is the order a task moves through rather than
+ * {@link MARKS}' precedence order — a reader looking for "start this" should
+ * not have to read past "finish it". `Complete` is Workflowy's word for the
+ * same gesture `Ctrl+Enter` performs, and `Cancel` is the plain word for what
+ * `Alt+Enter` performs: LAST, past the finishing verb, because calling work off
+ * is the rarest of the four and the one nobody should reach by accident.
+ */
+const MARK_MENU = {
+  todo: { at: 0, label: "Mark todo" },
+  doing: { at: 1, label: "Mark doing" },
+  done: { at: 2, label: "Complete" },
+  cancelled: { at: 3, label: "Cancel" },
+} as const satisfies Record<Status, { readonly at: number; readonly label: string }>
+
+/** That table, read in its own order — off {@link MARKS}, so the entries are
+ *  the format's list and this file decides only what each is called and where
+ *  it goes. */
+const MARK_LABEL: ReadonlyArray<readonly [Status, string]> = MARKS
+  .map((mark) => [mark, MARK_MENU[mark]] as const)
+  .sort(([, a], [, b]) => a.at - b.at)
+  .map(([mark, entry]) => [mark, entry.label] as const)
 
 export const writeVerbs = (
   subject: Subject,

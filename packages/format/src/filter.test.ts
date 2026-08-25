@@ -16,6 +16,7 @@ import {
   shownRecord,
 } from "./filter.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
+import { isPutAway } from "./node.ts"
 
 /** One corpus, standing in for a directory: marks, dates, notes, edges, tags,
  *  a repeat rule, a mirror, an archive beside it — and a chain of `after`
@@ -885,7 +886,7 @@ test("a known operator with an unknown value is refused, and teaches", () => {
   const refused = refusalsOf("is:open")
   expect(refused?.map((one) => one.token)).toEqual(["is:open"])
   expect(refused?.[0]?.reason).toContain(
-    "done, doing, todo, marked, blocked, mirrored, trashed",
+    "done, cancelled, doing, todo, marked, blocked, mirrored, trashed",
   )
   // Refused means it selects NOTHING — never "the half of the query I could
   // read", which is the silent error that would look like an answer. The union
@@ -1022,11 +1023,99 @@ test("`is:mirrored` composes and negates", () => {
   expect(selects("is:mirrored OR is:blocked")).toEqual(["herbs", "hinges"])
 })
 
+// ── the fourth mark, at this door ──────────────────────────────────────
+
+/** The corpus with two of its targets CALLED OFF rather than left open:
+ *  `demo` (which `order` waits on) and `order` (which `install` and `hinges`
+ *  both wait on). Everything else is the corpus above, so what the assertions
+ *  below are about is the marks and nothing else. */
+const CALLED_OFF = derive(nodesOfFiles({
+  ...CORPUS,
+  "house.olai": CORPUS["house.olai"]
+    .replace(`"done":"2026-08-03"`, `"cancelled":"2026-08-03T11:00:00-04:00"`)
+    .replace(`"doing":true,"date":"2026-08-10"`, `"cancelled":true,"date":"2026-08-10"`),
+}))
+
+/**
+ * `is:cancelled` selects the STORED mark, and `is:marked` takes it in.
+ *
+ * The second half is why `is:marked` was never spelled as a list of three:
+ * `is:marked -is:done -is:cancelled` is "work, unsettled", and it stayed
+ * sayable the day the fourth mark landed rather than needing a value of its
+ * own.
+ */
+test("`is:cancelled` selects the mark, and `is:marked` counts it", () => {
+  expect(selectsIn(CALLED_OFF, "is:cancelled")).toEqual(["demo", "order"])
+  // A parent whose child was called off is not itself cancelled — the stored
+  // mark, never a derived one, exactly as `is:done` reads.
+  expect(selectsIn(CALLED_OFF, "is:cancelled")).not.toContain("kitchen")
+  expect(selectsIn(CALLED_OFF, "is:marked")).toContain("demo")
+  expect(selectsIn(CALLED_OFF, "is:marked -is:done -is:cancelled"))
+    .toEqual(["herbs", "kitchen", "hinges"])
+  // And it negates and composes like every other clause.
+  expect(selectsIn(CALLED_OFF, "-is:cancelled")).not.toContain("order")
+  expect(selectsIn(CALLED_OFF, "cabinets is:cancelled")).toEqual(["order"])
+})
+
+/**
+ * `is:blocked`, DIFFERENTIALLY — the new derivation against the one it
+ * replaced, over a corpus whose `after` targets are cancelled.
+ *
+ * The old rule is written out below rather than remembered, because "cancelled
+ * targets stop blocking" is a claim about a DIFFERENCE and a test that only
+ * asserted the new answer could not tell a fix from a corpus that never
+ * exercised it. What the reference spells is the rule as it stood — a target
+ * blocks while it is a task that is not `done` — over the same three inputs
+ * `blockage` takes, so the two differ in exactly one clause.
+ *
+ * The difference must be EXACTLY the nodes whose remaining blockers were all
+ * called off, and nothing else: `hinges` still waits on nothing new, `herbs`
+ * still waits on `hinges`, and no node that was free becomes blocked.
+ */
+test("`is:blocked` differs from the old derivation exactly at the cancelled targets", () => {
+  /** Blockedness as it stood before the fourth mark: a target is in the way
+   *  while it is a task that is not `done`, and has not been put away. */
+  const blockedTheOldWay = (derivation: Derived): Array<string> =>
+    [...derivation.after.keys()]
+      .filter((id) => {
+        const inPlay = (target: string): boolean => {
+          const at = derivation.byId.get(target)
+          if (at === undefined || isPutAway(at.file)) return false
+          const mark = derivation.status.get(target)
+          return mark !== undefined && mark !== "done"
+        }
+        return inPlay(id) &&
+          (derivation.after.get(id) ?? []).some((target) => inPlay(target))
+      })
+      // The set's own order, so the two lists are comparable as lists.
+      .sort()
+
+  // On the corpus with no cancelled mark in it, the two derivations agree
+  // exactly — which is what makes the disagreement below a fact about the
+  // fourth mark rather than about this reference being written differently.
+  expect(selects("is:blocked").slice().sort()).toEqual(blockedTheOldWay(derived))
+
+  const was = blockedTheOldWay(CALLED_OFF)
+  const now = selectsIn(CALLED_OFF, "is:blocked").slice().sort()
+
+  // `order` was blocked by a cancelled `demo`, and is itself cancelled, so it
+  // leaves at both ends. `hinges` waited on nothing but `order`, which has been
+  // called off, so it leaves too. `herbs` waits on `hinges`, which is `todo`
+  // and has not been settled — it stays, which is the half that says this
+  // narrowed rather than emptied. (`install` is in neither list and was in
+  // neither before: it is an unmarked bullet, and nothing tells a bullet it
+  // cannot start.)
+  expect(was).toEqual(["herbs", "hinges", "order"])
+  expect(now).toEqual(["herbs"])
+  // Strictly narrower: nothing became blocked that was not before.
+  expect(now.every((id) => was.includes(id))).toBe(true)
+})
+
 /** It is taught with the rest of the values `is:` takes, off the same list the
  *  parser reads. */
 test("`is:` teaches the mirrored value with the others", () => {
   expect(refusalsOf("is:mirror")?.[0]?.reason).toContain(
-    "done, doing, todo, marked, blocked, mirrored, trashed",
+    "done, cancelled, doing, todo, marked, blocked, mirrored, trashed",
   )
 })
 
