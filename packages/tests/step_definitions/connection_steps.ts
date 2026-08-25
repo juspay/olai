@@ -52,7 +52,10 @@ Then(
     // never draws, and Playwright's page-side waitFor never finished under a
     // throttled renderer before cucumber's 40s envelope (`on_a_phone.feature:79`).
     // This wait is this process's clock (`waitUntil`), so a slow renderer can
-    // delay the ATTRIBUTE but cannot swallow the deadline.
+    // delay the ATTRIBUTE but cannot swallow the deadline. `timeout: 0` is
+    // Playwright's own default — "no timeout", wait for attach indefinitely —
+    // not "return instantly"; waitUntil is the deadline owner, this option
+    // starts no second clock.
     const read = () =>
       this.page
         .locator(OFFLINE)
