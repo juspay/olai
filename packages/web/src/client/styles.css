@@ -98,7 +98,39 @@
  *
  * Not inside `@theme`: that block declares TOKENS, and this is a rule. */
 :root {
-  scroll-padding-top: var(--height-header);
+  --height-pinned-section: 0px;
+  scroll-padding-top: calc(var(--height-header) + var(--height-pinned-section));
+}
+
+/* …and the bar is not the only thing that holds its place. On a page that draws
+ * a TREE, a section heading pins under the bar while its branch scrolls past
+ * (`src/client/Tree.tsx`) — so the top `--height-header + section row` of the
+ * reading is covered, and a jump that lands a target in that band leaves the
+ * reader looking at it through the back of the pinned heading (measured: the
+ * row stops at the bar's bottom edge, another ~39px short of clear). That band
+ * is per-page, which a container rule can still say exactly once: the extra
+ * reserve is read through a custom property, and only a page that DRAWS a
+ * pinned section answers it with a height — every other page keeps the bar's
+ * reserve unchanged (a document's contents must still land `… < 96px` from the
+ * top, `toc_steps.ts`).
+ *
+ * 3.5rem is the TALLER of the two faces the pinned line has, with a little
+ * slack on top: the laptop line measures ~2.2rem (the ~39px of the PR's
+ * live dump), but below `md` the same cells are `h-11` finger targets
+ * (`src/client/touch.ts`) — 2.75rem — plus the line's `py-1`, so the phone's
+ * pinned row is 3.25rem and a 2.5rem reserve would stop 0.75rem short of it
+ * (measured on a 390px window: the row spans y=72–130.5, a jump lands at
+ * 116.5). The reserve is the MAX of the two layouts rather than a breakpoint
+ * pair: one number cannot drift out of sync with itself, and the extra ~1rem
+ * on a laptop is far under the landing's 96px ceiling. It is the ONLY spelling
+ * of it — a change to the rows' heights means a change here.
+ *
+ * Keyed on the class the tree draws ITSELF (`.olai-tree`), not on a
+ * `data-testid`: testids are the suite's hook, and a rename of one must not
+ * quietly unmate a product rule. Node pages draw the same `<Tree>`, so both
+ * are covered by the one selector. */
+:root:has(.olai-tree) {
+  --height-pinned-section: 3.5rem;
 }
 
 /* The FRAME is ink; the PAGE is a paper sheet sitting in it. Unstyled
