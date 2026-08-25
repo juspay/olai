@@ -2399,6 +2399,62 @@ const stale = (
 
 // ── move ───────────────────────────────────────────────────────────────
 
+/**
+ * A ROW SOMEWHERE ELSE — among its siblings, under another node, or in ANOTHER
+ * OUTLINE, and in every case the same node carrying the id it has always had.
+ *
+ * ## Why the cross-file case is this verb and not a second one
+ *
+ * It was refused here for years, in a sentence that read like the format
+ * speaking: "every outline is an independent tree, so a parent is always in the
+ * same file; archiving is what moves a subtree between them". The first half is
+ * still true and is the FORMAT's ({@link ./rules.ts}'s `foreign-parent`): a
+ * record's `parent` names a record of its own file. The second half was never a
+ * fact about the format at all — it was a fact about this function, which
+ * rewrote one file. And what it sent callers to does not do the job: the only
+ * ops-expressible cross-file move was recreate-under-NEW-ids plus a trash of the
+ * old subtree, because an id is unique across the set INCLUDING the trash and so
+ * the same ones cannot be reused — which detaches every inbound `see`, `after`,
+ * `blocks`, `mirror`, typed `node` property and PIN (a title that is an
+ * address) in silence.
+ *
+ * So the promise this verb now makes is the one {@link planTrash} has always
+ * made about the same journey: **the ids move with the nodes**, and everything
+ * pointing at them goes on resolving. A subtree changes file; nothing else about
+ * it changes.
+ *
+ * THE ONE EXCEPTION IS A TYPED `ref`, and it is an exception to the sentence
+ * rather than to the mechanism. A `ref` value is an id like any other and
+ * travels; what a `ref` DECLARES on top of that is ancestry under a named root
+ * (`@olai/format`'s `variantsOf`, direct children), and moving a VARIANT out of
+ * that root is the one thing here that can make it untrue. It does not land
+ * quietly: the write gate validates the whole set the plan would write, so such
+ * a move is refused `bad-prop` with neither file rewritten. Moving the ROOT is
+ * fine — the subtree travels and the variants keep the parent they had.
+ *
+ * A SECOND OP would have had to re-declare every rule below — the anchor, the
+ * two loop refusals, the mirror rule, door two, "last among its new siblings" —
+ * and two spellings of a rule is two things free to drift. The whole surface the
+ * third case needs is ONE optional field, and it is the field `add_node` and
+ * `untrash_node` already take, judged by the function they already judge it with
+ * ({@link landsIn}, through {@link movesTo}). The web faces come along for free:
+ * the move-to picker's `Enter` and an agent's `move_node` are one request.
+ *
+ * ## What the two halves share, and where they part
+ *
+ * Everything down to the placement is one path, because every rule up to there
+ * is about the SET rather than about a file. The plan is where they part, and
+ * the cross-file arm is {@link planTrash}'s machinery reused rather than
+ * re-derived — {@link liftSubtree} for what the source keeps and what travels,
+ * {@link carryingDoc} for the `doc` a record names, which is relative to the
+ * outline that names it. Both arms are ONE plan over the files they touch, so
+ * the whole set is valid after or nothing moved.
+ *
+ * NOTHING IS RE-STAMPED beyond what a same-file move already stamps: the record
+ * that MOVED is {@link touched} (its place changed, and that is a write to it),
+ * and everything under it travels untouched — no `created`, no marks, no dates,
+ * no `changed`, exactly as an archive carries a subtree.
+ */
 const planMove = (
   scope: Scope,
   request: Extract<Request, { op: "move" }>,
@@ -2410,25 +2466,17 @@ const planMove = (
   const may = writable(scope, file)
   if (Result.isFailure(may)) return Result.fail(may.failure)
 
-  const parent = request.parent === undefined
-    ? node.parent
-    : request.parent === null
-    ? undefined
-    : request.parent
+  const landing = movesTo(scope, request, located)
+  if (Result.isFailure(landing)) return Result.fail(landing.failure)
+  const { file: destination, parent } = landing.success
+  const crosses = destination !== file
+
+  if (crosses) {
+    const trash = notThroughTheTrash(node, file, destination)
+    if (trash !== null) return Result.fail(trash)
+  }
 
   if (parent !== undefined && parent !== node.parent) {
-    const target = regularAt(scope, parent)
-    if (Result.isFailure(target)) return Result.fail(target.failure)
-    if (target.success.file !== file) {
-      return Result.fail(
-        new UsageFailure({
-          reason:
-            `\`${parent}\` is in \`${target.success.file}\` and \`${request.id}\` is in ` +
-            `\`${file}\`. Every outline is an independent tree, so a parent is always in ` +
-            `the same file; archiving is what moves a subtree between them.`,
-        }),
-      )
-    }
     const inside = containing(scope, request.id, parent)
     if (inside !== null) {
       return Result.fail(
@@ -2444,6 +2492,12 @@ const planMove = (
     // what that mirror shows is the ordinary way in — a Now section is mirrors
     // of live work, and "put Now under one of the items it shows" is a move a
     // person can mean by accident.
+    //
+    // THIS is the walk that outlives the file rule, and the reason the two were
+    // never the same question. Containment is per-file and a cross-file parent
+    // therefore cannot close a containment loop — but DRAWING crosses files by
+    // construction (a mirror is how one node is shown in two outlines), so the
+    // cycle a cross-file move can make is exactly this one.
     //
     // The graph is `@olai/format`'s `drawnFrom`, walked by its `drawingPath`,
     // which is the walk the validator's own containment rule makes and the one
@@ -2464,10 +2518,10 @@ const planMove = (
     }
   }
 
-  const ords = placed(siblingsOf(scope.derived, file, parent), node.id, request)
+  const ords = placed(siblingsOf(scope.derived, destination, parent), node.id, request)
   if (Result.isFailure(ords)) return Result.fail(ords.failure)
 
-  const moved = withParent(node, parent)
+  const moved = touched(scope, withParent(node, parent))
   // A mirror has no title of its own — it is a placement of a node that does —
   // so what the commit line calls it is the id it was named by.
   const title = isMirror(node) ? request.id : node.title
@@ -2479,25 +2533,172 @@ const planMove = (
   // A MIRROR is never asked: it is a placement, and a placement is not
   // containment, so moving one under a finished branch says nothing about
   // where the work it draws actually lives.
+  //
+  // A CROSSING always changes the parent — a record cannot keep a parent in a
+  // file it is leaving — so the crossing arm is always asked, top level
+  // included: `staleDoneAbove` of a top-level landing is nothing above it, and
+  // that is an answer rather than an omission.
   const brings = () =>
-    parent !== node.parent && !isMirror(node) &&
+    (crosses || parent !== node.parent) && !isMirror(node) &&
     holdsOpenWork(scope, node as RegularNode)
 
-  return Result.succeed(arriving(scope, { file, parent }, brings, {
-    files: [
+  const files: ReadonlyArray<FilePlan> = crosses
+    ? crossing(scope, located, { file: destination, parent }, moved, ords.success)
+    : [
       {
         file,
         nodes: withOrds(
-          replacing(recordsOf(scope, file), node.id, touched(scope, moved)),
+          replacing(recordsOf(scope, file), node.id, moved),
           ords.success,
         ),
       },
-    ],
+    ]
+
+  return Result.succeed(arriving(scope, { file: destination, parent }, brings, {
+    files,
     id: node.id,
     title,
-    file,
+    file: destination,
     summary: `move: ${title}`,
   }))
+}
+
+/**
+ * WHERE THE ROW GOES: the outline it lands in and the node it hangs off, out of
+ * the two optional fields the request may carry.
+ *
+ * {@link landsIn} answers both of the cases that name somewhere — which is what
+ * makes "a parent in another outline just works" true rather than implemented:
+ * the parent's file IS the destination, judged by the same function `add_node`
+ * judges it with, refused in the same words for an id nothing declares, for a
+ * placement named as a parent, and for a file the set does not hold or could not
+ * read.
+ *
+ * The third case is the one no other op has, and it is why this is not simply
+ * `landsIn` at the call site: a move may name NEITHER field, and then it is a
+ * reorder — the row stays where it is and only its `ord` moves. `parent: null`
+ * with no `file` is the top level of the row's OWN outline, which is what
+ * `Shift+Tab` at depth one has always meant.
+ *
+ * `file` therefore always means TOP LEVEL of that outline, including when it
+ * names the file the row is already in — there is no other thing it could mean
+ * beside a `parent` that says "leave it alone", and a caller who wants a parent
+ * says so.
+ */
+const movesTo = (
+  scope: Scope,
+  request: Extract<Request, { op: "move" }>,
+  at: Located,
+): Result.Result<Landing, OpFailure> => {
+  if (request.parent !== undefined && request.parent !== null) {
+    return landsIn(scope, { parent: request.parent })
+  }
+  if (request.file !== undefined) return landsIn(scope, { file: request.file })
+  return Result.succeed({
+    file: at.file,
+    parent: request.parent === null ? undefined : at.node.parent,
+  })
+}
+
+/**
+ * The one rule the crossing adds, and it is about the TRASH being a place with
+ * its own two verbs rather than an outline among outlines.
+ *
+ * Each direction is refused toward the op that does that job, because each of
+ * those ops does something this one deliberately does not. Putting a node away
+ * records the outline it left as a scaffold of ancestor titles, which is what
+ * `untrash_node` reads to put it back; taking one out tidies that scaffold and
+ * re-opens the `done` marks that were true while the branch was over and stop
+ * being true the moment it is live again ({@link contradictedWithin}). A move
+ * that quietly did neither would leave a pile nothing can restore, or a live
+ * branch full of marks that lie.
+ *
+ * REORDERING INSIDE a trash is untouched, and that is the reason this asks about
+ * CROSSING rather than about either end: nothing about a row moving among its
+ * neighbours in the trash is either of those gestures.
+ */
+const notThroughTheTrash = (
+  node: Node,
+  from: string,
+  to: string,
+): OpFailure | null => {
+  const named = isMirror(node) ? node.id : node.title
+  if (isTrashed(to)) {
+    return new UsageFailure({
+      reason: `that would move \`${named}\` INTO \`${to}\`, and \`move_node\` does not ` +
+        `put things away: \`trash_node\` is what moves a node and everything under it ` +
+        `there, recording the outline it left so \`untrash_node\` can find its way back.`,
+    })
+  }
+  if (isTrashed(from)) {
+    return new UsageFailure({
+      reason: `\`${named}\` is in \`${from}\`, and what is put away comes back out ` +
+        `through \`untrash_node\` — the op that tidies the scaffold above it and ` +
+        `re-opens the marks that stop being true the moment the branch is live again. ` +
+        `\`move_node\` does neither, so it would leave both behind.`,
+    })
+  }
+  return null
+}
+
+/**
+ * THE TWO FILES a crossing writes: what the outline it left keeps, and the
+ * outline it arrived in with the whole subtree appended.
+ *
+ * {@link planTrash}'s machinery, reused rather than re-derived — which is the
+ * point of the shape those two helpers were split into. {@link liftSubtree}
+ * answers "what does the source keep, and what travels" once for every op that
+ * moves a subtree between files, so `archive`, `unarchive` and this cannot come
+ * to disagree about what a subtree IS. {@link carryingDoc} rewrites the one
+ * FIELD that is relative to the outline naming it: a `doc` is a path from the
+ * `.olai` that carries it, so a record that changes file has to re-aim it or the
+ * write gate sees an attachment that is not there.
+ *
+ * A `doc`-TYPED PROPERTY is the same arithmetic and is deliberately NOT rewritten
+ * here (raised adjacent on review, grok). Its value is resolved against the
+ * naming outline exactly as the field is (`@olai/format`'s `wrongDoc`), so a
+ * record changing directory changes what it points at — and the write gate
+ * refuses that with `bad-prop`, naming the key and what the path resolved to,
+ * rather than writing a dangling one. Teaching a mover to rewrite it means
+ * reading the vault's DECLARATIONS to know which custom keys hold paths, which
+ * is the typed-properties seam rather than this one — and it is the whole door
+ * family's, not this verb's: `archive` takes the identical subtree across the
+ * identical boundary today and is refused in the identical words. Both arms are
+ * pinned side by side in `./plan.test.ts`, so one door learning it alone fails.
+ *
+ * The subtree ARRIVES SHAPED AS IT LEFT: only the root is re-parented, and every
+ * record under it keeps the `parent` it had — which is the same sentence the
+ * archive makes, and is why the ids being unique across the SET is the whole
+ * mechanism here. Nothing is re-pointed, because nothing needs to be.
+ *
+ * WHERE it lands among its new siblings is {@link placed}'s answer, computed
+ * over the DESTINATION's row — so `before` / `after` name siblings there, and
+ * the ords arrive through {@link withOrds} exactly as they do for a capture.
+ */
+const crossing = (
+  scope: Scope,
+  at: Located,
+  landing: { readonly file: string; readonly parent: string | undefined },
+  /** The root, already re-parented and stamped by the caller. */
+  moved: Node,
+  ords: ReadonlyArray<{ id: string; ord: string }>,
+): ReadonlyArray<FilePlan> => {
+  const { keeps, descendants } = liftSubtree(scope, at.file, at.node.id)
+  const retarget = (record: Node) => carryingDoc(record, at.file, landing.file)
+  return [
+    { file: at.file, nodes: keeps },
+    {
+      file: landing.file,
+      nodes: withOrds(
+        [
+          ...recordsOf(scope, landing.file),
+          retarget(moved),
+          ...descendants.map(retarget),
+        ],
+        ords,
+      ),
+    },
+  ]
 }
 
 const withParent = <N extends Node>(node: N, parent: string | undefined): N => {

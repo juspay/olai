@@ -2,11 +2,19 @@
  * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING — and, when it cannot, the
  * sentence that says why.
  *
- * The move-to picker searches the WHOLE SET, so most of what it finds is
- * somewhere the row cannot go: another outline, the Trash, or somewhere this
- * row already draws. Nothing is hidden — a reader typing a title they can see
- * must find it — so every hit is drawn and the ones that cannot take the row
- * say so.
+ * The move-to picker searches the WHOLE SET, so some of what it finds is
+ * somewhere the row cannot go: the Trash, or somewhere this row already draws.
+ * Nothing is hidden — a reader typing a title they can see must find it — so
+ * every hit is drawn and the ones that cannot take the row say so.
+ *
+ * ANOTHER OUTLINE IS NOT ONE OF THEM ANY MORE, and that is the change worth
+ * naming here because this module was most of the fence: `move_node` carries a
+ * row and everything under it into another outline, ids intact
+ * (`@olai/ops`' `planMove`), so a destination in another file is an ordinary
+ * destination and this reading has nothing to say about it. What survives is
+ * the FORMAT's own rule, which was never this one: a record's `parent` names a
+ * record of its own file (./rules.ts's `foreign-parent`) — and it goes on
+ * holding, because what crosses is the whole subtree rather than the link.
  *
  * ## Asked at the AIM, which is #238's shape read for a keyboard
  *
@@ -75,27 +83,6 @@ import { Schema } from "effect"
 import { type Derived, drawingPath, follow } from "./derive.ts"
 import { chainOf } from "./errors.ts"
 import { isMirror, isRegular, isTrashed } from "./node.ts"
-
-/**
- * The one sentence olai has for "a parent is always in the same file".
- *
- * TWO GESTURES can ask for a cross-file parent, and both have to answer before
- * the write rather than after it: a row dragged over the pane of another
- * outline (`@olai/web`'s `drag/aim.ts`) and a destination chosen out of the
- * move-to picker's search of the whole set ({@link whyNot}). Each says the LAW
- * in the same words and leads into it differently, because what the reader is
- * pointing at differs — a pane has a file and a picked row has a title.
- *
- * The law's authoritative spelling is still the OPS layer's (`plan.ts`'s
- * `planMove` refuses the same move in nearly these words): this is what a person
- * reads a moment earlier, kept close to it on purpose, so somebody who then
- * meets an agent's refusal reads one story. It is here rather than in the
- * browser because one of its two readers is now this side of the wire.
- */
-export const SAME_FILE =
-  "Every outline is an independent tree, so a parent is always in the same " +
-  "file — archiving is what moves a subtree between them, and a mirror is " +
-  "how one node is drawn in two."
 
 /**
  * THE ROW BEING MOVED — one value, read off the set and handed whole to
@@ -221,12 +208,15 @@ export interface Destination {
  *
  *   - the row ITSELF first, because every other sentence would be true of it
  *     and none of them would be the news;
- *   - the TRASH before the file rule, because an archive is another outline by
- *     construction and "another outline" is a true sentence about the wrong
- *     fact;
- *   - the FILE rule before the drawing walk, because that is the planner's own
- *     order (`planMove` refuses a cross-file parent before it asks about
- *     loops), and this previews the planner rather than out-ruling it.
+ *   - the TRASH before the drawing walk, because that is the planner's own
+ *     order (`planMove` asks whether the move crosses into or out of a trash
+ *     before it asks about loops), and this previews the planner rather than
+ *     out-ruling it. It is the ONE thing left here that another outline can be:
+ *     an archive is an outline like any other to a search, and the sentence for
+ *     it is about the Trash rather than about files;
+ *   - the DRAWING walk before the current-parent rule, because a destination
+ *     that would fold the branch into itself is the news whether or not it also
+ *     happens to be where the row already hangs.
  */
 export const whyNot = (
   moved: Moved,
@@ -239,10 +229,6 @@ export const whyNot = (
   if (isTrashed(to.file)) {
     return `\`${to.title}\` has been put away — the Trash holds what is finished ` +
       `with, and nothing is moved INTO it. \`Put back\` is how something comes out.`
-  }
-  if (to.file !== moved.file) {
-    return `\`${to.title}\` is in \`${to.file}\` and this row lives in ` +
-      `\`${moved.file}\`. ${SAME_FILE}`
   }
   const drawn = drawingPath(derived, moved.id, to.id)
   if (drawn !== null) return insideItself(derived, to, drawn)

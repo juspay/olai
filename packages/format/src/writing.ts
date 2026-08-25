@@ -486,13 +486,64 @@ export const PropRequest = Schema.Struct({
   }),
 })
 
+/**
+ * A row somewhere else: among its siblings, under another node, or in ANOTHER
+ * OUTLINE — and in every case the SAME node, carrying the id it has always had.
+ *
+ * **`file` is the field that made the third case sayable**, and it is
+ * {@link LANDING}'s own pair arriving on a verb that used to refuse it. A
+ * `parent` in another outline just works — the parent decides the file, exactly
+ * as it does for `add_node` — and `file` alone is that outline's top level.
+ * What crossing costs is nothing: the record keeps its id, so every `see`,
+ * `after`, `blocks`, `mirror` and typed `node` property aimed at it (or at
+ * anything under it) goes on resolving, and the ordering graph was never
+ * per-file to begin with. A PIN goes on resolving too, and by the same law read
+ * one grammar over: a pin's title is an ADDRESS, and a node address normalises
+ * to the id it names, so even a qualified spelling that now points at the
+ * outline the node LEFT still draws it (./address.ts).
+ *
+ * **THE ONE REFERENCE A CROSSING CAN BREAK IS A `ref`**, and it is worth
+ * spelling because `ref` and `node` are two promises rather than two words.
+ * `node` is EXISTENCE, which an id surviving is exactly enough for. `ref`
+ * additionally asserts ANCESTRY — the value is a child of the declaration's
+ * `under` root (./typing.ts's `variantsOf`) — so moving the ROOT carries its
+ * variants and every `ref` holds, while moving one VARIANT out of that root
+ * makes each `ref` at it `bad-prop`. That one is REFUSED at the write gate,
+ * with nothing written at either end, which is the law working rather than a
+ * hole: the whole set is judged before either file is.
+ *
+ * **`parent` IS STILL SAME-FILE BY THE FORMAT**, and that has not changed: a
+ * `.olai` is an independent tree and a record's parent lives in its own file.
+ * What changed is that the SUBTREE travels with the reparenting, so the record
+ * that lands has its parent in the file it landed in. The sentence that used to
+ * stand here — "a move never crosses outlines, archiving is what does" — was a
+ * statement about this planner rather than about the format, and the dance it
+ * pointed at (recreate under NEW ids, trash the old subtree — ids are unique
+ * across the set including the trash, so the same ones cannot be reused)
+ * silently detaches every reference into what moved. That was the gap.
+ *
+ * **The trash is neither end of it.** A node goes into `_olai/Trash.olai`
+ * through `trash_node`, which records the outline it left, and comes back out
+ * through `untrash_node`, which tidies the scaffold above it and re-opens the
+ * marks that stop being true the moment a branch is live again. Naming a trash
+ * here is refused toward whichever of those two the caller meant. Reordering
+ * rows INSIDE a trash is a move like any other, because nothing crosses.
+ */
 export const MoveRequest = Schema.Struct({
   op: Schema.Literal("move"),
   id: Id,
   /** The new parent, or `null` for top level. ABSENT leaves the parent alone,
-   *  which is how a pure reorder is spelled. `parent` is same-file by the
-   *  format, so a move never crosses outlines — archiving is what does. */
+   *  which is how a pure reorder is spelled. A parent in ANOTHER outline
+   *  carries the node and everything under it into that outline. */
   parent: Schema.optionalKey(Schema.NullOr(Schema.String)),
+  /** The outline to move it into, at top level — the other half of
+   *  {@link LANDING}'s pair, with that pair's own rule about which one wins. */
+  file: Schema.optionalKey(
+    Schema.String.annotate({
+      description:
+        "Outline to move it into, AT TOP LEVEL, relative to the served directory — the node and everything under it, every id kept. Absent leaves it in the outline it is already in. Ignored when `parent` is present (it goes in its parent's file).",
+    }),
+  ),
   ...Anchor,
 })
 
