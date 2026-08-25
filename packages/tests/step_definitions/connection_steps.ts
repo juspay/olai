@@ -44,27 +44,34 @@ Then(
     // reached by the wire itself — a dial, a backoff, a handshake — and none of
     // them are a render away.
     //
-    // The freeze overlay publishes the same `data-connection` the pill does.
-    // A phone has no pill, and a frozen desktop has both; prefer the overlay
-    // while it is up so the two shapes of the app agree on the step.
-    const overlay = this.page.locator(OFFLINE);
-    if (await overlay.isVisible().catch(() => false)) {
-      await this.expectAttribute(
-        OFFLINE,
-        "data-connection",
-        state,
-        "the freeze overlay",
+    // Wait on the overlay's `data-connection`, always. The dialog is mounted
+    // for the page's life and publishes the readout even while closed (`live`),
+    // so a phone (no pill) and a laptop (pill plus overlay) agree on one
+    // element. A one-shot `isVisible()` used to pick the overlay or the pill;
+    // a miss — or a throw, `.catch(() => false)` — waited on a pill a phone
+    // never draws, and Playwright's page-side waitFor never finished under a
+    // throttled renderer before cucumber's 40s envelope (`on_a_phone.feature:79`).
+    // This wait is this process's clock (`waitUntil`), so a slow renderer can
+    // delay the ATTRIBUTE but cannot swallow the deadline.
+    const read = () =>
+      this.page
+        .locator(OFFLINE)
+        .first()
+        .getAttribute("data-connection", { timeout: 0 })
+        .catch(() => null);
+    try {
+      await this.waitUntil(
+        async () => (await read()) === state,
+        `the freeze overlay to have data-connection="${state}"`,
         HYDRATION_TIMEOUT,
       );
-      return;
+    } catch {
+      const actual = await read();
+      throw new Error(
+        `expected the freeze overlay to have data-connection="${state}", ` +
+          `but it is ${actual === null ? "absent" : `"${actual}"`}`,
+      );
     }
-    await this.expectAttribute(
-      CONNECTION,
-      "data-connection",
-      state,
-      "the connection indicator",
-      HYDRATION_TIMEOUT,
-    );
   },
 );
 
@@ -245,9 +252,15 @@ Then("the server rejected the stale tab", async function (this: OlaiWorld) {
   // browser cannot see it: without this, "the page says restarted" would also
   // be satisfied by a reconnect that was ACCEPTED and merely landed on a new
   // process id — a different mechanism, and not the one this feature is about.
+  //
+  // HYDRATION, not POLL: getting here is the tab's reconnect backoff plus the
+  // handshake, which is a wire's clock. The log is this process's stdout, so
+  // the wait itself is not in the renderer — a throttled page can delay the
+  // redial, not the deadline that notices it never came.
   await this.waitUntil(
     async () =>
       findLogfmt(this.serverLog.text, "stale tab rejected")?.claimed !== undefined,
     "the restarted server reports having closed the stale tab at the handshake",
+    HYDRATION_TIMEOUT,
   );
 });
