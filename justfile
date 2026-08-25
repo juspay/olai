@@ -223,7 +223,8 @@ nix:
 hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
-# What a keystroke costs, on a generated vault. NINE of them, and each is a
+# What a keystroke costs — on a generated vault, and for the newest of them in
+# a real git repository. TEN of them, and each is a
 # LEG rather than a scratch file, because slice 3 of `model-indices` ran its
 # numbers as a one-off and a benchmark nobody can re-run is a number nobody can
 # check — and deliberately NOT a dependency of `check`, since a timing that
@@ -277,11 +278,19 @@ hm-module:
 #   - the DAY READINGS, each timed as an index read against the corpus walk it
 #     replaced (`packages/format/src/dates.bench.ts`, added with `Derived.byDay`
 #     — the roadmap node `perf-dates-index` named three full-vault walks, so it
-#     prints three PAIRS rather than one blended figure, plus what the index
+#     prints a ROW per bullet rather than one blended figure, plus what the index
 #     cost the fold). Two of the three moved to the server with
 #     `vault-in-browser`'s PR 4, where they are re-answered per subscriber per
-#     published revision, which is the unit the ratios are about. Each pair must
-#     answer the same value or the run fails;
+#     published revision, which is the unit the ratios are about. It carries a
+#     SECOND node now (`perf-agenda-history-walk`), which is why three of its
+#     four rows have a middle arm: what that index left standing was the SKIP to
+#     where a reading starts and the whole agenda assembled to be counted, so
+#     each of those rows prints the reading as it stood BETWEEN the two nodes as
+#     well as the corpus walk under both — two ratios, because they answer two
+#     questions. The counts a mark outside the agenda prints are their own row
+#     for the same reason: they are an index read now and not a reading of the
+#     agenda, which is the whole of what that node asked for. Every arm of every
+#     row must answer the same value or the run fails;
 #   - `list_documents`, timed as a read of the remembered byte count against
 #     the UTF-8 encode of every body it replaced
 #     (`packages/ops/src/documents.bench.ts`, added with `perf-list-documents-bytes`).
@@ -324,6 +333,28 @@ hm-module:
 #     Its vault is `vaultOf` with the OTHER kinds put in beside the outlines:
 #     a directory of nothing but `.olai` is one where the documents collection
 #     is empty and a third of what is measured is never asked anything;
+#   - ONE KEYSTROKE's COMMIT PANEL, timed and COUNTED at one, ten and fifty
+#     dirty outlines (`packages/ops/src/pending.bench.ts`, added with
+#     `perf-git-per-write`). The complaint that node was filed on is not that a
+#     revision was slow but that the bill GREW: every published revision read
+#     HEAD's copy of every dirty outline — a `git show HEAD:<file>` subprocess
+#     plus a full parse, per file, per revision — and under manual commit the
+#     dirty list only grows through a session, so typing got slower the longer a
+#     commit was deferred. So it prints THREE ROWS rather than one figure, and
+#     the shape of the "before" column down them is the bug. Its headline is not
+#     a millisecond either: beside each row is git SUBPROCESSES PER KEYSTROKE for
+#     the committed side, counted by wrapping the repository each arm is handed
+#     rather than by instrumenting either of them — and the cache's own
+#     `rev-parse` is counted like any other, so the "after" column is what it
+#     costs rather than what it saved. Both arms are in the tree for the scoped
+#     query's reason — the "before" is the per-file read kept as that lane's
+#     differential reference (`packages/ops/src/committed.testlib.ts`) — and the
+#     two are compared on every round before a figure is quoted, so a divergence
+#     throws rather than printing a ratio nobody may believe. Its corpus is a
+#     real git repository in a temporary directory rather than a generated
+#     vault: what is being timed is subprocesses, and a fake git would measure
+#     the fake. Size it with OLAI_BENCH_DIRTY / OLAI_BENCH_RECORDS /
+#     OLAI_BENCH_EDITS;
 #   - ONE WRITE's VALIDATION, timed as the whole-corpus rules against the
 #     narrowed ones and against BOTH (`packages/format/src/validate.bench.ts`,
 #     added with `perf-validate-incremental`). The third arm is the honest one
@@ -339,13 +370,15 @@ hm-module:
 #     nobody could publish is one where the narrowing declines every time, and a
 #     directory holding no documents measures the `.md` walk at zero.
 #
-# Five of the nine run the SAME generated vault (`@olai/format/testlib`'s
+# Five of the ten run the SAME generated vault (`@olai/format/testlib`'s
 # `vaultOf` — the patcher, the tag completion, the day readings and the search
 # index), so what a write costs the view and what a completion, a calendar or a
 # search box asks of the view it leaves are numbers about one directory; the
 # matcher, the document listing and the scoped query each generate a corpus of
 # their own — one sized for keystrokes, one for a vault of `.md`, one made of
-# TREES. The MERGE under all of
+# TREES — and the commit panel's is not a vault at all but a real repository in
+# a temporary directory, since what it times is subprocesses. The MERGE under
+# all of
 # it is not timed here and should not be: it is the framework's, and
 # `@kolu/surface`'s own `src/solid/collectionDeltas.bench.ts` measures it end to
 # end. Size the vault with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS /
@@ -361,6 +394,7 @@ bench: install
     {{ nix_shell }} bun packages/format/src/scope.bench.ts
     {{ nix_shell }} bun packages/index/src/index.bench.ts
     {{ nix_shell }} bun packages/ops/src/documents.bench.ts
+    {{ nix_shell }} bun packages/ops/src/pending.bench.ts
     {{ nix_shell }} bun packages/server/src/published.bench.ts
     {{ nix_shell }} bun packages/format/src/validate.bench.ts
 

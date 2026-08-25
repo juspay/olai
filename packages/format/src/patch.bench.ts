@@ -464,8 +464,8 @@ const CLONED = sides("whole")
  *
  * Measured as a pair rather than as two figures from two moments, for
  * {@link walked}'s reason — and measured ON THEIR OWN, which is what keeps this
- * a ceiling rather than a sum: an arm that allocates eleven maps and drops them
- * leaves garbage a patch's own clones did not, and four of the eleven were
+ * a ceiling rather than a sum: an arm that allocates every map and drops them
+ * leaves garbage a patch's own clones did not, and the ones read whole were
  * already skipped outright by an edit that named no key of them. What the pair
  * is for is the SHAPE of the residue, and the before/after inside a timed
  * window is the `patch+residue` arm above and the leg run against the branch
@@ -756,7 +756,7 @@ lever("a different file each time", edits)
 lever("the same file every time", typing)
 const [wasLayered, stayCloned] = beside()
 console.log(
-  `\nthe eleven indexes, cloned on their own: ${wasLayered.toFixed(3)}ms for the ${LAYERED.length}` +
+  `\nthe indexes, cloned on their own: ${wasLayered.toFixed(3)}ms for the ${LAYERED.length}` +
     ` a patch layers now, ${stayCloned.toFixed(3)}ms for the ${CLONED.length} it still clones` +
     ` — the residue this took off, against what is left`,
 )

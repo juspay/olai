@@ -81,6 +81,15 @@ export type Status = typeof Status.Type
  * It is a SCHEMA because that shape travels now: what a row is waiting on rides
  * to the browser on a page's reading since `vault-in-browser`'s PR 10, and a
  * type alone cannot be encoded.
+ *
+ * THE FILTER IS A DECISION and not only a saving, which is the half the
+ * paragraph above does not say: "everything that is not `done`" reads a mark
+ * nobody has thought about yet as work somebody still owes. A fourth mark that
+ * SETTLES rather than waits — the roadmap's `cancelled` — has to be excluded
+ * HERE and in `./derive.ts`'s `unfinishedWork` (which spells the same rule of a
+ * node's stored mark, and whose header carries the contract for both), and
+ * those two are the whole list: what is late, what a day owes, what a badge
+ * burns for and what an arrow blocks all read one of them.
  */
 export const Unfinished = Schema.Literals(
   MARKS.filter((mark): mark is Exclude<Status, "done"> => mark !== "done"),

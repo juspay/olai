@@ -83,6 +83,7 @@ import {
   type Naming,
   byDayKey,
   nodeNamed,
+  owingOn,
   parentInto,
   READ,
   tagInto,
@@ -219,7 +220,7 @@ export const patched = (
   const children = containment(edit)
   const namedBy = namings(edit, nodes)
   const taggedBy = taggings(edit)
-  const byDay = dating(edit)
+  const journal = dating(edit)
   const { status, mirrorsOf, dirty } = resolutions(edit, byId)
   const { after, edgesTo, rewritten } = orderings(edit, { byId, mirrorsOf, namedBy }, dirty)
   const blocked = blockage(edit, { byId, status, after, edgesTo }, dirty, rewritten)
@@ -238,7 +239,7 @@ export const patched = (
     edgesTo,
     namedBy,
     taggedBy,
-    byDay,
+    ...journal,
   }
 }
 
@@ -308,6 +309,17 @@ interface Refiled<T> {
    *  its keys has to be sorted again — `byDay` is the one of the four that
    *  does, exactly as {@link regrouped} sorts `byFile`'s. */
   readonly rekeyed: boolean
+  /** WHICH KEYS this edit could have moved — the arriving records' and the
+   *  departing ones', which is every key of this index a file the delta named
+   *  can have reached. Empty when the edit named none, in which case
+   *  {@link Refiled.map} IS the map that stood.
+   *
+   *  Spent by ONE caller ({@link dating}): {@link Derived.owedByDay} is
+   *  {@link Derived.byDay} counted, so the days whose counts can have changed
+   *  are exactly the days whose buckets were re-filed — and collecting them a
+   *  second time from the delta would be a second spelling of what a record
+   *  puts on a day, which is the drift the shared fold exists to stop. */
+  readonly keys: ReadonlySet<string>
   /** Whether any key's FIRST member sits somewhere else now. A key sits where
    *  the record that opens it sits in a map a single walk of the corpus built,
    *  so this is what `namedBy` rebuilds for. Strictly wider than
@@ -350,7 +362,7 @@ const refiled = <K extends Listed, Filed extends Member<K> = Member<K>>(
 
   const keys = new Set<string>(arriving.keys())
   for (const key of departing.keys()) keys.add(key)
-  if (keys.size === 0) return { map: before, rekeyed: false, headMoved: false }
+  if (keys.size === 0) return { map: before, keys, rekeyed: false, headMoved: false }
 
   /** Where a key's members START, which is where the key itself sits in a map
    *  the corpus was walked once to build. */
@@ -377,9 +389,9 @@ const refiled = <K extends Listed, Filed extends Member<K> = Member<K>>(
     ].sort(inOrder)
     // One true answer settles it, and three of the four callers never ask.
     if (!headMoved && elsewhere(head(held), head(own))) headMoved = true
-    if (filedAt(map, key, own)) rekeyed = true
+    if (filedAt(map, key, own, own.length > 0)) rekeyed = true
   }
-  return { map: map.sealed(), rekeyed, headMoved }
+  return { map: map.sealed(), keys, rekeyed, headMoved }
 }
 
 /**
@@ -399,11 +411,18 @@ const refiled = <K extends Listed, Filed extends Member<K> = Member<K>>(
  * whole of what a map whose keys are READ IN ORDER has to be sorted again for,
  * which is {@link inKeyOrder} next door.
  */
-const filedAt = <V>(
-  map: Editable<string, ReadonlyArray<V>>,
+const filedAt = <V extends {}>(
+  map: Editable<string, V>,
   key: string,
-  own: ReadonlyArray<V>,
-): boolean => own.length === 0 ? map.delete(key) : map.set(key, own)
+  own: V,
+  /** Whether the key has anything at all — a LIST with members for the four
+   *  re-filed indexes and for the grouping, a count above zero for the day's
+   *  owed tally ({@link owing}). Asked at the call rather than of the value,
+   *  because "nothing" is a different shape per index and the RULE — a key
+   *  holding nothing goes away — is the same one, which is what this function
+   *  is for. */
+  holds: boolean,
+): boolean => holds ? map.set(key, own) : map.delete(key)
 
 /**
  * A map whose KEYS are read in an order, put back in it — and only when the key
@@ -481,13 +500,14 @@ const regrouped = (derived: Derived, delta: SetDelta): Regrouped => {
   // Derived.byFile} spells an empty file, so a remove and an empty upsert are
   // the same word said twice.
   for (const file of delta.removes) {
-    if (filedAt(byFile, file, NOTHING)) reordered = true
+    if (filedAt(byFile, file, NOTHING, false)) reordered = true
   }
   for (const [file, entry] of delta.upserts) {
     // Sorted rather than trusted, exactly as `derive` sorts the same list: the
     // promise is about what the index MEANS — the records in the order they are
     // on disk — and not about the order a frame happened to carry them in.
-    if (filedAt(byFile, file, [...entry.nodes].sort(byLine))) reordered = true
+    const own = [...entry.nodes].sort(byLine)
+    if (filedAt(byFile, file, own, own.length > 0)) reordered = true
   }
   // WALKED WHOLE, and this is the index every whole-corpus reading goes
   // through — {@link flattened} below, tag completion's file walk, the pin
@@ -784,18 +804,84 @@ const taggings = (edit: Edit): ReadonlyMap<string, ReadonlyArray<LocatedRegular>
  * second spelling of it to collect keys from would be exactly the drift the
  * fold is factored out to stop.
  */
-const dating = (edit: Edit): ReadonlyMap<string, ReadonlyArray<Dated>> => {
+const dating = (edit: Edit): Journal => {
   // NOTHING ON EITHER SIDE CARRIED A DATE, and {@link refiled} answers that the
   // same way it does next door: the map that stood IS the answer and no clone
   // is paid at all — a keystroke in an outline nobody scheduled anything in,
   // which is most outlines.
-  const { map, rekeyed } = refiled(edit, "byDay", {
+  const { map, keys, rekeyed } = refiled(edit, "byDay", {
     into: dateInto,
     at: (one) => one.at,
   })
   // Whether the KEYS moved is the only thing that costs the sort. A day that
   // gains or loses a record is not that; a day that appears or empties is.
-  return inKeyOrder(map, rekeyed, byDayKey)
+  const byDay = inKeyOrder(map, rekeyed, byDayKey)
+  return {
+    byDay,
+    owedByDay: owing(edit, byDay, keys),
+    // THE DAY LINE IS THE KEYS, so it is remade exactly when they moved — the
+    // same one edit in many that pays for the sort above, and never a keystroke
+    // in a scheduled outline that merely retitled a row. Carried by REFERENCE
+    // otherwise: the array a reader was handed is the array the next view has,
+    // which is what `byDay` itself gets from {@link refiled} one line up.
+    days: rekeyed ? [...byDay.keys()] : edit.before.days,
+  }
+}
+
+/** {@link Derived.byDay} and the two readings carried BESIDE it, which one step
+ *  answers because they are one question: what the edit did to the journal. */
+interface Journal {
+  readonly byDay: ReadonlyMap<string, ReadonlyArray<Dated>>
+  readonly owedByDay: ReadonlyMap<string, number>
+  readonly days: ReadonlyArray<string>
+}
+
+/**
+ * How much each day OWES — {@link Derived.owedByDay} carried across the edit.
+ *
+ * COUNTED OUT OF THE BUCKETS {@link dating} HAS JUST RE-FILED, never folded a
+ * second time over the records: a day's owed tally is {@link owingOn} of that
+ * day's list, so the days whose tallies can have moved are exactly the keys
+ * {@link refiled} touched, and asking the delta again for them would be a
+ * second spelling of what a record puts on a day.
+ *
+ * ITS OWN KEY SET, and therefore its own sort. A day drops out of THIS index
+ * the moment its last unfinished task is finished, while the day itself stays
+ * in `byDay` holding the `done` that finished it — so `rekeyed` next door is
+ * the wrong question and this asks its own.
+ *
+ * AND NOTHING IS OPENED UNTIL A TALLY ACTUALLY MOVES, which is the difference
+ * between "the edit touched a day" and "the edit changed what a day owes".
+ * Those are not the same edit and the second is much the rarer: retitling a row
+ * in an outline that holds scheduled work re-files every day that outline is
+ * on, and none of their tallies is any different afterwards. This index is read
+ * WHOLE, so opening it is a clone — of the days that owe something, which on a
+ * vault with a decade of habit behind it is the interesting number — and an
+ * edit that recounts its way back to the same answers pays none of it and hands
+ * on the map that stood.
+ */
+const owing = (
+  edit: Edit,
+  byDay: ReadonlyMap<string, ReadonlyArray<Dated>>,
+  keys: ReadonlySet<string>,
+): ReadonlyMap<string, number> => {
+  // NO DAY TOUCHED, so no tally can have moved: the map that stood is the
+  // answer, uncloned and handed straight on — {@link refiled}'s own economy, and
+  // the reason this step asks it for the keys rather than for a flag.
+  if (keys.size === 0) return edit.before.owedByDay
+  const before = edit.before.owedByDay
+  let map: Editable<string, number> | undefined
+  let rekeyed = false
+  for (const key of keys) {
+    const owed = owingOn(byDay.get(key) ?? [])
+    // ABSENCE IS ZERO on both sides, which is what makes this comparison the
+    // whole answer: a day that owed nothing and owes nothing has no key here
+    // either way, so there is nothing to write and nothing to delete.
+    if (owed === (before.get(key) ?? 0)) continue
+    map ??= carrying(edit.before, "owedByDay")
+    if (filedAt(map, key, owed, owed > 0)) rekeyed = true
+  }
+  return map === undefined ? before : inKeyOrder(map.sealed(), rekeyed, byDayKey)
 }
 
 /**

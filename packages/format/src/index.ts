@@ -606,6 +606,12 @@ export {
    *  answered with — the pair above's other half, on the wire for its reason. */
   Owed,
   owedIn,
+  /** The two counts, off the index the patcher keeps rather than off an agenda
+   *  built to be counted (`perf-agenda-history-walk`). `owedOf` stays beside it
+   *  and stays exported: it is the reference arm the differential and the bench
+   *  hold this one to, and a door that wanted the count of an agenda IT already
+   *  has is what it is still for. */
+  owedNow,
   owedOf,
   OwedRequest,
   sameOwed,

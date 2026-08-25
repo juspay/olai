@@ -37,10 +37,14 @@ const loose = (): { readonly root: string; readonly file: string } => {
   return { root, file }
 }
 
-/** The same directory, with a repository and one commit in it. */
-const repo = (): { readonly root: string; readonly file: string } => {
+/** The same directory, with a repository and one commit in it — or with the
+ *  repository and NO commit, which is the shape `head` has to answer `null`
+ *  for. */
+const repo = (
+  options: { readonly seed?: boolean } = {},
+): { readonly root: string; readonly file: string } => {
   const made = loose()
-  repoAt(made.root)
+  repoAt(made.root, options)
   return made
 }
 
@@ -547,13 +551,89 @@ test("an unrecognised trailer arrives verbatim rather than swallowed", async () 
   expect((await asked(root, (git) => git.last(OLAI)))?.trailer).toBe("some-other-tool")
 })
 
-test("show is HEAD's copy, and null for a file HEAD has never had", async () => {
+test("show is the named commit's copy, and Absent for a file it never had", async () => {
   const { root, file } = repo()
   fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
 
-  expect(await asked(root, (git) => git.show("a.olai")))
-    .toBe(`{"id":"a","ord":"a0","title":"a"}\n`)
-  expect(await asked(root, (git) => git.show("never.olai"))).toBe(null)
+  const head = await asked(root, (git) => git.head)
+  expect(head).toMatch(/^[0-9a-f]{40}$/)
+  expect(await asked(root, (git) => git.show(head ?? "", "a.olai")))
+    .toEqual({ _tag: "Text", text: `{"id":"a","ord":"a0","title":"a"}\n` })
+  expect(await asked(root, (git) => git.show(head ?? "", "never.olai")))
+    .toEqual({ _tag: "Absent" })
+})
+
+/**
+ * THE THIRD ARM, and the whole reason there is one.
+ *
+ * "That commit does not have this file" and "git could not answer" used to be
+ * the same `null`, which is the collapse #108 closed at the socket and this
+ * closed one call in — and it started to matter when the caller began
+ * REMEMBERING what came back (`@olai/ops`' `committed.ts`): a copy filed as
+ * absent reports every node of the working file as CREATED, so a bitten budget
+ * folded into that arm would put a screen of invented rows in front of somebody
+ * until HEAD next moved.
+ *
+ * The two provocations are the two git has words for. A path the commit does
+ * not hold at all, and a path that is on DISK (staged, even) and not in the
+ * commit — git phrases those differently, and a classification that knew only
+ * the first would report the commonest shape of all, a brand-new outline, as a
+ * git fault. A revision that is not an object at all is neither: it is git
+ * saying it could not answer, and the caller must not remember that.
+ */
+test("a path no commit has is Absent; a git that could not answer is Unusable", async () => {
+  const { root, file } = repo()
+  const head = (await asked(root, (git) => git.head)) ?? ""
+
+  // On disk, staged, and not in the commit — git's other spelling for absent.
+  fs.writeFileSync(path.join(root, "new.olai"), `{"id":"n","ord":"a0","title":"n"}\n`)
+  git(root)("add", "new.olai")
+  expect(await asked(root, (git) => git.show(head, "new.olai"))).toEqual({ _tag: "Absent" })
+  // ... and the index it is sitting in is not what `show` reads: the file it
+  // ALSO holds a staged edit of still answers with the commit's bytes.
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"staged edit"}\n`)
+  git(root)("add", "a.olai")
+  expect(await asked(root, (git) => git.show(head, "a.olai")))
+    .toEqual({ _tag: "Text", text: `{"id":"a","ord":"a0","title":"a"}\n` })
+
+  // A revision that is not one. git's own words ride the answer, exactly as
+  // they do on every other refusal this file reports.
+  const refused = await asked(root, (git) => git.show("not-a-revision", "a.olai"))
+  expect(refused._tag).toBe("Unusable")
+  expect(refused._tag === "Unusable" ? refused.said : "").toContain("invalid object name")
+})
+
+/**
+ * WHICH COMMIT, and the shapes where there is not one.
+ *
+ * The pairing is the point: a caller that keeps what {@link Repo.show} answered
+ * keeps it under this sha, so a commit landing here has to produce a DIFFERENT
+ * one — that is what makes a remembered copy impossible to serve for the wrong
+ * revision (`@olai/ops`' `committed.ts`). A repository with no commits yet
+ * answers `null` rather than a sentinel, which is the same answer a git that
+ * could not be asked gives, and the same answer `show` would give for every
+ * path in it.
+ */
+test("head names the commit, moves when a commit lands, and is null before the first", async () => {
+  const { root, file } = repo({ seed: false })
+  expect(await asked(root, (git) => git.head)).toBe(null)
+
+  const run = git(root)
+  run("add", "-A")
+  run("commit", "--quiet", "-m", "first")
+  const first = await asked(root, (git) => git.head)
+  expect(first).toMatch(/^[0-9a-f]{40}$/)
+
+  fs.writeFileSync(file, `{"id":"a","ord":"a0","title":"edited"}\n`)
+  run("commit", "--quiet", "-am", "second")
+  const second = await asked(root, (git) => git.head)
+  expect(second).toMatch(/^[0-9a-f]{40}$/)
+  expect(second).not.toBe(first)
+
+  // ... and the first sha still answers what it always answered, which is the
+  // property the cache one package up is built on.
+  expect(await asked(root, (git) => git.show(first ?? "", "a.olai")))
+    .toEqual({ _tag: "Text", text: `{"id":"a","ord":"a0","title":"a"}\n` })
 })
 
 /**
@@ -577,10 +657,12 @@ test("show names a file the way the repository does, from a served subdirectory"
   run("commit", "--quiet", "-m", "more fixtures")
 
   const served = path.join(root, "notes")
-  expect(await asked(served, (git) => git.show("notes/b.olai")))
-    .toBe(`{"id":"b","ord":"a0","title":"b"}\n`)
+  const head = (await asked(served, (git) => git.head)) ?? ""
+  expect(await asked(served, (git) => git.show(head, "notes/b.olai")))
+    .toEqual({ _tag: "Text", text: `{"id":"b","ord":"a0","title":"b"}\n` })
   // The one the served spelling could not reach at all.
-  expect(await asked(served, (git) => git.show("above.md"))).toBe("one level up\n")
+  expect(await asked(served, (git) => git.show(head, "above.md")))
+    .toEqual({ _tag: "Text", text: "one level up\n" })
 })
 
 test("git refusing is a warning with git's own words in a field, and a Failed", async () => {
