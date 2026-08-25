@@ -46,6 +46,12 @@
 // projection spelled at a call site would drift from.
 
 export { selector, TESTID, type TestId } from "./client/testids.ts"
+// The other name of that kind, and the only one that is not a testid: the
+// attribute the app shell counts keys down on. It is the suite's ONE wait
+// after a key — what the per-key receipts in `support/caret.ts` were
+// approximating — and `client/quiescence.ts` is where the contract is: what
+// holds the count, what deliberately does not, and why.
+export { KEYS_SETTLING } from "./client/quiescence.ts"
 export { ROW_TESTID } from "./client/file/kinds.ts"
 export { type Making, MAKING_DOCUMENT, MAKING_OUTLINE } from "./client/file/making.ts"
 export { REFERRINGS } from "./client/backlinks/way.ts"

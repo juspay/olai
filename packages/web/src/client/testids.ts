@@ -6,6 +6,14 @@
  * an attribute, the selector still compiles, and a scenario fails thirty
  * seconds later with a timeout that says nothing about why. Declaring them
  * here and importing them on both sides makes a rename a type error.
+ *
+ * ONE NAME OF THAT KIND IS NOT HERE, and it is worth saying where it went:
+ * `KEYS_SETTLING` — the attribute the app shell counts keys down on — is
+ * declared in `./quiescence.ts`, beside the counter that publishes it, because
+ * a reader who finds the name needs the contract that goes with it (what holds
+ * the count, and what deliberately does not) and that argument is a page long.
+ * It is not a name for FINDING something either: a scenario waits on its
+ * VALUE. Both ends import it, so it breaks the same way this table does.
  */
 
 export const TESTID = {

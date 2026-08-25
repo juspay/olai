@@ -11,6 +11,7 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 
 import { attr } from "../support/selectors.ts";
+import { pressed } from "../support/settling.ts";
 import {
   nodeSelector,
   PANE,
@@ -72,8 +73,7 @@ When("I close the focused pane", async function (this: OlaiWorld) {
 });
 
 When("I press Alt+Right", async function (this: OlaiWorld) {
-  await this.page.keyboard.press("Alt+ArrowRight");
-  await this.waitForFrame();
+  await pressed(this, "Alt+ArrowRight");
 });
 
 When("I open the address {string}", async function (this: OlaiWorld, address: string) {
@@ -135,8 +135,7 @@ When("I close the focused pane from the keyboard", async function (this: OlaiWor
   // matches: the pane simply did not close, and the assertion after it read
   // the pane that was still there. Linux never noticed, because there the two
   // are the same key.
-  await this.page.keyboard.press("ControlOrMeta+Shift+w");
-  await this.waitForFrame();
+  await pressed(this, "ControlOrMeta+Shift+w");
 });
 
 When(
@@ -152,7 +151,7 @@ When(
       (window as unknown as { __claimed?: boolean }).__claimed = undefined;
       window.addEventListener("keydown", onKey);
     });
-    await this.page.keyboard.press("Alt+ArrowRight");
+    await pressed(this, "Alt+ArrowRight");
     const claimed = await this.page.evaluate(
       () => (window as unknown as { __claimed?: boolean }).__claimed,
     );

@@ -29,6 +29,7 @@ import {
 } from "@olai/web/testlib";
 
 import { saysThat } from "../support/said.ts";
+import { keysSettled } from "../support/settling.ts";
 import { HYDRATION_TIMEOUT, POLL_TIMEOUT } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
@@ -80,6 +81,7 @@ When(
     const box = await boxOf(this, kind);
     await box.fill(file);
     await box.press("Enter");
+    await keysSettled(this);
   },
 );
 

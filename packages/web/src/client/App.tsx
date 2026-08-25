@@ -19,7 +19,16 @@
  * (`./reading.tsx`), asked of the address that pane is drawing.
  */
 
-import { createEffect, createMemo, createSignal, Match, on, Show, Switch } from "solid-js"
+import {
+  createEffect,
+  createMemo,
+  createRenderEffect,
+  createSignal,
+  Match,
+  on,
+  Show,
+  Switch,
+} from "solid-js"
 
 import { AppHeader } from "./AppHeader.tsx"
 import { Calendar } from "./calendar/Calendar.tsx"
@@ -50,6 +59,7 @@ import { Palette } from "./palette/Palette.tsx"
 import { PinsProvider } from "./pins/answered.tsx"
 import { pinSaid } from "./pins/pinning.ts"
 import { Panes } from "./pane/Panes.tsx"
+import { KEYS_SETTLING, quiescence } from "./quiescence.ts"
 import { SHEET, SHELL_LONE, SHELL_SPLIT } from "./layout/sheet.ts"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
@@ -335,7 +345,25 @@ export default function App() {
       {/* No ground of its own: `html` is already ink (./styles.css), and what
           shows through here — the strip under a sticky spine on a page taller
           than the viewport — is that same forest either way. */}
-      <div class="flex min-h-dvh flex-col">
+      {/* THE SHELL, and the one thing on it that is not a look: how many keys
+          this tab has not finished with, counting down to "0"
+          (`./quiescence.ts`, which says what holds the count and what
+          deliberately does not). Here rather than on a page, because it is a
+          fact about the TAB — a chord aimed at the palette, a fold in a
+          second pane and a title being typed are all keys, and there is one
+          keyboard between them.
+
+          A `ref` and a render effect rather than a spelled-out attribute: the
+          name is a contract with a package that never imports this one, so it
+          is imported rather than typed twice, and a JSX attribute cannot be
+          named by a constant. */}
+      <div
+        class="flex min-h-dvh flex-col"
+        ref={(shell) =>
+          createRenderEffect(() =>
+            shell.setAttribute(KEYS_SETTLING, String(quiescence.count()))
+          )}
+      >
         <AppHeader
           docked={loaded()}
           go={(route) => router.go(route)}

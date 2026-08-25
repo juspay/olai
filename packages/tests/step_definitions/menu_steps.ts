@@ -29,6 +29,7 @@ import { Given, Then, When } from "@cucumber/cucumber";
 import { TESTID } from "@olai/web/testlib";
 
 import { chunkOf } from "../support/chunks.ts";
+import { pressed } from "../support/settling.ts";
 
 import {
   NODE_GUTTER,
@@ -94,9 +95,8 @@ When(
   "I open the node menu of {string} with the keyboard",
   async function (this: OlaiWorld, id: string) {
     await this.focusWithin(id, NODE_MENU);
-    await this.page.keyboard.press("Enter");
+    await pressed(this, "Enter");
     await panelOf(this);
-    await this.waitForFrame();
   },
 );
 

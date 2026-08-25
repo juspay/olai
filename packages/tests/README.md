@@ -34,8 +34,12 @@ packages/tests/
 │   ├── hooks.ts             # browser + a server per corpus copy (and per scratch copy)
 │   ├── reaper.ts            # process-group kill; SIGINT/SIGTERM of cucumber takes the servers with it
 │   ├── scratch.ts           # @share-scratch / @own-scratch, restore, the leftover refusal
-│   ├── caret.ts             # the client's own answer to a key, and how a step
-│                           #   waits for it (see "Waiting", below)
+│   ├── settling.ts          # the client's own count of the keys it has not
+│                           #   finished with — the ONE wait after a key (see
+│                           #   "Waiting", below)
+│   ├── caret.ts             # what is left of the per-key receipts: the
+│                           #   click-away's, and the two reads that were
+│                           #   never waits
 │   ├── said.ts              # what the page said about a write, wherever it says it
 │   ├── probe.ts             # what SURVIVED a gesture: a serial on every element of
 │                           #   a region and a watch over it, so a scenario can say the
@@ -457,17 +461,25 @@ Asking the holding form of a write passes only when the round trip happens to la
 
 **A file the write has not minted yet** — `_olai/Trash.olai`, which the first trash creates, and `_olai/Inbox.olai`, which the first capture does. A waiting reader goes through `world.servedNodesSoFar`, which answers "nothing there yet" for a file that is not there; a step that WRITES the served directory goes through `world.servedNodes`, which throws. The reason either is right is on the method.
 
-**A key pressed before the page has answered the last one.** The one that costs the most to debug, because it fails four steps later on something that reads nothing like the cause: `Escape` closes a draft that has not opened yet and the draft opens behind it, so every ⌘Z after that is dead; `Tab` walks the browser's focus ring out of the row, so the next key finds no editor; `⌘A` selects the page, so the title typed after it lands beside the old one instead of replacing it. The receipt this suite waits on — and why nothing else it can see will do — is `support/caret.ts`. What that buys each step:
+**A key pressed before the page has answered the last one.** The one that costs the most to debug, because it fails four steps later on something that reads nothing like the cause: `Escape` closes a draft that has not opened yet and the draft opens behind it, so every ⌘Z after that is dead; `Tab` walks the browser's focus ring out of the row, so the next key finds no editor; `⌘A` selects the page, so the title typed after it lands beside the old one instead of replacing it.
 
-| step | waits for |
-|---|---|
-| `I press`, `I type`, `I select all and type` | the line to hold the caret, BEFORE aiming anything at it |
-| `I press "Enter"` / `"Backspace"` at the head of a line | the caret to leave that line, and arrive in the one the key opened |
-| `I press "Tab"` / `"Shift+Tab"` / `"Alt+Shift+Arrow…"` | the row to be drawn where the key moved it |
-| `I press "Escape"` with a draft open | the draft to close |
-| `I click away from the editor` | the caret to leave the line |
+**The client says when it has finished with a key, and that is the whole of the contract now.** `data-keys-settling` rides the app shell and counts down to `"0"`: how many keys this tab has not finished with (`@olai/web`'s `client/quiescence.ts`, where what holds the count and what deliberately does not is argued out one edge at a time). `support/settling.ts` is this side of it — `pressed`, `typed`, and `keysSettled` for a key aimed at a box through a locator — and there is ONE wait after every key in this suite, the same wait whichever key it was.
 
-Every one of them will take "the page said why it did not" instead, which is the other way a key ends. `I press "…" without waiting` is how the two scenarios that MEAN the race say so.
+What it promises when it returns: every handler the key reached has run; every procedure the key SENT has been answered, refused or not; the write queue has drained everything the key put on it, which means the file was written AND the inverse ⌘Z spends is on the stack; and the frames that draw all of it are committed.
+
+What it does not, and so what still needs a wait of its own:
+
+| not covered | why | what waits instead |
+|---|---|---|
+| a debounce — the idle commit, a search settle — AND the write at the end of it | the timer is cancelled and restarted by the next keystroke, so waiting it out is waiting for the reader to stop typing; and the write it eventually makes lands in a task of its own, where no key is being handled, so it goes on the write queue uncounted exactly as a pointer's does | `IDLE_COMMIT`; `data-asked` through `support/shortlist.ts` |
+| what another writer did — a watcher, a second tab, the agent | not this key's effect, however soon after it lands | the disk and the row, which poll |
+| a turn | `Enter` in the composer is settled when the server has TAKEN the message | the transcript's own steps |
+| an animation, a transition, a measured collapse | the count is about the DOM the key committed | the geometry, where the geometry is the claim |
+| a POINTER | the count is about keys | `support/caret.ts`, which is what is left of the per-key receipts: the click-away's, and the two reads that were never waits |
+
+`I press "…" without waiting` and `I press "…" twice without waiting` are how the two scenarios that MEAN the race say so, and they are the whole of the exception.
+
+**What this replaced** was a proxy per key shape, kept in this package: the caret leaving a line for `Enter`, the caret arriving for `Tab`, a draft closing for `Escape`, a list going for a completion. Each was a guess at the thing rather than the thing, and two keys had no proxy at all — `Control+Enter` redraws a row without moving the caret, so nothing visible changes when the client takes the caret back from where it already is, and two of those in a row was a race nobody could write a wait for.
 
 **A gesture aimed at the tab across a DISK assertion.** The newest one, and the one that reads most like a passing step. A write goes: the server writes the file, publishes the new set, and only then answers the tab that asked (`packages/store/src/store.ts` — *rename them all → re-probe and publish → the caller's post-publish hook*). So a step that polls the disk is reading a fact the server has, and the tab has not — and the tab has rules that turn on having been answered:
 
@@ -476,7 +488,7 @@ Every one of them will take "the page said why it did not" instead, which is the
 | the inverse is filed when the answer comes back | `writes.ts` → `edit/undoing.ts`'s `record` | ⌘Z spends an empty stack: it draws `nothing to undo`, and the late `record` wipes even that, so the page keeps no trace |
 | one write at a time | `palette/Palette.tsx`, `edges/editing.tsx`, `date/DatePicker.tsx` — all `sending` | the second write is dropped where it stands: no op, no sentence, nothing on screen |
 
-Both were measured under load, and both failed fifteen seconds later on a file that never changed. So a scenario that makes a write and then aims something ELSE at the same tab needs the tab's own receipt in between, not the disk's: the palette's remark (`I capture …` now waits for it), the row the page redrew (`the node "…" comes after "…"`), the box re-primed. One of those receipts is a message SHORT, and takes a frame on top: what the edge steps watch is the refs the snapshot drew (`edge_steps.ts`'s `drawnOrSaid`), and the snapshot is one message ahead of the answer on the same wire — so the happy path waits a frame after the chip moves, which is the same ritual `support/caret.ts` already performs for the keys. The disk assertion is still worth making — it is the claim about what LANDED — it just is not a gate. A cold `goto` after a write is the same class: `page.goto` aborts the in-flight apply, so the node leaving the outline is the receipt, not the navigation.
+Both were measured under load, and both failed fifteen seconds later on a file that never changed. So a scenario that makes a write and then aims something ELSE at the same tab needs the tab's own receipt in between, not the disk's: the palette's remark (`I capture …` now waits for it), the row the page redrew (`the node "…" comes after "…"`), the box re-primed. One of those receipts is a message SHORT, and takes a frame on top: what the edge steps watch is the refs the snapshot drew (`edge_steps.ts`'s `drawnOrSaid`), and the snapshot is one message ahead of the answer on the same wire — so the happy path waits a frame after the chip moves, which is the same ritual `support/settling.ts` now performs for the keys. The disk assertion is still worth making — it is the claim about what LANDED — it just is not a gate. A cold `goto` after a write is the same class: `page.goto` aborts the in-flight apply, so the node leaving the outline is the receipt, not the navigation.
 
 **A press aimed at a control something is pinned over.** Playwright hit-tests the point it is about to press, and when something else is on top the action is RETRIED — every attempt re-running "scroll into view if needed", so a press that could not land where it was aimed is rescued by scrolling the page to wherever the browser had to put it for the press to reach. Nothing says so; the step passes. It stays invisible until a scenario is about WHERE THE PAGE IS, and then it is fatal: `zoom_and_navigate.feature`'s scroll restore scrolled to the bottom, pressed a bullet lying under the pinned `kitchen` section heading (`client/Tree.tsx` — a section holds its place while its own branch scrolls past), and was rescued to the top before the navigation, so the client remembered 0 and put the reader back at 0, correctly, against a number the step had sampled before any of it. `world.press` measures it first now — `elementFromPoint` at the point the press would land — and the test is `sticky` ALONE, which is the app's own distinction rather than a guess. Something sticky holds its place IN THE FLOW (`AppHeader.tsx` argues that choice for the bar): it is chrome the page scrolls under, it will still be where it is next frame, and moving the page is what a reader does to reach what it covers — so one arithmetic scroll clears the control, the short way out among the directions the page has room for. Something `fixed` is an overlay over the whole app (the drawer, its scrim, both faces of the chat panel) and scrolling the page out from under one is not a reader's answer to it; neither is anything else on top, which is on its way somewhere. Both are left exactly alone, because waiting for them to go is what Playwright already does and does correctly. What is NOT left alone is a control whose centre is off the screen — `elementFromPoint` answers `null` there, which is not a cover but is not pressable either, so it is scrolled into view first and then asked again: a press that needs a scroll to reach at all is the very case the retry would have rescued silently. A scenario that RECORDS where the reader is must record it after that reach, which is what `I scroll to the bottom of the page, keeping the bullet of "…" pressable` says and the plain sentence does not.
 

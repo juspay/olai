@@ -29,6 +29,7 @@
 
 import type { Locator } from "playwright";
 
+import { keysSettled } from "./settling.ts";
 import type { OlaiWorld } from "./world.ts";
 
 /**
@@ -55,7 +56,12 @@ export const retypedAndTaken = async (
       new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }),
     );
   }, text);
-  await world.waitForFrame();
+  // The key, waited for like every other one: the take goes on the write queue
+  // (`client/edit/queue.ts`), and the count is held until the step settles.
+  // What is NOT waited for — deliberately, because it is the whole point of
+  // this ritual — is the SEARCH: a settle is a debounce, and the counter says
+  // nothing about a timer that has not fired (`./settling.ts`).
+  await keysSettled(world);
 };
 
 /**
@@ -92,5 +98,7 @@ export const retypedAndPressed = async (
     }
     (pressed as HTMLElement).click();
   }, { wanted: text, row });
+  // A POINTER, so there is no key to be counted: the frame is what a click in
+  // this suite waits for, and the assertion after it polls.
   await world.waitForFrame();
 };

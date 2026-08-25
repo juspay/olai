@@ -12,6 +12,7 @@ import { followFolders } from "./fold/folders.ts"
 import { followFolds } from "./fold/memory.ts"
 import { trackDesktop } from "./layout/media.ts"
 import { followLayout } from "./layout/prefs.ts"
+import { followKeys } from "./quiescence.ts"
 import { followAlerts } from "./settings/alerts.ts"
 import { followDensity } from "./settings/density.ts"
 import { followDoneHidden } from "./settings/done.ts"
@@ -50,6 +51,13 @@ trackVisibleViewport()
 followStoredTheme()
 followStoredFont()
 followStoredSize()
+
+// How many keys this tab has not finished with, counted from a capture-phase
+// listener on the window so a hold is open before anything in this app decides
+// what a key means (./quiescence.ts, which says what it covers and what it
+// deliberately does not). Here for the reason above it: one keyboard, one
+// document, and a listener that lives exactly as long as one.
+followKeys()
 
 // Layout preferences (sidebar open/width, chat open/width/snap), whether the
 // agent's questions are announced and whether that makes a sound, how much of a
