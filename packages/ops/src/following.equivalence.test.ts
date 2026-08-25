@@ -20,7 +20,11 @@
  * AND THE VIEW UNDER IT, because the fold hands on a patched derivation as well
  * as a set: two folds that agreed about the files and disagreed about the
  * grouping would be the shape `@olai/format`'s `isSet` exists to catch, one
- * revision later.
+ * revision later. AND THAT EACH ARM'S VIEW IS ABOUT ITS OWN SET, which is that
+ * same `isSet` question asked outright — the one `perf-reading-patched-check`
+ * took off the live door and moved here, since a check the corpus paid for on
+ * every op of every batch is a check a scripted run can make once (`isAbout`
+ * below argues it).
  *
  * THE SECOND CLAIM IS AN IDENTITY, and it is here rather than in a bench for
  * the reason the commit panel's subprocess count is: it is the part that must
@@ -31,6 +35,7 @@
  */
 
 import { expect, test } from "bun:test"
+import { outlinesIn } from "@olai/format"
 import { Result } from "effect"
 
 import { readingOf, setOf, steady } from "./fixtures.testlib.ts"
@@ -70,6 +75,39 @@ const viewOf = (at: Scope) => ({
   byId: [...at.derived.byId.keys()],
   status: [...at.derived.status],
 })
+
+/**
+ * ...AND THAT THE VIEW IS ABOUT THE SET IT TRAVELS WITH — `isSet`'s question,
+ * written out here as the ORACLE.
+ *
+ * It is the third claim of this file and it arrived with
+ * `perf-reading-patched-check`. The carried fold used to reach its patched view
+ * through `@olai/format`'s `reading`, which asked exactly this of the whole
+ * corpus on every op; it now comes through `following`, which asks it of the
+ * files the op WROTE and proves the rest from the reading it was handed. So the
+ * property the corpus walk was establishing per op is asserted per op here
+ * instead — over a script that mints files, empties them, archives into one the
+ * set never held and writes documents beside outlines — where it costs a test
+ * run rather than every batch a vault ever folds.
+ *
+ * SPELLED OUT rather than imported, for the reason the two arms above are two
+ * arms: a narrowed door asked to grade itself with its own check proves
+ * nothing.
+ */
+const isAbout = (at: Scope): boolean => {
+  const outlines = outlinesIn(at.set).filter((outline) => outline.nodes.length > 0)
+  if (at.derived.byFile.size !== outlines.length) return false
+  let which = 0
+  for (const [file, records] of at.derived.byFile) {
+    const outline = outlines[which++]
+    if (outline === undefined || outline.path !== file) return false
+    if (outline.nodes.length !== records.length) return false
+    for (let index = 0; index < records.length; index++) {
+      if (records[index] !== outline.nodes[index]) return false
+    }
+  }
+  return true
+}
 
 test("the carried fold leaves the set the assembling one left, at every op", () => {
   const spliced = start()
@@ -111,6 +149,10 @@ test("the carried fold leaves the set the assembling one left, at every op", () 
     // an index into a script.
     expect([step.what, shapeOf(one)]).toEqual([step.what, shapeOf(other)])
     expect([step.what, viewOf(one)]).toEqual([step.what, viewOf(other)])
+    // ...and each arm's view is a view of the set that arm carries — the claim
+    // the corpus walk used to make on every op of every batch, made here.
+    expect([step.what, isAbout(one)]).toEqual([step.what, true])
+    expect([step.what, isAbout(other)]).toEqual([step.what, true])
   }
   // The run really did fold: a script whose every op refused would satisfy
   // every assertion above and prove nothing.

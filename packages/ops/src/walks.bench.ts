@@ -6,9 +6,10 @@
  * never CI gates — a timing that fails a lane on a busy machine teaches nobody
  * anything. What IS a gate is beside each row and lives in the suite: the
  * equalities (`./walks.test.ts`, `./following.equivalence.test.ts`,
- * `../../format/src/set.walks.test.ts`, `../../format/src/suggest.test.ts`) and
- * the counts (`./following.equivalence.test.ts`'s identity, `set.walks`'s
- * comparisons, `suggest.walks`'s matrices).
+ * `../../format/src/set.walks.test.ts`, `../../format/src/validate.walks.test.ts`,
+ * `../../format/src/suggest.test.ts`) and the counts
+ * (`./following.equivalence.test.ts`'s identity, `set.walks`'s comparisons,
+ * `validate.walks`'s record reads, `suggest.walks`'s matrices).
  *
  * FOUR ROWS, because the ops bundle is four costs and blending them would be a
  * number nobody pays:
@@ -17,11 +18,14 @@
  *     materialises every record in the directory, against the paths-only
  *     question. The unit is one capture, and the retry the race needs means a
  *     capture can pay it twice;
- *   - A BATCH (`perf-batch-assemble`) — a run of ops through the fold as it
- *     stood (the directory taken apart and re-assembled, per op) against the
- *     carried one (the written files spliced into the set the last op left, and
- *     the asking carried). Two sizes, because the shape of the before column IS
- *     the finding: the bill grows with the ops × the directory;
+ *   - A BATCH (`perf-batch-assemble`, and under it `perf-reading-patched-check`)
+ *     — a run of ops through the fold as it stood (the directory taken apart and
+ *     re-assembled per op, and the patched view then held against the whole
+ *     corpus) against the carried one (the written files spliced into the set the
+ *     last op left, the view held against those files, and the asking carried).
+ *     Two sizes, because the shape of the before column IS the finding: the bill
+ *     grows with the ops × the directory. The two per-op rows under it are what
+ *     each of those nodes actually moved, since a fold op is four things;
  *   - A FOLD CLICK (`perf-homes-files`) — the two all-files structures built per
  *     call against the two held with the set. The unit is one click, and a
  *     reader folding a page presses it dozens of times against one revision;
@@ -45,9 +49,11 @@ import {
   assemble,
   didYouMean,
   didYouMeanDeclared,
+  following,
   type OutlineSet,
   outlinePaths,
   type Reading,
+  reading as formatReading,
   withDocuments,
 } from "@olai/format"
 import { alternating, runtimeSaid, vaultOf } from "@olai/format/testlib"
@@ -150,16 +156,27 @@ for (const howMany of [10, 100]) {
 }
 
 /**
- * THE SET-BUILDING ALONE, which is the honest inside of the two rows above.
+ * THE SET-BUILDING ALONE, and then THE DOOR — the honest inside of the two rows
+ * above.
  *
- * A fold op is a serialise, a parse, a set and a patched view, and this node
- * changed exactly one of those four — so the end-to-end ratio is the change
- * DILUTED by the three it did not touch, and printing only that would let a
- * reader conclude the change did nothing. What it actually did is here; what it
- * is worth to a batch is above. The rest of a fold op is the file's own bytes
- * (serialise + parse) and the disagreement check the patcher's contract asks
- * for, which walks the records of the directory per op — a cost this node did
- * not name and does not touch.
+ * A fold op is a serialise, a parse, a set and a patched view, and the two nodes
+ * measured here changed one of those four each — so an end-to-end ratio is
+ * either change DILUTED by the three beside it, and printing only that would let
+ * a reader conclude they did nothing. What they actually did is here; what they
+ * are worth to a batch is above. What is left un-narrowed either way is the
+ * file's own bytes, which is the serialise/parse pair and the dominant term.
+ *
+ *   - THE SET (`perf-batch-assemble`): the directory taken apart and
+ *     re-assembled per op, against the previous set with the written file
+ *     spliced in;
+ *   - THE DOOR (`perf-reading-patched-check`): the whole call the fold makes per
+ *     op — the set AND the patched view AND the check that holds them together.
+ *     The before arm is `reading` with the delta the fold used to build beside
+ *     the files, whose guard then walks every record in the directory; the after
+ *     arm is `following`, which builds both halves out of the one list and holds
+ *     them together at the files the op wrote. The two are checked against each
+ *     other before they are timed, view and set both, because two arms answering
+ *     different things are two arms nobody may compare.
  */
 const rewritten = set.documents[Math.floor(paths.length / 2)] as never
 const [perOpAssembled, perOpSpliced] = alternating([
@@ -174,6 +191,43 @@ console.log(
   `  one op's SET   assembled ${perOpAssembled.toFixed(3)}ms   ` +
     `spliced ${perOpSpliced.toFixed(3)}ms   ` +
     `${(perOpAssembled / perOpSpliced).toFixed(1)}×`,
+)
+
+/** The DOOR, both ways over one written file: what a fold op hands the format
+ *  and what it gets back. The delta is the one the fold used to build beside
+ *  the files it wrote, which is what makes the before arm the call that
+ *  actually stood here. */
+const written = rewritten as unknown as {
+  readonly path: string
+  readonly nodes: ReadonlyArray<never>
+}
+const checkedDoor = (): Reading =>
+  formatReading(withDocuments(set, [rewritten]), {
+    read: reading,
+    delta: { upserts: [[written.path, { nodes: written.nodes }]], removes: [] },
+  })
+const carriedDoor = (): Reading => following(reading, [rewritten])
+
+{
+  const one = checkedDoor()
+  const other = carriedDoor()
+  if (
+    JSON.stringify(one.set.documents) !== JSON.stringify(other.set.documents) ||
+    JSON.stringify([...one.derived.byFile.keys()]) !==
+      JSON.stringify([...other.derived.byFile.keys()]) ||
+    one.derived.nodes.length !== other.derived.nodes.length ||
+    !one.derived.nodes.every((at, index) => at === other.derived.nodes[index])
+  ) {
+    throw new Error("the two doors disagree about the reading one write leaves")
+  }
+}
+
+const [perOpChecked, perOpCarried] = alternating([checkedDoor, carriedDoor])
+console.log(
+  `  one op's DOOR  checked ${perOpChecked.toFixed(3)}ms   ` +
+    `carried ${perOpCarried.toFixed(3)}ms   ` +
+    `${(perOpChecked / perOpCarried).toFixed(1)}×   ` +
+    `(perf-reading-patched-check)`,
 )
 console.log("")
 

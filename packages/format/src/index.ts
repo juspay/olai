@@ -97,13 +97,21 @@ export type { Previous } from "./validate.ts"
 export { stillHolds, taping } from "./tape.ts"
 export type { Tape } from "./tape.ts"
 /** The pair WITHOUT the rules — a set and the view of it, patched from a
- *  previous reading where that is exact and rebuilt where it is not. For the
- *  one caller whose reading is speculative and validated later, exactly once:
- *  `@olai/ops`' batch fold, which plans op two against the set op one would
- *  leave. It is `patch` PLUS the disagreement check, which is what a caller
- *  holding a set needs and the browser's own fold does not (see `patch`
- *  below). */
+ *  previous reading where that is exact and rebuilt where it is not, for a
+ *  reading that is speculative and validated later, exactly once. It is `patch`
+ *  PLUS the disagreement check, which is what a caller holding a set needs and
+ *  the browser's own fold does not (see `patch` below). Its `previous` arm is
+ *  for the caller whose set and whose delta came from different places and is
+ *  therefore claiming the two agree; with no `previous` it is "derive a view of
+ *  this set", which is what a test vault wants. */
 export { reading } from "./validate.ts"
+/** ...and the door for the caller that is WRITING into a reading it holds:
+ *  `@olai/ops`' batch fold, which plans op two against the set op one would
+ *  leave. Hand it the reading and the files, and it builds the set and the
+ *  delta out of the one argument — so the whole-corpus disagreement check above
+ *  has nothing to test and is narrowed to the files the op actually wrote
+ *  (roadmap `perf-reading-patched-check`). */
+export { following } from "./validate.ts"
 /**
  * THE VALIDATOR'S UNDERSTUDY, published so that one process can install where
  * it shouts.
@@ -215,11 +223,12 @@ export type { CsvTable } from "./csv.ts"
  *  is why that distinction is worth keeping now that the export exists. The
  *  browser folds frames into a view and has no set to hold the result against;
  *  `@olai/ops`' batch fold assembles a real `OutlineSet` per op and plans the
- *  next one against it, which is exactly the shape {@link viewOf}'s
- *  disagreement check exists for — a delta that missed a file makes every
- *  record look like a duplicate of itself. So that caller reaches `reading`
- *  below, which is this function AND that check, and the two consumers differ
- *  by what they are holding rather than by what they remembered. */
+ *  next one against it, which is exactly the shape `viewOf`'s disagreement
+ *  check exists for — a delta that missed a file makes every record look like a
+ *  duplicate of itself. So that caller reaches `following` above, which is this
+ *  function AND the identity check narrowed to the files it was handed, and the
+ *  two consumers differ by what they are holding rather than by what they
+ *  remembered. */
 export { patch } from "./patch.ts"
 export type { SetDelta } from "./patch.ts"
 /** WHICH files a served directory is made of — one table, the two suffixes the

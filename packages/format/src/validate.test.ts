@@ -1,11 +1,18 @@
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
-import type { Document } from "./document.ts"
+import { bodiedDocument, type Document } from "./document.ts"
 import { isCrossFile, type OutlineError } from "./errors.ts"
 import { decodedOf, outlineOf, recordsOf, setOf } from "./fixtures.testlib.ts"
-import { assemble, type OutlineSet, outlinePaths } from "./set.ts"
-import { type Previous, type Reading, validate } from "./validate.ts"
+import {
+  assemble,
+  documentAt,
+  type OutlineSet,
+  outlinePaths,
+  outlinesIn,
+  withDocuments,
+} from "./set.ts"
+import { following, type Previous, type Reading, reading, validate } from "./validate.ts"
 
 const errorsOf = (
   files: Record<string, string>,
@@ -816,4 +823,226 @@ test("the declarations file is found by name wherever it sits", () => {
   })
   expect(codes(errors)).toEqual(["bad-prop"])
   expect(errors[0]?.file).toBe("lanes.olai")
+})
+
+// ── the reading a WRITE leaves ─────────────────────────────────────────
+//
+// `following` is the other door onto the same two halves, for the caller that
+// is WRITING files into a reading it holds rather than holding a set and a
+// delta somebody else produced (`@olai/ops`' batch fold). It builds both halves
+// out of the one argument, so the whole-corpus disagreement check above has
+// nothing to test here and is narrowed to the files that were actually written
+// (roadmap `perf-reading-patched-check`).
+//
+// WHAT THE CASES BELOW ASSERT is the property that check exists to protect,
+// stated directly rather than as the cost of stating it: the view a write
+// leaves is a view of the SET that write leaves — the same records, filed under
+// the same paths, in the same order. The oracle is spelled out here rather than
+// imported, because a narrowed door asked to grade itself with its own check
+// would be proving nothing.
+
+/** `isSet`'s question, written out as the ORACLE: does this view file exactly
+ *  the set's records, per file, in path order and in the set's own order? */
+const isAbout = (read: Reading): boolean => {
+  const outlines = outlinesIn(read.set).filter((outline) => outline.nodes.length > 0)
+  if (read.derived.byFile.size !== outlines.length) return false
+  let which = 0
+  for (const [file, records] of read.derived.byFile) {
+    const outline = outlines[which++]
+    if (outline === undefined || outline.path !== file) return false
+    if (outline.nodes.length !== records.length) return false
+    for (let at = 0; at < records.length; at++) {
+      if (records[at] !== outline.nodes[at]) return false
+    }
+  }
+  return true
+}
+
+/**
+ * Whether the view came the cheap way, asked of a file the write did NOT name.
+ *
+ * `derive` rebuilds every file's list out of the flat records, so an entry
+ * carried across BY IDENTITY is a thing only the patcher produces. That is the
+ * signal that holds however the key set moved — "the id table is a layer", one
+ * section up, holds only while no file arrives and none goes away.
+ */
+const carriedAcross = (before: Reading, after: Reading, untouched: string): boolean =>
+  before.derived.byFile.get(untouched) !== undefined &&
+  after.derived.byFile.get(untouched) === before.derived.byFile.get(untouched)
+
+const vault = (): Reading =>
+  reading(
+    setOf(
+      {
+        "a.olai": `{"id":"x","ord":"a","title":"one"}`,
+        "b.olai": `{"id":"y","ord":"a","title":"two"}\n{"id":"z","ord":"b","title":"three"}`,
+        "empty.olai": ``,
+      },
+      ["notes/one.md"],
+    ),
+  )
+
+test("a file rewritten leaves a view of the set it leaves, patched", () => {
+  const before = vault()
+  const after = following(before, [outlineOf(`{"id":"x","ord":"a","title":"edited"}`, "a.olai")])
+
+  // The files this write did not name are carried across by identity, which is
+  // the whole of why the corpus does not have to be walked to know they agree.
+  expect(carriedAcross(before, after, "b.olai")).toBe(true)
+  expect(isAbout(after)).toBe(true)
+  expect(after.derived.byId.get("x")?.node).toMatchObject({ title: "edited" })
+})
+
+test("a file that ARRIVES mid-write reaches the view, and the view is about the set", () => {
+  // The shape `@olai/ops`' batch has when an op archives a node: a file the set
+  // has never held is minted, and the op after it must be able to name what
+  // moved into it (`@olai/ops`' `batch.test.ts`). A delta that missed that file
+  // is exactly what the check one section up defends against — and here there
+  // is no delta to miss it with, because one list builds both halves.
+  const before = vault()
+  const after = following(before, [
+    outlineOf(`{"id":"w","ord":"a","title":"minted"}`, "_olai/Trash.olai"),
+  ])
+
+  expect(carriedAcross(before, after, "a.olai")).toBe(true)
+  expect(isAbout(after)).toBe(true)
+  expect(after.derived.byId.get("w")?.file).toBe("_olai/Trash.olai")
+  // Path order on both sides, which is the other half of "about this set": the
+  // minted file sorts first and both halves put it there.
+  expect([...after.derived.byFile.keys()]).toEqual(["_olai/Trash.olai", "a.olai", "b.olai"])
+})
+
+test("a file EMPTIED leaves no key, which is how a file with no records is spelt", () => {
+  const before = vault()
+  const after = following(before, [outlineOf(``, "b.olai")])
+
+  expect(carriedAcross(before, after, "a.olai")).toBe(true)
+  expect(isAbout(after)).toBe(true)
+  expect(after.derived.byFile.has("b.olai")).toBe(false)
+  expect(after.derived.byId.has("y")).toBe(false)
+})
+
+test("a `.md` written beside an outline moves the set and not the view's records", () => {
+  const before = vault()
+  const after = following(before, [
+    bodiedDocument("notes/one.md", "# rewritten\n\n[the node](#x)\n"),
+    outlineOf(`{"id":"x","ord":"a","title":"edited"}`, "a.olai"),
+  ])
+
+  expect(isAbout(after)).toBe(true)
+  expect(documentAt(after.set, "notes/one.md")).toMatchObject({
+    body: "# rewritten\n\n[the node](#x)\n",
+  })
+  // ...and the third member hears about it, which is why `following` hands
+  // `repointed` the two SETS rather than the records it wrote: a document write
+  // puts no upsert in the delta at all.
+  expect(after.pointing.get("#x")?.map((face) => String(face.path))).toEqual(["notes/one.md"])
+})
+
+test("writing nothing leaves the reading that stood, identity and all", () => {
+  const before = vault()
+  const after = following(before, [])
+
+  expect(after.set).toBe(before.set)
+  expect(after.derived).toBe(before.derived)
+  expect(after.pointing).toBe(before.pointing)
+})
+
+test("a written file the view would file differently is not patched onto", () => {
+  // THE NARROWED CHECK'S TEETH. The patcher SORTS the records it is handed into
+  // line order (`./patch.ts`'s `regrouped`) where the set holds them as the file
+  // spells them, so a document whose records did not arrive in line order is a
+  // document the two would file differently — and a view that disagrees with
+  // the set it is paired with is what makes every record look like a duplicate
+  // of itself. Nothing the parser produces is in that state, which is exactly
+  // why it is asserted here rather than left to a call path to discover: the
+  // narrowing has to decline the patch in the case the whole-corpus check
+  // declined it, and it does — same decision, same rebuild, same answer.
+  const before = vault()
+  const written = outlineOf(
+    `{"id":"y","ord":"a","title":"two"}\n{"id":"z","ord":"b","title":"three"}`,
+    "b.olai",
+  )
+  const backwards: Document = { ...written, nodes: [...written.nodes].reverse() }
+  const after = following(before, [backwards])
+  const alsoAfter = reading(withDocuments(before.set, [backwards]), {
+    read: before,
+    delta: { upserts: [["b.olai", { nodes: backwards.nodes }]], removes: [] },
+  })
+
+  expect(carriedAcross(before, after, "a.olai")).toBe(false)
+  expect(carriedAcross(before, alsoAfter, "a.olai")).toBe(false)
+  expect([...after.derived.byFile.keys()]).toEqual([...alsoAfter.derived.byFile.keys()])
+  expect(after.derived.nodes).toEqual(alsoAfter.derived.nodes)
+})
+
+test("one path written in two KINDS leaves a view of the set, not of the outline", () => {
+  // pi's probe on PR 397, pinned. `withDocuments` decides a path by the LAST
+  // document that names it, whatever kind it is; the narrowed check used to
+  // build its delta from the last OUTLINE — so a list naming one path in two
+  // kinds left the set holding the body and the view holding the outline's
+  // records, and the identity check passed because it compared the view against
+  // the upsert it had built rather than against the document that survived.
+  // That is a view which is not about its set, reached THROUGH the guard rather
+  // than caught by it, and an ordinary write after it carries the lie forward.
+  //
+  // No op the plan layer builds can produce such a list — the two document
+  // verbs write no outline at all — but the door is exported, and the argument
+  // for the narrowing is that one argument builds both halves. It has to be
+  // read the ONE way for that to be true.
+  const before = vault()
+  const mixed: ReadonlyArray<Document> = [
+    outlineOf(`{"id":"q","ord":"a","title":"an outline at this path"}`, "c.olai"),
+    bodiedDocument("c.olai", "a body where the records would have been"),
+  ]
+
+  const after = following(before, mixed)
+  // THE PROPERTY, and it is the whole of what this pins: the view is about the
+  // set. A body holds no records, so the surviving document files nothing —
+  // and the outline's id reached nothing, where it used to reach a phantom.
+  expect(isAbout(after)).toBe(true)
+  expect(after.derived.byFile.has("c.olai")).toBe(false)
+  expect(after.derived.byId.has("q")).toBe(false)
+  // The set really did take the body, which is what makes the view above the
+  // interesting answer rather than a write that did nothing.
+  expect(documentAt(after.set, "c.olai")?.kind).toBe("document")
+  // ...and a plain write THROUGH the returned reading stays about its set, so
+  // nothing was deferred: the old spelling stayed consistently wrong from here.
+  const then = following(after, [outlineOf(`{"id":"x","ord":"a","title":"later"}`, "a.olai")])
+  expect(isAbout(then)).toBe(true)
+  expect(then.derived.byId.has("q")).toBe(false)
+})
+
+test("...and where that path HELD records, it is a write the door declines", () => {
+  // The other half of the same reading. A body landing where the view files
+  // records is a change this delta cannot describe — `byFile` spells "no
+  // records" as no key, and there is no upsert for a path whose surviving
+  // document is not an outline — so it DECLINES and rebuilds, which is the
+  // answer the whole-corpus walk gave on the same input.
+  const before = vault()
+  const asOutline = outlineOf(`{"id":"q","ord":"a","title":"an outline at this path"}`, "b.olai")
+  const mixed: ReadonlyArray<Document> = [
+    asOutline,
+    bodiedDocument("b.olai", "a body where the records were"),
+  ]
+
+  const after = following(before, mixed)
+  expect(isAbout(after)).toBe(true)
+  // A rebuild, said the way this file says it: an untouched file's grouping is
+  // a fresh array rather than the one the reading came in holding.
+  expect(carriedAcross(before, after, "a.olai")).toBe(false)
+  expect(after.derived.byFile.has("b.olai")).toBe(false)
+  expect(after.derived.byId.has("y")).toBe(false)
+  expect(after.derived.byId.has("q")).toBe(false)
+
+  // And the door it replaced reaches the same answer on the same input, which
+  // is the claim this change rests on, made at the input where the narrowing
+  // could have parted from the walk.
+  const alsoAfter = reading(withDocuments(before.set, mixed), {
+    read: before,
+    delta: { upserts: [["b.olai", { nodes: asOutline.nodes }]], removes: [] },
+  })
+  expect(isAbout(alsoAfter)).toBe(true)
+  expect(alsoAfter.derived.byFile.has("b.olai")).toBe(false)
+  expect(alsoAfter.derived.byId.has("q")).toBe(false)
 })

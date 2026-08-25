@@ -35,9 +35,10 @@
 import { Result } from "effect"
 
 import { derive, type Derived } from "./derive.ts"
+import { type Document, isOutline } from "./document.ts"
 import type { OutlineError } from "./errors.ts"
 import type { Located } from "./node.ts"
-import { patched, type SetDelta } from "./patch.ts"
+import { type FileNodes, patched, type SetDelta } from "./patch.ts"
 import { type Pointing, pointingOf, repointed } from "./pointing.ts"
 import {
   danglingIn,
@@ -53,7 +54,7 @@ import {
   reportPropValues,
   reportUnknownTargets,
 } from "./rules.ts"
-import { type OutlineSet, outlinesIn } from "./set.ts"
+import { type OutlineSet, outlinesIn, withDocuments } from "./set.ts"
 import { shadowed } from "./shadow.ts"
 import { declarationsOf, type Typed } from "./typing.ts"
 
@@ -200,28 +201,176 @@ export const validate = (
  * previous reading where that is exact and rebuilt where it is not.
  *
  * {@link validate}'s first line and its last, with the six whole-set rules
- * taken out from between them, and it exists for one caller: `@olai/ops`' batch
- * fold, which plans op two against the set op one would leave and then throws
- * that set away. That reading is SPECULATIVE by construction — nothing draws
- * it, nothing is published at it, and the only set that reaches disk is the one
- * the write gate validates, exactly once, as it validates every write. Running
- * the rules over each intermediate would be N whole-corpus checks to reject
- * something the final check either catches or was never true of.
+ * taken out from between them, for a reading that is SPECULATIVE: nothing
+ * draws it, nothing is published at it, and the set that reaches disk is
+ * validated once, at the gate, as every write is. Running the rules over an
+ * intermediate would be a whole-corpus check to reject something the final
+ * check either catches or was never true of.
  *
  * IT IS THIS FUNCTION AND NOT `patch`, and that is the whole of why it is here.
  * The patcher is exported — the browser folded its delta frames with it once
  * (`model-indices` slice 4) — and a caller with nothing to hold the result
- * against is right to reach it. This one has something: it assembles a real
- * {@link OutlineSet} per op and plans the next one against it, which is
- * precisely what {@link viewOf}'s disagreement check is for — the identity test
- * that turns a delta which missed a file into a rebuild rather than into a view
- * where every record looks like a duplicate of itself. So the door a
- * set-holding caller comes through is the patcher AND that guard, together, and
- * nobody has to remember the second half.
+ * against is right to reach it. This one has something: a real
+ * {@link OutlineSet}, and a view held against it by {@link viewOf}'s
+ * disagreement check — the identity test that turns a delta which missed a file
+ * into a rebuild rather than into a view where every record looks like a
+ * duplicate of itself. So the door a set-holding caller comes through is the
+ * patcher AND that guard, together, and nobody has to remember the second half.
+ *
+ * WHO STILL COMES THROUGH IT is the caller whose set and whose delta came from
+ * DIFFERENT PLACES, and who is therefore making a claim about the two: this is
+ * the shape the store's codec has, and `@olai/ops`' reference fold keeps
+ * (`following.testlib.ts`). A caller that is WRITING files into a reading it
+ * holds is making no such claim and wants {@link following} below, which builds
+ * both halves out of the one argument and charges the check accordingly. Called
+ * with no `previous` at all this is simply "derive a view of this set", which is
+ * what a fixture and a test vault want.
  */
 export const reading = (set: OutlineSet, previous?: Previous): Reading => {
   const view = viewOf(set, previous)
   return { set, derived: view.derived, pointing: view.pointing }
+}
+
+/**
+ * THE READING THESE FILES LEAVE — the same pair {@link reading} answers, for a
+ * caller that is WRITING into a set rather than holding a claim about one.
+ *
+ * `@olai/ops`' batch fold is that caller and it is the only one: it plans op
+ * two against the set op one would leave, so per op it has a reading in hand
+ * and a handful of freshly serialised documents to put into it. It used to
+ * spell that itself — `reading(withDocuments(set, written), {read, delta})`,
+ * with the `delta` built beside `written` out of the same loop — and paid
+ * {@link viewOf}'s disagreement check for the privilege: a walk of every record
+ * in the directory, per op, to test a claim it had just made twice. That is the
+ * one per-op corpus-scaled term `perf-batch-assemble` left standing, and this
+ * function is `perf-reading-patched-check` taking it out.
+ *
+ * **THE CLAIM AND THE CHECK ARE THE SAME SENTENCE HERE, so there is nothing
+ * left to test.** What {@link viewOf}'s walk defends against is a DELTA THAT
+ * MISSED A FILE, and it is a disagreement check rather than a proof of the
+ * delta precisely because somebody else is making the claim: the store's set
+ * comes from a directory of decoded files and its delta comes from a probe's
+ * list of which of them ticked, so "these paths are every path that moved" is a
+ * sentence that can be wrong, and the check is what makes it cost a rebuild
+ * rather than a wrong answer. Here both halves come from ONE argument — the set
+ * is {@link withDocuments} of `written` and the delta is the outlines in
+ * `written` — so there is no second source to disagree with the first. The
+ * corpus walk was this function checking itself.
+ *
+ * **WHAT IS STILL CHECKED is what this function DID**, per file it was handed
+ * rather than per file the directory holds ({@link viewAfter}). It is the same
+ * identity question {@link isSet} asks — is the record the view kept THIS
+ * record — asked of the op's own footprint, and a disagreement declines the
+ * patch and rebuilds exactly as {@link viewOf} does. So this is a narrowing of
+ * that check and not the removal of one, and the thing it still catches is the
+ * coupling the corpus walk was catching incidentally: the patcher SORTS the
+ * records it is handed ({@link ./patch.ts}'s `regrouped`) where the set holds
+ * them as the file spells them, so a file whose records did not arrive in line
+ * order is a file the two would file differently.
+ *
+ * **AND THE REST OF THE CORPUS IS CARRIED RATHER THAN WALKED.** A
+ * {@link Reading} is a set and the view it was JUDGED against — that is the
+ * type's whole promise, and every door that makes one keeps it. So the files
+ * this op did not touch are files the reading handed in has already been held
+ * against; {@link withDocuments} carries their documents across by identity,
+ * {@link patched} carries their `byFile` entries across by identity, and the
+ * two orders are one comparator (`byPath`) on both sides. Walking them again
+ * per op re-derived, N times, a fact op one had already established.
+ *
+ * The two claims have their own gates rather than a paragraph here:
+ * `@olai/ops`' `following.equivalence.test.ts` holds this door to the checked
+ * one at every op of a scripted batch, view and set both, and
+ * `./validate.walks.test.ts` counts the records each of them reads.
+ */
+export const following = (
+  read: Reading,
+  written: ReadonlyArray<Document>,
+): Reading => {
+  const set = withDocuments(read.set, written)
+  const view = viewAfter(read.derived, written)
+  return {
+    set,
+    derived: view ?? derive(recordsIn(set)),
+    // WHAT POINTS WHERE reads the two SETS rather than the delta, so it is
+    // offered whichever way the view went — including the rebuild, since a
+    // patcher that declined has said nothing at all about what any file points
+    // at ({@link viewOf} makes the same call for the same reason).
+    pointing: repointed(read.pointing, read.set.documents, set.documents),
+  }
+}
+
+/**
+ * The view after these files are written into the one that stands — patched
+ * where the written records line up, `undefined` where they do not.
+ *
+ * {@link viewOf}'s two halves with the corpus taken out of both: the patch, and
+ * the identity check narrowed to the paths that were WRITTEN. It answers
+ * `undefined` for the four reasons that function rebuilds — the patcher
+ * declined, a written file is not filed where it was written, it is filed
+ * holding something other than what was written, or the write is one this
+ * delta cannot describe at all (below) — and its caller spends the same rebuild
+ * {@link viewOf}'s last line does.
+ *
+ * THE DELTA IS BUILT HERE, out of the documents themselves, which is the whole
+ * of why the narrowing is sound: a caller cannot hand in a `written` and a
+ * delta that disagree, because there is one of them. A `.md` contributes no
+ * upsert — the fold writes one beside an outline in a single op — and that is
+ * the same sentence {@link isSet} says from the other side: {@link
+ * Derived.byFile} keys the RECORDS a path holds, and a path holding a body
+ * holds none, so a file with nothing in it is spelt as no key at all rather
+ * than as an empty one.
+ *
+ * **LAST-WINS BY PATH, over the WHOLE list**, and that is the one thing this
+ * had to be told rather than left to read naturally. {@link withDocuments}
+ * decides a path by the last document in `written` that names it, whatever kind
+ * it is; a loop that filtered to the outlines first would decide it by the last
+ * OUTLINE, and a `written` naming one path in two kinds would then leave the
+ * set holding the body and the view still holding the outline's records — a
+ * view that is not about the set, arrived at through the guard rather than
+ * caught by it (pi's probe on PR 397; the whole-corpus check declined the same
+ * input). The two halves of the one argument are read the one way, and a path
+ * whose surviving document holds no records while the view files some there is
+ * a write this cannot describe: it DECLINES, which is the answer the corpus
+ * walk gave. No op the plan layer builds can produce such a list — the two
+ * document verbs write no outline at all — but the door is exported, and a
+ * safety argument that rests on a caller's good taste is not one.
+ */
+const viewAfter = (
+  before: Derived,
+  written: ReadonlyArray<Document>,
+): Derived | undefined => {
+  const surviving = new Map<string, Document>()
+  for (const document of written) surviving.set(document.path, document)
+  const upserts: Array<readonly [file: string, entry: FileNodes]> = []
+  for (const [file, document] of surviving) {
+    if (isOutline(document)) {
+      upserts.push([file, { nodes: document.nodes }])
+    } else if (before.byFile.has(file)) {
+      return undefined
+    }
+  }
+  const view = patched(before, { upserts, removes: [] })
+  if (view === undefined) return undefined
+  for (const [file, entry] of upserts) {
+    const records = view.byFile.get(file)
+    // ABSENCE IS HOW A FILE WITH NO RECORDS IS SPELT ({@link Derived.byFile}),
+    // which is the one place this differs from comparing two lengths: a file
+    // written empty must have no key, and a file written full must have one.
+    if (records === undefined) {
+      if (entry.nodes.length > 0) return undefined
+      continue
+    }
+    if (records.length !== entry.nodes.length) return undefined
+    // THE RECORDS THEMSELVES, by identity and in order — {@link isSet}'s
+    // question, asked of this file. The order is what the sort above it makes
+    // checkable at all: the view holds these records in line order and the set
+    // holds them as the file spells them, and this is where the two are held to
+    // being one thing.
+    for (let at = 0; at < records.length; at++) {
+      if (records[at] !== entry.nodes[at]) return undefined
+    }
+  }
+  return view
 }
 
 /**
