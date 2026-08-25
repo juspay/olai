@@ -148,7 +148,7 @@ import { createMemo, createSignal, Index, Show } from "solid-js"
 
 import type { Entry } from "./drawer.ts"
 import { type Door, doorFor } from "./door.ts"
-import { type Editing, openedOn, sending, writes } from "./editor.ts"
+import { type ClosedBy, type Editing, leavingCommits, openedOn, sending, writes } from "./editor.ts"
 import { Link } from "../router.tsx"
 import { useNames } from "../reading.tsx"
 import type { Said } from "../saying.ts"
@@ -706,11 +706,14 @@ function NewChip(props: {
   const [key, setKey] = createSignal("")
   const [value, setValue] = createSignal("")
   let box: HTMLInputElement | undefined
-  /** Escape has already answered; the focus-out it causes must not commit as
-   *  well. One gesture, one outcome. */
-  let cancelled = false
+  /** The chip's own answer to the one law every box here answers to
+   *  (`./editor.ts`'s `leavingCommits`): Escape abandons and the value box's
+   *  Enter commits, and BOTH close the chip — the focus-out the close fires
+   *  must not then send the same property a second time. One gesture, one
+   *  outcome. */
+  let answeredBy: ClosedBy = null
   const cancel = (): void => {
-    cancelled = true
+    answeredBy = "escape"
     props.onCancel()
   }
   return (
@@ -720,7 +723,7 @@ function NewChip(props: {
         // Still inside this chip — the caret moving from the key to the value —
         // is not leaving it.
         if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
-        if (cancelled) return
+        if (!leavingCommits(answeredBy)) return
         props.onCommit(key(), value())
       }}
     >
@@ -741,7 +744,12 @@ function NewChip(props: {
         wide
         ref={(element) => (box = element)}
         onInput={setValue}
-        onCommit={(typed) => props.onCommit(key(), typed)}
+        // The value box's Enter is the whole chip answered — its commit closes
+        // the chip, and the close owns what the focus-out then has to hear.
+        onCommit={(typed) => {
+          answeredBy = "enter"
+          props.onCommit(key(), typed)
+        }}
         onCancel={cancel}
       />
     </span>
@@ -756,6 +764,13 @@ function NewChip(props: {
  * BOTH KEYS STOP. The row's own handling reads Escape as "fold this row" and
  * Enter as "make a sibling", and a gesture inside a box must not also be a
  * gesture at the row it is drawn on.
+ *
+ * ONE GESTURE, ONE OUTCOME: Enter commits and Escape abandons, and both close
+ * the box — and closing RE-TAKES the caret, which the browser answers by
+ * firing the blur at the very gesture whose close this was. That blur stands
+ * down ({@link Box.answeredBy}, asked through `./editor.ts`'s
+ * `leavingCommits`): the commit owns the close, or there is no commit — never
+ * both, and never twice.
  *
  * WHAT LEAVING MEANS is the CALLER's, and it is the one thing the two editors
  * genuinely differ about: a chip being changed leaves one box, so `onBlur` is
@@ -782,9 +797,10 @@ function Box(props: {
   readonly onLeave?: (value: string) => void
 }) {
   const [held, setHeld] = createSignal(props.value)
-  /** Escape has already answered, so the blur it causes must not commit as
-   *  well: one gesture, one outcome. */
-  let cancelled = false
+  /** WHICH KEY, if either, has had this box's outcome — the record the blur
+   *  the close fires is judged by. See the doc above: the gesture that closes
+   *  the box owns the close. */
+  let answeredBy: ClosedBy = null
   return (
     <input
       type="text"
@@ -832,18 +848,21 @@ function Box(props: {
         if (event.key === "Enter") {
           event.preventDefault()
           event.stopPropagation()
+          // BEFORE the commit: committing closes the box, and the close is
+          // what fires the blur this answer stands down.
+          answeredBy = "enter"
           props.onCommit(held())
           return
         }
         if (event.key === "Escape") {
           event.preventDefault()
           event.stopPropagation()
-          cancelled = true
+          answeredBy = "escape"
           props.onCancel()
         }
       }}
       onBlur={() => {
-        if (cancelled) return
+        if (!leavingCommits(answeredBy)) return
         props.onLeave?.(held())
       }}
     />

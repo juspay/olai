@@ -64,6 +64,9 @@ Feature: A property key that declares its type
     And I type "2026-8-30" into the property editor on "chips"
     Then the node "chips" shows the property "dispatched" holding "2026-08-30"
     And "lanes.olai" holds the node "chips" with "dispatched" set to "2026-08-30"
+    # One gesture, one commit — the Enter's own closing blur sent nothing of
+    # its own, or the no-change guard would be drawing it here.
+    And the node "chips" says nothing about its properties
     And there should be no page errors
 
   Scenario: An undeclared key on the same node still takes anything

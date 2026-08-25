@@ -64,6 +64,9 @@ Feature: Properties on a node, from the web
     # the moment the file says it is.
     Then the node "handles" shows the property "pr" holding "https://github.com/juspay/olai/pull/179"
     And "house.olai" holds the node "handles" with "pr" set to "https://github.com/juspay/olai/pull/179"
+    # ...and the ADD was one gesture too: the value box's Enter closed the chip,
+    # and the leaving the close fired sent nothing of its own.
+    And the node "handles" says nothing about its properties
     # `handles` has no note, so it has nothing behind a mark — a run that is
     # already on the row is not something to open.
     And the node "handles" shows no pilcrow
@@ -102,6 +105,28 @@ Feature: Properties on a node, from the web
     When I type "addressing" into the property editor on "handles"
     Then the node "handles" shows the property "stage" holding "addressing"
     And "house.olai" holds the node "handles" with "stage" set to "addressing"
+    # ONE GESTURE, ONE COMMIT, and the commit owns the close: the blur the
+    # unmount fires is Enter's own closing, not a second write — the day it is
+    # heard as one, the ops layer's no-change guard draws "already says … —
+    # nothing would change" here (chip-blur-double-commit-2).
+    And the node "handles" says nothing about its properties
+    And there should be no page errors
+
+  Scenario: Clicking away is the other commit — once, and as silently
+    # The path the Enter fix could break: with NO key pressed, the blur IS the
+    # gesture, so it must still write — once: a once-heard leaving is the law,
+    # a silenced one is the cure being worse than the bug, and a twice-heard
+    # one is the bug itself, spelled by the pointer instead of by Enter.
+    When I open the node menu of "handles"
+    And I choose "Add property…" from the node menu
+    And I write the property "stage" holding "review" on "handles"
+    When I edit the property "stage" on "handles"
+    And I type "addressing" into the property editor on "handles" without pressing Enter
+    And I click away from the property editor on "handles"
+    Then the property editor on "handles" is closed
+    And the node "handles" shows the property "stage" holding "addressing"
+    And "house.olai" holds the node "handles" with "stage" set to "addressing"
+    And the node "handles" says nothing about its properties
     And there should be no page errors
 
   Scenario: A value that is not a link is the second way in
@@ -230,6 +255,7 @@ Feature: Properties on a node, from the web
     And I leave the property editor on "handles" without pressing Enter
     Then the property editor on "handles" is closed
     And the node "handles" shows the property "stage" holding "review"
+    And the node "handles" says nothing about its properties
     # Opening a chip and clicking away is a gesture somebody makes several times
     # a minute, and it must be silent rather than a refusal: the ops layer would
     # turn "set it to what it already holds" away in good words, and an

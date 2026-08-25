@@ -8,7 +8,7 @@
 
 import { expect, test } from "bun:test"
 
-import { openedOn, sending, writes } from "./editor.ts"
+import { type ClosedBy, leavingCommits, openedOn, sending, writes } from "./editor.ts"
 
 const PR = { key: "pr", value: "https://x/1" }
 
@@ -47,6 +47,65 @@ test("a new key is trimmed, because a key is a name and the space around one is 
   // The VALUE is not trimmed: it is somebody's text, and a sentence that ends
   // in a space is still that sentence.
   expect(sending(null, "merge", "the human approves ").value).toBe("the human approves ")
+})
+
+// ── one gesture, one outcome ──────────────────────────────────────────
+
+/**
+ * The box's OWN WIRING, spelled the way `./PropsDrawer.tsx`'s `Box` wires it —
+ * because what is pinned here is the SEQUENCE, so the pin drives the
+ * sequence: the handlers, reduced to the gestures they record and the sends
+ * they produce. The wiring itself is locked to a real browser by the chip
+ * scenarios in @olai/tests' `properties.feature`; this file's half is that
+ * the law `leavingCommits` answers is the one the sequences need.
+ */
+const sequence = () => {
+  const sent: Array<"enter's write" | "the blur's write"> = []
+  let answeredBy: ClosedBy = null
+  return {
+    sent,
+    enter: () => {
+      answeredBy = "enter"
+      sent.push("enter's write")
+    },
+    escape: () => {
+      answeredBy = "escape"
+    },
+    // The blur, firing when it fires: leaving the box — OR the unmount the
+    // commit's close just caused; the machine is not told which, which is the
+    // whole point.
+    blur: () => {
+      if (leavingCommits(answeredBy)) sent.push("the blur's write")
+    },
+  }
+}
+
+test("one Enter, one commit — the blur its close fires stands down", () => {
+  // THE BUG THIS FILE WAS ASKED TO PIN RED (chip-blur-double-commit-2):
+  // today this sequence is TWO sends — the commit, then the blur the commit's
+  // close fired, sending the same write again — and the ops layer's
+  // no-change guard draws that second send as the spurious "already says … —
+  // nothing would change" note under the run.
+  const gestures = sequence()
+  gestures.enter()
+  gestures.blur() // the one the unmount fires
+  expect(gestures.sent).toEqual(["enter's write"])
+})
+
+test("still once on the way out: leaving the box IS the commit", () => {
+  // The path the fix could break: with no key pressed, the blur is the
+  // gesture, and taking it away would be curing the echo by silencing the
+  // speaker.
+  const gestures = sequence()
+  gestures.blur()
+  expect(gestures.sent).toEqual(["the blur's write"])
+})
+
+test("Escape abandons — and the blur its close fires writes nothing", () => {
+  const gestures = sequence()
+  gestures.escape()
+  gestures.blur()
+  expect(gestures.sent).toEqual([])
 })
 
 // ── which chip the editor is open on ───────────────────────────────────

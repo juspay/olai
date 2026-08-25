@@ -3,10 +3,11 @@
  * committing it would write anything at all.
  *
  * The pure half of `./PropsDrawer.tsx`'s editor, beside `./drawer.ts` (which
- * chips there are) and `./door.ts` (where one goes when pressed). Three small
+ * chips there are) and `./door.ts` (where one goes when pressed). Four small
  * decisions live here rather than inside a component because each of them is
  * the kind that goes quietly wrong: what counts as a change, what an empty box
- * MEANS, and which gesture is a write and which is a way out.
+ * MEANS, which gesture is a write and which is a way out — and whether the
+ * box is still LISTENING for one at all.
  *
  * ## An empty value REMOVES the property
  *
@@ -77,6 +78,24 @@ export const sending = (
  *     `+`, then Escape-by-way-of-Enter, is a way out rather than a refusal.
  *   - an EXISTING property set to what it already holds is refused too, which
  *     is what makes "open a chip and click away" have to be silent.
+ *
+ * ## One gesture, one outcome: the close belongs to the gesture that closed it
+ *
+ * Enter commits and Escape abandons — and BOTH close the box, which is where
+ * the ordering trap lives: the browser's answer to the focused box going away
+ * is a blur, fired AT the gesture whose close this already was. Heard
+ * naively, one Enter is then TWO sends of the same write, and the second is
+ * what the ops layer's own no-change guard turns away: a spurious "already
+ * says … — nothing would change" note drawn under the run for a gesture that
+ * did exactly what it was asked (bugs.olai's `chip-blur-double-commit-2`). An
+ * Escape heard twice is worse than spurious: a write the person had declined.
+ *
+ * So the law is one sentence long: the gesture that closes OWNS the close —
+ * once a key has answered, whichever key it was, the blur its wake fires
+ * stands down ({@link leavingCommits}). The leaving itself is no casualty of
+ * the law: a blur that arrives FIRST is the gesture, and "leaving the box
+ * commits what changed" keeps standing for exactly as long as nothing has
+ * answered.
  */
 export const writes = (was: Editing | null, key: string, value: string): boolean => {
   const sent = sending(was, key, value)
@@ -97,6 +116,39 @@ export const writes = (was: Editing | null, key: string, value: string): boolean
   // side declines rather than guesses.
   return value !== was.value
 }
+
+/**
+ * WHAT HAS ANSWERED THIS BOX, once anything has: Enter's commit, or Escape's
+ * abandon. `null` while nothing has — which is the only state in which a
+ * leaving is the gesture rather than the echo of one.
+ *
+ * One type for both editors: the chip's single box and the add chip's pair
+ * answer for themselves in `./PropsDrawer.tsx`, and the law they answer to is
+ * this one.
+ */
+export type ClosedBy = "enter" | "escape" | null
+
+/**
+ * Does LEAVING the box still commit — is the blur the gesture, or its echo?
+ *
+ * The ORDER the events arrive in is the browser's, and it is hostile: a key
+ * closes the box, and removing the focused box FIRES the blur at the gesture
+ * whose close that already was. So the box listens for the gesture only while
+ * none has answered, and records the first one that does.
+ *
+ * THE `enter` ROW IS THE PINNED BUG, shipped law modelled faithfully for one
+ * commit so the pin beside it (`./editor.test.ts`, and the chip scenarios in
+ * @olai/tests' `properties.feature`) can hold it RED: Enter answers the box,
+ * and yet this table leaves the blur ARMED — the commit does not own the
+ * close — so one Enter is heard as two sends of the same write and the ops
+ * layer's no-change guard converts the second into the spurious "already says
+ * … — nothing would change" note of `chip-blur-double-commit-2`. The law the
+ * header argues is `closedBy === null`; the row flips one commit later, with
+ * the red pin already standing watch. (`closedBy !== "escape"` is not — and
+ * never was — an alternative law somebody prefers: it is the bug, spelled as
+ * one predicate so the flip is the whole of the fix.)
+ */
+export const leavingCommits = (closedBy: ClosedBy): boolean => closedBy !== "escape"
 
 /**
  * IS THE EDITOR OPEN ON THIS CHIP — asked by the chip's own identity, never by
