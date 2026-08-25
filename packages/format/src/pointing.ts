@@ -49,10 +49,14 @@
  * through: the build walks the documents in the order the set holds them, and
  * the patch below sorts what it re-files by {@link byPath}. Paths are unique
  * across a set, so that order is TOTAL and the two sides of a re-file can never
- * tie — the tie question {@link ./patch.ts}'s `Filing.order` makes every client
- * of its own splice declare, asked and answered here because this index is not
- * one of them (it is keyed on DOCUMENTS, not on records, and it rides its own
- * fold below rather than `refiled`).
+ * tie — which is the tie question `perf-key-resort` made every client of the
+ * patcher's SPLICE declare ({@link ./patch.ts}'s `refiled`, at its `filing.order`
+ * option: an arriving member is placed after every member it compares equal to,
+ * so an order that CAN tie the two sides reorders silently). It is asked and
+ * answered here rather than registered there, because this index is not one of
+ * that function's clients: `Listed` is `Derived`'s own list-valued indexes and
+ * this is keyed on DOCUMENTS rather than on records, so it carries itself with
+ * the fold below and `./splice.test.ts` has nothing to cover for it.
  *
  * NOTHING READS THE KEYS IN ORDER, exactly as {@link Derived.taggedBy} says of
  * its own: one reader asks this index and it asks by key. That is what lets the
