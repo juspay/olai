@@ -21,11 +21,12 @@
  *
  * Features opt into sharing with `@share-scratch` (see `support/scratch.ts`):
  * one copy and one server per feature per worker. After each sharing scenario
- * the tree is restored to the fixture and the server re-reads
- * (`POST /olai/resync`), so overlapping writers share too. A restore that
- * cannot put the tree back fails naming the files. A scenario restore cannot
- * make true (it restarts the server) keeps a private copy with `@own-scratch`.
- * Sharing never crosses workers — the lock is still one olai per directory.
+ * in-flight writes drain, the tree is restored to the fixture, and the
+ * server re-reads (`POST /olai/resync`), so overlapping writers share too. A
+ * restore that cannot put the tree back fails naming the files. A scenario
+ * restore cannot make true (it restarts the server) keeps a private copy with
+ * `@own-scratch`. Sharing never crosses workers — the lock is still one olai
+ * per directory.
  *
  * WHAT A SHARED SERVER SERVES is a per-WORKER copy of the tracked corpus, never
  * the tracked directory itself, and that is not tidiness. `--parallel` is one
@@ -57,17 +58,18 @@ import { BROWSER_ARGS } from "./browser.ts";
 import { ILLEGIBLE_PX, PAINTS, recordPaints, WAITING } from "./paints.ts";
 import {
   alreadyShared,
-  askResync,
   DEFAULT_CORPUS,
   filesOf,
-  leftovers,
   requestOf,
   restartGate,
-  restoreTree,
-  sameTree,
+  restoreShared,
   unrestoredError,
 } from "./scratch.ts";
-import { SCENARIO_SETUP_TIMEOUT, SERVER_START_TIMEOUT } from "./world.ts";
+import {
+  AFTER_SHARE_TIMEOUT,
+  SCENARIO_SETUP_TIMEOUT,
+  SERVER_START_TIMEOUT,
+} from "./world.ts";
 import type { GitMode } from "./world.ts";
 import type { OlaiWorld } from "./world.ts";
 import {
@@ -1270,7 +1272,7 @@ Before(
   },
 );
 
-After(async function (this: OlaiWorld, scenario) {
+After({ timeout: AFTER_SHARE_TIMEOUT }, async function (this: OlaiWorld, scenario) {
   if (scenario.result?.status === Status.FAILED && this.page) {
     const name =
       scenario.pickle.name
@@ -1306,18 +1308,25 @@ After(async function (this: OlaiWorld, scenario) {
   // to be removed.
   this.terminalAgent?.stop();
 
-  // A feature-shared scratch outlives the scenario: After puts the fixture
-  // back under the still-running server and asks it to re-read, so the next
-  // scenario starts from the original corpus. Leftovers after that restore
-  // are a restore that did not take, not a collision with an earlier writer.
+  // A feature-shared scratch outlives the scenario: After drains in-flight
+  // writes (a blur-on-close, a last key still staging), puts the fixture
+  // back under the still-running server, and asks it to re-read, so the
+  // next scenario starts from the original corpus. Leftovers after that
+  // restore are a restore that did not take, not a collision with an
+  // earlier writer. The drain is first because restoring under a live
+  // write is how After left `.olai-*.tmp` on the tree.
   const share = this.scratchShare;
   const served = this.served;
   if (share !== undefined && served !== undefined) {
     const slot = await sharedScratches.get(share.key);
-    if (slot !== undefined && !sameTree(filesOf(served), slot.origin)) {
-      restoreTree(served, slot.fixture);
-      await askResync(this.baseUrl, SERVER_START_TIMEOUT);
-      const left = leftovers(slot.origin, served);
+    if (slot !== undefined) {
+      const left = await restoreShared(
+        this.baseUrl,
+        served,
+        slot.fixture,
+        slot.origin,
+        SERVER_START_TIMEOUT,
+      );
       if (left.length > 0) {
         throw unrestoredError(
           path.basename(scenario.pickle.uri),

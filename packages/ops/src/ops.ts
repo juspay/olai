@@ -274,6 +274,16 @@ export interface Ops extends Asking {
     writer: Writer,
   ) => Effect.Effect<Applied, OpFailure>
   /**
+   * No {@link run} is in flight.
+   *
+   * Completes the moment the last `run` returns, fails or is interrupted —
+   * planning included, not only the store gate. `POST /olai/resync` waits
+   * here before it probes, because a look at the disk while a write is
+   * still staging is a look at `.olai-*.tmp` (the shared-scratch After's
+   * leftover) rather than at the tree the next reader will be served.
+   */
+  readonly idle: Effect.Effect<void>
+  /**
    * BOTH chrome answers, from one look at the repository.
    *
    * What a publisher takes. Asking `pending` and `git` separately meant two
@@ -497,8 +507,47 @@ export const make = (options: Options): Ops => {
         (failure) => options.onRefusal!(request, failure),
       )
 
+  // Counted from the start of `run`, not from the store gate: planning a
+  // write has not taken the permit yet, and restoring a shared scratch in
+  // that window is how After left a staged `.tmp` on the tree.
+  let inflight = 0
+  const waiters: Array<() => void> = []
+  const beginWrite = (): void => {
+    inflight++
+  }
+  const endWrite = (): void => {
+    inflight--
+    if (inflight === 0) {
+      const pending = waiters.splice(0)
+      for (const wake of pending) wake()
+    }
+  }
+  const idle: Effect.Effect<void> = Effect.callback<void>((resume) => {
+    let settled = false
+    const finish = () => {
+      if (settled) return
+      settled = true
+      resume(Effect.void)
+    }
+    if (inflight === 0) {
+      finish()
+      return
+    }
+    waiters.push(finish)
+    if (inflight === 0) finish()
+  })
+  const tracked = (
+    request: Request,
+    writer: Writer,
+  ): Effect.Effect<Applied, OpFailure> =>
+    Effect.suspend(() => {
+      beginWrite()
+      return Effect.ensuring(reported(request, writer), Effect.sync(endWrite))
+    })
+
   return {
-    run: reported,
+    run: tracked,
+    idle,
     read,
     // The four query answers, over the gated read above — one declaration of
     // each envelope ({@link ./tools.ts}'s `asking`), so the answer an agent

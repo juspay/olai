@@ -58,6 +58,7 @@
 import {
   Duration,
   Effect,
+  Exit,
   Latch,
   Ref,
   Result,
@@ -513,13 +514,19 @@ export const make = <F, S, E>(
 
           // Every file staged before any is renamed: a write that cannot be
           // written at all must fail with the destinations untouched.
+          // `onExit`, not `onError`: an interrupted fiber is not a failure,
+          // and a tab close that drops the write mid-stage used to leave
+          // `.olai-*.tmp` on the tree (the shared-scratch After's leftover).
           const staged: Array<{ readonly from: string; readonly to: string }> = []
-          yield* Effect.onError(
+          yield* Effect.onExit(
             Effect.forEach(write.changes, (change) =>
               Effect.map(disk.stage(change.path, change.contents), (temp) => {
                 staged.push({ from: temp, to: change.path })
               })),
-            () => Effect.forEach(staged, ({ from }) => disk.discard(from)),
+            (exit) =>
+              Exit.isSuccess(exit)
+                ? Effect.void
+                : Effect.forEach(staged, ({ from }) => disk.discard(from)),
           )
           for (const { from, to } of staged) yield* disk.publish(from, to)
 

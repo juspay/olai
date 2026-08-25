@@ -8,6 +8,7 @@
 
 import { expect, test } from "bun:test";
 import * as fs from "node:fs";
+import * as http from "node:http";
 import * as os from "node:os";
 import * as path from "node:path";
 
@@ -21,6 +22,7 @@ import {
   requestOf,
   RESYNC_PATH,
   restartGate,
+  restoreShared,
   restoreTree,
   sameTree,
   SHARE_TAG,
@@ -110,18 +112,19 @@ test("PIN (retry): a pickle already on the shared slot takes a private copy", ()
   expect(alreadyShared(new Set(), "pickle-1")).toBe(false);
 });
 
-test("PIN (hooks): After restores and asks the server to re-read", () => {
+test("PIN (hooks): After drains, restores, and asks the server to re-read", () => {
   const src = fs.readFileSync(
     path.join(import.meta.dirname, "support", "hooks.ts"),
     "utf8",
   );
   expect(src).toContain("restartGate(");
   expect(src).toContain("alreadyShared(");
-  expect(src).toContain("restoreTree(");
-  expect(src).toContain("askResync(");
-  expect(src).toContain("leftovers(");
+  expect(src).toContain("restoreShared(");
   expect(src).toContain("unrestoredError(");
   expect(src).not.toContain("recordWrites(");
+  const after = src.slice(src.indexOf("After({ timeout: AFTER_SHARE_TIMEOUT }"));
+  expect(after.indexOf("restoreShared(")).toBeGreaterThan(-1);
+  expect(after.indexOf("restoreTree(")).toBe(-1);
 });
 
 test("PIN (teardown): the terminal agent drops in-flight fetches on stop", () => {
@@ -236,6 +239,67 @@ test("PIN (resync path): the harness and the server name the same door", () => {
   );
   expect(server).toContain(`RESYNC_PATH = "${RESYNC_PATH}"`);
   expect(askResync.name).toBe("askResync");
+});
+
+test("PIN (resync waits): the door waits for in-flight writes, then probes", () => {
+  const serve = fs.readFileSync(
+    path.join(import.meta.dirname, "..", "server", "src", "serve.ts"),
+    "utf8",
+  );
+  const handed = serve.slice(serve.indexOf("resync:"));
+  const idleAt = handed.indexOf("ops.idle");
+  const resyncAt = handed.indexOf("store.resync");
+  expect(idleAt).toBeGreaterThan(-1);
+  expect(resyncAt).toBeGreaterThan(-1);
+  expect(idleAt).toBeLessThan(resyncAt);
+});
+
+test("PIN (drain-then-restore): a stage file that lands during drain is restored away", async () => {
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-drain-fix-"));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-scratch-drain-rst-"));
+  fs.writeFileSync(path.join(fixture, "house.olai"), "{}\n");
+  fs.writeFileSync(path.join(root, "house.olai"), "{x}\n");
+  const origin = filesOf(fixture);
+  let posts = 0;
+  const server = http.createServer((req, res) => {
+    if (req.method === "POST") {
+      posts += 1;
+      if (posts === 1) {
+        fs.writeFileSync(path.join(root, ".olai-1-0.tmp"), "staging\n");
+      }
+      res.statusCode = 204;
+      res.end();
+      return;
+    }
+    res.statusCode = 404;
+    res.end();
+  });
+  await new Promise<void>((resolve) => {
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  try {
+    const addr = server.address();
+    if (addr === null || typeof addr === "string") {
+      throw new Error("the drain pin's server bound no port");
+    }
+    const left = await restoreShared(
+      `http://127.0.0.1:${addr.port}`,
+      root,
+      fixture,
+      origin,
+      5_000,
+    );
+    expect(posts).toBe(2);
+    expect(left).toEqual([]);
+    expect(fs.existsSync(path.join(root, ".olai-1-0.tmp"))).toBe(false);
+    expect(fs.readFileSync(path.join(root, "house.olai"), "utf8")).toBe("{}\n");
+  } finally {
+    await new Promise<void>((resolve, reject) => {
+      server.close((err) => (err ? reject(err) : resolve()));
+    });
+    fs.rmSync(fixture, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("PIN (tags): README names the tags the harness honours", () => {

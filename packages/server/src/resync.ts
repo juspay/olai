@@ -9,9 +9,13 @@
  * reader would be looking at a frame nobody can reproduce.
  *
  * `Store.resync` is the signal the store already honours for this (forget
- * every cached stamp, then probe, and do not return until published). This
- * route is that Effect on the listener, not a test-only door: the product
- * owns the trade, so the product owns the override.
+ * every cached stamp, then probe, and do not return until published). The
+ * Effect this route is handed also waits for in-flight writes first
+ * (`Ops.idle`, composed in `serve.ts`): a look at the disk while a write
+ * is still staging is a look at `.olai-*.tmp`, not at the tree the next
+ * reader will be served. This route is that Effect on the listener, not a
+ * test-only door: the product owns the trade, so the product owns the
+ * override.
  * Loopback only — the same locality bar `/mcp` uses for a missing bearer —
  * because forcing a re-read is not a write, but it is not a page's to ask
  * either.
