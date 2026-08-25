@@ -166,7 +166,7 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
             the file wrote none: the run draws nothing, like a row with no
             custom keys. */}
         <Show when={!editing()}>
-          <PropsDrawer entries={customEntries(props.custom)} />
+          <PropsDrawer entries={customEntries(props.custom)} from={props.file} />
         </Show>
       </header>
       {/* The face is drawn the moment the route resolves — the heading and the

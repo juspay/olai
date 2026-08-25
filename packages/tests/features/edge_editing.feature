@@ -270,7 +270,7 @@ Feature: Writing a node's edges — `see` and `after`
     # furthest from where they landed, holding the line.
     When I open the node menu of "hinges"
     And I choose "Add property…" from the node menu
-    And I write the property "agent" holding "claude-opus"
+    And I write the property "agent" holding "claude-opus" on "hinges"
     When I open the node menu of "handles"
     And I choose "Link to a node…" from the node menu
     Then the see panel is open on "handles"

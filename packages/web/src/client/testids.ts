@@ -155,30 +155,45 @@ export const TESTID = {
   /** What the last press had to say, keeping the panel open to say it. */
   repeatPickerSaid: "repeat-picker-said",
   // ── the properties drawer ────────────────────────────────────────────
-  /** The drawer under a node's note — and under a document page's path: the
-   *  node's own facts, then the custom properties somebody added. Drawn on a
-   *  ROW only when there is a custom one, always on the node's own page, and
-   *  on a document page when the file wrote frontmatter. */
+  /** The run of chips under a node's title — and under a document page's path:
+   *  the node's own facts, then the custom properties somebody added. Drawn on
+   *  a ROW whenever there is a custom one, open or not; always on the node's
+   *  own page; on a document page when the file wrote frontmatter. */
   props: "props",
-  /** One line of it. `data-key` names the property; `data-system` is present on
-   *  the read-only lines (`id`, `status`, `date`, the stamps), which is how a
+  /** One chip of it. `data-key` names the property; `data-system` is present on
+   *  the read-only chips (`id`, `status`, `date`, the stamps), which is how a
    *  scenario tells a fact from a property without reading a colour. */
   prop: "prop",
-  /** The value on that line, as text — a link when the value is a URL. */
+  /** The value on that chip. `data-door` says what the value turned out to
+   *  NAME, and is the one assertion a scenario makes about a door: `document`,
+   *  `node`, `day` or `away` where the value names something, and ABSENT where
+   *  it names nothing and stays text (`client/props/door.ts`). */
   propValue: "prop-value",
-  /** The editor, in place under the row: opened by the `•••` menu's `Add
-   *  property…` or one of its `Edit <key>…` entries. `data-key` is the key it
-   *  was opened on, absent when it is a new one. */
-  propEditor: "prop-editor",
-  propEditorKey: "prop-editor-key",
-  propEditorValue: "prop-editor-value",
-  /** The button that sends it — `Add property` or `Save`. Disabled while the
-   *  key is empty or the value is what it already was. */
-  propEditorSet: "prop-editor-set",
-  propEditorCancel: "prop-editor-cancel",
-  /** What the last press had to say, keeping the editor open to say it — the
-   *  date picker's arrangement, in the same two moods. */
-  propEditorSaid: "prop-editor-said",
+  /** A value so long it is drawn as its first words with the rest behind a
+   *  disclosure — the mockup's Move 3, and the safety net rather than the goal
+   *  (`client/props/PropsDrawer.tsx`). `open` is the element's own; the chip
+   *  beside it carries no such testid, which is what makes this one's presence
+   *  the assertion that a value folded. */
+  propFold: "prop-fold",
+  /** The KEY half of a chip, which is the handle: pressing it opens the value
+   *  for editing, whatever the value is. Drawn as a button only where the
+   *  surface offers writing — a day page and the agenda draw a node they do
+   *  not offer to change, and there it is a plain span. */
+  propKey: "prop-key",
+  /** The box a value is being typed in, in place of the chip's value. `data-key`
+   *  is the property it is on, absent while a new one is being named. */
+  propEdit: "prop-edit",
+  /** ...and the box the KEY of a NEW property is typed in, drawn only then: a
+   *  rename is two ops, so an existing chip's key is not typeable. */
+  propEditKey: "prop-edit-key",
+  /** The `+` at the end of the run — the door onto adding a property wherever
+   *  there IS a run. The `•••` carries the other case and only that one: a node
+   *  with no chips has no end for a `+` to sit at, and is offered
+   *  `Add property…` instead. Never both at once. */
+  propAdd: "prop-add",
+  /** What the last commit had to say, under the run — a refusal quoted
+   *  verbatim, or a nudge that rode back on a write that landed. */
+  propSaid: "prop-said",
 
   /** The rollup badge — `3/5` of the tasks under a node. An annotation beside
    *  the title, never the node's own mark, which is the glyph. */

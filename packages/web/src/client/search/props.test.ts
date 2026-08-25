@@ -33,12 +33,14 @@ test("a node carrying no property draws no line", () => {
   expect(nodeProps(hitOf(undefined))).toEqual([])
 })
 
-/** The FILE's order — alphabetical — when the query asked about none of them.
- *  There is no second sort: "most interesting property" is not a fact this app
- *  has, and a ranking here would be one invented. */
+/** The FILE's order — the order the record holds its keys in — when the query
+ *  asked about none of them. There is no second sort: "most interesting
+ *  property" is not a fact this app has, and a ranking here would be one
+ *  invented; nor is there a re-sort, which is what makes this case assert a map
+ *  whose keys are NOT alphabetical. */
 test("without a property in the query, the file's own order stands", () => {
   expect(nodeProps(hitOf({ pr: "…/192", agent: "claude-opus" })).map((p) => p.key))
-    .toEqual(["agent", "pr"])
+    .toEqual(["pr", "agent"])
 })
 
 /** The point of the field: what answered the query leads, where an ellipsis

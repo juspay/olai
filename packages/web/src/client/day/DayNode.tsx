@@ -49,7 +49,7 @@
  * saying it is the agenda.
  */
 
-import { customOf, type DayEntry, isOverdue } from "@olai/format"
+import { type DayEntry, isOverdue } from "@olai/format"
 import { Show } from "solid-js"
 
 import { Aside } from "../Aside.tsx"
@@ -63,7 +63,7 @@ import { NoteMark } from "../note/Mark.tsx"
 import { createNoteExpand } from "../note/expand.ts"
 import { NodeBody } from "../NodeBody.tsx"
 import { NodeLine } from "../NodeLine.tsx"
-import { customEntries } from "../props/drawer.ts"
+import { hasBody } from "../body.ts"
 import { density, showsPreview, startsOpen } from "../settings/density.ts"
 import { TESTID } from "../testids.ts"
 import { useToday } from "../today.tsx"
@@ -80,13 +80,11 @@ export function DayNode(props: {
   const note = createNoteExpand(() => startsOpen(density()))
   const today = useToday()
   const narrowed = useNarrowed()
-  /** Has this row anything to OPEN? The tree's rule, one file over
-   *  (`../Tree.tsx`), because it is one rule about a node and not two about two
-   *  surfaces. */
-  const openable = () => {
-    const desc = node().desc
-    return (desc !== undefined && desc !== "") || customEntries(customOf(node())).length > 0
-  }
+  /** Has this row anything to OPEN? One rule about a node, spelled once
+   *  (`../body.ts`) — it used to be this line and the tree's, with a comment
+   *  here saying they were one rule, which is the shape where two spellings
+   *  drift. They had. */
+  const openable = () => hasBody(node())
   /** The ancestry, when there is any — a root has none, and an empty trail is
    *  nothing to draw. Asked once and read by whichever of the two slots below
    *  this row's caller chose. */

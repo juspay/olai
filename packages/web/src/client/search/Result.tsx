@@ -46,7 +46,13 @@
  * property should look like a property wherever it is drawn, and the drawer is
  * where a reader learned what one looks like.
  *
- * What is NOT reused is the drawer's two-column GRID. That shape lines values
+ * What is NOT reused is the drawer's CHIP, nor the DOOR inside it. A chip is a
+ * bordered box per fact, which is right where a run has room to wrap and wrong
+ * on a line that has to truncate inside a popover; and a door is a link, which
+ * cannot go inside a row that IS one — a hit is a way of reaching a node, and
+ * the node's own page is where its facts are read and followed. The drawer used
+ * to be a two-column GRID and the same paragraph applied for a related reason,
+ * kept because it is the sharper statement of the shape: that lines values
  * up under each other down a page, which is right for a column of facts about
  * one node and wrong here twice over: it costs a line per property in a panel
  * that shows eight rows, and a `max-content` key column is exactly the

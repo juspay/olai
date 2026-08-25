@@ -272,6 +272,39 @@ test("the address the page IS gets a name too — the palette's pin row asks it"
   expect(reading.names.some((one) => one.id === "herbs")).toBe(true)
 })
 
+/** The set the custom-value cases below are read against: one node carrying a
+ *  property that IS an id, one that only looks like a word, one holding a
+ *  sentence, and one holding a list of both kinds. */
+const PROPPED = derive(nodesOfFiles({
+  "lanes.olai": [
+    `{"id":"lane","ord":"a0","title":"a lane","custom":{"reviewer":"pi","agent":"nobody","merge":"the human approves personally"}}`,
+    `{"id":"two","ord":"a1","title":"another","custom":{"reviewer":["pi","stranger"]}}`,
+  ].join("\n"),
+  "agents.olai": `{"id":"pi","ord":"a0","title":"pi"}`,
+}))
+
+test("a custom value that IS a node id is resolved — the door's question, asked where the set is", () => {
+  const reading = pageOf(PROPPED, facesOf(["lanes.olai", "agents.olai"]), READABLE, at("lanes.olai"))
+  expect(reading.names).toEqual([{ id: "pi", title: "pi", file: "agents.olai" }])
+})
+
+test("a custom value naming nothing is absent, and prose never reaches the index", () => {
+  const reading = pageOf(PROPPED, facesOf(["lanes.olai", "agents.olai"]), READABLE, at("lanes.olai"))
+  // `nobody` is id-shaped and declares nothing; `merge` holds a sentence, which
+  // is not id-shaped at all. Neither is a name, and the drawer draws both as
+  // the plain text they are.
+  expect(reading.names.map((one) => one.id)).not.toContain("nobody")
+  expect(reading.names.map((one) => one.id))
+    .not.toContain("the human approves personally")
+})
+
+test("each member of a LIST value is asked about on its own", () => {
+  const reading = pageOf(PROPPED, facesOf(["lanes.olai", "agents.olai"]), READABLE, at("lanes.olai"))
+  // `two` carries `["pi","stranger"]`: the first is a node, the second is not,
+  // and one entry answers for both rows that name it.
+  expect(reading.names.map((one) => one.id)).toEqual(["pi"])
+})
+
 // ── parity: the reading IS the pure functions the browser used to call ──
 
 test("an outline's rows are `rowsOf`, exactly", () => {
