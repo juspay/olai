@@ -930,6 +930,31 @@ export const unfinished = (
  * it ({@link Derived.owedByDay}) and a fold cannot live above the reading it
  * feeds — the same rule that put {@link ./occasion.ts}'s `dateInto` one module
  * below the day readings.
+ *
+ * ## A FOURTH MARK LANDS HERE, and this is the contract
+ *
+ * WHAT COUNTS AS UNFINISHED WORK is decided in exactly two places, and they
+ * are twins: THIS predicate (through {@link unfinished}, which spells
+ * `!== undefined && !== "done"`) and {@link ./node.ts}'s `Unfinished`, which
+ * is `MARKS` with `done` filtered out. Both are written as "everything that
+ * is not `done`" — which is exactly right for three marks and is a decision
+ * disguised as an omission for a fourth.
+ *
+ * So a mark added to {@link ./node.ts}'s `MARKS` and nowhere else is, by
+ * DEFAULT, unfinished work: a dated node carrying it stays overdue, stays in
+ * {@link Derived.owedByDay}'s tally, stays on the agenda, keeps its date badge
+ * burning and goes on blocking whatever waits on it. That is the right default
+ * for a mark that means somebody still has to do this, and the wrong one for a
+ * mark that SETTLES — the roadmap's `cancelled` is the case, and it settles the
+ * way `done` does (a struck-through row and an instant, not a task nobody has
+ * got to).
+ *
+ * A settling mark therefore has to be named in these two and only these two,
+ * and every reading follows: the count, the page, the badge, the blocker
+ * arrow. THAT IS WHY THE PREDICATE IS ONE COMPOSITION — the lane that adds the
+ * mark touches one seam rather than hunting the readings, and a reading that
+ * had spelled the rule for itself would be the one left saying a cancelled
+ * task is still owed.
  */
 export const unfinishedWork = (node: RegularNode): boolean =>
   unfinished(storedMarker(node))

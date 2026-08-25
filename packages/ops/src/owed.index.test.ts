@@ -199,10 +199,16 @@ test("every write leaves the counted door answering what the corpus walk does", 
     { op: "repeat", id: "bins", repeat: null },
     // A rule put back on the node that still has a date to repeat from.
     { op: "repeat", id: "bins", repeat: "every day" },
-    // NEW dated work, in a file that has some and in one that is minted here.
-    { op: "add", parent: "deck", title: "sand the rails", date: "2026-08-02" },
+    // A NEW dated OCCURRENCE, on a day nothing is on: it mints a key in the
+    // journal and in the day line and must mint none in the tally, which is
+    // the two index key sets moving apart on one write.
+    { op: "add", parent: "deck", title: "the sander arrives", date: "2026-08-02" },
+    // A whole FILE minted, so the delta names a path the day index has never
+    // had a record from.
     { op: "create", file: "shed.olai", seed: { title: "the shed" } },
-    { op: "add", parent: "deck", title: "clear the site", date: "2026-08-02" },
+    // ...and NEW OWED work on that same day, which is the tally's key arriving
+    // one write after the journal's did.
+    { op: "add", parent: "deck", title: "sand the rails", date: "2026-08-02", mark: "todo" },
     // A record MOVES under a new parent, so its whole outline is rewritten and
     // every dated row in it is re-filed for a change to one line.
     { op: "move", id: "pack", parent: "ferry" },
