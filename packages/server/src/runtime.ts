@@ -618,7 +618,10 @@ export const bind = (
          * `.git`: a person who commits in a terminal changes what is pending
          * without touching an outline, and without this the panel would go on
          * offering to commit what is already committed until the next write. It
-         * costs one `git status` on a clean directory.
+         * costs one `git status` on a clean directory — and on a dirty one,
+         * nothing per waiting file: what a commit holds is read once per commit
+         * (`@olai/ops`' `committed.ts`), so this sweep does not re-read the
+         * dirty list every thirty seconds either.
          */
         pending: {
           store: inMemoryStore<Pending>(NOTHING_PENDING),

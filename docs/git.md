@@ -17,7 +17,7 @@ It carries one more thing beside that count: `· 2 unpushed`, when this reposito
 
 **A push git REFUSED says so, and takes the tick with it.** `✓ committed · 13 unpushed` with the reason nowhere was a real screenshot, an hour into a push that had been failing every time: the refusal lived in one browser tab's memory, and that tab had been reloaded. It is a fact about the directory now, remembered by the server and published to every reader — so the pill wears `⚠` instead of `✓`, says `· 13 unpushed · the last push was refused`, and hands over git's own words on its tip, on its `aria-label` and in the panel. It clears itself the moment there is nothing unshared, including when you resolved it in a terminal.
 
-Opening it shows what is waiting the way olai would say it rather than as a diff. Nothing is stored to make any of it work: it is `git status`, `git show HEAD:` and one `git log` against what is on disk, so an outline you edited in vim is in the list too, and committing in a terminal takes it out.
+Opening it shows what is waiting the way olai would say it rather than as a diff. Nothing about your working tree is stored to make any of it work: it is `git status`, one `git log` and what a commit already holds, read against what is on disk — so an outline you edited in vim is in the list too, and committing in a terminal takes it out. The one thing olai does keep is the copy each commit holds of the files you are editing: a commit cannot change, so that is read once and not once per keystroke, and typing no longer gets slower the longer you defer a commit.
 
 If the repository is mid-merge, mid-rebase or on a detached HEAD, the commit button says so and does nothing — an agent that committed into a conflict could swallow the resolution.
 
