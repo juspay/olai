@@ -161,19 +161,11 @@ export const patched = (
   const { byFile, touched } = grouped
   if (touched.size === 0) return derived
 
-  // DUPLICATE IDS, and this is the whole of how they are told apart: `byId`
-  // keeps the first claim, so one entry per record is exactly "nobody claimed
-  // an id twice". An index that had to REMEMBER the losers so a deletion could
-  // promote one is the tax the design doc names, and it is not paid here: a
-  // corpus with a duplicate in it is a corpus the validator refuses anyway, so
-  // the patcher hands those back to `derive` rather than growing a shape for
-  // them.
-  //
-  // ASKED OF THE GROUPING rather than of the flat list beside it, which is the
-  // same number and is in hand: reading `derived.nodes` here would be this
-  // patch forcing the PREVIOUS one's flat list into existence for a length,
-  // which is exactly the corpus-sized allocation the view below stopped making.
-  if (derived.byId.size !== countIn(derived.byFile)) return undefined
+  // DUPLICATE IDS, and this is the whole of how they are told apart — see
+  // {@link claimsAreUnique}, which is this line and the paragraph that argues
+  // it, published because the incremental validator's duplicate-id rule is
+  // that same fact read forwards.
+  if (!claimsAreUnique(derived)) return undefined
   // Nothing of the old view is left to patch ONTO — a `git pull` that rewrote
   // the directory, a first load with nothing behind it, a one-file set whose
   // one file changed. Patching is about what stays standing, and when nothing
@@ -478,7 +470,7 @@ interface Regrouped {
 
 const regrouped = (derived: Derived, delta: SetDelta): Regrouped => {
   const byFile = carrying(derived, "byFile")
-  const touched = new Set<string>()
+  const touched = touchedBy(delta)
   // Whether the KEY SET moved, and therefore whether the map's own order has to
   // be made again: a file that was already there keeps its place when it is
   // re-set, and one that arrives is appended — which for a path that sorts
@@ -489,11 +481,9 @@ const regrouped = (derived: Derived, delta: SetDelta): Regrouped => {
   // Derived.byFile} spells an empty file, so a remove and an empty upsert are
   // the same word said twice.
   for (const file of delta.removes) {
-    touched.add(file)
     if (filedAt(byFile, file, NOTHING)) reordered = true
   }
   for (const [file, entry] of delta.upserts) {
-    touched.add(file)
     // Sorted rather than trusted, exactly as `derive` sorts the same list: the
     // promise is about what the index MEANS — the records in the order they are
     // on disk — and not about the order a frame happened to carry them in.
@@ -575,8 +565,41 @@ type Listed = { [K in Index]: Values<K> extends ReadonlyArray<unknown> ? K : nev
 /** One member of such a list — what a key of that index holds one of. */
 type Member<K extends Listed> = Values<K> extends ReadonlyArray<infer E> ? E : never
 
-/** The records of every named file, run together. */
-const recordsIn = (
+/**
+ * WHETHER EVERY ID IS CLAIMED ONCE — the gate {@link patched} opens on, and the
+ * whole of the duplicate-id rule's answer over a view that got through it.
+ *
+ * `byId` keeps the first claim, so one entry per record is exactly "nobody
+ * claimed an id twice". An index that had to REMEMBER the losers so a deletion
+ * could promote one is the tax the design doc names, and it is not paid here: a
+ * corpus with a duplicate in it is a corpus the validator refuses anyway, so
+ * the patcher hands those back to `derive` rather than growing a shape for
+ * them.
+ *
+ * ASKED OF THE GROUPING rather than of the flat list beside it, which is the
+ * same number and is in hand: reading `derived.nodes` here would force a view's
+ * flat list into existence for a length, which is exactly the corpus-sized
+ * allocation a patch exists not to make. So this is `O(files)`, which is why
+ * {@link ../incremental.ts} can afford to ask it again rather than take the
+ * patcher's word for it.
+ */
+export const claimsAreUnique = (derived: Derived): boolean =>
+  derived.byId.size === countIn(derived.byFile)
+
+/** Every file a delta NAMED, whether it gained records, lost them or went away
+ *  — the one question {@link regrouped} and the incremental validator both ask
+ *  of a delta, so it is one function rather than two loops that agree today. */
+export const touchedBy = (delta: SetDelta): ReadonlySet<string> => {
+  const touched = new Set<string>()
+  for (const file of delta.removes) touched.add(file)
+  for (const [file] of delta.upserts) touched.add(file)
+  return touched
+}
+
+/** The records of every named file, run together. Exported for the incremental
+ *  validator, which asks it of both sides of an edit — the records the touched
+ *  files gave up and the ones they brought in. */
+export const recordsIn = (
   byFile: ReadonlyMap<string, ReadonlyArray<Located>>,
   files: ReadonlySet<string>,
 ): ReadonlyArray<Located> => {

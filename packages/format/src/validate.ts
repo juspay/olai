@@ -21,23 +21,37 @@
  *     the missing nodes made it a guess, the set is rejected and the report
  *     carries the parse errors alongside whatever else was found. The store
  *     then keeps its last good snapshot and the browser shows a banner.
+ *
+ * THE RULES THEMSELVES ARE ONE FILE OVER ({@link ./rules.ts}), and that move is
+ * about the SHADOW rather than about length. Each of them takes the records it
+ * is asked about, so a second validator can ask the same functions about fewer
+ * of them — which is what {@link ./incremental.ts} does, and what
+ * {@link ./shadow.ts} runs beside every call below to prove the two agree.
+ * Nothing about the verdict this function reaches has changed: the full rules
+ * run over the whole corpus, exactly as they always did, and the narrowed
+ * arm's answer is compared and dropped.
  */
 
 import { Result } from "effect"
 
-import { derive, type Derived, drawnFrom } from "./derive.ts"
-import { resolveRelative } from "./documents.ts"
+import { derive, type Derived } from "./derive.ts"
+import type { OutlineError } from "./errors.ts"
+import type { Located } from "./node.ts"
+import { patched, type SetDelta } from "./patch.ts"
 import {
-  chainOf,
-  compareErrors,
-  isGuessWhileUnreadable,
-  type OutlineError,
-} from "./errors.ts"
-import { isMirror, type Located, type Site } from "./node.ts"
-import { patch, type SetDelta } from "./patch.ts"
-import { byPath } from "./paths.ts"
-import { didYouMean } from "./suggest.ts"
-import { markdownIn, type OutlineSet, outlinesIn } from "./set.ts"
+  danglingIn,
+  markdownPaths,
+  reportAfterCycles,
+  reportDocs,
+  reportDuplicateIds,
+  reportMirrorCycles,
+  reportOf,
+  reportParentCycles,
+  reportParents,
+  reportUnknownTargets,
+} from "./rules.ts"
+import { type OutlineSet, outlinesIn } from "./set.ts"
+import { shadowed } from "./shadow.ts"
 
 /**
  * A set, and the view it was JUDGED against.
@@ -100,7 +114,8 @@ export const validate = (
   // — and so the browser derives the tree from the same code. It LEAVES with
   // the verdict ({@link Reading}) rather than being dropped here: the caller
   // that publishes what this approves has no second corpus to walk.
-  const derived = viewOf(set, previous)
+  const view = viewOf(set, previous)
+  const derived = view.derived
 
   // THE RECORDS ARE THE VIEW'S, which is the same records the set holds one
   // level down. Asking the derivation is what keeps this from being a second
@@ -111,31 +126,44 @@ export const validate = (
   // BOUND ONCE, because a patched view builds this reading when somebody asks
   // ({@link Derived.nodes}) and five rules asking is one question, not five.
   const all = derived.nodes
+  // The `.md` paths a `doc` may point at, bound here rather than inside the
+  // rule that reads them so that the ledger the shadow files can carry them —
+  // building this walks every document in the directory
+  // ({@link ./rules.ts}'s `markdownPaths`).
+  const known = markdownPaths(set)
   reportDuplicateIds(all, derived, errors)
-  checkParents(all, derived, errors)
-  checkTargets(derived, errors)
-  checkAfterAcyclic(all, derived, errors)
-  checkMirrorContainment(all, derived, errors)
-  checkDocs(all, set, errors)
+  reportParents(all, derived, errors)
+  reportParentCycles(all, derived, errors)
+  reportUnknownTargets(danglingIn(derived), derived, errors)
+  reportAfterCycles(all, derived, errors)
+  reportMirrorCycles(all, derived, errors)
+  reportDocs(all, known, errors)
 
-  const unreadable = set.broken.flatMap((file) => [...file.errors])
-  // A file that did not parse contributes no ids, so a reference resolving to
-  // nothing may be pointing straight into it. That is a GUESS, and the format's
-  // staging rule is that guesses are not reported ({@link ./errors.ts}'s
-  // catalogue says which codes are guessable): "`kitchen` is not a known id" is
-  // not a finding when the line declaring `kitchen` is the one that failed to
-  // parse.
-  const found = set.broken.length === 0
-    ? errors
-    : errors.filter((error) => !isGuessWhileUnreadable(error.code))
+  // THE UNDERSTUDY, and it decides nothing: it runs the narrowed validator over
+  // the same set and the same view, compares its verdict with the one above,
+  // and shouts if they differ ({@link ./shadow.ts}, which also says when and how
+  // the flip may happen and that it is not this call's to make). It returns
+  // nothing and it cannot throw.
+  shadowed(
+    set,
+    previous?.read.derived,
+    // The delta is offered only when the patch was TAKEN. A rebuilt view has no
+    // relation to the one this validation follows, so a narrowing against it
+    // would be sound about nothing ({@link ./incremental.ts}'s first fact).
+    view.patched ? previous?.delta : undefined,
+    derived,
+    errors,
+    known,
+  )
 
   // Any error at all refuses the set, INCLUDING one that was withheld: the
   // withheld ones are unresolved references, and a snapshot whose nodes point
   // at ids nobody can resolve is not a set anything could draw. So the report
   // becomes the parse errors, which is the cause, and the last good snapshot
-  // stays on screen underneath it.
+  // stays on screen underneath it ({@link ./rules.ts}'s `reportOf` assembles
+  // both halves and puts them in order).
   return errors.length > 0
-    ? Result.fail([...unreadable, ...found].sort(compareErrors))
+    ? Result.fail(reportOf(set, errors))
     : Result.succeed({ set, derived })
 }
 
@@ -165,7 +193,7 @@ export const validate = (
  */
 export const reading = (set: OutlineSet, previous?: Previous): Reading => ({
   set,
-  derived: viewOf(set, previous),
+  derived: viewOf(set, previous).derived,
 })
 
 /**
@@ -220,13 +248,32 @@ const recordsIn = (set: OutlineSet): ReadonlyArray<Located> =>
  * is the set's any more, so that spread would rebuild the view to hold an array
  * equal to the one it already had, and throw away the one identity worth
  * keeping: the patched list is stable across revisions that touched nothing.
+ *
+ * IT SAYS WHICH WAY IT WENT, which the shadow needs and nothing else does: a
+ * narrowed verdict is only sound over a view that really was patched from the
+ * one it is narrowing against ({@link ./incremental.ts}'s first fact), and a
+ * rebuild carries no such relation. It asks {@link patched} rather than
+ * `patch` for that word — the patcher with its fallback taken off, which is
+ * the same door `./patch.test.ts` uses to count declines. The fallback the
+ * patcher would have taken is this function's own last line, and the two are
+ * the same value: `derive` over the delta applied to the previous grouping and
+ * `derive` over the set's own records are one array whenever {@link isSet}
+ * would have passed, and whenever it would not, this is the rebuild that used
+ * to happen anyway — one derivation now where a missed file used to cost two.
  */
-const viewOf = (set: OutlineSet, previous: Previous | undefined): Derived => {
+const viewOf = (set: OutlineSet, previous: Previous | undefined): Taken => {
   if (previous !== undefined) {
-    const view = patch(previous.read.derived, previous.delta)
-    if (isSet(view, set)) return view
+    const view = patched(previous.read.derived, previous.delta)
+    if (view !== undefined && isSet(view, set)) return { derived: view, patched: true }
   }
-  return derive(recordsIn(set))
+  return { derived: derive(recordsIn(set)), patched: false }
+}
+
+/** A view, and whether it was PATCHED from the reading this validation follows
+ *  — see {@link viewOf}'s last paragraph for who asks and why. */
+interface Taken {
+  readonly derived: Derived
+  readonly patched: boolean
 }
 
 /**
@@ -278,311 +325,3 @@ const isSet = (view: Derived, set: OutlineSet): boolean => {
   return true
 }
 
-// ── ids ────────────────────────────────────────────────────────────────
-
-/** A duplicate is reported once, on the second record, pointing back at the
- *  first: the first one is not the mistake. `derive` keeps that first claim,
- *  so the reference rules below still resolve — reporting a hundred dangling
- *  edges because an id was declared twice would bury the one error worth
- *  reading. */
-const reportDuplicateIds = (
-  all: ReadonlyArray<Located>,
-  derived: Derived,
-  errors: Array<OutlineError>,
-): void => {
-  for (const located of all) {
-    const first = derived.byId.get(located.node.id)
-    if (first === undefined || first === located) continue
-    errors.push({
-      code: "duplicate-id",
-      ...siteOf(located),
-      message: `\`${located.node.id}\` is already the id of another node; ids are unique across every file in the served directory`,
-      related: [{ ...siteOf(first), note: "first declared here" }],
-    })
-  }
-}
-
-// ── references ─────────────────────────────────────────────────────────
-
-const checkParents = (
-  all: ReadonlyArray<Located>,
-  derived: Derived,
-  errors: Array<OutlineError>,
-): void => {
-  for (const located of all) {
-    const { file, node } = located
-    if (node.parent === undefined) continue
-
-    const parent = derived.byId.get(node.parent)
-    if (parent === undefined) {
-      errors.push({
-        code: "unknown-parent",
-        ...siteOf(located),
-        message: `\`parent\` is \`${node.parent}\`, which no node declares${suggest(node.parent, derived)}`,
-      })
-      continue
-    }
-    if (parent.file !== file) {
-      errors.push({
-        code: "foreign-parent",
-        ...siteOf(located),
-        message: `\`parent\` is \`${node.parent}\`, which lives in another file; every \`.olai\` is an independent tree, so cross-file placement is a \`mirror\``,
-        related: [{ ...siteOf(parent), note: "the parent lives here" }],
-      })
-      continue
-    }
-    if (isMirror(parent.node)) {
-      errors.push({
-        code: "parent-not-a-node",
-        ...siteOf(located),
-        message: `\`parent\` is \`${node.parent}\`, which is a mirror; children hang off the node a mirror points at, never off the mirror`,
-        related: [{ ...siteOf(parent), note: "the mirror is here" }],
-      })
-    }
-  }
-
-  reportCycles(
-    findCycles(all, derived, (node) => (node.parent === undefined ? [] : [node.parent])),
-    "parent-cycle",
-    "`parent` pointers close a loop, so this node is its own ancestor",
-    errors,
-  )
-}
-
-/**
- * Asked ONCE PER NAMED ID, of the index that is `targetsOf` read backwards
- * ({@link Derived.namedBy}), rather than once per record of the corpus.
- *
- * `targetsOf` is still the format's own list of what a record points at — this
- * rule reads the index derive built by asking it, so there is still exactly one
- * list of edge fields, and the day a fourth relation arrives this rule sees it
- * without being told. What changes is the direction: the question "does
- * everything this names exist?" is the same question as "is this named id
- * declared?", and the second one has as many answers as there are ids named,
- * not as there are records.
- *
- * ERROR ORDER, which is the whole reason this waited for its own change
- * (`check-targets-index`, deferred from #205). The report is SORTED before
- * anyone sees it — by file, then line, then code ({@link ./errors.ts}'s
- * `compareErrors`) — so the only findings this can reorder are two at the SAME
- * site with the same code: one record naming two ids that nothing declares.
- * Those used to come out in the order the record writes its fields; they now
- * come out in the order the CORPUS first names those ids, which for a record
- * naming ids nobody else names is the same order, and differs only when an
- * earlier record named one of them first. Both are arbitrary and both are
- * deterministic; what is preserved is what a reader spends — one finding per
- * field per record, at that record's own site, naming the field it was written
- * with.
- *
- * ONE thing is deliberately not preserved: a record naming the same unknown id
- * TWICE IN ONE FIELD (`"after":["x","x"]`, which only a hand-edited file can
- * hold — no op writes a repeat) used to be two identical findings and is now
- * one. The index folds a record's fields, and two copies of one sentence at one
- * site tell a reader nothing the first did not.
- */
-const checkTargets = (
-  derived: Derived,
-  errors: Array<OutlineError>,
-): void => {
-  for (const [id, namings] of derived.namedBy) {
-    if (derived.byId.has(id)) continue
-    // Once per unknown id rather than once per record naming it: the sentence
-    // is the same for every one of them, and the suggestion behind it walks
-    // every declared id in the set.
-    const said = suggest(id, derived)
-    for (const naming of namings) {
-      for (const field of naming.fields) {
-        errors.push({
-          code: "unknown-target",
-          ...siteOf(naming.at),
-          message: `\`${field}\` names \`${id}\`, which no node declares${said}`,
-        })
-      }
-    }
-  }
-}
-
-/** The ordering graph is `derive`'s (`blocks` normalised into `after`, in the
- *  one place that happens), so this rule and the blockedness the view draws
- *  are reading the same edges rather than two normalisations that could
- *  disagree. That graph is in terms of NODES — an edge naming a mirror is an
- *  edge to the node standing there — which is what makes a deadlock closing
- *  through a placement one loop this walk can find, rather than two dead ends
- *  the view drew as blocked and nothing ever refused.
- *
- *  This is where the two part company: blockedness exempts what has been put
- *  away and what nobody marked, because it is about what is on a plate. A
- *  cycle exempts NOTHING — it is a claim about the file, and an `after` loop is
- *  one whether or not it is archived, and whether or not anyone marked it. */
-const checkAfterAcyclic = (
-  all: ReadonlyArray<Located>,
-  derived: Derived,
-  errors: Array<OutlineError>,
-): void => {
-  reportCycles(
-    findCycles(all, derived, (node) => derived.after.get(node.id) ?? []),
-    "after-cycle",
-    "`after` (with `blocks` normalised into it) closes a loop, so nothing in it can start first",
-    errors,
-  )
-}
-
-/** A mirror shows a subtree somewhere else. Placing one inside the subtree it
- *  shows means expanding it never terminates, so the graph a renderer actually
- *  walks has to be acyclic.
- *
- *  That graph is {@link drawnFrom}, and it runs DOWNWARD. Note this is the
- *  opposite direction from the parent check above, which walks child-to-parent
- *  — either direction finds a pure parent loop, but only the downward one
- *  finds the mirror case, because a mirror's edge to its target is downward by
- *  nature. Mixing the two directions in one walk finds neither reliably. The
- *  ops layer walks the same graph to refuse the placement BEFORE the write,
- *  which is why it is a derivation rather than a lambda here. */
-const checkMirrorContainment = (
-  all: ReadonlyArray<Located>,
-  derived: Derived,
-  errors: Array<OutlineError>,
-): void => {
-  const cycles = findCycles(all, derived, (node) => drawnFrom(derived, node))
-
-  reportCycles(
-    // A cycle with no mirror in it is a parent cycle, already reported by
-    // `checkParents` — saying it twice in two vocabularies helps nobody.
-    cycles.filter((cycle) => cycle.some((located) => isMirror(located.node))),
-    "mirror-cycle",
-    "this mirror is placed inside the subtree it shows, so expanding it never ends",
-    errors,
-  )
-}
-
-// ── documents ──────────────────────────────────────────────────────────
-
-/** `doc` is relative to the outline that names it — that is what "attached"
- *  means — so it is resolved against the outline's own directory ({@link
- *  ./documents.ts}, the one place that arithmetic lives) and matched against
- *  the `.md` files actually found.
- *
- *  DOCUMENTS, not every bodied file. The set's `documents` list carries each
- *  `.html` too since they are read the same way, and a membership test alone
- *  would therefore have quietly widened what `doc` may point at — to a file the
- *  surfaces that draw an attachment cannot draw (a reference under a row is one
- *  line of markdown, and a zoomed node draws the whole document through the
- *  markdown pipeline; neither is a sealed frame). So the kind is asked —
- *  through `markdownIn`, the one narrowing that answers it for the validator,
- *  the planner and both document reads alike — and the message below stays
- *  true. */
-const checkDocs = (
-  all: ReadonlyArray<Located>,
-  set: OutlineSet,
-  errors: Array<OutlineError>,
-): void => {
-  const known = new Set<string>(markdownIn(set).map((document) => document.path))
-  for (const located of all) {
-    const { file, node } = located
-    if (isMirror(node) || node.doc === undefined) continue
-    const resolved = resolveRelative(file, node.doc)
-    if (known.has(resolved)) continue
-    errors.push({
-      code: "missing-doc",
-      ...siteOf(located),
-      message: `\`doc\` is \`${node.doc}\`, which resolves to \`${resolved}\` — no such \`.md\` file is served`,
-    })
-  }
-}
-
-// ── cycles ─────────────────────────────────────────────────────────────
-
-/** Every simple cycle reachable through `edges`, each returned once. Unknown
- *  targets are skipped: a dangling reference is already its own error, and a
- *  graph walk that invented a node for it would report a second. */
-const findCycles = (
-  all: ReadonlyArray<Located>,
-  derived: Derived,
-  edges: (node: Located["node"]) => ReadonlyArray<string>,
-): ReadonlyArray<ReadonlyArray<Located>> => {
-  const cycles: Array<ReadonlyArray<Located>> = []
-  // One memo, not two: a node is only marked seen after its walk has left the
-  // path, so `seen` already implies "not on the path" and a second settled set
-  // could not disagree with it.
-  const seen = new Set<string>()
-
-  const walk = (located: Located, path: Array<Located>): void => {
-    const id = located.node.id
-    const at = path.findIndex((step) => step.node.id === id)
-    if (at !== -1) {
-      cycles.push(path.slice(at))
-      return
-    }
-    if (seen.has(id)) return
-    seen.add(id)
-
-    path.push(located)
-    for (const target of edges(located.node)) {
-      const next = derived.byId.get(target)
-      if (next !== undefined) walk(next, path)
-    }
-    path.pop()
-  }
-
-  for (const located of all) walk(located, [])
-  return cycles
-}
-
-/** One error per cycle, anchored at its earliest record so the report is
- *  stable, with the rest of the loop as related sites in walk order. */
-const reportCycles = (
-  cycles: ReadonlyArray<ReadonlyArray<Located>>,
-  code: OutlineError["code"],
-  message: string,
-  errors: Array<OutlineError>,
-): void => {
-  for (const cycle of cycles) {
-    const ordered = rotateToEarliest(cycle)
-    const [anchor, ...rest] = ordered
-    if (anchor === undefined) continue
-    errors.push({
-      code,
-      ...siteOf(anchor),
-      // Closed by repeating the anchor, which is what makes it read as a loop
-      // rather than as a list — the ops layer names one it is about to close
-      // the same way ({@link ./errors.ts}'s `chainOf`).
-      message: `${message}: ${
-        chainOf([...ordered.map((step) => step.node.id), anchor.node.id])
-      }`,
-      related: rest.map((step) => ({ ...siteOf(step), note: "also in the loop" })),
-    })
-  }
-}
-
-const rotateToEarliest = (
-  cycle: ReadonlyArray<Located>,
-): ReadonlyArray<Located> => {
-  let at = 0
-  cycle.forEach((step, index) => {
-    const best = cycle[at]
-    if (best === undefined) return
-    // CORPUS ORDER, which is the set's own path order and not a string compare
-    // ({@link ./paths.ts}): the earliest step of a loop is the one a reader
-    // meets first walking the directory.
-    if (byPath(step.file, best.file) < 0 || (step.file === best.file && step.line < best.line)) {
-      at = index
-    }
-  })
-  return [...cycle.slice(at), ...cycle.slice(0, at)]
-}
-
-// ── shared ─────────────────────────────────────────────────────────────
-
-/** The place a located record is at, without the record. Annotated with
- *  {@link Site} rather than with the pair written out again: this is the
- *  function every finding in this file gets its `file:line` from, so an
- *  inline `{file: string; line: number}` here would be the one spelling that
- *  goes on compiling after the others have been made to agree. */
-const siteOf = ({ file, line }: Located): Site => ({ file, line })
-
-/** "did you mean", over the ids the set declares. The rule itself is
- *  {@link ./suggest.ts}'s, because the ops layer refuses the same unknown
- *  target one moment earlier — at the plan, before the write — and two copies
- *  of the budget would be two answers to one question. */
-const suggest = (id: string, derived: Derived): string =>
-  didYouMean(id, derived.byId.keys())

@@ -223,7 +223,7 @@ nix:
 hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
-# What a keystroke costs, on a generated vault. SIX of them, and each is a
+# What a keystroke costs, on a generated vault. NINE of them, and each is a
 # LEG rather than a scratch file, because slice 3 of `model-indices` ran its
 # numbers as a one-off and a benchmark nobody can re-run is a number nobody can
 # check — and deliberately NOT a dependency of `check`, since a timing that
@@ -323,9 +323,23 @@ hm-module:
 #     so a divergence throws rather than printing a ratio nobody may believe.
 #     Its vault is `vaultOf` with the OTHER kinds put in beside the outlines:
 #     a directory of nothing but `.olai` is one where the documents collection
-#     is empty and a third of what is measured is never asked anything.
+#     is empty and a third of what is measured is never asked anything;
+#   - ONE WRITE's VALIDATION, timed as the whole-corpus rules against the
+#     narrowed ones and against BOTH (`packages/format/src/validate.bench.ts`,
+#     added with `perf-validate-incremental`). The third arm is the honest one
+#     and the reason this leg landed with the shadow rather than after it: until
+#     the flip, every write pays both validators, so what the change COSTS today
+#     is printed beside what it will buy. Three rows, because the shape of the
+#     edit is the whole claim — a keystroke (no cycle walk, no document walk), an
+#     edge added (all three cycle walks, and the row that says what this did not
+#     buy) and a `.md` deleted. The two arms must reach the same verdict or the
+#     row throws, and so must a run where the narrowing DECLINED — which is the
+#     same flattering ratio wearing a different face. Its vault is `vaultOf` with
+#     the dangling placements taken out and `.md` files put in: a directory
+#     nobody could publish is one where the narrowing declines every time, and a
+#     directory holding no documents measures the `.md` walk at zero.
 #
-# Four of the eight run the SAME generated vault (`@olai/format/testlib`'s
+# Five of the nine run the SAME generated vault (`@olai/format/testlib`'s
 # `vaultOf` — the patcher, the tag completion, the day readings and the search
 # index), so what a write costs the view and what a completion, a calendar or a
 # search box asks of the view it leaves are numbers about one directory; the
@@ -348,6 +362,7 @@ bench: install
     {{ nix_shell }} bun packages/index/src/index.bench.ts
     {{ nix_shell }} bun packages/ops/src/documents.bench.ts
     {{ nix_shell }} bun packages/server/src/published.bench.ts
+    {{ nix_shell }} bun packages/format/src/validate.bench.ts
 
 # A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
 # instead of the nix-built binary. `/tmp/olai-dev` is how two worktrees

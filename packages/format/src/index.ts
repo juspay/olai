@@ -92,6 +92,32 @@ export type { Previous } from "./validate.ts"
  *  holding a set needs and the browser's own fold does not (see `patch`
  *  below). */
 export { reading } from "./validate.ts"
+/**
+ * THE VALIDATOR'S UNDERSTUDY, published so that one process can install where
+ * it shouts.
+ *
+ * Every write runs the incremental validator beside the full one and compares
+ * the two; the full verdict is what the product obeys and the narrowed one is
+ * dropped (`./shadow.ts`, which says when and how that may change — the flip is
+ * a later PR, its merge is a human's, and it is gated on this log being empty).
+ * A divergence reaches a WITNESS, and the default one shouts to stderr because
+ * this package has no logger to reach and no disk to write to. `@olai/server`
+ * installs one that says it through the real logger and appends it to a file an
+ * orchestrator reads (`../../server/src/divergence.ts` names the path).
+ *
+ * A SEAM AND NOT A SWITCH: there is no way to turn the comparison off from out
+ * here, and there is not going to be one. A shadow with an off switch is a
+ * shadow somebody turns off.
+ */
+export { witnessing } from "./shadow.ts"
+/** WHAT THE DIVERGENCE LOG IS CALLED — one spelling, so the flip's gate and the
+ *  file this process writes cannot come to name two things. `@olai/server`
+ *  joins it onto the state home; every sentence in the tree that names the gate
+ *  is swept against it (`packages/tests/divergenceLog.test.ts`). */
+export { DIVERGENCE_LOG } from "./shadow.ts"
+/** What the two arms said, when they did not say the same thing — the entry an
+ *  orchestrator reads and the shape a witness is handed. */
+export type { Divergence, Seen, Witness } from "./shadow.ts"
 
 export {
   apart,
