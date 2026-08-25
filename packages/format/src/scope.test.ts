@@ -138,6 +138,16 @@ test("a record written beneath a placement is under nothing above that placement
   // query layer never answers with, and nothing beneath it is under it.
   expect(found("t-place")).toEqual([])
   expect(found("t-chain")).toEqual([])
+  // ...and EMPTY WITH A LIVE FILE BESIDE IT, which is the half that makes the
+  // two lines above a claim rather than a coincidence: `tangled.olai` holds
+  // four records this query selects, so a narrowing that answered an empty
+  // `under:` by falling through to the file would say so here and nowhere else
+  // (the same pair `asksOver` now draws over every corpus).
+  const inFile = (under: string): ReadonlyArray<string> =>
+    matching(at.derived, parseFilter("kitchen", NOW), { under, file: "tangled.olai" })
+      .map((one) => one.at.node.id)
+  expect(inFile("t-place")).toEqual([])
+  expect(inFile("t-nobody")).toEqual([])
   // The target's OWN subtree is untouched by having been placed elsewhere.
   expect(found("t-target")).toEqual(["t-target", "t-target-child"])
   // A LOOP admits its whole cycle from either end, which is what the guards at
@@ -340,6 +350,7 @@ test("a write leaves the narrowing answering what the walk does", () => {
     ...asks,
     ...asksOver(read.derived, QUERIES, { files: 6, roots: 10 }),
   ]
+
   /** What four scopes say now — read back after every write, so the test can
    *  insist each edit really MOVED an answer rather than agreeing four times
    *  over about a corpus nothing happened to. One scope per write, each named
