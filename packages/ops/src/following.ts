@@ -12,9 +12,9 @@
  *
  * So this is the missing half: a plan in, the reading it produces out, and the
  * next op planned against that. No rule of the format lives here — what a plan
- * MEANS is `plan.ts`'s, and what a SET is (how decoded files become one, how
- * one is taken back apart, how a view is patched onto another) is
- * `@olai/format`'s, reached through `assemble`, `apart` and `reading`. What is
+ * MEANS is `plan.ts`'s, and what a SET is (how decoded files become one, what
+ * one file written into it leaves, how a view is patched onto another) is
+ * `@olai/format`'s, reached through `withDocuments` and `reading`. What is
  * left in this file is the translation between them, which is the only half
  * that is actually this layer's.
  *
@@ -33,16 +33,28 @@
  * seen had op one been its own call and its own commit.
  *
  * **WHAT IT COSTS, honestly.** Per op, per file that op TOUCHED: one serialise
- * and one parse of that whole file, one `assemble` of the directory, and one
- * patched view. The serialise/parse pair is the dominant term and it is
- * quadratic in the batch against one outline's size — a hundred ops over one
- * large outline is a hundred round trips of it — which is the price of every
- * intermediate being a real set rather than a shortcut. The patched view is
- * cheap only when the batch leaves some file untouched: the patcher declines
- * when nothing of the old view is left to patch onto (`@olai/format`'s
- * `patch`), so a single-outline directory rebuilds its derivation each op. Both
- * are bounded by `BATCH_AT_MOST`, and both are one write's worth of work rather
- * than N writes' worth of disk.
+ * and one parse of that whole file, one SPLICE of that file into the set the op
+ * before it left, and one patched view. The serialise/parse pair is the
+ * dominant term and it is quadratic in the batch against one outline's size — a
+ * hundred ops over one large outline is a hundred round trips of it — which is
+ * the price of every intermediate being a real set rather than a shortcut. The
+ * patched view is cheap only when the batch leaves some file untouched: the
+ * patcher declines when nothing of the old view is left to patch onto
+ * (`@olai/format`'s `patch`), so a single-outline directory rebuilds its
+ * derivation each op. Both are bounded by `BATCH_AT_MOST`, and both are one
+ * write's worth of work rather than N writes' worth of disk.
+ *
+ * **THE SPLICE USED TO BE AN ASSEMBLY**, and that is what `perf-batch-assemble`
+ * took out. This fold took the whole directory APART into a map on its first
+ * op and then put it back together on every one — a fresh path SORT of every
+ * served file per op, so a hundred-op batch paid for the directory a hundred
+ * times, to move one file. The set it starts from is already in path order and
+ * an op touches one file or two, so the intermediate is the previous set with
+ * those files swapped in ({@link withDocuments}), which is one pass over an
+ * array of references and a binary search per file written. Nothing about the
+ * ANSWER moved: the two are held to each other at every op of scripted batches
+ * (`./following.equivalence.test.ts`), because a fold that produced a subtly
+ * different set would refuse the next op for reasons no reader could find.
  *
  * **WHAT IT DOES NOT DO IS VALIDATE**, and that is the batch's whole shape: one
  * validation pass over the set the LAST op leaves, run where every write is
@@ -55,50 +67,54 @@
  */
 
 import {
-  apart,
-  assemble,
   bodiedDocument,
   type Document,
   type OpFailure,
-  type OutlineError,
   parseOutline,
-  type Reading,
   reading,
   serializeOutline,
   type SetDelta,
   ValidationFailure,
+  withDocuments,
 } from "@olai/format"
 import { Result } from "effect"
 
-import type { Plan } from "./plan.ts"
-
-/** One decoded file, as `assemble` takes it. Spelled once because the map this
- *  module carries between ops is a map of them. */
-type Decoded = Result.Result<Document, ReadonlyArray<OutlineError>>
+import { askedOf, carried } from "./asked.ts"
+import { type Plan, type Scope, typedIn } from "./plan.ts"
 
 /**
  * The fold over the planner: the reading each op is judged against, carried
  * from the one before it.
  *
- * A CLOSURE rather than a function taking and returning a map, because the map
+ * A CLOSURE rather than a function taking and returning a set, because the set
  * is the thing being carried and a caller that had to thread it would be a
  * caller that could thread the wrong one. It is built from a reading and it
  * answers with readings; what it holds between calls is the inside of exactly
  * one loop.
  */
-export type Folding = (made: Plan) => Result.Result<Reading, OpFailure>
+export type Folding = (made: Plan) => Result.Result<Scope, OpFailure>
 
-export const folding = (from: Reading): Folding => {
-  // LAZY, and that is not a micro-optimisation: `folded` breaks before folding
-  // the LAST op — nothing is judged against the set it leaves — so a one-op run
-  // never calls this at all. A single-field `update` is exactly such a run, and
-  // it is a gesture an agent makes constantly; taking the directory apart for
-  // it would be a corpus walk to build a value nobody reads.
-  let files: Map<string, Decoded> | undefined
+export const folding = (from: Scope): Folding => {
+  // WHAT IS CARRIED is the last SCOPE this fold produced — and, for the first
+  // op, the caller's own, which is why nothing here writes into either
+  // ({@link withDocuments} takes the copy). There is nothing to build up front
+  // any more: the fold used to invert the directory into a map on its first op,
+  // which was a corpus walk a one-op run never had a use for — `folded` breaks
+  // before folding the LAST op, so a single-field `update` calls this not at
+  // all.
   let at = from
+  // THE ASKING, and the two things that carry it. `base` is the context every
+  // op looks through — the batch's own first asking, or a fresh one from the op
+  // that moved which files there are — and `wrote` is everything this batch has
+  // written since that asking, by path. Handing both to {@link carried} is what
+  // makes an op's questions about the directory cost a layer lookup rather than
+  // a re-asking, and what makes the decline exact: a file MINTED or MENDED
+  // moves membership, and membership must reach what carries (#382's lesson).
+  let base = from.asked
+  let wrote = new Map<string, Document>()
 
   return (made) => {
-    files ??= apart(at.set)
+    const written: Array<Document> = []
     const upserts: Array<SetDelta["upserts"][number]> = []
     for (const planned of made.files) {
       const text = serializeOutline(planned.nodes)
@@ -121,11 +137,11 @@ export const folding = (from: Reading): Folding => {
           }),
         )
       }
-      files.set(planned.file, Result.succeed(read.success))
+      written.push(read.success)
       upserts.push([planned.file, { nodes: read.success.nodes }])
     }
     for (const document of made.documents ?? []) {
-      files.set(document.file, Result.succeed(bodiedDocument(document.file, document.text)))
+      written.push(bodiedDocument(document.file, document.text))
     }
 
     // The view PATCHED rather than derived — reached through `reading`, which
@@ -133,7 +149,33 @@ export const folding = (from: Reading): Folding => {
     // caller cannot forget the half that turns a delta which missed a file into
     // a rebuild instead of into a view where every record looks like a
     // duplicate of itself.
-    at = reading(assemble(files), { read: at, delta: { upserts, removes: [] } })
+    const next = reading(withDocuments(at.set, written), {
+      read: at,
+      delta: { upserts, removes: [] },
+    })
+    // The layer grows by what this op wrote, and the context is carried onto the
+    // new set — or, where that op moved which files there are, the base becomes
+    // this set's own asking and the layer starts again empty. Either way the
+    // next op reads through ONE layer.
+    //
+    // A FRESH MAP rather than a write into the one the last op's context is
+    // holding, which is the aliasing law and not an economy (#392): the scope
+    // handed to op three is a value, and op four writing through its layer would
+    // move an answer somebody already has. It costs a copy of what this BATCH
+    // has touched — one entry per file, not per record — and it is what makes
+    // every intermediate context safe to keep.
+    wrote = new Map(wrote)
+    for (const document of written) wrote.set(document.path, document)
+    const asked = carried(base, next.set, wrote)
+    if (asked === undefined) {
+      base = askedOf(next.set)
+      wrote = new Map()
+    }
+    // `typed` is REBUILT rather than carried, where `asked` above is carried:
+    // it is a map read off the view this op would leave, and a batch whose
+    // first op declares a key has to be judged by its second against that
+    // declaration ({@link ../plan.ts}'s `typedIn`).
+    at = { ...next, context: at.context, asked: asked ?? base, typed: typedIn(next) }
     return Result.succeed(at)
   }
 }

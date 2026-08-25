@@ -29,7 +29,6 @@ import {
   TRASH_FILE,
   BATCH_AT_MOST,
   type BatchedRequest,
-  brokenIn,
   BusyFailure,
   chainOf,
   countedChildren,
@@ -39,7 +38,6 @@ import {
   isTrashed,
   derive,
   type Derived,
-  documentAt,
   drawingPath,
   DOCUMENT_EXT,
   isMirror,
@@ -47,7 +45,6 @@ import {
   type LocatedRegular,
   MARKS,
   type MirrorNode,
-  markdownAt,
   markdownIn,
   type Node,
   nodeNamed,
@@ -59,7 +56,6 @@ import {
   nothing,
   type OpFailure,
   ordBetween,
-  outlinePaths,
   OUTLINE_EXT,
   type Settled,
   settles,
@@ -86,6 +82,7 @@ import {
 } from "@olai/format"
 import { Result } from "effect"
 
+import { type Asked, askedOf } from "./asked.ts"
 import { folding } from "./following.ts"
 import {
   missingId,
@@ -155,140 +152,115 @@ type Planned = Result.Result<Plan, OpFailure>
  *  in the way rather than in the right. */
 type Draft<N> = { -readonly [K in keyof N]: N[K] }
 
-/** The set and its derivation are taken TOGETHER, as the one value the store
- *  published ({@link Reading}), rather than as a set this planner derives from:
- *  the view it plans against is the view the validator approved, so a write is
- *  judged against the same corpus the reader who asked for it was looking at,
- *  and the whole tree is not walked again per keystroke for an answer already
- *  in hand. */
-export const plan = (
-  at: Reading,
-  context: Context,
-  request: Request,
-): Planned => {
-  const scope = { ...at, context, typed: typedIn(at) }
+// ── the dispatch ───────────────────────────────────────────────────────
+//
+// WHICH PLANNER ANSWERS WHICH VERB is a TABLE, and it is at the FOOT of this
+// file rather than here where the switch it replaced stood: it names the
+// planners as values, so it can only be built once they exist. Read `PLANNERS`
+// and `plan` at the end for the argument; what is between here and there is the
+// verbs themselves.
 
-  switch (request.op) {
-    case "add":
-      return planAdd(scope, request)
-    case "done":
-    case "cancelled":
-    case "doing":
-    case "todo":
-      return planMark(scope, request)
-    case "title":
-      return planEdit(
-        scope,
-        request.id,
-        (node) => ({ ...node, title: request.title }),
-        (node) => `rename: ${node.title}`,
-        (node) =>
-          stale(
-            request.was,
-            node.title,
-            `\`${node.title}\` is not the title this write expected to replace ` +
-              `(\`${request.was}\`) — it has been retitled since, so nothing was written`,
-          ),
-      )
-    case "desc":
-      return planEdit(
-        scope,
-        request.id,
-        (node) => withField(node, "desc", request.desc),
-        (node) => `note: ${node.title}`,
-        (node) =>
-          stale(
-            request.was,
-            node.desc ?? null,
-            `the note on \`${node.title}\` is not the one this write expected to ` +
-              `replace — it has changed since, so nothing was written`,
-          ),
-      )
-    case "date":
-      // `date:`, not the reference implementation's `move:`. That word was
-      // right there — a date WAS what `move` named — and it is wrong here:
-      // beside this format's real reparenting op it reads as a structural
-      // change that never happened.
-      return planEdit(
-        scope,
-        request.id,
-        (node) => withField(node, "date", request.date),
-        (node) => `date: ${node.title} -> ${node.date ?? "(cleared)"}`,
-      )
-    case "repeat":
-      // The DATE's own arm, one field along, and planned by the same function
-      // for the same reason: it is one optional field with one value and no
-      // condition. Nothing here judges the rule, and nothing here judges the
-      // PAIR either — a `repeat` the grammar cannot read, and one with no
-      // `date` under it, are both per-line rules of the format's, refused at
-      // the write gate over the bytes this plan would produce (@olai/store's
-      // `commit`). One rule, one wording, whichever verb moved which half.
-      //
-      // WHAT IT DOES DO is store the CANONICAL spelling: reading a rule is
-      // forgiving (`mon`, `every monday`, `Every Week On Monday`) and writing
-      // one is not, because two files meaning the same thing must not differ
-      // byte for byte — a merge conflict over which way somebody spelled Monday
-      // is a conflict about nothing (docs/format.md's Writing). Text the
-      // grammar cannot read passes through UNCHANGED, so the refusal quotes
-      // what the caller actually sent rather than something this line invented.
-      return planEdit(
-        scope,
-        request.id,
-        (node) =>
-          withField(
-            node,
-            "repeat",
-            request.repeat === null ? null : canonicalRepeat(request.repeat) ?? request.repeat,
-          ),
-        (node) => `repeat: ${node.title} -> ${node.repeat ?? "(cleared)"}`,
-      )
-    case "prop":
-      return planProp(scope, request)
-    case "move":
-      return planMove(scope, request)
-    case "split":
-      return planSplit(scope, request)
-    case "merge":
-      return planMerge(scope, request)
-    case "trash":
-      return planTrash(scope, request)
-    case "duplicate":
-      return planDuplicate(scope, request)
-    case "untrash":
-      return planUntrash(scope, request)
-    case "empty":
-      return planEmpty(scope, request)
-    case "create":
-      return planCreate(scope, request)
-    case "see":
-      return planSee(scope, request)
-    case "mirror":
-      return planMirror(scope, request)
-    case "unmirror":
-      return planUnmirror(scope, request)
-    case "after":
-      return planAfter(scope, request)
-    case "doc":
-      return planWriteDocument(scope, request)
-    case "create-doc":
-      return planCreateDocument(scope, request)
-    // The two that plan no outline of their own: both fold this same switch over
-    // a run of ops ({@link folded}), which is why they can be listed here beside
-    // the verbs they are made of rather than living somewhere above them.
-    case "update":
-      return planUpdate(scope, request)
-    case "apply":
-      return planApply(scope, request)
-  }
-}
+// ── the four field writes ──────────────────────────────────────────────
+//
+// Each is one optional field with one value, so each is {@link planEdit} with
+// the field's own record change, its own commit subject and — for the two a
+// caller may condition on — its own stale sentence. They were the four arms of
+// the old switch that carried their rules inline; they are functions now for the
+// table's sake, and the prose came with them unchanged.
+
+const planTitle = (scope: Scope, request: Extract<Request, { op: "title" }>): Planned =>
+  planEdit(
+    scope,
+    request.id,
+    (node) => ({ ...node, title: request.title }),
+    (node) => `rename: ${node.title}`,
+    (node) =>
+      stale(
+        request.was,
+        node.title,
+        `\`${node.title}\` is not the title this write expected to replace ` +
+          `(\`${request.was}\`) — it has been retitled since, so nothing was written`,
+      ),
+  )
+
+const planDesc = (scope: Scope, request: Extract<Request, { op: "desc" }>): Planned =>
+  planEdit(
+    scope,
+    request.id,
+    (node) => withField(node, "desc", request.desc),
+    (node) => `note: ${node.title}`,
+    (node) =>
+      stale(
+        request.was,
+        node.desc ?? null,
+        `the note on \`${node.title}\` is not the one this write expected to ` +
+          `replace — it has changed since, so nothing was written`,
+      ),
+  )
+
+/** `date:`, not the reference implementation's `move:`. That word was right
+ *  there — a date WAS what `move` named — and it is wrong here: beside this
+ *  format's real reparenting op it reads as a structural change that never
+ *  happened. */
+const planDate = (scope: Scope, request: Extract<Request, { op: "date" }>): Planned =>
+  planEdit(
+    scope,
+    request.id,
+    (node) => withField(node, "date", request.date),
+    (node) => `date: ${node.title} -> ${node.date ?? "(cleared)"}`,
+  )
+
+/**
+ * The DATE's own arm, one field along, and planned by the same function for the
+ * same reason: it is one optional field with one value and no condition.
+ * Nothing here judges the rule, and nothing here judges the PAIR either — a
+ * `repeat` the grammar cannot read, and one with no `date` under it, are both
+ * per-line rules of the format's, refused at the write gate over the bytes this
+ * plan would produce (`@olai/store`'s `commit`). One rule, one wording,
+ * whichever verb moved which half.
+ *
+ * WHAT IT DOES DO is store the CANONICAL spelling: reading a rule is forgiving
+ * (`mon`, `every monday`, `Every Week On Monday`) and writing one is not,
+ * because two files meaning the same thing must not differ byte for byte — a
+ * merge conflict over which way somebody spelled Monday is a conflict about
+ * nothing (docs/format.md's Writing). Text the grammar cannot read passes
+ * through UNCHANGED, so the refusal quotes what the caller actually sent rather
+ * than something this line invented.
+ */
+const planRepeat = (scope: Scope, request: Extract<Request, { op: "repeat" }>): Planned =>
+  planEdit(
+    scope,
+    request.id,
+    (node) =>
+      withField(
+        node,
+        "repeat",
+        request.repeat === null ? null : canonicalRepeat(request.repeat) ?? request.repeat,
+      ),
+    (node) => `repeat: ${node.title} -> ${node.repeat ?? "(cleared)"}`,
+  )
+
 
 // ── the shared middle ──────────────────────────────────────────────────
 
-/** The reading a plan is judged against, plus the two impure things an op
- *  needs. It EXTENDS the pair rather than restating its halves: `plan` is
- *  handed a `Reading` and spreads it in, so a second spelling of those two
- *  fields is one the patcher could leave behind. */
-interface Scope extends Reading {
+/**
+ * The reading a plan is judged against, plus the two impure things an op needs,
+ * plus the ASKING.
+ *
+ * It EXTENDS the pair rather than restating its halves: it is built from a
+ * `Reading` and spreads it in, so a second spelling of those two fields is one
+ * the patcher could leave behind.
+ *
+ * The third field is what `perf-batch-assemble`'s decomplect added, and the
+ * invariant is one line: `asked` describes `set`. Every question a planner has
+ * about the DIRECTORY — which outlines there are, which files hold nothing,
+ * what sits at a path — is answered from that value and nowhere else
+ * ({@link ./asked.ts}), which is what took the asking out of the deciding. The
+ * only way to build one is {@link scoping} and the only thing that carries one
+ * across a batch is {@link ./following.ts}, so the invariant has two places to
+ * hold rather than twenty.
+ */
+export interface Scope extends Reading {
   readonly context: Context
   /**
    * WHAT THIS VAULT DECLARES ABOUT ITS PROPERTY KEYS, and the two readings the
@@ -300,6 +272,10 @@ interface Scope extends Reading {
    * {@link planProp}, which is the plan/validate seam the design names
    * (docs/brainstorming/typed-properties.md: births are gated too).
    *
+   * BESIDE `asked` rather than inside it: `asked` is what THIS CALL asked for,
+   * and this is what the VAULT says about every call — two lifetimes, and the
+   * per-batch context is the one that made the distinction worth spelling.
+   *
    * `documents` is LAZY, and that is the one thing worth knowing about the
    * shape: the `.md` paths are a walk of every document in the directory, and
    * exactly one of the seven kinds reads them (`doc`). A vault that declares no
@@ -307,6 +283,7 @@ interface Scope extends Reading {
    * never pays for it.
    */
   readonly typed: Typed
+  readonly asked: Asked
 }
 
 /**
@@ -316,7 +293,26 @@ interface Scope extends Reading {
  * hundred ops re-reading it through a hundred scopes still walks the
  * declarations file once; what this function adds is the lazy `.md` set, whose
  * memo is this closure.
+ *
+ * EXPORTED for the sequencer ({@link ./following.ts}), which rebuilds a scope
+ * against the set each op would leave — and REBUILT there rather than carried,
+ * which is the opposite of what `asked` does one field over and is right for
+ * the opposite reason: `asked` is expensive and is carried while the writes
+ * cannot have moved it, where this is a map read off a view that has just
+ * changed. A batch whose first op declares a key must be judged by its second
+ * op against that declaration.
  */
+export const typedIn = (at: Reading): Typed => {
+  let documents: ReadonlySet<string> | undefined
+  return {
+    declarations: declarationsOf(at.derived),
+    derived: at.derived,
+    get documents(): ReadonlySet<string> {
+      return documents ??= new Set(markdownIn(at.set).map((entry) => entry.path))
+    },
+  }
+}
+
 /**
  * WHICH NODE OF THE CAPTURE a refusal is about — the locus a value refusal owes
  * and a `set_prop` one does not.
@@ -350,16 +346,32 @@ const locus = (capture: Capture, failure: OpFailure): OpFailure =>
  *  none of the last one's facts" is a decision. */
 const NO_PROPS: Readonly<Record<string, string>> = {}
 
-const typedIn = (at: Reading): Typed => {
-  let documents: ReadonlySet<string> | undefined
-  return {
-    declarations: declarationsOf(at.derived),
-    derived: at.derived,
-    get documents(): ReadonlySet<string> {
-      return documents ??= new Set(markdownIn(at.set).map((entry) => entry.path))
-    },
-  }
-}
+/**
+ * A scope, from the reading a caller holds and the two impure things.
+ *
+ * THE SET AND ITS DERIVATION ARE TAKEN TOGETHER, as the one value the store
+ * published ({@link Reading}), rather than as a set this planner derives from:
+ * the view it plans against is the view the validator approved, so a write is
+ * judged against the same corpus the reader who asked for it was looking at,
+ * and the whole tree is not walked again per keystroke for an answer already in
+ * hand.
+ *
+ * ONE WRITE, ONE ASKING: this is what a single `set_done` builds, and building
+ * it costs nothing at all — the context's answers are lazy and held with the
+ * set ({@link ./asked.ts}), so an op that only asks whether its file is
+ * writable pays for that one answer and no walk of the directory.
+ *
+ * A BATCH builds ONE and carries it ({@link ./following.ts}), which is the
+ * whole of what the node asked for: the questions are asked once for the run
+ * rather than once per op, and the sequencer is what knows when a write moved
+ * something the answers depend on.
+ */
+export const scoping = (at: Reading, context: Context): Scope => ({
+  ...at,
+  context,
+  asked: askedOf(at.set),
+  typed: typedIn(at),
+})
 
 /** A field set to a value, or removed when the value is `null`. `undefined` is
  *  how the format spells absent, and the writer omits it — so this is the one
@@ -464,7 +476,7 @@ const regularAt = (scope: Scope, id: string): Result.Result<LocatedRegular, OpFa
  * which is why what is shared here is the lookup and not the prose.
  */
 const writable = (scope: Scope, file: string): Result.Result<void, OpFailure> => {
-  const broken = brokenIn(scope.set, file)
+  const broken = scope.asked.broken.get(file)
   if (broken !== undefined) {
     return Result.fail(
       new ValidationFailure({
@@ -514,7 +526,7 @@ const landsIn = (
       }),
     )
   }
-  const outline = outlineAt(scope.set, file)
+  const outline = outlineAt(scope.asked, file)
   if (Result.isFailure(outline)) return Result.fail(outline.failure)
   const may = writable(scope, file)
   if (Result.isFailure(may)) return Result.fail(may.failure)
@@ -1150,17 +1162,19 @@ const wiring = (
    *  this call is minting? Asked directly of the two maps rather than of a
    *  union of their keys: a corpus-sized copy per capture, to answer a handful
    *  of lookups, is the walk this codebase spends its per-write budget
-   *  avoiding. What the REFUSAL needs is the ids as an iterable, and that is
-   *  built only on the path that refuses ({@link candidates}). */
+   *  avoiding. The REFUSAL needs no such copy either, since `perf-didyoumean`:
+   *  it is handed the derivation's map WHOLE and the minted ids beside it
+   *  ({@link minting}), so neither the test nor the sentence builds a union. */
   const has = (target: string): boolean =>
     into.taken.has(target) || scope.derived.byId.has(target)
-  /** Every id a did-you-mean may offer, the minted ones included — so a typo of
-   *  a sibling this call is bringing into being is corrected to that sibling,
-   *  which the set's own ids could never have offered. */
-  const candidates = function*(): Iterable<string> {
-    yield* scope.derived.byId.keys()
-    yield* into.taken
-  }
+  /** The ids this call is bringing into being — the candidates a did-you-mean
+   *  may offer BESIDE the ones the set declares, so a typo of a sibling being
+   *  born in this same call is corrected to that sibling, which the set's own
+   *  ids could never have offered. The declared half is the derivation's own
+   *  map, handed over whole rather than concatenated onto these: that is what
+   *  lets the offer be answered off the index held against it rather than a
+   *  walk per refusal ({@link missingId}). */
+  const minting: Iterable<string> = into.taken
   /** A target as the ORDERING GRAPH knows it — a node being born stands for
    *  itself, since there is nothing to resolve it through. */
   const graphed = (target: string): string =>
@@ -1174,7 +1188,7 @@ const wiring = (
   const born = new Map<string, Wire>()
   for (const wire of into.wires) {
     for (const target of [...(wire.see ?? []), ...(wire.after ?? [])]) {
-      if (!has(target)) return Result.fail(missingId(target, candidates()))
+      if (!has(target)) return Result.fail(missingId(target, scope.derived.byId, minting))
     }
     born.set(wire.id, {
       id: wire.id,
@@ -2850,7 +2864,7 @@ const planCreate = (
     )
   }
 
-  if (documentAt(scope.set, file)?.kind === "outline") {
+  if (scope.asked.at(file)?.kind === "outline") {
     return Result.fail(
       new UsageFailure({
         reason:
@@ -3400,7 +3414,7 @@ const untrashLanding = (
 
   const source = titles[0]!
   const rest = titles.slice(1)
-  const live = outlinePaths(scope.set).filter((candidate) => !isTrashed(candidate))
+  const live = scope.asked.outlines.filter((candidate) => !isTrashed(candidate))
   if (!live.includes(source)) {
     return Result.fail(
       new UsageFailure({
@@ -3497,7 +3511,7 @@ const notASignpost = (
   // sitting at the landing — so the copy-at-the-landing test below would
   // let it through and mint a second outline-named heading. Refuse it
   // first, by the title being a live outline path.
-  if (outlinePaths(scope.set).includes(node.title)) {
+  if (scope.asked.serves.has(node.title)) {
     return Result.fail(
       new UsageFailure({
         reason: `\`${node.title}\` is the outline this pile came from — the title ` +
@@ -3912,10 +3926,13 @@ const folded = (
   const nudges: Array<string> = []
   const summaries: Array<string> = []
   let last: Plan | undefined
-  let at: Reading = scope
+  // THE SCOPE the run is planned against, carried: the batch asks the directory
+  // its questions ONCE and the fold hands the answers on ({@link ./asked.ts}),
+  // which is what a hundred-op run used to pay per op.
+  let at: Scope = scope
 
   for (const [index, op] of ops.entries()) {
-    const made = plan(at, scope.context, op)
+    const made = plan(at, op)
     if (Result.isFailure(made)) return Result.fail(dress(index, op, made.failure))
     const one = made.success
 
@@ -4683,11 +4700,14 @@ const planWriteDocument = (
   // documents, and what a path that is not one is told. This verb and
   // `read_document` refuse the same miss, and the only thing they say
   // differently is where to go instead.
-  const document = markdownAt(scope.set, request.file)
+  const document = scope.asked.markdown(request.file)
   if (document === undefined) {
     return Result.fail(
       noSuchDocument(
-        scope.set,
+        // THE CONTEXT's set, not the scope's, though they are the same value: the
+        // near-miss list is a reading of the whole directory, so it goes through
+        // the one thing here that answers about the directory ({@link ./asked.ts}).
+        scope.asked.set,
         request.file,
         "`create_document` is what starts one",
       ),
@@ -4749,7 +4769,7 @@ const planCreateDocument = (
     )
   }
 
-  if (documentAt(scope.set, file) !== undefined) {
+  if (scope.asked.at(file) !== undefined) {
     return Result.fail(
       new UsageFailure({
         reason:
@@ -4872,3 +4892,83 @@ const namingByProp = (
  *  it is retiring. */
 const dependents = (scope: Scope, id: string): ReadonlyArray<string> =>
   heldBy(scope, new Set([id]))
+/**
+ * WHICH PLANNER ANSWERS WHICH VERB — the table, and the whole of the dispatch.
+ *
+ * It was a twenty-six-arm `switch`, and the shape mattered less than what the
+ * switch was mixed in with: four of its arms carried the op's own rules inline
+ * (a stale-`was` sentence, a canonicalised repeat rule) in the middle of a
+ * function whose subject was WHICH function answers. `perf-batch-assemble`'s
+ * second move is this table — one entry per verb, each naming a planner that is
+ * a pure function of the scope and its own request, exactly as `./tools.ts`
+ * declares one entry per TOOL one layer up.
+ *
+ * WHAT IT BUYS, beyond reading as a list: a verb added to the format's
+ * vocabulary and not planned here is a MISSING KEY rather than a `switch` that
+ * compiles and falls through — the same argument `MARK_TOOLS` makes about the
+ * marks, and the same reason it is keyed rather than written out. And a planner
+ * is now reachable, testable and readable without the dispatcher: it takes a
+ * context and an op and answers a value.
+ *
+ * THE FOUR MARKS have four entries and one planner, because they are one op
+ * with four names (`@olai/format`'s `MarkRequest` says so); all four are named
+ * so the keying stays total.
+ */
+const PLANNERS: {
+  readonly [K in Request["op"]]: (
+    scope: Scope,
+    request: Extract<Request, { readonly op: K }>,
+  ) => Planned
+} = {
+  add: planAdd,
+  // One planner, four keys — see the header.
+  done: planMark,
+  cancelled: planMark,
+  doing: planMark,
+  todo: planMark,
+  title: planTitle,
+  desc: planDesc,
+  date: planDate,
+  repeat: planRepeat,
+  prop: planProp,
+  move: planMove,
+  split: planSplit,
+  merge: planMerge,
+  trash: planTrash,
+  duplicate: planDuplicate,
+  untrash: planUntrash,
+  empty: planEmpty,
+  create: planCreate,
+  see: planSee,
+  mirror: planMirror,
+  unmirror: planUnmirror,
+  after: planAfter,
+  doc: planWriteDocument,
+  "create-doc": planCreateDocument,
+  // The two that plan no outline of their own: both fold this same table over a
+  // run of ops ({@link folded}), which is why they are entries here beside the
+  // verbs they are made of rather than living somewhere above them.
+  update: planUpdate,
+  apply: planApply,
+}
+
+/**
+ * ONE OP, PLANNED — the door, over a scope somebody else built.
+ *
+ * The scope is a PARAMETER rather than something this assembles, and that is
+ * `perf-batch-assemble`'s first move at its narrowest: a single write builds
+ * one ({@link scoping}) and a batch builds one and carries it
+ * ({@link ./following.ts}), so the questions about the directory are asked once
+ * per RUN rather than once per op — and nothing here can ask them a second way,
+ * because there is no set to reach for that the context is not describing.
+ *
+ * THE CAST is the only one in this dispatch and it is the price of a keyed table
+ * over a discriminated union: TypeScript reads `PLANNERS[request.op]` as the
+ * union of the entries' types, and no member of that union accepts the union of
+ * the requests — even though the pair that will actually meet is exact. The
+ * table's own declaration is fully checked (an entry whose planner takes the
+ * wrong request does not compile), which is where the safety is; this line only
+ * re-states what the key already decided.
+ */
+export const plan = (scope: Scope, request: Request): Planned =>
+  (PLANNERS[request.op] as (scope: Scope, request: Request) => Planned)(scope, request)

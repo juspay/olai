@@ -195,11 +195,59 @@ export const brokenIn = (
 /** The same fact for a WHOLE ANSWER rather than one path — every listing walks
  *  the files and asks it per row, and a `.find` per row is files × broken on
  *  the first call an agent makes. Both listings built this map inline and
- *  identically before it had a name. */
+ *  identically before it had a name.
+ *
+ *  HELD WITH THE SET ({@link heldFor}), which is what makes {@link brokenIn}
+ *  above a lookup rather than a map built to answer one key: a single write asks
+ *  that question at half a dozen gates (`@olai/ops`' `writable`), and a fold
+ *  click asks it once per file it names — each of which was a fresh map
+ *  (roadmap `perf-homes-files`, `perf-batch-assemble`). */
 export const brokenBy = (
   set: OutlineSet,
-): ReadonlyMap<string, ReadonlyArray<OutlineError>> =>
-  new Map(set.broken.map((entry) => [entry.file, entry.errors]))
+): ReadonlyMap<string, ReadonlyArray<OutlineError>> => {
+  const held = heldFor(set)
+  return held.broken ??= new Map(set.broken.map((entry) => [entry.file, entry.errors]))
+}
+
+/**
+ * The readings of a set that every caller was building for itself, held against
+ * the set they are readings OF.
+ *
+ * THREE OF THEM, and each was a walk of the directory at a call site that reads
+ * as a lookup: which files are broken ({@link brokenBy}), which outlines the
+ * directory serves ({@link outlinePaths}), and that list as a membership test
+ * ({@link outlineNames}). Each is a pure function of the set and none of them
+ * is worth a field — most sets are never asked any of the three, and `assemble`
+ * building all three would put a walk of the corpus in front of every write.
+ *
+ * KEYED ON THE SET, in a `WeakMap`, and that is a lifetime rule rather than a
+ * cache with an invalidation policy. A set is a VALUE: `assemble` mints a new
+ * one per revision and the fold mints one per op ({@link withDocuments}), so
+ * two revisions are two keys and there is no moment at which an entry could
+ * describe a set that has moved. What holds this honest is the same law the
+ * carried index layers keep ({@link ./overlay.ts}): the arrays a set is made of
+ * belong to the revision that assembled it and nobody writes through them. An
+ * entry lives exactly as long as the set does, and a revision nobody holds any
+ * more takes its readings with it.
+ *
+ * A LAZY FIELD PER READING rather than one object built on first ask, so a
+ * caller that only ever wants the broken map does not pay for the paths.
+ */
+interface Held {
+  broken?: ReadonlyMap<string, ReadonlyArray<OutlineError>>
+  paths?: ReadonlyArray<string>
+  names?: ReadonlySet<string>
+}
+
+const HELD = new WeakMap<OutlineSet, Held>()
+
+const heldFor = (set: OutlineSet): Held => {
+  const held = HELD.get(set)
+  if (held !== undefined) return held
+  const fresh: Held = {}
+  HELD.set(set, fresh)
+  return fresh
+}
 
 /**
  * ONE DOCUMENT, by the path a caller named — or `undefined` for a path this
@@ -252,9 +300,34 @@ export const outlinesIn = (set: OutlineSet): ReadonlyArray<Outline> =>
   set.documents.filter(isOutline)
 
 /** The same narrowing to their PATHS, for the callers that want the names —
- *  a listing, a refusal that says which files there are, a membership test. */
-export const outlinePaths = (set: OutlineSet): ReadonlyArray<string> =>
-  outlinesIn(set).map((outline) => outline.path)
+ *  a listing, a refusal that says which files there are, the inbox convention
+ *  a capture is aimed by. HELD WITH THE SET ({@link heldFor}): a capture asks
+ *  it per keystroke, and it is two allocations over every served file. */
+export const outlinePaths = (set: OutlineSet): ReadonlyArray<string> => {
+  const held = heldFor(set)
+  return held.paths ??= outlinesIn(set).map((outline) => outline.path)
+}
+
+/**
+ * The same list as a MEMBERSHIP TEST — "does this directory serve an outline at
+ * that path".
+ *
+ * Four callers were spelling it as `new Set(outlinePaths(set))`, which is a
+ * walk of the directory and a second copy of it to answer one `has` — the fold
+ * memory's question once per fold click (`@olai/ops`' `homes`), the untrash
+ * signpost's once per record, the panel's per write, the committing survey's
+ * per write and per sweep. Held with the set for that reason, and named so the
+ * callers stop building it: what they want is not the list.
+ *
+ * It is NOT {@link documentAt} narrowed, and the difference matters at exactly
+ * one path: this answers about the OUTLINES, so a `.md` sitting where an
+ * outline was asked about is absent here and present there. A caller that wants
+ * the document whatever kind it is wants that function.
+ */
+export const outlineNames = (set: OutlineSet): ReadonlySet<string> => {
+  const held = heldFor(set)
+  return held.names ??= new Set(outlinePaths(set))
+}
 
 /**
  * ONE MARKDOWN DOCUMENT, by the path a caller named — or `undefined` for a
@@ -320,10 +393,13 @@ export const bodiedIn = (set: OutlineSet): ReadonlyArray<Markdown | Unkept> =>
  * in `broken`, and this hands them back as the failure that put them there.
  * Every readable document round-trips exactly, as the value it decoded to.
  *
- * Its one caller is `@olai/ops`' batch fold, which plans op two against the set
- * op one would leave — so it needs the map back to swap one file's records into
- * it. The alternative was a hand-written inverse a package away from the thing
- * it inverts.
+ * WHO ASKS, since `perf-batch-assemble`: the round trip that pins those
+ * invariants (`./set.test.ts`), and the batch fold's REFERENCE ARM — the fold
+ * itself used to take the directory apart and put it back together per op, and
+ * that spelling is kept as the differential's other side
+ * (`@olai/ops`' `following.testlib.ts`) precisely so the carried set can be
+ * proved equal to it at every op rather than by inspection. The fold's live
+ * path is {@link withDocuments} below.
  */
 export const apart = (
   set: OutlineSet,
@@ -335,6 +411,82 @@ export const apart = (
     files.set(document.path, Result.succeed(document))
   }
   return files
+}
+
+/**
+ * THE SET WITH THESE FILES WRITTEN INTO IT — the same value {@link assemble}
+ * would build from the same files, reached without taking the directory apart
+ * and sorting it again.
+ *
+ * **WHY IT EXISTS.** The batch fold plans each op against the set the op before
+ * it would leave, and it built that set by inverting the whole directory into a
+ * map, swapping the touched files in and re-assembling — a fresh path SORT of
+ * every served file, per op, so a hundred-op batch paid for the directory a
+ * hundred times (roadmap `perf-batch-assemble`; `assemble`'s own header
+ * measures what that sort is). Nothing about the answer needed it: the set it
+ * starts from is already in path order, and an op touches one file or two.
+ *
+ * **WHAT IT IS EQUAL TO**, which is the whole contract and is one line:
+ *
+ *     withDocuments(set, written)  ≡  assemble(apart(set) + written)
+ *
+ * Same documents in the same path order, same `broken` in the same order, and
+ * a file that WAS broken and is now written leaves `broken` exactly as
+ * re-assembling would have left it. `@olai/ops`' `following.equivalence.test.ts`
+ * holds the two to each other at every op of scripted batches; this side is one
+ * pass over the documents and a binary search per file written, and that side
+ * is the sort.
+ *
+ * **IT COPIES, and the copy is the point.** The arrays are rebuilt rather than
+ * written into, so the set a caller is already holding cannot move under it —
+ * the aliasing law the carried index layers keep ({@link ./overlay.ts}), owed
+ * here for the same reason: the fold hands each intermediate set to a planner
+ * that may refuse, and the set the batch STARTED from is the caller's. What is
+ * shared is the documents themselves, which are values nobody writes through.
+ * A pass over an array of references is not what was expensive.
+ *
+ * **A DOCUMENT AND NOT A DECODE.** Everything this is handed parsed — the fold
+ * writes files it has just serialised and read back — so there is no failure
+ * arm to take and no way for this to put a file INTO `broken`. A caller holding
+ * a file that did not decode wants {@link assemble}, which is what the store's
+ * probe already goes through.
+ */
+export const withDocuments = (
+  set: OutlineSet,
+  written: Iterable<Document>,
+): OutlineSet => {
+  const swapped = new Map<string, Document>()
+  for (const document of written) swapped.set(document.path, document)
+  // An op that wrote nothing leaves the set it was given, identity and all —
+  // which is what the fold's first op does to the reading it starts from.
+  if (swapped.size === 0) return set
+
+  // The files this set does not hold a place for yet, in path order: they are
+  // the only ones that MOVE anything, and there is at most a handful of them.
+  const arriving = [...swapped.values()]
+    .filter((document) => documentAt(set, document.path) === undefined)
+    .sort((one, other) => byPath(one.path, other.path))
+
+  const documents: Array<Document> = []
+  let next = 0
+  for (const held of set.documents) {
+    // Everything sorting before this path goes in first, which is what keeps
+    // the promise {@link assemble} makes about the order.
+    while (next < arriving.length && byPath((arriving[next] as Document).path, held.path) < 0) {
+      documents.push(arriving[next++] as Document)
+    }
+    documents.push(swapped.get(held.path) ?? held)
+  }
+  while (next < arriving.length) documents.push(arriving[next++] as Document)
+
+  // A file that is written is a file that READ, so it leaves `broken` — and the
+  // array is left alone, identity and all, when nothing written was in it,
+  // which is every batch that does not mend a file.
+  const mended = set.broken.some((entry) => swapped.has(entry.file))
+  return {
+    documents,
+    broken: mended ? set.broken.filter((entry) => !swapped.has(entry.file)) : set.broken,
+  }
 }
 
 /**

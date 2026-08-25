@@ -31,7 +31,7 @@ import {
   bodyKind,
   type Derived,
   didYouMean,
-  documentAt,
+  didYouMeanDeclared,
   isOutline,
   markdownIn,
   NotFoundFailure,
@@ -39,11 +39,12 @@ import {
   type Outline,
   type OutlineError,
   type OutlineSet,
-  outlinePaths,
   UsageFailure,
   ValidationFailure,
 } from "@olai/format"
 import { Result } from "effect"
+
+import type { Asked } from "./asked.ts"
 
 /**
  * An id nothing in the set declares — ONE refusal, whatever the id was doing.
@@ -54,7 +55,7 @@ import { Result } from "effect"
  * was marking that node or hanging a mirror off it.
  *
  * It teaches the way the VALIDATOR does, with the validator's own rule
- * (`@olai/format`'s `nearestId`): an unknown reference is nearly always a
+ * (`@olai/format`'s `nearestDeclared`): an unknown reference is nearly always a
  * misspelling, so the closest id within a typo's distance is offered and
  * anything further away is not, because a guess that is merely nearest teaches
  * a reader to distrust the offer. Where there is nothing close, the answer names
@@ -72,7 +73,7 @@ import { Result } from "effect"
  * products.
  */
 export const notFound = (derived: Derived, id: string): OpFailure =>
-  missingId(id, derived.byId.keys())
+  missingId(id, derived.byId)
 
 /**
  * The same sentence over whatever ids are KNOWN — the set's, or the set's plus
@@ -82,11 +83,24 @@ export const notFound = (derived: Derived, id: string): OpFailure =>
  * edges may name a sibling in the same call, so an id that is a typo of one of
  * THOSE has to be offered too. A second spelling of this refusal would be a
  * `see` target corrected one way by `set_see` and another by `add_node`.
+ *
+ * IT TAKES THE MAP, not the ids, and the extra candidates BESIDE it rather than
+ * concatenated onto it — which is what lets the offer be answered off an index
+ * held against the derivation instead of a walk of every id per refusal
+ * (`@olai/format`'s `./suggest.ts`, roadmap `perf-didyoumean`). A stale tab
+ * replaying twenty refused edits is the shape that motivated it; the handful a
+ * capture is minting stay a walk, and stay LAST, so a tie still goes to the id
+ * the set already declares.
  */
-export const missingId = (id: string, known: Iterable<string>): OpFailure => {
+export const missingId = (
+  id: string,
+  known: ReadonlyMap<string, unknown>,
+  /** The ids a call is about to bring into being, if any — see above. */
+  minting?: Iterable<string> | undefined,
+): OpFailure => {
   // The CLAUSE is the format's too, not just the budget behind it: a refusal
   // and a load error say "did you mean" in one voice or in two.
-  const near = didYouMean(id, known)
+  const near = didYouMeanDeclared(id, known, minting)
   return new NotFoundFailure({
     reason: near === ""
       ? `\`${id}\` is not a node in the loaded set, and nothing in it is spelled ` +
@@ -172,8 +186,8 @@ export const noSuchDocument = (
  * ({@link notFound} argues the split): a directory has a handful of outlines
  * and a few thousand nodes.
  */
-const noSuchOutline = (set: OutlineSet, file: string): OpFailure => {
-  const outlines = outlinePaths(set)
+const noSuchOutline = (asked: Asked, file: string): OpFailure => {
+  const outlines = asked.outlines
   const near = didYouMean(file, outlines)
   return new NotFoundFailure({
     reason: near === ""
@@ -199,16 +213,23 @@ const noSuchOutline = (set: OutlineSet, file: string): OpFailure => {
  *
  * `isOutline` is the FORMAT's kind test, named there rather than spelled as a
  * `kind` comparison wherever it is wanted (`@olai/format`'s `document.ts`), and
- * `documentAt` is the point lookup that answers what is at a path at all. This
- * composes the two; it decides nothing of its own.
+ * the point lookup that answers what is at a path at all is the context's
+ * ({@link ./asked.ts}). This composes the two; it decides nothing of its own.
+ *
+ * IT TAKES THE ASKING rather than the set, since `perf-batch-assemble`: what a
+ * path holds is one of the three questions a planner used to ask the directory
+ * per op, and the point of that node was that they are asked once and handed
+ * over. A read holds no batch and no context to carry, so `read_subtree` builds
+ * one for the call (`./query.ts`) — which costs nothing, because the answers
+ * inside one are held with the set and computed only when somebody asks.
  */
 export const outlineAt = (
-  set: OutlineSet,
+  asked: Asked,
   file: string,
 ): Result.Result<Outline, OpFailure> => {
-  const found = documentAt(set, file)
+  const found = asked.at(file)
   if (found === undefined || !isOutline(found)) {
-    return Result.fail(noSuchOutline(set, file))
+    return Result.fail(noSuchOutline(asked, file))
   }
   return Result.succeed(found)
 }

@@ -119,7 +119,7 @@ import {
   propertiesIn,
   shadowFor,
 } from "./node.ts"
-import { didYouMean } from "./suggest.ts"
+import { didYouMean, didYouMeanDeclared } from "./suggest.ts"
 
 // ── the vocabulary ─────────────────────────────────────────────────────
 
@@ -285,7 +285,7 @@ export const BOOTSTRAP: ReadonlyMap<string, Grounded> = new Map<string, Grounded
       return located !== undefined
         ? "is a mirror — a second placement rather than a node of its own, so " +
           "nothing hangs under it. Name the node it points at."
-        : `no node declares${didYouMean(value, derived.byId.keys())}`
+        : `no node declares${didYouMeanDeclared(value, derived.byId)}`
     },
   }],
 ])
@@ -826,7 +826,7 @@ const wrongNode = (
       `placement rather than a node of its own.`
   }
   return `${named} names a node — \`${value}\` is not one this set declares${
-    didYouMean(value, typed.derived.byId.keys())
+    didYouMeanDeclared(value, typed.derived.byId)
   }`
 }
 
