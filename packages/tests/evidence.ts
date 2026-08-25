@@ -4026,7 +4026,7 @@ const SECTIONS = {
         `"custom":{"agent":"claude-opus","brief":"finishes.md","dispatched":"2026-08-24 16:20",` +
         `"merge":"the human approves","reviewer":"basil",` +
         `"worktree":".worktrees/markdown-raw-flash",` +
-        `"pr":"https://github.com/juspay/olai/pull/369",` +
+        `"records":"https://github.com/juspay/olai/pull/369",` +
         `"verdict":"DO-NOT-OBJECT at c2704bc6 — the owner map verified against the diff, and the wait discipline holds"}}`,
     ])
 
@@ -4249,7 +4249,7 @@ const SECTIONS = {
    *   3. the same refusal offering the variant a near miss was a typo of;
    *   4. a value that FITS, stored as the ONE spelling — `2026-8-30` typed,
    *      `2026-08-30` on disk;
-   *   5. `prop:pr=190..200` ANSWERING, with the lane at 1000 left out, which is
+   *   5. `prop:records=190..200` ANSWERING, with the lane at 1000 left out, which is
    *      the whole of what comparing as a number bought;
    *   6. a range on a key nobody declared, refused with the reason rather than
    *      answered with an empty list and no sentence;
@@ -4332,7 +4332,7 @@ const SECTIONS = {
 
     // 5. THE SPAN ANSWERING. `far` carries 1000, which a string comparison puts
     // inside `190..200` — so its absence from the rows is the claim.
-    await asks("prop:pr=190..200", "a-span-on-a-declared-int")
+    await asks("prop:records=190..200", "a-span-on-a-declared-int")
     // 6. ...and a range on a key nobody declared, refused with the reason.
     await asks("prop:terminal=190..200", "a-range-on-an-untyped-key-is-refused")
 

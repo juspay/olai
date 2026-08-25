@@ -1,5 +1,5 @@
 {"id":"lanes","ord":"a0","title":"the lanes"}
-{"id":"backlinks","parent":"lanes","ord":"a0","title":"the doc-backlinks lane","custom":{"pr":"189","agent":"grok","merge":"auto","dispatched":"2026-08-19T09:00:00-04:00"}}
-{"id":"props","parent":"lanes","ord":"a1","title":"the typed-properties lane","custom":{"pr":"193","agent":"claude","merge":"human","dispatched":"2026-08-25T10:06:00-04:00","brief":"briefs/tp.md","worktree":".worktrees/typed-properties"}}
-{"id":"chips","parent":"lanes","ord":"a2","title":"the chip-editor lane","custom":{"pr":"200","agent":"pi","merge":"auto","dispatched":"2026-08-21"}}
-{"id":"far","parent":"lanes","ord":"a3","title":"a lane from long ago","custom":{"pr":"1000","terminal":"a uuid, and a remark about it"}}
+{"id":"backlinks","parent":"lanes","ord":"a0","title":"the doc-backlinks lane","custom":{"records":"189","agent":"grok","merge":"auto","dispatched":"2026-08-19T09:00:00-04:00"}}
+{"id":"props","parent":"lanes","ord":"a1","title":"the typed-properties lane","custom":{"records":"193","agent":"claude","merge":"human","dispatched":"2026-08-25T10:06:00-04:00","brief":"briefs/tp.md","worktree":".worktrees/typed-properties"}}
+{"id":"chips","parent":"lanes","ord":"a2","title":"the chip-editor lane","custom":{"records":"200","agent":"pi","merge":"auto","dispatched":"2026-08-21"}}
+{"id":"far","parent":"lanes","ord":"a3","title":"a lane from long ago","custom":{"records":"1000","terminal":"a uuid, and a remark about it"}}

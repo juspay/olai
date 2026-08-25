@@ -274,7 +274,7 @@ a key changes the whole namespace" looks like from a test suite.
 |---|---|
 | a `ref` whose variants are its own children | `merge` → `auto`, `human` |
 | a `ref` pointing at a roster elsewhere | `agent` → the children of `agents` in `agents.olai` |
-| an `int` | `pr` — 189, 193, 200, and a 1000 that a string comparison would put inside `190..200` |
+| an `int` | `records` — 189, 193, 200, and a 1000 that a string comparison would put inside `190..200`. NOT `pr`, deliberately: olai's own vault declares `pr-url` as text (the human, 2026-08-25), and a fixture teaching the opposite about the same word would be the one place in this repository that disagrees with the board it ships beside. |
 | a `date`, both stored widths | `dispatched` — an instant on `props`, a bare day on `chips` |
 | a `doc` | `brief` on `props`, naming `briefs/tp.md` |
 | a `path` | `worktree` on `props` |

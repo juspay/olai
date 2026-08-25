@@ -142,7 +142,7 @@ export type PropType =
   | { readonly kind: "text" }
   /** An ISO day or instant, and nothing else — the story goes in the note. */
   | { readonly kind: "date" }
-  /** A number, not a string that has one in it: `pr: 193`. */
+  /** A number, not a string that has one in it: `records: 193`. */
   | { readonly kind: "int" }
   /** Path-shaped, and it may point anywhere — `worktree`. */
   | { readonly kind: "path" }
@@ -388,7 +388,7 @@ const declaringIn0 = (
  * keys, because a property is something somebody typed into a map that gives no
  * key a spelling ({@link ./filter.ts}'s `propKeyOf`). A vault declaring `pr`
  * and a record carrying `PR` are one key to a reader and to a search, so they
- * have to be one key to the fence as well — otherwise `prop:PR=190..200` is a
+ * have to be one key to the fence as well — otherwise `prop:RECORDS=190..200` is a
  * span while `set_prop {"key":"PR"}` is untyped, which is the grammar and the
  * gate disagreeing about the same word.
  *

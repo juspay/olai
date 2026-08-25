@@ -482,7 +482,7 @@ export const PropRequest = Schema.Struct({
    *  is a key the file does not carry. */
   value: Schema.NullOr(Schema.String).annotate({
     description:
-      "What the property holds, as text. `null` removes it — and so does the empty string, since a key holding nothing is a key the file does not carry. A key the vault DECLARES in `_olai/Properties.olai` has a type, and a value that does not fit it is REFUSED with the values it may hold named: `merge` is one of its declared variants' ids, `pr` is a whole number, `dispatched` is a date and nothing else — the commentary goes in the note. An accepted spelling is stored as the one canonical spelling (`2026-08-25 10:06` lands as the instant a mark records). Every other key is text and takes anything, as before.",
+      "What the property holds, as text. `null` removes it — and so does the empty string, since a key holding nothing is a key the file does not carry. A key the vault DECLARES in `_olai/Properties.olai` has a type, and a value that does not fit it is REFUSED with the values it may hold named: `merge` is one of its declared variants' ids, `records` is a whole number, `dispatched` is a date and nothing else — the commentary goes in the note. An accepted spelling is stored as the one canonical spelling (`2026-08-25 10:06` lands as the instant a mark records). Every other key is text and takes anything, as before.",
   }),
 })
 

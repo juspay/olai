@@ -4,5 +4,5 @@
 {"id":"prop-merge","ord":"a3","title":"merge","custom":{"type":"ref"}}
 {"id":"auto","parent":"prop-merge","ord":"a0","title":"automatic"}
 {"id":"human","parent":"prop-merge","ord":"a1","title":"the human merges"}
-{"id":"prop-pr","ord":"a4","title":"pr","custom":{"type":"int"}}
+{"id":"prop-records","ord":"a4","title":"records","custom":{"type":"int"}}
 {"id":"prop-worktree","ord":"a5","title":"worktree","custom":{"type":"path"}}

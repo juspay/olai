@@ -416,7 +416,7 @@ type Clause =
      * ...and a SPAN is the third thing a `prop:` can ask, on a key whose
      * declaration says its values COMPARE ({@link ../typing.ts}).
      *
-     * `prop:pr=190..200`, `prop:dispatched=2026-08-20..` — the syntax `created:`
+     * `prop:records=190..200`, `prop:dispatched=2026-08-20..` — the syntax `created:`
      * already has, reused rather than invented, because a range of days is a
      * range of days whichever field it is read of. It is meaningful ONLY on a
      * declared `date` or `int` key: comparing strings as if they were dates is
@@ -788,7 +788,7 @@ export const parseFilter = (
    * WHAT THE VAULT DECLARES about its property keys, for the doors that have
    * read it — and ABSENT, not empty, for the one that has not.
    *
-   * It is what makes `prop:pr=190..200` a span rather than an equality against
+   * It is what makes `prop:records=190..200` a span rather than an equality against
    * eight characters ({@link propClause}), so every door that MATCHES hands it
    * over: `search_nodes` and the two search boxes through `@olai/ops`' query,
    * and the box that narrows a page through `./narrowing.ts`. The door that
@@ -1035,7 +1035,7 @@ const propClause = (
   // NOT CONSULTED IS NOT UNTYPED, and the two are told apart by the map being
   // absent rather than empty. A door that has not read the vault has no
   // standing to say a key is undeclared: a tab parsing its own filter box holds
-  // no vocabulary (see {@link parseFilter}), and refusing `prop:pr=190..200`
+  // no vocabulary (see {@link parseFilter}), and refusing `prop:records=190..200`
   // there would draw a refusal under a query the server is busy ANSWERING —
   // the app disagreeing with itself in front of the reader. So an unconsulted
   // parse reads what it always read: an equality on the text.

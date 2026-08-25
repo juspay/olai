@@ -308,7 +308,7 @@ export const search = (
   index?: Index | undefined,
 ): SearchAnswer => {
   // THE VAULT'S OWN VOCABULARY, handed to the grammar — which is what makes
-  // `prop:pr=190..200` a span rather than an equality against the eight
+  // `prop:records=190..200` a span rather than an equality against the eight
   // characters between the equals and the space (`@olai/format`'s `typing.ts`).
   // Read per ask, off the reading this search is answered from, so a
   // declaration written a moment ago is in force for the next query; it is one

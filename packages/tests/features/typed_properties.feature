@@ -14,7 +14,7 @@ Feature: A property key that declares its type
   back to what it was.
 
   And the reading side: a key declared `int` or `date` compares, so `..` becomes
-  honest and `prop:pr=190..200` is a question the header box can answer
+  honest and `prop:records=190..200` is a question the header box can answer
   (docs/search.md). A range on a key nobody declared is refused with the reason,
   because comparing text as if it were a number is the lie types exist to
   prevent.
@@ -81,11 +81,11 @@ Feature: A property key that declares its type
   # ── the reading side ─────────────────────────────────────────────────
 
   Scenario: A span on an int key answers, and compares as a number
-    # `prop:pr=190..200` is the query the whole feature is named after. The
+    # `prop:records=190..200` is the query the whole feature is named after. The
     # lane at 1000 is the one that proves the comparison: as TEXT, "1000" sorts
     # inside "190".."200", and this is why declaring the key was worth doing.
     Given I open the app
-    When I search the header for "prop:pr=190..200"
+    When I search the header for "prop:records=190..200"
     Then the header search lists the node "the typed-properties lane"
     And the header search lists the node "the chip-editor lane"
     And the header search does not list the node "the doc-backlinks lane"

@@ -45,7 +45,7 @@ One matcher was never quite the whole of it, because the question and the answer
 | `created:2026-08` `changed:today` `created:last-week..` | the two STAMPS — when olai captured the node, and when it last wrote to it. Every value `date:` takes, and not the same question — see below |
 | `prop:pr` | carries that custom property at all — `has:` asked of a map with no fixed list of keys |
 | `prop:agent=claude-opus` | carries it holding that value; a list matches on any member |
-| `prop:pr=190..200` `prop:dispatched=2026-08-20..` | an inclusive SPAN, on a key the vault declares `int` or `date` — every value `date:` takes, either end optional. A range on any other key is refused — see below |
+| `prop:records=190..200` `prop:dispatched=2026-08-20..` | an inclusive SPAN, on a key the vault declares `int` or `date` — every value `date:` takes, either end optional. A range on any other key is refused — see below |
 | `-anything` | takes that word or operator back out — ONE leading dash. A second one is a character, not a second negation: `--force` is a word people write, so `--is:done` looks for that text and finds it wherever somebody typed it |
 
 `date:` reads the three dates a journal reads — what the node is scheduled for, when it was finished, and when it was CALLED OFF. A dated `doing` or `todo` is on no day here, exactly as on the day page ([format.md](format.md)).
@@ -91,13 +91,13 @@ Comparison is over text, so a duration is a **wall-clock** subtraction: an hour 
 A key the vault DECLARES `int` or `date` in `_olai/Properties.olai` ([format.md](format.md#typed-properties)) gains **spans**, in the syntax `created:` already has — because the declaration is what makes `..` honest:
 
 ```
-prop:pr=190..200                    PRs in a range
+prop:records=190..200               a count in a range
 prop:dispatched=2026-08-20..        every lane dispatched since the 20th
 prop:dispatched=last-week..today    the day words, unchanged
 prop:merge=auto is:todo             equality on a ref, exactly as before
 ```
 
-**An `int` compares as a NUMBER**, which is the whole of what declaring it bought: `prop:pr=9..200` does not answer `1000`, and a string comparison says it does. A bare number is that number however it is written; a leading zero is refused at the query exactly as it is refused at the write, because there is one spelling of a number.
+**An `int` compares as a NUMBER**, which is the whole of what declaring it bought: `prop:records=9..200` does not answer `1000`, and a string comparison says it does. A bare number is that number however it is written; a leading zero is refused at the query exactly as it is refused at the write, because there is one spelling of a number.
 
 **A `date` compares as ISO TEXT**, at each bound's own width, and it takes every value `date:` takes — days, months, years, the twelve relative words, durations, and any of them at either end of a range. A bare day is that day's span, so a stored instant on it is inside.
 

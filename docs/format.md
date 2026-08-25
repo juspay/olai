@@ -82,9 +82,12 @@ dispatched  2026-08-25 10:06 (sweep queue #5; the slot freed by #387's merge)
 {"id":"auto","parent":"prop-merge","ord":"a0","title":"automatic"}
 {"id":"human","parent":"prop-merge","ord":"a1","title":"the human merges"}
 {"id":"prop-dispatched","ord":"a1","title":"dispatched","custom":{"type":"date"}}
-{"id":"prop-pr","ord":"a2","title":"pr","custom":{"type":"int"}}
+{"id":"prop-records","ord":"a2","title":"records","custom":{"type":"int"}}
+{"id":"prop-pr-url","ord":"a4","title":"pr-url","custom":{"type":"text"}}
 {"id":"prop-agent","ord":"a3","title":"agent","custom":{"type":"ref","under":"agents-roster"}}
 ```
+
+**A DECLARED `text` is a real declaration**, and `pr-url` is the example worth reading twice. A pull request could have been an `int` with the repo scoped beside it — and was, for one commit of this feature's own migration. It bought spans and cost a vocabulary: four keys for one fact (`pr`, `olai-pr`, `kolu-pr`, `drishti-pr`), a scope rule a writer had to hold in their head about which one applied, and a door that still had to derive the address from a repo ref plus a number before anything could be clicked. The URL carries the repo IN the value, so there is nothing to scope and nothing to derive — an agent parses the number out when it wants one, and a URL has always been a door. Declaring it `text` is not giving up: it is saying that this shape is deliberate, in the one place a future tidier will look (ruled by the human, 2026-08-25).
 
 **Data, not config.** Editing the vocabulary is editing an outline: adding a variant is adding a child row, the file opens in olai like any other, and nothing restarts. Per-outline declarations were considered and rejected — props are ONE namespace across the vault, so `merge` on a lane and `merge` anywhere else mean one thing or a key's meaning depends on where the reader is standing.
 
@@ -131,7 +134,7 @@ A hand edit that lands a bad value makes the file **broken, naming the key** (`b
 
 **What typing does NOT do.** No required keys, no schema per node kind, no defaults. A node may carry any subset of keys, as today. This is one rule about values.
 
-Typed keys gain **spans** in search (`prop:pr=190..200`) — see [search.md](search.md).
+Typed keys gain **spans** in search (`prop:records=190..200`) — see [search.md](search.md).
 
 ## Status
 
