@@ -136,12 +136,7 @@ A `judge` step's procedure creates a kolu terminal in the lane's worktree runnin
 
 ## PR phases
 
-0. **kolu: thin client** (ask 2). PR 1 waits.
-1. **olai: `/orchestrator`, read-only** — padi mirror (`cells.kolu`, `collections.fleet`), `cells.board`, `cells.needsYou`, `procedures.screen` (snapshot on demand), the page, `--padi-socket`, "no kolu" drawn honestly.
-2. **olai: events land** — `watchStates` facts written onto lane steps by the driver; `instructions.md` drops the doorbell section.
-3. **olai: actions** — the procedure registry's first verbs: dispatch (with `merge=auto|human`), kill/retire, mute, approve, re-dispatch, bounce; chat "about this lane". `instructions.md` drops dispatch and retirement.
-4. **kolu: PrInfo fields** (ask 1), then **olai: gates** — `kind`/`gate`/`agent` on `dag.olai`; the driver flips marks from predicates and runs procedures; merge fires from the board. No interim.
-5. **olai: judgment + pi lanes** — the judge procedure (kolu terminal, Fable, subscription); `mechanical` steps dispatch to pi with per-step skills. The terminal orchestrator retires.
+**Moved to the roadmap** (2026-08-25): the phases live as nodes under `orch-phases` (features → Orchestrator), where the order is *edges the board enforces* — `set_doing` refuses a blocked phase — rather than a numbered list in prose. The standing rule travels with them: **each PR is self-sufficient — complete and correct on its own the day it merges, nothing deferred.** The shape, for orientation: kolu's thin client gates 1a (the terminal door) and 1b (the read-only page, either order); events → actions → gates (gates also waiting on kolu's PrInfo fields) → judgment+pi; the stream (phase 6) waits only on the door.
 
 ## Löwy and Hickey, applied
 
@@ -162,4 +157,4 @@ Yegge's ["Fences, not Sandboxes"](https://yegge.ai/essays/fences-not-sandboxes/)
 - **`SKILL.md` home for pi steps:** cloned from the template's `brief` at dispatch into the worktree's `.agents/skills/` (leaning — keeps the orchestrator self-contained), or checked into each repo, with a repo's own skills overriding.
 - **Other repos' vaults:** how the harness writes a foreign roadmap — olai-to-olai surface client, or the lane's agent updates its own repo's vault and the harness only reads. Undecided.
 - **Padi surface version pinning:** is olai's npins pin of kolu also its padi contract pin, or is the hello's skew check the only gate.
-- **Someday:** terminals streamed into olai (`terminalAttach` exists padi-side; the page could host xterm over it). Snapshots on demand cover the night until then.
+- ~~Someday: terminals streamed into olai~~ — graduated to phase 6 (the terminal door's third rung), 2026-08-25. Snapshots cover the gap until it lands.
