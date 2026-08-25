@@ -410,17 +410,19 @@ export const firstLine = (text: string): string => {
   return ""
 }
 
-/** One encoder for the process, because `bytesOf` is called once per served
- *  document and constructing one per call is the only avoidable cost here. */
+/** One encoder for the process, because `bytesOf` is the definition of a
+ *  document's weight and constructing one per call is the only avoidable cost
+ *  here. Paid at decode ({@link ./document.ts}'s `bodiedDocument`), not per
+ *  listing. */
 const UTF8 = new TextEncoder()
 
 /**
  * What a document's text WEIGHS, in bytes, as UTF-8 on disk.
  *
  * Beside {@link firstLine} because it is the same kind of fact — the two things
- * that can be said about a document without reading it, and the two a listing
- * carries. What a caller does with it is decide whether to ask for the whole
- * of it.
+ * that can be said about a document without walking its markdown, and the two a
+ * listing carries. What a caller does with it is decide whether to ask for the
+ * whole of it.
  *
  * BYTES rather than `text.length`, which is UTF-16 units and would report a
  * different number than every other tool a person has for the same file. This
@@ -436,18 +438,14 @@ const UTF8 = new TextEncoder()
  * read are already replacement characters by the time this counts them, and
  * the answer can exceed the file's size on disk. That is the RIGHT number for
  * what this field is for — it matches the text `read_document` hands over and
- * the text `write_document`'s `was` is compared against — and it is the same
- * deferral as below: the store knows the real one and throws it away.
+ * the text `write_document`'s `was` is compared against.
  *
- * WHAT IT COSTS, stated because this package argues about wire cost
- * everywhere else: a listing is O(the bytes of every served `.md`), where
- * {@link ./set.ts}'s outline listing is O(nodes). That is a cost class up, and
- * it is accepted for now because it is an agent's occasional call over bodies
- * the process is already holding — not a render, not a keystroke, not a
- * subscription. The cheaper form exists if it ever matters and is one layer
- * down: `@olai/store` decodes each file and throws away the byte count the
- * read already had, so carrying it onto {@link Document} would make this
- * O(documents) and delete the question.
+ * PAID AT DECODE. {@link ./document.ts}'s `bodiedDocument` remembers the
+ * answer on the document, so a listing is O(documents) rather than O(the bytes
+ * of every served `.md`). This function stays the definition of the number —
+ * the listing's test holds the remembered field to a recompute from the body,
+ * including over multi-byte UTF-8, which is the case a UTF-16-unit count would
+ * silently get wrong.
  */
 export const bytesOf = (text: string): number => UTF8.encode(text).length
 
