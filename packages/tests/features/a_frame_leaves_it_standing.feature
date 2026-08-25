@@ -10,7 +10,7 @@ Feature: A frame leaves the rest of the page standing
   array in it is a FRESH OBJECT (docs/brainstorming/reactivity-after-the-flip.md
   §2). A list drawn by reference therefore rebuilt itself on every frame,
   whether or not one word of it had changed: the crumbs over a zoomed node, the
-  properties under an open row, the chips in an open edge panel, the rows in a
+  properties under a row, the chips in an open edge panel, the rows in a
   document's referrers section, every pin on the shelf.
 
   Nothing on screen said so — a rebuilt list is drawn with the same tags, the
@@ -47,7 +47,7 @@ Feature: A frame leaves the rest of the page standing
     And the page has not reloaded
     And there should be no page errors
 
-  Scenario: An open row's properties hold still while another row is retitled
+  Scenario: A row's properties hold still while another row is retitled
     # The ROW is where a node is an array element, which is where the rebuild
     # was: a zoomed heading's node is merged in place and never showed it.
     Given I rewrite "house.olai" as:
@@ -58,7 +58,8 @@ Feature: A frame leaves the rest of the page standing
       """
     And I open the outline "house.olai"
     And I mark the page
-    When I open the note of "hinges"
+    # No ¶ to press: the run is drawn on the row whether it is open or not
+    # (`props-doors-autoshow`), and `hinges` has no note behind a mark anyway.
     Then the node "hinges" shows the property "pr" holding "https://example.invalid/1"
     And I mark every element of the "property drawer"
     When I rewrite "house.olai" as:

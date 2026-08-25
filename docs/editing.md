@@ -30,13 +30,13 @@ Nothing has a mode: the title becomes an input in the same place, at the same si
 
 ## A row is its title
 
-An outline is a column of titles, so that is what it draws. Everything else a node carries — its note, its properties, what it points at — waits behind a small dim **¶** beside the title. Press the ¶ (or **Space**, with it focused) and the row opens into three lines and no grid: the title line, now saying it is open, with its tags brightened; the node's properties as one dim dot-separated run; then the note. Press it again, click away, or press **Escape**, and the row folds back. A node with nothing behind it wears no ¶ at all, so the mark is always a promise there is something there.
+An outline is a column of titles, so that is what it draws — that, and the short facts a node carries, which are drawn as a run of chips under the title whether the row is open or not (*What a node says about itself*, below). What waits behind the small dim **¶** beside the title is the node's **note** and what it points at. Press the ¶ (or **Space**, with it focused) and the row opens: the title line says so, its tags brighten, and the note appears in full under the facts. Press it again, click away, or press **Escape**, and the row folds back. A node with nothing behind it wears no ¶ at all, so the mark is always a promise there is something there — and a node whose only body is properties has none, because the properties are already on the row.
 
 **How much a row starts as is yours**, in *prefs → Notes*:
 
-- **Compact** — the title alone.
-- **Cozy** — the title and the first line of the note under it, clamped. This is the default, and the shape every row had before the compact switch existed.
-- **Open** — every note you have not folded yourself is already open: the node's properties, then the note in full.
+- **Compact** — the title and its facts alone.
+- **Cozy** — those, and the first line of the note under them, clamped. This is the default, and the shape every row had before the compact switch existed.
+- **Open** — every note you have not folded yourself is already open, in full.
 
 It is a default and not a lock. The ¶ works at all three, and only rows you have not touched follow the setting — fold one at Open and it stays folded, open one at Compact and it stays open. Like every preference it belongs to this browser, reaches every tab of it, and is never sent anywhere: two machines reading the same vault are entitled to disagree about it, and it is one setting for the whole app rather than one per outline, because "I read a tree as a list of titles" is a fact about you and not about any one file.
 
@@ -243,23 +243,49 @@ Everywhere else, the new occurrence is simply a dated node: on the agenda, on it
 
 ## What a node says about itself
 
-A node's **properties** are named facts on it ([format.md](format.md)) — `pr`, `agent`, `isbn`, whatever a reader wants to be able to ask about later. They live in the record's one open field, `custom`, and they are drawn above the node's note as a quiet RUN: dim `key value` pairs on one wrapping line, dot-separated, reading like a byline under a headline. Never a grid and never a form — a table under every open row turns an outline into a spreadsheet.
+A node's **properties** are named facts on it ([format.md](format.md)) — `pr`, `agent`, `isbn`, whatever a reader wants to be able to ask about later. They live in the record's one open field, `custom`, and they are drawn under the node's title as a **run of chips**: one small bordered pill per fact, the key mono and muted, the value first-class. One wrapping line, reading like a byline under a headline. Never a grid and never a form — a table under every open row turns an outline into a spreadsheet.
 
-**On a row they are part of the open state** (see *A row is its title*, below), and a node that carries one earns a pilcrow for it even with no note — a fact written into a place with no door is a fact nobody can read. **A row draws the custom keys only.** The node's own facts are already on the row: the mark is the glyph, the date is the badge, the repeat rule is the pill beside it, the id is where the bullet goes, and repeating them under the title would put two spellings of one fact on one screen.
+**They are shown on the row automatically, open or not.** A fact behind a fold is a fact nobody reads, and a property is a short fact by rule — the display's job is to make five of them cost one line rather than five, not to hide them. So what a pilcrow opens is the **note** and the `see` references under it, and nothing else; a node whose only body is properties wears no ¶ at all, because there is nothing behind one.
 
-**A node's own page draws them all**, read-only ones first: its `id`, the mark it has, its `date`, and the `created`/`changed` stamps when it has them. Those have nowhere else to be read — the id in particular is what every tool call and every `((` reference takes.
+**They are drawn in the file's own order, never alphabetical.** A record olai wrote is alphabetical on disk — the writer canonicalises so that two files meaning the same thing are byte for byte the same — but that is the writer's doing rather than the drawer's. A record a hand or an agent edited keeps its keys in the order the person thought about them in, `agent` then `brief` then `worktree`, and the run reads it back the way it was written.
+
+**A row draws the custom keys only.** The node's own facts are already on the row: the mark is the glyph, the date is the badge, the repeat rule is the pill beside it, the id is where the bullet goes, and repeating them under the title would put two spellings of one fact on one screen.
+
+**A value that names a thing is a link.** The whole value has to BE the name of the thing — there is no fuzzy matching, no "looks like", no title search, because a wrong door is worse than no door:
+
+- a **path in this directory** opens that file's page. Resolved beside the file the value was written in, exactly as a relative link in a note is, and only when the directory actually serves the answer — a path that is not there is a string that turned out not to be a path, rather than a broken link;
+- a value that **is a node's id** opens that node, so `reviewer pi` becomes navigation when `pi` is a node the set declares. **By id and never by title**: titles are prose, two nodes may share one, and a value that merely reads like a title is a guess;
+- a **URL** (`http:`/`https:`) opens in a tab of its own, under the same rules a link written into a note takes;
+- a **date** — a day or an instant on one — wears the same date badge the row speaks with, and opens that day's page;
+- `owner/repo#123` opens that GitHub issue or pull request. A bare `#123` does not: which repository it means is a fact nowhere on the screen.
+
+One door kind is a RECORD's only, and the asymmetry is worth knowing: a value that is a **node id** resolves against the ids the page's set declares, and a document's frontmatter is not a record — so `author: pi` is navigation on a node and plain text in a `.md`'s block. The other four kinds work the same on both.
+
+Anything else stays the text it is. A value with a URL *inside* it is not a URL — `#365 https://…/365 @ efc32b13 — reported 12:45` is a paragraph, and pulling the URL out of it would be the display deciding which part of your sentence was the point.
+
+**Prose too long to be a fact is drawn as its first words**, with the rest one press away. That fold is a safety net rather than a place to put things: properties are short facts, prose belongs in the note, and the fold is only what stops a record that broke the rule from putting a wall back on every row of the page.
+
+**A value that NAMES something never folds, however long it is** — a name is one token, not prose, and a URL and a deep vault path are exactly the two door kinds most likely to run long. What a long door does instead is sit on one line with an ellipsis, still a link, with the whole of it in the pointer's tooltip. The ellipsis is the browser's, so the value in the page is still the value in the file.
+
+**A node's own page draws them all**, read-only ones first: its `id`, the mark it has, its `date`, and the `created`/`changed` stamps when it has them. Those have nowhere else to be read — the id in particular is what every tool call and every `((` reference takes. They are above the note there, as on a row: facts above the line, story below it. **The read-only half takes no links** — each of those is a field with a face of its own, and the `id` would be a link to the page it is drawn on.
 
 **A document's own page draws the same run**, under the path heading and above the body — the custom keys only, because a `.md` has no system facts with nowhere else to show (the path is already the heading). The facts come from the file's YAML frontmatter ([format.md](format.md#documents)), the same open namespace a node's `custom` is. A file that wrote no block draws nothing there. The run is off while the editor is open: the editor is the YAML, and two spellings of one record on one screen is what the drawer exists not to be. There is no *Add property…* on a document; writing the block is editing the file.
 
-**The `•••` menu writes the custom half.** *Add property…* opens two boxes under the row — a key and a value — and every custom property already on the node adds a pair beside it: *Edit `pr`…*, which opens the same panel with the value in it, and *Remove `pr`*, which is one write and takes the key off. **Enter** sends, **Escape** and **Cancel** leave without writing, and ⌘Z takes it back. What goes is the same `set_prop` an agent sends, judged by the same planner and refused in the same words — including its refusals: setting a property to the value it already holds, or removing one that is not there, is turned away rather than written, so the same gesture twice is one write and one sentence.
+**A chip is where the property is written**, in place, under the title where it is read. The gesture is one sentence: **a link goes where it says, and everything else in a chip opens it for editing** — with the KEY always doing so, whatever the value is. The key is the promise because it is the half of a chip that is never anything else: `brief` is a label whether `finishes.md` turned out to be a document or a typo, so *press the label to change the fact* has no exceptions to learn. A value that is not a link is the second way in, because inert text beside an editable label is a dead zone your hand reaches for first.
 
-**One removal has no undo, and says so by having none**: a property whose value is a LIST, which only a hand-edited file can hold. `set_prop` writes text, so an undo would have to flatten the list into one string with commas in it; nothing is recorded instead, and ⌘Z walks past to the write before.
+**Enter** commits. **Escape** cancels. Leaving the box commits what changed, and is silent when nothing did — opening a chip and clicking away is a gesture you make several times a minute, and it must not be an error message. ⌘Z takes a write back. What goes out is the same `set_prop` an agent sends, judged by the same planner and refused in the same words.
 
-**The key is fixed while you are changing a value**, and that is not a limitation of the boxes: `set_prop` writes one key, so renaming a property is removing one and adding another — two ops, which is exactly the two calls an agent makes. Both entries are in the menu.
+**Clearing the value removes the property.** That is not a shortcut this face invented: `set_prop` with an empty value takes the key off exactly as `null` does, so emptying the box is the removal verb, spelled the way you would expect to spell it.
 
-**The node's own facts have no entries.** Each of them already has a verb — the mark section, *Change date…*, *Change repeat…*, the two edge verbs — and `set_prop` refuses every one of them by name, so an entry would be an affordance that leads to a refusal.
+**The `+` at the end of the run adds one**, and it is the only place a key is ever typed. A rename is not a write this format has — `set_prop` sets ONE key, so changing `pr` to `PR` is removing one property and adding another, which is two ops and therefore two gestures. An existing chip's key is a label, not a box.
 
-**A zoomed node draws its drawer and has no door to it**, which is the gap *Set date…* has on the same page and for the same reason: the `•••` hangs off a row, and the ⌘K palette can only carry the verbs that need no second gesture. *Remove `pr`* is one of those, so the palette has it; adding and editing are reached from the row.
+**A key holding a LIST opens like any other**, though only a hand-edited file can produce one. Clearing it removes the key, exact whatever it held — which is the whole reason it opens. Typing over it replaces the list with the text you typed, because `set_prop` writes one key one value and there is no way to write a list back; committing it unchanged writes nothing, so a list cannot be flattened by opening a chip and pressing Enter. Editing a single member is a hand-edit of the file, which is what wrote the list.
+
+**The `•••` menu carries one property entry, and only on a node that has none.** It used to grow *Add property…* plus an *Edit `pr`…* and a *Remove `pr`* **per property** — so a node carrying eight facts had sixteen menu entries about them, and the menu got longer every time you wrote something down. All of that is gone with the panel it opened. What is left is the one case the `+` cannot reach: a node with no properties has no run for a `+` to sit at the end of, and drawing an otherwise-empty run under every row of a tree would cost a line per title. So there is exactly one door at any moment and never two.
+
+**The node's own facts are not writable there.** Each of them already has a verb — the mark section, *Change date…*, *Change repeat…*, the two edge verbs — and `set_prop` refuses every one of them by name, so their keys are labels rather than buttons.
+
+**A zoomed node writes its own properties now**, which it could not before: the `•••` hangs off a row, so a node's own page drew the whole drawer and had no door to any of it. Every chip there is edited where it is read, and the run on that page always draws the node's own facts, so the `+` always has an end to sit at.
 
 ## What a node points at
 

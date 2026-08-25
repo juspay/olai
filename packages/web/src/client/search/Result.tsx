@@ -46,7 +46,13 @@
  * property should look like a property wherever it is drawn, and the drawer is
  * where a reader learned what one looks like.
  *
- * What is NOT reused is the drawer's two-column GRID. That shape lines values
+ * What is NOT reused is the drawer's CHIP, nor the DOOR inside it. A chip is a
+ * bordered box per fact, which is right where a run has room to wrap and wrong
+ * on a line that has to truncate inside a popover; and a door is a link, which
+ * cannot go inside a row that IS one — a hit is a way of reaching a node, and
+ * the node's own page is where its facts are read and followed. The drawer used
+ * to be a two-column GRID and the same paragraph applied for a related reason,
+ * kept because it is the sharper statement of the shape: that lines values
  * up under each other down a page, which is right for a column of facts about
  * one node and wrong here twice over: it costs a line per property in a panel
  * that shows eight rows, and a `max-content` key column is exactly the
@@ -204,7 +210,25 @@ export function Result(props: {
       // shut the panel and land the click on nothing. Preventing the default
       // on mousedown keeps focus where it is and still lets `click` fire.
       onMouseDown={(event) => event.preventDefault()}
-      onClick={() => props.onSelect()}
+      onClick={(event) => {
+        // A click on a TAG inside this row is the ROW's, not the tag's: the
+        // label and the place line draw the title pipeline
+        // (`../markdown/tags.ts`), so their `#tags` wear pills the page's
+        // filter router would narrow on (`../filter/tag.ts`,
+        // `../pane/PageView.tsx`). The way the row says the press is already
+        // answered is `preventDefault` (`@olai/surface/press.ts`'s `ours`) —
+        // the same rule a breadcrumb holds — and ONLY when the tag is what
+        // was pressed: saying it universally kills a click on the row
+        // ITSELF, whose navigation downstream IS the default the same router
+        // keys on.
+        if (
+          event.target instanceof Element &&
+          event.target.closest("[data-tag]") !== null
+        ) {
+          event.preventDefault()
+        }
+        props.onSelect()
+      }}
     >
       <span class="flex w-full min-w-0 items-center gap-3">
         <span class="flex min-w-0 flex-1 items-center gap-2">

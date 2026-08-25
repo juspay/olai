@@ -136,19 +136,17 @@ export type Does =
    *  edit ⌘⇧M's picker sends, through the same gate (`../move/`). */
   | { readonly kind: "pick-move" }
   /**
-   * A PROPERTY, which is `pick-date`'s shape for `pick-date`'s reason: a key
-   * and a value are things somebody has to type, and a menu entry cannot carry
-   * them.
+   * A PROPERTY somebody is about to name, which carries nothing at all — and
+   * that is the difference from the three above.
    *
-   * `editing` is the property being changed, or `null` for one being added — so
-   * `Add property…` and `Edit pr…` are one code path with one panel, and the
-   * panel is TOLD what it is editing rather than looking it up again off a row
-   * it does not have.
+   * It used to be a `pick-prop` carrying what was being edited, because the
+   * menu opened a panel and the panel had to be told. There is no panel: a
+   * property is edited in the run of chips under the title, which already knows
+   * every key and every value it draws, so the only thing left for a menu entry
+   * to say is *open the add chip* — and it says that on the one node the run's
+   * own `+` cannot be drawn on (see where this is pushed).
    */
-  | {
-    readonly kind: "pick-prop"
-    readonly editing: { readonly key: string; readonly value: string } | null
-  }
+  | { readonly kind: "add-prop" }
 
 /** The ordinary answer, at the site that gives it — so the list below reads as
  *  a list of verbs rather than a list of wrappers. */
@@ -313,37 +311,35 @@ export const writeVerbs = (
         })
       }
     }
-    // THE PROPERTIES: one entry that adds one, and a pair per property the node
-    // already carries.
+    // THE PROPERTIES: ONE entry, and only on a node that carries none.
     //
-    // WHICH properties those are is the DRAWER's answer, asked here rather than
+    // This used to be `Add property…` plus an `Edit <key>…` and a
+    // `Remove <key>` PER PROPERTY — so a node carrying eight facts had sixteen
+    // menu entries about them, and the menu got longer every time somebody
+    // wrote something down. Every one of those is gone: a property is edited in
+    // the RUN OF CHIPS under the title now, where it is read
+    // (`../props/PropsDrawer.tsx`), and the `+` at the end of that run is the
+    // door onto adding one. Two doors onto one write is the drift this repo
+    // keeps collapsing.
+    //
+    // What is left is the one case the `+` cannot reach: a node with no
+    // properties has no run for a `+` to sit at the end of, and drawing an
+    // otherwise-empty run under every row of a tree would cost a line per
+    // title. So the entry is offered exactly when the run is empty — one door
+    // at a time, never two — and what it opens is that same editor rather than
+    // a panel of its own.
+    //
+    // WHETHER the run is empty is the DRAWER's answer, asked here rather than
     // re-derived (`../props/drawer.ts`), and it is the custom half only. The
-    // node's own facts are drawn in that drawer too and have no entries here:
-    // each of them has a verb of its own — the mark section above, `Change
+    // node's own facts are drawn in that run too and are not writable there or
+    // here: each has a verb of its own — the mark section above, `Change
     // date…`, the two edge verbs below — and `set_prop` refuses every one of
-    // them by name, so an entry would be an affordance leading to a refusal.
-    //
-    // Editing is not offered for a key holding a LIST, and the drawer's own
-    // note says why: the editor writes text, so a key holding three values
-    // would come back as one string with commas in it. Removing one is exact
-    // whatever it held, so that half is offered on every line.
-    verbs.push({
-      id: "prop-add",
-      label: "Add property…",
-      does: { kind: "pick-prop", editing: null },
-    })
-    for (const entry of customEntries(customOf(shown.node))) {
-      if (!entry.listed) {
-        verbs.push({
-          id: `prop-edit-${entry.key}`,
-          label: `Edit ${entry.key}…`,
-          does: { kind: "pick-prop", editing: { key: entry.key, value: entry.value } },
-        })
-      }
+    // them by name.
+    if (customEntries(customOf(shown.node)).length === 0) {
       verbs.push({
-        id: `prop-remove-${entry.key}`,
-        label: `Remove ${entry.key}`,
-        does: sends({ verb: "prop", id: shown.node.id, key: entry.key, value: null }),
+        id: "prop-add",
+        label: "Add property…",
+        does: { kind: "add-prop" },
       })
     }
     // THE TWO EDGES, and they are offered on every node rather than only on one

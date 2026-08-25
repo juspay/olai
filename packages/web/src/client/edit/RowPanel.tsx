@@ -1,17 +1,23 @@
 /**
  * The panel a row opens to ask one thing, and the one write it sends.
  *
- * Three surfaces are this shape — the date picker, the repeat picker and the
- * property editor — and until this file they were this shape THREE TIMES.
- * `PropEditor.tsx`'s own header said so out loud ("`../date/DatePicker.tsx`'s
- * arrangement, deliberately and line for line"), which is the confession that
- * makes the extraction a fact rather than a taste: a rule held by three copies
- * and a comment is a rule that will hold in two of them the day it changes.
+ * TWO surfaces are this shape now — the date picker and the repeat picker — and
+ * until this file they were this shape THREE TIMES. The third was the property
+ * editor, whose own header said so out loud ("`../date/DatePicker.tsx`'s
+ * arrangement, deliberately and line for line"): the confession that makes the
+ * extraction a fact rather than a taste, since a rule held by three copies and
+ * a comment is a rule that will hold in two of them the day it changes.
+ *
+ * That third one is gone with `props-doors-autoshow` — a property is typed in
+ * the chip that draws it (`../props/PropsDrawer.tsx`), which is a different
+ * shape and not this one: no panel, no button, no notice line. What is left
+ * here are the two that genuinely have a stored value their control cannot hold
+ * and a button whose label is a verb.
  *
  * ## What is the same, and why each part of it is
  *
- * Every one of these panels does the same six things, and each was written out
- * three times:
+ * Both of these panels do the same six things, and each was written out three
+ * times back when there were three:
  *
  *   - **it sits UNDER the line it was opened on**, never floating. Everything
  *     else a row says about a write is drawn there — the refusal under a title
