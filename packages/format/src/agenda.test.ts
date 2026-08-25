@@ -105,12 +105,31 @@ test("a dated bullet is never overdue, however long ago its day was", () => {
     .toBe(false)
 })
 
-test("`done` extinguishes it — a finished task is late at nothing", () => {
+test("either SETTLING mark extinguishes it — a settled task is late at nothing", () => {
   expect(
     isOverdue(
       node(`{"id":"a","ord":"a0","title":"a","done":"2026-08-11T09:00:00-04:00","date":"2026-08-01"}`),
       TODAY,
     ),
+  ).toBe(false)
+  // …and `cancelled` the same way (the human, 2026-08-25). Work somebody
+  // called off is not work anybody is late on: the date badge stops burning,
+  // and the row leaves what the day owes. This is the one predicate for all of
+  // that — `unfinishedWork`, whose header carries the contract — so the badge,
+  // the agenda and the overdue count could not disagree about it even if
+  // somebody wanted them to.
+  expect(
+    isOverdue(
+      node(
+        `{"id":"a","ord":"a0","title":"a","cancelled":"2026-08-11T09:00:00-04:00","date":"2026-08-01"}`,
+      ),
+      TODAY,
+    ),
+  ).toBe(false)
+  // A bare `true` settles it just as well: what ends the wait is the MARK, and
+  // the instant is only where it lands on a calendar.
+  expect(
+    isOverdue(node(`{"id":"a","ord":"a0","title":"a","cancelled":true,"date":"2026-08-01"}`), TODAY),
   ).toBe(false)
 })
 

@@ -71,6 +71,16 @@ const EDIT_NUDGE = '[data-testid="edit-nudge"]'
 const row = (id: string) => `[data-node-id="${id}"]`
 const handle = (id: string) => `${row(id)} [data-testid="drag-handle"] >> nth=0`
 const title = (id: string) => `${row(id)} [data-testid="node-title"] >> nth=0`
+/** The GLYPH in a row's gutter — where a mark is SAID, and the one place the
+ *  two settling marks are told apart (a check against a cross).
+ *
+ *  Aimed at `data-face` rather than at a test id, because there are TWO of them
+ *  on this control and which one a row wears is the very thing a section about
+ *  blockedness is photographing: a row that can start carries the checkbox, and
+ *  a row that cannot carries the blocked hourglass instead (`Glyph.tsx` — the
+ *  hourglass REPLACES the box). One reading answers for both, so a section can
+ *  print what a row is drawn as without first knowing the answer. */
+const glyphAt = (id: string) => `${row(id)} [data-face] >> nth=0`
 
 /** The same two, with a COLUMN named — the selectors above with one prefix. A
  *  node id is unique in a set and not on a screen: two panes showing one file
@@ -332,6 +342,17 @@ const attrOf = async (page: Page, locator: string, attribute: string) =>
   (await page.locator(locator).first().getAttribute(attribute)) ?? "(none)"
 
 const toneOf = async (page: Page, locator: string) => await attrOf(page, locator, "data-tone")
+
+/** WHETHER A TITLE IS STRUCK THROUGH, off the computed style rather than off a
+ *  class name — the one reading in this file that does, and it earns the
+ *  exception for the reason the fourth-mark section is about: the strike is not
+ *  a styling decision made downstream of a promise, it IS the promise (the
+ *  human asked for a struck-through row, 2026-08-25). A class name would print
+ *  the same word on a page where a later rule had turned the decoration off. */
+const decorationOf = async (page: Page, locator: string) =>
+  await page.locator(locator).first().evaluate((node) =>
+    getComputedStyle(node).textDecorationLine
+  )
 
 /** WHICH refusal it is — the ops layer's own failure tag, carried by the
  *  sentences that were minted while the failure was still in hand. */
@@ -1020,6 +1041,153 @@ const retitle = (file: string, id: string, title: string): void =>
   )
 
 const SECTIONS = {
+  /**
+   * THE FOURTH MARK, end to end: "not happening" as a stored fact.
+   *
+   * There were three marks, and "this is not happening" was said by taking one
+   * OFF — which leaves a bullet, a line indistinguishable from one nobody ever
+   * called work, with no instant and no day. `cancelled` is the mark that says
+   * it and says when (the human, 2026-08-25), and it SETTLES: nobody is
+   * waiting on a node carrying it.
+   *
+   * The claims, in the order the shots take them:
+   *
+   *   0. the outline as it stands, and the `•••` of an UNTOUCHED row offering
+   *      `Cancel` beside the other three — taken first, because every other leg
+   *      writes and by the end there is no unmarked task left to offer all four
+   *      to;
+   *   1. a row called off FROM THE UI — `⌥Enter` in the row's own editor —
+   *      wearing the two halves of the face: a CROSSED box where a finished
+   *      row has a check, and the same struck-through title, because what the
+   *      strike says is "nobody is waiting on this line" and the box is where
+   *      the two settling marks are told apart. The record is printed off the
+   *      disk beside it, since a picture of a row cannot say what a file holds;
+   *   2. IT SETTLES, at the arrow: `pick the hinges` comes after that row and
+   *      is drawn waiting, and the dim and the hourglass come off the moment
+   *      the target is called off. Nobody can finish work somebody has decided
+   *      against, so a mark that went on blocking would be an obstacle with no
+   *      way past it;
+   *   3. IT SETTLES, at the branch: `install the cabinets` refuses `Complete`
+   *      over the unfinished task it still holds — one, because shot 2 already
+   *      called the other off, which is the ruling showing in the sentence
+   *      itself — and names the way past. With that one called off too, the
+   *      parent goes done over two cancelled children;
+   *   4. IT IS AN EVENT ON A DAY: today's journal page draws the row it was
+   *      called off on, struck through, with the badge printing the occasion's
+   *      own word. The address bar is in frame for this one, because `/today`
+   *      is the claim;
+   *   5. and `is:cancelled` selects it, which is the query door's half of the
+   *      same claim the menu made in shot 0.
+   */
+  "the-fourth-mark": async (page) => {
+    pinnedBy(
+      "cancelled_mark.feature",
+      "⌥Enter calls a row off, and says so three ways",
+      "Anything after a cancelled target stops waiting",
+      "A parent goes done over a cancelled child",
+      "Cancelling a branch refuses nothing, and names what it left standing",
+      "A cancelled row is on today's journal page, struck through",
+    )
+
+    // 1. THE OUTLINE AS IT STANDS, and the menu OF AN UNTOUCHED ROW — taken
+    // first because every other leg of this section writes: by the end the
+    // fixture holds no unmarked task to offer all four verbs to, and a menu
+    // photographed then would be missing the two a marked row does not get.
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    await shot(page, "before-anybody-pressed-anything")
+    await openMenu(page, "handles")
+    console.log(`  the menu offers: ${await verbsOf(page)}`)
+    await shot(page, "cancel-is-offered-with-the-other-three")
+    await page.keyboard.press("Escape")
+
+    // 2. CALLED OFF, from the row. `⌥Enter` is the third member of the
+    // `Enter` family — Ctrl finishes, Ctrl+Shift walks, Alt calls off.
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    await page.locator(title("knobs")).first().click()
+    await page.locator(TITLE_EDITOR).first().waitFor()
+    await page.keyboard.press("Alt+Enter")
+    await page.waitForTimeout(SETTLE)
+    await page.keyboard.press("Escape")
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the box says:   ${await attrOf(page, glyphAt("knobs"), "data-face")}`)
+    console.log(`  the row says:   ${await attrOf(page, row("knobs"), "data-status")}`)
+    console.log(`  the title is:   ${await decorationOf(page, title("knobs"))}`)
+    console.log(`  and the file:   ${recordOf("knobs")}`)
+    await shot(page, "a-crossed-box-and-a-struck-through-title")
+    await inTheDark(page)
+    await shot(page, "a-crossed-box-and-a-struck-through-title-dark")
+    await page.evaluate(() => localStorage.setItem("olai.theme", "chalk"))
+
+    // 2. IT SETTLES, AT THE ARROW. `pick the hinges` waits on `order the new
+    // cabinets`; calling that off clears the way.
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    console.log(`  hinges waits on: ${await attrOf(page, glyphAt("hinges"), "data-face")}`)
+    await shot(page, "hinges-is-waiting-on-order")
+    await page.locator(title("order")).first().click()
+    await page.locator(TITLE_EDITOR).first().waitFor()
+    await page.keyboard.press("Alt+Enter")
+    await page.waitForTimeout(SETTLE)
+    await page.keyboard.press("Escape")
+    await page.waitForTimeout(DRAWN)
+    console.log(`  order is now:    ${await attrOf(page, row("order"), "data-status")}`)
+    console.log(`  hinges now:      ${await attrOf(page, glyphAt("hinges"), "data-face")}`)
+    await shot(page, "the-arrow-unblocks-when-the-target-is-called-off")
+
+    // 3. IT SETTLES, AT THE BRANCH. The refusal first, so the shot beside it
+    // is the state the fourth mark is the way out of.
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    await page.locator(title("install")).first().click()
+    await page.locator(TITLE_EDITOR).first().waitFor()
+    await page.keyboard.press("ControlOrMeta+Enter")
+    await page.waitForTimeout(SETTLE)
+    console.log(`  Complete says:  ${await textOf(page, EDIT_REFUSAL)}`)
+    await shot(page, "complete-is-refused-and-names-the-way-past")
+    await page.keyboard.press("Escape")
+    // ONE row, and the refusal above says which: `pick the knobs` was called
+    // off two legs up, so it is already settled and already out of the way —
+    // which is why that sentence names one task where the fixture has two.
+    // `⌥Enter` is a TOGGLE, so pressing it at that row again would take the
+    // mark back off rather than re-applying it.
+    await page.locator(title("hinges")).first().click()
+    await page.locator(TITLE_EDITOR).first().waitFor()
+    await page.keyboard.press("Alt+Enter")
+    await page.waitForTimeout(SETTLE)
+    await page.keyboard.press("Escape")
+    await page.waitForTimeout(DRAWN)
+    await page.locator(title("install")).first().click()
+    await page.locator(TITLE_EDITOR).first().waitFor()
+    await page.keyboard.press("ControlOrMeta+Enter")
+    await page.waitForTimeout(SETTLE)
+    await page.keyboard.press("Escape")
+    await page.waitForTimeout(DRAWN)
+    console.log(`  install is now: ${await attrOf(page, row("install"), "data-status")}`)
+    console.log(`  and the file:   ${recordOf("install")}`)
+    await shot(page, "the-parent-goes-done-over-two-cancelled-children")
+
+    // 4. IT IS AN EVENT ON A DAY. Nothing in this fixture is dated today, so
+    // every row `/today` draws is a row this section's own gestures put there.
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    await page.locator(title("handles")).first().click()
+    await page.locator(TITLE_EDITOR).first().waitFor()
+    await page.keyboard.press("Alt+Enter")
+    await page.waitForTimeout(SETTLE)
+    await page.keyboard.press("Escape")
+    await opened(page, "/today", '[data-testid="day-page"]')
+    console.log(`  the day open is: ${await page.evaluate(() => location.pathname)}`)
+    console.log(`  the badge says:  ${
+      await attrOf(page, `${row("handles")} [data-testid="date"]`, "data-occasion")
+    }`)
+    console.log(`  the title is:    ${await decorationOf(page, title("handles"))}`)
+    await shot(page, "the-day-page-draws-what-was-called-off-on-it")
+
+    // 5. AND IT IS A MARK LIKE THE OTHER THREE at the query door too — the
+    // menu's half of this claim was taken first, while a row was still
+    // unmarked.
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    await narrow(page, "is:cancelled")
+    console.log(`  is:cancelled selects:\n${await drawn(page)}`)
+    await shot(page, "is-cancelled-selects-what-was-called-off")
+  },
   /**
    * A BACKGROUND TASK THE AGENT ARMED (`chat-background-tasks-visible`): the
    * row it gets, the fact that a turn ending does not take it away, and the

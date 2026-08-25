@@ -128,13 +128,17 @@ Then(
   },
 );
 
-/** The three faces of the status box beside the bullet. Asserted as
+/** The four faces of the status box beside the bullet. Asserted as
  *  `data-face` + `data-status` rather than a Unicode glyph: the faces are CSS
  *  squares now (Workflowy), and a restyle is entitled to redraw the pixels
  *  without breaking the contract. `empty` is `todo`, never the absence of a
- *  mark, which is a box that is not drawn at all (see "shows no checkbox"). */
+ *  mark, which is a box that is not drawn at all (see "shows no checkbox"), and
+ *  `crossed` is the fourth mark — a cross in the box where `done` has a check,
+ *  which is the ONE place the two settling marks are told apart on a row
+ *  (`web/src/client/tone.ts`: they share the strike). */
 const CHECKBOX_FACE: Record<string, { readonly status: string; readonly face: string }> = {
   checked: { status: "done", face: "checked" },
+  crossed: { status: "cancelled", face: "crossed" },
   doing: { status: "doing", face: "doing" },
   empty: { status: "todo", face: "empty" },
 };
@@ -145,7 +149,7 @@ Then(
     const expected = CHECKBOX_FACE[face];
     assert.ok(
       expected !== undefined,
-      `unknown checkbox face ${JSON.stringify(face)}; want checked, doing or empty`,
+      `unknown checkbox face ${JSON.stringify(face)}; want checked, crossed, doing or empty`,
     );
     const box = this.node(id).locator(CHECKBOX).first();
     await box.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
@@ -162,6 +166,54 @@ Then(
       assert.strictEqual(await box.getAttribute("data-status"), expected.status);
       assert.strictEqual(await box.getAttribute("data-face"), expected.face);
     });
+  },
+);
+
+/**
+ * IS THE TITLE STRUCK THROUGH?
+ *
+ * The one assertion in this file that reads a COMPUTED STYLE rather than a
+ * `data-` fact, and it earns the exception: the strike is not a styling
+ * decision about a promise made elsewhere — it IS the promise. The human asked
+ * for a struck-through row for the fourth mark (2026-08-25), a reader is
+ * looking at exactly this pixel, and asserting the class name instead would
+ * pass on a page where a later rule had turned the decoration off.
+ *
+ * It is read off the TITLE SPAN, which is the one element the mark tones
+ * (`web/src/client/tone.ts`, `NodeLine.tsx`), wherever a node is drawn — a
+ * tree row, a day's entry, a page heading. Both settling marks wear it, which
+ * is the point: what the strike says is "nobody is waiting on this line", and
+ * the CHECKBOX is where `done` and `cancelled` are told apart.
+ */
+Then(
+  "the title of {string} is struck through",
+  async function (this: OlaiWorld, id: string) {
+    const title = this.node(id).locator(NODE_TITLE).first();
+    await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const struck = async (): Promise<boolean> =>
+      await title.evaluate((node) =>
+        getComputedStyle(node).textDecorationLine.includes("line-through")
+      );
+    await this.waitUntil(struck, `the title of "${id}" is struck through`)
+      .catch(async () => {
+        assert.ok(await struck(), `the title of "${id}" is not struck through`);
+      });
+  },
+);
+
+Then(
+  "the title of {string} is not struck through",
+  async function (this: OlaiWorld, id: string) {
+    const title = this.node(id).locator(NODE_TITLE).first();
+    await title.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const plain = async (): Promise<boolean> =>
+      await title.evaluate((node) =>
+        !getComputedStyle(node).textDecorationLine.includes("line-through")
+      );
+    await this.waitUntil(plain, `the title of "${id}" is not struck through`)
+      .catch(async () => {
+        assert.ok(await plain(), `the title of "${id}" is struck through`);
+      });
   },
 );
 

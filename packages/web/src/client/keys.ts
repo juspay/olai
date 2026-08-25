@@ -180,6 +180,20 @@ export const isEditingTarget = (target: EventTarget | null): boolean => {
  *   - `toggle` — `Ctrl+Enter` (and `⌘+Enter`, which is what Workflowy trains
  *     an Apple reader's hands to reach for; neither collides with the three
  *     reserved chords above, none of which is `Enter`).
+ *   - `cancel-mark` — `Alt+Enter` (`⌥Enter`): call this row OFF, or take that
+ *     back. The THIRD member of the `Enter` family and the fourth mark's own
+ *     door: `Enter` is the row's key and a modifier says which kind of change
+ *     it is, so Ctrl finishes, Ctrl+Shift walks, and Alt cancels. It is a
+ *     TOGGLE like `Ctrl+Enter` rather than a stop on the walk, and for the
+ *     walk's own reason ({@link ../../../server/src/edit.ts} holds the ring and
+ *     the argument): `cancelled` stamps an instant and puts the row on a day's
+ *     journal page, and neither is a thing to do on the way to somewhere else.
+ *     Alt was free on this key — the branch below already refused
+ *     `Alt+Enter` outright — and it is the one modifier `Shift+Enter` names as
+ *     something it must not see, so the note key is untouched. `Alt+Shift` is
+ *     deliberately NOT it: that pair is the app's MOVE modifier on the arrows,
+ *     and a chord meaning "move this row" two keys over may not also mean
+ *     "call it off". Dead in a note, like the two mark keys it joins.
  *   - `walk` — `Ctrl+Shift+Enter` (`⌘⇧Enter`): the MARK WALK, which is how a
  *     person writes the other two marks and takes one off. `Enter` is the row's
  *     key and a modifier says which kind of change it is, so the mark keys are
@@ -229,6 +243,7 @@ export type EditAction =
   | "up"
   | "down"
   | "toggle"
+  | "cancel-mark"
   | "walk"
   | "duplicate"
   | "moveTo"
@@ -320,7 +335,16 @@ export const editKey = (
 
   if (event.key === "Enter") {
     if (event.ctrlKey || event.metaKey) return event.shiftKey ? "walk" : "toggle"
-    if (event.altKey) return null
+    // ALT alone is the fourth mark's key. It used to return `null` here, which
+    // is why there was a modifier left to give it: the three mark gestures are
+    // one chord apart on one key, which is what makes them legible as the
+    // family they are.
+    //
+    // ALT WITHOUT SHIFT, and the exclusion is load-bearing rather than tidy:
+    // `Alt+Shift` is already this app's MOVE pair on the arrows
+    // (`Alt+Shift+↑/↓`), so a chord that reads as "move this row" two keys over
+    // must not quietly read as "call it off" here. It stays unclaimed.
+    if (event.altKey) return event.shiftKey ? null : "cancel-mark"
     // A TITLE ON BOTH SIDES is the whole test, and each half rules out a case
     // this format cannot hold. Nothing before the caret would leave the row with
     // an empty title, which is not a node the ops layer will write — so `Enter`
@@ -555,6 +579,11 @@ export const SHORTCUTS: ReadonlyArray<{
       { keys: "Alt+Shift+↑", what: "move up among its siblings", action: "up" },
       { keys: "Alt+Shift+↓", what: "move down among its siblings", action: "down" },
       { keys: "⌘Enter / Ctrl+Enter", what: "tick it off, or take that back", action: "toggle" },
+      {
+        keys: "⌥Enter / Alt+Enter",
+        what: "call it off, or take that back",
+        action: "cancel-mark",
+      },
       {
         keys: "⌘⇧Enter / Ctrl+⇧Enter",
         what: "walk the mark on: to do, then doing, then none",
