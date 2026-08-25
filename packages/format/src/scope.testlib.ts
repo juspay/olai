@@ -286,9 +286,11 @@ const spelled = (one: Matched): string =>
 // ── the corpora ────────────────────────────────────────────────────────
 
 /**
- * THE CORNERS NO GENERATOR REACHES, written by hand because each of them is a
- * set the VALIDATOR would refuse and a generator drawing them at random would
- * only sometimes produce.
+ * THE CORNERS NO GENERATOR REACHES, written by hand because most of them are
+ * sets the VALIDATOR would refuse — the ground both walks explicitly promise to
+ * stand on, since `ancestorsOf`'s own header says its crumbs are drawn from sets
+ * the validator's error messages describe — and a generator drawing one at
+ * random would only sometimes produce it.
  *
  * Every one is a shape where the descent and the ancestor walk could disagree,
  * and the comment beside it is what it is here for:

@@ -411,11 +411,17 @@ test("a scoped query never reads the corpus", () => {
     expect(matching(at.derived, asked, scope).length).toBeGreaterThan(0)
   }
   // ...and a candidate list is the other way in, which does not read the corpus
-  // either: what it reads is `byId`, once per candidate.
-  const named = at.derived.nodes.slice(0, 20).map((one) => one.node.id)
-  expect(matching(blind, asked, { under: "d9r" }, named)).toEqual(
-    matching(at.derived, asked, { under: "d9r" }, named),
-  )
+  // either: what it reads is `byId`, once per candidate. The list deliberately
+  // holds records from OUTSIDE the scope as well as inside it, so the scope has
+  // something to cut and the comparison is not two empty answers.
+  const named = [
+    ...(at.derived.byFile.get("deep9.olai") ?? []),
+    ...(at.derived.byFile.get(file) ?? []),
+  ].map((one) => one.node.id)
+  const off = matching(at.derived, asked, { under: "d9r" }, named)
+  expect(off.length).toBeGreaterThan(0)
+  expect(off.length).toBeLessThan(named.length)
+  expect(matching(blind, asked, { under: "d9r" }, named)).toEqual(off)
   // THE CONTROL. An unscoped query does read it, so the three above are a
   // narrowing rather than a trap nothing reaches.
   expect(() => matching(blind, asked, {})).toThrow(/read the whole corpus/)
