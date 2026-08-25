@@ -26,7 +26,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
-import type { SearchAnswer, SearchRequest, WriteRequest } from "@olai/format"
+import { bytesOf, markdownIn, type SearchAnswer, type SearchRequest, type WriteRequest } from "@olai/format"
 import * as StoreModule from "@olai/store"
 import { expect, test } from "bun:test"
 import { Effect, SubscriptionRef } from "effect"
@@ -98,6 +98,31 @@ const same = (
     return walked
   })
 
+/**
+ * Listing sizes ≡ recompute-from-body, on the SAME snapshot the index soak
+ * just searched. The two seams meet at a document write: `bodiedDocument`
+ * remembers `bytes` as it rebuilds the body the index re-folds. A soak that
+ * compared searches and not listings would let a spread that swapped `body`
+ * and left `bytes` through.
+ */
+const sized = (store: Store): Effect.Effect<void> =>
+  Effect.gen(function*() {
+    const snapshot = yield* SubscriptionRef.get(store.snapshot)
+    if (snapshot === null) throw new Error("the fixture directory never loaded")
+    const set = snapshot.value.set
+    const bodies = new Map<string, string>(
+      markdownIn(set).map((entry) => [entry.path, entry.body]),
+    )
+    for (const row of Query.documents(set)) {
+      const body = bodies.get(row.file)
+      if (body === undefined) {
+        throw new Error(`listed \`${row.file}\` is not a markdown document of the set`)
+      }
+      if ("unreadable" in row) continue
+      expect(row.bytes).toBe(bytesOf(body))
+    }
+  })
+
 test("every write leaves the indexed door answering what the corpus walk does", () => {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-index-")))
   const write = (file: string, contents: string): void => {
@@ -157,10 +182,12 @@ test("every write leaves the indexed door answering what the corpus walk does", 
     // as the walk, not merely the maintenance of a warm one.
     let found = 0
     for (const request of POOL) found += (yield* same(ops, store, request)).total
+    yield* sized(store)
 
     for (const request of WRITES) {
       yield* Effect.orDie(ops.run(request, "mcp"))
       for (const query of POOL) found += (yield* same(ops, store, query)).total
+      yield* sized(store)
     }
 
     // The pool is not all misses: a run where every query found nothing would

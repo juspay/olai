@@ -36,7 +36,6 @@ import {
   bodiedIn,
   brokenBy,
   brokenIn,
-  bytesOf,
   completingTags,
   countedChildren,
   DEFAULT_SEARCH_LIMIT,
@@ -1083,14 +1082,16 @@ export const documents = (set: OutlineSet): ReadonlyArray<DocumentSummary> => {
     // The TITLE is the document's own now rather than this listing's reading of
     // its text: it is a field of the face the decode built (`@olai/format`'s
     // `Document`), which is the same title the browser draws and the same one a
-    // hit carries. The PROPERTIES are that face's too — through `heldCustom`
-    // for {@link carriedOf}'s reason, omitted when the document wrote none,
-    // the same two rules a search hit follows over the same map.
+    // hit carries. The SIZE is remembered at that same decode, so a listing
+    // does not re-encode every body to report a number the document already
+    // holds. The PROPERTIES are through `heldCustom` for {@link carriedOf}'s
+    // reason, omitted when the document wrote none, the same two rules a
+    // search hit follows over the same map.
     const props = heldCustom(entry.props)
     return {
       file: entry.path,
       title: entry.title,
-      bytes: bytesOf(entry.body),
+      bytes: entry.bytes,
       ...(nothing(props) ? {} : { props }),
     }
   })

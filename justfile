@@ -223,7 +223,7 @@ nix:
 hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
-# What a keystroke costs, on a generated vault. FOUR of them, and each is a
+# What a keystroke costs, on a generated vault. SIX of them, and each is a
 # LEG rather than a scratch file, because slice 3 of `model-indices` ran its
 # numbers as a one-off and a benchmark nobody can re-run is a number nobody can
 # check — and deliberately NOT a dependency of `check`, since a timing that
@@ -282,25 +282,33 @@ hm-module:
 #     `vault-in-browser`'s PR 4, where they are re-answered per subscriber per
 #     published revision, which is the unit the ratios are about. Each pair must
 #     answer the same value or the run fails.
+#   - `list_documents`, timed as a read of the remembered byte count against
+#     the UTF-8 encode of every body it replaced
+#     (`packages/ops/src/documents.bench.ts`, added with `perf-list-documents-bytes`).
+#     Its own corpus — 5k `.md`, sized for a listing rather than for a
+#     directory of outlines — and the two arms must answer the same listing or
+#     the run fails.
 #
-# Four of the five run the SAME generated vault (`@olai/format/testlib`'s
+# Four of the six run the SAME generated vault (`@olai/format/testlib`'s
 # `vaultOf` — the patcher, the tag completion, the day readings and the search
 # index), so what a write costs the view and what a completion, a calendar or a
 # search box asks of the view it leaves are numbers about one directory; the
 # matcher generates a corpus of its own, sized for keystrokes rather than for a
-# directory. The MERGE under all of
+# directory, and the document listing another, sized for a vault of `.md`. The
+# MERGE under all of
 # it is not timed here and should not be: it is the framework's, and
 # `@kolu/surface`'s own `src/solid/collectionDeltas.bench.ts` measures it end to
 # end. Size the vault with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS /
 # OLAI_BENCH_EDITS — and turning the last one up to 900 is what makes the
 # patcher's layer grow past half the id map and flatten, which it prints the
-# edit of.
+# edit of. Size the document listing with OLAI_BENCH_DOCS.
 bench: install
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
     {{ nix_shell }} bun packages/format/src/filter.bench.ts
     {{ nix_shell }} bun packages/format/src/vocabulary.bench.ts
     {{ nix_shell }} bun packages/format/src/dates.bench.ts
     {{ nix_shell }} bun packages/index/src/index.bench.ts
+    {{ nix_shell }} bun packages/ops/src/documents.bench.ts
 
 # A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
 # instead of the nix-built binary. `/tmp/olai-dev` is how two worktrees

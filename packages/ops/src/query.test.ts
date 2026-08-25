@@ -10,10 +10,13 @@
  */
 
 import {
+  bytesOf,
   type Derived,
   DocumentPath,
+  fileKind,
   Found,
   isNodeHit,
+  markdownIn,
   NodeId,
   type NarrowingAnswer,
   type NodeHit,
@@ -28,11 +31,15 @@ import {
   type SubtreeRequest,
 } from "@olai/format"
 import { describe, expect, test } from "bun:test"
+import { readdirSync, readFileSync } from "node:fs"
+import { join } from "node:path"
 
-import { failed, readingOf, setOf, succeeded } from "./fixtures.testlib.ts"
+import { failed, planned, readingOf, setOf, succeeded } from "./fixtures.testlib.ts"
+import { folding } from "./following.ts"
 import {
   dated,
   detail,
+  documents,
   homes,
   named,
   narrowing,
@@ -985,6 +992,112 @@ describe("the directory", () => {
     ])
   })
 })
+
+/**
+ * LISTING SIZES ≡ RECOMPUTE-FROM-BODY.
+ *
+ * `list_documents` used to UTF-8-encode every served body on every call to
+ * report a size the decode already knew. The size now lives on the document;
+ * this is the gate that the remembered number is still the old answer, byte
+ * for byte — including over multi-byte UTF-8, which is the case a
+ * `text.length` count (UTF-16 units) would silently get wrong. And including
+ * after a write replaces the body, which is the case a spread that swapped
+ * `body` and left `bytes` would silently get wrong.
+ */
+describe("a document listing's sizes are a recompute from the body", () => {
+  const agree = (set: OutlineSet): void => {
+    const listed = documents(set)
+    const bodies = new Map<string, string>(
+      markdownIn(set).map((entry) => [entry.path, entry.body]),
+    )
+    expect(listed.length).toBeGreaterThan(0)
+    for (const row of listed) {
+      const body = bodies.get(row.file)
+      if (body === undefined) {
+        throw new Error(`listed \`${row.file}\` is not a markdown document of the set`)
+      }
+      if ("unreadable" in row) continue
+      expect(row.bytes).toBe(bytesOf(body))
+    }
+  }
+
+  test("over the suite corpus", () => {
+    agree(suiteCorpus())
+  })
+
+  test("over a generated corpus, including multi-byte UTF-8", () => {
+    const set = generatedCorpus()
+    agree(set)
+    // THE CLASSIC FAILURE: a size that drifts on emoji. `👋` is one character,
+    // two UTF-16 units, four UTF-8 bytes; a listing that reported
+    // `text.length` would pass every ASCII fixture and fail here.
+    const emoji = documents(set).find((row) => row.file === "emoji.md")
+    if (emoji === undefined || "unreadable" in emoji) {
+      throw new Error("generated corpus is missing emoji.md")
+    }
+    expect(emoji.bytes).not.toBe("hello 👋🔥\n".length)
+    expect(emoji.bytes).toBe(bytesOf("hello 👋🔥\n"))
+  })
+
+  test("after a write replaces the body", () => {
+    // THE APPLY STEP, which a cold listing never reaches. `write_document`
+    // lands through `following`'s fold (`bodiedDocument` on the applied
+    // text); a future fast path that spread a document and swapped `body`
+    // without `bytes` would pass every fixture above and fail here.
+    const was = "hello\n"
+    const next = "hello 👋🔥\n"
+    const set = setOf({}, [["note.md", was]])
+    agree(set)
+    const made = planned(set, { op: "doc", file: "note.md", text: next })
+    const folded = succeeded(
+      folding(readingOf(set))(made),
+      "`write_document` to apply",
+    )
+    agree(folded.set)
+    const listed = documents(folded.set).find((row) => row.file === "note.md")
+    if (listed === undefined || "unreadable" in listed) {
+      throw new Error("the rewritten note.md is missing from the listing")
+    }
+    expect(listed.bytes).toBe(bytesOf(next))
+    expect(listed.bytes).not.toBe(bytesOf(was))
+  })
+})
+
+/** The e2e fixtures' `.md` files, loaded as a set — the directory the suite
+ *  actually serves, not a hand-picked handful of the same texts. */
+const suiteCorpus = (): OutlineSet => {
+  const root = join(import.meta.dir, "../../tests/fixtures")
+  const files: Array<readonly [string, string]> = []
+  const walk = (dir: string, rel = ""): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const next = rel === "" ? entry.name : `${rel}/${entry.name}`
+      if (entry.isDirectory()) walk(join(dir, entry.name), next)
+      else if (fileKind(next) === "document") {
+        files.push([next, readFileSync(join(dir, entry.name), "utf8")])
+      }
+    }
+  }
+  walk(root)
+  return setOf({}, files)
+}
+
+/**
+ * Bodies chosen to catch a size that drifts on emoji: 4-byte UTF-8, a ZWJ
+ * sequence, combining marks, CJK, an empty file, frontmatter. `text.length`
+ * on any of the multi-byte rows is a different number than `bytesOf`.
+ */
+const generatedCorpus = (): OutlineSet =>
+  setOf({}, [
+    ["empty.md", ""],
+    ["ascii.md", "hello\n"],
+    ["emoji.md", "hello 👋🔥\n"],
+    ["family.md", "👨‍👩‍👧‍👦\n"],
+    ["cjk.md", "日本語 中文 한국어\n"],
+    ["combo.md", "cafe\u0301\n"],
+    ["four-byte.md", "𐍈\n"],
+    ["mixed.md", "# Title 🎯\n\nProse with naïve café and 中文.\n"],
+    ["front.md", "---\ntitle: 🎉\n---\n# Hello\n"],
+  ], { "torn.md": "{ not a record" })
 
 // ── the other question the matcher answers ─────────────────────────────
 
