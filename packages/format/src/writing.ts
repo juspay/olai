@@ -125,7 +125,7 @@ const CAPTURE = {
   props: Schema.optionalKey(
     Schema.Record(Schema.String, Schema.String).annotate({
       description:
-        "Named facts this node is born with — the map `set_prop` writes into, several keys at once, with that verb's own refusal for a key spelled like a field the format already has. A key holding an empty string is a key the file does not carry.",
+        "Named facts this node is born with — the map `set_prop` writes into, several keys at once, with that verb's own refusals: for a key spelled like a field the format already has, and for a value that does not fit what its key DECLARES in `_olai/Properties.olai`. One bad value refuses the whole capture, children included, and nothing is written. A key holding an empty string is a key the file does not carry.",
     }),
   ),
   /** The free cross-references this node is born with — `set_see`'s list.
@@ -482,7 +482,7 @@ export const PropRequest = Schema.Struct({
    *  is a key the file does not carry. */
   value: Schema.NullOr(Schema.String).annotate({
     description:
-      "What the property holds, as text. `null` removes it — and so does the empty string, since a key holding nothing is a key the file does not carry.",
+      "What the property holds, as text. `null` removes it — and so does the empty string, since a key holding nothing is a key the file does not carry. A key the vault DECLARES in `_olai/Properties.olai` has a type, and a value that does not fit it is REFUSED with the values it may hold named: `merge` is one of its declared variants' ids, `pr` is a whole number, `dispatched` is a date and nothing else — the commentary goes in the note. An accepted spelling is stored as the one canonical spelling (`2026-08-25 10:06` lands as the instant a mark records). Every other key is text and takes anything, as before.",
   }),
 })
 
@@ -1009,7 +1009,7 @@ export const UpdateRequest = Schema.Struct({
   props: Schema.optionalKey(
     Schema.Record(Schema.String, Schema.NullOr(Schema.String)).annotate({
       description:
-        "Properties to write, MERGED key by key — exactly as one `set_prop` per key would, and in the same words when one is refused. A key not named here is left alone; `null` (or `\"\"`) removes the one it names. A key spelled like a field the format already has is refused toward the verb that writes that fact.",
+        "Properties to write, MERGED key by key — exactly as one `set_prop` per key would, and in the same words when one is refused. A key not named here is left alone; `null` (or `\"\"`) removes the one it names. A key spelled like a field the format already has is refused toward the verb that writes that fact, and a value that does not fit what its key DECLARES in `_olai/Properties.olai` is refused with the values it may hold named.",
     }),
   ),
   /** REPLACED, and it is the one field here that could plausibly have been

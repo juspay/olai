@@ -21,6 +21,7 @@ import { expect, test } from "bun:test"
 import { derive, type Derived } from "./derive.ts"
 import { recordsOf, setOf } from "./fixtures.testlib.ts"
 import { differing, ledgerOf, shadowed, witnessing } from "./shadow.ts"
+import { NO_TYPING } from "./typing.ts"
 import type { Seen } from "./shadow.ts"
 
 const ACCEPTED = { full: true, incremental: true }
@@ -129,7 +130,7 @@ test("a shadow that throws is an entry in the log and nothing else", () => {
     // The first call is what FILES a ledger for `before`, which is what the
     // second one narrows from — there is no other door into that table, and
     // that is deliberate (`./shadow.ts`'s header).
-    shadowed(set, undefined, undefined, before, [], new Set())
+    shadowed(set, undefined, undefined, before, [], new Set(), NO_TYPING)
     shadowed(
       set,
       before,
@@ -137,6 +138,7 @@ test("a shadow that throws is an entry in the log and nothing else", () => {
       broken,
       [],
       new Set(),
+      NO_TYPING,
     )
   })
   expect(seen.map((one) => one.kind)).toEqual(["cold", "diverged"])
@@ -144,7 +146,7 @@ test("a shadow that throws is an entry in the log and nothing else", () => {
   expect(seen[1]?.divergence?.threw).toBeString()
   // ...and the ledger was still filed, from the FULL arm, so the next
   // validation is not narrowing from a hole.
-  expect(ledgerOf(broken)).toEqual({ errors: [], known: new Set() })
+  expect(ledgerOf(broken)).toEqual({ errors: [], known: new Set(), typing: NO_TYPING })
 })
 
 test("the entry names where to start looking", () => {
@@ -152,7 +154,7 @@ test("the entry names where to start looking", () => {
   const before = viewOf({ "a.olai": `{"id":"one","ord":"a","title":"one"}` })
   const broken = { byFile: before.byFile } as unknown as Derived
   const seen = watching(() => {
-    shadowed(set, undefined, undefined, before, [], new Set())
+    shadowed(set, undefined, undefined, before, [], new Set(), NO_TYPING)
     shadowed(
       set,
       before,
@@ -160,6 +162,7 @@ test("the entry names where to start looking", () => {
       broken,
       [],
       new Set(),
+      NO_TYPING,
     )
   })
   expect(seen[1]?.divergence?.touched).toEqual(["a.olai", "b.olai"])
@@ -178,7 +181,7 @@ test("with no witness installed a divergence still reaches stderr", () => {
   try {
     const set = setOf({ "a.olai": `{"id":"one","ord":"a","title":"one"}` })
     const before = viewOf({ "a.olai": `{"id":"one","ord":"a","title":"one"}` })
-    shadowed(set, undefined, undefined, before, [], new Set())
+    shadowed(set, undefined, undefined, before, [], new Set(), NO_TYPING)
     shadowed(
       set,
       before,
@@ -186,6 +189,7 @@ test("with no witness installed a divergence still reaches stderr", () => {
       { byFile: before.byFile } as unknown as Derived,
       [],
       new Set(),
+      NO_TYPING,
     )
   } finally {
     console.error = held
@@ -210,7 +214,7 @@ test("the entry is BOUNDED — a broken directory writes a short line, and says 
     message: `finding number ${at}`,
   }))
   const seen = watching(() => {
-    shadowed(set, undefined, undefined, before, [], new Set())
+    shadowed(set, undefined, undefined, before, [], new Set(), NO_TYPING)
     shadowed(
       set,
       before,
@@ -218,6 +222,7 @@ test("the entry is BOUNDED — a broken directory writes a short line, and says 
       after,
       many,
       new Set(),
+      NO_TYPING,
     )
   })
   const found = seen[1]?.divergence

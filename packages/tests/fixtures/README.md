@@ -260,3 +260,27 @@ validator definitely runs. That is the point: this is where the error view's
 An error is cross-file when it implicates a second file — `isCrossFile` in
 `packages/format/src/errors.ts` — which is what the `cross-file-errors` section
 of the error view collects.
+
+## `typed/` — a vault that declares its property types
+
+Six keys declared in `_olai/Properties.olai`, and four lanes carrying values of
+them. It is its own corpus rather than a corner of `good/` for one reason worth
+knowing: **a declaration fences a key across the whole vault**, so typing `pr`
+here would have made `good/`'s `pr: https://…/179` a broken file and taken a
+dozen scenarios about the chip run down with it. Two vaults is what "declaring
+a key changes the whole namespace" looks like from a test suite.
+
+| what | where |
+|---|---|
+| a `ref` whose variants are its own children | `merge` → `auto`, `human` |
+| a `ref` pointing at a roster elsewhere | `agent` → the children of `agents` in `agents.olai` |
+| an `int` | `pr` — 189, 193, 200, and a 1000 that a string comparison would put inside `190..200` |
+| a `date`, both stored widths | `dispatched` — an instant on `props`, a bare day on `chips` |
+| a `doc` | `brief` on `props`, naming `briefs/tp.md` |
+| a `path` | `worktree` on `props` |
+| an UNDECLARED key on a typed board | `terminal` on `far` — prose, legal, untouched |
+
+The set validates as it stands, which is the point: a declaration never lands on
+a board with violations (docs/brainstorming/typed-properties.md's
+clean-then-declare), so a fixture that shipped one would be a fixture nobody
+could serve.

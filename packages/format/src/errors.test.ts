@@ -149,6 +149,10 @@ test("the line/set split is exactly the two halves of the codec", () => {
     "after-cycle",
     "mirror-cycle",
     "missing-doc",
+    // A property that does not fit what its key declares, and a declaration
+    // that does not say a type this format knows — one code for the two ends
+    // of one arrangement (`./typing.ts`).
+    "bad-prop",
     // Not about the format at all — the DIRECTORY could not be read — and
     // `set` for the reason the split exists: it is a fact about the whole
     // load rather than about one record, and nothing about it is waiting on a

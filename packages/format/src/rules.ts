@@ -32,6 +32,7 @@
  * hold the two arms to one answer.
  */
 
+import { customOrder } from "./custom.ts"
 import { type Derived, drawnFrom } from "./derive.ts"
 import { resolveRelative } from "./documents.ts"
 import {
@@ -40,10 +41,11 @@ import {
   isGuessWhileUnreadable,
   type OutlineError,
 } from "./errors.ts"
-import { isMirror, type Located, type Site } from "./node.ts"
+import { isMirror, isRegular, type Located, propertiesIn, type Site } from "./node.ts"
 import { byPath } from "./paths.ts"
 import { markdownIn, type OutlineSet } from "./set.ts"
 import { didYouMean } from "./suggest.ts"
+import { type Typed, wrongDeclaration, wrongValue } from "./typing.ts"
 
 // ── the verdict ────────────────────────────────────────────────────────
 
@@ -345,6 +347,82 @@ export const reportDocs = (
       ...siteOf(located),
       message: `\`doc\` is \`${node.doc}\`, which resolves to \`${resolved}\` — no such \`.md\` file is served`,
     })
+  }
+}
+
+// ── typed properties ───────────────────────────────────────────────────
+
+/**
+ * The DECLARATIONS themselves — every record of `_olai/Properties.olai`, held
+ * against the built-in table ({@link ../typing.ts}'s `BOOTSTRAP`).
+ *
+ * WHOLE-FILE AND NOT NARROWED, and it is the one rule here that needs no
+ * narrowing argument: a declarations file is one node per key that a vault
+ * actually types, which is a handful — so re-asking it costs a walk of a few
+ * dozen records where deciding whether to re-ask it would cost about the same.
+ * The duplicate-key half needs the file's roots IN ORDER anyway (the second
+ * claim is the one reported, as it is for a duplicate id), which a subset
+ * cannot give.
+ *
+ * A directory with no such file reports nothing, because it declares nothing.
+ */
+export const reportDeclarations = (
+  derived: Derived,
+  errors: Array<OutlineError>,
+): void => {
+  const file = propertiesIn([...derived.byFile.keys()])
+  if (file === undefined) return
+  const declared = new Set<string>()
+  for (const located of derived.byFile.get(file) ?? []) {
+    const wrong = wrongDeclaration(derived, located, declared)
+    if (wrong === undefined) {
+      if (isRegular(located) && located.node.parent === undefined) {
+        declared.add(located.node.title.trim())
+      }
+      continue
+    }
+    errors.push({ code: "bad-prop", ...siteOf(located), message: wrong })
+  }
+}
+
+/**
+ * Every property VALUE these records carry, against what its key declares.
+ *
+ * ONE FINDING PER KEY PER RECORD, in the order the record's own map holds them
+ * ({@link ../custom.ts}'s `customOrder` — the order the bytes have them), which
+ * is what {@link reportUnknownTargets} promises one rule over for the same
+ * reason: the report is sorted by file, then line, then code, so the only
+ * findings this can order are two at ONE site with this code, and both
+ * validators have to put them in the same one.
+ *
+ * A MIRROR CARRIES NO PROPERTIES — the format's own shape — so a placement is
+ * stepped over rather than asked, exactly as `reportDocs` steps over one.
+ *
+ * NOTHING WALKS. The declarations are one small map built once per validation,
+ * `ref` and `node` read `byId` and `children`, and `doc` reads the `.md` set
+ * the `doc` field's own rule already carries — which is what lets this rule
+ * ride every write rather than joining the whole-corpus sweep.
+ */
+export const reportPropValues = (
+  records: Iterable<Located>,
+  typed: Typed,
+  errors: Array<OutlineError>,
+): void => {
+  // A vault that declares nothing has nothing to say about any value, and
+  // that is nearly every vault: the map is read once here rather than per
+  // record, so an undeclared directory pays one test for the whole rule.
+  if (typed.declarations.size === 0) return
+  for (const located of records) {
+    if (isMirror(located.node)) continue
+    const custom = located.node.custom
+    if (custom === undefined) continue
+    for (const key of customOrder(custom)) {
+      const value = custom[key]
+      if (value === undefined) continue
+      const wrong = wrongValue(typed, located.file, key, value)
+      if (wrong === undefined) continue
+      errors.push({ code: "bad-prop", ...siteOf(located), message: wrong })
+    }
   }
 }
 

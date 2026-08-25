@@ -422,6 +422,72 @@ const CORNERS: ReadonlyArray<Corner> = [
   },
   {
     why:
+      "a DECLARATION changes type, so every value of that key in the directory " +
+      "is back in question and no index says which records carry it",
+    steps: [
+      at({
+        "_olai/Properties.olai": `{"id":"p","ord":"a","title":"pr","custom":{"type":"text"}}`,
+        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"pr":"#193"}}`,
+      }),
+      at({
+        "_olai/Properties.olai": `{"id":"p","ord":"a","title":"pr","custom":{"type":"int"}}`,
+        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"pr":"#193"}}`,
+      }),
+      at({
+        "_olai/Properties.olai": `{"id":"p","ord":"a","title":"pr","custom":{"type":"int"}}`,
+        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"pr":"193"}}`,
+      }),
+    ],
+  },
+  {
+    why:
+      "a VARIANT leaves the roster a `ref` points at, so an untouched record's " +
+      "value goes stale the way a dangling edge does",
+    steps: [
+      at({
+        "_olai/Properties.olai":
+          `{"id":"p","ord":"a","title":"agent","custom":{"type":"ref","under":"roster"}}`,
+        "r.olai": `{"id":"roster","ord":"a","title":"the agents"}\n` +
+          `{"id":"grok","ord":"b","title":"Grok","parent":"roster"}`,
+        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"agent":"grok"}}`,
+      }),
+      // Reparented OUT of the roster — the id still exists, so nothing about
+      // `byId` moved and the domain still shrank.
+      at({
+        "_olai/Properties.olai":
+          `{"id":"p","ord":"a","title":"agent","custom":{"type":"ref","under":"roster"}}`,
+        "r.olai": `{"id":"roster","ord":"a","title":"the agents"}\n` +
+          `{"id":"grok","ord":"b","title":"Grok"}`,
+        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"agent":"grok"}}`,
+      }),
+      // ...and put back, which has to take the finding away again.
+      at({
+        "_olai/Properties.olai":
+          `{"id":"p","ord":"a","title":"agent","custom":{"type":"ref","under":"roster"}}`,
+        "r.olai": `{"id":"roster","ord":"a","title":"the agents"}\n` +
+          `{"id":"grok","ord":"b","title":"Grok","parent":"roster"}`,
+        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"agent":"grok"}}`,
+      }),
+    ],
+  },
+  {
+    why:
+      "a `doc`-typed value's document goes away, which only the `.md` carry can " +
+      "notice",
+    steps: [
+      at({
+        "_olai/Properties.olai": `{"id":"p","ord":"a","title":"brief","custom":{"type":"doc"}}`,
+        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"brief":"b.md"}}`,
+        "b.md": "a brief",
+      }),
+      at({
+        "_olai/Properties.olai": `{"id":"p","ord":"a","title":"brief","custom":{"type":"doc"}}`,
+        "a.olai": `{"id":"one","ord":"a","title":"one","custom":{"brief":"b.md"}}`,
+      }),
+    ],
+  },
+  {
+    why:
       "every file the directory holds is rewritten at once — a `git pull`, where " +
       "nothing of the old view is left to patch onto",
     narrows: false,

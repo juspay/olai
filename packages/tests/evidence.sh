@@ -45,7 +45,16 @@ for section in "${sections[@]}"; do
   echo "── $section ──────────────────────────────────────────────"
   rm -rf "$work/vault"
   mkdir -p "$work/vault"
-  cp -r fixtures/good/. "$work/vault/"
+  # WHICH CORPUS this section is served. `good/` for all but one of them, and
+  # that one is not a preference: a property DECLARATION fences its key across
+  # the whole vault, so typing `pr` in `good/` would make its
+  # `pr: https://…/179` a broken file and take every other section's shots with
+  # it (`fixtures/README.md` says why there are two vaults).
+  case "$section" in
+    typed-properties) corpus="typed" ;;
+    *) corpus="good" ;;
+  esac
+  cp -r "fixtures/$corpus/." "$work/vault/"
   # AN AGENT FOR THE SECTIONS THAT TALK TO ONE, and none for the rest:
   # a scripted agent nobody speaks to is a subprocess spawned per section for
   # nothing (support/serve.sh says so where the switch lives). The scripted one

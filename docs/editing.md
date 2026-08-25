@@ -286,6 +286,8 @@ Anything else stays the text it is. A value with a URL *inside* it is not a URL 
 
 **Enter** commits. **Escape** cancels. Leaving the box commits what changed, and is silent when nothing did — opening a chip and clicking away is a gesture you make several times a minute, and it must not be an error message. ⌘Z takes a write back. What goes out is the same `set_prop` an agent sends, judged by the same planner and refused in the same words.
 
+**A refusal is shown, verbatim, under the run.** A key the vault declares has a type ([format.md](format.md#typed-properties)), and a value that does not fit it is turned away by the same planner an agent's `set_prop` meets — so typing `AUTO: grok review folded` into a `merge` chip does not quietly revert: the chip closes, the file keeps what it had, and the ops layer's own sentence appears under the run, naming what the key may hold and offering the nearest one. It lingers a few seconds and clears, like every other thing this app says about a write. The one thing it is not is a summary: the words that say WHY are the refusal's, and a face that paraphrased them would be one that threw the answer away and kept the failure.
+
 **Clearing the value removes the property.** That is not a shortcut this face invented: `set_prop` with an empty value takes the key off exactly as `null` does, so emptying the box is the removal verb, spelled the way you would expect to spell it.
 
 **The `+` at the end of the run adds one**, and it is the only place a key is ever typed. A rename is not a write this format has — `set_prop` sets ONE key, so changing `pr` to `PR` is removing one property and adding another, which is two ops and therefore two gestures. An existing chip's key is a label, not a box.

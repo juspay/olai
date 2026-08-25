@@ -52,6 +52,7 @@ import { Schema } from "effect"
 import type { Derived, Row } from "./derive.ts"
 import type { Face } from "./document.ts"
 import { type Filter, parseFilter, selecting, shownRecord } from "./filter.ts"
+import { declarationsOf } from "./typing.ts"
 import { isTrashed, type LocatedRegular } from "./node.ts"
 import { narrowableIn, PageRequest, type Shown, shownOf } from "./page.ts"
 import { MatchedNode } from "./searching.ts"
@@ -154,7 +155,11 @@ export const narrowingOf = (
   matches: narrowedIn(
     derived,
     shownOf(derived, faces, broken, request.page),
-    parseFilter(request.text, now),
+    // THE VAULT'S VOCABULARY, exactly as `search_nodes` is answered with it
+    // (`@olai/ops`' `query.ts`): the box that narrows a page and the box that
+    // lists hits read one grammar, so a typed span means the same thing in both
+    // or the app disagrees with itself in front of the reader.
+    parseFilter(request.text, now, declarationsOf(derived)),
   ),
 })
 

@@ -85,6 +85,7 @@ import {
   reportUnknownTargets,
 } from "./rules.ts"
 import { assemble, type OutlineSet } from "./set.ts"
+import { declarationsOf } from "./typing.ts"
 import { Result } from "effect"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
@@ -254,7 +255,11 @@ const row = (what: string, edits: ReadonlyArray<Edit>): void => {
   restore()
   let set = setOfHeld()
   let view = derive(recordsIn(set))
-  let ledger: Ledger = { errors: whole(set, view), known: markdownPaths(set) }
+  let ledger: Ledger = {
+    errors: whole(set, view),
+    known: markdownPaths(set),
+    typing: declarationsOf(view),
+  }
   if (ledger.errors.length > 0) {
     throw new Error(
       `the generated vault does not validate, so neither arm is measuring a ` +
@@ -313,7 +318,7 @@ const row = (what: string, edits: ReadonlyArray<Edit>): void => {
           `  incremental: ${other.join(" | ") || "(accepted)"}`,
       )
     }
-    ledger = { errors: said, known: markdownPaths(set) }
+    ledger = { errors: said, known: markdownPaths(set), typing: declarationsOf(view) }
   }
   const many = edits.length
   console.log(

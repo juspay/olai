@@ -50,7 +50,7 @@ Every field above is one this format declares, and the top level is **closed**: 
 {"id":"lane","ord":"a1","title":"the chat header goes stale","doing":true,"custom":{"agent":"claude-opus","pr":"https://github.com/juspay/olai/pull/176"}}
 ```
 
-**Any key, holding text or a list of text.** Nothing here gives a key a meaning and nothing parses a value: a URL is a string that looks like a URL. Typed values are a door deliberately not opened.
+**Any key, holding text or a list of text.** Nothing here gives a key a meaning: a URL is a string that looks like a URL, and no reading in olai turns a value into anything. What a vault MAY do is declare that one key's values have a shape — see [Typed properties](#typed-properties) below, which is a fence around a value and never a meaning given to a key.
 
 **One open field rather than an open record.** Letting unknown top-level keys through would buy the same expressiveness by giving up the refusal that catches typos — and it would put `pr` and `title` in one namespace, where a key called `done` reads as a mark and is not one. Two namespaces in two places: which is which is a fact about where the key sits, not a rule to remember.
 
@@ -61,6 +61,71 @@ Every field above is one this format declares, and the top level is **closed**: 
 **The stamps are not compared as changes.** Every write stamps `changed`, so a commit that named it would name it in every line beside the field somebody actually changed — and a write that changed nothing would report as a change, since the stamp would be the difference. What a reader is owed is what they wrote; when they wrote it is the log's own answer.
 
 **Keys are written alphabetically**, and a key holding nothing is not written at all — the same two rules the fields above follow, one level in. A map with no keys left is no `custom` field rather than `{}`. **A read answers the same map a write would produce**, so a key holding nothing is absent from a hit and from `read_node` exactly as it is absent from the line on disk, and `prop:` — which asks the same question — cannot disagree with the answer beside it.
+
+## Typed properties
+
+A key with no declaration is **text**, and that is nearly every key. A vault may declare that one key's values have a shape, and then the write gate refuses a value that does not fit — the same fence `set_doing` and the duplicate-id rule already are. **Typing constrains the value; it grants no meaning**: a `date`-typed property still does not put its node on a day page, because a property is not a mark.
+
+The problem it is for, from a live board:
+
+```
+merge       AUTO: grok review folded + CI green; gate = index≡scan differential
+dispatched  2026-08-25 10:06 (sweep queue #5; the slot freed by #387's merge)
+```
+
+`merge` is a word a driver switches on and this value matches neither of the two it may be; `dispatched` is a date with a story stapled to it. **The value is the value**; the story belongs in the node's note.
+
+**Declarations live in `_olai/Properties.olai`** — read by NAME, wherever it sits, exactly as `Pins.olai` and `Inbox.olai` are. One node per key, the **title IS the key**, the type is written in that node's own props, and an enum's variants are its **children**:
+
+```jsonl
+{"id":"prop-merge","ord":"a0","title":"merge","custom":{"type":"ref"}}
+{"id":"auto","parent":"prop-merge","ord":"a0","title":"automatic"}
+{"id":"human","parent":"prop-merge","ord":"a1","title":"the human merges"}
+{"id":"prop-dispatched","ord":"a1","title":"dispatched","custom":{"type":"date"}}
+{"id":"prop-pr","ord":"a2","title":"pr","custom":{"type":"int"}}
+{"id":"prop-agent","ord":"a3","title":"agent","custom":{"type":"ref","under":"agents-roster"}}
+```
+
+**Data, not config.** Editing the vocabulary is editing an outline: adding a variant is adding a child row, the file opens in olai like any other, and nothing restarts. Per-outline declarations were considered and rejected — props are ONE namespace across the vault, so `merge` on a lane and `merge` anywhere else mean one thing or a key's meaning depends on where the reader is standing.
+
+**The seven kinds:**
+
+| kind | what a value is |
+| --- | --- |
+| `text` | anything. The default, and a DECLARED `text` is the durable blessing for a key whose values are deliberately prose (`from`). |
+| `date` | an ISO day (`2026-08-25`) or an instant written as a mark records one (`2026-08-25T10:06:00-04:00`). Nothing else. |
+| `int` | a digit run: no sign, no leading zeros, no separators, nothing after them. |
+| `path` | one run of characters with no whitespace in it. May point anywhere. |
+| `doc` | a path that resolves — against the naming outline's own directory, as `doc` does — to an `.md` this directory serves. |
+| `ref` | the **id** of one of a parent's children. `under` names the parent; absent, it is the declaration's own children. |
+| `node` | the id of any node in the set. A mirror is not one. |
+
+**There is deliberately no `sum` — an enum IS a ref.** The variants are nodes, so adding one is adding a child rather than editing a pipe-separated string inside a property, which is exactly the sloppiness this refuses. A roster that happens to live elsewhere (`{"type":"ref","under":"agents-roster"}`) is the same mechanism pointed at a different place, and it stays data: add a node under the roster and the sum grows, with no declaration to edit.
+
+**A ref value is an ID, and display resolves it to the title** — the pin and mirror rule, for the pin and mirror reason: names rename, ids don't. Variant ids are chosen short at declaration time (`auto`, `human`), which is safe because the duplicate-id fence makes a clash loud at add-time.
+
+**One rule, two doors.** A live write is REFUSED, with the allowed values named and the closest one offered:
+
+```
+set_prop {"id":"lane","key":"merge","value":"AUTO: grok review folded + CI green"}
+→ `merge` is `auto` | `human` — got "AUTO: grok review folded + CI green"
+
+set_prop {"id":"lane","key":"agent","value":"clade"}
+→ `agent` names a node under `agents-roster` — those are `claude`, `grok`, `pi` —
+  got "clade" — did you mean `claude`?
+```
+
+A hand edit that lands a bad value makes the file **broken, naming the key** (`bad-prop`), exactly how every other validation rule reports. Every door that writes a property is covered, because the check sits at the plan/validate seam: `set_prop`, `add_node`'s `props` (children included), `apply`, `update`, `capture`. `duplicate_node` needs no rule of its own — a copy is isomorphic to a subtree the validator has already approved.
+
+**A `date` accepts the obvious spellings and stores ONE.** Surrounding space, a single-digit month or day, a space where ISO writes `T`, missing seconds, a fraction after them — all fold into the canonical spelling, and a datetime with no zone is stamped with the offset of the clock the write is made on. Prose stapled to a date is not a spelling and is refused. On disk the canonical form is the only legal one, so a hand-written `2026-08-25 10:06` is a broken file naming the key rather than a value quietly accepted.
+
+**Dangling ref values are flagged like dangling edges.** Delete a roster node while lanes still name it and the validator says so, with a did-you-mean — the same treatment an `after` target that went away gets.
+
+**Where the recursion grounds.** A declaration is a node carrying properties, so `type` and `under` would need declaring too. They do not: a **built-in table** in code types those two words, applied to the records of `_olai/Properties.olai` and nowhere else. A vault may not declare `type` or `under`; outside that file, a property called `type` is somebody's own vocabulary and none of this format's business.
+
+**What typing does NOT do.** No required keys, no schema per node kind, no defaults. A node may carry any subset of keys, as today. This is one rule about values.
+
+Typed keys gain **spans** in search (`prop:pr=190..200`) — see [search.md](search.md).
 
 ## Status
 
@@ -324,7 +389,7 @@ One validator checks the loaded set — on load and after every write. Nothing i
 It runs in two stages, and the staging is part of the contract:
 
 1. **Per line.** Everything a single record answers on its own: JSON, the record shape (required fields present, no unknown field, a mirror carrying nothing but its four), the id's spelling, ISO dates, the mark exclusion, and the repeat rule with the date it repeats from (all of them, per the rules below).
-2. **Per set.** Everything that needs to know what else exists: uniqueness, references, cycles, documents.
+2. **Per set.** Everything that needs to know what else exists: uniqueness, references, cycles, documents, and the property values a key's declaration fences.
 
 A file is decoded whole or not at all. The set-wide rules then run over the outlines that did parse, and one that did not costs **that outline and nothing else**: if the survivors are clean, the set loads with the broken file's errors carried inside it, shown in that outline's place while the rest stay live. If anything else is wrong, the set is refused and the parse errors are reported alongside it.
 
@@ -340,6 +405,7 @@ The rules:
 - Dates (the marks and `date`) are valid ISO; the four marks are mutually exclusive, and a record carrying two is refused whichever two they are. Validated as text, because a writer must reproduce what it read: a date-only `2026-08-10` round-tripped through an instant would come back a datetime.
 - `repeat` is a rule the grammar holds, and the node carries a `date` for it to repeat from. Both are `bad-repeat`, and both are per-line for the reason the mark exclusion is: the whole question is on one line, and two branches that broke it between them would conflict in git rather than merging into a set nothing loads ([Repeating](#repeating)).
 - `doc` resolves, against the naming outline's own directory, to an `.md` file that is actually served.
+- Every property value fits what its key DECLARES, and every declaration in `_olai/Properties.olai` says a type the built-in table knows ([Typed properties](#typed-properties)). Both are `bad-prop`, and both name the key. A ref or a `node` value resolves a bare id across files, so the code is withheld while any file is unreadable — the same staging rule an unknown target gets, and a withheld finding still refuses the set.
 
 There is deliberately **no rule about a mark and the children under it**, and the fourth mark added none: `set_cancelled` is not gated on the branch at all ([Status](#status)), so the format grew a word without growing a cross-line invariant. There was one — no stored derived state, which refused any mark on a node with children — and it existed only to keep a computed status and a written one from contradicting each other. Nothing computes one now, so it has nothing to defend: it dissolved with derivation rather than needing an exception ([Status](#status)). What replaced it is a pair of write-time gates and a nudge ([Status](#status)), which are the ops layer's policy and never a reason a set fails to load: a merge can write a mark in one branch and a task under it in another and both land cleanly, so this file has to read that set, and the next write through the ops layer is what fixes it.
 

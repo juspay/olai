@@ -65,6 +65,7 @@ import {
 import type { SetDelta } from "./patch.ts"
 import { reportOf } from "./rules.ts"
 import type { OutlineSet } from "./set.ts"
+import type { PropDeclarations } from "./typing.ts"
 
 /**
  * WHAT THE TWO ARMS SAID, when they did not say the same thing.
@@ -271,8 +272,12 @@ export const shadowed = (
   derived: Derived,
   errors: ReadonlyArray<OutlineError>,
   known: ReadonlySet<string>,
+  /** What the full arm read the vault's property vocabulary as — carried for
+   *  the next validation to compare against, exactly as `known` is
+   *  ({@link ./incremental.ts}'s `Ledger`). */
+  typing: PropDeclarations,
 ): void => {
-  const ledger: Ledger = { errors, known }
+  const ledger: Ledger = { errors, known, typing }
   try {
     const followed = before === undefined ? undefined : LEDGERS.get(before)
     if (before === undefined) {
