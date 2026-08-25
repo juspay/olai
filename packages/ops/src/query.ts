@@ -107,6 +107,7 @@ import {
   titleParts,
   UsageFailure,
 } from "@olai/format"
+import type { Index } from "@olai/index"
 import { Result } from "effect"
 
 import { noSuchDocument, notLoaded, outlineAt } from "./refusals.ts"
@@ -275,6 +276,34 @@ export const search = (
    *  over the `now` a `done` is stamped with), and a second `new Date()` in the
    *  read path would be a second answer to what day it is. */
   now: string,
+  /**
+   * The directory's search index, when there is one — what the two walks below
+   * are run over INSTEAD of the corpus (`@olai/index`).
+   *
+   * OPTIONAL, and not as a feature flag: this function's answer is the same
+   * with it and without it, which is a claim two suites make rather than one
+   * this comment does. `@olai/index`'s own `index.test.ts` is the algorithm's
+   * — the grammar's corners, a generated corpus, and a soak of random writes
+   * that steers the directory across the size where the table starts declining
+   * and back; `./search.index.test.ts` is the SEAM's, and is this layer's for
+   * that reason: it asks every query through this door and through the corpus
+   * walk after each of thirteen writes made by the real gate, which is where an
+   * index one revision behind would show up and nowhere else.
+   *
+   * What the index changes is what has to be READ to arrive at the answer — a
+   * shortlist of candidates instead of every record and every body in the
+   * directory — and it can only ever hand back MORE than the query selects,
+   * which the matcher below then narrows exactly as it narrows the corpus. So a
+   * caller with no index is a caller paying what search cost before there was
+   * one, and every test in this package that calls `search` directly is
+   * deliberately one of them: the two paths are compared, so both are walked.
+   *
+   * It is handed IN for the same reason the clock is. This stays a pure
+   * function of a snapshot; the table is one per served directory and its
+   * lifetime is `./ops.ts`'s `make`, which is where a directory's other
+   * long-lived things are opened.
+   */
+  index?: Index | undefined,
 ): SearchAnswer => {
   const filter = parseFilter(query.text, now)
   // A query the grammar could not read answers with no hits AND WITH THE
@@ -286,17 +315,26 @@ export const search = (
   if (filter.kind === "nothing") return { hits: [], total: 0 }
 
   const scope = { file: query.file, under: query.under }
+  // WHAT MIGHT MATCH, when something knows — the index brought level with this
+  // very reading and asked for this very query, so there is no revision between
+  // the candidates and the records they are resolved against. `undefined` is
+  // both of the two ways there is nothing to narrow by (no index at all, or a
+  // query the trigram floor cannot look up) because the two mean the same thing
+  // to the walks below: ask the corpus, as they always did.
+  const narrowed = index?.narrow(at, filter) ?? undefined
   // ASKED FOR, and the request is where that lives: a door picking a record to
   // point at cannot take a document, and one filtering the answer itself would
   // run short exactly when a query matched enough documents to fill the cap.
-  const nodes = query.kind === "document" ? [] : matching(at.derived, filter, scope)
+  const nodes = query.kind === "document"
+    ? []
+    : matching(at.derived, filter, scope, narrowed?.nodes)
   // The other arm of the set, asked the same question. A document answers
   // `prop:` out of its frontmatter and nothing else — a mark, a date and a
   // record's field select none of them, which is `matchingDocuments`' own rule
   // and the honest answer rather than a hole.
   const documents = query.kind === "node"
     ? []
-    : matchingDocuments(bodiedIn(at.set), filter, scope)
+    : matchingDocuments(bodiedIn(at.set), filter, scope, narrowed?.documents)
   const limit = query.limit ?? DEFAULT_SEARCH_LIMIT
   // Read ONCE for the answer rather than per hit: it is a fact about the
   // question, and this same request is what a browser's boxes send on every

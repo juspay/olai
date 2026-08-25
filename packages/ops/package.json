@@ -13,10 +13,11 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "Between `format` and `server` (docs/architecture.md): the ops layer knows what an edit MEANS and how a write is made durable, and nothing about a listener, a socket or a browser. @olai/format supplies the records, the rules, the canonical bytes and the refusal vocabulary; @olai/store supplies the one write gate; @olai/git is the subprocess half of committing, extracted because it decides nothing — this layer is what decides, and what it hands down is a message, a set of paths and an audit convention. @olai/surface is deliberately absent — an op does not know it is being called over a wire.",
+  "//dependencies": "Between `format` and `server` (docs/architecture.md): the ops layer knows what an edit MEANS and how a write is made durable, and nothing about a listener, a socket or a browser. @olai/format supplies the records, the rules, the canonical bytes and the refusal vocabulary; @olai/store supplies the one write gate; @olai/git is the subprocess half of committing, extracted because it decides nothing — this layer is what decides, and what it hands down is a message, a set of paths and an audit convention. @olai/index is the same kind of sibling one question over: it holds the trigram table a directory search takes its candidates from and decides nothing either, which is why the door that spends it is `Query.search` and the thing that opens it is `make` — one table per served directory, beside the one store. @olai/surface is deliberately absent — an op does not know it is being called over a wire.",
   "dependencies": {
     "@olai/format": "workspace:*",
     "@olai/git": "workspace:*",
+    "@olai/index": "workspace:*",
     "@olai/store": "workspace:*",
     "effect": "4.0.0-rc.110"
   },
