@@ -228,14 +228,18 @@ export const taping = (
   }
   const view: Record<string, unknown> = {}
   // ONE WRAPPER PER INDEX THE ANSWER ACTUALLY NAMES, minted on the way past and
-  // kept: most of the five read two or three of the eleven, and the two
+  // kept: most of the five read two or three of the twelve, and the two
   // cheapest — a month of the calendar, a move picker's preview — read exactly
-  // one. Eleven allocations to answer a question that costs a fifth of a
+  // one. A wrapper per index to answer a question that costs a fifth of a
   // millisecond is a tax on the arm this module exists to make cheaper.
   //
   // ENUMERABLE, like the fields they stand in for: a view whose tables were
-  // hidden from a spread would be a `Derived` that quietly lost eleven of its
-  // thirteen fields the first time somebody copied one.
+  // hidden from a spread would be a `Derived` that quietly lost twelve of its
+  // fourteen fields the first time somebody copied one.
+  //
+  // NEITHER COUNT IS LOAD-BEARING and neither is checked — {@link INDEXES} and
+  // {@link LISTS} are, and both are exhaustive by the type. They are here to be
+  // read, and a reader who finds them stale should trust the tables.
   for (const which of INDEXES) {
     let held: Taped<unknown> | undefined
     Object.defineProperty(view, which, {

@@ -68,13 +68,16 @@
  * the prior one is what was live before it, kept for exactly one thing — it is
  * what the pre-check re-validates against.
  *
- * WHAT ROLLS THEM is a reading being ASKED about, not a revision going by, and
- * the difference is the whole economy: a directory nobody is watching answers
- * nothing and rolls nothing, and a question nobody holds any more falls out
- * after the next two asks somebody else makes. So what is held is bounded by
- * the questions being asked rather than by the questions ever asked — a browser
- * paging through a year of months leaves eleven of them behind almost at once.
- * Nothing is evicted by size, because nothing accumulates.
+ * WHAT ROLLS THEM is a NEW READING being asked about, not a revision going by
+ * and not an ask, and the difference is the whole economy: a directory nobody
+ * is watching answers nothing and rolls nothing, however many asks arrive at
+ * the reading it is already on. A question nobody holds any more falls out
+ * after the next two rolls — which is to say after two further revisions
+ * somebody else asked about, however many questions they asked at each. So what
+ * is held is bounded by the questions being asked rather than by the questions
+ * ever asked: a browser paging through a year of months leaves eleven of them
+ * behind almost at once. Nothing is evicted by size, because nothing
+ * accumulates.
  *
  * It also means a question that sat out a revision is still re-validated
  * against the reading it was last answered at rather than rebuilt, which falls
