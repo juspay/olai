@@ -28,6 +28,12 @@
  * have landed (or lands something that should have been refused about a file
  * the set could not read).
  *
+ * THAT SENTENCE IS ASSERTED, per verb, rather than left as a claim about a list
+ * (`./plans.golden.test.ts`) — it was written before it was true of the file
+ * below it, and six verbs answered without ever refusing until a reviewer
+ * counted them. A promise about coverage that nothing checks is exactly the
+ * promise the next decomplect will lean on.
+ *
  * THE REFUSALS ARE THE POINT, and they are chosen to be the ones that read the
  * SET rather than the request: a file the set could not parse (every `writable`
  * gate), a path that is not an outline (`landsIn`), a path that is not a
@@ -304,4 +310,51 @@ export const SCRIPT: ReadonlyArray<Step> = [
   // ...and the one that is left over: a node others point at, put away last so
   // the emptied trash above is not what this step is about.
   { what: "trash a node others point at, which is allowed", op: { op: "trash", id: "beds" } },
+  // ── the refusals the six quiet verbs have ────────────────────────────
+  //
+  // APPENDED, and the position is the point: the rows above were recorded from
+  // the planner as it stood before the decomplect, and a step inserted among
+  // them would move every hash after it — so what a reader can check on the
+  // fixture's diff is that the earlier rows did not move (pi's SHOULD-1, whose
+  // finding was that the header claimed a refusal per verb and six verbs had
+  // none). Each of these refuses for the verb's OWN reason and refuses wherever
+  // it sits: a settled mark, a stale condition, an id nothing declares, a half
+  // of a split with nothing in it. `demo` is `done` in the corpus and no step
+  // above touches it, which is what makes the first two hold here.
+  {
+    what: "todo over a settled mark — refused, the instant is on a day's page",
+    op: { op: "todo", id: "demo" },
+  },
+  {
+    what: "cancelled over a node already done — refused for the same reason",
+    op: { op: "cancelled", id: "demo" },
+  },
+  {
+    what: "desc with a stale `was` — refused, the note is not the one it expected",
+    op: { op: "desc", id: "demo", desc: "a second note", was: "not the note it holds" },
+  },
+  {
+    what: "date on an id nothing declares — refused with the near miss",
+    op: { op: "date", id: "dem", date: "2026-09-09" },
+  },
+  {
+    what: "repeat on an id nothing declares — the same door, one field over",
+    op: { op: "repeat", id: "dem", repeat: "every day" },
+  },
+  // SPLIT, three more times: it is on the brief's own watch-list and appeared
+  // exactly once. Both of its own refusals — an empty head and an empty tail —
+  // and one more that ANSWERS, so the verb is exercised on both sides of its
+  // gate rather than only past it.
+  {
+    what: "split leaving a blank row behind — refused",
+    op: { op: "split", id: "demo", title: "  ", rest: "the rest" },
+  },
+  {
+    what: "split with nothing on the other side — refused",
+    op: { op: "split", id: "demo", title: "demolition", rest: "   " },
+  },
+  {
+    what: "split a node that carries a mark, a date and children",
+    op: { op: "split", id: "kitchen", title: "Kitchen", rest: "remodel" },
+  },
 ]

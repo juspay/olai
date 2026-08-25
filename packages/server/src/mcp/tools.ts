@@ -230,9 +230,9 @@ const isRecord = (said: unknown): said is Record<string, unknown> =>
  * business — the FACE this client dispatches at decided it (`../runtime.ts`'s
  * `writerAt`).
  *
- * ONE PER CLIENT, not one per call. Three of the nine lines are Effect VALUES
- * rather than thunks (`push`, `outlines`, `documents` — that is the shape the
- * interfaces declare, because a question with no argument is a value), so
+ * ONE PER CLIENT, not one per call. Four of the ten lines are Effect VALUES
+ * rather than thunks (`push`, `outlines`, `paths`, `documents` — that is the
+ * shape the interfaces declare, because a question with no argument is a value), so
  * building a door per tool call would decode `git.push`'s empty input on every
  * `set_done` as well. The adapter hands back the same client object for a
  * connection's whole life, so the key is the connection in everything but

@@ -250,5 +250,37 @@
   {
     "what": "trash a node others point at, which is allowed",
     "sha": "7ec7a723af8277c2"
+  },
+  {
+    "what": "todo over a settled mark — refused, the instant is on a day's page",
+    "sha": "b7d85a79c8ba419b"
+  },
+  {
+    "what": "cancelled over a node already done — refused for the same reason",
+    "sha": "b7d85a79c8ba419b"
+  },
+  {
+    "what": "desc with a stale `was` — refused, the note is not the one it expected",
+    "sha": "97f9371688d57c5a"
+  },
+  {
+    "what": "date on an id nothing declares — refused with the near miss",
+    "sha": "4a1127635860e5f2"
+  },
+  {
+    "what": "repeat on an id nothing declares — the same door, one field over",
+    "sha": "4a1127635860e5f2"
+  },
+  {
+    "what": "split leaving a blank row behind — refused",
+    "sha": "c002869af68d92ea"
+  },
+  {
+    "what": "split with nothing on the other side — refused",
+    "sha": "44acc30a29823a1d"
+  },
+  {
+    "what": "split a node that carries a mark, a date and children",
+    "sha": "9092b2f5b3610525"
   }
 ]

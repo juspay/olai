@@ -44,6 +44,15 @@
  * (`@olai/format`'s `suggest.test.ts`, `./walks.test.ts`). Everything else in
  * this file's subject — every refusal, every record, every summary — is the
  * braid's own answer.
+ *
+ * THE LAST EIGHT ROWS ARE NOT, and they say so here rather than reading as if
+ * they were: the review found the header of `./plans.testlib.ts` claiming a
+ * refusal per verb where six verbs had none, and the six refusals that closed
+ * that (plus two more `split` steps) were APPENDED — recorded from the planner
+ * as this PR leaves it. Appended is the whole of why that is honest: a step
+ * inserted among the rows above would have moved every hash after it, so the
+ * fixture's diff shows additions and nothing else, and the sixty-three rows the
+ * braid answered are checkable as unmoved rather than merely asserted to be.
  */
 
 import { createHash } from "node:crypto"
@@ -185,7 +194,7 @@ test("every op of the script answers what it answered before the decomplect", ()
  * script sends rather than over the table — what must be true is that no verb
  * an agent can send is missing from the run.
  */
-test("the script asks every op kind, and refuses at least one of each shape", () => {
+test("the script asks every op kind, and asks each of them on both sides of its gate", () => {
   const asked = new Set(SCRIPT.map((step) => step.op.op))
   expect([...asked].sort()).toEqual([
     "add",
@@ -215,12 +224,22 @@ test("the script asks every op kind, and refuses at least one of each shape", ()
     "untrash",
     "update",
   ])
-  // Half the script is refusals — the arms that read the SET rather than the
-  // request, which are the ones the context change could have moved.
+  // AND EVERY VERB ON BOTH SIDES OF ITS GATE, per verb rather than as a total.
+  // A count was what this said first, and a count is satisfied by a script that
+  // refuses twenty times with one verb — which is how the header above came to
+  // claim a refusal per verb while six of them only ever answered (pi's review,
+  // 2026-08-25). What each side catches is different: an ANSWER catches a table
+  // keyed at the wrong verb (the recorded row is the braid's own plan, so a
+  // miskey diverges at that step), and a REFUSAL catches a context that lost a
+  // fact, because that is what a refusal reads.
   const said = run()
-  const refused = said.filter((step) =>
-    typeof step.said === "object" && step.said !== null && "refused" in step.said
-  )
-  expect(refused.length).toBeGreaterThanOrEqual(20)
-  expect(said.length - refused.length).toBeGreaterThanOrEqual(30)
+  const answering = new Set<string>()
+  const refusing = new Set<string>()
+  said.forEach((step, at) => {
+    const verb = (SCRIPT[at] as { readonly op: { readonly op: string } }).op.op
+    const held = typeof step.said === "object" && step.said !== null && "refused" in step.said
+    ;(held ? refusing : answering).add(verb)
+  })
+  expect([...asked].filter((verb) => !answering.has(verb))).toEqual([])
+  expect([...asked].filter((verb) => !refusing.has(verb))).toEqual([])
 })

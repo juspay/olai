@@ -104,6 +104,32 @@ describe("nearestDeclared", () => {
     expect(nearestId("ordr", ["order", "orde"])).toBe("order")
   })
 
+  /**
+   * THE BUDGET'S OWN BOUNDARY, at the door that reads the index — the walk's is
+   * pinned above (`odr` / `od` against `order`) and this one was pinned only by
+   * the seeded differential below (pi's review, 2026-08-25).
+   *
+   * It is the shape of the bug that differential caught, constructed: `bestAt`
+   * starts at infinity, so a tie-break that did not check the budget FIRST
+   * would let the earliest candidate past at `budget + 1` — the one distance the
+   * offer must never be made at. `aaaabbbbc` has a budget of three; `aaabbbcad`
+   * is four edits away and passes the character bound (the same letters, moved),
+   * so it reaches the matrix and is the first candidate the map offers. Both
+   * doors must answer nothing.
+   */
+  test("a candidate one past the budget is not offered, however early it was", () => {
+    const asked = "aaaabbbbc"
+    const past = declared(["aaabbbcad", "zzzzzzzzz"])
+    expect(nearestDeclared(asked, past)).toBeNull()
+    expect(nearestId(asked, [...past.keys()])).toBeNull()
+    // ...and the boundary is where it says it is: a candidate exactly AT the
+    // budget is offered, by both doors. Three characters added, so it is three
+    // edits away and one length-band step from the edge of it.
+    const at = declared(["aaaabbbbcxyz"])
+    expect(nearestDeclared(asked, at)).toBe("aaaabbbbcxyz")
+    expect(nearestId(asked, [...at.keys()])).toBe("aaaabbbbcxyz")
+  })
+
   test("the clause is the same clause", () => {
     expect(didYouMeanDeclared("kitchn", declared(["kitchen"])))
       .toBe(" — did you mean `kitchen`?")

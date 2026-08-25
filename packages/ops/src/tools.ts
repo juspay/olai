@@ -322,9 +322,12 @@ export interface Acting {
  * a world, so the table stays a declaration.
  *
  * THREE FACTS, and each is one a resolver genuinely cannot compute. `paths` is
- * the directory's outline listing, which is what the inbox convention is read
- * off (`@olai/format`'s `captureInto`) — the paths and not a `Reading`, so a
- * face with no store of its own can supply it from `ops.outlines`. `login` is
+ * the directory's outline PATHS, which is what the inbox convention is read off
+ * (`@olai/format`'s `captureInto`) — the paths and not a `Reading`, so a face
+ * with no store of its own can supply them, and since `perf-capture-paths` it
+ * supplies them from the question that answers exactly this
+ * ({@link Asking.paths} / `ops.paths`) rather than from the listing with the
+ * counts dropped off it. `login` is
  * who the DOOR knows and may be nobody, because an attribution a caller could
  * send would not be one. `now` is the clock, read PER CALL rather than
  * captured, so a server left running overnight still dates a capture today —

@@ -29,7 +29,6 @@ import {
   TRASH_FILE,
   BATCH_AT_MOST,
   type BatchedRequest,
-  brokenIn,
   BusyFailure,
   chainOf,
   countedChildren,
@@ -37,7 +36,6 @@ import {
   isTrashed,
   derive,
   type Derived,
-  documentAt,
   drawingPath,
   DOCUMENT_EXT,
   isMirror,
@@ -45,7 +43,6 @@ import {
   type LocatedRegular,
   MARKS,
   type MirrorNode,
-  markdownAt,
   type Node,
   nodeNamed,
   type Status,
@@ -1058,8 +1055,9 @@ const wiring = (
    *  this call is minting? Asked directly of the two maps rather than of a
    *  union of their keys: a corpus-sized copy per capture, to answer a handful
    *  of lookups, is the walk this codebase spends its per-write budget
-   *  avoiding. What the REFUSAL needs is the ids as an iterable, and that is
-   *  built only on the path that refuses ({@link candidates}). */
+   *  avoiding. The REFUSAL needs no such copy either, since `perf-didyoumean`:
+   *  it is handed the derivation's map WHOLE and the minted ids beside it
+   *  ({@link minting}), so neither the test nor the sentence builds a union. */
   const has = (target: string): boolean =>
     into.taken.has(target) || scope.derived.byId.has(target)
   /** The ids this call is bringing into being — the candidates a did-you-mean
