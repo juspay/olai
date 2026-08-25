@@ -52,7 +52,7 @@
  * the archive, and the bar makes the other one.
  */
 
-import { isMirror, type Row, shownRecord } from "@olai/format"
+import { isMirror, type Row, settles, shownRecord } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import { createMemo, Match, Show, Switch } from "solid-js"
 
@@ -212,7 +212,15 @@ function Branch(props: {
           // this page — a scenario, the evidence pass — should not have to
           // know that this one is drawn by a different component.
           data-testid={TESTID.nodeTitle}
-          classList={{ "line-through opacity-60": props.row.status === "done" }}
+          // SETTLED work is struck through here as it is everywhere else, and
+          // that means both marks: what the strike says is "nobody is waiting
+          // on this line" (`../tone.ts`), which is what `done` and `cancelled`
+          // share. Its own classList rather than `toneOf` because this page
+          // paints its rows in the trash's dimmer ink to begin with.
+          classList={{
+            "line-through opacity-60": props.row.status !== undefined &&
+              settles(props.row.status),
+          }}
         >
           <Title row={props.row} needles={lighting(narrowed, shownId())} />
         </span>

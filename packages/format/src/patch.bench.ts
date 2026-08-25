@@ -23,7 +23,7 @@
  *     the before/after printed rather than quoted ({@link patching} states what
  *     it puts back and what it cannot).
  *
- * AND THREE MEASUREMENTS UNDER THEM, because a claim this file did not print
+ * AND FOUR MEASUREMENTS UNDER THEM, because a claim this file did not print
  * would be the unreproducible laptop sample the paragraph above says it
  * retired. Two are about the layer rather than the patch:
  *
@@ -36,7 +36,14 @@
  *     and for one file typed in, with the eight indexes that stay clones sized
  *     beside them.
  *
- * ...and the third is about the TAG INDEX's width: the corpus-wide fold timed
+ * ...the third is what a TOUCHED KEY costs — the re-filing of one key timed as
+ * a rebuild against a splice ({@link resorting}), on the biggest key each of
+ * the four re-filed indexes has. It is the line `perf-key-resort` changed, and
+ * it is on its own here for {@link lever}'s reason: the `patch` arm above pays
+ * it on every edit, so what that arm's number does across the branch point is
+ * the end-to-end figure and this is where it comes from.
+ *
+ * ...and the fourth is about the TAG INDEX's width: the corpus-wide fold timed
  * filing `@` alone against filing both sigils ({@link folds}), which is the
  * cost half of the trade `taggedBy` makes. The saving half is a leg of its own
  * beside it (`./vocabulary.bench.ts`), and the WALK under both — `titleParts`
@@ -66,6 +73,7 @@
  */
 
 import {
+  byCorpus,
   derive,
   type Derived,
   type Index,
@@ -89,7 +97,7 @@ import {
 } from "./fixtures.testlib.ts"
 import { isRegular, type Located, type LocatedRegular } from "./node.ts"
 import { overlay, type Read } from "./overlay.ts"
-import { patched, type SetDelta } from "./patch.ts"
+import { bySibling, patched, type SetDelta, spliced } from "./patch.ts"
 import { byPath } from "./paths.ts"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
@@ -545,6 +553,93 @@ const wholly = (): readonly [asMap: number, asLayer: number] => {
   return alternating([sweep(base), sweep(layer)] as const)
 }
 
+// ── what a TOUCHED KEY costs ───────────────────────────────────────────
+
+/**
+ * THE RE-FILING OF ONE KEY, TIMED BOTH WAYS — the A/B `perf-key-resort` rests
+ * on, and the reason it is a leg rather than a sentence.
+ *
+ * The two arms are the two spellings of one line in {@link ./patch.ts}'s
+ * `refiled`, given a real key of a real index and the real members one file
+ * takes out of it and puts back:
+ *
+ *   - `rebuild` — what survives the touched file, then whatever arrived,
+ *     sorted. What a patch paid before this branch, for EVERY key an edit
+ *     reached;
+ *   - `splice` — {@link spliced}, which takes the departing members out of the
+ *     list that stood and binary-searches the arriving ones back in.
+ *
+ * ON THE BIGGEST KEY EACH INDEX HAS, because that is the whole subject: a key
+ * with three members costs the same either way and a key with three hundred is
+ * a keystroke paying for the directory. The vault's `#area` tags are written by
+ * a twentieth of the corpus each, its busiest day by a scatter of records
+ * across many files, and its biggest parent by one file's rows — three shapes,
+ * two of which span files nobody touched.
+ *
+ * IT IS THE STEP AND NOT THE WHOLE PATCH, exactly as {@link lever} is: the
+ * `patch` arm above already pays this on every edit (the fold re-files every
+ * key the touched file's records reach, not only the edited record's), so what
+ * that arm's number does across the branch point is the end-to-end figure and
+ * this is the line it came from.
+ *
+ * REPEATED INSIDE THE TIMED WINDOW, because one splice of a three-hundred
+ * member key is tens of microseconds and `Bun.nanoseconds` around a single call
+ * would be measuring the call.
+ */
+const REPEATS = 200
+
+const resorting = <T>(
+  what: string,
+  index: ReadonlyMap<string, ReadonlyArray<T>>,
+  at: (one: T) => Located,
+  order: (one: Located, other: Located) => number,
+): void => {
+  const [key, held] = biggest(index)
+  // The file that holds the key's FIRST member — one real file of the several a
+  // popular key spans, and the one an edit would be typed into.
+  const file = at(held[0] as T).file
+  const left = (one: T): boolean => at(one).file === file
+  const arriving = held.filter(left)
+  const inOrder = (one: T, other: T): number => order(at(one), at(other))
+  const arms = [
+    () => {
+      for (let round = 0; round < REPEATS; round++) {
+        [...held.filter((one) => !left(one)), ...arriving].sort(inOrder)
+      }
+    },
+    () => {
+      for (let round = 0; round < REPEATS; round++) spliced(held, arriving, left, inOrder)
+    },
+  ] as const
+  // An arm that is cheaper by answering differently is not an arm — the same
+  // fence {@link lever} puts on the copy-on-write pair, checked before either
+  // is timed.
+  const said = (own: ReadonlyArray<T>): string =>
+    own.map((one) => `${at(one).file}:${at(one).line}`).join("|")
+  const asRebuilt = said([...held.filter((one) => !left(one)), ...arriving].sort(inOrder))
+  if (asRebuilt !== said(spliced(held, arriving, left, inOrder))) {
+    throw new Error(`${what}: the rebuilt key and the spliced one are not the same key`)
+  }
+  const [rebuild, splice] = alternating(arms)
+  console.log(
+    `  ${what.padEnd(12)} \`${key}\``.padEnd(34) +
+      ` ${held.length} members, ${arriving.length} from the touched file:` +
+      ` ${((rebuild as number) / REPEATS * 1000).toFixed(1)}µs rebuilt,` +
+      ` ${((splice as number) / REPEATS * 1000).toFixed(1)}µs spliced`,
+  )
+}
+
+/** The key an index holds the most of — what a keystroke near a popular key
+ *  is a keystroke near. */
+const biggest = <T>(
+  index: ReadonlyMap<string, ReadonlyArray<T>>,
+): readonly [string, ReadonlyArray<T>] => {
+  let found: readonly [string, ReadonlyArray<T>] = ["", []]
+  for (const entry of index) if (entry[1].length > found[1].length) found = entry
+  if (found[1].length === 0) throw new Error("the vault holds no key to re-file")
+  return found
+}
+
 // ── what the tag index's WIDTH costs ───────────────────────────────────
 
 /**
@@ -754,6 +849,11 @@ console.log(
 console.log(`\nthe id map handed forward, per edit:`)
 lever("a different file each time", edits)
 lever("the same file every time", typing)
+console.log(`\nthe biggest key of each re-filed index, across one file's edit:`)
+resorting("taggedBy", first.taggedBy, (one) => one, byCorpus)
+resorting("byDay", first.byDay, (one) => one.at, byCorpus)
+resorting("children", first.children, (one) => one, bySibling)
+resorting("namedBy", first.namedBy, (one) => one.at, byCorpus)
 const [wasLayered, stayCloned] = beside()
 console.log(
   `\nthe indexes, cloned on their own: ${wasLayered.toFixed(3)}ms for the ${LAYERED.length}` +

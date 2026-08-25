@@ -49,6 +49,7 @@ test("the zoomed node's own verbs, minus the one that opens a picker", () => {
   expect(labels("kitchen")).toEqual([
     "Mark todo",
     "Complete",
+    "Cancel",
     "Clear mark",
     "Duplicate",
     "Move to Trash",
@@ -90,6 +91,7 @@ test("the ids are namespaced, so a shell row and an op row cannot collide", () =
     .toEqual([
       "op-mark-todo",
       "op-mark-done",
+      "op-mark-cancelled",
       "op-clear-mark",
       "op-duplicate",
       "op-trash",
@@ -102,7 +104,7 @@ test("with no indexes yet the archive is not offered, rather than uncounted", ()
   // where the write is judged, so this one has no number to read off an index
   // it has not been given.
   expect(opItems(at("kitchen"), undefined).map((row) => row.label))
-    .toEqual(["Mark todo", "Complete", "Clear mark", "Duplicate"])
+    .toEqual(["Mark todo", "Complete", "Cancel", "Clear mark", "Duplicate"])
 })
 
 test("the shelf's verb is not among them — the palette's pin row is the PAGE's", () => {

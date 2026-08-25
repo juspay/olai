@@ -30,10 +30,20 @@
  *   - and the two MUTANTS, which is how the harness is held to being able to
  *     see the failure at all.
  *
- * WHAT IS NOT ASSERTED HERE is anything about what either side SAYS — that is
- * `./published.test.ts`'s, which pins the projection's own promises against
- * fixtures small enough to write down. This file holds two implementations to
- * one answer and has no opinion about what that answer is.
+ * What is STILL not asserted here is anything about the CONTENT of what
+ * either side SAYS — that is `./published.test.ts`'s, which pins the
+ * projection's own promises against fixtures small enough to write down. But
+ * "no opinion about what the answer is" is a claim the phantom lane retired,
+ * and an honest file header says so: the wire's MEMBERSHIP promise is this
+ * file's business now. A key an open reader holds that a fresh one cannot see
+ * was, through `perf-published-maps`, a residue both projections shared —
+ * listed, counted, and held EQUAL between the sides. The mint made it
+ * nobody's: `holds` asserts the ZERO on every corpus, floors the removes the
+ * projection had to mint (the floor that says the corpus REACHES the
+ * shape), and the resync band's own fires are counted and floored beside the
+ * reports, because a band nobody can reach fails shared floors of neither.
+ * Two arms agreeing was the gate; agreeing AND leaving no reader behind is
+ * the gate.
  */
 
 import { vaultOf } from "@olai/format/testlib"
@@ -51,32 +61,41 @@ import {
   type Step,
   stepsOver,
   swallowing,
+  unminting,
 } from "./published.testlib.ts"
 
-/** The gate, in one place: no divergence, and the run was not vacuous. Both
- *  arms of the thing under test have to have been reached — a corpus that never
- *  carried a map, or never rebuilt one, proves the equivalence of half of it. */
+/** The gate, in one place: no divergence, NO PHANTOM, and the run was not
+ *  vacuous. Both arms of the thing under test have to have been reached — a
+ *  corpus that never carried a map, or never rebuilt one, proves the
+ *  equivalence of half of it — and the wire's membership promise is held to
+ *  its zero rather than to a residue both sides happen to share. */
 const holds = (report: Report, floors: {
   readonly upserts: number
   readonly removes: number
   readonly reused: number
   readonly rebuilt: number
-  /** How many keys an open reader was never told had gone — the residue a
-   *  revision the store cannot name leaves, on both projections alike. A floor
-   *  rather than a ceiling: it says the corpus REACHED the shape that broke
-   *  this change once, not that the shape is acceptable. */
-  readonly phantom: number
+  /** How many removes the projection had to MINT against this corpus — one
+   *  per departure the store could not name ({@link Step.forgotten}). A floor
+   *  rather than a ceiling, in the seat the phantom count's floor used to
+   *  take: it says the corpus REACHED the unnamed-departure shape, while the
+   *  shape's residue — keys an open reader was never told had gone — is the
+   *  zero asserted above floors of any kind. */
+  readonly minted: number
 }): void => {
   // AN EQUALITY TO THE EMPTY LIST rather than a count, so a failure names the
   // revision, the collection, the file and what each side said — a differential
   // whose failure message is `expected 3 to be 0` is a differential nobody can
   // act on at four in the morning.
   expect(report.divergences).toEqual([])
+  // THE LANE'S OWN GATE, said as a number beside the divergence list that
+  // would already catch it: an open reader is left holding NOTHING a fresh
+  // one cannot see — on every corpus, not only the one the gate test watches.
+  expect(report.phantom).toBe(0)
   expect(report.upserts).toBeGreaterThan(floors.upserts)
   expect(report.removes).toBeGreaterThan(floors.removes)
   expect(report.reused).toBeGreaterThan(floors.reused)
   expect(report.rebuilt).toBeGreaterThan(floors.rebuilt)
-  expect(report.phantom).toBeGreaterThanOrEqual(floors.phantom)
+  expect(report.minted).toBeGreaterThan(floors.minted)
 }
 
 // ── the corners ────────────────────────────────────────────────────────
@@ -209,13 +228,51 @@ const CORNER_STEPS: ReadonlyArray<Step> = [
   // of and which owe nobody a body.
   { writes: [["data/sales.csv", "a,b\n3,4"], ["art/handle.png", ""]] },
   { deletes: ["art/handle.png"] },
+  // THE `git checkout` REPRO ITSELF, hand-written the way the phantom lane's
+  // Inbox entry states it: one file is put BACK to its old bytes while
+  // ANOTHER vanishes, in one revision that can name no remove — the resync
+  // has forgotten the stamp table the diff would come from. The resync steps
+  // above hold the halves apart (a bare departure; a bare restore under one);
+  // held together is where open tabs used to keep the missing key forever.
+  {
+    writes: [["revived.olai", '{"id":"revived","ord":"a0","title":"checked back out"}']],
+    forgotten: ["aaa.md"],
+  },
 ]
 
 test("the corners a generator cannot reach publish the same frames", () => {
   holds(
     differential(CORNERS, CORNER_STEPS, publishedOf),
-    { upserts: 20, removes: 3, reused: 10, rebuilt: 10, phantom: 3 },
+    { upserts: 20, removes: 3, reused: 10, rebuilt: 10, minted: 8 },
   )
+})
+
+// ── THE GATE THE LANE EXISTS FOR, said once, in both directions ────────
+//
+// Every corpus above is now held to `phantom === 0`: the remove the store
+// could not name is minted, so no open reader is left holding a key a fresh
+// one cannot see. THE RED TWIN of that zero is asserted here, the way the
+// harness's two other hazards are: the pre-fix wire — a reader is sent only
+// the removes the store NAMED — is wired back in (`unminting`), and the run
+// must report the phantoms AND name their missing frames. A gate whose
+// red twin is not asserted is a gate that might be passing because nobody
+// asked it anything.
+test("the phantom is gone — and the pre-fix wire, wired back in, fails the same assertion", () => {
+  const fixed = differential(CORNERS, CORNER_STEPS, publishedOf)
+  expect(fixed.phantom).toBe(0)
+  // ...and the corpus REALLY HELD the shape: several minted removes, per
+  // collection — the zero is earned against a corpus that reaches it, not
+  // against one that never asked.
+  expect(fixed.minted).toBeGreaterThan(4)
+
+  const before = differential(CORNERS, CORNER_STEPS, unminting(publishedOf))
+  // The residue the walk and the carried maps used to share: the store
+  // cannot name these, so an open reader was never told.
+  expect(before.phantom).toBeGreaterThan(0)
+  // ...and the frames the fix adds are the ones the pre-fix wire was
+  // missing: the reference (minting) says them, the red twin does not.
+  expect(before.divergences.join("\n")).toContain("the delta a reader was offered")
+  expect(before.divergences.join("\n")).toContain("still holds that a fresh one no longer reads")
 })
 
 // ── size, and the shapes at rates ──────────────────────────────────────
@@ -236,14 +293,19 @@ const generated = (files: number, records: number): ReadonlyMap<string, string> 
 
 test("a generated vault under two hundred writes publishes the same frames", () => {
   const vault = generated(120, 20)
-  const steps = stepsOver([...vault.keys()], { steps: 200 })
+  const { steps, resyncs } = stepsOver([...vault.keys()], { steps: 200 })
   // The corpus really is what it says: a run whose steps all landed on one file
   // would satisfy the floors below having exercised one shape.
   expect(vault.size).toBeGreaterThan(140)
   expect(steps.length).toBeGreaterThan(200)
+  // AND THE RESYNC BAND REALLY FIRED — its OWN count, not the `minted` floor
+  // below: mints fire through the swap arm too, so a shared floor cannot see
+  // this band dead the way `roll < 0.94` once hid behind the pull arm's
+  // `< 0.96` (grok's review). Floor the pushes, and a squeeze fails loudly.
+  expect(resyncs).toBeGreaterThan(3)
   holds(
     differential(vault, steps, publishedOf),
-    { upserts: 300, removes: 10, reused: 200, rebuilt: 40, phantom: 1 },
+    { upserts: 300, removes: 10, reused: 200, rebuilt: 40, minted: 4 },
   )
 })
 
@@ -267,9 +329,13 @@ test("this repository's own vault, edited, publishes the same frames", () => {
   // run over an empty one would compare nothing, so the floor is about it being
   // a vault rather than about it being this one.
   expect(vault.size).toBeGreaterThan(10)
+  const { steps, resyncs } = stepsOver([...vault.keys()], { steps: 80, seed: 77 })
+  // The band-liveness floor the generated corpus has, on this seed's draw of
+  // the same band: its OWN pushes counted, never the mints other arms share.
+  expect(resyncs).toBeGreaterThan(1)
   holds(
-    differential(vault, stepsOver([...vault.keys()], { steps: 80, seed: 77 }), publishedOf),
-    { upserts: 100, removes: 3, reused: 80, rebuilt: 20, phantom: 1 },
+    differential(vault, steps, publishedOf),
+    { upserts: 100, removes: 3, reused: 80, rebuilt: 20, minted: 2 },
   )
 })
 

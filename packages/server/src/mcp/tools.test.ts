@@ -266,6 +266,7 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       "remove_mirror",
       "search_nodes",
       "set_after",
+      "set_cancelled",
       "set_date",
       "set_desc",
       "set_doing",
@@ -2032,6 +2033,7 @@ test("`apply` and `update` advertise finite schemas with no $ref", async () => {
     expect(verbs).toEqual([
       "add",
       "after",
+      "cancelled",
       "date",
       "desc",
       "doing",

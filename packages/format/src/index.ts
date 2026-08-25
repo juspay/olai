@@ -346,9 +346,16 @@ export {
    *  request that writes one, the keystroke that toggles one and the read that
    *  answers with one are one derivation of that list rather than five. */
   Status,
+  /** The marks that END THE WAIT — `done` and `cancelled` — and that question
+   *  asked of one mark. ONE list, so nobody outside this package re-derives
+   *  "settled" as a comparison against `done`, which is the trap the fourth
+   *  mark was written against everywhere inside it (`./node.ts`, and
+   *  `./derive.ts`'s `unfinishedWork` for the contract). */
+  SETTLED,
+  settles,
   /** What a record CLAIMS about itself, which is its status — read off the
    *  MARKS list beside it, so the checkbox, the journal and the planner all ask
-   *  one question about a record rather than three (`./node.ts`). */
+   *  one question about a record rather than four (`./node.ts`). */
   storedMarker,
   /** Which words a `custom` key may not take, and what writes each of them
    *  instead — asked of the record's own field names, so a new field cannot
@@ -357,6 +364,9 @@ export {
   targetsOf,
 } from "./node.ts"
 export type { LocatedRegular, MirrorNode, Node, RegularNode } from "./node.ts"
+/** A mark that ends the wait, as a type — the narrowing `settles` above hands
+ *  back, so a consumer can hold one without re-spelling the pair. */
+export type { Settled } from "./node.ts"
 /** Which field a record NAMED another record with. On the surface because two
  *  exported shapes already answer in it — `targetsOf` above, and the reverse
  *  index's `Naming` — and a consumer that can use a value but cannot name its

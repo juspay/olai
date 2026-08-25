@@ -324,6 +324,16 @@ const fileOf = (random: () => number, at: number, records: number): string => {
     // and the one a vault of `done: true` leaves unreached. Counted off
     // `which` rather than drawn, for the reason the note below is.
     else if (random() < 0.15) record["done"] = which % 2 === 0 ? true : dateFor(at, which + 3)
+    // …and a CANCELLED one carries its instant on the same terms, for the same
+    // reason one line up: it is the second SETTLING mark, it is keyed into
+    // `Derived.byDay` exactly as a dated `done` is (`./occasion.ts`), and it is
+    // un-owed exactly as one is — so a vault with none in it measures the
+    // fourth mark's whole contribution to every day reading at zero, which is
+    // the *was never asked* this generator's other clauses are all written
+    // against.
+    else if (random() < 0.1) {
+      record["cancelled"] = which % 2 === 0 ? true : dateFor(at, which + 5)
+    }
     // A DATE on every fourth record — what `Derived.byDay` is keyed by, and the
     // reason it is here at all: a vault where nothing is scheduled measures the
     // day index's fold as costing nothing and its readings as answering

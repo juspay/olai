@@ -68,6 +68,7 @@ import {
   type Located,
   type LocatedRegular,
   type RegularNode,
+  settles,
   storedMarker,
 } from "./node.ts"
 
@@ -212,14 +213,21 @@ const positionBonus = (haystack: string, needle: string): number => {
 // ── the grammar ────────────────────────────────────────────────────────
 
 /** The marks `is:` selects on, plus the four questions that are not a mark:
- *  `marked` (any of the three — what makes `is:marked -is:done` sayable),
+ *  `marked` (any of the four — what makes `is:marked -is:done` sayable),
  *  `blocked` and `mirrored` (the two DERIVED values here — what is standing
  *  in a node's way, and where else the node is drawn) and `archived` (below).
  *  Which of them is answered by what is {@link being}, and that is a switch, so
  *  a value added to this list is a compile error there rather than a query that
- *  finds nothing. */
+ *  finds nothing.
+ *
+ *  `cancelled` is here in MARKS order and not at the end, so the four marks
+ *  read as a group in every refusal this list writes ({@link teaching} joins
+ *  it verbatim). `is:marked` takes it, which is the whole reason that value
+ *  was not spelled as a list of three: `is:marked -is:done -is:cancelled` is
+ *  "work, unsettled", and it stayed sayable the day the fourth mark landed. */
 const IS_VALUES = [
   "done",
+  "cancelled",
   "doing",
   "todo",
   "marked",
@@ -1950,8 +1958,12 @@ const being = (derived: Derived, at: LocatedRegular, value: IsValue): boolean =>
       return storedMarker(at.node) !== undefined
     // The STORED mark, never a derived one: a parent whose children are all
     // ticked is not `is:done` unless somebody ticked it (docs/format.md's
-    // Status, and the `not-every-node-a-task` ruling behind it).
+    // Status, and the `not-every-node-a-task` ruling behind it). `cancelled`
+    // is read exactly here and nowhere special — it is a mark like the other
+    // three at this door, and what makes it different (it SETTLES) is a
+    // question `is:blocked` above asks, not one `is:` asks about the record.
     case "done":
+    case "cancelled":
     case "doing":
     case "todo":
       return storedMarker(at.node) === value
@@ -2510,10 +2522,22 @@ export function* selecting(
   }
 }
 
-/** A done node is demoted by about a field's worth: enough to lose a tie, not
- *  enough to disappear. The reason to look for a node you finished is usually
- *  that you finished it. */
-const DONE_PENALTY = 300
+/** A SETTLED node is demoted by about a field's worth: enough to lose a tie,
+ *  not enough to disappear. The reason to look for a node you finished is
+ *  usually that you finished it, and the reason to look for one you called off
+ *  is usually that you called it off — but neither is the thing on your plate,
+ *  so both lose to a task that still is. Read off `settles` rather than
+ *  compared against `done`, which is the trap the fourth mark walked into
+ *  everywhere else in this package. */
+const SETTLED_PENALTY = 300
+
+/** Is this node's mark one that ends the wait? The penalty's own question,
+ *  asked once per node in the two rankings below rather than once per
+ *  comparison — a sort is n log n comparisons and this is n lookups. */
+const isSettled = (derived: Pick<Derived, "status">, id: string): boolean => {
+  const mark = derived.status.get(id)
+  return mark !== undefined && settles(mark)
+}
 
 /**
  * The same matches, BEST FIRST — the rest of the score {@link matchOf} started.
@@ -2555,8 +2579,8 @@ export const ranked = (
   // comparisons and this is n lookups.
   const scored = matched.map((one) => ({
     one,
-    score: derived.status.get(one.at.node.id) === "done"
-      ? one.match.score - DONE_PENALTY
+    score: isSettled(derived, one.at.node.id)
+      ? one.match.score - SETTLED_PENALTY
       : one.match.score,
   }))
   scored.sort((a, b) => b.score - a.score)
@@ -2843,8 +2867,8 @@ export const rankedTogether = (
     // reason: a sort is n log n comparisons and this is n lookups.
     ...nodes.map((one) => ({
       entry: { kind: "node", at: one.at, match: one.match } as const,
-      score: derived.status.get(one.at.node.id) === "done"
-        ? one.match.score - DONE_PENALTY
+      score: isSettled(derived, one.at.node.id)
+        ? one.match.score - SETTLED_PENALTY
         : one.match.score,
     })),
     ...documents.map((one) => ({

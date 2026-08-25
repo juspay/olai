@@ -43,7 +43,11 @@
  *
  *   - a file that leaves in a revision the store cannot NAME
  *     ({@link Step.forgotten}, which is what a `resync` produces). Every corpus
- *     below missed it and one e2e scenario caught it;
+ *     below missed it and one e2e scenario caught it. The bug THAT shape
+ *     measured is what the phantom lane fixed: the remove is minted now
+ *     (`./published.ts`'s `mintedOf`), so what used to be a residue both
+ *     sides shared is held to ZERO ({@link heldOnes}) — and {@link unminting}
+ *     holds the old wire in place as the red the zero is earned against;
  *   - a MIXED-KIND membership change at a constant file count — an outline
  *     leaving as a `.md` arrives, and the inverse ({@link stepsOver}'s swap,
  *     and the hand-written pair in the corners). Every mixed-membership
@@ -100,13 +104,21 @@ export type Which = (typeof COLLECTIONS)[number]
 // ── the projection this replaced ───────────────────────────────────────
 
 /**
- * `publishedOf` AS IT WAS: three walks of the served files, three fresh maps.
+ * `publishedOf` AS A WALK: three walks of the served files, three fresh maps.
  *
  * Copied rather than imported, and it has to be — the point of a differential
  * is that the two sides cannot share the line under test. What it does share is
  * everything the change did not touch: `faceOf`, `nodesOf`, `bodyOf` and
  * `textKind` are the real ones on both sides, so the only difference between
  * the two answers is how the collections were assembled around them.
+ *
+ * WHAT IS AS-IT-WAS is the WALKING, not the delta set: this reference first
+ * stood for behaviour under `perf-published-maps`, and the phantom lane then
+ * CHANGED the wire on purpose — the remove the store cannot name is minted
+ * now. The walk spells that rule AGAIN below (`walkedChangeOf`), off its own
+ * sources, exactly as independent of `./published.ts`'s `mintedOf` as before:
+ * a differential whose two sides import one helper can hold the helper's bug
+ * as the truth both agree on.
  */
 export const publishedAsWalked: Projection = (snapshot, published) => {
   const { set, derived } = snapshot.value
@@ -171,8 +183,18 @@ const walkedDocumentsOf = (
   return { documents: { ...change, upserts }, unread }
 }
 
-/** The rule, as it stood: every source walked, every key written into a map
- *  minted for this revision, an unchanged file's entry carried across. */
+/** The rule, as it stood, PLUS the mint: every source walked, every key
+ *  written into a map minted for this revision, an unchanged file's entry
+ *  carried across — and the departures the store could not NAME said beside
+ *  the ones it did, in the same one shape.
+ *
+ *  The mint needs no `complete` gate here: a walk RE-READS membership from
+ *  the sources on every revision, so a key nothing names is simply a key in
+ *  `held` with no source, and the answer is read off the walked map rather
+ *  than off arithmetic about file counts. The ORDERING must be the
+ *  candidate's — named removes first, minted after, minted in the held map's
+ *  order — or the two sides would be comparing two wires instead of two
+ *  projections. */
 const walkedChangeOf = <S, T>(
   sources: ReadonlyArray<S>,
   keyOf: (source: S) => string,
@@ -182,6 +204,7 @@ const walkedChangeOf = <S, T>(
 ): Change<T> => {
   const held = previous?.entries
   const changed = new Set(moved.changed)
+  const named = new Set(moved.removed)
   const entries = new Map<string, T>()
   for (const source of sources) {
     const key = keyOf(source)
@@ -194,7 +217,12 @@ const walkedChangeOf = <S, T>(
       const entry = entries.get(path)
       return entry === undefined ? [] : [[path, entry] as const]
     }),
-    removes: moved.removed.filter((path) => held?.has(path) === true),
+    removes: [
+      ...moved.removed.filter((path) => held?.has(path) === true),
+      ...held === undefined ? [] : [...held.keys()].filter(
+        (key) => !entries.has(key) && !named.has(key),
+      ),
+    ],
   }
 }
 
@@ -393,6 +421,9 @@ interface Side {
   rebuilt: number
   upserts: number
   removes: number
+  /** How many of those removes the store never NAMED — minted by the
+   *  projection itself ({@link Report.minted}). */
+  minted: number
 }
 
 const sideOf = (projection: Projection): Side => ({
@@ -406,6 +437,7 @@ const sideOf = (projection: Projection): Side => ({
   rebuilt: 0,
   upserts: 0,
   removes: 0,
+  minted: 0,
 })
 
 /** One revision, published and folded — the side's own step of the replay. */
@@ -421,6 +453,9 @@ const step = (side: Side, snapshot: Snapshot<Reading>): Published => {
     } else side.rebuilt += 1
     side.upserts += change.upserts.length
     side.removes += change.removes.length
+    for (const key of change.removes) {
+      if (!snapshot.removed.includes(key)) side.minted += 1
+    }
     const reader = side.readers.get(which)!
     const wasOffered = reader.offered.length
     const wasKept = reader.kept.length
@@ -462,12 +497,18 @@ export interface Report {
   readonly upserts: number
   readonly removes: number
   /** How many keys an OPEN reader still holds that a fresh one no longer
-   *  sees — a file that left in a revision the store could not name (a
-   *  `resync`; { Step.forgotten}). It is a fact about the WIRE and not
-   *  about this change: the walk leaves exactly the same ones, which is what
-   *  the comparison asserts. Counted so a corpus can be held to REACHING the
-   *  shape rather than to having no opinion about it. */
+   *  sees, counted on the CANDIDATE — the residue a revision the store
+   *  cannot name used to leave on BOTH projections ({@link Step.forgotten}).
+   *  Now that the wire mints the remove itself, THE PROMISE IS ZERO: any
+   *  non-zero count is also a divergence (the `held ones` lines), and the
+   *  count is kept because the red twin of that gate — the {@link unminting}
+   *  mutant held at the old wire — must have a number to point at. */
   readonly phantom: number
+  /** How many removes the CANDIDATE minted that the store never named —
+   *  the shape {@link Report.phantom} is the absence of. A floor, the way
+   *  `phantom`'s old floors were: it holds a corpus to REACHING the
+   *  unnamed-departure shape rather than to tolerating it. */
+  readonly minted: number
   /** How many (revision × collection) pairs the CANDIDATE handed back the very
    *  map the revision before did — the count that says the carrying under test
    *  actually happened. */
@@ -491,12 +532,17 @@ export interface Report {
  *     `entries` is the order a fresh subscriber's snapshot arrives in — and at
  *     every revision rather than at the end, because a key a carried map
  *     wrongly kept is a key a later rebuild silently cleans up ({@link Side});
- *   - and, per side, that an open subscriber's fold holds what a fresh one
- *     reads. That last one is a claim about the WIRE rather than about the
- *     change, and it is exempt for `documents` on purpose: a body the set does
- *     not keep is withheld from that collection and published by the body
- *     reader instead (`./bodies.ts`), so a `.html` that changed is a key whose
- *     entry moved with no delta behind it, by design.
+ *   - and, per side, the two halves of the wire's one membership promise:
+ *     every key a revision's snapshot holds was ANNOUNCED to an open reader
+ *     ({@link unheard}), and no key it drops is STILL HELD by one
+ *     ({@link heldOnes}). The second half is the phantom lane's fix said as a
+ *     gate: it was once a residue both projections shared — counted and held
+ *     equal — and the mint makes it nobody's, so it is held to EMPTY.
+ *     `unheard`'s half is exempt for `documents` on purpose: a body the set
+ *     does not keep is withheld from that collection and published by the
+ *     body reader instead (`./bodies.ts`), so a `.html` that changed is a key
+ *     whose entry moved with no delta behind it, by design. `heldOnes` has
+ *     no exemption: a remove is withheld from nobody.
  */
 export const differential = (
   vault: ReadonlyMap<string, string>,
@@ -532,23 +578,29 @@ export const differential = (
     ...differing("the body owed to a reader", was.unread, now.unread),
   )
   for (const which of COLLECTIONS) {
-    if (which === "documents") continue
     for (const [side, run] of [["the walk", was], ["the carried map", now]] as const) {
+      // `unheard` is exempt for `documents` BY DESIGN (a body the set does
+      // not keep is WITHHELD from the delta it would ride). The phantom line
+      // never is: a REMOVE is withheld from nobody, so an open reader of any
+      // collection holding a key a fresh one cannot read is the wire's one
+      // membership promise broken — whichever side left it.
+      if (which !== "documents") {
+        divergences.push(
+          ...unheard(
+            `${side}: what a fresh reader of ${which} reads, against what an open one was told`,
+            run,
+            which,
+          ),
+        )
+      }
       divergences.push(
-        ...unheard(
-          `${side}: what a fresh reader of ${which} reads, against what an open one was told`,
+        ...heldOnes(
+          `${side}: what an open reader of ${which} still holds that a fresh one no longer reads`,
           run,
           which,
         ),
       )
     }
-    divergences.push(
-      ...differing(
-        `the keys an open reader of ${which} was never told had gone`,
-        phantomsOf(was, which),
-        phantomsOf(now, which),
-      ),
-    )
   }
   return {
     divergences,
@@ -556,9 +608,10 @@ export const differential = (
     upserts: now.upserts,
     removes: now.removes,
     phantom: COLLECTIONS.reduce(
-      (count, which) => count + (which === "documents" ? 0 : phantomsOf(now, which).length),
+      (count, which) => count + phantomsOf(now, which).length,
       0,
     ),
+    minted: now.minted,
     reused: now.reused,
     rebuilt: now.rebuilt,
   }
@@ -566,21 +619,23 @@ export const differential = (
 
 
 /**
- * WHAT A FRESH READER SEES AND AN OPEN ONE WAS NOT TOLD — the wire's own
- * promise, checked per side rather than between them.
+ * WHAT A FRESH READER SEES AND AN OPEN ONE WAS NOT TOLD — one half of the
+ * wire's own promise, checked per side rather than between them.
  *
- * ONE DIRECTION ONLY, and the other direction is why this is not a plain
- * comparison. Every key a revision's snapshot holds was announced to an open
- * reader with that very value, so `readAll ⊆ fold` is a claim about publishing
- * and a divergence here is a delta somebody owed and did not send. The reverse
- * is NOT a promise of this wire: a file that leaves in a revision the store
- * cannot name (a `resync` — {@link Step.forgotten}) is dropped from the
- * snapshot and named in no `removes`, so an open reader goes on holding it
- * until it reconnects. That is true of the walk this replaced, byte for byte,
- * which is why those keys are COUNTED here ({@link phantomsOf}, `Report.phantom`)
- * and held between the two sides rather than asserted away on either.
+ * ONE DIRECTION, and the reverse is {@link heldOnes}'s: every key a
+ * revision's snapshot holds was announced to an open reader with that very
+ * value, so `readAll ⊆ fold` is a claim about publishing and a divergence
+ * here is a delta somebody owed and did not send. The reverse — `fold ⊆
+ * readAll`, nothing held that a fresh reader cannot see — USED to break on
+ * exactly one shape: a file that leaves in a revision the store cannot name
+ * (a `resync` — {@link Step.forgotten}), dropped from the snapshot and named
+ * in no `removes`, so an open reader went on holding it until reconnect.
+ * Both projections left the same residue, which is why it used to be counted
+ * and held EQUAL between the sides rather than asserted away; the remove is
+ * MINTED now (`./published.ts`'s `mintedOf`), so the residue is nobody's and
+ * the reverse is held to empty beside this one.
  *
- * `documents` is exempt from the whole check, and on purpose: a body the set
+ * `documents` is exempt from this whole check, and on purpose: a body the set
  * does not keep is withheld from that collection and published by the body
  * reader instead (`./bodies.ts`), so a `.html` that changed is a key whose entry
  * moved with no delta behind it, by design.
@@ -608,14 +663,41 @@ const unheard = (
   return out
 }
 
-/** The keys an open reader still holds that a fresh one no longer sees — the
- *  residue {@link unheard} names, listed so the two sides can be held to
- *  leaving the SAME one. Sorted, because a fold's order is arrival order. */
+/**
+ * THE OTHER HALF of the wire's promise: the keys an open reader still holds
+ * that a fresh one no longer sees, listed so EACH side can be held to
+ * leaving none — which, after the mint, is the promise where "both leave the
+ * same ones" used to be. Sorted, because a fold's order is arrival order.
+ *
+ * No `documents` exemption here, unlike {@link unheard}: that one is exempt
+ * because a changed body's UPSERT is withheld by design, and a remove is
+ * withheld from nobody.
+ */
 const phantomsOf = (side: Side, which: Which): ReadonlyArray<string> => {
   const fresh = new Set(
     side.held === null ? [] : (side.held[which] as Change<unknown>).entries.keys(),
   )
   return [...side.readers.get(which)!.held.keys()].filter((key) => !fresh.has(key)).sort()
+}
+
+/** Each phantom as its own divergence line — the wire's other promise held to
+ *  EMPTY, per side ({@link phantomsOf}). Capped the way {@link differing} is:
+ *  one missed mint lists the whole held map, and the first few name the rule
+ *  broken as well as the transcript would. */
+const heldOnes = (
+  what: string,
+  side: Side,
+  which: Which,
+): ReadonlyArray<string> => {
+  const out: Array<string> = []
+  for (const key of phantomsOf(side, which)) {
+    out.push(`${what}: ${key}`)
+    if (out.length >= LINES) {
+      out.push(`${what}: ...and more after ${key}`)
+      break
+    }
+  }
+  return out
 }
 
 /**
@@ -714,6 +796,38 @@ export const misplacing = (projection: Projection): Projection => (snapshot, pub
   return { ...revision, heads: { ...revision.heads, entries } }
 }
 
+/**
+ * THE PHANTOM, WIRED BACK IN — the pre-fix wire held in place as the harness's
+ * RED: send a reader only the removes the store NAMED, as publishing did for
+ * the whole of the walk's life and `perf-published-maps`'s after it.
+ *
+ * It is the quietest of the three mutants: not one WRONG frame, just the ones
+ * the fix mints DELETED — every collection holds the right thing and no open
+ * reader is told so. And it is how the fix's gate is proved to have teeth:
+ * the zero every green case now asserts for `Report.phantom` must be a zero
+ * this mutant fails, in the words the failure would use ({@link heldOnes}),
+ * and the missing frames must show on the DELTA transcripts, where the
+ * reference — minting — says them and this side does not.
+ *
+ * Written against the wrapper shape rather than held as a third projection,
+ * like {@link swallowing}: the pre-fix wire is a SUBSET of the fixed one, not
+ * a different one.
+ */
+export const unminting = (projection: Projection): Projection => (snapshot, published) => {
+  const revision = projection(snapshot, published)
+  const named = new Set(snapshot.removed)
+  const filtered = <T>(change: Change<T>): Change<T> => ({
+    ...change,
+    removes: change.removes.filter((key) => named.has(key)),
+  })
+  return {
+    ...revision,
+    outlines: filtered(revision.outlines),
+    documents: filtered(revision.documents),
+    heads: filtered(revision.heads),
+  }
+}
+
 // ── what to do to a corpus ─────────────────────────────────────────────
 
 /**
@@ -725,7 +839,10 @@ export const misplacing = (projection: Projection): Projection => (snapshot, pub
  * save (the commonest revision there is), a file BORN (the one thing that makes
  * a collection's map be rebuilt), a file that LEAVES, a file that breaks and
  * mends, a file that refuses to open and then opens, a many-file revision of the
- * shape a `git pull` makes, and a revision that moves nothing at all.
+ * shape a `git pull` makes, a RESYNC in which something leaves and the store
+ * can name nobody ({@link Step.forgotten} — sometimes with another file put
+ * back to earlier bytes in the same revision, the `git checkout` shape), and
+ * a revision that moves nothing at all.
  *
  * MEMBERSHIP MOVES BOTH WAYS AND ACROSS KINDS, which is the half that had to be
  * added rather than the half that was designed: an outline leaving as a `.md`
@@ -741,13 +858,24 @@ export const misplacing = (projection: Projection): Projection => (snapshot, pub
  * after all of it, because a map that appended a born key would still look
  * right for the last of those three.
  *
+ * THE RESYNC BAND REPORTS HOW OFTEN IT FIRED, in the returned `resyncs` — a
+ * bare `forgotten`, or one under a restore of a live path, counted at the
+ * push. The minted floors a run's report is held to are fired through this
+ * band AND through the swap arm's unnamed half, so they can only say the
+ * shape was REACHED — never that this band reached it: the band sat dead
+ * once (`roll < 0.94` behind the `git pull` arm's `< 0.96`) while every
+ * floor passed, because the floors were not about IT. Count its own fires
+ * and floor the count (grok's review of the phantom PR): a squeezed band,
+ * or a shared floor lowered by hand, then fails loudly instead of the way
+ * the 0.94 threshold failed — silently.
+ *
  * SEEDED, so a divergence is a corpus a reader can re-run rather than a
  * lottery.
  */
 export const stepsOver = (
   files: ReadonlyArray<string>,
   { steps, seed = 20260824 }: { readonly steps: number; readonly seed?: number },
-): ReadonlyArray<Step> => {
+): { readonly steps: ReadonlyArray<Step>; readonly resyncs: number } => {
   const random = seeded(seed)
   // WHICH KIND A PATH IS, asked of the REGISTRY rather than of its spelling:
   // `./kinds.ts` is the one place that says what a file of the set is, and an
@@ -762,6 +890,7 @@ export const stepsOver = (
   const live = (of: ReadonlyArray<string>): ReadonlyArray<string> =>
     of.filter((file) => !gone.has(file))
   const out: Array<Step> = []
+  let resyncs = 0
   for (let at = 0; at < steps; at++) {
     const roll = random()
     const outline = pick(live(outlines))
@@ -790,7 +919,7 @@ export const stepsOver = (
     } else if (roll < 0.88 && document !== undefined) {
       out.push({ writes: [[document, REFUSED]] })
       out.push({ writes: [[document, `# mended ${at}\n`]] })
-    } else if (roll < 0.96) {
+    } else if (roll < 0.92) {
       // THE `git pull` SHAPE: several files re-decoded, one born and one gone,
       // in one revision — which is the revision that used to cost three whole
       // maps and now costs one rebuild.
@@ -805,15 +934,44 @@ export const stepsOver = (
       const leaving = pick(live(outlines))
       if (leaving !== undefined) gone.add(leaving)
       out.push({ writes, deletes: leaving === undefined ? [] : [leaving] })
-    } else if (roll < 0.94) {
+    } else if (roll < 0.96) {
       // A RESYNC: a file leaves and the store cannot say which — see
       // {@link Step.forgotten}. Drawn from both kinds, because a departure the
-      // diff loses is a departure from whichever collection held it.
+      // diff loses is a departure from whichever collection held it. And half
+      // the time it is the whole `git checkout` SHAPE: ANOTHER file is put
+      // back to earlier bytes in the same revision, which is exactly what a
+      // checkout of another commit does to a tree (the phantom lane's repro).
+      //
+      // THIS ARM WAS DEAD ON ARRIVAL: it once sat at `roll < 0.94` BEHIND the
+      // `git pull` arm's `roll < 0.96`, so no sequence reached it — only the
+      // swap arm's unnamed half reached the shape at all, which is why every
+      // floor here read `phantom: 1` where this arm alone would have made it
+      // several.
       const leaving = random() < 0.5 ? pick(live(outlines)) : pick(live(bodied))
       if (leaving === undefined) out.push({})
       else {
         gone.add(leaving)
-        out.push({ forgotten: [leaving] })
+        // THE FIRE ITSELF, counted — every push below carries a `forgotten`
+        // of a live path, whichever of the three shapes it takes.
+        resyncs += 1
+        if (random() < 0.5) out.push({ forgotten: [leaving] })
+        else {
+          // Put one file BACK to earlier bytes while the other one goes: the
+          // probe re-decodes the whole listing either way, so `changed` holds
+          // the restored one and `removed` holds nobody.
+          const restored = pick(live(random() < 0.5 ? outlines : bodied))
+          out.push(
+            restored === undefined
+              ? { forgotten: [leaving] }
+              : {
+                writes: [[
+                  restored,
+                  bodyKind(restored) === null ? minted(at) : `# restored at ${at}\n`,
+                ]],
+                forgotten: [leaving],
+              },
+          )
+        }
       }
     } else if (roll < 0.98) {
       // A MIXED-KIND SWAP AT A CONSTANT FILE COUNT — one kind leaves and the
@@ -840,7 +998,7 @@ export const stepsOver = (
       out.push({})
     }
   }
-  return out
+  return { steps: out, resyncs }
 }
 
 /** One outline's worth of JSONL, minted for a step so no two writes of one file
