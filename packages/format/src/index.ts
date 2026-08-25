@@ -110,6 +110,11 @@ export { reading } from "./validate.ts"
  * shadow somebody turns off.
  */
 export { witnessing } from "./shadow.ts"
+/** WHAT THE DIVERGENCE LOG IS CALLED — one spelling, so the flip's gate and the
+ *  file this process writes cannot come to name two things. `@olai/server`
+ *  joins it onto the state home; every sentence in the tree that names the gate
+ *  is swept against it (`packages/tests/divergenceLog.test.ts`). */
+export { DIVERGENCE_LOG } from "./shadow.ts"
 /** What the two arms said, when they did not say the same thing — the entry an
  *  orchestrator reads and the shape a witness is handed. */
 export type { Divergence, Seen, Witness } from "./shadow.ts"

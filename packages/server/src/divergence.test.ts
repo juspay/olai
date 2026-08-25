@@ -30,10 +30,10 @@ const DIVERGED: Seen = {
     touched: ["a.olai"],
     files: 3,
     accepted: { full: false, incremental: false },
+    counts: { full: 1, incremental: 0 },
     missing: ["a.olai:2 `parent` is `top`, which no node declares"],
     invented: [],
-    full: ["a.olai:2 `parent` is `top`, which no node declares"],
-    incremental: [],
+    elided: 0,
   },
 }
 

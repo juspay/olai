@@ -69,8 +69,31 @@ test("a sentence said twice where the other arm said it once is a difference", (
 test("the same findings in a different order is a difference, and its own kind", () => {
   // Real, and quieter than the two above: the report is what a reader reads
   // down, and two loads of one directory promise each other the same order.
+  //
+  // WHAT THE ENTRY CARRIES IS WHERE, and that is the whole of the change the
+  // review asked for: this case has nothing in `missing` or `invented` by
+  // definition, so it used to be answered by putting BOTH reports whole into
+  // one log line — which on a badly broken directory is a line the size of the
+  // report. The first index they part at, with the line each arm has there, is
+  // what a reader acts on.
   expect(differing(["a.olai:1 one", "a.olai:1 two"], ["a.olai:1 two", "a.olai:1 one"], REFUSED))
-    .toEqual({ why: "order", missing: [], invented: [] })
+    .toEqual({
+      why: "order",
+      missing: [],
+      invented: [],
+      parted: { at: 0, full: "a.olai:1 one", incremental: "a.olai:1 two" },
+    })
+})
+
+test("...and it names the first place they part, not the whole of both reports", () => {
+  const full = ["a:1 x", "b:1 y", "c:1 z"]
+  const said = ["a:1 x", "c:1 z", "b:1 y"]
+  expect(differing(full, said, REFUSED)).toEqual({
+    why: "order",
+    missing: [],
+    invented: [],
+    parted: { at: 1, full: "b:1 y", incremental: "c:1 z" },
+  })
 })
 
 // ── the alarm ──────────────────────────────────────────────────────────
@@ -168,4 +191,41 @@ test("with no witness installed a divergence still reaches stderr", () => {
     console.error = held
   }
   expect(said.join("\n")).toContain("THE INCREMENTAL VALIDATOR DIVERGED")
+})
+
+test("the entry is BOUNDED — a broken directory writes a short line, and says how short", () => {
+  // The cap is `raise`'s and it is reached the way everything else here is:
+  // through `shadowed`, with the FULL arm's findings handed in. A clean corpus
+  // makes the narrowed arm answer with nothing, so sixty findings on the full
+  // side is a `verdict` divergence with sixty in `missing` — which is exactly
+  // the shape that used to put both reports whole into one log line.
+  const files = { "a.olai": `{"id":"one","ord":"a","title":"one"}` }
+  const set = setOf(files)
+  const before = viewOf(files)
+  const after = viewOf({ "a.olai": `{"id":"one","ord":"a","title":"one edited"}` })
+  const many = Array.from({ length: 60 }, (_, at) => ({
+    code: "unknown-parent" as const,
+    file: "a.olai",
+    line: at + 1,
+    message: `finding number ${at}`,
+  }))
+  const seen = watching(() => {
+    shadowed(set, undefined, undefined, before, [], new Set())
+    shadowed(
+      set,
+      before,
+      { upserts: [["a.olai", { nodes: [] }]], removes: [] },
+      after,
+      many,
+      new Set(),
+    )
+  })
+  const found = seen[1]?.divergence
+  expect(found?.why).toEqual("verdict")
+  // Capped, and the counts say what it was capped FROM — an entry holding ten
+  // of sixty without saying so is one a reader takes for a small divergence.
+  expect(found?.missing.length).toBeLessThan(many.length)
+  expect(found?.counts).toEqual({ full: many.length, incremental: 0 })
+  expect(found?.elided).toEqual(many.length - (found?.missing.length ?? 0))
+  expect(JSON.stringify(found).length).toBeLessThan(2000)
 })

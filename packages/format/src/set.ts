@@ -33,6 +33,7 @@ import {
   bodiedDocument,
   Document,
   isBodied,
+  isMarkdown,
   isOutline,
   type Markdown,
   type Outline,
@@ -285,7 +286,7 @@ export const markdownAt = (set: OutlineSet, path: string): Markdown | undefined 
  * it had a name.
  */
 export const markdownIn = (set: OutlineSet): ReadonlyArray<Markdown> =>
-  set.documents.filter((document): document is Markdown => document.kind === "document")
+  set.documents.filter(isMarkdown)
 
 /**
  * The BODIED documents of the set, in path order — every file the set keeps a

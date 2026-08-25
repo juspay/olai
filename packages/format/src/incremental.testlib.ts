@@ -63,9 +63,12 @@ export interface Report {
   readonly divergences: ReadonlyArray<Divergence>
   /** Revisions where both arms ran and agreed. */
   readonly narrowed: number
-  /** Revisions where only the full arm ran — a first load, a rebuild, or a
-   *  validation following one that was refused. */
+  /** Revisions where only the full arm ran, and WHICH cold each of them was
+   *  ({@link ./shadow.ts}'s `Seen.why`). A count on its own is a floor a run
+   *  can meet without having reached any particular kind — a suite asserting
+   *  `cold > 60` over sixty first-loads would be asserting that a boot boots. */
   readonly cold: number
+  readonly declined: Readonly<Record<string, number>>
   /** Narrowed revisions that had to walk the corpus ANYWAY, because the graph
    *  moved or a `.md` went away. The number the flip is worth arguing over, and
    *  a floor AND a ceiling here: all of them means the narrowing narrows
@@ -180,6 +183,11 @@ export const replay = (revisions: Iterable<Revision>): Report => {
     divergences: seen.flatMap((one) => (one.divergence === undefined ? [] : [one.divergence])),
     narrowed: seen.filter((one) => one.kind === "narrowed").length,
     cold: seen.filter((one) => one.kind === "cold").length,
+    declined: seen.reduce<Record<string, number>>((held, one) => {
+      if (one.kind !== "cold") return held
+      const why = one.why ?? "unsaid"
+      return { ...held, [why]: (held[why] ?? 0) + 1 }
+    }, {}),
     walked: seen.filter((one) => one.walked === true).length,
     accepted,
     refused,
@@ -302,6 +310,16 @@ const claimsIn = (files: Corpus): ReadonlyMap<string, Claim> => {
  * `doc` whose `.md` is removed from the pool, a file that stops parsing. Every
  * one of those is another file moving under a record nobody edited — which is
  * the very shape the narrowing has to get right.
+ *
+ * SO THE REFUSAL COUNT IS NOT A COVERAGE FIGURE, and nobody may quote it as
+ * one. What this stream refuses is `unknown-target`, `missing-doc` and the
+ * unreadable file, over and over and at size. What it CANNOT refuse is
+ * everything the repair takes out: a parent loop, a foreign parent, a parent
+ * that is a placement, a mirror inside its own subtree, an ordering loop in
+ * either spelling, a duplicate id. Those live in `./incremental.test.ts`'s
+ * hand-written corners, one apiece, and the duplicate is not even a narrowed
+ * refusal — it is a DECLINE, which is the right answer and is therefore no
+ * differential of the duplicate rule at all.
  */
 const written = (
   text: string,

@@ -451,6 +451,17 @@ export const isOutline = (document: Document): document is Outline =>
 export const isBodied = (document: Document): document is Markdown | Unkept =>
   document.kind !== "outline"
 
+/** ...and the NARROWER of the two body questions: a `.md`, never a `.html`.
+ *  What a `doc` may point at, which is a different question from "has a body"
+ *  ({@link ./set.ts}'s `markdownIn` argues the difference and is one of the two
+ *  askers). The other is the incremental validator's door, which holds the
+ *  `.md` paths it carried against the ones the set actually holds
+ *  ({@link ./incremental.ts}) — a LIST and a MEMBERSHIP TEST that came to
+ *  disagree would be a carry checked against a different question from the one
+ *  it answers, which is {@link isBodied}'s own reason for existing. */
+export const isMarkdown = (document: Document): document is Markdown =>
+  document.kind === "document"
+
 /** The path, BRANDED — a value this module has judged by the one thing that
  *  makes a path nameable, which is the registry claiming its suffix. Every
  *  caller here got its `file` from a directory walk that matched on exactly

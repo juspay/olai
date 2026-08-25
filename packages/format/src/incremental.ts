@@ -43,9 +43,19 @@
  *      patched view has exactly one record per id, which is the whole of the
  *      duplicate-id rule's answer and the reason `byId.get(x)` is "the record
  *      that claims x" rather than "the first of several".
- *   4. **Nothing outside the delta moved.** The store's own claim, spent by the
- *      wire already, and turned into a rebuild rather than a wrong answer by
- *      the identity check `./validate.ts` runs before this is ever called.
+ *   4. **Nothing outside the delta moved** — for the OUTLINES, checked by
+ *      `./validate.ts`'s `isSet` before this is ever called, and for the
+ *      DOCUMENTS, checked here ({@link carriedDocuments}). That split is not
+ *      tidiness: `isSet` compares a view against a set and a view holds no
+ *      documents, so it is structurally unable to witness the half this file's
+ *      `doc` rule spends. The store claims the delta names every path that
+ *      moved; a `.md` it missed would leave the outlines matching, the patch
+ *      taken, and the carried `.md` list quietly wrong — a `ledger` divergence
+ *      today and a missed `missing-doc` after the flip. So the carry is held
+ *      against the set it is about, every time, and a disagreement DECLINES
+ *      rather than answering. It is one pass of membership tests over the
+ *      documents, allocating nothing, where building the list afresh allocates
+ *      three arrays the size of the directory's `.md` count.
  *
  * ## The narrowing, rule by rule
  *
@@ -86,6 +96,7 @@
  */
 
 import { byCorpus, type Derived } from "./derive.ts"
+import { isMarkdown } from "./document.ts"
 import type { OutlineError } from "./errors.ts"
 import { fileKind } from "./kinds.ts"
 import { isMirror, type Located, targetsOf } from "./node.ts"
@@ -98,6 +109,7 @@ import {
   reportParents,
   reportUnknownTargets,
 } from "./rules.ts"
+import type { OutlineSet } from "./set.ts"
 
 /**
  * WHAT ONE VALIDATION LEAVES FOR THE NEXT — the whole of the state this
@@ -127,10 +139,13 @@ export interface Ledger {
  * `walked` is the honest half. Two of the six rules can decline to narrow and
  * fall back to the corpus — the cycle walks when the graph moved, and the `doc`
  * rule when a `.md` went away — so a run that says `true` did the very
- * whole-corpus work this whole file exists to avoid. It is not a diagnostic
- * bolted on for a test: the shadow passes it to the witness, which is how the
- * one number that decides whether the flip is worth anything ("how often does
- * the narrowing narrow?") can be counted in a soak rather than guessed at.
+ * whole-corpus work this whole file exists to avoid. It is a fact the shadow
+ * OBSERVED, published on the one channel the shadow has out
+ * ({@link ./shadow.ts}'s `Seen`); what spends it today is the property test's
+ * ceiling, which is what stops a narrowing that walked every time from passing
+ * as one that narrowed. A soak that wanted the same number could count it from
+ * the same place, and the two rows of `./validate.bench.ts` say what the two
+ * fallbacks cost, which is nothing like each other.
  */
 export interface Narrowed {
   readonly ledger: Ledger
@@ -138,30 +153,41 @@ export interface Narrowed {
 }
 
 /**
- * The narrowed verdict, or `null` when this cannot answer — which is not a
- * failure and is not a divergence, it is the first load, a rebuild, or a
- * validation following one that was refused.
+ * WHY the narrowing turned back — one word per door, and a word rather than a
+ * bare `null`.
  *
- * `null` and not "the full answer computed some other way" on purpose: a
- * narrowing that quietly fell back to walking the corpus would agree with the
- * full arm on every write and prove nothing, which is the same trap
- * {@link ./patch.ts}'s `patched` avoids by publishing its decline. The shadow
- * counts declines, and so does the property test.
+ * A decline is not a failure and is not a divergence: it is the ordinary answer
+ * for a rebuild, a first load, or a validation following one that was refused.
+ * But "cold" was ONE bucket for four different things, and a property test
+ * asserting a floor on the sum could not say the run had reached the right
+ * kinds — so the reason travels with the decline, the shadow puts it on the
+ * witness, and the floors below it are claims rather than a total.
+ *
+ * A decline is published rather than swallowed for {@link ./patch.ts}'s reason:
+ * a narrowing that quietly fell back to walking the corpus would agree with the
+ * full arm on every write and prove nothing.
+ */
+export type Decline = "refused" | "duplicates" | "documents"
+
+/**
+ * The narrowed verdict, or the word for why there is none
+ * ({@link Decline} — a string, so `typeof` is the narrowing).
  */
 export const incrementally = (
+  set: OutlineSet,
   before: Derived,
   ledger: Ledger,
   delta: SetDelta,
   derived: Derived,
-): Narrowed | null => {
+): Narrowed | Decline => {
   // Fact 2: a verdict with anything in it belongs to a set that was refused,
   // and a refused set is not one anybody published — so there is nothing here
   // to carry, and no claim that the untouched records were ever found clean.
-  if (ledger.errors.length > 0) return null
+  if (ledger.errors.length > 0) return "refused"
   // Fact 3, asked rather than assumed. It is `O(files)` and it is what the
   // duplicate-id rule's whole answer rests on, so it is cheaper to check than
   // to argue about at four in the morning.
-  if (!claimsAreUnique(derived)) return null
+  if (!claimsAreUnique(derived)) return "duplicates"
 
   const touched = touchedBy(delta)
   // The touched files' records as they WERE and as they ARE. Everything below
@@ -233,7 +259,12 @@ export const incrementally = (
   const known = new Set(ledger.known)
   const lost: Array<string> = []
   for (const file of delta.removes) if (known.delete(file)) lost.push(file)
-  for (const [file] of delta.upserts) if (isMarkdown(file)) known.add(file)
+  for (const [file] of delta.upserts) if (markdownPath(file)) known.add(file)
+  // Fact 4's document half, asked of the SET rather than assumed of the delta
+  // — see this file's header. A `.md` the delta did not name leaves the
+  // outlines matching and this list quietly wrong, and there is no other door
+  // that could notice.
+  if (!carriedDocuments(known, set)) return "documents"
   // A `doc` that resolved before goes on resolving unless the file it named
   // LEFT, so a directory that only gained documents re-asks nothing. When one
   // did leave, every record's `doc` is back in question and the rule runs whole
@@ -322,7 +353,42 @@ const byNaming = (derived: Derived, one: string, other: string): number => {
   return 0
 }
 
-/** Whether a path is one of the `.md` files a `doc` may point at — the kind
- *  registry's answer about a NAME, which is what {@link ./rules.ts}'s
- *  `markdownPaths` narrows the set's documents by. */
-const isMarkdown = (file: string): boolean => fileKind(file) === "document"
+/**
+ * Whether a path is one of the `.md` files a `doc` may point at — the kind
+ * registry's answer about a NAME.
+ *
+ * A DELTA NAMES PATHS and the set holds DOCUMENTS, so the two halves of the
+ * carry ask the same question two ways: this one of a path, and
+ * {@link ./document.ts}'s `isMarkdown` — which is what `markdownPaths` narrows
+ * by — of a decoded document's kind. They agree because a kind is decided by
+ * the name ({@link ./set.ts}'s `assemble` gives a file that would not decode an
+ * empty document OF ITS OWN KIND), and {@link carriedDocuments} is what holds
+ * them to it: the day they part, the carry stops matching the set and the
+ * narrowing declines instead of answering.
+ */
+const markdownPath = (file: string): boolean => fileKind(file) === "document"
+
+/**
+ * Whether the `.md` paths this edit CARRIED are the ones the set actually
+ * holds — fact 4, asked for documents.
+ *
+ * MEMBERSHIP AND A COUNT, which together are set equality and neither of which
+ * is on its own: every markdown the set holds is in the carry, and there are as
+ * many of them as the carry has entries. A count alone is the proxy that let
+ * last night's published-maps bug through — a file leaving as another arrives
+ * keeps a count still — and membership alone would miss a carry that had grown
+ * an extra path.
+ *
+ * One pass, no allocation. `markdownPaths` builds the same answer with three
+ * arrays the size of the directory's `.md` count, which is exactly what the
+ * carry exists to stop paying per write.
+ */
+const carriedDocuments = (known: ReadonlySet<string>, set: OutlineSet): boolean => {
+  let held = 0
+  for (const document of set.documents) {
+    if (!isMarkdown(document)) continue
+    held++
+    if (!known.has(document.path)) return false
+  }
+  return held === known.size
+}

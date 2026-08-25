@@ -12,14 +12,21 @@
  * THREE CORPORA, and each is here because the ones before it cannot reach what
  * it holds:
  *
- *   - the CORNERS, written by hand ({@link corners}) — each one an edit that a
+ *   - the CORNERS, written by hand ({@link CORNERS}) — each one an edit that a
  *     lazier narrowing gets wrong, named with the rule it is about. A generator
  *     produces these at random or not at all, and every one of them is a
  *     sentence in `./incremental.ts`'s own argument that would otherwise be
- *     checked by nothing;
+ *     checked by nothing. THEY CARRY THE RULES THE GENERATED ARM CANNOT: the
+ *     repair that makes a generated stream publishable takes duplicate ids,
+ *     parent loops, foreign parents, placements-as-parents, mirror containment
+ *     and ordering loops out of it on purpose
+ *     (`./incremental.testlib.ts`'s `written`), so those classes are HERE and
+ *     the refusal count over there is not a coverage figure for them;
  *   - GENERATED sequences, over the same corpora and the same edits the patcher
  *     is held to (`./corpora.testlib.ts`), with the documents beside them
- *     churning and a file breaking and mending;
+ *     churning and a file breaking and mending — which is where the volume is,
+ *     and what it drives is `unknown-target`, `missing-doc` and the unreadable
+ *     file, at size and in sequence;
  *   - THE REAL VAULT, this repository's `docs/`, edited: files people actually
  *     grew, in a directory with a trash in it and documents attached to real
  *     nodes.
@@ -44,11 +51,22 @@ const holds = (report: Report, floors: {
   readonly narrowed: number
   readonly cold: number
   readonly accepted: number
+  /** Which KINDS of cold this corpus has to have reached, and how many of each
+   *  at least. A count of colds is a sum over four different things
+   *  ({@link ./shadow.ts}'s `Seen.why`), and a run that met the sum by booting
+   *  sixty times would have exercised nothing. */
+  readonly declined: Readonly<Record<string, number>>
 }): void => {
   expect(report.divergences).toEqual([])
   expect(report.narrowed).toBeGreaterThan(floors.narrowed)
   expect(report.cold).toBeGreaterThan(floors.cold)
   expect(report.accepted).toBeGreaterThan(floors.accepted)
+  for (const [why, many] of Object.entries(floors.declined)) {
+    // Named rather than counted, so a failure says WHICH kind of cold the
+    // corpus stopped reaching rather than that a total moved.
+    expect({ why, reached: (report.declined[why] ?? 0) >= many })
+      .toEqual({ why, reached: true })
+  }
   // The narrowing has to have NARROWED on most of them. Left unchecked, an
   // `incrementally` that answered `walked: true` every time — one that ran the
   // cycle walks and the doc walk on every edit — would agree with the full arm
@@ -226,6 +244,22 @@ const CORNERS: ReadonlyArray<Corner> = [
         "a.olai": `{"id":"cook","ord":"a","title":"cook","after":["m"]}\n` +
           `{"id":"eat","ord":"b","title":"eat","after":["cook"]}`,
         "b.olai": `{"id":"m","ord":"a","mirror":"eat"}`,
+      }),
+    ],
+  },
+  {
+    why:
+      "a `blocks`-only loop — the same arrow the corner above writes as `after`, " +
+      "read from the other end, and the one shape the generated stream cannot " +
+      "reach because `written()` forces every edge into a DAG by corpus order",
+    steps: [
+      at({
+        "a.olai": `{"id":"one","ord":"a","title":"one"}\n` +
+          `{"id":"two","ord":"b","title":"two"}`,
+      }),
+      at({
+        "a.olai": `{"id":"one","ord":"a","title":"one","blocks":["two"]}\n` +
+          `{"id":"two","ord":"b","title":"two","blocks":["one"]}`,
       }),
     ],
   },
@@ -434,8 +468,24 @@ test("the narrowed verdict is the full verdict, over generated edit sequences", 
     found.push(replay(revisionsOf(random, DEEP)))
   }
   const report = summed(found)
-  // 884 narrowed, 616 cold, 678 accepted of 1,500 revisions as this is written.
-  holds(report, { narrowed: ROUNDS * 4, cold: ROUNDS, accepted: ROUNDS * 4 })
+  // 884 narrowed, 616 cold (128 first loads, 488 rebuilds), 678 accepted of
+  // 1,500 revisions as this is written.
+  holds(report, {
+    narrowed: ROUNDS * 4,
+    cold: ROUNDS,
+    accepted: ROUNDS * 4,
+    declined: { first: ROUNDS, rebuilt: ROUNDS * 3 },
+  })
+  // THE OTHER THREE DOORS STAY SHUT when the caller drives this the way the
+  // store does, and that is a claim rather than an absence. `refused` is the
+  // dirty-ledger door and cannot fire: `Previous` is the last PUBLISHED reading,
+  // so the ledger a validation follows is always clean. `duplicates` cannot
+  // either: a corpus with two claims on one id is declined one step earlier, by
+  // the patcher, and arrives here as `rebuilt`. `documents` is the delta's own
+  // honesty about `.md` membership, and this harness computes its deltas from
+  // the revisions it wrote. Any of them appearing is news — either the store's
+  // discipline changed or the harness stopped reproducing it.
+  expect(Object.keys(report.declined).sort()).toEqual(["first", "rebuilt"])
   // The corpora really did reach the shapes the arms are about: sets that were
   // REFUSED (so the next validation follows a reading several edits back, with
   // a delta spanning every one of them), and sets holding a file that would not
@@ -452,6 +502,12 @@ const summed = (found: ReadonlyArray<Report>): Report => ({
   divergences: found.flatMap((one) => one.divergences),
   narrowed: found.reduce((held, one) => held + one.narrowed, 0),
   cold: found.reduce((held, one) => held + one.cold, 0),
+  declined: found.reduce<Record<string, number>>((held, one) => {
+    for (const [why, many] of Object.entries(one.declined)) {
+      held[why] = (held[why] ?? 0) + many
+    }
+    return held
+  }, {}),
   walked: found.reduce((held, one) => held + one.walked, 0),
   accepted: found.reduce((held, one) => held + one.accepted, 0),
   refused: found.reduce((held, one) => held + one.refused, 0),
@@ -468,5 +524,5 @@ test("the narrowed verdict is the full verdict, over this repository's own docs/
   // 120 narrowed, 1 cold (the load, which has nothing to follow), 11 of them
   // walking the corpus anyway — this vault is a directory that VALIDATES, so
   // nearly every revision here is one the narrowing was really asked about.
-  holds(report, { narrowed: 60, cold: 0, accepted: 60 })
+  holds(report, { narrowed: 60, cold: 0, accepted: 60, declined: { first: 1 } })
 })

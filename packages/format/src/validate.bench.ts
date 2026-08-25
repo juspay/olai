@@ -284,24 +284,25 @@ const row = (what: string, edits: ReadonlyArray<Edit>): void => {
       whole(set, view)
     })
     narrow += runs(() => {
-      incrementally(before, held, edit.delta, view)
+      incrementally(set, before, held, edit.delta, view)
     })
     both += runs(() => {
       whole(set, view)
-      incrementally(before, held, edit.delta, view)
+      incrementally(set, before, held, edit.delta, view)
     })
     // THE TWO ARMS ANSWERED THE SAME THING, or the milliseconds above are about
     // nothing. A decline is the same failure wearing a different face — it
-    // would report the narrowing as free by having it do nothing at all.
+    // would report the narrowing as free by having it do nothing at all, and it
+    // says which door it turned back at.
     const said = whole(set, view)
-    const narrowed = incrementally(before, held, edit.delta, view)
-    if (narrowed === null) {
+    const narrowed = incrementally(set, before, held, edit.delta, view)
+    if (typeof narrowed === "string") {
       throw new Error(
-        `${what}: the narrowing declined — the row above it is the full ` +
-          `validator timed against a function that returned \`null\``,
+        `${what}: the narrowing declined (${narrowed}) — the row above it is ` +
+          `the full validator timed against a function that did nothing`,
       )
     }
-    if (walkedSaid(narrowed.walked)) walked++
+    if (narrowed.walked) walked++
     const one = reportOf(set, said).map(spelling)
     const other = reportOf(set, narrowed.ledger.errors).map(spelling)
     if (one.length !== other.length || one.some((line, at) => line !== other[at])) {
@@ -323,8 +324,6 @@ const row = (what: string, edits: ReadonlyArray<Edit>): void => {
       `${`${walked}/${many}`.padStart(11)}`,
   )
 }
-
-const walkedSaid = (walked: boolean): boolean => walked
 
 const spelling = (error: OutlineError): string =>
   `${error.file}:${error.line} ${error.code} ${error.message}`

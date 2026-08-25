@@ -16,7 +16,12 @@
  * and it is a SEPARATE PR whose merge is a HUMAN's. Its gate is machine
  * checkable and has a deadline:
  *
- *   - the divergence log is EMPTY, and
+ *   - the divergence log is EMPTY — {@link DIVERGENCE_LOG} under the state
+ *     home, and NOT some other file with almost that name: this PR shipped for
+ *     one commit with the writer renamed and the sentence stating this gate
+ *     left behind, which would have made the soak a green over a path that is
+ *     always absent. The name is a value for that reason and every sentence
+ *     naming it is swept against it (`packages/tests/divergenceLog.test.ts`);
  *   - the shadow has soaked for at least THREE quiet nights, and
  *   - within SEVEN DAYS of this landing, flip or remove — the default on the
  *     deadline is REMOVE, meaning this file and its call go and the incremental
@@ -51,7 +56,12 @@
 
 import type { Derived } from "./derive.ts"
 import { errorLine, type OutlineError } from "./errors.ts"
-import { incrementally, type Ledger, type Narrowed } from "./incremental.ts"
+import {
+  type Decline,
+  incrementally,
+  type Ledger,
+  type Narrowed,
+} from "./incremental.ts"
 import type { SetDelta } from "./patch.ts"
 import { reportOf } from "./rules.ts"
 import type { OutlineSet } from "./set.ts"
@@ -92,23 +102,51 @@ export interface Divergence {
   readonly touched: ReadonlyArray<string>
   /** How big the corpus was, so a reproduction can be sized. */
   readonly files: number
-  /** Whether the full arm accepted the set, and whether the narrowed one did. */
+  /** Whether the full arm accepted the set, and whether the narrowed one did.
+   *  Under `threw` the narrowed arm reached no verdict at all and this reads
+   *  `false` — `why` is what says which of the two it is. */
   readonly accepted: { readonly full: boolean; readonly incremental: boolean }
+  /** How many findings each arm reported. The SIZE of the two reports, which is
+   *  what the lists below no longer carry. */
+  readonly counts: { readonly full: number; readonly incremental: number }
   /** Said by the full arm and not by the narrowed one — the findings a flip
    *  would have LOST. Under `ledger`, the `.md` paths the walk holds and the
-   *  carry does not. */
+   *  carry does not. Capped at {@link SAID}. */
   readonly missing: ReadonlyArray<string>
   /** Said by the narrowed arm and not by the full one — the findings a flip
    *  would have INVENTED. Under `ledger`, the `.md` paths the carry holds and
-   *  the walk does not. */
+   *  the walk does not. Capped at {@link SAID}. */
   readonly invented: ReadonlyArray<string>
-  /** Both reports whole, in order, for the `order` case where neither list
-   *  above has anything in it. */
-  readonly full: ReadonlyArray<string>
-  readonly incremental: ReadonlyArray<string>
+  /** How many lines the three lists above dropped to stay under their caps. A
+   *  number rather than a truncation nobody can see: an entry that says
+   *  "twenty findings, and here are the first ten" is one a reader can act on,
+   *  and one silently holding ten of twenty is one they cannot. */
+  readonly elided: number
+  /** WHERE the two reports part company, for the `order` case — the first index
+   *  at which they differ and the line each arm has there. That case has
+   *  nothing in `missing` or `invented` by definition (the findings are the
+   *  same findings), and it used to be answered by carrying BOTH reports whole,
+   *  which on a badly broken directory is a log line the size of the report. */
+  readonly parted?: {
+    readonly at: number
+    readonly full: string
+    readonly incremental: string
+  }
   /** The reason, when `why` is `threw`. */
   readonly threw?: string
 }
+
+/**
+ * How many lines of any one list an entry carries.
+ *
+ * A divergence is supposed to be impossible, so an entry is written to be READ
+ * rather than to be complete: the first few findings and a count is what
+ * somebody acts on, and both reports whole is what makes one line of the log
+ * the size of a broken directory's whole report. What is never capped is the
+ * COUNT — {@link Divergence.counts} and {@link Divergence.elided} say how much
+ * was left out, so the entry cannot read as smaller than it was.
+ */
+const SAID = 12
 
 /**
  * EVERY validation the shadow looked at, agreed or not — one word plus the
@@ -121,10 +159,25 @@ export interface Divergence {
  * everything but a divergence.
  */
 export interface Seen {
-  /** `cold` — nothing to narrow from (a first load, a rebuild, a validation
-   *  following a refusal), so only the full arm ran. `narrowed` — both ran and
-   *  agreed. `diverged` — both ran and did not. */
+  /** `cold` — nothing to narrow from, so only the full arm ran. `narrowed` —
+   *  both ran and agreed. `diverged` — both ran and did not. */
   readonly kind: "cold" | "narrowed" | "diverged"
+  /**
+   * WHICH cold, present on exactly that kind — because one word for four
+   * different things is a floor a test can meet without having reached any of
+   * them.
+   *
+   *   - `first` — no reading to follow at all: the boot, or a caller that
+   *     offered none;
+   *   - `rebuilt` — the view was BUILT rather than patched, so it carries no
+   *     relation to the one this validation follows (`patched` declined, or
+   *     the identity check refused the delta);
+   *   - `unledgered` — a previous view this table has no verdict for, which is
+   *     a reading minted somewhere other than a validation;
+   *   - and the three the narrowing itself turns back at
+   *     ({@link ./incremental.ts}'s `Decline`).
+   */
+  readonly why?: "first" | "rebuilt" | "unledgered" | Decline
   /** Whether the narrowed arm had to walk the corpus anyway — see
    *  {@link ./incremental.ts}'s `Narrowed`. Absent on a cold run, where there
    *  was no narrowed arm to ask. */
@@ -147,14 +200,38 @@ const SHOUT: Witness = (seen) => {
       `  touched: ${found.touched.join(", ") || "(nothing)"}\n` +
       `  accepted: full=${found.accepted.full} incremental=${found.accepted.incremental}\n` +
       (found.threw === undefined ? "" : `  threw: ${found.threw}\n`) +
+      `  found: full=${found.counts.full} incremental=${found.counts.incremental}\n` +
       found.missing.map((said) => `  only the full validator said: ${said}\n`).join("") +
       found.invented.map((said) => `  only the incremental one said: ${said}\n`).join("") +
-      (found.why === "order"
-        ? `  full order:        ${found.full.join(" | ")}\n` +
-          `  incremental order: ${found.incremental.join(" | ")}\n`
-        : ""),
+      (found.parted === undefined ? "" : `  they part at ${found.parted.at}:\n` +
+        `    full:        ${found.parted.full}\n` +
+        `    incremental: ${found.parted.incremental}\n`) +
+      (found.elided === 0
+        ? ""
+        : `  (${found.elided} more lines not shown — the entry is capped)\n`),
   )
 }
+
+/**
+ * WHAT THE LOG IS CALLED — one spelling, exported, and the reason it lives in
+ * this package rather than beside the code that opens the file.
+ *
+ * The flip's gate is "that log is empty", and a gate naming a file nothing
+ * writes is a green nobody earned: this PR shipped with the writer renamed and
+ * the gate left saying the old name, which is the same incomplete rename
+ * `packages/tests/extension.test.ts` exists to catch and which its own grants
+ * hid. So the name is a VALUE now. `@olai/server` joins it onto the state home
+ * ({@link ../../server/src/divergence.ts}), every sentence in the tree that
+ * names the gate is swept against it (`packages/tests/divergenceLog.test.ts`),
+ * and there is no second place to forget.
+ *
+ * Here and not in the server because the artifact is the SHADOW's: this package
+ * owns what the comparison is and what it produces, and the layer with a disk
+ * owns where a file goes. The extension is `.ndjson` and not the other spelling
+ * of newline-delimited JSON, which is the one olai's own outlines used to carry
+ * and which this repository sweeps out of its tree.
+ */
+export const DIVERGENCE_LOG = "validate-shadow.ndjson"
 
 let witness: Witness = SHOUT
 
@@ -198,23 +275,37 @@ export const shadowed = (
   const ledger: Ledger = { errors, known }
   try {
     const followed = before === undefined ? undefined : LEDGERS.get(before)
-    if (before === undefined || delta === undefined || followed === undefined) {
-      witness({ kind: "cold" })
+    if (before === undefined) {
+      witness({ kind: "cold", why: "first" })
       return
     }
-    let narrowed: Narrowed | null
+    if (delta === undefined) {
+      witness({ kind: "cold", why: "rebuilt" })
+      return
+    }
+    if (followed === undefined) {
+      witness({ kind: "cold", why: "unledgered" })
+      return
+    }
+    let narrowed: Narrowed | Decline
     try {
-      narrowed = incrementally(before, followed, delta, derived)
+      narrowed = incrementally(set, before, followed, delta, derived)
     } catch (cause) {
-      raise(set, delta, derived, errors, {
+      raise(delta, derived, {
         why: "threw",
+        // The narrowed arm reached NO verdict, which `why` says and this
+        // cannot: the pair is two booleans, so the honest reading of
+        // `incremental: false` here is "there is none", never "it refused".
         accepted: { full: errors.length === 0, incremental: false },
+        counts: { full: errors.length, incremental: 0 },
+        missing: [],
+        invented: [],
         threw: cause instanceof Error ? cause.message : String(cause),
       })
       return
     }
-    if (narrowed === null) {
-      witness({ kind: "cold" })
+    if (typeof narrowed === "string") {
+      witness({ kind: "cold", why: narrowed })
       return
     }
     compare(set, delta, derived, errors, narrowed.ledger, known, narrowed.walked)
@@ -232,9 +323,10 @@ export const shadowed = (
   }
 }
 
-/** What the shadow filed about a view, for the tests that drive
- *  {@link incrementally} directly and need the state a real run would have left
- *  behind. Not product: nothing above this package reads it. */
+/** The verdict this table holds about a view — the shadow's own state, read
+ *  back. Nothing above this package reads it and nothing in the product does;
+ *  it is here so that "the ledger is filed from the FULL arm, even when the
+ *  narrowed one threw" is a checked claim rather than a paragraph. */
 export const ledgerOf = (derived: Derived): Ledger | undefined => LEDGERS.get(derived)
 
 const compare = (
@@ -246,23 +338,64 @@ const compare = (
   known: ReadonlySet<string>,
   walked: boolean,
 ): void => {
-  // THE REPORTS AND NOT THE RAW FINDINGS: the error scope and the presentation
-  // order are part of the verdict, so what is compared is what a reader would
-  // have been shown ({@link ./rules.ts}'s `reportOf`).
-  const full = reportOf(set, errors).map(errorLine)
-  const said = reportOf(set, narrowed.errors).map(errorLine)
-  const accepted = { full: errors.length === 0, incremental: narrowed.errors.length === 0 }
-  // The verdict first and the CARRY second, which is the order they matter in
-  // and not the order they happen in: a wrong ledger that has not yet produced
-  // a wrong finding is worth an entry, and it must not be the entry that hides
-  // one that has.
-  const found = differing(full, said, accepted) ?? carried(known, narrowed.known)
+  // BOTH ARMS FOUND NOTHING, which is nearly every write, and there is no
+  // report to build: `reportOf` over an empty list is the set's own parse
+  // errors sorted, which is the SAME value on both sides because it is a
+  // reading of the same set. So the common path costs two length reads where it
+  // used to cost two sorts and a corpus of strings — the shadow already makes a
+  // write pay two validators, and it must not also make it pay a third sort of
+  // whatever the first one found.
+  const agreed = errors.length === 0 && narrowed.errors.length === 0
+  const found = agreed
+    ? carried(known, narrowed.known)
+    : verdicts(set, errors, narrowed.errors, known, narrowed.known)
   if (found === null) {
     witness({ kind: "narrowed", walked })
     return
   }
-  raise(set, delta, derived, errors, { ...found, accepted, full, incremental: said }, walked)
+  raise(delta, derived, found, walked)
 }
+
+/** The two arms compared as REPORTS — what a reader would have been shown,
+ *  error scope and presentation order and all ({@link ./rules.ts}'s
+ *  `reportOf`) — for the writes where at least one arm found something. */
+const verdicts = (
+  set: OutlineSet,
+  errors: ReadonlyArray<OutlineError>,
+  narrowed: ReadonlyArray<OutlineError>,
+  known: ReadonlySet<string>,
+  carrying: ReadonlySet<string>,
+): Told | null => {
+  const full = reportOf(set, errors).map(errorLine)
+  const said = reportOf(set, narrowed).map(errorLine)
+  const accepted = { full: errors.length === 0, incremental: narrowed.length === 0 }
+  // The verdict first and the CARRY second, which is the order they matter in
+  // and not the order they happen in: a wrong ledger that has not yet produced
+  // a wrong finding is worth an entry, and it must not be the entry that hides
+  // one that has.
+  const found = differing(full, said, accepted)
+  if (found !== null) {
+    return {
+      ...found,
+      accepted,
+      counts: { full: full.length, incremental: said.length },
+    }
+  }
+  const ledger = carried(known, carrying)
+  return ledger === null ? null : {
+    ...ledger,
+    accepted,
+    counts: { full: full.length, incremental: said.length },
+  }
+}
+
+/** What a comparison decided, before {@link raise} stamps the time and the
+ *  place on it — everything an entry says about the two ARMS, and nothing about
+ *  the revision they ran over. */
+type Told = Pick<
+  Divergence,
+  "why" | "missing" | "invented" | "accepted" | "counts" | "parted"
+>
 
 /**
  * HOW TWO REPORTS DIFFER, or `null` when they do not — the whole of the
@@ -279,18 +412,22 @@ export const differing = (
   full: ReadonlyArray<string>,
   said: ReadonlyArray<string>,
   accepted: Divergence["accepted"],
-): Pick<Divergence, "why" | "missing" | "invented"> | null => {
-  if (accepted.full !== accepted.incremental) {
-    return { why: "verdict", missing: held(full, said), invented: held(said, full) }
-  }
+): Pick<Divergence, "why" | "missing" | "invented" | "parted"> | null => {
   const missing = held(full, said)
   const invented = held(said, full)
-  if (missing.length > 0 || invented.length > 0) {
-    return { why: "findings", missing, invented }
+  if (accepted.full !== accepted.incremental) return { why: "verdict", missing, invented }
+  if (missing.length > 0 || invented.length > 0) return { why: "findings", missing, invented }
+  // THE SAME FINDINGS IN A DIFFERENT ORDER, and what the entry carries is WHERE
+  // rather than both reports whole: the lists above are empty by definition
+  // here, so the first index the two part at — with the line each arm has there
+  // — is the entirety of what a reader could act on.
+  const at = full.findIndex((line, which) => line !== said[which])
+  return at === -1 ? null : {
+    why: "order",
+    missing: [],
+    invented: [],
+    parted: { at, full: full[at] ?? "", incremental: said[at] ?? "" },
   }
-  return full.some((line, at) => line !== said[at])
-    ? { why: "order", missing: [], invented: [] }
-    : null
 }
 
 /** Whether the `.md` paths the narrowed arm CARRIED are the ones the walk
@@ -299,12 +436,19 @@ export const differing = (
 const carried = (
   walked: ReadonlySet<string>,
   said: ReadonlySet<string>,
-): Pick<Divergence, "why" | "missing" | "invented"> | null => {
+): Told | null => {
   const missing = [...walked].filter((file) => !said.has(file))
   const invented = [...said].filter((file) => !walked.has(file))
-  return missing.length === 0 && invented.length === 0
-    ? null
-    : { why: "ledger", missing, invented }
+  return missing.length === 0 && invented.length === 0 ? null : {
+    why: "ledger",
+    missing,
+    invented,
+    // The two arms AGREED about this set — that is what makes `ledger` its own
+    // kind — so what a verdict count would say here is "both said the same
+    // thing", and the paths above are the whole of the finding.
+    accepted: { full: true, incremental: true },
+    counts: { full: 0, incremental: 0 },
+  }
 }
 
 /** The lines of one report that the other does not hold, counting REPEATS: a
@@ -325,24 +469,38 @@ const held = (
   return only
 }
 
+/**
+ * The entry, stamped with the time and the revision and CUT TO SIZE.
+ *
+ * Every list an entry carries is capped here rather than at each of the places
+ * one is built, and what was dropped is counted rather than quietly missing
+ * ({@link SAID} argues both). `touched` is capped for the same reason the
+ * findings are: a `git pull` that rewrote a directory names every file in it,
+ * and the entry a person reads at nine in the morning should say "these, and
+ * four hundred more" rather than four hundred paths.
+ */
 const raise = (
-  set: OutlineSet,
   delta: SetDelta,
   derived: Derived,
-  errors: ReadonlyArray<OutlineError>,
-  found: Pick<Divergence, "why" | "accepted"> & Partial<Divergence>,
+  found: Told & Partial<Pick<Divergence, "threw">>,
   walked?: boolean,
 ): void => {
+  const touched = [...delta.upserts.map(([file]) => file), ...delta.removes]
+  const missing = found.missing.slice(0, SAID)
+  const invented = found.invented.slice(0, SAID)
   const divergence: Divergence = {
     why: found.why,
     at: new Date().toISOString(),
-    touched: [...delta.upserts.map(([file]) => file), ...delta.removes],
+    touched: touched.slice(0, SAID),
     files: derived.byFile.size,
     accepted: found.accepted,
-    missing: found.missing ?? [],
-    invented: found.invented ?? [],
-    full: found.full ?? reportOf(set, errors).map(errorLine),
-    incremental: found.incremental ?? [],
+    counts: found.counts,
+    missing,
+    invented,
+    elided: (touched.length - touched.slice(0, SAID).length) +
+      (found.missing.length - missing.length) +
+      (found.invented.length - invented.length),
+    ...(found.parted === undefined ? {} : { parted: found.parted }),
     ...(found.threw === undefined ? {} : { threw: found.threw }),
   }
   witness({ kind: "diverged", divergence, ...(walked === undefined ? {} : { walked }) })

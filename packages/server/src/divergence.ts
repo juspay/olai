@@ -52,7 +52,7 @@
 import { type Emit, emitter } from "@olai/log"
 import { canonical, stateHome } from "@olai/state"
 import type { Divergence, Witness } from "@olai/format"
-import { witnessing } from "@olai/format"
+import { DIVERGENCE_LOG, witnessing } from "@olai/format"
 import { Effect, type Scope } from "effect"
 import * as fs from "node:fs"
 import { dirname, join } from "node:path"
@@ -67,7 +67,7 @@ export interface Entry extends Divergence {
 /** The one path, named once. Read at call time rather than at import, so a test
  *  can point `XDG_STATE_HOME` somewhere of its own — which is exactly what the
  *  e2e harness does per worker. */
-export const divergenceLog = (): string => join(stateHome(), "validate-shadow.ndjson")
+export const divergenceLog = (): string => join(stateHome(), DIVERGENCE_LOG)
 
 /**
  * Install this process's witness, for the life of the enclosing scope.
