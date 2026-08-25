@@ -1256,6 +1256,10 @@ export const readable = (text: string): string => oneLine(text.replace(/#/g, "")
  *  "the page has no room to do it either way". */
 interface Cover {
   readonly pressable: boolean;
+  /** The point a press would land on is outside the viewport, so there is no
+   *  element there to be on top or not — a fact of its own, because it is not
+   *  pressable and there is nothing to clear. */
+  readonly offscreen: boolean;
   readonly pinned: boolean;
   readonly clearBy: number;
   /** What is on top, and the control itself — named the way the DOM names
@@ -1292,12 +1296,22 @@ const coverOf = (target: Locator): Promise<Cover> =>
       box.x + box.width / 2,
       box.y + box.height / 2,
     );
+    // OFF THE SCREEN is neither pressable nor covered, and calling it either
+    // is what would let this guard miss the case it exists for: a point
+    // outside the viewport has no element at all, so a control below the fold
+    // used to measure as "nothing on top" and go to the press unexamined —
+    // where Playwright scrolls it in, meets whatever is pinned there, and
+    // rescues it exactly as before. {@link OlaiWorld.intoReach} brings it in
+    // first and asks again.
+    if (hit === null) {
+      return { ...where, pressable: false, offscreen: true, pinned: false, clearBy: 0, by: "nothing — the point is off the screen", control: named(el) };
+    }
     // NOTHING ON TOP, said three ways: the point IS the control, is inside it,
     // or is an ancestor of it — a control the pointer reaches through its own
     // row is not covered by that row, and what to do about anything else is
     // Playwright's business rather than ours.
-    if (hit === null || hit === el || el.contains(hit) || hit.contains(el)) {
-      return { ...where, pressable: true, pinned: false, clearBy: 0, by: named(hit), control: named(el) };
+    if (hit === el || el.contains(hit) || hit.contains(el)) {
+      return { ...where, pressable: true, offscreen: false, pinned: false, clearBy: 0, by: named(hit), control: named(el) };
     }
     // The nearest thing over it that HOLDS ITS PLACE IN THE FLOW. Walked up
     // from the hit rather than read off it: what a pointer lands on is a word
@@ -1309,7 +1323,7 @@ const coverOf = (target: Locator): Promise<Cover> =>
         break;
       }
     }
-    const covered = { ...where, pressable: false, by: named(hit), control: named(el) };
+    const covered = { ...where, pressable: false, offscreen: false, by: named(hit), control: named(el) };
     if (pinned === null) return { ...covered, pinned: false, clearBy: 0 };
     const over = pinned.getBoundingClientRect();
     // The two ways out, each a whole pixel past the boundary — a control whose
@@ -2018,6 +2032,14 @@ export class OlaiWorld extends World {
    * somewhere. Both are left exactly as they were, because waiting for them to
    * go is what Playwright already does, and does correctly.
    *
+   * OFF THE SCREEN IS ITS OWN CASE, and it was the hole in the first cut of
+   * this: a point outside the viewport has no element at it, `elementFromPoint`
+   * answers `null`, and reading that as "nothing on top" sends a control below
+   * the fold to the press unexamined — where Playwright scrolls it in, meets
+   * whatever is pinned where it landed, and rescues it exactly as before. So
+   * the scroll that brings it in is taken here, deliberately, and the cover is
+   * measured afterwards, on a control that is actually on the screen.
+   *
    * WHICH WAY IS ARITHMETIC, and the room decides it. The control can be moved
    * DOWN the screen (the page scrolls up) or UP it (the page scrolls down),
    * and the shorter of the two is preferred — but only among the ones the page
@@ -2033,7 +2055,13 @@ export class OlaiWorld extends World {
    * somewhere nobody chose.
    */
   async intoReach(target: Locator, what?: string): Promise<void> {
-    const before = await coverOf(target);
+    const first = await coverOf(target);
+    // A control whose centre is off the screen has to be brought in before the
+    // question can even be asked — and bringing it in is where it meets what
+    // is pinned, so the answer that matters is the one from AFTERWARDS.
+    const before = first.offscreen
+      ? await this.intoView(target)
+      : first;
     if (before.pressable || !before.pinned) return;
     await this.page.evaluate((by) => window.scrollBy(0, by), before.clearBy);
     await this.waitForFrame();
@@ -2046,6 +2074,16 @@ export class OlaiWorld extends World {
         `— left alone, Playwright answers one by scrolling the page until it ` +
         `lands, which leaves the reader somewhere nobody chose.`,
     );
+  }
+
+  /** …the scroll that brings an off-screen control in, taken HERE and
+   *  deliberately rather than left inside Playwright's retry — same call the
+   *  press would make, one frame to settle, and then the cover is measured on
+   *  a control that is actually on the screen. */
+  private async intoView(target: Locator): Promise<Cover> {
+    await target.scrollIntoViewIfNeeded({ timeout: POLL_TIMEOUT });
+    await this.waitForFrame();
+    return await coverOf(target);
   }
 
   /** Click a node's own control. */
