@@ -27,15 +27,14 @@
 
 import {
   asksOver,
+  decodedVault,
   deepVaultOf,
   differential,
   readingOfVault,
   TANGLED,
 } from "@olai/format/testlib/scope"
-import { type Document, nodesIn, type OutlineError, parseOutline, reading } from "@olai/format"
-import { assemble } from "@olai/format"
+import { assemble, nodesIn, parseOutline, reading } from "@olai/format"
 import { expect, test } from "bun:test"
-import { Result } from "effect"
 
 import { type Index, open } from "./index.ts"
 
@@ -118,8 +117,7 @@ test("a write leaves the two narrowings still agreeing", () => {
   const index = opened()
   try {
     const vault = new Map(deepVaultOf({ files: 12, records: 18, seed: 20260825 }))
-    const decoded = new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>()
-    for (const [file, text] of vault) decoded.set(file, parseOutline(file, text))
+    const decoded = decodedVault(vault)
     let read = reading(assemble(decoded))
     const asks = asksOver(read.derived, QUERIES, { files: 6, roots: 10 })
     const narrow = (at: typeof read, filter: Parameters<Index["narrow"]>[1]) =>
