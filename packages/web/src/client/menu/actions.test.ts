@@ -19,17 +19,24 @@
  * destination is outside the app and a copy leaves no trace on the page. What
  * they say is a fact about `run`, so it is held here rather than only in the
  * browser — `features/menu_verbs.feature` walks the same two verbs end to end.
+ *
+ * The WRITE arm is stubbed at `applying`, not fire-and-forget on the live
+ * wire: a real `edit.apply` never settles here (`wire.ts` dials
+ * `olai.invalid` and retries forever), and a promise left hanging is a retry
+ * fiber still running while later tests in this file — and every later file
+ * in bun's one shared process — run.
  */
 
 import { derive, rowsOf, type Row } from "@olai/format"
 import { recordsOf, setOf } from "@olai/format/testlib"
 import { NO_PINS } from "@olai/surface"
-import { expect, test } from "bun:test"
+import { expect, spyOn, test } from "bun:test"
 
 import { armedNodes, releaseArmed } from "../chat/armed.ts"
 import type { Relation } from "../edges/relation.ts"
 import { flatten } from "../edit/order.ts"
 import { chatOpen, setChatOpen } from "../layout/prefs.ts"
+import * as writes from "../writes.ts"
 import { nodeMenuActions } from "./actions.ts"
 
 const HOUSE = [
@@ -115,33 +122,56 @@ test("...and it still opens the picker", () => {
   expect(opened).toBe(1)
 })
 
-test("a verb that WRITES still answers with a promise the panel can read", () => {
+test("a verb that WRITES still answers with a promise the panel can read", async () => {
   // The other arm of `Does`, so the block above cannot be "return nothing,
   // always": a mark goes to the write gate, and what it answers with is what
   // the panel puts beside the `•••`.
-  const answer = entry("install", "Mark todo").run()
-  expect(answer).toBeInstanceOf(Promise)
-  // ...and it is swallowed here, because there is no server behind this test
-  // and an unhandled rejection from a write nobody awaited is noise in every
-  // other file's run.
-  void (answer as Promise<unknown>).catch(() => {})
+  //
+  // `applying` is the event `run` actually waits on. A real write against
+  // this process's dead wire never settles, and fire-and-forget left that
+  // RPC in flight for whichever test bun ran next. Stubbed, `await` is
+  // waiting on the write landing, not on time.
+  const applying = spyOn(writes, "applying").mockImplementation(async () => ({
+    tone: "aside",
+    text: "kitchen remodel is done",
+  }))
+  try {
+    const answer = entry("install", "Mark todo").run()
+    expect(answer).toBeInstanceOf(Promise)
+    expect(await answer).toEqual({
+      tone: "aside",
+      text: "kitchen remodel is done",
+    })
+  } finally {
+    applying.mockRestore()
+  }
 })
 
 /** The catalog run against a clipboard of the test's own. Node has none at
  *  all, and the two copy verbs are the only thing in here that reaches for
  *  one — restored afterwards, because a global left patched is a failure in
- *  whichever file `bun test` happens to run next. */
+ *  whichever file `bun test` happens to run next.
+ *
+ *  ONLY `clipboard` is installed. Replacing the whole `navigator` was a
+ *  second sharing: bun's one process keeps one Navigator, and a
+ *  `{ clipboard }`-only object is a different global for every later file
+ *  that still needs `userAgent` or `platform`. */
 const withClipboard = async <T>(
   clipboard: { readonly writeText: (text: string) => Promise<void> },
   run: () => Promise<T>,
 ): Promise<T> => {
-  const had = Object.getOwnPropertyDescriptor(globalThis, "navigator")
-  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { clipboard } })
+  const nav = globalThis.navigator
+  const had = Object.getOwnPropertyDescriptor(nav, "clipboard")
+  Object.defineProperty(nav, "clipboard", {
+    configurable: true,
+    enumerable: true,
+    value: clipboard,
+  })
   try {
     return await run()
   } finally {
-    if (had === undefined) delete (globalThis as { navigator?: unknown }).navigator
-    else Object.defineProperty(globalThis, "navigator", had)
+    if (had === undefined) Reflect.deleteProperty(nav, "clipboard")
+    else Object.defineProperty(nav, "clipboard", had)
   }
 }
 
@@ -194,15 +224,22 @@ test("`Ask agent` arms the composer with the node the row SHOWS", () => {
   // about is what it is a placement OF. Arming the record instead would put an
   // id in the prompt that `read_node` answers `missing` for.
   releaseArmed()
-  entry("echo", "Ask agent").run()
-  expect(armedNodes()).toEqual(["install"])
-  releaseArmed()
+  try {
+    entry("echo", "Ask agent").run()
+    expect(armedNodes()).toEqual(["install"])
+  } finally {
+    releaseArmed()
+  }
 })
 
 test("...and it opens the panel the chip is in", () => {
   // A chip in a panel nobody can see is a gesture that did nothing.
   setChatOpen(false)
-  entry("install", "Ask agent").run()
-  expect(chatOpen()).toBe(true)
-  releaseArmed()
+  try {
+    entry("install", "Ask agent").run()
+    expect(chatOpen()).toBe(true)
+  } finally {
+    releaseArmed()
+    setChatOpen(false)
+  }
 })
