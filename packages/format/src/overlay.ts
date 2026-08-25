@@ -65,12 +65,34 @@
  * map goes on being answered by it. That is the property the clone was there
  * for, kept at the cost of the layer rather than of the corpus.
  *
+ * AND THE COPY IS TAKEN AT THE FIRST WRITE, in both spellings and for one
+ * reason: a patch opens every index of the view and writes to the few keys its
+ * edit reached, so what the rest must cost is NOTHING. A map read whole is not
+ * cloned until something is set in it, and a layer handed on is carried BY
+ * REFERENCE — its three structures shared with the revision that sealed them —
+ * until a write copies all three and goes into those. Constructing used to take
+ * those three copies, which is three per index per keystroke thrown away
+ * untouched, against a layer that may hold half the corpus before it flattens
+ * (`perf-overlay-copies`).
+ *
+ * WHICH MAKES THE SHARING LOAD-BEARING, so it is a law here rather than an
+ * economy: what an unwritten overlay holds belongs to the revision that sealed
+ * it, and no reader of that revision may see this one's write through it. The
+ * only writable handle in this file is what {@link Overlay.own} hands back, it
+ * is minted by copying, and every field a read goes through is `Readonly` — so
+ * a write that skipped the copy would not typecheck rather than being caught by
+ * a test. `./overlay.test.ts` pins it from the READER's seat regardless, a
+ * revision behind, because what the compiler cannot say is which structure a
+ * value already in hand came out of.
+ *
  * WHEN IT DECLINES, and it does so silently because both answers are the same
  * value, only one is cheaper to reach:
  *
- *   - a sealing that was never written to hands back `base` ITSELF. Nothing
- *     touched, nothing cloned — an edit that moves no key of a map pays nothing
- *     for it, whichever way that map is read;
+ *   - a sealing that was never written to hands back WHAT IT WAS GIVEN — the
+ *     map, or the layer the patch before it left. Nothing touched, nothing
+ *     copied to get there AND nothing copied on the way in, which is the
+ *     paragraph below: an edit that moves no key of a map pays nothing for it,
+ *     whichever way that map is read;
  *   - an index sealed as read WHOLE flattens, which is the clone, taken
  *     deliberately;
  *   - a layer grown past HALF the map flattens too. The layer is copied per
@@ -191,6 +213,21 @@ const hasAt = <K, V extends {}>(held: Held<K, V>, key: K): boolean =>
 const SPENT = "this overlay was sealed — what it held belongs to the map it left"
 
 /**
+ * WHAT AN OVERLAY OVER A PLAIN MAP STARTS FROM, shared by every one of them and
+ * written to by none.
+ *
+ * An overlay carrying a LAYER starts from that layer's own three structures.
+ * The other case — a plain map, which is what a flatten and a first derive both
+ * leave — has nothing to start from, and minting three empty ones per index per
+ * patch to have something would be a smaller spelling of the allocation this
+ * module just stopped making. So they are minted ONCE, and shared for the same
+ * reason a layer's own three are: nothing here can write through a `Readonly`
+ * field, and the copy {@link Overlay.own} takes is what every write goes into.
+ */
+const NOTHING: ReadonlyMap<never, never> = new Map<never, never>()
+const NOBODY: ReadonlySet<never> = new Set<never>()
+
+/**
  * A map carried across the edit BY CLONING it, which is what a map somebody
  * walks whole gets.
  *
@@ -199,7 +236,9 @@ const SPENT = "this overlay was sealed — what it held belongs to the map it le
  * than the copy it saved (the module header argues it, `./patch.bench.ts`
  * prices it). What is left worth saying is the COPY-ON-FIRST-WRITE — an edit
  * that touches no key of this map hands back the very map it was given, so the
- * rule that a patch pays for what it touched holds for these too.
+ * rule that a patch pays for what it touched holds for these too. It is the
+ * discipline {@link Overlay} keeps as well, over three structures rather than
+ * one; this is where it is easiest to read.
  */
 class Cloned<K, V extends {}> implements Editable<K, V> {
   /** The copy, taken at the first write and not before. */
@@ -243,6 +282,20 @@ class Cloned<K, V extends {}> implements Editable<K, V> {
 }
 
 /**
+ * THE THREE STRUCTURES OF A LAYER, OWNED — what {@link Overlay.own} copies the
+ * carried ones into.
+ *
+ * A type rather than three fields because it is one fact and is reached as one:
+ * holding it is what "this patch wrote" means, and a write reaches it by asking
+ * for it, so there is no spelling of a write that skips the copy.
+ */
+interface Mine<K, V extends {}> {
+  readonly changed: Map<K, V>
+  readonly appended: Set<K>
+  readonly gone: Set<K>
+}
+
+/**
  * A map carried across the edit as a LAYER: what stood, plus what this patch
  * did to it, held apart until {@link Overlay.sealed} decides how to spell it.
  *
@@ -254,19 +307,34 @@ class Cloned<K, V extends {}> implements Editable<K, V> {
  * never had, and one that was DELETED AND SET AGAIN, because that is where a
  * `Map` puts it. `gone` is which keys of `base` are not here any more, and a
  * key in `appended` too is one that came back.
+ *
+ * AND IT DOES NOT HOLD THEM UNTIL IT IS WRITTEN TO. Handed a layer, the three
+ * below ARE that layer's own three, shared with every reader still holding it,
+ * and they stay shared until {@link Overlay.own} copies them for the first
+ * write. So they are declared `Readonly` and the copy is declared {@link Mine},
+ * which is what makes "an unwritten layer is immutable from every reader's
+ * seat" a thing the compiler keeps rather than a thing this comment asks for.
  */
 class Overlay<K, V extends {}> implements Editable<K, V> {
   readonly base: ReadonlyMap<K, V>
-  readonly changed: Map<K, V>
-  readonly appended: Set<K>
-  readonly gone: Set<K>
+  /** Shared with the revision that sealed it until the first write. */
+  changed: ReadonlyMap<K, V>
+  /** Shared with the revision that sealed it until the first write. */
+  appended: ReadonlySet<K>
+  /** Shared with the revision that sealed it until the first write. */
+  gone: ReadonlySet<K>
   /** What this was handed, which is what an untouched sealing gives back. */
   private readonly given: ReadonlyMap<K, V>
-  /** Whether THIS patch wrote anything, which is not the same question as
-   *  whether the three above are empty: a layer handed in arrives with its own
-   *  contents in them, so an edit that does nothing to a map has to hand that
-   *  layer back rather than build an equal one beside it. */
-  private wrote = false
+  /** The three ONCE THEY ARE OURS — the only writable handle in this file, and
+   *  `undefined` until a write minted it by copying.
+   *
+   *  It is also the answer to whether THIS patch wrote anything, which is not
+   *  the same question as whether the three above are empty: a layer handed in
+   *  arrives with its own contents in them, so an edit that does nothing to a
+   *  map has to hand that layer back rather than build an equal one beside it.
+   *  One field for both because they became one fact — what makes an overlay
+   *  written-to is the copy it took to write into. */
+  private mine: Mine<K, V> | undefined
   private spent = false
 
   constructor(given: ReadonlyMap<K, V>) {
@@ -274,12 +342,47 @@ class Overlay<K, V extends {}> implements Editable<K, V> {
     // handed, and a chain would make it cost the session's history. What the
     // layer already held becomes this patch's own starting point, and the map
     // underneath becomes the base.
+    //
+    // TAKEN BY REFERENCE, which is the whole of `perf-overlay-copies`: these
+    // three are the sealed layer's own, and stay its own until a write copies
+    // them. An index this patch does not touch is carried for nothing.
     const held = given instanceof Layer ? (given as Layer<K, V>) : undefined
     this.given = given
     this.base = held?.base ?? given
-    this.changed = new Map(held?.changed)
-    this.appended = new Set(held?.appended)
-    this.gone = new Set(held?.gone)
+    this.changed = held?.changed ?? NOTHING
+    this.appended = held?.appended ?? NOBODY
+    this.gone = held?.gone ?? NOBODY
+  }
+
+  /**
+   * THE THREE, OURS — copied here on the first write and handed straight back
+   * on every one after it.
+   *
+   * The one place this module copies its bookkeeping, and the one place a write
+   * can reach it: every field above is `Readonly`, so a set or a delete that
+   * did not come through here has nowhere to put anything. That is what makes
+   * the sharing above checkable rather than remembered — the aliasing law is
+   * "copy before you touch", and there is exactly one touch.
+   *
+   * ALL THREE AT ONCE rather than one per structure. A write reaches `changed`
+   * always and the other two often, so three flags would buy the copy of an
+   * empty `Set` back on the path where the layer is grown by typing — where
+   * `appended` and `gone` are empty and `changed` is what is large — and cost
+   * two more states for anything reading this to hold.
+   */
+  private own(): Mine<K, V> {
+    const held = this.mine
+    if (held !== undefined) return held
+    const taken: Mine<K, V> = {
+      changed: new Map(this.changed),
+      appended: new Set(this.appended),
+      gone: new Set(this.gone),
+    }
+    this.changed = taken.changed
+    this.appended = taken.appended
+    this.gone = taken.gone
+    this.mine = taken
+    return taken
   }
 
   get(key: K): V | undefined {
@@ -292,31 +395,34 @@ class Overlay<K, V extends {}> implements Editable<K, V> {
 
   set(key: K, value: V): boolean {
     if (this.spent) throw new Error(SPENT)
-    this.wrote = true
+    const mine = this.own()
     // Already ours, and it keeps wherever it sits: a `Map` re-set at a key does
     // not move it.
-    if (this.changed.has(key)) {
-      this.changed.set(key, value)
+    if (mine.changed.has(key)) {
+      mine.changed.set(key, value)
       return false
     }
     // Not ours yet, so it is either a live key of `base` — a replacement, at
     // `base`'s own place for it — or absent, which covers both a key nothing
     // ever held and one this edit deleted, and both of those go to the END.
-    const live = this.base.has(key) && !(this.gone.size !== 0 && this.gone.has(key))
-    if (!live) this.appended.add(key)
-    this.changed.set(key, value)
+    const live = this.base.has(key) && !(mine.gone.size !== 0 && mine.gone.has(key))
+    if (!live) mine.appended.add(key)
+    mine.changed.set(key, value)
     return !live
   }
 
   delete(key: K): boolean {
     if (this.spent) throw new Error(SPENT)
+    // Asked BEFORE the copy is taken, so a delete of a key that is not there
+    // does not mint one to not-delete it in — {@link Cloned.delete}'s line, and
+    // here it is three structures rather than the map.
     if (!this.has(key)) return false
-    this.wrote = true
-    this.changed.delete(key)
+    const mine = this.own()
+    mine.changed.delete(key)
     // An APPENDED key simply goes; a key of `base` leaves a tombstone, which is
     // what tells the walk to step over it. A key that was both — deleted, set
     // again, deleted again — keeps the tombstone it already had.
-    if (!this.appended.delete(key)) this.gone.add(key)
+    if (!mine.appended.delete(key)) mine.gone.add(key)
     return true
   }
 
@@ -338,24 +444,26 @@ class Overlay<K, V extends {}> implements Editable<K, V> {
    */
   sealed(): ReadonlyMap<K, V> {
     this.spent = true
-    if (!this.wrote) return this.given
+    const mine = this.mine
+    if (mine === undefined) return this.given
     // WHAT THE NEXT PATCH COPIES, which is what the half is about: an overlay
     // handed a layer takes these three over, so their size is the price of
-    // carrying one more edit rather than a count of keys this edit touched.
-    const carried = this.changed.size + this.appended.size + this.gone.size
-    if (carried * 2 > this.base.size) return this.flattened()
-    return new Layer(this.base, this.changed, this.appended, this.gone)
+    // carrying one more edit rather than a count of keys this edit touched —
+    // and it is a price the next patch pays only if it writes.
+    const carried = mine.changed.size + mine.appended.size + mine.gone.size
+    if (carried * 2 > this.base.size) return this.flattened(mine)
+    return new Layer(this.base, mine.changed, mine.appended, mine.gone)
   }
 
   /** The real map, built from `base` and written the way this overlay was —
    *  which is the clone the layer exists to avoid, taken on purpose. */
-  private flattened(): ReadonlyMap<K, V> {
+  private flattened(mine: Mine<K, V>): ReadonlyMap<K, V> {
     const whole = new Map(this.base)
     // Dropped FIRST, so that a key deleted and set again comes back at the end
     // — which is where a `Map` puts it, and the one order a layer that
     // remembered values alone would get wrong.
-    for (const key of this.gone) whole.delete(key)
-    for (const [key, value] of this.changed) whole.set(key, value)
+    for (const key of mine.gone) whole.delete(key)
+    for (const [key, value] of mine.changed) whole.set(key, value)
     return whole
   }
 }
