@@ -3,9 +3,11 @@
  *
  * WHAT IS UNDER TEST is the pairing, and the pairing only: what opens a hold,
  * what closes one, and — the case the whole design is answerable for — that
- * NOTHING can leave one open. A counter that lies idle-high is worse than no
- * counter, because every wait built on it becomes a timeout thirty seconds
- * from the key that caused it, in a scenario about something else.
+ * NOTHING can leave one open, and — its twin — that nothing can close one
+ * EARLY. A counter that lies idle-high is worse than no counter, because every
+ * wait built on it becomes a timeout in a scenario about something else; a
+ * counter that reaches zero a paint too soon is worse still, because the wait
+ * PASSES and the failure lands four steps later.
  *
  * `createQuiescence` takes its task and its frames as an argument for exactly
  * this: a `setTimeout` and a `requestAnimationFrame` cannot be asked "did you
@@ -23,7 +25,7 @@
 
 import { expect, test } from "bun:test"
 
-import { createQuiescence, type Deferrals } from "./quiescence.ts"
+import { createQuiescence, type Deferrals, framesOver, type Painting } from "./quiescence.ts"
 
 /** The two deferrals as queues, plus the two verbs that drain them: `endTask`
  *  is the end of the dispatch a key arrived in, `paint` is the frames that
@@ -233,4 +235,120 @@ test("a run of keys ends at zero and stays there", async () => {
   endTask()
   paint()
   expect(counter.count()).toBe(0)
+})
+
+// ── the frames themselves: two paints, and never a clock ───────────────
+//
+// `framesOver` is the one deferral with a rule of its own, and the rule is
+// what a release may NOT do: report quiet before the paints it is counting.
+// It used to arm a 250ms timer beside the frame, which is exactly that lie on
+// any box that hitches for longer than a quarter of a second — which is the
+// loaded box this whole counter exists for (grok, review of #379).
+
+/** A browser this file plays: frames arrive when `paint()` says, the tab is
+ *  visible until `hide()` says otherwise, and every listener is counted so a
+ *  release that forgot to drop one is a number rather than a leak nobody
+ *  sees. */
+const aTab = () => {
+  const frames: Array<() => void> = []
+  const tasks: Array<() => void> = []
+  const watchers = new Set<() => void>()
+  let hidden = false
+  const view: Painting = {
+    hidden: () => hidden,
+    frame: (go) => {
+      frames.push(go)
+    },
+    watch: (go) => {
+      watchers.add(go)
+      return () => watchers.delete(go)
+    },
+    task: (go) => {
+      tasks.push(go)
+    },
+  }
+  return {
+    view,
+    watching: () => watchers.size,
+    paint: () => {
+      for (const go of frames.splice(0)) go()
+    },
+    endTask: () => {
+      for (const go of tasks.splice(0)) go()
+    },
+    hide: () => {
+      hidden = true
+      for (const go of [...watchers]) go()
+    },
+  }
+}
+
+test("a painting tab waits for TWO frames, and for nothing else at all", () => {
+  const tab = aTab()
+  let released = 0
+  framesOver(tab.view)(() => (released += 1))
+
+  // However long the page hitches — a long task, a big paint, a loaded lane —
+  // nothing releases it but a frame. This is the assertion the 250ms backstop
+  // could not make: there is no clock in this path to run out.
+  tab.endTask()
+  expect(released).toBe(0)
+
+  tab.paint()
+  expect(released).toBe(0)
+  tab.paint()
+  expect(released).toBe(1)
+  expect(tab.watching()).toBe(0)
+})
+
+test("a tab that is already hidden takes the task queue, because no frame is coming", () => {
+  const tab = aTab()
+  tab.hide()
+  let released = 0
+  framesOver(tab.view)(() => (released += 1))
+
+  tab.paint()
+  expect(released).toBe(0)
+  tab.endTask()
+  tab.endTask()
+  expect(released).toBe(1)
+  expect(tab.watching()).toBe(0)
+})
+
+test("a tab hidden WHILE it waits is let go by the event, not by a timer", () => {
+  const tab = aTab()
+  let released = 0
+  framesOver(tab.view)(() => (released += 1))
+
+  // The second tab of a multi-tab scenario, sent to the back mid-release. Its
+  // DOM is committed; the frame it is waiting for arrives when somebody looks
+  // at it again, which may be never — and a counter stuck high there is the
+  // leak this file is answerable for.
+  tab.hide()
+  expect(released).toBe(0)
+  tab.endTask()
+  tab.endTask()
+  expect(released).toBe(1)
+
+  // ...and a frame arriving late over the top of it is not a second release.
+  tab.paint()
+  expect(released).toBe(1)
+  expect(tab.watching()).toBe(0)
+})
+
+test("a counter over that browser reaches zero only after both paints", () => {
+  const tab = aTab()
+  const counter = createQuiescence({
+    task: tab.view.task,
+    frames: framesOver(tab.view),
+  })
+
+  counter.began()
+  tab.endTask()
+  expect(counter.count()).toBe(1)
+  tab.paint()
+  expect(counter.count()).toBe(1)
+  tab.paint()
+  expect(counter.count()).toBe(0)
+  expect(tab.watching()).toBe(0)
 })

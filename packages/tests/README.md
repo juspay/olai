@@ -464,7 +464,7 @@ What it does not, and so what still needs a wait of its own:
 
 | not covered | why | what waits instead |
 |---|---|---|
-| a debounce that has not fired — the idle commit, a search settle | the timer is cancelled and restarted by the next keystroke, so waiting it out is waiting for the reader to stop typing | `IDLE_COMMIT`; `data-asked` through `support/shortlist.ts` |
+| a debounce — the idle commit, a search settle — AND the write at the end of it | the timer is cancelled and restarted by the next keystroke, so waiting it out is waiting for the reader to stop typing; and the write it eventually makes lands in a task of its own, where no key is being handled, so it goes on the write queue uncounted exactly as a pointer's does | `IDLE_COMMIT`; `data-asked` through `support/shortlist.ts` |
 | what another writer did — a watcher, a second tab, the agent | not this key's effect, however soon after it lands | the disk and the row, which poll |
 | a turn | `Enter` in the composer is settled when the server has TAKEN the message | the transcript's own steps |
 | an animation, a transition, a measured collapse | the count is about the DOM the key committed | the geometry, where the geometry is the claim |

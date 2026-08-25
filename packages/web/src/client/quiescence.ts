@@ -82,17 +82,27 @@
  * than for maximal coverage, so here it is, in the order somebody would find
  * them:
  *
- *   - **A DEBOUNCE.** The idle commit (`./edit/draft.ts`'s `IDLE_COMMIT`), the
- *     shortlist settle (`./settled.ts`'s `SETTLE_MS`), a throttled re-render.
- *     Two reasons, and the first is the one that decides: every one of those
+ *   - **A DEBOUNCE — AND THE WRITE IT EVENTUALLY MAKES.** The idle commit
+ *     (`./edit/draft.ts`'s `IDLE_COMMIT`), the shortlist settle
+ *     (`./settled.ts`'s `SETTLE_MS`), a throttled re-render. Neither half is
+ *     counted, and it is worth being exact about the second half because the
+ *     mechanism decides it rather than a preference: {@link underKey} is true
+ *     for the dispatch TASK and no longer, and a timer fires in a task of its
+ *     own — so when the idle commit finally reaches `./edit/queue.ts` there is
+ *     no key being handled, and `held` hands back nothing. The debounced write
+ *     goes on the queue exactly as a pointer's does, and is as uncounted.
+ *
+ *     That is the honest line and it is the right one. Every one of those
  *     timers is CANCELLED AND RESTARTED by the next keystroke, so a counter
  *     that waited one out would be counting "the person stopped typing"
  *     instead of "the key landed" — a different fact, and not the one anybody
- *     wants to wait on. The second is the cost: a wait that paid the settle
- *     would pay it per key. What the timer eventually STARTS does hold the
- *     counter, because the idle commit goes on the write queue like every
- *     other write — so the counter is honest about a write in flight and
- *     silent about one not yet begun.
+ *     wants to wait on; and a wait that paid the settle would pay it per key.
+ *     Extending the key's window across a timer to catch the write at the end
+ *     of it would drag both of those back in. So the counter is silent from
+ *     the moment the keystroke's own effects have landed until whatever the
+ *     timer starts is somebody else's to wait for — and the suite waits for
+ *     those the way it always has: `IDLE_COMMIT` outwaited for the idle write,
+ *     `data-asked` for a search that has answered.
  *
  *   - **A TURN.** `Enter` in the chat composer holds this until the server has
  *     TAKEN the message, not until the agent has answered. The send is what
@@ -147,15 +157,6 @@ import { type Accessor, createSignal } from "solid-js"
  * appeared only while busy answers both with an absence.
  */
 export const KEYS_SETTLING = "data-keys-settling"
-
-/** How long a release waits for a frame that may never come. A tab the
- *  browser is not painting — a second tab in the same context, a window behind
- *  another — commits its DOM and never runs `requestAnimationFrame`, so the
- *  frame this waits for arrives when somebody looks at that tab again. What
- *  the counter promises there is the DOM, which the task queue already gives,
- *  and this is the backstop for a tab that goes hidden AFTER a release was
- *  scheduled. Long enough that a painting tab always wins it. */
-const UNPAINTED_MS = 250
 
 /** What a release is deferred BY — injected, so the counter's own rules can be
  *  tested with no browser under them (`./quiescence.test.ts`). */
@@ -252,34 +253,92 @@ export const createQuiescence = (after: Deferrals): Quiescence => {
   }
 }
 
-/** The real deferrals — a task and a pair of frames, with the backstop for a
- *  tab nobody is painting. */
+/**
+ * WHAT A RELEASE ASKS THE BROWSER FOR — named as an interface so the rule
+ * below can be asked without one (`./quiescence.test.ts`).
+ *
+ * The `watch` member is the whole reason this is four things rather than two.
+ * See {@link framesOver}.
+ */
+export interface Painting {
+  /** Is the browser painting this tab at all? */
+  readonly hidden: () => boolean
+  /** The next paint. Does not arrive while {@link hidden}. */
+  readonly frame: (go: () => void) => void
+  /** Tell me when the answer to {@link hidden} may have changed, and hand back
+   *  the way to stop listening. */
+  readonly watch: (go: () => void) => () => void
+  /** After the task running now — what a tab with no frames coming gets
+   *  instead of one. */
+  readonly task: (go: () => void) => void
+}
+
+/**
+ * WAIT OUT THE TWO FRAMES THAT DRAW WHAT JUST HAPPENED — and nothing else.
+ *
+ * A painting tab waits on `requestAnimationFrame` and ON NOTHING ELSE, which
+ * is a correctness rule rather than a simplification. This used to arm a
+ * 250ms timer beside the frame as a backstop, and that timer is a way to
+ * report `"0"` EARLY: a tab that hitches for longer than the backstop — a long
+ * task, a big paint, a loaded CI box, exactly the conditions this counter
+ * exists for — drops the count before the frames it is counting have landed,
+ * and a wait built on it returns to a page that has not drawn the key yet.
+ * Better to wait a hitch out than to lie once (grok, review of #379).
+ *
+ * A HIDDEN tab is the case the backstop was reaching for, and it is answered
+ * by asking rather than by a clock: the browser does not paint a tab nobody is
+ * looking at, so `requestAnimationFrame` there arrives when somebody looks
+ * again — which for a second tab in an e2e run may be never. Its DOM is
+ * committed either way, and the DOM is what the count is about, so a tab that
+ * is hidden takes the task queue instead. Hidden when the release is
+ * SCHEDULED, and hidden while it WAITS: the second is why `watch` exists, and
+ * it is an event rather than a poll, so the painting path stays free of timers
+ * entirely.
+ */
+export const framesOver = (view: Painting): Deferrals["frames"] => {
+  const frame = (next: () => void): void => {
+    if (view.hidden()) {
+      view.task(next)
+      return
+    }
+    let ran = false
+    let stopWatching = (): void => {}
+    const once = () => {
+      if (ran) return
+      ran = true
+      stopWatching()
+      next()
+    }
+    // Registered BEFORE the frame is asked for, so a tab hidden in the gap is
+    // still heard. `once` is idempotent, so both arriving is one release — and
+    // the watch is dropped either way, so a run of keys leaves no listeners
+    // behind it.
+    stopWatching = view.watch(() => {
+      if (view.hidden()) once()
+    })
+    view.frame(once)
+  }
+  return (go) => frame(() => frame(go))
+}
+
+/** The real deferrals — a task, and the two frames over the real browser. */
 const inTheBrowser: Deferrals = {
   task: (go) => {
     setTimeout(go, 0)
   },
-  frames: (go) => {
-    const frame = (next: () => void) => {
-      // A tab already hidden gets the task queue instead of a frame that is
-      // not coming: its DOM is committed either way, and that is what the
-      // count is about.
-      if (document.visibilityState === "hidden") {
-        setTimeout(next, 0)
-        return
-      }
-      let ran = false
-      let backstop: ReturnType<typeof setTimeout> | undefined
-      const once = () => {
-        if (ran) return
-        ran = true
-        clearTimeout(backstop)
-        next()
-      }
-      requestAnimationFrame(once)
-      backstop = setTimeout(once, UNPAINTED_MS)
-    }
-    frame(() => frame(go))
-  },
+  frames: framesOver({
+    hidden: () => document.visibilityState === "hidden",
+    frame: (go) => {
+      requestAnimationFrame(go)
+    },
+    watch: (go) => {
+      document.addEventListener("visibilitychange", go)
+      return () => document.removeEventListener("visibilitychange", go)
+    },
+    task: (go) => {
+      setTimeout(go, 0)
+    },
+  }),
 }
 
 /**

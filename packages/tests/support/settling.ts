@@ -29,9 +29,13 @@
  *
  * ## What it does NOT promise, and so what still needs its own wait
  *
- *   - **A debounce that has not fired.** The idle commit and the shortlist
- *     settle are cancelled and restarted by the next keystroke, so waiting one
- *     out would be waiting for the reader to stop typing. `IDLE_COMMIT` is
+ *   - **A debounce — and the write at the end of it.** The idle commit and the
+ *     shortlist settle are cancelled and restarted by the next keystroke, so
+ *     waiting one out would be waiting for the reader to stop typing. And the
+ *     write the timer eventually makes is not counted either: the client's
+ *     window for "this is a key's doing" is the dispatch TASK, and a timer
+ *     fires in a task of its own — so an idle commit reaches the write queue
+ *     as an uncounted write, exactly as a pointer's does. `IDLE_COMMIT` is
  *     still what a scenario about the idle write outwaits, and `data-asked` is
  *     still how a scenario knows a search answered the query it typed
  *     (`./shortlist.ts`).
