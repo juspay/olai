@@ -95,12 +95,16 @@ test("the shelf's verb comes first among the writes", () => {
 
 // ── the mark section ───────────────────────────────────────────────────
 
-test("a node with no mark is offered the three, and nothing to clear", () => {
+test("a node with no mark is offered the four, and nothing to clear", () => {
+  // In MENU order, which is the order a task moves through — and `Cancel` is
+  // LAST of the four, past the finishing verb: calling work off is the rarest
+  // of them and the one nobody should reach by accident.
   expect(labels("install")).toEqual([
     "Pin to sidebar",
     "Mark todo",
     "Mark doing",
     "Complete",
+    "Cancel",
     "Set date…",
     "Add property…",
     "Link to a node…",
@@ -119,6 +123,7 @@ test("the mark a node already carries is not offered back to it", () => {
     "Pin to sidebar",
     "Mark todo",
     "Complete",
+    "Cancel",
     "Clear mark",
     "Set date…",
     "Add property…",
@@ -376,6 +381,7 @@ test("with no indexes yet there is no archive, rather than one nobody counted", 
       "Pin to sidebar",
       "Mark todo",
       "Complete",
+      "Cancel",
       "Clear mark",
       "Set date…",
       "Add property…",

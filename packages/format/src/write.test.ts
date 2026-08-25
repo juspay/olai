@@ -246,6 +246,7 @@ const EVERY_REGULAR_FIELD: RegularNode = {
   ord: "a0",
   title: "a node",
   done: true,
+  cancelled: true,
   doing: true,
   todo: true,
   date: "2026-08-11",

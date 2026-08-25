@@ -75,12 +75,12 @@ Feature: An answer leaves the rows it did not change standing
     Given I open the outline "house.olai"
     And I mark the page
     When I filter the page by "is:nope"
-    Then the filter refuses "is:nope" and says "done, doing, todo, marked, blocked, mirrored, trashed"
+    Then the filter refuses "is:nope" and says "done, cancelled, doing, todo, marked, blocked, mirrored, trashed"
     And I mark every element of the "filter bar"
     # The same refusal, and a word beside it that the grammar CAN read. The line
     # does not change, so nothing about it may move.
     When I filter the page by "is:nope cabinets"
-    Then the filter refuses "is:nope" and says "done, doing, todo, marked, blocked, mirrored, trashed"
+    Then the filter refuses "is:nope" and says "done, cancelled, doing, todo, marked, blocked, mirrored, trashed"
     And the "filter bar" kept every element it had
     And nothing in the "filter bar" was announced again
     And the page has not reloaded
@@ -104,11 +104,11 @@ Feature: An answer leaves the rows it did not change standing
     And I mark the page
     When I press the palette shortcut
     And I type "is:nope" into the palette
-    Then the search refuses "is:nope" and says "done, doing, todo, marked, blocked, mirrored, trashed"
+    Then the search refuses "is:nope" and says "done, cancelled, doing, todo, marked, blocked, mirrored, trashed"
     And I mark every element of the "search refusal"
     When I type "is:nope date:tomorrowish" into the palette
     Then the search refuses 2 tokens
-    And the search refuses "is:nope" and says "done, doing, todo, marked, blocked, mirrored, trashed"
+    And the search refuses "is:nope" and says "done, cancelled, doing, todo, marked, blocked, mirrored, trashed"
     And the "search refusal" kept every element it had
     And nothing in the "search refusal" was announced again
     And the page has not reloaded
@@ -118,13 +118,13 @@ Feature: An answer leaves the rows it did not change standing
     Given I open the outline "house.olai"
     And I mark the page
     When I search the header for "is:nope"
-    Then the search refuses "is:nope" and says "done, doing, todo, marked, blocked, mirrored, trashed"
+    Then the search refuses "is:nope" and says "done, cancelled, doing, todo, marked, blocked, mirrored, trashed"
     And I mark every element of the "search refusal"
     # Typed onto the end of what is already in the box, which is what a person
     # who has not changed their mind about `is:nope` does next.
     When I search the header for " date:tomorrowish"
     Then the search refuses 2 tokens
-    And the search refuses "is:nope" and says "done, doing, todo, marked, blocked, mirrored, trashed"
+    And the search refuses "is:nope" and says "done, cancelled, doing, todo, marked, blocked, mirrored, trashed"
     And the "search refusal" kept every element it had
     And nothing in the "search refusal" was announced again
     And the page has not reloaded

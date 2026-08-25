@@ -77,6 +77,8 @@ import {
   pinTitle,
   type Reading,
   siblingsOf,
+  MARKS,
+  settles,
   type Status,
   UsageFailure,
 } from "@olai/format"
@@ -637,7 +639,8 @@ const placeRequest = (
  * taking one off. Those are the same two calls an agent makes, so every refusal
  * met here is the ops layer's own — `already done`, `is not marked done`, and
  * the one that matters most, `done. Undo that first — nothing should decide on
- * your behalf that finished work is not finished`. A menu that quietly sent two
+ * your behalf that finished work is not finished` (and, one settling mark over,
+ * the same sentence about work somebody called off). A menu that quietly sent two
  * ops to walk `done` back to `todo` would be the web doing in one gesture what
  * MCP needs two for, which is the deviation HACKING.md forbids: the second
  * click is the person's, and an undo makes the two calls explicitly
@@ -672,36 +675,46 @@ const markRequest = (
  * THE RING the mark walk goes round, and the whole of the design is which
  * answers are on it.
  *
- * Three of the four are: **no mark → `todo` → `doing` → no mark**. Those are
- * the answers a person gives about work they have NOT finished, and the last
+ * Three of the five are: **no mark → `todo` → `doing` → no mark**. Those are
+ * the answers a person gives about work they have NOT settled, and the last
  * of them is an answer rather than a gap — the format's own rule, drawn as the
  * absence of a box (docs/format.md's Status). A walk that could not reach it
  * would be a keyboard that can put a box on a row and never take it off.
  *
- * **`done` is not a stop on it**, and it is the one entry here worth arguing.
- * A ring that passed through `done` would stamp a completion instant, fire the
- * rollup's nudge and — under the done toggle — take the row off the screen, all
- * on the way to somewhere else; finishing something is not a thing to do in
- * passing. `Ctrl+Enter` is where finishing lives, both ways, and it is the
- * mark that has an instant.
+ * **NEITHER SETTLING MARK IS A STOP ON IT**, and that is the one entry here
+ * worth arguing. A ring that passed through `done` would stamp a completion
+ * instant, fire the rollup's nudge and — under the done toggle — take the row
+ * off the screen, all on the way to somewhere else; finishing something is not
+ * a thing to do in passing. `Ctrl+Enter` is where finishing lives, both ways,
+ * and it is a mark that has an instant.
  *
- * So a `done` node's next step is `todo` — the first stop of the ring, asked
+ * `cancelled` is the same sentence with the same three clauses, which is why it
+ * stayed off the ring when it arrived (2026-08-25): it stamps an instant, it
+ * puts the row on a day's journal page, and calling work off in passing while
+ * walking a mark towards `doing` is the last thing a keyboard should make easy.
+ * It has a key of its own instead — `Alt+Enter`, which is `Ctrl+Enter` one
+ * modifier over, and toggles the same way (`../../web/src/client/keys.ts`).
+ *
+ * So a settled node's next step is `todo` — the first stop of the ring, asked
  * for OUTRIGHT, which the ops layer REFUSES: *"is done. Undo that first —
  * nothing should decide on your behalf that finished work is not finished."*
- * That is deliberate and it is the point of not fencing it here. The refusal
- * lands under the row in the ops layer's own words, and the sentence names the
- * key to press: `Ctrl+Enter` takes the `done` off, and the walk carries on from
- * there. Two ops, the second one the person's — exactly the two calls an agent
- * makes, and exactly what the `•••` menu already asks of the mouse. A ring that
- * quietly sent both would be the web doing in one keystroke what MCP needs two
- * for, which is the deviation HACKING.md forbids; a ring that skipped `done`
- * silently would be this file teaching a rule the ops layer owns, and hiding
- * the one refusal a person most needs to have met.
+ * and, one mark over, *"is cancelled. Undo that first…"*. That is deliberate
+ * and it is the point of not fencing it here. The refusal lands under the row
+ * in the ops layer's own words, and the sentence names the key to press:
+ * `Ctrl+Enter` takes a `done` off, `Alt+Enter` takes a `cancelled` off, and the
+ * walk carries on from there. Two ops, the second one the person's — exactly
+ * the two calls an agent makes, and exactly what the `•••` menu already asks of
+ * the mouse. A ring that quietly sent both would be the web doing in one
+ * keystroke what MCP needs two for, which is the deviation HACKING.md forbids;
+ * a ring that skipped a settling mark silently would be this file teaching a
+ * rule the ops layer owns, and hiding the one refusal a person most needs to
+ * have met.
  */
 const NEXT: Record<Status, Status | null> = {
   todo: "doing",
   doing: null,
   done: "todo",
+  cancelled: "todo",
 }
 
 /**
@@ -817,6 +830,19 @@ const removeRequest = (
  * inverse for every op that nothing would call. Recorded rather than done: the
  * second consumer is the moment to move it.
  */
+/**
+ * Is the op about to run a MARK's?
+ *
+ * The three verbs above always resolve to one, but the value handed here is the
+ * whole request vocabulary — so the narrowing that gives back `undo` has to be
+ * asked for rather than assumed. Read off `MARKS`, which is the format's own
+ * list, so a fifth mark needs nothing here; the comparison this replaced was
+ * `request.op === "done"`, which narrowed for free and could only ever name one
+ * of them.
+ */
+const marking = (request: Request): request is Extract<Request, { op: Status }> =>
+  MARKS.some((mark) => mark === request.op)
+
 export const inverseOf = (
   at: Reading,
   edit: Edit,
@@ -869,7 +895,11 @@ export const inverseOf = (
       return markOf(
         at.derived,
         edit.id,
-        request.op === "done" && request.undo !== true,
+        // Whether the write this reverses leaves the node SETTLED — read off
+        // the request rather than the verb, and off the format's own list
+        // rather than the word `done`, so a mark that ends the wait needs two
+        // calls to walk back exactly as `done` always has.
+        marking(request) && settles(request.op) && request.undo !== true,
       )
     // The text this write is about to replace, and the text it is replacing it
     // WITH — the second half being the guard, so the undo may only overwrite
@@ -1274,13 +1304,14 @@ const propOf = (
  * The mark a node carries, as the edits that would put it back.
  *
  * TWO of them for exactly one shape of write, and it is the ops layer's policy
- * showing through rather than a shape chosen here: a mark that is not `done`,
- * over a node that IS done, is refused — "nothing should decide on your behalf
- * that finished work is not finished". So when the write being reversed is the
- * one that ticks the node off, the `done` has to come off before the old mark
- * goes back on, which is exactly the two calls an agent would make. Anything
- * else would be the web doing in one op what MCP needs two for, which is the
- * deviation HACKING.md forbids.
+ * showing through rather than a shape chosen here: a mark over a node that is
+ * already SETTLED is refused — "nothing should decide on your behalf that
+ * finished work is not finished", and one settling mark over, that work
+ * somebody called off is back on. So when the write being reversed is the one
+ * that ticks the node off or calls it off, that mark has to come off before the
+ * old one goes back on, which is exactly the two calls an agent would make.
+ * Anything else would be the web doing in one op what MCP needs two for, which
+ * is the deviation HACKING.md forbids.
  *
  * EVERY OTHER WAY BACK IS ONE CALL, and reading it as "two whenever a mark
  * displaced another" cost an undo: `Clear mark` on a `doing` row answered with
@@ -1306,17 +1337,19 @@ const propOf = (
 const markOf = (
   derived: Derived,
   id: string,
-  /** Whether the write this reverses leaves the node DONE. */
-  finished: boolean,
+  /** Whether the write this reverses leaves the node SETTLED — done, or
+   *  cancelled. Both are refused over, so both need the pair. */
+  settled: boolean,
 ): ReadonlyArray<Edit> => {
   const stored = derived.status.get(id) ?? null
   const back: Edit = { verb: "mark", id, mark: stored }
   // The two guards are two different things being ruled out, and neither is the
   // other: a node that carried NOTHING goes back to carrying nothing, which is
-  // the one call that can say "none" — and a node that carried `done` puts
-  // `done` back, which is the one mark the ops layer never asks to be undone
-  // first.
-  return finished && stored !== null && stored !== "done"
+  // the one call that can say "none" — and a node that already carried a
+  // SETTLING mark is a write the ops layer refused, so there is no such undo to
+  // spell (a `done` reversed by `done` is the case that reaches here, and it is
+  // the one mark that is never asked to be undone first).
+  return settled && stored !== null && !settles(stored)
     ? [{ verb: "mark", id, mark: null }, back]
     : [back]
 }

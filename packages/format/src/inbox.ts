@@ -37,7 +37,14 @@
 import { Result, Schema } from "effect"
 
 import { countedChildren, type Derived, rootsOf, unfinished } from "./derive.ts"
-import { INBOX, inboxIn, mintedInto, type LocatedRegular, storedMarker } from "./node.ts"
+import {
+  INBOX,
+  inboxIn,
+  mintedInto,
+  type LocatedRegular,
+  settles,
+  storedMarker,
+} from "./node.ts"
 import { type OutlineSet, outlinePaths } from "./set.ts"
 import { type OpFailure, UsageFailure } from "./failure.ts"
 import type { Capture, WriteRequest } from "./writing.ts"
@@ -106,12 +113,15 @@ export const inboxHeldOf = (set: OutlineSet, derived: Derived): InboxHeld => {
  * Whether this capture still awaits processing — the one filter
  * {@link inboxHeldOf} applies.
  *
- * A `done` mark is a claim about the whole branch, so it is out. A `todo` or
- * `doing` is unfinished work, so it is in. An unmarked LEAF is an unprocessed
- * line, so it is in. An unmarked node WITH children is a header: it counts
- * only if some descendant still in the open part of the branch awaits,
- * walked through {@link countedChildren} so a placement is never work of
- * this branch's — and a `done` mark prunes the walk, the way the page does.
+ * A SETTLED mark is out, and both of them are: a `done` is a claim about the
+ * whole branch, and a `cancelled` is a claim that the branch is not happening —
+ * either way there is nothing left in it to process, which is the one question
+ * an inbox count asks. A `todo` or `doing` is unfinished work, so it is in. An
+ * unmarked LEAF is an unprocessed line, so it is in. An unmarked node WITH
+ * children is a header: it counts only if some descendant still in the open
+ * part of the branch awaits, walked through {@link countedChildren} so a
+ * placement is never work of this branch's — and a settled mark prunes the
+ * walk, the way the page does.
  *
  * Cycle-safe the way every walk in `./derive.ts` is: a parent loop is a set
  * the validator rejects, and this still has to answer over one.
@@ -122,7 +132,7 @@ const awaiting = (derived: Derived, at: LocatedRegular): boolean => {
     if (seen.has(node.node.id)) return false
     seen.add(node.node.id)
     const mark = storedMarker(node.node)
-    if (mark === "done") return false
+    if (mark !== undefined && settles(mark)) return false
     if (unfinished(mark)) return true
     const kids = countedChildren(derived, node.node.id)
     return kids.length === 0 || kids.some(walk)

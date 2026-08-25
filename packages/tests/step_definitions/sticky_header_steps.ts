@@ -13,7 +13,7 @@
  */
 
 import * as assert from "node:assert";
-import { Then } from "@cucumber/cucumber";
+import { Then, When } from "@cucumber/cucumber";
 
 import {
   APP_HEADER,
@@ -28,6 +28,12 @@ import type { OlaiWorld } from "../support/world.ts";
  *  a fractional device scale, and nothing else — a bar that has begun to leave
  *  is a bar that leaves. */
 const EDGE = 1;
+
+/** The selector of one tree row's LINE by id — row keys are PATHS
+ *  (`/<parent>/<child>`), so an id is a suffix match, never an exact one. The
+ *  leading `/` is what keeps it exact: `/a02` can't collide with `/a012`, and
+ *  ids are unique across the set anyway. */
+const rowLineOf = (id: string): string => `[data-row-key$="/${id}"]`;
 
 Then("the app header is at the top of the viewport", async function (this: OlaiWorld) {
   const header = await this.box(this.page.locator(APP_HEADER), "the app header");
@@ -70,9 +76,104 @@ Then(
   },
 );
 
-/** Where a fragment jump landed. Under the bar is the failure the document's
- *  `scroll-padding-top` exists to stop, and it is invisible in the address —
- *  which changed either way. */
+/**
+ * THE JUMP, aimed at a tree row: scroll the row's line to the top of the
+ * window. `scrollIntoView` is the platform's own answer every jump door
+ * reduces to — the ToC's anchor, a pasted fragment, the navigation landing
+ * (`faces.tsx`) — so a scenario needs no product door of its own when the
+ * claim is about the RESERVE and not about any one door. The window has to be
+ * short enough that a section actually pins, which the sibling scenarios in
+ * this file already arrange.
+ */
+When(
+  "a jump lands the row {string} at the top of the window",
+  async function (this: OlaiWorld, id: string) {
+    const before = await this.page.evaluate(() => scrollY);
+    await this.page.evaluate((sel) => {
+      const el = document.querySelector(sel);
+      if (!el) throw new Error(`no row line for ${sel} — wrong outline or wrong id`);
+      el.scrollIntoView({ block: "start" });
+    }, rowLineOf(id));
+    await this.waitUntil(async () => (await this.page.evaluate(() => scrollY)) > before,
+      `the window to move after jumping to the row ${JSON.stringify(id)}`);
+  },
+);
+
+/**
+ * …and where it landed, measured against what is actually pinned at the time.
+ *
+ * The band the `scroll-padding-top` rule must clear is not just the bar — it
+ * is the bar plus whatever holds its place under it, which on a tree page is
+ * a SECTION row (`client/Tree.tsx`). Asserted three ways, because each answers
+ * a different way to be wrong:
+ *
+ *  - THE PAGE MOVED — a jump that changed nothing is invisible in every
+ *    attribute and is the failure this family of steps exists to catch.
+ *  - TOP VS PINNED BOTTOM — the row's top is at-or-below the pinned row's
+ *    bottom edge; anything less and it is being read through the back of the
+ *    pinned heading (measured on `house.olai`: 71.5px pre-fix vs 116.5
+ *    post-fix, band [72, 111.4)).
+ *  - WHO IS AT THE SPOT — an `elementFromPoint` at the row's own top edge
+ *    names the row itself, not the pinned section. Geometry alone can pass
+ *    for the wrong reason if two rows share a boundary; the DOM hit cannot.
+ *
+ * An upper bound as well: the reserve is about CLEARING the band, not about
+ * having a free hand to stop anywhere down the page.
+ */
+Then(
+  "the row {string} is clear of the pinned section {string}",
+  async function (this: OlaiWorld, id: string, sectionId: string) {
+    const row = this.page.locator(rowLineOf(id));
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const section = this.page.locator(rowLineOf(sectionId));
+    await section.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+
+    const landed = await this.page.evaluate(
+      ({ rowSel, sectionSel }) => {
+        const rowEl = document.querySelector(rowSel);
+        const sectionEl = document.querySelector(sectionSel);
+        if (!rowEl || !sectionEl) return null;
+        const rect = (el: Element) => {
+          const r = el.getBoundingClientRect();
+          return { top: r.top, bottom: r.bottom };
+        };
+        const r = rowEl.getBoundingClientRect();
+        const hit = document.elementFromPoint((r.left + r.right) / 2, r.top + 2);
+        return {
+          row: rect(rowEl),
+          section: rect(sectionEl),
+          sectionPosition: getComputedStyle(sectionEl).position,
+          moved: scrollY > 0,
+                hitKey: hit?.closest("[data-row-key]")?.getAttribute("data-row-key") ?? null,
+        hitRowId: hit?.closest("[data-row-key]")?.getAttribute("data-row-key")?.split("/").pop() ?? null,
+        };
+      },
+      { rowSel: rowLineOf(id), sectionSel: rowLineOf(sectionId) },
+    );
+    assert.ok(landed, `rows ${JSON.stringify(id)} / ${JSON.stringify(sectionId)} are not both drawn`);
+    assert.ok(landed.moved, "the jump changed nothing — the page did not move");
+    assert.strictEqual(
+      landed.sectionPosition,
+      "sticky",
+      `the section ${JSON.stringify(sectionId)} is not pinned — the scenario proves nothing`,
+    );
+    assert.ok(
+      landed.row.top >= landed.section.bottom - EDGE,
+      `the row's top is at y=${Math.round(landed.row.top)}, above the pinned section's bottom ` +
+        `at ${Math.round(landed.section.bottom)} — the jump put it behind the heading`,
+    );
+    assert.strictEqual(
+      landed.hitRowId,
+      id,
+      `the element at the row's top edge is ${landed.hitKey ?? "nothing"}, not the row itself`,
+    );
+    assert.ok(
+      landed.row.top < landed.section.bottom + 96,
+      `the row is ${Math.round(landed.row.top - landed.section.bottom)}px below the pinned section, ` +
+        "so the jump did not land where a jump lands",
+    );
+  },
+);
 Then(
   "the heading {string} is clear of the header",
   async function (this: OlaiWorld, text: string) {

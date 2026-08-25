@@ -76,6 +76,7 @@ const ORDER = [
   "title",
   "mirror",
   "done",
+  "cancelled",
   "doing",
   "todo",
   "date",

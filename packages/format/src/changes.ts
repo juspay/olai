@@ -87,6 +87,8 @@ export const Sort = Schema.Literals([
   "gone",
   "done",
   "undone",
+  "cancelled",
+  "uncancelled",
   "doing",
   "not-doing",
   "moved",
@@ -282,10 +284,10 @@ const same = (a: Value, b: Value): boolean => {
 const isMap = (value: Value): value is Custom =>
   typeof value === "object" && value !== null && !Array.isArray(value)
 
-/** Whether a field says something now. The two marks and `date` are all
+/** Whether a field says something now. The three marks and `date` are all
  *  set-or-absent, and the difference between putting one on and taking it off
  *  is the only thing a field NAME cannot carry. */
-const set = (node: Node, field: "done" | "doing" | "date"): boolean =>
+const set = (node: Node, field: "done" | "cancelled" | "doing" | "date"): boolean =>
   valueOf(node, field) !== undefined
 
 /** Which of the fields that differ is the one this change is ABOUT. Takes the
@@ -297,6 +299,16 @@ const sortOf = (fields: ReadonlyArray<Field>, after: Placed): Sort => {
     return isTrashed(after.file) ? "trashed" : "moved"
   }
   if (changed.has("done")) return set(after.node, "done") ? "done" : "undone"
+  // THE FOURTH MARK HAS AN ARM AND `todo` STILL DOES NOT, which is a
+  // distinction rather than an oversight. What earns a `Sort` here is an EVENT
+  // the log is about, and a settling mark is one: it stamps an instant, lands
+  // on a day's page, and is the thing somebody will grep for in a year
+  // ("when did we drop that?"). Filing work is not an event in that sense, so a
+  // `todo` appearing goes on reading as `edited` — the same line it has always
+  // taken.
+  if (changed.has("cancelled")) {
+    return set(after.node, "cancelled") ? "cancelled" : "uncancelled"
+  }
   if (changed.has("doing")) return set(after.node, "doing") ? "doing" : "not-doing"
   if (changed.has("parent") || changed.has("ord")) return "moved"
   if (changed.has("date")) return set(after.node, "date") ? "scheduled" : "unscheduled"

@@ -294,7 +294,7 @@ interface Taken {
  * set spells, in the order an assembled set is in.
  *
  * IT STILL WALKS THE RECORDS, and what that is worth was measured rather than
- * left as the obvious next lever: 0.122ms over the bench vault's 980 files and
+ * left as the obvious next lever: 0.122ms over the bench vault's ~980 files and
  * 21,552 records, against 0.070ms for the same walk comparing one POINTER per
  * file. So the whole of what array identity could buy here is about five
  * hundredths of a millisecond — and buying it means {@link Derived.byFile}

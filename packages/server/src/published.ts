@@ -24,7 +24,12 @@
  * The per-tick CHANGE is not diffed here either: the store hands over the paths
  * its probe re-decoded and the paths its listing lost ({@link Snapshot}), and
  * this maps them onto each collection's verbs — a changed path is an upsert of
- * that file's new slice, a removed one is a remove of its key.
+ * that file's new slice, a removed one is a remove of its key. With ONE
+ * invented verb, and it is this change's: a key that LEFT in a revision the
+ * store cannot name (`resync` forgets the stamp table the `removed` diff is
+ * taken against) is in NO listing's `removed`, so the projection mints that
+ * remove itself ({@link mintedOf}) rather than leaving every open subscriber
+ * holding a file nobody has.
  *
  * ONE function, and that is the point: a revision reaching the wire is one
  * thing — the entries both collections now hold and the writes that get them
@@ -99,8 +104,9 @@
  * stamp table a `resync` is entitled to forget, so a DEPARTURE can go unnamed.
  * So a named departure is taken at its word (it can only be true — the store
  * does not invent one) and an unnamed one is caught by arithmetic (`complete`,
- * below). `removed` still decides what an OPEN subscriber is told, which is
- * exactly what it decided before.
+ * below) and then MINTED into the delta: `changeOf` ends every revision with
+ * one delta shape — a remove is a remove whether the store named it or this
+ * file had to.
  */
 
 import {
@@ -133,7 +139,7 @@ import type { DocumentEntry, Head, OutlineEntry } from "@olai/surface"
  *  path is in both lists (`@olai/store`'s `absorb` — a file edited and then
  *  deleted is removed, one deleted and then written is changed). `removed` is
  *  the weaker half: a departure a `resync` swallowed is in neither list, which
- *  is what `complete` ({@link publishedOf}) is for. */
+ *  is what `complete` ({@link publishedOf}) gates and {@link mintedOf} says. */
 type Moved = Pick<Snapshot<unknown>, "changed" | "removed">
 
 /** One collection's revision: what it holds now, and what moved to get there.
@@ -365,8 +371,9 @@ const documentsOf = (
  * carry a map still holding the key the store had just named as gone. An open
  * subscriber would be told to drop it and a fresh one would go on reading it,
  * for the life of the process. So each collection asks about its OWN keys:
- * {@link Sliced.born} for what arrived, `removes` for what left, and `complete`
- * ({@link publishedOf}) for the departures the store cannot name at all.
+ * {@link Sliced.born} for what arrived, `removes` for what left, and
+ * {@link mintedOf} — gated by `complete` ({@link publishedOf}) — for the
+ * departures the store cannot name at all.
  *
  * The store's `changed` names every path it re-decoded — outlines and
  * documents together, since it is talking about a directory — so the SET is
@@ -412,15 +419,25 @@ const changeOf = <S extends Document, T>(
   // always re-decoded, so it is always here), a key left and the store said so
   // (`removes`, already narrowed to keys this collection actually held), or a
   // key left and the store could not say so (`complete`, which no collection
-  // can answer for itself). Nothing is left for a delete to do on the carried
-  // arm, which is why there is not one — and why the arm cannot leave a key
-  // behind.
+  // can answer for itself — and {@link minted} below is what the answer buys).
+  // Nothing is left for a delete to do on the carried arm, which is why there
+  // is not one — and why the arm cannot leave a key behind.
   const entries = held !== undefined && complete && born.size === 0 && removes.length === 0
     ? held
     : rebuilt(set, holds, build, new Set(touched.map((document) => document.path)), held)
   if (entries === held) {
     for (const document of touched) entries.set(document.path, build(document))
   }
+  // THE DELTA THE STORE DID NOT NAME, minted here. `complete` is false exactly
+  // when a departure the store could not name just REBUILT this map around a
+  // key that was on the wire — so the minted remove is read off the rebuild
+  // this revision already paid for: what `held` held, the rebuilt `entries`
+  // do not, and `moved.removed` never said. Before this line the key was
+  // dropped from what a FRESH subscriber reads and told to NOBODY — an open
+  // reader kept it until reconnect, which is how a file removed via
+  // `git checkout` + `resync` went on showing in every open sidebar
+  // (`docs/_olai/Inbox.olai`'s `phantom-sidebar-key-on-unnamed-remove`).
+  const minted = complete || held === undefined ? NO_MINTED : mintedOf(held, entries, moved.removed)
   return {
     entries,
     // READ BACK OUT OF `entries`, never built a second time: the collection and
@@ -430,9 +447,42 @@ const changeOf = <S extends Document, T>(
       const entry = entries.get(document.path)
       return entry === undefined ? [] : [[document.path, entry] as const]
     }),
-    removes,
+    // THE STORE'S OWN REMOVES FIRST, the minted ones after and in the held
+    // map's order: one delta shape — a subscriber cannot tell a minted remove
+    // from a named one, which is the whole of what the wire promises here.
+    //
+    // NO KEY IS REMOVED TWICE, in either direction: a minted key is gone from
+    // `entries` from this revision on, so a LATER `removed` that still names
+    // it is dropped by the `held` filter above; and a NAMED key is in
+    // `moved.removed`, which `mintedOf` subtracts.
+    removes: minted.length === 0 ? removes : [...removes, ...minted],
     born,
   }
+}
+
+/** No collection minted anything — one shared empty list, so the common
+ *  revision allocates nothing for the seam. */
+const NO_MINTED: ReadonlyArray<string> = []
+
+/**
+ * THE REMOVES THE STORE DID NOT NAME: the keys a revision held that the
+ * rebuilt map does not, minus the ones its `removed` DID say.
+ *
+ * Asked of THIS collection and answered from its own two maps — never from
+ * the directory's file count, which is the shape grok's review of `bcc15008`
+ * killed. It runs only where `complete` is false ({@link publishedOf} asks
+ * that ONCE, of the heads, the one collection that holds every file), and on
+ * that arm `entries` is a fresh walk of the set: the `moved.removed` set is
+ * the only thing subtracted, so a key the store named is removed exactly
+ * once and a key it could not name is removed exactly once.
+ */
+const mintedOf = <T>(
+  held: ReadonlyMap<string, T>,
+  entries: ReadonlyMap<string, T>,
+  removed: ReadonlyArray<string>,
+): ReadonlyArray<string> => {
+  const named = new Set(removed)
+  return [...held.keys()].filter((key) => !entries.has(key) && !named.has(key))
 }
 
 /**
@@ -538,11 +588,12 @@ export const publishedOf = (
    * untouched, and the outlines still lost a key. Which keys a COLLECTION lost
    * is that collection's own `removes`, and {@link changeOf} reads it there.
    *
-   * What this does NOT do is invent a delta: a file that left unannounced is
-   * dropped from what a fresh subscriber reads and is in nobody's `removes`,
-   * because `removes` is the store's own list and the walk published exactly
-   * the same nothing. An open reader keeps that key until it reconnects, on
-   * this projection and on the one before it alike.
+   * And it is the GATE FOR THE MINT, no more: `false` sends {@link changeOf}
+   * to {@link mintedOf}, which names the keys itself and says their removes —
+   * so a file that left unannounced is dropped from what a FRESH subscriber
+   * reads AND told to every open one, and the shape the walk and this
+   * projection used to share with the store (the phantom key held until
+   * reconnect) is over.
    */
   const files = published?.heads.entries
   const complete = files === undefined ||

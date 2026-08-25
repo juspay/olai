@@ -183,6 +183,40 @@ test("the rollup counts the child tasks, and only the child tasks", () => {
     "p",
   )).toEqual({ done: 1, total: 3 })
 
+  /*
+   * A CANCELLED CHILD LEAVES THE DENOMINATOR — the fourth mark's second open
+   * question, answered (2026-08-25). `3/5` counts what is HAPPENING: counting
+   * it as done would make the numerator a lie about how much got done, and
+   * leaving it in the denominator would make the rollup unfinishable, which is
+   * the reading a settling mark exists to end.
+   */
+  expect(progress(
+    `{"id":"p","ord":"a","title":"p"}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
+      `{"id":"c2","parent":"p","ord":"b","title":"c2","todo":true}\n` +
+      `{"id":"c3","parent":"p","ord":"c","title":"c3","cancelled":"2026-08-25"}`,
+    "p",
+  )).toEqual({ done: 1, total: 2 })
+
+  // …so a branch whose remaining work is finished reaches its own total,
+  // which is the property the other two answers cannot hold.
+  expect(progress(
+    `{"id":"p","ord":"a","title":"p"}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","done":true}\n` +
+      `{"id":"c2","parent":"p","ord":"b","title":"c2","cancelled":true}`,
+    "p",
+  )).toEqual({ done: 1, total: 1 })
+
+  // And a parent whose every child was called off shows NO rollup: nothing
+  // under it is happening, which is the same sentence a subtree of notes gets
+  // three assertions down rather than a second rule.
+  expect(progress(
+    `{"id":"p","ord":"a","title":"p"}\n` +
+      `{"id":"c1","parent":"p","ord":"a","title":"c1","cancelled":true}\n` +
+      `{"id":"c2","parent":"p","ord":"b","title":"c2","cancelled":"2026-08-25"}`,
+    "p",
+  )).toBeUndefined()
+
   // A note under an item is not a task, so it neither adds to the total nor
   // holds it back — the same rule that keeps a bullet from blocking anything.
   expect(progress(
@@ -420,9 +454,9 @@ const waitingIn = (contents: string, id: string): ReadonlyArray<string> =>
   waiting(derive(nodesOf(contents)), id)
 
 // The rule, and the whole of it: `a after b` holds `a` up while `b` is a task
-// that is NOT DONE — with the three marks there are, while it is doing or
+// nobody has SETTLED — with the four marks there are, while it is doing or
 // todo. The blocker travels with its reason, so a reader never re-derives why.
-test("an after target blocks while it is a task that is not done", () => {
+test("an after target blocks while it is a task nobody has settled", () => {
   const of = (mark: string): ReadonlyArray<string> =>
     waitingIn(
       `{"id":"a","ord":"a","title":"a","doing":true,"after":["b"]}\n` +
@@ -431,8 +465,82 @@ test("an after target blocks while it is a task that is not done", () => {
     )
   expect(of(`,"doing":true`)).toEqual(["b doing"])
   expect(of(`,"todo":true`)).toEqual(["b todo"])
-  // Done is what clears the way: it has happened, so nothing is waiting.
+  // Done is one of the two that clear the way: it has happened, so nothing is
+  // waiting.
   expect(of(`,"done":"2026-08-10"`)).toEqual([])
+  // AND CANCELLED IS THE OTHER (the human, 2026-08-25). "Not happening" ends
+  // the wait: nobody can finish a task somebody has called off, so a target
+  // that went on blocking after being cancelled would be an obstacle with no
+  // way past it — the exact shape of the bullet trap one test down, arrived at
+  // from the settled end instead of the unmarked one.
+  expect(of(`,"cancelled":"2026-08-25T15:40:03-04:00"`)).toEqual([])
+  expect(of(`,"cancelled":true`)).toEqual([])
+})
+
+/**
+ * The same mark at the SOURCE end, which is the same predicate read the other
+ * way: a cancelled node is waiting on nothing, whatever it points at.
+ *
+ * Both ends in one test because they are one function (`inPlay`) — and both
+ * are asserted because "a node this can be said about" and "a node that stands
+ * in the way" are exactly the pair two spellings of the rule would have let
+ * disagree.
+ */
+test("a cancelled node is waiting on nothing, and stands in nobody's way", () => {
+  const derived = derive(nodesOf(
+    `{"id":"a","ord":"a","title":"a","cancelled":"2026-08-25T15:40:03-04:00","after":["b"]}\n` +
+      `{"id":"b","ord":"b","title":"b","doing":true}\n` +
+      `{"id":"c","ord":"c","title":"c","todo":true,"after":["a"]}`,
+  ))
+  // The SOURCE end: `a` is settled, so nothing is telling it that it cannot
+  // start — the same answer a `done` node gets, arrived at from the other
+  // direction ("it is not going to happen" instead of "it has happened").
+  expect(waiting(derived, "a")).toEqual([])
+  // The TARGET end: `c` waits on `a`, and `a` is settled, so `c` is free.
+  expect(waiting(derived, "c")).toEqual([])
+  // And the write-time reading of the target end agrees, which is what
+  // `set_doing` is gated on: `c` may start, because nothing its `after` names
+  // holds it up any more. (`a`'s own list is still `b` — `standingBefore` asks
+  // what a node's targets hold up regardless of the node's own mark, which is
+  // the one place it and `blockersOf` part, and it parts there for `done` too.)
+  expect(standingBefore(derived, "c").map((one) => one.at.node.id)).toEqual([])
+  expect(standingBefore(derived, "a").map((one) => one.at.node.id)).toEqual(["b"])
+})
+
+/**
+ * WHAT A `done` MAY NOW BE WRITTEN OVER — the branch half of the ruling, pinned
+ * where the walk is rather than where the refusal is (`@olai/ops`' `plan.ts`
+ * holds that end).
+ *
+ * `unfinishedWithin` is what `set_done` is gated on, so a cancelled task
+ * leaving this list IS "a parent's set_done is not refused over a cancelled
+ * child". The refusal's own sentence has always said the way past it — clear
+ * the marks on what is not happening — and the fourth mark is the honest
+ * spelling of that: the row keeps a mark, an instant and a day, and stops
+ * standing in the way.
+ */
+test("a cancelled task is not unfinished work in the branch below a node", () => {
+  const derived = derive(nodesOf(
+    `{"id":"top","ord":"a","title":"top","todo":true}\n` +
+      `{"id":"fin","parent":"top","ord":"a","title":"fin","done":"2026-08-10"}\n` +
+      `{"id":"off","parent":"top","ord":"b","title":"off","cancelled":"2026-08-25"}\n` +
+      `{"id":"deep","parent":"off","ord":"a","title":"deep","todo":true}\n` +
+      `{"id":"note","parent":"top","ord":"c","title":"note"}`,
+  ))
+  // `off` is settled and out. `deep` is NOT — it is `todo`, and nothing about
+  // cancelling its parent settles it: this walk reads each node's own stored
+  // mark, one level at a time, and a cascade is exactly what the format has
+  // never done ("a mark is a stored fact, never computed from what hangs
+  // below"). So `set_done` on `top` is still refused, naming `deep` alone.
+  expect(unfinishedWithin(derived, "top").map((at) => at.node.id)).toEqual(["deep"])
+
+  // With the branch's own leaf settled too, nothing is left standing.
+  const settled = derive(nodesOf(
+    `{"id":"top","ord":"a","title":"top","todo":true}\n` +
+      `{"id":"off","parent":"top","ord":"a","title":"off","cancelled":"2026-08-25"}\n` +
+      `{"id":"deep","parent":"off","ord":"a","title":"deep","cancelled":true}`,
+  ))
+  expect(unfinishedWithin(settled, "top")).toEqual([])
 })
 
 // THE TRAP the rule is written against (docs/format.md): spelling it
