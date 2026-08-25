@@ -50,3 +50,32 @@ Feature: The header sticks
     And I follow the contents line "Lists"
     Then the app header is at the top of the viewport
     And the heading "Lists" is clear of the header
+
+  # The bar is not all that pins. On a page that draws a tree, a SECTION row
+  # holds its place under the bar while its branch scrolls past
+  # (`client/Tree.tsx`) — another ~40px of the reading that is not free space.
+  # A jump landing a row in that band used to leave the reader looking at it
+  # through the back of the pinned heading (measured: the row would stop at
+  # y=71.5px, on the pinned `kitchen` row's span, versus ≥116.5px after the
+  # fix). The reserve therefore accounts for whatever is actually pinned: the
+  # bar alone on non-tree pages, bar + section row on tree pages
+  # (`styles.css`'s `scroll-padding-top`).
+  #
+  # THE REVERT CHECK: with the extra reserve removed (the sole
+  # `--height-pinned-section` override gone), this scenario turns
+  # deterministically red — the row stops at the bar's bottom edge and
+  # `elementFromPoint` at its top names `/kitchen`, the pinned row itself:
+  # 0/10 luck involved. The window must be short like the Outline's for the
+  # same reason it gives there: a window taller than the page has nothing
+  # pinned to assert against.
+  @corpus:good @abp
+  Scenario: A jump to a row lands below the pinned section, not behind it
+    # A row deep enough in the fixture that the window still has room to put
+    # past it: `install` is mid-tree, and near the end the browser would stop
+    # short and pass for the wrong reason.
+    When I open the outline "house.olai"
+    And the window is shorter than the page
+    And a jump lands the row "install" at the top of the window
+    Then the app header is at the top of the viewport
+    And the row "install" is clear of the pinned section "kitchen"
+    And there should be no page errors
