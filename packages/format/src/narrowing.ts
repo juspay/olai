@@ -50,12 +50,11 @@
 import { Schema } from "effect"
 
 import type { Derived, Row } from "./derive.ts"
-import type { Face } from "./document.ts"
 import { type Filter, parseFilter, selecting, shownRecord } from "./filter.ts"
 import { isTrashed, type LocatedRegular } from "./node.ts"
 import { narrowableIn, PageRequest, type Shown, shownOf } from "./page.ts"
 import { MatchedNode } from "./searching.ts"
-import type { BrokenFile } from "./set.ts"
+import type { Reading } from "./validate.ts"
 
 /**
  * A PAGE AND A QUERY — the two halves of "what does this box select".
@@ -142,9 +141,7 @@ export const sameNarrowingRequest: (a: NarrowingRequest, b: NarrowingRequest) =>
  * beside a page resolves the ids that page POINTS AT and nothing here reads one.
  */
 export const narrowingOf = (
-  derived: Derived,
-  faces: ReadonlyArray<Face>,
-  broken: ReadonlyArray<BrokenFile>,
+  at: Reading,
   request: NarrowingRequest,
   /** What the grammar's relative words count from — the same clock
    *  `search_nodes` is answered on. */
@@ -152,8 +149,8 @@ export const narrowingOf = (
 ): NarrowingAnswer => ({
   text: request.text,
   matches: narrowedIn(
-    derived,
-    shownOf(derived, faces, broken, request.page),
+    at.derived,
+    shownOf(at, request.page),
     parseFilter(request.text, now),
   ),
 })

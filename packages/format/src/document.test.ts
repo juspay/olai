@@ -12,7 +12,7 @@ import { expect, test } from "bun:test"
 
 import { addressOf, printAddress } from "./address.ts"
 import { referrersTo } from "./backlinks.ts"
-import { faceOf } from "./document.ts"
+import { pointingOf } from "./pointing.ts"
 import { linksIn } from "./documents.ts"
 import { derive, tagsIn } from "./derive.ts"
 import { matching, matchingDocuments, parseFilter, rankedTogether } from "./filter.ts"
@@ -247,14 +247,13 @@ test("both kinds come back in one ranked order", () => {
 
 // ── what points at an address ──────────────────────────────────────────
 
-const pointingAt = (set: OutlineSet, path: string): ReadonlyArray<string> => {
+const referringTo = (set: OutlineSet, path: string): ReadonlyArray<string> => {
   const derived = derive(recordsOf(set))
-  // THE FACES, which is what the browser holds and what this reads: the whole
-  // documents are in hand here, and `faceOf` is the projection the wire
-  // carries, so the case is asking the question the page asks.
-  const faces = set.documents.map(faceOf)
+  // THE LINKS INDEX, which is what a reading carries and what this reads: it is
+  // built out of the set's own documents by the same fold `validate` runs
+  // (`./pointing.ts`), so the case is asking the question the page asks.
   const address = addressOf(path, null)!
-  return referrersTo(address, faces, derived).map((one) =>
+  return referrersTo(address, pointingOf(set.documents), derived).map((one) =>
     one.at === undefined ? String(one.face.path) : one.at.node.title
   )
 }
@@ -263,18 +262,18 @@ const pointingAt = (set: OutlineSet, path: string): ReadonlyArray<string> => {
 // than the outline it sits in: a link is always some record's, and naming the
 // file would be the coarser answer offered because it was the easier one.
 test("a `doc` attachment is a reference from the record that wrote it", () => {
-  expect(pointingAt(VAULT(), "notes/plan.md")).toEqual(["kitchen remodel #home"])
+  expect(referringTo(VAULT(), "notes/plan.md")).toEqual(["kitchen remodel #home"])
 })
 
 // A `[…](…)` in a note is a reference the same way, read by the same rule a
 // body is read by — which is what makes one rule for both worth having.
 test("a link in a note is a reference from the record that wrote it", () => {
-  expect(pointingAt(VAULT(), "brief.md")).toEqual(["order the cabinets"])
+  expect(referringTo(VAULT(), "brief.md")).toEqual(["order the cabinets"])
 })
 
 // A document nothing names has no referrers, and the absence is the answer.
 test("a document nothing points at has no referrers", () => {
-  expect(pointingAt(VAULT(), "saved/quote.html")).toEqual([])
+  expect(referringTo(VAULT(), "saved/quote.html")).toEqual([])
 })
 
 // A link onto a HEADING points at the document: the reader who opens that file
@@ -285,14 +284,14 @@ test("a link onto a heading points at the document", () => {
     { "a.olai": `{"id":"n","ord":"a0","title":"see [the scope](brief.md#scope)"}\n` },
     [["brief.md", "# Brief\n\n## Scope\n"]],
   )
-  expect(pointingAt(set, "brief.md")).toEqual(["see [the scope](brief.md#scope)"])
+  expect(referringTo(set, "brief.md")).toEqual(["see [the scope](brief.md#scope)"])
 })
 
 // A document does not refer to ITSELF: a `.md` whose own body links a heading
 // of itself is talking about the page it is on.
 test("a document linking its own heading is not its own referrer", () => {
   const set = setOf({}, [["self.md", "# Self\n\n[up](self.md#self)\n"]])
-  expect(pointingAt(set, "self.md")).toEqual([])
+  expect(referringTo(set, "self.md")).toEqual([])
   // …and the link is still on its face, because it IS one.
   expect(markdownIn(set)[0]?.links.map(printAddress)).toEqual(["self.md#self"])
 })
@@ -304,5 +303,5 @@ test("a referrer written in an archive is left out", () => {
     { "_olai/Trash.olai": `{"id":"old","ord":"a0","title":"was here","doc":"brief.md"}\n` },
     [["brief.md", "# Brief\n"]],
   )
-  expect(pointingAt(set, "brief.md")).toEqual([])
+  expect(referringTo(set, "brief.md")).toEqual([])
 })

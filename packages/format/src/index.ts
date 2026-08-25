@@ -485,6 +485,13 @@ export type { Zoomed } from "./zoom.ts"
  *  either of them being a second spelling of the list. */
 export { backlinksOf, referrersTo, Way, WAYS } from "./backlinks.ts"
 export type { Backlink, Referrer } from "./backlinks.ts"
+/** WHICH DOCUMENTS POINT WHERE — the set's own forward links, filed backwards
+ *  and kept that way (`perf-doc-backlinks-index`). It rides on the {@link Reading}
+ *  and it is what `referrersTo` reads; the type is exported because that
+ *  function takes one, and the fold and the patch are not — a caller holding a
+ *  reading holds the index, and a caller building one goes through `validate`
+ *  or `reading`, which is where the two are kept in step. */
+export type { Pointing } from "./pointing.ts"
 /** The query: `parseFilter` reads text into one, `matching` says which nodes it
  *  selects, `ranked` puts them in the order a door shows them in, `keeping` and
  *  `matchedIn` are what a TREE narrowed to them looks like and how many rows of

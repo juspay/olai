@@ -160,9 +160,10 @@ interface Row {
  * it is the shape of the answer.
  *
  * THE KEY CARRIES ITS NAMESPACE, because a path and a node id are both strings
- * and `referrersTo` walks each document once and each of its records once — so
- * within an arm the key is unique by construction, and across the arms only the
- * prefix says so. A key that collided would hand one element to the framework
+ * and `referrersTo` names each POINTING document once and each of its records
+ * once (its index says which documents those are, and the records of one are
+ * walked once) — so within an arm the key is unique by construction, and across
+ * the arms only the prefix says so. A key that collided would hand one element to the framework
  * twice, which is the crash `../edges/named.ts` argues at length.
  */
 const rowOf = (one: Referrer): Row =>

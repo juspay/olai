@@ -459,7 +459,7 @@ export const narrowing = (
    *  argument, and the same clock. */
   now: string,
 ): NarrowingAnswer =>
-  narrowingOf(at.derived, at.set.documents, at.set.broken, request, now)
+  narrowingOf(at, request, now)
 
 // ── which ids the set declares ─────────────────────────────────────────
 
@@ -662,13 +662,15 @@ export const owed = (derived: Derived, request: OwedRequest): Owed =>
  * keystroke's write is judged against and the same one an agent's tool is
  * answered from.
  *
- * THE FACES are the set's own documents, handed over as they stand: a
- * `Document` IS a `Face` plus its content (`@olai/format`'s `document.ts`), so
- * there is no projection per page per revision and no second list to keep in
- * step with the one the directory was assembled from.
+ * THE WHOLE READING is handed over, which is what that function takes: the set
+ * it is about, the derivation over it, and the index that says which documents
+ * point at a given address (`@olai/format`'s `pointing.ts`). Three fields of
+ * one value rather than three arguments, so this door cannot pair one
+ * revision's set with another's view — which is the reason those three travel
+ * together at all.
  */
 export const page = (at: Reading, request: PageRequest): PageReading =>
-  pageOf(at.derived, at.set.documents, at.set.broken, request)
+  pageOf(at, request)
 
 /**
  * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING — the move picker's preview

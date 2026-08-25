@@ -224,7 +224,7 @@ hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
 # What a keystroke costs — on a generated vault, and for the newest of them in
-# a real git repository. TWELVE of them, and each is a
+# a real git repository. THIRTEEN of them, and each is a
 # LEG rather than a scratch file, because slice 3 of `model-indices` ran its
 # numbers as a one-off and a benchmark nobody can re-run is a number nobody can
 # check — and deliberately NOT a dependency of `check`, since a timing that
@@ -392,7 +392,7 @@ hm-module:
 #     same flattering ratio wearing a different face. Its vault is `vaultOf` with
 #     the dangling placements taken out and `.md` files put in: a directory
 #     nobody could publish is one where the narrowing declines every time, and a
-#     directory holding no documents measures the `.md` walk at zero.
+#     directory holding no documents measures the `.md` walk at zero;
 #   - FOUR TOOL-CALL WALKS, one row each (`packages/ops/src/walks.bench.ts`,
 #     added with the ops bundle — `perf-capture-paths`, `perf-batch-assemble`,
 #     `perf-homes-files`, `perf-didyoumean`). Four costs in one PR, so four rows
@@ -416,29 +416,52 @@ hm-module:
 #     here: the equalities (`packages/ops/src/walks.test.ts`,
 #     `following.equivalence.test.ts`, `format/src/set.walks.test.ts`,
 #     `format/src/suggest.test.ts`) and the counts (that file's identity
-#     assertions, `set.walks`'s comparisons, `suggest.walks`'s matrices).
+#     assertions, `set.walks`'s comparisons, `suggest.walks`'s matrices);
+#   - a DOCUMENT PAGE's referrers, timed as the links index against the walk of
+#     every face it replaced (`packages/format/src/pointing.bench.ts`, added
+#     with `perf-doc-backlinks-index`). Both arms are in the tree for the
+#     scoped query's reason — the "before" is that walk kept as this lane's
+#     differential reference (`@olai/format`'s `pointing.testlib.ts`) — and
+#     the two must answer the same referrers or the run throws. FOUR numbers,
+#     because the index is a TRADE and printing one half would be quoting the
+#     good one: the read for pages that HAVE referrers, the read for a page
+#     nothing points at (which is most pages, and the row where the shape
+#     shows), and the write both ways — the whole directory folded again
+#     against the two sets stepped through, with the count of edits that handed
+#     the index straight on uncloned. Its vault is `.md`-heavy on purpose: what
+#     a read still pays is the walk of the files that really do point here, so
+#     the ratio is a function of how thickly the corpus points at itself, and
+#     that density is printed rather than left to be inferred. Size it with
+#     OLAI_BENCH_OUTLINES / OLAI_BENCH_BODIES / OLAI_BENCH_RECORDS /
+#     OLAI_BENCH_PAGES / OLAI_BENCH_EDITS.
 #
-# SIX of the twelve run the SAME generated vault (`@olai/format/testlib`'s
-# `vaultOf` — the patcher, the tag completion, the day readings, the search
-# index and the four tool-call walks), so what a write costs the view and what a
-# completion, a calendar, a search box or a capture asks of the view it leaves
-# are numbers about one directory; the
-# matcher, the document listing, the scoped query and the standing views each
-# generate a corpus of their own — one sized for keystrokes, one for a vault of
-# `.md`, one made of TREES, one with a third of its files holding no date at
-# all — and the commit panel's is not a vault at all but a real repository in
-# a temporary directory, since what it times is subprocesses. The MERGE under
-# all of
-# it is not timed here and should not be: it is the framework's, and
+# FIVE of the thirteen run the SAME generated vault (`@olai/format/testlib`'s
+# `vaultOf`, unmodified — the patcher, the tag completion, the day readings, the
+# search index and the four tool-call walks), so what a write costs the view and
+# what a completion, a calendar, a search box or a capture asks of the view it
+# leaves are numbers about one directory. TWO MORE BUILD ON IT and say so in
+# their own rows, which is why they are not in that count: the published
+# revision's puts the other kinds of file in beside the outlines, and the
+# validation's takes the dangling placements out and puts `.md` in — each
+# because the leg would otherwise measure a third of its subject at zero. The
+# matcher, the document listing, the scoped query, the standing views and the
+# referrers each generate a corpus of their own — one sized for keystrokes, one
+# for a vault of `.md`, one made of TREES, one with a third of its files holding
+# no date at all, one that points at itself thickly — and the commit panel's is
+# not a vault at all but a real repository in a temporary directory, since what
+# it times is subprocesses. The MERGE under all of it is not timed here and
+# should not be: it is the framework's, and
 # `@kolu/surface`'s own `src/solid/collectionDeltas.bench.ts` measures it end to
 # end. Size the vault with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS /
 # OLAI_BENCH_EDITS — and turning the last one up to 900 is what makes the
 # patcher's layer grow past half the id map and flatten, which it prints the
 # edit of. Size the document listing with OLAI_BENCH_DOCS; the published
-# revision and the standing views read OLAI_BENCH_FILES / OLAI_BENCH_RECORDS
-# like the four above them — the standing views over a vault of their own
-# (`@olai/ops`' `standing.testlib.ts`), for the reason that leg's own paragraph
-# gives.
+# revision, the standing views and the tool-call walks read OLAI_BENCH_FILES /
+# OLAI_BENCH_RECORDS like the four above them — the standing views over a vault
+# of their own (`@olai/ops`' `standing.testlib.ts`), for the reason that leg's
+# own paragraph gives; the referrers have four sizes of their own, named in
+# their row.
+
 bench: install
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
     {{ nix_shell }} bun packages/format/src/filter.bench.ts
@@ -451,6 +474,7 @@ bench: install
     {{ nix_shell }} bun packages/server/src/published.bench.ts
     {{ nix_shell }} bun packages/ops/src/standing.bench.ts
     {{ nix_shell }} bun packages/format/src/validate.bench.ts
+    {{ nix_shell }} bun packages/format/src/pointing.bench.ts
     {{ nix_shell }} bun packages/ops/src/walks.bench.ts
 
 # A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
