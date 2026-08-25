@@ -32,6 +32,7 @@ import { Result, Schema } from "effect"
 import {
   bodiedDocument,
   Document,
+  isBodied,
   isOutline,
   type Markdown,
   type Outline,
@@ -209,9 +210,33 @@ export const brokenBy = (
  * work for one kind and not the other. There is one list now, so there is one
  * question, and the ANSWER carries the kind: a caller that only draws outlines
  * has to say so, in a line a reader can see.
+ *
+ * FOUND RATHER THAN WALKED TO, since `perf-published-maps`: {@link assemble}
+ * puts the list in path order and sorts for itself rather than trusting its
+ * caller (see its header), so a path names a POSITION and this is a binary
+ * search over {@link ./paths.ts}'s own comparator rather than a walk of the
+ * directory. That matters where it is asked once per file the disk moved
+ * — `@olai/server`'s `published.ts` asks it for every path a probe re-decoded,
+ * and a walk there made publishing a `git pull` quadratic in the vault — and it
+ * costs the three callers that ask it once nothing at all. It is the SAME
+ * comparator the order was made with, which is what makes the search exact:
+ * `byPath` sorts the separator first, so a plain `<` would look in the wrong
+ * half for the one pair where a file and a directory share a name.
  */
-export const documentAt = (set: OutlineSet, path: string): Document | undefined =>
-  set.documents.find((document) => document.path === path)
+export const documentAt = (set: OutlineSet, path: string): Document | undefined => {
+  const { documents } = set
+  let low = 0
+  let high = documents.length - 1
+  while (low <= high) {
+    const middle = (low + high) >>> 1
+    const at = documents[middle] as Document
+    const side = byPath(at.path, path)
+    if (side === 0) return at
+    if (side < 0) low = middle + 1
+    else high = middle - 1
+  }
+  return undefined
+}
 
 /**
  * The OUTLINES of the set, in path order.
@@ -275,9 +300,7 @@ export const markdownIn = (set: OutlineSet): ReadonlyArray<Markdown> =>
  * exactly why both have a name.
  */
 export const bodiedIn = (set: OutlineSet): ReadonlyArray<Markdown | Unkept> =>
-  set.documents.filter((document): document is Markdown | Unkept =>
-    document.kind !== "outline"
-  )
+  set.documents.filter(isBodied)
 
 /**
  * A set taken back APART into the map {@link assemble} puts together — the

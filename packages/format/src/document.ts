@@ -441,6 +441,16 @@ export const bodyOf = (document: Document): string | null =>
 export const isOutline = (document: Document): document is Outline =>
   document.kind === "outline"
 
+/** ...and its complement, which is the other half of the same narrowing: every
+ *  file the set keeps a body SLOT for, whether or not it keeps the bytes. Named
+ *  beside {@link isOutline} rather than spelled as an inline `kind` test at each
+ *  of its two askers — the LIST of them ({@link ./set.ts}'s `bodiedIn`) and the
+ *  ONE-FILE question a projection asks of a path it was handed (`@olai/server`'s
+ *  `published.ts`) — because a list and a membership test that came to disagree
+ *  would be a collection whose keys and whose deltas were about different files. */
+export const isBodied = (document: Document): document is Markdown | Unkept =>
+  document.kind !== "outline"
+
 /** The path, BRANDED — a value this module has judged by the one thing that
  *  makes a path nameable, which is the registry claiming its suffix. Every
  *  caller here got its `file` from a directory walk that matched on exactly

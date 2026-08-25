@@ -303,9 +303,29 @@ hm-module:
 #     flattering ratio takes is a narrowing that reported magnificently by
 #     answering nothing. Its vault is trees rather than the flat corpus the
 #     matcher's is: a vault whose records have no parents at all is a vault
-#     where `under:` holds nothing.
+#     where `under:` holds nothing;
+#   - ONE PUBLISHED REVISION, timed and COUNTED against the three walks it
+#     replaced (`packages/server/src/published.bench.ts`, added with
+#     `perf-published-maps`). The one leg here whose headline is not a
+#     millisecond: publishing used to rebuild three maps of every served file
+#     per revision, so what it reports is maps CONSTRUCTED and keys WRITTEN
+#     per revision — `Map` and the `set` every map shares swapped for counting
+#     ones around the call and put back after — with the wall clock beside
+#     them, since allocation that cost no time would be an optimisation nobody
+#     needed. THREE rows, because a collection is now carried, written into or
+#     rebuilt and the three cost differently: one file saved (the commonest
+#     revision there is), a file CREATED (the one shape that still rebuilds a
+#     map — the row that says what this did not buy), and a `git pull` of
+#     twenty. Both arms are in the tree for the scoped query's reason — the
+#     "before" is the walk kept as that lane's differential reference
+#     (`packages/server/src/published.testlib.ts`) — and the two are replayed
+#     against each other over this leg's own corpus before a figure is quoted,
+#     so a divergence throws rather than printing a ratio nobody may believe.
+#     Its vault is `vaultOf` with the OTHER kinds put in beside the outlines:
+#     a directory of nothing but `.olai` is one where the documents collection
+#     is empty and a third of what is measured is never asked anything.
 #
-# Four of the seven run the SAME generated vault (`@olai/format/testlib`'s
+# Four of the eight run the SAME generated vault (`@olai/format/testlib`'s
 # `vaultOf` — the patcher, the tag completion, the day readings and the search
 # index), so what a write costs the view and what a completion, a calendar or a
 # search box asks of the view it leaves are numbers about one directory; the
@@ -317,7 +337,8 @@ hm-module:
 # end. Size the vault with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS /
 # OLAI_BENCH_EDITS — and turning the last one up to 900 is what makes the
 # patcher's layer grow past half the id map and flatten, which it prints the
-# edit of. Size the document listing with OLAI_BENCH_DOCS.
+# edit of. Size the document listing with OLAI_BENCH_DOCS; the published
+# revision reads OLAI_BENCH_FILES / OLAI_BENCH_RECORDS like the four above it.
 bench: install
     {{ nix_shell }} bun packages/format/src/patch.bench.ts
     {{ nix_shell }} bun packages/format/src/filter.bench.ts
@@ -326,6 +347,7 @@ bench: install
     {{ nix_shell }} bun packages/format/src/scope.bench.ts
     {{ nix_shell }} bun packages/index/src/index.bench.ts
     {{ nix_shell }} bun packages/ops/src/documents.bench.ts
+    {{ nix_shell }} bun packages/server/src/published.bench.ts
 
 # A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
 # instead of the nix-built binary. `/tmp/olai-dev` is how two worktrees

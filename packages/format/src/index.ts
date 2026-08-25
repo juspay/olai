@@ -130,6 +130,7 @@ export {
   Document,
   Face,
   faceOf,
+  isBodied,
   isOutline,
   Markdown,
   Outline,
