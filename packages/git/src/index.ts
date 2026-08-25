@@ -33,6 +33,7 @@ export {
   type Recorded,
   type Repo,
   type Sent,
+  type Shown,
   type Spelled,
   type Upstream,
 } from "./git.ts"

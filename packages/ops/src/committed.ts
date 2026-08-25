@@ -43,6 +43,13 @@
  *     not wrong — they are still exactly what that commit holds — they are
  *     simply not what anybody is asking about any more, so they are dropped.
  *
+ * ONE MORE RULE, and it is about freshness rather than staleness: only an
+ * answer GIT GAVE is filed. A `show` that timed out or overran its buffer is a
+ * statement about that attempt, not about the commit — the per-file loop this
+ * replaces healed such an accident by re-reading on the next revision, and
+ * filing it would have made one bad second last a whole generation. See
+ * {@link taken}.
+ *
  * The one thing still asked every round is WHICH commit, and that is deliberate:
  * one `rev-parse` per revision, whatever the dirty list holds, is what makes
  * everything else safe to remember. A keystroke with fifty dirty outlines costs
@@ -68,6 +75,7 @@
  */
 
 import { type Node, parseOutline } from "@olai/format"
+import type { Shown } from "@olai/git"
 import { Effect, Result } from "effect"
 
 /**
@@ -79,6 +87,10 @@ import { Effect, Result } from "effect"
  * said about, while one the commit genuinely does not have is a file that is
  * NEW — every node in it created, which is exactly right for an untracked
  * outline and exactly wrong for a broken one.
+ *
+ * A copy git COULD NOT ANSWER FOR is not a fourth shape: it reads as `Absent`,
+ * exactly as the per-file loop this replaces read it, and is the one answer
+ * this module refuses to REMEMBER. See {@link taken}.
  */
 export type Copy =
   | { readonly _tag: "Absent" }
@@ -103,8 +115,10 @@ const NOTHING: ReadonlyMap<string, Copy> = new Map()
 export interface Asking {
   /** Which commit HEAD names, `null` where it names none. */
   readonly head: Effect.Effect<string | null>
-  /** One file as that commit has it, `null` when it does not have it. */
-  readonly show: (commit: string, path: string) => Effect.Effect<string | null>
+  /** One file as that commit has it — `@olai/git`'s three arms, because
+   *  whether git ANSWERED is the difference between a copy this module may
+   *  remember and one it may not ({@link taken}). */
+  readonly show: (commit: string, path: string) => Effect.Effect<Shown>
 }
 
 /**
@@ -173,19 +187,28 @@ export const remembering = (): Committed => {
         const missing = [...wanted].filter((path) => !mine.has(path))
         const read = yield* Effect.all(
           missing.map((path) =>
-            Effect.map(git.show(commit, path), (text) => [path, copyOf(path, text)] as const)
+            Effect.map(git.show(commit, path), (shown) => [path, taken(path, shown)] as const)
           ),
           { concurrency: AT_ONCE },
         )
-        // FILED ONLY IF THE GENERATION IS STILL THE ONE THAT WAS ASKED. Two
-        // surveys can overlap — the sweep and a keystroke — and the second may
-        // have replaced the map while these reads were in flight. The VALUES
-        // are still true (they were asked about a named commit, not about
-        // HEAD); what would be wrong is filing them under somebody else's
-        // generation.
-        if (generation === commit) for (const [path, copy] of read) mine.set(path, copy)
+        // FILED ONLY IF GIT ANSWERED, and only if the generation is still the
+        // one that was asked.
+        //
+        // THE FIRST HALF is {@link taken}'s ruling: a copy nobody could read is
+        // not an answer about a commit at all, so there is nothing here to
+        // remember. It is answered for THIS revision — as the loop this
+        // replaces answered it — and asked again on the next.
+        //
+        // THE SECOND is concurrency: two surveys can overlap — the sweep and a
+        // keystroke — and the second may have replaced the map while these
+        // reads were in flight. The VALUES are still true (they were asked
+        // about a named commit, not about HEAD); what would be wrong is filing
+        // them under somebody else's generation.
+        if (generation === commit) {
+          for (const [path, one] of read) if (one.keep) mine.set(path, one.copy)
+        }
 
-        const found = new Map(read)
+        const found = new Map(read.map(([path, one]) => [path, one.copy] as const))
         return answer(paths, (path) => mine.get(path) ?? found.get(path) ?? ABSENT)
       }),
   }
@@ -203,8 +226,40 @@ const answer = (
   return map
 }
 
+/** One reading, and whether it is an answer ABOUT A COMMIT — which is the only
+ *  kind this module may file. See {@link taken}. */
+export interface Taken {
+  readonly copy: Copy
+  readonly keep: boolean
+}
+
 /**
- * The bytes, read as an outline.
+ * What git said, read as an outline — and whether it is worth remembering.
+ *
+ * THREE ANSWERS AND TWO OF THEM KEEP, which is the whole of what a memory owes
+ * a caller that used to re-read. `Text` and `Absent` are statements about A
+ * COMMIT, and a commit does not change its mind: both are filed, and stay true
+ * for as long as that sha is what anybody is asking about. `Unusable` is a
+ * statement about THIS ATTEMPT — a bitten ten-second budget, a stream past the
+ * buffer, a git that could not run — and the next attempt may well succeed, so
+ * it is answered and DROPPED.
+ *
+ * That distinction is new with the memory and only matters because of it. The
+ * per-file loop this replaces re-asked every revision, so a bitten budget cost
+ * ONE bad revision and healed itself on the next; filed, the same accident
+ * would report every node of that file as created until HEAD next moved.
+ * Declining to file is what puts the old self-healing back.
+ *
+ * WHAT IT READS AS while it stands is `Absent` — the same value the old fold
+ * produced for every non-zero exit, deliberately. It is the less informative of
+ * the two answers available (`Unparsed` would put the file in the panel's
+ * unreadable list instead, which is arguably the more honest sentence for "git
+ * could not be asked") and it is the right one HERE, because the arms of the
+ * differential have to be the same function of what git said: the reference
+ * implementation folds every refusal to the same `Absent`, including the
+ * `invalid object name 'HEAD'` a repository with no commits yet answers with,
+ * and a memory that reported a different value would be a comparison of two
+ * things rather than of one thing remembered and not.
  *
  * The NAME is only what a parse failure would be reported under, and nothing
  * here reports one: a `Node` carries no file — it is `Located` that does, and
@@ -213,10 +268,14 @@ const answer = (
  * keyed by the path git was asked for even where the comparison files it under
  * another name (`./pending.ts`'s `Was`, which is the rename case).
  */
-export const copyOf = (path: string, text: string | null): Copy => {
-  if (text === null) return ABSENT
-  const parsed = parseOutline(path, text)
-  return Result.isFailure(parsed)
-    ? UNPARSED
-    : { _tag: "Nodes", nodes: parsed.success.nodes.map((located) => located.node) }
+export const taken = (path: string, shown: Shown): Taken => {
+  if (shown._tag === "Absent") return { copy: ABSENT, keep: true }
+  if (shown._tag === "Unusable") return { copy: ABSENT, keep: false }
+  const parsed = parseOutline(path, shown.text)
+  return {
+    copy: Result.isFailure(parsed)
+      ? UNPARSED
+      : { _tag: "Nodes", nodes: parsed.success.nodes.map((located) => located.node) },
+    keep: true,
+  }
 }

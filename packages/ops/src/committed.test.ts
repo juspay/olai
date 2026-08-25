@@ -13,28 +13,34 @@
  * the claim: a commit's copy of a file is a key, and a key does not change.
  */
 
+import type { Shown } from "@olai/git"
 import { expect, test } from "bun:test"
 import { Effect } from "effect"
 
 import { type Asking, type Copy, remembering } from "./committed.ts"
 
 /** A repository that remembers what it was asked. `head` is a mutable field so
- *  a test can land a commit between two asks, which is the whole subject. */
+ *  a test can land a commit between two asks, which is the whole subject — and
+ *  `refuse` is the other one: a git that RAN and could not answer, which is the
+ *  arm nothing may be remembered from. */
 const fake = (
   objects: Readonly<Record<string, string>>,
   head: string | null,
 ) => {
   const asked: Array<string> = []
   let at = head
+  let refusing: string | null = null
   const git: Asking = {
     head: Effect.sync(() => {
       asked.push("head")
       return at
     }),
     show: (commit, path) =>
-      Effect.sync(() => {
+      Effect.sync((): Shown => {
         asked.push(`${commit}:${path}`)
-        return objects[`${commit}:${path}`] ?? null
+        if (refusing !== null) return { _tag: "Unusable", said: refusing }
+        const text = objects[`${commit}:${path}`]
+        return text === undefined ? { _tag: "Absent" } : { _tag: "Text", text }
       }),
   }
   return {
@@ -43,6 +49,14 @@ const fake = (
     forget: () => asked.splice(0),
     moveTo: (sha: string | null) => {
       at = sha
+    },
+    /** Every `show` from here on comes back as git's own refusal — a bitten
+     *  budget, a stream past the buffer — until {@link answering}. */
+    refusing: (said: string) => {
+      refusing = said
+    },
+    answering: () => {
+      refusing = null
     },
   }
 }
@@ -194,4 +208,64 @@ test("the first commit is a generation like any other", async () => {
 
   expect(titles(after.get("a.olai"))).toEqual(["as one had it"])
   expect(repo.asked()).toEqual(["head", "sha-one:a.olai"])
+})
+
+/**
+ * A `show` GIT COULD NOT ANSWER is answered and dropped, never filed.
+ *
+ * THE REGRESSION THIS PINS is the one a memory owes a caller that used to
+ * re-read. `git()` turns a bitten ten-second budget — plausible exactly in the
+ * mass-dirty-after-a-pull shape the concurrency bound exists for — and a stream
+ * past the buffer into a refusal, and the old per-file loop paid for that with
+ * ONE bad revision and healed on the next. Filed, the same accident would
+ * report every node of that file as CREATED until HEAD next moved: an alarming
+ * panel, out of an answer nobody ever gave.
+ *
+ * WHAT IT READS AS for that one revision is what the old fold read — `Absent`,
+ * which is the value every non-zero exit used to produce — and `./committed.ts`
+ * says why that rather than the more informative `Unparsed`: the two arms of
+ * the differential have to be the same function of what git said, or the
+ * comparison stops being about the memory. The claim being pinned here is the
+ * FILING, not the wording.
+ */
+test("a show git could not answer is not remembered, and is asked again", async () => {
+  const repo = fake(OBJECTS, "sha-one")
+  const committed = remembering()
+
+  repo.refusing("fatal: git show did not finish within 10000ms")
+  const bitten = await Effect.runPromise(committed.at(repo.git, ["a.olai"]))
+  expect(bitten.get("a.olai")).toEqual({ _tag: "Absent" })
+
+  repo.answering()
+  repo.forget()
+  const healed = await Effect.runPromise(committed.at(repo.git, ["a.olai"]))
+  expect(repo.asked()).toEqual(["head", "sha-one:a.olai"])
+  expect(titles(healed.get("a.olai"))).toEqual(["as one had it"])
+
+  // ... and THAT one is remembered, so the refusal left nothing behind that
+  // outlives it.
+  repo.forget()
+  await Effect.runPromise(committed.at(repo.git, ["a.olai"]))
+  expect(repo.asked()).toEqual(["head"])
+})
+
+/** ... and it costs the files beside it nothing: a refusal is per ask, so the
+ *  copies read in the same round are filed as usual. A generation is not
+ *  poisoned by one file nobody could read. */
+test("one unanswerable file does not stop the rest of the round being remembered", async () => {
+  const repo = fake({ ...OBJECTS, "sha-one:c.olai": node("c", "c as one had it") }, "sha-one")
+  const committed = remembering()
+
+  await Effect.runPromise(committed.at(repo.git, ["a.olai"]))
+  repo.refusing("fatal: git show did not finish within 10000ms")
+  await Effect.runPromise(committed.at(repo.git, ["a.olai", "b.olai"]))
+  repo.answering()
+  repo.forget()
+
+  const answer = await Effect.runPromise(committed.at(repo.git, ["a.olai", "b.olai", "c.olai"]))
+  // `a.olai` was read before the refusal and is still known; `b.olai` was the
+  // one that could not be read and is asked again, beside the newcomer.
+  expect(repo.asked()).toEqual(["head", "sha-one:b.olai", "sha-one:c.olai"])
+  expect(titles(answer.get("a.olai"))).toEqual(["as one had it"])
+  expect(titles(answer.get("b.olai"))).toEqual(["b as one had it"])
 })

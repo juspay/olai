@@ -20,11 +20,19 @@
  * was deferred (`perf-git-per-write`). Read that file for why staleness is
  * impossible by construction rather than by a call somebody has to remember.
  *
- * Cost is bounded by what CHANGED, not by what is waiting. A clean directory is
- * one `rev-parse`, one `status`, and no parsing whatsoever; a keystroke with
- * fifty dirty outlines is that plus one `rev-parse` for the commit the
- * remembered copies are filed under, and a `show` only for an outline that has
- * just become dirty.
+ * Cost is bounded by what CHANGED, not by what is waiting. THREE SUBPROCESSES A
+ * REVISION whatever the directory holds — `status`, `symbolic-ref` and the
+ * audit `log`, asked together — plus ONE MORE where anything is dirty: the
+ * `rev-parse` naming the commit the remembered copies are filed under. A
+ * `show` is spent only on an outline whose copy at that commit has not been
+ * read yet, so a keystroke with fifty dirty outlines spends none. A clean
+ * directory parses nothing whatsoever.
+ *
+ * The `rev-parse` that finds the REPOSITORY (where its git directory is, where
+ * the served root sits in it) is not one of those: it is paid once, when the
+ * handle opens, and a positive answer is kept for the life of the process
+ * ({@link repository}). Two different questions with one command's name — worth
+ * saying, because they sit two sentences apart.
  *
  * The one thing that cannot be derived is WHO wrote it — git only knows the
  * bytes moved — so that is a counter this module keeps in memory and clears on

@@ -490,11 +490,12 @@ export type Unpushed = typeof Unpushed.Type
  * All of it is derived from git every time it is asked for: `git status
  * --porcelain` names every dirty file in the REPOSITORY, the copy the current
  * commit holds is the committed side of each dirty outline, the codec parses
- * both, and the comparison is `./changes.ts`. Cost is bounded by what CHANGED
- * — a clean directory is one `git status` and no parsing at all, and a
- * keystroke costs nothing per file that was already waiting, since a commit's
- * copy of a file cannot change and is read once per commit (`@olai/ops`'
- * `committed.ts`).
+ * both, and the comparison is `./changes.ts`. Cost is bounded by what CHANGED:
+ * a clean directory parses nothing at all, and a keystroke costs nothing per
+ * file that was already waiting, since a commit's copy of a file cannot change
+ * and is read once per commit (`@olai/ops`' `committed.ts`). What a revision
+ * spends in subprocesses is counted where they are spent, in that layer's own
+ * header, rather than quoted twice.
  *
  * TWO KINDS OF ROW, and the difference is what olai can say about a file rather
  * than what it is allowed to commit. An outline it serves gets node-level

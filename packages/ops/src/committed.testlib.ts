@@ -19,12 +19,19 @@
  * `./committed.ts` on why a question about `HEAD` is one nobody may remember
  * the answer to.
  *
+ * It DROPS the "may this be remembered" half of a reading and keeps the copy,
+ * which is not a simplification but the arm's whole point: an implementation
+ * that remembers nothing has no use for the flag, and the two arms are held to
+ * the same answer precisely because they read the same three arms of a `show`
+ * through the same {@link taken}. What differs between them is the memory and
+ * nothing else.
+ *
  * Not a suite: `bun test` collects only `*.test.ts`.
  */
 
 import { Effect } from "effect"
 
-import { type Asking, type Committed, copyOf } from "./committed.ts"
+import { type Asking, type Committed, taken } from "./committed.ts"
 
 /** What the old inline loop bounded its concurrency at, and what the new one
  *  does — the arms have to spend their subprocesses the same way or the timing
@@ -46,7 +53,7 @@ export const forgetful = (): Committed => ({
       if (paths.length === 0) return new Map()
       const read = yield* Effect.all(
         paths.map((path) =>
-          Effect.map(git.show("HEAD", path), (text) => [path, copyOf(path, text)] as const)
+          Effect.map(git.show("HEAD", path), (shown) => [path, taken(path, shown).copy] as const)
         ),
         { concurrency: AT_ONCE },
       )

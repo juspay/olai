@@ -29,6 +29,14 @@
  *     tree together — the resync path;
  *   - an AMEND and a `reset --soft`, which move HEAD without moving one byte on
  *     disk, and which land the session back on a sha it has already been on;
+ *   - the INDEX-ONLY corners — a file restored out of a commit
+ *     (`git checkout <rev> -- <file>`), and one staged and then edited again.
+ *     They CANNOT split the arms and are here anyway, because "cannot" is a
+ *     derivation the next reader should not have to redo: `git show` reads the
+ *     OBJECT STORE and neither the index nor the working tree, so neither arm's
+ *     answer has an index in it at all — what moves is the dirty list, which is
+ *     re-surveyed every revision, and the working side, which is the store's
+ *     fresh parse. A step that says so is cheaper than the argument;
  *   - a RENAME, whose committed side is asked for under a name the working tree
  *     does not have any more, and a rename INTO the format, whose committed
  *     side is not an outline at all;
@@ -240,6 +248,24 @@ const script = (at: string) => (session: Session): ReadonlyArray<Step> => {
     {
       name: "a keystroke on the amended generation",
       run: () => write(served("house.olai"), HOUSE.replace("Kitchen remodel", "The kitchen")),
+    },
+    {
+      // THE INDEX CORNERS, three steps of one file. `git show` reads the object
+      // store, so none of this is an input to either arm — what these move is
+      // the dirty list and the working side, both of which are taken fresh.
+      name: "an outline is restored out of HEAD, and stops waiting",
+      run: () => git("checkout", "--quiet", "HEAD", "--", served("house.olai")),
+    },
+    {
+      name: "... and out of an OLDER commit, which stages content and dirties it again",
+      run: () => git("checkout", "--quiet", "HEAD~1", "--", served("house.olai")),
+    },
+    {
+      name: "an outline is staged and then edited again",
+      run: () => {
+        git("add", "--", served("house.olai"))
+        write(served("house.olai"), HOUSE.replace("Kitchen remodel", "Kitchen, staged and moved on"))
+      },
     },
     {
       name: "an outline is renamed inside the served set",

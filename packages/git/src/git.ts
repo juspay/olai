@@ -264,8 +264,8 @@ export interface Repo {
    *  about `HEAD` stops being true the moment somebody commits. */
   readonly head: Effect.Effect<string | null>
   /** One file of the REPOSITORY as a NAMED COMMIT has it — named the way
-   *  {@link Dirty} names it, repo-root-relative — or `null` when that commit
-   *  does not have it.
+   *  {@link Dirty} names it, repo-root-relative — in the three arms of
+   *  {@link Shown}.
    *
    *  The COMMIT is the caller's word rather than `HEAD` spelled in here, and
    *  that is the whole of `perf-git-per-write`: `HEAD:<path>` is a question
@@ -273,7 +273,7 @@ export interface Repo {
    *  question about an object git has already made immutable — so the answer can
    *  be remembered under the name it was asked about and cannot go stale.
    *  {@link Repo.head}'s answer is what used to be meant. */
-  readonly show: (commit: string, path: string) => Effect.Effect<string | null>
+  readonly show: (commit: string, path: string) => Effect.Effect<Shown>
   /** The last commit the caller's own audit filter claims, or `null` for a
    *  repository that has none. */
   readonly last: (audit: Audit) => Effect.Effect<Recorded | null>
@@ -583,8 +583,52 @@ const head = (root: string): Effect.Effect<string | null> =>
   )
 
 /**
- * A commit's copy covers every file that commit does not have, and every file
- * that is new, with the same `null`.
+ * What one file of one commit came back as.
+ *
+ * THREE ARMS, not two, and the third is {@link Dirt}'s reason one call over: a
+ * `show` git REFUSED is not a commit that does not have the file. They used to
+ * be one `null` — every non-zero exit folded together — and a caller cannot
+ * tell them apart from that: "this commit does not have that path" means every
+ * node in the working copy is NEW, while "git could not answer" means nothing
+ * can be said about the file at all. Reporting the second as the first is a
+ * screen of alarming rows with one real cause, which is the same collapse
+ * `git-invisible` (#108) closed at the socket.
+ *
+ * It matters more than it used to because an answer here is REMEMBERED
+ * (`@olai/ops`' `committed.ts`): a bitten budget or a stream past the buffer
+ * used to cost one bad revision and now would cost every revision until HEAD
+ * moved. Which arm a caller may keep is the caller's decision and the reason
+ * this is three values rather than a string and a boolean.
+ */
+export type Shown =
+  | { readonly _tag: "Text"; readonly text: string }
+  /** The commit does not have that path — git said so, in as many words. */
+  | { readonly _tag: "Absent" }
+  /** git ran and could not answer, with what it said. */
+  | { readonly _tag: "Unusable"; readonly said: string }
+
+const ABSENT = { _tag: "Absent" } as const
+
+/**
+ * git's own words for "that commit does not have that path", both of the
+ * spellings it has.
+ *
+ * MATCHED rather than inferred from the exit code, for {@link NOT_A_REPO}'s
+ * reason and pinned to English by the same `LC_ALL=C`: 128 is also what an
+ * invalid revision, a repository git refuses to use and a hook that wrote to
+ * stderr answer with, and calling any of those "the file is new" is exactly the
+ * collapse {@link Shown} exists to stop. Anything unrecognised is `Unusable`,
+ * which is the safe direction — a caller declines to remember it and asks
+ * again, where the other mistake is silent and lasts a generation.
+ *
+ * The path itself is not matched across a newline (`.` does not), so a file
+ * whose name contains one falls through to `Unusable`: an answer nobody keeps,
+ * asked again next revision, rather than a wrong one kept.
+ */
+const NOT_IN_COMMIT = /^fatal: path .*(?:does not exist in|exists on disk, but not in) '/m
+
+/**
+ * A commit's copy of one file.
  *
  * REPO-ROOT-RELATIVE, which is the spelling {@link Dirty} hands out and the one
  * name a file has that is the same wherever olai is serving from. It took the
@@ -598,17 +642,21 @@ const head = (root: string): Effect.Effect<string | null> =>
  *
  * THE COMMIT IS A PARAMETER, and the reason is the one {@link Repo.show} gives:
  * a caller that remembers what came back is remembering it about a commit, and
- * `HEAD` is the one name that does not stay put.
+ * `HEAD` is the one name that does not stay put. It reads the OBJECT STORE and
+ * neither the index nor the working tree, which is why a `git add` or a
+ * `git checkout <sha> -- <file>` cannot change what it answers.
  */
 const show = (
   root: string,
   commit: string,
   path: string,
-): Effect.Effect<string | null> =>
-  Effect.map(
-    git(root, ["show", `${commit}:${path}`]),
-    (shown) => (shown.ok ? shown.out : null),
-  )
+): Effect.Effect<Shown> =>
+  Effect.map(git(root, ["show", `${commit}:${path}`]), (shown) => {
+    if (shown.ok) return { _tag: "Text", text: shown.out } as const
+    return NOT_IN_COMMIT.test(shown.said)
+      ? ABSENT
+      : ({ _tag: "Unusable", said: shown.said } as const)
+  })
 
 /**
  * How a caller recognises its OWN commits in somebody's repository.
