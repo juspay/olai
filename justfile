@@ -297,10 +297,13 @@ hm-module:
 #     gets the pair rather than one laptop's milliseconds. It prints four
 #     scopes, and the last is a CONTROL — no scope at all, which is the same
 #     walk on both sides and reports as 1.0× or the run is measuring something
-#     else. Beside each ratio is what the arm SELECTED, because two walks that
-#     answer different numbers of records are two walks nobody may compare. Its
-#     vault is trees rather than the flat corpus the matcher's is: a vault whose
-#     records have no parents at all is a vault where `under:` holds nothing.
+#     else. Beside each ratio is what the arm SELECTED, and the two arms must
+#     answer the same number or the run fails: two walks answering different
+#     numbers of records are two walks nobody may compare, and the one shape a
+#     flattering ratio takes is a narrowing that reported magnificently by
+#     answering nothing. Its vault is trees rather than the flat corpus the
+#     matcher's is: a vault whose records have no parents at all is a vault
+#     where `under:` holds nothing.
 #
 # Four of the seven run the SAME generated vault (`@olai/format/testlib`'s
 # `vaultOf` — the patcher, the tag completion, the day readings and the search
