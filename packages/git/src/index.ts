@@ -3,10 +3,10 @@
  *
  * One socket ({@link open}) and one handle behind it, whose verbs are business
  * questions rather than the commands that answer them: what state the
- * repository is in, what has moved in it, what HEAD had in a file, what was
- * last recorded under a caller's own audit filter, commit exactly these paths,
- * push the current branch. Nothing here says `rev-parse`, and nothing above
- * says it either.
+ * repository is in, what has moved in it, which commit HEAD names and what THAT
+ * commit had in a file, what was last recorded under a caller's own audit
+ * filter, commit exactly these paths, push the current branch. Nothing here
+ * says `rev-parse`, and nothing above says it either.
  *
  * It is a LEAF beside `@olai/child`: `effect`, `@olai/child` and `node:fs`.
  * The subprocess socket is the sibling's; this package's runner rides it, and
@@ -33,6 +33,7 @@ export {
   type Recorded,
   type Repo,
   type Sent,
+  type Shown,
   type Spelled,
   type Upstream,
 } from "./git.ts"
