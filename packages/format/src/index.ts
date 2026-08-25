@@ -84,6 +84,18 @@ export type { Reading } from "./validate.ts"
  *  PATCH its view rather than build one. The store's codec is what holds both
  *  halves; every other caller goes on passing a set and nothing else. */
 export type { Previous } from "./validate.ts"
+/**
+ * WHAT AN ANSWER READ of a reading, and whether the next revision could have
+ * moved it — the pre-check a standing view is re-read behind (`./tape.ts`,
+ * which argues the whole arrangement and the direction its mistakes go in).
+ *
+ * `taping` hands back a recording view of a reading and the TAPE of what it was
+ * asked; `stillHolds` asks that tape whether a later reading answers every one
+ * of those reads the same way. Its one consumer is `@olai/ops`' `standing.ts`,
+ * which decides what to do with the answer; nothing here holds one.
+ */
+export { stillHolds, taping } from "./tape.ts"
+export type { Tape } from "./tape.ts"
 /** The pair WITHOUT the rules — a set and the view of it, patched from a
  *  previous reading where that is exact and rebuilt where it is not. For the
  *  one caller whose reading is speculative and validated later, exactly once:
