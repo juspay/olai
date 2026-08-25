@@ -81,7 +81,12 @@ Feature: On a phone
     When the server stops
     Then the app is frozen under the offline overlay
     When the server starts again on the same port
-    Then the connection is "retired"
+    # What "retired" waits on: the handshake, not a snapshot of whether the
+    # freeze overlay happens to be visible this tick. The server's log is the
+    # one record of the pid echo being refused; the overlay then publishes
+    # the same state. Sister of the_connection.feature's restart scenario.
+    Then the server rejected the stale tab
+    And the connection is "retired"
     And the overlay offers a reload
 
   @corpus:good @phone
