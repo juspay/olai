@@ -2415,12 +2415,22 @@ const stale = (
  * ops-expressible cross-file move was recreate-under-NEW-ids plus a trash of the
  * old subtree, because an id is unique across the set INCLUDING the trash and so
  * the same ones cannot be reused — which detaches every inbound `see`, `after`,
- * `blocks`, `mirror` and typed `ref` property in silence.
+ * `blocks`, `mirror`, typed `node` property and PIN (a title that is an
+ * address) in silence.
  *
  * So the promise this verb now makes is the one {@link planTrash} has always
  * made about the same journey: **the ids move with the nodes**, and everything
  * pointing at them goes on resolving. A subtree changes file; nothing else about
  * it changes.
+ *
+ * THE ONE EXCEPTION IS A TYPED `ref`, and it is an exception to the sentence
+ * rather than to the mechanism. A `ref` value is an id like any other and
+ * travels; what a `ref` DECLARES on top of that is ancestry under a named root
+ * (`@olai/format`'s `variantsOf`, direct children), and moving a VARIANT out of
+ * that root is the one thing here that can make it untrue. It does not land
+ * quietly: the write gate validates the whole set the plan would write, so such
+ * a move is refused `bad-prop` with neither file rewritten. Moving the ROOT is
+ * fine — the subtree travels and the variants keep the parent they had.
  *
  * A SECOND OP would have had to re-declare every rule below — the anchor, the
  * two loop refusals, the mirror rule, door two, "last among its new siblings" —
@@ -2640,9 +2650,21 @@ const notThroughTheTrash = (
  * answers "what does the source keep, and what travels" once for every op that
  * moves a subtree between files, so `archive`, `unarchive` and this cannot come
  * to disagree about what a subtree IS. {@link carryingDoc} rewrites the one
- * field that is relative to the outline naming it: a `doc` is a path from the
+ * FIELD that is relative to the outline naming it: a `doc` is a path from the
  * `.olai` that carries it, so a record that changes file has to re-aim it or the
  * write gate sees an attachment that is not there.
+ *
+ * A `doc`-TYPED PROPERTY is the same arithmetic and is deliberately NOT rewritten
+ * here (raised adjacent on review, grok). Its value is resolved against the
+ * naming outline exactly as the field is (`@olai/format`'s `wrongDoc`), so a
+ * record changing directory changes what it points at — and the write gate
+ * refuses that with `bad-prop`, naming the key and what the path resolved to,
+ * rather than writing a dangling one. Teaching a mover to rewrite it means
+ * reading the vault's DECLARATIONS to know which custom keys hold paths, which
+ * is the typed-properties seam rather than this one — and it is the whole door
+ * family's, not this verb's: `archive` takes the identical subtree across the
+ * identical boundary today and is refused in the identical words. Both arms are
+ * pinned side by side in `./plan.test.ts`, so one door learning it alone fails.
  *
  * The subtree ARRIVES SHAPED AS IT LEFT: only the root is re-parented, and every
  * record under it keeps the `parent` it had — which is the same sentence the

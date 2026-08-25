@@ -9,14 +9,19 @@
  */
 
 import {
+  blockersOf,
+  datedOn,
   derive,
   type Node,
+  markdownIn,
   nodesOf,
   type OpFailure,
   type OutlineSet,
   type RegularNode,
   outlinePaths,
+  pinTargetIn,
   serializeOutline,
+  shelfOf,
   standingBefore,
   validate,
   AddRequest,
@@ -66,7 +71,13 @@ const after = (set: OutlineSet, request: Request): OutlineSet => {
   for (const file of planned(set, request).files) {
     texts[file.file] = serializeOutline(file.nodes)
   }
-  return setOf(texts)
+  // THE DOCUMENTS COME ACROSS TOO, and that is not decoration: a `doc` field
+  // and a `doc`-typed property are both PATHS the validator resolves against
+  // the files the set actually serves, so a rebuilt set that dropped them
+  // would report every such path as missing — and a test about retargeting one
+  // would pass because nothing was served rather than because the path is
+  // right (found while pinning the typed-`doc` boundary below).
+  return setOf(texts, markdownIn(set).map((one) => [one.path, one.body] as const))
 }
 
 /** The children of a node, in the order the format sorts them — which is what
@@ -2324,21 +2335,58 @@ describe("move", () => {
 // The corpus therefore aims one of every inbound relation the format has at the
 // subtree, from another outline in each case, so a rule that quietly dropped
 // one is visible here rather than in somebody's vault six weeks later.
+//
+// FOUR OF THEM ARE `namedBy`'s AND FOUR ARE NOT, and the second four are the
+// ones a differential written off the reverse index alone would pass over
+// without noticing (found on review, grok, 2026-08-25):
+//
+//   - `see`, `after`, `blocks` and a `mirror` placement ARE `targetsOf`
+//     read backwards, so `namersOf` below carries them;
+//   - a typed `node` / `ref` PROPERTY is a reference the validator resolves
+//     and the index does not carry (the value is text in `custom`);
+//   - a PIN is a node whose TITLE is an address (`/#install`), which is not a
+//     field at all — so nothing about it is a `TargetField` and the index is
+//     structurally blind to it;
+//   - a DAY PAGE is the set asked from the other end (`byDay` / `datedOn`),
+//     where the node is what a query finds rather than what a record names —
+//     and its GROUP HEADING is the outline, which is the one thing this write
+//     moves.
+//
+// Each of the four blind kinds is pinned by the reading that actually answers
+// it, beside the index differential rather than through it.
 
 /** A vault that DECLARES a `node` key, so a property naming a node is a
  *  reference the set RESOLVES rather than a string that looks like one — the
  *  kind `empty_trash` already refuses a deletion for, and the one an id-changing
- *  recreation would strand without a word. */
+ *  recreation would strand without a word.
+ *
+ *  `node` AND NOT `ref`, and the two are different promises rather than two
+ *  spellings (grok, on review): `node` is EXISTENCE, which an id surviving a
+ *  move is exactly enough for; `ref` additionally asserts ANCESTRY under a
+ *  named root, which a move genuinely can break. That one has its own block
+ *  below, where the refusal is the subject. */
 const OWNER = `{"id":"prop-owner","ord":"a0","title":"owner","custom":{"type":"node"}}`
+
+/** THE SHELF, aimed into the subtree in both spellings the grammar has for a
+ *  node — the bare id, and the QUALIFIED one whose file half is about to go
+ *  stale. A pin is an ordinary node whose TITLE is an address, so nothing here
+ *  is a field and `namedBy` cannot see it; what the address grammar promises is
+ *  that a node spelling normalises to the ID either way, which is what makes a
+ *  move harmless to both rows (`@olai/format`'s `address.ts`, `shelf.ts`). */
+const PINS = [
+  `{"id":"pin-bare","ord":"a0","title":"/#install"}`,
+  `{"id":"pin-qualified","ord":"a1","title":"/house.olai#install"}`,
+].join("\n")
 
 const crossing = (): OutlineSet =>
   setOf({
     "_olai/Properties.olai": OWNER,
+    "_olai/Pins.olai": PINS,
     "house.olai": [
       `{"id":"kitchen","ord":"a0","title":"kitchen remodel"}`,
       `{"id":"install","parent":"kitchen","ord":"a0","title":"install the cabinets"}`,
       `{"id":"handles","parent":"install","ord":"a0","title":"choose the handles","todo":true}`,
-      `{"id":"knobs","parent":"install","ord":"a1","title":"pick the knobs","todo":true}`,
+      `{"id":"knobs","parent":"install","ord":"a1","title":"pick the knobs","todo":true,"date":"2026-08-20"}`,
       `{"id":"demo","parent":"kitchen","ord":"a1","title":"take out the old counters"}`,
     ].join("\n"),
     "garden.olai": [
@@ -2385,13 +2433,17 @@ describe("move across outlines", () => {
       .toEqual(["beds", "paths", "garden-install", "install"])
   })
 
-  test("`file` alone lands it at the top level of that outline", () => {
+  test("`file` alone lands it LAST at the top level of that outline", () => {
     const arrived = fileOf(
       planned(crossing(), { op: "move", id: "install", file: "garden.olai" }),
       "garden.olai",
     )
     expect(record(arrived, "install").parent).toBeUndefined()
     expect(childOrder(arrived, "install")).toEqual(["handles", "knobs"])
+    // …and WHERE among the top-level rows, which is the same `placed` default
+    // the parent arm is pinned on and was unpinned here (grok, on review): a
+    // top level is a sibling row like any other, so an arrival goes last in it.
+    expect(childOrder(arrived, undefined)).toEqual(["garden", "install"])
   })
 
   test("`before` / `after` name siblings in the outline it is going TO", () => {
@@ -2426,8 +2478,9 @@ describe("move across outlines", () => {
 
     // …and the SET IS VALID, which is the half a reverse index cannot say: the
     // validator resolves `mirror`, `after`, `blocks` and `see` targets, and the
-    // typed `ref` property this vault declares — which is a reference `namedBy`
-    // does not carry, and the one an id-changing recreation would strand.
+    // typed `node` property this vault declares — which is a reference
+    // `namedBy` does not carry, and the one an id-changing recreation would
+    // strand without a word.
     const verdict = validate(now)
     if (Result.isFailure(verdict)) {
       throw new Error(
@@ -2445,19 +2498,115 @@ describe("move across outlines", () => {
     }
   })
 
+  /**
+   * THE SHELF, before ≡ after — the inbound kind the index above is
+   * structurally blind to, and the one this differential was missing (grok, on
+   * review).
+   *
+   * A pin is an ordinary node whose TITLE is an address, so there is no
+   * `TargetField` anywhere in it and `namersOf` could not fail if address
+   * titles stopped resolving. What holds them is the grammar rather than this
+   * op: a node address normalises to the ID it names, so the FILE half of a
+   * qualified spelling is dropped before anything is looked up
+   * (`@olai/format`'s `addressOf`). Both spellings are in the corpus for
+   * exactly that reason — `/house.olai#install` is a title that now names an
+   * outline the node has left, and it must go on drawing the node anyway.
+   *
+   * Asserted as the WHOLE shelf rather than as two lookups: `shelfOf` is what
+   * the sidebar draws, ids and live titles included, so an equality over it is
+   * the reader's answer rather than a proxy for it.
+   */
+  test("a pin aimed into the subtree draws the same row afterwards", () => {
+    const before = crossing()
+    const now = after(before, { op: "move", id: "install", parent: "garden" })
+
+    const shelf = (set: OutlineSet) => shelfOf(derive(recordsOf(set)))
+    const was = shelf(before)
+    // Pinned, so a corpus that stopped aiming at the subtree cannot make the
+    // equality below pass over two rows that address nothing.
+    expect(was).toEqual([
+      { id: "pin-bare", title: "/#install", shows: { id: "install", name: "install the cabinets" } },
+      {
+        id: "pin-qualified",
+        title: "/house.olai#install",
+        shows: { id: "install", name: "install the cabinets" },
+      },
+    ])
+    expect(shelf(now)).toEqual(was)
+
+    // …and the ADDRESS half said on its own, because that is the promise the
+    // grammar makes and the shelf merely spends: both spellings name the id,
+    // and neither is re-written by the move.
+    for (const title of ["/#install", "/house.olai#install"]) {
+      expect(pinTargetIn(title)).toBe("install")
+    }
+  })
+
+  /**
+   * THE DAY PAGE — the set asked from the OTHER end, which is the fourth kind
+   * `namedBy` cannot carry: nothing NAMES a dated node, a day query FINDS it.
+   *
+   * Dates travel untouched (the stamp test below), so what a crossing moves is
+   * the one thing a day page groups by: `byOutline` heads each group with the
+   * file, because a `parent` never crosses one and two outlines have no common
+   * ancestry to draw under. So the row keeps its date, its occasion and its
+   * place in the day — and changes heading, which is the file moving and is the
+   * whole of what should differ.
+   */
+  test("a dated node that crossed files is still on its day, under the new outline", () => {
+    const before = crossing()
+    const now = after(before, { op: "move", id: "install", parent: "garden" })
+    const day = (set: OutlineSet) => datedOn(derive(recordsOf(set)), "2026-08-20")
+
+    const was = day(before)
+    expect(was).toHaveLength(1)
+    expect(was[0]?.file).toBe("house.olai")
+    expect(was[0]?.nodes.map((one) => one.shows.node.id)).toEqual(["knobs"])
+
+    const then = day(now)
+    expect(then).toHaveLength(1)
+    // The row is still on the day, and the heading is the outline it went to.
+    expect(then[0]?.file).toBe("garden.olai")
+    expect(then[0]?.nodes.map((one) => one.shows.node.id)).toEqual(["knobs"])
+    // …wearing the same date and the same occasion, because a crossing writes
+    // no journal of its own: a day is a question over the set, not a file.
+    expect(then[0]?.nodes[0]).toMatchObject({
+      date: was[0]?.nodes[0]?.date as string,
+      occasion: was[0]?.nodes[0]?.occasion as string,
+    })
+  })
+
   test("the ordering graph was file-agnostic already, and the move proves it", () => {
     // `beds` waits on `knobs`, and `paths` blocks `handles` — two edges written
     // in `garden.olai` about nodes that live in `house.olai`. After the move
     // both ends of both are in one file, and the derivation says exactly what
     // it said before, which is the point: an `after` never knew what it crossed.
-    const waiting = (set: OutlineSet, id: string) =>
-      standingBefore(derive(recordsOf(set)), id).map((one) => one.at.node.id).slice().sort()
+    //
+    // BOTH READINGS, because they are two questions and only one of them is
+    // what a page draws (grok, on review). `blockersOf` is what a node IS
+    // waiting on — the reading behind the dim and the `blocked by` line — and
+    // it is empty for a plain bullet, since a bullet is not work being told it
+    // cannot start. `standingBefore` is what a node WOULD wait on the moment it
+    // became work, which is the write side's (`set_doing`'s gate). A
+    // differential over the second alone would have passed on an unmarked node
+    // by saying nothing about either.
+    const derived = (set: OutlineSet) => derive(recordsOf(set))
+    const ids = (rows: ReadonlyArray<{ at: { node: { id: string } } }>) =>
+      rows.map((one) => one.at.node.id).slice().sort()
     const before = crossing()
     const now = after(before, { op: "move", id: "install", parent: "garden" })
-    expect(waiting(before, "beds")).toEqual(["knobs"])
-    expect(waiting(now, "beds")).toEqual(["knobs"])
-    expect(waiting(before, "handles")).toEqual(["paths"])
-    expect(waiting(now, "handles")).toEqual(["paths"])
+
+    // THE DRAWING READING, over a node that is actually work: `handles` is a
+    // `todo` and `paths` — a `todo` in the other outline — declares it blocks
+    // it. Non-empty on both sides is what makes this an assertion.
+    expect(ids(blockersOf(derived(before), "handles"))).toEqual(["paths"])
+    expect(ids(blockersOf(derived(now), "handles"))).toEqual(["paths"])
+
+    // …and the write side's, over the `after` edge, whose target is a node the
+    // move carried. `beds` is a bullet, so this is the reading that has an
+    // answer about it at all.
+    expect(ids(standingBefore(derived(before), "beds"))).toEqual(["knobs"])
+    expect(ids(standingBefore(derived(now), "beds"))).toEqual(["knobs"])
   })
 
   test("a `doc` is re-aimed at the outline it arrived in", () => {
@@ -2510,6 +2659,134 @@ describe("move across outlines", () => {
     expect(record(fileOf(result, "garden.olai"), "garden").done).toBeUndefined()
     expect(result.nudge).toContain("marked done over work that is not finished")
     expect(result.summary).toContain("reopened: the garden")
+  })
+
+
+  /**
+   * THE `doc` FIELD is retargeted; a `doc`-typed PROPERTY is not — and that
+   * boundary is the door family's rather than this verb's.
+   *
+   * Both are paths resolved against the outline that names them
+   * (`@olai/format`'s `wrongDoc` calls `resolveRelative(from, value)`, exactly
+   * as the field's own rule does), so a record that changes DIRECTORY changes
+   * what either one points at. {@link carryingDoc} rewrites the field, because
+   * the field is the format's and every mover already shared one answer about
+   * it; it does not rewrite a custom value, because knowing WHICH keys hold
+   * paths means reading the vault's declarations — the typed-properties seam,
+   * not the mover's.
+   *
+   * WHAT HAPPENS IS A REFUSAL, not a dangling path: the write gate validates
+   * the whole set, so the move is refused `bad-prop` naming the key and what
+   * the value resolved to, with neither file written.
+   *
+   * AND IT IS NOT THIS PR'S, which is the half worth pinning rather than
+   * asserting: `trash_node` takes the identical subtree on the identical
+   * arithmetic today and is refused in the identical words. Both arms are
+   * below, side by side, so a change that teaches one mover about typed paths
+   * and not the others fails here.
+   */
+  test("a `doc`-typed PROPERTY is not retargeted — and `trash` says the same thing", () => {
+    const set = setOf({
+      "_olai/Properties.olai": `{"id":"prop-brief","ord":"a0","title":"brief","custom":{"type":"doc"}}`,
+      "house.olai": `{"id":"install","ord":"a0","title":"install","custom":{"brief":"finishes.md"}}`,
+      "notes/garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}`,
+    }, ["finishes.md"])
+
+    const refusalOf = (request: Request): ReadonlyArray<string> => {
+      const verdict = validate(after(set, request))
+      if (Result.isSuccess(verdict)) return []
+      return verdict.failure.map((one) => `${one.code} ${one.message}`)
+    }
+
+    // The move: `finishes.md` beside `house.olai` is `notes/finishes.md` beside
+    // `notes/garden.olai`, and nothing serves that.
+    expect(refusalOf({ op: "move", id: "install", parent: "garden" }))
+      .toEqual([
+        "bad-prop `brief` names a document — `finishes.md` resolves to " +
+        "`notes/finishes.md`, and no such `.md` file is served",
+      ])
+
+    // …and the trash, which has always crossed a directory boundary, is the
+    // same sentence with the same arithmetic. This behaviour predates this
+    // verb; what would be new is one door quietly disagreeing with the others.
+    expect(refusalOf({ op: "trash", id: "install" }))
+      .toEqual([
+        "bad-prop `brief` names a document — `finishes.md` resolves to " +
+        "`_olai/finishes.md`, and no such `.md` file is served",
+      ])
+
+    // The FIELD, on the same journey, is retargeted and lands clean — which is
+    // what makes the pair above a boundary rather than an oversight.
+    const withField = setOf({
+      "house.olai": `{"id":"install","ord":"a0","title":"install","doc":"finishes.md"}`,
+      "notes/garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}`,
+    }, ["finishes.md"])
+    expect(Result.isSuccess(validate(after(withField, { op: "move", id: "install", parent: "garden" }))))
+      .toBe(true)
+  })
+
+  // ── the one typed reference a crossing can genuinely break ───────────
+  //
+  // `node` and `ref` are two promises, not two spellings, and the difference is
+  // exactly what a move touches (grok, on review — the PR said `ref` while the
+  // corpus above declared `node`).
+  //
+  //   - `node` is EXISTENCE: the value names a regular record of the set
+  //     (`wrongNode`). An id surviving a move is precisely enough, so the
+  //     promise holds unchanged and is what the differential above pins.
+  //   - `ref` additionally asserts ANCESTRY: the value must be a child of the
+  //     declaration's `under` root (`wrongRef` / `variantsOf`, direct children).
+  //     A move CAN break that, and does — so the promise is corrected rather
+  //     than widened, and both halves of what actually happens are pinned here.
+  //
+  // What makes the broken half safe rather than a hole is the standing law:
+  // the whole set is validated before either file is written, so a move that
+  // would strand a `ref` is REFUSED with `bad-prop` and nothing lands. That is
+  // the write gate, and this asks the same question the gate asks — `validate`
+  // over the records the plan would write.
+
+  /** A vault whose `agent` key is a `ref` under a roster, plus a lane naming
+   *  one of the variants. The shape `_olai/Properties.olai` uses in this
+   *  repository's own board. */
+  const ROSTERED = (): OutlineSet =>
+    setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-agent","ord":"a0","title":"agent","custom":{"type":"ref","under":"roster"}}`,
+      "agents.olai": [
+        `{"id":"roster","ord":"a0","title":"the agents"}`,
+        `{"id":"claude","parent":"roster","ord":"a0","title":"Claude"}`,
+      ].join("\n"),
+      "lanes.olai": [
+        `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent":"claude"}}`,
+        `{"id":"elsewhere","ord":"a1","title":"somewhere else entirely"}`,
+      ].join("\n"),
+    })
+
+  test("a `ref` ROOT crossing outlines takes its variants with it, and every `ref` holds", () => {
+    // The subtree travels whole and only the ROOT is re-parented, so the
+    // variants are still children of `roster` — in another file, under another
+    // parent, and still exactly what `variantsOf` walks.
+    const now = after(ROSTERED(), { op: "move", id: "roster", parent: "elsewhere" })
+    expect(Result.isSuccess(validate(now))).toBe(true)
+    const derived = derive(recordsOf(now))
+    expect(derived.byId.get("claude")?.file).toBe("lanes.olai")
+    expect(derived.byId.get("claude")?.node.parent).toBe("roster")
+  })
+
+  test("a `ref` VARIANT moved OUT of its root is refused, naming the key", () => {
+    // `claude` leaves `roster`, so `lane`'s `agent` names something that is no
+    // longer a variant — the value did not move, the ANCESTRY did. The planner
+    // builds it (nothing about one record says this) and the gate refuses the
+    // set, which is the whole point of validating both files before writing
+    // either: the outline it left is not rewritten, and neither is the one it
+    // was going to.
+    const verdict = validate(after(ROSTERED(), { op: "move", id: "claude", parent: "elsewhere" }))
+    expect(Result.isFailure(verdict)).toBe(true)
+    if (Result.isSuccess(verdict)) return
+    expect(verdict.failure.map((one) => one.code)).toEqual(["bad-prop"])
+    expect(verdict.failure[0]?.message).toContain("`agent`")
+    expect(verdict.failure[0]?.message).toContain("`roster`")
+    expect(verdict.failure[0]?.message).toContain(`"claude"`)
   })
 
   // ── the refusals ─────────────────────────────────────────────────────

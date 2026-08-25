@@ -495,9 +495,22 @@ export const PropRequest = Schema.Struct({
  * `parent` in another outline just works — the parent decides the file, exactly
  * as it does for `add_node` — and `file` alone is that outline's top level.
  * What crossing costs is nothing: the record keeps its id, so every `see`,
- * `after`, `blocks`, `mirror` and typed `ref` property aimed at it (or at
+ * `after`, `blocks`, `mirror` and typed `node` property aimed at it (or at
  * anything under it) goes on resolving, and the ordering graph was never
- * per-file to begin with.
+ * per-file to begin with. A PIN goes on resolving too, and by the same law read
+ * one grammar over: a pin's title is an ADDRESS, and a node address normalises
+ * to the id it names, so even a qualified spelling that now points at the
+ * outline the node LEFT still draws it (./address.ts).
+ *
+ * **THE ONE REFERENCE A CROSSING CAN BREAK IS A `ref`**, and it is worth
+ * spelling because `ref` and `node` are two promises rather than two words.
+ * `node` is EXISTENCE, which an id surviving is exactly enough for. `ref`
+ * additionally asserts ANCESTRY — the value is a child of the declaration's
+ * `under` root (./typing.ts's `variantsOf`) — so moving the ROOT carries its
+ * variants and every `ref` holds, while moving one VARIANT out of that root
+ * makes each `ref` at it `bad-prop`. That one is REFUSED at the write gate,
+ * with nothing written at either end, which is the law working rather than a
+ * hole: the whole set is judged before either file is.
  *
  * **`parent` IS STILL SAME-FILE BY THE FORMAT**, and that has not changed: a
  * `.olai` is an independent tree and a record's parent lives in its own file.

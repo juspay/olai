@@ -1054,6 +1054,68 @@ test("move_node with a `file` lands the subtree at that outline's top level", as
   )
 })
 
+/**
+ * The one typed reference a crossing can break, met where an agent meets it —
+ * at the GATE, which is the half a `validate` over the planner's records is
+ * only a proxy for.
+ *
+ * `ref` asserts ancestry under a declared root and `node` asserts existence
+ * (`@olai/format`'s `wrongRef` / `wrongNode`); an id surviving a move is enough
+ * for the second and not for the first. So moving a VARIANT out of its root
+ * makes every `ref` at it `bad-prop`, and the whole set is judged before either
+ * file is written — which is the law working, and is why this is a refusal with
+ * nothing on disk rather than a hole.
+ */
+test("move_node is refused when it would take a `ref` variant out of its root", async () => {
+  await withTools(
+    {
+      "_olai/Properties.olai":
+        `{"id":"prop-agent","ord":"a0","title":"agent","custom":{"type":"ref","under":"roster"}}\n`,
+      "agents.olai": [
+        `{"id":"roster","ord":"a0","title":"the agents"}`,
+        `{"id":"claude","parent":"roster","ord":"a0","title":"Claude"}`,
+        "",
+      ].join("\n"),
+      "lanes.olai": [
+        `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent":"claude"}}`,
+        `{"id":"elsewhere","ord":"a1","title":"somewhere else entirely"}`,
+        "",
+      ].join("\n"),
+    },
+    async ({ client, read }) => {
+      const agents = read("agents.olai")
+      const lanes = read("lanes.olai")
+
+      const out = await call(client, "move_node", { id: "claude", parent: "elsewhere" })
+      expect(out.isError).toBe(true)
+      // The gate's own shape: the summary says nothing was written, and the
+      // validator's rows say WHY, with the `file:line` of the record that can
+      // no longer say what it says.
+      expect(out.structured).toMatchObject({
+        kind: "validation",
+        reason: "`move: Claude` would leave the outlines invalid, so nothing was written",
+      })
+      const rows = out.structured["errors"] as ReadonlyArray<Record<string, unknown>>
+      expect(rows).toHaveLength(1)
+      expect(rows[0]).toMatchObject({ file: "lanes.olai", line: 1, code: "bad-prop" })
+      expect(String(rows[0]?.["message"])).toContain("`agent`")
+      expect(String(rows[0]?.["message"])).toContain("`roster`")
+      // NEITHER end was rewritten, which is the whole point of judging both
+      // files as one set: the outline it was leaving is untouched too.
+      expect(read("agents.olai")).toBe(agents)
+      expect(read("lanes.olai")).toBe(lanes)
+
+      // …and moving the ROOT is fine, because the subtree travels and the
+      // variants keep the parent they had.
+      const root = await call(client, "move_node", { id: "roster", parent: "elsewhere" })
+      expect(root.isError).toBe(false)
+      expect(read("agents.olai")).toBe("")
+      expect(read("lanes.olai")).toContain(`{"id":"claude","parent":"roster"`)
+      expect(read("lanes.olai")).toContain(`"custom":{"agent":"claude"}`)
+    },
+  )
+})
+
 /** The one rule the crossing adds, met where an agent meets it: the trash has
  *  two verbs of its own, and this is neither of them. */
 test("move_node refuses a trash at either end, toward the verb that does that job", async () => {
