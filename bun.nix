@@ -303,6 +303,7 @@
   "@olai/format" = copyPathToStore ./packages/format;
   "@olai/git" = copyPathToStore ./packages/git;
   "@olai/identity" = copyPathToStore ./packages/identity;
+  "@olai/index" = copyPathToStore ./packages/index;
   "@olai/log" = copyPathToStore ./packages/log;
   "@olai/ops" = copyPathToStore ./packages/ops;
   "@olai/server" = copyPathToStore ./packages/server;

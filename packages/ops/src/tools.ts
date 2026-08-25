@@ -107,6 +107,7 @@ import {
   type WriteRequest as Request,
   type WriteResult as Applied,
 } from "@olai/format"
+import type { Index } from "@olai/index"
 
 import * as Query from "./query.ts"
 
@@ -241,6 +242,13 @@ export interface Asking {
 export const asking = (
   read: Effect.Effect<Reading, OpFailure>,
   now: () => string,
+  /** THE DIRECTORY'S SEARCH INDEX, when there is one — carried through to the
+   *  one question of the six that reads the whole corpus to answer
+   *  ({@link ./query.ts}'s `search`, which says what it does with it). It is
+   *  here for the clock's reason exactly: this is a table over ONE served
+   *  directory, and the layer that owns a directory's long-lived things is the
+   *  one that builds this envelope. Absent is a working search that walks. */
+  index?: Index | undefined,
 ): Asking => ({
   outlines: Effect.map(read, (at) => ({
     outlines: Query.outlines(at.set, at.derived),
@@ -253,7 +261,7 @@ export const asking = (
   // path that is not an outline is a refusal carrying the closest one that is.
   subtree: (request) =>
     Effect.flatMap(read, (at) => Effect.fromResult(Query.subtree(at, request))),
-  search: (request) => Effect.map(read, (at) => Query.search(at, request, now())),
+  search: (request) => Effect.map(read, (at) => Query.search(at, request, now(), index)),
   documents: Effect.map(read, (at) => ({ documents: Query.documents(at.set) })),
   // THE OTHER READ THAT CAN REFUSE FROM THE WALK ITSELF. Four of the six answer
   // from the snapshot alone, so their envelope is a `map` and the failure

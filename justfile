@@ -223,7 +223,7 @@ nix:
 hm-module:
     nix build .#checks.$(nix eval --impure --raw --expr builtins.currentSystem).hm-module --no-link --accept-flake-config
 
-# What a keystroke costs, on a generated vault. FIVE of them, and each is a
+# What a keystroke costs, on a generated vault. SIX of them, and each is a
 # LEG rather than a scratch file, because slice 3 of `model-indices` ran its
 # numbers as a one-off and a benchmark nobody can re-run is a number nobody can
 # check — and deliberately NOT a dependency of `check`, since a timing that
@@ -259,6 +259,21 @@ hm-module:
 #     it literally stood; what the wider index costs the FOLD, and what the tag
 #     WALK under it costs in the three shapes it has been written in, are the
 #     two pairs the first leg prints at the end;
+#   - the SEARCH INDEX, timed as the thing every door that searches the
+#     DIRECTORY pays per query: one query answered off the trigram table against
+#     the same query answered by walking every record and every body
+#     (`packages/index/src/index.bench.ts`, added with `@olai/index` — the
+#     roadmap node asked for "a benchmark of body-scan cost at realistic vault
+#     sizes, so adoption is a number, not a feeling"). It prints a SPREAD rather
+#     than one ratio, because what an index is worth is what it throws away: a
+#     rare word is answered in a fraction of a millisecond and a word in nine
+#     records out of ten is declined outright, since walking is cheaper than
+#     finding out. Under it are the two maintenance arms — what one write costs
+#     the table, and what a query at an unmoved revision costs, which is the
+#     number that has to be near zero because it is paid forever. It runs the
+#     same generated vault as the three above, with PROSE added: a vault whose
+#     documents are empty measures the body scan at zero, which is the one thing
+#     search actually spends its milliseconds on (OLAI_BENCH_DOCS sizes it);
 #   - the DAY READINGS, each timed as an index read against the corpus walk it
 #     replaced (`packages/format/src/dates.bench.ts`, added with `Derived.byDay`
 #     — the roadmap node `perf-dates-index` named three full-vault walks, so it
@@ -274,10 +289,10 @@ hm-module:
 #     directory of outlines — and the two arms must answer the same listing or
 #     the run fails.
 #
-# Three of the five run the SAME generated vault (`@olai/format/testlib`'s
-# `vaultOf` — the patcher, the tag completion and the day readings), so what a
-# write costs the view and what a completion or a calendar asks of the view it
-# leaves are numbers about one directory; the
+# Four of the six run the SAME generated vault (`@olai/format/testlib`'s
+# `vaultOf` — the patcher, the tag completion, the day readings and the search
+# index), so what a write costs the view and what a completion, a calendar or a
+# search box asks of the view it leaves are numbers about one directory; the
 # matcher generates a corpus of its own, sized for keystrokes rather than for a
 # directory, and the document listing another, sized for a vault of `.md`. The
 # MERGE under all of
@@ -292,6 +307,7 @@ bench: install
     {{ nix_shell }} bun packages/format/src/filter.bench.ts
     {{ nix_shell }} bun packages/format/src/vocabulary.bench.ts
     {{ nix_shell }} bun packages/format/src/dates.bench.ts
+    {{ nix_shell }} bun packages/index/src/index.bench.ts
     {{ nix_shell }} bun packages/ops/src/documents.bench.ts
 
 # A worktree-local wrapper the e2e harness can spawn (`OLAI_BIN=` this)
