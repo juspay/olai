@@ -11,8 +11,8 @@
  *
  * ## The path
  *
- *     $XDG_STATE_HOME/olai/validate-shadow.jsonl
- *     (~/.local/state/olai/validate-shadow.jsonl by default)
+ *     $XDG_STATE_HOME/olai/validate-shadow.ndjson
+ *     (~/.local/state/olai/validate-shadow.ndjson by default)
  *
  * ONE FILE PER USER rather than one per served directory, and the entries carry
  * the vault they are about ({@link Entry.cwd}). The reader is a script that
@@ -24,8 +24,15 @@
  * not one JSON object read back whole), so it names the home and writes its own
  * line.
  *
- * JSONL, appended, one entry per divergence. An empty or absent file is the
- * answer the flip is gated on.
+ * One object per line, appended, one line per divergence. An empty or absent
+ * file is the answer the flip is gated on.
+ *
+ * `.ndjson` AND NOT THE OTHER SPELLING of the same thing, which is a rule this
+ * repository sweeps for rather than a preference: the extension olai's own
+ * outlines used to carry is a RECORD OF THE PAST, and
+ * `packages/tests/extension.test.ts` fails on any file that still writes it —
+ * so that somebody who meets one on disk knows it is a vault nobody has
+ * renamed, and never something olai wrote yesterday.
  *
  * ## What it must not do
  *
@@ -60,7 +67,7 @@ export interface Entry extends Divergence {
 /** The one path, named once. Read at call time rather than at import, so a test
  *  can point `XDG_STATE_HOME` somewhere of its own — which is exactly what the
  *  e2e harness does per worker. */
-export const divergenceLog = (): string => join(stateHome(), "validate-shadow.jsonl")
+export const divergenceLog = (): string => join(stateHome(), "validate-shadow.ndjson")
 
 /**
  * Install this process's witness, for the life of the enclosing scope.

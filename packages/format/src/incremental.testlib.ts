@@ -42,6 +42,7 @@ import type { Document } from "./document.ts"
 import type { OutlineError } from "./errors.ts"
 
 import { type Corpus, corpusOf, editOf, FILES, pick } from "./corpora.testlib.ts"
+import { fileKind } from "./kinds.ts"
 import { byPath } from "./paths.ts"
 import { decodedVault } from "./scope.testlib.ts"
 import { assemble, nodesIn } from "./set.ts"
@@ -433,8 +434,12 @@ export const edited = (
   random: () => number,
   many: number,
 ): ReadonlyArray<Revision> => {
-  const outlines = [...vault.keys()].filter((file) => file.endsWith(".olai"))
-  const documents = [...vault.keys()].filter((file) => file.endsWith(".md"))
+  // ASKED OF THE REGISTRY, never of the spelling — `packages/tests/kinds.test.ts`
+  // sweeps the tree for a suffix written out anywhere but `./kinds.ts`, and it
+  // is the same rule for a harness as for a rule: the day a kind grows a second
+  // extension, a `.endsWith` here goes on quietly reading half the vault.
+  const outlines = [...vault.keys()].filter((file) => fileKind(file) === "outline")
+  const documents = [...vault.keys()].filter((file) => fileKind(file) === "document")
   let held = new Map(vault)
   const stream: Array<Revision> = [held]
   for (let at = 0; at < many; at++) {

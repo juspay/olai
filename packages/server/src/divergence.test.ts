@@ -64,11 +64,11 @@ const homed = (): string => fs.mkdtempSync(path.join(os.tmpdir(), "olai-divergen
 test("the log is one file under the state home, named for what it holds", () => {
   const home = homed()
   under(home, (at) => {
-    expect(at).toEqual(path.join(home, "olai", "validate-shadow.jsonl"))
+    expect(at).toEqual(path.join(home, "olai", "validate-shadow.ndjson"))
   })
 })
 
-test("a divergence lands in it as one JSON line, with the vault it was about", () => {
+test("a divergence lands in it as one line of JSON, with the vault it was about", () => {
   const home = homed()
   const written = under(home, () => {
     witnessOf("/some/vault", SAY)(DIVERGED)
