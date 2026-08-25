@@ -60,12 +60,24 @@
  * spends it once where it used to flatten the set a second time to check this
  * one against ({@link ./validate.ts}'s `isSet`).
  *
+ * AND A TOUCHED KEY IS SPLICED, NOT REBUILT. Every step above is bounded by
+ * what the edit touched, and one line used not to be: a key an edit reached was
+ * copied whole and sorted again, so typing in any file that mentions `#kitchen`
+ * re-sorted every `#kitchen` record in the directory. What a key costs now is
+ * the members the touched files take out of it and a binary search per member
+ * they put back ({@link spliced}), which is the same bound as everything else
+ * here — and it is bought with the order the indexes already promise, so it is
+ * the derivation's own answer reached without asking for it twice.
+ *
  * WHAT IT ASSUMES ABOUT ITS INPUT, said out loud because it is not checked: the
  * view it is handed is one of an ASSEMBLED set — files in path order, records
  * in line order within a file ({@link ./set.ts}'s `assemble`) — and the records
  * an upsert carries are that file's own. That is the order every published set
  * has, and the order this answers in; a view derived from some other order is
- * not wrong here, it is simply not the set this describes.
+ * not wrong here, it is simply not the set this describes. THE INDEXES ARE THE
+ * SAME ASSUMPTION one level on, and the splice is what spends it: a key's
+ * members are in the order that index promises them in, and its day tallies are
+ * its day buckets counted.
  */
 
 import {
@@ -320,6 +332,16 @@ interface Refiled<T> {
    *  second time from the delta would be a second spelling of what a record
    *  puts on a day, which is the drift the shared fold exists to stop. */
   readonly keys: ReadonlySet<string>
+  /** WHAT ARRIVED at each of those keys and WHAT LEFT them — the two folds this
+   *  ran, handed on rather than thrown away.
+   *
+   *  Spent by the same one caller ({@link owing}), and for the reason
+   *  {@link Refiled.keys} is: a day's tally is its members counted, so the
+   *  DIFFERENCE between the two sides is the difference in the tally, and a
+   *  step that asked the delta for it again would be a second spelling of what
+   *  a record puts on a day. Both are empty when the edit named no key. */
+  readonly arriving: ReadonlyMap<string, ReadonlyArray<T>>
+  readonly departing: ReadonlyMap<string, ReadonlyArray<T>>
   /** Whether any key's FIRST member sits somewhere else now. A key sits where
    *  the record that opens it sits in a map a single walk of the corpus built,
    *  so this is what `namedBy` rebuilds for. Strictly wider than
@@ -362,7 +384,9 @@ const refiled = <K extends Listed, Filed extends Member<K> = Member<K>>(
 
   const keys = new Set<string>(arriving.keys())
   for (const key of departing.keys()) keys.add(key)
-  if (keys.size === 0) return { map: before, keys, rekeyed: false, headMoved: false }
+  if (keys.size === 0) {
+    return { map: before, keys, arriving, departing, rekeyed: false, headMoved: false }
+  }
 
   /** Where a key's members START, which is where the key itself sits in a map
    *  the corpus was walked once to build. */
@@ -371,9 +395,13 @@ const refiled = <K extends Listed, Filed extends Member<K> = Member<K>>(
     return first === undefined ? undefined : at(first)
   }
   /** Wrapped ONCE, above the loop that spends it, for the reason {@link namedIn}
-   *  is: this is handed to a sort per touched key, and a closure minted inside
+   *  is: this is handed to a splice per touched key, and a closure minted inside
    *  would be one throwaway per key rather than one per index. */
   const inOrder = (one: Member<K>, other: Member<K>): number => order(at(one), at(other))
+  /** Which of a key's standing members this edit TAKES OUT: the ones in a file
+   *  the delta named, whose records the arriving side is re-filing. Wrapped once
+   *  for {@link inOrder}'s reason. */
+  const departed = (one: Member<K>): boolean => edit.touched.has(at(one).file)
 
   const map = carrying(edit.before, index) as unknown as Editable<
     string,
@@ -383,15 +411,162 @@ const refiled = <K extends Listed, Filed extends Member<K> = Member<K>>(
   let headMoved = false
   for (const key of keys) {
     const held = before.get(key)
-    const own = [
-      ...(held ?? []).filter((one) => !edit.touched.has(at(one).file)),
-      ...(arriving.get(key) ?? []),
-    ].sort(inOrder)
+    // SPLICED into the list that stood rather than copied out of it and sorted
+    // again — the one line this whole index step costs per touched key, and
+    // {@link spliced} is where the promise it leans on is argued.
+    const own = spliced(held ?? NOTHING, arriving.get(key) ?? NOTHING, departed, inOrder)
     // One true answer settles it, and three of the four callers never ask.
     if (!headMoved && elsewhere(head(held), head(own))) headMoved = true
     if (filedAt(map, key, own, own.length > 0)) rekeyed = true
   }
-  return { map: map.sealed(), keys, rekeyed, headMoved }
+  return { map: map.sealed(), keys, arriving, departing, rekeyed, headMoved }
+}
+
+/**
+ * ONE KEY'S MEMBERS ACROSS THE EDIT — spliced into the list that stood, never
+ * copied out of it and sorted again.
+ *
+ * THE LIST IT IS HANDED IS ALREADY IN THE ORDER IT PROMISES, and that is a
+ * promise this file is entitled to spend rather than a hope: corpus order is
+ * what every reverse index here MEANS ({@link ./derive.ts}'s `byCorpus` says so
+ * beside the indexes it orders), so it is what a rebuild leaves behind and what
+ * the patch before this one handed on. So what an edit does to a key is a
+ * SPLICE — the touched files' members leave from wherever they sat, the
+ * arriving ones go in where the order puts them — and every other member of
+ * that key is already where it belongs.
+ *
+ * WHAT IT REPLACES was a copy and a re-sort of the WHOLE key: `n log n`
+ * comparisons over every member a key holds to move the two or three a
+ * keystroke touched. `#kitchen` holds a member per record in the directory that
+ * mentions it, and typing in any one of those files re-sorted all of them —
+ * inside a function whose whole claim is that it costs what the edit touched
+ * and not what the directory holds (`perf-key-resort`; the header's bound
+ * covered the folds above this and not this line).
+ *
+ * WHAT IT COSTS INSTEAD is one pass over the members to take the departing ones
+ * out, and a BINARY SEARCH per arriving one to find where it goes — `k log n`
+ * comparisons of a comparator that compares two paths, where `k` is the touched
+ * files' records. The ARRAY is still built entry by entry and that is not a cost
+ * this can take off: the list a reader is already holding must not move under
+ * them ({@link patched}'s copy-on-write), so a new revision needs a new array
+ * whatever it is filled from. What it can take off is every comparison but the
+ * ones the edit really needs.
+ *
+ * TIES ARE THE REBUILD'S TIES, which is what makes this exchangeable for it
+ * rather than merely equal on the easy cases. `Array.prototype.sort` is stable,
+ * and the rebuild sorted the survivors followed by the arrivals — so a survivor
+ * came before an arrival it compares equal to, and equal arrivals stayed in the
+ * order the fold filed them. Here an arrival is placed AFTER every member it
+ * compares equal to ({@link placeFor}) and the arrivals are sorted among
+ * themselves by the same stable sort, which is the same answer reached from the
+ * other side. `./splice.test.ts` is the differential that holds the two arms to
+ * it, with that rebuild standing as the reference arm.
+ *
+ * AND HALF OF THAT RULE IS NOT REACHABLE TODAY, which the differential found
+ * out and is worth having written down: a survivor is in a file the delta did
+ * not name and an arrival is in one it did, while every order these four
+ * indexes use ties only INSIDE ONE FILE — so no real key can put an arrival
+ * beside a member it cannot be told apart from, and the placement would answer
+ * the same either way. It is written the rebuild's way regardless, and held to
+ * the rebuild's way by a pair of keys that suite writes by hand over a
+ * comparator that ties everything: an index filed under something coarser would
+ * make this line load-bearing overnight, and what it would cause then is a
+ * silent reordering rather than anything that fails.
+ *
+ * IT MAY HAND BACK WHAT IT WAS GIVEN — the list that stood, when the edit took
+ * nothing out of this key and put nothing in it; the arrivals, when nothing of
+ * the key survived. That is {@link refiled}'s own economy one level down, and it
+ * is safe for the reason that one is: what this hands back is stored and never
+ * written to, so a key nothing moved does not pay a copy of itself.
+ *
+ * EXPORTED FOR THE DIFFERENTIAL and for nothing else. What holds it to the
+ * rebuild is a property test over generated keys and over the members a real
+ * directory's indexes hold, and a differential that could not call this
+ * function would have to keep a second copy of it to test.
+ */
+export const spliced = <T>(
+  /** The key's members as the view that is being patched holds them — in
+   *  `order`, which is the assumption above and is not checked. */
+  held: ReadonlyArray<T>,
+  /** What the touched files put under this key now, in whatever order the fold
+   *  filed them, which is the delta's and is nobody's promise. */
+  arriving: ReadonlyArray<T>,
+  /** Whether a standing member is one the edit takes out. */
+  left: (one: T) => boolean,
+  order: (one: T, other: T) => number,
+): ReadonlyArray<T> => {
+  const kept = surviving(held, left)
+  if (arriving.length === 0) return kept
+  const coming = arriving.length > 1 ? [...arriving].sort(order) : arriving
+  if (kept.length === 0) return coming
+  const own: Array<T> = []
+  let from = 0
+  for (const one of coming) {
+    const to = placeFor(kept, one, order, from)
+    for (let at = from; at < to; at++) own.push(kept[at] as T)
+    own.push(one)
+    // The arrivals are in order, so their places are too: the next one cannot
+    // go anywhere this one did not reach, and the search after it starts here.
+    from = to
+  }
+  for (let at = from; at < kept.length; at++) own.push(kept[at] as T)
+  return own
+}
+
+/** A key's members with the departing ones taken out, IN THE ORDER THEY WERE —
+ *  which is the whole of why a removal needs no sort: taking members out of a
+ *  sorted list leaves a sorted list.
+ *
+ *  Nothing is copied until something actually leaves, so a key that only GAINED
+ *  members is handed its own list straight back and {@link spliced} splices into
+ *  that. It is the case a growing tag is in on most edits. */
+const surviving = <T>(held: ReadonlyArray<T>, left: (one: T) => boolean): ReadonlyArray<T> => {
+  let gone = -1
+  for (let at = 0; at < held.length; at++) {
+    if (left(held[at] as T)) {
+      gone = at
+      break
+    }
+  }
+  if (gone < 0) return held
+  const kept = held.slice(0, gone)
+  for (let at = gone + 1; at < held.length; at++) {
+    const one = held[at] as T
+    if (!left(one)) kept.push(one)
+  }
+  return kept
+}
+
+/**
+ * WHERE AN ARRIVING MEMBER GOES: the first index of `within` that sorts AFTER
+ * it, by binary search, at or past `from`.
+ *
+ * PAST THE EQUALS rather than before them, which is the rebuild's tie said out
+ * loud ({@link spliced} argues it, and says why no key of these four indexes
+ * can currently ask): the rebuild this stands in for sorted the survivors
+ * followed by the arrivals with a stable sort, so an arrival sits after every
+ * member it cannot be told apart from.
+ *
+ * `from` is what makes a key's arrivals cost `k log n` rather than `k` searches
+ * of the whole list — they are sorted, so each one's place is at or past the
+ * last one's. {@link ./derive.ts}'s `dayAt` is the same search over the day
+ * line, and is not this one: that answers where a day WOULD go among strings,
+ * this answers where a member goes among members.
+ */
+const placeFor = <T>(
+  within: ReadonlyArray<T>,
+  one: T,
+  order: (a: T, b: T) => number,
+  from: number,
+): number => {
+  let low = from
+  let high = within.length
+  while (low < high) {
+    const middle = (low + high) >>> 1
+    if (order(within[middle] as T, one) > 0) high = middle
+    else low = middle + 1
+  }
+  return low
 }
 
 /**
@@ -652,8 +827,15 @@ const elsewhere = (one: Located | undefined, other: Located | undefined): boolea
  * two directions — has to say. Two records with the same `ord` on the same line
  * are in different files by definition, and corpus order is where the rebuilt
  * view puts them.
+ *
+ * Exported for the differential, which holds {@link spliced} to the rebuild it
+ * replaced over every key of all four indexes ({@link ./splice.test.ts}).
+ * {@link ./derive.ts} exports {@link byCorpus} to this file in the same words
+ * and for the same reason: a harness that spelled the comparator itself would
+ * be a second opinion about the tie, and the tie is the one thing the splice
+ * has to say out loud that the rebuild got from a stable sort.
  */
-const bySibling = (a: Located, b: Located): number => byOrd(a, b) || byCorpus(a, b)
+export const bySibling = (a: Located, b: Located): number => byOrd(a, b) || byCorpus(a, b)
 
 /** What an id NAMES in a view — {@link Derived.after}'s own canonicalisation,
  *  asked of one side of the edit or the other. It is why an edge in a file the
@@ -809,22 +991,22 @@ const dating = (edit: Edit): Journal => {
   // same way it does next door: the map that stood IS the answer and no clone
   // is paid at all — a keystroke in an outline nobody scheduled anything in,
   // which is most outlines.
-  const { map, keys, rekeyed } = refiled(edit, "byDay", {
+  const moved = refiled(edit, "byDay", {
     into: dateInto,
     at: (one) => one.at,
   })
   // Whether the KEYS moved is the only thing that costs the sort. A day that
   // gains or loses a record is not that; a day that appears or empties is.
-  const byDay = inKeyOrder(map, rekeyed, byDayKey)
+  const byDay = inKeyOrder(moved.map, moved.rekeyed, byDayKey)
   return {
     byDay,
-    owedByDay: owing(edit, byDay, keys),
+    owedByDay: owing(edit, moved),
     // THE DAY LINE IS THE KEYS, so it is remade exactly when they moved — the
     // same one edit in many that pays for the sort above, and never a keystroke
     // in a scheduled outline that merely retitled a row. Carried by REFERENCE
     // otherwise: the array a reader was handed is the array the next view has,
     // which is what `byDay` itself gets from {@link refiled} one line up.
-    days: rekeyed ? [...byDay.keys()] : edit.before.days,
+    days: moved.rekeyed ? [...byDay.keys()] : edit.before.days,
   }
 }
 
@@ -839,11 +1021,23 @@ interface Journal {
 /**
  * How much each day OWES — {@link Derived.owedByDay} carried across the edit.
  *
- * COUNTED OUT OF THE BUCKETS {@link dating} HAS JUST RE-FILED, never folded a
- * second time over the records: a day's owed tally is {@link owingOn} of that
- * day's list, so the days whose tallies can have moved are exactly the keys
- * {@link refiled} touched, and asking the delta again for them would be a
- * second spelling of what a record puts on a day.
+ * COUNTED OUT OF WHAT MOVED, never out of the bucket. A day's tally is
+ * {@link owingOn} of that day's members, and the members that changed are the
+ * ones {@link refiled} took out and put in — so the tally moves by exactly
+ * `owingOn(arrived) - owingOn(left)`, and the survivors, which are all the rest
+ * of the day, are counted by the number the last view already carried. It is
+ * {@link spliced}'s discipline said about a COUNT rather than a list, and the
+ * same cost it takes off: a busy day is one a decade of habit has put a hundred
+ * records on, and recounting it because a keystroke landed on one of them is
+ * the corpus paid for what the edit touched (`perf-key-resort`).
+ *
+ * IT IS THE ONE STEP HERE THAT SPENDS AN INDEX'S OWN PROMISE ABOUT ANOTHER, and
+ * it is said out loud because it is not checked: `owedByDay` IS `byDay` counted
+ * (`./derive.ts` builds them in one walk and this file keeps them together), so
+ * a view whose two disagreed would have this carry the disagreement forward
+ * rather than recount its way out of it. That is the same class of assumption
+ * as the corpus order {@link spliced} leans on, and the same thing holds both:
+ * the oracle compares the whole view, both indexes in it.
  *
  * ITS OWN KEY SET, and therefore its own sort. A day drops out of THIS index
  * the moment its last unfinished task is finished, while the day itself stays
@@ -862,9 +1056,9 @@ interface Journal {
  */
 const owing = (
   edit: Edit,
-  byDay: ReadonlyMap<string, ReadonlyArray<Dated>>,
-  keys: ReadonlySet<string>,
+  moved: Pick<Refiled<Dated>, "keys" | "arriving" | "departing">,
 ): ReadonlyMap<string, number> => {
+  const { keys, arriving, departing } = moved
   // NO DAY TOUCHED, so no tally can have moved: the map that stood is the
   // answer, uncloned and handed straight on — {@link refiled}'s own economy, and
   // the reason this step asks it for the keys rather than for a flag.
@@ -873,11 +1067,13 @@ const owing = (
   let map: Editable<string, number> | undefined
   let rekeyed = false
   for (const key of keys) {
-    const owed = owingOn(byDay.get(key) ?? [])
-    // ABSENCE IS ZERO on both sides, which is what makes this comparison the
-    // whole answer: a day that owed nothing and owes nothing has no key here
-    // either way, so there is nothing to write and nothing to delete.
-    if (owed === (before.get(key) ?? 0)) continue
+    // ABSENCE IS ZERO on both sides, which is what makes the comparison below
+    // the whole answer: a day that owed nothing and owes nothing has no key
+    // here either way, so there is nothing to write and nothing to delete.
+    const held = before.get(key) ?? 0
+    const owed = held - owingOn(departing.get(key) ?? NOTHING) +
+      owingOn(arriving.get(key) ?? NOTHING)
+    if (owed === held) continue
     map ??= carrying(edit.before, "owedByDay")
     if (filedAt(map, key, owed, owed > 0)) rekeyed = true
   }
