@@ -157,18 +157,18 @@ export const documentsAmong = (paths: Iterable<string>): ReadonlyArray<string> =
 export type Revision = ReadonlyMap<string, string>
 
 /**
- * WHERE THE GENERATED FILES GO.
+ * WHERE THE GENERATED OUTLINES GO.
  *
  * Mostly flat, and deliberately not entirely: two of every seven sit in a
  * directory, and one in seven in a directory NAMED after a file beside it —
  * the pair the two readings of path order used to disagree about, which is a
  * corner this index inherits because its members are in path order.
  */
-const pathOf = (which: number, suffix: string): string => {
+const pathOf = (which: number): string => {
   const at = which % 7
-  if (at === 6) return `wing/held${which}${suffix}`
-  if (at === 5) return `deep/held${which}${suffix}`
-  return `held${which}${suffix}`
+  if (at === 6) return `wing/held${which}.olai`
+  if (at === 5) return `deep/held${which}.olai`
+  return `held${which}.olai`
 }
 
 /** …and the one FILE the directory called `wing/` also holds a file named
@@ -312,7 +312,7 @@ export const linkyVault = (
   const targets = targetsIn(bodyPaths)
   const vault = new Map<string, string>()
   for (let at = 0; at < outlines; at++) {
-    const file = at === 0 ? WING : at === 1 ? TRASH : pathOf(at, ".olai")
+    const file = at === 0 ? WING : at === 1 ? TRASH : pathOf(at)
     vault.set(file, outlineWritten(random, file, idsFor(at, records), targets))
   }
   for (const file of bodyPaths) vault.set(file, bodyOf(random, file, HEADINGS, targets))
