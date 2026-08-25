@@ -7,8 +7,8 @@
  * every entry, so one keystroke saved into one outline of a two-thousand-file
  * vault paid about three maps of two thousand keys. It now CARRIES those maps,
  * writing only the files a probe moved into them and rebuilding one only where
- * a key was BORN ({@link ./published.ts}). That is a claim about cost, and this
- * is the number for it.
+ * THAT COLLECTION's membership moved ({@link ./published.ts}). That is a claim
+ * about cost, and this is the number for it.
  *
  * BOTH ARMS ARE IN THE TREE, which is what this repository requires of a pair
  * of figures: the "before" is the walk kept as the differential's reference
@@ -44,15 +44,17 @@
  *
  * THREE REVISIONS, because a collection is carried, written into or rebuilt and
  * the three cost differently: ONE FILE SAVED is the commonest revision there is
- * and the one the whole change is about; A FILE CREATED is the one thing that
- * still rebuilds a map, so its row is what the change did NOT buy; and a
+ * and the one the whole change is about; A FILE CREATED is a membership change,
+ * which is the one thing that still rebuilds — its row is what the change did
+ * NOT buy, and it rebuilds TWO of the three rather than all of them, since the
+ * documents collection gains no key when an outline arrives; and a
  * `git pull` moving twenty files at once is the burst the store coalesces into
  * a single revision.
  *
  * Size the vault with OLAI_BENCH_FILES / OLAI_BENCH_RECORDS.
  */
 
-import type { Reading } from "@olai/format"
+import { bodyKind, FILE_KINDS, type Reading } from "@olai/format"
 import { median, runtimeSaid, timed, vaultOf } from "@olai/format/testlib"
 import type { Snapshot } from "@olai/store"
 
@@ -64,6 +66,10 @@ import {
   revisionsOf,
   type Step,
 } from "./published.testlib.ts"
+
+/** The suffix a new file is minted with, read off the REGISTRY rather than
+ *  written out — see the note on the two lists below. */
+const OUTLINE = FILE_KINDS.outline.exts[0]
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1200)
 const RECORDS = Number(process.env["OLAI_BENCH_RECORDS"] ?? 20)
@@ -83,8 +89,12 @@ const vault = ((): ReadonlyMap<string, string> => {
   return files
 })()
 
-const outlines = [...vault.keys()].filter((file) => file.endsWith(".olai"))
-const documents = [...vault.keys()].filter((file) => file.endsWith(".md"))
+// WHICH KIND A PATH IS, asked of the REGISTRY rather than of its spelling —
+// `@olai/format`'s `kinds.ts` is the one place that says what a file of the set
+// is, and an `endsWith` here would be a second answer to it (the sweep in
+// `@olai/tests`' `kinds.test.ts` fails a run over one).
+const outlines = [...vault.keys()].filter((file) => bodyKind(file) === null)
+const documents = [...vault.keys()].filter((file) => bodyKind(file) === "document")
 
 /** One outline's worth of JSONL, minted per revision so no two writes of a file
  *  are the same bytes. */
@@ -99,7 +109,7 @@ const minted = (at: number): string =>
  *  corpus's whole history. */
 const SHAPES: ReadonlyArray<readonly [string, (at: number) => Step]> = [
   ["one file saved", (at) => ({ writes: [[outlines[at % outlines.length] as string, minted(at)]] })],
-  ["a file created", (at) => ({ writes: [[`born${at}.olai`, minted(at)]] })],
+  ["a file created", (at) => ({ writes: [[`born${at}${OUTLINE}`, minted(at)]] })],
   [
     "a `git pull` — 20 files",
     (at) => ({

@@ -111,6 +111,44 @@ test("only the files the probe re-decoded are upserted", () => {
   // The document that moved in the same tick is the OTHER collection's upsert,
   // and each one names only its own keys.
   expect(published.documents.upserts.map(([path]) => path)).toEqual(["notes.md"])
+  // ...AND THE MAP AGREES WITH THE DELTA, which is the assertion this fixture
+  // was one line short of and the whole of grok's MUST on `bcc15008`. The
+  // revision drops an outline and adds a `.md`, so the DIRECTORY holds two files
+  // before and two after and the outlines birth nothing — and a rule that read
+  // membership off that count would carry a map still holding `garden.olai`,
+  // telling an open subscriber to drop a key every fresh one would go on
+  // reading. What a collection HOLDS and what it SAID have to be the same thing
+  // in both directions.
+  expect(published.outlines.entries.has("garden.olai")).toBe(false)
+  expect([...published.outlines.entries.keys()]).toEqual(["house.olai"])
+  expect([...published.heads.entries.keys()]).toEqual(["house.olai", "notes.md"])
+})
+
+// ...AND THE INVERSE, because the two collections are two readings of one rule
+// and a fix that only reached the outlines would look exactly like this test
+// passing. A `.md` leaves as an outline arrives: the documents collection is
+// the one that must not keep the key, and the file count is still still.
+test("a key that leaves as another kind arrives is dropped from its own map", () => {
+  const before = publishedOf(
+    revision(setOf({ "house.olai": HOUSE }, [["notes.md", "# hello"]])),
+    NOTHING_HELD,
+  )
+  const published = publishedOf(
+    revision(
+      setOf({ "house.olai": HOUSE, "garden.olai": GARDEN }),
+      { changed: ["garden.olai"], removed: ["notes.md"] },
+      2,
+    ),
+    before,
+  )
+
+  expect(published.documents.removes).toEqual(["notes.md"])
+  expect(published.documents.entries.has("notes.md")).toBe(false)
+  expect([...published.documents.entries.keys()]).toEqual([])
+  expect([...published.outlines.entries.keys()]).toEqual(["garden.olai", "house.olai"])
+  // ...and the file the revision did not touch keeps the entry it was published
+  // with, rebuilt map or not.
+  expect(published.outlines.entries.get("house.olai")?.rev).toBe(1)
 })
 
 // `rev` IS THE CHANGE TOKEN, which is the half of the sentence above two

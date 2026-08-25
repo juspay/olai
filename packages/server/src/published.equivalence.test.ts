@@ -163,6 +163,36 @@ const CORNER_STEPS: ReadonlyArray<Step> = [
   // A DIRECTORY EMPTIED under a file of the same name — the byPath pair, taken
   // apart.
   { deletes: ["wing/kitchen.olai"] },
+  // ── MIXED-KIND MEMBERSHIP AT A CONSTANT FILE COUNT ───────────────────
+  //
+  // AN OUTLINE LEAVES AND A `.md` ARRIVES, in one revision. This is the shape
+  // grok's review of `bcc15008` found and every corpus here had missed: the
+  // DIRECTORY's file count does not move, the outlines birth nothing, and a
+  // rule written against that count would carry a map still holding the key the
+  // store had just named as gone — told to an open subscriber, kept forever by
+  // every fresh one. A `git pull` that rewrites a note as a page is exactly it.
+  {
+    writes: [["swapped.md", "# what the outline used to say\n"]],
+    deletes: ["house.olai"],
+  },
+  // ...AND THE INVERSE, because the two collections are two different pieces of
+  // code reading one rule: a `.md` leaves and an outline arrives.
+  {
+    writes: [["swapped.olai", '{"id":"swapped","ord":"a0","title":"back to records"}']],
+    deletes: ["swapped.md"],
+  },
+  // ...AND THE UNNAMED TWIN, which has no remove on the wire either: the walk's
+  // `readAll` drops the key and a carried map has nothing at all to tell it to.
+  {
+    writes: [["ghosted.md", "# arrived as the other one vanished\n"]],
+    forgotten: ["swapped.olai"],
+  },
+  // ...and one more kind again, since `bodiedIn` is a THREE-kind narrowing: an
+  // unkept file leaves as an outline arrives.
+  {
+    writes: [["revived.olai", '{"id":"revived","ord":"a0","title":"revived"}']],
+    deletes: ["report.html"],
+  },
   // A RESYNC: the file goes and the store names NOBODY as removed, because the
   // stamp table the diff would have been taken against was thrown away first
   // (`Step.forgotten`). This is the one shape every corpus in this file missed
@@ -273,7 +303,7 @@ test("a born key appended rather than placed is caught by the snapshot alone", (
   // subscriber's snapshot arrives in. This is the mutant the `readAll` half of
   // the comparison exists for, and it is the failure this change actually
   // risks: `Map` appends, and the order of `entries` is the set's.
-  expect(report.divergences.join("\n")).toContain("`readAll` of heads at the end")
+  expect(report.divergences.join("\n")).toContain("`readAll` of heads at revision")
   expect(report.divergences.join("\n")).not.toContain("the delta a reader")
 })
 

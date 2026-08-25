@@ -36,14 +36,26 @@
  * `./published.equivalence.test.ts` asserts each is caught, by the delta check
  * and by the `readAll` check respectively.
  *
- * ONE SHAPE IN HERE WAS PUT IN BY A FAILURE rather than by foresight, and it is
- * named so the next reader does not have to rediscover it: a file that leaves
- * in a revision the store cannot NAME ({@link Step.forgotten}, which is what a
- * `resync` produces). Every corpus below missed it and one e2e scenario caught
- * it, because a projection that carries its maps cannot re-derive membership
- * from the set the way the walk did. It is a corpus shape now, and the
- * projection derives membership from the file COUNT rather than trusting
- * `removed` ({@link ./published.ts}'s `same`).
+ * TWO SHAPES IN HERE WERE PUT IN BY A FAILURE rather than by foresight, and
+ * they are named so the next reader does not have to rediscover them. Both are
+ * membership moving in a way the corpus did not think to move it, and both were
+ * invisible to a walk that re-derived membership from the set every revision:
+ *
+ *   - a file that leaves in a revision the store cannot NAME
+ *     ({@link Step.forgotten}, which is what a `resync` produces). Every corpus
+ *     below missed it and one e2e scenario caught it;
+ *   - a MIXED-KIND membership change at a constant file count — an outline
+ *     leaving as a `.md` arrives, and the inverse ({@link stepsOver}'s swap,
+ *     and the hand-written pair in the corners). Every mixed-membership
+ *     revision here used to be same-kind, so a rule written against the
+ *     DIRECTORY's file count read this as no membership change at all and
+ *     carried a map that had just lost a key; grok's review of `bcc15008`
+ *     found it by reading, which is not a way a harness is allowed to be
+ *     beaten twice.
+ *
+ * Each is a corpus shape now, and the projection asks about a COLLECTION's own
+ * keys rather than about the directory ({@link ./published.ts}'s `changeOf`,
+ * with `complete` for the departures nobody names).
  *
  * Nothing here has tests of its own — it is a helper module, not a suite, and
  * `bun test` collects only `*.test.ts`.
@@ -52,10 +64,12 @@
 import {
   assemble,
   bodiedIn,
+  bodyKind,
   bodyOf,
   type BrokenFile,
   faceOf,
   nodesOf,
+  FILE_KINDS,
   type OutlineError,
   outlinesIn,
   type Reading,
@@ -349,97 +363,86 @@ const spelled = (value: unknown): string => {
 
 // ── one side of the comparison ─────────────────────────────────────────
 
-/** What one projection did with the corpus: the frames a reader saw, what a
- *  fresh subscriber would read at the end, and the counters that say the run
- *  was not vacuous. */
-interface Run {
-  readonly offered: ReadonlyArray<string>
-  readonly kept: ReadonlyArray<string>
-  /** `readAll`, per collection — the KEYS IN ORDER and the value at each, since
-   *  the order of `entries` is the order a fresh subscriber's snapshot arrives
-   *  in. */
-  readonly readAll: ReadonlyMap<Which, ReadonlyArray<string>>
-  /** What each open subscriber folded to, BY KEY — a fold's own order is the
-   *  order things arrived and never the listing's, so only what it holds per
-   *  key is a claim. */
-  readonly folded: ReadonlyMap<Which, ReadonlyMap<string, string>>
-  readonly unread: ReadonlyArray<string>
+/**
+ * ONE PROJECTION, MID-REPLAY: what it has published so far and what its readers
+ * have heard.
+ *
+ * The two sides are stepped TOGETHER rather than run one after the other, and
+ * that is not a tidying — it is what makes the snapshot half of the comparison
+ * possible at all. `readAll` has to be compared at EVERY revision, because a
+ * key a carried map wrongly kept is a key a later rebuild silently cleans up:
+ * comparing only the end state means a corpus can hold the bug and go green
+ * because something after it happened to mint a fresh map. (That is exactly how
+ * the mixed-kind corner slipped past a first attempt at these very steps.)
+ * Materialising every revision's snapshot on both sides and comparing
+ * afterwards is not the alternative — that is O(revisions × files) strings held
+ * at once, hundreds of megabytes on the generated vault — so the loop compares
+ * each revision as it makes it and keeps only what diverged.
+ */
+interface Side {
+  readonly projection: Projection
+  held: Published | null
+  readonly readers: ReadonlyMap<Which, Subscriber>
+  readonly offered: Array<string>
+  readonly kept: Array<string>
+  readonly unread: Array<string>
   /** How many (revision × collection) pairs handed back the very map the last
    *  revision did, and how many minted a new one. Measured rather than assumed:
    *  a corpus that never reused a map would prove the equivalence of nothing. */
-  readonly reused: number
-  readonly rebuilt: number
-  readonly upserts: number
-  readonly removes: number
+  reused: number
+  rebuilt: number
+  upserts: number
+  removes: number
 }
 
-const runOf = (
-  revisions: ReadonlyArray<Snapshot<Reading>>,
-  projection: Projection,
-): Run => {
-  const readers = new Map<Which, Subscriber>(
-    COLLECTIONS.map((which) => [which, new Subscriber()] as const),
+const sideOf = (projection: Projection): Side => ({
+  projection,
+  held: null,
+  readers: new Map(COLLECTIONS.map((which) => [which, new Subscriber()] as const)),
+  offered: [],
+  kept: [],
+  unread: [],
+  reused: 0,
+  rebuilt: 0,
+  upserts: 0,
+  removes: 0,
+})
+
+/** One revision, published and folded — the side's own step of the replay. */
+const step = (side: Side, snapshot: Snapshot<Reading>): Published => {
+  const before = new Map<Which, unknown>(
+    COLLECTIONS.map((which) => [which, side.held?.[which].entries] as const),
   )
-  const offered: Array<string> = []
-  const kept: Array<string> = []
-  const unread: Array<string> = []
-  let held: Published | null = null
-  let reused = 0
-  let rebuilt = 0
-  let upserts = 0
-  let removes = 0
-  for (const snapshot of revisions) {
-    const before = new Map<Which, unknown>(
-      COLLECTIONS.map((which) => [which, held?.[which].entries] as const),
-    )
-    const revision = projection(snapshot, held)
-    for (const which of COLLECTIONS) {
-      const change = revision[which] as Change<unknown>
-      if (before.get(which) === undefined) rebuilt += 1
-      else if (before.get(which) === change.entries) reused += 1
-      else rebuilt += 1
-      upserts += change.upserts.length
-      removes += change.removes.length
-      const reader = readers.get(which)!
-      const wasOffered = reader.offered.length
-      const wasKept = reader.kept.length
-      reader.fold(snapshot.rev, which, change)
-      offered.push(...reader.offered.slice(wasOffered))
-      kept.push(...reader.kept.slice(wasKept))
-    }
-    for (const path of revision.unread) unread.push(`rev ${snapshot.rev} unread ${path}`)
-    held = revision
+  const revision = side.projection(snapshot, side.held)
+  for (const which of COLLECTIONS) {
+    const change = revision[which] as Change<unknown>
+    if (before.get(which) !== undefined && before.get(which) === change.entries) {
+      side.reused += 1
+    } else side.rebuilt += 1
+    side.upserts += change.upserts.length
+    side.removes += change.removes.length
+    const reader = side.readers.get(which)!
+    const wasOffered = reader.offered.length
+    const wasKept = reader.kept.length
+    reader.fold(snapshot.rev, which, change)
+    side.offered.push(...reader.offered.slice(wasOffered))
+    side.kept.push(...reader.kept.slice(wasKept))
   }
-  return {
-    offered,
-    kept,
-    readAll: new Map(
-      COLLECTIONS.map((which) => [
-        which,
-        [...(held?.[which].entries ?? new Map()).entries()].map(
-          ([key, value]) => `${key} ${spelled(value)}`,
-        ),
-      ] as const),
-    ),
-    folded: new Map(
-      COLLECTIONS.map((which) => [
-        which,
-        new Map(
-          [...readers.get(which)!.held.entries()].map(
-            ([key, value]) => [key, spelled(value)] as const,
-          ),
-        ),
-      ] as const),
-    ),
-    unread,
-    reused,
-    rebuilt,
-    upserts,
-    removes,
-  }
+  for (const path of revision.unread) side.unread.push(`rev ${snapshot.rev} unread ${path}`)
+  side.held = revision
+  return revision
 }
+
+/** `readAll` of one collection, as the lines a reader compares — the KEYS IN
+ *  ORDER and the value at each, since the order of `entries` is the order a
+ *  fresh subscriber's snapshot arrives in. */
+const snapshotOf = (revision: Published, which: Which): ReadonlyArray<string> =>
+  [...(revision[which] as Change<unknown>).entries].map(
+    ([key, value]) => `${key} ${spelled(value)}`,
+  )
 
 // ── the comparison ─────────────────────────────────────────────────────
+
 
 /**
  * WHAT A RUN OF THE HARNESS SAYS.
@@ -484,8 +487,10 @@ export interface Report {
  *   - the frames a reader was OFFERED, in order — the delta sequence itself;
  *   - the frames it ACCEPTED, which is the same list unless a reused shell
  *     swallowed one (see the header);
- *   - `readAll` at the end, KEYS IN ORDER, because the order of `entries` is
- *     the order a fresh subscriber's snapshot arrives in;
+ *   - `readAll` AT EVERY REVISION, keys in order, because the order of
+ *     `entries` is the order a fresh subscriber's snapshot arrives in — and at
+ *     every revision rather than at the end, because a key a carried map
+ *     wrongly kept is a key a later rebuild silently cleans up ({@link Side});
  *   - and, per side, that an open subscriber's fold holds what a fresh one
  *     reads. That last one is a claim about the WIRE rather than about the
  *     change, and it is exempt for `documents` on purpose: a body the set does
@@ -500,21 +505,33 @@ export const differential = (
   reference: Projection = publishedAsWalked,
 ): Report => {
   const revisions = revisionsOf(vault, steps)
-  const was = runOf(revisions, reference)
-  const now = runOf(revisions, candidate)
-  const divergences: Array<string> = [
+  const was = sideOf(reference)
+  const now = sideOf(candidate)
+  const divergences: Array<string> = []
+  // BOTH SIDES, ONE REVISION AT A TIME, with the snapshot compared where it is
+  // made — see {@link Side}. The delta transcripts are compared afterwards
+  // because they are the size of what MOVED and can be held whole; a snapshot
+  // is the size of the directory and cannot.
+  for (const snapshot of revisions) {
+    const before = step(was, snapshot)
+    const after = step(now, snapshot)
+    if (divergences.length >= LINES) continue
+    for (const which of COLLECTIONS) {
+      divergences.push(
+        ...differing(
+          `\`readAll\` of ${which} at revision ${snapshot.rev}`,
+          snapshotOf(before, which),
+          snapshotOf(after, which),
+        ),
+      )
+    }
+  }
+  divergences.push(
     ...differing("the delta a reader was offered", was.offered, now.offered),
     ...differing("the delta a reader accepted", was.kept, now.kept),
     ...differing("the body owed to a reader", was.unread, now.unread),
-  ]
+  )
   for (const which of COLLECTIONS) {
-    divergences.push(
-      ...differing(
-        `\`readAll\` of ${which} at the end`,
-        was.readAll.get(which)!,
-        now.readAll.get(which)!,
-      ),
-    )
     if (which === "documents") continue
     for (const [side, run] of [["the walk", was], ["the carried map", now]] as const) {
       divergences.push(
@@ -547,6 +564,7 @@ export const differential = (
   }
 }
 
+
 /**
  * WHAT A FRESH READER SEES AND AN OPEN ONE WAS NOT TOLD — the wire's own
  * promise, checked per side rather than between them.
@@ -569,14 +587,14 @@ export const differential = (
  */
 const unheard = (
   what: string,
-  run: Run,
+  side: Side,
   which: Which,
 ): ReadonlyArray<string> => {
-  const folded = run.folded.get(which)!
+  const folded = side.readers.get(which)!.held
   const out: Array<string> = []
-  for (const line of run.readAll.get(which)!) {
+  for (const line of side.held === null ? [] : snapshotOf(side.held, which)) {
     const key = line.slice(0, line.indexOf(" "))
-    const held = folded.get(key)
+    const held = folded.has(key) ? spelled(folded.get(key)) : undefined
     if (held === line.slice(key.length + 1)) continue
     out.push(
       `${what}: ${key} — the snapshot says ${line.slice(key.length + 1)}` +
@@ -593,11 +611,11 @@ const unheard = (
 /** The keys an open reader still holds that a fresh one no longer sees — the
  *  residue {@link unheard} names, listed so the two sides can be held to
  *  leaving the SAME one. Sorted, because a fold's order is arrival order. */
-const phantomsOf = (run: Run, which: Which): ReadonlyArray<string> => {
+const phantomsOf = (side: Side, which: Which): ReadonlyArray<string> => {
   const fresh = new Set(
-    run.readAll.get(which)!.map((line) => line.slice(0, line.indexOf(" "))),
+    side.held === null ? [] : (side.held[which] as Change<unknown>).entries.keys(),
   )
-  return [...run.folded.get(which)!.keys()].filter((key) => !fresh.has(key)).sort()
+  return [...side.readers.get(which)!.held.keys()].filter((key) => !fresh.has(key)).sort()
 }
 
 /**
@@ -709,6 +727,15 @@ export const misplacing = (projection: Projection): Projection => (snapshot, pub
  * mends, a file that refuses to open and then opens, a many-file revision of the
  * shape a `git pull` makes, and a revision that moves nothing at all.
  *
+ * MEMBERSHIP MOVES BOTH WAYS AND ACROSS KINDS, which is the half that had to be
+ * added rather than the half that was designed: an outline leaving as a `.md`
+ * arrives moves no file count at all, so a rule written against the DIRECTORY's
+ * size reads it as no membership change and carries a map that just lost a key.
+ * Every mixed-membership revision in this generator was once same-kind, which is
+ * exactly why the harness could not see that bug (grok's review of `bcc15008`).
+ * So a swap is a step now, in both directions, sometimes with the departure
+ * NAMED and sometimes not.
+ *
  * BIRTHS SORT EVERYWHERE, which is what the order half of the comparison needs:
  * a new path drawn to sort before the whole vault, into the middle of it, and
  * after all of it, because a map that appended a born key would still look
@@ -722,8 +749,13 @@ export const stepsOver = (
   { steps, seed = 20260824 }: { readonly steps: number; readonly seed?: number },
 ): ReadonlyArray<Step> => {
   const random = seeded(seed)
-  const outlines = files.filter((file) => file.endsWith(".olai"))
-  const bodied = files.filter((file) => !file.endsWith(".olai"))
+  // WHICH KIND A PATH IS, asked of the REGISTRY rather than of its spelling:
+  // `./kinds.ts` is the one place that says what a file of the set is, and an
+  // `endsWith` here would be a second answer to it — which the sweep in
+  // `@olai/tests`' `kinds.test.ts` fails a run over. A file with no BODY KIND is
+  // an outline, which is `decodedVault`'s own reading one package down.
+  const outlines = files.filter((file) => bodyKind(file) === null)
+  const bodied = files.filter((file) => bodyKind(file) !== null)
   const pick = (of: ReadonlyArray<string>): string | undefined =>
     of.length === 0 ? undefined : of[Math.floor(random() * of.length)]
   const gone = new Set<string>()
@@ -741,9 +773,9 @@ export const stepsOver = (
     } else if (roll < 0.62) {
       // A FILE BORN, and where it sorts is drawn: before the whole vault, into
       // the middle of it, and after all of it.
-      out.push({ writes: [[bornAt(random, at), minted(at)]] })
+      out.push({ writes: [[`${bornAt(random, at)}${OUTLINE}`, minted(at)]] })
     } else if (roll < 0.68) {
-      out.push({ writes: [[`${bornAt(random, at).replace(".olai", "")}.md`, `# born ${at}\n`]] })
+      out.push({ writes: [[`${bornAt(random, at)}${MARKDOWN}`, `# born ${at}\n`]] })
     } else if (roll < 0.74 && outline !== undefined) {
       gone.add(outline)
       out.push({ deletes: [outline] })
@@ -762,7 +794,10 @@ export const stepsOver = (
       // THE `git pull` SHAPE: several files re-decoded, one born and one gone,
       // in one revision — which is the revision that used to cost three whole
       // maps and now costs one rebuild.
-      const writes: Array<readonly [string, string]> = [[bornAt(random, at), minted(at)]]
+      const writes: Array<readonly [string, string]> = [[
+        `${bornAt(random, at)}${OUTLINE}`,
+        minted(at),
+      ]]
       for (const file of sampledFrom(random, live(outlines), 4)) writes.push([file, minted(at)])
       for (const file of sampledFrom(random, live(bodied), 2)) {
         writes.push([file, `# pulled ${at}\n`])
@@ -770,7 +805,7 @@ export const stepsOver = (
       const leaving = pick(live(outlines))
       if (leaving !== undefined) gone.add(leaving)
       out.push({ writes, deletes: leaving === undefined ? [] : [leaving] })
-    } else if (roll < 0.98) {
+    } else if (roll < 0.94) {
       // A RESYNC: a file leaves and the store cannot say which — see
       // {@link Step.forgotten}. Drawn from both kinds, because a departure the
       // diff loses is a departure from whichever collection held it.
@@ -779,6 +814,24 @@ export const stepsOver = (
       else {
         gone.add(leaving)
         out.push({ forgotten: [leaving] })
+      }
+    } else if (roll < 0.98) {
+      // A MIXED-KIND SWAP AT A CONSTANT FILE COUNT — one kind leaves and the
+      // OTHER arrives in the same revision, which is the shape a rule written
+      // against the directory's file count is wrong about (grok's review of
+      // `bcc15008`; the corners have the hand-written version). Both directions
+      // are drawn, and every so often the departure is one the store cannot
+      // name, which is the same hole with no remove on the wire either.
+      const outward = random() < 0.5
+      const leaving = pick(live(outward ? outlines : bodied))
+      if (leaving === undefined) out.push({})
+      else {
+        gone.add(leaving)
+        const arriving = `${bornAt(random, at)}${outward ? MARKDOWN : OUTLINE}`
+        const writes = [[arriving, outward ? `# swapped in at ${at}\n` : minted(at)] as const]
+        out.push(
+          random() < 0.4 ? { writes, forgotten: [leaving] } : { writes, deletes: [leaving] },
+        )
       }
     } else {
       // A REVISION THAT MOVES NOTHING — every collection reuses its map and
@@ -811,11 +864,19 @@ const minted = (at: number): string =>
  *  `byPath` and a plain code-point sort disagree about. */
 const bornAt = (random: () => number, at: number): string => {
   const roll = random()
-  if (roll < 0.3) return `0born${at}.olai`
-  if (roll < 0.5) return `zzz/born${at}.olai`
-  if (roll < 0.65) return `note0/born${at}.olai`
-  return `mid${at}.olai`
+  if (roll < 0.3) return `0born${at}`
+  if (roll < 0.5) return `zzz/born${at}`
+  if (roll < 0.65) return `note0/born${at}`
+  return `mid${at}`
 }
+
+/** The suffix a NEW file of each kind is minted with, read off the REGISTRY
+ *  rather than written out — for the reason `stepsOver` asks `bodyKind` which
+ *  kind a path is: `@olai/format`'s `kinds.ts` is the one place that says what
+ *  a file of the set is called, and a corpus that spelled one would be a second
+ *  answer to it (`@olai/tests`' `kinds.test.ts` sweeps for exactly that). */
+const OUTLINE = FILE_KINDS.outline.exts[0]
+const MARKDOWN = FILE_KINDS.document.exts[0]
 
 /** `count` of them, spread across the list rather than taken off the front. */
 const sampledFrom = (
