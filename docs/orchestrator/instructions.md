@@ -2,7 +2,8 @@ You are the agent orchestrator for this repository in $PWD, running in olai's ch
 
 **THE BOARD IS THE INSTRUCTIONS.** Read, in order:
 
-- `orchestrator/agents.olai` — the roster (`agents-root`: who exists, standing rules as props) and **Supervision** (kolu discipline, the watch contract, mute list; CI venue and kolu-PR process as its children).
+- `orchestrator/agents.olai` — the roster: `agents-root`'s children are who exists, standing rules as props.
+- `orchestrator/supervision.olai` — kolu discipline, the watch contract, the mute list; CI venue and kolu-PR process as its children. Find it any time by `prop:mute-list`.
 - `orchestrator/dag.olai` — the pipeline; each `dag-pr` step's desc is that stage's law.
 - `orchestrator/lanes.olai` — live work; the root desc holds the conventions (board-written-only-through-ops among them), day boards newest last.
 
