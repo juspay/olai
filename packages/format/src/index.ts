@@ -428,6 +428,16 @@ export type { Backlink, Referrer } from "./backlinks.ts"
  *  stays inside: a consumer reaching for one of them would be re-implementing
  *  the rule this module exists to be the only copy of. */
 export {
+  /** The four fields of a DOCUMENT run together, off the fold the matcher
+   *  itself reads — {@link hayOf}'s twin, and the other half of what an index
+   *  outside this package has to hold. */
+  documentHayOf,
+  /** THE TEXT AN INDEX HOLDS: a record's four searched fields, folded once and
+   *  run together, so a thing that narrows a search can only ever hand back
+   *  MORE than the matcher selects. The exported half of the one-matcher rule
+   *  as it reaches `@olai/index` — that package looks text up, this one decides
+   *  what a query means, and the seam between them is a superset. */
+  hayOf,
   keeping,
   keepingDated,
   /** Where a query's words LAND in a piece of text, in the fold the matcher
@@ -440,6 +450,11 @@ export {
    *  order. A body is text the way a note is, and a query that could only ask
    *  about records is the shape this arc replaced. */
   matchingDocuments,
+  /** WHICH OF A QUERY'S WORDS AN INDEX MAY NARROW BY, with the query's own
+   *  and/or shape kept — the grammar's answer to a question only the thing
+   *  holding the index can ask, so that thing does not have to read the groups
+   *  itself and get `OR` wrong. */
+  narrowableBy,
   /** The words a query looks for, folded and deduped — {@link litBy}'s other
    *  half, and the only thing a view needs off a parsed query. */
   needlesOf,
@@ -464,7 +479,11 @@ export {
   ranked,
   shownRecord,
 } from "./filter.ts"
-export type { Filter, Lit, Match, Matched, Scope, SearchField, Selected } from "./filter.ts"
+/** `Bodied` is the other kind of thing a query selects — every file the set
+ *  keeps a body SLOT for, which is what {@link documentHayOf} is asked of and
+ *  what `matchingDocuments` walks. Exported for the package that indexes them
+ *  (`@olai/index`); `bodiedIn` above is how one is come by. */
+export type { Bodied, Filter, Lit, Match, Matched, Scope, SearchField, Selected } from "./filter.ts"
 export {
   dailyNoteDays,
   dailyNotePathFor,
