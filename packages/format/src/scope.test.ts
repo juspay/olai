@@ -34,6 +34,7 @@ import { matching, parseFilter } from "./filter.ts"
 import { isMirror } from "./node.ts"
 import { parseOutline } from "./parse.ts"
 import {
+  type Ask,
   asksOver,
   decodedVault,
   deepVaultOf,
@@ -292,6 +293,30 @@ const REAL: ReadonlyArray<string> = [
  * whole file rewritten, and a file removed. The reading is PATCHED after each
  * one (`reading(set, { read, delta })`), which is what the store hands a query
  * on a settled keystroke.
+ *
+ * TWO WRITE SHAPES ARE DELIBERATELY NOT HERE, and the reason is an argument
+ * rather than an omission — the next reader's question is "why not a
+ * cross-file move, and why not an untrash", so it is answered where they will
+ * look (pi's review of `5a07615`, which judged both provably unable to hide a
+ * divergence and asked for the proof to be written down).
+ *
+ * A CROSS-FILE MOVE cannot hide one because the FILE a record is written in is
+ * not an input to the descent at all. `descendedFrom` reaches a record through
+ * `byId` and `children`, both keyed by ID, and the file enters in exactly two
+ * places: the `at.file` comparison, which reads the field off the very record
+ * the delta re-filed, and the `byFile` bucket a `file:`-only scope walks. A
+ * move is those two buckets rewritten in one delta — which is the union of the
+ * whole-file rewrite and the file removal below it, in one round instead of
+ * two. There is no third thing it touches.
+ *
+ * AN UNTRASH cannot hide one because the archive is not a scope. What was put
+ * away is decided in `selecting` off `isTrashed(at.file)`, DOWNSTREAM of the
+ * candidates and after both walks have already chosen them — and `selecting`
+ * is the real one on both arms of this differential (`./scope.testlib.ts` says
+ * why it must be). So the two sides cannot disagree about the trash rule for
+ * the same reason they cannot disagree about `is:done`: it is one function,
+ * called once, with the same boolean. What an untrash moves that the scope CAN
+ * see is which file a record is written in, which is the paragraph above.
  */
 test("a write leaves the narrowing answering what the walk does", () => {
   const vault = new Map(deepVaultOf({ files: 12, records: 18, seed: 20260825 }))
@@ -300,6 +325,21 @@ test("a write leaves the narrowing answering what the walk does", () => {
   const asks = asksOver(read.derived, QUERIES, { files: 6, roots: 10 })
   holds(differential(read, asks, NOW), { hits: 60, narrowing: 20 })
 
+  /** The asks this round is judged by: the ones drawn off the corpus this
+   *  started from, AND the ones drawn off the view the last write left.
+   *
+   *  BOTH, because they are two different questions and each misses what the
+   *  other catches. The first are STALE by round two — they name ids a write
+   *  moved, emptied or took away, which is a case worth keeping and is what an
+   *  agent's saved query is; the second are the only ones that can name what an
+   *  edit CREATED, so a corpus asked only its original scopes never asks about
+   *  post-edit reality at all (pi's review of `5a07615`). The stale half is the
+   *  reason the seed and the caps are the same on both: two draws over one
+   *  shape rather than a second table. */
+  const asking = (): ReadonlyArray<Ask> => [
+    ...asks,
+    ...asksOver(read.derived, QUERIES, { files: 6, roots: 10 }),
+  ]
   /** What four scopes say now — read back after every write, so the test can
    *  insist each edit really MOVED an answer rather than agreeing four times
    *  over about a corpus nothing happened to. One scope per write, each named
@@ -340,7 +380,7 @@ test("a write leaves the narrowing answering what the walk does", () => {
     // draft of this test did, by writing `deep5.olai` beside the generator's
     // own `area5/deep5.olai`.
     expect(read.derived.byId.size).toBe(read.derived.nodes.length)
-    holds(differential(read, asks, NOW), { hits: 40, narrowing: 15 })
+    holds(differential(read, asking(), NOW), { hits: 40, narrowing: 15 })
     moved.push(say())
   }
 

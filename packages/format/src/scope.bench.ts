@@ -24,6 +24,15 @@
  * `./scope.test.ts` — the same two walks, compared for their ANSWERS, in the
  * suite. Perf numbers are reported artifacts and never gates.
  *
+ * ONE THING HERE DOES FAIL THE RUN, and it is not a timing: if the two arms
+ * select a different NUMBER of records they are not answering the same question
+ * and the ratio between them means nothing, so the row throws rather than
+ * printing. That is this repository's rule for a bench with two arms in it
+ * rather than a flourish — `./dates.bench.ts` and `./vocabulary.bench.ts` each
+ * say "must answer the same value or the run fails" — and it is the one shape
+ * a flattering ratio takes: a narrowing that reported magnificently by
+ * answering nothing.
+ *
  * WHAT IT MEASURES is four scopes over one vault, each asked the same short
  * list of queries: one file out of two hundred, a whole file's tree named by
  * its root, a small subtree deep inside one, and — as the control — no scope at
@@ -124,11 +133,16 @@ console.log(
 for (const [what, scope] of SCOPES) {
   const before = runs(asking(walkedMatching, scope))
   const after = runs(asking(matching, scope))
-  // WHAT EACH ARM SELECTED, printed beside the times rather than trusted: two
-  // walks that answer different numbers of records are two walks nobody may
-  // compare, and a narrowing that reported magnificently by answering nothing
-  // is the failure this line is here to make visible. (`./scope.test.ts` is
-  // where it is an assertion; here it is a reading.)
+  // WHAT EACH ARM SELECTED, and the RUN FAILS if the two disagree — which is
+  // this repository's rule for a bench with two arms in it, not a flourish
+  // (`./dates.bench.ts` and `./vocabulary.bench.ts` each say "must answer the
+  // same value or the run fails"). Two walks that answer different numbers of
+  // records are two walks nobody may compare, and a narrowing that reported
+  // magnificently by answering nothing is precisely the shape a ratio flatters.
+  // Printed as well as asserted, because the FIGURE is what says the arm had
+  // anything to do; the throw is what stops a ratio being quoted over a
+  // comparison that had already broken (pi's review of `5a07615` — it was
+  // print-only, which is a guard a reader has to notice).
   const selected = ASKED.reduce(
     (count, text) => count + matching(set, parseFilter(text, NOW), scope).length,
     0,
@@ -137,10 +151,17 @@ for (const [what, scope] of SCOPES) {
     (count, text) => count + walkedMatching(set, parseFilter(text, NOW), scope).length,
     0,
   )
+  if (selected !== walked) {
+    throw new Error(
+      `${what}: the two arms are not answering the same question — ` +
+        `the narrowing selected ${selected} records and the walk ${walked}. ` +
+        `The ratio above it is meaningless until they agree (./scope.test.ts).`,
+    )
+  }
   console.log(
     `${what.padEnd(24)}${`${before.toFixed(1)}ms`.padStart(10)}` +
       `${`${after.toFixed(1)}ms`.padStart(10)}` +
       `${`${(before / after).toFixed(1)}×`.padStart(9)}` +
-      `${`${selected}${selected === walked ? "" : ` ≠ ${walked}`}`.padStart(11)}`,
+      `${`${selected}`.padStart(11)}`,
   )
 }

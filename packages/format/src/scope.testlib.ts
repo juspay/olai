@@ -452,7 +452,9 @@ const deepFileOf = (random: () => number, at: number, records: number): string =
  * the files are the set's own and the `under:` roots are records taken from it,
  * spread across the corpus rather than clustered at its front, with the shapes
  * that must also be asked put in beside them: a scope with both halves, a root
- * that is a placement, a root nothing claims, and the archive.
+ * that is a placement, a root nothing claims — each of those two also WITH a
+ * live file beside it, which is the half that makes an empty corner provable
+ * rather than merely empty — and the archive.
  *
  * SEEDED for the same reason the corpora are, and CAPPED because the product of
  * every query with every file is a suite that takes minutes to say what a few
@@ -479,10 +481,27 @@ export const asksOver = (
     // only what a cross-file child put there.
     scopes.push({ under: at.node.id, file: at.file })
   }
-  // A placement as the root, an id nothing claims, and the archive.
+  // AN EMPTY CORNER, and the same empty corner WITH A LIVE FILE BESIDE IT.
+  //
+  // The pair is the point rather than either half. A root that is a placement
+  // and a root nothing claims both name nothing, and the walk they are held to
+  // arrives at that by testing every record and finding no ancestor above it —
+  // so a narrowing that answered an empty `under:` by falling through to the
+  // FILE branch would be wrong in exactly one shape, and only a scope naming a
+  // file that really holds records can catch it. With the `under:` alone both
+  // sides are empty for two different reasons and the comparison proves
+  // nothing (pi's review of `5a07615`).
+  const live = paths.find((file) => (derived.byFile.get(file) ?? []).length > 0)
   const placement = derived.nodes.find((at) => isMirror(at.node))
-  if (placement !== undefined) scopes.push({ under: placement.node.id })
-  scopes.push({ under: "nothing-claims-this-id" })
+  for (
+    const under of [
+      ...(placement === undefined ? [] : [placement.node.id]),
+      "nothing-claims-this-id",
+    ]
+  ) {
+    scopes.push({ under })
+    if (live !== undefined) scopes.push({ under, file: live })
+  }
   scopes.push({ trashed: true })
   for (const file of paths) {
     if (file.includes("Trash")) scopes.push({ file, trashed: true })
