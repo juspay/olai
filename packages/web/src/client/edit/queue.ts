@@ -1,12 +1,13 @@
 /**
  * One write at a time, in the order the keys were pressed.
  *
- * Two things in this client have to serialise their writes and they do it for
- * different reasons — the editor because its writes are derived from each
- * other over one draft (`./editing.tsx`), undo because a person leaning on ⌘Z
- * would otherwise have two inverses judged against the same snapshot
- * (`./undoing.ts`). What they share is not the queue, which is deliberately
- * one each; it is this line.
+ * Three things in this client have to serialise their writes and they do it
+ * for different reasons — the editor because its writes are derived from each
+ * other over one draft (`./editing.tsx`), a bulk run because each of its edits
+ * is judged against what the one before it did (`../select/selection.ts`), and
+ * undo because a person leaning on ⌘Z would otherwise have two inverses judged
+ * against the same snapshot (`./undoing.ts`). What they share is not the
+ * queue, which is deliberately one each; it is this line.
  *
  * And the line has a subtlety worth having in one place: `then(step, step)`,
  * so a step that THROWS still lets the next one run. A chain written
@@ -48,9 +49,10 @@ export const serial = (
     // write, which goes on the same queue and is not this counter's business.
     const drop = counter.held()
     gate = gate.then(step, step)
-    // A BRANCH off the gate rather than a link in it: `finally` would put a
-    // rejection back on the chain the next step reads, and this one handles
-    // both outcomes so a step that threw leaves no unhandled rejection behind.
+    // A BRANCH off the gate rather than a link in it, so what the NEXT step
+    // waits on is exactly the step before it and nothing this line added. Both
+    // outcomes are handled on the branch, which is also what keeps a step that
+    // threw from leaving an unhandled rejection nobody is holding.
     if (drop !== undefined) void gate.then(drop, drop)
   }
 }
