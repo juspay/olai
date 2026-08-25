@@ -1,6 +1,6 @@
 # Typed properties
 
-Status: brainstorming, 2026-08-25. Roadmap: `typed-properties` (features → Task model & edges). Today a property value is any string; nothing refuses a sloppy one. A key should be able to declare its type, and the write gate should refuse a value that doesn't fit — the same fence `set_doing` and duplicate-ids already are.
+Status: PLAN FINALIZED 2026-08-25 (orchestrator × planner debate; the human's rulings folded). Roadmap: `typed-properties` (features → Task model & edges). Today a property value is any string; nothing refuses a sloppy one. A key should be able to declare its type, and the write gate should refuse a value that doesn't fit — the same fence `set_doing` and duplicate-ids already are.
 
 ## The problem, from a live lane node
 
@@ -27,9 +27,12 @@ type PropType =
   | { kind: "node" }                  // any node id in the set — item
 
 // There is deliberately no "sum" — an enum IS a ref. The variants are nodes:
-// merge's declaration has children `auto` and `human`, and the value must be
-// one of its children's titles. agents-roster is the same thing that happens
-// to live elsewhere. One mechanism; adding a variant is adding a child.
+// merge's declaration has children `auto` and `human`, and A REF VALUE IS THE
+// ID of one of the parent's children; display resolves it to the title
+// (the mirror/pin rule: names rename, ids don't). Enum variant ids are chosen
+// short at declaration time (auto, human) — safe because the duplicate-id
+// fence makes any clash loud at add-time. agents-roster is the same thing that
+// happens to live elsewhere. One mechanism; adding a variant is adding a child.
 ```
 
 A vault's declarations are one map:
@@ -141,6 +144,19 @@ A range on an untyped (text) key stays refused — comparing strings as if they 
 ## Cost
 
 The check is local — one node's props against one small map — so it rides every write without joining the O(n) sweep's catalogue. `ref` reads an existing index. Nothing walks.
+
+## Converged (orchestrator × planner debate, 2026-08-25)
+
+The driver's five points and the cross-file audit (roadmap/*.olai, agents.olai, someday, deferred — `pr` ~173 uses vault-wide, `from` ~125), ironed to positions:
+
+1. **Ref values are IDS.** A ref value is the id of one of the parent's children; display resolves it to the title (names rename, ids don't — the pin/mirror rule). Enum variant ids are chosen short at declaration time (`auto`, `human`); the duplicate-id fence makes a clash loud at add-time.
+2. **`pr` is int; a URL is a derivation** (repo remote + number) — storing it is drift; gates and spans want the number. **Scope rule:** bare `pr` is legal only where a repo is in scope (the node's `repo` prop, or the project folder post-brain); a node genuinely tracking PRs in two repos uses `<repo>-pr`, each blessed by its own declaration — what dies is the mixed state (one fact spelled `pr` here and `kolu-pr` there). Lint: `prop:pr -prop:repo`. **Named dependency:** the pr door learns (repo-ref, pr-int) → URL; until it lands the chip renders the bare number.
+3. **The merged split:** `merged` = date (the event, span-searchable), `merge-commit` = text sha (the artifact), story in the note. The historical `merged`-holds-a-sha drift retires with its lanes under clean-then-declare; the bare drift survives under no name.
+4. **`from` is DECLARED text** — the explicit declaration is the durable blessing ("this prose is deliberate") in the one place a future tidier will look. Provenance is a sentence by nature; a design that couldn't hold `from` would be a record system, which this isn't. Not split into who/when.
+5. **More forward vocabulary from the audit:** `reviewer` → ref under agents-roster; `brainstorm` → doc; `verified`/`retired`/`overruled` → date with the story in the note; **`superseded-by` → node** (the reference is the queryable half), optionally `superseded` = date.
+6. **The boundary is spelled as FILES.** Driver-only-declared-keys covers what the driver writes: `orchestrator/lanes.olai` + `dag.olai` (post-brain: the orchestrator folder). `agents.olai` and the roadmap files are LEDGER — curated journal keys (watch-item, usage-limit, reviewer-contract…) are legal text by design. Two riders: the graduation clause applies per key wherever it lives (a recurring journal key is earning a declaration); and the file boundary is discipline-about-the-writer, not format law — the format enforces declared-key values everywhere, uniformly. Files say who may improvise; types say what improvisation can't corrupt.
+7. **Births are gated too:** the check lives at the plan/validate seam, so it covers every door that writes a prop — `set_prop`, `add_node` (children included), `apply`/`update`, capture, `duplicate_node`.
+8. **Canonical forms:** `date` stores what `set_done` writes — local ISO with offset (`2026-08-25T10:06:00-04:00`); "accept obvious spellings" normalizes into that ONE spelling (the divergence-sweep lesson: one name, one spelling). `int` is a digit run — no sign, no leading zeros, no separators.
 
 ## Ruled (the human, 2026-08-25, question tool)
 
