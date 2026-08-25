@@ -95,6 +95,8 @@ import {
   timesSaid,
   vaultOf,
 } from "./fixtures.testlib.ts"
+import { heapStats } from "bun:jsc"
+
 import { isRegular, type Located, type LocatedRegular } from "./node.ts"
 import { overlay, type Read } from "./overlay.ts"
 import { bySibling, patched, type SetDelta, spliced } from "./patch.ts"
@@ -553,6 +555,128 @@ const wholly = (): readonly [asMap: number, asLayer: number] => {
   return alternating([sweep(base), sweep(layer)] as const)
 }
 
+// ── what an UNTOUCHED index costs ──────────────────────────────────────
+
+/**
+ * THE CARRY ITSELF, TIMED BOTH WAYS — the A/B `perf-overlay-copies` rests on,
+ * and it is a leg for {@link lever}'s reason.
+ *
+ * A patch opens every index of the view and writes to the ones its edit
+ * reached. What the others cost is the subject: the overlay used to copy its
+ * carried layer's three structures in the CONSTRUCTOR and hand the layer
+ * straight back at the sealing, so an index no key of the edit reached paid
+ * three copies of bookkeeping that was then thrown away untouched. It copies at
+ * the first WRITE now, so it pays nothing.
+ *
+ * The two arms are the two spellings of that constructor, over a layer grown to
+ * the BOUND the module flattens at — half the map — which is the most any
+ * carried layer can hold and therefore the ceiling on what one can cost:
+ *
+ *   - `eager` — the overlay as it is, plus the three copies its constructor used
+ *     to take. A RECONSTRUCTION, for {@link cloned}'s reason: the constructor it
+ *     stands for is gone, and a before/after this harness cannot print is the
+ *     laptop sample this file exists to retire. It is faithful because the layer
+ *     is built HERE — every write below re-sets a key `byId` already had, so its
+ *     `changed` holds the half and its `appended` and `gone` are empty, which is
+ *     what the two `Set`s copy;
+ *   - `lazy` — `overlay(layer, "by key").sealed()`, which is what a patch pays
+ *     now. It must hand back the very layer it was given, and that is checked
+ *     before either arm is timed: an arm that returned an equal layer would be
+ *     an arm that wrote.
+ *
+ * AND WHAT EACH ONE ALLOCATES, counted rather than timed, because the time is
+ * an amount of copying and the count is the copying itself. Counted by
+ * retaining what the arm made, which is what makes the number exact: a
+ * collector running mid-count would report a fact about the collector.
+ * Only `Map` and `Set` are counted, so the tuple the eager arm returns its three
+ * copies in — the one allocation this reconstruction has that the constructor
+ * did not — is not counted and, at a half-corpus copy each, is not timed either.
+ */
+const KEPT = 20
+
+const unwritten = (): void => {
+  const base = first.byId
+  const ids = [...base.keys()]
+  const half = ids.slice(0, Math.floor(ids.length / 2))
+  const growing = overlay(base, "by key")
+  for (const id of half) growing.set(id, base.get(id) as Located)
+  const layer = growing.sealed()
+  if (layer instanceof Map) {
+    throw new Error("the layer flattened — this would measure a map and call it a carry")
+  }
+  /** The three the constructor used to copy, in the shape it copied them. */
+  const changed = new Map(half.map((id) => [id, base.get(id) as Located]))
+  const appended = new Set<string>()
+  const gone = new Set<string>()
+  const eager = () => {
+    const held = overlay(layer, "by key")
+    const three = [new Map(changed), new Set(appended), new Set(gone)] as const
+    held.sealed()
+    return three
+  }
+  const lazy = () => overlay(layer, "by key").sealed()
+  if (lazy() !== layer) {
+    throw new Error("the lazy arm did not hand its layer back — it wrote to something")
+  }
+  if (eager()[0].size !== changed.size) throw new Error("the eager arm did not copy the layer")
+  const [asEager, asLazy] = alternating([eager, lazy] as const)
+  const made = (arm: () => unknown): { readonly maps: number; readonly sets: number } => {
+    const kept: Array<unknown> = []
+    Bun.gc(true)
+    const before = heapStats().objectTypeCounts
+    for (let round = 0; round < KEPT; round++) kept.push(arm())
+    const after = heapStats().objectTypeCounts
+    if (kept.length !== KEPT) throw new Error("the count dropped what it was keeping")
+    const each = (what: "Map" | "Set") => ((after[what] ?? 0) - (before[what] ?? 0)) / KEPT
+    return { maps: each("Map"), sets: each("Set") }
+  }
+  const [eagerMade, lazyMade] = [made(eager), made(lazy)]
+  console.log(
+    `  a layer of ${changed.size} over ${base.size} keys, carried and not written:` +
+      ` ${asEager.toFixed(3)}ms eager, ${asLazy.toFixed(3)}ms lazy` +
+      ` (${eagerMade.maps} map + ${eagerMade.sets} sets against` +
+      ` ${lazyMade.maps} + ${lazyMade.sets}, per index per patch)`,
+  )
+}
+
+/**
+ * ...AND HOW OFTEN A CARRY IS ALL A PATCH DOES TO AN INDEX, which is where the
+ * ceiling above lands.
+ *
+ * Read off the patcher's own answers rather than out of it: an index no write
+ * reached is handed back BY IDENTITY ({@link ./overlay.ts}'s sealing rule), so
+ * whether a patch wrote to one is a `===` against the view it started from, and
+ * this leg does not have to be told. Beside it the index's SIZE, since the
+ * layer that was being copied is bounded by half of it.
+ *
+ * It says what the A/B above cannot: `byId` is written by every edit and never
+ * pays a carry, while `blocked` on this vault is carried untouched by nearly
+ * all of them. A vault's own shape decides that, which is why this is a count
+ * over the same edits the arms above run rather than a claim.
+ */
+const untouched = (): void => {
+  const never = new Map<Index, number>()
+  let view = first
+  for (const [which, { delta }] of edits.entries()) {
+    const next = patched(view, delta)
+    if (next === undefined) throw new Error(`the patcher declined edit ${which}`)
+    for (const index of LAYERED) {
+      const was = view[index] as ReadonlyMap<string, unknown>
+      if ((next[index] as ReadonlyMap<string, unknown>) === was) {
+        never.set(index, (never.get(index) ?? 0) + 1)
+      }
+    }
+    view = next
+  }
+  for (const index of LAYERED) {
+    const held = (view[index] as ReadonlyMap<string, unknown>).size
+    console.log(
+      `  ${index.padEnd(10)} ${String(held).padStart(6)} keys —` +
+        ` carried without a write on ${never.get(index) ?? 0} of ${EDITS} edits`,
+    )
+  }
+}
+
 // ── what a TOUCHED KEY costs ───────────────────────────────────────────
 
 /**
@@ -849,6 +973,9 @@ console.log(
 console.log(`\nthe id map handed forward, per edit:`)
 lever("a different file each time", edits)
 lever("the same file every time", typing)
+console.log(`\nthe index handed on and NOT written, per index per edit:`)
+unwritten()
+untouched()
 console.log(`\nthe biggest key of each re-filed index, across one file's edit:`)
 resorting("taggedBy", first.taggedBy, (one) => one, byCorpus)
 resorting("byDay", first.byDay, (one) => one.at, byCorpus)

@@ -19,6 +19,15 @@
  * session's history), and a layer grown past the half where it stops being
  * cheaper than the clone it replaced.
  *
+ * AND ONE CLAIM THE ORACLE CANNOT MAKE, which is the last section here: what a
+ * layer costs is now paid at the first WRITE and not at the carry, so an
+ * overlay handed a layer holds that layer's own three structures until
+ * something is set in it. The oracle above compares the map a patch LEAVES; a
+ * copy skipped moves the map a patch was GIVEN, which nothing that reads
+ * forwards can see. So the pin reads a revision BEHIND — the whole of it, after
+ * the next patch has sealed — and the corner it guards is stated per structure
+ * rather than in one lucky sequence.
+ *
  * BOTH SPELLINGS AGAINST ONE ORACLE. `overlay` answers with a clone for a map
  * somebody walks whole and a layer for one everybody asks by key, and the whole
  * claim is that nothing above can tell — so the property below rolls the word
@@ -251,6 +260,97 @@ test("a sealed overlay is spent — a write afterwards is refused, not absorbed"
     expect([...sealed.keys()]).toEqual(["a", "b", "c"])
     expect(sealed.get("c")).toEqual({ what: "c as it was" })
   }
+})
+
+// ── the aliasing pin ───────────────────────────────────────────────────
+
+/**
+ * A REVISION, AND THE ONE AFTER IT — the shape every case below is in, and the
+ * one the patcher is in: what a tab is holding is the layer the last patch
+ * sealed, and the next patch is handed that same layer to write the next
+ * revision into.
+ *
+ * `built` makes revision N, which must come out a LAYER — a case that flattened
+ * would be pinning a plain `Map` and proving nothing about the structure that
+ * gets shared. Then N is read WHOLE and remembered, N+1 is written over it
+ * through {@link same} (so it is held to the oracle as everything else here
+ * is), and N is read whole again. Same answers, or the copy N+1 owed was not
+ * taken.
+ *
+ * IT IS THE WHOLE READING and not a `get` or two, for {@link readable}'s own
+ * reason: a skipped `gone` shows up in `size` and in `keys()` and in nothing a
+ * lookup asks, and a skipped `appended` shows up in the ORDER.
+ */
+const pinned = (
+  built: ReadonlyArray<Write>,
+  next: ReadonlyArray<Write>,
+): void => {
+  const base = mapOf(Array.from({ length: 20 }, (_, key) => `k${key}`))
+  const asked = [...base.keys(), "arrived", "later"]
+  const revision = same(base, built, "by key", asked)
+  expect(revision instanceof Map).toBe(false)
+  const before = readable(revision, asked)
+  same(revision, next, "by key", asked)
+  expect(readable(revision, asked)).toEqual(before as never)
+}
+
+test("a patch writing a REPLACEMENT does not move the value the revision behind answers", () => {
+  // `changed` is the structure at stake: N answers "k0" out of it, and N+1
+  // setting the same key writes to the same map unless it copied first.
+  pinned([["k0", at("N")]], [["k0", at("N+1")]])
+})
+
+test("a patch APPENDING a key does not add it to the revision behind", () => {
+  // `appended` is the structure at stake, and `size` and `keys()` are where it
+  // shows: N holds twenty-one keys ending in "arrived", and a shared set would
+  // give it "later" too, at the end, out of a patch it is not part of.
+  pinned([["arrived", at("N")]], [["later", at("N+1")]])
+})
+
+test("a patch DROPPING a key does not drop it from the revision behind", () => {
+  // `gone` is the structure at stake: a shared tombstone set takes "k18" out of
+  // a revision whose own patch never touched it — the failure a walk of the
+  // surviving keys is the only thing that sees.
+  pinned([["k19", undefined]], [["k18", undefined]])
+})
+
+test("a patch writing all three ways leaves the revision behind whole", () => {
+  // The three at once, and with the two writes that reach INTO what N holds
+  // rather than past it: N+1 re-sets the key N replaced and deletes the key N
+  // appended, which is where a layer sharing its predecessor's structures would
+  // rewrite history rather than merely add to it.
+  pinned(
+    [["k0", at("N")], ["arrived", at("N")], ["k19", undefined]],
+    [
+      ["k1", at("N+1")],
+      ["later", at("N+1")],
+      ["k18", undefined],
+      ["k0", at("N+1 again")],
+      ["arrived", undefined],
+    ],
+  )
+})
+
+test("two patches from one revision are two revisions, not one written twice", () => {
+  // BOTH CALLERS DO THIS: the write gate patches the last published view while
+  // a tab patches the one it is holding, and both are handed the same layer.
+  // Sharing it until the first write is what makes them a hazard — the second
+  // patch must copy the layer it was given and not whatever the first one made
+  // of it.
+  const base = mapOf(Array.from({ length: 20 }, (_, key) => `k${key}`))
+  const asked = [...base.keys(), "one", "other"]
+  const revision = same(base, [["k0", at("N")], ["arrived", at("N")]], "by key", asked)
+  const before = readable(revision, asked)
+  const writes: ReadonlyArray<Write> = [["k0", at("one")], ["one", at("one")], ["k5", undefined]]
+  const one = same(revision, writes, "by key", asked)
+  const other = same(revision, [["k0", at("other")], ["other", at("other")]], "by key", asked)
+  expect(readable(revision, asked)).toEqual(before as never)
+  expect(one.get("k0")).toEqual({ what: "one" })
+  expect(other.get("k0")).toEqual({ what: "other" })
+  expect(one.has("other")).toBe(false)
+  expect(other.has("one")).toBe(false)
+  expect(one.has("k5")).toBe(false)
+  expect(other.has("k5")).toBe(true)
 })
 
 test("an overlay nothing wrote to hands back the map it was given", () => {
