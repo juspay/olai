@@ -720,7 +720,7 @@ export const bind = (
          * and the difference is what it reads: that one PROJECTS a revision —
          * this file's per-file slices, written in one order for one reason —
          * where this one asks a QUESTION of the set (`@olai/format`'s
-         * `shelfOf`) and publishes the answer. A tab tolerates the skew between
+         * `shelfIn`) and publishes the answer. A tab tolerates the skew between
          * them the way it tolerates every other cross-member skew (the design
          * doc's cross-file consistency paragraph); what it would not tolerate is
          * the two being one statement whose order somebody has to reason about.
