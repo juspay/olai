@@ -25,6 +25,7 @@ import * as pipeline from "./pipeline.ts"
 import { plainTitle } from "./plain.ts"
 import { hastToHtml, renderToTree } from "./render.ts"
 import { styleTags, TAG_CLASS } from "./tags.ts"
+import { tagStyle } from "../theme/tagInk.ts"
 
 installPipeline(pipeline)
 
@@ -145,7 +146,9 @@ test("a phrase that spans a tag boundary lights across it, on both paths", () =>
   expect(html).toContain(`data-tag="#home"`)
   expect(html).toBe(
     `kitchen <mark class="olai-hit" data-testid="hit">remodel </mark>` +
-      `<span class="${TAG_CLASS}" data-testid="tag" data-tag="#home">` +
+      `<span class="${TAG_CLASS}" data-testid="tag" data-tag="#home" style="${
+        tagStyle("#home")
+      }">` +
       `<mark class="olai-hit" data-testid="hit">#home</mark></span>`,
   )
 })

@@ -178,17 +178,26 @@ html {
  * block, because the scrollbars and the form controls are the browser's to
  * paint and that is how it is told which way. */
 
-/* A `#tag` IN PLACE, quieted by contrast (`client/markdown/tags.ts` argues the
- * ruling and carries the geometry). Three rules and they are one decision:
+/* A `#tag` IN PLACE — quiet, but now wearing ITS OWN colour
+ * (`client/markdown/tags.ts` argues the ruling and carries the geometry;
+ * `client/theme/tagInk.ts` carries the mapping). The ink is `oklch()` of three
+ * facts: the tag's own HUE, handed over on the pill itself as a custom property
+ * (`client/markdown/tags.ts`), and a lightness and chroma the PALETTE declares
+ * (`client/theme/css.ts`) — so one tag is one hue in every theme, and every
+ * hue clears AA on every palette's paper and panel by test
+ * (`client/theme/tagInk.test.ts`). Three rules and they are one decision:
  *
- *   1. the ink is dimmer than the title around it, so a title with three tags
- *      in it still reads as a title with three tags in it rather than as three
- *      boxes and some words;
- *   2. it BRIGHTENS to the accent under the pointer — the tag you are about to
- *      press, said in the one way that costs no space;
- *   3. and it brightens for every tag in a row that is OPEN, because a reader
- *      who has opened a row is reading it rather than scanning past it, and the
- *      accented pilcrow and the brightened tags are one thing saying so.
+ *   1. the ink is a colour of the WORDS rather than a dimming of the title,
+ *      so `#now #home` on one row reads as two marks, and `#now` reads the
+ *      same on every page that draws it;
+ *   2. it becomes the accent under the pointer — the tag you are about to
+ *      press, said in the one way that costs no space: the affordance
+ *      overrides the identity exactly while the pointing happens, and never
+ *      the other way round (colour is not load-bearing; the words are);
+ *   3. and it brightens to the accent for every tag in a row that is OPEN,
+ *      because a reader who has opened a row is reading it rather than
+ *      scanning past it, and the accented pilcrow and the brightened tags are
+ *      one thing saying so.
  *
  * The state in (3) is a class on the TITLE SPAN (`client/NodeLine.tsx`), and
  * deliberately not the `data-note-open` the row's `<li>` already carries: rows
@@ -198,7 +207,7 @@ html {
  * These live here at all because no inline utility can be keyed on an ancestor,
  * and the tag is built as an HTML string that belongs to no component anyway. */
 .olai-tag {
-  color: color-mix(in srgb, var(--color-muted) 80%, transparent);
+  color: oklch(var(--tag-ink-l) var(--tag-ink-c) var(--tag-hue));
   transition: color 100ms ease-out;
 }
 
