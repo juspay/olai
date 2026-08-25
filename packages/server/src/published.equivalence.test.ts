@@ -30,10 +30,20 @@
  *   - and the two MUTANTS, which is how the harness is held to being able to
  *     see the failure at all.
  *
- * WHAT IS NOT ASSERTED HERE is anything about what either side SAYS — that is
- * `./published.test.ts`'s, which pins the projection's own promises against
- * fixtures small enough to write down. This file holds two implementations to
- * one answer and has no opinion about what that answer is.
+ * What is STILL not asserted here is anything about the CONTENT of what
+ * either side SAYS — that is `./published.test.ts`'s, which pins the
+ * projection's own promises against fixtures small enough to write down. But
+ * "no opinion about what the answer is" is a claim the phantom lane retired,
+ * and an honest file header says so: the wire's MEMBERSHIP promise is this
+ * file's business now. A key an open reader holds that a fresh one cannot see
+ * was, through `perf-published-maps`, a residue both projections shared —
+ * listed, counted, and held EQUAL between the sides. The mint made it
+ * nobody's: `holds` asserts the ZERO on every corpus, floors the removes the
+ * projection had to mint (the floor that says the corpus REACHES the
+ * shape), and the resync band's own fires are counted and floored beside the
+ * reports, because a band nobody can reach fails shared floors of neither.
+ * Two arms agreeing was the gate; agreeing AND leaving no reader behind is
+ * the gate.
  */
 
 import { vaultOf } from "@olai/format/testlib"
@@ -283,11 +293,16 @@ const generated = (files: number, records: number): ReadonlyMap<string, string> 
 
 test("a generated vault under two hundred writes publishes the same frames", () => {
   const vault = generated(120, 20)
-  const steps = stepsOver([...vault.keys()], { steps: 200 })
+  const { steps, resyncs } = stepsOver([...vault.keys()], { steps: 200 })
   // The corpus really is what it says: a run whose steps all landed on one file
   // would satisfy the floors below having exercised one shape.
   expect(vault.size).toBeGreaterThan(140)
   expect(steps.length).toBeGreaterThan(200)
+  // AND THE RESYNC BAND REALLY FIRED — its OWN count, not the `minted` floor
+  // below: mints fire through the swap arm too, so a shared floor cannot see
+  // this band dead the way `roll < 0.94` once hid behind the pull arm's
+  // `< 0.96` (grok's review). Floor the pushes, and a squeeze fails loudly.
+  expect(resyncs).toBeGreaterThan(3)
   holds(
     differential(vault, steps, publishedOf),
     { upserts: 300, removes: 10, reused: 200, rebuilt: 40, minted: 4 },
@@ -314,8 +329,12 @@ test("this repository's own vault, edited, publishes the same frames", () => {
   // run over an empty one would compare nothing, so the floor is about it being
   // a vault rather than about it being this one.
   expect(vault.size).toBeGreaterThan(10)
+  const { steps, resyncs } = stepsOver([...vault.keys()], { steps: 80, seed: 77 })
+  // The band-liveness floor the generated corpus has, on this seed's draw of
+  // the same band: its OWN pushes counted, never the mints other arms share.
+  expect(resyncs).toBeGreaterThan(1)
   holds(
-    differential(vault, stepsOver([...vault.keys()], { steps: 80, seed: 77 }), publishedOf),
+    differential(vault, steps, publishedOf),
     { upserts: 100, removes: 3, reused: 80, rebuilt: 20, minted: 2 },
   )
 })

@@ -858,13 +858,24 @@ export const unminting = (projection: Projection): Projection => (snapshot, publ
  * after all of it, because a map that appended a born key would still look
  * right for the last of those three.
  *
+ * THE RESYNC BAND REPORTS HOW OFTEN IT FIRED, in the returned `resyncs` — a
+ * bare `forgotten`, or one under a restore of a live path, counted at the
+ * push. The minted floors a run's report is held to are fired through this
+ * band AND through the swap arm's unnamed half, so they can only say the
+ * shape was REACHED — never that this band reached it: the band sat dead
+ * once (`roll < 0.94` behind the `git pull` arm's `< 0.96`) while every
+ * floor passed, because the floors were not about IT. Count its own fires
+ * and floor the count (grok's review of the phantom PR): a squeezed band,
+ * or a shared floor lowered by hand, then fails loudly instead of the way
+ * the 0.94 threshold failed — silently.
+ *
  * SEEDED, so a divergence is a corpus a reader can re-run rather than a
  * lottery.
  */
 export const stepsOver = (
   files: ReadonlyArray<string>,
   { steps, seed = 20260824 }: { readonly steps: number; readonly seed?: number },
-): ReadonlyArray<Step> => {
+): { readonly steps: ReadonlyArray<Step>; readonly resyncs: number } => {
   const random = seeded(seed)
   // WHICH KIND A PATH IS, asked of the REGISTRY rather than of its spelling:
   // `./kinds.ts` is the one place that says what a file of the set is, and an
@@ -879,6 +890,7 @@ export const stepsOver = (
   const live = (of: ReadonlyArray<string>): ReadonlyArray<string> =>
     of.filter((file) => !gone.has(file))
   const out: Array<Step> = []
+  let resyncs = 0
   for (let at = 0; at < steps; at++) {
     const roll = random()
     const outline = pick(live(outlines))
@@ -939,6 +951,9 @@ export const stepsOver = (
       if (leaving === undefined) out.push({})
       else {
         gone.add(leaving)
+        // THE FIRE ITSELF, counted — every push below carries a `forgotten`
+        // of a live path, whichever of the three shapes it takes.
+        resyncs += 1
         if (random() < 0.5) out.push({ forgotten: [leaving] })
         else {
           // Put one file BACK to earlier bytes while the other one goes: the
@@ -983,7 +998,7 @@ export const stepsOver = (
       out.push({})
     }
   }
-  return out
+  return { steps: out, resyncs }
 }
 
 /** One outline's worth of JSONL, minted for a step so no two writes of one file
