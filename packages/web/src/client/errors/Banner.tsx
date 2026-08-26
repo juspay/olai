@@ -23,6 +23,16 @@
  * why it and the two readings around it are one module over where a test can
  * ask them (./banner.ts, and the debate's finding 5 on why a knob is not a
  * receptacle).
+ *
+ * IT DOES NOT SEND ANYBODY ANYWHERE, and that is deliberate rather than terse.
+ * The obvious sentence — "open a file named here to see what it says" — is a
+ * door to nowhere for the case this banner is most often drawn over: a file
+ * that PARSED and says something the set cannot hold has no pane of its own
+ * (./Broken.tsx is drawn from the set's `broken`, which is the files that would
+ * not parse), so opening it shows the last good tree and no rows at all. Until
+ * that pane exists the honest sentence is the one below — every outline in the
+ * app is the last good copy, this one included — and pointing at a destination
+ * that has nothing to show is the door module's own sin said in prose.
  */
 
 import type { Verdict } from "@olai/format"
@@ -47,9 +57,10 @@ export function Banner(props: { readonly verdict: Verdict }) {
         when={wentAway(face())}
         fallback={
           <Lede>
-            The files on disk no longer validate, so the outline below is the one
-            from before they stopped. Open a file named here to see what it says;
-            fix it and this catches up on its own — nothing needs reloading.
+            The files on disk no longer validate, so every outline in the app —
+            including the one below — is the last good copy rather than what is
+            there now. Fix what is named here and it catches up on its own;
+            nothing needs reloading.
           </Lede>
         }
       >

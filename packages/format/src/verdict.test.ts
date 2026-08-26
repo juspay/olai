@@ -20,7 +20,7 @@
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { type ErrorCode, implicatedBy, type OutlineError, stageOf } from "./errors.ts"
+import { ErrorCode, implicatedBy, type OutlineError, stageOf } from "./errors.ts"
 import { seeded, setOf } from "./fixtures.testlib.ts"
 import { validate } from "./validate.ts"
 import {
@@ -31,6 +31,7 @@ import {
   NOTHING_WRONG,
   refusesLoad,
   summary,
+  type Tier,
   tierOf,
   type Verdict,
   verdictOf,
@@ -206,12 +207,51 @@ test("a cross-file finding is counted under both files and once in the total", (
  * what changed, rather than through a value somebody edited.
  */
 test("every class is at the tier the validator already gave it", () => {
-  for (const code of ["not-json", "unreadable-file", "duplicate-id", "bad-prop"] as const) {
-    expect([code, tierOf(code)]).toEqual([
+  // THE WHOLE CATALOGUE, walked — the drift guard next door already spells this
+  // shape ({@link ./errors.test.ts}'s "every published code has a stage"), and
+  // for the same reason: a claim about "every class" made over four samples is
+  // a claim three quarters of the table can break silently. Turning ANY code to
+  // `carried` fails here, which is what the boot-policy child is gated on.
+  const tiers = ErrorCode.literals.map((code) => [code, tierOf(code)] as const)
+  expect(tiers.length).toBe(new Set(ErrorCode.literals).size)
+  for (const [code, tier] of tiers) {
+    expect({ code, tier }).toEqual({
       code,
-      stageOf(code) === "set" ? "refuses" : "carried",
-    ])
+      tier: stageOf(code) === "set" ? "refuses" : "carried",
+    })
   }
+})
+
+// …and the same table read the other way, so a new code cannot arrive at a tier
+// by inheriting a stage nobody looked at: the two halves are named in full, and
+// they are exactly the catalogue.
+test("the refuses/carried split is the set/line split, named in full", () => {
+  const at = (tier: Tier): ReadonlyArray<string> =>
+    ErrorCode.literals.filter((code) => tierOf(code) === tier)
+  expect(at("carried")).toEqual([
+    "not-json",
+    "not-an-object",
+    "bad-record",
+    "bad-id",
+    "several-marks",
+    "bad-date",
+    "bad-repeat",
+    "unreadable-file",
+  ])
+  expect(at("refuses")).toEqual([
+    "duplicate-id",
+    "unknown-parent",
+    "foreign-parent",
+    "parent-not-a-node",
+    "parent-cycle",
+    "unknown-target",
+    "after-cycle",
+    "mirror-cycle",
+    "missing-doc",
+    "bad-prop",
+    "unreadable-directory",
+  ])
+  expect(at("carried").length + at("refuses").length).toBe(ErrorCode.literals.length)
 })
 
 test("a report of parse errors alone refuses nothing; one set finding refuses", () => {
@@ -227,7 +267,10 @@ test("a report of parse errors alone refuses nothing; one set finding refuses", 
  *  parent in its own file, no edge that leaves the corpus. */
 const healthy = (random: () => number): Record<string, string> => {
   const files: Record<string, string> = {}
-  const many = 2 + Math.floor(random() * 3)
+  // THREE AT LEAST, so every round has a file that is not either end of the
+  // two-file finding below — the survivor is what the narrowing is about, and a
+  // corpus that sometimes has none would assert nothing on those rounds.
+  const many = 3 + Math.floor(random() * 3)
   for (let which = 0; which < many; which++) {
     const lines: Array<string> = []
     const own: Array<string> = []
@@ -272,6 +315,37 @@ const dangled = (
 })
 
 /**
+ * A `foreign-parent`: a record in one outline whose `parent` is declared in
+ * another.
+ *
+ * The VALIDATOR-PRODUCED two-file finding, and the reason this arm needs one:
+ * a dangling `see` names an id rather than a site, so its finding implicates
+ * the file it was found in and nothing else ({@link ../rules.ts}'s
+ * `reportUnknownTargets`). `foreign-parent` carries a `related` site — the
+ * parent's, in the parent's file — so it is a finding the rules really made
+ * that names two files, which is what `admits` has to refuse at BOTH ends
+ * while admitting everything else.
+ *
+ * `f0n0` is `healthy`'s first record of its first file and every file it
+ * writes holds at least one, so the parent named here is always declared.
+ */
+const adopted = (
+  files: Record<string, string>,
+  child: string,
+  which: number,
+): Record<string, string> => ({
+  ...files,
+  [child]: `${files[child] as string}\n${
+    JSON.stringify({
+      id: `adopted${which}`,
+      ord: "z0",
+      title: "placed in another file's tree",
+      parent: "f0n0",
+    })
+  }`,
+})
+
+/**
  * THE OLD ANSWER, over three kinds of broken set.
  *
  * `parse holes only` is the arm the error scope decided on 2026-08-09 and the
@@ -298,20 +372,61 @@ test("the tier default answers what the validator answered, over generated broke
     expect([round, holed.broken.map((one) => one.file)]).toEqual([round, [hole]])
 
     // A SET RULE — refused, exactly as the blanket refused it.
-    const dangling = validate(setOf(dangled(base, paths[0] as string, round)))
+    const broke = paths[round % paths.length] as string
+    const dangling = validate(setOf(dangled(base, broke, round)))
     expect([round, Result.isFailure(dangling)]).toEqual([round, true])
     if (Result.isFailure(dangling)) {
-      // …and the whole-set verdict IS the new shape asked about every file.
-      // That equivalence is what makes `admits` a NARROWING of the old answer
-      // rather than a different answer: ask about every file and the old
-      // boolean comes back, one file at a time.
+      // THE OLD BOOLEAN: the whole-set verdict IS the new shape asked about
+      // every file. That equivalence is what makes `admits` a NARROWING of the
+      // old answer rather than a different answer.
       expect([round, admits(dangling.failure, paths)._tag]).toEqual([round, "implicated"])
+      // …AND THE NEW ANSWER, which is the freeze dying: every file the rules
+      // did NOT find anything about admits a write. Asked of a verdict the
+      // validator produced over a generated corpus rather than of a row this
+      // file wrote by hand — the whole-set arm above would go on passing if
+      // `admits` had quietly stayed a boolean about the set.
+      for (const survivor of paths.filter((file) => file !== broke)) {
+        expect([round, survivor, admits(dangling.failure, [survivor])._tag])
+          .toEqual([round, survivor, "admitted"])
+      }
+      // …and the file it IS about is refused, naming itself.
+      expect([round, admits(dangling.failure, [broke])])
+        .toEqual([round, {
+          _tag: "implicated",
+          file: broke,
+          rows: implicating(dangling.failure, broke),
+        }])
       // Nothing invented and nothing lost between the rows and the face.
       const face = summary(dangling.failure, 100)
       expect([round, face.total]).toEqual([round, dangling.failure.findings.length])
       for (const one of face.files) {
         expect([round, one.count])
           .toEqual([round, implicating(dangling.failure, one.file).length])
+      }
+    }
+
+    // A FINDING THAT REALLY NAMES TWO FILES — `foreign-parent`, whose
+    // `related` site is the parent's, in the parent's file. Both ends are
+    // implicated and everything else is admitted, which is the same narrowing
+    // asked of the shape that has no single answer to "which file is broken".
+    const away = paths[0] as string
+    const home = paths.find((file) => file !== away) as string
+    const across = validate(setOf(adopted(base, home, round)))
+    expect([round, Result.isFailure(across)]).toEqual([round, true])
+    if (Result.isFailure(across)) {
+      const found = across.failure.findings.filter((one) => one.code === "foreign-parent")
+      expect([round, found.length]).toEqual([round, 1])
+      // The two files come off the FINDING, so this is the rules' own
+      // implication rather than this file's opinion of it.
+      expect([round, implicatedBy(found[0] as OutlineError).slice().sort()])
+        .toEqual([round, [away, home].slice().sort()])
+      for (const end of [home, away]) {
+        expect([round, end, admits(across.failure, [end])._tag])
+          .toEqual([round, end, "implicated"])
+      }
+      for (const survivor of paths.filter((file) => file !== home && file !== away)) {
+        expect([round, survivor, admits(across.failure, [survivor])._tag])
+          .toEqual([round, survivor, "admitted"])
       }
     }
 

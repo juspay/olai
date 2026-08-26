@@ -20,7 +20,7 @@
  * file is not one of them.
  */
 
-import { type OutlineError, verdictOf } from "@olai/format"
+import { type OutlineError, type Summary, verdictOf } from "@olai/format"
 import { expect, test } from "bun:test"
 import * as fs from "node:fs"
 import * as path from "node:path"
@@ -50,16 +50,26 @@ test("135 rows in one file draw one line, and the line is a count", () => {
 
 // THE PAYLOAD DOES NOT GROW. Said of the serialised value, because that is what
 // a rendering can reach: two verdicts about the same file differ in the banner
-// by a number, whether the file has five findings or a hundred and thirty-five.
+// by their COUNTS and by nothing else, whether the file has five findings or a
+// hundred and thirty-five.
+//
+// A digit delta is deliberately NOT the assertion. `135` is four characters
+// longer than `5` twice over, and a test that pins the four would go on passing
+// over a face that had started carrying something and go red over a fixture
+// that changed its numbers — a coincidence standing where the teeth belong.
+// What is asserted is the structure: the two faces are the same value with the
+// counts taken out, and nothing a row carries is anywhere in it.
 test("the banner's payload is bounded regardless of the row count", () => {
-  const few = JSON.stringify(bannerFace(flood("lanes.olai", 5)))
-  const many = JSON.stringify(bannerFace(flood("lanes.olai", 135)))
-  // The only thing that grew is the two numbers — the per-file count and the
-  // total — from one digit to three. Twenty-seven times the findings, four more
-  // characters on the wire to the reader.
-  expect(many.length - few.length).toBe(4)
-  expect(many).not.toContain("claude-opus")
-  expect(many).not.toContain("message")
+  const countless = (face: Summary) => ({
+    ...face,
+    total: 0,
+    files: face.files.map((one) => ({ ...one, count: 0 })),
+  })
+  const few = bannerFace(flood("lanes.olai", 5))
+  const many = bannerFace(flood("lanes.olai", 135))
+  expect(countless(many)).toEqual(countless(few))
+  expect(JSON.stringify(many)).not.toContain("claude-opus")
+  expect(JSON.stringify(many)).not.toContain("message")
 })
 
 test("more broken files than the clamp are counted, not listed", () => {
