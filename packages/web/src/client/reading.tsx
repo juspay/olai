@@ -61,6 +61,7 @@ import {
   useContext,
 } from "solid-js"
 
+import { createDoors, type Doors } from "./doors.ts"
 import { createNames, type Names } from "./names.ts"
 import { olai } from "./wire.ts"
 
@@ -164,6 +165,13 @@ export interface Reading {
    */
   readonly names: Accessor<Names>
   /**
+   * ...and what the property VALUES it draws name — `./doors.ts`'s table,
+   * derived here for {@link Reading.names}' reason exactly: one table per
+   * reading, so every chip inside the pane looks up the one Map the page
+   * arrived with rather than a copy per component.
+   */
+  readonly doors: Accessor<Doors>
+  /**
    * WHICH QUESTION the page in hand is an answer TO — `null` before the first
    * one, and the PREVIOUS address for as long as {@link page} is holding one.
    *
@@ -264,12 +272,19 @@ export const createReading = (
     return arrived === undefined ? was : { page: arrived, about: request() }
   }, undefined)
   const page = createMemo(() => held()?.page)
-  return { page, at, names: createNames(page), about: () => held()?.about ?? null }
+  return {
+    page,
+    at,
+    names: createNames(page),
+    doors: createDoors(page),
+    about: () => held()?.about ?? null,
+  }
 }
 
 const ReadingContext = createContext<Accessor<PageReading | undefined>>()
 const FramesContext = createContext<Accessor<number>>()
 const NamesContext = createContext<Accessor<Names>>()
+const DoorsContext = createContext<Accessor<Doors>>()
 
 export function ReadingProvider(props: {
   readonly reading: Reading
@@ -279,7 +294,9 @@ export function ReadingProvider(props: {
     <ReadingContext.Provider value={props.reading.page}>
       <FramesContext.Provider value={props.reading.at}>
         <NamesContext.Provider value={props.reading.names}>
-          {props.children}
+          <DoorsContext.Provider value={props.reading.doors}>
+            {props.children}
+          </DoorsContext.Provider>
         </NamesContext.Provider>
       </FramesContext.Provider>
     </ReadingContext.Provider>
@@ -322,6 +339,15 @@ export const useNames = (): Accessor<Names> => {
   const names = useContext(NamesContext)
   if (names === undefined) throw new Error("a name lookup outside <ReadingProvider>")
   return names
+}
+
+/** ...and what this page's property values name, for the chips that draw them.
+ *  Its sibling above's shape, its sibling above's throw, and the rule about
+ *  when the table may move is `./doors.ts`'s. */
+export const useDoors = (): Accessor<Doors> => {
+  const doors = useContext(DoorsContext)
+  if (doors === undefined) throw new Error("a door lookup outside <ReadingProvider>")
+  return doors
 }
 
 /** Every open pane's reading, for the chrome that has to agree with the focused

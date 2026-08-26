@@ -43,9 +43,6 @@ import { type Accessor, createContext, createMemo, type JSX, useContext } from "
 import { sameList } from "./same.ts"
 
 const ServedContext = createContext<Accessor<ReadonlyArray<string>>>()
-/** ...and the same directory as a MEMBERSHIP question — see {@link useServes}
- *  for why the set is built here rather than at each reader. */
-const ServesContext = createContext<Accessor<(file: string) => boolean>>()
 
 export function ServedProvider(props: {
   /** Every served file's PATH, in the directory's own order — the one list the
@@ -76,19 +73,11 @@ export function ServedProvider(props: {
   // own walk was already holding — and what is left is the comparison, which is
   // the part that has to live here beside the memo it guards.
   const files = createMemo(() => props.paths, undefined, { equals: sameList })
-  // The membership set, off the held list and therefore under its comparison:
-  // one set per directory change, shared by every reader (see `useServes`).
-  const serves = createMemo(() => {
-    const set = new Set(files())
-    return (file: string) => set.has(file)
-  })
   return (
     <ServedContext.Provider value={files}>
-      <ServesContext.Provider value={serves}>
-        <HeadContext.Provider value={props.head}>
-          {props.children}
-        </HeadContext.Provider>
-      </ServesContext.Provider>
+      <HeadContext.Provider value={props.head}>
+        {props.children}
+      </HeadContext.Provider>
     </ServedContext.Provider>
   )
 }
@@ -104,28 +93,16 @@ export const useServed = (): Accessor<ReadonlyArray<string>> => {
   return files
 }
 
-/**
- * The same list asked the other question: DOES THE DIRECTORY HAVE THIS FILE.
- *
- * A membership set, derived ONCE beside the list in the provider rather than by
- * each reader, and that is the whole reason it is a context of its own rather
- * than an `.includes` at the call site. Its reader is a LEAF DRAWN PER ROW —
- * the property run, asking whether a value that looks like a path is one
- * (`./props/door.ts`) — so a page of a thousand rows would otherwise build a
- * thousand sets, or walk the whole file list once per value drawn.
- *
- * It rides the list's own `equals`, so the set is rebuilt when a file arrives
- * or leaves and on nothing else: a frame that moved a record inside a file
- * hands back the very same predicate, and a reader holding one is holding
- * something that stops moving when the answer does.
- */
-export const useServes = (): Accessor<(file: string) => boolean> => {
-  const serves = useContext(ServesContext)
-  if (serves === undefined) {
-    throw new Error("a served-file membership lookup outside <ServedProvider>")
-  }
-  return serves
-}
+/** AND THE MEMBERSHIP QUESTION HAS GONE THE SAME WAY, which is the note this
+ *  paragraph's neighbour below is the precedent for. There was a `useServes`
+ *  here — the same list asked "does the directory have this file", as a set
+ *  built once rather than an `.includes` per value — and its one reader was the
+ *  property run, guessing whether a value that looked like a path was one
+ *  (`./props/door.ts`). That question is answered where the SET is now, and its
+ *  answers ride the page (`@olai/format`'s `meaning.ts`), so the browser has
+ *  nothing left to ask the directory about a property value. What was left
+ *  behind it was a context, a provider layer and a `Set` rebuilt on every
+ *  directory change for nobody. */
 
 /** THE FACES REACH THIS FILE NO LONGER, and the absence is worth a line
  *  because it was two things. There was a `useFaces` beside the two contexts

@@ -1,5 +1,5 @@
 {"id":"prop-agent","ord":"a0","title":"agent","custom":{"type":"ref","under":"agents"}}
-{"id":"prop-brief","ord":"a1","title":"brief","custom":{"type":"doc"}}
+{"id":"prop-brief","ord":"a1","title":"brief","custom":{"type":"doc","base":"root"}}
 {"id":"prop-dispatched","ord":"a2","title":"dispatched","custom":{"type":"date"}}
 {"id":"prop-merge","ord":"a3","title":"merge","custom":{"type":"ref"}}
 {"id":"auto","parent":"prop-merge","ord":"a0","title":"automatic"}
