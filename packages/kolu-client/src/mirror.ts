@@ -418,7 +418,7 @@ export const UNDIALED: KoluLink = KOLU_UNDIALED
  * scrollback reader, and a field nothing draws does not cross (`./fleet.ts`'s
  * law, one member over).
  */
-const frameOf = (frame: PadiAttachFrame): TerminalFrame =>
+export const frameOf = (frame: PadiAttachFrame): TerminalFrame =>
   frame.kind === "snapshot"
     ? {
       kind: "snapshot",

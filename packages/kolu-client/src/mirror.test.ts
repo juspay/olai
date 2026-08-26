@@ -26,7 +26,7 @@ import type { FleetTerminal, KoluLink } from "@olai/surface"
 import { DaemonContractSkewError } from "@kolu/surface-daemon-supervisor"
 
 import { type Dial, SPEAKS } from "./link.ts"
-import { makeMirror } from "./mirror.ts"
+import { frameOf, makeMirror } from "./mirror.ts"
 
 /** What the mirror pushes, collected — the server's cell and collection,
  *  played by two arrays. */
@@ -426,5 +426,38 @@ describe("the padi mirror", () => {
     )
     expect(refused.reason).toBe("no-padi")
     expect(refused.says).toContain("not connected")
+  })
+})
+
+describe("the frame projection", () => {
+  /**
+   * ABSENT GRID IS A FRAME, not a dead stream.
+   *
+   * padi's `grid` is additive and optional (5.5), so two ordinary things omit
+   * it: a padi older than the field, and an ABORTED attach on a current kaval.
+   * On kolu#2217's first head an absent-grid frame killed the stream — the
+   * author's own bug, fixed in round 2 — so a plain aborted attach took a pane
+   * down with it. What the contract promises, and what this pins from the
+   * consumer's side, is that the frame arrives and says nothing about a grid:
+   * the pane then keeps the size it has, because guessing is the failure the
+   * field exists to end.
+   */
+  it("carries an absent grid across as `null`, and keeps the frame", () => {
+    expect(frameOf({ kind: "snapshot", data: "hello", topLine: 0 })).toEqual({
+      kind: "snapshot",
+      data: "hello",
+      topLine: 0,
+      grid: null,
+    })
+  })
+
+  it("carries a present grid verbatim — one spelling, no rounding", () => {
+    expect(
+      frameOf({ kind: "snapshot", data: "x", topLine: 3, grid: { cols: 203, rows: 51 } }),
+    ).toEqual({ kind: "snapshot", data: "x", topLine: 3, grid: { cols: 203, rows: 51 } })
+  })
+
+  it("leaves a delta alone — bytes carry no layout claim", () => {
+    expect(frameOf({ kind: "delta", data: "$ " })).toEqual({ kind: "delta", data: "$ " })
   })
 })
