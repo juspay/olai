@@ -210,15 +210,18 @@ export const TESTID = {
    *  trusted when it is absent. */
   padi: "padi",
 
-  /** THE TERMINAL DOOR's dot — the `terminal` chip's live status glyph
-   *  (`client/props/TerminalDoor.tsx`). `data-face` is the closed set
-   *  `working` / `awaiting` / `parked` / `gone`, and `data-hollow` is whether
-   *  it is a ring rather than a disc — which is `gone` AND every state where
-   *  there is no padi to ask, the two told apart by the title rather than by
-   *  the shape. */
-  terminalDot: "terminal-dot",
-  /** The snapshot pane the dot opens — dashed border, the age line, the two
-   *  buttons. Present only while open; one per chip. */
+  /** THE TERMINAL DOOR's row — kolu's own Dock row, drawn where the `terminal`
+   *  property is (`client/props/TerminalDoor.tsx`). The row's own attribute
+   *  contract is kolu's (`[data-dock-row]`, `data-bucket`, `data-agent-state`)
+   *  and is asserted through it rather than restated here; what olai owns is
+   *  this wrapper and `data-terminal`, the value the property holds. */
+  terminalBlock: "terminal-block",
+  /** What is drawn IN THE ROW'S PLACE when there is none — the sentence, and
+   *  the only thing that says why (`client/props/terminal.ts`). Its presence is
+   *  the assertion: a row and a reason are never both on screen. */
+  terminalSays: "terminal-says",
+  /** The snapshot pane the ROW opens — dashed border, the age line, the two
+   *  buttons. Present only while open; one per block. */
   terminalPane: "terminal-pane",
   /** The screen text inside it, verbatim, or the refusal in its place.
    *  `data-state` is `reading` / `text` / `refused`. */

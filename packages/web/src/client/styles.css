@@ -23,6 +23,25 @@
  * the same tree. */
 @source "./";
 
+/* KOLU'S OWN SHEETS, in the order `@kolu/solid-dockrow`'s README requires:
+ * the tokens every colour in them resolves against, the pip's sheet, then the
+ * row's. They are here rather than beside the component because a `.css` file
+ * cannot be imported from a `.tsx` in this build, and because the ORDER is the
+ * requirement — three imports in one place is a thing a reader can check.
+ *
+ * The `@source` beside them is that README's first instruction and is not
+ * optional: the row spells Tailwind utility classes, and Tailwind emits only
+ * what it can SEE. Without it the row arrives with its class names intact and
+ * every one of them undefined — which is not a missing style, it is a row with
+ * no layout at all. The path is the hydrated package's real directory (the
+ * hydrate script copies rather than symlinks, exactly so that resolution and
+ * scanning both work from where the file actually is). */
+@source "../../../../node_modules/@kolu/solid-dockrow/src";
+@source "../../../../node_modules/@kolu/solid-statepip/src";
+@import "@kolu/theme/theme.css";
+@import "@kolu/solid-statepip/statepip.css";
+@import "@kolu/solid-dockrow/dockrow.css";
+
 /* The typefaces themselves — `@font-face` and every `:root[data-font]`
  * block — are generated from `@olai/fonts`'s catalog and appended by the
  * build. What stays here is the TOKEN NAMES and the default row's stacks, so
@@ -866,92 +885,7 @@ mark.olai-hit {
 }
 
 /**
- * THE TERMINAL DOOR's dot — the `terminal` property chip's live status glyph
- * (`client/props/TerminalDoor.tsx`).
- *
- * The three live faces borrow the OUTLINE'S OWN vocabulary rather than
- * inventing a status palette: `--color-done` is the green a finished task
- * wears, `--color-doing` the amber a half-box wears, `--color-muted` the ink
- * every quiet thing is set in. That is not thrift — a lane board draws these
- * dots beside those glyphs, and a second green would read as a second meaning.
- *
- * HOLLOW IS A RING, and it is the one shape with no colour of its own: no live
- * state to report, whether because padi is unreachable or because the terminal
- * is gone. Which of the two is in the WORDS (the chip's title), never in the
- * paint — see `client/props/terminal.ts`, which argues that at length.
- *
- * The pulse is `awaiting` alone, because it is the one face that is a REQUEST.
- * Under `prefers-reduced-motion` it holds still at full strength: the state is
- * carried by the colour and the words, and the motion is an emphasis a reader
- * may decline without losing the fact.
- */
-/**
- * THE SLOT THE DOT SITS IN — a box exactly one line tall, at the top.
- *
- * The dot is a direct flex child of the chip, and a chip aligns its children
- * two different ways: `items-baseline` for the ordinary pill, `items-start`
- * when a long value folds. Neither works on the dot, because A FLEX ITEM WITH
- * NO TEXT HAS NO BASELINE — under `items-baseline` the browser falls back to
- * its bottom margin edge, so the dot floats above the text it belongs to, and
- * under `items-start` it pins to the top of a box that may be several lines
- * tall. Both were visible on the real board (the human's screenshot, two chips
- * misaligned two different ways).
- *
- * So the dot stops taking part in that decision. The slot is `flex-start` —
- * the FIRST LINE, whichever alignment the chip is using — and one line-height
- * tall with the dot centred inside it. A folded chip that opens to six lines
- * keeps its dot on line one, where the value's first line is, which is the only
- * place it means anything.
- *
- * `1.375em` is `leading-snug` on the run's own font size, in `em` so it tracks
- * that size rather than restating it in `rem` and drifting from it.
- */
-.olai-dot-slot {
-  display: flex;
-  align-items: center;
-  align-self: flex-start;
-  height: 1.375em;
-  flex: none;
-}
-
-.olai-dot {
-  border-radius: 9999px;
-  height: 0.5rem;
-  width: 0.5rem;
-  flex: none;
-  background-color: var(--color-muted);
-}
-
-.olai-dot[data-face="working"] {
-  background-color: var(--color-done);
-}
-
-.olai-dot[data-face="awaiting"] {
-  background-color: var(--color-doing);
-}
-
-.olai-dot[data-hollow="true"] {
-  background-color: transparent;
-  border: 1.5px solid var(--color-rule);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .olai-dot[data-face="awaiting"] {
-    animation: olai-dot-awaiting 1.6s ease-in-out infinite;
-  }
-}
-
-@keyframes olai-dot-awaiting {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.35;
-  }
-}
-
-/**
- * The SNAPSHOT pane the dot opens.
+ * The SNAPSHOT pane the row opens.
  *
  * DASHED, and that is the whole promise in one border: this is a still frame,
  * taken once, at the moment the age line names. Phase 6's live pane is a SOLID

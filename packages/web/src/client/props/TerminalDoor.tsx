@@ -1,114 +1,191 @@
 /**
- * THE TERMINAL DOOR — the dot on a `terminal` chip, and the pane it opens.
+ * THE TERMINAL DOOR — kolu's own Dock row, drawn where the property is, and
+ * the snapshot pane it opens.
  *
- * Two rungs and two components, because they sit in two places. Rung 1 is a
- * live status glyph INSIDE the chip, riding the fleet the tab already holds
- * (`./fleet.tsx` — one subscription, however many chips). Rung 2 is one
- * `screen.text` call per open, drawn UNDER THE WHOLE RUN.
+ * The BLOCK SEAM's first consumer (`./blocks.ts`). A `terminal` property does
+ * not draw as a chip: it draws as the row kolu's Dock draws, so what you see
+ * beside a node is literally what you would see in the Dock — the pip and its
+ * glyph, the annotation line, the status words, the recency, the repo stripe,
+ * the PR badge, the sleeping recede, and the violet wash when an agent is
+ * blocked on you.
  *
- * ## Why the pane is not inside the chip
+ * ## Why olai draws none of that itself
  *
- * A chip is an inline box in a wrapping line of them; a screenful of terminal
- * output is eighty columns of monospace. Put inside, the pane stretches its
- * chip across the page and shoves the value out beside it — which is not a
- * layout bug so much as a category error: the run is a line of short facts, and
- * a screen is not one of them. So the chip stays a chip and the pane opens
- * beneath the run, which is where `../SaidLine.tsx` already puts a sentence
- * that belongs to one chip.
+ * It used to. There was a `DotFace` vocabulary in `@olai/surface`, a fold in
+ * `@olai/kolu-client`, a tone table in a renderer and a `.olai-dot` family in
+ * the stylesheet — four files restating, in olai's words, a state machine that
+ * is kolu's. The fifth Löwy sitting (`docs/lowy-electricity/
+ * debate-2026-08-26.md`, finding 1) retired all of it by DELETION rather than
+ * reconciliation, and the human's word was the plainest statement of the rule:
+ * "This way we don't have to invent yet another shit in Olai." A second visual
+ * vocabulary for one fleet is two surfaces free to disagree about it.
  *
- * WHICH PANE IS OPEN is therefore the RUN's state, not the chip's
- * (`./PropsDrawer.tsx` holds it) — one at a time, for the reason the editor is
- * one at a time: opening a second means you are done with the first.
+ * ## What olai still says, because kolu cannot
  *
- * ## What the pane promises, and what it does not
+ * Why there is NO row. A terminal that is gone, a value that names three of
+ * them, a padi that is absent, a padi this build cannot speak to — none of
+ * those are things kolu's row has a face for, because from kolu's side they do
+ * not happen. They are `./terminal.ts`'s sentences, and the block draws them in
+ * the row's place, in words. That is the half of the old hollow worth keeping:
+ * the shape carried nothing, the sentence carried everything.
  *
- * It is a SNAPSHOT and it says so three ways: the dashed border, the age line
- * ("snapshot · just now"), and the refetch button that is the only thing that
- * moves it. Nothing is subscribed — no stream, no poll, no timer. Twelve lanes
- * on a page are twelve dots and zero attached terminals.
+ * ## The pane belongs to the block
  *
- * Closing UNMOUNTS it, which is the promise kept on the way out as well: a pane
- * reopened an hour later reads the screen again rather than showing an
- * hour-old one under a fresh "just now".
+ * Pressing the row opens the snapshot beneath it — `onSelect`, the row's own
+ * verb, which in kolu's Dock focuses the terminal and here reads its screen.
+ * The pane hangs under the block's own row rather than under the whole drawer,
+ * which it had to do while the door was a dot inside a chip: a chip is an
+ * inline box in a wrapping line and could not carry a screenful of monospace,
+ * and a block already owns the width. So the state is the block's, and "one
+ * read per open" stays a fact about a component's lifetime rather than a rule
+ * somebody keeps.
  *
- * That restraint is deliberate rather than a gap. The live pane is phase 6
- * (`terminal-stream`) and arrives as a REFCOUNTED stream member with a SOLID
- * border and a `● live` tag — two panes, two borders, and a reader never has to
+ * What the pane promises is unchanged: dashed border, "snapshot · just now",
+ * a refetch button that is the only thing that moves it, and nothing
+ * subscribed. Closing unmounts it, so a pane reopened an hour later reads the
+ * screen again rather than showing an hour-old one under a fresh "just now".
+ * The live pane is phase 6 (`terminal-stream`) and arrives with a SOLID border
+ * and a `● live` tag — two panes, two borders, and a reader never has to
  * remember which is which.
  */
 
-import { createResource, Match, Show, Switch } from "solid-js"
+import { createResource, createSignal, Match, Show, Switch } from "solid-js"
 
-import type { Snapshot, SnapshotRefused } from "@olai/surface"
+import { DockRow } from "@kolu/solid-dockrow"
+import {
+  DOCK_ROW_GAP,
+  DOCK_ROW_GRID,
+  isDockRowBucket,
+  isPipGlyphId,
+  isPipMotionKind,
+  isPipVariant,
+  narrowAgentState,
+  recencyMode,
+} from "@kolu/solid-dockrow/rowValues"
+import type { FleetTerminal, Snapshot, SnapshotRefused } from "@olai/surface"
+import { TERMINAL_KEY } from "@olai/surface"
 
-import { TESTID } from "../testids.ts"
+import { type BlockContext, registerBlock } from "./blocks.ts"
 import { useFleet } from "./fleet.tsx"
-import { readingOf, type TerminalReading } from "./terminal.ts"
-
-/** What one `terminal` value reads as — asked by both halves, so the dot and
- *  the pane's header line cannot disagree about the terminal they are on. */
-const useReading = (value: () => string): (() => TerminalReading) => {
-  const fleet = useFleet()
-  return () => readingOf(value(), fleet.link(), fleet.terminals())
-}
+import { Handle } from "./handle.tsx"
+import { createRecencyNow, recencyText } from "./recency.ts"
+import { readingOf } from "./terminal.ts"
+import { TESTID } from "../testids.ts"
 
 /**
- * THE DOT — a glyph, or a button where there is a wire behind it.
+ * THE BLOCK — the key, and then the row or the words.
  *
- * With no `read` on the fleet context it stays a glyph and nothing more, and
- * that is the honest degradation rather than a missing feature: rung 1 is a
- * reading of the fleet this tab already holds, and it does not need rung 2 to
- * be true.
+ * The key handle is the one piece of chip that survives into the block, and it
+ * is here for the promise `./handle.tsx` states: the key opens the editor,
+ * always, whatever the value does. Without it a `terminal` property would be
+ * the one fact in the vault a person could read and not correct.
  */
-export function TerminalDot(props: {
-  /** The property's value — padi's terminal id, verbatim. */
-  readonly value: string
-  /** Is this chip's pane the one open? */
-  readonly open: boolean
-  /** Open it, or close it if it is already this one. */
-  readonly onToggle: () => void
-}) {
+export function TerminalBlock(context: BlockContext) {
   const fleet = useFleet()
-  const reading = useReading(() => props.value)
+  const [open, setOpen] = createSignal(false)
+  const reading = () => readingOf(context.entry.value, fleet.link(), fleet.terminals())
   return (
-    <Show
-      when={fleet.read !== undefined}
-      fallback={<span class="olai-dot-slot"><Glyph reading={reading()} /></span>}
-    >
-      <button
-        type="button"
-        class="olai-dot-slot cursor-pointer"
-        title={`${reading().says} — click for a snapshot`}
-        aria-label={`${reading().says} — click for a snapshot`}
-        aria-expanded={props.open}
-        onClick={(event) => {
-          // The row's own line answers a click by opening the title editor, and
-          // this one is about the terminal under the pointer — the same stop
-          // `./PropsDrawer.tsx`'s key handle makes.
-          event.stopPropagation()
-          props.onToggle()
-        }}
-      >
-        <Glyph reading={reading()} />
-      </button>
-    </Show>
+    <div class="mb-1" data-testid={TESTID.terminalBlock} data-terminal={context.entry.value}>
+      <div class="flex items-baseline gap-1.5">
+        <Handle label={context.entry.key} onOpen={context.onOpen} />
+        <div class="min-w-0 flex-1">
+          <Show
+            when={reading().row}
+            fallback={
+              // THE WORDS, in the reading face rather than the row's: this is
+              // olai speaking about why there is nothing to draw, and setting
+              // it in the row's own face would read as a row that had somehow
+              // come back empty.
+              <p class="text-[0.8125rem] text-muted" data-testid={TESTID.terminalSays}>
+                {reading().says}
+              </p>
+            }
+          >
+            {(row) => (
+              <Row
+                row={row()}
+                pressable={fleet.read !== undefined}
+                onSelect={() => setOpen((was) => !was)}
+              />
+            )}
+          </Show>
+        </div>
+      </div>
+      <Show when={open() && reading().row}>
+        {(row) => <SnapshotPane value={row().id} onClose={() => setOpen(false)} />}
+      </Show>
+    </div>
   )
 }
 
-/** The glyph itself. Every fact it carries is an attribute as well as a paint,
- *  so a browser test asserts the STATE rather than a colour — `data-face` is
- *  the closed set, `data-hollow` is the ring. */
-function Glyph(props: { readonly reading: TerminalReading }) {
+registerBlock(TERMINAL_KEY, TerminalBlock)
+
+/**
+ * KOLU'S ROW, filled from olai's wire.
+ *
+ * Every narrowing here goes through the row package's OWN guards
+ * (`@kolu/solid-dockrow/rowValues`), which is the fifth sitting's ratified
+ * arrangement: olai's wire carries kolu's closed sets as plain strings so an
+ * outline spec never compiles kolu's per-agent schema graph, and the one home
+ * of the vocabulary narrows them back. An unrecognised word is not normalised
+ * onto a neighbour and not dropped — `narrowAgentState` keeps it, the row
+ * prints it, and a reader sees a strange state rather than a blank or a lie.
+ *
+ * The SECTION around the row is not decoration: the row is `grid-cols-subgrid`,
+ * so the container declares the tracks (the package README's fourth
+ * requirement) and sets the `--repo-color` socket every repo-tinted surface
+ * reads.
+ */
+function Row(props: {
+  readonly row: FleetTerminal
+  readonly pressable: boolean
+  readonly onSelect: () => void
+}) {
+  const now = createRecencyNow()
+  const pip = () => {
+    const bag = props.row.pip
+    return {
+      ...bag,
+      // The three pip fields the wire carries as text. A word this build does
+      // not know falls back to the quiet rendering rather than throwing: the
+      // row is a status readout, and a status readout that crashes the page it
+      // is on is worse than one that under-reports for a release.
+      variant: isPipVariant(bag.variant) ? bag.variant : "idle",
+      glyph: isPipGlyphId(bag.glyph) ? bag.glyph : "shell",
+      motion: isPipMotionKind(bag.motion) ? bag.motion : "none",
+    }
+  }
+  const mode = () => recencyMode(pip())
   return (
-    <span
-      class="olai-dot"
-      data-testid={TESTID.terminalDot}
-      data-face={props.reading.face}
-      data-hollow={String(props.reading.hollow)}
-      title={props.reading.says}
-      role="img"
-      aria-label={props.reading.says}
-    />
+    <section
+      class={`dock-cards-section grid ${DOCK_ROW_GRID} ${DOCK_ROW_GAP}`}
+      style={{ "--repo-color": "var(--color-rule)" }}
+    >
+      <DockRow
+        id={props.row.id as never}
+        density="desktop"
+        pip={pip()}
+        bucket={isDockRowBucket(props.row.bucket) ? props.row.bucket : "idle"}
+        agentState={narrowAgentState(props.row.agentState).attr}
+        label={props.row.label}
+        labelColor={props.row.labelColor}
+        // PLAIN TEXT, and it is a decision rather than a stub. The annotation
+        // line is markdown and the package requires a renderer be injected
+        // rather than defaulted, precisely so the choice is visible: olai's own
+        // markdown pipeline is a dynamic chunk a page waits on, and an intent
+        // line inside an outline row is not worth making forty rows wait for
+        // it. The day the pipeline is already loaded on these pages, this is
+        // one argument.
+        renderLabel={(markdown) => markdown}
+        subline={props.row.subline}
+        pr={props.row.pr}
+        recency={{ mode: mode(), text: recencyText(props.row.recencyAt, now()) }}
+        onSelect={() => {
+          if (props.pressable) props.onSelect()
+        }}
+        title={props.pressable ? "read this terminal's screen" : undefined}
+      />
+    </section>
   )
 }
 
@@ -117,21 +194,18 @@ function Glyph(props: { readonly reading: TerminalReading }) {
  *
  * The read fires on MOUNT and on refetch, and nowhere else: `createResource`
  * over the terminal id is the whole of it, so "one read per open" is a fact
- * about the component's lifetime rather than a rule somebody keeps. Unmounting
- * it forgets the text, which is the snapshot promise kept on the way out.
+ * about the component's lifetime rather than a rule somebody keeps.
  */
 export function SnapshotPane(props: {
   readonly value: string
   readonly onClose: () => void
 }) {
   const fleet = useFleet()
-  const reading = useReading(() => props.value)
   const [answer, { refetch }] = createResource(
     () => props.value,
     async (terminal): Promise<Snapshot | SnapshotRefused | undefined> =>
       await fleet.read?.(terminal),
   )
-  const row = () => reading().row
   return (
     <div
       class="olai-snapshot mt-1 mb-1 w-full p-2"
@@ -144,14 +218,6 @@ export function SnapshotPane(props: {
             not tick: a label that aged in place would be a promise this pane
             cannot keep, since nothing here is watching the terminal. */}
         <span>{answer.loading ? "reading…" : "snapshot · just now"}</span>
-        <Show when={row()}>
-          {(live) => (
-            <>
-              <span aria-hidden="true">·</span>
-              <span>{live().branch ?? live().repo ?? live().cwd ?? live().id}</span>
-            </>
-          )}
-        </Show>
         <span class="ml-auto flex gap-2">
           <button
             type="button"
@@ -180,7 +246,7 @@ export function SnapshotPane(props: {
       </div>
       <Switch>
         {/* THE RESOURCE'S OWN ERROR, FIRST — and this arm is the reason the
-            page survives a click. A `createResource` whose fetcher rejected
+            page survives a press. A `createResource` whose fetcher rejected
             THROWS when it is read, during render, which took the whole page
             down the first time a chip sent a value the wire would not encode
             ("This page broke", and nothing updates again). `./fleet.tsx`'s

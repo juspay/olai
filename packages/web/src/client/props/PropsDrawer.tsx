@@ -152,13 +152,19 @@
  */
 
 import { Key } from "@solid-primitives/keyed"
-import { createMemo, createSignal, Index, Show } from "solid-js"
+import { createMemo, createSignal, For, Index, Show } from "solid-js"
 
 import type { Entry } from "./drawer.ts"
 import { type Door, doorFor } from "./door.ts"
-import { TERMINAL_KEY } from "@olai/surface"
 
-import { SnapshotPane, TerminalDot } from "./TerminalDoor.tsx"
+import { layOut } from "./blocks.ts"
+import { Handle } from "./handle.tsx"
+// IMPORTED FOR ITS REGISTRATION. `./blocks.ts` is a table a renderer puts
+// itself into, so the module that owns a block has to be loaded for its key to
+// be in the map — and the drawer, which is what draws blocks, is the honest
+// place to load it. The alternative is the drawer importing every block
+// component by name, which is the branch the seam replaced.
+import "./TerminalDoor.tsx"
 import { type ClosedBy, type Editing, leavingCommits, openedOn, sending, writes } from "./editor.ts"
 import { Link } from "../router.tsx"
 import { useDoors, useNames } from "../reading.tsx"
@@ -277,15 +283,15 @@ export function PropsDrawer(props: {
    *  seconds, replaced by the next one, cleared by a commit with nothing to
    *  report (`../saying.ts`). */
   const saying = createSaying()
-
   /**
-   * WHICH TERMINAL'S SNAPSHOT IS OPEN under this run — one at a time, for the
-   * editor's reason: opening a second means you are done with the first.
+   * THE ENTRIES, CUT INTO WHAT DRAWS INLINE AND WHAT OWNS A ROW.
    *
-   * The RUN's state and not the chip's, because the pane is drawn beneath the
-   * whole line (`./TerminalDoor.tsx` argues why). `null` is closed.
+   * `./blocks.ts` decides; this only draws what it is handed. The editor's own
+   * key goes in so that a property being TYPED draws as a chip even where it
+   * would otherwise be a block — one text box for every property in the vault,
+   * which is what stops each new block renderer from growing its own.
    */
-  const [paneOn, setPaneOn] = createSignal<string | null>(null)
+  const laid = createMemo(() => layOut(props.entries, editing()?.key))
 
   /** Shut whichever editor is open, from either door. */
   const close = (): void => {
@@ -307,7 +313,7 @@ export function PropsDrawer(props: {
 
   return (
     <>
-      <Show when={props.entries.length > 0 || naming()}>
+      <Show when={laid().run.length > 0 || naming()}>
         {/* One line that wraps, not a grid. `items-baseline` because the keys are
             set in the mono face and the values are not, and two faces centred
             against each other sit on two baselines. */}
@@ -321,14 +327,11 @@ export function PropsDrawer(props: {
             reference every chip of every row would be rebuilt on every frame
             of the page. Keyed by {@link keyOf}, which is where the one thing
             that could collide is answered. */}
-        <Key each={props.entries} by={keyOf}>
+        <Key each={laid().run} by={keyOf}>
           {(entry) => (
             <Chip
               entry={entry()}
               doorOf={doorOf}
-              paneOn={paneOn() ?? undefined}
-              onPane={(terminal) =>
-                setPaneOn((was) => (was === terminal ? null : terminal))}
               // A chip is open when the editor is open ON IT — asked by the
               // chip's own identity ({@link keyOf}) rather than by its bare
               // key, which is the collision that identity exists to prevent
@@ -354,7 +357,7 @@ export function PropsDrawer(props: {
             with no chips is offered `Add property…` in its `•••` instead, for
             the reason the header gives. Hidden while the add chip is open,
             because two ways to open one box is one of them doing nothing. */}
-        <Show when={props.onSet !== undefined && props.entries.length > 0 && !naming()}>
+        <Show when={props.onSet !== undefined && laid().run.length > 0 && !naming()}>
           <button
             type="button"
             class={`${CHIP} cursor-pointer items-baseline rounded-full text-muted hover:text-accent`}
@@ -371,21 +374,24 @@ export function PropsDrawer(props: {
         </Show>
         </div>
       </Show>
-      {/* THE SNAPSHOT PANE, under the whole run rather than inside a chip —
-          `./TerminalDoor.tsx` argues why, and the said line below is the
-          precedent it follows: a thing that belongs to ONE chip but cannot be
-          drawn inside an inline box of short facts hangs off the DRAWER, not
-          off the run. Outside the run's own `<Show>` for the same reason that
-          line is (#401's NIT 2, below): the pane outlives the chips, and a
-          chip whose key was dropped while its pane was open must not take the
-          pane with it. Keyed by the terminal, so switching chips REMOUNTS it
-          — which is what makes "one read per open" a fact about the
-          component's lifetime rather than a rule somebody keeps. */}
-      <Show when={paneOn()}>
-        {(terminal) => (
-          <SnapshotPane value={terminal()} onClose={() => setPaneOn(null)} />
-        )}
-      </Show>
+      {/* THE BLOCKS, under the run and in the file's own key order.
+          A property whose renderer OWNS ITS ROW draws here rather than in the
+          line above — `./blocks.ts` decides which, and this knows nothing about
+          any of them, which is the point: the drawer stopped asking "is this
+          the terminal key?" and started asking "does this property have a
+          block?". A block's own state (a pane it opens, a thing it expands)
+          belongs to the block, because a block already owns the width a chip
+          never had. Outside the run's `<Show>` for the said line's reason
+          below: a run can be empty of chips and still have blocks in it. */}
+      <For each={laid().blocks}>
+        {(laid) =>
+          laid.block({
+            entry: laid.entry,
+            onOpen: props.onSet === undefined
+              ? undefined
+              : () => setEditing({ key: laid.entry.key, value: laid.entry.value }),
+          })}
+      </For>
       {/* THE ANSWER OUTLIVES THE RUN. The line hangs off the drawer's own
           component rather than beside the chips, because one answer needs
           exactly that: a chip whose key was dropped under its open, typed
@@ -420,16 +426,6 @@ const CHIP = "inline-flex min-w-0 max-w-full gap-1.5 border border-rule bg-panel
 function Chip(props: {
   readonly entry: Entry
   readonly doorOf: (key: string, value: string) => Door | null
-  /**
-   * WHICH terminal's pane is open in this RUN, and how to toggle it.
-   *
-   * The pane is the RUN's state rather than the chip's, because it is drawn
-   * under the whole line — see `./TerminalDoor.tsx`, which argues why a screen
-   * cannot live inside an inline box of short facts. Absent wherever there is
-   * no wire behind the run, and then the dot is a glyph and nothing more.
-   */
-  readonly paneOn?: string
-  readonly onPane?: (terminal: string) => void
   /** What this chip is being edited AS, or `undefined` when it is not. */
   readonly open?: Editing
   /** Open it. ABSENT wherever the run is read-only, and then no half of this
@@ -511,27 +507,6 @@ function Chip(props: {
       data-system={props.entry.system ? "true" : undefined}
     >
       <Handle label={props.entry.key} onOpen={opens()} />
-      {/* THE TERMINAL DOOR — the dot, before the value.
-          KEYED ON THE PROPERTY KEY and on nothing else, which is the roadmap's
-          own scoping of this phase: `terminal` is the door, and keying off a
-          DECLARED TYPE instead is a rename-sized migration for the day typed
-          properties land — deliberately not a dependency of this one.
-          A SINGLE value only. A `terminal` key holding a list names three
-          terminals and one dot cannot report on three; the chip stays the run
-          of text it always was, which is `./door.ts`'s wrong-door rule read one
-          module over. The system half is excluded for its usual reason: those
-          are fields with verbs of their own. */}
-      <Show
-        when={!props.entry.system
-          && props.entry.key === TERMINAL_KEY
-          && props.entry.values.length === 1}
-      >
-        <TerminalDot
-          value={props.entry.value}
-          open={props.paneOn === props.entry.value}
-          onToggle={() => props.onPane?.(props.entry.value)}
-        />
-      </Show>
       <Show
         when={props.open}
         fallback={
@@ -598,33 +573,6 @@ function Chip(props: {
 /** The KEY half, which is the handle — a button where the run may be written
  *  and the label it always was where it may not. One element either way as far
  *  as the eye is concerned; what differs is whether it answers a press. */
-function Handle(props: { readonly label: string; readonly onOpen?: () => void }) {
-  return (
-    <Show
-      when={props.onOpen}
-      fallback={
-        <span class="shrink-0 font-mono text-[0.6875rem] text-muted">{props.label}</span>
-      }
-    >
-      {(open) => (
-        <button
-          type="button"
-          class="shrink-0 cursor-pointer font-mono text-[0.6875rem] text-muted hover:text-accent"
-          data-testid={TESTID.propKey}
-          title={`change ${props.label}`}
-          onClick={(event) => {
-            // The row's own line answers a click by opening the title editor,
-            // and this one is about the fact under the pointer.
-            event.stopPropagation()
-            open()()
-          }}
-        >
-          {props.label}
-        </button>
-      )}
-    </Show>
-  )
-}
 
 /**
  * The members of a value, comma-separated, each asked the door question on its

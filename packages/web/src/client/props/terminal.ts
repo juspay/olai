@@ -1,63 +1,59 @@
 /**
- * WHAT A `terminal` CHIP SHOWS — the reading, as a pure function.
+ * WHAT A `terminal` PROPERTY SHOWS — the reading, as a pure function.
  *
- * The door hangs off the PROPERTY, so this is asked once per chip on every
- * frame of every row that carries one, and it is a module with a test beside it
- * for `./door.ts`'s reason: it is a handful of decisions with an order between
+ * The door hangs off the PROPERTY, so this is asked once per row that carries
+ * one, on every frame, and it is a module with a test beside it for
+ * `./door.ts`'s reason: it is a handful of decisions with an order between
  * them, and that is the shape that goes quietly wrong inside a component.
  *
- * ## Three answers, and the first one is not a dot
+ * ## Two answers, and the second one is words
  *
- *   - HOLLOW. There is no padi — this olai is not connected to a kolu, or the
- *     one it found speaks a contract it cannot. The chip wears an empty ring
- *     and SAYS SO IN WORDS, and it is the state this whole module is arranged
- *     around: "we cannot see" must never be drawn as "we looked and it is
- *     quiet". A gray dot for an unreachable padi would be a lie told once per
- *     lane, and the person reading it would act on it.
- *   - A DOT. There is a padi and the fleet has this terminal: the face the
- *     server already folded (`@olai/kolu-client`'s `face.ts`), read
- *     straight off the row. Nothing is re-derived here — a browser that folded
- *     agent states for itself would be the second switch kolu's own vocabulary
- *     exists to prevent, one wire further out.
- *   - GONE. There is a padi, and it does not have this terminal. A hollow ring
- *     too, but a DIFFERENT sentence: the property is still a true record of
- *     where the work happened, and the honest thing to say is that the
- *     terminal has been retired — not to draw a gray dot implying it is
- *     sitting there idle, and not to draw the no-padi hollow implying olai
- *     cannot see.
+ *   - A ROW. There is a padi and the fleet holds this terminal, so what comes
+ *     back is the row kolu's own Dock would draw for it — folded once on the
+ *     server, in kolu's own vocabulary (`@olai/kolu-client`), and read straight
+ *     off the wire here. NOTHING IS RE-DERIVED IN THE BROWSER: a second fold
+ *     over kolu's state vocabulary is the defect kolu's `agentProjection.ts`
+ *     spends a page on, and putting the second copy across a wire would make it
+ *     invisible as well as duplicated.
+ *   - WORDS. There is no row, and the reason is a whole sentence rather than a
+ *     shape. This is the state the module is arranged around, and it is three
+ *     different facts that must never be drawn as one:
  *
- * ## Why `gone` and `hollow` look alike and read differently
+ *       · **no padi** — this olai is not connected to a kolu at all. "We cannot
+ *         see" must never be drawn as "we looked and it is quiet".
+ *       · **skew** — something IS serving that socket and this build cannot
+ *         speak to it. The opposite fix from the one above, so the opposite
+ *         sentence: two builds disagree, and here are the versions.
+ *       · **gone** — there is a padi, and it does not hold this terminal. The
+ *         property is still a true record of where the work happened; the
+ *         honest thing is to say the terminal was closed or retired.
  *
- * Both are rings rather than discs, because both mean "no live state here".
- * What separates them is the WORDS, and that is deliberate: a shape carries
- * "there is nothing to report" and the sentence carries why. Giving them two
- * shapes would put the burden on a reader to remember which ring meant which;
- * giving them one sentence would lose the distinction that decides what you do
- * next.
+ * ## Why the answer is a sentence and not a face
+ *
+ * It used to be a face — a hollow ring with a tooltip — and the fifth Löwy
+ * sitting retired the whole vocabulary it belonged to: olai does not invent
+ * visual language for kolu's fleet any more, it draws kolu's row. What is left
+ * for olai to say is exactly what kolu has no way of saying, which is why there
+ * is no row to draw. That is prose, and prose is what a block has room for.
  */
 
-import { type DotFace, resolveTerminal } from "@olai/surface"
+import { resolveTerminal } from "@olai/surface"
 import type { FleetTerminal, KoluLink } from "@olai/surface"
 
-/** What the chip draws. `face` is what the dot LOOKS like; `says` is what a
- *  pointer and a screen reader are told, and it is always a whole sentence —
- *  a status glyph with no words is the thing this design is replacing. */
+/** What one `terminal` value reads as: the row, or the reason there is none. */
 export interface TerminalReading {
-  readonly face: DotFace
-  /** Is the ring hollow — no live state to report, for either of the two
-   *  reasons. Kept as its own field rather than derived from `face` at each
-   *  draw, because "hollow" is a paint decision and `gone` is a fact. */
-  readonly hollow: boolean
-  readonly says: string
-  /** The fleet row behind the dot, where there is one. What the snapshot pane's
-   *  header draws — the repo, the branch, the intent — and `undefined` for
-   *  every hollow. */
+  /** The row the block draws, when the value resolves to a terminal the fleet
+   *  holds. `undefined` for every one of the three answers below it. */
   readonly row?: FleetTerminal
+  /** Why there is no row — a whole sentence, always, and the only thing drawn
+   *  in the row's place. A status glyph with no words is what this design
+   *  replaced; a blank where a row would be is the same mistake with less ink. */
+  readonly says: string
 }
 
-/** The sentence a hollow chip carries when there is no padi at all. It names
- *  the socket, because "looked where?" is the first thing a person asks and
- *  the whole of what makes the state actionable. */
+/** The sentence when there is no padi at all. It names the socket, because
+ *  "looked where?" is the first thing a person asks and the whole of what makes
+ *  the state actionable. */
 export const noPadiSays = (link: KoluLink): string => {
   if (link.status === "skew") {
     return `kolu at ${link.socket} speaks padi ${link.surfaceVersion ?? "?"}, and this olai speaks ${link.speaks} — one of the two needs an upgrade.`
@@ -82,61 +78,28 @@ export const readingOf = (
   fleet: ReadonlyMap<string, FleetTerminal>,
 ): TerminalReading => {
   // THE LINK IS ASKED FIRST, and that order is the module's one real rule. An
-  // empty fleet is what a healthy kolu with nothing open also has, so a chip
-  // that looked the terminal up first would draw `gone` for every lane on a
+  // empty fleet is what a healthy kolu with nothing open also has, so a reading
+  // that looked the terminal up first would say "retired" for every lane on a
   // laptop that simply is not running kolu.
-  if (link.status !== "connected") {
-    return { face: "gone", hollow: true, says: noPadiSays(link) }
-  }
+  if (link.status !== "connected") return { says: noPadiSays(link) }
   // RESOLVED, not looked up. The board writes eight-character prefixes far
   // more often than whole uuids, and a map read answered `undefined` for every
   // one of them — a working terminal drawn as retired, which is what the human
   // found in production. `@olai/surface`'s `resolveTerminal` is the same
-  // reading the server does, which is what keeps the dot and the pane from
-  // disagreeing about which terminal a chip is about.
+  // reading the server does, which is what keeps this and the snapshot from
+  // disagreeing about which terminal a value is about.
   const found = resolveTerminal(value, fleet.keys())
   if (found.kind === "many") {
     return {
-      face: "gone",
-      hollow: true,
       // THE COUNT, because it is what makes the next move obvious: write more
-      // of the id. A dot for whichever row sorted first would be a green light
-      // about a terminal this value never named.
-      says:
-        `this names ${found.count} terminals — write more of the id to say which.`,
+      // of the id. A row for whichever terminal sorted first would be a live
+      // green row about a terminal this value never named.
+      says: `this names ${found.count} terminals — write more of the id to say which.`,
     }
   }
   const row = found.kind === "one" ? fleet.get(found.id) : undefined
   if (row === undefined) {
-    return {
-      face: "gone",
-      hollow: true,
-      says: "this terminal is no longer in the fleet — it has been closed or retired.",
-    }
+    return { says: "this terminal is no longer in the fleet — it has been closed or retired." }
   }
-  return { face: row.face, hollow: false, says: saysOf(row), row }
-}
-
-/** The sentence a live dot carries — the face, plus the two facts that make it
- *  worth pointing at (what the terminal is FOR, and where it is). */
-const saysOf = (row: FleetTerminal): string => {
-  const what = FACE_SAYS[row.face]
-  const where = row.branch ?? row.repo ?? row.cwd
-  const why = row.intent
-  // Built by parts rather than by template, because every one of the three is
-  // legitimately absent — a plain shell in no repository with no intent is an
-  // ordinary terminal, and a sentence with two dangling dashes in it is how a
-  // reader learns to stop reading the tooltip.
-  return [what, why, where === null ? null : `in ${where}`]
-    .filter((part): part is string => part !== null && part !== "")
-    .join(" · ")
-}
-
-/** One sentence per LIVE face. `gone` is not here: it has two sentences, both
- *  above, because the two ways of having no live state are the distinction
- *  this module is about. */
-const FACE_SAYS: Record<Exclude<DotFace, "gone">, string> = {
-  working: "working",
-  awaiting: "waiting for you",
-  parked: "nothing running",
+  return { row, says: "" }
 }

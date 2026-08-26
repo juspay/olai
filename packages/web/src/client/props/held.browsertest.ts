@@ -27,17 +27,28 @@ import type { FleetTerminal } from "@olai/surface"
 
 import { after, type Held, holdingNothing, seeded } from "./held.ts"
 
-const row = (id: string, face: FleetTerminal["face"] = "working"): FleetTerminal => ({
+const row = (id: string, bucket = "working"): FleetTerminal => ({
   id,
-  face,
-  state: "active",
-  agent: "claude",
-  cwd: null,
+  pip: {
+    variant: "working",
+    glyph: "claude",
+    motion: "pulse",
+    active: true,
+    asking: false,
+    bytesLive: true,
+    shellLive: false,
+    sleeping: false,
+    alert: false,
+    alertLabel: "",
+  },
+  bucket,
+  agentState: "thinking",
+  label: "",
+  labelColor: "",
+  subline: { text: "", fromAgent: false },
+  pr: null,
+  recencyAt: null,
   repo: null,
-  branch: null,
-  worktree: null,
-  intent: null,
-  lastActivityAt: null,
   owner: { kind: "unowned" },
 })
 
@@ -78,23 +89,23 @@ test("a chip re-reads when its terminal moves, and not when another one does", (
     let reads = 0
     // What a chip is: a memo over the map, keyed by ITS id. One per property
     // chip on the page, all of them over one fold.
-    const face = createMemo(() => {
+    const bucket = createMemo(() => {
       reads += 1
-      return held().rows.get("t1")?.face
+      return held().rows.get("t1")?.bucket
     })
-    expect(face()).toBe("working")
+    expect(bucket()).toBe("working")
     expect(reads).toBe(1)
 
     // t1 moves — the chip re-reads.
     setHeld((previous) => after(previous, entries(row("t1", "awaiting")), []))
-    expect(face()).toBe("awaiting")
+    expect(bucket()).toBe("awaiting")
     expect(reads).toBe(2)
 
     // t2 moves. The memo re-runs (the counter moved, which is the whole of
     // what it depends on) and the ANSWER does not — so what a chip actually
     // costs a busy fleet is one map lookup, not a rebuild.
     setHeld((previous) => after(previous, entries(row("t2", "parked")), []))
-    expect(face()).toBe("awaiting")
+    expect(bucket()).toBe("awaiting")
     expect(reads).toBe(3)
     dispose()
   })
