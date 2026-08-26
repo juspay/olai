@@ -118,7 +118,7 @@ export const withArms = <A>(
         remove: (file) => fs.rmSync(path.join(root, file), { force: true }),
         git,
       },
-      settle: Effect.orDie(store.refresh),
+      settle: Effect.orDie(store.refresh("cheap")),
       cached: make({ store, root: served, policy, committed: cachedSide.committed }),
       plain: make({ store, root: served, policy, committed: plainSide.committed }),
       cachedSide,

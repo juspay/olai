@@ -170,7 +170,15 @@ const withTools = <A>(
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
     yield* serveFace({
       client: () => clientOver(writerAt(wired.bound, ops, "mcp")),
-      tools: bespokeFrom(TOOLS, { login: () => login, root }),
+      tools: bespokeFrom(TOOLS, {
+        login: () => login,
+        root,
+        // The face's own currency, composed the way `../serve.ts` composes it:
+        // the store's read socket at the class a tool answer deserves. A stub
+        // here would make every assertion about a read's `vintage` an
+        // assertion about the stub.
+        vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+      }),
       transport: serverSide,
     })
 
@@ -193,7 +201,7 @@ const withTools = <A>(
         },
         set: () =>
           Effect.runPromise(
-            Effect.map(SubscriptionRef.get(store.snapshot), (snapshot) => {
+            Effect.map(Effect.map(store.read("cheap"), (aged) => aged.snapshot), (snapshot) => {
               if (snapshot === null) throw new Error("the fixture directory never loaded")
               return snapshot.value.set
             }),
@@ -230,6 +238,29 @@ const call = async (
     structured: result.structuredContent ?? {},
     isError: result.isError === true,
   }
+}
+
+/**
+ * A read's answer with its AGE taken off — and checked on the way past.
+ *
+ * Every read carries a `vintage` (`./tools.ts`), and one of its three fields
+ * is a timestamp, so a case that asserts a WHOLE answer cannot write the answer
+ * down any more. This is how it goes on being able to: the vintage is lifted
+ * out and asserted for the one thing every read of a healthy fixture owes — a
+ * look that agreed, so nothing here is stale — and what is returned is the rest
+ * of the answer, which the case then names in full exactly as it did before.
+ *
+ * A read whose answer is MISSING the vintage fails here rather than passing
+ * quietly with one field fewer to match, which is what `toEqual` on the raw
+ * answer would have done.
+ */
+const withoutAge = (
+  structured: Record<string, unknown>,
+): Record<string, unknown> => {
+  const { vintage, ...rest } = structured
+  expect(vintage).toMatchObject({ stale: false, proof: "confirmed", ageMs: 0 })
+  expect(typeof (vintage as Record<string, unknown>)["asOf"]).toBe("string")
+  return rest
 }
 
 /** The rows out of a refusal's detail — one spelling, because the detail is a
@@ -759,7 +790,7 @@ test("read_subtree refuses a call naming both ways in, or neither", async () => 
     // `root` on every answer, this one included: which vault answered is a fact
     // about the ANSWER, not about the kind of answer, so an absence names its
     // vault exactly as a hit does.
-    expect(gone.structured).toEqual({ missing: "nope", root })
+    expect(withoutAge(gone.structured)).toEqual({ missing: "nope", root })
   })
 })
 
@@ -858,7 +889,7 @@ test("read_document answers the text a write would replace", async () => {
     // Verbatim, blank lines and leading spaces included: what the listing
     // named is not what the read answers with, and an edit is derived from
     // this rather than from the title.
-    expect(answered.structured).toEqual({
+    expect(withoutAge(answered.structured)).toEqual({
       file: "notes/cabinets.md",
       text: "\n\n  Walnut, or birch.\n",
       // Which vault this text came out of — on every answer, so a reader can
@@ -2445,5 +2476,103 @@ test("several captures at once into a directory with no inbox all land", async (
       .map((one) => one.node)
       .flatMap((one) => "mirror" in one ? [] : [one.title])
     for (const n of many) expect(titles).toContain(`capture ${n}`)
+  })
+})
+
+// ── how old is what you just told me ───────────────────────────────────
+//
+// The 2026-08-25 incident happened HERE, in the answers this file projects: a
+// `git rebase` replaced the served files, the watcher missed it, and
+// `read_node` went on answering normally with week-old truth for thirty
+// minutes. Nothing was invalid, so nothing came back as an error — the only
+// symptom was every WRITE refusing, because the stale set violated
+// declarations the disk had already moved past, and it took a disk-vs-MCP diff
+// of one node to work out which side was lying.
+//
+// So every read now carries its age (`@olai/store`'s vintage), established by
+// a look taken outside the publish loop's permit — a wedged loop shows up as a
+// stale vintage on the answer rather than as an answer that reads fine.
+
+test("every read answers with its age, and a look that agreed says so", async () => {
+  await withTools(
+    { "house.olai": HOUSE, "notes/cabinets.md": "# Cabinets\n" },
+    async ({ client, root }) => {
+      // ALL SIX read tools, because this is a claim about the kind of answer
+      // and not about one of them: a seventh read added without its age would
+      // be exactly the hole this closes.
+      for (const [tool, args] of [
+        ["read_node", { id: "kitchen" }],
+        ["read_subtree", { id: "kitchen" }],
+        ["read_document", { file: "notes/cabinets.md" }],
+        ["list_outlines", {}],
+        ["list_documents", {}],
+        ["search_nodes", { text: "cabinets" }],
+      ] as ReadonlyArray<readonly [string, Record<string, unknown>]>) {
+        const answered = await call(client, tool, args)
+        const vintage = answered.structured["vintage"] as Record<string, unknown>
+        // The bit an agent must not miss is first: this set is one to act on.
+        expect(vintage).toMatchObject({ stale: false, proof: "confirmed", ageMs: 0 })
+        // The instant, said in a vocabulary that needs no clock the reader
+        // shares with this process.
+        expect(Date.parse(vintage["asOf"] as string)).toBeGreaterThan(0)
+        // …beside the vault it came from, which is the other fact no tool
+        // schema declares and every answer carries.
+        expect(answered.structured["root"]).toBe(root)
+      }
+    },
+  )
+})
+
+// A WRITE does not carry one, and that is the boundary rather than an
+// omission. A vintage says how current the set an answer was DERIVED FROM is;
+// a write's answer is about a change that has just landed, judged inside the
+// store's own gate against the revision it names, and stamping it with an age
+// would be a sentence about a different question.
+test("a write's answer carries no age — it is not a read of anything", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
+    const written = await call(client, "set_done", { id: "order" })
+    expect(written.isError).toBe(false)
+    expect(written.structured["vintage"]).toBeUndefined()
+    // …and the read that follows it does carry one, so the absence above is
+    // this projection's rule and not the fixture being quiet.
+    const answered = await call(client, "read_node", { id: "order" })
+    expect(answered.structured["vintage"]).toMatchObject({ stale: false })
+  })
+})
+
+// THE INCIDENT'S OWN SHAPE, through the face it was diagnosed on. A file is
+// replaced by a rename with nothing telling the server about it, and the read
+// still answers the set the server is serving — that part is deliberate and
+// unchanged — but it now says, in the answer, that the disk no longer agrees
+// and which file it is about. That sentence is the thirty minutes.
+test("PIN (the rebase shape): a read whose set the disk has moved past says so", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, root, read }) => {
+    const before = await call(client, "read_node", { id: "order" })
+    expect(before.structured["vintage"]).toMatchObject({ stale: false })
+    const proved = (before.structured["vintage"] as Record<string, unknown>)["asOf"]
+
+    // Staged beside its destination and renamed over it — what `git rebase`,
+    // `git checkout` and this store's own write gate all do.
+    const held = read("house.olai")
+    expect(held).not.toBeNull()
+    const incoming = path.join(root, ".incoming")
+    fs.writeFileSync(incoming, `${held as string}\n`)
+    fs.renameSync(incoming, path.join(root, "house.olai"))
+
+    const after = await call(client, "read_node", { id: "order" })
+    // The answer still comes back — a last good set is worth more than a
+    // blank refusal, and an agent that can see the divergence can decide.
+    expect(after.isError).toBe(false)
+    expect(after.structured["id"]).toBe("order")
+    const vintage = after.structured["vintage"] as Record<string, unknown>
+    expect(vintage).toMatchObject({ stale: true, proof: "diverged" })
+    expect(vintage["diverged"]).toEqual(["house.olai"])
+    // And the instant is the STANDING one — the moment the last agreeing look
+    // proved this set — rather than the moment of this one: a look that
+    // disagreed proves nothing about how current the answer is, so it must not
+    // reset the clock. Asserted as the instant rather than as an elapsed
+    // number, because two calls a millisecond apart is a true reading of a
+    // fast machine and not a thing to make a test wait out.
+    expect(vintage["asOf"]).toBe(proved)
   })
 })

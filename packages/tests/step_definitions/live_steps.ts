@@ -67,8 +67,8 @@ When(
     const target = path.join(this.scratch(), file);
     fs.chmodSync(target, 0o000);
     // chmod does not change size; a same-second stamp miss would skip the
-    // read. The harness's resync forgets stamps, which is also how a
-    // restore asks the still-running server to look again.
+    // read. The POST asks for the store's verified class, which is the same
+    // door a restore asks the still-running server to look through.
     await askResync(this.baseUrl, POLL_TIMEOUT);
   },
 );

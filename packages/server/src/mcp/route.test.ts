@@ -90,7 +90,11 @@ const withRoute = <A>(
     const transport = mcpTransport()
     yield* serveFace({
       client: () => clientOver(writerAt(wired.bound, ops, "mcp")),
-      tools: bespokeFrom(TOOLS, { login: currentLogin, root }),
+      tools: bespokeFrom(TOOLS, {
+        login: currentLogin,
+        root,
+        vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+      }),
       transport,
     })
     yield* Effect.addFinalizer(() => runtime.stopped)

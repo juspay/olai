@@ -158,7 +158,7 @@ const withRepo = <A>(
       git,
       write,
       remote,
-      refresh: Effect.orDie(store.refresh),
+      refresh: Effect.orDie(store.refresh("cheap")),
       settlements: () => settlements,
       settled: (from: number) =>
         Effect.callback<void>((resume) => {

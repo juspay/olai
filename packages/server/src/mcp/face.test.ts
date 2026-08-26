@@ -131,7 +131,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     return yield* Effect.promise(() =>
       use({
         client,
-        refresh: () => Effect.runPromise(Effect.orDie(store.refresh)),
+        refresh: () => Effect.runPromise(Effect.orDie(store.refresh("cheap"))),
         root,
       })
     )

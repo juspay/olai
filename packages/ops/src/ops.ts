@@ -407,7 +407,7 @@ export const make = (options: Options): Ops => {
   })
 
   const read: Effect.Effect<Reading, OpFailure> = Effect.gen(function*() {
-    const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
+    const { snapshot } = yield* options.store.read("cheap")
     if (snapshot === null) {
       const errors = yield* SubscriptionRef.get(options.store.errors)
       return yield* new ValidationFailure({
@@ -426,7 +426,12 @@ export const make = (options: Options): Ops => {
   ): Effect.Effect<Applied, OpFailure> =>
     Effect.gen(function*() {
       for (let round = 0; round < ROUNDS; round++) {
-        const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
+        // The CHEAP class, and the write gate is why it is enough: a plan is
+        // derived from this revision and then judged against `baseRev` inside
+        // the gate, which probes on its way in. A tree that moved under the
+        // plan comes back `StaleWrite` and the round runs again — the drift
+        // this read cannot see is the drift the gate is there to catch.
+        const { snapshot } = yield* options.store.read("cheap")
         if (snapshot === null) {
           const errors = yield* SubscriptionRef.get(options.store.errors)
           return yield* new ValidationFailure({

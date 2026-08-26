@@ -218,10 +218,19 @@ export const serve = (options: ServeOptions) =>
     yield* serveFace({
       client: () => panel,
       // WHAT THIS FACE KNOWS ABOUT ITSELF: which directory it is serving, so
-      // every answer names the vault it came from, and who the request is, so a
+      // every answer names the vault it came from; who the request is, so a
       // capture through a reverse proxy is attributed to the person the proxy
-      // named — and to nobody when it named nobody.
-      tools: bespokeFrom(TOOLS, { login: currentLogin, root }),
+      // named — and to nobody when it named nobody; and how current what it
+      // serves is, at the class an agent's tool result deserves. An agent acts
+      // on what it reads, so `verified` is the class: one walk of the tree per
+      // read, taken outside the publish loop's permit, so a wedged loop shows
+      // up as a stale vintage on the answer rather than as an answer that
+      // looks fine.
+      tools: bespokeFrom(TOOLS, {
+        login: currentLogin,
+        root,
+        vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+      }),
       transport,
     })
 
@@ -244,11 +253,14 @@ export const serve = (options: ServeOptions) =>
         // `POST /olai/resync` — force a re-read of the disk. Waits for
         // in-flight writes first (`ops.idle`): a probe while a `run` is
         // still staging is a look at `.olai-*.tmp`, not at the tree the
-        // next reader will be served. Then the store's own forget-and-probe.
+        // next reader will be served. Then the store's one look verb, at the
+        // class this door exists for: `verified` is "a look nobody may be
+        // entitled to see nothing from", and what it costs to be that is the
+        // store's business rather than this line's.
         // Nothing about it is on the surface: no tab draws it and no agent
         // calls it. It is for the case the watcher cannot see, which is a
         // change made where no inotify reaches.
-        resync: Effect.andThen(ops.idle, store.resync),
+        resync: Effect.andThen(ops.idle, store.refresh("verified")),
       }),
       () => runtime.stopped,
     )
