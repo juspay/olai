@@ -1,16 +1,16 @@
 # @olai/kolu-client — how olai reaches kolu
 
-One package holds the dial, the standing mirror, the projection into olai's own vocabulary, and the one screen read. What leaves is [`@olai/surface`](../surface/README.md)'s shapes — a `KoluLink`, a `FleetTerminal`, a `Snapshot`, a `DotFace` — so a change to padi's contract is a change **here** and stops.
+One package holds the dial, the standing mirror, the projection into olai's own vocabulary, and the one screen read. What leaves is [`@olai/surface`](../surface/README.md)'s shapes — a `KoluLink`, a `FleetTerminal`, a `Snapshot` — so a change to padi's contract is a change **here** and stops.
 
 **Olai works on top of kolu and never launches agents itself.** Every process with a model in it is a kolu terminal (`docs/brainstorming/orchestrator.md`); what olai does is *read* the fleet those terminals make and put it where the fact already is. This package is the whole of the reading.
 
 ## What it is for, today
 
-The terminal door's two rungs (roadmap: `terminal-door`). A lane step carries `terminal: <id>`, so a property chip in a plain outline wears the agent's state and opens onto its screen — no route, no page.
+The terminal door's two rungs (roadmap: `terminal-door`). A lane step carries `terminal: <id>`, so that property draws **kolu's own Dock row** in a plain outline and opens onto the terminal's screen — no route, no page, and no second visual language for a fleet that already has one.
 
-- **`link.ts`** — the dial and the **one standing mirror**. `connectPadi` over the unix socket, `mirrorRemoteSurface` of padi's `terminals`, and a five-second re-dial that never gives up. Ten tabs are ten subscriptions to olai's own `fleet` collection and *one* connection to padi, because the link is forked by the `kolu` cell's connector when the surface **binds** — the git sweep's arrangement applied to a socket. The invariant is structural at bind; `mirror.test.ts` counts it as well.
-- **`face.ts`** — padi's agent states folded to the dot's four faces, and the only module in olai that has ever seen an agent state literal. Two switches over one closed set is the defect kolu's own `agentProjection.ts` spends a page on; sending the *answer* over the wire is what keeps there being one.
-- **`fleet.ts`** — one padi record projected to one row, joined with olai's ownership overlay.
+- **`link.ts`** — the dial and the **one standing mirror**. `connectPadi` over the unix socket, `mirrorRemoteSurface` of padi's `terminals` collection plus the two attention feeds (the `urgency` cell and the `activity` stream), and a five-second re-dial that never gives up. Ten tabs are ten subscriptions to olai's own `fleet` collection and *one* connection to padi, because the link is forked by the `kolu` cell's connector when the surface **binds** — the git sweep's arrangement applied to a socket. The invariant is structural at bind; `mirror.test.ts` counts it as well.
+- **`mirror.ts`** — the three clocks joined. padi's records move on one, its attention partition on two more (an agent transition; kaval's byte edge), and olai's ownership overlay on a fourth — the vault's revision stream. Each publishes only the rows it actually moved.
+- **`fleet.ts`** — one padi record projected to one row of kolu's own prop bag, joined with olai's ownership overlay. Every field is kolu's own fold: `bindStatePip`, `paintDockRow`, `rowSubline`, `activePr`, `annotationLine`, `identityColor`. Nothing here decides what a state means or what colour it paints — that was `face.ts`, and the fifth Löwy sitting deleted it by ratification.
 - **`socket.ts`** — where padi is: `$PADI_SOCKET` first, the rendezvous path algebra second. kolu's own README asks a client to be *given* the socket, because the correcting read-back stayed with the daemon.
 - **`screen.ts`** — one `screen.text` read, tailed here.
 - **`index.ts`** — `koluHalf`, which is what a server composes: three surface members and one revision hook.

@@ -95,8 +95,19 @@ export function TerminalBlock(context: BlockContext) {
       {/* MUTED and small, deliberately: the value is a fact ABOUT the row, not
           a competitor to the words inside it. The row says what the terminal is
           doing; eight characters of id have no business being the loudest thing
-          in a lane. */}
-      <div class="flex items-baseline gap-1.5">
+          in a lane.
+          IT WEARS THE RUN'S OWN CONTRACT — `prop` and `data-key` — because it IS
+          this property's drawing, and every step and stylesheet that reaches a
+          property by key must reach this one too. A block that took the chip's
+          place and not its handles would be a property the rest of the app had
+          quietly lost track of: the typed-properties suite writes a `terminal`
+          holding a sentence, through exactly these attributes, and it found
+          this the day the block landed. */}
+      <div
+        class="flex items-baseline gap-1.5"
+        data-testid={TESTID.prop}
+        data-key={context.entry.key}
+      >
         <Handle label={context.entry.key} onOpen={context.onOpen} />
         <Value value={context.entry.value} onOpen={context.onOpen} />
       </div>

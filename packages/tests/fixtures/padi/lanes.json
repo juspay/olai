@@ -1,5 +1,5 @@
 {
-  "//": "The fleet the terminal-door scenarios read. Three terminals, one per dot state, plus one the fixture deliberately does NOT hold (44444444-…) — which is what makes the `gone` chip a real case rather than a contrived one.",
+  "//": "The fleet the terminal-door scenarios read. Three terminals — one working, one blocked on you, one asleep — plus one the fixture deliberately does NOT hold (44444444-…), which is what makes the no-row case a real one rather than a contrived one. `urgency` is padi's own attention partition and it is a SEPARATE fact from the records: no consumer derives a terminal's class from its agent state any more, so a scenario about a terminal blocked on you is written HERE, where padi would have said it.",
   "//ids": "UUIDs because padi's TerminalIdSchema is one: a readable `t-working` is refused at the wire. That refusal is the fixture being a real far end rather than a mock, and so is every field below — the records are padi's own shape and are DECODED by the mirror, so a missing `git.repoRoot` is a row that never arrives.",
   "//screens": "Two maps rather than a screen on the record, because padi's record does not carry one: a snapshot is a VERB there. 33333333-… has no screen, which is the sleeping terminal the refusal scenario reads.",
   "terminals": {

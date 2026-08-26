@@ -1,12 +1,20 @@
 /**
- * THE TERMINAL DOOR — the dot's states, and the pane one click opens.
+ * THE TERMINAL DOOR — kolu's row where the property is, and the pane it opens.
  *
- * Every assertion here is on an ATTRIBUTE or on WORDS, never on a colour.
- * `data-face` and `data-hollow` are the closed sets the renderer paints from
- * (`packages/web/src/client/props/TerminalDoor.tsx`), and the sentence is what
- * a person actually reads — so a scenario that passed while the dot was
- * invisible or while every state painted the same green would be a scenario
- * asserting nothing. The colours are the evidence shots' job.
+ * Every assertion here is on an ATTRIBUTE or on WORDS, never on a colour — and
+ * the attributes are KOLU'S OWN. `data-dock-row`, `data-bucket`,
+ * `data-agent-state` and `data-asking` are the row package's published contract
+ * (`@kolu/solid-dockrow`'s `rowAttrs.ts`), so a scenario here asserts the same
+ * facts kolu's own tests assert about the same component. That is the point of
+ * drawing kolu's row rather than one of olai's: when the two surfaces disagree
+ * about a fleet, one of these breaks.
+ *
+ * WHAT IS OLAI'S is the wrapper and the sentence: `terminal-block` is the
+ * property's own row, `data-terminal` is the value the record holds, and
+ * `terminal-says` is what is drawn IN THE ROW'S PLACE when there is none. That
+ * last one is the whole of what olai still says for itself, and the reason it
+ * is asserted by presence as well as by words: a row and a reason must never be
+ * on screen together.
  */
 
 import * as assert from "node:assert";
@@ -17,70 +25,105 @@ import { attr } from "../support/selectors.ts";
 
 import { type OlaiWorld, POLL_TIMEOUT } from "../support/world.ts";
 
-const DOT = `[data-testid="terminal-dot"]`;
+const BLOCK = `[data-testid="terminal-block"]`;
+const ROW = `[data-dock-row]`;
+const SAYS = `[data-testid="terminal-says"]`;
 const PANE = `[data-testid="terminal-pane"]`;
 const SCREEN = `[data-testid="terminal-screen"]`;
 const REFETCH = `[data-testid="terminal-refetch"]`;
 
-/** The dot on ONE node's `terminal` chip. Scoped through the row rather than
- *  found globally: a page draws several, and a bare `terminal-dot` would assert
- *  about whichever one happened to be first. */
-const chipOn = (world: OlaiWorld, id: string) =>
-  world.node(id).locator(`[data-testid="prop"]${attr("data-key", "terminal")}`);
+/** The block on ONE node's `terminal` property. Scoped through the row rather
+ *  than found globally: a page draws several, and a bare `terminal-block` would
+ *  assert about whichever one happened to be first. */
+const blockOn = (world: OlaiWorld, id: string) => world.node(id).locator(BLOCK).first();
 
-const dotOn = (world: OlaiWorld, id: string) =>
-  chipOn(world, id).locator(DOT).first();
+const rowOn = (world: OlaiWorld, id: string) => blockOn(world, id).locator(ROW).first();
 
 Then(
-  "the terminal chip on {string} wears the {word} face",
-  async function (this: OlaiWorld, id: string, face: string) {
-    // WAIT for the face rather than read it once. The dot draws the moment the
-    // row does and the fleet arrives on its own frame a beat later, so a single
-    // read races the frame — which is the discipline every other step here
+  "the terminal row on {string} is {word}",
+  async function (this: OlaiWorld, id: string, bucket: string) {
+    // WAIT for the bucket rather than read it once. The block draws the moment
+    // the outline row does and the fleet arrives on its own frame a beat later,
+    // so a single read races the frame — the discipline every other step here
     // keeps (`outline_tree_steps.ts`'s note on reading a count once).
-    await chipOn(this, id)
-      .locator(`${DOT}${attr("data-face", face)}`)
+    await blockOn(this, id)
+      .locator(`${ROW}${attr("data-bucket", bucket)}`)
       .first()
       .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const dot = dotOn(this, id);
-    // A LIVE face is never hollow, and asserting it here is what keeps the two
-    // from drifting into one: a dot that reported `parked` while drawn as a
-    // ring would pass the line above and be a lie on screen.
-    assert.equal(await dot.getAttribute("data-hollow"), "false");
+    // A ROW AND A REASON ARE NEVER BOTH ON SCREEN, and asserting it here is
+    // what keeps the two from drifting into one: a block that drew a live row
+    // AND a sentence about having none would pass the line above and be
+    // nonsense to read.
+    assert.equal(await blockOn(this, id).locator(SAYS).count(), 0);
   },
 );
 
 Then(
-  "the terminal chip on {string} is hollow",
+  "the terminal row on {string} is asking for you",
   async function (this: OlaiWorld, id: string) {
-    const dot = dotOn(this, id);
-    await dot.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // `data-asking` is the row's own emphasis flag and the ONE test every kolu
+    // surface reads for "blocked on you" — the wash, the wait chip and the
+    // section count all come off it rather than each re-testing the bucket.
+    // Asserted apart from the bucket because they are different folds (paint
+    // against order) that agreed by luck once and stopped.
+    await blockOn(this, id)
+      .locator(`${ROW}[data-asking]`)
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the terminal on {string} has no row",
+  async function (this: OlaiWorld, id: string) {
+    const says = blockOn(this, id).locator(SAYS);
+    await says.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.equal(
-      await dot.getAttribute("data-hollow"),
-      "true",
-      `the ${id} chip should have nothing live to report`,
+      await blockOn(this, id).locator(ROW).count(),
+      0,
+      `the ${id} block should have nothing live to draw`,
     );
   },
 );
 
 Then(
-  "the terminal chip on {string} says {string}",
+  "the terminal on {string} says {string}",
   async function (this: OlaiWorld, id: string, says: string) {
-    // The SENTENCE, off the element rather than out of a tooltip a mouse has to
-    // find: a hollow dot with no words is the thing this whole design replaces,
-    // so the words have to be readable by anything that reads the page.
-    const label = await dotOn(this, id).getAttribute("aria-label");
+    // THE SENTENCE, as text on the page rather than in a tooltip a mouse has to
+    // find: a status glyph with no words is the thing this whole design
+    // replaces, so the words have to be readable by anything that reads the
+    // page.
+    const said = await blockOn(this, id).locator(SAYS).first().textContent();
     assert.ok(
-      label?.includes(says),
-      `the ${id} chip should say "${says}" — it said "${label}"`,
+      said?.includes(says),
+      `the ${id} block should say "${says}" — it said "${said}"`,
     );
+  },
+);
+
+Then(
+  "the terminal on {string} shows the stored value",
+  async function (this: OlaiWorld, id: string) {
+    // The record's own id, on the page beside the row. Two statements, not one:
+    // the row is kolu's reading of a terminal and this is olai's record of
+    // WHICH — and the value is what a `set_prop` is written with.
+    const value = await blockOn(this, id).getAttribute("data-terminal");
+    assert.ok(value !== null && value !== "", `the ${id} block should name its terminal`);
+    const drawn = await blockOn(this, id)
+      .locator(`[data-testid="prop-value"]`)
+      .first()
+      .textContent();
+    assert.equal(drawn?.trim(), value);
   },
 );
 
 When(
-  "I click the terminal dot on {string}",
+  "I open the snapshot on {string}",
   async function (this: OlaiWorld, id: string) {
-    await dotOn(this, id).click();
+    // THE ROW ITSELF is the door — `onSelect`, which in kolu's Dock focuses the
+    // terminal and here reads its screen. There is no separate button, which is
+    // the geometry the human chose.
+    await rowOn(this, id).click();
   },
 );
 
@@ -121,8 +164,8 @@ Then(
   "the snapshot pane refuses with {string}",
   async function (this: OlaiWorld, says: string) {
     // A REFUSAL IS PROSE, in its own state — not an empty screen and not a
-    // fault. `t-parked` is asleep, which is padi's own `TerminalNotFound` and
-    // the expected answer for a lane that finished.
+    // fault. A sleeping terminal has no live mirror to read, which is padi's
+    // own `TerminalNotFound` and the expected answer for a lane that finished.
     const refused = this.page
       .locator(`${SCREEN}[data-state="refused"]`)
       .first();
