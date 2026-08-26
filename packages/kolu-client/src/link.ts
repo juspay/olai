@@ -34,11 +34,26 @@
  *
  * ## What is mirrored, and what deliberately is not
  *
- * `terminals` only. padi also serves `urgency` (a derived id-list) and the
- * `watchStates` stream (the hold-and-nag engine), and phase 2 wants the second
- * one — but a mirror of a member nobody reads is a subscription paid for
- * nothing, and `urgency` is derivable from the records this already holds. So
- * the mirror grows when a reader does.
+ * THREE MEMBERS, and they are three because the row draws three. `terminals`
+ * is the records; `urgency` is padi's own attention partition, computed once
+ * on the host and shipped as id lists; `activity` is the set of terminals
+ * moving bytes right now. The second and third are what the row's violet
+ * "blocked on you" emphasis is painted from, and they are SEPARATE FEEDS from
+ * the records on purpose — padi computes the class once and every kolu surface
+ * reads that answer, rather than each re-deriving it from the metadata. The
+ * fold from the two feeds to `TerminalAttention` is kolu's too
+ * (`@kolu/padi-client/attention`), so olai computes exactly what the Dock
+ * computes instead of a restatement of it.
+ *
+ * The two arrive on INDEPENDENT subscriptions at wildly different cadences —
+ * an agent transition against kaval's byte edge, roughly a second — which is
+ * why they are held apart here and joined per row rather than merged into one
+ * value on arrival. Merging them would invalidate every class-only reader on
+ * every byte tick.
+ *
+ * `watchStates` (the hold-and-nag engine) is still not mirrored: phase 2 wants
+ * it, and a mirror of a member nobody reads is a subscription paid for
+ * nothing. The mirror grows when a reader does.
  */
 
 import { mirrorRemoteSurface } from "@kolu/surface/mirror"
@@ -47,6 +62,7 @@ import {
   PADI_SURFACE_VERSION,
   padiSurface,
   type PadiTerminal,
+  type PadiUrgency,
 } from "@kolu/padi-client/surface"
 import {
   type DaemonContractSkewError,
@@ -105,6 +121,27 @@ export interface Sink {
       | null
       | ((input: { id: string; startLine?: number; endLine?: number }) => Effect.Effect<string, unknown>),
   ) => void
+  /**
+   * PADI'S ATTENTION PARTITION MOVED — the `urgency` cell, whole.
+   *
+   * Four id lists, computed once on the host. It arrives RAW, like a record
+   * does, because what it means is `@kolu/padi-client/attention`'s to say and
+   * this module's only job is to carry it: the translation from the cell's
+   * positional `awaitingIds` to the class name `asking` happens in exactly one
+   * place upstream, and a second spelling here is how two consumers come to
+   * disagree about the same partition.
+   */
+  readonly urgency: (value: PadiUrgency) => void
+  /**
+   * ...and the set of terminals moving bytes RIGHT NOW — the `activity`
+   * stream, whose every frame is the whole current set rather than a delta.
+   *
+   * A separate callback from {@link Sink.urgency} because they are separate
+   * subscriptions at separate cadences (see the header): this one pulses on
+   * kaval's byte edge, roughly a second, and a reader that only cares which
+   * class a terminal is in must not be woken by it.
+   */
+  readonly live: (ids: ReadonlyArray<string>) => void
   /** A dial ATTEMPT was made. Counted by the caller; see `./mirror.ts`'s
    *  header for why the count is worth a callback. */
   readonly dialed: () => void
@@ -226,6 +263,21 @@ const dialOnce = (
       padiSurface,
       connection.client.padi,
       {
+        cells: {
+          // The partition goes to the sink RAW, for the record's own reason:
+          // what these four lists MEAN is `@kolu/padi-client/attention`'s to
+          // say, and a translation here would be a second one.
+          urgency: (value) => sink.urgency(value as PadiUrgency),
+        },
+        streams: {
+          // EVERY FRAME IS THE WHOLE SET, not a delta — padi's own contract for
+          // this member — so the sink replaces rather than merges. `{}` is the
+          // stream's argument: it takes none.
+          activity: {
+            input: {},
+            onFrame: (ids) => sink.live(ids as ReadonlyArray<string>),
+          },
+        },
         collections: {
           terminals: {
             // The record goes to the sink RAW. Projecting it into olai's shape

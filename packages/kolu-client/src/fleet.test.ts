@@ -15,7 +15,7 @@
 import { describe, expect, it } from "bun:test"
 import type { PadiTerminal } from "@kolu/padi-client/surface"
 
-import { TERMINAL_KEY } from "@olai/surface"
+import { TERMINAL_KEY, UNOWNED } from "@olai/surface"
 
 import { type Claimant, claimsIn, rowOf } from "./fleet.ts"
 
@@ -42,37 +42,43 @@ const record = (over: Record<string, unknown> = {}): PadiTerminal =>
   }) as unknown as PadiTerminal
 
 describe("a fleet row", () => {
-  it("carries the FOLD, not padi's state literals", () => {
+  it("carries what KOLU'S ROW asks for, folded by kolu's own functions", () => {
     const row = rowOf("t1", record())
-    expect(row.face).toBe("working")
-    // The literal `thinking` is nowhere on the wire: a consumer that wanted it
-    // would be re-deriving the fold, which is the drift this projection exists
-    // to prevent.
-    expect(JSON.stringify(row)).not.toContain("thinking")
+    // The pip is bound once, here, and travels as the ten facts it produced —
+    // never re-derived in a browser, which is what the deleted `DotFace` was.
+    expect(row.pip.variant).toBeString()
+    expect(row.subline.fromAgent).toBe(true)
+    expect(row.recencyAt).toBe(1_700_000_000_000)
   })
 
-  it("narrows the agent to its short vendor name", () => {
-    expect(rowOf("t1", record()).agent).toBe("claude")
-    expect(rowOf("t1", record({ agent: null })).agent).toBeNull()
+  it("carries the agent's state VERBATIM, and no closed set of olai's own", () => {
+    // Ratified 2026-08-26: the wire carries kolu's vocabulary as plain text and
+    // the row package's own guard narrows it back, so a state this build has
+    // never heard of arrives as itself rather than as a neighbour.
+    expect(rowOf("t1", record()).agentState).toBe("thinking")
+    expect(rowOf("t1", record({ agent: null })).agentState).toBeNull()
   })
 
-  it("folds an absent intent to null rather than carrying two spellings", () => {
-    // `intent` is `optionalKey` upstream, so absent and empty both mean "no
-    // intent" — a wire that carried both would make every reader ask twice.
-    expect(rowOf("t1", record({ intent: undefined })).intent).toBeNull()
+  it("labels the row with the intent's first line, else the branch", () => {
+    expect(rowOf("t1", record()).label).toBe("the terminal door")
+    expect(rowOf("t1", record({ intent: "line one\nline two" })).label).toBe("line one")
+    expect(rowOf("t1", record({ intent: undefined })).label).toBe("terminal-door")
   })
 
   it("is unowned unless something claims it", () => {
     expect(rowOf("t1", record()).owner).toEqual({ kind: "unowned" })
   })
 
-  it("never wears the GONE face — a row that exists is a terminal that does", () => {
-    // `faceOf` has four answers and a row can wear three. The narrowing is
-    // spelled in `rowOf` rather than cast, so this is a claim about the wire
-    // and not about a coincidence.
-    for (const state of ["active", "sleeping", "parked"]) {
-      expect(rowOf("t1", record({ state, agent: null })).face).not.toBe("gone")
-    }
+  it("paints from the ATTENTION it is handed, never from the record", () => {
+    // padi computes the partition once, on the host, and every kolu surface
+    // reads that answer — the two-subscriptions argument is stated in
+    // `@kolu/padi-client/attention`'s header. A row that re-derived the class
+    // from its own metadata is the disagreement the partition exists to stop.
+    const asking = rowOf("t1", record(), UNOWNED, { klass: "asking", live: false })
+    const idle = rowOf("t1", record(), UNOWNED, { klass: "idle", live: false })
+    expect(asking.pip.asking).toBe(true)
+    expect(idle.pip.asking).toBe(false)
+    expect(asking.bucket).not.toBe(idle.bucket)
   })
 })
 

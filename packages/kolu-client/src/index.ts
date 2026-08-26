@@ -3,7 +3,7 @@
  *
  * One package holds the dial, the standing mirror, the projection into olai's
  * own vocabulary, and the one screen read. What leaves is `@olai/surface`'s
- * shapes — a `KoluLink`, a `FleetTerminal`, a `Snapshot`, a `DotFace` — so a
+ * shapes — a `KoluLink`, a `FleetTerminal`, a `Snapshot` — so a
  * change to padi's contract is a change HERE and stops.
  *
  * ## Why a PACKAGE and not a directory under the server
@@ -34,7 +34,7 @@
  *
  * Phase 1a's half: the dial and its standing mirror ({@link ./link.ts}), the
  * projection and the ownership overlay ({@link ./fleet.ts}), the dot's fold
- * ({@link ./face.ts}), the rendezvous ({@link ./socket.ts}) and the snapshot
+ * the rendezvous ({@link ./socket.ts}) and the snapshot
  * read ({@link ./screen.ts}). {@link ./index.ts}'s `koluHalf` is what a server
  * composes: three surface members and one revision hook.
  *

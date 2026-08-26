@@ -40,6 +40,15 @@ import type { FleetOwner, FleetTerminal, KoluLink, Snapshot } from "@olai/surfac
 import { KOLU_UNDIALED, resolveTerminal, SnapshotRefused, UNOWNED } from "@olai/surface"
 import { Effect } from "effect"
 
+import {
+  EMPTY_FRAME,
+  emptyByClass,
+  frameByClass,
+  frameClassOf,
+  type HostAttentionFrame,
+  type TerminalAttention,
+} from "@kolu/padi-client/attention"
+
 import { type Claimant, claimsIn, rowOf } from "./fleet.ts"
 import { type Dial, runLink, type Sink } from "./link.ts"
 import { screenText } from "./screen.ts"
@@ -110,12 +119,59 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
   /** The live padi face, or `null` — what makes `screen` a read or a refusal. */
   let reader: Parameters<typeof screenText>[0] = null
   let dials = 0
+  /**
+   * PADI'S ATTENTION PARTITION, as this mirror holds it — the two feeds joined
+   * into the one frame every reader of them speaks
+   * (`@kolu/padi-client/attention`).
+   *
+   * Held rather than folded into the records, because it moves on its own
+   * clock and on two of them: the class list changes when an agent transitions,
+   * the live set changes on kaval's byte edge about once a second. A row is the
+   * JOIN of a record, an owner and this — three clocks, one publish, which is
+   * the same arrangement the ownership overlay already has.
+   */
+  let frame: HostAttentionFrame = EMPTY_FRAME
+
+  /**
+   * One terminal's attention, which is what `bindStatePip` is painted from.
+   *
+   * `includes` per row per frame rather than an index: both lists are the size
+   * of a FLEET — tens, and the id lists are only the terminals that are in some
+   * class at all — so the index would be a map rebuilt per frame to save a walk
+   * measured in nanoseconds. If a host ever holds thousands of terminals this
+   * is the line to change, and it is one line.
+   */
+  const attentionOf = (id: string): TerminalAttention => ({
+    klass: frameClassOf(frame, id as never),
+    live: frame.liveIds.includes(id as never),
+  })
+
+  /**
+   * A FEED MOVED: publish the rows whose ATTENTION actually moved, and no more.
+   *
+   * The naive answer is to republish every row on every frame, and it is wrong
+   * by a factor of the fleet: the live set pulses about once a second on a busy
+   * machine, and a fleet of thirty would be thirty collection deltas a second
+   * to every open tab for a fact that changed on one of them. So the frame is
+   * swapped, then the rows are compared against what they were painted from —
+   * the same before/after discipline `rejoin` uses, for the same reason.
+   */
+  const refeed = (next: HostAttentionFrame): void => {
+    const before = frame
+    frame = next
+    for (const id of rows.keys()) {
+      const was = { klass: frameClassOf(before, id as never), live: before.liveIds.includes(id as never) }
+      const now = attentionOf(id)
+      if (was.klass !== now.klass || was.live !== now.live) republish(id)
+    }
+  }
+
 
   /** Rebuild one row and publish it. Called from both clocks. */
   const republish = (id: string): void => {
     const record = records.get(id)
     if (record === undefined) return
-    const row = rowOf(id, record, claims.get(id) ?? UNOWNED)
+    const row = rowOf(id, record, claims.get(id) ?? UNOWNED, attentionOf(id))
     rows.set(id, row)
     sink.upsert(id, row)
   }
@@ -181,6 +237,15 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       // an address.
       rejoin()
     },
+    urgency: (value) => {
+      // The class lists moved; the live set did not. Carried over rather than
+      // re-read, which is the whole reason the two feeds are held apart.
+      refeed({ byClass: frameByClass(value), liveIds: frame.liveIds })
+    },
+    live: (ids) => {
+      // ...and the mirror image: bytes moved, the partition did not.
+      refeed({ byClass: frame.byClass, liveIds: [...ids] as never })
+    },
     cleared: () => {
       // EVERY row goes, one remove each, because that is what the collection's
       // wire can say. It is not the same event as thirty terminals closing and
@@ -193,6 +258,13 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       }
       records.clear()
       reader = null
+      // THE PARTITION GOES WITH THEM, and it has to be said rather than left:
+      // a frame is a fact about a padi, and the padi is gone. Keeping the last
+      // one would mean the next connect painted its first rows from a partition
+      // computed by a host that is no longer there — one frame of a fleet
+      // wearing the previous session's attention. `emptyByClass` mints fresh
+      // lists rather than sharing a constant's, for the reason it exists.
+      frame = { byClass: emptyByClass(), liveIds: [] }
     },
   }
 

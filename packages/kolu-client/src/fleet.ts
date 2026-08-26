@@ -34,7 +34,15 @@
  * The key is named ONCE, here, so that rename is one constant.
  */
 
-import { agentShortName } from "@kolu/terminal-vocab/agentProjection"
+import type { TerminalAttention } from "@kolu/padi-client/attention"
+import { activePr } from "@kolu/padi-client/surface"
+import {
+  annotationLine,
+  bindStatePip,
+  identityColor,
+  paintDockRow,
+  rowSubline,
+} from "@kolu/solid-dockrow/rowValues"
 import type { PadiTerminal } from "@kolu/padi-client/surface"
 import {
   type FleetOwner,
@@ -44,7 +52,6 @@ import {
   UNOWNED,
 } from "@olai/surface"
 
-import { faceOf } from "./face.ts"
 
 /**
  * ONE CLAIM ON A TERMINAL, as PLAIN DATA — an id, a title, a file, and the
@@ -113,37 +120,66 @@ const gitOf = (record: PadiTerminal) =>
   record.state === "active" || record.state === "sleeping" ? record.git : null
 
 /**
- * One row.
+ * One row — the JOIN of three clocks.
  *
- * `owner` is handed in rather than looked up, so this stays a function of its
- * arguments and the vault walk happens once at the caller ({@link claimsIn}).
+ * padi's RECORD says what the terminal is; padi's ATTENTION PARTITION says
+ * whether anything is being asked of you in it; olai's OWNER overlay says
+ * whether anything in this vault claims it. All three are handed in rather
+ * than looked up, so this stays a function of its arguments and each walk
+ * happens once at the caller (`./mirror.ts`).
+ *
+ * EVERY FIELD IS A PROP OF KOLU'S ROW, AND EVERY ONE IS KOLU'S OWN FOLD.
+ * Nothing here decides what a state means, what colour it paints, or which
+ * words go on line two — that was olai's `face.ts`, and the fifth Löwy sitting
+ * deleted it. The row package's README carries a provenance table naming the
+ * producer of every prop, and this function is that table applied: `label` and
+ * `labelColor` in particular look like something you would just write, and both
+ * hide a rule (an intent line REPLACES the branch rather than stacking with it;
+ * a hue is hashed from the key ALONE, never from the set on screen, which is
+ * what makes one repo one colour across the Dock, a palette and this).
+ *
+ * ## `parked` is a word two unrelated facts share, and neither is padi's arm
+ *
+ * `paintDockRow`'s third argument is NOT `record.state === "parked"`. It is the
+ * ACTIVITY-WINDOW staleness overlay — kolu's dock hides a row whose last
+ * activity has fallen outside the window the user is looking through, and a
+ * *fresh* sleeping tile keeps its own face until it does. olai has no activity
+ * window: an outline shows the terminal a node names whenever it exists, and
+ * nothing here compresses a fleet by recency. So the argument is OMITTED, which
+ * is the overload that narrows the answer to the buckets a caller without a
+ * window can actually reach (`UnparkedPaintBucket`) — a type fence rather than
+ * a promise, which is why omitting it is right rather than merely harmless.
  */
 export const rowOf = (
   id: string,
   record: PadiTerminal,
   owner: FleetOwner = UNOWNED,
+  attention: TerminalAttention = { klass: "idle", live: false },
 ): FleetTerminal => {
-  const face = faceOf(record)
   const git = gitOf(record)
-  const agent = record.state === "active" ? record.agent : null
+  const branch = git?.branch ?? ""
+  const intent = record.state === "parked" ? undefined : record.intent
   return {
     id,
-    // `faceOf` can answer `gone`, and a row can never wear it — a row that
-    // exists is a terminal the fleet holds. The narrowing is spelled rather
-    // than cast so the day a fifth face arrives this is a type error here
-    // rather than a `gone` string on the wire.
-    face: face === "gone" ? "parked" : face,
-    state: record.state,
-    agent: agent === null ? null : agentShortName(agent.kind),
-    cwd: record.state === "parked" ? null : record.cwd,
+    // THE PIP IS BOUND ONCE, HERE, and travels as the ten facts it produced.
+    // `unread` is kolu's own app-local obligation badge — a terminal whose
+    // output you have not looked at in ITS window manager — and olai has no
+    // such notion, so it is `false` rather than invented. It is an optional
+    // prop precisely so a consumer can decline it.
+    pip: bindStatePip({ meta: record, attention, unread: false }),
+    // The ORDER bucket, which is a different fold from the pip's paint: kolu
+    // spends a page on why those two must not be derived from each other.
+    bucket: paintDockRow(record, attention.klass),
+    // VERBATIM, and a plain string on the wire by ratification: the browser
+    // narrows it through the row package's own guard, so an agent state this
+    // build has never heard of arrives as itself.
+    agentState: record.state === "active" ? record.agent?.state ?? null : null,
+    label: annotationLine(intent, branch),
+    labelColor: identityColor(branch),
+    subline: rowSubline(record),
+    pr: activePr(record),
+    recencyAt: record.lastActivityAt,
     repo: git?.repoName ?? null,
-    branch: git?.branch ?? null,
-    worktree: git?.worktreePath ?? null,
-    // `optionalKey` upstream, so absent and empty are both "no intent" — folded
-    // to `null` here, because a wire that carried both would make every reader
-    // ask the same question twice.
-    intent: record.intent ?? null,
-    lastActivityAt: record.lastActivityAt,
     owner,
   }
 }
