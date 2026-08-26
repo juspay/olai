@@ -453,25 +453,23 @@ export const TerminalFrame = Schema.Union([
 ])
 export type TerminalFrame = typeof TerminalFrame.Type
 
-/**
- * WHICH terminal a pane is attached to — and NOTHING ELSE, which is the whole
- * of the observe-only rule.
- *
- * It carried a grid for a day and that was a defect with the north star's name
- * on it: MONITORING MUST NEVER PERTURB THE MONITORED. padi's attach is a WRITE
- * when it is given one ("the host resizes the terminal to it before
- * serializing" — `PadiTerminalAttachInputSchema`'s own note), and `resizeTo` is
- * last-attach-wins on a SHARED pty. So opening a pane in olai reshaped the
- * human's live terminal to the size of a box in a document, and returning to
- * kolu reshaped it back — the two surfaces fighting over one pty, with the
- * garbling landing on whichever had not resized last.
- *
- * A monitor declines the fight by declining to ask. Omitting the grid is an
- * unperturbing attach today (padi passes it straight through and only resizes
- * when it is present), so this needs nothing from kolu — what it does need is
- * the grid the snapshot WAS serialized at, which nothing on that wire carries
- * yet. Filed; until it lands, this pane renders faithfully only while the pty's
- * grid and the pane's happen to agree.
- */
-export const TerminalAttach = Schema.Struct({ terminal: Schema.String })
+export const TerminalAttach = Schema.Struct({
+  terminal: Schema.String,
+  /**
+   * THE GRID THE PANE IS ASKING AT — and asking is the point.
+   *
+   * An attach that carries one is a WRITE: padi resizes the terminal to it
+   * before serializing, last-attach-wins on a shared pty. This lane spent a
+   * round treating that as damage and going observe-only, and the human
+   * overruled it — ATTACH MEANS THE SAME SIZE ON EVERY CLIENT, which is what
+   * kolu's own client has always done and what makes a pane show the terminal
+   * rather than a rendering of it. Opening a pane resizes the pty; that is the
+   * semantic, not a defect in it.
+   *
+   * BOTH OR NEITHER, padi's own rule one wire up: a grid is a cols AND a rows,
+   * so half a grid must not be representable. Optional because a pane that has
+   * not measured yet has none to ask at.
+   */
+  grid: Schema.optional(Schema.Struct({ cols: Schema.Number, rows: Schema.Number })),
+})
 export type TerminalAttach = typeof TerminalAttach.Type

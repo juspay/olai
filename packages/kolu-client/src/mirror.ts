@@ -99,7 +99,10 @@ export interface Mirror {
    * opened on a value naming three terminals wants the same sentence whichever
    * rung it is on.
    */
-  readonly attach: (terminal: string) => Stream.Stream<TerminalFrame>
+  readonly attach: (
+    terminal: string,
+    grid: { readonly cols: number; readonly rows: number } | undefined,
+  ) => Stream.Stream<TerminalFrame>
   /** How many times the dial has been run. The one-connection claim's witness
    *  — see the header. */
   readonly dials: () => number
@@ -365,7 +368,7 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
      * one would be a window on a terminal that is simply quiet — the same
      * confusion the hollow dot was retired for, one rung up.
      */
-    attach: (terminal) => {
+    attach: (terminal, grid) => {
       if (attacher === null) {
         return refused("olai is not connected to a padi, so there is no terminal to watch.")
       }
@@ -383,11 +386,14 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       // RESOLVED BEFORE IT REACHES PADI, for the reason `screen` is: the
       // property holds a prefix and padi's input schema declares a uuid, so an
       // unresolved value fails at ENCODE — a defect rather than a refusal.
-      // NO `resizeTo`, EVER — the attach is a WRITE when it carries one, and a
-      // monitor that reshaped the pty it is watching is the north star broken
-      // in one field. Omitting it is padi's own observe-only arm: the host
-      // serializes at whatever grid the terminal already has.
-      return Stream.map(attacher({ id: found.id }), frameOf).pipe(
+      // THE GRID RIDES THE REQUEST. An attach that carries one resizes the pty
+      // before serializing — last-attach-wins on a shared terminal, and that IS
+      // what attaching means here: every client sees the same size, which is
+      // what makes this a window on the terminal rather than a picture of it.
+      return Stream.map(
+        attacher(grid === undefined ? { id: found.id } : { id: found.id, resizeTo: grid }),
+        frameOf,
+      ).pipe(
         // A DROPPED LINK IS NOT A PANE'S FAULT AND NOT ITS PROBLEM TO NAME.
         // padi's stream dies when the socket does; what a reader wants then is
         // the sentence, not a stack. The link's own re-dial is what brings it

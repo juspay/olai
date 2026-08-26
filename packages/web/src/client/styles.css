@@ -929,10 +929,10 @@ mark.olai-hit {
  * terminal is in the pane.
  */
 .olai-live-screen {
-  /* NO HEIGHT HERE — `fitVisually` sets it from the terminal it is actually
-   * showing, scaled. A fixed one would either crop a tall grid or leave a band
-   * of empty panel under a short one, and which of those you got would depend
-   * on somebody else's window size. */
+  /* A FIXED HEIGHT, and the terminal is fitted to it. The pane asks padi for
+   * the grid this box can show and renders it 1:1 — so the box is the
+   * measurement, not something computed back from a scaled terminal. */
+  height: 22rem;
   width: 100%;
   border-radius: 0.25rem;
   overflow: hidden;

@@ -633,6 +633,10 @@
     url = "https://registry.npmjs.org/@ungap/structured-clone/-/structured-clone-1.3.3.tgz";
     hash = "sha512-60YRaenCQcVjYEKOcG824+DRGGIQ3VKErcBoAEDJZz5bKIs2ZG+X/H9Nk+Q6EVkwJk5QNApxbrc5QtBSwtrXAg==";
   };
+  "@xterm/addon-fit@0.11.0" = fetchurl {
+    url = "https://registry.npmjs.org/@xterm/addon-fit/-/addon-fit-0.11.0.tgz";
+    hash = "sha512-jYcgT6xtVYhnhgxh3QgYDnnNMYTcf8ElbxxFzX0IZo+vabQqSPAjC3c1wJrKB5E19VwQei89QCiZZP86DCPF7g==";
+  };
   "@xterm/xterm@6.0.0" = fetchurl {
     url = "https://registry.npmjs.org/@xterm/xterm/-/xterm-6.0.0.tgz";
     hash = "sha512-TQwDdQGtwwDt+2cgKDLn0IRaSxYu1tSUjgKarSDkUM0ZNiSRXFpjxEsvc/Zgc5kq5omJ+V0a8/kIM2WD3sMOYg==";
