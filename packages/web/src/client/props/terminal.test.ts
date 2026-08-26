@@ -39,8 +39,9 @@ const row = (over: Partial<FleetTerminal> = {}): FleetTerminal => ({
   ...over,
 })
 
-const fleetOf = (...rows: FleetTerminal[]) => (id: string) => rows.find((one) => one.id === id)
-const empty = () => undefined
+const fleetOf = (...rows: FleetTerminal[]): ReadonlyMap<string, FleetTerminal> =>
+  new Map(rows.map((one) => [one.id, one]))
+const empty: ReadonlyMap<string, FleetTerminal> = new Map()
 
 describe("a terminal chip", () => {
   it("reads the face the SERVER folded, and folds nothing itself", () => {

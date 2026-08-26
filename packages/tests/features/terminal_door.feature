@@ -106,3 +106,68 @@ Feature: The `terminal` property is a DOOR
     And the terminal chip on "door-implement" says "99.0"
     And the terminal chip on "door-implement" says "upgrade"
     And there should be no page errors
+
+  @scratch:lanes @padi:lanes
+  Scenario: A chip naming a terminal by its EIGHT-CHARACTER PREFIX draws the live dot
+    # THE PRODUCTION DEFECT, and the shape the board actually writes: seventy-
+    # eight of the vault's bare `terminal` values are an eight-character
+    # prefix and nine are whole uuids. padi keys its fleet by the uuid, so an
+    # exact lookup answered nothing for the ordinary case — a working terminal
+    # drawn as retired, on the human's own board.
+    #
+    # `door-implement` names its terminal by prefix, `door-review` by the whole
+    # id, and both must light.
+    Given I open the outline "lanes.olai"
+    Then the terminal chip on "door-implement" wears the working face
+    And the terminal chip on "door-review" wears the awaiting face
+    And there should be no page errors
+
+  @scratch:lanes @padi:lanes
+  Scenario: Clicking a PREFIX chip reads the screen instead of breaking the page
+    # THE SECOND HALF of the same defect, and the worse half: the chip sent the
+    # prefix, padi's `screen.text` declares its id a uuid, and the schema
+    # refusal went down the wire as a DEFECT — which threw during render and
+    # took the whole page with it ("This page broke", nothing updates again).
+    #
+    # So this scenario is as much about the page as about the pane: the read
+    # lands, AND the page is still alive afterwards, which is what the last two
+    # steps are for.
+    Given I open the outline "lanes.olai"
+    When I click the terminal dot on "door-implement"
+    Then a snapshot pane opens on "door-implement"
+    And the snapshot pane shows "just check"
+    # ...and the page still works: a row still answers, and nothing was thrown.
+    When I click the terminal dot on "door-implement"
+    Then no snapshot pane is open
+    And the terminal chip on "door-review" wears the awaiting face
+    And there should be no page errors
+
+  @scratch:lanes @padi:lanes
+  Scenario: The header says kolu is connected — one place, not one per chip
+    # A per-chip hollow cannot tell "this terminal is gone" from "there is no
+    # fleet", and a page with no `terminal` property anywhere says nothing at
+    # all. So the link gets a chrome readout beside the connection pill.
+    Given I open the outline "lanes.olai"
+    Then the padi indicator says "connected"
+    And there should be no page errors
+
+  @scratch:lanes
+  Scenario: The header says there is no kolu, and where it looked
+    # No `@padi:` tag, so this server dials the rendezvous path and finds
+    # nothing — a laptop that is not running kolu, which is most of them.
+    Given I open the outline "lanes.olai"
+    Then the padi indicator says "absent"
+    And the padi indicator explains "no padi is answering"
+    And there should be no page errors
+
+  @scratch:lanes @padi:ahead
+  Scenario: The header says the two builds disagree, and names both versions
+    # The loud face, and the one nothing else on the page will ever say: two
+    # builds that cannot speak to each other is a fact somebody has to act on,
+    # and the sentence names both versions so the reader knows which way to
+    # move.
+    Given I open the outline "lanes.olai"
+    Then the padi indicator says "skew"
+    And the padi indicator explains "99.0"
+    And the padi indicator explains "needs an upgrade"
+    And there should be no page errors

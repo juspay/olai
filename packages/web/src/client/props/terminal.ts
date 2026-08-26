@@ -36,7 +36,7 @@
  * next.
  */
 
-import type { DotFace } from "@olai/surface"
+import { type DotFace, resolveTerminal } from "@olai/surface"
 import type { FleetTerminal, KoluLink } from "@olai/surface"
 
 /** What the chip draws. `face` is what the dot LOOKS like; `says` is what a
@@ -79,7 +79,7 @@ export const noPadiSays = (link: KoluLink): string => {
 export const readingOf = (
   value: string,
   link: KoluLink,
-  fleet: (id: string) => FleetTerminal | undefined,
+  fleet: ReadonlyMap<string, FleetTerminal>,
 ): TerminalReading => {
   // THE LINK IS ASKED FIRST, and that order is the module's one real rule. An
   // empty fleet is what a healthy kolu with nothing open also has, so a chip
@@ -88,7 +88,25 @@ export const readingOf = (
   if (link.status !== "connected") {
     return { face: "gone", hollow: true, says: noPadiSays(link) }
   }
-  const row = fleet(value)
+  // RESOLVED, not looked up. The board writes eight-character prefixes far
+  // more often than whole uuids, and a map read answered `undefined` for every
+  // one of them — a working terminal drawn as retired, which is what the human
+  // found in production. `@olai/surface`'s `resolveTerminal` is the same
+  // reading the server does, which is what keeps the dot and the pane from
+  // disagreeing about which terminal a chip is about.
+  const found = resolveTerminal(value, fleet.keys())
+  if (found.kind === "many") {
+    return {
+      face: "gone",
+      hollow: true,
+      // THE COUNT, because it is what makes the next move obvious: write more
+      // of the id. A dot for whichever row sorted first would be a green light
+      // about a terminal this value never named.
+      says:
+        `this names ${found.count} terminals — write more of the id to say which.`,
+    }
+  }
+  const row = found.kind === "one" ? fleet.get(found.id) : undefined
   if (row === undefined) {
     return {
       face: "gone",

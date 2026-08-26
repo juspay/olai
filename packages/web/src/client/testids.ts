@@ -209,6 +209,13 @@ export const TESTID = {
    *  it is a ring rather than a disc — which is `gone` AND every state where
    *  there is no padi to ask, the two told apart by the title rather than by
    *  the shape. */
+  /** WHETHER THIS OLAI CAN SEE KOLU'S TERMINALS — the third chrome readout,
+   *  beside the connection and the Commit pill (`client/padi/`). `data-padi`
+   *  is the closed set `connected` / `absent` / `skew`. Always drawn on
+   *  desktop: an indicator that appears only when something is wrong cannot be
+   *  trusted when it is absent. */
+  padi: "padi",
+
   terminalDot: "terminal-dot",
   /** The snapshot pane the dot opens — dashed border, the age line, the two
    *  buttons. Present only while open; one per chip. */

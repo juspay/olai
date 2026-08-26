@@ -49,7 +49,7 @@ import { readingOf, type TerminalReading } from "./terminal.ts"
  *  the pane's header line cannot disagree about the terminal they are on. */
 const useReading = (value: () => string): (() => TerminalReading) => {
   const fleet = useFleet()
-  return () => readingOf(value(), fleet.link(), fleet.terminal)
+  return () => readingOf(value(), fleet.link(), fleet.terminals())
 }
 
 /**
@@ -179,6 +179,23 @@ export function SnapshotPane(props: {
         </span>
       </div>
       <Switch>
+        {/* THE RESOURCE'S OWN ERROR, FIRST — and this arm is the reason the
+            page survives a click. A `createResource` whose fetcher rejected
+            THROWS when it is read, during render, which took the whole page
+            down the first time a chip sent a value the wire would not encode
+            ("This page broke", and nothing updates again). `./fleet.tsx`'s
+            reader is written so it cannot reject; this is the second fence,
+            because a pane that can only be reached through one function is a
+            pane whose safety depends on nobody writing a second caller. */}
+        <Match when={answer.error !== undefined}>
+          <p
+            class="text-[0.8125rem] text-muted"
+            data-testid={TESTID.terminalScreen}
+            data-state="refused"
+          >
+            olai could not read that screen — the detail is in the console.
+          </p>
+        </Match>
         <Match when={answer.loading || answer() === undefined}>
           <pre data-testid={TESTID.terminalScreen} data-state="reading" />
         </Match>

@@ -45,10 +45,15 @@ import { KOLU_UNDIALED, SnapshotRefused } from "@olai/surface"
  *  never a throw, because both are things the pane draws. */
 export type ReadScreen = (terminal: string) => Promise<Snapshot | SnapshotRefused>
 
-/** What a chip asks: the link, one terminal by id, and the one verb. */
+/** What a chip asks: the link, the rows it resolves against, and the one verb. */
 export interface Fleet {
   readonly link: Accessor<KoluLink>
-  readonly terminal: (id: string) => FleetTerminal | undefined
+  /** THE ROWS, as a map keyed by padi's full id — handed over whole rather
+   *  than as a lookup, because a chip does not look its value UP: it RESOLVES
+   *  it (`@olai/surface`'s `resolveTerminal`), and a prefix needs the key set
+   *  to resolve against. A lookup was what drew a working terminal as retired
+   *  for every one of the board's eight-character values. */
+  readonly terminals: () => ReadonlyMap<string, FleetTerminal>
   /**
    * See the header. `undefined` where there is no wire — a test that mounts a
    * run, a document page drawn statically — and then the dot is a status glyph
@@ -92,7 +97,7 @@ export function FleetProvider(props: {
     // hollow chip it would draw a moment later anyway, and a fourth state would
     // reach every renderer for the sake of it.
     link: createMemo(() => props.sources.link() ?? KOLU_UNDIALED),
-    terminal: (id) => held()?.rows.get(id),
+    terminals: () => held()?.rows ?? NO_ROWS,
     read: props.sources.read,
   }
   return <FleetContext.Provider value={fleet}>{props.children}</FleetContext.Provider>
@@ -112,8 +117,12 @@ export function FleetProvider(props: {
 export const useFleet = (): Fleet =>
   useContext(FleetContext) ?? {
     link: () => KOLU_UNDIALED,
-    terminal: () => undefined,
+    terminals: () => NO_ROWS,
   }
+
+/** The empty fleet, minted once: what a providerless host reads, and what a
+ *  provider reads before its first frame. */
+const NO_ROWS: ReadonlyMap<string, FleetTerminal> = new Map()
 
 /**
  * The surface procedure, as a {@link ReadScreen}.
@@ -129,18 +138,47 @@ export const readingScreen = <E,>(
   call: (input: { terminal: string }) => Effect.Effect<Snapshot, E>,
 ): ReadScreen =>
 (terminal) =>
-  Effect.runPromise(Effect.result(call({ terminal }))).then((outcome) =>
-    Result.isSuccess(outcome) ? outcome.success : asRefusal(outcome.failure)
+  // THIS PROMISE NEVER REJECTS, and that is the whole contract rather than a
+  // nicety. Its caller is a `createResource` read during RENDER, and a
+  // resource whose fetcher rejected THROWS when it is read — which took the
+  // whole page down ("This page broke", nothing updates again) the first time
+  // a chip sent a value the wire would not encode. A click may not break a
+  // page, so every outcome below is a value.
+  //
+  // `Effect.result` catches the DECLARED failure. It does not catch a defect,
+  // and the one that mattered was a defect: an input the procedure's schema
+  // refuses (`Expected a UUID at [id]`) fails at ENCODE, before the call is
+  // anything the error channel knows about. `.catch` is the arm for that, and
+  // for anything else the runtime can do.
+  Effect.runPromise(Effect.result(call({ terminal }))).then(
+    (outcome) => (Result.isSuccess(outcome) ? outcome.success : asRefusal(outcome.failure)),
+    (thrown: unknown) => asRefusal(thrown),
   )
 
-/** A declared refusal, passed through; anything else re-said as one. Recognised
- *  by its `_tag` rather than by `instanceof`, which is `@olai/format`'s own rule
- *  for a failure that crossed a wire: the tag is what survives decoding. */
-const asRefusal = (failure: unknown): SnapshotRefused =>
-  typeof failure === "object" && failure !== null
+/**
+ * A declared refusal, passed through; anything else re-said as one.
+ *
+ * Recognised by its `_tag` rather than by `instanceof`, which is
+ * `@olai/format`'s own rule for a failure that crossed a wire: the tag is what
+ * survives decoding.
+ *
+ * WHAT ANYTHING ELSE SAYS is deliberately about the page rather than about the
+ * terminal. A schema refusal, a dead socket and a bug in this code are all,
+ * to the person looking at the pane, "olai could not do that" — and inventing
+ * a sentence about padi for a failure that never reached padi would be the
+ * pane guessing. The detail goes to the console, which is where a defect
+ * belongs and where it stopped going when this stopped throwing.
+ */
+const asRefusal = (failure: unknown): SnapshotRefused => {
+  if (
+    typeof failure === "object" && failure !== null
     && (failure as { _tag?: unknown })._tag === "SnapshotRefused"
-    ? failure as SnapshotRefused
-    : new SnapshotRefused({
-      reason: "no-padi",
-      says: "olai could not reach its own server to read that screen — try again.",
-    })
+  ) {
+    return failure as SnapshotRefused
+  }
+  console.warn("olai: a snapshot read failed in a way the pane does not model", failure)
+  return new SnapshotRefused({
+    reason: "no-padi",
+    says: "olai could not read that screen — the detail is in the console.",
+  })
+}

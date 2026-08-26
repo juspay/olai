@@ -99,6 +99,8 @@ import { Leaf } from "./Leaf.tsx"
 import { WORDMARK } from "./look.ts"
 import { Commit } from "./commit/Commit.tsx"
 import { Indicator } from "./connection/Indicator.tsx"
+import { Padi } from "./padi/Padi.tsx"
+import { useFleet } from "./props/fleet.tsx"
 import { LAYER } from "./layer.ts"
 import { desktop } from "./layout/media.ts"
 import type { Route } from "./routes.ts"
@@ -128,6 +130,11 @@ export function AppHeader(props: {
    */
   readonly go?: (route: Route) => void
 }) {
+  // The SAME cell the terminal dots read, through the same context — a second
+  // reader rather than a second subscription. Outside the provider (the error
+  // report, the waiting page) `useFleet` stands a hollow, which draws as the
+  // unwatched face and is the truth for a page with no wire under it.
+  const fleet = useFleet()
   return (
     <>
     <header
@@ -196,6 +203,14 @@ export function AppHeader(props: {
         </Show>
         <Show when={desktop()}>
           <Indicator readout={connectionReadout()} />
+          {/* The THIRD standing promise, after "still reading" and before "what
+              is written is kept": whether this olai can see kolu's terminals
+              (`padi/said.ts` argues why the dots are not enough on their own —
+              a per-chip hollow cannot tell "this terminal is gone" from "there
+              is no fleet", and a page with no `terminal` property says nothing
+              at all). A second reader of the same `cells.kolu` the dots
+              consume; nothing new on the wire. */}
+          <Padi link={fleet.link()} />
           <Commit />
           <ChatToggle />
           <Preferences />

@@ -159,3 +159,36 @@ Then(
 When("I refetch the snapshot", async function (this: OlaiWorld) {
   await this.page.locator(REFETCH).first().click();
 });
+
+// ── the header's padi readout ────────────────────────────────────────────
+
+const PADI = `[data-testid="padi"]`;
+
+Then(
+  "the padi indicator says {string}",
+  async function (this: OlaiWorld, status: string) {
+    const pill = this.page.locator(PADI).first();
+    await pill.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // The STATE as an attribute rather than the label's words: the closed set
+    // is the contract, and a label that changed wording would fail a scenario
+    // about a state that had not moved.
+    await this.waitUntil(
+      async () => (await pill.getAttribute("data-padi")) === status,
+      `the padi indicator to say ${JSON.stringify(status)}`,
+    );
+  },
+);
+
+Then(
+  "the padi indicator explains {string}",
+  async function (this: OlaiWorld, says: string) {
+    // The SENTENCE, off `aria-label` rather than a tooltip a mouse has to
+    // find. A skew that did not name both versions would leave a reader
+    // knowing something is wrong and not which way to move.
+    const said = await this.page.locator(PADI).first().getAttribute("aria-label");
+    assert.ok(
+      said?.includes(says),
+      `the padi indicator should explain "${says}" — it said "${said}"`,
+    );
+  },
+);

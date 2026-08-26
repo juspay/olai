@@ -300,16 +300,21 @@ export type Snapshot = typeof Snapshot.Type
  * WHY A SNAPSHOT COULD NOT BE TAKEN — declared, because both arms are things a
  * reader is owed rather than faults.
  *
- * `no-padi` is the hollow state arriving at a button somebody pressed: the link
- * went down between the chip drawing and the click. `no-terminal` is padi
- * answering that the id is not an ACTIVE terminal — a dormant record has no
- * live mirror to read, which is padi's own `TerminalNotFound`, and it is the
- * expected answer for a chip whose lane finished an hour ago.
+ * `no-padi` is the hollow state arriving at a button somebody pressed: the
+ * link went down between the chip drawing and the click. `no-terminal` is the
+ * id naming nothing the fleet holds — padi answering `TerminalNotFound` for a
+ * dormant record, or a property naming a terminal that has been closed, which
+ * is the expected answer for a lane that finished an hour ago.
+ *
+ * `ambiguous` is the third and it is a fact rather than a fault: the board
+ * writes eight-character prefixes, and a prefix can name more than one
+ * terminal. Its own arm because its FIX is its own — write more of the id —
+ * where the other two are "start kolu" and "that one is gone".
  */
 export class SnapshotRefused extends Schema.TaggedError<SnapshotRefused>(
   "@olai/surface/SnapshotRefused",
 )("SnapshotRefused", {
-  reason: Schema.Literals(["no-padi", "no-terminal"]),
+  reason: Schema.Literals(["no-padi", "no-terminal", "ambiguous"]),
   /** The sentence a pane prints. Built where the refusal is, so the two faces
    *  that can show it cannot word it differently. */
   says: Schema.String,

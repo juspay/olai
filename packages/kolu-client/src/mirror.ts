@@ -36,8 +36,8 @@
  */
 
 import type { PadiTerminal } from "@kolu/padi-client/surface"
-import type { FleetOwner, FleetTerminal, KoluLink, Snapshot, SnapshotRefused } from "@olai/surface"
-import { KOLU_UNDIALED, UNOWNED } from "@olai/surface"
+import type { FleetOwner, FleetTerminal, KoluLink, Snapshot } from "@olai/surface"
+import { KOLU_UNDIALED, resolveTerminal, SnapshotRefused, UNOWNED } from "@olai/surface"
 import { Effect } from "effect"
 
 import { type Claimant, claimsIn, rowOf } from "./fleet.ts"
@@ -99,11 +99,14 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
   const records = new Map<string, PadiTerminal>()
   /** The rows, as published. The collection reads this map directly. */
   const rows = new Map<string, FleetTerminal>()
-  /** Who claims what, from the last revision. Empty until one lands, which
-   *  means the first fleet frames say `unowned` and are corrected a moment
-   *  later — the honest order, since the vault reading is not this module's to
-   *  wait for. */
+  /** Who claims what — keyed by the RESOLVED full id, rebuilt whenever either
+   *  side of the resolution moves. Empty until a revision lands. */
   let claims: ReadonlyMap<string, FleetOwner> = new Map()
+  /** The last revision's claims, unresolved. Kept because the resolution
+   *  depends on the fleet's ID SET as well: a prefix that was ambiguous while
+   *  three terminals were open resolves the moment two of them close, and the
+   *  claim itself never changed. */
+  let claimants: ReadonlyArray<Claimant> = []
   /** The live padi face, or `null` — what makes `screen` a read or a refusal. */
   let reader: Parameters<typeof screenText>[0] = null
   let dials = 0
@@ -117,6 +120,39 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
     sink.upsert(id, row)
   }
 
+
+  /**
+   * RE-RESOLVE THE OVERLAY and publish the rows whose owner actually moved.
+   *
+   * Called from BOTH clocks, because the join has two sides: a revision brings
+   * new claims, and a terminal opening or closing changes what a prefix
+   * resolves to. The second is the one a per-revision rebuild would miss — a
+   * value that named three terminals becomes an address the moment two of them
+   * close, and nothing about the vault changed.
+   *
+   * It compares before publishing, which is what keeps it cheap enough to run
+   * on both: a fleet of thirty rows against four hundred claims is a walk
+   * measured in microseconds, and it publishes only the rows that moved. A
+   * vault publishes a revision on every keystroke that lands.
+   */
+  const rejoin = (): void => {
+    const next = claimsIn(claimants, records.keys())
+    const moved: string[] = []
+    for (const id of rows.keys()) {
+      const before = claims.get(id)
+      const after = next.get(id)
+      if (before?.kind !== after?.kind) {
+        moved.push(id)
+        continue
+      }
+      if (before?.kind === "node" && after?.kind === "node" && before.id !== after.id) {
+        moved.push(id)
+      }
+    }
+    claims = next
+    for (const id of moved) republish(id)
+  }
+
   const linkSink: Sink = {
     link: sink.link,
     say: sink.say,
@@ -127,13 +163,23 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       dials += 1
     },
     upsert: (id, record) => {
+      // A NEW KEY changes what every prefix resolves to, so the overlay is
+      // re-joined; an UPDATE to a record already held cannot, so it is not.
+      // That distinction is the whole reason this is not simply `rejoin()` on
+      // every frame: padi pushes a record whenever anything about a terminal
+      // moves, and the id set moves when a terminal opens or closes.
+      const born = !records.has(id)
       records.set(id, record)
+      if (born) rejoin()
       republish(id)
     },
     remove: (id) => {
       records.delete(id)
       rows.delete(id)
       sink.remove(id)
+      // ...and the id set just shrank, which can turn an ambiguous prefix into
+      // an address.
+      rejoin()
     },
     cleared: () => {
       // EVERY row goes, one remove each, because that is what the collection's
@@ -153,26 +199,51 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
   return {
     run: runLink(linkSink, options.env, options.now, options.dial),
     reclaim: (nodes) => {
-      const next = claimsIn(nodes)
-      const moved: string[] = []
-      // Compare before publishing — see the header. Both directions: a claim
-      // that appeared, and one that went away.
-      for (const id of rows.keys()) {
-        const before = claims.get(id)
-        const after = next.get(id)
-        if (before?.kind !== after?.kind) {
-          moved.push(id)
-          continue
-        }
-        if (before?.kind === "node" && after?.kind === "node" && before.id !== after.id) {
-          moved.push(id)
-        }
-      }
-      claims = next
-      for (const id of moved) republish(id)
+      claimants = [...nodes]
+      rejoin()
     },
     rows: () => rows,
-    screen: (terminal, lines, now) => screenText(reader, terminal, lines, now),
+    /**
+     * RESOLVED BEFORE IT REACHES PADI, which is the second half of the
+     * production defect.
+     *
+     * The chip sends what the property holds, and the property holds an
+     * eight-character prefix. padi's `screen.text` declares its id a UUID, so
+     * the prefix failed at ENCODE — a schema refusal that never became a
+     * declared failure, went down the wire as a defect, and took the page with
+     * it. Resolving here means the wire only ever sees a whole id.
+     *
+     * The two other answers are refusals in words, for the reason every
+     * refusal in this package is: a reader can act on a sentence.
+     */
+    screen: (terminal, lines, now) => {
+      // THE LINK IS ASKED FIRST, which is the same order the chip's own
+      // reading uses and for the same reason: an empty fleet is what a healthy
+      // kolu with nothing open also has, so resolving first would answer "no
+      // such terminal" for every click on a laptop that is not running kolu.
+      // `screenText`'s own no-padi arm is the one spelling of that sentence.
+      if (reader === null) return screenText(null, terminal, lines, now)
+      const found = resolveTerminal(terminal, records.keys())
+      if (found.kind === "many") {
+        return Effect.fail(
+          new SnapshotRefused({
+            reason: "ambiguous",
+            says:
+              `this names ${found.count} terminals — write more of the id to say which one to read.`,
+          }),
+        )
+      }
+      if (found.kind === "none") {
+        return Effect.fail(
+          new SnapshotRefused({
+            reason: "no-terminal",
+            says:
+              "padi has no terminal by that name — it has been closed, or the property names something else.",
+          }),
+        )
+      }
+      return screenText(reader, found.id, lines, now)
+    },
     dials: () => dials,
   }
 }

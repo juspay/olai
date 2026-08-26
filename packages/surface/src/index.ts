@@ -1716,3 +1716,8 @@ export {
   TERMINAL_KEY,
   UNOWNED,
 } from "./kolu.ts"
+
+/** WHICH TERMINAL A `terminal` VALUE NAMES — the one resolution both ends
+ *  read. See {@link ./terminals.ts}, which argues why a prefix is padi's own
+ *  addressing rather than olai guessing. */
+export { type Resolved, resolveTerminal } from "./terminals.ts"

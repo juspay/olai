@@ -36,7 +36,13 @@
 
 import { agentShortName } from "@kolu/terminal-vocab/agentProjection"
 import type { PadiTerminal } from "@kolu/padi-client/surface"
-import { type FleetOwner, type FleetTerminal, TERMINAL_KEY, UNOWNED } from "@olai/surface"
+import {
+  type FleetOwner,
+  type FleetTerminal,
+  resolveTerminal,
+  TERMINAL_KEY,
+  UNOWNED,
+} from "@olai/surface"
 
 import { faceOf } from "./face.ts"
 
@@ -75,13 +81,28 @@ export interface Claimant {
  * agree; it is not worth a refusal, because both nodes are true statements
  * about where the work happened and the row only has room for one link.
  */
-export const claimsIn = (nodes: Iterable<Claimant>): ReadonlyMap<string, FleetOwner> => {
+export const claimsIn = (
+  nodes: Iterable<Claimant>,
+  ids: Iterable<string>,
+): ReadonlyMap<string, FleetOwner> => {
+  // The id set once, because every claim resolves against all of it.
+  const fleet = [...ids]
   const claims = new Map<string, FleetOwner>()
   for (const node of nodes) {
     const terminal = node.terminal
     if (terminal === undefined || terminal === "") continue
-    if (claims.has(terminal)) continue
-    claims.set(terminal, { kind: "node", id: node.id, title: node.title, file: node.file })
+    // RESOLVED, not used as a key. The board writes eight-character prefixes
+    // far more often than whole uuids, so keying this map by the value gave
+    // every one of those rows `unowned` — the fleet is keyed by the uuid and
+    // the two never met.
+    const found = resolveTerminal(terminal, fleet)
+    // AN AMBIGUOUS CLAIM OWNS NOTHING, which is the only honest answer: a
+    // value that names three terminals has not claimed one of them, and
+    // picking whichever sorted first would put a lane's name on a row it
+    // never named. The CHIP says so in words; the row stays unowned.
+    if (found.kind !== "one") continue
+    if (claims.has(found.id)) continue
+    claims.set(found.id, { kind: "node", id: node.id, title: node.title, file: node.file })
   }
   return claims
 }

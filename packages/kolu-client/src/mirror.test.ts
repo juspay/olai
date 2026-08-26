@@ -79,10 +79,60 @@ const liveFace = () => ({
 
 const NO_KEYS: ReadonlyArray<string> = []
 
+/**
+ * A padi face holding `ids` — `keys` announces them and `get` DELIVERS a
+ * record for each, which is what makes the mirror actually hold an id.
+ *
+ * The delivery half matters: `keys` alone announces a membership the mirror
+ * cannot resolve a prefix against, because what it keeps is the records. A
+ * fake that announced without delivering was a fake padi with an empty fleet.
+ */
+const faceWith = (
+  ids: ReadonlyArray<string>,
+  screen: (input: { id: string }) => Effect.Effect<string> = () => Effect.succeed(""),
+) => ({
+  padi: {
+    surface: {
+      terminals: {
+        keys: () => Stream.concat(Stream.make(ids), Stream.never),
+        get: (input: { key: string }) =>
+          Stream.concat(
+            Stream.make({
+              state: "active",
+              agent: null,
+              cwd: `/tmp/${input.key}`,
+              git: null,
+              lastActivityAt: null,
+            }),
+            Stream.never,
+          ),
+      },
+      screen: { text: screen },
+    },
+  },
+})
+
+/** A dial that hands back {@link faceWith}'s far end, healthy and holding. */
+const holding = (
+  ids: ReadonlyArray<string>,
+  screen?: (input: { id: string }) => Effect.Effect<string>,
+): Dial =>
+() =>
+  Effect.succeed({
+    client: faceWith(ids, screen),
+    identity: { stateRoot: "/run/padi", surfaceVersion: SPEAKS },
+    startedAt: 0,
+    dispose: () => {},
+    onClose: () => {},
+  } as never)
+
 /** A dial that never finds anything — the machine with no kolu on it. */
 const noPadi: Dial = () => Effect.fail(new Error("ENOENT: no such file or directory"))
 
 const AT = "2026-08-25T12:00:00-04:00"
+
+/** A terminal id as padi keys it — whole. The board names it `cb9dcd13`. */
+const FULL_ID = "cb9dcd13-1e2e-4f7a-9c3d-2b5a7e8f1a44"
 
 describe("the padi mirror", () => {
   it("dials ONCE however many readers there are — the one-connection claim", async () => {
@@ -264,6 +314,53 @@ describe("the padi mirror", () => {
       Effect.flip(mirror.screen("t1", undefined, () => AT)),
     )
     expect(refused.reason).toBe("no-padi")
+  })
+
+
+  it("reads a screen named by an EIGHT-CHARACTER PREFIX — the board's own spelling", async () => {
+    // THE SECOND PRODUCTION DEFECT. The chip sent what the property holds; the
+    // property holds a prefix; padi's `screen.text` declares its id a uuid, so
+    // the call failed at ENCODE and the schema refusal went down the wire as a
+    // DEFECT — which took the whole page with it. Resolving here means the
+    // wire only ever sees a whole id.
+    const seen = recorder()
+    const asked: string[] = []
+    const mirror = makeMirror(seen.sink, {
+      env: {},
+      now: () => AT,
+      dial: holding([FULL_ID], (input) => {
+        asked.push(input.id)
+        return Effect.succeed("$ just check\n")
+      }),
+    })
+    const fiber = Effect.runFork(Effect.scoped(mirror.run))
+    await Effect.runPromise(Effect.sleep("80 millis"))
+
+    const answer = await Effect.runPromise(mirror.screen("cb9dcd13", undefined, () => AT))
+    expect(answer.text).toContain("just check")
+    // THE WHOLE ID reached padi, never the prefix.
+    expect(asked).toEqual([FULL_ID])
+    await Effect.runPromise(Fiber.interrupt(fiber))
+  })
+
+  it("refuses an AMBIGUOUS prefix in words, rather than picking one", async () => {
+    const seen = recorder()
+    const two = [FULL_ID, "cb9dcd13-aaaa-4aaa-8aaa-aaaaaaaaaaaa"]
+    const mirror = makeMirror(seen.sink, {
+      env: {},
+      now: () => AT,
+      dial: holding(two),
+    })
+    const fiber = Effect.runFork(Effect.scoped(mirror.run))
+    await Effect.runPromise(Effect.sleep("80 millis"))
+
+    const refused = await Effect.runPromise(
+      Effect.flip(mirror.screen("cb9dcd13", undefined, () => AT)),
+    )
+    expect(refused.reason).toBe("ambiguous")
+    // THE COUNT, because it is what makes the next move obvious.
+    expect(refused.says).toContain("2 terminals")
+    await Effect.runPromise(Fiber.interrupt(fiber))
   })
 
   it("refuses a snapshot in words when there is no padi to read", async () => {
