@@ -225,14 +225,14 @@ const padi = implementSurface(padiSurfaceSibling, {
      * rather than two.
      */
     terminalAttach: {
-      source: (input: { readonly input: { readonly id: string } }) => {
-        const screen = fleet.screens[input.input.id]
+      source: ({ id }: { readonly id: string }) => {
+        const screen = fleet.screens[id]
         // NO LIVE MIRROR IS A REFUSAL, not silence. A dormant terminal has no
         // screen to attach to and padi says so at once — which is what makes
         // the pane's "it may have closed" sentence a fast, deterministic
         // scenario rather than a wait for a deadline to expire.
         if (screen === undefined) {
-          return Stream.fail(new TerminalNotFound({ id: input.input.id }))
+          return Stream.fail(new TerminalNotFound({ id }))
         }
         return Stream.concat(
           Stream.make({ kind: "snapshot" as const, data: screen, topLine: 0 }),
