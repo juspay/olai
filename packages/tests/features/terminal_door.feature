@@ -90,3 +90,19 @@ Feature: The `terminal` property is a DOOR
     Then a snapshot pane opens on "quiet-implement"
     And the snapshot pane refuses with "no live screen"
     And there should be no page errors
+
+  @scratch:lanes @padi:ahead
+  Scenario: A padi this build cannot speak to is a SKEW, and says which two versions
+    # The other half of the hollow. "Start kolu" and "these two builds
+    # disagree" have opposite fixes, which is why the link cell has three
+    # states rather than a boolean — and a skew reported as absent would tell a
+    # reader to start a kolu that is already running.
+    #
+    # The control core answers even here: its schemas never move, so the
+    # refusal is a judgement on a readable hello rather than a decode failure
+    # three calls later.
+    Given I open the outline "lanes.olai"
+    Then the terminal chip on "door-implement" is hollow
+    And the terminal chip on "door-implement" says "99.0"
+    And the terminal chip on "door-implement" says "upgrade"
+    And there should be no page errors

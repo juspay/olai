@@ -59,6 +59,39 @@ interface Fleet {
   readonly surfaceVersion?: string
 }
 
+
+/** What `screen.text` takes — padi's own input, spelled here because the fake
+ *  reads two fields of it that the rest of this file never touches. */
+interface ScreenTextInput {
+  readonly id: string
+  readonly startLine?: number
+  readonly endLine?: number
+}
+
+/**
+ * KAVAL'S REAL CLAMP, and the fake is worth nothing without it.
+ *
+ * `getScreenText` (`kaval/src/ptyHost.ts`) is four lines and this is those four
+ * lines: `end = min(buffer.length, endLine ?? length)`, `start = max(0,
+ * startLine ?? 0)`, slice, join. Both bounds are ABSOLUTE line numbers into the
+ * scrollback, and the only clamp is low-side — so `startLine` past the end
+ * yields the EMPTY STRING rather than a tail.
+ *
+ * That is not a detail: this file's header claims the fake "differs from a real
+ * padi in what it ANSWERS and in nothing else", and for a while it was false
+ * for the one verb the door calls — the handler ignored the window entirely,
+ * so olai's absolute-vs-tail confusion could not show up in any scenario. The
+ * lanes fixture's screens are two and three lines long, so with the real clamp
+ * a caller that asks for a 120-line "tail" gets nothing, and the scenario that
+ * reads a screen fails.
+ */
+const windowOf = (screen: string, input: ScreenTextInput): string => {
+  const lines = screen.split("\n")
+  const end = Math.min(lines.length, input.endLine ?? lines.length)
+  const start = Math.max(0, input.startLine ?? 0)
+  return lines.slice(start, Math.max(start, end)).join("\n")
+}
+
 const [, , socketPath, fleetPath] = process.argv
 if (socketPath === undefined || fleetPath === undefined) {
   console.error("usage: fake-padi.ts <socket-path> <fleet.json>")
@@ -163,16 +196,15 @@ const padi = implementSurface(padiSurfaceSibling, {
       state: () => Effect.fail(new TerminalNotFound({ id: "" })),
       history: () => Effect.fail(new TerminalNotFound({ id: "" })),
       image: () => Effect.fail(new TerminalNotFound({ id: "" })),
-      text: ({ input }: { input: { id: string } }) => {
+      text: ({ input }: { input: ScreenTextInput }) => {
         const screen = fleet.screens[input.id]
         // THE DECLARED error, not a plain one: padi's `screen.text` says it
         // fails with `TerminalNotFound`, and a fixture that failed with
         // something else would send a DEFECT down the wire — which the
         // consumer would experience as a call that never settles rather than
         // as the refusal it is meant to be testing.
-        return screen === undefined
-          ? Effect.fail(new TerminalNotFound({ id: input.id }))
-          : Effect.succeed(screen)
+        if (screen === undefined) return Effect.fail(new TerminalNotFound({ id: input.id }))
+        return Effect.succeed(windowOf(screen, input))
       },
     },
   },

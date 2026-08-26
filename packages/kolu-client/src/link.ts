@@ -17,7 +17,7 @@
  * the map it has been keeping; a tab leaving takes nothing with it.
  *
  * So there is no refcount here and no per-reader anything, and the count is a
- * TEST rather than a promise (`./link.test.ts` stands N readers up against one
+ * TEST rather than a promise (`./mirror.test.ts` stands N readers up against one
  * fake padi and asserts the dial ran once). The day a reader does need its own
  * subscription is phase 6's stream, and that one is refcounted BECAUSE it is
  * per-terminal — which is a different arrangement for a different reason, and
@@ -48,8 +48,12 @@ import {
   padiSurface,
   type PadiTerminal,
 } from "@kolu/padi-client/surface"
+import {
+  type DaemonContractSkewError,
+  isContractSkewError,
+} from "@kolu/surface-daemon-supervisor"
 import { KOLU_UNDIALED, type KoluLink } from "@olai/surface"
-import { Duration, Effect, Schedule } from "effect"
+import { Cause, Duration, Effect, Schedule } from "effect"
 
 import { rendezvousIn } from "./socket.ts"
 
@@ -164,22 +168,19 @@ export const runLink = (
 /**
  * Does this error mean "that padi and this build cannot speak to each other"?
  *
- * Read off the FIELD kolu puts there for exactly this (`isContractSkew`), not
- * `instanceof`: the class travels through a hydrated copy of the supervisor,
- * and an `instanceof` across two module instances is the failure mode Effect's
- * own `_tag`-structural narrowing exists to avoid (this repo's `//overrides`
- * note makes the same argument about `effect` itself).
+ * KOLU'S OWN PREDICATE, not a hand-read of the brand field. `isContractSkewError`
+ * is exported for exactly this question, and it is brand-checked rather than
+ * `instanceof` so it narrows across module-instance boundaries — which is what
+ * a hydrated copy of the supervisor is.
+ *
+ * This module read the field itself for one commit, and that was a second
+ * spelling of a check kolu already ships: it tested `isContractSkew` alone,
+ * where the real predicate also requires `subject`, `daemonVersion` and
+ * `requiredVersion` — so a half-built object would have been called a skew and
+ * reported to a reader as "upgrade one of these".
  */
-const skewOf = (
-  err: unknown,
-): { readonly daemonVersion: string } | null => {
-  if (typeof err !== "object" || err === null) return null
-  const marked = err as { isContractSkew?: unknown; daemonVersion?: unknown }
-  if (marked.isContractSkew !== true) return null
-  return {
-    daemonVersion: typeof marked.daemonVersion === "string" ? marked.daemonVersion : "unknown",
-  }
-}
+const skewOf = (err: unknown): DaemonContractSkewError | null =>
+  isContractSkewError(err) ? err : null
 
 /**
  * ONE dial, held open until it drops.
@@ -279,8 +280,23 @@ const dialOnce = (
     // it, a machine that has been retrying for an hour has seven hundred dead
     // links held on the runtime's scope.
     Effect.scoped,
-    Effect.catch((err: unknown) =>
+    // EVERY WAY A DIAL CAN END, and `catchCause` rather than `catch` is the
+    // load-bearing word.
+    //
+    // `connectPadi`'s compatibility gate THROWS (`assertPadiSurfaceCompatible`
+    // is a plain `throw` inside an `Effect.suspend`), so a padi one major ahead
+    // arrives as a DEFECT and not as a typed failure. Caught only on the error
+    // channel, that defect escaped this handler, killed the connector's fiber
+    // and faulted the whole surface runtime — a skewed kolu took olai's server
+    // down, on a machine where every page would otherwise have opened fine.
+    // That is the exact opposite of what the three-arm cell is for, and it is
+    // the reason this reads the CAUSE: everything a dial can do to us is news
+    // for a reader, and nothing it can do may be fatal.
+    Effect.catchCause((cause) =>
       Effect.sync(() => {
+        // The failure or the defect, whichever this was — `Cause.squash` is
+        // how this repo already reads one (`@olai/log`'s `cause.ts`).
+        const err: unknown = Cause.squash(cause)
         sink.reader(null)
         sink.cleared()
         const skew = skewOf(err)

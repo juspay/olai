@@ -20,10 +20,12 @@
  */
 
 import { describe, expect, it } from "bun:test"
-import { Effect, Fiber } from "effect"
+import { Effect, Fiber, Stream } from "effect"
 
 import type { FleetTerminal, KoluLink } from "@olai/surface"
-import { type Dial } from "./link.ts"
+import { DaemonContractSkewError } from "@kolu/surface-daemon-supervisor"
+
+import { type Dial, SPEAKS } from "./link.ts"
 import { makeMirror } from "./mirror.ts"
 
 /** What the mirror pushes, collected — the server's cell and collection,
@@ -52,6 +54,31 @@ const recorder = () => {
   }
 }
 
+/**
+ * A padi face the MIRROR can actually live on — an empty `terminals`
+ * collection that stays open.
+ *
+ * `mirrorRemoteSurface` subscribes to `terminals.keys` and opens a per-key
+ * `get`; a face without them faults on the first frame and the link ends
+ * before any of these cases has looked. An empty key set followed by
+ * `Stream.never` is the smallest far end that is HEALTHY: it says "no
+ * terminals" and then holds, which is a real state (a kolu with nothing open)
+ * rather than a stub that happens not to crash.
+ */
+const liveFace = () => ({
+  padi: {
+    surface: {
+      terminals: {
+        keys: () => Stream.concat(Stream.make(NO_KEYS), Stream.never),
+        get: () => Stream.never,
+      },
+      screen: { text: () => Effect.succeed("") },
+    },
+  },
+})
+
+const NO_KEYS: ReadonlyArray<string> = []
+
 /** A dial that never finds anything — the machine with no kolu on it. */
 const noPadi: Dial = () => Effect.fail(new Error("ENOENT: no such file or directory"))
 
@@ -66,7 +93,7 @@ describe("the padi mirror", () => {
     const holding: Dial = () => {
       dials += 1
       return Effect.succeed({
-        client: { padi: { surface: { screen: { text: () => Effect.succeed("") } } } },
+        client: liveFace(),
         identity: { stateRoot: "/run/padi", surfaceVersion: "5.4" },
         startedAt: 0,
         dispose: () => {},
@@ -131,6 +158,112 @@ describe("the padi mirror", () => {
     // `told` is what lets the hollow state say "your variable points nowhere"
     // rather than "no padi is running", which are two different things to fix.
     expect(last?.told).toBe(true)
+  })
+
+
+  it("reports a padi it cannot SPEAK to as skew, not as absent", async () => {
+    // The two arms have opposite fixes — "start kolu" and "these two builds
+    // disagree, here are the versions" — which is the whole reason the cell has
+    // three states instead of a boolean. Nothing asserted the fold until pi's
+    // review: the renderer's skew arm was unit-tested and the LINK's was not,
+    // so a skew that landed on `absent` would have told a reader to start a
+    // kolu that was already running.
+    const seen = recorder()
+    const skewed: Dial = () =>
+      Effect.fail(
+        new DaemonContractSkewError({
+          subject: "padiSurface",
+          daemonVersion: "9.0",
+          requiredVersion: SPEAKS,
+        }),
+      )
+    const mirror = makeMirror(seen.sink, { env: {}, now: () => AT, dial: skewed })
+    const fiber = Effect.runFork(Effect.scoped(mirror.run))
+    await Effect.runPromise(Effect.sleep("50 millis"))
+    await Effect.runPromise(Fiber.interrupt(fiber))
+
+    const last = seen.links.at(-1)
+    expect(last?.status).toBe("skew")
+    // BOTH versions, because one of the two has to move and a reader cannot
+    // know which without seeing the pair.
+    expect(last?.surfaceVersion).toBe("9.0")
+    expect(last?.speaks).toBe(SPEAKS)
+  })
+
+
+  it("survives a padi it cannot speak to — a skew must not fault the runtime", async () => {
+    // THE ONE THAT MATTERED. `connectPadi`'s compatibility gate THROWS, so a
+    // padi a major ahead arrives as a DEFECT rather than a typed failure —
+    // and a handler that caught only the error channel let it escape, kill the
+    // connector's fiber and fault the whole surface runtime. A skewed kolu
+    // took olai's server down with it, on a machine where every page would
+    // otherwise have opened fine.
+    //
+    // So this case dies the way the real dial dies, and asserts the two things
+    // that make it survivable: the effect does not fail, and the reader is
+    // told which two versions disagree.
+    const seen = recorder()
+    const throwing: Dial = () =>
+      Effect.suspend(() => {
+        throw new DaemonContractSkewError({
+          subject: "padiSurface",
+          daemonVersion: "99.0",
+          requiredVersion: SPEAKS,
+        })
+      })
+    const mirror = makeMirror(seen.sink, { env: {}, now: () => AT, dial: throwing })
+    const fiber = Effect.runFork(Effect.scoped(mirror.run))
+    await Effect.runPromise(Effect.sleep("50 millis"))
+    // STILL RUNNING — the assertion the crash would fail. An interrupt of a
+    // fiber that already died on a defect is not the same thing, so the link
+    // state below is what proves it kept going.
+    await Effect.runPromise(Fiber.interrupt(fiber))
+
+    const last = seen.links.at(-1)
+    expect(last?.status).toBe("skew")
+    expect(last?.surfaceVersion).toBe("99.0")
+    expect(last?.speaks).toBe(SPEAKS)
+  })
+
+  it("goes back to ABSENT when a healthy link drops, and drops the rows with it", async () => {
+    // The socket closing is the ordinary end of a connection — kolu restarted,
+    // padi exited — and it has to reach a reader, or the dots freeze at their
+    // last good value with nothing anywhere saying the fleet is no longer a
+    // reading of anything. `onClose` never fired in this file until pi asked
+    // for it.
+    const seen = recorder()
+    let close: (() => void) | undefined
+    const dropping: Dial = () =>
+      Effect.succeed({
+        client: liveFace(),
+        identity: { stateRoot: "/run/padi", surfaceVersion: SPEAKS },
+        startedAt: 0,
+        dispose: () => {},
+        onClose: (cb: () => void) => {
+          close = cb
+        },
+      } as never)
+    const mirror = makeMirror(seen.sink, { env: {}, now: () => AT, dial: dropping })
+    const fiber = Effect.runFork(Effect.scoped(mirror.run))
+    await Effect.runPromise(Effect.sleep("50 millis"))
+    expect(seen.links.at(-1)?.status).toBe("connected")
+    // ...and the snapshot verb is live while it is.
+    expect(mirror.screen).toBeDefined()
+
+    close?.()
+    await Effect.runPromise(Effect.sleep("50 millis"))
+    await Effect.runPromise(Fiber.interrupt(fiber))
+
+    expect(seen.links.at(-1)?.status).toBe("absent")
+    // EVERY row went with it: the fleet is not a reading of anything now, and
+    // a chip that kept drawing a green dot would be reporting on a terminal
+    // nobody can see.
+    expect(mirror.rows().size).toBe(0)
+    // ...and the snapshot refuses rather than reaching a dead face.
+    const refused = await Effect.runPromise(
+      Effect.flip(mirror.screen("t1", undefined, () => AT)),
+    )
+    expect(refused.reason).toBe("no-padi")
   })
 
   it("refuses a snapshot in words when there is no padi to read", async () => {

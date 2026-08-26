@@ -103,3 +103,16 @@ describe("a terminal chip", () => {
     expect(readingOf("t1", link(), fleetOf(bare)).says).toBe("nothing running")
   })
 })
+
+describe("the unwired chip", () => {
+  it("does not say 'olai looked at .' when there is no socket to name", () => {
+    // A run drawn outside the fleet provider gets `KOLU_UNDIALED`, whose socket
+    // is the empty string — a document's frontmatter, a test that mounts a
+    // chip, and the first instant of a server's life. The naming sentence would
+    // send a reader hunting for a path that is not there.
+    const reading = readingOf("t1", { ...link(), status: "absent", socket: "" }, empty)
+    expect(reading.hollow).toBe(true)
+    expect(reading.says).toBe("olai is not watching a padi here.")
+    expect(reading.says).not.toContain("looked at .")
+  })
+})

@@ -123,9 +123,9 @@ export const sameKolu = (a: KoluLink, b: KoluLink): boolean =>
  * THE FOUR FACES a `terminal` chip's dot can wear — the closed set, declared
  * HERE because both ends read it and neither owns it.
  *
- * The server folds padi's agent states into one of these (`@olai/server`'s
- * `kolu/face.ts`, which is the only module that has ever seen a padi record)
- * and the browser paints it. Declaring it in the surface is what makes that a
+ * The server folds padi's agent states into one of these
+ * (`@olai/kolu-client`'s `face.ts`, the only module in olai that has ever seen
+ * a padi record) and the browser paints it. Declaring it in the surface is what makes that a
  * contract rather than two hand-copied switches — the class of defect kolu's
  * own `agentProjection.ts` header spends a page on, one wire further out.
  *
@@ -220,7 +220,7 @@ export const UNOWNED: FleetOwner = { kind: "unowned" }
 /**
  * ONE TERMINAL, as olai holds it.
  *
- * `face` is the fold (`@olai/server`'s `kolu/face.ts`) and not the raw
+ * `face` is the fold (`@olai/kolu-client`'s `face.ts`) and not the raw
  * agent state, and that is the projection's main decision: what crosses is the
  * ANSWER a chip draws, computed once on the server against padi's own
  * vocabulary, rather than the state literals every consumer would then have to

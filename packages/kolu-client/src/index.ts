@@ -18,10 +18,17 @@
  *
  * That is also why the boundary check this repo briefly grew — a grep for padi
  * imports outside one directory — was deleted rather than kept: it was a
- * substitute for a wall, and the wall is here. Every dependency in the manifest
- * is LEAFWARD (`docs/architecture.md`): `@olai/format` for the vault reading
- * the ownership overlay is derived from, `@olai/surface` for the vocabulary
- * everything here produces, and nothing else that can reach back.
+ * substitute for a wall, and the wall is here. The manifest is `@olai/surface`
+ * and `effect`, and that is the whole olai half of it: the vocabulary
+ * everything here produces, and nothing that can reach back.
+ *
+ * `@olai/format` is deliberately NOT in it. The walk over the vault that
+ * decides who OWNS a terminal reads outline records, so it belongs to whoever
+ * holds the vault (`@olai/server`'s `claimants.ts`); what crosses into this
+ * package is four strings per claim ({@link ./fleet.ts}'s `Claimant`). Keeping
+ * that edge out is what stops "how olai reaches kolu" from also knowing what an
+ * outline node is — two subjects in one package, and a dependency with nothing
+ * to do with padi.
  *
  * ## What is here, and what deliberately is not
  *

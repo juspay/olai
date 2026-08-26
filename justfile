@@ -49,7 +49,7 @@ default:
 [macos]
 [parallel]
 [metadata("ci")]
-check: typecheck test e2e kolu-deps fmt-check nix bun-nix-fresh hm-module
+check: typecheck test e2e kolu-deps osfacts-pin fmt-check nix bun-nix-fresh hm-module
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
 # Every bun leg depends on this one recipe, so concurrent legs share a single
@@ -122,6 +122,12 @@ test: install
       ./packages/web/src/client/chat/attention/elsewhere.browsertest.ts \
       ./packages/web/src/client/chat/declared.browsertest.ts \
       ./packages/web/src/client/props/held.browsertest.ts
+
+# The two npins pins that are a PAIR — olai's osfacts revision against the one
+# the pinned kolu itself names. Reads the pinned tree and this repo's manifest,
+# never node_modules, so it does not wait on `install` and fails fast.
+osfacts-pin:
+    {{ nix_shell }} sh scripts/check-osfacts-pin.sh
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the
 # root package.json (bunfig.toml explains why they have to be there). Reads

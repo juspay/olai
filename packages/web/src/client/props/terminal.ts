@@ -15,7 +15,7 @@
  *     quiet". A gray dot for an unreachable padi would be a lie told once per
  *     lane, and the person reading it would act on it.
  *   - A DOT. There is a padi and the fleet has this terminal: the face the
- *     server already folded (`@olai/server`'s `kolu/face.ts`), read
+ *     server already folded (`@olai/kolu-client`'s `face.ts`), read
  *     straight off the row. Nothing is re-derived here — a browser that folded
  *     agent states for itself would be the second switch kolu's own vocabulary
  *     exists to prevent, one wire further out.
@@ -62,6 +62,14 @@ export const noPadiSays = (link: KoluLink): string => {
   if (link.status === "skew") {
     return `kolu at ${link.socket} speaks padi ${link.surfaceVersion ?? "?"}, and this olai speaks ${link.speaks} — one of the two needs an upgrade.`
   }
+  // NO SOCKET AT ALL is the UNWIRED case, and it gets a sentence of its own
+  // rather than the naming one with a blank where the path goes. Two readers
+  // reach it: a run drawn outside the fleet provider (`./fleet.tsx`'s standing
+  // hollow — a document's frontmatter, a test that mounts a chip) and a server
+  // in the first instant of its life, before the dial has answered. "olai
+  // looked at ." is not a sentence, and it would send a reader hunting for a
+  // path that is not there.
+  if (link.socket === "") return "olai is not watching a padi here."
   return link.told
     ? `no padi is answering at ${link.socket}, which is where $PADI_SOCKET points.`
     : `no padi is running — olai looked at ${link.socket}.`

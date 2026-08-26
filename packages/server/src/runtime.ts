@@ -655,13 +655,12 @@ export const bind = (
      * once — the same arrangement `held` above keeps for the projection.
      */
     let shelfFile: Convention | undefined
-| undefined
     let inboxFile: Convention | undefined
 
     /**
      * THE KOLU HALF — the padi link, the fleet it keeps, and the one screen
-     * read, assembled in `./kolu/` (which is where every line that knows kolu
-     * exists lives).
+     * read, assembled in `@olai/kolu-client` — the package where every line
+     * that knows kolu exists lives.
      *
      * MADE EAGERLY, STARTED LAZILY. Making it is free and gives the collection
      * and the procedure something to read before anything has dialed — so a
