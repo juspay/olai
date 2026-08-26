@@ -96,25 +96,31 @@ export function LivePane(props: {
    */
   const fitVisually = (): void => {
     const screen = host?.querySelector<HTMLElement>(".xterm")
-    if (screen === undefined || screen === null || host === undefined) return
-    // Measure the UNSCALED box: reading it while a transform is applied would
-    // compound each pass into a smaller and smaller terminal.
+    const room = host?.parentElement
+    if (screen === undefined || screen === null || host === undefined || room === null) return
+    // Measure the UNSCALED box, and measure the ROOM from the parent — reading
+    // either through this element's own inline size would compound each pass
+    // into a smaller and smaller terminal.
     screen.style.transform = ""
+    host.style.width = ""
     host.style.height = ""
     const naturalWidth = screen.offsetWidth
     const naturalHeight = screen.offsetHeight
     if (naturalWidth <= 0 || naturalHeight <= 0) return
     // SMALLER OF THE TWO, and never above 1. Width is the obvious constraint;
-    // height is the one a 50-row terminal hits first, and a pane that scaled
-    // only by width would put the bottom rows below the fold — which is the
-    // cropping this whole approach exists to avoid, arriving from the other
-    // axis.
-    const scale = Math.min(1, host.clientWidth / naturalWidth, CAP_PX / naturalHeight)
+    // height is the one a fifty-row terminal hits first, and a pane that scaled
+    // only by width would put the bottom rows below the fold — the cropping
+    // this whole approach exists to avoid, arriving from the other axis.
+    const scale = Math.min(1, room.clientWidth / naturalWidth, CAP_PX / naturalHeight)
     screen.style.transformOrigin = "top left"
     screen.style.transform = scale < 1 ? `scale(${scale})` : ""
-    // A TRANSFORM DOES NOT MOVE LAYOUT, so the box has to be told what it is
-    // now showing: without this the pane keeps the unscaled terminal's height
-    // and leaves a band of empty panel under a shrunken screen.
+    // A TRANSFORM DOES NOT MOVE LAYOUT, so the box is told what it is showing —
+    // BOTH axes. Height alone left a band of dead space to the right of a
+    // terminal whose height was the binding constraint, which reads as a broken
+    // box rather than as a small one. Sized to the scaled terminal exactly, the
+    // pane's own panel is what surrounds it, and that reads as the padding it
+    // is.
+    host.style.width = `${Math.ceil(naturalWidth * scale)}px`
     host.style.height = `${Math.ceil(naturalHeight * scale)}px`
   }
 
