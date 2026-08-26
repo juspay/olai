@@ -69,6 +69,11 @@ export function LivePane(props: {
   readonly onClose: () => void
 }) {
   const fleet = useFleet()
+  /** THE TERMINAL'S OWN THEME, resolved once and read twice: xterm paints the
+   *  glyphs with it, and the wrapper paints the padding around them with its
+   *  background — which is what makes the breathing room read as terminal
+   *  rather than as a light gutter of chrome (the human, on the second look). */
+  const theme = () => getThemeByName(props.themeName ?? undefined)
   const [says, setSays] = createSignal<string>()
   /** Bumped to re-attach. A SIGNAL rather than a call, so the effect below is
    *  the only thing that ever opens a stream — one place a subscription is
@@ -105,7 +110,7 @@ export function LivePane(props: {
       // no palette — a terminal that looked different here than in the Dock
       // would be the same drift the row's own extraction exists to prevent, one
       // surface down.
-      theme: getThemeByName(props.themeName ?? undefined),
+      theme: theme(),
       // ...and kolu's own type. The stack is the catalog's constant rather than
       // a string spelled here, for the reason the palette is.
       fontFamily: FONT_FAMILY,
@@ -294,6 +299,7 @@ export function LivePane(props: {
           <div
             ref={host}
             class="olai-live-screen"
+            style={{ "background-color": theme().background ?? "transparent" }}
             data-testid={TESTID.terminalScreen}
             data-state="attached"
           />

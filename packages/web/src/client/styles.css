@@ -906,19 +906,41 @@ mark.olai-hit {
   background-color: var(--color-panel);
 }
 
-/* The terminal's own box. A HEIGHT is set rather than left to the content
- * because xterm measures its grid from the element: a box that sized itself to
- * its contents would have no rows to report before the first frame, and the
- * grid a pane asks at would be a grid it invented. */
+/* The terminal's own box.
+ *
+ * A HEIGHT is set rather than left to the content because xterm measures its
+ * grid from the element: a box that sized itself to its contents would have no
+ * rows to report before the first frame, and the grid a pane asks at would be a
+ * grid it invented.
+ *
+ * THE PADDING IS ON `.xterm`, NOT ON THIS WRAPPER, and that is the whole of the
+ * snipped-edges fix. Two things go wrong when a wrapper holds it: the theme
+ * paints the terminal and the wrapper's padding stays panel-coloured, so a
+ * light gutter frames a dark terminal; and glyphs sit flush against the canvas
+ * edge with the first and last columns shaved. xterm's own fit reads the
+ * padding off `terminal.element` and subtracts it before proposing a grid
+ * (`@xterm/addon-fit`'s `proposeDimensions`), so putting it there is what makes
+ * the measurement account for it — no fractional column is clipped at the right
+ * or the bottom, by construction rather than by arithmetic here.
+ *
+ * The wrapper's background is set INLINE from the resolved theme
+ * (`client/props/LivePane.tsx`), so the padding reads as terminal rather than
+ * as chrome. It cannot be a rule here: which background it is depends on which
+ * terminal is in the pane.
+ */
 .olai-live-screen {
   height: 22rem;
   width: 100%;
-  /* The terminal paints its OWN background (kolu's theme for that terminal),
-   * so the box is inset from the pane's border rather than bleeding into it —
-   * the theme is a fact about the terminal, not about olai's panel. */
-  padding: 0.25rem;
   border-radius: 0.25rem;
   overflow: hidden;
+}
+
+.olai-live-screen .xterm {
+  /* Kolu's own terminal padding is app layout — a tile's chrome around the
+   * canvas, spelled in utility classes at its call site rather than exported as
+   * a constant. There is nothing to consume here, so this is olai's own
+   * breathing room and not a restatement of a number with a home elsewhere. */
+  padding: 0.375rem;
 }
 
 /**
