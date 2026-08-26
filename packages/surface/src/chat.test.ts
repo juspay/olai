@@ -9,7 +9,7 @@
  * rather than a fact a consumer has to re-check.
  */
 
-import { ValidationFailure } from "@olai/format"
+import { ValidationFailure, verdictOf } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 import { Schema } from "effect"
 
@@ -81,12 +81,12 @@ const CONTEXT: NodeContext = {
 
 const REFUSAL = new ValidationFailure({
   reason: "`done: Kitchen remodel` would leave the outlines invalid",
-  errors: [{
+  verdict: verdictOf([{
     code: "duplicate-id",
     file: "house.olai",
     line: 3,
     message: "`order` is already the id of another node",
-  }],
+  }]),
 })
 
 /** One well-formed row of each kind, as the transcript's writer actually

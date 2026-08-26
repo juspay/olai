@@ -46,6 +46,15 @@
  *   RENAME them all → re-probe and publish THAT VERDICT → the caller's
  *   post-publish hook.
  *
+ * A REFUSAL THERE IS NOT AUTOMATICALLY THIS WRITE'S. The codec judges the whole
+ * set, because that is what a set means; whether the judgement is ABOUT the
+ * files this commit puts down is a second question, and it is the codec's too
+ * ({@link Codec.admits}). A codec that answers it lets a write to healthy files
+ * land beside a file that will not validate — the same per-file degradation
+ * reads have had since 2026-08-09, which writes never got — with the last good
+ * snapshot still standing and the refusal still on the errors channel. A codec
+ * that does not answer it refuses exactly as before.
+ *
  * Validation before any rename is what makes a refused write cost nothing: the
  * bytes are on disk under names nothing reads, or they are not there at all.
  * And it is the ONLY validation the write pays for, because the verdict travels
@@ -510,7 +519,41 @@ export const make = <F, S, E>(
               sinceOf(current, outstanding, write.changes.map((change) => change.path)),
             ),
           }
-          if (Result.isFailure(judged.outcome)) return Result.fail(judged.outcome.failure)
+          /**
+           * THE REFUSAL, IF THERE IS ONE — and whether it is about THIS write.
+           *
+           * It used to be one line: a set the codec would not publish refused
+           * the write, whatever the write touched. That is a whole-set answer
+           * to a per-file question, and it is the store that was asking it —
+           * one file failing to validate froze every write to the directory,
+           * including the write that would have reported the problem.
+           *
+           * TWO THINGS HAVE TO BE TRUE for the bytes to land over a refusal.
+           * The codec has to say the refusal is not about these files
+           * ({@link Codec.admits}, the only half it can answer), and the base
+           * this write was planned against has to still be the truth for them
+           * — which is this package's own bookkeeping and is checked first.
+           *
+           * `moved` is what that check reads. It holds every path re-decoded or
+           * removed since the last PUBLISHED revision, which is empty whenever
+           * the directory is healthy and is exactly the drift a caller planning
+           * against the last good snapshot cannot see while it is not. Without
+           * it, admitting writes over a frozen snapshot would lose one: op two
+           * is planned off a snapshot op one never reached, and writes the file
+           * back without op one's record in it. So a file that has moved since
+           * the standing revision is refused exactly as before — the freeze
+           * narrows to the files it is really about rather than lifting.
+           */
+          const refused = Result.isFailure(judged.outcome) ? judged.outcome.failure : null
+          if (refused !== null) {
+            const paths = write.changes.map((change) => change.path)
+            const settled = paths.every(
+              (path) => !outstanding.changed.has(path) && !outstanding.removed.has(path),
+            )
+            if (!settled || options.codec.admits?.(refused, paths) !== true) {
+              return Result.fail(refused)
+            }
+          }
 
           // Every file staged before any is renamed: a write that cannot be
           // written at all must fail with the destinations untouched.
@@ -546,6 +589,13 @@ export const make = <F, S, E>(
             ? Result.succeed(current)
             : yield* publish(reread, judged)
           if (Result.isFailure(published)) {
+            // ADMITTED, and the set is still refused — which is the arrangement
+            // rather than a surprise: the write was never what was wrong with
+            // this directory, the last good snapshot goes on standing, and the
+            // refusal has just been republished on the errors channel by
+            // `publish` itself. The caller hears yes, at the revision that is
+            // actually being served, and the banner over it says the rest.
+            if (refused !== null) return Result.succeed(current.rev)
             // Written, and the set it produced does not validate — which the
             // check above ruled out unless something else moved the tree in
             // the moments since. The bytes are on disk and the error is on the

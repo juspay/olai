@@ -7,7 +7,7 @@
  */
 
 import type { ChatEntry } from "@olai/surface"
-import { ValidationFailure } from "@olai/format"
+import { ValidationFailure, verdictOf } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 
 import { type Change, says, Transcript } from "./transcript.ts"
@@ -1145,12 +1145,12 @@ describe("refusals and replacement", () => {
     const transcript = new Transcript()
     const failure = new ValidationFailure({
       reason: "`done: Kitchen remodel` would leave the outlines invalid",
-      errors: [{
+      verdict: verdictOf([{
         code: "duplicate-id",
         file: "house.olai",
         line: 3,
         message: "`order` is already the id of another node",
-      }],
+      }]),
     })
     transcript.refuse("`set_done` was refused", failure)
 

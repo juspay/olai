@@ -3,6 +3,7 @@ import { Result } from "effect"
 
 import { bodiedDocument, type Document } from "./document.ts"
 import { isCrossFile, type OutlineError } from "./errors.ts"
+import { type Verdict, verdictOf } from "./verdict.ts"
 import { decodedOf, outlineOf, recordsOf, setOf } from "./fixtures.testlib.ts"
 import {
   assemble,
@@ -21,7 +22,9 @@ const errorsOf = (
 ): ReadonlyArray<OutlineError> => {
   const result = validate(setOf(files, documents, broken))
   if (Result.isSuccess(result)) throw new Error("expected this set to be rejected")
-  return result.failure
+  // THE FINDINGS out of the verdict: every assertion below is about the rows a
+  // reader is shown, and the verdict's own questions are `./verdict.test.ts`'s.
+  return result.failure.findings
 }
 
 const expectValid = (
@@ -33,7 +36,9 @@ const expectValid = (
   const result = validate(set)
   if (Result.isFailure(result)) {
     throw new Error(
-      `expected a valid set: ${result.failure.map((e) => `${e.file}:${e.line} ${e.message}`).join("; ")}`,
+      `expected a valid set: ${
+        result.failure.findings.map((e) => `${e.file}:${e.line} ${e.message}`).join("; ")
+      }`,
     )
   }
   // The set comes back as it went in — the validator judges, it does not
@@ -112,7 +117,9 @@ test("a view that is not about this set is not the view the rules run over", () 
 
   if (Result.isFailure(answer)) {
     throw new Error(
-      `expected the set in hand to be judged: ${answer.failure.map((e) => e.code).join(", ")}`,
+      `expected the set in hand to be judged: ${
+        answer.failure.findings.map((e) => e.code).join(", ")
+      }`,
     )
   }
   // The view is the set's own, whichever way it was reached — the same
@@ -135,7 +142,7 @@ test("a view that is not about this set is not the view the rules run over", () 
 /** The next reading's set and the delta that describes it — one file rewritten,
  *  every other outline the same object as before. */
 const probed = (
-  held: Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>,
+  held: Map<string, Result.Result<Document, Verdict>>,
   read: Reading,
   file: string,
   text: string,
@@ -149,7 +156,9 @@ const probed = (
 const judged = (set: OutlineSet, previous?: Previous): Reading => {
   const answer = validate(set, previous)
   if (Result.isFailure(answer)) {
-    throw new Error(`expected a valid set: ${answer.failure.map((e) => e.code).join(", ")}`)
+    throw new Error(
+      `expected a valid set: ${answer.failure.findings.map((e) => e.code).join(", ")}`,
+    )
   }
   return answer.success
 }

@@ -22,6 +22,7 @@
  */
 
 import {
+  admits,
   BusyFailure,
   type CommitRequest,
   type CommitResult,
@@ -35,6 +36,7 @@ import {
   type NamedRequest,
   type NarrowingAnswer,
   type NarrowingRequest,
+  NOTHING_WRONG,
   type OpFailure,
   type Owed,
   type OwedRequest,
@@ -410,7 +412,7 @@ export const make = (options: Options): Ops => {
       const errors = yield* SubscriptionRef.get(options.store.errors)
       return yield* new ValidationFailure({
         reason: "the served directory has never loaded, so there is nothing to read",
-        errors: errors ?? [],
+        verdict: errors ?? NOTHING_WRONG,
       })
     }
     // The snapshot IS the reading: the validator paired the set with the view
@@ -430,7 +432,7 @@ export const make = (options: Options): Ops => {
           return yield* new ValidationFailure({
             reason:
               "the served directory has never loaded, so there is nothing to write to",
-            errors: errors ?? [],
+            verdict: errors ?? NOTHING_WRONG,
           })
         }
 
@@ -458,17 +460,44 @@ export const make = (options: Options): Ops => {
           if (outcome.failure._tag === "StaleWrite") continue
           return yield* new ValidationFailure({
             reason: `the write could not be made: ${outcome.failure.message}`,
-            errors: [],
+            verdict: NOTHING_WRONG,
           })
         }
 
         const written = outcome.success
         if (Result.isFailure(written)) {
+          /**
+           * THE REFUSAL NAMES ITS BLOCKER, which the sentence this replaces
+           * could not: "`x` would leave the outlines invalid" read as an
+           * indictment of the write, and the write was usually innocent — the
+           * directory had been invalid before it was asked for, and the gate
+           * had no way to say which file made it so
+           * (`broken-file-blocks-healthy-writes`).
+           *
+           * ASKED OF THE VERDICT rather than re-derived from its rows: this is
+           * the same `admits` the store's gate spent to decide whether the
+           * bytes could land at all (`./codec.ts`), asked here for the sentence.
+           * A refusal that reaches this line has been through it, so there are
+           * exactly two ways to be here — the verdict implicates one of these
+           * files, or it does not and the write is standing on a base the disk
+           * has moved past while the set would not load ({@link
+           * ../../store/src/store.ts}'s `commit` owns that check, and the file
+           * it is about is one of the ones named right here).
+           */
+          // THE PATHS THE COMMIT CARRIED, off the very list it carried them in
+          // — a second reading of "which files is this write about" is how the
+          // gate and the sentence come to disagree about one write.
+          const paths = changes.map((change) => change.path)
+          const admission = admits(written.failure, paths)
           return yield* new ValidationFailure({
-            reason:
-              `\`${about.summary}\` would leave the outlines invalid, so nothing was ` +
-              `written`,
-            errors: written.failure,
+            reason: admission._tag === "implicated"
+              ? `\`${about.summary}\` would leave \`${admission.file}\` invalid, so ` +
+                `nothing was written`
+              : `\`${about.summary}\` was not written: ${
+                paths.map((path) => `\`${path}\``).join(", ")
+              } changed while the served outlines were not loading, so this edit ` +
+                `would be made from an older copy of them`,
+            verdict: written.failure,
           })
         }
 

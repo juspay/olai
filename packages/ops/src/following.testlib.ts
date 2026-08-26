@@ -36,6 +36,7 @@ import {
   reading,
   serializeOutline,
   type SetDelta,
+  type Verdict,
 } from "@olai/format"
 import { Result } from "effect"
 
@@ -45,7 +46,7 @@ import { type Scope, typedIn } from "./plan.ts"
 
 /** One decoded file, as `assemble` takes it — the map this arm carries between
  *  ops is a map of them. */
-type Decoded = Result.Result<Document, ReadonlyArray<OutlineError>>
+type Decoded = Result.Result<Document, Verdict>
 
 export const assembling = (from: Scope): Folding => {
   // LAZY, as it was: `folded` breaks before folding the LAST op, so a one-op run

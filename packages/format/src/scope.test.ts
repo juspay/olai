@@ -28,6 +28,7 @@
  */
 
 import { expect, test } from "bun:test"
+import { Result } from "effect"
 
 import type { Derived } from "./derive.ts"
 import { matching, parseFilter } from "./filter.ts"
@@ -46,6 +47,7 @@ import {
 } from "./scope.testlib.ts"
 import { assemble, nodesIn } from "./set.ts"
 import { reading } from "./validate.ts"
+import { verdictOf } from "./verdict.ts"
 
 /** The day the grammar's relative words count from — a constant, so a `date:`
  *  ask says the same thing in January. */
@@ -373,7 +375,7 @@ test("a write leaves the narrowing answering what the walk does", () => {
     // the previous round's corpus with itself, and it would pass.
     if (edited === text) throw new Error(`the edit to ${file} changed nothing`)
     vault.set(file, edited)
-    decoded.set(file, parseOutline(file, edited))
+    decoded.set(file, Result.mapError(parseOutline(file, edited), verdictOf))
   }
   const requeried = (changed: ReadonlyArray<string>, removed: ReadonlyArray<string>): void => {
     read = reading(assemble(decoded), {

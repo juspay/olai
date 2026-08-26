@@ -19,12 +19,12 @@
  * node, so there is no second copy for a write to make and nothing left to
  * refuse. What survives of it is the RULE it was an instance of: a refusal
  * carries its detail as data, which is now `validation` carrying the
- * validator's own rows.
+ * validator's own verdict.
  */
 
 import { Schema } from "effect"
 
-import { OutlineError } from "./errors.ts"
+import { Verdict } from "./verdict.ts"
 
 /** Which half of the taxonomy a refusal belongs to. Exposed as a word because
  *  a transport that is not the wire — an MCP tool result, a log line — wants
@@ -55,15 +55,25 @@ export class NotFoundFailure extends Schema.TaggedError<NotFoundFailure>(
   }
 }
 
-/** The edit was well-formed and the set it would produce is not valid. The
- *  report is the validator's own, so a refused write and a broken file on disk
- *  are explained by the same rows. Nothing was written: the gate validates
- *  BEFORE it renames. */
+/**
+ * The edit was well-formed and the set it would produce is not valid. The
+ * judgement is the validator's own, so a refused write and a broken file on
+ * disk are explained by the same rows. Nothing was written: the gate validates
+ * BEFORE it renames.
+ *
+ * IT CARRIES THE VERDICT rather than a list of rows, and the field is named for
+ * what it is ({@link ./verdict.ts}). A refusal is where the flat list did its
+ * worst: "would leave the outlines invalid" named nothing, because the only
+ * thing in hand was a heap of findings about a directory and the one question
+ * worth answering — WHICH file stops this write — had to be re-derived by
+ * whoever drew the sentence. `admits` answers it, so the reason above can name
+ * a file and the detail below can still show every row.
+ */
 export class ValidationFailure extends Schema.TaggedError<ValidationFailure>(
   "@olai/format/ValidationFailure",
 )("ValidationFailure", {
   reason: Schema.String,
-  errors: Schema.Array(OutlineError),
+  verdict: Verdict,
 }) {
   override get message(): string {
     return this.reason

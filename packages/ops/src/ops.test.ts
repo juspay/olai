@@ -1011,3 +1011,125 @@ describe("apply, against a real directory", () => {
         expect(set.broken).toEqual([])
       })))
 })
+
+/**
+ * WRITES DEGRADE PER FILE, the way reads have since 2026-08-09.
+ *
+ * The bug (`broken-file-blocks-healthy-writes`, sighted 2026-08-25): one
+ * outline failing typed validation refused an `add_node` into a perfectly
+ * healthy file — the gate reduced the whole set's verdict to one boolean, so
+ * every write in the vault was frozen by a file it had nothing to do with, and
+ * the refusal said "would leave the outlines invalid", which reads as an
+ * indictment of a write that was innocent. Filing THAT BUG was blocked by it.
+ *
+ * The socket is `@olai/format`'s `admits` and the seam is the store's
+ * (`@olai/store`'s `Codec.admits`, spent by `commit`); what is only true END TO
+ * END is here — that the bytes land, that the brokenness is still reported
+ * beside the success, and that the writes which must still be refused are
+ * refused with the file named.
+ */
+describe("a broken file beside a healthy one", () => {
+  /** A second outline, valid on its own — what the healthy write goes into. */
+  const GARDEN = `{"id":"garden","ord":"a0","title":"the garden"}\n`
+
+  /** The same file, saying something the set cannot hold: an edge naming an id
+   *  nothing in the directory declares. It PARSES — that is the point, since a
+   *  file that merely failed to parse has degraded gracefully for a year. */
+  const DANGLING =
+    `{"id":"garden","ord":"a0","title":"the garden","see":["nobody-declares-this"]}\n`
+
+  /** Break `garden.olai` on disk and let the store see it: the snapshot stays
+   *  where it was, and the errors channel carries the verdict. */
+  const breakGarden = (fixture: Fixture) =>
+    Effect.gen(function*() {
+      fixture.write("garden.olai", DANGLING)
+      yield* Effect.orDie(fixture.store.refresh)
+      const errors = yield* SubscriptionRef.get(fixture.store.errors)
+      expect(errors?.findings.map((one) => one.code)).toEqual(["unknown-target"])
+    })
+
+  test("a write to the healthy file lands, and the broken one goes on being broken", () =>
+    withOps(
+      { "house.olai": HOUSE, "garden.olai": GARDEN },
+      (fixture) =>
+        Effect.gen(function*() {
+          yield* breakGarden(fixture)
+
+          const applied = yield* run(fixture, { op: "done", id: "order" })
+          // THE BYTES ARE ON DISK. Under the old gate this write was refused
+          // outright and nothing was written at all.
+          expect(fixture.read("house.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
+          // The revision does NOT move, and that is the honest answer rather
+          // than a wart: the served set still does not validate, so the last
+          // good snapshot is still what every reader is reading.
+          expect(applied.rev).toBe(1)
+          expect(fixture.refusals).toEqual([])
+
+          // …and the brokenness is reported BESIDE the success rather than in
+          // place of it, which is the sentence the bug asked for.
+          const errors = yield* SubscriptionRef.get(fixture.store.errors)
+          expect(errors?.findings.map((one) => one.file)).toEqual(["garden.olai"])
+        }),
+    ))
+
+  // THE OTHER HALF of the same narrowing — a write the verdict IS about, still
+  // refused and now naming the file — is asserted where it can be reached end
+  // to end through a real agent call: `@olai/server`'s `tools.test.ts`, whose
+  // typed-property fixture makes a `move_node` break a file it does not write.
+  // Reaching it from here would mean a second copy of that fixture, and the
+  // sentence is the same sentence.
+
+  /**
+   * THE GUARD THAT MAKES THE NARROWING SAFE, and it is the reason `admits` is
+   * not the whole of the store's question.
+   *
+   * A write is planned against the SNAPSHOT, and while the set will not
+   * validate the snapshot does not move — so the second write to a file the
+   * first one already changed would be planned off a copy without the first
+   * write in it, and would put that copy back. The store refuses exactly that:
+   * a path the published revision no longer accounts for cannot be written from
+   * it ({@link ../../store/src/store.ts}'s `commit`), and the refusal names the
+   * paths so the reader knows which file to look at.
+   */
+  test("a second write to the same file, over a frozen snapshot, is refused rather than losing the first", () =>
+    withOps(
+      { "house.olai": HOUSE, "garden.olai": GARDEN },
+      (fixture) =>
+        Effect.gen(function*() {
+          yield* breakGarden(fixture)
+          yield* run(fixture, { op: "done", id: "order" })
+          const landed = fixture.read("house.olai") ?? ""
+
+          const failure = yield* Effect.orDie(
+            Effect.flip(
+              fixture.ops.run({ op: "title", id: "install", title: "install them" }, "mcp"),
+            ),
+          )
+          expect(failure._tag).toBe("ValidationFailure")
+          expect(failure.message).toContain("`house.olai`")
+          // The first write is still there, which is the whole of what this
+          // refusal buys.
+          expect(fixture.read("house.olai")).toBe(landed)
+        }),
+    ))
+
+  // And the freeze really does lift: fixing the broken file publishes again,
+  // with the admitted write in the set the way any other write would be.
+  test("the admitted write is in the set the moment the broken file is fixed", () =>
+    withOps(
+      { "house.olai": HOUSE, "garden.olai": GARDEN },
+      (fixture) =>
+        Effect.gen(function*() {
+          yield* breakGarden(fixture)
+          yield* run(fixture, { op: "done", id: "order" })
+
+          fixture.write("garden.olai", GARDEN)
+          yield* Effect.orDie(fixture.store.refresh)
+          expect(yield* SubscriptionRef.get(fixture.store.errors)).toBeNull()
+
+          const set = yield* fixture.set()
+          const done = recordsOf(set).find((at) => at.node.id === "order")?.node
+          expect(done !== undefined && !isMirror(done) ? done.done : undefined).toBe(STAMP)
+        }),
+    ))
+})

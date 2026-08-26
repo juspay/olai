@@ -849,6 +849,14 @@ export const TESTID = {
   stageNote: "stage-note",
   /** Over a last-good tree: the set on disk stopped validating. */
   staleBanner: "stale-banner",
+  /** ONE broken file's line in that banner — its path, its state and how many
+   *  findings implicate it, drawn off the verdict's bounded face
+   *  (`@olai/format`'s `summary`). A row COUNT and never the rows: the banner
+   *  is over somebody else's page (`last-good-banner-flood`). Its `data-file`
+   *  is the path and its `data-state` is the word. */
+  brokenFileLine: "broken-file-line",
+  /** …and the tail, when there are more broken files than the banner draws. */
+  brokenFileMore: "broken-file-more",
   /** In one outline's place: that file could not be read, the rest are live. */
   outlineFailure: "outline-failure",
   /** The connection readout. On desktop, the header pill, always on screen.

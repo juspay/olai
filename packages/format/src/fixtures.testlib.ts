@@ -38,6 +38,7 @@ import { pointingOf } from "./pointing.ts"
 import { bodiedDocument, type Document, type Outline } from "./document.ts"
 import { assemble, outlinesIn, type OutlineSet } from "./set.ts"
 import type { Reading } from "./validate.ts"
+import { type Verdict, verdictOf } from "./verdict.ts"
 
 /** The default fixture file name. Named once so a test that cares about paths
  *  can say so, and one that does not need never mention it. */
@@ -78,7 +79,7 @@ export const nodesOf = (
  */
 export const decodedOf = (
   files: Record<string, string>,
-): Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>> =>
+): Map<string, Result.Result<Document, Verdict>> =>
   new Map(
     Object.entries(files).map(
       ([file, contents]) => [file, Result.succeed<Document>(outlineOf(contents, file))],
@@ -95,7 +96,7 @@ export const setOf = (
   broken: Record<string, string> = {},
 ): OutlineSet =>
   assemble(
-    new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>([
+    new Map<string, Result.Result<Document, Verdict>>([
       ...decodedOf(files),
       ...documents.map((document) => {
         const [file, said] = typeof document === "string" ? [document, ""] : document
@@ -117,7 +118,12 @@ export const setOf = (
         ] as const
       }),
       ...Object.entries(broken).map(
-        ([file, contents]) => [file, Result.fail(failureOf(contents, file))] as const,
+        // A VERDICT, because that is what either half of the store's codec
+        // answers with (`./verdict.ts`) and what `assemble` therefore takes:
+        // one file's worth of judgement, from the parser rather than from the
+        // set's rules.
+        ([file, contents]) =>
+          [file, Result.fail(verdictOf(failureOf(contents, file)))] as const,
       ),
     ]),
   )

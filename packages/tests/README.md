@@ -417,6 +417,8 @@ The names are not written down twice. `support/world.ts` imports the client's ow
 | `[data-testid="error"][data-code]` | one error row; its text names `<file>:<line>` |
 | `[data-testid="cross-file-errors"]` | errors implicating two files |
 | `[data-testid="stale-banner"]` | shown OVER a last-good tree: the files stopped validating |
+| `[data-testid="broken-file-line"][data-file][data-state]` | ONE broken file's line inside that banner — its path, its state (`unreadable`/`unparsed`/`invalid`) and a row COUNT. Never the rows: the banner is drawn over somebody else's page |
+| `[data-testid="broken-file-more"]` | …and the tail, when more files are broken than the banner draws |
 | `[data-testid="outline-failure"][data-file]` | shown in ONE outline's place: that file will not parse |
 | `[data-testid="outline-link"][data-broken]` | the sidebar entry of a file that will not parse |
 | `[data-testid="connection"][data-connection]` | the connection dot, in every shape of the app: `connecting`, `live`, `reconnecting`, `retired` |

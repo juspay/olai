@@ -47,20 +47,21 @@ import {
   assemble,
   bodiedDocument,
   bodiedIn,
-  documentHayOf,
   type Document,
+  documentHayOf,
   hayOf,
   isMirror,
   matching,
   matchingDocuments,
   narrowableBy,
   nodesIn,
-  type OutlineError,
   parseFilter,
   parseOutline,
   reading,
-  type RegularNode,
   type Reading,
+  type RegularNode,
+  type Verdict,
+  verdictOf,
 } from "@olai/format"
 import {
   alternating,
@@ -117,8 +118,10 @@ const bodyOf = (random: () => number, at: number): string => {
 }
 
 const random = seeded(20260824)
-const decoded = new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>()
-for (const [path, text] of corpus) decoded.set(path, parseOutline(path, text))
+const decoded = new Map<string, Result.Result<Document, Verdict>>()
+for (const [path, text] of corpus) {
+  decoded.set(path, Result.mapError(parseOutline(path, text), verdictOf))
+}
 for (let at = 0; at < DOCS; at++) {
   const path = `notes/note${at}.md`
   decoded.set(path, Result.succeed<Document>(bodiedDocument(path, bodyOf(random, at))))
@@ -326,7 +329,7 @@ for (let which = 0; which < 40; which++) {
     /"title":"([^"]*)"/,
     `"title":"$1 edit ${which}"`,
   )
-  decoded.set(file, parseOutline(file, text))
+  decoded.set(file, Result.mapError(parseOutline(file, text), verdictOf))
   const next = reading(assemble(decoded), {
     read,
     delta: { upserts: [[file, { nodes: nodesIn(decoded.get(file)) }]], removes: [] },

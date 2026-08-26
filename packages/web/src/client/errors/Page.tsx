@@ -14,7 +14,7 @@
  * last-good tree, and ./Broken.tsx in one outline's place.
  */
 
-import { type OutlineError, reportStage } from "@olai/format"
+import { reportStage, type Verdict } from "@olai/format"
 import { Show } from "solid-js"
 
 import { SHEET } from "../layout/sheet.ts"
@@ -23,23 +23,28 @@ import { TESTID } from "../testids.ts"
 import { Lede } from "./Lede.tsx"
 import { Report } from "./Report.tsx"
 
-export function Page(props: { readonly errors: ReadonlyArray<OutlineError> }) {
+export function Page(props: { readonly verdict: Verdict }) {
+  // THE ROWS THEMSELVES, and this is the one surface entitled to every one of
+  // them: there is no tree under this page to keep, so a summary here would be
+  // a reader re-running the server to find the second error. The BOUNDED face
+  // is for a banner over something still live (../errors/Banner.tsx).
+  const errors = () => props.verdict.findings
   return (
     <main class={`${SHEET} max-w-none px-8 py-10`} data-testid={TESTID.errorView}>
       <h1 class={`${PAGE_TITLE} mb-2 italic text-alarm`}>
-        {props.errors.length === 0
+        {errors().length === 0
           ? "Broken outlines"
-          : `${props.errors.length} ${props.errors.length === 1 ? "error" : "errors"}`}
+          : `${errors().length} ${errors().length === 1 ? "error" : "errors"}`}
       </h1>
       <Lede>
-        {props.errors.length === 0
+        {errors().length === 0
           // The page is decided by the outline stream, and the report arrives
           // on its own subscription — so for the frame between them there is a
           // broken set and nothing yet to say about it.
           ? "The set could not be loaded. Fetching the report…"
           : "Nothing is served until these are fixed: an outline set is valid or it is not, and half of one would be a different set from the one on disk."}
       </Lede>
-      <Show when={reportStage(props.errors) === "line"}>
+      <Show when={reportStage(errors()) === "line"}>
         <Lede testid={TESTID.stageNote}>
           Some of these are lines that could not be read. Everything else below
           was still checked against the files that did parse — but a reference
@@ -49,7 +54,7 @@ export function Page(props: { readonly errors: ReadonlyArray<OutlineError> }) {
         </Lede>
       </Show>
 
-      <Report errors={props.errors} />
+      <Report errors={errors()} />
     </main>
   )
 }

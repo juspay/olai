@@ -80,19 +80,20 @@ import {
   NO_INBOX,
   NO_PINS,
   NOTHING_PENDING,
+  NOTHING_WRONG,
   pinsIn,
   sameDated,
   sameMoving,
-  sameOwed,
   sameNarrowing,
+  sameOwed,
   samePageReading,
   type Shelf,
   shelfIn,
+  type Verdict,
 } from "@olai/format"
 import { type Ops, type Request, type Status, type Store } from "@olai/ops"
 import type {
   CommitRequest,
-  OutlineError,
   Pending,
   PushResult,
   Writer,
@@ -365,7 +366,7 @@ export const bind = (
     // Seeded empty and filled by `connect`: `SubscriptionRef.changes` delivers
     // the current value before any update, so peeking at the ref here as well
     // would be the same read twice with a window between them.
-    const errors = inMemoryStore<ReadonlyArray<OutlineError>>([])
+    const errors = inMemoryStore<Verdict>(NOTHING_WRONG)
     const chat = wiring.chat
     /** This runtime's own log line, for the one place below that reports from
      *  outside an Effect — a stream's re-read, which the framework calls on a
@@ -635,7 +636,7 @@ export const bind = (
           connect: (cell) =>
             Stream.runForEach(
               SubscriptionRef.changes(wiring.store.errors),
-              (next) => Effect.sync(() => cell.set(next ?? [])),
+              (next) => Effect.sync(() => cell.set(next ?? NOTHING_WRONG)),
             ),
         },
         chat: {
