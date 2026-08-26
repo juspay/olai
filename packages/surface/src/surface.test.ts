@@ -355,6 +355,12 @@ test("the page stream is keyed by the field a Row carries, on every arm", () => 
   // here would notice. So the claim is the whole partition rather than the
   // interesting half of it.
   expect(found.get("names")).toBe("positional")
+  // ...and the doors table beside it, which is the one that had to be NAMED to
+  // stay that way: a `Door` says which property key it is about, and a field
+  // called `key` on it would have made this array keyed by the property — one
+  // `brief` standing in for every `brief` on the page. It is `prop`
+  // (`@olai/format`'s `meaning.ts`), and this line is what says so.
+  expect(found.get("doors")).toBe("positional")
   expect(found.get("shows.backlinks")).toBe("positional")
   expect(found.get("shows.referrers")).toBe("positional")
   expect(found.get("shows.zoomed.trail")).toBe("positional")

@@ -122,7 +122,7 @@ const MONTHS = ["2026-06", "2026-07", "2026-08", "2026-09", "2027-01"] as const
  *  difference between them is the index. */
 const same = (store: Store): Effect.Effect<number> =>
   Effect.gen(function*() {
-    const snapshot = yield* SubscriptionRef.get(store.snapshot)
+    const snapshot = yield* Effect.map(store.read("cheap"), (aged) => aged.snapshot)
     if (snapshot === null) throw new Error("the fixture directory never loaded")
     const derived = snapshot.value.derived
     let counted = 0

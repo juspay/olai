@@ -1,0 +1,2 @@
+{"id":"board","ord":"a0","title":"the board, one directory in"}
+{"id":"board-lane","parent":"board","ord":"a0","title":"a lane written from the root","custom":{"brief":"briefs/tp.md","agent":"grok","merge":"auto","worktree":".worktrees/board"}}

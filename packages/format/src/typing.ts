@@ -37,9 +37,10 @@
  * **A ref value is an ID** — the pin and mirror rule, for the pin and mirror
  * reason: names rename, ids don't. Variant ids are chosen short at declaration
  * time (`auto`, `human`), which is safe because the duplicate-id fence makes any
- * clash loud at add-time — and SHORT because the id is what is drawn: nothing
- * resolves a ref value to its variant's title yet, and doing so is the same door
- * work `pr` is waiting on rather than this module's.
+ * clash loud at add-time. The id is the STORED truth; what a chip DRAWS is the
+ * variant's title, resolved where the set is and shipped to the tab as an answer
+ * ({@link ./meaning.ts}) — so a variant may be renamed without a single value
+ * moving, which is the whole of what "names rename, ids don't" buys.
  *
  * ## Where the declarations are
  *
@@ -66,8 +67,8 @@
  *
  * ## Where the recursion grounds
  *
- * A declaration is itself a node carrying properties (`type`, `under`), so the
- * obvious question is what types THOSE. {@link BOOTSTRAP} does, and it is the
+ * A declaration is itself a node carrying properties (`type`, `under`, `base`),
+ * so the obvious question is what types THOSE. {@link BOOTSTRAP} does, and it is the
  * one place this stops: a built-in table, in code, checked against the records
  * of the declarations file and nowhere else. A vault cannot re-declare `type`,
  * and a `Properties.olai` that says something the table does not know is a
@@ -144,10 +145,14 @@ export type PropType =
   | { readonly kind: "date" }
   /** A number, not a string that has one in it: `records: 193`. */
   | { readonly kind: "int" }
-  /** Path-shaped, and it may point anywhere — `worktree`. */
-  | { readonly kind: "path" }
-  /** A path that names a document this directory SERVES — `brief`. */
-  | { readonly kind: "doc" }
+  /** Path-shaped, and it may point anywhere — `worktree`. WHERE a relative one
+   *  resolves from is the key's own to say ({@link PathBase}). */
+  | { readonly kind: "path"; readonly base?: PathBase }
+  /** A path that names a document this directory SERVES — `brief`. It carries
+   *  the same declared basis, for a sharper reason: this kind PROMISES the
+   *  value resolves to something served, and where it resolves FROM is half of
+   *  that promise. */
+  | { readonly kind: "doc"; readonly base?: PathBase }
   /** One of a parent's children, BY ID. Absent `under` means the declaration's
    *  own children, which is what makes an enum a ref with no extra machinery. */
   | { readonly kind: "ref"; readonly under?: string }
@@ -167,6 +172,51 @@ export const PROP_KINDS = [
   "ref",
   "node",
 ] as const satisfies ReadonlyArray<PropType["kind"]>
+
+/**
+ * WHERE A RELATIVE `doc` OR `path` VALUE RESOLVES FROM — the key's own answer,
+ * declared beside its type.
+ *
+ * THE AMENDMENT THIS FACT IS, said plainly, because it settles a fight that ran
+ * in code for a month. Two premises about one value were both true and neither
+ * was written down: the validator resolved a `doc` BESIDE THE WRITING FILE (a
+ * node names a file beside itself, which is what `doc` the FIELD means), and
+ * the board wrote every `brief` VAULT-ROOT-RELATIVE (`brief briefs/tp.md` on a
+ * record of `roadmap/features.olai`, ~101 of them). So the display drew a door
+ * onto `roadmap/briefs/tp.md`, which the directory does not serve, and every
+ * one of those chips was dead — while the gate, asking the same question the
+ * same way, was quietly refusing them too. The fix is not to pick a winner: it
+ * is to make the premise a DECLARED FACT on the key's own row, so the two sides
+ * read one answer and cannot drift apart again.
+ *
+ * `file` IS THE DEFAULT, and that is a compatibility rule rather than a
+ * preference. A vault that declared nothing new keeps resolving exactly where
+ * it did, so no value in any directory changes meaning because this field
+ * arrived; a vault whose convention is the root says so, once, in one row.
+ *
+ * THE MARKDOWN `doc` FIELD IS NOT TOUCHED and never will be — it keeps
+ * beside-the-writer as its only premise, because a note has no key to declare
+ * on ({@link ./documents.ts}'s `docOf`). This fact is about a PROPERTY, whose
+ * key is a row somebody can write a second word on.
+ */
+export type PathBase =
+  /** From the served directory's root — the board's own convention, and what a
+   *  value written by a convention rather than by somebody standing in a file
+   *  means. */
+  | "root"
+  /** Beside the file the value was written in, exactly as a note's relative
+   *  markdown link resolves. THE DEFAULT. */
+  | "file"
+
+/** Both bases, in the order this module documents them — read by
+ *  {@link BOOTSTRAP} and by the sentence a bad `base` is refused with, for
+ *  {@link PROP_KINDS}' reason. */
+export const PATH_BASES = ["root", "file"] as const satisfies ReadonlyArray<PathBase>
+
+/** What a key that declares no base takes. Stated as a value rather than as a
+ *  `??` at each reader, because there are two readers — the gate and the
+ *  display — and the whole point of this field is that they cannot differ. */
+export const BASE_BY_DEFAULT: PathBase = "file"
 
 /**
  * ONE KEY'S DECLARATION: what it is, and WHERE it was said.
@@ -224,6 +274,69 @@ export const declaredFor = (
  */
 export const TYPE_KEY = "type"
 export const UNDER_KEY = "under"
+export const BASE_KEY = "base"
+
+/**
+ * THE FILE A RELATIVE VALUE OF THIS KEY RESOLVES AGAINST — the basis, applied.
+ *
+ * The ONE thing both arms of the consult share, and it is deliberately the
+ * smallest thing that could be shared: the gate ({@link wrongDoc}) and the
+ * display ({@link ./meaning.ts}'s `meaningOf`) each do their own arithmetic
+ * with their own refusals, and what they may not do is disagree about where
+ * they are standing.
+ *
+ * The empty string IS the root, which is not a sentinel but the arithmetic:
+ * {@link ./documents.ts}'s `resolveRelative` takes the DIRECTORY of `from`, and
+ * the directory of "" is the served root.
+ *
+ * Every other kind answers the default, and none of them asks: a `ref` names no
+ * path, so what it would resolve against is not a question.
+ */
+export const basedAt = (declared: Declared | undefined, from: string): string =>
+  baseOf(declared) === "root" ? "" : from
+
+/**
+ * WHERE A `doc` VALUE LANDS — the whole resolution, or `undefined` for a value
+ * that is not a path at all.
+ *
+ * THE WHOLE RESOLUTION AND NOT JUST THE BASIS, which is the correction grok's
+ * review forced and it is the sharper reading of the same law. `doc` is the one
+ * kind that PROMISES its value names something served, so the gate and the
+ * display are not two rules that happen to agree — they are one question asked
+ * twice, and anything either does on its own is a second answer waiting to
+ * happen. Sharing `basedAt` alone left two: `isPathShaped` accepts a leading
+ * `/` and a `%20` where `pathedOf` refuses the first and decodes the second, so
+ * a `doc` value spelled either way was accepted by the validator and drawn as
+ * plain text — the family again, in the quieter direction.
+ *
+ * So the display asks THIS, and then asks the same corpus ({@link Typed}'s
+ * `documents`, which is `./rules.ts`'s `markdownPaths`). What remains its own
+ * is the sentence: a refusal has to say which half went wrong, and a chip has
+ * only to know whether there is a door.
+ *
+ * `path` DOES NOT COME THROUGH HERE, and that asymmetry is the argued call
+ * rather than an oversight: `path` promises a SHAPE and may point anywhere, so
+ * its gate never claimed the value names anything and its display asks the
+ * wider question — does this directory happen to serve what it resolves to,
+ * whatever kind of file that is. Two arms of one consult can differ about what
+ * they PROMISE; they may not differ about the same promise.
+ */
+export const resolvedDoc = (
+  declared: Declared | undefined,
+  from: string,
+  value: string,
+): string | undefined =>
+  isPathShaped(value) ? resolveRelative(basedAt(declared, from), value) : undefined
+
+/** WHAT THIS KEY'S ROW SAYS its paths resolve from — the fact itself, where
+ *  {@link basedAt} is the fact applied. Read by the two callers that compare
+ *  vocabularies rather than resolve a value ({@link sameTyping}). */
+export const baseOf = (declared: Declared | undefined): PathBase => {
+  const type = declared?.type
+  return type?.kind === "doc" || type?.kind === "path"
+    ? type.base ?? BASE_BY_DEFAULT
+    : BASE_BY_DEFAULT
+}
 
 /**
  * One built-in type: what the key takes, and WHAT IS WRONG with a value that
@@ -258,8 +371,15 @@ interface Grounded {
  * `type` is a CLOSED WORD LIST ({@link PROP_KINDS}) rather than a `ref`,
  * because a ref's variants are nodes and the nodes that would hold these are
  * the very ones being declared. `under` is a NODE — any id in the set — which
- * is exactly what the field means, and is the one of the two that has to read
- * the set to answer.
+ * is exactly what the field means, and is the one of the three that has to read
+ * the set to answer. `base` is a second closed word list ({@link PATH_BASES}),
+ * for `type`'s reason exactly: the two bases are a fact about this format, so
+ * a vault cannot add a third by writing a node.
+ *
+ * THREE RESERVED WORDS, and that is what the table costs. A vault may not
+ * declare a key called `type`, `under` or `base` ({@link keyOf}), because those
+ * are what a declaration says about ITSELF; a node anywhere else is free to
+ * carry all three, and none of this is any of that node's business.
  */
 export const BOOTSTRAP: ReadonlyMap<string, Grounded> = new Map<string, Grounded>([
   [TYPE_KEY, {
@@ -287,6 +407,17 @@ export const BOOTSTRAP: ReadonlyMap<string, Grounded> = new Map<string, Grounded
           "nothing hangs under it. Name the node it points at."
         : `no node declares${didYouMeanDeclared(value, derived.byId)}`
     },
+  }],
+  [BASE_KEY, {
+    takes: `\`root\` or \`file\` — where a \`doc\` or \`path\` value resolves from`,
+    // NO SET READING at all, which is what makes this the cheapest of the
+    // three: the two bases are words this format knows, not nodes a vault
+    // supplies, so the answer is the same in every directory.
+    wrong: (value) =>
+      isPathBase(value) ? undefined : "is not a base — write `root` (from the " +
+        "served directory's root, which is what a value written by a convention " +
+        "means) or `file` (beside the file the value was written in, which is " +
+        `what a note's own relative link means)${didYouMean(value, PATH_BASES)}`,
   }],
 ])
 
@@ -338,9 +469,33 @@ export const declarationsOf = (derived: Derived): PropDeclarations => {
  */
 const DECLARED = new WeakMap<Derived, PropDeclarations>()
 
-/** The walk itself — {@link declarationsOf} with the memo taken off. */
-const declaringIn = (derived: Derived): PropDeclarations => {
-  const file = propertiesIn(derived.byFile.keys())
+/** The walk itself — {@link declarationsOf} with the memo taken off, and the
+ *  convention still asked of the derivation's own file list. */
+const declaringIn = (derived: Derived): PropDeclarations =>
+  declarationsIn(derived, propertiesIn(derived.byFile.keys()))
+
+/**
+ * THE SAME READING WHEN THE CALLER ALREADY KNOWS WHICH FILE DECLARES — the
+ * walk with the convention taken off as well.
+ *
+ * ONE CALLER, and it is the reason this is a door rather than a private step:
+ * the doors table a page ships ({@link ./page.ts}'s `doorsFor`) is a STANDING
+ * VIEW, re-asked on every published revision and reused when nothing it read
+ * moved (`@olai/format`'s `tape.ts`). Finding the file by walking
+ * `derived.byFile.keys()` is taped as a dependency on the WHOLE index, so every
+ * open page would rebuild for a keystroke in any file in the vault — where the
+ * answer plainly depends on ONE file's records. The page knows which file from
+ * the SET's own paths (which it is already holding, and which a record edit
+ * does not move), and hands it here; what is read then is that file's records
+ * and nothing else.
+ *
+ * `undefined` is a vault with no declarations file, which declares no key —
+ * and is the answer for a directory that has none at all.
+ */
+export const declarationsIn = (
+  derived: Derived,
+  file: string | undefined,
+): PropDeclarations => {
   if (file === undefined) return NO_TYPING
   const declarations = new Map<string, Declared>()
   for (const located of declaringIn0(derived, file)) {
@@ -415,7 +570,17 @@ export const keyOf = (title: string): string | undefined => {
 const typeIn = (derived: Derived, located: LocatedRegular): PropType | undefined => {
   const said = customText(located, TYPE_KEY)
   const under = customText(located, UNDER_KEY)
+  const base = customText(located, BASE_KEY)
   if (said === undefined || !isPropKind(said)) return undefined
+  // THE TWO PATH KINDS take the second word, and only they: `base` on anything
+  // else is the same mistake `under` on anything else is, refused the same way
+  // and reported by the same rule ({@link wrongDeclaration}'s pair rules).
+  if (said === "doc" || said === "path") {
+    if (under !== undefined) return undefined
+    if (base === undefined) return { kind: said }
+    return isPathBase(base) ? { kind: said, base } : undefined
+  }
+  if (base !== undefined) return undefined
   if (said !== "ref") return under === undefined ? { kind: said } : undefined
   if (under === undefined) return { kind: "ref" }
   // THE TABLE DECIDES, not a second test spelled here — which is the whole of
@@ -441,6 +606,11 @@ const customText = (located: LocatedRegular, key: string): string | undefined =>
  *  compiler checks rather than a cast. */
 const isPropKind = (word: string): word is PropType["kind"] =>
   (PROP_KINDS as ReadonlyArray<string>).includes(word)
+
+/** ...and is this one of the two bases. Its sibling above's shape, for its
+ *  sibling above's reason. */
+const isPathBase = (word: string): word is PathBase =>
+  (PATH_BASES as ReadonlyArray<string>).includes(word)
 
 /**
  * Whether two readings DECLARE THE SAME THING — what tells a write that moved
@@ -468,6 +638,11 @@ export const sameTyping = (one: PropDeclarations, other: PropDeclarations): bool
     const here = declared.type.kind === "ref" ? declared.type.under : undefined
     const there = against.type.kind === "ref" ? against.type.under : undefined
     if (here !== there) return false
+    // ...and WHERE ITS PATHS RESOLVE FROM, for `under`'s reason one kind over: a
+    // `doc` key that moved from `file` to `root` is every value of that key back
+    // in question, and a narrowed validator that missed it would keep on
+    // approving values against a premise the vault has retired.
+    if (baseOf(declared) !== baseOf(against)) return false
   }
   return true
 }
@@ -671,9 +846,11 @@ export interface Typed {
  * writes a list (`set_prop` and `add_node`'s map are text), so this arm is
  * reached by a hand-edited file alone.
  *
- * `from` is the outline the record lives in, which only `doc` reads: a relative
- * path is resolved against the naming outline's own directory, exactly as the
- * `doc` FIELD is ({@link ./documents.ts}, the one place that arithmetic lives).
+ * `from` is the outline the record lives in, which only `doc` reads — and what
+ * it is resolved AGAINST is the key's own declared basis ({@link basedAt}): the
+ * naming outline's directory by default, exactly as the `doc` FIELD is, or the
+ * served root for a key whose row says `base: root`. The arithmetic itself is
+ * one place either way ({@link ./documents.ts}).
  */
 export const wrongValue = (
   typed: Typed,
@@ -724,7 +901,7 @@ const wrongOne = (
       }. A path is one run of characters with no spaces in it; the remark ` +
         `belongs in the note.`
     case "doc":
-      return wrongDoc(typed, from, named, value)
+      return wrongDoc(typed, declared, from, named, value)
     case "ref":
       return wrongRef(typed, declared, named, value)
     case "node":
@@ -732,20 +909,30 @@ const wrongOne = (
   }
 }
 
-/** `doc`: path-shaped first, then RESOLVED — two sentences, because "that is
- *  not a path" and "no such document is served" are two different things to go
- *  and do, and the second names what the path resolved to the way the `doc`
- *  field's own error does. */
+/**
+ * `doc`: path-shaped first, then RESOLVED — two sentences, because "that is not
+ * a path" and "no such document is served" are two different things to go and
+ * do, and the second names what the path resolved to the way the `doc` field's
+ * own error does.
+ *
+ * THE RESOLUTION IS SHARED WHOLE ({@link resolvedDoc}) and so is the corpus it
+ * is asked of, which is the gate half of the pair the whole amendment is about.
+ * The display runs the same expression over the same set ({@link ./meaning.ts}),
+ * so a value this refuses cannot be drawn as a live door and a value this
+ * accepts cannot be drawn as dead text — structurally, rather than because two
+ * rules were written to match.
+ */
 const wrongDoc = (
   typed: Typed,
+  declared: Declared,
   from: string,
   named: string,
   value: string,
 ): string | undefined => {
-  if (!isPathShaped(value)) {
+  const resolved = resolvedDoc(declared, from, value)
+  if (resolved === undefined) {
     return `${named} names a document — got ${quoted(value)}, which is not a path.`
   }
-  const resolved = resolveRelative(from, value)
   if (typed.documents.has(resolved)) return undefined
   return `${named} names a document — \`${value}\` resolves to \`${resolved}\`, ` +
     `and no such \`.md\` file is served${didYouMean(resolved, typed.documents)}`
@@ -968,6 +1155,15 @@ export const wrongDeclaration = (
   if (said !== "ref" && customText(located, UNDER_KEY) !== undefined) {
     return `\`${UNDER_KEY}\` says where a \`ref\`'s variants live, and \`${written}\` is a ` +
       `\`${said}\` — which takes its values from nowhere in particular.`
+  }
+  // The same rule for the second word of the pair: `base` says where a PATH
+  // resolves from, and the five kinds that name no path have nothing to
+  // resolve. Reported rather than ignored for the reason the line above is —
+  // the reading SKIPS such a declaration ({@link typeIn}), so a key that looks
+  // typed and is silently untyped is exactly what this rule exists to name.
+  if (said !== "doc" && said !== "path" && customText(located, BASE_KEY) !== undefined) {
+    return `\`${BASE_KEY}\` says where a \`doc\` or \`path\` value resolves from, and ` +
+      `\`${written}\` is a \`${said}\` — which names no path to resolve.`
   }
   return undefined
 }

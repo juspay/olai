@@ -14,8 +14,10 @@
  *   2. COALESCE: a settle delay after the first trigger of a burst, so a
  *      `git pull` of forty files is one probe rather than forty.
  *   3. PROBE: re-list, re-stat, re-decode only what the stamps say moved
- *      ({@link ./probe.ts}). Identical listing → the loop stops here, and
- *      nothing downstream learns that a probe happened at all.
+ *      ({@link ./probe.ts}). Identical listing → the loop stops here and
+ *      publishes nothing, because there is nothing to publish — but it RECORDS
+ *      that it looked and agreed ({@link ./vintage.ts}), which is the one fact
+ *      the loop used to throw away and the one a stopped loop cannot produce.
  *   4. VALIDATE the whole set, and PUBLISH: valid → a new revision on the
  *      snapshot and the errors cleared; invalid → the last good snapshot is
  *      LEFT WHERE IT IS and the errors published beside it. A broken file must
@@ -28,11 +30,21 @@
  * nothing — which is how a store over a directory of megabyte files costs the
  * size of what it validates rather than the size of what it serves.
  *
- * The two `SubscriptionRef`s are independent because last-good data and
- * what-is-wrong-now are two independent facts, and they map onto surface's
- * stream and cell. `SubscriptionRef.changes` is current-value-then-updates,
- * which is already surface's snapshot-then-deltas contract, so a consumer
- * written against the load-once store this grew out of needed no change.
+ * Last-good data and what-is-wrong-now are two independent facts, kept on two
+ * independent refs and mapping onto surface's stream and cell.
+ * `SubscriptionRef.changes` is current-value-then-updates, which is already
+ * surface's snapshot-then-deltas contract, so a consumer written against the
+ * load-once store this grew out of needed no change.
+ *
+ * A THIRD FACT joined them on 2026-08-25 and it is not an error channel: HOW
+ * CURRENT an answer is ({@link ./vintage.ts}). It is not a ref, because a
+ * healthy directory proves its currency every sixty seconds and pushing that
+ * to every open browser would cost more than the whole backstop saves. It is
+ * an answer, and it is the reason the set is no longer reachable as a ref of
+ * its own: {@link Store.read} and {@link Store.reads} are the doors, and both
+ * of them hand over the age beside the value. There is no third door, which
+ * is what makes "no read without an age" a fact about this file rather than a
+ * rule somebody enforces at review time.
  *
  * The WRITE GATE is `commit`, and it is the same loop run deliberately rather
  * than on a trigger. It takes the same permit the probe does — so a write and
@@ -46,6 +58,15 @@
  *   RENAME them all → re-probe and publish THAT VERDICT → the caller's
  *   post-publish hook.
  *
+ * A REFUSAL THERE IS NOT AUTOMATICALLY THIS WRITE'S. The codec judges the whole
+ * set, because that is what a set means; whether the judgement is ABOUT the
+ * files this commit puts down is a second question, and it is the codec's too
+ * ({@link Codec.admits}). A codec that answers it lets a write to healthy files
+ * land beside a file that will not validate — the same per-file degradation
+ * reads have had since 2026-08-09, which writes never got — with the last good
+ * snapshot still standing and the refusal still on the errors channel. A codec
+ * that does not answer it refuses exactly as before.
+ *
  * Validation before any rename is what makes a refused write cost nothing: the
  * bytes are on disk under names nothing reads, or they are not there at all.
  * And it is the ONLY validation the write pays for, because the verdict travels
@@ -56,6 +77,7 @@
  */
 
 import {
+  Clock,
   Duration,
   Effect,
   Exit,
@@ -73,6 +95,7 @@ import type { Codec, Since } from "./codec.ts"
 import * as Disk from "./disk.ts"
 import { PlatformFailure, StaleWrite } from "./errors.ts"
 import * as Probe from "./probe.ts"
+import * as Vintage from "./vintage.ts"
 
 /** Monotonic per store. A snapshot's revision is what a later write will name
  *  as the base it edited (the write gate's optimistic concurrency), and what
@@ -117,30 +140,86 @@ export interface Write {
   readonly changes: ReadonlyArray<Change>
 }
 
+/**
+ * THE SET, AND HOW OLD IT IS — one value, because there is no door to the
+ * first that does not hand over the second.
+ *
+ * That is the shape the 2026-08-25 debate signed and it is a type, not a
+ * discipline: {@link Store} carries no naked snapshot ref any more, so a
+ * consumer cannot obtain what the store holds while skipping how current it
+ * is. Ignoring a field you were handed is a choice somebody made; being handed
+ * the set alone was an arrangement nobody could have made differently.
+ *
+ * `snapshot` is `null` when there has never been a good load — which, once
+ * the store is live, means only "the directory was already invalid at boot".
+ * The vintage is there either way: a directory that never loaded has an age
+ * too, and it is the most interesting one in the building.
+ */
+export interface Aged<S> {
+  readonly vintage: Vintage.Vintage
+  readonly snapshot: Snapshot<S> | null
+}
+
 export interface Store<S, E> {
-  /** Last good load, or `null` when there has never been one — which, once the
-   *  store is live, means only "the directory was already invalid at boot". */
-  readonly snapshot: SubscriptionRef.SubscriptionRef<Snapshot<S> | null>
-  /** What is wrong right now, or `null`. Independent of the snapshot by
-   *  design: a broken set leaves the last good tree on screen under a banner. */
-  readonly errors: SubscriptionRef.SubscriptionRef<E | null>
-  /** Probe NOW, and do not return until the result has been published. The
-   *  caller's own writes reach the browser through this rather than through the
-   *  watcher, which would make the delay a race with the file system. */
-  readonly refresh: Effect.Effect<void, PlatformFailure>
   /**
-   * Forget every cached stamp, then {@link refresh}.
+   * READ THE SET, stating what you need to be able to assume about it.
    *
-   * The write gate already forgets the files it just put on disk, because
-   * stamps are mtime+size and a same-length rewrite in the same second is
-   * exactly what they cannot see. `refresh` still uses those stamps, so it
-   * is the wrong door for an OUTSIDE rewrite of the same shape — a `git
-   * checkout`, an rsync, a test harness putting the fixture back. This is
-   * that door: the next probe re-reads every file, whatever the file system
-   * says about mtime and size, and does not return until the result has
-   * been published.
+   * The class is the caller's ({@link Vintage.Freshness}); the MEANS are this
+   * package's, and that division is the whole point. `cheap` is the standing
+   * answer with the age it has earned, at the cost of one map read — the thing
+   * that redraws sixty times a second pays nothing new for knowing how old its
+   * data is. `verified` takes a look at the disk first, ON THIS FIBER, and the
+   * answer says whether the tree still agrees.
+   *
+   * IT DOES NOT FAIL. A `verified` look that cannot be taken — the root will
+   * not list — is not an exception to this door, it is one of the things it
+   * exists to report: the vintage comes back `Unchecked` with the disk's own
+   * words in it, over the set the store is still serving. Every arm of
+   * {@link Vintage.Proof} is an answer, and a caller that has one has been told
+   * the truth about what it is holding.
    */
-  readonly resync: Effect.Effect<void, PlatformFailure>
+  readonly read: (freshness: Vintage.Freshness) => Effect.Effect<Aged<S>>
+  /**
+   * EVERY PUBLISHED SET, each with the age it had when it was handed over:
+   * current-value-then-updates, which is already surface's snapshot-then-deltas
+   * contract.
+   *
+   * A frame here is a publish, so its age is nothing — that is not a reason to
+   * leave the vintage off it. A consumer folding these into a page holds the
+   * last one for as long as the next takes to arrive, and "the last frame I got
+   * was at 14:02" is exactly the sentence that was missing while the server
+   * served week-old truth to open tabs.
+   */
+  readonly reads: Stream.Stream<Aged<S>>
+  /** What is wrong right now, or `null`. Independent of the set by design: a
+   *  broken directory leaves the last good tree on screen under a banner. */
+  readonly errors: SubscriptionRef.SubscriptionRef<E | null>
+  /**
+   * LOOK NOW, and do not return until what was found has been published.
+   *
+   * ONE look verb, and it takes the same class the read does — which is what
+   * this package used to have two of. `refresh` probed on the stamp table and
+   * `resync` forgot the table first, and the difference between them was
+   * mtime-and-size arithmetic explained in a doc comment so that a caller could
+   * choose correctly. That is a socket wearing its own wiring: the day the
+   * stamp changes, every caller that learned the folklore has to be found.
+   *
+   * So the caller says how much it needs to be able to assume and this package
+   * decides what that costs. `cheap` is the look the sync loop itself takes,
+   * and it is right for a caller that has just written through this store or
+   * simply wants the pending burst flushed. `verified` is for a look that has
+   * to be believed against a tree something OUTSIDE this process rewrote — a
+   * `git checkout`, an rsync, a harness putting a fixture back — where the
+   * cheap look is entitled to see nothing, and this one takes whatever measures
+   * are needed for that not to be true. Which measures those are is not the
+   * caller's business and is not in this sentence.
+   *
+   * It is not the freshness door. Reading is {@link Store.read}, and a caller
+   * that wants an answer it can trust asks for one rather than commanding a
+   * probe and then reading — which is the same two-step this verb's own history
+   * shows going wrong.
+   */
+  readonly refresh: (freshness: Vintage.Freshness) => Effect.Effect<void, PlatformFailure>
   /**
    * The one way in. Writer-serialized against the probe, optimistic on
    * `baseRev`, all-or-none across files.
@@ -307,6 +386,47 @@ export const make = <F, S, E>(
     const errors = yield* SubscriptionRef.make<E | null>(null)
 
     /**
+     * WHEN THE SET ON THAT REF WAS LAST PROVED TO BE THE DISK'S, and the
+     * stamps it was proved at ({@link Vintage.Standing}).
+     *
+     * A PLAIN `Ref`, and that is not an oversight. It is written on the two
+     * events a `SubscriptionRef` must not be written on — a publish, which
+     * already emits, and a probe that found the same tree and published
+     * NOTHING — and the second of those is the whole point. That probe happens
+     * every sixty seconds on a healthy directory; on a `SubscriptionRef` it
+     * would be a byte-identical frame to every open browser, forever, which is
+     * the exact cost the settled-`null` short circuit exists to avoid. So the
+     * currency axis is polled by whoever asks a read, and pushed to nobody.
+     *
+     * It starts at the store's construction time with an empty table: nothing
+     * has been proved about this tree yet, and a `verified` read taken before
+     * the boot probe lands says so by diverging on everything it finds.
+     */
+    const standing = yield* Effect.map(
+      Clock.currentTimeMillis,
+      (at) => Vintage.nothingProved(at),
+    ).pipe(Effect.flatMap(Ref.make))
+
+    /** A look that PROVED the set: these are the stamps it was read at, and
+     *  this is when. Both halves move together or neither does — a table
+     *  without its instant is a claim with no shelf life, and an instant
+     *  without its table is what a later check would have nothing to measure
+     *  against. */
+    const proved = (stamps: ReadonlyMap<string, Disk.Stamp>) =>
+      Effect.flatMap(
+        Clock.currentTimeMillis,
+        (at) => Ref.set(standing, { at, stamps }),
+      )
+
+    /** A look that found the same tree: nothing to publish, and the stamps are
+     *  the ones already held — so only the instant moves. This is the line the
+     *  2026-08-25 incident was invisible through. */
+    const settled = Effect.flatMap(
+      Clock.currentTimeMillis,
+      (at) => Ref.update(standing, (before) => ({ ...before, at })),
+    )
+
+    /**
      * WHAT IS ON THE ERRORS REF, when what is on it is an unreadable
      * directory — the failure's own words, or `null` for anything else.
      *
@@ -386,6 +506,14 @@ export const make = <F, S, E>(
           removed: [...since.removed],
         }))
         yield* Ref.set(moved, NOTHING_MOVED)
+        // THE CURRENCY AXIS, moved with the value and never without it: this
+        // revision was read off those stamps at this instant, and a later look
+        // is measured against THEM rather than against whatever the probe's
+        // live table has moved on to. Set here rather than by the caller
+        // because the refusal above returns before it — a set the codec would
+        // not take is a set that was never proved to be anybody's answer, and
+        // its age has to go on growing.
+        yield* proved(found.stamps)
         yield* clearErrors
         // `updateAndGet` on a `Snapshot<S> | null` ref types as nullable; the
         // updater above never returns null, so this is the type catching up
@@ -402,7 +530,15 @@ export const make = <F, S, E>(
     const cycle = Effect.tapError(
       Effect.flatMap(
         probe.run(),
-        (found) => found === null ? Effect.void : Effect.asVoid(publish(found)),
+        // A LISTING IDENTICAL TO THE LAST ONE IS NOT NOTHING, and taking it for
+        // nothing is the bug this whole change is about. The probe publishes
+        // no revision, correctly — there is none to publish — but it has just
+        // PROVED that the set on the ref is what the disk holds, which was the
+        // one fact the store looked at every sixty seconds and threw away.
+        // Kept here, it is what makes a healthy loop's age small and a stopped
+        // loop's age grow: the difference between the two used to be invisible
+        // precisely because both of them published nothing.
+        (found) => found === null ? settled : Effect.asVoid(publish(found)),
       ),
       // The store's OTHER kind of error, published on the channel the codec's
       // own refusals travel — one channel, two kinds ({@link Codec.unreadable},
@@ -416,15 +552,31 @@ export const make = <F, S, E>(
       // must not go on to judge a write against a tree it never saw.
       sayUnreadable,
     )
-    const refresh = gate.withPermit(cycle)
-    const resync = gate.withPermit(
-      Effect.gen(function*() {
-        // Inside the same permit the probe holds: a watcher-triggered cycle
-        // interleaved here would re-cache the stamps we are about to forget.
-        yield* probe.forget((yield* probe.current).keys())
-        yield* cycle
-      }),
-    )
+    /** The loop's own look, and what every trigger in this file ends in. */
+    const cycled = gate.withPermit(cycle)
+
+    /**
+     * THE ONE LOOK VERB ({@link Store.refresh}) — the class in, the means
+     * decided here.
+     *
+     * `cheap` is the loop's look. `verified` is the loop's look with the stamp
+     * table forgotten first, which is the only thing that can see an outside
+     * rewrite of the same length in the same second — the case that used to
+     * have its own public member and its own paragraph of mtime arithmetic for
+     * a caller to read. The paragraph is still here; what changed is who it is
+     * addressed to.
+     *
+     * The forget is inside the same permit the probe holds: a watcher-triggered
+     * cycle interleaved between the forget and the look would re-cache exactly
+     * the stamps that were just dropped.
+     */
+    const refresh = (freshness: Vintage.Freshness) =>
+      freshness === "cheap" ? cycled : gate.withPermit(
+        Effect.gen(function*() {
+          yield* probe.forget((yield* probe.current).keys())
+          yield* cycle
+        }),
+      )
 
     const commit = (write: Write) =>
       gate.withPermit(
@@ -510,7 +662,41 @@ export const make = <F, S, E>(
               sinceOf(current, outstanding, write.changes.map((change) => change.path)),
             ),
           }
-          if (Result.isFailure(judged.outcome)) return Result.fail(judged.outcome.failure)
+          /**
+           * THE REFUSAL, IF THERE IS ONE — and whether it is about THIS write.
+           *
+           * It used to be one line: a set the codec would not publish refused
+           * the write, whatever the write touched. That is a whole-set answer
+           * to a per-file question, and it is the store that was asking it —
+           * one file failing to validate froze every write to the directory,
+           * including the write that would have reported the problem.
+           *
+           * TWO THINGS HAVE TO BE TRUE for the bytes to land over a refusal.
+           * The codec has to say the refusal is not about these files
+           * ({@link Codec.admits}, the only half it can answer), and the base
+           * this write was planned against has to still be the truth for them
+           * — which is this package's own bookkeeping and is checked first.
+           *
+           * `moved` is what that check reads. It holds every path re-decoded or
+           * removed since the last PUBLISHED revision, which is empty whenever
+           * the directory is healthy and is exactly the drift a caller planning
+           * against the last good snapshot cannot see while it is not. Without
+           * it, admitting writes over a frozen snapshot would lose one: op two
+           * is planned off a snapshot op one never reached, and writes the file
+           * back without op one's record in it. So a file that has moved since
+           * the standing revision is refused exactly as before — the freeze
+           * narrows to the files it is really about rather than lifting.
+           */
+          const refused = Result.isFailure(judged.outcome) ? judged.outcome.failure : null
+          if (refused !== null) {
+            const paths = write.changes.map((change) => change.path)
+            const settled = paths.every(
+              (path) => !outstanding.changed.has(path) && !outstanding.removed.has(path),
+            )
+            if (!settled || options.codec.admits?.(refused, paths) !== true) {
+              return Result.fail(refused)
+            }
+          }
 
           // Every file staged before any is renamed: a write that cannot be
           // written at all must fail with the destinations untouched.
@@ -542,10 +728,22 @@ export const make = <F, S, E>(
           // again. This is the publish that used to be a second validation of
           // the set this gate had just approved.
           const reread = yield* probe.run(promised)
+          // `null` here is a tree that did not move at all across the rename,
+          // which is a set this gate has just proved is what the disk holds —
+          // the same fact the loop's own settled probe records, recorded on
+          // the same line so the two cannot come to disagree.
+          if (reread === null) yield* settled
           const published = reread === null
             ? Result.succeed(current)
             : yield* publish(reread, judged)
           if (Result.isFailure(published)) {
+            // ADMITTED, and the set is still refused — which is the arrangement
+            // rather than a surprise: the write was never what was wrong with
+            // this directory, the last good snapshot goes on standing, and the
+            // refusal has just been republished on the errors channel by
+            // `publish` itself. The caller hears yes, at the revision that is
+            // actually being served, and the banner over it says the rest.
+            if (refused !== null) return Result.succeed(current.rev)
             // Written, and the set it produced does not validate — which the
             // check above ruled out unless something else moved the tree in
             // the moments since. The bytes are on disk and the error is on the
@@ -605,7 +803,7 @@ export const make = <F, S, E>(
         // this package rather than news about somebody's directory: it belongs
         // in the log and nowhere else.
         yield* Effect.catchCause(
-          refresh,
+          cycled,
           (cause) => Effect.logWarning("olai store: probe failed", cause),
         )
       }),
@@ -615,7 +813,10 @@ export const make = <F, S, E>(
     // only changes it can miss are ones that happened before it — and this
     // probe is what reads those. Boot the other way around and a save landing
     // between the read and the watch is invisible until the backstop.
-    yield* refresh
+    //
+    // The CHEAP look, because the stamp table it would forget is empty: a boot
+    // reads every file whichever class is asked for.
+    yield* cycled
 
     const body = (path: string) =>
       Effect.flatMap(
@@ -623,5 +824,76 @@ export const make = <F, S, E>(
         (found) => found ? disk.read(path) : Effect.succeed(null),
       )
 
-    return { snapshot, errors, refresh, resync, commit, body, resolve: disk.resolve }
+    /**
+     * ONE READ ANSWERED — the standing set, and the vintage the caller's class
+     * entitles it to.
+     *
+     * THE ORDER OF THE FIRST TWO LINES IS LOAD-BEARING. The proof is taken
+     * before the value, so a publish landing between them makes the answer
+     * NEWER than its vintage claims and never older. Both readings are atomic
+     * on their own and there is no permit here to make them one — which is the
+     * point — so the arrangement is to be wrong only in the direction that
+     * cannot hurt: an age that overstates is a reader looking harder than it
+     * needed to, and an age that understates is the lie this whole change
+     * exists to make unspellable.
+     *
+     * THE `verified` ARM TAKES NO PERMIT and reaches nothing that could.
+     * {@link Vintage.check} is handed the disk, the codec's `match` and the
+     * standing record, and the module it lives in has no way to name the
+     * semaphore at all. So a cycle wedged behind a permit — a commit that
+     * cannot finish, a fiber that died holding it — cannot delay this call and
+     * cannot make it answer `Confirmed`: the walk is the asker's own, and what
+     * it finds is measured against stamps the wedged loop has not been able to
+     * move.
+     *
+     * A CONFIRMED LOOK IS A PROOF, so it advances the standing instant — the
+     * next `cheap` reader inherits an age this fiber earned honestly, and a
+     * directory nobody is writing to does not have to re-walk itself per
+     * question to look current. It does NOT touch the stamp table: the loop's
+     * cache is the loop's, and a read that quietly re-cached what it saw would
+     * be a second publisher with no permit, which is exactly the thing this
+     * door promises not to be.
+     */
+    const read = (freshness: Vintage.Freshness): Effect.Effect<Aged<S>> =>
+      Effect.gen(function*() {
+        const held = yield* Ref.get(standing)
+        const value = yield* SubscriptionRef.get(snapshot)
+        const proof = freshness === "cheap"
+          ? Vintage.HELD
+          : yield* Vintage.check(disk, options.codec.match, held)
+        const now = yield* Clock.currentTimeMillis
+        if (proof._tag === "Confirmed") {
+          // ONLY IF NOTHING PUBLISHED WHILE THE LOOK WAS RUNNING, and that is
+          // the one place this door could have written a lie. A walk takes
+          // real time; a publish landing inside it has already recorded its
+          // own proof, with its own table, and a blind `set` here would put
+          // THIS instant beside the OLDER stamps — a standing record claiming
+          // recent proof of a revision that is no longer the one being served,
+          // which every cheap read after it would inherit.
+          //
+          // Identity is the test because both writers mint a fresh record, and
+          // it is the right test: what is being asked is not "is this equal"
+          // but "is this still the record I looked against".
+          yield* Ref.update(standing, (latest) =>
+            latest === held ? { ...held, at: now } : latest)
+        }
+        return { vintage: Vintage.vintageOf(held, now, proof), snapshot: value }
+      })
+
+    /** Every published set, aged at the moment it is handed over. A frame is a
+     *  publish, so its `Held` age is whatever the hop from `publish` to here
+     *  cost — which is the truth about that frame and not a rounding of it. */
+    const reads = Stream.mapEffect(
+      SubscriptionRef.changes(snapshot),
+      (value) =>
+        Effect.map(
+          Effect.zip(Ref.get(standing), Clock.currentTimeMillis),
+          ([held, now]) => ({
+            vintage: Vintage.vintageOf(held, now, Vintage.HELD),
+            snapshot: value,
+          }),
+        ),
+    )
+
+    return { read, reads, errors, refresh, commit, body, resolve: disk.resolve }
   })

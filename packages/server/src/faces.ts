@@ -72,8 +72,16 @@ import { type ExposeMap, exposeFace, type FaceExposure } from "@kolu/surface/exp
  * with no `deltas`, so there is not even a batched verb here to reach for by
  * mistake.
  *
- * `errors` is what is wrong across the set right now, so an agent can tell a
- * stale-but-valid tree from a current one. It is a cell and it is eligible
+ * `errors` is what is wrong across the set right now — and NOT how current the
+ * set is, which is a different fact and was this comment's old claim. It said
+ * an agent could tell a stale-but-valid tree from a current one through this
+ * cell; that was grok's opening position in the 2026-08-25 lowy-electricity
+ * sitting, retracted by him in round two and signed retracted in the closing.
+ * The cell was EMPTY for the thirty minutes the server spent answering with
+ * week-old truth, because nothing was invalid. Validity and currency are two
+ * axes, and the second one is the vintage on a read's own answer
+ * (`@olai/store`, and `./mcp/tools.ts` for the face an agent reads it on).
+ * This resource still says nothing about it. It is a cell and it is eligible
  * because per-file breakage does NOT come through it — that rides
  * `OutlineEntry.broken` on the collection, per entity — leaving this one holding
  * cross-file failures only. It is the lesser instance of the rule above: a

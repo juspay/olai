@@ -20,7 +20,7 @@
 import { writeWrappedValue } from "@kolu/surface/solid"
 import { createStore } from "solid-js/store"
 
-import type { Named, PageReading, Row } from "@olai/format"
+import type { Door, Named, PageReading, Row } from "@olai/format"
 
 /** Where every fixture here lives — one file, because none of these suites is
  *  about which file a row came out of. */
@@ -53,13 +53,17 @@ export const named = (id: string, title: string): Named => ({ id, title, file: F
 /** A page of one outline, as the wire speaks it. The names table is EXPLICIT
  *  and empty by default: a page that points at nothing is an ordinary page, and
  *  a table derived from the rows would be a second, wrong answer to what a row
- *  is called (a name is keyed by NODE id; a row by its place). */
+ *  is called (a name is keyed by NODE id; a row by its place). The doors table
+ *  is explicit for its reason exactly — what a property value NAMES is the
+ *  set's answer, not one derivable from a row. */
 export const page = (
   rows: ReadonlyArray<Row>,
   names: ReadonlyArray<Named> = [],
+  doors: ReadonlyArray<Door> = [],
 ): PageReading => ({
   shows: { kind: "outline", file: FILE, rows },
   names,
+  doors,
 })
 
 /**

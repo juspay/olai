@@ -37,7 +37,7 @@ import { Result } from "effect"
 
 import { ancestorsOf, byCorpus, type Derived } from "./derive.ts"
 import { bodiedDocument, type Document } from "./document.ts"
-import type { OutlineError } from "./errors.ts"
+import { type Verdict, verdictOf } from "./verdict.ts"
 import {
   type Filter,
   type Matched,
@@ -538,15 +538,15 @@ const sampled = <T>(
  */
 export const decodedVault = (
   vault: ReadonlyMap<string, string>,
-): Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>> => {
-  const decoded = new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>()
+): Map<string, Result.Result<Document, Verdict>> => {
+  const decoded = new Map<string, Result.Result<Document, Verdict>>()
   for (const [file, text] of vault) {
     decoded.set(
       file,
       // A file with no BODY KIND is an outline — the one kind that holds
       // records rather than text, which is what makes it the else of this.
       bodyKind(file) === null
-        ? parseOutline(file, text)
+        ? Result.mapError(parseOutline(file, text), verdictOf)
         : Result.succeed<Document>(bodiedDocument(file, text)),
     )
   }

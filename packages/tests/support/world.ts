@@ -754,6 +754,11 @@ export const ERROR_ROW = selector(TESTID.error);
 export const CROSS_FILE_ERRORS = selector(TESTID.crossFileErrors);
 /** Shown OVER a last-good tree: the files on disk stopped validating. */
 export const STALE_BANNER = selector(TESTID.staleBanner);
+/** ONE broken file's line inside that banner — its path, its state and a row
+ *  COUNT, and never the rows themselves: the banner is drawn over somebody
+ *  else's page (`last-good-banner-flood`, and `@olai/format`'s `summary`,
+ *  which has no way to hand a surface a row). */
+export const BROKEN_FILE_LINE = selector(TESTID.brokenFileLine);
 /** Shown IN ONE outline's place: that file could not be read, the rest are live. */
 export const OUTLINE_FAILURE = selector(TESTID.outlineFailure);
 /** The connection dot, on screen in every shape of the app. The state it is

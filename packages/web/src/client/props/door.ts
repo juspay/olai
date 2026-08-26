@@ -1,196 +1,124 @@
 /**
- * A PROPERTY VALUE THAT NAMES A THING IS A LINK — which things, and how sure
- * the app has to be.
+ * A PROPERTY VALUE THAT NAMES A THING IS A LINK — this is where the answer
+ * becomes one.
  *
- * `custom` is the one open field on a record and olai gives no key in it a
- * meaning (`@olai/format`'s `custom.ts`). That is the format's rule and it does
- * not move. But a lane node saying `brief briefs/pda.md` and `reviewer pi` is
- * pointing at two things that ARE in this directory, and a reader who has to
- * copy the text into the address bar to follow it is reading a link that was
- * never drawn. So the DISPLAY asks one question of each value — *does this
- * name something the app can open* — and draws a door for the values that say
- * yes.
+ * ## What moved, and why this file is short now
  *
- * ## The rule: the WHOLE value, exactly, or nothing
+ * It used to ASK. Five shape guesses in an order, two lookups behind them, and
+ * a rule about each — written before the vault could declare anything about a
+ * key, and never taught to read a declaration once it could. That question is
+ * answered where the set is (`@olai/format`'s `meaning.ts`, which argues the
+ * whole subject and names the three bugs the second answer was causing), and a
+ * page arrives carrying its ANSWERS: a doors table beside the names table,
+ * keyed by the file a value was written in, its key and the value itself.
  *
- * A WRONG DOOR IS WORSE THAN NO DOOR, and everything below is that sentence
- * spent. There is no fuzzy matching here, no "looks like", no title search, no
- * substring: the entire value has to BE the name of the thing, and if it is
- * not, it stays the text it always was. Two consequences worth stating because
- * they are what somebody will ask about:
+ * So what is left here is the half that was always the browser's and could
+ * never have been the format's: WHERE A CLICK GOES. An answer names a thing;
+ * a route, a tab, a tooltip and a face are what this app makes of that, and
+ * `@olai/format` has no routes in it.
  *
- *   - A value with a URL IN IT is not a URL. The live board writes
- *     `pr` values that open `#365 https://github.com/…/365 @ efc32b13 — reported
- *     12:45 …`; that is a paragraph, and pulling the URL out of it would be the
- *     display deciding which part of somebody's sentence was the point.
- *   - A NODE ID is matched by id and never by title. Titles are prose, two
- *     nodes may share one, and a value that merely reads like a title is a
- *     guess. `reviewer pi` becomes navigation because `agents.olai` declares a
- *     node whose id is literally `pi` — no other reason. The id-shaped values a
- *     page carries are resolved where the set is (`@olai/format`'s `page.ts`'s
- *     `namesFor`) and arrive in the names table; an id the set does not declare
- *     is simply absent here, exactly as a dangling `see` is.
+ * ## The one rule this file still keeps
  *
- * ## The five kinds, in the order they are read
- *
- *   1. **a URL** — `http:` or `https:`, whole. It leaves the tab
- *      ({@link Away}), under the same `noopener noreferrer` a link written into
- *      a note takes (`../markdown/rewrite.ts`'s `openExternal`).
- *   2. **a date** — what the FORMAT calls a date (`isIsoInstant`: a day, or an
- *      instant on one). It wears the date badge the row already speaks and
- *      opens that day's page. Read before the id match, though a date is
- *      id-shaped, because a value the format would call a date is a date
- *      wherever it appears — a node whose id happens to be `2026-08-31` is a
- *      coincidence, and letting it change what a date LOOKS like would put a
- *      caveat on the one face rule here that has none.
- *   3. **a node id** — an exact match against what this page's set declares.
- *   4. **a vault path** — resolved beside the file the value was WRITTEN in,
- *      exactly as a note's relative `[…](…)` is (`@olai/format`'s `pathedOf`,
- *      which is that same arithmetic and those same refusals), and then only if
- *      the directory actually serves it. The extra question is the difference
- *      between this and a written link, and it cuts both ways: markdown
- *      deliberately does not ask it, because a `[…](…)` is somebody STATING a
- *      link and the page that says "no such document" is the honest answer,
- *      while a property value states nothing — so a path the directory has not
- *      got is not a broken link, it is a string that turned out not to be a
- *      path. Asking the directory is also what lets an `.olai` be named: the
- *      suffix allowlist a renderer needs (`bodiedOf`) has no room for an
- *      outline, and existence has room for every kind of file this app draws a
- *      page for.
- *   5. **a GitHub reference** — `owner/repo#123`, GitHub's own unambiguous
- *      cross-repo spelling, which opens the issue or pull request (the issue
- *      URL redirects to the pull request when that is what the number is). A
- *      BARE `#123` or `123` is NOT one: which repository it means is a fact
- *      nothing on this screen holds, and inventing one is the wrong door this
- *      module exists to refuse. The board's own `pr` values carry the full URL,
- *      which rule 1 already opens.
- *
- * Anything else is text.
+ * A door LOOKS LIKE A LINK and nothing else does. Everything the answer does
+ * not name stays the text it always was, which is the founding rule read from
+ * the drawing end: a wrong door is worse than no door, and a value with no
+ * answer has earned no door.
  *
  * ## Length is not a refusal
  *
- * A value that names something is a door HOWEVER LONG IT IS. That is the "whole
- * value, exactly" rule read the only way it can be: a URL of sixty-one
- * characters is exactly a name, and the two door kinds most likely to run long
- * are precisely the two made of paths. The DISPLAY has a length rule — a long
- * door is clamped to one line (`./PropsDrawer.tsx`'s `Clamped`) — and it is a
- * rule about pixels, applied after this module has answered. Nothing here asks
- * how long a value is.
- *
- * ## Why it is a module and not a branch inside the chip
- *
- * It is five decisions with an order between them and two lookups behind them,
- * which is exactly the shape that goes quietly wrong inside a component — the
- * argument `./drawer.ts` already makes for being a pure function with a unit
- * test beside it. And there is more than one caller: a row, a node's own page
- * and a document's frontmatter all draw the same run, so "what does this value
- * open" has to have one answer or three surfaces will drift into three.
+ * A value that names something is a door HOWEVER LONG IT IS. The DISPLAY has a
+ * length rule — a long door is clamped to one line (`./PropsDrawer.tsx`'s
+ * `Clamped`) — and it is a rule about pixels, applied after the answer has
+ * arrived. Nothing here asks how long a value is.
  */
 
-import { dayOf, isIsoInstant, pathedOf } from "@olai/format"
+import type { Meaning } from "@olai/format"
 
 import type { Names } from "../names.ts"
 import { atFile, atNode, type Route } from "../routes.ts"
 
 /**
- * WHAT A VALUE TURNS OUT TO NAME — or `null`, which is the ordinary answer and
- * the one every value gets until it earns another.
+ * WHAT A CHIP DRAWS FOR A VALUE THAT NAMES SOMETHING — where the click goes,
+ * what the pointer is told, and which words the face wears.
  *
- * The four arms carry a ROUTE or an `href` rather than the raw match, because
- * where a click goes is the whole point of asking; what each arm carries BESIDE
- * that is what a pointer is told the value names ({@link Door.says}), which is
- * the one thing a chip knows that the value's own text does not say.
+ * The four arms carry a ROUTE or an `href` rather than the answer, because
+ * where a click goes is the whole point of turning one into this.
  */
 export type Door =
-  /** A document of this directory — a `.md`, a `.html`, anything with a page. */
-  | { readonly kind: "document"; readonly route: Route; readonly says: string }
-  /** A node the set declares, by its id. */
-  | { readonly kind: "node"; readonly route: Route; readonly says: string }
-  /** A day of the journal. Wears the date badge as well as opening. */
-  | { readonly kind: "day"; readonly route: Route; readonly says: string }
+  /** Somewhere in this app — a document of this directory, a node the set
+   *  declares, or a day of the journal (which wears the date badge as well as
+   *  opening). One arm for the three, because what differs between them is
+   *  the route and the route is a value. */
+  | (Drawn & { readonly kind: "document" | "node" | "day"; readonly route: Route })
   /** Somewhere that is not this app. Opens in a tab of its own. */
-  | { readonly kind: "away"; readonly href: string; readonly says: string }
+  | (Drawn & { readonly kind: "away"; readonly href: string })
 
-/**
- * The two questions this rule cannot answer for itself, plus the one fact it
- * needs about where it is standing.
- *
- * Handed IN rather than read off a context, so the rule stays a function of its
- * inputs and its test needs no provider: the component that draws a chip is
- * where a context is read (`./PropsDrawer.tsx`).
- */
-export interface Vault {
-  /**
-   * The file the value was WRITTEN in — the outline holding the record, or the
-   * document whose frontmatter this is. A relative path resolves beside it,
-   * which is what "a node names a file beside itself" means everywhere else in
-   * olai (`@olai/format`'s `docOf`, `pictureOf`, `bodiedOf`).
-   */
-  readonly from: string
-  /** Does the directory serve this path — asked of the one list a tab still
-   *  holds of the vault (`../served.tsx`). */
-  readonly serves: (file: string) => boolean
-  /** What this page's ids name (`../names.ts`). An id the set does not declare
-   *  answers `undefined`, which is what makes an unmatched value stay text. */
-  readonly names: Names
+/** What every door wears, whichever kind it is: the words on the chip, and
+ *  what the pointer is told about them. */
+interface Drawn {
+  /** The words the chip DRAWS — the value verbatim, except where the vault
+   *  declared it a reference. */
+  readonly face: string
+  /** What a pointer resting on it is told — see {@link doorFor}. */
+  readonly says: string
 }
 
-/** `http:`/`https:` and nothing else, which is the narrowness `./drawer.ts`'s
- *  `isLink` had before this module took the question over: a value is text, and
- *  what becomes a link out of the app is what unambiguously already is one. */
-const isHttp = (value: string): boolean =>
-  value.startsWith("https://") || value.startsWith("http://")
-
 /**
- * GitHub's own cross-repo reference: `owner/repo#123`.
+ * WHAT THE ANSWER OPENS — the mapping, and it is a total function of its
+ * argument plus the one table a page already carries.
  *
- * Deliberately anchored at both ends — this is the whole value or it is
- * nothing — and deliberately narrow about the halves: an owner and a repo are
- * the characters GitHub allows in a name, and the number is a number. A bare
- * `#123` does not match, and that is the point rather than an omission (see the
- * header's rule 5).
+ * `names` is read for exactly one thing: what a node this value points at is
+ * CALLED. The page resolves every door's target into that table
+ * (`@olai/format`'s `pageOf`), so a node door always finds its name there —
+ * and an answer that somehow did not is drawn by its id, which is the honest
+ * dead link every reader of that table already means by absence.
+ *
+ * ## The face, and the tooltip that is its other half
+ *
+ * THE FACE IS THE VALUE, in every arm but one. The words on a chip are the
+ * record's words — the path as it was written, the URL as it was typed, the
+ * date with the minute still on it — and a door has never been licence to
+ * redraw them.
+ *
+ * THE ONE EXCEPTION IS A REFERENCE. `agent grok` reads `agent Grok`, because
+ * the vault DECLARED `agent` a reference and a reference is a thing whose name
+ * is not its identity; `titled` is that fact, decided where the declarations
+ * are ({@link Meaning}) and never guessed at here. Then the STORED id is what
+ * the pointer is told, so the value the record actually holds is one hover
+ * away — which is the half somebody writing a `set_prop` needs, and the half a
+ * title would otherwise take off the screen.
+ *
+ * `says` NAMES WHERE THE CLICK GOES, everywhere else: the resolved document,
+ * the day, the address a tab would open. A GitHub reference is told its URL
+ * rather than a sentence about GitHub, which is the same rule applied to the
+ * one door whose value and destination are spelled differently.
  */
-const GITHUB_REF = /^([A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)\/([A-Za-z0-9._-]+)#(\d+)$/
-
-export const doorFor = (value: string, vault: Vault): Door | null => {
-  if (value === "") return null
-
-  if (isHttp(value)) return { kind: "away", href: value, says: value }
-
-  if (isIsoInstant(value)) {
-    // The DAY, for a value that says a minute too: `2026-08-24 16:20` is a day
-    // with a time on it, and the page it opens is the day's — this app has a
-    // page per day and none per minute, which is the same cut `dayOf` makes of
-    // every other date reading in olai. The route is written out here as the
-    // two other links to a day write it (`../calendar/Day.tsx`,
-    // `../agenda/Day.tsx`): `/d/<ISO>` has no constructor because a day carries
-    // a value and the named pages do not.
-    const day = dayOf(value)
-    return { kind: "day", route: { kind: "day", date: day }, says: `what is on ${day}` }
-  }
-
-  const named = vault.names(value)
-  if (named !== undefined) {
-    return { kind: "node", route: atNode(value), says: named.title }
-  }
-
-  const file = pathedOf(vault.from, value)
-  if (file !== null && vault.serves(file)) {
-    return { kind: "document", route: atFile(file), says: file }
-  }
-
-  const github = GITHUB_REF.exec(value)
-  if (github !== null) {
-    const [, owner, repo, number] = github as unknown as [string, string, string, string]
-    // `/issues/<n>` for both kinds: GitHub redirects it to the pull request
-    // when that is what the number turns out to be, and guessing `/pull/` for a
-    // plain issue would 404 on the one it guessed wrong.
-    return {
-      kind: "away",
-      href: `https://github.com/${owner}/${repo}/issues/${number}`,
-      says: `${owner}/${repo}#${number} on GitHub`,
+export const doorFor = (opens: Meaning, value: string, names: Names): Door => {
+  switch (opens.kind) {
+    case "away":
+      return { kind: "away", href: opens.href, says: opens.href, face: value }
+    case "day":
+      return {
+        kind: "day",
+        // The route is written out here as the two other links to a day write
+        // it (`../calendar/Day.tsx`, `../agenda/Day.tsx`): `/d/<ISO>` has no
+        // constructor because a day carries a value and the named pages do not.
+        route: { kind: "day", date: opens.date },
+        says: `what is on ${opens.date}`,
+        face: value,
+      }
+    case "document":
+      return { kind: "document", route: atFile(opens.file), says: opens.file, face: value }
+    case "node": {
+      const named = names(opens.id)
+      return {
+        kind: "node",
+        route: atNode(opens.id),
+        // WHICHEVER HALF THE FACE IS NOT. A titled chip shows the name and is
+        // told the id; an untitled one shows the value and is told the name.
+        says: opens.titled ? opens.id : named?.title ?? opens.id,
+        face: opens.titled ? named?.title ?? value : value,
+      }
     }
   }
-
-  return null
 }

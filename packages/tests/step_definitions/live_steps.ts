@@ -31,6 +31,8 @@ import {
   attr,
   BACKSTOP_STEP_TIMEOUT,
   BACKSTOP_TIMEOUT,
+  BROKEN_FILE_LINE,
+  ERROR_ROW,
   NODE,
   OUTLINE_FAILURE,
   OUTLINE_LINK,
@@ -65,8 +67,8 @@ When(
     const target = path.join(this.scratch(), file);
     fs.chmodSync(target, 0o000);
     // chmod does not change size; a same-second stamp miss would skip the
-    // read. The harness's resync forgets stamps, which is also how a
-    // restore asks the still-running server to look again.
+    // read. The POST asks for the store's verified class, which is the same
+    // door a restore asks the still-running server to look through.
     await askResync(this.baseUrl, POLL_TIMEOUT);
   },
 );
@@ -422,9 +424,51 @@ Then("no stale banner is shown", async function (this: OlaiWorld) {
   );
 });
 
+/**
+ * The banner NAMES a broken file and says how many findings implicate it — a
+ * count, never the rows.
+ *
+ * It used to be "shows an error with code X", drawn from the full enumeration
+ * the banner inlined on every page in the app. That enumeration is the bug
+ * (`last-good-banner-flood`): the banner draws the verdict's bounded face now
+ * (`@olai/format`'s `summary`), so what a scenario can ask it is which file
+ * and what state — and the rows are asked of the surfaces whose job is to show
+ * them, which the two steps above this one already do.
+ */
 Then(
-  "the stale banner shows an error with code {string}",
-  async function (this: OlaiWorld, code: string) {
-    await expectCodeIn(this.page.locator(STALE_BANNER), code, "the banner");
+  "the stale banner names {string} as {string}",
+  async function (this: OlaiWorld, file: string, state: string) {
+    const banner = this.page.locator(STALE_BANNER);
+    await banner.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const line = banner.locator(
+      `${BROKEN_FILE_LINE}${attr("data-file", file)}${attr("data-state", state)}`,
+    );
+    await line
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+      .catch(() => undefined);
+    assert.ok(
+      (await line.count()) > 0,
+      `the banner to name "${file}" as "${state}"; it says:\n  ` +
+        (await banner.innerText()),
+    );
   },
 );
+
+/**
+ * …AND IT DRAWS NO ROWS, which is the bug itself asserted rather than argued.
+ *
+ * One outline failing typed-property validation was about 135 rows, and every
+ * page in the app opened on a wall of them. The banner's payload is bounded by
+ * construction now — `summary` cannot hand a surface a row — and this is what
+ * holds that construction in place from the outside.
+ */
+Then("the stale banner enumerates nothing", async function (this: OlaiWorld) {
+  const banner = this.page.locator(STALE_BANNER);
+  await banner.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  assert.strictEqual(
+    await banner.locator(ERROR_ROW).count(),
+    0,
+    "the banner is enumerating error rows over somebody else's page",
+  );
+});

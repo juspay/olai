@@ -167,9 +167,9 @@ function Zoom(props: {
             shows={props.zoomed.shows}
             zoomed
             onUnsee={(target) => edges.drop("see", target)}
-            onProp={(key, value) =>
+            onProp={(key, value, was) =>
               applying(
-                { verb: "prop", id: props.zoomed.shows.node.id, key, value },
+                { verb: "prop", id: props.zoomed.shows.node.id, key, value, was },
                 undo.record,
               )}
           />

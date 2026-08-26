@@ -208,10 +208,33 @@ export const OutlineError = Schema.Struct({
 })
 export type OutlineError = typeof OutlineError.Type
 
+/**
+ * The files this error IMPLICATES: where it was found, and every place it names
+ * as related, deduped and in that order.
+ *
+ * The finding-sized half of the axis {@link Reach} names one level up. `Reach`
+ * says which CODES can reach across files at all, because the staging rule has
+ * to know that before any of them runs; this says which files THIS finding
+ * turned out to be about, which is what a reader — and a write gate — needs
+ * afterwards ({@link ./verdict.ts} asks it of a whole verdict).
+ *
+ * It is here rather than there because it is a fact about ONE error, which is
+ * this module's subject, and because {@link isCrossFile} is the same question
+ * asked for a different purpose: a finding about two files has no single answer
+ * to "which file is broken", so the error view groups it on its own.
+ */
+export const implicatedBy = (error: OutlineError): ReadonlyArray<string> => {
+  const files = [error.file]
+  for (const related of error.related ?? []) {
+    if (!files.includes(related.file)) files.push(related.file)
+  }
+  return files
+}
+
 /** True when the error implicates more than one file — the browser groups
  *  these on their own, because "which file is broken" has no single answer. */
 export const isCrossFile = (error: OutlineError): boolean =>
-  (error.related ?? []).some((related) => related.file !== error.file)
+  implicatedBy(error).length > 1
 
 /** A `line` of 0 means there is no record to point at — the site is the path
  *  itself. Two codes have that (`unreadable-directory`, about a DIRECTORY,

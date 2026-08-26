@@ -29,22 +29,23 @@
 import { expect, test } from "bun:test"
 import {
   assemble,
-  bodiedIn,
-  bodyKind,
   type Bodied,
   bodiedDocument,
+  bodiedIn,
+  bodyKind,
   type Document,
   isMirror,
   type Located,
   matching,
   matchingDocuments,
   nodesIn,
-  type OutlineError,
   parseFilter,
   parseOutline,
   reading,
   type Reading,
   type Scope,
+  type Verdict,
+  verdictOf,
 } from "@olai/format"
 import { seeded, vaultOf } from "@olai/format/testlib"
 import { Result } from "effect"
@@ -176,12 +177,12 @@ const UNKEPT = "pages/kitchen-inspiration.html"
 const handVault = (): Reading =>
   reading(
     assemble(
-      new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>([
+      new Map<string, Result.Result<Document, Verdict>>([
         ...Object.entries(HAND).map(
           ([file, text]) =>
-            [file, parseOutline(file, text)] as [
+            [file, Result.mapError(parseOutline(file, text), verdictOf)] as [
               string,
-              Result.Result<Document, ReadonlyArray<OutlineError>>,
+              Result.Result<Document, Verdict>,
             ],
         ),
         ...DOCUMENTS.map(
@@ -581,7 +582,7 @@ test("index and corpus stay in step through a soak that crosses the decline thre
       { files: 40, rounds: 12, declines: false },
     ] as const
 
-    const decoded = new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>()
+    const decoded = new Map<string, Result.Result<Document, Verdict>>()
     /**
      * The JSONL each outline holds, kept beside the decoded map.
      *
@@ -598,7 +599,7 @@ test("index and corpus stay in step through a soak that crosses the decline thre
 
     const filed = (path: string, text: string): string => {
       texts.set(path, text)
-      decoded.set(path, parseOutline(path, text))
+      decoded.set(path, Result.mapError(parseOutline(path, text), verdictOf))
       return path
     }
     const mintFile = (): string => {
@@ -873,8 +874,10 @@ test("index and corpus agree over a generated vault", () => {
   const index = opened()
   try {
     const corpus = vaultOf({ files: 120, records: 12 })
-    const decoded = new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>()
-    for (const [path, text] of corpus) decoded.set(path, parseOutline(path, text))
+    const decoded = new Map<string, Result.Result<Document, Verdict>>()
+    for (const [path, text] of corpus) {
+      decoded.set(path, Result.mapError(parseOutline(path, text), verdictOf))
+    }
     const at = reading(assemble(decoded))
     // IT REALLY NARROWS, which every `toEqual` in this file would go on passing
     // if it stopped: an index that handed back the whole corpus as candidates
@@ -914,8 +917,14 @@ test("index and corpus agree over a generated vault", () => {
 test("a document that leaves takes its row with it", () => {
   const index = opened()
   try {
-    const decoded = new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>([
-      ["a.olai", parseOutline("a.olai", `{"id":"one","ord":"a0","title":"a kitchen row"}`)],
+    const decoded = new Map<string, Result.Result<Document, Verdict>>([
+      [
+        "a.olai",
+        Result.mapError(
+          parseOutline("a.olai", `{"id":"one","ord":"a0","title":"a kitchen row"}`),
+          verdictOf,
+        ),
+      ],
       ["note.md", Result.succeed<Document>(bodiedDocument("note.md", "kitchen prose"))],
     ])
     const before = reading(assemble(decoded))

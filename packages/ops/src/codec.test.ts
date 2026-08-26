@@ -14,7 +14,11 @@
  */
 
 import type { Document, OutlineError, Reading } from "@olai/format"
-import { markdownIn, outlinePaths } from "@olai/format"
+import {
+  markdownIn,
+  outlinePaths,
+  type Verdict,
+} from "@olai/format"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
@@ -24,7 +28,7 @@ type Files = Record<string, string>
 
 const decoded = (
   files: Files,
-): Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>> =>
+): Map<string, Result.Result<Document, Verdict>> =>
   new Map(
     Object.entries(files).map(([path, contents]) => [
       path,
@@ -35,12 +39,14 @@ const decoded = (
 /** A verdict that must be one, so a test that mis-writes a fixture hears which
  *  rule refused it rather than a type error three lines later. */
 const accepted = (
-  outcome: Result.Result<Reading, ReadonlyArray<OutlineError>>,
+  outcome: Result.Result<Reading, Verdict>,
 ): Reading => {
   if (Result.isFailure(outcome)) {
     throw new Error(
       `the fixture does not validate:\n${
-        outcome.failure.map((error) => `  ${error.file}:${error.line} ${error.message}`).join("\n")
+        outcome.failure.findings
+          .map((error) => `  ${error.file}:${error.line} ${error.message}`)
+          .join("\n")
       }`,
     )
   }

@@ -58,7 +58,7 @@ Every field above is one this format declares, and the top level is **closed**: 
 
 **Nothing in olai reads a key in here.** That is the whole difference between a system field and a custom key. The journal reads `date`, the checkbox reads the marks, the blocking graph reads `after`; these are read by the person who wrote them, by `prop:` in a query ([search.md](search.md)), and by the run of chips the web draws under a node's title. That run asks one question of a VALUE — does this string name a file, a node, a day or a URL this app can open, so that the chip can be a link ([editing.md](editing.md#what-a-node-says-about-itself)) — and that is not the same thing: no key gets a meaning, and a value that names nothing is drawn as the text it is. (A key the vault DECLARES has its values fenced — [Typed properties](#typed-properties) — which is still not a meaning: the fence says what a value may be, and no reading here turns it into anything.) Every read that situates a node hands the map back verbatim — a search hit as much as `read_node` — so the query that selects on a property answers with the rest of them beside it.
 
-**Written with `set_prop`** — `{id, key, value}`, and `null` (or `""`) removes it. A key spelled like a field this format already has (`done`, `cancelled`, `date`, `see`, `title`, `id`, `created`, `changed`, or the word `status`) is refused toward the verb that writes that fact: the two namespaces are two places, so `{"done":true,"custom":{"done":"yesterday"}}` is a legal record and an unreadable one. **Three verbs write it and they are one writer**: `add_node`'s `props` puts a map on a node being captured, `update`'s `props` merges one key by key onto a node that exists, and both reach `set_prop`'s own planner — so the shadowed-key refusal is the same sentence whichever one met it.
+**Written with `set_prop`** — `{id, key, value}`, and `null` (or `""`) removes it. A write may also carry `was`, the value it expected to replace (`null` for _the key should not exist yet_): given, the write is conditional on the key still saying exactly that, and is refused with what it says now — what the web's chips always send, since the box opens on the value as read. Left off, the write is unconditional. A key spelled like a field this format already has (`done`, `cancelled`, `date`, `see`, `title`, `id`, `created`, `changed`, or the word `status`) is refused toward the verb that writes that fact: the two namespaces are two places, so `{"done":true,"custom":{"done":"yesterday"}}` is a legal record and an unreadable one. **Three verbs write it and they are one writer**: `add_node`'s `props` puts a map on a node being captured, `update`'s `props` merges one key by key onto a node that exists, and both reach `set_prop`'s own planner — so the shadowed-key refusal is the same sentence whichever one met it.
 
 **The stamps are not compared as changes.** Every write stamps `changed`, so a commit that named it would name it in every line beside the field somebody actually changed — and a write that changed nothing would report as a change, since the stamp would be the difference. What a reader is owed is what they wrote; when they wrote it is the log's own answer.
 
@@ -101,13 +101,46 @@ dispatched  2026-08-25 10:06 (sweep queue #5; the slot freed by #387's merge)
 | `date` | an ISO day (`2026-08-25`) or an instant written as a mark records one (`2026-08-25T10:06:00-04:00`). Nothing else. |
 | `int` | a digit run: no sign, no leading zeros, no separators, nothing after them. |
 | `path` | one run of characters with no whitespace in it. May point anywhere. |
-| `doc` | a path that resolves — against the naming outline's own directory, as `doc` does — to an `.md` this directory serves. |
+| `doc` | a path that resolves to an `.md` this directory serves. WHERE it resolves from is the key's own `base` (below). |
 | `ref` | the **id** of one of a parent's children. `under` names the parent; absent, it is the declaration's own children. |
 | `node` | the id of any node in the set. A mirror is not one. |
 
 **There is deliberately no `sum` — an enum IS a ref.** The variants are nodes, so adding one is adding a child rather than editing a pipe-separated string inside a property, which is exactly the sloppiness this refuses. A roster that happens to live elsewhere (`{"type":"ref","under":"agents-roster"}`) is the same mechanism pointed at a different place, and it stays data: add a node under the roster and the sum grows, with no declaration to edit.
 
-**A ref value is an ID** — the pin and mirror rule, for the pin and mirror reason: names rename, ids don't. Variant ids are chosen short at declaration time (`auto`, `human`), which is safe because the duplicate-id fence makes a clash loud at add-time, and short because **the id is what is drawn**: nothing resolves a ref value to its variant's title yet. Where a chip shows `auto`, `auto` is what the file holds. Resolving one for display is the same door work `pr` is waiting on (a repo and a number into a URL) and lands with it, not here.
+**A ref value is an ID** — the pin and mirror rule, for the pin and mirror reason: names rename, ids don't. Variant ids are chosen short at declaration time (`auto`, `human`), which is safe because the duplicate-id fence makes a clash loud at add-time. **The id is the stored truth and the TITLE is what a chip draws**: where the file holds `auto`, the chip reads `automatic`, and the id is what the pointer is told. That resolution happens where the set is and travels to the browser as an answer — see [What a declared value names](#what-a-declared-value-names) below.
+
+### The basis: where a `doc` or `path` value resolves FROM
+
+A `doc` or `path` declaration may say `base`, and it is `root` or `file`:
+
+```jsonl
+{"id":"prop-brief","ord":"a5","title":"brief","custom":{"type":"doc","base":"root"}}
+```
+
+- **`file`** — beside the file the value was written in, exactly as a note's relative markdown link resolves. **This is the default**, so a declaration written without a `base` means what it always meant.
+- **`root`** — from the served directory's root, wherever the value was written.
+
+**Why it is a declared fact rather than a rule.** Both premises are true of real vaults and they were held by different halves of the code, which is how a hundred chips came to be dead at once. A board writes `brief briefs/plan.md` on a record of `roadmap/features.olai` and means the file at the root — that value is written by a CONVENTION that stands at the root, not by somebody standing in `roadmap/`. A note's `doc` field means the opposite and always will: it is a file named beside itself. Neither reading is wrong; what was wrong was that nothing said which one a key took, so the gate and the display each picked one and disagreed. Now the key's own row says it, and both read that row.
+
+**The markdown `doc` FIELD is untouched** and keeps beside-the-writer as its only premise. A note has no key to declare on, so there is nothing there to say a second thing.
+
+`base` on any other kind is refused where it is written (`bad-prop`): the five kinds that name no path have nothing to resolve.
+
+### What a declared value names
+
+A declaration is a fence around a value, and it is also the strongest thing anyone knows about what that value POINTS AT. **One place answers both** — the write gate asks "is this allowed" and the display asks "what does it name", of the same declaration, and they cannot disagree:
+
+- A **`doc`** value opens the `.md` it resolves to — the same resolution over the same list the write gate is held to, so a value the validator refuses is never drawn as a live door and one it accepts is never drawn as dead text. A `doc` naming a served `.olai` is refused by both: this kind promises a *document*, and an outline is not one.
+- A **`path`** value opens whatever this directory happens to serve at the path it resolves to — any kind, an outline included. It promised only a SHAPE, so the gate never claimed it names anything and the display asks the wider question. `worktree`, pointing at a directory on somebody's machine, is served by nothing here and is not a door; `brief` — declared `path` on this repository's own vault, because `docs/briefs/` is gitignored — opens exactly when the file is there.
+- A `ref` or `node` value opens the record it names, and the chip draws that record's **title**.
+- A `date` value opens its day; an `int` names nothing.
+
+Three of those arms answer where the gate would refuse, and it is deliberate: a `date` written `2026-08-25 10:06` is refused as a *spelling* and still names the day it plainly names, a `ref` holding an id from the wrong roster still names that node, and both are values the validator is already reporting on a page somebody is looking at — a live door is worth more there than a second opinion. **`doc` is the one arm held to the gate exactly**, because `doc` is the one kind that promised its value names something served.
+- A **declared `text`** is read exactly as an undeclared key is (below), which is what keeps the URL in a `pr-url` a door.
+
+**An UNDECLARED key is guessed at, in this order**: a whole `http(s)` URL, a date, an exact node id, a path this directory serves (beside the writing file — there is no declaration to say otherwise), and GitHub's `owner/repo#123`. Anything else is text. The rule under all of it is that **a wrong door is worse than no door**: the entire value has to BE the name of the thing, so a value with a URL *in* it is not a URL and a value that reads like a title is not a node.
+
+**The vocabulary itself never leaves the server.** What a browser is handed is the ANSWERS — one per value a page draws that names something — and never the declarations that produced them, so nothing up there can re-derive an answer and disagree with this one.
 
 **One rule, two doors.** A live write is REFUSED, with the allowed values named and the closest one offered:
 
@@ -132,7 +165,7 @@ A hand edit that lands a bad value makes the file **broken, naming the key** (`b
 
 **A key is folded for case.** `pr` and `PR` are one key — to the fence, to `prop:` in a query, and to the shadowed-key refusal, all of which folded already. A property is something somebody typed into a map that gives no key a spelling, so a declaration of `pr` fences a record that wrote `PR`, and declaring both is declaring one key twice.
 
-**Where the recursion grounds.** A declaration is a node carrying properties, so `type` and `under` would need declaring too. They do not: a **built-in table** in code types those two words, applied to the records of `_olai/Properties.olai` and nowhere else. A vault may not declare `type` or `under`; outside that file, a property called `type` is somebody's own vocabulary and none of this format's business. `under` names a NODE and never a mirror: a placement has no children of its own, so a declaration pointed at one would be accepted, find no variants, and then refuse every value of that key for a reason nobody could act on — it is refused where the mistake is written instead.
+**Where the recursion grounds.** A declaration is a node carrying properties, so `type`, `under` and `base` would need declaring too. They do not: a **built-in table** in code types those three words, applied to the records of `_olai/Properties.olai` and nowhere else. A vault may not declare `type`, `under` or `base`; outside that file, a property called `type` is somebody's own vocabulary and none of this format's business. `under` names a NODE and never a mirror: a placement has no children of its own, so a declaration pointed at one would be accepted, find no variants, and then refuse every value of that key for a reason nobody could act on — it is refused where the mistake is written instead.
 
 **What typing does NOT do.** No required keys, no schema per node kind, no defaults. A node may carry any subset of keys, as today. This is one rule about values.
 
@@ -422,7 +455,14 @@ There is deliberately **no rule about a mark and the children under it**, and th
 
 ## Errors
 
-Every error names its location: `file:line` of the bad record (one node per line — the line is the whole story). Errors carry a kind — `usage`, `validation`, `not-found`, `busy` — surfaced as MCP tool errors and HTTP codes, with structured detail (e.g. a `validation` refusal carries the validator's own rows as data, not prose). There were five: `derived` refused a write that would have stored a computed status, and went when derivation did.
+Every error names its location: `file:line` of the bad record (one node per line — the line is the whole story). Errors carry a kind — `usage`, `validation`, `not-found`, `busy` — surfaced as MCP tool errors and HTTP codes, with structured detail (e.g. a `validation` refusal carries the validator's own verdict as data, not prose). There were five: `derived` refused a write that would have stored a computed status, and went when derivation did.
+
+**The judgement itself is shaped data.** A refused validation answers with a **verdict**, not a list of rows: the rows are in it and travel whole, and the questions consumers used to re-derive from them are answered at the socket instead.
+
+- **implicated** — which files a finding is about: where it was found, plus every place it names as related. A dangling mirror implicates two files, which is why "which file is broken" has no single answer for one.
+- **`admits(files)`** — whether a write to exactly these files is admissible. `admitted`, or `implicated(file, rows)` naming the blocker; there is no third answer, so "the set is invalid, so no" is not something a write can be told. A write to healthy files lands beside an outline that will not validate, the way a READ of the same directory already degrades per file.
+- **`summary(n)`** — a bounded per-file face: the path, one word for what is the matter (`unreadable` / `unparsed` / `invalid`), and a row COUNT. It cannot carry a row, so no surface drawing it can flood a page with somebody else's errors. The last-good banner draws this; the error page and a broken outline's own pane draw the rows.
+- **`tierOf(code)`** — what a class costs a load: `refuses` (hold the last good snapshot) or `carried` (a hole the rest of the set is rendered around). The per-line half has behaved this way since the error scope above; the table names the set half too, and every class ships at exactly what the validator already did. Which classes are boot-fatal is a policy call and stays the vault owner's.
 
 ## Writing
 

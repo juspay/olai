@@ -127,6 +127,33 @@ export interface Codec<F, S, E> {
    */
   readonly unreadable: (failure: PlatformFailure) => E
   /**
+   * IS THIS WRITE ADMISSIBLE against a set you have already refused?
+   *
+   * The write gate validates the set a commit WOULD make before it renames
+   * anything, and until this member existed a refusal there was the end of it:
+   * one file the codec would not accept froze every write to the directory,
+   * whatever it touched. That is a whole-set answer to a per-file question, and
+   * it is the store that was asking it — the codec had said "this set is not
+   * one I can publish", which is true and is not the same sentence.
+   *
+   * So the store asks the second question here, and only the codec can answer:
+   * `refusal` is what {@link validate} just handed back, `paths` are the files
+   * THIS write puts down, and the answer is whether the refusal has anything to
+   * do with them. `true` lets the bytes land — the set is still refused, the
+   * last good snapshot still stands, and the errors channel still carries the
+   * refusal — which is exactly what a READ of a broken directory already gets.
+   *
+   * ABSENT MEANS NO, which is every codec's behaviour before this existed and
+   * stays the behaviour of one that omits it. The store looks inside neither
+   * `E` nor the files: it hands over what it has and spends the boolean.
+   *
+   * WHAT IT DOES NOT DECIDE is whether the write is SAFE to make from the base
+   * the caller planned against — that is the store's own bookkeeping, and it is
+   * checked before this is asked ({@link ./store.ts}'s `commit`). A codec is
+   * never handed a question it has no way to answer.
+   */
+  readonly admits?: (refusal: E, paths: ReadonlyArray<string>) => boolean
+  /**
    * One FILE could not be read — EACCES on a `.md`, not the directory itself.
    *
    * Optional because a codec that has no per-file hole (every unread file

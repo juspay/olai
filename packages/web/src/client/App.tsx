@@ -19,6 +19,7 @@
  * (`./reading.tsx`), asked of the address that pane is drawing.
  */
 
+import { NOTHING_WRONG } from "@olai/format"
 import {
   createEffect,
   createMemo,
@@ -108,7 +109,7 @@ export default function App() {
     if (desktop()) setMenuOpen(false)
   })
 
-  const problems = () => errors.value() ?? []
+  const problems = () => errors.value() ?? NOTHING_WRONG
 
   /**
    * Whether there is a set at all — the directory's three states (still
@@ -400,7 +401,7 @@ export default function App() {
         >
           <Switch fallback={<p class={`${SHEET} p-8 text-muted`}>Reading…</p>}>
           <Match when={directory.standing() === "never"}>
-            <ErrorPage errors={problems()} />
+            <ErrorPage verdict={problems()} />
           </Match>
           {/* THE GATE IS THE DIRECTORY, not the page. It used to be the focused
               page's own existence, which was the same bit said in a longer way:

@@ -354,6 +354,18 @@ Then(
 /** Type it and press Enter. `fill` then `Enter`, rather than the panel's old
  *  button, because the button is what went. */
 When(
+  "I type {string} into the property editor on {string} without pressing Enter",
+  async function (this: OlaiWorld, value: string, id: string) {
+    // Typed and LEFT there: clicking away is the OTHER commit, the one the
+    // Enter fix must not take with it — no key ever lands on the box, so the
+    // blur alone answers for the gesture.
+    const open = box(this, id);
+    await open.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await open.fill(value);
+  },
+);
+
+When(
   "I type {string} into the property editor on {string}",
   async function (this: OlaiWorld, value: string, id: string) {
     const open = box(this, id);

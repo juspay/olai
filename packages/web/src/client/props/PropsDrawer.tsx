@@ -20,10 +20,18 @@
  * ## Three faces a value can wear, and none of them is a guess
  *
  * A DOOR, where the value names a thing: a document of this directory, a node
- * the set declares, a day, or somewhere outside the app. Which of those — and
- * the refusal that keeps everything else plain text — is `./door.ts`'s whole
- * subject, argued there. What is THIS file's is that a door looks like a link
- * and nothing else does.
+ * the set declares, a day, or somewhere outside the app. WHICH of those is not
+ * decided here and is no longer decided in this package at all — the page
+ * arrives carrying the answer per value (`@olai/format`'s `meaning.ts`, which
+ * argues the whole subject; `../doors.ts` is the table it lands in and
+ * `./door.ts` turns one answer into a route). What is THIS file's is that a
+ * door looks like a link and nothing else does.
+ *
+ * A REF CHIP DRAWS ITS TARGET'S TITLE and holds the id underneath, which is the
+ * one place a chip does not draw the value verbatim. It is licensed by the
+ * DECLARATION rather than by anything visible in the string — a value the vault
+ * declared a reference is a thing whose name is not its identity — so the face
+ * comes off the answer ({@link Door.face}) and never off a rule spelled here.
  *
  * A DATE BADGE, where the value is a date: the same pill the row already speaks
  * with (`../Pill.tsx`, which `../DateBadge.tsx` is drawn from), because a reader
@@ -151,13 +159,12 @@ import { type Door, doorFor } from "./door.ts"
 import { TERMINAL_KEY } from "@olai/surface"
 
 import { SnapshotPane, TerminalDot } from "./TerminalDoor.tsx"
-import { type Editing, openedOn, sending, writes } from "./editor.ts"
+import { type ClosedBy, type Editing, leavingCommits, openedOn, sending, writes } from "./editor.ts"
 import { Link } from "../router.tsx"
-import { useNames } from "../reading.tsx"
+import { useDoors, useNames } from "../reading.tsx"
 import type { Said } from "../saying.ts"
 import { createSaying } from "../saying.ts"
 import { SaidLine } from "../SaidLine.tsx"
-import { useServes } from "../served.tsx"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 
@@ -184,8 +191,15 @@ const SUMMARISED_AT = 40
 /** WHAT THE CHIP RUN CAN SEND: one property set to one value, at the gate every
  *  other write goes through — a `Said` back is a refusal or a nudge to draw,
  *  nothing back is the ordinary success. An empty value is the REMOVAL; the
- *  caller does not have to know that, because the op already does. */
-export type SetProp = (key: string, value: string) => Promise<Said | undefined>
+ *  caller does not have to know that, because the op already does.
+ *
+ *  `was` is the snapshot the editor opened on — the value the key held when
+ *  the person began, or `null` for one being ADDED, whose condition is the
+ *  key's absence. Every commit is conditional, which is the point of the
+ *  trip (prop-op-conditional-was): a typed commit can no longer land on top
+ *  of an agent's in-flight write with nothing on screen to say so — the op
+ *  refuses and its sentence is what the line below is for. */
+export type SetProp = (key: string, value: string, was: string | null) => Promise<Said | undefined>
 
 export function PropsDrawer(props: {
   /**
@@ -226,10 +240,22 @@ export function PropsDrawer(props: {
   readonly adding?: boolean
   readonly onAddingEnd?: () => void
 }) {
-  const serves = useServes()
   const names = useNames()
-  const doorOf = (value: string): Door | null =>
-    doorFor(value, { from: props.from, serves: serves(), names: names() })
+  const doors = useDoors()
+  /**
+   * WHAT THIS VALUE, UNDER THIS KEY, NAMES — the page's own answer, turned
+   * into a door.
+   *
+   * THE KEY IS PART OF THE QUESTION now, which is the seam this whole change
+   * is: `worktree` and `brief` hold path-shaped strings and mean different
+   * things by them, and the vault is what says so ({@link ../doors.ts}). The
+   * FILE is the third part and it is {@link PropsDrawer.from} — the same fact
+   * that prop always carried, spent on a lookup instead of on arithmetic.
+   */
+  const doorOf = (key: string, value: string): Door | null => {
+    const opens = doors()(props.from, key, value)
+    return opens === undefined ? null : doorFor(opens, value, names())
+  }
 
   /**
    * WHICH CHIP IS OPEN, and it is one per RUN rather than one per chip: opening
@@ -276,18 +302,19 @@ export function PropsDrawer(props: {
       return
     }
     const sent = sending(was, key, value)
-    saying.say(await props.onSet?.(sent.key, sent.value))
+    saying.say(await props.onSet?.(sent.key, sent.value, sent.was))
   }
 
   return (
-    <Show when={props.entries.length > 0 || naming()}>
-      {/* One line that wraps, not a grid. `items-baseline` because the keys are
-          set in the mono face and the values are not, and two faces centred
-          against each other sit on two baselines. */}
-      <div
-        class="mt-0.5 mb-1 flex flex-wrap items-baseline gap-1 text-[0.8125rem] leading-snug"
-        data-testid={TESTID.props}
-      >
+    <>
+      <Show when={props.entries.length > 0 || naming()}>
+        {/* One line that wraps, not a grid. `items-baseline` because the keys are
+            set in the mono face and the values are not, and two faces centred
+            against each other sit on two baselines. */}
+        <div
+          class="mt-0.5 mb-1 flex flex-wrap items-baseline gap-1 text-[0.8125rem] leading-snug"
+          data-testid={TESTID.props}
+        >
         {/* `<Key>`, not `<For>`, for the reason the tree uses it
             (`../Tree.tsx`): `customEntries` mints fresh entries from a node
             that is itself a fresh object per frame on a ROW, so drawn by
@@ -342,18 +369,31 @@ export function PropsDrawer(props: {
             +
           </button>
         </Show>
-      </div>
+        </div>
+      </Show>
       {/* THE SNAPSHOT PANE, under the whole run rather than inside a chip —
-          `./TerminalDoor.tsx` argues why, and `../SaidLine.tsx` below is the
-          precedent: a thing that belongs to ONE chip but cannot be drawn
-          inside an inline box of short facts goes here. Keyed by the terminal,
-          so switching chips REMOUNTS it — which is what makes "one read per
-          open" a fact about the component's lifetime. */}
+          `./TerminalDoor.tsx` argues why, and the said line below is the
+          precedent it follows: a thing that belongs to ONE chip but cannot be
+          drawn inside an inline box of short facts hangs off the DRAWER, not
+          off the run. Outside the run's own `<Show>` for the same reason that
+          line is (#401's NIT 2, below): the pane outlives the chips, and a
+          chip whose key was dropped while its pane was open must not take the
+          pane with it. Keyed by the terminal, so switching chips REMOUNTS it
+          — which is what makes "one read per open" a fact about the
+          component's lifetime rather than a rule somebody keeps. */}
       <Show when={paneOn()}>
         {(terminal) => (
           <SnapshotPane value={terminal()} onClose={() => setPaneOn(null)} />
         )}
       </Show>
+      {/* THE ANSWER OUTLIVES THE RUN. The line hangs off the drawer's own
+          component rather than beside the chips, because one answer needs
+          exactly that: a chip whose key was dropped under its open, typed
+          editor commits at the gate with its snapshot as `was`, and the
+          refusal is the EXPECTED outcome of that gesture (Opus's NIT 2 on
+          #401) — where it used to land, inside the run's own `<Show>`, it
+          was written into a line that had just gone with the key. The row
+          outlives both, and so does this. */}
       <Show when={saying.said()}>
         {(said) => (
           <SaidLine
@@ -363,12 +403,14 @@ export function PropsDrawer(props: {
           />
         )}
       </Show>
-    </Show>
+    </>
   )
 }
 
-/** What the system half is asked instead of the door rule — see the header. */
-const NO_DOOR = (): null => null
+/** What the system half is asked instead of the table — see the header. Takes
+ *  the same pair the real lookup does so the two are one type at the call
+ *  site, and reads neither. */
+const NO_DOOR = (_key: string, _value: string): null => null
 
 /** The box one fact sits in. A pill for the ordinary chip; the corners are
  *  eased off when it has a fold in it, because a disclosure opening inside a
@@ -377,7 +419,7 @@ const CHIP = "inline-flex min-w-0 max-w-full gap-1.5 border border-rule bg-panel
 
 function Chip(props: {
   readonly entry: Entry
-  readonly doorOf: (value: string) => Door | null
+  readonly doorOf: (key: string, value: string) => Door | null
   /**
    * WHICH terminal's pane is open in this RUN, and how to toggle it.
    *
@@ -418,7 +460,7 @@ function Chip(props: {
    */
   const doors = createMemo(() => {
     const ask = props.entry.system ? NO_DOOR : props.doorOf
-    return props.entry.values.map((one) => ask(one))
+    return props.entry.values.map((one) => ask(props.entry.key, one))
   })
   /**
    * Does this value fold?
@@ -517,6 +559,14 @@ function Chip(props: {
           // unmounted, which Solid reports as a stale-value error — a blur IS
           // that moment, since committing is what closes the editor.
           const snapshot = was()
+          /** ONE OPEN'S ANSWER — minted beside the box, recorded at the two
+           *  gestures that CLOSE it (and by the one that then commits, BEFORE
+           *  the close: the close is what fires the blur this answers). Never
+           *  inside the box's own key handling — `Box`'s `closedBy` argues why.
+           *  The `<Show>`'s dispose is the reset: the next open mints `null`.
+           *  (`./editor.ts`'s `ClosedBy` states the born-with-the-open law.)
+           */
+          let answeredBy: ClosedBy = null
           return (
             <Box
               testid={TESTID.propEdit}
@@ -524,12 +574,19 @@ function Chip(props: {
               value={snapshot.value}
               wide
               focus
+              closedBy={() => answeredBy}
               // The snapshot this chip was opened on, which is what the box is
               // drawn from — so what goes back is what a commit has to be
               // judged against. See {@link Chip.onCommit}.
-              onCommit={(value) => props.onCommit(snapshot, value)}
+              onCommit={(value) => {
+                answeredBy = "enter"
+                props.onCommit(snapshot, value)
+              }}
               onLeave={(value) => props.onCommit(snapshot, value)}
-              onCancel={props.onCancel}
+              onCancel={() => {
+                answeredBy = "escape"
+                props.onCancel()
+              }}
             />
           )
         }}
@@ -615,6 +672,11 @@ function Value(props: {
   readonly door: Door | null
   readonly onOpen?: () => void
 }) {
+  /** WHAT THE POINTER IS OWED, which is whichever half the face is not: these
+   *  words where the face IS the record's value (every door but one), and what
+   *  the door SAYS where it is not — the stored id under a ref chip's title. */
+  const says = (door: Door): string | undefined =>
+    door.face === props.value ? undefined : door.says
   return (
     <Show when={props.door} fallback={<Plain value={props.value} onOpen={props.onOpen} />}>
       {(door) => (
@@ -627,7 +689,17 @@ function Value(props: {
             when={awayFrom(door())}
             fallback={
               <Link route={inApp(door())} class={LINKED} title={door().says}>
-                <Face value={props.value} day={door().kind === "day"} />
+                {/* THE DOOR'S FACE and not the raw value, which is the whole
+                    of the ref-chip half of this change: `agent grok` reads
+                    `agent Grok`, because the vault declared the key a
+                    reference and a reference's name is not its identity. Every
+                    other door's face IS the value, so this is one field read
+                    in one place rather than a branch here (`./door.ts`). */}
+                <Face
+                  value={door().face}
+                  day={door().kind === "day"}
+                  says={says(door())}
+                />
               </Link>
             }
           >
@@ -645,7 +717,7 @@ function Value(props: {
                 title={door().says}
                 onClick={(event) => event.stopPropagation()}
               >
-                <Face value={props.value} day={false} />
+                <Face value={door().face} day={false} says={says(door())} />
               </a>
             )}
           </Show>
@@ -682,9 +754,16 @@ function Plain(props: { readonly value: string; readonly onOpen?: () => void }) 
 /** The words themselves, in the date badge where the value is a date and bare
  *  everywhere else — the pill's own box (`../Pill.tsx`) in the tone a date that
  *  is nobody's deadline takes. */
-function Face(props: { readonly value: string; readonly day: boolean }) {
+function Face(props: {
+  readonly value: string
+  readonly day: boolean
+  /** What the pointer is told about these words — see {@link Clamped}. The
+   *  words themselves for every face that IS the record's value, which is all
+   *  of them but one. */
+  readonly says?: string
+}) {
   return (
-    <Show when={props.day} fallback={<Clamped value={props.value} />}>
+    <Show when={props.day} fallback={<Clamped value={props.value} says={props.says} />}>
       <span class="rounded-full bg-pill px-1.5">{props.value}</span>
     </Show>
   )
@@ -702,16 +781,25 @@ function Face(props: { readonly value: string; readonly day: boolean }) {
  *
  * CSS rather than {@link shortened}, and that is the point of doing it here: an
  * ellipsis put in by the browser is still the whole string in the DOM, so the
- * href, the copy, the tooltip and a scenario's `innerText` all read the value
- * the record holds. Cutting the text would have made the chip say something the
- * file does not.
+ * href, the copy, the tooltip and a scenario's `innerText` all read the words
+ * the chip is drawing. Cutting the text would have made the chip say something
+ * the file does not.
+ *
+ * THE TOOLTIP IS THESE WORDS unless somebody says otherwise, and the one caller
+ * that does is the ref chip: its face is the target's TITLE, so what a pointer
+ * is owed is the id the file actually holds ({@link Value}). It is said HERE
+ * rather than on the anchor above because a `title` on an inner element wins —
+ * the anchor's has never been what a clamped face shows.
  *
  * `align-bottom` because an `inline-block` in a baseline row otherwise sits its
  * own descender below the key beside it.
  */
-function Clamped(props: { readonly value: string }) {
+function Clamped(props: { readonly value: string; readonly says?: string }) {
   return (
-    <span class="inline-block max-w-[22rem] truncate align-bottom" title={props.value}>
+    <span
+      class="inline-block max-w-[22rem] truncate align-bottom"
+      title={props.says ?? props.value}
+    >
       {props.value}
     </span>
   )
@@ -763,11 +851,14 @@ function NewChip(props: {
   const [key, setKey] = createSignal("")
   const [value, setValue] = createSignal("")
   let box: HTMLInputElement | undefined
-  /** Escape has already answered; the focus-out it causes must not commit as
-   *  well. One gesture, one outcome. */
-  let cancelled = false
+  /** The chip's own answer to the one law every box here answers to
+   *  (`./editor.ts`'s `leavingCommits`): Escape abandons and the value box's
+   *  Enter commits, and BOTH close the chip — the focus-out the close fires
+   *  must not then send the same property a second time. One gesture, one
+   *  outcome. */
+  let answeredBy: ClosedBy = null
   const cancel = (): void => {
-    cancelled = true
+    answeredBy = "escape"
     props.onCancel()
   }
   return (
@@ -777,7 +868,7 @@ function NewChip(props: {
         // Still inside this chip — the caret moving from the key to the value —
         // is not leaving it.
         if (event.currentTarget.contains(event.relatedTarget as Node | null)) return
-        if (cancelled) return
+        if (!leavingCommits(answeredBy)) return
         props.onCommit(key(), value())
       }}
     >
@@ -798,7 +889,12 @@ function NewChip(props: {
         wide
         ref={(element) => (box = element)}
         onInput={setValue}
-        onCommit={(typed) => props.onCommit(key(), typed)}
+        // The value box's Enter is the whole chip answered — its commit closes
+        // the chip, and the close owns what the focus-out then has to hear.
+        onCommit={(typed) => {
+          answeredBy = "enter"
+          props.onCommit(key(), typed)
+        }}
         onCancel={cancel}
       />
     </span>
@@ -813,6 +909,14 @@ function NewChip(props: {
  * BOTH KEYS STOP. The row's own handling reads Escape as "fold this row" and
  * Enter as "make a sibling", and a gesture inside a box must not also be a
  * gesture at the row it is drawn on.
+ *
+ * ONE GESTURE, ONE OUTCOME: Enter commits and Escape abandons, and both close
+ * the box — and closing RE-TAKES the caret, which the browser answers by
+ * firing the blur at the very gesture whose close this was. That blur stands
+ * down, asked through `./editor.ts`'s `leavingCommits` of the record the
+ * CLOSER minted ({@link Box.closedBy}) — never a record the box mints for
+ * itself, because a box cannot know whether its `onCommit` closes it: the
+ * commit owns the close, or there is no commit — never both, and never twice.
  *
  * WHAT LEAVING MEANS is the CALLER's, and it is the one thing the two editors
  * genuinely differ about: a chip being changed leaves one box, so `onBlur` is
@@ -837,11 +941,18 @@ function Box(props: {
   /** Leaving this box alone commits it — the single-box editor's rule. Absent
    *  where the chip answers for its boxes together. */
   readonly onLeave?: (value: string) => void
+  /** WHICH GESTURE CLOSED THIS OPEN, read at the blur — the CALLER's record,
+   *  minted beside the box by the one who closes it (`Chip`'s editor
+   *  closure). Never recorded by the box itself: a half-blind `onCommit`
+   *  wrapper is the difference between the chip's value box (its Enter
+   *  closes) and the add chip's KEY box, whose Enter only moves the caret —
+   *  and a record THIS component minted would stand that key box down from
+   *  its first Enter forever. ABSENT leaves the blur armed, which is the add
+   *  chip's boxes' correct answer: their leaving is asked at the chip, whose
+   *  own record the focus-out consults. */
+  readonly closedBy?: () => ClosedBy
 }) {
   const [held, setHeld] = createSignal(props.value)
-  /** Escape has already answered, so the blur it causes must not commit as
-   *  well: one gesture, one outcome. */
-  let cancelled = false
   return (
     <input
       type="text"
@@ -895,12 +1006,11 @@ function Box(props: {
         if (event.key === "Escape") {
           event.preventDefault()
           event.stopPropagation()
-          cancelled = true
           props.onCancel()
         }
       }}
       onBlur={() => {
-        if (cancelled) return
+        if (!leavingCommits(props.closedBy?.() ?? null)) return
         props.onLeave?.(held())
       }}
     />

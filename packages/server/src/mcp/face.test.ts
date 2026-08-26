@@ -137,7 +137,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
     return yield* Effect.promise(() =>
       use({
         client,
-        refresh: () => Effect.runPromise(Effect.orDie(store.refresh)),
+        refresh: () => Effect.runPromise(Effect.orDie(store.refresh("cheap"))),
         root,
       })
     )
@@ -218,7 +218,10 @@ test("one outline item is that file's nodes, and no other file's", async () => {
 
 test("the errors cell reads as a live value", async () => {
   await withFace(async ({ client }) => {
-    expect(await readJson(client, "surface://cells/errors")).toEqual([])
+    // THE VERDICT, which is what the cell carries now (`@olai/format`'s
+    // `verdict.ts`): a clean directory is a verdict with no findings, and an
+    // agent asks it the same questions a browser does.
+    expect(await readJson(client, "surface://cells/errors")).toEqual({ findings: [] })
   })
 })
 
@@ -240,9 +243,11 @@ test("a directory that cannot be read reaches the agent, not just the browser", 
     // `.` and not the absolute root: every site in this vocabulary is
     // root-relative, and the server's filesystem layout is not something a
     // reader of an outline is owed.
-    expect(errors).toEqual([
-      expect.objectContaining({ code: "unreadable-directory", file: ".", line: 0 }),
-    ])
+    expect(errors).toEqual({
+      findings: [
+        expect.objectContaining({ code: "unreadable-directory", file: ".", line: 0 }),
+      ],
+    })
   })
 })
 

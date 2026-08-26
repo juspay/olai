@@ -40,6 +40,11 @@ interface Loaded {
 }
 
 let decodes: Array<string> = []
+/** One per {@link Codec.match} call, which is one per directory entry the
+ *  WALK looked at. It is the cheapest true measure of "somebody statted this
+ *  tree" that a codec can take, and it is what the cheap read has to leave at
+ *  zero however many times it is asked. */
+let matches = 0
 /** One entry per {@link Codec.validate} call, naming the set it was asked
  *  about. A codec whose validation is expensive — and the one this repo has
  *  builds a view of the whole corpus — makes "how many times per write" a
@@ -74,6 +79,7 @@ const NOT_READ = "(not read)"
 
 const codec: Codec<string, Loaded, ReadonlyArray<string>> = {
   match: (path) => {
+    matches += 1
     const during = whileListing
     whileListing = null
     during?.()
@@ -138,6 +144,10 @@ interface Fixture {
   /** Everything under the root, root-relative — so a test can say the gate
    *  left no staged temp files behind. */
   readonly listing: () => ReadonlyArray<string>
+  /** The absolute path of one served file — for the tests that have to move a
+   *  file the way something outside this process would, by renaming another
+   *  file over it. */
+  readonly at: (file: string) => string
   /** Poll until the snapshot satisfies `holds`, or fail saying what it held
    *  instead. Nothing else in here waits on a duration: a test that sleeps for
    *  as long as it guesses an update takes is a test that is flaky on a loaded
@@ -163,6 +173,7 @@ const withStore = <A>(
   decodes = []
   validations = []
   offered = []
+  matches = 0
   whileDecoding = null
   whileListing = null
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-store-"))
@@ -184,6 +195,7 @@ const withStore = <A>(
       store,
       root,
       write,
+      at: (file) => path.join(root, file),
       remove: (file) => fs.rmSync(path.join(root, file)),
       read: (file) => {
         const at = path.join(root, file)
@@ -198,7 +210,7 @@ const withStore = <A>(
               .join("/")
           )
           .sort(),
-      settled: (holds) => until(store.snapshot, holds, "the snapshot never settled"),
+      settled: (holds) => until(snapshotOf(store), holds, "the snapshot never settled"),
     })
   }).pipe(
     Effect.scoped,
@@ -210,31 +222,39 @@ const withStore = <A>(
 }
 
 /**
- * Poll one ref until it says what a test is waiting for, or die saying what it
- * said instead.
+ * Poll one ASKING until it says what a test is waiting for, or die saying what
+ * it said instead.
  *
- * ONE poller for both channels. Nothing in here waits on a duration: a test
- * that sleeps for as long as it guesses an update takes is flaky on a loaded
- * runner and slow everywhere else — and a second copy of that budget is one
- * place to tune it and another to leave stale.
+ * ONE poller for both channels. It takes the read rather than the ref because
+ * the set is not a ref any more — it is a door with a freshness class on it
+ * ({@link Store.read}) — and the errors channel still is; an `Effect<A>` is
+ * what both of those are once asked, so one poller still covers both.
+ *
+ * Nothing in here waits on a duration: a test that sleeps for as long as it
+ * guesses an update takes is flaky on a loaded runner and slow everywhere else
+ * — and a second copy of that budget is one place to tune it and another to
+ * leave stale.
  */
 const until = <A>(
-  ref: SubscriptionRef.SubscriptionRef<A>,
+  asking: Effect.Effect<A>,
   holds: (value: A) => boolean,
   never: string,
 ): Effect.Effect<A> =>
   Effect.gen(function*() {
     for (let attempt = 0; attempt < 200; attempt++) {
-      const value = yield* SubscriptionRef.get(ref)
+      const value = yield* asking
       if (holds(value)) return value
       yield* Effect.sleep("25 millis")
     }
-    const stuck = yield* SubscriptionRef.get(ref)
+    const stuck = yield* asking
     return yield* Effect.die(new Error(`${never}; it is ${JSON.stringify(stuck)}`))
   })
 
+/** The set, off the cheap class — which is what almost every test here is
+ *  asking for: "what is the store serving", with no claim about the disk. The
+ *  vintage tests below are the ones that read the other half of the answer. */
 const snapshotOf = (store: Store.Store<Loaded, ReadonlyArray<string>>) =>
-  SubscriptionRef.get(store.snapshot)
+  Effect.map(store.read("cheap"), (aged) => aged.snapshot)
 
 const errorsOf = (store: Store.Store<Loaded, ReadonlyArray<string>>) =>
   SubscriptionRef.get(store.errors)
@@ -242,7 +262,11 @@ const errorsOf = (store: Store.Store<Loaded, ReadonlyArray<string>>) =>
 /** Poll until something is on the errors channel — for the failures nobody
  *  asked for, which arrive on the backstop's own fiber. */
 const settledErrors = (store: Store.Store<Loaded, ReadonlyArray<string>>) =>
-  until(store.errors, (errors) => errors !== null, "nothing reached the errors channel")
+  until(
+    SubscriptionRef.get(store.errors),
+    (errors) => errors !== null,
+    "nothing reached the errors channel",
+  )
 
 // ── boot ───────────────────────────────────────────────────────────────
 
@@ -293,7 +317,7 @@ test("a file that will not open is a hole when the codec absorbs it", () => {
           // chmod does not change size; a same-second stamp miss would skip
           // the read. resync forgets stamps, which is the look the e2e
           // harness's POST /olai/resync is.
-          yield* store.resync
+          yield* store.refresh("verified")
           const snapshot = yield* snapshotOf(store)
           expect(snapshot?.value.broken).toEqual(["locked.txt"])
           expect(snapshot?.value.text).toEqual({ "a.txt": "alpha" })
@@ -327,8 +351,8 @@ test("a probe that finds nothing changed publishes nothing", () =>
   withStore({ "a.txt": "alpha" }, ({ store }) =>
     Effect.gen(function*() {
       decodes = []
-      yield* store.refresh
-      yield* store.refresh
+      yield* store.refresh("cheap")
+      yield* store.refresh("cheap")
       expect(decodes).toEqual([])
       expect((yield* snapshotOf(store))?.rev).toBe(1)
     })))
@@ -338,7 +362,7 @@ test("only the file whose stamp moved is read again", () =>
     Effect.gen(function*() {
       decodes = []
       write("b.txt", "beta, revised")
-      yield* store.refresh
+      yield* store.refresh("cheap")
 
       expect(decodes).toEqual(["b.txt"])
       const snapshot = yield* snapshotOf(store)
@@ -374,7 +398,7 @@ test("a file that is not read still MOVES like every other file", () =>
     Effect.gen(function*() {
       decodes = []
       write("big.blob", "after — a different length, so the stamp moved")
-      yield* store.refresh
+      yield* store.refresh("cheap")
 
       // Named as changed, so a consumer that publishes per file hears about it
       // — which is what lets a reader with the page open be handed the new
@@ -459,7 +483,7 @@ test("a file that appears is picked up", () =>
   withStore({ "a.txt": "alpha" }, ({ store, write }) =>
     Effect.gen(function*() {
       write("sub/new.txt", "arrived")
-      yield* store.refresh
+      yield* store.refresh("cheap")
       expect((yield* snapshotOf(store))?.value.text).toEqual({
         "a.txt": "alpha",
         "sub/new.txt": "arrived",
@@ -472,7 +496,7 @@ test("a file that is deleted leaves the set", () =>
   withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store, remove }) =>
     Effect.gen(function*() {
       remove("b.txt")
-      yield* store.refresh
+      yield* store.refresh("cheap")
       const snapshot = yield* snapshotOf(store)
       expect(snapshot?.rev).toBe(2)
       expect(snapshot?.value.text).toEqual({ "a.txt": "alpha" })
@@ -484,7 +508,7 @@ test("a deletion something referenced holds the last good set", () =>
   withStore({ "a.txt": "needs b", "b.txt": "beta" }, ({ store, remove }) =>
     Effect.gen(function*() {
       remove("b.txt")
-      yield* store.refresh
+      yield* store.refresh("cheap")
 
       const snapshot = yield* snapshotOf(store)
       expect(snapshot?.rev).toBe(1)
@@ -509,11 +533,11 @@ test("a revision names the file that moved and nothing else", () =>
   withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store, write, remove }) =>
     Effect.gen(function*() {
       write("b.txt", "beta, revised")
-      yield* store.refresh
+      yield* store.refresh("cheap")
       expect((yield* snapshotOf(store))?.changed).toEqual(["b.txt"])
 
       remove("b.txt")
-      yield* store.refresh
+      yield* store.refresh("cheap")
       const gone = yield* snapshotOf(store)
       expect(gone?.changed).toEqual([])
       expect(gone?.removed).toEqual(["b.txt"])
@@ -529,11 +553,11 @@ test("what a refused probe found is still owed to the next revision", () =>
     Effect.gen(function*() {
       write("a.txt", "alpha, revised")
       write("b.txt", "needs missing")
-      yield* store.refresh
+      yield* store.refresh("cheap")
       expect((yield* snapshotOf(store))?.rev).toBe(1)
 
       write("b.txt", "beta again")
-      yield* store.refresh
+      yield* store.refresh("cheap")
       const snapshot = yield* snapshotOf(store)
       expect(snapshot?.rev).toBe(2)
       expect([...(snapshot?.changed ?? [])].sort()).toEqual(["a.txt", "b.txt"])
@@ -547,12 +571,12 @@ test("a file edited and then deleted is removed, not changed", () =>
     Effect.gen(function*() {
       write("a.txt", "needs missing")
       write("b.txt", "beta, revised")
-      yield* store.refresh
+      yield* store.refresh("cheap")
       expect((yield* snapshotOf(store))?.rev).toBe(1)
 
       write("a.txt", "alpha again")
       remove("b.txt")
-      yield* store.refresh
+      yield* store.refresh("cheap")
       const snapshot = yield* snapshotOf(store)
       expect(snapshot?.changed).toEqual(["a.txt"])
       expect(snapshot?.removed).toEqual(["b.txt"])
@@ -578,7 +602,7 @@ test("a file the codec renders around is published, not held", () =>
   withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store, write }) =>
     Effect.gen(function*() {
       write("b.txt", "!broken")
-      yield* store.refresh
+      yield* store.refresh("cheap")
 
       const snapshot = yield* snapshotOf(store)
       expect(snapshot?.rev).toBe(2)
@@ -594,7 +618,7 @@ test("a set the codec refuses leaves the last good snapshot where it is", () =>
   withStore({ "a.txt": "alpha" }, ({ store, write }) =>
     Effect.gen(function*() {
       write("a.txt", "needs missing")
-      yield* store.refresh
+      yield* store.refresh("cheap")
 
       const snapshot = yield* snapshotOf(store)
       expect(snapshot?.rev).toBe(1)
@@ -608,11 +632,11 @@ test("fixing what was refused publishes again and clears the errors", () =>
   withStore({ "a.txt": "alpha" }, ({ store, write }) =>
     Effect.gen(function*() {
       write("a.txt", "needs missing")
-      yield* store.refresh
+      yield* store.refresh("cheap")
       expect(yield* errorsOf(store)).not.toBeNull()
 
       write("a.txt", "alpha again")
-      yield* store.refresh
+      yield* store.refresh("cheap")
 
       const snapshot = yield* snapshotOf(store)
       expect(snapshot?.rev).toBe(2)
@@ -668,7 +692,7 @@ test("a directory that stays unreadable is said once, not on every probe", () =>
 
         // Ten more looks at the same missing directory — the backstop's, and
         // the ones a caller asks for.
-        for (let probe = 0; probe < 5; probe++) yield* Effect.ignore(store.refresh)
+        for (let probe = 0; probe < 5; probe++) yield* Effect.ignore(store.refresh("cheap"))
         yield* Effect.sleep("120 millis")
 
         expect(yield* errorsOf(store)).toBe(first)
@@ -689,7 +713,7 @@ test("a directory that comes back clears what was said about it", () =>
         expect(yield* settledErrors(store)).not.toBeNull()
 
         write("a.txt", "alpha again")
-        yield* store.refresh
+        yield* store.refresh("cheap")
 
         expect(yield* errorsOf(store)).toBeNull()
         expect((yield* snapshotOf(store))?.value.text).toEqual({ "a.txt": "alpha again" })
@@ -839,10 +863,14 @@ test("a commit that changes no length in the same second still publishes", () =>
       expect(after?.rev).toBe((before?.rev ?? 0) + 1)
     })))
 
-// The accepted trade for an OUTSIDE rewrite: refresh still uses stamps, so
-// a same-length put-back with the original mtime is invisible. resync forgets
-// the stamps first — that is the whole of the method.
-test("PIN (resync): a same-length rewrite refresh misses, and resync publishes", () =>
+// The accepted trade for an OUTSIDE rewrite, and the reason there are two
+// classes of look rather than one: the cheap look is the loop's, and the loop
+// is entitled not to notice a same-length put-back that restores the original
+// mtime. The verified class is where a caller says it cannot take that trade —
+// and what the store does about it (forget the stamps, re-read) is inside, so
+// the arithmetic in this comment is a fact about the fixture rather than
+// something a caller has to know.
+test("PIN (two classes): a same-length rewrite the cheap look misses, the verified publishes", () =>
   withStore({ "a.txt": "alpha" }, ({ store, write, root }) =>
     Effect.gen(function*() {
       const before = yield* snapshotOf(store)
@@ -851,14 +879,76 @@ test("PIN (resync): a same-length rewrite refresh misses, and resync publishes",
       const stamp = fs.statSync(file)
       write("a.txt", "ALPHA")
       fs.utimesSync(file, stamp.atime, stamp.mtime)
-      yield* store.refresh
+      yield* store.refresh("cheap")
       const missed = yield* snapshotOf(store)
       expect(missed?.value.text["a.txt"]).toBe("alpha")
       expect(missed?.rev).toBe(before?.rev)
-      yield* store.resync
+      yield* store.refresh("verified")
       const after = yield* snapshotOf(store)
       expect(after?.value.text["a.txt"]).toBe("ALPHA")
       expect(after?.rev).toBe((before?.rev ?? 0) + 1)
+    })))
+
+/**
+ * WHAT `Confirmed` IS WORTH — the same fixture, asked of the READ, and the
+ * answer is the opposite one.
+ *
+ * The pin above is about the LOOK, and the look is the verb that does not take
+ * the stamp trade: `refresh("verified")` forgets the table and re-reads, so it
+ * publishes the new bytes. The READ does take it. `Vintage.check` walks and
+ * stats and never opens a file, and `sameStamp` is mtime-and-size — so over a
+ * same-length rewrite that put the original mtime back, `read("verified")`
+ * answers `Confirmed` **over the old bytes**, and every surface that renders
+ * that proof says the set is one to act on.
+ *
+ * THAT IS THE BOUND, AND IT IS HELD HERE RATHER THAN IN A PARAGRAPH. The module
+ * header states it ({@link ./vintage.ts}); `resync`'s folklore was stated in a
+ * paragraph too, and the reason it survived four years is that nothing failed
+ * when the sentence stopped being true. This fails.
+ *
+ * IT IS NOT THE LIE THE RED LINE IS ABOUT, and the difference is worth being
+ * exact about. A fresh-looking answer from a WEDGED LOOP is a claim the store
+ * could have checked and did not — that one is now unspellable, and the
+ * rebase-shape pin is where. This is the resolution of the instrument itself:
+ * the loop misses this rewrite too (the pin above), every consumer of this
+ * package has taken that trade since 2026-08-09, and no walk-and-stat can do
+ * better without opening every file on every question. A check cannot be
+ * stronger than what it looked at.
+ *
+ * WHAT IT COSTS IN THE WORLD is the last line of the argument. The shapes that
+ * produce it are a same-length rewrite inside one mtime second and a deliberate
+ * `utimes` restore; every ordinary writer — a `git` checkout or rebase, an
+ * editor, this package's own gate — renames over or moves the size or the
+ * clock, and is caught. The one real producer of the invisible shape is a
+ * harness putting a fixture back under a live server, and that is the caller
+ * that knocks on `POST /olai/resync`, which takes the LOOK.
+ */
+test("PIN (what Confirmed is worth): the read's look is a stamp check, and says so", () =>
+  withStore({ "a.txt": "alpha" }, ({ store, write, root }) =>
+    Effect.gen(function*() {
+      const file = path.join(root, "a.txt")
+      const stamp = fs.statSync(file)
+      // Five characters for five, and the clock put back: nothing a stat can
+      // see has changed about this file.
+      write("a.txt", "ALPHA")
+      fs.utimesSync(file, stamp.atime, stamp.mtime)
+
+      const checked = yield* store.read("verified")
+      // A LOOK WAS TAKEN, on the asker's fiber, and it agreed — because what it
+      // compares agrees.
+      expect(checked.vintage.proof).toEqual({ _tag: "Confirmed" })
+      expect(checked.vintage.age).toBe(0)
+      // …over bytes that are no longer on the disk. This is the sentence the
+      // module header claims and the one an agent's `stale: false` inherits.
+      expect(checked.snapshot?.value.text["a.txt"]).toBe("alpha")
+
+      // AND THE DOOR THAT DOES NOT TAKE THE TRADE IS ONE LINE AWAY, which is
+      // why the bound is a bound and not a hole: the class that re-reads finds
+      // it immediately, and a caller who cannot take the trade has somewhere to
+      // go. Asserted here so the two verbs are read against each other rather
+      // than in two files.
+      yield* store.refresh("verified")
+      expect((yield* snapshotOf(store))?.value.text["a.txt"]).toBe("ALPHA")
     })))
 
 // ── one write, one verdict ─────────────────────────────────────────────
@@ -996,7 +1086,7 @@ test("a validation is offered the last verdict, and what has moved since it", ()
       const first = yield* snapshotOf(store)
 
       write("b.txt", "beta")
-      yield* store.refresh
+      yield* store.refresh("cheap")
 
       const since = offered.at(-1)
       // IDENTITY: the very value on the published snapshot, so a codec may
@@ -1034,9 +1124,9 @@ test("what moved while a verdict was refused is still owed to the next one", () 
       // snapshot stays where it is, so `b.txt` has still not been accounted for
       // to anybody holding it.
       write("b.txt", "needs nowhere")
-      yield* store.refresh
+      yield* store.refresh("cheap")
       write("c.txt", "gamma")
-      yield* store.refresh
+      yield* store.refresh("cheap")
 
       const since = offered.at(-1)
       expect(since?.value).toBe(first?.value as Loaded)
@@ -1179,3 +1269,325 @@ test("two writers on one revision: one commits, the other retries", () =>
       expect(text.includes("second")).toBe(true)
       expect((yield* snapshotOf(store))?.rev).toBe(base + 2)
     })))
+
+// ── the vintage: no read without an age ────────────────────────────────
+//
+// The 2026-08-25 incident, in one paragraph, because every case below is a
+// piece of it: a `git rebase` replaced the served files, the watcher missed
+// it, and the running server answered every read normally with week-old truth
+// for thirty minutes. Nothing was invalid, so nothing reached the errors
+// channel — correctly. What no cell anywhere carried was HOW CURRENT the
+// answer was, and the loop's own arrangement is why: a probe whose listing is
+// identical to the last one publishes nothing, so a loop that has stopped
+// looking and a loop that keeps looking and keeps agreeing are the same
+// silence from outside.
+//
+// The fix is two facts and both are pinned below. A settled probe RECORDS that
+// it agreed, which is what makes a stopped loop's age grow visibly; and a
+// caller that needs more than the loop's word can ask for a look taken on its
+// own fiber, outside the permit the loop holds, whose disagreement it cannot
+// suppress.
+
+test("every read carries an age, and a boot's is the look that just happened", () =>
+  withStore({ "a.txt": "alpha" }, ({ store }) =>
+    Effect.gen(function*() {
+      const aged = yield* store.read("cheap")
+      expect(aged.snapshot?.rev).toBe(1)
+      // The boot probe published a moment ago, so the age is small — and it is
+      // `Held`, because nobody has looked since. `Held` is not "fresh": it is
+      // "on the loop's word, which was earned this long ago".
+      expect(aged.vintage.proof).toEqual({ _tag: "Held" })
+      expect(aged.vintage.age).toBeLessThan(5_000)
+      expect(aged.vintage.at).toBeGreaterThan(0)
+    })))
+
+test("a directory that never loaded still has an age", () =>
+  withStore({ "a.txt": "needs missing" }, ({ store }) =>
+    Effect.gen(function*() {
+      // The codec refuses this set, so there is no snapshot at all — and the
+      // vintage is still there, which is the point: "how old is what you are
+      // serving" has an answer even when the answer to "what are you serving"
+      // is nothing.
+      const aged = yield* store.read("cheap")
+      expect(aged.snapshot).toBeNull()
+      expect(aged.vintage.proof._tag).toBe("Held")
+      expect(yield* errorsOf(store)).not.toBeNull()
+    })))
+
+// THE MECHANISM, pinned on its own: a probe that finds the same tree publishes
+// nothing — and that is now distinguishable from a probe that never ran.
+//
+// Before the vintage this was one silence. `rev` stayed at 1 either way, the
+// errors channel stayed null either way, and there was no third thing to read.
+test("a settled probe publishes no revision and still proves the set", () =>
+  withStore({ "a.txt": "alpha" }, ({ store }) =>
+    Effect.gen(function*() {
+      const before = yield* store.read("cheap")
+      yield* Effect.sleep("40 millis")
+      // The loop has not looked in that window, and the age says so. A LOWER
+      // bound, never an upper one: sleeping longer only makes this truer, so
+      // there is no duration here for a loaded runner to make flaky.
+      const aging = yield* store.read("cheap")
+      expect(aging.vintage.age).toBeGreaterThanOrEqual(30)
+
+      decodes = []
+      validations = []
+      yield* store.refresh("cheap")
+
+      // Nothing was published: no revision, no re-decode, no validation — the
+      // settled-`null` short circuit, exactly as it was.
+      const after = yield* store.read("cheap")
+      expect(after.snapshot?.rev).toBe(before.snapshot?.rev)
+      expect(decodes).toEqual([])
+      expect(validations).toEqual([])
+      // And the one thing that IS different: the loop looked and agreed, so
+      // the age it had accumulated is gone.
+      expect(after.vintage.age).toBeLessThan(aging.vintage.age)
+      expect(after.vintage.at).toBeGreaterThan(before.vintage.at)
+    })))
+
+/**
+ * THE INCIDENT'S OWN SHAPE — files replaced by a rename, no watcher event, no
+ * probe — and the differential the debate asked for.
+ *
+ * WHAT WAS RED HERE. Before this change the only door to the set was a ref
+ * holding the last good snapshot, so this test could assert exactly one thing:
+ * the read answers `"alpha"`. Which it still does, deliberately — a last good
+ * set under a banner beats a blank page, and that rule is not what was wrong.
+ * What was wrong is that there was nothing else to assert. Every line below
+ * about the vintage is a line that could not have been written, and the
+ * thirty-minute diagnosis of 2026-08-25 is what "could not have been written"
+ * cost.
+ */
+test("PIN (the rebase shape): the disk moves under a loop that is not looking", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store, at, write }) =>
+    Effect.gen(function*() {
+      expect((yield* store.read("cheap")).snapshot?.value.text["a.txt"]).toBe("alpha")
+
+      // A REPLACEMENT, not an edit: bytes staged beside the destination and
+      // renamed over it, which is what `git rebase`, `git checkout` and this
+      // package's own write gate all do. The watcher is off, so no event
+      // reaches the loop, and nothing below asks it to probe.
+      write(".incoming", "alpha, as the rebase left it")
+      fs.renameSync(at(".incoming"), at("a.txt"))
+      yield* Effect.sleep("40 millis")
+
+      decodes = []
+      validations = []
+      matches = 0
+
+      // THE CHEAP CLASS still answers the set it is serving — and its age is
+      // now the whole story: nothing has proved this set since before the
+      // rename, and the number grows for as long as that stays true.
+      const cheap = yield* store.read("cheap")
+      expect(cheap.snapshot?.value.text["a.txt"]).toBe("alpha")
+      expect(cheap.vintage.proof).toEqual({ _tag: "Held" })
+      expect(cheap.vintage.age).toBeGreaterThanOrEqual(30)
+      // It cost nothing to say so: no walk, no stat, no read.
+      expect(matches).toBe(0)
+
+      // THE VERIFIED CLASS looks, on this fiber, and names the file.
+      const checked = yield* store.read("verified")
+      expect(checked.vintage.proof).toEqual({ _tag: "Diverged", paths: ["a.txt"] })
+      // The set still comes back — the divergence is a fact ABOUT the answer,
+      // not a refusal to give one — and it is still the old one, because this
+      // door does not publish.
+      expect(checked.snapshot?.value.text["a.txt"]).toBe("alpha")
+      expect(checked.snapshot?.rev).toBe(cheap.snapshot?.rev)
+      // Its age is the standing one, not zero: a look that DISAGREED proves
+      // nothing about how current the answer is.
+      expect(checked.vintage.age).toBeGreaterThanOrEqual(30)
+
+      // WITHOUT THE CYCLE. No file was re-decoded, no set was validated, and
+      // nothing reached the errors channel: the divergence was found by a walk
+      // of the tree and a comparison, and the publish loop was not involved in
+      // any part of it.
+      expect(decodes).toEqual([])
+      expect(validations).toEqual([])
+      expect(yield* errorsOf(store)).toBeNull()
+
+      // AND IT CONSUMED NOTHING. The stamp table is the loop's; a read that
+      // quietly re-cached what it saw would have swallowed this change, and
+      // the next look would have found a tree it had already been told about.
+      yield* store.refresh("cheap")
+      const published = yield* store.read("verified")
+      expect(published.snapshot?.value.text["a.txt"]).toBe("alpha, as the rebase left it")
+      expect(published.snapshot?.rev).toBe(2)
+      expect(published.vintage.proof).toEqual({ _tag: "Confirmed" })
+      expect(published.vintage.age).toBe(0)
+    })))
+
+test("a set the codec refused goes on ageing, because nothing proved it", () =>
+  withStore({ "a.txt": "alpha" }, ({ store, write }) =>
+    Effect.gen(function*() {
+      const good = yield* store.read("cheap")
+      expect(good.snapshot?.rev).toBe(1)
+
+      // A set the codec will not take. The last good snapshot stays where it
+      // is and the refusal is published beside it — and the AGE is the third
+      // fact: this revision has not been the disk's truth since the write.
+      write("a.txt", "needs missing")
+      yield* store.refresh("cheap")
+      expect(yield* errorsOf(store)).not.toBeNull()
+
+      const refused = yield* store.read("verified")
+      expect(refused.snapshot?.rev).toBe(1)
+      // The look measures the disk against the stamps THIS revision was read
+      // at — not against the probe's live table, which has already moved on to
+      // the file it refused. Compared with the live table this would read
+      // `Confirmed`, which is the fresh-looking lie by another road.
+      expect(refused.vintage.proof).toEqual({ _tag: "Diverged", paths: ["a.txt"] })
+    })))
+
+test("a look that cannot be taken is an answer, not a failure", () =>
+  withStore({ "a.txt": "alpha" }, ({ store, root }) =>
+    Effect.gen(function*() {
+      fs.rmSync(root, { recursive: true, force: true })
+      const aged = yield* store.read("verified")
+      // The store is still serving what it last loaded, and the vintage says
+      // nobody could check it and why. No exception for a caller to re-word,
+      // and no pretence that the set was confirmed.
+      expect(aged.snapshot?.value.text["a.txt"]).toBe("alpha")
+      expect(aged.vintage.proof._tag).toBe("Unchecked")
+      expect(
+        (aged.vintage.proof as { readonly why: string }).why,
+      ).toContain("cannot read the served directory")
+      // Recreated so the fixture's own teardown has something to remove, and
+      // so the loop's next backstop does not race the assertions above.
+      fs.mkdirSync(root, { recursive: true })
+    })))
+
+// ── what a class costs ─────────────────────────────────────────────────
+//
+// The whole reason the caller states a CLASS and not a means: the thing that
+// asks sixty times a second must not pay for the thing an agent asks once.
+
+test("PIN (cost): the cheap class walks nothing, however often it is asked", () =>
+  withStore({ "a.txt": "alpha", "sub/b.txt": "beta" }, ({ store }) =>
+    Effect.gen(function*() {
+      matches = 0
+      decodes = []
+      validations = []
+      for (let redraw = 0; redraw < 60; redraw++) yield* store.read("cheap")
+      // Sixty reads, and not one entry of the tree looked at: no listing, no
+      // stat, no open. A redraw asking how old its data is costs the redraw
+      // nothing new, which is what makes an age on every read affordable.
+      expect(matches).toBe(0)
+      expect(decodes).toEqual([])
+      expect(validations).toEqual([])
+
+      // ONE verified read is ONE walk — the two files this fixture has, each
+      // asked about once (the codec is asked about files, not the directory
+      // between them) — and still no decode and no validation: it looks at
+      // stamps, and re-reading a file is the loop's job.
+      const walked = matches
+      yield* store.read("verified")
+      expect(matches - walked).toBe(2)
+      expect(decodes).toEqual([])
+      expect(validations).toEqual([])
+    })))
+
+// ── the red line, held by what is reachable ────────────────────────────
+
+/**
+ * THE VERIFICATION CANNOT TAKE THE PUBLISH FIBER'S PERMIT, and this is the
+ * structural half of saying so — the behavioural half is the rebase-shape case
+ * above, which finds a divergence with no cycle having run.
+ *
+ * `vintage.ts` is handed a disk, a `match` and a standing record. There is no
+ * store in its scope, so there is no semaphore in its scope, and no future
+ * edit to that file can quietly start waiting on the loop. The store's own
+ * side is the read door, which is swept as a REGION rather than as a count:
+ * three permits is what this file should have, and none of them may be inside
+ * the answer to a read.
+ *
+ * Comments are stripped first, because these are claims about code — the
+ * paragraph you are reading is allowed to say `withPermit`.
+ */
+test("PIN (sweep): the verification path cannot reach the loop's permit", () => {
+  // The same stripper `packages/web/src/client/claims.test.ts` and
+  // `@olai/tests`' `support/sweep.ts` carry, and duplicated for their reason: a
+  // sweep that had to import across a package wall would be a dependency taken
+  // on for a test.
+  const codeOf = (file: string): string =>
+    fs
+      .readFileSync(path.join(import.meta.dirname, file), "utf8")
+      .replace(/\/\*[\s\S]*?\*\/|(^|\s)\/\/[^\n]*/g, (_taken, lead) => lead ?? "")
+
+  const vintage = codeOf("vintage.ts")
+  for (const spelling of ["Semaphore", "withPermit", "gate"]) {
+    expect(vintage).not.toContain(spelling)
+  }
+
+  const store = codeOf("store.ts")
+  // Three, and they are the three publishing doors: the loop's cycle, the
+  // verified look, and the write gate. A fourth is a new permit-taker and
+  // wants reading.
+  expect([...store.matchAll(/gate\.withPermit\(/g)].length).toBe(3)
+
+  // …and the read door holds none of them. Sliced between two anchors this
+  // file owns, so what is swept is the answer to a read and nothing else.
+  const from = store.indexOf("const read = (freshness")
+  const to = store.indexOf("const reads =")
+  expect(from).toBeGreaterThan(-1)
+  expect(to).toBeGreaterThan(from)
+  const answering = store.slice(from, to)
+  expect(answering).not.toContain("withPermit")
+  expect(answering).not.toContain("gate")
+})
+
+/**
+ * NO SUCCESSFUL READ WITHOUT A VINTAGE — the type-level half, which is the
+ * only place it can be said.
+ *
+ * The debate's red line is not "callers should look at the age". It is that a
+ * caller CANNOT obtain the set without being handed the age beside it, and
+ * that is a claim about what compiles. The lines below are the whole of the
+ * old surface: a naked ref of snapshots, and a second look-verb whose
+ * difference from the first was stamp arithmetic in a doc comment. Both are
+ * gone, and `@ts-expect-error` fails the build if either comes back — which is
+ * also what rules out the other way this goes wrong, an `any` swallowing the
+ * annotation and leaving the directive unused.
+ *
+ * EACH REFUSED LINE IS OTHERWISE VALID. A line that would fail for some second
+ * reason proves nothing about the first, so the two calls below name arguments
+ * their doors would take if they existed at all.
+ *
+ * Nothing here runs a store: what is under test is the FACE, and a value of
+ * that type is all a face can be asked about. The array is what it is so the
+ * compiler cannot dismiss any line as dead.
+ */
+test("PIN (type): there is no door to the set that does not carry its age", () => {
+  const doors = (
+    store: Store.Store<Loaded, ReadonlyArray<string>>,
+    answer: Store.Aged<Loaded>,
+  ) => [
+    // The two doors there are, and both of them hand over the pair.
+    store.read("cheap"),
+    store.read("verified"),
+    store.reads,
+    answer.vintage.age,
+    answer.vintage.proof._tag,
+    answer.snapshot?.rev,
+    // @ts-expect-error — the naked ref of snapshots is gone. It was the door a
+    // consumer could take the set through while learning nothing about how old
+    // it was, which is the whole of what went wrong on 2026-08-25.
+    store.snapshot,
+    // @ts-expect-error — and so is the second look-verb. `resync` differed from
+    // `refresh` by mtime-and-size arithmetic a caller had to read a doc comment
+    // to choose between; the class says what you need, and the store decides
+    // what that costs.
+    store.resync,
+    // @ts-expect-error — a read that states no class does not compile. The
+    // class is the one thing the caller owes, and defaulting it would make one
+    // of the two the quiet answer to a question nobody was asked.
+    store.read(),
+    // @ts-expect-error — nor does a look that states none.
+    store.refresh(),
+    // @ts-expect-error — and the answer is not the set. The revision is inside
+    // it, beside the age, and there is no shape of this that hands over one
+    // without the other.
+    answer.rev,
+  ]
+  expect(typeof doors).toBe("function")
+})

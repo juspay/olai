@@ -15,22 +15,24 @@
  */
 
 import {
+  admits,
   assemble,
   bodiedDocument,
   bodyKind,
   type Document,
   fileKind,
   nodesIn,
-  type OutlineError,
   parseOutline,
   type Reading,
   unkept,
   validate,
+  type Verdict,
+  verdictOf,
 } from "@olai/format"
 import type { Codec } from "@olai/store"
 import { Result } from "effect"
 
-export const codec: Codec<Document, Reading, ReadonlyArray<OutlineError>> = {
+export const codec: Codec<Document, Reading, Verdict> = {
   match: (path) => fileKind(path) !== null,
 
   /** A file whose content the set does not KEEP decodes to its path and
@@ -60,7 +62,11 @@ export const codec: Codec<Document, Reading, ReadonlyArray<OutlineError>> = {
   decode: (path, contents) =>
     bodyKind(path) !== null
       ? Result.succeed(bodiedDocument(path, contents))
-      : parseOutline(path, contents),
+      // A VERDICT either way, which is what the store's `E` is: the parser
+      // judges one file and `validate` below judges the set, and a caller
+      // handed the two on one channel should not have to know which half
+      // spoke. `verdictOf` is the format's one constructor for it.
+      : Result.mapError(parseOutline(path, contents), verdictOf),
 
   /** Failures included: whether an unreadable file is a hole the rest of the
    *  set renders around or a reason to hold the last good snapshot is a
@@ -111,21 +117,43 @@ export const codec: Codec<Document, Reading, ReadonlyArray<OutlineError>> = {
    *  not be read — said in the format's vocabulary, so it travels the channel
    *  a validation error travels and lands under the same banner. Its `line` is
    *  0 because there is no record to point at: the site is the path itself. */
-  unreadable: (failure) => [{
-    file: failure.path,
-    line: 0,
-    code: "unreadable-directory",
-    message:
-      `${failure.message} — the outline below is the last one that loaded, and it will catch up on its own once the directory can be read again.`,
-  }],
+  unreadable: (failure) =>
+    verdictOf([{
+      file: failure.path,
+      line: 0,
+      code: "unreadable-directory",
+      message:
+        `${failure.message} — the outline below is the last one that loaded, and it will catch up on its own once the directory can be read again.`,
+    }]),
 
   /** A kept file that will not open is a hole, not a banner. The probe
    *  absorbs it; {@link assemble} keeps the file's place; the wire's
    *  `DocumentEntry.refused` is what a face draws. */
-  unread: (failure) => Result.fail([{
-    file: failure.path,
-    line: 0,
-    code: "unreadable-file" as const,
-    message: `${failure.message} — this file is in the directory and will not open.`,
-  }]),
+  unread: (failure) =>
+    Result.fail(verdictOf([{
+      file: failure.path,
+      line: 0,
+      code: "unreadable-file" as const,
+      message: `${failure.message} — this file is in the directory and will not open.`,
+    }])),
+
+  /**
+   * IS THE REFUSAL ABOUT THESE FILES? — the write gate's question, asked of the
+   * verdict `validate` above just handed back ({@link @olai/format}'s `admits`).
+   *
+   * This is the whole of `broken-file-blocks-healthy-writes`. The store judged
+   * the set, because a set is what a codec judges; whether the judgement has
+   * anything to do with the files a commit is putting down is a different
+   * question, and until the verdict had a shape there was nowhere to ask it —
+   * so one outline failing typed validation refused an `add_node` into a
+   * perfectly healthy file three directories away, and refused it with a
+   * sentence that named nothing.
+   *
+   * NO RULE IS SPELLED HERE, which is this file's standing promise: `admits` is
+   * the format's, the paths are the store's, and this line is the two of them
+   * meeting. The refusal still stands — the set is still invalid, the last good
+   * snapshot still stands, the banner still says so — and the bytes land beside
+   * it, which is exactly what a READ of the same directory already gets.
+   */
+  admits: (refusal, paths) => admits(refusal, paths)._tag === "admitted",
 }

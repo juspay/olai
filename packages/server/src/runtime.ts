@@ -80,19 +80,20 @@ import {
   NO_INBOX,
   NO_PINS,
   NOTHING_PENDING,
+  NOTHING_WRONG,
   pinsIn,
   sameDated,
   sameMoving,
-  sameOwed,
   sameNarrowing,
+  sameOwed,
   samePageReading,
   type Shelf,
   shelfIn,
+  type Verdict,
 } from "@olai/format"
 import { type Ops, type Request, type Status, type Store } from "@olai/ops"
 import type {
   CommitRequest,
-  OutlineError,
   Pending,
   PushResult,
   Writer,
@@ -394,7 +395,7 @@ export const bind = (
     // Seeded empty and filled by `connect`: `SubscriptionRef.changes` delivers
     // the current value before any update, so peeking at the ref here as well
     // would be the same read twice with a window between them.
-    const errors = inMemoryStore<ReadonlyArray<OutlineError>>([])
+    const errors = inMemoryStore<Verdict>(NOTHING_WRONG)
     const chat = wiring.chat
     /** This runtime's own log line, for the one place below that reports from
      *  outside an Effect — a stream's re-read, which the framework calls on a
@@ -681,6 +682,20 @@ export const bind = (
       say: (line) => say(Effect.logDebug(line)),
     })
 
+    /**
+     * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
+     * pair: the set, and how old it is (`@olai/store`'s `Aged`). These take
+     * the first and drop the second, which is right and is not the leak it
+     * looks like — a frame HERE is a publish, so its age is nothing, and there
+     * is nothing yet on this wire for a currency axis to be drawn on.
+     *
+     * The question a vintage answers is the one a frame cannot: not "how old
+     * was this when it arrived" but "how old is what I am still looking at",
+     * which is asked by whoever is holding it and is asked through
+     * `Store.read`. The agent's face asks it on every read (`./mcp/tools.ts`);
+     * the browser's does not ask it yet, and the day it does the answer is a
+     * member of its own rather than a field smuggled onto one of these.
+     */
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
       cells: {
         errors: {
@@ -688,7 +703,7 @@ export const bind = (
           connect: (cell) =>
             Stream.runForEach(
               SubscriptionRef.changes(wiring.store.errors),
-              (next) => Effect.sync(() => cell.set(next ?? [])),
+              (next) => Effect.sync(() => cell.set(next ?? NOTHING_WRONG)),
             ),
         },
         chat: {
@@ -734,7 +749,7 @@ export const bind = (
               pendingCell = cell
               yield* Effect.all([
                 Stream.runForEach(
-                  SubscriptionRef.changes(wiring.store.snapshot),
+                  wiring.store.reads,
                   () => republishGit,
                 ),
                 Stream.runForEach(
@@ -796,8 +811,8 @@ export const bind = (
           store: inMemoryStore<Shelf>(NO_PINS),
           connect: (cell) =>
             Stream.runForEach(
-              SubscriptionRef.changes(wiring.store.snapshot),
-              (snapshot) =>
+              wiring.store.reads,
+              ({ snapshot }) =>
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(NO_PINS)
                   const derived = snapshot.value.derived
@@ -828,8 +843,8 @@ export const bind = (
           store: inMemoryStore<InboxHeld>(NO_INBOX),
           connect: (cell) =>
             Stream.runForEach(
-              SubscriptionRef.changes(wiring.store.snapshot),
-              (snapshot) =>
+              wiring.store.reads,
+              ({ snapshot }) =>
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(NO_INBOX)
                   const { set, derived } = snapshot.value
@@ -866,8 +881,8 @@ export const bind = (
           store: inMemoryStore<Manifest>(null),
           connect: (cell) =>
             Stream.runForEach(
-              SubscriptionRef.changes(wiring.store.snapshot),
-              (snapshot) =>
+              wiring.store.reads,
+              ({ snapshot }) =>
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(null)
                   // THE PROJECTION CONSUMES WHAT IT IS HANDED, so these two

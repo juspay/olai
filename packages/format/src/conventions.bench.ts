@@ -109,7 +109,7 @@ const revised = (files: Corpus, before?: readonly [Corpus, Reading]): Revision =
   )
   if (Result.isFailure(outcome)) {
     throw new Error(
-      `the bench built a set nobody could serve: ${outcome.failure[0]?.message ?? "?"}`,
+      `the bench built a set nobody could serve: ${outcome.failure.findings[0]?.message ?? "?"}`,
     )
   }
   return {

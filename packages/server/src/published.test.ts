@@ -12,9 +12,10 @@
 import {
   assemble,
   type Document,
-  type OutlineError,
   type OutlineSet,
   type Reading,
+  type Verdict,
+  verdictOf,
 } from "@olai/format"
 import { outlineOf, readingOf, recordsOf, setOf } from "@olai/format/testlib"
 import type { Snapshot } from "@olai/store"
@@ -384,11 +385,11 @@ test("a parse-broken document is not refused, and an unreadable one is", () => {
   const unread = publishedOf(
     revision(
       assemble(
-        new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>([
+        new Map<string, Result.Result<Document, Verdict>>([
           ["house.olai", Result.succeed(outlineOf(HOUSE, "house.olai"))],
           [
             "locked.md",
-            Result.fail([
+            Result.fail(verdictOf([
               {
                 file: "locked.md",
                 line: 0,
@@ -396,7 +397,7 @@ test("a parse-broken document is not refused, and an unreadable one is", () => {
                 message:
                   "EACCES — this file is in the directory and will not open.",
               },
-            ]),
+            ])),
           ],
         ]),
       ),

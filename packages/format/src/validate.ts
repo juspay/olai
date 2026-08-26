@@ -57,6 +57,7 @@ import {
 import { type OutlineSet, outlinesIn, withDocuments } from "./set.ts"
 import { shadowed } from "./shadow.ts"
 import { declarationsOf, type Typed } from "./typing.ts"
+import { refusesLoad, type Verdict, verdictOf } from "./verdict.ts"
 
 /**
  * A set, and the view it was JUDGED against.
@@ -125,7 +126,7 @@ export interface Previous {
 export const validate = (
   set: OutlineSet,
   previous?: Previous,
-): Result.Result<Reading, ReadonlyArray<OutlineError>> => {
+): Result.Result<Reading, Verdict> => {
   const errors: Array<OutlineError> = []
   // One set of indexes, built once and shared by every rule below, so no two
   // of them can disagree about which record an id names or what hangs under it
@@ -185,14 +186,23 @@ export const validate = (
     declarations,
   )
 
-  // Any error at all refuses the set, INCLUDING one that was withheld: the
-  // withheld ones are unresolved references, and a snapshot whose nodes point
-  // at ids nobody can resolve is not a set anything could draw. So the report
-  // becomes the parse errors, which is the cause, and the last good snapshot
-  // stays on screen underneath it ({@link ./rules.ts}'s `reportOf` assembles
-  // both halves and puts them in order).
-  return errors.length > 0
-    ? Result.fail(reportOf(set, errors))
+  // WHAT EACH FINDING COSTS A LOAD, one class at a time ({@link ./verdict.ts}'s
+  // tier table) — where this used to read `errors.length > 0` and mean "any
+  // error at all refuses the set". It still means exactly that, and that is the
+  // point: every `set` class is at `refuses` and every `line` class at
+  // `carried`, so the old blanket is the table's DEFAULT rather than the only
+  // sentence this function can say. WHICH classes brick a boot is the human's
+  // ruling (roadmap `verdict-boot-policy`, `#human`), and this is the line it
+  // will be made at.
+  //
+  // ASKED OF THE RAW FINDINGS, INCLUDING one that was withheld: the withheld
+  // ones are unresolved references, and a snapshot whose nodes point at ids
+  // nobody can resolve is not a set anything could draw. What a READER is shown
+  // is the report — the parse errors, which are the cause, the guesses taken
+  // out, the whole thing in order ({@link ./rules.ts}'s `reportOf` assembles
+  // both halves) — and the last good snapshot stays on screen underneath it.
+  return refusesLoad(errors)
+    ? Result.fail(verdictOf(reportOf(set, errors)))
     : Result.succeed({ set, derived, pointing: view.pointing })
 }
 

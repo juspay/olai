@@ -224,11 +224,61 @@ export const serve = (options: ServeOptions) =>
     const panel = clientOver(writerAt(wired.bound, ops, "chat-agent"))
     yield* serveFace({
       client: () => panel,
-      // WHAT THIS FACE KNOWS ABOUT ITSELF: which directory it is serving, so
-      // every answer names the vault it came from, and who the request is, so a
-      // capture through a reverse proxy is attributed to the person the proxy
-      // named — and to nobody when it named nobody.
-      tools: bespokeFrom(TOOLS, { login: currentLogin, root }),
+      /**
+       * WHAT THIS FACE KNOWS ABOUT ITSELF: which directory it is serving, so
+       * every answer names the vault it came from; who the request is, so a
+       * capture through a reverse proxy is attributed to the person the proxy
+       * named — and to nobody when it named nobody; and how current what it
+       * serves is, at the class an agent's tool result deserves.
+       *
+       * THE CLASS IS `verified`, because an agent acts on what it reads: one
+       * walk of the tree per read, taken outside the publish loop's permit, so
+       * a wedged loop shows up as a stale vintage on the answer rather than as
+       * an answer that looks fine.
+       *
+       * AND IT IS THE READ RATHER THAN THE LOOK, which is the one real choice
+       * on this line and was argued on #406. `@olai/store` has two verbs at
+       * that class: `read("verified")` checks the disk against the standing
+       * answer and publishes nothing, and `refresh("verified")` forgets the
+       * stamp table, re-reads every file and publishes what it finds. The
+       * second is strictly stronger about BYTES — it is the only thing that
+       * sees a rewrite which kept the length and put the mtime back — and it
+       * is the wrong verb here, for three reasons that all point the same way:
+       *
+       *   - IT SITS BEHIND THE PERMIT. `refresh` takes the gate, so every
+       *     agent read would wait on whatever the publish loop is doing — and
+       *     a loop wedged behind a held permit would hang the tool calls
+       *     outright. That is the exact condition the vintage exists to make
+       *     legible, and the MCP face is the surface the 2026-08-25 incident
+       *     was finally diagnosed through: a disk-vs-MCP diff of one node.
+       *     Putting the diagnostic door behind the thing being diagnosed is
+       *     the trade nobody would take twice. It would also stand the red
+       *     line on its head — the verification path is the one thing all
+       *     three seats signed must not share `cycle`'s permit.
+       *   - IT PUBLISHES. A forget-and-re-read mints a revision every time,
+       *     because every file comes back stale by construction. An agent
+       *     working through a vault makes tens of reads a minute, and each
+       *     would push a byte-identical frame to every open browser.
+       *   - IT COSTS THE CORPUS. Every read tool call would re-read and
+       *     re-validate every file in the directory. The debate specified the
+       *     cheaper thing on purpose ("an independent stamp check against
+       *     disk, no cycle permit needed"), and the read is that.
+       *
+       * WHAT THE READ THEREFORE CANNOT SAY is pinned rather than promised:
+       * `Confirmed` is exactly as strong as a stamp, and a same-length rewrite
+       * that restored the mtime reads `stale: false` over the old bytes
+       * (`./mcp/tools.test.ts`'s "what `stale: false` is worth", and
+       * `@olai/store`'s sibling pin). The caller who cannot take that trade
+       * has the other verb, one route over: `POST /olai/resync` below is the
+       * look, and it is where the one real-world producer of the invisible
+       * shape — a harness putting a fixture back under a live server — already
+       * knocks.
+       */
+      tools: bespokeFrom(TOOLS, {
+        login: currentLogin,
+        root,
+        vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+      }),
       transport,
     })
 
@@ -251,11 +301,14 @@ export const serve = (options: ServeOptions) =>
         // `POST /olai/resync` — force a re-read of the disk. Waits for
         // in-flight writes first (`ops.idle`): a probe while a `run` is
         // still staging is a look at `.olai-*.tmp`, not at the tree the
-        // next reader will be served. Then the store's own forget-and-probe.
+        // next reader will be served. Then the store's one look verb, at the
+        // class this door exists for: `verified` is "a look nobody may be
+        // entitled to see nothing from", and what it costs to be that is the
+        // store's business rather than this line's.
         // Nothing about it is on the surface: no tab draws it and no agent
         // calls it. It is for the case the watcher cannot see, which is a
         // change made where no inotify reaches.
-        resync: Effect.andThen(ops.idle, store.resync),
+        resync: Effect.andThen(ops.idle, store.refresh("verified")),
       }),
       () => runtime.stopped,
     )

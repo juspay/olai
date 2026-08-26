@@ -5,12 +5,13 @@ import { printAddress } from "./address.ts"
 import { bodiedDocument, type Document } from "./document.ts"
 import { bytesOf } from "./documents.ts"
 import type { OutlineError } from "./errors.ts"
+import { type Verdict, verdictOf } from "./verdict.ts"
 import { failureOf, outlineOf, recordsOf } from "./fixtures.testlib.ts"
 import type { Located } from "./node.ts"
 import { byPath } from "./paths.ts"
 import { apart, assemble, documentAt, markdownIn, outlinePaths } from "./set.ts"
 
-type Decoded = Result.Result<Document, ReadonlyArray<OutlineError>>
+type Decoded = Result.Result<Document, Verdict>
 
 /** What the store hands over: one decoded file per path, each either decoded
  *  or failed. A `Map` rather than a record because that is the shape the codec
@@ -28,7 +29,7 @@ const document = (file: string, text: string): Decoded =>
   Result.succeed(bodiedDocument(file, text))
 
 const unreadable = (file: string, contents: string): Decoded =>
-  Result.fail(failureOf(contents, file))
+  Result.fail(verdictOf(failureOf(contents, file)))
 
 const ids = (nodes: ReadonlyArray<Located>): ReadonlyArray<string> =>
   nodes.map((located) => located.node.id)
@@ -252,9 +253,9 @@ test("a file that did not decode keeps its place and carries its errors", () => 
 // re-emit it from a body nobody read.
 test("an unreadable document holds its place with an empty body", () => {
   const set = assemble(decoded({
-    "notes/lost.md": Result.fail([
+    "notes/lost.md": Result.fail(verdictOf([
       { file: "notes/lost.md", line: 0, code: "unreadable-directory", message: "gone" },
-    ] as ReadonlyArray<OutlineError>),
+    ] as ReadonlyArray<OutlineError>)),
   }))
   const lost = markdownIn(set)[0]!
   expect(paths(set)).toEqual(["notes/lost.md"])

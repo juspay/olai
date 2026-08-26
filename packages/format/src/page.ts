@@ -54,6 +54,21 @@
  * pointer that is a QUESTION rather than a declaration: `{"reviewer":"pi"}` is
  * a string that might be a node's id, and only the set can say. See
  * {@link namesFor}, where that difference is argued.
+ *
+ * ## ...and the doors table beside it, which is that tail read once more
+ *
+ * The same shape for the same reason, one question over: what a property value
+ * NAMES is a fact about the vault — its declarations, its ids, the files it
+ * serves — and the browser holds none of the three. It used to guess, from the
+ * value's shape, and the guesses were wrong in three ways that were each a live
+ * bug (`@olai/format`'s `meaning.ts` names them). So the question is answered
+ * where the set is and its ANSWERS travel ({@link PageReading.doors}), exactly
+ * as resolved names do.
+ *
+ * WHAT DOES NOT TRAVEL is the vocabulary itself. A declarations cell beside the
+ * page was the refused alternative and #395's exclusion survives untouched: the
+ * tab receives what each value turned out to name, never the rules that decided
+ * it, so nothing up there can re-derive an answer and disagree.
  */
 
 import { Schema } from "effect"
@@ -66,9 +81,12 @@ import { dailyNotesOn, DayGroup, datedOn } from "./dates.ts"
 import { type Derived, type InTheWay, nodeNamed, nodesOf, Row, rowsOf } from "./derive.ts"
 import type { Face } from "./document.ts"
 import { bodyKind, FileKind, fileKind } from "./kinds.ts"
-import { ID_SHAPE, isPutAway, isTrashed, type LocatedRegular } from "./node.ts"
+import { Door, meaningOf, type Vault } from "./meaning.ts"
+import { ID_SHAPE, isPutAway, isTrashed, type LocatedRegular, propertiesIn } from "./node.ts"
+import { markdownPaths } from "./rules.ts"
 import { BrokenFile } from "./set.ts"
 import { pinTargetIn } from "./shelf.ts"
+import { declarationsIn } from "./typing.ts"
 import type { Reading } from "./validate.ts"
 import { Zoomed, zoom } from "./zoom.ts"
 
@@ -252,6 +270,11 @@ export const PageReading = Schema.Struct({
    *  declare is simply absent, which is the honest dead link: the drawing side
    *  falls back to the id, exactly as it did when it looked the id up itself. */
   names: Schema.Array(Named),
+  /** Every property value this page draws that NAMES something, and what it
+   *  names — see the doors paragraph at the top of this module and
+   *  {@link doorsFor}. A value that names nothing is absent, which the drawing
+   *  side reads as "the text it always was". */
+  doors: Schema.Array(Door),
 })
 export type PageReading = typeof PageReading.Type
 
@@ -309,10 +332,104 @@ export const samePageRequest: (a: PageRequest, b: PageRequest) => boolean = Sche
  */
 export const pageOf = (at: Reading, request: PageRequest): PageReading => {
   const shows = shownOf(at, request)
+  // THE DOORS FIRST, because the names table spends them: a value that turned
+  // out to name a node is an id this page points at, and the chip drawing it
+  // wants what that node is CALLED. Derived rather than asked for twice — a
+  // second walk deciding which ids to resolve could disagree with the one that
+  // decided which values are doors, and the disagreement would read as a ref
+  // chip that fell back to its id for no reason a reader could see.
+  const doors = doorsFor(at, shows)
   return {
     shows,
-    names: namesFor(at.derived, shows, request.kind === "at" ? request.address : null),
+    names: namesFor(
+      at.derived,
+      shows,
+      request.kind === "at" ? request.address : null,
+      doors,
+    ),
+    doors,
   }
+}
+
+/**
+ * WHAT EVERY PROPERTY VALUE ON THIS PAGE NAMES — the projection, once per
+ * revision, on the page's own pulse.
+ *
+ * ONE WALK, and it is `drawnIn` — the same one the names table spends. That is
+ * deliberately a SUPERSET of the records that draw chips (a zoom's crumbs and
+ * its backlinks are drawn as links, not as runs of properties), and the trade
+ * is named rather than hidden: the alternative is a second definition of "which
+ * records of this page draw their facts", free to fall behind the first the
+ * next time a page grows somewhere to put a node. What over-collecting costs is
+ * a lookup per custom value of a handful of referenced records, and a wire entry
+ * only for the ones that actually name something.
+ *
+ * THE DOCUMENT ARM IS ASKED SEPARATELY because its properties are not on a
+ * record at all: a `.md`'s frontmatter is the file's own statement about itself
+ * ({@link ./frontmatter.ts}), written in the document, so the file it was
+ * written IN is the document. That is the same `from` its chips are drawn with
+ * (`@olai/web`'s `document/DocumentPage.tsx`), which is what makes them find
+ * their answers here.
+ *
+ * DEDUPED ON THE TRIPLE, for the names table's reason: a board where forty rows
+ * carry `merge merge-auto` is one answer, and forty copies of it would be the
+ * page paying per row for a fact that is per value.
+ *
+ * COSTS TWO SETS OF PATHS per page per revision — every served file, and the
+ * `.md` half of it — which is the whole allocation this projection adds and is
+ * the same order as the outline list {@link outlinesAmong} already builds
+ * beside it, over the same array. The first is spent twice: as the "does the
+ * directory serve this" question, and as the file list the declarations
+ * convention is found in, which is what lets the declarations be read off ONE
+ * file's records rather than off a walk of every file's.
+ */
+const doorsFor = (at: Reading, shows: Shown): ReadonlyArray<Door> => {
+  const served = new Set<string>(at.set.documents.map((face) => face.path))
+  // ...AND THE `.md` HALF OF IT, which is a second set and has to be: a `doc`
+  // value promises to name a served DOCUMENT, and the gate holds it to exactly
+  // this list ({@link ./typing.ts}'s `Typed.documents`). Built by the same
+  // function the validator builds its own with rather than by filtering the
+  // paths above, which would be a second answer to "which of these is a
+  // document" — the very shape this module exists to have one of.
+  const documents = markdownPaths(at.set)
+  const vault: Vault = {
+    // THE DECLARATIONS FILE FOUND IN THE SET, and not by walking the
+    // derivation's own file list — which is the one line of this projection
+    // that is about the tape rather than about doors. A walk of `byFile` is
+    // taped as a dependency on the whole index, so every open page would
+    // rebuild for a keystroke anywhere in the vault; the SET's paths are
+    // compared face by face, so a record edit does not move them
+    // ({@link ./tape.ts}). What this page then depends on is the declarations
+    // file's own records, which is exactly what its answers depend on.
+    declarations: declarationsIn(at.derived, propertiesIn(served)),
+    // `nodeNamed` and not the index, for {@link namesFor}'s reason: an id may
+    // address a MIRROR, and what a reader can be shown is the node standing at
+    // that placement.
+    declares: (id) => nodeNamed(at.derived, id) !== undefined,
+    serves: (file) => served.has(file),
+    documents: (file) => documents.has(file),
+  }
+  const doors: Array<Door> = []
+  const asked = new Set<string>()
+  const ask = (from: string, custom: Custom): void => {
+    for (const [key, held] of Object.entries(custom)) {
+      for (const value of typeof held === "string" ? [held] : held) {
+        // The triple, joined on a character no path, key or value can hold —
+        // a value is somebody's prose and may carry any separator a reader
+        // would think of. The wire carries the three fields APART, so this
+        // spelling is this walk's own and the browser is free to key its
+        // lookup however it likes.
+        const triple = `${from}\u0000${key}\u0000${value}`
+        if (asked.has(triple)) continue
+        asked.add(triple)
+        const opens = meaningOf(vault, from, key, value)
+        if (opens !== null) doors.push({ from, prop: key, value, opens })
+      }
+    }
+  }
+  for (const node of drawnIn(shows)) ask(node.file, customOf(node.node))
+  if (shows.kind === "document") ask(shows.file, shows.props)
+  return doors
 }
 
 /** The OUTLINES' paths, in path order — what the trash reads and what the front
@@ -466,9 +583,17 @@ const namesFor = (
   derived: Derived,
   shows: Shown,
   address: Address | null,
+  doors: ReadonlyArray<Door>,
 ): ReadonlyArray<Named> => {
   const wanted = new Set<string>()
   if (address?.kind === "node") wanted.add(address.id)
+  // EVERY DOOR ONTO A NODE, whatever the value looked like. The `ID_SHAPE`
+  // filter below is a cheap test over prose nobody declared, and it is the
+  // right test there; a value the consult RESOLVED is a node this page points
+  // at by the strongest warrant there is, so it is named here rather than left
+  // to a shape rule that was never about it. A ref chip drawing its target's
+  // title is exactly this join ({@link ./meaning.ts}'s `titled`).
+  for (const door of doors) if (door.opens.kind === "node") wanted.add(door.opens.id)
   for (const node of drawnIn(shows)) {
     for (const id of node.node.see ?? []) wanted.add(id)
     for (const id of node.node.after ?? []) wanted.add(id)

@@ -4127,6 +4127,88 @@ const SECTIONS = {
   },
 
   /**
+   * THE CONDITION A CHIP COMMITS WITH (`prop-op-was`), in one frame: a box
+   * typed against what the run was READ as, another hand (the vault written
+   * under the open box — which is what an agent's `set_prop` on the same key
+   * is, to the gate) moving that key mid-edit, and the commit refused in the
+   * ops layer's own words while the word the other hand wrote holds the row
+   * — and the disk.
+   *
+   * The claims, in the order the shots take them:
+   *
+   *   1. the chip the box is about to open on — the value the write will be
+   *      CONDITIONAL on, in frame before the gesture starts;
+   *   2. the box, typed over and still standing on the agent's rewrite — the
+   *      editor not the frame's business;
+   *   3. the refusal under the run, naming what is now there — and the row
+   *      holding `audit`, because keeping it was the point.
+   *
+   * The guardrail this is the photograph OF is the planner: `plan.ts`'s
+   * `propStale`, and the mid-edit scenario of `properties.feature` is the
+   * promise this only shows. The DARK half is left to
+   * `typed-properties` — a refusal is white-on-dark in exactly the same
+   * shape the typed gate's is, and this section has one frame to be about.
+   */
+  "prop-was": async (page) => {
+    pinnedBy(
+      "properties.feature",
+      "A typed commit meets an agent's write mid-edit — refused, naming what it found — and even a reopen re-reads the premise",
+    )
+
+    // THE VAULT, to the shape the feature's scenario reads from: `handles`
+    // with a `stage` the box will open on, and nothing else to distract the
+    // frame.
+    rewrite("house.olai", [
+      `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}`,
+      `{"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"stage":"review","agent":"basil"}}`,
+    ])
+
+    // 1. THE WRITE'S PREMISE, in frame: the chip says `review`, which is
+    // what the commit below will claim to replace.
+    await opened(page, "/house.olai", OUTLINE_TREE)
+    console.log(`  the run reads:      ${await runOf(page, "handles")}`)
+    console.log(`  on disk:            ${JSON.stringify(customOn("house.olai", "handles")["stage"])}`)
+    await shot(page, "the-chip-the-write-opens-on")
+
+    // 2. THE BOX, TYPED — and then the other hand, which is the VAULT being
+    // written: to the gate, the same thing an agent's `set_prop` is.
+    await page.locator(chip("handles", "stage")).locator('[data-testid="prop-key"]').click()
+    await page.waitForTimeout(DRAWN)
+    await page.locator(`${row("handles")} [data-testid="prop-edit"]`).fill("submitted")
+    console.log(`  typed into the box: ${
+      JSON.stringify(await page.locator(`${row("handles")} [data-testid="prop-edit"]`).inputValue())
+    }`)
+    await shot(page, "the-box-typed-against-the-read")
+    rewrite("house.olai", [
+      // The marker on `kitchen` is the ordering the commit owes the gate:
+      // the one republish that puts `checking` on ITS row is the parse that
+      // moved `stage`, so when the chip appears the gate reads `audit`.
+      `{"id":"kitchen","ord":"a0","title":"kitchen remodel #home","custom":{"checking":"2026-08-11"}}`,
+      `{"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"stage":"audit","agent":"basil"}}`,
+    ])
+    await page.locator(chip("kitchen", "checking")).waitFor()
+    console.log(`  the box still holds: ${
+      JSON.stringify(await page.locator(`${row("handles")} [data-testid="prop-edit"]`).inputValue())
+    }`)
+
+    // 3. THE REFUSAL: the typed word went nowhere, the agent's word holds the
+    // row AND the disk, and the run says so in the ops layer's own sentence —
+    // the one named for what the key says NOW, so its caller can read again.
+    await page.keyboard.press("Enter")
+    const said = page.locator(`${row("handles")} ${PROP_SAID}`).first()
+    await said.waitFor()
+    console.log(`  the run says:       ${oneLine(await said.innerText())}`)
+    await page.waitForTimeout(DRAWN)
+    console.log(`  the run NOW reads:  ${await runOf(page, "handles")}`)
+    console.log(`  on disk:            ${JSON.stringify(customOn("house.olai", "handles")["stage"])}`)
+    await shot(page, "the-condition-refused-in-the-ops-layers-own-words")
+    // …and the close-up the wide one is the context OF: the filed sentence
+    // sits two pixels under the row that kept its word.
+    const bounds = await page.locator(row("handles")).boundingBox()
+    if (bounds !== null) await shot(page, "the-condition-refused-close-up", { clip: bounds })
+  },
+
+  /**
    * WHAT EVERY MARKDOWN SURFACE HOLDS WHILE THE RENDERER IS COMING
    * (`markdown-raw-flash`), face by face: the source it already has, blurred
    * out of legibility and swept, and then the same element with the rendering

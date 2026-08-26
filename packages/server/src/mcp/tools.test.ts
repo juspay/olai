@@ -28,7 +28,7 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
-import { type FailureKind, type OutlineSet, outlinePaths } from "@olai/format"
+import { type FailureKind, type OutlineSet, outlinePaths, verdictOf } from "@olai/format"
 import { recordsOf } from "@olai/format/testlib"
 import {
   codec,
@@ -126,12 +126,12 @@ const withTools = <A>(
             // `unreadable-directory` with a `line` of 0 is what the store's own
             // `codec.unreadable` raises for a path it could not read — the
             // closest legal code, rather than one invented for a test.
-            ? Result.fail([{
+            ? Result.fail(verdictOf([{
               file,
               line: 0,
               code: "unreadable-directory" as const,
               message: `${file} could not be read`,
-            }])
+            }]))
             : codec.decode(file, contents),
       },
       watch: false,
@@ -176,7 +176,15 @@ const withTools = <A>(
     const [clientSide, serverSide] = InMemoryTransport.createLinkedPair()
     yield* serveFace({
       client: () => clientOver(writerAt(wired.bound, ops, "mcp")),
-      tools: bespokeFrom(TOOLS, { login: () => login, root }),
+      tools: bespokeFrom(TOOLS, {
+        login: () => login,
+        root,
+        // The face's own currency, composed the way `../serve.ts` composes it:
+        // the store's read socket at the class a tool answer deserves. A stub
+        // here would make every assertion about a read's `vintage` an
+        // assertion about the stub.
+        vintage: Effect.map(store.read("verified"), (aged) => aged.vintage),
+      }),
       transport: serverSide,
     })
 
@@ -199,7 +207,7 @@ const withTools = <A>(
         },
         set: () =>
           Effect.runPromise(
-            Effect.map(SubscriptionRef.get(store.snapshot), (snapshot) => {
+            Effect.map(Effect.map(store.read("cheap"), (aged) => aged.snapshot), (snapshot) => {
               if (snapshot === null) throw new Error("the fixture directory never loaded")
               return snapshot.value.set
             }),
@@ -237,6 +245,38 @@ const call = async (
     isError: result.isError === true,
   }
 }
+
+/**
+ * A read's answer with its AGE taken off — and checked on the way past.
+ *
+ * Every read carries a `vintage` (`./tools.ts`), and one of its three fields
+ * is a timestamp, so a case that asserts a WHOLE answer cannot write the answer
+ * down any more. This is how it goes on being able to: the vintage is lifted
+ * out and asserted for the one thing every read of a healthy fixture owes — a
+ * look that agreed, so nothing here is stale — and what is returned is the rest
+ * of the answer, which the case then names in full exactly as it did before.
+ *
+ * A read whose answer is MISSING the vintage fails here rather than passing
+ * quietly with one field fewer to match, which is what `toEqual` on the raw
+ * answer would have done.
+ */
+const withoutAge = (
+  structured: Record<string, unknown>,
+): Record<string, unknown> => {
+  const { vintage, ...rest } = structured
+  expect(vintage).toMatchObject({ stale: false, proof: "confirmed", ageMs: 0 })
+  expect(typeof (vintage as Record<string, unknown>)["asOf"]).toBe("string")
+  return rest
+}
+
+/** The rows out of a refusal's detail — one spelling, because the detail is a
+ *  VERDICT now (`@olai/format`'s `verdict.ts`) and eight assertions reaching
+ *  through it by hand is eight places to update the day it grows a member. */
+const findingsOf = (
+  structured: Record<string, unknown>,
+): ReadonlyArray<Record<string, unknown>> =>
+  (structured["verdict"] as { readonly findings?: ReadonlyArray<Record<string, unknown>> })
+    ?.findings as ReadonlyArray<Record<string, unknown>>
 
 // ── what the agent is offered ──────────────────────────────────────────
 
@@ -719,7 +759,7 @@ test("read_subtree refuses an outline the set could not load", async () => {
       const refused = await call(client, "read_subtree", { file: "torn.olai" })
       expect(refused.isError).toBe(true)
       expect(refused.structured).toMatchObject({ kind: "validation" })
-      expect(refused.structured["errors"]).toBeArrayOfSize(1)
+      expect(findingsOf(refused.structured)).toBeArrayOfSize(1)
 
       // AND IT IS TOLD THE TRUTH ABOUT ITSELF, which is the half only this file
       // can check end to end: an outline is READ perfectly well and then has
@@ -756,7 +796,7 @@ test("read_subtree refuses a call naming both ways in, or neither", async () => 
     // `root` on every answer, this one included: which vault answered is a fact
     // about the ANSWER, not about the kind of answer, so an absence names its
     // vault exactly as a hit does.
-    expect(gone.structured).toEqual({ missing: "nope", root })
+    expect(withoutAge(gone.structured)).toEqual({ missing: "nope", root })
   })
 })
 
@@ -855,7 +895,7 @@ test("read_document answers the text a write would replace", async () => {
     // Verbatim, blank lines and leading spaces included: what the listing
     // named is not what the read answers with, and an edit is derived from
     // this rather than from the title.
-    expect(answered.structured).toEqual({
+    expect(withoutAge(answered.structured)).toEqual({
       file: "notes/cabinets.md",
       text: "\n\n  Walnut, or birch.\n",
       // Which vault this text came out of — on every answer, so a reader can
@@ -974,7 +1014,7 @@ test("a document the set could not read is refused, not answered empty", async (
       const refused = await call(client, "read_document", { file: "torn.md" })
       expect(refused.isError).toBe(true)
       expect(refused.structured).toMatchObject({ kind: "validation" })
-      expect(refused.structured["errors"]).toBeArrayOfSize(1)
+      expect(findingsOf(refused.structured)).toBeArrayOfSize(1)
 
       // The same file at the write verb, refused by the same rule — one fact,
       // two verbs, and neither of them touching a file nobody read.
@@ -1097,11 +1137,15 @@ test("move_node is refused when it would take a `ref` variant out of its root", 
       // The gate's own shape: the summary says nothing was written, and the
       // validator's rows say WHY, with the `file:line` of the record that can
       // no longer say what it says.
+      // THE REFUSAL NAMES ITS BLOCKER. It used to say "would leave the
+      // outlines invalid", which named nothing and read as an indictment of a
+      // write that was often innocent; the verdict answers which file stops it
+      // (`@olai/format`'s `admits`), and the sentence says that.
       expect(out.structured).toMatchObject({
         kind: "validation",
-        reason: "`move: Claude` would leave the outlines invalid, so nothing was written",
+        reason: "`move: Claude` would leave `lanes.olai` invalid, so nothing was written",
       })
-      const rows = out.structured["errors"] as ReadonlyArray<Record<string, unknown>>
+      const rows = findingsOf(out.structured)
       expect(rows).toHaveLength(1)
       expect(rows[0]).toMatchObject({ file: "lanes.olai", line: 1, code: "bad-prop" })
       expect(String(rows[0]?.["message"])).toContain("`agent`")
@@ -1143,6 +1187,50 @@ test("a write through a tool changes the directory", async () => {
     expect(answer.isError).toBe(false)
     expect(answer.structured).toMatchObject({ did: "set_done", id: "order" })
     expect(read("house.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
+  })
+})
+
+/**
+ * `set_prop`'s CONDITIONAL half, through the agent's own face: the wire half
+ * of it is the chip's, the ops half the planner's — what only the tool can
+ * prove is that the ask reaches an agent with the field advertised, the
+ * refusal arrives as an `isError` with the kind as data, and the message
+ * names what the key says NOW, which is the "read again" half of the loop.
+ */
+test("set_prop with a stale `was` is refused, naming what is there", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
+    const { tools } = await client.listTools()
+    const setProp = tools.find((tool) => tool.name === "set_prop")
+    // The door advertises the guard — the what-it-is-for, not just the key:
+    // this is the sentence that tells a model the read-then-write loop exists.
+    expect(setProp?.description).toContain("`was`")
+    expect(Object.keys(setProp?.inputSchema.properties ?? {}).sort())
+      .toEqual(["id", "key", "value", "was"])
+
+    // `null` expects the key GONE — the add's own condition, and it lands
+    // while the key is absent.
+    const added = await call(client, "set_prop", { id: "order", key: "stage", value: "review", was: null })
+    expect(added.isError).toBe(false)
+    expect(read("house.olai")).toContain(`"custom":{"stage":"review"}`)
+
+    // Read, then write back what you read: the loop the guard is for.
+    const moved = await call(client, "set_prop", { id: "order", key: "stage", value: "submitted", was: "review" })
+    expect(moved.isError).toBe(false)
+
+    // ...and the same write judged against a premise somebody else wrote
+    // first: refused, naming the value the key says NOW.
+    const stale = await call(client, "set_prop", { id: "order", key: "stage", value: "audit", was: "review" })
+    expect(stale.isError).toBe(true)
+    expect(String(stale.structured["reason"])).toContain(
+      "expected to replace (`review`) — it now says `submitted`, so nothing was written",
+    )
+    expect(read("house.olai")).toContain(`"custom":{"stage":"submitted"}`)
+
+    // Omitting the guard is unchanged: last-one-wins, which is what a plain
+    // `set_prop` has always meant.
+    const plain = await call(client, "set_prop", { id: "order", key: "stage", value: "audit" })
+    expect(plain.isError).toBe(false)
+    expect(read("house.olai")).toContain(`"custom":{"stage":"audit"}`)
   })
 })
 
@@ -1205,7 +1293,7 @@ test("a repeat with no date to repeat from is refused, and nothing is written", 
     const answer = await call(client, "set_repeat", { id: "order", repeat: "every day" })
     expect(answer.isError).toBe(true)
     expect(answer.structured["kind"]).toBe("validation")
-    expect(answer.structured["errors"]).toMatchObject([
+    expect(findingsOf(answer.structured)).toMatchObject([
       { file: "house.olai", code: "bad-repeat" },
     ])
     expect(JSON.stringify(answer.structured)).toContain("no `date` to repeat from")
@@ -1218,7 +1306,7 @@ test("a rule the grammar does not have is refused, quoting the grammar", async (
   await withTools({ "chores.olai": CHORES }, async ({ client, read }) => {
     const answer = await call(client, "set_repeat", { id: "bins", repeat: "every 2 weeks" })
     expect(answer.isError).toBe(true)
-    expect(answer.structured["errors"]).toMatchObject([
+    expect(findingsOf(answer.structured)).toMatchObject([
       { file: "chores.olai", line: 1, code: "bad-repeat" },
     ])
     expect(JSON.stringify(answer.structured)).toContain("every week on <weekday>")
@@ -1236,7 +1324,7 @@ test("a date that is not a date is refused too, by the same gate", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
     const answer = await call(client, "set_date", { id: "order", date: "someday" })
     expect(answer.isError).toBe(true)
-    expect(answer.structured["errors"]).toMatchObject([
+    expect(findingsOf(answer.structured)).toMatchObject([
       { file: "house.olai", code: "bad-date" },
     ])
     expect(read("house.olai")).toBe(HOUSE)
@@ -1441,7 +1529,7 @@ test("a directory that will not load refuses with the validator's own rows", asy
     expect(write.structured["kind"]).toBe("validation")
 
     // The rows themselves, as DATA — situated, not a sentence to parse.
-    const rows = read.structured["errors"] as ReadonlyArray<Record<string, unknown>>
+    const rows = findingsOf(read.structured)
     expect(Array.isArray(rows)).toBe(true)
     expect(rows.length).toBeGreaterThan(0)
     expect(rows[0]).toMatchObject({ file: "orphan.olai" })
@@ -1450,7 +1538,7 @@ test("a directory that will not load refuses with the validator's own rows", asy
       expect(typeof row["message"]).toBe("string")
       expect(typeof row["line"]).toBe("number")
     }
-    expect(write.structured["errors"]).toEqual(rows)
+    expect(findingsOf(write.structured)).toEqual(rows)
 
     // And the resource an agent can WATCH says the same thing, in the same
     // vocabulary, at the same instant — which is what one surface means.
@@ -1459,7 +1547,7 @@ test("a directory that will not load refuses with the validator's own rows", asy
     if (part === undefined || !("text" in part)) {
       throw new Error("surface://cells/errors: expected one text part")
     }
-    expect(JSON.parse(part.text as string)).toEqual(rows)
+    expect(JSON.parse(part.text as string)).toEqual({ findings: rows })
   })
 })
 
@@ -2438,5 +2526,150 @@ test("several captures at once into a directory with no inbox all land", async (
       .map((one) => one.node)
       .flatMap((one) => "mirror" in one ? [] : [one.title])
     for (const n of many) expect(titles).toContain(`capture ${n}`)
+  })
+})
+
+// ── how old is what you just told me ───────────────────────────────────
+//
+// The 2026-08-25 incident happened HERE, in the answers this file projects: a
+// `git rebase` replaced the served files, the watcher missed it, and
+// `read_node` went on answering normally with week-old truth for thirty
+// minutes. Nothing was invalid, so nothing came back as an error — the only
+// symptom was every WRITE refusing, because the stale set violated
+// declarations the disk had already moved past, and it took a disk-vs-MCP diff
+// of one node to work out which side was lying.
+//
+// So every read now carries its age (`@olai/store`'s vintage), established by
+// a look taken outside the publish loop's permit — a wedged loop shows up as a
+// stale vintage on the answer rather than as an answer that reads fine.
+
+test("every read answers with its age, and a look that agreed says so", async () => {
+  await withTools(
+    { "house.olai": HOUSE, "notes/cabinets.md": "# Cabinets\n" },
+    async ({ client, root }) => {
+      // ALL SIX read tools, because this is a claim about the kind of answer
+      // and not about one of them: a seventh read added without its age would
+      // be exactly the hole this closes.
+      for (const [tool, args] of [
+        ["read_node", { id: "kitchen" }],
+        ["read_subtree", { id: "kitchen" }],
+        ["read_document", { file: "notes/cabinets.md" }],
+        ["list_outlines", {}],
+        ["list_documents", {}],
+        ["search_nodes", { text: "cabinets" }],
+      ] as ReadonlyArray<readonly [string, Record<string, unknown>]>) {
+        const answered = await call(client, tool, args)
+        const vintage = answered.structured["vintage"] as Record<string, unknown>
+        // The bit an agent must not miss is first: this set is one to act on.
+        expect(vintage).toMatchObject({ stale: false, proof: "confirmed", ageMs: 0 })
+        // The instant, said in a vocabulary that needs no clock the reader
+        // shares with this process.
+        expect(Date.parse(vintage["asOf"] as string)).toBeGreaterThan(0)
+        // …beside the vault it came from, which is the other fact no tool
+        // schema declares and every answer carries.
+        expect(answered.structured["root"]).toBe(root)
+      }
+    },
+  )
+})
+
+// A WRITE does not carry one, and that is the boundary rather than an
+// omission. A vintage says how current the set an answer was DERIVED FROM is;
+// a write's answer is about a change that has just landed, judged inside the
+// store's own gate against the revision it names, and stamping it with an age
+// would be a sentence about a different question.
+test("a write's answer carries no age — it is not a read of anything", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
+    const written = await call(client, "set_done", { id: "order" })
+    expect(written.isError).toBe(false)
+    expect(written.structured["vintage"]).toBeUndefined()
+    // …and the read that follows it does carry one, so the absence above is
+    // this projection's rule and not the fixture being quiet.
+    const answered = await call(client, "read_node", { id: "order" })
+    expect(answered.structured["vintage"]).toMatchObject({ stale: false })
+  })
+})
+
+// THE INCIDENT'S OWN SHAPE, through the face it was diagnosed on. A file is
+// replaced by a rename with nothing telling the server about it, and the read
+// still answers the set the server is serving — that part is deliberate and
+// unchanged — but it now says, in the answer, that the disk no longer agrees
+// and which file it is about. That sentence is the thirty minutes.
+test("PIN (the rebase shape): a read whose set the disk has moved past says so", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, root, read }) => {
+    const before = await call(client, "read_node", { id: "order" })
+    expect(before.structured["vintage"]).toMatchObject({ stale: false })
+    const proved = (before.structured["vintage"] as Record<string, unknown>)["asOf"]
+
+    // Staged beside its destination and renamed over it — what `git rebase`,
+    // `git checkout` and this store's own write gate all do.
+    const held = read("house.olai")
+    expect(held).not.toBeNull()
+    const incoming = path.join(root, ".incoming")
+    fs.writeFileSync(incoming, `${held as string}\n`)
+    fs.renameSync(incoming, path.join(root, "house.olai"))
+
+    const after = await call(client, "read_node", { id: "order" })
+    // The answer still comes back — a last good set is worth more than a
+    // blank refusal, and an agent that can see the divergence can decide.
+    expect(after.isError).toBe(false)
+    expect(after.structured["id"]).toBe("order")
+    const vintage = after.structured["vintage"] as Record<string, unknown>
+    expect(vintage).toMatchObject({ stale: true, proof: "diverged" })
+    expect(vintage["diverged"]).toEqual(["house.olai"])
+    // And the instant is the STANDING one — the moment the last agreeing look
+    // proved this set — rather than the moment of this one: a look that
+    // disagreed proves nothing about how current the answer is, so it must not
+    // reset the clock. Asserted as the instant rather than as an elapsed
+    // number, because two calls a millisecond apart is a true reading of a
+    // fast machine and not a thing to make a test wait out.
+    expect(vintage["asOf"]).toBe(proved)
+  })
+})
+
+/**
+ * WHAT `stale: false` LICENSES, held as a test — grok's MUST on #406.
+ *
+ * `proof: "confirmed"` on this wire is a look that was taken, on the asker's
+ * own fiber, outside the publish loop's permit. It is not a claim about bytes.
+ * `@olai/store`'s check walks and stats and never opens a file, so a rewrite
+ * that keeps the length and puts the mtime back is invisible to it, and the
+ * answer an agent reads is `stale: false` over the set the server is still
+ * serving.
+ *
+ * It is asserted HERE as well as in the store's own suite because this is the
+ * surface the sentence reaches somebody who will act on it. A reader of
+ * `withoutAge` above learns that a healthy fixture confirms; without this, the
+ * only place the OTHER half is written down is a paragraph — which is exactly
+ * the shape `resync`'s folklore had.
+ *
+ * The tool door takes the READ deliberately, and `../serve.ts` argues it where
+ * the choice is made: the look publishes and sits behind the permit, so an
+ * agent's every read would mint a revision, wake every tab, and hang for as
+ * long as a wedged loop held the gate — which is precisely the condition an
+ * agent needs a read to survive.
+ */
+test("PIN (what `stale: false` is worth): a same-stamp rewrite reads confirmed", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, root }) => {
+    const file = path.join(root, "house.olai")
+    const stamp = fs.statSync(file)
+    // The same line, the same length — `cabinets` for `CABINETS` — and the
+    // clock put back afterwards. Nothing a stat can see about this file moved.
+    const rewritten = (fs.readFileSync(file, "utf8")).replace(
+      "order the cabinets",
+      "order the CABINETS",
+    )
+    expect(rewritten).not.toBe(fs.readFileSync(file, "utf8"))
+    fs.writeFileSync(file, rewritten)
+    fs.utimesSync(file, stamp.atime, stamp.mtime)
+
+    const answered = await call(client, "read_node", { id: "order" })
+    expect(answered.isError).toBe(false)
+    // The old title, and the wire saying the set is one to act on.
+    expect(answered.structured["title"]).toBe("order the cabinets")
+    expect(answered.structured["vintage"]).toMatchObject({
+      stale: false,
+      proof: "confirmed",
+    })
   })
 })
