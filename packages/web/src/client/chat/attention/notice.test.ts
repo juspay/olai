@@ -15,7 +15,16 @@ test("the banner names the conversation and the first line of the question", () 
   expect(notice.body).toBe("Which timber for the doors?")
 })
 
-test("a conversation the agent has not named yet says the app's own name", () => {
+test("a conversation the agent has not named yet says the app's own word", () => {
+  // Since the deployment names itself after its box (`app.get`), THAT is the
+  // word an unanswered conversation goes by — the one the OS is already
+  // labelling an installed banner with — and bare "olai" is the fallback
+  // before the server has said it.
+  const waiting = { ...conversation(null), asking: 1 }
+  expect(noticeOf(waiting, undefined, "olai [desk]").title).toBe("olai [desk]")
+})
+
+test("...and says the bare word until the deployment has said its own", () => {
   const notice = noticeOf({ ...conversation(null), asking: 1 }, undefined)
   expect(notice.title).toBe("olai")
 })

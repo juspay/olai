@@ -38,6 +38,7 @@ import { openDirectory } from "./directory.ts"
 import { watchValidator } from "./divergence.ts"
 import { watchFault } from "./fault.ts"
 import { openPolicy } from "./gitPolicy.ts"
+import { hostname } from "./hostname.ts"
 import { listen } from "./listener.ts"
 import { clientOver, serveFace } from "./mcp/face.ts"
 import { currentLogin, MCP_PATH, mcpTransport } from "./mcp/route.ts"
@@ -185,11 +186,19 @@ export const serve = (options: ServeOptions) =>
     // tools as `chat-agent` below. Which face a caller is, is decided HERE and
     // never claimed by a transport about itself. A keystroke is the same web
     // writer: it goes through the ops layer this line hands over.
+    //
+    // And the word the whole deployment is served AS: the machine's name,
+    // read HERE and read ONCE — `app.get` answers it, the install manifest
+    // was made of it at listen, and a box renamed under a running process
+    // must not drift the two (`./hostname.ts` argues the mint being the
+    // root's).
+    const theMachine = hostname()
     const wired = yield* bind({
       store,
       chat,
       ops,
       writer: "web",
+      hostname: theMachine,
       git: gitWiring(ops, policy, settled),
     })
     publish = wired.publish
@@ -290,6 +299,7 @@ export const serve = (options: ServeOptions) =>
         ...options,
         port,
         bound: wired.bound,
+        hostname: theMachine,
         mcp: { transport, token, identity: options.identity },
         // `POST /olai/resync` — force a re-read of the disk. Waits for
         // in-flight writes first (`ops.idle`): a probe while a `run` is

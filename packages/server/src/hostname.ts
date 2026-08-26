@@ -12,8 +12,13 @@
  * the run happened in (`the_app_is_named.feature`).
  *
  * Read on demand rather than at import, so what a process was started with
- * is what it serves — and a test that sets the var sees it without an
- * import-order dance.
+ * is what it serves — and a test that sets the variable sees it without an
+ * import-order dance. The function reads FRESH, and the composition root
+ * reads it exactly once per serve (`serve.ts`): two doors answer with the
+ * word — the manifest, composed where it is served (`listener.ts`), and
+ * `app.get`, asked per connection (`runtime.ts`) — and a hostname that
+ * moved under a running server would drift them into two words for the one
+ * deployment. The mint being the root's is what makes the two one.
  */
 
 import * as os from "node:os"

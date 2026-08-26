@@ -14,12 +14,19 @@
  * this file hands `listen` — so carrying a per-machine truth in it costs a
  * function instead of the constant it used to be, and nothing more.
  *
- * Only what is olai's is here. `start_url` and `display: standalone` are the
- * framework's install-friendly defaults (`pwaManifestLayer`), and so is a
- * `short_name` that is just the name; restating any of them would be two
- * places to change one decision, and the spec's own defaults (`scope` from
- * `start_url`, `orientation: "any"`, `purpose: "any"`) are the same trap one
- * layer down.
+ * Only what is olai's is here. `start_url` and `display: standalone` are
+ * the framework's install-friendly defaults (`pwaManifestLayer`), and the
+ * spec's own defaults (`scope` from `start_url`, `orientation: "any"`,
+ * `purpose: "any"`) are the same trap one layer down: the framework may
+ * restate them.
+ *
+ * `short_name` is NOT left to that treatment, and the machine's name is why.
+ * The framework fills `short_name ?? name`, and where the short label
+ * survives — the cramped places: a home screen, an app list — it truncates,
+ * and it truncates from the END, which is exactly where `appName` puts the
+ * machine: two installed olais on two boxes would both clip to `olai [cuc…`.
+ * The icon already says which APP this is, so the short label's one job is
+ * to say which BOX — `short_name` IS the machine's name.
  *
  * The icon FILES are the browser bundle's (`packages/web/src/client/public`,
  * copied to the dist root by its build) and the paths below are the URLs that
@@ -48,6 +55,7 @@ import { appName } from "@olai/surface"
 
 export const manifestOf = (hostname: string): ManifestOptions => ({
   name: appName(hostname),
+  short_name: hostname,
   description: "Self-hosted outliner: your files, your agent, a live web view.",
   themeColor: "#D7F0E8",
   backgroundColor: "#D7F0E8",

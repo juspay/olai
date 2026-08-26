@@ -139,7 +139,6 @@ import {
   type Published,
   publishedOf,
 } from "./published.ts"
-import { hostname } from "./hostname.ts"
 import { CurrentWho } from "./identity.ts"
 import { readFailed } from "./report.ts"
 
@@ -182,6 +181,12 @@ const apply = <T>(
 }
 
 export interface Wiring {
+  /** THE SERVED word: the machine this process runs on, minted ONCE per
+   *  serve by the composition root (`./hostname.ts` is the receptacle and
+   *  says why the mint is the root's): `app.get` answers it, and the
+   *  install manifest was made of it at listen, so a hostname that moved
+   *  under a running server drifts neither. */
+  readonly hostname: string
   readonly store: Store
   /** Absent when no ACP agent is configured: the cell stays `off` and the
    *  procedures answer that they are. A directory is readable whether or not
@@ -1302,17 +1307,17 @@ export const bind = (
             >,
         },
         /**
-         * What this deployment is CALLED — the machine's name, answered once
-         * (`./hostname.ts` is the one receptacle the variable is read in).
+         * What this deployment is CALLED — the machine's name, minted by
+         * whoever composed this runtime (`Wiring.hostname` says why it is
+         * a mint and not a re-read: the manifest was made of the same word
+         * at listen, and the two doors must not drift).
          *
          * Unlike its `who` twin there is nothing per-connection about it and
          * no service to require: the box's name is the same for everything
-         * that asks, and `OLAI_HOSTNAME`/`os.hostname()` are both process
-         * facts — read on demand, so a harness pinning the variable after
-         * this module loaded still pins the answer.
+         * that asks.
          */
         app: {
-          get: () => Effect.succeed({ hostname: hostname() }),
+          get: () => Effect.succeed({ hostname: wiring.hostname }),
         },
       },
     }

@@ -37,6 +37,7 @@ import * as path from "node:path"
 
 import { watchFault } from "./fault.ts"
 import { frozenPolicy } from "./serve.testlib.ts"
+import { hostname } from "./hostname.ts"
 import { type Bound, bind, gitWiring, writerAt } from "./runtime.ts"
 
 /** One bound runtime over a directory of `files`, torn down with the scope —
@@ -89,6 +90,7 @@ const withRuntime = <A>(
       chat: null,
       ops,
       writer: "web",
+      hostname: hostname(),
       git: gitWiring(
         ops,
         frozenPolicy({ commit: "off", push: null }),

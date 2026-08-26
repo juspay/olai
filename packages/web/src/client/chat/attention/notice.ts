@@ -42,8 +42,11 @@ const LINE = 140
 
 /** The name a conversation with no name of its own goes by. The agent titles a
  *  session a turn or two in, so a question asked in the first turn is exactly
- *  the case — and "olai" is what the OS is already labelling the banner with,
- *  so the line reads as the app rather than as an empty box. */
+ *  the case — and the app's own word is what the OS is already labelling the
+ *  banner with. Which word THAT is has crossed with the install now: an
+ *  installed app's banners wear its manifest's `name`, so the caller hands
+ *  the deployment's word in, and this bare `olai` is only what it says until
+ *  the server has said. */
 const UNNAMED = "olai"
 
 /**
@@ -75,13 +78,19 @@ export const openingLine = (text: string): string | undefined => {
   return undefined
 }
 
-/** What to say about a conversation that is waiting on somebody. */
+/** What to say about a conversation that is waiting on somebody.
+ *
+ * `called` is what this DEPLOYMENT is called (`../../named.ts`'s signal) —
+ * an unanswered conversation is named after the app, and which app this is
+ * carries the box since `app.get` crossed: an installed window's banner is
+ * labelled `olai [machine]` by the OS, and the line under it should agree. */
 export const noticeOf = (
   state: Pick<ChatState, "session" | "asking">,
   asked: Asked | undefined,
+  called?: string,
 ): Notice => ({
   tag: `olai:awaiting:${state.session?.id ?? ""}`,
-  title: state.session?.title ?? UNNAMED,
+  title: state.session?.title ?? called ?? UNNAMED,
   body: bodyOf(state.asking, asked),
   data: { kind: "ask" },
 })

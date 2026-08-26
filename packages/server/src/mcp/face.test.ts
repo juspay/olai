@@ -38,6 +38,7 @@ import * as path from "node:path"
 
 import { openDirectory } from "../directory.ts"
 import { watchFault } from "../fault.ts"
+import { hostname } from "../hostname.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { frozenPolicy, SERVER_LAYERS } from "../serve.testlib.ts"
 import { clientOver, serveFace } from "./face.ts"
@@ -101,6 +102,7 @@ const withFace = <A>(use: (face: Face) => Promise<A>): Promise<A> =>
       chat: null,
       ops,
       writer: "mcp",
+      hostname: hostname(),
       git: gitWiring(
         ops,
         frozenPolicy({ commit: "off", push: null }),

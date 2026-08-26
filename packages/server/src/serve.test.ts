@@ -349,7 +349,9 @@ test("the install manifest is served as itself, not as the shell", async () => {
       icons?: ReadonlyArray<ManifestIcon>
     }
     expect(body.name).toBe(MANIFEST.name)
-    expect(body.short_name).toBe(MANIFEST.name)
+    // Box-first, not a cut-apart copy of `name`: the cramped label's one
+    // job is to say which BOX the icon belongs to (`./manifest.ts`).
+    expect(body.short_name).toBe(PIN)
     expect(body.display).toBe("standalone")
     expect(new URL(body.start_url ?? "/", url).pathname).toBe("/")
     expect((body.icons ?? []).map((icon) => icon.src)).toEqual(
