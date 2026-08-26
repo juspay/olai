@@ -192,8 +192,8 @@ function App() {
       {variant === "B" && (
         <Variant
           letter="B"
-          title="the full row IS the terminal property"
-          says="the row replaces the chip — two lines per terminal, always"
+          title="the full row IS the terminal property (chosen)"
+          says="the value stays on its own line; the row is what it means"
         >
           <div class="py-1">
             <div class="flex items-baseline gap-2">
@@ -210,6 +210,10 @@ function App() {
                 <span>juspay/olai#405</span>
               </span>
             </div>
+            <div class="mt-0.5 flex items-baseline gap-1.5 pl-6">
+              <span class="font-mono text-[0.6875rem] text-muted">terminal</span>
+              <span class="text-[0.8125rem] text-muted">22222222</span>
+            </div>
             <div class="mb-1 pl-6">
               <Row bag={LOUD} id="22222222-2222-4222-8222-222222222222" />
             </div>
@@ -218,6 +222,10 @@ function App() {
             <div class="flex items-baseline gap-2">
               <span class="text-muted">▸</span>
               <span>implement + open PR</span>
+            </div>
+            <div class="mt-0.5 flex items-baseline gap-1.5 pl-6">
+              <span class="font-mono text-[0.6875rem] text-muted">terminal</span>
+              <span class="text-[0.8125rem] text-muted">11111111</span>
             </div>
             <div class="mb-1 pl-6">
               <Row bag={CALM} id="11111111-1111-4111-8111-111111111111" />

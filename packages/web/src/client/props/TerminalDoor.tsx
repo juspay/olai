@@ -73,12 +73,18 @@ import { readingOf } from "./terminal.ts"
 import { TESTID } from "../testids.ts"
 
 /**
- * THE BLOCK — the key, and then the row or the words.
+ * THE BLOCK — the fact on one line, and the row beneath it.
  *
- * The key handle is the one piece of chip that survives into the block, and it
- * is here for the promise `./handle.tsx` states: the key opens the editor,
- * always, whatever the value does. Without it a `terminal` property would be
- * the one fact in the vault a person could read and not correct.
+ * TWO STATEMENTS, and they are not the same one. The line on top is olai's
+ * record — this node names THAT terminal — and the row beneath is kolu's
+ * reading of it. A block that drew only the row would hide the id a `set_prop`
+ * is written with and a lane is grepped by; a block that drew only the line
+ * would be the chip this replaced.
+ *
+ * The key and the value are both the chip's, unchanged: the key opens the
+ * editor (`./handle.tsx`'s promise, which is why it is a shared module now)
+ * and so does the value, because the drawer's one gesture is that a link goes
+ * where it says and everything else opens for editing.
  */
 export function TerminalBlock(context: BlockContext) {
   const fleet = useFleet()
@@ -86,35 +92,72 @@ export function TerminalBlock(context: BlockContext) {
   const reading = () => readingOf(context.entry.value, fleet.link(), fleet.terminals())
   return (
     <div class="mb-1" data-testid={TESTID.terminalBlock} data-terminal={context.entry.value}>
+      {/* MUTED and small, deliberately: the value is a fact ABOUT the row, not
+          a competitor to the words inside it. The row says what the terminal is
+          doing; eight characters of id have no business being the loudest thing
+          in a lane. */}
       <div class="flex items-baseline gap-1.5">
         <Handle label={context.entry.key} onOpen={context.onOpen} />
-        <div class="min-w-0 flex-1">
-          <Show
-            when={reading().row}
-            fallback={
-              // THE WORDS, in the reading face rather than the row's: this is
-              // olai speaking about why there is nothing to draw, and setting
-              // it in the row's own face would read as a row that had somehow
-              // come back empty.
-              <p class="text-[0.8125rem] text-muted" data-testid={TESTID.terminalSays}>
-                {reading().says}
-              </p>
-            }
-          >
-            {(row) => (
-              <Row
-                row={row()}
-                pressable={fleet.read !== undefined}
-                onSelect={() => setOpen((was) => !was)}
-              />
-            )}
-          </Show>
-        </div>
+        <Value value={context.entry.value} onOpen={context.onOpen} />
       </div>
+      <Show
+        when={reading().row}
+        fallback={
+          // THE WORDS, in the reading face rather than the row's: this is olai
+          // speaking about why there is nothing to draw, and setting it in the
+          // row's own face would read as a row that had somehow come back
+          // empty.
+          <p class="text-[0.8125rem] text-muted" data-testid={TESTID.terminalSays}>
+            {reading().says}
+          </p>
+        }
+      >
+        {(row) => (
+          <Row
+            row={row()}
+            pressable={fleet.read !== undefined}
+            onSelect={() => setOpen((was) => !was)}
+          />
+        )}
+      </Show>
       <Show when={open() && reading().row}>
         {(row) => <SnapshotPane value={row().id} onClose={() => setOpen(false)} />}
       </Show>
     </div>
+  )
+}
+
+/** The stored value, drawn exactly as the record holds it and pressable for the
+ *  same reason every other value in the run is: the drawer's one gesture is
+ *  "a link goes where it says, everything else opens it for editing", and a
+ *  terminal id is not a link. Not a door either way — `./door.ts` answers what
+ *  a value NAMES, and padi's ids are not addresses this app can spell. */
+function Value(props: { readonly value: string; readonly onOpen?: () => void }) {
+  return (
+    <Show
+      when={props.onOpen}
+      fallback={
+        <span class="min-w-0 truncate text-[0.8125rem] text-muted" data-testid={TESTID.propValue}>
+          {props.value}
+        </span>
+      }
+    >
+      {(open) => (
+        <button
+          type="button"
+          class="min-w-0 cursor-pointer truncate text-[0.8125rem] text-muted hover:text-accent"
+          data-testid={TESTID.propValue}
+          title={`change ${props.value}`}
+          onClick={(event) => {
+            // The row's own line answers a click by opening the title editor.
+            event.stopPropagation()
+            open()()
+          }}
+        >
+          {props.value}
+        </button>
+      )}
+    </Show>
   )
 }
 
