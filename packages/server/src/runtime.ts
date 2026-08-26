@@ -629,6 +629,20 @@ export const bind = (
     let shelfFile: Convention | undefined
     let inboxFile: Convention | undefined
 
+    /**
+     * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
+     * pair: the set, and how old it is (`@olai/store`'s `Aged`). These take
+     * the first and drop the second, which is right and is not the leak it
+     * looks like — a frame HERE is a publish, so its age is nothing, and there
+     * is nothing yet on this wire for a currency axis to be drawn on.
+     *
+     * The question a vintage answers is the one a frame cannot: not "how old
+     * was this when it arrived" but "how old is what I am still looking at",
+     * which is asked by whoever is holding it and is asked through
+     * `Store.read`. The agent's face asks it on every read (`./mcp/tools.ts`);
+     * the browser's does not ask it yet, and the day it does the answer is a
+     * member of its own rather than a field smuggled onto one of these.
+     */
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
       cells: {
         errors: {
@@ -682,7 +696,7 @@ export const bind = (
               pendingCell = cell
               yield* Effect.all([
                 Stream.runForEach(
-                  SubscriptionRef.changes(wiring.store.snapshot),
+                  wiring.store.reads,
                   () => republishGit,
                 ),
                 Stream.runForEach(
@@ -744,8 +758,8 @@ export const bind = (
           store: inMemoryStore<Shelf>(NO_PINS),
           connect: (cell) =>
             Stream.runForEach(
-              SubscriptionRef.changes(wiring.store.snapshot),
-              (snapshot) =>
+              wiring.store.reads,
+              ({ snapshot }) =>
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(NO_PINS)
                   const derived = snapshot.value.derived
@@ -776,8 +790,8 @@ export const bind = (
           store: inMemoryStore<InboxHeld>(NO_INBOX),
           connect: (cell) =>
             Stream.runForEach(
-              SubscriptionRef.changes(wiring.store.snapshot),
-              (snapshot) =>
+              wiring.store.reads,
+              ({ snapshot }) =>
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(NO_INBOX)
                   const { set, derived } = snapshot.value
@@ -795,8 +809,8 @@ export const bind = (
           store: inMemoryStore<Manifest>(null),
           connect: (cell) =>
             Stream.runForEach(
-              SubscriptionRef.changes(wiring.store.snapshot),
-              (snapshot) =>
+              wiring.store.reads,
+              ({ snapshot }) =>
                 Effect.sync(() => {
                   if (snapshot === null) return cell.set(null)
                   // THE PROJECTION CONSUMES WHAT IT IS HANDED, so these two

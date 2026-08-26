@@ -239,9 +239,10 @@ const walkedChangeOf = <S, T>(
  *
  * {@link Step.forgotten} is the other half and it is not a hypothetical. The
  * store's `removed` is the listing's diff against the STAMP TABLE the last
- * probe left, and `resync` forgets that table wholesale (`@olai/store`'s
- * `probe.forget` — the door a `git checkout`, an rsync or a test harness
- * putting a fixture back comes through), so after one, a file that left is
+ * probe left, and a VERIFIED look forgets that table wholesale (`@olai/store`'s
+ * `probe.forget`, behind `refresh("verified")` — the class a `git checkout`,
+ * an rsync or a test harness putting a fixture back asks for), so after one, a
+ * file that left is
  * re-listed as gone and named as removed by NOBODY. The walk this replaced
  * re-derived membership from the set every revision and could not be hurt by
  * it; a projection that carries its maps can be, and was — a `_olai/Inbox.olai`
@@ -255,7 +256,7 @@ export interface Step {
   readonly deletes?: ReadonlyArray<string>
   /** Files that leave the disk in a revision that names neither them nor
    *  anything else about them — see above. `changed` still names every file the
-   *  probe re-decoded, because a resync re-decodes the whole listing. */
+   *  probe re-decoded, because a verified look re-decodes the whole listing. */
   readonly forgotten?: ReadonlyArray<string>
 }
 

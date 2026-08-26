@@ -34,9 +34,18 @@
  *   - **A read is a read.** `mutates: false` is a conscious opt-in to the
  *     auto-approvable hint, and it is correct for the six query tools and for
  *     nothing else.
+ *   - **A read carries its age.** Every read's answer gains a `vintage`, from
+ *     the store's own read socket at the class an agent's result needs
+ *     (`@olai/store`'s `Freshness`). It is here rather than in each tool's
+ *     answer schema for the same reason `root` is: it is a fact about the
+ *     SERVER that answered, true of every read the same way, and a field
+ *     twelve schemas each declare is twelve places for it to go missing. On
+ *     2026-08-25 a running server answered `read_node` normally with week-old
+ *     truth for half an hour; what was missing was not a tool, it was this.
  */
 
 import { isOpFailure, kindOf, type OpFailure, stampOf, type Writer } from "@olai/format"
+import { isStale, type Vintage } from "@olai/store"
 import { type Acting, type Applied, type Asking, type Planning, type Running, type Tool } from "@olai/ops"
 import { type BespokeTool, ToolFailure, type ToolInputSchema } from "@kolu/surface-mcp"
 import { Effect, Result, Schema } from "effect"
@@ -91,15 +100,24 @@ export const bespokeFrom = (
       tool,
     ) => [
       tool.name,
-      verb(tool, (args, client) =>
-        Effect.map(
-          // READ HERE, synchronously, on the request's own stack — see
-          // `./route.ts`'s `WHOSE`. Deferring it into the Effect would read
-          // whichever request happened to be running when the scheduler got to
-          // it, which is a capture attributed to the wrong person.
-          answer(tool, doorFor(client as OlaiSurfaceClient), args, at.login()),
-          (said) => named(said, at.root),
-        )),
+      verb(tool, (args, client) => {
+        // READ HERE, synchronously, on the request's own stack — see
+        // `./route.ts`'s `WHOSE`. Deferring it into the Effect would read
+        // whichever request happened to be running when the scheduler got to
+        // it, which is a capture attributed to the wrong person.
+        const said = answer(tool, doorFor(client as OlaiSurfaceClient), args, at.login())
+        if (tool.kind !== "read") return Effect.map(said, (it) => named(it, at.root))
+        // THE AGE IS ESTABLISHED FIRST, and that order is the honest one: the
+        // look happens, then the read runs against a set that is at least as
+        // current as the look proved. The other order would let a publish land
+        // between them and stamp an answer with a vintage newer than the answer
+        // is. This way the vintage can only understate, which is the direction
+        // an agent can act on safely.
+        return Effect.flatMap(
+          at.vintage,
+          (vintage) => Effect.map(said, (it) => named(it, at.root, vintage)),
+        )
+      }),
     ]),
   )
 
@@ -123,6 +141,18 @@ export interface Served {
   readonly login: () => string | null
   /** The absolute path of the directory this server is serving. */
   readonly root: string
+  /**
+   * HOW CURRENT AN ANSWER FROM THIS SERVER IS — the store's read socket, at the
+   * class a tool result deserves.
+   *
+   * An EFFECT and not a value, because it is asked per call: the whole content
+   * of a vintage is when it was established, and one taken at composition time
+   * would be a number that ages while claiming not to. It cannot fail —
+   * `@olai/store`'s read has no failure channel, and a look that could not be
+   * taken comes back as an arm of the proof rather than as a defect a tool
+   * handler would have to word.
+   */
+  readonly vintage: Effect.Effect<Vintage>
 }
 
 /**
@@ -188,9 +218,11 @@ const verb = (
     ...(input === undefined ? {} : { input }),
     title: tool.title,
     description: tool.description,
-    // Conservative where it matters and honest where it does not: only the four
-    // query tools are read-only, and `readOnlyHint` is what can let a host run a
-    // call unconfirmed. Everything else is left mutating.
+    // Conservative where it matters and honest where it does not: only the six
+    // query tools are read-only (`list_outlines`, `list_documents`,
+    // `read_node`, `read_subtree`, `read_document`, `search_nodes`), and
+    // `readOnlyHint` is what can let a host run a call unconfirmed. Everything
+    // else is left mutating.
     mutates: tool.kind !== "read",
     // The client the ADAPTER holds, not one this projection closed over — so a
     // socket that dropped and was re-dialled is answered by the fresh one, and
@@ -200,11 +232,42 @@ const verb = (
   }
 }
 
-/** The served directory, on the answer. An object answer gains the key; anything
- *  else is left alone rather than wrapped, because a wrapper would change the
- *  shape of an answer to say something about the server. */
-const named = (said: unknown, root: string): unknown =>
-  isRecord(said) ? { ...said, root } : said
+/** The served directory, and — for a read — how old what it says is. An object
+ *  answer gains the keys; anything else is left alone rather than wrapped,
+ *  because a wrapper would change the shape of an answer to say something about
+ *  the server. */
+const named = (said: unknown, root: string, vintage?: Vintage): unknown =>
+  isRecord(said)
+    ? { ...said, root, ...(vintage === undefined ? {} : { vintage: stated(vintage) }) }
+    : said
+
+/**
+ * THE VINTAGE AS AN AGENT READS IT — the store's value, said in the wire's own
+ * vocabulary.
+ *
+ * Three things an agent can act on and no fourth. `stale` is the bit, and it is
+ * first because it is the one an agent must not miss: a set the disk no longer
+ * agrees about, or one nobody could check, is not a set to plan a write against.
+ * `asOf` and `ageMs` are the same instant said twice on purpose — a timestamp
+ * is what a human reading a transcript wants and a duration is what a rule can
+ * be written against, and deriving one from the other needs a clock the reader
+ * may not share with this process. `proof` says which of the four it is, and
+ * carries the one extra fact each arm has: the paths that moved, or the disk's
+ * own words for why nobody could look.
+ *
+ * A projection rather than the store's value passed through, for the reason
+ * every wire shape in this tree is one: what `@olai/store` calls its arms is
+ * that package's to change, and an agent's transcript is not the place to find
+ * out that it did.
+ */
+const stated = (vintage: Vintage): Record<string, unknown> => ({
+  stale: isStale(vintage),
+  asOf: new Date(vintage.at).toISOString(),
+  ageMs: vintage.age,
+  proof: vintage.proof._tag.toLowerCase(),
+  ...(vintage.proof._tag === "Diverged" ? { diverged: vintage.proof.paths } : {}),
+  ...(vintage.proof._tag === "Unchecked" ? { why: vintage.proof.why } : {}),
+})
 
 /** The address this answer was fetched from, on the answer — the client's half
  *  of the same fact. */

@@ -58,6 +58,21 @@ export type Decoded<F, E> = ReadonlyMap<string, Result.Result<F, E>>
  */
 export interface Found<F, E> {
   readonly files: Decoded<F, E>
+  /**
+   * WHAT EACH OF THOSE FILES WAS AT THE MOMENT IT WAS READ — the same table
+   * the diff above was computed from, kept instead of thrown away.
+   *
+   * It is here for one caller and one purpose: a published revision keeps the
+   * stamps it was made from, so a later look at the disk can be measured
+   * against THIS answer rather than against whatever the probe's live cache
+   * has moved on to ({@link ./vintage.ts}'s `Standing`). Handed out rather
+   * than asked for afterwards, because "the stamps this set was read at" stops
+   * being answerable the moment the next probe runs.
+   *
+   * It is the same PATH talk the two lists beside it are, so it costs a
+   * package that knows nothing about outlines nothing to carry.
+   */
+  readonly stamps: ReadonlyMap<string, Stamp>
   /** Re-decoded this probe, in listing order. */
   readonly changed: ReadonlyArray<string>
   /** Gone from the listing since the last probe. */
@@ -332,11 +347,18 @@ export const make = <F, S, E>(
           }
 
           yield* Ref.set(cache, next)
-          return {
-            files: new Map([...next].map(([path, { decoded }]) => [path, decoded])),
-            changed,
-            removed,
+          // ONE walk for both projections. `next` pairs each file's stamp with
+          // what it decoded to because that is what a cache entry is; the two
+          // things above want are the halves of it, and splitting them here
+          // rather than twice keeps the probe's per-run cost one pass over
+          // what it found.
+          const files = new Map<string, Result.Result<F, E>>()
+          const table = new Map<string, Stamp>()
+          for (const [path, cached] of next) {
+            files.set(path, cached.decoded)
+            table.set(path, cached.stamp)
           }
+          return { files, stamps: table, changed, removed }
         }),
     }
   })

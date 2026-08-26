@@ -90,7 +90,7 @@ const same = (
   request: SearchRequest,
 ): Effect.Effect<SearchAnswer> =>
   Effect.gen(function*() {
-    const snapshot = yield* SubscriptionRef.get(store.snapshot)
+    const snapshot = yield* Effect.map(store.read("cheap"), (aged) => aged.snapshot)
     if (snapshot === null) throw new Error("the fixture directory never loaded")
     const walked = Query.search(snapshot.value, request, STAMP)
     const indexed = yield* Effect.orDie(ops.search(request))
@@ -107,7 +107,7 @@ const same = (
  */
 const sized = (store: Store): Effect.Effect<void> =>
   Effect.gen(function*() {
-    const snapshot = yield* SubscriptionRef.get(store.snapshot)
+    const snapshot = yield* Effect.map(store.read("cheap"), (aged) => aged.snapshot)
     if (snapshot === null) throw new Error("the fixture directory never loaded")
     const set = snapshot.value.set
     const bodies = new Map<string, string>(

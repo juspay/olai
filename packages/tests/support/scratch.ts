@@ -20,13 +20,15 @@
  * lives with isolateEnv in `workers.ts` — that volatility is what the child
  * *is*, not whether these scenarios may share.
  *
- * Bytes put back are not a signal the server honours. The store's stamps are
- * mtime+size, and a same-length rewrite in the same second is a change its
- * watcher is entitled not to notice (packages/tests/README.md, the evidence
- * driver's own warning; `@olai/store`'s probe). `refresh` still uses those
- * stamps. The write path forgets the files it just wrote; `Store.resync` is
- * the same forget for an unknown set of paths. The harness POSTs that, and
- * does not return to the next scenario until the probe has published.
+ * Bytes put back are not a signal the server honours. The store's cheap look
+ * is entitled to see nothing in a same-length rewrite that landed in the same
+ * second (packages/tests/README.md, the evidence driver's own warning;
+ * `@olai/store`'s probe), which is exactly the shape a restore has. So the
+ * POST asks the store for its OTHER freshness class — `verified`, "a look you
+ * may believe against a tree something outside this process rewrote" — and
+ * what that costs the store is the store's business rather than this
+ * harness's. It does not return to the next scenario until the probe has
+ * published.
  *
  * A restore that cannot put the tree back — leftover files, a missing
  * fixture path — fails naming the scenario and the files. Chat, `@git`,
@@ -250,8 +252,8 @@ export const unrestoredError = (
 
 /**
  * Ask the still-running server to re-read the restored files. Returns
- * only once in-flight writes have finished and `Store.resync` has
- * published — the contract the next scenario's first load needs. Bytes
+ * only once in-flight writes have finished and the store's verified look
+ * has published — the contract the next scenario's first load needs. Bytes
  * on disk are not that contract.
  */
 export const askResync = async (

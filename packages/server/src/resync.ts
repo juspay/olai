@@ -8,9 +8,14 @@
  * back under a still-running server, cannot take that trade — the next
  * reader would be looking at a frame nobody can reproduce.
  *
- * `Store.resync` is the signal the store already honours for this (forget
- * every cached stamp, then probe, and do not return until published). The
- * Effect this route is handed also waits for in-flight writes first
+ * `Store.refresh("verified")` is the signal the store honours for this: the
+ * one look verb, asked for the class that entitles a caller to believe what
+ * comes back against a tree something outside this process rewrote, and not
+ * to return until it has been published. Which measures that takes — a stamp
+ * table forgotten, a file re-read — is inside the store and is deliberately
+ * not this route's to know; the paragraph above is the reason the class
+ * exists, not an instruction to it. The Effect this route is handed also
+ * waits for in-flight writes first
  * (`Ops.idle`, composed in `serve.ts`): a look at the disk while a write
  * is still staging is a look at `.olai-*.tmp`, not at the tree the next
  * reader will be served. That wait is unbounded on THIS door on purpose: a

@@ -129,7 +129,7 @@ const withOps = <A>(
         return fs.existsSync(at) ? fs.readFileSync(at, "utf8") : null
       },
       set: () =>
-        Effect.map(SubscriptionRef.get(store.snapshot), (snapshot) => {
+        Effect.map(Effect.map(store.read("cheap"), (aged) => aged.snapshot), (snapshot) => {
           if (snapshot === null) throw new Error("the fixture directory never loaded")
           return snapshot.value.set
         }),
@@ -525,7 +525,7 @@ test("a refusal writes nothing and comes back with its structured detail", () =>
       )
       expect(failure._tag).toBe("UsageFailure")
       expect(fixture.read("house.olai")).toBe(HOUSE)
-      expect((yield* SubscriptionRef.get(fixture.store.snapshot))?.rev).toBe(1)
+      expect((yield* Effect.map(fixture.store.read("cheap"), (aged) => aged.snapshot))?.rev).toBe(1)
       // Reported wherever it came from: the observer hangs off the WRITER, so
       // a second caller — the web UI's own procedures, when they arrive — is
       // not a second place to remember to report from.
@@ -557,7 +557,7 @@ test("a set_prop of the value already held writes nothing at all", () =>
       // there — and the store never moved, so nothing downstream was told a
       // revision happened.
       expect(fixture.read("house.olai")).toBe(PROPPED)
-      expect((yield* SubscriptionRef.get(fixture.store.snapshot))?.rev).toBe(1)
+      expect((yield* Effect.map(fixture.store.read("cheap"), (aged) => aged.snapshot))?.rev).toBe(1)
     })))
 
 test("a set_prop that DOES change something lands, and stamps the write", () =>
@@ -893,7 +893,7 @@ describe("apply, against a real directory", () => {
         // batch land at 2 as well — which is the whole claim: one plan, one
         // validation, one rename, one publication. Three calls would have been
         // 2, 3 and 4, and three frames to every open page.
-        expect((yield* SubscriptionRef.get(fixture.store.snapshot))?.rev).toBe(1)
+        expect((yield* Effect.map(fixture.store.read("cheap"), (aged) => aged.snapshot))?.rev).toBe(1)
         const applied = yield* run(fixture, {
           op: "apply",
           ops: [
@@ -903,7 +903,7 @@ describe("apply, against a real directory", () => {
           ],
         })
         expect(applied.rev).toBe(2)
-        expect((yield* SubscriptionRef.get(fixture.store.snapshot))?.rev).toBe(2)
+        expect((yield* Effect.map(fixture.store.read("cheap"), (aged) => aged.snapshot))?.rev).toBe(2)
 
         const text = fixture.read("house.olai") ?? ""
         expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
@@ -946,7 +946,7 @@ describe("apply, against a real directory", () => {
         // rewritten line. The bytes are the bytes.
         expect(fixture.read("house.olai")).toBe(before)
         // …and the store never moved, so no open page saw a half-run.
-        expect((yield* SubscriptionRef.get(fixture.store.snapshot))?.rev).toBe(1)
+        expect((yield* Effect.map(fixture.store.read("cheap"), (aged) => aged.snapshot))?.rev).toBe(1)
         expect(fixture.refusals).toEqual(["apply: UsageFailure"])
       })))
 
@@ -1043,7 +1043,7 @@ describe("a broken file beside a healthy one", () => {
   const breakGarden = (fixture: Fixture) =>
     Effect.gen(function*() {
       fixture.write("garden.olai", DANGLING)
-      yield* Effect.orDie(fixture.store.refresh)
+      yield* Effect.orDie(fixture.store.refresh("cheap"))
       const errors = yield* SubscriptionRef.get(fixture.store.errors)
       expect(errors?.findings.map((one) => one.code)).toEqual(["unknown-target"])
     })
@@ -1124,7 +1124,7 @@ describe("a broken file beside a healthy one", () => {
           yield* run(fixture, { op: "done", id: "order" })
 
           fixture.write("garden.olai", GARDEN)
-          yield* Effect.orDie(fixture.store.refresh)
+          yield* Effect.orDie(fixture.store.refresh("cheap"))
           expect(yield* SubscriptionRef.get(fixture.store.errors)).toBeNull()
 
           const set = yield* fixture.set()

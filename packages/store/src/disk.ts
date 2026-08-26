@@ -3,6 +3,10 @@
  *
  * Three questions and no more: what is under the root right now (with a stamp
  * per file), what is in one of those files, and "something down there moved".
+ * The first is asked twice over — {@link Disk.listing} for the probe, which
+ * arms the watcher as it goes, and {@link Disk.survey} for anyone else, which
+ * arms nothing — and that is one question with two callers rather than a
+ * fourth.
  * The services are resolved ONCE, when the store is built, so everything above
  * this file is `Effect<_, PlatformFailure>` with nothing left in its
  * requirements — a `refresh` a consumer holds should not ask them for a file
@@ -65,8 +69,31 @@ export const sameStamp = (a: Stamp, b: Stamp): boolean =>
   a.mtime === b.mtime && a.size === b.size
 
 export interface Disk {
-  /** Every matching file under the root, in path order, with its stamp. */
+  /** Every matching file under the root, in path order, with its stamp.
+   *
+   *  THE PROBE'S walk, and the only one that ARMS: it is what tells the
+   *  watcher about directories the root's own recursive watch cannot reach,
+   *  and what releases the ones that have left the tree (the arming block in
+   *  {@link make}). One descent does both jobs because a second would have to
+   *  agree with it about what is pruned. */
   readonly listing: (
+    match: (path: string) => boolean,
+  ) => Effect.Effect<ReadonlyMap<string, Stamp>, PlatformFailure>
+  /**
+   * THE SAME WALK, ARMING NOTHING — the stats without the bookkeeping.
+   *
+   * A second party looks at this tree now: the vintage's verification
+   * ({@link ./vintage.ts}) re-stats the directory on the ASKER's fiber,
+   * deliberately outside the permit the probe holds, and two walks doing the
+   * watcher's bookkeeping would race over one registry. The damage is not
+   * hypothetical — {@link Disk.listing}'s reconcile is what flips `seeded`,
+   * so a survey that beat the boot walk to it would leave every directory of
+   * the tree counted as covered by a watcher nothing ever armed.
+   *
+   * So the arming stays on the walk that is the probe's, and this one takes
+   * the same prune rules and produces the same stamps while touching nothing.
+   */
+  readonly survey: (
     match: (path: string) => boolean,
   ) => Effect.Effect<ReadonlyMap<string, Stamp>, PlatformFailure>
   /** One file's text, or `null` if it is no longer there. */
@@ -295,7 +322,10 @@ export const make = (
       )
     }))
 
-    const listing = (match: (path: string) => boolean) =>
+    /** The walk both members are. `arming` is the whole difference between
+     *  them, and it is spelled once here rather than as two descents that
+     *  could come to prune differently. */
+    const walk = (match: (path: string) => boolean, arming: boolean) =>
       Effect.gen(function*() {
         // Walked a directory at a time rather than with one recursive read,
         // because the walk has to be able to STOP. A served directory is
@@ -316,7 +346,7 @@ export const make = (
             // Started before the entries are read, so a file landing here in
             // between wakes the new watcher rather than falling into the gap.
             // Best-effort-before — {@link cover} says how far that reaches.
-            yield* cover(directory)
+            if (arming) yield* cover(directory)
             const entries = yield* entriesOf(directory)
 
             // One stat per entry, concurrently, because this is latency in
@@ -357,9 +387,12 @@ export const make = (
         // Only on a walk that came back whole: one that failed has half a tree
         // in `visited`, and reconciling against it would disarm the half it
         // never reached.
-        yield* reconcile(visited)
+        if (arming) yield* reconcile(visited)
         return stamps
       })
+
+    const listing = (match: (path: string) => boolean) => walk(match, true)
+    const survey = (match: (path: string) => boolean) => walk(match, false)
 
     const read = (path: string) =>
       fs.readFileString(absolute(path)).pipe(
@@ -389,7 +422,7 @@ export const make = (
 
     const discard = (path: string) => Effect.ignore(fs.remove(absolute(path)))
 
-    return { listing, read, watch, stage, publish, discard, resolve: absolute }
+    return { listing, survey, read, watch, stage, publish, discard, resolve: absolute }
   })
 
 /**

@@ -808,7 +808,11 @@ export const make = (options: Options): Committing => {
         return { changes: [], unreadable: [] }
       }
 
-      const snapshot = yield* SubscriptionRef.get(options.store.snapshot)
+      // The CHEAP class: this is the panel's own thirty-second sweep over what
+      // is waiting to be committed, and it wants the set the store is serving
+      // rather than a walk of the tree per survey. What is stale here is
+      // already visible on the page it draws beside.
+      const { snapshot } = yield* options.store.read("cheap")
       const at = snapshot?.value ?? null
 
       // The revision, cut the three ways the walk below reads it: what each

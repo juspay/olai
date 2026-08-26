@@ -213,7 +213,7 @@ test("opening a `.html` reads its body onto that key, and nothing holds it", () 
           ),
         )
         expect([...keys]).toEqual([["report.html"]])
-        const set = yield* SubscriptionRef.get(store.snapshot)
+        const set = yield* Effect.map(store.read("cheap"), (aged) => aged.snapshot)
         expect(set?.value.set.documents.map((one) => [String(one.path), one.kind]))
           .toEqual([["a.olai", "outline"], ["report.html", "hypertext"]])
       }),
@@ -241,7 +241,7 @@ test("a reader watching a head is told the file moved, and no body is read", () 
         const first = yield* open.take
 
         fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
-        yield* store.refresh
+        yield* store.refresh("cheap")
         const second = yield* open.take
 
         // A revision, a face and whether the file parsed — and NO BODY, no
@@ -283,7 +283,7 @@ test("a file a reader is holding is re-read for them when it moves", () =>
         })
 
         fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
-        yield* store.refresh
+        yield* store.refresh("cheap")
 
         expect(yield* open.take).toEqual({
           rev: 2,
@@ -326,7 +326,7 @@ test("a file whose reader has gone is not re-read on a later revision", () =>
         const moved = yield* watching(heads({ key: "report.html" }) as Stream.Stream<Head>)
         yield* moved.take
         fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
-        yield* store.refresh
+        yield* store.refresh("cheap")
         yield* moved.take
 
         // The barrier: a body asked for by a reader who IS here, which the
@@ -357,7 +357,7 @@ test("a reader holding a key across a file's birth is handed the body", () =>
       const open = yield* opening(wired.bound, "report.html")
 
       fs.writeFileSync(path.join(root, "report.html"), "<h1>Born</h1>\n")
-      yield* store.refresh
+      yield* store.refresh("cheap")
 
       // TWO frames, in this order: the upsert that says the collection has a new
       // key (which cannot carry a body — nothing has read one), and the body
@@ -434,7 +434,7 @@ test("a directory that never loaded publishes no head, and the first head is the
       const never = yield* manifest.take
 
       fs.writeFileSync(path.join(root, "a.olai"), OUTLINE)
-      yield* store.refresh
+      yield* store.refresh("cheap")
       const arrived = yield* heads.take
       const loaded = yield* manifest.take
 
@@ -485,7 +485,7 @@ test("the shelf is answered per revision, so a rename elsewhere renames the pin"
         // the shelf's file, and is the whole point: nothing about `Pins.olai`
         // changed.
         fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"b"}\n`)
-        yield* store.refresh
+        yield* store.refresh("cheap")
         const second = yield* open.take
 
         expect([first, second]).toEqual([
@@ -529,10 +529,10 @@ test("a revision that changes no pin sends no frame", () =>
 
         // A revision the shelf has nothing to say about: another file's bytes.
         fs.writeFileSync(path.join(root, "report.html"), "<h1>After</h1>\n")
-        yield* store.refresh
+        yield* store.refresh("cheap")
         // …and one it does: the pinned node, retitled where it lives.
         fs.writeFileSync(path.join(root, "a.olai"), `{"id":"a","ord":"a0","title":"b"}\n`)
-        yield* store.refresh
+        yield* store.refresh("cheap")
 
         expect(yield* open.take).toEqual([
           { id: "p", title: "/#a", shows: { id: "a", name: "b" } },
