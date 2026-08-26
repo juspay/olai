@@ -19,6 +19,13 @@ Feature: A property key that declares its type
   because comparing text as if it were a number is the lie types exist to
   prevent.
 
+  And the DISPLAY side, which is the same declaration read by the other arm: a
+  declared value NAMES something, and one place answers what — the gate and the
+  chip cannot disagree about the same string (`@olai/format`'s `meaning.ts`).
+  So a `doc` key whose row says `base: root` resolves from the served root
+  wherever it was written, a `ref` chip draws the variant's title over the id it
+  stores, and a `path` that points outside this directory draws no door at all.
+
   `@scratch:` because these write the directory they are served. They share one
   copy per worker (`@share-scratch`); the corpus is restored between scenarios.
 
@@ -36,8 +43,10 @@ Feature: A property key that declares its type
     Then the property editor on "chips" is closed
     And the node "chips" refuses the property write with "`merge` is `auto` | `human`"
     # ...and nothing was written: the row and the file both still say what they
-    # said, which is what makes this a refusal rather than a revert.
-    And the node "chips" shows the property "merge" holding "auto"
+    # said, which is what makes this a refusal rather than a revert. The row
+    # says it as the variant's TITLE and the file says it as the stored id,
+    # which is the ref chip's own rule and is why these two lines differ.
+    And the node "chips" shows the property "merge" holding "automatic"
     And "lanes.olai" holds the node "chips" with "merge" set to "auto"
     And the page has not reloaded
     And there should be no page errors
@@ -121,4 +130,49 @@ Feature: A property key that declares its type
     And the node "auto" is a child of "prop-merge"
     And the node "human" is a child of "prop-merge"
     And the node "prop-agent" shows the property "under" holding "agents"
+    And there should be no page errors
+
+  # ── what a declared value NAMES ──────────────────────────────────────
+
+  Scenario: A `brief` written from the board's own root opens, one directory in
+    # THE RESURRECTION. `roadmap/board.olai` writes `briefs/tp.md` the way every
+    # board in every vault writes one — by a convention that stands at the root,
+    # not by somebody standing in `roadmap/`. Resolved beside the writing file it
+    # named `roadmap/briefs/tp.md`, which the directory does not serve, so the
+    # chip drew link-coloured and inert; the vault says `base: root` on the
+    # key's own row now, and the gate and the chip both read that row.
+    Given I open the address "/roadmap/board.olai"
+    Then the property "brief" on "board-lane" is a "document" door to "/briefs/tp.md"
+    When I follow the property "brief" on "board-lane"
+    Then the address is "/briefs/tp.md"
+    And there should be no page errors
+
+  Scenario: A ref chip draws the variant's title, and stores the id underneath
+    # The other half of the same declaration. `agent grok` reads `agent Grok`
+    # because the vault declared `agent` a reference — names rename, ids don't —
+    # and the file goes on holding the id, which is what a `set_prop` takes.
+    Given I open the address "/roadmap/board.olai"
+    Then the node "board-lane" shows the property "agent" holding "Grok"
+    And the property "agent" on "board-lane" is a "node" door to "/#grok"
+    And "roadmap/board.olai" holds the node "board-lane" with "agent" set to "grok"
+    And there should be no page errors
+
+  Scenario: A `path` that points outside this directory draws no door
+    # The wrong-door-is-worse-than-no-door rule, now said by the vault rather
+    # than guessed at: `worktree` is declared `path`, which may point anywhere —
+    # at a directory on the machine the orchestrator runs on, say — so a chip
+    # that offered to open it would be offering a page that does not exist.
+    Given I open the address "/roadmap/board.olai"
+    Then the node "board-lane" shows the property "worktree" holding ".worktrees/board"
+    And the property "worktree" on "board-lane" is not a link
+    And there should be no page errors
+
+  Scenario: A document's own frontmatter chips ride the same answers
+    # ONE TABLE, and the document page is where that is worth showing: a `.md`
+    # writes named facts about itself in its frontmatter, and those chips are
+    # drawn by the same run out of the same reading. So the declaration reaches
+    # them without anybody teaching the document page what a `ref` is.
+    When I open the address "/briefs/tp.md"
+    Then the document shows the property "agent" holding "Grok"
+    And the document shows the property "worktree" holding ".worktrees/tp"
     And there should be no page errors

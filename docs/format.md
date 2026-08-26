@@ -101,13 +101,43 @@ dispatched  2026-08-25 10:06 (sweep queue #5; the slot freed by #387's merge)
 | `date` | an ISO day (`2026-08-25`) or an instant written as a mark records one (`2026-08-25T10:06:00-04:00`). Nothing else. |
 | `int` | a digit run: no sign, no leading zeros, no separators, nothing after them. |
 | `path` | one run of characters with no whitespace in it. May point anywhere. |
-| `doc` | a path that resolves — against the naming outline's own directory, as `doc` does — to an `.md` this directory serves. |
+| `doc` | a path that resolves to an `.md` this directory serves. WHERE it resolves from is the key's own `base` (below). |
 | `ref` | the **id** of one of a parent's children. `under` names the parent; absent, it is the declaration's own children. |
 | `node` | the id of any node in the set. A mirror is not one. |
 
 **There is deliberately no `sum` — an enum IS a ref.** The variants are nodes, so adding one is adding a child rather than editing a pipe-separated string inside a property, which is exactly the sloppiness this refuses. A roster that happens to live elsewhere (`{"type":"ref","under":"agents-roster"}`) is the same mechanism pointed at a different place, and it stays data: add a node under the roster and the sum grows, with no declaration to edit.
 
-**A ref value is an ID** — the pin and mirror rule, for the pin and mirror reason: names rename, ids don't. Variant ids are chosen short at declaration time (`auto`, `human`), which is safe because the duplicate-id fence makes a clash loud at add-time, and short because **the id is what is drawn**: nothing resolves a ref value to its variant's title yet. Where a chip shows `auto`, `auto` is what the file holds. Resolving one for display is the same door work `pr` is waiting on (a repo and a number into a URL) and lands with it, not here.
+**A ref value is an ID** — the pin and mirror rule, for the pin and mirror reason: names rename, ids don't. Variant ids are chosen short at declaration time (`auto`, `human`), which is safe because the duplicate-id fence makes a clash loud at add-time. **The id is the stored truth and the TITLE is what a chip draws**: where the file holds `auto`, the chip reads `automatic`, and the id is what the pointer is told. That resolution happens where the set is and travels to the browser as an answer — see [What a declared value names](#what-a-declared-value-names) below.
+
+### The basis: where a `doc` or `path` value resolves FROM
+
+A `doc` or `path` declaration may say `base`, and it is `root` or `file`:
+
+```jsonl
+{"id":"prop-brief","ord":"a5","title":"brief","custom":{"type":"doc","base":"root"}}
+```
+
+- **`file`** — beside the file the value was written in, exactly as a note's relative markdown link resolves. **This is the default**, so a declaration written without a `base` means what it always meant.
+- **`root`** — from the served directory's root, wherever the value was written.
+
+**Why it is a declared fact rather than a rule.** Both premises are true of real vaults and they were held by different halves of the code, which is how a hundred chips came to be dead at once. A board writes `brief briefs/plan.md` on a record of `roadmap/features.olai` and means the file at the root — that value is written by a CONVENTION that stands at the root, not by somebody standing in `roadmap/`. A note's `doc` field means the opposite and always will: it is a file named beside itself. Neither reading is wrong; what was wrong was that nothing said which one a key took, so the gate and the display each picked one and disagreed. Now the key's own row says it, and both read that row.
+
+**The markdown `doc` FIELD is untouched** and keeps beside-the-writer as its only premise. A note has no key to declare on, so there is nothing there to say a second thing.
+
+`base` on any other kind is refused where it is written (`bad-prop`): the five kinds that name no path have nothing to resolve.
+
+### What a declared value names
+
+A declaration is a fence around a value, and it is also the strongest thing anyone knows about what that value POINTS AT. **One place answers both** — the write gate asks "is this allowed" and the display asks "what does it name", of the same declaration, and they cannot disagree:
+
+- A `doc` or `path` value opens the file it resolves to, if this directory serves one. So `brief` is a door and `worktree` — declared `path`, and pointing at a directory on somebody's machine — is not.
+- A `ref` or `node` value opens the record it names, and the chip draws that record's **title**.
+- A `date` value opens its day; an `int` names nothing.
+- A **declared `text`** is read exactly as an undeclared key is (below), which is what keeps the URL in a `pr-url` a door.
+
+**An UNDECLARED key is guessed at, in this order**: a whole `http(s)` URL, a date, an exact node id, a path this directory serves (beside the writing file — there is no declaration to say otherwise), and GitHub's `owner/repo#123`. Anything else is text. The rule under all of it is that **a wrong door is worse than no door**: the entire value has to BE the name of the thing, so a value with a URL *in* it is not a URL and a value that reads like a title is not a node.
+
+**The vocabulary itself never leaves the server.** What a browser is handed is the ANSWERS — one per value a page draws that names something — and never the declarations that produced them, so nothing up there can re-derive an answer and disagree with this one.
 
 **One rule, two doors.** A live write is REFUSED, with the allowed values named and the closest one offered:
 
@@ -132,7 +162,7 @@ A hand edit that lands a bad value makes the file **broken, naming the key** (`b
 
 **A key is folded for case.** `pr` and `PR` are one key — to the fence, to `prop:` in a query, and to the shadowed-key refusal, all of which folded already. A property is something somebody typed into a map that gives no key a spelling, so a declaration of `pr` fences a record that wrote `PR`, and declaring both is declaring one key twice.
 
-**Where the recursion grounds.** A declaration is a node carrying properties, so `type` and `under` would need declaring too. They do not: a **built-in table** in code types those two words, applied to the records of `_olai/Properties.olai` and nowhere else. A vault may not declare `type` or `under`; outside that file, a property called `type` is somebody's own vocabulary and none of this format's business. `under` names a NODE and never a mirror: a placement has no children of its own, so a declaration pointed at one would be accepted, find no variants, and then refuse every value of that key for a reason nobody could act on — it is refused where the mistake is written instead.
+**Where the recursion grounds.** A declaration is a node carrying properties, so `type`, `under` and `base` would need declaring too. They do not: a **built-in table** in code types those three words, applied to the records of `_olai/Properties.olai` and nowhere else. A vault may not declare `type`, `under` or `base`; outside that file, a property called `type` is somebody's own vocabulary and none of this format's business. `under` names a NODE and never a mirror: a placement has no children of its own, so a declaration pointed at one would be accepted, find no variants, and then refuse every value of that key for a reason nobody could act on — it is refused where the mistake is written instead.
 
 **What typing does NOT do.** No required keys, no schema per node kind, no defaults. A node may carry any subset of keys, as today. This is one rule about values.
 

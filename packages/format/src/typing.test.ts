@@ -22,6 +22,7 @@ import {
   isPathShaped,
   NO_TYPING,
   offsetIn,
+  PATH_BASES,
   PROP_KINDS,
   sameTyping,
   storedValue,
@@ -347,21 +348,26 @@ test("an int and a path have one shape each, asked directly", () => {
 
 // ── where the recursion grounds ────────────────────────────────────────
 
-test("the bootstrap table is the two words a declaration says about itself", () => {
-  expect([...BOOTSTRAP.keys()]).toEqual(["type", "under"])
+test("the bootstrap table is the words a declaration says about itself", () => {
+  expect([...BOOTSTRAP.keys()]).toEqual(["type", "under", "base"])
   // `type` is a closed word list — the seven kinds, and the union above is what
   // that list is checked against, so an eighth kind cannot be added to one
   // without the other.
   expect(PROP_KINDS).toEqual(["text", "date", "int", "path", "doc", "ref", "node"])
+  // ...and so is `base`, for the same reason one word over: the two bases are a
+  // fact about this format, so a vault cannot add a third by writing a node.
+  expect(PATH_BASES).toEqual(["root", "file"])
 })
 
-test("a vault cannot declare `type` or `under` — the recursion stops in the table", () => {
+test("a vault cannot declare `type`, `under` or `base` — the recursion stops in the table", () => {
   const claiming = derive(nodesOfFiles({
     ...FILES,
     "_olai/Properties.olai": `${FILES["_olai/Properties.olai"]}\n` +
-      `{"id":"prop-type","ord":"a8","title":"type","custom":{"type":"int"}}`,
+      `{"id":"prop-type","ord":"a8","title":"type","custom":{"type":"int"}}\n` +
+      `{"id":"prop-base","ord":"a9","title":"base","custom":{"type":"text"}}`,
   }))
   expect(declarationsOf(claiming).has("type")).toBe(false)
+  expect(declarationsOf(claiming).has("base")).toBe(false)
 })
 
 test("a declaration the reading cannot make is skipped rather than guessed at", () => {
