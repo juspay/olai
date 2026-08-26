@@ -462,13 +462,17 @@ export const RepeatRequest = Schema.Struct({
  * `{"done":true,"custom":{"done":"yesterday"}}` is a legal record and an
  * unreadable one.
  *
- * `was` is deliberately absent, where {@link DescRequest} and
- * {@link TitleRequest} have one. A note and a title are prose somebody is
- * replacing wholesale after reading it, and the conditional write is what stops
- * a retry from landing on top of a paragraph nobody saw. A property is one
- * short value under a name — the gesture is "this node's `stage` is `review`",
- * not "replace what I read". The day that is wrong it is an added optional
- * field, which is the cheap direction.
+ * `was` USED to be deliberately absent, where {@link DescRequest} and
+ * {@link TitleRequest} have one, on the argument that a property is one short
+ * value under a name — the gesture was "this node's `stage` is `review`", not
+ * "replace what I read". The chips retired it: a property is edited in a text
+ * box now, exactly as a title and a note are, so a typed commit could land on
+ * top of a write nobody saw with nothing on screen to say so. And the web's
+ * half is always conditional — the chip's commit carries the snapshot the
+ * editor opened on, an add carries `null` for "the key was not there", and an
+ * UNDO carries what its own write left, which is the guarantee the text verbs'
+ * inverses already made. What stayed is the case the door means by default:
+ * absent, a write is last-one-wins.
  */
 export const PropRequest = Schema.Struct({
   op: Schema.Literal("prop"),
@@ -484,6 +488,17 @@ export const PropRequest = Schema.Struct({
     description:
       "What the property holds, as text. `null` removes it — and so does the empty string, since a key holding nothing is a key the file does not carry. A key the vault DECLARES in `_olai/Properties.olai` has a type, and a value that does not fit it is REFUSED with the values it may hold named: `merge` is one of its declared variants' ids, `records` is a whole number, `dispatched` is a date and nothing else — the commentary goes in the note. An accepted spelling is stored as the one canonical spelling (`2026-08-25 10:06` lands as the instant a mark records). Every other key is text and takes anything, as before.",
   }),
+  /* The CONDITION, spelled the text verbs' way and for one key instead of one
+   *  field: `null` is a real answer here — "expects no such key", which is
+   *  what the drawer's ADD editor sends — so the CHECK is on the field being
+   *  present rather than on its content. */
+  was: Schema.optionalKey(
+    Schema.NullOr(Schema.String).annotate({
+      description: Was(
+        "putting back a property value you read a moment ago; `null` expects the key to be absent — which is what an add is",
+      ),
+    }),
+  ),
 })
 
 /**
@@ -1020,13 +1035,14 @@ export const AfterRequest = Schema.Struct({
  * nothing anywhere saying so — the `children`-at-the-floor trap
  * ({@link childrenOf}) wearing another verb's clothes.
  *
- * It covers `title` and `desc` and NOTHING ELSE, and the rule is not this
- * shape's invention: those are the two verbs that have a `was`. `set_date`,
- * `set_prop` and `set_after` do not — {@link PropRequest} argues at length why
- * a property is not a thing anybody replaces after reading it — so a `was` for
- * one of them here would be a conditional form this table does not have. A
- * `was` naming a field this call is not writing is refused too: a condition on
- * a write that is not happening is a caller that has mis-typed one of the two.
+ * It covers `title` and `desc` and NOTHING ELSE, and the shape of the rule
+ * is not this shape's invention. `set_date` and `set_after` have no `was` at
+ * all, and `set_prop`'s is ONE condition about ONE key ({@link PropRequest}),
+ * which a key-by-key merge cannot spell — `props` here stays an outright
+ * write, key by key, exactly as one unconditional `set_prop` per key would be.
+ * A `was` naming a field this call is not writing is refused too: a condition
+ * on a write that is not happening is a caller that has mis-typed one of the
+ * two.
  */
 export const UpdateRequest = Schema.Struct({
   op: Schema.Literal("update"),
@@ -1093,7 +1109,7 @@ export const UpdateRequest = Schema.Struct({
       ),
     }).annotate({
       description:
-        "What this write expects those fields to hold RIGHT NOW, checked before anything is written and on every retry — `set_title`'s and `set_desc`'s `was`, per field. Supply the half you read; the write is refused, naming what is there, if anything else has been written since. Only `title` and `desc` take one, because only those two verbs have one. A `was` for a field this call is not writing is refused.",
+        "What this write expects those fields to hold RIGHT NOW, checked before anything is written and on every retry — `set_title`'s and `set_desc`'s `was`, per field. Supply the half you read; the write is refused, naming what is there, if anything else has been written since. Only `title` and `desc` take one here — a condition on one KEY is `set_prop`'s own `was`, which a merged map cannot spell. A `was` for a field this call is not writing is refused.",
     }),
   ),
   /** LAST in the fold, whatever order the caller wrote the fields in. */

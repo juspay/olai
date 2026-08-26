@@ -173,13 +173,16 @@ const Id = Schema.String
  * What a text edit expects to find before it writes — ABSENT when it is not
  * checking, which is what a person typing means.
  *
- * The two text verbs are the only ones a person sends BOTH ways: typing a
+ * The two text verbs were the only ones a person sends BOTH ways — typing a
  * title is a `title`, and taking that back is a `title` too, because the
- * inverse of setting text is setting the text it replaced. What tells the two
- * apart is this field, and it is the same guard `place` gets from carrying a
- * parent AND a neighbour: an undo is only entitled to overwrite what IT wrote.
- * If somebody else has retitled the row since, the two disagree and the write
- * is refused rather than landing on top of their words.
+ * inverse of setting text is setting the text it replaced — and the prop verb
+ * is the third: the chips made a property a long-lived text editor like the
+ * title and the note, so its commit and its undo answer the same law. What
+ * tells the two directions apart is this field, and it is the same guard
+ * `place` gets from carrying a parent AND a neighbour: an undo is only
+ * entitled to overwrite what IT wrote. If somebody else has retitled the row
+ * since, the two disagree and the write is refused rather than landing on top
+ * of their words.
  *
  * Absent rather than optional-null, because `null` is a real answer for a note
  * ("there was none"). Three states, and the wire spells all three: not
@@ -474,9 +477,15 @@ export const Edit = Schema.Union([
     verb: Schema.Literal("prop"),
     id: Id,
     key: Schema.String,
-    /** `null` removes it, which is what the drawer's `Remove` entry sends and
-     *  what an emptied value box means. */
+    /** `null` removes it, which is what an emptied value box means. */
     value: Schema.NullOr(Schema.String),
+    /** The value this expects the key to hold right now, `null` for "expects
+     *  none" — which is what an ADD is. The chip's commit always sends it (the
+     *  snapshot the editor opened on): a property is a text box like the
+     *  title and the note now, so the write is conditional the same way, and
+     *  a typed commit can no longer land on top of an agent's in-flight write
+     *  with nothing on screen to say so. */
+    was: Was(Schema.NullOr(Schema.String)),
   }),
   /**
    * Retire ONE placement: the row goes, the node it shows and every other

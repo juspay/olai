@@ -209,6 +209,53 @@ Feature: Properties on a node, from the web
     And the node "handles" says nothing about its properties
     And there should be no page errors
 
+  Scenario: A typed commit meets an agent's write mid-edit — refused, naming what it found
+    # THE WIRE HALF of the shape one scenario up: the box holds a genuine
+    # change this time, so the chip commits against the snapshot — `was` rides
+    # the op, and the gate refuses rather than landing on top of a word the
+    # person never saw. The no-op half, one scenario up, stays silent by
+    # `writes`' own rule: typed-what-the-box-holds is indistinguishable from
+    # touching nothing, and it is the blurring of THE TWO that either half of
+    # this rule exists to prevent.
+    #
+    # ONE GESTURE, ONE OUTCOME: the refusal is the one send's own answer — the
+    # Enter's unmount-blur stands down the same as ever, so there is no second
+    # send for a second note to answer (argued where the shape was ruled:
+    # typed_properties.feature's first scenario).
+    Given I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"stage":"review"}}
+      """
+    And I open the outline "house.olai"
+    And I mark the page
+    When I edit the property "stage" on "handles"
+    And I type "submitted" into the property editor on "handles" without pressing Enter
+    # ...and now somebody else — an agent, another tab — moves the same key.
+    # The chip STAYS (the key still exists), and the frame is not the open
+    # box's business: what the person typed is still in it. The sibling
+    # marker is the ordering the parser owes: the one republish that answers
+    # `kitchen` is the parse that moved `stage`, nothing else on the page is
+    # asked about it.
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","custom":{"airing":"2026-08-10"}}
+      {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"stage":"audit"}}
+      """
+    Then the node "kitchen" shows the property "airing" holding "2026-08-10"
+    And the property editor on "handles" holds "submitted"
+    When I press "Enter"
+    Then the property editor on "handles" is closed
+    # THE CLAIM: the typed word went nowhere, the agent's word stands on the
+    # row and on the disk — and the run SAYS SO, in the ops layer's own
+    # sentence naming what the key says now: not a silent clobber, and not
+    # the spurious no-change note `chip-blur-double-commit-2` was filed for.
+    And the node "handles" refuses the property write with "it now says `audit`"
+    And the node "handles" shows the property "stage" holding "audit"
+    And "house.olai" holds the node "handles" with "stage" set to "audit"
+    And the page has not reloaded
+    And there should be no page errors
+
   Scenario: A chip whose key disappears under an open, typed editor is written back — the inherited default
     # THE THIRD GESTURELESS CLOSE, driven (Opus, review 2 of 2; the law's doc
     # in `client/props/editor.ts` names all three). The agent's `set_prop`

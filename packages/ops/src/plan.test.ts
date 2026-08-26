@@ -2146,6 +2146,173 @@ describe("prop", () => {
     expect(customOf(house(), { op: "prop", id: "order", key: " Due-Owner ", value: "@rahul" }))
       .toEqual({ "Due-Owner": "@rahul" })
   })
+
+  // ── the condition a prop write may carry ─────────────────────────────
+  //
+  // `was` is what the caller expects the key to hold, and it is checked HERE
+  // rather than by whoever built the request — the text verbs' own rule, for
+  // their reason: the write gate re-plans this same request whenever the store
+  // moves under it, so every attempt plans and every attempt tests. Its
+  // ABSENCE is unchanged: last-one-wins is what a plain `set_prop` has always
+  // meant.
+
+  /** The one-node vault every conditional-prop test varies one record of. */
+  const staged = (custom: string): OutlineSet =>
+    setOf({
+      "house.olai": KITCHEN.replace(
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets",${custom}}`,
+      ),
+    })
+
+  test("a conditional prop write lands while the key still says what it expected", () => {
+    expect(
+      customOf(staged(`"custom":{"stage":"review"}`), {
+        op: "prop",
+        id: "order",
+        key: "stage",
+        value: "submitted",
+        was: "review",
+      }),
+    ).toEqual({ stage: "submitted" })
+  })
+
+  test("and is refused, naming what is there, when somebody else wrote first", () => {
+    // This IS the retry, in the shape the planner sees it: the same request,
+    // planned a second time against a set where the key has moved on.
+    const failure = refused(staged(`"custom":{"stage":"audit"}`), {
+      op: "prop",
+      id: "order",
+      key: "stage",
+      value: "submitted",
+      was: "review",
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    // The sentence names both halves — the expectation and what is THERE —
+    // which is the "read again" half of the refusal's shape.
+    expect(failure.message).toContain("`review`")
+    expect(failure.message).toContain("`audit`")
+    expect(failure.message).toContain("so nothing was written")
+  })
+
+  test("`null` expects the key GONE — which is what an add is", () => {
+    expect(
+      customOf(house(), { op: "prop", id: "order", key: "stage", value: "review", was: null }),
+    ).toEqual({ stage: "review" })
+    // ...and is refused the moment the key is no longer missing — the drawer's
+    // add chip sends exactly this when a property appeared under an open
+    // editor.
+    const failure = refused(staged(`"custom":{"stage":"review"}`), {
+      op: "prop",
+      id: "order",
+      key: "stage",
+      value: "submitted",
+      was: null,
+    })
+    expect(failure.message).toContain("had no `stage`")
+    expect(failure.message).toContain("`review`")
+  })
+
+  test("a condition on a key that is GONE refuses, saying that — never 'nothing would change'", () => {
+    // The resurrect, met at the gate: the commit the unmount-blur sends was
+    // readied against a key whose whole value has been removed since.
+    const failure = refused(house(), {
+      op: "prop",
+      id: "order",
+      key: "stage",
+      value: "submitted",
+      was: "review",
+    })
+    expect(failure.message).toContain("the key is gone")
+  })
+
+  test("no condition at all is last-one-wins, unchanged — which is what typing means", () => {
+    expect(
+      customOf(staged(`"custom":{"stage":"review"}`), {
+        op: "prop",
+        id: "order",
+        key: "stage",
+        value: "submitted",
+      }),
+    ).toEqual({ stage: "submitted" })
+  })
+
+  /** A vault that DECLARES `dispatched` a date, so the typed gate has work to
+   *  spend: a declared key's values are judged, and stored as one spelling. */
+  const declaring = (custom: string): OutlineSet =>
+    setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-dispatched","ord":"a0","title":"dispatched","custom":{"type":"date"}}`,
+      "house.olai": KITCHEN.replace(
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets"}`,
+        `{"id":"order","parent":"kitchen","ord":"a1","title":"order the cabinets",${custom}}`,
+      ),
+    })
+
+  test("the condition refuses before the typed gate spends its work — one refusal per gesture", () => {
+    // BOTH halves of this request are wrong: the value fits no type, and the
+    // premise has moved. One gesture gets ONE answer, and it is the
+    // condition's: the premise moving voids the write whole, where a value
+    // that does not fit is a fact about the payload either way.
+    const failure = refused(declaring(`"custom":{"dispatched":"2026-08-21"}`), {
+      op: "prop",
+      id: "order",
+      key: "dispatched",
+      value: "next thursdayish",
+      was: "2026-08-20",
+    })
+    expect(failure.message).toContain("expected to replace (`2026-08-20`)")
+    expect(failure.message).toContain("it now says `2026-08-21`")
+  })
+
+  test("a LIST's condition compares as the members joined — the wire's `was` has no other shape", () => {
+    // The clearing half of the chip's list rule: the box is seeded with the
+    // members joined, so the spellable condition for a list-carrying key is
+    // that one text — and its movement is asked for in the same spelling.
+    expect(
+      customOf(staged(`"custom":{"reviewers":["pi","grok"]}`), {
+        op: "prop",
+        id: "order",
+        key: "reviewers",
+        value: null,
+        was: "pi, grok",
+      }),
+    ).toEqual({})
+    const failure = refused(staged(`"custom":{"reviewers":["pi","grok"]}`), {
+      op: "prop",
+      id: "order",
+      key: "reviewers",
+      value: null,
+      was: "pi",
+    })
+    expect(failure.message).toContain("it now says `pi, grok`")
+  })
+
+  test("a typed key's condition compares as the value the gate STORES", () => {
+    // The undo of a normalising write carries the TYPED spelling as its `was`
+    // — the server's inverse re-sends what the write asked — and it must meet
+    // the stored spelling as the same value, or the undo of `2026-8-22` is
+    // refused by its own write's canonical `2026-08-22`.
+    expect(
+      customOf(declaring(`"custom":{"dispatched":"2026-08-22"}`), {
+        op: "prop",
+        id: "order",
+        key: "dispatched",
+        value: "2026-08-23",
+        was: "2026-8-22",
+      }),
+    ).toEqual({ dispatched: "2026-08-23" })
+    // ...without normalising a DIFFERENT day into a pass: `2026-8-23` CANON
+    // is `2026-08-23`, not the `2026-08-22` the key holds.
+    const failure = refused(declaring(`"custom":{"dispatched":"2026-08-22"}`), {
+      op: "prop",
+      id: "order",
+      key: "dispatched",
+      value: "2026-08-24",
+      was: "2026-8-23",
+    })
+    expect(failure.message).toContain("it now says `2026-08-22`")
+  })
 })
 
 // ── the stamps ─────────────────────────────────────────────────────────

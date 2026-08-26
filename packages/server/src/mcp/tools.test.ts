@@ -1154,6 +1154,48 @@ test("a write through a tool changes the directory", async () => {
 })
 
 /**
+ * `set_prop`'s CONDITIONAL half, through the agent's own face: the wire half
+ * of it is the chip's, the ops half the planner's — what only the tool can
+ * prove is that the ask reaches an agent with the field advertised, the
+ * refusal arrives as an `isError` with the kind as data, and the message
+ * names what the key says NOW, which is the "read again" half of the loop.
+ */
+test("set_prop with a stale `was` is refused, naming what is there", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
+    const { tools } = await client.listTools()
+    const setProp = tools.find((tool) => tool.name === "set_prop")
+    // The door advertises the guard — the what-it-is-for, not just the key:
+    // this is the sentence that tells a model the read-then-write loop exists.
+    expect(setProp?.description).toContain("`was`")
+    expect(Object.keys(setProp?.inputSchema.properties ?? {}).sort())
+      .toEqual(["id", "key", "value", "was"])
+
+    // `null` expects the key GONE — the add's own condition, and it lands
+    // while the key is absent.
+    const added = await call(client, "set_prop", { id: "order", key: "stage", value: "review", was: null })
+    expect(added.isError).toBe(false)
+    expect(read("house.olai")).toContain(`"custom":{"stage":"review"}`)
+
+    // Read, then write back what you read: the loop the guard is for.
+    const moved = await call(client, "set_prop", { id: "order", key: "stage", value: "submitted", was: "review" })
+    expect(moved.isError).toBe(false)
+
+    // ...and the same write judged against a premise somebody else wrote
+    // first: refused, naming the value the key says NOW.
+    const stale = await call(client, "set_prop", { id: "order", key: "stage", value: "audit", was: "review" })
+    expect(stale.isError).toBe(true)
+    expect(String(stale.structured["reason"])).toContain("it now says `submitted`")
+    expect(read("house.olai")).toContain(`"custom":{"stage":"submitted"}`)
+
+    // Omitting the guard is unchanged: last-one-wins, which is what a plain
+    // `set_prop` has always meant.
+    const plain = await call(client, "set_prop", { id: "order", key: "stage", value: "audit" })
+    expect(plain.isError).toBe(false)
+    expect(read("house.olai")).toContain(`"custom":{"stage":"audit"}`)
+  })
+})
+
+/**
  * The recurrence, end to end through the agent's own face — the half of MCP
  * parity that is not a schema: writing the rule, reading it back, and the
  * `set_done` that makes the next occurrence.
