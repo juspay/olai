@@ -218,9 +218,11 @@ const verb = (
     ...(input === undefined ? {} : { input }),
     title: tool.title,
     description: tool.description,
-    // Conservative where it matters and honest where it does not: only the four
-    // query tools are read-only, and `readOnlyHint` is what can let a host run a
-    // call unconfirmed. Everything else is left mutating.
+    // Conservative where it matters and honest where it does not: only the six
+    // query tools are read-only (`list_outlines`, `list_documents`,
+    // `read_node`, `read_subtree`, `read_document`, `search_nodes`), and
+    // `readOnlyHint` is what can let a host run a call unconfirmed. Everything
+    // else is left mutating.
     mutates: tool.kind !== "read",
     // The client the ADAPTER holds, not one this projection closed over — so a
     // socket that dropped and was re-dialled is answered by the fresh one, and

@@ -889,6 +889,68 @@ test("PIN (two classes): a same-length rewrite the cheap look misses, the verifi
       expect(after?.rev).toBe((before?.rev ?? 0) + 1)
     })))
 
+/**
+ * WHAT `Confirmed` IS WORTH — the same fixture, asked of the READ, and the
+ * answer is the opposite one.
+ *
+ * The pin above is about the LOOK, and the look is the verb that does not take
+ * the stamp trade: `refresh("verified")` forgets the table and re-reads, so it
+ * publishes the new bytes. The READ does take it. `Vintage.check` walks and
+ * stats and never opens a file, and `sameStamp` is mtime-and-size — so over a
+ * same-length rewrite that put the original mtime back, `read("verified")`
+ * answers `Confirmed` **over the old bytes**, and every surface that renders
+ * that proof says the set is one to act on.
+ *
+ * THAT IS THE BOUND, AND IT IS HELD HERE RATHER THAN IN A PARAGRAPH. The module
+ * header states it ({@link ./vintage.ts}); `resync`'s folklore was stated in a
+ * paragraph too, and the reason it survived four years is that nothing failed
+ * when the sentence stopped being true. This fails.
+ *
+ * IT IS NOT THE LIE THE RED LINE IS ABOUT, and the difference is worth being
+ * exact about. A fresh-looking answer from a WEDGED LOOP is a claim the store
+ * could have checked and did not — that one is now unspellable, and the
+ * rebase-shape pin is where. This is the resolution of the instrument itself:
+ * the loop misses this rewrite too (the pin above), every consumer of this
+ * package has taken that trade since 2026-08-09, and no walk-and-stat can do
+ * better without opening every file on every question. A check cannot be
+ * stronger than what it looked at.
+ *
+ * WHAT IT COSTS IN THE WORLD is the last line of the argument. The shapes that
+ * produce it are a same-length rewrite inside one mtime second and a deliberate
+ * `utimes` restore; every ordinary writer — a `git` checkout or rebase, an
+ * editor, this package's own gate — renames over or moves the size or the
+ * clock, and is caught. The one real producer of the invisible shape is a
+ * harness putting a fixture back under a live server, and that is the caller
+ * that knocks on `POST /olai/resync`, which takes the LOOK.
+ */
+test("PIN (what Confirmed is worth): the read's look is a stamp check, and says so", () =>
+  withStore({ "a.txt": "alpha" }, ({ store, write, root }) =>
+    Effect.gen(function*() {
+      const file = path.join(root, "a.txt")
+      const stamp = fs.statSync(file)
+      // Five characters for five, and the clock put back: nothing a stat can
+      // see has changed about this file.
+      write("a.txt", "ALPHA")
+      fs.utimesSync(file, stamp.atime, stamp.mtime)
+
+      const checked = yield* store.read("verified")
+      // A LOOK WAS TAKEN, on the asker's fiber, and it agreed — because what it
+      // compares agrees.
+      expect(checked.vintage.proof).toEqual({ _tag: "Confirmed" })
+      expect(checked.vintage.age).toBe(0)
+      // …over bytes that are no longer on the disk. This is the sentence the
+      // module header claims and the one an agent's `stale: false` inherits.
+      expect(checked.snapshot?.value.text["a.txt"]).toBe("alpha")
+
+      // AND THE DOOR THAT DOES NOT TAKE THE TRADE IS ONE LINE AWAY, which is
+      // why the bound is a bound and not a hole: the class that re-reads finds
+      // it immediately, and a caller who cannot take the trade has somewhere to
+      // go. Asserted here so the two verbs are read against each other rather
+      // than in two files.
+      yield* store.refresh("verified")
+      expect((yield* snapshotOf(store))?.value.text["a.txt"]).toBe("ALPHA")
+    })))
+
 // ── one write, one verdict ─────────────────────────────────────────────
 //
 // The gate judges the set it is ABOUT to write, and then publishes what it

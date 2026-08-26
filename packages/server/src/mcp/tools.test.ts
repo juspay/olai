@@ -2576,3 +2576,50 @@ test("PIN (the rebase shape): a read whose set the disk has moved past says so",
     expect(vintage["asOf"]).toBe(proved)
   })
 })
+
+/**
+ * WHAT `stale: false` LICENSES, held as a test — grok's MUST on #406.
+ *
+ * `proof: "confirmed"` on this wire is a look that was taken, on the asker's
+ * own fiber, outside the publish loop's permit. It is not a claim about bytes.
+ * `@olai/store`'s check walks and stats and never opens a file, so a rewrite
+ * that keeps the length and puts the mtime back is invisible to it, and the
+ * answer an agent reads is `stale: false` over the set the server is still
+ * serving.
+ *
+ * It is asserted HERE as well as in the store's own suite because this is the
+ * surface the sentence reaches somebody who will act on it. A reader of
+ * `withoutAge` above learns that a healthy fixture confirms; without this, the
+ * only place the OTHER half is written down is a paragraph — which is exactly
+ * the shape `resync`'s folklore had.
+ *
+ * The tool door takes the READ deliberately, and `../serve.ts` argues it where
+ * the choice is made: the look publishes and sits behind the permit, so an
+ * agent's every read would mint a revision, wake every tab, and hang for as
+ * long as a wedged loop held the gate — which is precisely the condition an
+ * agent needs a read to survive.
+ */
+test("PIN (what `stale: false` is worth): a same-stamp rewrite reads confirmed", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client, root }) => {
+    const file = path.join(root, "house.olai")
+    const stamp = fs.statSync(file)
+    // The same line, the same length — `cabinets` for `CABINETS` — and the
+    // clock put back afterwards. Nothing a stat can see about this file moved.
+    const rewritten = (fs.readFileSync(file, "utf8")).replace(
+      "order the cabinets",
+      "order the CABINETS",
+    )
+    expect(rewritten).not.toBe(fs.readFileSync(file, "utf8"))
+    fs.writeFileSync(file, rewritten)
+    fs.utimesSync(file, stamp.atime, stamp.mtime)
+
+    const answered = await call(client, "read_node", { id: "order" })
+    expect(answered.isError).toBe(false)
+    // The old title, and the wire saying the set is one to act on.
+    expect(answered.structured["title"]).toBe("order the cabinets")
+    expect(answered.structured["vintage"]).toMatchObject({
+      stale: false,
+      proof: "confirmed",
+    })
+  })
+})

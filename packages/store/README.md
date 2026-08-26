@@ -10,7 +10,7 @@ Trigger, coalesce, probe, publish — and the rule that holds it together is tha
 
 1. **Trigger**: a watcher event, a `refresh`, or the periodic backstop. None of them says what changed; all three say "look". Watcher payloads are dropped unread at the disk edge, because they cannot be trusted: the pinned implementation itself discards null-filename events, inotify overflows under bursts, and FSEvents coalesces under git-sized loads.
 2. **Coalesce**: a settle delay after the first trigger of a burst. One editor save is a handful of events and one `git pull` is hundreds; both are one probe.
-3. **Probe**: re-list the tree, re-stat everything, diff against a table of mtime+size stamps. The walk PRUNES dot-directories and `node_modules` — a served directory is somebody's working tree, and an unpruned walk would spend its time in `.git`, which is at once the largest thing under the root and the thing generating the events. Only stamped-changed files are re-read and re-decoded — and not even those, for a file the codec decodes from its name (`byName`, below), which is stamped and diffed like any other and never opened. An identical listing ends the cycle with nothing published at all, which is what makes a sixty-second backstop free. Because nothing is remembered except stamps, the probe is idempotent: state converges on disk truth after any disturbance, whether every event lied or none arrived.
+3. **Probe**: re-list the tree, re-stat everything, diff against a table of mtime+size stamps. The walk PRUNES dot-directories and `node_modules` — a served directory is somebody's working tree, and an unpruned walk would spend its time in `.git`, which is at once the largest thing under the root and the thing generating the events. Only stamped-changed files are re-read and re-decoded — and not even those, for a file the codec decodes from its name (`byName`, below), which is stamped and diffed like any other and never opened. An identical listing ends the cycle with nothing published at all, which is what makes a sixty-second backstop free — but it does not end silently: the probe records that it looked and agreed, which is the one fact that separates a loop still working from a loop that has stopped (below). Because nothing is remembered except stamps, the probe is idempotent: state converges on disk truth after any disturbance, whether every event lied or none arrived.
 4. **Publish**: valid → a new revision on the snapshot and the errors cleared; invalid → the last good snapshot is left exactly where it is and the errors published beside it. A broken file must not blank a page that was reading fine a second ago.
 
 The watcher is one recursive watch on the root plus **one per directory made after that watch was armed**, and the second half is a fact about the pinned runtime rather than a design: its recursive watch registers the tree it finds at arm time and never follows a directory created later — the `mkdir` is reported, and then every file that lands inside the new folder is silent. The walk is what closes it, because the walk is already the only thing that looks at directories: one it enters that nothing covers yet is armed *before* its entries are read, so a file arriving in between wakes the new watcher rather than falling into the gap, and a directory made inside a new directory is armed in turn by the walk its own `mkdir` triggers. A new folder therefore costs exactly what it would have cost had it been there at boot — measured, one descriptor per path under it, and nothing per file added afterwards. Nothing above the disk edge knows: an event still means "probe soon".
@@ -33,11 +33,26 @@ Failures during a probe are not fatal: the next trigger tries again, and a live 
 
 `validate` is also OFFERED what came before it (`Since`): the value this codec last answered with, and every path that has moved since — which is the probe's own stamp diff, spanning the gap between two *published* revisions rather than one probe. The store is what can know both and the codec is what can use them, so a codec whose validation is expensive can swap the moved files into whatever it built last instead of building it again; one that cannot ignores the second argument and is exactly the function it was. Nothing here looks inside `S`, so what "incrementally" means is entirely the codec's business — olai's patches its whole-corpus derivation and holds the patch to the from-scratch answer with a property test ([docs/brainstorming/model-indices.md](../../docs/brainstorming/model-indices.md)).
 
+## No read without an age
+
+Every read hands over a pair — the set, and a **Vintage**: when that set was last proved to be what the disk holds, and on whose word. There is no door to the first that does not carry the second. `read(freshness)` answers once and `reads` is the stream of published sets, both as `Aged<S> = { vintage, snapshot }`; the snapshot `SubscriptionRef` a consumer used to hold is gone, so "no read without an age" is a fact about the type rather than a rule somebody enforces at review time.
+
+It exists because of what happened on 2026-08-25: a `git rebase` replaced the served files, the watcher missed it, and a running server answered every read normally with week-old truth for thirty minutes. Nothing was invalid, so the errors channel stayed empty — correctly. The set was just old, and no cell anywhere carried how current an answer was. The mechanism is in the loop above and is still right: a probe whose listing is identical to the last one publishes nothing, so a loop that has stopped looking and one that keeps looking and keeps agreeing are the same silence from outside. A settled probe now RECORDS that it agreed, which is what makes a stopped loop's age grow visibly.
+
+**Callers state a freshness CLASS, never a means.** `cheap` is the standing answer with the age it has earned, at one map read and no syscall — what redraws sixty times a second pays nothing new for knowing how old its data is. `verified` walks the tree first, **on the asker's own fiber**, and says whether the disk still agrees.
+
+**The verification does not share the publish fiber's permit** (the debate's red line, all three seats). It lives in `vintage.ts`, which is handed a `Disk`, the codec's `match` and the standing record — no store in scope, so no semaphore in scope. A wedged or dead cycle yields a visibly stale vintage, promptly; it cannot yield a fresh-looking one, and it cannot make the read wait.
+
+What comes back is a *named* staleness rather than a boolean: `Held` (the loop's word, this long ago), `Confirmed`, `Diverged` naming the files the disk no longer agrees about, or `Unchecked` with the disk's own words for why nobody could look. `read` has no failure channel at all — a look that could not be taken is one of the question's real answers, not a defect for a caller to re-word.
+
+`Confirmed` is worth exactly what a stamp is worth, and no more: the check walks and stats and never opens a file, so a rewrite that kept the length and put the mtime back is invisible to it, exactly as it is invisible to the probe. That bound is pinned rather than promised (`store.test.ts`'s "what Confirmed is worth"). The caller who cannot take that trade asks for the *look* below.
+
 ## Two channels, on purpose
 
-- the snapshot is a `SubscriptionRef`, so `changes` is already current-value-then-updates — surface's snapshot-then-deltas contract, for free, which is why going live changed no consumer;
-- errors are a *separate* `SubscriptionRef`, because last-good data and what-is-wrong-now are two independent facts;
-- revisions are minted from the beginning rather than retrofitted onto data consumers have already learned to read.
+- last-good data and what-is-wrong-now are two independent facts, so errors are their own `SubscriptionRef` and the set is its own door;
+- `reads` is current-value-then-updates — surface's snapshot-then-deltas contract, for free, which is why going live changed no consumer;
+- revisions are minted from the beginning rather than retrofitted onto data consumers have already learned to read;
+- how current an answer is is deliberately NOT a third ref: a healthy directory proves its currency every sixty seconds, and pushing that would cost every open browser more than the whole backstop saves. It is answered when asked, and pushed to nobody.
 
 ## The write gate
 
@@ -56,11 +71,17 @@ Two channels, and the split says who is at fault. `StaleWrite` is a FAILURE — 
 
 There is no post-publish hook, and there was one: `afterPublish` ran the caller's Effect after the snapshot moved and still inside the gate, so olai's per-write `git commit` could name exactly the tree that write produced. That mode is retired — committing is a quiet window over the whole repository now, run outside any write — and a seam with no consumer is a promise about ordering that nothing tests.
 
-`resync` is the outside-writer analogue of that forget. `refresh` still uses stamps, so a same-length rewrite that landed in the same second is a change it is entitled not to see — the accepted trade for a `git pull`. An operator (or a test harness putting a fixture back under a live server) cannot take that trade. `resync` forgets every cached stamp, then probes, and does not return until the result has been published. The write gate's `forget` is for the files this process just wrote; this is the same signal for an unknown set of paths.
+## One look verb
+
+`refresh(freshness)` is "look at the disk now, and do not return until what was found has been published". It takes the same class the read does, and there is only one of it.
+
+There used to be two — `refresh` probed on the stamp table, `resync` forgot the table first — and the difference between them was mtime-and-size arithmetic explained in a doc comment so that a caller could choose correctly. That is a socket wearing its own wiring: the day the stamp changes, every caller that learned the folklore has to be found. So the caller now says how much it needs to be able to assume, and this package decides what that costs. `cheap` is the look the sync loop itself takes. `verified` is for a look that has to be believed against a tree something OUTSIDE this process rewrote — a `git checkout`, an rsync, a harness putting a fixture back — where the cheap look is entitled to see nothing; what it does about that (forget every cached stamp, re-read) is inside, and is the write gate's own `forget` widened from "the files this process just wrote" to an unknown set of paths.
+
+The look and the read are not the same strength and are not meant to be. The look re-reads bytes and so sees the same-length same-mtime rewrite; the read walks and stats and does not. That is the whole reason a caller who cannot take the stamp trade asks for the look — and why an agent-facing read, which must survive a wedged loop rather than wait behind it, asks for the read (`@olai/server`'s `serve.ts` argues that choice where it is made).
 
 ## Entry point
 
-`main`, `types` and `exports` all point at `src/index.ts`. Inside, one file per job: `codec.ts` is the contract with the caller, `disk.ts` is everything a directory is allowed to be asked, `probe.ts` is the stamp table and the decode cache, `store.ts` is the loop and the two refs.
+`main`, `types` and `exports` all point at `src/index.ts`. Inside, one file per job: `codec.ts` is the contract with the caller, `disk.ts` is everything a directory is allowed to be asked, `probe.ts` is the stamp table and the decode cache, `vintage.ts` is how current an answer is and the look that establishes it — deliberately with no way to reach the loop's permit — and `store.ts` is the loop, the refs and the doors.
 
 ## Layering
 
