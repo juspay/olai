@@ -460,6 +460,14 @@ function Chip(props: {
           // unmounted, which Solid reports as a stale-value error — a blur IS
           // that moment, since committing is what closes the editor.
           const snapshot = was()
+          /** ONE OPEN'S ANSWER — minted beside the box, recorded at the two
+           *  gestures that CLOSE it (and by the one that then commits, BEFORE
+           *  the close: the close is what fires the blur this answers). Never
+           *  inside the box's own key handling — `Box`'s `closedBy` argues why.
+           *  The `<Show>`'s dispose is the reset: the next open mints `null`.
+           *  (`./editor.ts`'s `ClosedBy` states the born-with-the-open law.)
+           */
+          let answeredBy: ClosedBy = null
           return (
             <Box
               testid={TESTID.propEdit}
@@ -467,12 +475,19 @@ function Chip(props: {
               value={snapshot.value}
               wide
               focus
+              closedBy={() => answeredBy}
               // The snapshot this chip was opened on, which is what the box is
               // drawn from — so what goes back is what a commit has to be
               // judged against. See {@link Chip.onCommit}.
-              onCommit={(value) => props.onCommit(snapshot, value)}
+              onCommit={(value) => {
+                answeredBy = "enter"
+                props.onCommit(snapshot, value)
+              }}
               onLeave={(value) => props.onCommit(snapshot, value)}
-              onCancel={props.onCancel}
+              onCancel={() => {
+                answeredBy = "escape"
+                props.onCancel()
+              }}
             />
           )
         }}
@@ -768,9 +783,10 @@ function NewChip(props: {
  * ONE GESTURE, ONE OUTCOME: Enter commits and Escape abandons, and both close
  * the box — and closing RE-TAKES the caret, which the browser answers by
  * firing the blur at the very gesture whose close this was. That blur stands
- * down ({@link Box.answeredBy}, asked through `./editor.ts`'s
- * `leavingCommits`): the commit owns the close, or there is no commit — never
- * both, and never twice.
+ * down, asked through `./editor.ts`'s `leavingCommits` of the record the
+ * CLOSER minted ({@link Box.closedBy}) — never a record the box mints for
+ * itself, because a box cannot know whether its `onCommit` closes it: the
+ * commit owns the close, or there is no commit — never both, and never twice.
  *
  * WHAT LEAVING MEANS is the CALLER's, and it is the one thing the two editors
  * genuinely differ about: a chip being changed leaves one box, so `onBlur` is
@@ -795,12 +811,18 @@ function Box(props: {
   /** Leaving this box alone commits it — the single-box editor's rule. Absent
    *  where the chip answers for its boxes together. */
   readonly onLeave?: (value: string) => void
+  /** WHICH GESTURE CLOSED THIS OPEN, read at the blur — the CALLER's record,
+   *  minted beside the box by the one who closes it (`Chip`'s editor
+   *  closure). Never recorded by the box itself: a half-blind `onCommit`
+   *  wrapper is the difference between the chip's value box (its Enter
+   *  closes) and the add chip's KEY box, whose Enter only moves the caret —
+   *  and a record THIS component minted would stand that key box down from
+   *  its first Enter forever. ABSENT leaves the blur armed, which is the add
+   *  chip's boxes' correct answer: their leaving is asked at the chip, whose
+   *  own record the focus-out consults. */
+  readonly closedBy?: () => ClosedBy
 }) {
   const [held, setHeld] = createSignal(props.value)
-  /** WHICH KEY, if either, has had this box's outcome — the record the blur
-   *  the close fires is judged by. See the doc above: the gesture that closes
-   *  the box owns the close. */
-  let answeredBy: ClosedBy = null
   return (
     <input
       type="text"
@@ -848,21 +870,17 @@ function Box(props: {
         if (event.key === "Enter") {
           event.preventDefault()
           event.stopPropagation()
-          // BEFORE the commit: committing closes the box, and the close is
-          // what fires the blur this answer stands down.
-          answeredBy = "enter"
           props.onCommit(held())
           return
         }
         if (event.key === "Escape") {
           event.preventDefault()
           event.stopPropagation()
-          answeredBy = "escape"
           props.onCancel()
         }
       }}
       onBlur={() => {
-        if (!leavingCommits(answeredBy)) return
+        if (!leavingCommits(props.closedBy?.() ?? null)) return
         props.onLeave?.(held())
       }}
     />

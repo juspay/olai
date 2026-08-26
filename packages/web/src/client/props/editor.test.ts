@@ -52,10 +52,12 @@ test("a new key is trimmed, because a key is a name and the space around one is 
 // ── one gesture, one outcome ──────────────────────────────────────────
 
 /**
- * The box's OWN WIRING, spelled the way `./PropsDrawer.tsx`'s `Chip`'s `Box`
- * wires it: one answer-record, `onLeave` is the blur. The pin drives the
- * sequence because what is pinned here IS the sequence — the gestures, and
- * the sends they produce.
+ * The box's OWN WIRING, spelled the way `./PropsDrawer.tsx`'s `Chip`'s editor
+ * wires it: one answer-record minted beside the `Box` by the caller that
+ * CLOSES it (never inside the box's key handling — a box cannot know whether
+ * its `onCommit` closes it; the add chip's key box's Enter only moves the
+ * caret), and `onLeave` is the blur. The pin drives the sequence because what
+ * is pinned here IS the sequence — the gestures, and the sends they produce.
  *
  * The ADD chip answers the SAME law through a SECOND record on the chip's own
  * element (`NewChip`'s `answeredBy`): its echo is the run's `onFocusOut`, not
@@ -79,10 +81,17 @@ const editor = () => {
      * decision the pins are written against: `properties.feature`'s
      * same-chip-twice scenario drives the real remount, and this file makes
      * "reopen" a gesture a test must choose to skip.
+     *
+     * And the ORDER of the two locks is worth keeping straight (Opus, review
+     * 2 of 2): BROWSER first, this double second — the scenario failing at
+     * its `editor is closed` step under a keep-alive editor is the claim;
+     * this sequence is the reading of it.
      */
     open: () => {
       answeredBy = null
     },
+    // Enter as the caller answers it: the wrapper records the close it is
+    // about to own, and then the commit sends.
     enter: () => {
       answeredBy = "enter"
       sent.push("enter's write")

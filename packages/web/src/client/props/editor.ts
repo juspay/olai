@@ -147,6 +147,44 @@ export type ClosedBy = "enter" | "escape" | null
  * "already says … — nothing would change" note (`chip-blur-double-commit-2`,
  * and the add chip's focus-out answered the same law without it being the one
  * filed) — was the absence of this record, not a rule somebody preferred.
+ *
+ * And the record is not one way of answering the question; it is the ONLY
+ * place an answer can exist. An unmount-blur is BYTE-IDENTICAL to a person's
+ * click-away at handler time: same `relatedTarget` (`null`), same
+ * `activeElement` (`BODY`), and the target still connected — the browser
+ * unfocuses BEFORE it detaches (Opus's probe on the PR, chromium: the answer
+ * measured, not assumed). No cheaper design hides in the DOM — "just ask the
+ * element" is retired — so the gesture must record itself, BEFORE the close,
+ * next to the close that owns it.
+ *
+ * What `null` must then also carry are the closes that have NO gesture, and
+ * they are named here rather than inherited:
+ *
+ *   - the WINDOW losing focus mid-edit: the blur commits the box as-is, half-
+ *     typed and all, because it cannot be told from the person leaving — and
+ *     a leaving that ATE a half-typed fact would be the worse surprise. On
+ *     the ADD chip the same blur takes the typed key instead: a key with no
+ *     value is nothing to write, so nothing is said either — the chip is
+ *     gone with the tab's leaving, and so is what was typed into it.
+ *   - the ROUTE leaving, or anything that takes the whole drawer with it:
+ *     the same commit fires, and its answer has nowhere to be drawn —
+ *     `saying` is disposed with the run, so the answer lands on a line that
+ *     is gone (the queued `was` lane's second half: its stale-`was` refusal
+ *     is the EXPECTED answer on this path, and it will have no reader).
+ *   - the NODE changing under an open editor: an agent's `set_prop` dropping
+ *     the key disposes the chip, and the blur commits what was typed against
+ *     the OPEN-TIME snapshot — typed nothing, silent; typed something, the
+ *     removed key is born again holding it. Pinned as-is in @olai/tests'
+ *     `properties.feature` ("a chip whose key disappears under an open,
+ *     typed editor") because that is the law's CURRENT default, not a ruling:
+ *     the gate that can refuse the resurrect is a `was` riding the op — only
+ *     the op can say the record moved — and that is the queued lane's
+ *     business and deliberately not this record's.
+ *
+ * Affirming `null` for the three is not saying they are right; it is saying
+ * the BLUR cannot be the one to judge them — byte-identical to a leaving,
+ * each time. The one close this record answers for is the one the gesture
+ * itself closed.
  */
 export const leavingCommits = (closedBy: ClosedBy): boolean => closedBy === null
 

@@ -209,6 +209,41 @@ Feature: Properties on a node, from the web
     And the node "handles" says nothing about its properties
     And there should be no page errors
 
+  Scenario: A chip whose key disappears under an open, typed editor is written back — the inherited default
+    # THE THIRD GESTURELESS CLOSE, driven (Opus, review 2 of 2; the law's doc
+    # in `client/props/editor.ts` names all three). The agent's `set_prop`
+    # DROPS the key while its editor is open and typed; the drawer's chip is
+    # disposed, and the blur at that disposal has no gesture and is
+    # byte-identical to a person's leaving — the record is `null`, so the
+    # typed value is committed against the open-time snapshot and the removed
+    # key is born again holding it.
+    #
+    # Pinned as the law's CURRENT default, NOT as a ruling: the gate that
+    # should refuse the resurrect is a `was` riding the op (only the op can
+    # say the record moved — the queued lane), and its refusal on this path
+    # would be drawn nowhere, the drawer being gone. When that lane lands,
+    # the tail below flips to the key staying gone.
+    Given I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"stage":"review"}}
+      """
+    And I open the outline "house.olai"
+    And I mark the page
+    When I edit the property "stage" on "handles"
+    And I type "submitted" into the property editor on "handles" without pressing Enter
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles"}
+      """
+    # No key, no click: the rewrite's own frame is what closes the editor.
+    Then the property editor on "handles" is closed
+    And the node "handles" shows the property "stage" holding "submitted"
+    And "house.olai" holds the node "handles" with "stage" set to "submitted"
+    And the node "handles" says nothing about its properties
+    And there should be no page errors
+
   Scenario: A value that names something keeps its link however long it is
     # Both reviewers. The fold is for PROSE; a URL and a deep vault path are the
     # two door kinds most likely to run past it, and folding them took away the
