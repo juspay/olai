@@ -97,15 +97,25 @@ export function LivePane(props: {
   const fitVisually = (): void => {
     const screen = host?.querySelector<HTMLElement>(".xterm")
     if (screen === undefined || screen === null || host === undefined) return
-    // Measure the UNSCALED width: reading `offsetWidth` while a transform is
-    // applied would compound each pass into a smaller and smaller terminal.
+    // Measure the UNSCALED box: reading it while a transform is applied would
+    // compound each pass into a smaller and smaller terminal.
     screen.style.transform = ""
-    const natural = screen.offsetWidth
-    if (natural <= 0) return
-    const room = host.clientWidth
-    const scale = Math.min(1, room / natural)
+    host.style.height = ""
+    const naturalWidth = screen.offsetWidth
+    const naturalHeight = screen.offsetHeight
+    if (naturalWidth <= 0 || naturalHeight <= 0) return
+    // SMALLER OF THE TWO, and never above 1. Width is the obvious constraint;
+    // height is the one a 50-row terminal hits first, and a pane that scaled
+    // only by width would put the bottom rows below the fold — which is the
+    // cropping this whole approach exists to avoid, arriving from the other
+    // axis.
+    const scale = Math.min(1, host.clientWidth / naturalWidth, CAP_PX / naturalHeight)
     screen.style.transformOrigin = "top left"
     screen.style.transform = scale < 1 ? `scale(${scale})` : ""
+    // A TRANSFORM DOES NOT MOVE LAYOUT, so the box has to be told what it is
+    // now showing: without this the pane keeps the unscaled terminal's height
+    // and leaves a band of empty panel under a shrunken screen.
+    host.style.height = `${Math.ceil(naturalHeight * scale)}px`
   }
 
   onMount(async () => {
@@ -345,3 +355,14 @@ export function LivePane(props: {
  * stack are `terminal-themes`, which is a leaf and hydrates cleanly.
  */
 const FONT_SIZE = 14
+
+/**
+ * HOW TALL A PANE MAY GET before the terminal inside it is scaled down to fit.
+ *
+ * A terminal is its whole grid, so a fifty-row one is genuinely tall — and a
+ * pane in an outline is something you glance at while reading a lane, not a
+ * window you live in. The cap is what keeps a lane from being pushed off the
+ * page by a terminal somebody opened to look at for three seconds; the scale is
+ * what keeps the whole screen visible inside it rather than cropped to the cap.
+ */
+const CAP_PX = 420
