@@ -796,6 +796,20 @@ export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   TESTID.headerSearch,
   TESTID.headerSearchOpen,
   TESTID.connection,
+  // The padi link, between the two promises it sits with: whether this page is
+  // still READING (the connection, before it) and whether what is written to it
+  // is KEPT (the Commit pill, after it). This is the third — whether it can see
+  // kolu's terminals.
+  //
+  // Added as the deliberate edit this list demands, and it does NOT weaken what
+  // the fence guards. `one-git-indicator` is about a SECOND control answering
+  // for GIT, and this one answers for a padi socket: it never reports a
+  // repository state, it draws from `cells.kolu` and from nothing else, and the
+  // assertion below still holds that the Commit pill is the only control in the
+  // row that reports on the repository. Chrome that is orthogonal grows the
+  // list by one; chrome that answers a question already answered is what the
+  // list exists to stop, and this is the first kind.
+  TESTID.padi,
   TESTID.commitPill,
   TESTID.chatToggle,
   TESTID.prefsTrigger,
