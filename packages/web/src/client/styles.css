@@ -924,12 +924,12 @@ mark.olai-hit {
 
 /**
  * The DASHED still-frame border, kept for the screenshot face.
- */
  *
- * DASHED, and that is the whole promise in one border: this is a still frame,
- * taken once, at the moment the age line names. Phase 6's live pane is a SOLID
- * border with a `● live` tag beside it — two panes, two borders, and a reader
- * never has to remember which is which.
+ * Nothing wears it today: the pane the row opens is a live window and its
+ * border is solid, which is the distinction a reader is meant to make without
+ * reading a word. It stays because the screenshot face (terminal-door-polish
+ * part 1) is a still frame and will want exactly this back — and because the
+ * pair only means anything as a pair.
  */
 .olai-snapshot {
   border: 1px dashed var(--color-rule);
