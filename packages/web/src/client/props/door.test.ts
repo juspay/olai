@@ -35,6 +35,13 @@ import { hrefOf } from "../routes.ts"
 /** The directory these cases are read against: two documents, one node the set
  *  declares, and a file the vault does NOT serve. */
 const SERVED = ["briefs/pda.md", "brainstorming/props-ui.html", "orchestrator/agents.olai"]
+
+/** ...and the `.md` half of it, WRITTEN OUT rather than filtered by suffix: a
+ *  fixture that decided what a document is by spelling `.endsWith` would be a
+ *  second answer to the one place that says what a file of the set is
+ *  (`@olai/format`'s `kinds.ts`, and the sweep in `@olai/tests` that hunts for
+ *  exactly that). */
+const DOCUMENTS = ["briefs/pda.md"]
 const DECLARED: Record<string, { id: string; title: string; file: string }> = {
   pi: { id: "pi", title: "pi", file: "orchestrator/agents.olai" },
 }
@@ -45,6 +52,11 @@ const vault: MeaningVault = {
   declarations: NO_TYPING,
   declares: (id) => DECLARED[id] !== undefined,
   serves: (file) => SERVED.includes(file),
+  // The narrow question a `doc` gets, and no case here asks it: this file is
+  // about the arm a vault that declares NOTHING takes, which asks the wide one
+  // (`@olai/format`'s `meaning.ts` argues the split, and its own suite is where
+  // the two are held against each other).
+  documents: (file) => DOCUMENTS.includes(file),
 }
 
 /** ...and the names table the browser joins a node answer against — the same

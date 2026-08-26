@@ -14,10 +14,10 @@ import { expect, test } from "bun:test"
 
 import { addressOf } from "./address.ts"
 import { readingOfVault } from "./scope.testlib.ts"
-import { meaningOf, type Vault } from "./meaning.ts"
+import { Door, type Meaning, meaningOf, type Vault } from "./meaning.ts"
 import { pageOf } from "./page.ts"
 import { nodeNamed } from "./derive.ts"
-import { declarationsOf, type Typed, wrongValue } from "./typing.ts"
+import { BOOTSTRAP, declarationsOf, type Typed, wrongValue } from "./typing.ts"
 import { markdownPaths } from "./rules.ts"
 import type { Reading } from "./validate.ts"
 
@@ -74,6 +74,7 @@ const vault: Vault = {
   declarations: declarationsOf(READ.derived),
   declares: (id) => nodeNamed(READ.derived, id) !== undefined,
   serves: (file) => READ.set.documents.some((face) => face.path === file),
+  documents: (file) => markdownPaths(READ.set).has(file),
 }
 
 /** ...and the four the GATE is asked of, over the same reading. Two values
@@ -136,17 +137,9 @@ test("...and a key that declares no base keeps resolving beside the writing file
  * assert those one by one.
  */
 test("what the gate accepts is what the display opens, over every `doc` value", () => {
-  const values = [
-    "briefs/tp.md",
-    "../briefs/tp.md",
-    "briefs/missing.md",
-    "not a path",
-    "https://example.com/x.md",
-    "",
-  ]
   for (const from of [IN_SUB, AT_ROOT]) {
     for (const key of ["brief", "note"]) {
-      for (const value of values) {
+      for (const value of DOC_CORPUS) {
         const refused = wrongValue(typed, from, key, value) !== undefined
         const opens = meaningOf(vault, from, key, value)
         expect([from, key, value, refused]).toEqual([from, key, value, opens === null])
@@ -154,6 +147,41 @@ test("what the gate accepts is what the display opens, over every `doc` value", 
     }
   }
 })
+
+/**
+ * THE CORPUS, and the four entries after the obvious ones are the ones that
+ * matter — each is a spelling on which the two arms USED to part, found by
+ * grok's review of the first cut of this module.
+ *
+ * The failure they pin is the bug family recreated INSIDE the socket: a `doc`
+ * arm that shared `path`'s display rule asked the whole file list where the
+ * gate asks the `.md` set, and resolved through `pathedOf` where the gate
+ * resolves through `isPathShaped` + `resolveRelative`. So a `doc` value naming
+ * a served OUTLINE was refused by the validator and drawn as a live door — a
+ * wrong door on a finding — and one written absolutely or with a `%20` was
+ * accepted by the validator and drawn as dead text.
+ *
+ * They are in the loop above rather than in cases of their own deliberately:
+ * what has to fail is the CLAIM ("one question, one answer"), so the next
+ * collapse fails red without anybody thinking to write a case about it.
+ */
+const DOC_CORPUS = [
+  "briefs/tp.md",
+  "../briefs/tp.md",
+  "briefs/missing.md",
+  "not a path",
+  "https://example.com/x.md",
+  "",
+  // A SERVED `.olai` — the directory holds it and draws a page for it, and it
+  // is not an `.md`, so a `doc` may not name it. The one the review named.
+  "agents.olai",
+  "../agents.olai",
+  // ...and the two the other way: an ABSOLUTE path, which `isPathShaped`
+  // accepts and `pathedOf` refuses, and a PERCENT-ESCAPE, which one leaves
+  // alone and the other decodes.
+  "/briefs/tp.md",
+  "briefs/t%70.md",
+] as const
 
 // ── the declaration is a stronger warrant than a shape ─────────────────
 
@@ -200,6 +228,43 @@ test("a declared `date` opens its day, and refuses everything that is not one", 
   expect(meaningOf(vault, IN_SUB, "dispatched", "2026-08-25"))
     .toEqual({ kind: "day", date: "2026-08-25" })
   expect(meaningOf(vault, IN_SUB, "dispatched", "grok")).toBeNull()
+})
+
+/**
+ * ...AND THE THREE ARMS WHERE THE GATE AND THE DISPLAY DELIBERATELY PART, said
+ * as a test rather than left in a comment (grok's SHOULD).
+ *
+ * `doc` is held to the gate's exact answer because `doc` PROMISED its value
+ * names something served — that is the differential above, and it is the whole
+ * of what "one question" means. The other three promised something narrower,
+ * and holding them to the gate would draw a DEAD CHIP on a file the validator
+ * is already reporting:
+ *
+ *   - a `date` is held to one SPELLING per width by the gate
+ *     ({@link ./typing.ts}'s `canonicalDate`), and `2026-08-25 10:06` names the
+ *     day it plainly names whatever the file should have said;
+ *   - a `ref` is held to the variants of ITS parent, and an id from the wrong
+ *     roster still names the node it names;
+ *   - a `node` value naming a MIRROR is refused as a value and is still a
+ *     placement a reader can be sent to.
+ *
+ * Every one of these is a value the validator is refusing on a page somebody is
+ * looking at, which is exactly when a live door is worth more than a second
+ * opinion. Pinned so the divergence stays a decision.
+ */
+test("the three arms that part from the gate on purpose, and why each may", () => {
+  const parts = (key: string, value: string, opens: Meaning): void => {
+    expect([key, value, wrongValue(typed, IN_SUB, key, value) !== undefined])
+      .toEqual([key, value, true])
+    expect([key, value, meaningOf(vault, IN_SUB, key, value)]).toEqual([key, value, opens])
+  }
+  // A spelling the gate refuses, naming the day it names.
+  parts("dispatched", "2026-08-25 10:06", { kind: "day", date: "2026-08-25" })
+  parts("dispatched", "2026-08-25T10:06:00Z", { kind: "day", date: "2026-08-25" })
+  // A `ref` holding an id from outside its own roster: `merge-auto` is a
+  // variant of `merge` and not of `agent`, so `agent` may not hold it — and it
+  // is still the node it is.
+  parts("agent", "merge-auto", { kind: "node", id: "merge-auto", titled: true })
 })
 
 test("a declared `text` reads exactly as an undeclared key does — which is why `pr-url` still opens", () => {
@@ -273,11 +338,56 @@ test("no declaration shape rides the page — the tab receives answers, not the 
   // The DOORS half alone, since the rest of a page is rows and a row carries a
   // record's own `custom` verbatim — where a vault that declared `type` on an
   // ordinary node is entitled to have the word on screen.
-  const wire = JSON.stringify(page.doors)
-  for (const word of ["\"type\"", "\"under\"", "\"base\"", "prop-brief", "prop-agent"]) {
-    expect([word, wire.includes(word)]).toEqual([word, false])
+  const carried = fieldsIn(page.doors)
+  // THE WHOLE VOCABULARY, as a closed set rather than a list of words to
+  // avoid. A fence written as "none of these three appear" passes for a field
+  // named anything else — and a field named anything else is exactly how a
+  // fourth declaration word would arrive.
+  expect([...carried].sort()).toEqual([
+    "date",
+    "file",
+    "from",
+    "href",
+    "id",
+    "kind",
+    "opens",
+    "prop",
+    "titled",
+    "value",
+  ])
+  // ...and the top level of it is the schema's own field list, so the two
+  // cannot drift: a field added to `Door` and forgotten here fails, and a word
+  // that arrived only in this test's expectation fails too.
+  expect([...Object.keys(Door.fields)].sort()).toEqual(["from", "opens", "prop", "value"])
+  // The three the bootstrap reserves, said by name as well — the claim is
+  // "nothing declaration-shaped", and the closed set above is only a fence if
+  // somebody can read what it is fencing out.
+  for (const word of BOOTSTRAP.keys()) {
+    expect([word, carried.has(word)]).toEqual([word, false])
   }
-  // ...and the answers ARE there, which is what makes the line above a fence
-  // rather than a test of an empty array.
+  // ...and the answers ARE there, which is what makes all of it a fence rather
+  // than a test of an empty array.
   expect(page.doors.length).toBeGreaterThan(0)
 })
+
+/** EVERY FIELD NAME IN A PAYLOAD, however deep — the walk the fence above is
+ *  written over, because "no declaration rides the wire" is a claim about the
+ *  SHAPE and a substring search over the serialised text is a claim about the
+ *  bytes: a door whose value happened to contain `"type"` would fail one, and a
+ *  field three arms down named something new would pass it. */
+const fieldsIn = (value: unknown): Set<string> => {
+  const names = new Set<string>()
+  const walk = (one: unknown): void => {
+    if (Array.isArray(one)) {
+      for (const member of one) walk(member)
+      return
+    }
+    if (one === null || typeof one !== "object") return
+    for (const [name, held] of Object.entries(one)) {
+      names.add(name)
+      walk(held)
+    }
+  }
+  walk(value)
+  return names
+}

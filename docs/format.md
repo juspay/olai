@@ -130,9 +130,12 @@ A `doc` or `path` declaration may say `base`, and it is `root` or `file`:
 
 A declaration is a fence around a value, and it is also the strongest thing anyone knows about what that value POINTS AT. **One place answers both** — the write gate asks "is this allowed" and the display asks "what does it name", of the same declaration, and they cannot disagree:
 
-- A `doc` or `path` value opens the file it resolves to, if this directory serves one. So `brief` is a door and `worktree` — declared `path`, and pointing at a directory on somebody's machine — is not.
+- A **`doc`** value opens the `.md` it resolves to — the same resolution over the same list the write gate is held to, so a value the validator refuses is never drawn as a live door and one it accepts is never drawn as dead text. A `doc` naming a served `.olai` is refused by both: this kind promises a *document*, and an outline is not one.
+- A **`path`** value opens whatever this directory happens to serve at the path it resolves to — any kind, an outline included. It promised only a SHAPE, so the gate never claimed it names anything and the display asks the wider question. `worktree`, pointing at a directory on somebody's machine, is served by nothing here and is not a door; `brief` — declared `path` on this repository's own vault, because `docs/briefs/` is gitignored — opens exactly when the file is there.
 - A `ref` or `node` value opens the record it names, and the chip draws that record's **title**.
 - A `date` value opens its day; an `int` names nothing.
+
+Three of those arms answer where the gate would refuse, and it is deliberate: a `date` written `2026-08-25 10:06` is refused as a *spelling* and still names the day it plainly names, a `ref` holding an id from the wrong roster still names that node, and both are values the validator is already reporting on a page somebody is looking at — a live door is worth more there than a second opinion. **`doc` is the one arm held to the gate exactly**, because `doc` is the one kind that promised its value names something served.
 - A **declared `text`** is read exactly as an undeclared key is (below), which is what keeps the URL in a `pr-url` a door.
 
 **An UNDECLARED key is guessed at, in this order**: a whole `http(s)` URL, a date, an exact node id, a path this directory serves (beside the writing file — there is no declaration to say otherwise), and GitHub's `owner/repo#123`. Anything else is text. The rule under all of it is that **a wrong door is worse than no door**: the entire value has to BE the name of the thing, so a value with a URL *in* it is not a URL and a value that reads like a title is not a node.

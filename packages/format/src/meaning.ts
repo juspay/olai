@@ -85,7 +85,13 @@ import { Schema } from "effect"
 import { pathedOf } from "./documents.ts"
 import { dayOf } from "./occasion.ts"
 import { isIsoInstant } from "./parse.ts"
-import { basedAt, type Declared, declaredFor, type PropDeclarations } from "./typing.ts"
+import {
+  basedAt,
+  type Declared,
+  declaredFor,
+  type PropDeclarations,
+  resolvedDoc,
+} from "./typing.ts"
 
 /**
  * WHAT A VALUE TURNS OUT TO NAME — or `null` from {@link meaningOf}, which is
@@ -186,9 +192,32 @@ export interface Vault {
    *  value naming a MIRROR answers for the node standing at that placement —
    *  the same lookup a `see` link's text has always come from. */
   readonly declares: (id: string) => boolean
-  /** Does the directory serve this path — asked of every file it holds, not
-   *  only the documents, so an `.olai` may be named. */
+  /**
+   * Does the directory serve this path — asked of EVERY file it holds, not only
+   * the documents, so an `.olai` may be named.
+   *
+   * The wide question, and it is the one a value that PROMISED nothing gets: a
+   * `path` and an undeclared key alike say only that some string is there, so
+   * what settles whether it is a door is whether this directory happens to hold
+   * a page for it — which it does for an outline, a saved `.html` and a picture
+   * as readily as for a `.md`.
+   */
   readonly serves: (file: string) => boolean
+  /**
+   * ...and does it serve this path as a `.md` — the NARROW question, and the
+   * one a `doc` gets, because `doc` is the kind that promises exactly that.
+   *
+   * TWO PREDICATES AND NOT ONE, which is the shape grok's review corrected. A
+   * single `serves` behind both meant the gate asked `markdownPaths` and the
+   * display asked the whole file list, so a `doc` value naming a served `.olai`
+   * was REFUSED by the validator and DRAWN AS A LIVE DOOR by the chip — the
+   * bug family this module exists to close, recreated inside the socket.
+   *
+   * It is `./rules.ts`'s `markdownPaths`, which is the very set {@link Typed}'s
+   * `documents` is and the very set the `doc` FIELD's rule is asked about. One
+   * set, three readers, no room to disagree.
+   */
+  readonly documents: (file: string) => boolean
 }
 
 /**
@@ -254,19 +283,38 @@ const declaredly = (
       // LEGAL variant of this key is the gate's question and not this one's —
       // a value the gate would refuse still names the node it names, and
       // answering `null` here would draw a dead chip on a file the validator
-      // is already reporting.
+      // is already reporting. The `date` arm above says the same thing about
+      // SPELLING, and `doc` below says the opposite about EXISTENCE: which arms
+      // may part from the gate is decided by what each kind promised, and only
+      // `doc` promised that its value names something.
       return vault.declares(value) ? { kind: "node", id: value, titled: true } : null
-    case "doc":
+    case "doc": {
+      // THE GATE'S OWN EXPRESSION, OVER THE GATE'S OWN CORPUS. `doc` is the one
+      // kind that PROMISES its value names a served document, so this arm is
+      // not a rule that agrees with `wrongDoc` — it is the same resolution
+      // ({@link resolvedDoc}) asked of the same `.md` set, which is what makes
+      // "the validator refuses it" and "the chip draws no door" one fact.
+      //
+      // IT MAY NOT RIDE `path`'S ARM, and the review that caught it named the
+      // failure exactly: `path`'s display asks the whole file list, so a `doc`
+      // value naming a served `.olai` was refused by the gate and drawn as a
+      // live door — a wrong door on a finding, which is this module's founding
+      // rule broken by the module built to keep it.
+      const file = resolvedDoc(declared, from, value)
+      return file !== undefined && vault.documents(file) ? { kind: "document", file } : null
+    }
     case "path":
-      // ONE ARM FOR BOTH, because the display's question is the same for them
-      // and it is not the gate's. `doc` PROMISES the path resolves to a served
-      // document, so the gate refuses one that does not; `path` promises only a
-      // shape and may point anywhere on the machine — at a worktree, say, which
-      // is nowhere in this directory. Asking whether the directory SERVES what
-      // the value resolves to answers both: a `doc` that is served opens, a
-      // `worktree` that is not stays the text it is, and neither needed a rule
-      // of its own.
-      return servedFrom(vault, basedAt(declared, from), value)
+      // A SHAPE AND NOTHING MORE is what this kind promised, so the gate asked
+      // no question this could disagree with — and the display asks the wide
+      // one: does this directory happen to serve what the value resolves to,
+      // whatever kind of file that is. A `worktree` naming a directory on
+      // somebody's machine is not served here and stays the text it is; a
+      // `brief` declared `path` — which is what the live board declares, since
+      // `docs/briefs/` is gitignored and a `doc` would make every checkout red
+      // — opens exactly when the file is actually there. That asymmetry with
+      // the arm above is the argued call: two arms of one consult may differ
+      // about what they PROMISE, and may not differ about the same promise.
+      return servedFrom(vault, declared, from, value)
   }
 }
 
@@ -306,7 +354,7 @@ const guessed = (vault: Vault, from: string, value: string): Meaning | null => {
   // TITLED IS FALSE and the arm above's docstring argues it: nobody declared
   // this a reference, so the value is the fact and the face draws it.
   if (vault.declares(value)) return { kind: "node", id: value, titled: false }
-  const served = servedFrom(vault, from, value)
+  const served = servedFrom(vault, undefined, from, value)
   if (served !== null) return served
   const github = GITHUB_REF.exec(value)
   if (github !== null) {
@@ -326,13 +374,29 @@ const guessed = (vault: Vault, from: string, value: string): Meaning | null => {
 const dayIn = (value: string): Meaning | null =>
   isIsoInstant(value) ? { kind: "day", date: dayOf(value) } : null
 
-/** The document this value resolves to FROM somewhere, or `null` — the path
- *  arithmetic and its refusals in one place ({@link ./documents.ts}'s
- *  `pathedOf`: no scheme, no `//host`, no absolute path, no bare fragment, and
- *  a `..` clamped to the served root), and then the directory asked. Both arms
- *  end here; what differs between them is only what `from` was. */
-const servedFrom = (vault: Vault, from: string, value: string): Meaning | null => {
-  const file = pathedOf(from, value)
+/**
+ * ANY SERVED FILE this value resolves to, or `null` — the WIDE question, asked
+ * by the two readings that promised nothing about the value: a declared `path`,
+ * and a key nobody declared at all.
+ *
+ * The path arithmetic and its refusals are one place ({@link ./documents.ts}'s
+ * `pathedOf`: no scheme, no `//host`, no absolute path, no bare fragment, and a
+ * `..` clamped to the served root) and existence is the question after it —
+ * which is what lets an `.olai` be named, since the app draws a page for one
+ * and no suffix allowlist has room for it.
+ *
+ * `declared` is `undefined` for the guess, which is exactly what it means:
+ * nothing was declared, so the basis is the writing file — {@link basedAt}'s
+ * own default, reached by the same call rather than by a second rule spelled
+ * here.
+ */
+const servedFrom = (
+  vault: Vault,
+  declared: Declared | undefined,
+  from: string,
+  value: string,
+): Meaning | null => {
+  const file = pathedOf(basedAt(declared, from), value)
   return file !== null && vault.serves(file) ? { kind: "document", file } : null
 }
 

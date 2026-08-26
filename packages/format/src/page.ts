@@ -83,6 +83,7 @@ import type { Face } from "./document.ts"
 import { bodyKind, FileKind, fileKind } from "./kinds.ts"
 import { Door, meaningOf, type Vault } from "./meaning.ts"
 import { ID_SHAPE, isPutAway, isTrashed, type LocatedRegular, propertiesIn } from "./node.ts"
+import { markdownPaths } from "./rules.ts"
 import { BrokenFile } from "./set.ts"
 import { pinTargetIn } from "./shelf.ts"
 import { declarationsIn } from "./typing.ts"
@@ -374,15 +375,23 @@ export const pageOf = (at: Reading, request: PageRequest): PageReading => {
  * carry `merge merge-auto` is one answer, and forty copies of it would be the
  * page paying per row for a fact that is per value.
  *
- * COSTS ONE SET OF THE DIRECTORY'S PATHS per page per revision, which is the
- * one allocation this projection adds and is the same order as the outline list
- * {@link outlinesAmong} already builds beside it. That set is spent twice — as
- * the "does the directory serve this" question, and as the file list the
- * declarations convention is found in — which is what lets the declarations be
- * read off ONE file's records rather than off a walk of every file's.
+ * COSTS TWO SETS OF PATHS per page per revision — every served file, and the
+ * `.md` half of it — which is the whole allocation this projection adds and is
+ * the same order as the outline list {@link outlinesAmong} already builds
+ * beside it, over the same array. The first is spent twice: as the "does the
+ * directory serve this" question, and as the file list the declarations
+ * convention is found in, which is what lets the declarations be read off ONE
+ * file's records rather than off a walk of every file's.
  */
 const doorsFor = (at: Reading, shows: Shown): ReadonlyArray<Door> => {
   const served = new Set<string>(at.set.documents.map((face) => face.path))
+  // ...AND THE `.md` HALF OF IT, which is a second set and has to be: a `doc`
+  // value promises to name a served DOCUMENT, and the gate holds it to exactly
+  // this list ({@link ./typing.ts}'s `Typed.documents`). Built by the same
+  // function the validator builds its own with rather than by filtering the
+  // paths above, which would be a second answer to "which of these is a
+  // document" — the very shape this module exists to have one of.
+  const documents = markdownPaths(at.set)
   const vault: Vault = {
     // THE DECLARATIONS FILE FOUND IN THE SET, and not by walking the
     // derivation's own file list — which is the one line of this projection
@@ -398,6 +407,7 @@ const doorsFor = (at: Reading, shows: Shown): ReadonlyArray<Door> => {
     // that placement.
     declares: (id) => nodeNamed(at.derived, id) !== undefined,
     serves: (file) => served.has(file),
+    documents: (file) => documents.has(file),
   }
   const doors: Array<Door> = []
   const asked = new Set<string>()

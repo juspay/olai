@@ -295,6 +295,39 @@ export const BASE_KEY = "base"
 export const basedAt = (declared: Declared | undefined, from: string): string =>
   baseOf(declared) === "root" ? "" : from
 
+/**
+ * WHERE A `doc` VALUE LANDS — the whole resolution, or `undefined` for a value
+ * that is not a path at all.
+ *
+ * THE WHOLE RESOLUTION AND NOT JUST THE BASIS, which is the correction grok's
+ * review forced and it is the sharper reading of the same law. `doc` is the one
+ * kind that PROMISES its value names something served, so the gate and the
+ * display are not two rules that happen to agree — they are one question asked
+ * twice, and anything either does on its own is a second answer waiting to
+ * happen. Sharing `basedAt` alone left two: `isPathShaped` accepts a leading
+ * `/` and a `%20` where `pathedOf` refuses the first and decodes the second, so
+ * a `doc` value spelled either way was accepted by the validator and drawn as
+ * plain text — the family again, in the quieter direction.
+ *
+ * So the display asks THIS, and then asks the same corpus ({@link Typed}'s
+ * `documents`, which is `./rules.ts`'s `markdownPaths`). What remains its own
+ * is the sentence: a refusal has to say which half went wrong, and a chip has
+ * only to know whether there is a door.
+ *
+ * `path` DOES NOT COME THROUGH HERE, and that asymmetry is the argued call
+ * rather than an oversight: `path` promises a SHAPE and may point anywhere, so
+ * its gate never claimed the value names anything and its display asks the
+ * wider question — does this directory happen to serve what it resolves to,
+ * whatever kind of file that is. Two arms of one consult can differ about what
+ * they PROMISE; they may not differ about the same promise.
+ */
+export const resolvedDoc = (
+  declared: Declared | undefined,
+  from: string,
+  value: string,
+): string | undefined =>
+  isPathShaped(value) ? resolveRelative(basedAt(declared, from), value) : undefined
+
 /** WHAT THIS KEY'S ROW SAYS its paths resolve from — the fact itself, where
  *  {@link basedAt} is the fact applied. Read by the two callers that compare
  *  vocabularies rather than resolve a value ({@link sameTyping}). */
@@ -882,12 +915,12 @@ const wrongOne = (
  * do, and the second names what the path resolved to the way the `doc` field's
  * own error does.
  *
- * THE RESOLUTION IS THE KEY'S ({@link basedAt}), which is the one line of this
- * function that changed when the basis became a declared fact — and it is the
- * gate half of the pair the whole amendment is about. The display asks the same
- * row the same question ({@link ./meaning.ts}), so a value this refuses cannot
- * be drawn as a live door, and a value this accepts cannot be drawn as dead
- * text.
+ * THE RESOLUTION IS SHARED WHOLE ({@link resolvedDoc}) and so is the corpus it
+ * is asked of, which is the gate half of the pair the whole amendment is about.
+ * The display runs the same expression over the same set ({@link ./meaning.ts}),
+ * so a value this refuses cannot be drawn as a live door and a value this
+ * accepts cannot be drawn as dead text — structurally, rather than because two
+ * rules were written to match.
  */
 const wrongDoc = (
   typed: Typed,
@@ -896,10 +929,10 @@ const wrongDoc = (
   named: string,
   value: string,
 ): string | undefined => {
-  if (!isPathShaped(value)) {
+  const resolved = resolvedDoc(declared, from, value)
+  if (resolved === undefined) {
     return `${named} names a document — got ${quoted(value)}, which is not a path.`
   }
-  const resolved = resolveRelative(basedAt(declared, from), value)
   if (typed.documents.has(resolved)) return undefined
   return `${named} names a document — \`${value}\` resolves to \`${resolved}\`, ` +
     `and no such \`.md\` file is served${didYouMean(resolved, typed.documents)}`
