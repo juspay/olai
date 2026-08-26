@@ -929,7 +929,10 @@ mark.olai-hit {
  * terminal is in the pane.
  */
 .olai-live-screen {
-  height: 22rem;
+  /* NO HEIGHT HERE — `fitVisually` sets it from the terminal it is actually
+   * showing, scaled. A fixed one would either crop a tall grid or leave a band
+   * of empty panel under a short one, and which of those you got would depend
+   * on somebody else's window size. */
   width: 100%;
   border-radius: 0.25rem;
   overflow: hidden;
