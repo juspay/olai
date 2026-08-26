@@ -40,6 +40,15 @@ Feature: A property key that declares its type
     And the node "chips" shows the property "merge" holding "auto"
     And "lanes.olai" holds the node "chips" with "merge" set to "auto"
     And the page has not reloaded
+    # ONE GESTURE, ONE REFUSAL — the refusal is the one send's own answer; the
+    # stand-down swallows the duplicate and never the answer. Argued, not
+    # re-asserted (Opus, review 2 of 2): a second send of the same miss is
+    # refused from the UNCHANGED snapshot and draws the very same words
+    # through `createSaying`'s replace — one DOM line either way, so any
+    # assertion of the claim here could only ever rent the line's 6-second
+    # expiry against a loaded box; it could not go red for one send vs two.
+    # The claim's red-able venues hold it instead: the FITS scenario's silence
+    # pin below, and the `sent` log in `editor.test.ts`.
     And there should be no page errors
 
   Scenario: The refusal offers the variant a value is a typo of
@@ -52,6 +61,9 @@ Feature: A property key that declares its type
     And I type "clade" into the property editor on "chips"
     Then the node "chips" refuses the property write with "did you mean `claude`?"
     And the node "chips" shows the property "agent" holding "pi"
+    # The same one gesture, one refusal — argued at the first scenario; the
+    # words above are the pin this venue can hold, and the send count is the
+    # unit file's half.
     And there should be no page errors
 
   Scenario: A value that FITS lands, and lands as the one stored spelling
@@ -64,6 +76,9 @@ Feature: A property key that declares its type
     And I type "2026-8-30" into the property editor on "chips"
     Then the node "chips" shows the property "dispatched" holding "2026-08-30"
     And "lanes.olai" holds the node "chips" with "dispatched" set to "2026-08-30"
+    # One gesture, one commit — the Enter's own closing blur sent nothing of
+    # its own, or the no-change guard would be drawing it here.
+    And the node "chips" says nothing about its properties
     And there should be no page errors
 
   Scenario: An undeclared key on the same node still takes anything

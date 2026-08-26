@@ -8,7 +8,7 @@
 
 import { expect, test } from "bun:test"
 
-import { openedOn, sending, writes } from "./editor.ts"
+import { type ClosedBy, leavingCommits, openedOn, sending, writes } from "./editor.ts"
 
 const PR = { key: "pr", value: "https://x/1" }
 
@@ -47,6 +47,113 @@ test("a new key is trimmed, because a key is a name and the space around one is 
   // The VALUE is not trimmed: it is somebody's text, and a sentence that ends
   // in a space is still that sentence.
   expect(sending(null, "merge", "the human approves ").value).toBe("the human approves ")
+})
+
+// ── one gesture, one outcome ──────────────────────────────────────────
+
+/**
+ * The box's OWN WIRING, spelled the way `./PropsDrawer.tsx`'s `Chip`'s editor
+ * wires it: one answer-record minted beside the `Box` by the caller that
+ * CLOSES it (never inside the box's key handling — a box cannot know whether
+ * its `onCommit` closes it; the add chip's key box's Enter only moves the
+ * caret), and `onLeave` is the blur. The pin drives the sequence because what
+ * is pinned here IS the sequence — the gestures, and the sends they produce.
+ *
+ * The ADD chip answers the SAME law through a SECOND record on the chip's own
+ * element (`NewChip`'s `answeredBy`): its echo is the run's `onFocusOut`, not
+ * a value box's `onBlur` — the value box there has no `onLeave` — so this
+ * double cannot see its Enter wrapper at all, dishonest or dropped. The
+ * first-add scenario in `properties.feature` is that half's only lock.
+ */
+const editor = () => {
+  const sent: Array<"enter's write" | "the blur's write"> = []
+  /** One OPEN's answer-record. */
+  let answeredBy: ClosedBy = null
+  return {
+    sent,
+    /**
+     * OPEN the box — and REOPEN is the same verb. THE REMOUNT IS THE LAW,
+     * named rather than inherited: in production the record is a `let`
+     * inside the editor's component, and the `<Show>` that mounts the box
+     * DISPOSES it on the close, so a close is also the reset. A keep-alive
+     * editor that HIDES the box (or a `keyed` `<Show>` that preserves the
+     * child) would hold the previous open's answer — a settled design
+     * decision the pins are written against: `properties.feature`'s
+     * same-chip-twice scenario drives the real remount, and this file makes
+     * "reopen" a gesture a test must choose to skip.
+     *
+     * And the ORDER of the two locks is worth keeping straight (Opus, review
+     * 2 of 2): BROWSER first, this double second — the scenario failing at
+     * its `editor is closed` step under a keep-alive editor is the claim;
+     * this sequence is the reading of it.
+     */
+    open: () => {
+      answeredBy = null
+    },
+    // Enter as the caller answers it: the wrapper records the close it is
+    // about to own, and then the commit sends.
+    enter: () => {
+      answeredBy = "enter"
+      sent.push("enter's write")
+    },
+    escape: () => {
+      answeredBy = "escape"
+    },
+    // The blur, firing when it fires: leaving the box — OR the unmount the
+    // commit's close just caused; the machine is not told which, which is the
+    // whole point. The `sent` log counts SENDS, which is the one place a
+    // stand-down can be counted at all: what a send DRAWS (the write landing,
+    // the gate's refusal) is the browser suite's half.
+    blur: () => {
+      if (leavingCommits(answeredBy)) sent.push("the blur's write")
+    },
+  }
+}
+
+test("one Enter, one commit — the blur its close fires stands down", () => {
+  // THE PINNED ONE (chip-blur-double-commit-2): this sequence used to be TWO
+  // sends — the commit, then the blur the commit's close fired, sending the
+  // same write again — and the ops layer's no-change guard drew that second
+  // send as the spurious "already says … — nothing would change" note under
+  // the run.
+  const gestures = editor()
+  gestures.open()
+  gestures.enter()
+  gestures.blur() // the one the unmount fires
+  expect(gestures.sent).toEqual(["enter's write"])
+})
+
+test("a second open answers for itself — the record is born with the open", () => {
+  // `leavingCommits("enter")` is false FOREVER: a record held past its close
+  // turns the next open's LEAVING into a swallowed commit — a typed change
+  // that never sends, which is the same bug reborn as a silent miss and
+  // worse than the note it replaced. The keep-alive editor this fails under
+  // is why `open` above is a verb and not an accident of the mint.
+  const gestures = editor()
+  gestures.open()
+  gestures.enter()
+  gestures.blur()
+  gestures.open()
+  gestures.blur()
+  expect(gestures.sent).toEqual(["enter's write", "the blur's write"])
+})
+
+test("still once on the way out: leaving the box IS the commit", () => {
+  // The path the fix could break: with no key pressed, the blur is the
+  // gesture, and taking it away would be curing the echo by silencing the
+  // speaker.
+  const gestures = editor()
+  gestures.open()
+  gestures.blur()
+  expect(gestures.sent).toEqual(["the blur's write"])
+})
+
+test("Escape abandons — and the blur its close fires writes nothing", () => {
+  const gestures = editor()
+  gestures.open()
+  gestures.escape()
+  gestures.blur()
+  expect(gestures.sent).toEqual([])
 })
 
 // ── which chip the editor is open on ───────────────────────────────────
