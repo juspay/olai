@@ -48,6 +48,7 @@ mock.module("./paths.ts", () => ({
 const { apart, assemble, outlinePaths, withDocuments } = await import("./set.ts")
 const { bodiedDocument, outlineDocument } = await import("./document.ts")
 const { parseOutline } = await import("./parse.ts")
+const { verdictOf } = await import("./verdict.ts")
 
 /** A directory with the shapes an ORDER can go wrong at: nested paths, a file
  *  and a directory sharing a name (`wing.olai` beside `wing/…`), a dotted
@@ -68,7 +69,9 @@ const vault = (files: number) => {
   }
   decoded.set(
     "torn.olai",
-    Result.fail([{ code: "bad-json", file: "torn.olai", line: 1, message: "no" }] as never),
+    Result.fail(
+      verdictOf([{ code: "bad-json", file: "torn.olai", line: 1, message: "no" }] as never),
+    ) as never,
   )
   return assemble(decoded as never)
 }

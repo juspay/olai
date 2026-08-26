@@ -39,7 +39,7 @@
 import { Result } from "effect"
 
 import type { Document } from "./document.ts"
-import type { OutlineError } from "./errors.ts"
+import { type Verdict, verdictOf } from "./verdict.ts"
 
 import { type Corpus, corpusOf, editOf, FILES, pick } from "./corpora.testlib.ts"
 import { fileKind } from "./kinds.ts"
@@ -113,7 +113,7 @@ export const replay = (revisions: Iterable<Revision>): Report => {
     // validator a set whose every record is a new object, and every single
     // validation would rebuild. Which is exactly what this file did for its
     // first hour, and the counters said so.
-    const decoded = new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>()
+    const decoded = new Map<string, Result.Result<Document, Verdict>>()
     let held: Revision = new Map()
     let published: Reading | null = null
     // What has moved since the last PUBLISHED revision, which is more than one

@@ -933,12 +933,46 @@ export {
   compareErrors,
   errorLine,
   hasLine,
+  /** WHICH FILES one finding is about — where it was found and every place it
+   *  names as related. `isCrossFile` is the same question asked for the error
+   *  view's grouping; the verdict asks it of every finding it holds. */
+  implicatedBy,
   isCrossFile,
   OutlineError,
   reportStage,
   stageOf,
 } from "./errors.ts"
 export type { ErrorCode, Stage } from "./errors.ts"
+
+/**
+ * THE VALIDATOR'S JUDGEMENT, as data — what a refused validation answers with
+ * and what the store publishes on its errors channel (`./verdict.ts`, which
+ * argues the shape and names the three bugs the flat list caused).
+ *
+ * The four questions are the whole of the surface. `admits` is the WRITE GATE's
+ * and it is per file: its answer has no whole-set member, so one broken file
+ * can never again freeze a write to a healthy one, and a refusal names its
+ * blocker. `summary` is a BOUNDED per-file face for a surface drawn over
+ * something still live — the banner draws it, and the row enumeration stays on
+ * the page a reader asked for it on. `implicating` is which findings are about
+ * one file. `tierOf` is what a class costs a load, consultable rather than
+ * blanket — the shelf, with the ruling about what sits on it left to the human
+ * (roadmap `verdict-boot-policy`).
+ */
+export {
+  ADMITTED,
+  admits,
+  implicatedIn,
+  implicating,
+  isClean,
+  NOTHING_WRONG,
+  refusesLoad,
+  summary,
+  tierOf,
+  Verdict,
+  verdictOf,
+} from "./verdict.ts"
+export type { Admission, FileFace, FileState, Summary, Tier } from "./verdict.ts"
 
 /**
  * THE PINNED SHELF, as a reading of the set rather than of a browser's copy of

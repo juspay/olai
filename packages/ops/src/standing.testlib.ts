@@ -82,6 +82,8 @@ import {
   type Reading,
   stillHolds,
   taping,
+  type Verdict,
+  verdictOf,
 } from "@olai/format"
 import { seeded } from "@olai/format/testlib"
 import { Result } from "effect"
@@ -233,14 +235,14 @@ export interface Revision {
   readonly reading: Reading
 }
 
-type Decoded = Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>
+type Decoded = Map<string, Result.Result<Document, Verdict>>
 
 const decodeOne = (
   file: string,
   text: string,
-): Result.Result<Document, ReadonlyArray<OutlineError>> =>
+): Result.Result<Document, Verdict> =>
   bodyKind(file) === null
-    ? parseOutline(file, text)
+    ? Result.mapError(parseOutline(file, text), verdictOf)
     : Result.succeed<Document>(bodiedDocument(file, text))
 
 /**
@@ -474,7 +476,7 @@ export const publishing = (vault: Vault): {
   const first = published(decoded, undefined, [], [])
   if (Result.isFailure(first)) {
     throw new Error(
-      `the harness's own vault does not validate: ${JSON.stringify(first.failure.slice(0, 2))}`,
+      `the harness's own vault does not validate: ${JSON.stringify(first.failure.findings.slice(0, 2))}`,
     )
   }
   let previous: Reading = first.success
@@ -514,7 +516,7 @@ export const publishing = (vault: Vault): {
       // every comparison in the differential would be an answer against
       // itself. {@link refusalsIn} is what a suite asks, and the validator's
       // own word for it rides the sentence.
-      refusals.push(`${says}: ${next.failure[0]?.code ?? "?"}`)
+      refusals.push(`${says}: ${next.failure.findings[0]?.code ?? "?"}`)
       return previous as Reading
     }
     owed = { changed: new Set(), removed: new Set() }
@@ -533,7 +535,7 @@ const published = (
   previous: Reading | undefined,
   changed: ReadonlyArray<string>,
   removed: ReadonlyArray<string>,
-): Result.Result<Reading, ReadonlyArray<OutlineError>> =>
+): Result.Result<Reading, Verdict> =>
   codec.validate(
     decoded,
     previous === undefined ? undefined : { value: previous, changed, removed },

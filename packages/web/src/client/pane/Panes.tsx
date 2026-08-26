@@ -12,7 +12,7 @@
  * second-to-last returns to that.
  */
 
-import type { OutlineError } from "@olai/format"
+import { isClean, type Verdict } from "@olai/format"
 import { createSignal, For, Index, Show } from "solid-js"
 import { onCleanup } from "solid-js"
 
@@ -38,7 +38,7 @@ import { SHELL_LONE, SHELL_SPLIT } from "../layout/sheet.ts"
 export { PANE_MIN_PX, PANE_RAIL_PX } from "./geometry.ts"
 
 export function Panes(props: {
-  readonly problems: ReadonlyArray<OutlineError>
+  readonly problems: Verdict
 }) {
   const router = useRouter()
   const split = () => !isLone(router.workspace())
@@ -55,9 +55,9 @@ export function Panes(props: {
         [SHELL_LONE]: !split(),
       }}
     >
-      <Show when={props.problems.length > 0}>
+      <Show when={!isClean(props.problems)}>
         <div class="px-4 pt-4 md:px-12 lg:pl-16">
-          <Banner errors={props.problems} />
+          <Banner verdict={props.problems} />
         </div>
       </Show>
       <Show when={split() && !desktop()}>

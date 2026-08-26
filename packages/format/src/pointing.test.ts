@@ -39,7 +39,7 @@ import { Result } from "effect"
 import { addressOf, printAddress } from "./address.ts"
 import { referrersTo } from "./backlinks.ts"
 import type { Document } from "./document.ts"
-import type { OutlineError } from "./errors.ts"
+import { type Verdict, verdictOf } from "./verdict.ts"
 import { seeded } from "./fixtures.testlib.ts"
 import { pointingOf } from "./pointing.ts"
 import {
@@ -88,7 +88,7 @@ interface Report {
 const replay = (revisions: Iterable<Revision>, every = 1): Report => {
   const divergences: Array<string> = []
   const stale: Array<string> = []
-  const decoded = new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>()
+  const decoded = new Map<string, Result.Result<Document, Verdict>>()
   let held: Revision = new Map()
   let previous: Reading | null = null
   let revisionsSeen = 0

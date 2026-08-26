@@ -69,6 +69,7 @@ import {
 } from "./fixtures.testlib.ts"
 import { incrementally, type Ledger } from "./incremental.ts"
 import type { OutlineError } from "./errors.ts"
+import { type Verdict, verdictOf } from "./verdict.ts"
 import { bodiedDocument, type Document } from "./document.ts"
 import type { Located } from "./node.ts"
 import { patched, type SetDelta } from "./patch.ts"
@@ -113,7 +114,7 @@ const documents = Array.from({ length: DOCS }, (_, at) => `doc/note${at}.md`)
 /** Decoded once. Parsing is not what either arm measures, and a decode inside a
  *  timed window would put the same `JSON.parse` on both sides of a comparison
  *  that is not about it. */
-const decoded = new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>([
+const decoded = new Map<string, Result.Result<Document, Verdict>>([
   ...paths.map(
     (file) =>
       [file, Result.succeed<Document>(outlineOf(corpus.get(file) as string, file))] as const,

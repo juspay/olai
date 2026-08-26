@@ -9,33 +9,32 @@
  * It says "not the files as they are now" rather than counting errors in the
  * heading, because the count is right below it and the STALENESS is the thing
  * a reader cannot see by looking at the tree.
+ *
+ * IT DRAWS THE VERDICT'S BOUNDED FACE and never the rows (`@olai/format`'s
+ * `summary`). This banner is over SOMEBODY ELSE'S PAGE — every page in the app
+ * — and it used to inline the full enumeration: one outline failing typed
+ * validation put 135 rows above every open document, so each page opened on a
+ * wall of another file's errors (`last-good-banner-flood`). One line per broken
+ * file, the state and the count, and the rows where a reader asked for them.
+ *
+ * THE CLAMP AND THE BOUND ARE DIFFERENT THINGS and they live apart: the bound
+ * is the format's — `summary(n)` has no way to hand back a row, so no surface
+ * drawing it can flood — and the clamp is a knob about THIS banner, which is
+ * why it and the two readings around it are one module over where a test can
+ * ask them (./banner.ts, and the debate's finding 5 on why a knob is not a
+ * receptacle).
  */
 
-import type { OutlineError } from "@olai/format"
-import { Show } from "solid-js"
+import type { Verdict } from "@olai/format"
+import { createMemo, For, Show } from "solid-js"
 
 import { TESTID } from "../testids.ts"
+import { bannerFace, SAID, wentAway } from "./banner.ts"
 import { Lede } from "./Lede.tsx"
-import { Report } from "./Report.tsx"
 
-/**
- * WHY the tree below is old — which is not always the same reason.
- *
- * "The files on disk no longer validate" is the ordinary case and was the only
- * case, so it was written as a fact rather than read off the errors. It became
- * a lie the moment the store learned to publish the other kind: a directory
- * that could not be READ has nothing wrong with its files, and telling
- * somebody whose mount went away to go and fix their outlines is worse than
- * the silence this banner replaced.
- *
- * Read off the errors, so the two cannot drift: one `unreadable-directory` is
- * enough, because a set nothing could read is a set nothing could validate
- * either — anything else in the list is downstream of it.
- */
-const unreadable = (errors: ReadonlyArray<OutlineError>): boolean =>
-  errors.some((error) => error.code === "unreadable-directory")
+export function Banner(props: { readonly verdict: Verdict }) {
+  const face = createMemo(() => bannerFace(props.verdict))
 
-export function Banner(props: { readonly errors: ReadonlyArray<OutlineError> }) {
   return (
     <aside
       class="mb-6 rounded border border-alarm bg-alarm/5 px-4 py-3"
@@ -45,12 +44,12 @@ export function Banner(props: { readonly errors: ReadonlyArray<OutlineError> }) 
         Showing the last good version
       </h2>
       <Show
-        when={unreadable(props.errors)}
+        when={wentAway(face())}
         fallback={
           <Lede>
             The files on disk no longer validate, so the outline below is the one
-            from before they stopped. Fix these and it catches up on its own —
-            nothing needs reloading.
+            from before they stopped. Open a file named here to see what it says;
+            fix it and this catches up on its own — nothing needs reloading.
           </Lede>
         }
       >
@@ -61,7 +60,31 @@ export function Banner(props: { readonly errors: ReadonlyArray<OutlineError> }) 
           directory can be read again.
         </Lede>
       </Show>
-      <Report errors={props.errors} />
+      <ul class="m-0 mt-2 list-none p-0">
+        <For each={face().files}>
+          {(one) => (
+            <li
+              class="mb-1 border-l-[3px] border-alarm py-0.5 pl-3"
+              data-testid={TESTID.brokenFileLine}
+              data-file={one.file}
+              data-state={one.state}
+            >
+              <code class="mr-2 font-mono text-[0.8125rem] text-muted">
+                {one.file}
+              </code>
+              <span>
+                {SAID[one.state]} — {one.count}{" "}
+                {one.count === 1 ? "error" : "errors"}
+              </span>
+            </li>
+          )}
+        </For>
+      </ul>
+      <Show when={face().more > 0}>
+        <Lede testid={TESTID.brokenFileMore}>
+          …and {face().more} more {face().more === 1 ? "file" : "files"}.
+        </Lede>
+      </Show>
     </aside>
   )
 }

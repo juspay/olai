@@ -28,7 +28,7 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
-import { type FailureKind, type OutlineSet, outlinePaths } from "@olai/format"
+import { type FailureKind, type OutlineSet, outlinePaths, verdictOf } from "@olai/format"
 import { recordsOf } from "@olai/format/testlib"
 import {
   codec,
@@ -126,12 +126,12 @@ const withTools = <A>(
             // `unreadable-directory` with a `line` of 0 is what the store's own
             // `codec.unreadable` raises for a path it could not read — the
             // closest legal code, rather than one invented for a test.
-            ? Result.fail([{
+            ? Result.fail(verdictOf([{
               file,
               line: 0,
               code: "unreadable-directory" as const,
               message: `${file} could not be read`,
-            }])
+            }]))
             : codec.decode(file, contents),
       },
       watch: false,
@@ -231,6 +231,15 @@ const call = async (
     isError: result.isError === true,
   }
 }
+
+/** The rows out of a refusal's detail — one spelling, because the detail is a
+ *  VERDICT now (`@olai/format`'s `verdict.ts`) and eight assertions reaching
+ *  through it by hand is eight places to update the day it grows a member. */
+const findingsOf = (
+  structured: Record<string, unknown>,
+): ReadonlyArray<Record<string, unknown>> =>
+  (structured["verdict"] as { readonly findings?: ReadonlyArray<Record<string, unknown>> })
+    ?.findings as ReadonlyArray<Record<string, unknown>>
 
 // ── what the agent is offered ──────────────────────────────────────────
 
@@ -713,7 +722,7 @@ test("read_subtree refuses an outline the set could not load", async () => {
       const refused = await call(client, "read_subtree", { file: "torn.olai" })
       expect(refused.isError).toBe(true)
       expect(refused.structured).toMatchObject({ kind: "validation" })
-      expect(refused.structured["errors"]).toBeArrayOfSize(1)
+      expect(findingsOf(refused.structured)).toBeArrayOfSize(1)
 
       // AND IT IS TOLD THE TRUTH ABOUT ITSELF, which is the half only this file
       // can check end to end: an outline is READ perfectly well and then has
@@ -968,7 +977,7 @@ test("a document the set could not read is refused, not answered empty", async (
       const refused = await call(client, "read_document", { file: "torn.md" })
       expect(refused.isError).toBe(true)
       expect(refused.structured).toMatchObject({ kind: "validation" })
-      expect(refused.structured["errors"]).toBeArrayOfSize(1)
+      expect(findingsOf(refused.structured)).toBeArrayOfSize(1)
 
       // The same file at the write verb, refused by the same rule — one fact,
       // two verbs, and neither of them touching a file nobody read.
@@ -1091,11 +1100,15 @@ test("move_node is refused when it would take a `ref` variant out of its root", 
       // The gate's own shape: the summary says nothing was written, and the
       // validator's rows say WHY, with the `file:line` of the record that can
       // no longer say what it says.
+      // THE REFUSAL NAMES ITS BLOCKER. It used to say "would leave the
+      // outlines invalid", which named nothing and read as an indictment of a
+      // write that was often innocent; the verdict answers which file stops it
+      // (`@olai/format`'s `admits`), and the sentence says that.
       expect(out.structured).toMatchObject({
         kind: "validation",
-        reason: "`move: Claude` would leave the outlines invalid, so nothing was written",
+        reason: "`move: Claude` would leave `lanes.olai` invalid, so nothing was written",
       })
-      const rows = out.structured["errors"] as ReadonlyArray<Record<string, unknown>>
+      const rows = findingsOf(out.structured)
       expect(rows).toHaveLength(1)
       expect(rows[0]).toMatchObject({ file: "lanes.olai", line: 1, code: "bad-prop" })
       expect(String(rows[0]?.["message"])).toContain("`agent`")
@@ -1199,7 +1212,7 @@ test("a repeat with no date to repeat from is refused, and nothing is written", 
     const answer = await call(client, "set_repeat", { id: "order", repeat: "every day" })
     expect(answer.isError).toBe(true)
     expect(answer.structured["kind"]).toBe("validation")
-    expect(answer.structured["errors"]).toMatchObject([
+    expect(findingsOf(answer.structured)).toMatchObject([
       { file: "house.olai", code: "bad-repeat" },
     ])
     expect(JSON.stringify(answer.structured)).toContain("no `date` to repeat from")
@@ -1212,7 +1225,7 @@ test("a rule the grammar does not have is refused, quoting the grammar", async (
   await withTools({ "chores.olai": CHORES }, async ({ client, read }) => {
     const answer = await call(client, "set_repeat", { id: "bins", repeat: "every 2 weeks" })
     expect(answer.isError).toBe(true)
-    expect(answer.structured["errors"]).toMatchObject([
+    expect(findingsOf(answer.structured)).toMatchObject([
       { file: "chores.olai", line: 1, code: "bad-repeat" },
     ])
     expect(JSON.stringify(answer.structured)).toContain("every week on <weekday>")
@@ -1230,7 +1243,7 @@ test("a date that is not a date is refused too, by the same gate", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, read }) => {
     const answer = await call(client, "set_date", { id: "order", date: "someday" })
     expect(answer.isError).toBe(true)
-    expect(answer.structured["errors"]).toMatchObject([
+    expect(findingsOf(answer.structured)).toMatchObject([
       { file: "house.olai", code: "bad-date" },
     ])
     expect(read("house.olai")).toBe(HOUSE)
@@ -1435,7 +1448,7 @@ test("a directory that will not load refuses with the validator's own rows", asy
     expect(write.structured["kind"]).toBe("validation")
 
     // The rows themselves, as DATA — situated, not a sentence to parse.
-    const rows = read.structured["errors"] as ReadonlyArray<Record<string, unknown>>
+    const rows = findingsOf(read.structured)
     expect(Array.isArray(rows)).toBe(true)
     expect(rows.length).toBeGreaterThan(0)
     expect(rows[0]).toMatchObject({ file: "orphan.olai" })
@@ -1444,7 +1457,7 @@ test("a directory that will not load refuses with the validator's own rows", asy
       expect(typeof row["message"]).toBe("string")
       expect(typeof row["line"]).toBe("number")
     }
-    expect(write.structured["errors"]).toEqual(rows)
+    expect(findingsOf(write.structured)).toEqual(rows)
 
     // And the resource an agent can WATCH says the same thing, in the same
     // vocabulary, at the same instant — which is what one surface means.
@@ -1453,7 +1466,7 @@ test("a directory that will not load refuses with the validator's own rows", asy
     if (part === undefined || !("text" in part)) {
       throw new Error("surface://cells/errors: expected one text part")
     }
-    expect(JSON.parse(part.text as string)).toEqual(rows)
+    expect(JSON.parse(part.text as string)).toEqual({ findings: rows })
   })
 })
 

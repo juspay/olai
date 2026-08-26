@@ -737,7 +737,10 @@ describe("a whole outline, walked", () => {
     // there is nothing to answer with — `read_document`'s rule for a `.md`.
     const refusal = refusedWalk(shelf(), { file: "torn.olai" })
     expect(refusal._tag).toBe("ValidationFailure")
-    expect((refusal as { readonly errors: ReadonlyArray<unknown> }).errors).not.toBeEmpty()
+    expect(
+      (refusal as { readonly verdict: { readonly findings: ReadonlyArray<unknown> } })
+        .verdict.findings,
+    ).not.toBeEmpty()
     // …and told the truth about ITSELF. An outline is read perfectly well and
     // then has lines the format cannot take, which is not the same failure as a
     // body that could not be read — the two reads that answer a whole file

@@ -72,13 +72,14 @@ import {
   bodyOf,
   type BrokenFile,
   faceOf,
-  nodesOf,
   FILE_KINDS,
-  type OutlineError,
+  nodesOf,
   outlinesIn,
   type Reading,
   reading,
   textKind,
+  type Verdict,
+  verdictOf,
 } from "@olai/format"
 import { seeded } from "@olai/format/testlib"
 import { decodedVault } from "@olai/format/testlib/scope"
@@ -330,12 +331,12 @@ const readingOf = (vault: ReadonlyMap<string, string>): Reading => {
     if (text !== REFUSED) continue
     decoded.set(
       file,
-      Result.fail<ReadonlyArray<OutlineError>>([{
+      Result.fail<Verdict>(verdictOf([{
         file,
         line: 0,
         code: "unreadable-file",
         message: "EACCES — this file is in the directory and will not open.",
-      }]),
+      }])),
     )
   }
   return reading(assemble(decoded))

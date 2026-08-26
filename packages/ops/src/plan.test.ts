@@ -2485,7 +2485,7 @@ describe("move across outlines", () => {
     if (Result.isFailure(verdict)) {
       throw new Error(
         `the set is invalid after the move: ${
-          verdict.failure.map((one) => `${one.code} — ${one.message}`).join("; ")
+          verdict.failure.findings.map((one) => `${one.code} — ${one.message}`).join("; ")
         }`,
       )
     }
@@ -2695,7 +2695,7 @@ describe("move across outlines", () => {
     const refusalOf = (request: Request): ReadonlyArray<string> => {
       const verdict = validate(after(set, request))
       if (Result.isSuccess(verdict)) return []
-      return verdict.failure.map((one) => `${one.code} ${one.message}`)
+      return verdict.failure.findings.map((one) => `${one.code} ${one.message}`)
     }
 
     // The move: `finishes.md` beside `house.olai` is `notes/finishes.md` beside
@@ -2783,10 +2783,10 @@ describe("move across outlines", () => {
     const verdict = validate(after(ROSTERED(), { op: "move", id: "claude", parent: "elsewhere" }))
     expect(Result.isFailure(verdict)).toBe(true)
     if (Result.isSuccess(verdict)) return
-    expect(verdict.failure.map((one) => one.code)).toEqual(["bad-prop"])
-    expect(verdict.failure[0]?.message).toContain("`agent`")
-    expect(verdict.failure[0]?.message).toContain("`roster`")
-    expect(verdict.failure[0]?.message).toContain(`"claude"`)
+    expect(verdict.failure.findings.map((one) => one.code)).toEqual(["bad-prop"])
+    expect(verdict.failure.findings[0]?.message).toContain("`agent`")
+    expect(verdict.failure.findings[0]?.message).toContain("`roster`")
+    expect(verdict.failure.findings[0]?.message).toContain(`"claude"`)
   })
 
   // ── the refusals ─────────────────────────────────────────────────────
@@ -4568,7 +4568,7 @@ test("a file whose lines do not parse is never rewritten from a set that lost th
   const failure = refused(set, { op: "add", file: "bad.olai", title: "x" })
   expect(failure._tag).toBe("ValidationFailure")
   if (failure._tag !== "ValidationFailure") return
-  expect(failure.errors.length).toBeGreaterThan(0)
+  expect(failure.verdict.findings.length).toBeGreaterThan(0)
   expect(failure.message).toContain("Fix the file first")
 })
 

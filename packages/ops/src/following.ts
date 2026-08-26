@@ -94,6 +94,7 @@ import {
   parseOutline,
   serializeOutline,
   ValidationFailure,
+  verdictOf,
 } from "@olai/format"
 import { Result } from "effect"
 
@@ -150,7 +151,7 @@ export const folding = (from: Scope): Folding => {
               `\`${planned.file}\` did not read back after being planned, so the ` +
               `batch was abandoned and nothing was written. This is a defect in ` +
               `olai rather than in the call.`,
-            errors: read.failure,
+            verdict: verdictOf(read.failure),
           }),
         )
       }

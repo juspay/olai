@@ -44,6 +44,7 @@ import { OutlineError } from "./errors.ts"
 import { bodyKind } from "./kinds.ts"
 import { Located } from "./node.ts"
 import { byPath } from "./paths.ts"
+import { type Verdict, verdictOf } from "./verdict.ts"
 
 /**
  * A file of the set that could not be read, and why.
@@ -152,7 +153,7 @@ const NO_NODES: ReadonlyArray<Located> = []
  * client's own sort came to disagree about ({@link ./paths.ts}).
  */
 export const assemble = (
-  files: ReadonlyMap<string, Result.Result<Document, ReadonlyArray<OutlineError>>>,
+  files: ReadonlyMap<string, Result.Result<Document, Verdict>>,
 ): OutlineSet => {
   const documents: Array<Document> = []
   const broken: Array<BrokenFile> = []
@@ -162,7 +163,11 @@ export const assemble = (
   for (const path of [...files.keys()].sort(byPath)) {
     const decoded = files.get(path)!
     if (Result.isFailure(decoded)) {
-      broken.push({ file: path, errors: decoded.failure })
+      // The FINDINGS, unwrapped: a {@link ./verdict.ts} is what either half of
+      // the codec answers when it says no, and a file that would not decode is
+      // one file's worth of it — no set, so nothing to admit and nothing to
+      // summarise. What a broken file's own page draws is its rows.
+      broken.push({ file: path, errors: decoded.failure.findings })
       documents.push(emptyDocument(path))
     } else documents.push(decoded.success)
   }
@@ -403,9 +408,11 @@ export const bodiedIn = (set: OutlineSet): ReadonlyArray<Markdown | Unkept> =>
  */
 export const apart = (
   set: OutlineSet,
-): Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>> => {
-  const files = new Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>>()
-  for (const broken of set.broken) files.set(broken.file, Result.fail(broken.errors))
+): Map<string, Result.Result<Document, Verdict>> => {
+  const files = new Map<string, Result.Result<Document, Verdict>>()
+  for (const broken of set.broken) {
+    files.set(broken.file, Result.fail(verdictOf(broken.errors)))
+  }
   for (const document of set.documents) {
     if (files.has(document.path)) continue
     files.set(document.path, Result.succeed(document))

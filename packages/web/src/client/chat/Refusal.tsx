@@ -11,6 +11,7 @@
  * failure renders, with its detail (docs/brainstorming/acp.md).
  */
 
+import { isClean } from "@olai/format"
 import { kindOf, type OpFailure } from "@olai/surface"
 import { Show } from "solid-js"
 
@@ -33,7 +34,7 @@ export function Refusal(props: { readonly failure: OpFailure }) {
       <Show when={onlyValidation(props.failure)}>
         {(invalid) => (
           <div class="mt-1 text-sm">
-            <Rows errors={invalid().errors} />
+            <Rows errors={invalid().verdict.findings} />
           </div>
         )}
       </Show>
@@ -42,4 +43,4 @@ export function Refusal(props: { readonly failure: OpFailure }) {
 }
 
 const onlyValidation = (failure: OpFailure) =>
-  failure._tag === "ValidationFailure" && failure.errors.length > 0 ? failure : undefined
+  failure._tag === "ValidationFailure" && !isClean(failure.verdict) ? failure : undefined

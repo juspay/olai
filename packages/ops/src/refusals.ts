@@ -41,6 +41,7 @@ import {
   type OutlineSet,
   UsageFailure,
   ValidationFailure,
+  verdictOf,
 } from "@olai/format"
 import { Result } from "effect"
 
@@ -275,5 +276,5 @@ export const notLoaded = (
   new ValidationFailure({
     reason: `\`${file}\` ${notLoadedBecause(file)} — there is nothing to answer ` +
       `with. Fix the file first.`,
-    errors,
+    verdict: verdictOf(errors),
   })

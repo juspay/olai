@@ -171,7 +171,7 @@ import {
   NO_INBOX,
   NO_PINS,
   NOTHING_PENDING,
-  OutlineError,
+  NOTHING_WRONG,
   Pending,
   PolicyRequest,
   PushResult,
@@ -183,6 +183,7 @@ import {
   Shelf,
   TagsAnswer,
   TagsRequest,
+  Verdict,
 } from "@olai/format"
 import { defineSurface } from "@kolu/surface/define"
 import { Effect, Schema } from "effect"
@@ -541,26 +542,32 @@ export const surface = defineSurface({
     // Wire-read-only: the server is the only writer, and a write verb it never
     // serves would crash surface's boot walk.
     errors: {
-      schema: Schema.Array(OutlineError),
-      default: [],
-      verbs: ["get"],
-      /** NO `arrayKey`, and it is a decision rather than an omission — the one
-       *  cell here with a list a `<For>` draws by reference (`errors/Report.tsx`)
-       *  and nothing to identify a row by. An `OutlineError` is a site, a code
-       *  and a sentence; `file` is the only required, non-nullable field that
-       *  looks like an identity and a broken outline reports several errors
-       *  against the same one. A key that repeats inside its own array is a key
-       *  that decides identity by collision, so this list merges the way an
-       *  undeclared list does: replaced.
+      /**
+       * THE VALIDATOR'S VERDICT, as the format shapes it (`@olai/format`'s
+       * `verdict.ts`) — not the flat list of rows this used to be.
        *
-       *  WHAT IT WOULD ACTUALLY WANT is a third mode `arrayKey` has no spelling
-       *  for — `{ key: null, merge: true }`, positional, no identity claimed,
-       *  and silent on a repeated frame — where undeclared is
-       *  `{ key: null }` and replaces. It is not worth a spec change for this
-       *  member: the two are indistinguishable for an empty list merging into an
-       *  empty one, which is what this cell holds on every directory that
-       *  validates, and a non-empty one means the set stopped parsing and nobody
-       *  is holding a caret in the report. */
+       * The rows are still in it and still travel whole, because the surface
+       * that has to show every one of them is a REAL surface: a directory that
+       * never loaded has no tree to put a banner over, so the error page is the
+       * page and nothing may be summarised away. What changed is that a surface
+       * drawn over something still live no longer has the rows as its only
+       * option — `summary(n)` is a bounded per-file face, and the banner draws
+       * that (`@olai/web`'s `errors/Banner.tsx`, and `last-good-banner-flood`
+       * for what drawing the rows there cost).
+       *
+       * NO `arrayKey`, and it is a decision rather than an omission — the one
+       * cell here with a list a `<For>` draws by reference and nothing to
+       * identify a row by. An `OutlineError` is a site, a code and a sentence;
+       * `file` is the only required, non-nullable field that looks like an
+       * identity and a broken outline reports several errors against the same
+       * one. A key that repeats inside its own array is a key that decides
+       * identity by collision, so this merges the way an undeclared list does:
+       * replaced. (It is a struct now rather than a list, so the question is
+       * settled a second way — a cell whose value is a struct is replaced.)
+       */
+      schema: Verdict,
+      default: NOTHING_WRONG,
+      verbs: ["get"],
     },
     /** Whether there is a set — see {@link Manifest}. Wire-read-only for the
      *  same reason the entries are: the directory is the disk's.

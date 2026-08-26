@@ -84,7 +84,11 @@ Feature: It stays live
       {"id":"mint","parent":"herbs","ord":"a1","title":"split the mint","doing":true,"after":["nowhere"]}
       """
     Then the stale banner is shown
-    And the stale banner shows an error with code "unknown-target"
+    And the stale banner names "garden.olai" as "invalid"
+    # …and says it in ONE line. The banner is over every page in the app, so
+    # what it may draw is a count and never the rows (`last-good-banner-flood`,
+    # sighted with 135 of them above every open document).
+    And the stale banner enumerates nothing
     And the node "mint" is shown
     When I rewrite "garden.olai" as:
       """
@@ -113,7 +117,7 @@ Feature: It stays live
     # both platforms — macOS delivers nothing for it — so what notices is the
     # unconditional sweep. Same product on each, and only this scenario waits.
     Then the stale banner eventually appears
-    And the stale banner shows an error with code "unreadable-directory"
+    And the stale banner names "." as "unreadable"
     # ...and it says the RIGHT thing. The banner's lede was written when the
     # only way to be stale was a set that would not validate, so it told
     # everybody to go and fix their files — which for a mount that went away

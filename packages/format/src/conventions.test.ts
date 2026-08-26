@@ -48,7 +48,7 @@ import {
 import type { Derived } from "./derive.ts"
 import { bodiedDocument, type Document } from "./document.ts"
 import { bodyKind } from "./kinds.ts"
-import type { OutlineError } from "./errors.ts"
+import { type Verdict, verdictOf } from "./verdict.ts"
 import { nodesOf, outlineOf, seeded } from "./fixtures.testlib.ts"
 import { inboxHeldIn, inboxHeldOf } from "./inbox.ts"
 import { inboxIn, pinsIn } from "./node.ts"
@@ -101,7 +101,7 @@ const START: Corpus = {
  */
 const decoded = (
   files: Corpus,
-): Map<string, Result.Result<Document, ReadonlyArray<OutlineError>>> =>
+): Map<string, Result.Result<Document, Verdict>> =>
   new Map(
     Object.entries(files).map(([path, text]) => [
       path,
@@ -155,7 +155,7 @@ const revised = (files: Corpus, before?: readonly [Corpus, Reading]): Revision =
   if (Result.isFailure(outcome)) {
     throw new Error(
       `the script published a set nobody could serve: ${
-        outcome.failure.map((error) => `${error.file}:${error.line} ${error.message}`)
+        outcome.failure.findings.map((error) => `${error.file}:${error.line} ${error.message}`)
           .join("; ")
       }`,
     )

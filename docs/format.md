@@ -422,7 +422,14 @@ There is deliberately **no rule about a mark and the children under it**, and th
 
 ## Errors
 
-Every error names its location: `file:line` of the bad record (one node per line — the line is the whole story). Errors carry a kind — `usage`, `validation`, `not-found`, `busy` — surfaced as MCP tool errors and HTTP codes, with structured detail (e.g. a `validation` refusal carries the validator's own rows as data, not prose). There were five: `derived` refused a write that would have stored a computed status, and went when derivation did.
+Every error names its location: `file:line` of the bad record (one node per line — the line is the whole story). Errors carry a kind — `usage`, `validation`, `not-found`, `busy` — surfaced as MCP tool errors and HTTP codes, with structured detail (e.g. a `validation` refusal carries the validator's own verdict as data, not prose). There were five: `derived` refused a write that would have stored a computed status, and went when derivation did.
+
+**The judgement itself is shaped data.** A refused validation answers with a **verdict**, not a list of rows: the rows are in it and travel whole, and the questions consumers used to re-derive from them are answered at the socket instead.
+
+- **implicated** — which files a finding is about: where it was found, plus every place it names as related. A dangling mirror implicates two files, which is why "which file is broken" has no single answer for one.
+- **`admits(files)`** — whether a write to exactly these files is admissible. `admitted`, or `implicated(file, rows)` naming the blocker; there is no third answer, so "the set is invalid, so no" is not something a write can be told. A write to healthy files lands beside an outline that will not validate, the way a READ of the same directory already degrades per file.
+- **`summary(n)`** — a bounded per-file face: the path, one word for what is the matter (`unreadable` / `unparsed` / `invalid`), and a row COUNT. It cannot carry a row, so no surface drawing it can flood a page with somebody else's errors. The last-good banner draws this; the error page and a broken outline's own pane draw the rows.
+- **`tierOf(code)`** — what a class costs a load: `refuses` (hold the last good snapshot) or `carried` (a hole the rest of the set is rendered around). The per-line half has behaved this way since the error scope above; the table names the set half too, and every class ships at exactly what the validator already did. Which classes are boot-fatal is a policy call and stays the vault owner's.
 
 ## Writing
 
