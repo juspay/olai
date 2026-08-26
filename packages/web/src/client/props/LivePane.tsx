@@ -95,7 +95,12 @@ export function LivePane(props: {
    * the day this pane grows a "pop out" it can scroll at full size instead.
    */
   const fitVisually = (): void => {
-    const screen = host?.querySelector<HTMLElement>(".xterm")
+    // `.xterm-screen` and NOT `.xterm`: the outer element is width:100% of
+    // whatever box it is in, so measuring it reads back the room rather than
+    // the terminal. The screen is the one element xterm sizes to the GRID —
+    // cols x cell width, rows x cell height — which is the size that has to be
+    // scaled to fit.
+    const screen = host?.querySelector<HTMLElement>(".xterm-screen")
     const room = host?.parentElement
     if (screen === undefined || screen === null || host === undefined || room === null) return
     // Measure the UNSCALED box, and measure the ROOM from the parent — reading
