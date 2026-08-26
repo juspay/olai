@@ -917,8 +917,9 @@ export const surface = defineSurface({
      * server-side `mirrorRemoteSurface` of padi's `terminals` feeds this,
      * however many tabs are subscribed, and kolu pushes when a record moves.
      * Ten tabs on a lanes outline are ten subscriptions to THIS collection and
-     * exactly one connection to padi (`/orchestrator`'s `link.ts`, and
-     * the count is a test rather than a promise).
+     * exactly one connection to padi (`@olai/kolu-client`'s `link.ts`, forked
+     * once by the `kolu` cell's connector at BIND — so the invariant is
+     * structural rather than a promise, and a test counts it as well).
      *
      * `deltas`, for `heads`' reason one subject over: an entry is a dozen
      * short fields, the set is tens of rows on a busy machine, and what a

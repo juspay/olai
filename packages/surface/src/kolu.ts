@@ -14,10 +14,10 @@
  * three arms carrying a live PTY's whole record; what a chip and a lane row
  * need is a flat projection of about eight fields. Re-exporting padi's schema
  * would put the daemon's contract on olai's wire — every browser would decode
- * it, every skew in it would be a skew here, and `@olai/server`'s `kolu/`
- * directory would have stopped being the only place that knows padi exists. So
- * the projection is declared in olai's own vocabulary and that directory is the
- * one thing that maps between them.
+ * it, every skew in it would be a skew here, and `@olai/kolu-client` would have
+ * stopped being the only place that knows padi exists. So the projection is
+ * declared in olai's own vocabulary and that package is the one thing that maps
+ * between them.
  *
  * The reverse pressure is real and worth naming: two schemas can drift. What
  * keeps them together is that the mapping is one function with a type error
@@ -269,10 +269,17 @@ export const SnapshotRequest = Schema.Struct({
    * How many lines from the END of the buffer. Optional; the server picks a
    * screenful when it is absent.
    *
-   * A COUNT-BACK rather than padi's `startLine`/`endLine` window, because what
-   * a pane wants is "the last N lines" and computing that from a window means
-   * knowing the buffer length, which is a second round trip. The window is
-   * still what reaches padi — this is the ergonomic olai owes its own browser.
+   * A COUNT-BACK rather than padi's `startLine`/`endLine` window, and the
+   * window is NOT what reaches padi — this end asks for the whole rendered
+   * buffer and takes the tail beside the padi hop
+   * (`@olai/kolu-client`'s `screen.ts`, which argues it in full).
+   *
+   * That is worth stating on the WIRE's own declaration rather than only where
+   * the read happens, because the tempting edit is to "restore" the window and
+   * pass this count through as `startLine`. padi's window is ABSOLUTE from the
+   * start of scrollback, so that spelling returns the empty string for any
+   * terminal shorter than `lines` — most of them — and the pane draws a
+   * legitimate-looking empty snapshot. It is how this shipped once.
    */
   lines: Schema.optionalKey(Schema.Int.check(Schema.isGreaterThan(0))),
 })

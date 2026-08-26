@@ -76,7 +76,7 @@ let
     # spec, the `connectPadi` dial, the rendezvous path algebra and the watch
     # kit, carved out of the daemon so a server that only wants to TALK to a
     # padi does not install one (no kaval, no node-pty, no @xterm/*). It is
-    # what `@olai/orchestrator`'s mirror dials.
+    # what `@olai/kolu-client`'s mirror dials.
     { src = npins.kolu; dir = "packages/padi-client"; name = "@kolu/padi-client"; }
     # The dial's own tier: the frozen control core and the socket endpoint the
     # handshake runs over. Both are reached through their BARE barrels, which
