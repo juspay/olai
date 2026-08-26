@@ -24,6 +24,15 @@ const facts = await page.evaluate(() => {
     xterm: xterm && { w: xterm.offsetWidth, h: xterm.offsetHeight },
     screen: screen && { w: screen.offsetWidth, h: screen.offsetHeight, style: screen.getAttribute("style") },
     renderedRows: rows?.children.length ?? null,
+    bg: {
+      host: host && getComputedStyle(host).backgroundColor,
+      xterm: xterm && getComputedStyle(xterm).backgroundColor,
+      viewport: host?.querySelector(".xterm-viewport")
+        ? getComputedStyle(host.querySelector(".xterm-viewport") as Element).backgroundColor
+        : null,
+      screenBg: screen && getComputedStyle(screen).backgroundColor,
+      pad: xterm && getComputedStyle(xterm).padding,
+    },
     firstRowText: (rows?.children[0] as HTMLElement | undefined)?.textContent?.slice(0, 60) ?? null,
   }
 })

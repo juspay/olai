@@ -938,6 +938,20 @@ mark.olai-hit {
   overflow: hidden;
 }
 
+
+/* THE VIEWPORT IS WHERE THE BLACK CAME FROM, and it took the browser to say so
+ * rather than a third guess: `@xterm/xterm`'s own stylesheet sets
+ * `.xterm .xterm-viewport { background-color: #000 }` for a macOS scrollbar
+ * reason, and the runtime theme does NOT override it — the theme reaches the
+ * rows and the screen, so a cream terminal sat inside a black box and showed a
+ * ring of it around the edges. That ring is the "black bars" from the real
+ * board.
+ *
+ * Transparent rather than the theme colour: the wrapper already paints the
+ * theme, and one element painting it is one place for it to be wrong. */
+.olai-live-screen .xterm-viewport {
+  background-color: transparent;
+}
 .olai-live-screen .xterm {
   /* TRANSPARENT, so the padding below shows the WRAPPER's colour — which is
    * this terminal's own theme background, set inline. xterm's stylesheet paints
