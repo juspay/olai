@@ -124,6 +124,23 @@ Then(
   },
 );
 
+// The shape rather than the word. An unnamed conversation's banner wears
+// what this deployment calls itself (`web`'s `noticeOf`, fed the `calledApp`
+// the wire named), and under reuse the box's name is the machine's own — so
+// the assertion holds to the FORMULA rather than a literal, exactly the
+// derivation `the_app_is_named.feature` proves the server composes by.
+Then(
+  "the notification is titled what the app calls itself",
+  async function (this: OlaiWorld) {
+    const raised = await banners(this, 1);
+    const title = raised[raised.length - 1]?.title;
+    assert.ok(
+      title !== undefined && /^olai \[.+\]$/.test(title),
+      `the banner is titled "${title}" — an unnamed conversation should wear the deployment's own word, "olai [box]"`,
+    );
+  },
+);
+
 /**
  * Nothing was raised — asserted after the panel has actually reported the
  * question, which is what makes it an absence rather than a race. The step
@@ -195,7 +212,11 @@ Then("the tab says nothing is waiting", async function (this: OlaiWorld) {
     POLL_TIMEOUT,
   );
   const mark = await tabMark(this);
-  assert.strictEqual(mark.title, "olai");
+  // The deployment's word for itself: `olai [box]`, the machine the server
+  // answers for (`the_app_is_named.feature` pins the crossing). Which box is
+  // not this step's business — that the mark came OFF and left the name
+  // standing is.
+  assert.match(mark.title, /^olai \[.+\]$/);
   assert.ok(!mark.dotted, "the tab's icon still carries a dot");
 });
 

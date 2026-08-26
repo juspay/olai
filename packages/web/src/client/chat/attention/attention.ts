@@ -45,11 +45,12 @@ import { type Accessor, createEffect, onCleanup, untrack } from "solid-js"
 
 import type { ChatState } from "@olai/surface"
 
+import { calledApp } from "../../named.ts"
+import { notify, onNotifyPress } from "../../notify.ts"
 import { alertsOn, alertSoundOn } from "../../settings/alerts.ts"
 import { type Awaiting, alarmFor } from "./alarm.ts"
 import { askPending } from "./asked.ts"
 import { wear } from "./badge.ts"
-import { notify, onNotifyPress } from "../../notify.ts"
 import { armChime, chime } from "./chime.ts"
 import { noticeOf } from "./notice.ts"
 import { reveal } from "./reveal.ts"
@@ -95,7 +96,11 @@ export const createAttention = (state: Accessor<ChatState>): void => {
       // they are taken WITHOUT subscribing: the conversation's title and the
       // open panel's snapshot are things this fold has no business waking for
       // — a session being retitled would otherwise re-run the whole reading.
-      const notice = untrack(() => noticeOf(now, askPending()))
+      // The UN-tracked read takes the deployment's word as it stands NOW
+      // (`../../named.ts`) too: a banner deserves the name the OS labels it
+      // with, and — as with the conversation's own title — one it got after
+      // the banner is no longer this banner's business.
+      const notice = untrack(() => noticeOf(now, askPending(), calledApp()))
       void notify(notice)
     }
     return here
