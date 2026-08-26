@@ -841,6 +841,12 @@ export const TESTID = {
    *  put it under. Same two moods and the same `data-tone` as every other
    *  said-line in this app. */
   trashPageSaid: "trash-page-said",
+  /** Said when the address names no file the directory holds — a missing
+   *  `.md`, a missing outline, a missing saved page. The sentence names the
+   *  kind and the path. Distinct from {@link notFound}, which is a `/#id`
+   *  that names no node. Absent while the pane is still on its `Reading…`
+   *  line: that beat is the first-paint wait, and this id is the answer. */
+  nothing: "nothing",
   notFound: "not-found",
   errorView: "error-view",
   errorFileGroup: "error-file-group",

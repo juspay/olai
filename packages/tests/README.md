@@ -411,6 +411,7 @@ The names are not written down twice. `support/world.ts` imports the client's ow
 | `[data-testid="zoom-title"][data-node-id]` | the heading of a zoomed page — the CANONICAL node's id |
 | `[data-testid="breadcrumbs"]` / `[data-testid="crumb"]` | the ancestry above a zoomed node, and one link in it |
 | `[data-testid="empty-under"]` | said on a zoomed page with no rows: a leaf, or a subtree Prefs has hidden |
+| `[data-testid="nothing"]` | said when the address names no file the directory holds — a missing `.md`, a missing outline. Absent while the pane is still on `Reading…` |
 | `[data-testid="not-found"][data-reason]` | shown when `/#<id>` names no node |
 | `[data-testid="error-view"]` | shown INSTEAD of sidebar + tree when nothing has ever validated |
 | `[data-testid="error-file-group"][data-file]` | one group per file with errors |

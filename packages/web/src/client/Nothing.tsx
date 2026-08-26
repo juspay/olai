@@ -22,6 +22,7 @@ import { type FileKind } from "@olai/format"
 
 import { Empty } from "./Empty.tsx"
 import { NAMED } from "./file/kinds.ts"
+import { TESTID } from "./testids.ts"
 
 export function Nothing(props: {
   readonly sought: FileKind
@@ -29,6 +30,7 @@ export function Nothing(props: {
 }) {
   return (
     <Empty
+      testid={TESTID.nothing}
       line={
         props.requested === null
           ? "No .olai outlines under the served directory."
