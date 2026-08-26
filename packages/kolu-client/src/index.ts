@@ -137,10 +137,7 @@ export interface KoluHalf {
   /** ONE OPEN PANE'S TERMINAL, live — the mirror's own attach, relayed. A
    *  face with no link answers the way every other member here does: in
    *  words, on a failing stream, rather than with a window on nothing. */
-  readonly attach: (
-    terminal: string,
-    grid: { readonly cols: number; readonly rows: number } | undefined,
-  ) => Stream.Stream<TerminalFrame>
+  readonly attach: (terminal: string) => Stream.Stream<TerminalFrame>
   /** A vault revision landed — re-derive who claims which terminal.
    *
    *  It takes CLAIMS rather than nodes, which is this package's boundary in one

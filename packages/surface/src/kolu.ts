@@ -435,26 +435,25 @@ export const TerminalFrame = Schema.Union([
 ])
 export type TerminalFrame = typeof TerminalFrame.Type
 
-/** WHICH terminal a pane is attached to. Its own struct rather than a bare
- *  string for the reason every input here is: a member's input is a place
- *  fields get added, and a widened bare string is a breaking change. */
-export const TerminalAttach = Schema.Struct({
-  terminal: Schema.String,
-  /**
-   * THE GRID THE PANE IS ASKING AT — one composite, never two scalars.
-   *
-   * A snapshot frame is bytes already laid out for a specific `cols × rows`,
-   * and painting one that answers a different grid does damage nothing undoes:
-   * a later resize repaints a full-screen app, but nothing rebuilds scrollback
-   * already wrapped at the wrong width (`@kolu/padi-client/attach`, which cost
-   * kolu two production incidents to learn). So the request carries the grid,
-   * and the pane checks the answer against it.
-   *
-   * BOTH OR NEITHER, for padi's own reason one wire up: a grid is a cols AND a
-   * rows, so half a grid must not be representable. Optional because a reader
-   * that has not measured yet — a pane in its first frame — has no grid to ask
-   * at, and padi's own input is optional for the same reason.
-   */
-  grid: Schema.optional(Schema.Struct({ cols: Schema.Number, rows: Schema.Number })),
-})
+/**
+ * WHICH terminal a pane is attached to — and NOTHING ELSE, which is the whole
+ * of the observe-only rule.
+ *
+ * It carried a grid for a day and that was a defect with the north star's name
+ * on it: MONITORING MUST NEVER PERTURB THE MONITORED. padi's attach is a WRITE
+ * when it is given one ("the host resizes the terminal to it before
+ * serializing" — `PadiTerminalAttachInputSchema`'s own note), and `resizeTo` is
+ * last-attach-wins on a SHARED pty. So opening a pane in olai reshaped the
+ * human's live terminal to the size of a box in a document, and returning to
+ * kolu reshaped it back — the two surfaces fighting over one pty, with the
+ * garbling landing on whichever had not resized last.
+ *
+ * A monitor declines the fight by declining to ask. Omitting the grid is an
+ * unperturbing attach today (padi passes it straight through and only resizes
+ * when it is present), so this needs nothing from kolu — what it does need is
+ * the grid the snapshot WAS serialized at, which nothing on that wire carries
+ * yet. Filed; until it lands, this pane renders faithfully only while the pty's
+ * grid and the pane's happen to agree.
+ */
+export const TerminalAttach = Schema.Struct({ terminal: Schema.String })
 export type TerminalAttach = typeof TerminalAttach.Type

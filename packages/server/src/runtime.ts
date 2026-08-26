@@ -1233,8 +1233,8 @@ export const bind = (
          * the wall.
          */
         terminal: {
-          source: (input: { readonly terminal: string; readonly grid?: { cols: number; rows: number } }) =>
-            kolu.attach(input.terminal, input.grid),
+          source: (input: { readonly terminal: string }) =>
+            kolu.attach(input.terminal),
         },
         dated: {
           read: (input) => Effect.runPromise(wiring.ops.dated(input)),

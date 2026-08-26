@@ -140,17 +140,14 @@ export function LivePane(props: {
     fitted.fit()
     term = created
     fit = fitted
-    // A RESIZE IS A RE-ATTACH, because a snapshot is only valid at the grid it
-    // was asked for: the bytes already in the terminal stay, and the next
-    // snapshot arrives laid out for the box as it is now.
+    // THE PANE REFITS ITSELF AND TELLS PADI NOTHING. It used to re-attach on a
+    // resize, which only made sense while the attach carried a grid — and that
+    // grid was the defect: an attach that carries one RESIZES the shared pty,
+    // so a box in a document was reshaping a human's live terminal. The pane
+    // observes now, so its own box changing is a fact about this page and
+    // nothing padi needs to hear.
     const observer = new ResizeObserver(() => {
-      if (fit === undefined) return
-      const was = grid()
-      fit.fit()
-      const now = grid()
-      if (was !== undefined && now !== undefined && (was.cols !== now.cols || was.rows !== now.rows)) {
-        setGeneration((g) => g + 1)
-      }
+      fit?.fit()
     })
     observer.observe(host)
     onCleanup(() => {
@@ -218,7 +215,7 @@ export function LivePane(props: {
       }
 
       const fiber = Effect.runFork(
-        Stream.runForEach(watch({ terminal: props.value, grid: asked }), (frame) => {
+        Stream.runForEach(watch({ terminal: props.value }), (frame) => {
           clearTimeout(deadline)
           const stepped = onFrame(
             state,

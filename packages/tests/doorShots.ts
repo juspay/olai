@@ -40,7 +40,7 @@ if (mode === "pane") {
     .locator('[data-node-id="door-implement"] [data-testid="terminal-block"] [data-dock-row]')
     .first()
     .click()
-  await page.waitForSelector('[data-testid="terminal-screen"][data-state="text"]')
+  await page.waitForSelector('[data-testid="terminal-screen"][data-state="attached"]')
   await page.waitForTimeout(400)
 }
 

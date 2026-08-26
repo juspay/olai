@@ -78,7 +78,7 @@ export type ReadScreen = (terminal: string) => Promise<Snapshot | SnapshotRefuse
  *  The refusals ride as FRAMES (`@olai/surface`'s `TerminalFrame`), so this
  *  stream has nothing to fail with. */
 export type WatchTerminal = (
-  input: { readonly terminal: string; readonly grid?: { readonly cols: number; readonly rows: number } },
+  input: { readonly terminal: string },
 ) => Stream.Stream<TerminalFrame, unknown>
 
 /** What a chip asks: the link, the rows it resolves against, and the one verb. */
@@ -263,8 +263,6 @@ const asRefusal = (failure: unknown): SnapshotRefused => {
  * resolves it.
  */
 export const watchingTerminal = (
-  member: (
-    input: { readonly terminal: string; readonly grid?: { readonly cols: number; readonly rows: number } },
-  ) => Stream.Stream<TerminalFrame, unknown>,
+  member: (input: { readonly terminal: string }) => Stream.Stream<TerminalFrame, unknown>,
 ): WatchTerminal =>
 (input) => member(input)
