@@ -53,6 +53,35 @@
  * words. ONE code path rather than two, which is the point — "this process has
  * no business holding a socket open" and "this laptop is not running kolu" are
  * the same thing to a reader, so they should be the same thing to the code.
+ *
+ * ## The five homes — the map, so a grep for `kolu` is not a reconstruction
+ *
+ * Five files in this repo carry kolu in their name or their imports, and they
+ * are four independent concerns plus one twin. The list is kept in all five
+ * headers on purpose (the fifth Löwy sitting, finding 4:
+ * `docs/lowy-electricity/debate-2026-08-26.md`) — a reader who greps `kolu`
+ * lands on whichever of them came first, and the map should be under that
+ * reader's cursor rather than assembled out of the five files themselves.
+ *
+ *   - **`@olai/surface`'s `kolu.ts`** — THE WIRE SHAPES. What a browser is
+ *     told about the link and the fleet, in olai's own vocabulary.
+ *   - **`@olai/kolu-client`** — THE DIAL, and this package. The only one that
+ *     speaks padi's wire: one socket per server, the standing mirror, the
+ *     projection into those shapes.
+ *   - **`@olai/server`'s join** — `runtime.ts`'s kolu half binds the three
+ *     surface members to that dial; `claimants.ts` walks the vault for who
+ *     OWNS a terminal.
+ *   - **The web props** — `web/src/client/props/` reads both members as one
+ *     subscription per tab and draws the chip; `web/src/client/padi/` is the
+ *     header's link indicator, a second reader of the same cell.
+ *   - **`@olai/chat`'s `kolu.ts`** — A TWIN, not a floor of that stack. A
+ *     one-shot spawn-time probe (`@kolu/detect`, over MCP stdio) that tells
+ *     the chat panel's agent this host runs a kolu. Shares no code with the
+ *     four above, deliberately.
+ *
+ * The wall this package is (above) is what keeps that a list of four homes
+ * and not one blur: only this one dials, so the other three read
+ * `@olai/surface`'s shapes and cannot reach padi even by accident.
  */
 
 import { type Claimant } from "./fleet.ts"

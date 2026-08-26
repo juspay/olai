@@ -50,6 +50,41 @@
  * `PADI_SOCKET` — olai's environment, under olai's service manager — and kolu
  * has no business asserting a fact about our PATH. That judgement, and the
  * sentence it produces ({@link EXPECTED}), stay here.
+ *
+ * ## The five homes — the map, so a grep for `kolu` is not a reconstruction
+ *
+ * Five files in this repo carry kolu in their name or their imports, and they
+ * are four independent concerns plus one twin. The list is kept in all five
+ * headers on purpose (the fifth Löwy sitting, finding 4:
+ * `docs/lowy-electricity/debate-2026-08-26.md`) — a reader who greps `kolu`
+ * lands on whichever of them came first, and the map should be under that
+ * reader's cursor rather than assembled out of the five files themselves.
+ *
+ *   - **`@olai/surface`'s `kolu.ts`** — THE WIRE SHAPES. What a browser is
+ *     told about the link and the fleet, in olai's own vocabulary.
+ *   - **`@olai/kolu-client`** — THE DIAL. The only package that speaks padi's
+ *     wire: one socket per server, the standing mirror, the projection into
+ *     those shapes.
+ *   - **`@olai/server`'s join** — `runtime.ts`'s kolu half binds the three
+ *     surface members to that dial; `claimants.ts` walks the vault for who
+ *     OWNS a terminal.
+ *   - **The web props** — `web/src/client/props/` reads both members as one
+ *     subscription per tab and draws the chip; `web/src/client/padi/` is the
+ *     header's link indicator, a second reader of the same cell.
+ *   - **`@olai/chat`'s `kolu.ts`** — A TWIN, and this file. Not a floor of
+ *     that stack: a one-shot spawn-time probe (`@kolu/detect`, over MCP
+ *     stdio) that tells the chat panel's agent this host runs a kolu. Shares
+ *     no code with the four above, deliberately — see below.
+ *
+ * THE TWIN QUESTION, ASKED AND ANSWERED. The human asked (2026-08-26)
+ * whether this file could use `@olai/kolu-client` instead. No, from both
+ * seats of the sitting: a one-shot spawn-time probe over stdio and a
+ * standing reactive mirror over a unix socket have no derivable code in
+ * common, and the probe has already paid its extraction upstream
+ * (`@kolu/detect`, kolu#2168). Even the `PADI_SOCKET` string is deliberately
+ * spelled in both places rather than exported from one — a shared constant
+ * would be a dependency edge between two integrations whose independence is
+ * the design.
  */
 
 import type { ChildProcess } from "node:child_process"

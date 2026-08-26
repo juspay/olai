@@ -24,6 +24,37 @@
  * waiting at each end of it, and that this projection deliberately holds only
  * fields whose MEANING is stable (an id, a face, a path, a branch) rather than
  * padi's own state machine.
+ *
+ * ## The five homes — the map, so a grep for `kolu` is not a reconstruction
+ *
+ * Five files in this repo carry kolu in their name or their imports, and they
+ * are four independent concerns plus one twin. The list is kept in all five
+ * headers on purpose (the fifth Löwy sitting, finding 4:
+ * `docs/lowy-electricity/debate-2026-08-26.md`) — a reader who greps `kolu`
+ * lands on whichever of them came first, and the map should be under that
+ * reader's cursor rather than assembled out of the five files themselves.
+ *
+ *   - **`@olai/surface`'s `kolu.ts`** — THE WIRE SHAPES, and this file. What
+ *     a browser is told about the link and the fleet, in olai's own
+ *     vocabulary.
+ *   - **`@olai/kolu-client`** — THE DIAL. The only package that speaks padi's
+ *     wire: one socket per server, the standing mirror, the projection into
+ *     those shapes.
+ *   - **`@olai/server`'s join** — `runtime.ts`'s kolu half binds the three
+ *     surface members to that dial; `claimants.ts` walks the vault for who
+ *     OWNS a terminal.
+ *   - **The web props** — `web/src/client/props/` reads both members as one
+ *     subscription per tab and draws the chip; `web/src/client/padi/` is the
+ *     header's link indicator, a second reader of the same cell.
+ *   - **`@olai/chat`'s `kolu.ts`** — A TWIN, not a floor of that stack. A
+ *     one-shot spawn-time probe (`@kolu/detect`, over MCP stdio) that tells
+ *     the chat panel's agent this host runs a kolu. Shares no code with the
+ *     four above, deliberately.
+ *
+ * What the map is FOR, from this file's position: nothing padi-shaped is
+ * declared here, so a change to padi's contract cannot reach this file
+ * without passing through the dial — which is the argument above, read from
+ * the map's side rather than the wire's.
  */
 
 import { Schema } from "effect"

@@ -30,6 +30,35 @@
  * leaves drawn per row, which is the exact shape `../served.tsx` refuses to pay
  * for. What a reader depends on is the counter, so a frame that moved one row
  * re-runs every chip's memo once and none of them rebuilds anything.
+ *
+ * ## The five homes — the map, so a grep for `kolu` is not a reconstruction
+ *
+ * Five files in this repo carry kolu in their name or their imports, and they
+ * are four independent concerns plus one twin. The list is kept in all five
+ * headers on purpose (the fifth Löwy sitting, finding 4:
+ * `docs/lowy-electricity/debate-2026-08-26.md`) — a reader who greps `kolu`
+ * lands on whichever of them came first, and the map should be under that
+ * reader's cursor rather than assembled out of the five files themselves.
+ *
+ *   - **`@olai/surface`'s `kolu.ts`** — THE WIRE SHAPES. What a browser is
+ *     told about the link and the fleet, in olai's own vocabulary.
+ *   - **`@olai/kolu-client`** — THE DIAL. The only package that speaks padi's
+ *     wire: one socket per server, the standing mirror, the projection into
+ *     those shapes.
+ *   - **`@olai/server`'s join** — `runtime.ts`'s kolu half binds the three
+ *     surface members to that dial; `claimants.ts` walks the vault for who
+ *     OWNS a terminal.
+ *   - **The web props** — this directory, which reads both members as one
+ *     subscription per tab and draws the chip, and `../padi/`, the header's
+ *     link indicator: a second reader of the same cell.
+ *   - **`@olai/chat`'s `kolu.ts`** — A TWIN, not a floor of that stack. A
+ *     one-shot spawn-time probe (`@kolu/detect`, over MCP stdio) that tells
+ *     the chat panel's agent this host runs a kolu. Shares no code with the
+ *     four above, deliberately.
+ *
+ * Two of those homes never reach the browser at all: the dial holds a unix
+ * socket and the chat probe spawns a process. What arrives here is the
+ * surface's shapes, which is why this file's `@kolu/*` imports are types.
  */
 
 import { type Accessor, createContext, createMemo, type JSX, useContext } from "solid-js"
