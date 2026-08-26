@@ -420,7 +420,15 @@ export const UNDIALED: KoluLink = KOLU_UNDIALED
  */
 const frameOf = (frame: PadiAttachFrame): TerminalFrame =>
   frame.kind === "snapshot"
-    ? { kind: "snapshot", data: frame.data, topLine: frame.topLine }
+    ? {
+      kind: "snapshot",
+      data: frame.data,
+      topLine: frame.topLine,
+      // ABSENT BECOMES `null` HERE, which is the projection's job: padi says
+      // nothing when it is too old to know, and olai's wire has one spelling
+      // for "no grid" so no reader asks the question twice.
+      grid: frame.grid ?? null,
+    }
     : { kind: "delta", data: frame.data }
 
 /** A window that cannot open, as ONE frame and then the end.

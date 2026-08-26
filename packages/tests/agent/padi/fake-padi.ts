@@ -235,7 +235,15 @@ const padi = implementSurface(padiSurfaceSibling, {
           return Stream.fail(new TerminalNotFound({ id }))
         }
         return Stream.concat(
-          Stream.make({ kind: "snapshot" as const, data: screen, topLine: 0 }),
+          Stream.make({
+            kind: "snapshot" as const,
+            data: screen,
+            topLine: 0,
+            // THE GRID THE SCREEN WAS SERIALIZED AT (kolu 5.5). A fixture that
+            // omitted it would exercise only the older-padi arm, which is the
+            // one a live board never takes.
+            grid: { cols: 100, rows: 30 },
+          }),
           Stream.never,
         )
       },

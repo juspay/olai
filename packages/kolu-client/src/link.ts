@@ -95,7 +95,14 @@ const REDIAL = Duration.seconds(5)
  *  at the same seam every other record is projected at. */
 export type PadiAttachFrame =
   | { readonly kind: "delta"; readonly data: string }
-  | { readonly kind: "snapshot"; readonly data: string; readonly topLine: number }
+  | {
+    readonly kind: "snapshot"
+    readonly data: string
+    readonly topLine: number
+    /** The grid this screen was serialized at — kolu 5.5, additive and
+     *  optional, so a padi older than it simply does not say. */
+    readonly grid?: { readonly cols: number; readonly rows: number }
+  }
 
 export interface Sink {
   /** The link's state moved. Called on every dial outcome, including one that

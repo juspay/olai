@@ -40,10 +40,8 @@
 
 import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-js"
 
-import type { FitAddon } from "@xterm/addon-fit"
 import type { Terminal } from "@xterm/xterm"
 
-import { snapshotAnswersGrid } from "@kolu/padi-client/attach"
 import { FONT_FAMILY, getThemeByName } from "terminal-themes"
 import { Effect, Fiber, Stream } from "effect"
 
@@ -52,7 +50,6 @@ import {
   again,
   type Attaching,
   FIRST_FRAME_MS,
-  type Grid,
   onEnd,
   onFrame,
   onSilence,
@@ -81,23 +78,42 @@ export function LivePane(props: {
   const [generation, setGeneration] = createSignal(0)
   let host!: HTMLDivElement
   let term: Terminal | undefined
-  let fit: FitAddon | undefined
 
-  /** The pane's grid RIGHT NOW — `undefined` before the terminal exists, which
-   *  `snapshotAnswersGrid` reads as "do not refuse": a pane that has not
-   *  measured has not asked for anything to be stale. */
-  const grid = (): Grid | undefined =>
-    term === undefined ? undefined : { cols: term.cols, rows: term.rows }
+  /**
+   * FIT VISUALLY — the pane's half of "the monitor never claims the grid".
+   *
+   * The terminal is at the PTY'S size now, which has nothing to do with how
+   * wide this box is. So the box does not argue: it scales what it was given
+   * down until it fits, `transform` on the terminal element with the origin at
+   * the top left, and never up — a terminal enlarged past its natural size
+   * would be a monitor asserting a look the terminal does not have.
+   *
+   * DOWNSCALE RATHER THAN SCROLL, which is a choice and not the only defensible
+   * one: a pane in an outline is something you GLANCE at while reading a lane,
+   * and a horizontal scrollbar hides exactly the right-hand column an agent's
+   * output runs into. Small-and-whole beats crisp-and-cropped for a glance;
+   * the day this pane grows a "pop out" it can scroll at full size instead.
+   */
+  const fitVisually = (): void => {
+    const screen = host?.querySelector<HTMLElement>(".xterm")
+    if (screen === undefined || screen === null || host === undefined) return
+    // Measure the UNSCALED width: reading `offsetWidth` while a transform is
+    // applied would compound each pass into a smaller and smaller terminal.
+    screen.style.transform = ""
+    const natural = screen.offsetWidth
+    if (natural <= 0) return
+    const room = host.clientWidth
+    const scale = Math.min(1, room / natural)
+    screen.style.transformOrigin = "top left"
+    screen.style.transform = scale < 1 ? `scale(${scale})` : ""
+  }
 
   onMount(async () => {
     // IMPORTED HERE rather than at the top, and it is the pane's whole weight
     // argument: xterm is a terminal emulator, and a page that draws forty lanes
     // and opens no pane should not have paid for one. A dynamic import puts it
     // in its own chunk, fetched the first time somebody presses a row.
-    const [{ Terminal }, { FitAddon }] = await Promise.all([
-      import("@xterm/xterm"),
-      import("@xterm/addon-fit"),
-    ])
+    const { Terminal } = await import("@xterm/xterm")
     const created = new Terminal({
       // READ-ONLY, which is the whole of what this pane is — confirmed as
       // design by the human on the live look: monitoring lives in olai and
@@ -134,27 +150,25 @@ export function LivePane(props: {
       // go.
       scrollback: 1_000,
     })
-    const fitted = new FitAddon()
-    created.loadAddon(fitted)
     created.open(host)
-    fitted.fit()
     term = created
-    fit = fitted
+    // NO FIT ADDON. The pane does not size the terminal — it adopts the grid
+    // each snapshot names and scales what it was given (see `fitVisually`), so
+    // a "make the terminal match this box" addon is the one thing this pane
+    // must never do. xterm's own 80x24 default is what it starts at, which is
+    // also what most ptys are.
     // THE PANE REFITS ITSELF AND TELLS PADI NOTHING. It used to re-attach on a
     // resize, which only made sense while the attach carried a grid — and that
     // grid was the defect: an attach that carries one RESIZES the shared pty,
     // so a box in a document was reshaping a human's live terminal. The pane
     // observes now, so its own box changing is a fact about this page and
     // nothing padi needs to hear.
-    const observer = new ResizeObserver(() => {
-      fit?.fit()
-    })
+    const observer = new ResizeObserver(() => fitVisually())
     observer.observe(host)
     onCleanup(() => {
       observer.disconnect()
       created.dispose()
       term = undefined
-      fit = undefined
     })
     // The terminal exists now, so the first attach can ask at a real grid.
     setGeneration((g) => g + 1)
@@ -175,8 +189,7 @@ export function LivePane(props: {
         setSays("this olai is not watching a padi, so there is no terminal to show.")
         return
       }
-      const asked = grid()
-      let state: Attaching = g === 1 ? opening(asked) : again(carried ?? opening(asked), asked)
+      let state: Attaching = g === 1 ? opening() : again(carried ?? opening())
       carried = state
       setSays(undefined)
 
@@ -199,8 +212,17 @@ export function LivePane(props: {
         if (halted) return
         switch (next.kind) {
           case "write":
+            // THE GRID IS ADOPTED BEFORE THE BYTES ARE WRITTEN, and the order
+            // is the whole point: these bytes were wrapped for that size, so a
+            // terminal still at the old one would fold them wrong on the way
+            // in and nothing afterwards unfolds them.
+            if (next.grid !== undefined && term !== undefined) {
+              if (term.cols !== next.grid.cols || term.rows !== next.grid.rows) {
+                term.resize(next.grid.cols, next.grid.rows)
+              }
+            }
             if (next.reset) term?.reset()
-            term?.write(next.data)
+            term?.write(next.data, () => fitVisually())
             return
           case "reattach":
             setGeneration((was) => was + 1)
@@ -217,15 +239,7 @@ export function LivePane(props: {
       const fiber = Effect.runFork(
         Stream.runForEach(watch({ terminal: props.value }), (frame) => {
           clearTimeout(deadline)
-          const stepped = onFrame(
-            state,
-            frame,
-            // KOLU'S OWN PREDICATE, on EVERY snapshot rather than only after a
-            // resize of ours — the case nobody guesses is another client
-            // attaching at its own size, which resizes the shared pty underneath
-            // this pane with no local event to observe.
-            snapshotAnswersGrid(state.asked, grid()),
-          )
+          const stepped = onFrame(state, frame)
           state = stepped.state
           carried = state
           act(stepped.next)

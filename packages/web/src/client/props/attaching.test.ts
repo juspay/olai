@@ -6,6 +6,14 @@
  * three panes blank over live agents, and scrollback rebuilt at the wrong
  * width). The package ships the rules; the loop is olai's policy, so these are
  * olai's tests of olai's decisions about them.
+ *
+ * RULE 1 IS TESTED AS ADOPTION now rather than as refusal, and the change is
+ * the point: a snapshot names the grid it was serialized at (kolu 5.5, the
+ * amendment this lane asked for), so a monitor takes that size instead of
+ * asserting one of its own. The three cases below are the ones the kolu author
+ * flagged as least-reviewed in that amendment, pinned here from the consumer's
+ * side: a grid that MOVES mid-stream, a padi too old to name one at all, and
+ * the overflow re-attach that arrives as a fresh snapshot.
  */
 
 import { describe, expect, it } from "bun:test"
@@ -21,33 +29,85 @@ import {
   spent,
 } from "./attaching.ts"
 
-const GRID = { cols: 80, rows: 24 }
-const fresh = (): Attaching => opening(GRID)
+const fresh = (): Attaching => opening()
 
 /** A pane that has used every attach it is going to get. */
 const exhausted = (): Attaching => {
   let state = fresh()
-  while (!spent(state)) state = again(state, GRID)
+  while (!spent(state)) state = again(state)
   return state
 }
 
-describe("rule 1 — a snapshot is only valid at the grid it was asked for", () => {
-  it("REFUSES a snapshot that answers another grid, rather than painting it", () => {
-    // The irreversible one. A later resize repaints a full-screen app; nothing
-    // rebuilds scrollback that has already been wrapped at the wrong width.
-    const { next } = onFrame(fresh(), { kind: "snapshot", data: "a screen" }, false)
-    expect(next.kind).toBe("reattach")
+describe("rule 1 — a snapshot is only valid at the grid it was serialized at", () => {
+  it("ADOPTS the grid the frame names, and resets before painting", () => {
+    const { next } = onFrame(fresh(), {
+      kind: "snapshot",
+      data: "hello",
+      grid: { cols: 203, rows: 51 },
+    })
+    expect(next).toEqual({
+      kind: "write",
+      data: "hello",
+      reset: true,
+      grid: { cols: 203, rows: 51 },
+    })
   })
 
-  it("paints one that does, and RESETS first — a snapshot is a whole screen", () => {
-    const { next } = onFrame(fresh(), { kind: "snapshot", data: "hello" }, true)
-    expect(next).toEqual({ kind: "write", data: "hello", reset: true })
+  it("takes a grid that MOVED mid-stream — a foreign resize is just a new snapshot", () => {
+    // The case no local measurement can see: another client attached at its own
+    // size and resized the shared pty. There is no event; the only evidence is
+    // that the next snapshot names a different grid, and adopting it is the
+    // whole of the response.
+    const wide = onFrame(fresh(), {
+      kind: "snapshot",
+      data: "a",
+      grid: { cols: 203, rows: 51 },
+    })
+    const narrow = onFrame(wide.state, {
+      kind: "snapshot",
+      data: "b",
+      grid: { cols: 80, rows: 24 },
+    })
+    expect(narrow.next.kind === "write" && narrow.next.grid).toEqual({ cols: 80, rows: 24 })
+  })
+
+  it("KEEPS THE SIZE IT HAS when a padi is too old to name one", () => {
+    // `grid` is additive and optional, so a padi before 5.5 says nothing. Not
+    // knowing is a reason to change nothing — guessing a size is precisely the
+    // failure the field was added to end, and a monitor that measured its own
+    // box would be asserting a grid again by the back door.
+    for (const frame of [
+      { kind: "snapshot" as const, data: "x" },
+      { kind: "snapshot" as const, data: "x", grid: null },
+    ]) {
+      const { next } = onFrame(fresh(), frame)
+      expect(next.kind === "write" && next.grid).toBeUndefined()
+      // ...and it still paints: an unnamed grid is not a refusal.
+      expect(next.kind === "write" && next.reset).toBe(true)
+    }
+  })
+
+  it("treats an OVERFLOW re-attach like any other snapshot — reset, adopt, paint", () => {
+    // padi sends a fresh snapshot mid-stream when the delta window overflows.
+    // It is not a special case here and must not become one: the arm already
+    // means START AGAIN FROM HERE.
+    const started = onFrame(fresh(), { kind: "snapshot", data: "first", grid: { cols: 80, rows: 24 } })
+    const flowed = onFrame(started.state, { kind: "delta", data: "more" })
+    const overflowed = onFrame(flowed.state, {
+      kind: "snapshot",
+      data: "again",
+      grid: { cols: 80, rows: 24 },
+    })
+    expect(overflowed.next).toEqual({
+      kind: "write",
+      data: "again",
+      reset: true,
+      grid: { cols: 80, rows: 24 },
+    })
   })
 
   it("writes a DELTA whatever the grid is doing — bytes carry no layout claim", () => {
-    // The distinction the discriminated frame exists for: refusing deltas on a
-    // grid mismatch would drop output that was never a layout claim.
-    const { next } = onFrame(fresh(), { kind: "delta", data: "$ " }, false)
+    const { next } = onFrame(fresh(), { kind: "delta", data: "$ " })
     expect(next).toEqual({ kind: "write", data: "$ ", reset: false })
   })
 })
@@ -79,15 +139,15 @@ describe("rule 4 — silence is a failure mode with no event", () => {
     // A re-attach that goes quiet is the same failure as an opening one, so the
     // flag is per attach rather than per pane; and a pane already painting must
     // not be torn down by a timer nobody cleared.
-    const { state } = onFrame(fresh(), { kind: "delta", data: "x" }, true)
+    const { state } = onFrame(fresh(), { kind: "delta", data: "x" })
     expect(onSilence(state).kind).toBe("idle")
-    expect(again(state, GRID).seen).toBe(false)
+    expect(again(state).seen).toBe(false)
   })
 })
 
 describe("a refusal in words", () => {
   it("STOPS rather than re-attaching — asking again gets the same answer", () => {
-    const { next } = onFrame(fresh(), { kind: "refused", says: "no padi" }, true)
+    const { next } = onFrame(fresh(), { kind: "refused", says: "no padi" })
     expect(next).toEqual({ kind: "stop", says: "no padi" })
   })
 })
@@ -96,14 +156,7 @@ describe("the budget", () => {
   it("is spent by attaches and nothing else", () => {
     let state = fresh()
     expect(state.attempts).toBe(1)
-    for (let i = 1; i < ATTEMPT_BUDGET; i += 1) state = again(state, GRID)
+    for (let i = 1; i < ATTEMPT_BUDGET; i += 1) state = again(state)
     expect(spent(state)).toBe(true)
-  })
-
-  it("remembers the grid each attach ASKED at, not the one the pane has now", () => {
-    // The answer in flight belongs to the question that was asked — which is
-    // also why the framework's transport retry replaying a captured input is
-    // one of the three ways a grid goes stale.
-    expect(again(fresh(), { cols: 100, rows: 40 }).asked).toEqual({ cols: 100, rows: 40 })
   })
 })

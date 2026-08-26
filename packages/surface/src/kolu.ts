@@ -427,6 +427,24 @@ export const TerminalFrame = Schema.Union([
     kind: Schema.Literal("snapshot"),
     /** The serialized screen. A reader RESETS before writing it. */
     data: Schema.String,
+    /**
+     * THE COLS × ROWS THIS SCREEN WAS SERIALIZED AT, or `null` from a padi too
+     * old to say.
+     *
+     * The field an observe-only pane cannot work without, and the reason this
+     * lane asked kolu for it (5.5, additive): a monitor passes no `resizeTo`,
+     * so it never learned what size it received and sized its renderer by
+     * guess — and a mismatched box wraps the bytes into garbage. The frame is
+     * self-describing now, so the pane ADOPTS the grid rather than asserting
+     * one.
+     *
+     * `null` rather than absent on olai's wire, for this schema's standing
+     * reason: absent and empty would be two spellings of one fact, and every
+     * reader would ask the question twice. A pane that gets `null` keeps the
+     * size it has — the honest move, since guessing is what the field exists to
+     * stop.
+     */
+    grid: Schema.NullOr(Schema.Struct({ cols: Schema.Number, rows: Schema.Number })),
     /** The absolute mirror line the screen starts at. Carried because it is
      *  what a scrollback read would be asked for, and because a snapshot
      *  without it is a screen a reader cannot place. */

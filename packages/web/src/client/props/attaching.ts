@@ -52,7 +52,21 @@
 /** What the pane should do next. */
 export type Next =
   /** Paint these bytes. `reset` is a snapshot's instruction: clear first. */
-  | { readonly kind: "write"; readonly data: string; readonly reset: boolean }
+  | {
+    readonly kind: "write"
+    readonly data: string
+    readonly reset: boolean
+    /**
+     * ADOPT THIS GRID FIRST — the cols × rows the bytes were laid out for.
+     *
+     * Only a snapshot carries one, and only when padi is new enough to say.
+     * `undefined` means KEEP WHAT YOU HAVE, which is the whole of the
+     * absent-grid rule: a monitor that guessed a size is what the field was
+     * added to stop, so not knowing is a reason to change nothing rather than
+     * a reason to measure.
+     */
+    readonly grid?: Grid
+  }
   /** Drop this subscription and open a fresh one at the pane's current grid. */
   | { readonly kind: "reattach"; readonly why: string }
   /** Stop, and say this. The budget is spent, or padi refused in words. */
@@ -76,9 +90,6 @@ export interface Attaching {
    *  first frame of an attach, not the first of a pane's life: a re-attach that
    *  goes silent is the same failure as an opening one. */
   readonly seen: boolean
-  /** The grid the current attach was opened with, remembered rather than
-   *  re-read — the answer in flight belongs to the question that was asked. */
-  readonly asked: Grid | undefined
 }
 
 export interface Grid {
@@ -86,18 +97,13 @@ export interface Grid {
   readonly rows: number
 }
 
-/** A pane about to open its first attach at `grid`. */
-export const opening = (grid: Grid | undefined): Attaching => ({
-  attempts: 1,
-  seen: false,
-  asked: grid,
-})
+/** A pane about to open its first attach. */
+export const opening = (): Attaching => ({ attempts: 1, seen: false })
 
 /** ...and the next one, which is where the budget is spent. */
-export const again = (was: Attaching, grid: Grid | undefined): Attaching => ({
+export const again = (was: Attaching): Attaching => ({
   attempts: was.attempts + 1,
   seen: false,
-  asked: grid,
 })
 
 /** Is there any attach left to make? Asked before `again`, so a caller cannot
@@ -107,19 +113,24 @@ export const spent = (was: Attaching): boolean => was.attempts >= ATTEMPT_BUDGET
 /**
  * ONE FRAME.
  *
- * `answers` is kolu's own `snapshotAnswersGrid` applied to (`state.asked`,
- * `current`) — passed in rather than imported so this module stays free of the
- * package and the test stays free of a fixture. A caller that inverts it is
- * caught by the tests beside this file, which is the only protection a boolean
- * argument can have.
+ * RULE 1 IS SATISFIED BY ADOPTION, not by refusal. A snapshot names the grid it
+ * was serialized at, and the pane takes it — so there is no such thing here as
+ * painting at the wrong size, and nothing to compare or refuse. That is what
+ * the kolu amendment bought: the predicate this used to take an answer from
+ * (`snapshotAnswersGrid`) compares two LOCAL measurements, which cannot see a
+ * foreign resize at all — and a monitor that never asks for a size has no
+ * local measurement worth comparing.
  */
 export const onFrame = (
   state: Attaching,
   frame:
     | { readonly kind: "delta"; readonly data: string }
-    | { readonly kind: "snapshot"; readonly data: string }
+    | {
+      readonly kind: "snapshot"
+      readonly data: string
+      readonly grid?: Grid | null
+    }
     | { readonly kind: "refused"; readonly says: string },
-  answers: boolean,
 ): { readonly state: Attaching; readonly next: Next } => {
   if (frame.kind === "refused") {
     // PADI'S OWN WORDS END IT. A refusal is not a transport failure and a
@@ -135,15 +146,19 @@ export const onFrame = (
     // stale is the one that describes a whole screen.
     return { state: seen, next: { kind: "write", data: frame.data, reset: false } }
   }
-  if (!answers) {
-    // RULE 1, and the reason it is a refusal rather than a repaint: these bytes
-    // are wrapped for a width this pane is not. Nothing undoes that afterwards.
-    return {
-      state: seen,
-      next: { kind: "reattach", why: "the snapshot answers a grid this pane no longer has" },
-    }
+  // THE PANE ADOPTS THE PTY'S GRID rather than asserting its own. This is the
+  // frame that says what size the bytes are for, and it is the ONLY place a
+  // size is decided: a resize of the pane's own box changes what is visible,
+  // never what is asked for.
+  return {
+    state: seen,
+    next: {
+      kind: "write",
+      data: frame.data,
+      reset: true,
+      grid: frame.grid ?? undefined,
+    },
   }
-  return { state: seen, next: { kind: "write", data: frame.data, reset: true } }
 }
 
 /** THE STREAM ENDED CLEANLY — which does not mean the terminal did (rule 3). */
