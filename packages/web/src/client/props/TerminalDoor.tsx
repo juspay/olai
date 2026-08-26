@@ -71,10 +71,13 @@ export function TerminalDot(props: {
   const fleet = useFleet()
   const reading = useReading(() => props.value)
   return (
-    <Show when={fleet.read !== undefined} fallback={<Glyph reading={reading()} />}>
+    <Show
+      when={fleet.read !== undefined}
+      fallback={<span class="olai-dot-slot"><Glyph reading={reading()} /></span>}
+    >
       <button
         type="button"
-        class="flex cursor-pointer items-center"
+        class="olai-dot-slot cursor-pointer"
         title={`${reading().says} — click for a snapshot`}
         aria-label={`${reading().says} — click for a snapshot`}
         aria-expanded={props.open}

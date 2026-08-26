@@ -885,6 +885,35 @@ mark.olai-hit {
  * carried by the colour and the words, and the motion is an emphasis a reader
  * may decline without losing the fact.
  */
+/**
+ * THE SLOT THE DOT SITS IN — a box exactly one line tall, at the top.
+ *
+ * The dot is a direct flex child of the chip, and a chip aligns its children
+ * two different ways: `items-baseline` for the ordinary pill, `items-start`
+ * when a long value folds. Neither works on the dot, because A FLEX ITEM WITH
+ * NO TEXT HAS NO BASELINE — under `items-baseline` the browser falls back to
+ * its bottom margin edge, so the dot floats above the text it belongs to, and
+ * under `items-start` it pins to the top of a box that may be several lines
+ * tall. Both were visible on the real board (the human's screenshot, two chips
+ * misaligned two different ways).
+ *
+ * So the dot stops taking part in that decision. The slot is `flex-start` —
+ * the FIRST LINE, whichever alignment the chip is using — and one line-height
+ * tall with the dot centred inside it. A folded chip that opens to six lines
+ * keeps its dot on line one, where the value's first line is, which is the only
+ * place it means anything.
+ *
+ * `1.375em` is `leading-snug` on the run's own font size, in `em` so it tracks
+ * that size rather than restating it in `rem` and drifting from it.
+ */
+.olai-dot-slot {
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  height: 1.375em;
+  flex: none;
+}
+
 .olai-dot {
   border-radius: 9999px;
   height: 0.5rem;
