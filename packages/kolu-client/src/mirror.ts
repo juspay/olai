@@ -399,7 +399,9 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
         // back, and a re-attach begins with a fresh `snapshot` frame — which is
         // why a recovering pane needs nothing of its own.
         Stream.catchCause(() =>
-          refused("the link to padi dropped — this window stopped where it is.")
+          refused(
+            "olai lost the window on this terminal — it may have closed, or the link dropped.",
+          )
         ),
       )
     },

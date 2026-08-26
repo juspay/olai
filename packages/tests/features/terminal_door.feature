@@ -62,40 +62,45 @@ Feature: The `terminal` property is a DOOR
     And there should be no page errors
 
   @scratch:lanes @padi:lanes
-  Scenario: Pressing the row grows a snapshot pane, and refetch is the only thing that moves it
-    # Rung 2. The pane says SNAPSHOT three ways — the dashed border, the age
-    # line, and the button — because the promise it is making is that nothing
-    # here is live.
+  Scenario: Pressing the row opens a LIVE window on the terminal
+    # Rung 2, and it is a window rather than a photograph: the pane says LIVE
+    # two ways — the solid border and the tag — because the promise it makes is
+    # that what is in the box is what is in the terminal, now.
+    #
+    # THE BROWSER DOES NOT DIAL PADI to do it. What this page subscribes to is
+    # an ordinary member of olai's own surface; the server holds padi's attach
+    # on the one connection the fleet already rides.
     Given I open the outline "lanes.olai"
-    When I open the snapshot on "door-implement"
+    When I watch the terminal on "door-implement"
     Then a snapshot pane opens on "door-implement"
-    And the snapshot pane shows "just check"
-    And the snapshot pane is a snapshot rather than a live view
-    When I refetch the snapshot
-    Then the snapshot pane shows "just check"
+    And the pane is a live window rather than a snapshot
+    And the live screen shows "just check"
     And there should be no page errors
 
   @scratch:lanes @padi:lanes
-  Scenario: A second press closes the pane, and closing forgets what it read
-    # The snapshot promise kept on the way out as well as in: a pane reopened
-    # later must not show an old screen under a fresh "just now".
+  Scenario: A second press closes the window, and closing drops the attach
+    # The restraint kept on the way out as well as in. Closing UNMOUNTS the
+    # terminal, so there is no attach behind a pane nobody is looking at —
+    # twelve lanes on a page are twelve rows and zero attached terminals until
+    # somebody presses one.
     Given I open the outline "lanes.olai"
-    When I open the snapshot on "door-review"
+    When I watch the terminal on "door-review"
     Then a snapshot pane opens on "door-review"
-    And the snapshot pane shows "open the PR"
-    When I open the snapshot on "door-review"
+    And the live screen shows "open the PR"
+    When I watch the terminal on "door-review"
     Then no snapshot pane is open
     And there should be no page errors
 
   @scratch:lanes @padi:lanes
   Scenario: A terminal with no live screen refuses in words, in the pane
-    # `t-parked` is asleep: padi has no live mirror to read, which is its own
-    # `TerminalNotFound` and the expected answer for a lane that finished. It
-    # is a sentence in the pane, not a fault and not an empty box.
+    # A sleeping terminal has no live mirror to attach to, which is padi's own
+    # `TerminalNotFound` and the expected answer for a lane that finished. It is
+    # a sentence IN PLACE OF the terminal — not a fault, not an empty box, and
+    # not a frozen screen under a tag still claiming to be live.
     Given I open the outline "lanes.olai"
-    When I open the snapshot on "quiet-implement"
+    When I watch the terminal on "quiet-implement"
     Then a snapshot pane opens on "quiet-implement"
-    And the snapshot pane refuses with "no live screen"
+    And the pane refuses with "it may have closed"
     And there should be no page errors
 
   @scratch:lanes @padi:ahead
@@ -140,11 +145,11 @@ Feature: The `terminal` property is a DOOR
     # lands, AND the page is still alive afterwards, which is what the last two
     # steps are for.
     Given I open the outline "lanes.olai"
-    When I open the snapshot on "door-implement"
+    When I watch the terminal on "door-implement"
     Then a snapshot pane opens on "door-implement"
-    And the snapshot pane shows "just check"
+    And the live screen shows "just check"
     # ...and the page still works: a row still answers, and nothing was thrown.
-    When I open the snapshot on "door-implement"
+    When I watch the terminal on "door-implement"
     Then no snapshot pane is open
     And the terminal row on "door-review" is awaiting
     And there should be no page errors

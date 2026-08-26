@@ -64,15 +64,22 @@
 import { type Accessor, createContext, createMemo, type JSX, useContext } from "solid-js"
 import type { CollectionDelta } from "@kolu/surface/define"
 import type { CollectionFold } from "@kolu/surface/solid"
-import { Effect, Result } from "effect"
+import { Effect, Result, type Stream } from "effect"
 
-import type { FleetTerminal, KoluLink, Snapshot } from "@olai/surface"
+import type { FleetTerminal, KoluLink, Snapshot, TerminalFrame } from "@olai/surface"
 import { after, type Held, seeded } from "./held.ts"
 import { KOLU_UNDIALED, SnapshotRefused } from "@olai/surface"
 
 /** Take a snapshot of one terminal. The answer is the text or the refusal —
  *  never a throw, because both are things the pane draws. */
 export type ReadScreen = (terminal: string) => Promise<Snapshot | SnapshotRefused>
+
+/** Watch one terminal — every frame, in order, until the subscriber drops it.
+ *  The refusals ride as FRAMES (`@olai/surface`'s `TerminalFrame`), so this
+ *  stream has nothing to fail with. */
+export type WatchTerminal = (
+  input: { readonly terminal: string; readonly grid?: { readonly cols: number; readonly rows: number } },
+) => Stream.Stream<TerminalFrame, unknown>
 
 /** What a chip asks: the link, the rows it resolves against, and the one verb. */
 export interface Fleet {
@@ -90,6 +97,18 @@ export interface Fleet {
    * the fleet this tab already holds, and it does not need rung 2 to be true.
    */
   readonly read?: ReadScreen
+  /**
+   * WATCH one terminal — the live pane's subscription, and `undefined` in the
+   * same places `read` is: a run drawn with no wire behind it.
+   *
+   * A raw stream rather than a bound member, because the pane owns this
+   * subscription's whole lifetime — it opens on a press, re-opens on a resize
+   * and on the two recoveries `./attaching.ts` decides, and drops on a close.
+   * That is also why it is UN-ENROLLED where it is bound (`../App.tsx`): a
+   * pane's re-attach is normal and self-healing, and must not flash the app's
+   * transport-health alarm every time a terminal resizes.
+   */
+  readonly watch?: WatchTerminal
 }
 
 const FleetContext = createContext<Fleet>()
@@ -103,6 +122,18 @@ const FleetContext = createContext<Fleet>()
 export interface FleetSources {
   readonly link: Accessor<KoluLink | undefined>
   readonly fold: CollectionFold<string, FleetTerminal>
+  /**
+   * WATCH one terminal — the live pane's subscription, and `undefined` in the
+   * same places `read` is: a run drawn with no wire behind it.
+   *
+   * A raw stream rather than a bound member, because the pane owns this
+   * subscription's whole lifetime — it opens on a press, re-opens on a resize
+   * and on the two recoveries `./attaching.ts` decides, and drops on a close.
+   * That is also why it is UN-ENROLLED where it is bound (`../App.tsx`): a
+   * pane's re-attach is normal and self-healing, and must not flash the app's
+   * transport-health alarm every time a terminal resizes.
+   */
+  readonly watch?: WatchTerminal
   readonly read?: ReadScreen
 }
 
@@ -128,6 +159,7 @@ export function FleetProvider(props: {
     link: createMemo(() => props.sources.link() ?? KOLU_UNDIALED),
     terminals: () => held()?.rows ?? NO_ROWS,
     read: props.sources.read,
+    watch: props.sources.watch,
   }
   return <FleetContext.Provider value={fleet}>{props.children}</FleetContext.Provider>
 }
@@ -211,3 +243,28 @@ const asRefusal = (failure: unknown): SnapshotRefused => {
     says: "olai could not read that screen — the detail is in the console.",
   })
 }
+
+/**
+ * The surface member, as a {@link WatchTerminal}.
+ *
+ * UN-ENROLLED, deliberately and by name. `.use()` enrols a stream's
+ * pending/error into the app's transport-health gate — the fact that draws the
+ * Disconnected overlay — and a pane's re-attach is normal and self-healing:
+ * three ordinary things re-open this stream (a resize, a clean end that is not
+ * an exit, a first frame that never came), and each would flash an app-wide
+ * alarm about a socket that is perfectly healthy. `@kolu/surface` names this
+ * carve-out at the definition and the `unenrolled` spelling is what keeps a
+ * deliberate hand-enrol from ever reading as a forgotten one.
+ *
+ * Nothing is caught here, and that is the difference from {@link readingScreen}
+ * one member over: the refusals ride as FRAMES on this member, so there is no
+ * declared failure to translate and no defect to fence — an unencodable input
+ * cannot arise, because the pane sends the property's value and the SERVER
+ * resolves it.
+ */
+export const watchingTerminal = (
+  member: (
+    input: { readonly terminal: string; readonly grid?: { readonly cols: number; readonly rows: number } },
+  ) => Stream.Stream<TerminalFrame, unknown>,
+): WatchTerminal =>
+(input) => member(input)

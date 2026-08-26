@@ -223,6 +223,10 @@ export const TESTID = {
   /** The snapshot pane the ROW opens — dashed border, the age line, the two
    *  buttons. Present only while open; one per block. */
   terminalPane: "terminal-pane",
+  /** THE LIVE TAG — the one word that separates this pane from the snapshot it
+   *  replaced, and the assertion a scenario makes that a window is a window.
+   *  Present only on a pane that is attached. */
+  terminalLive: "terminal-live",
   /** The screen text inside it, verbatim, or the refusal in its place.
    *  `data-state` is `reading` / `text` / `refused`. */
   terminalScreen: "terminal-screen",

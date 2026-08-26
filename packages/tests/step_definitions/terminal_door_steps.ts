@@ -1,5 +1,6 @@
 /**
- * THE TERMINAL DOOR — kolu's row where the property is, and the pane it opens.
+ * THE TERMINAL DOOR — kolu's row where the property is, and the live pane it
+ * opens.
  *
  * Every assertion here is on an ATTRIBUTE or on WORDS, never on a colour — and
  * the attributes are KOLU'S OWN. `data-dock-row`, `data-bucket`,
@@ -30,7 +31,6 @@ const ROW = `[data-dock-row]`;
 const SAYS = `[data-testid="terminal-says"]`;
 const PANE = `[data-testid="terminal-pane"]`;
 const SCREEN = `[data-testid="terminal-screen"]`;
-const REFETCH = `[data-testid="terminal-refetch"]`;
 
 /** The block on ONE node's `terminal` property. Scoped through the row rather
  *  than found globally: a page draws several, and a bare `terminal-block` would
@@ -118,7 +118,7 @@ Then(
 );
 
 When(
-  "I open the snapshot on {string}",
+  "I watch the terminal on {string}",
   async function (this: OlaiWorld, id: string) {
     // THE ROW ITSELF is the door — `onSelect`, which in kolu's Dock focuses the
     // terminal and here reads its screen. There is no separate button, which is
@@ -148,20 +148,7 @@ Then("no snapshot pane is open", async function (this: OlaiWorld) {
 });
 
 Then(
-  "the snapshot pane shows {string}",
-  async function (this: OlaiWorld, text: string) {
-    const screen = this.page.locator(`${SCREEN}[data-state="text"]`).first();
-    await screen.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-    const said = await screen.textContent();
-    assert.ok(
-      said?.includes(text),
-      `the pane should show "${text}" — it showed "${said}"`,
-    );
-  },
-);
-
-Then(
-  "the snapshot pane refuses with {string}",
+  "the pane refuses with {string}",
   async function (this: OlaiWorld, says: string) {
     // A REFUSAL IS PROSE, in its own state — not an empty screen and not a
     // fault. A sleeping terminal has no live mirror to read, which is padi's
@@ -178,30 +165,6 @@ Then(
   },
 );
 
-Then(
-  "the snapshot pane is a snapshot rather than a live view",
-  async function (this: OlaiWorld) {
-    const pane = this.page.locator(PANE).first();
-    // THE THREE WAYS IT SAYS SO, asserted together because any one of them
-    // alone would let the pane start making a promise it cannot keep. The
-    // dashed border is the class phase 6's live pane will NOT have; the age
-    // line is what it is; the refetch button is the only thing that moves it.
-    assert.ok(
-      (await pane.getAttribute("class"))?.includes("olai-snapshot"),
-      "the pane should wear the dashed snapshot border",
-    );
-    const said = await pane.textContent();
-    assert.ok(
-      said?.includes("snapshot"),
-      `the pane should say it is a snapshot — it said "${said}"`,
-    );
-    assert.equal(await pane.locator(REFETCH).count(), 1);
-  },
-);
-
-When("I refetch the snapshot", async function (this: OlaiWorld) {
-  await this.page.locator(REFETCH).first().click();
-});
 
 // ── the header's padi readout ────────────────────────────────────────────
 
@@ -232,6 +195,35 @@ Then(
     assert.ok(
       said?.includes(says),
       `the padi indicator should explain "${says}" — it said "${said}"`,
+    );
+  },
+);
+Then(
+  "the pane is a live window rather than a snapshot",
+  async function (this: OlaiWorld) {
+    const pane = this.page.locator(PANE).first();
+    // THE TWO WAYS IT SAYS SO, asserted together because either alone would let
+    // the pane make a promise it cannot keep. The solid border is the class the
+    // still-frame pane deliberately does NOT have; the tag is the word.
+    assert.ok(
+      (await pane.getAttribute("class"))?.includes("olai-live"),
+      "the pane should wear the solid live border",
+    );
+    assert.equal(await pane.locator(`[data-testid="terminal-live"]`).count(), 1);
+  },
+);
+
+Then(
+  "the live screen shows {string}",
+  async function (this: OlaiWorld, text: string) {
+    // READ OFF THE TERMINAL'S OWN ROWS. xterm draws into its DOM, so what a
+    // person can see is what the emulator laid out — an assertion against the
+    // bytes olai sent would pass on a pane that never painted them.
+    const screen = this.page.locator(`${SCREEN}[data-state="attached"]`).first();
+    await screen.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await this.waitUntil(
+      async () => ((await screen.textContent()) ?? "").includes(text),
+      `the live pane to show ${JSON.stringify(text)}`,
     );
   },
 );

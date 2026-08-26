@@ -42,6 +42,11 @@
 @import "@kolu/solid-statepip/statepip.css";
 @import "@kolu/solid-dockrow/dockrow.css";
 
+/* xterm.js's own sheet — the live pane's terminal (`client/props/LivePane.tsx`).
+ * The emulator ships its layout as CSS and there is no version of drawing a
+ * terminal that does not want it. */
+@import "@xterm/xterm/css/xterm.css";
+
 /* The typefaces themselves — `@font-face` and every `:root[data-font]`
  * block — are generated from `@olai/fonts`'s catalog and appended by the
  * build. What stays here is the TOKEN NAMES and the default row's stacks, so
@@ -885,7 +890,41 @@ mark.olai-hit {
 }
 
 /**
- * The SNAPSHOT pane the row opens.
+ * The LIVE pane the row opens.
+ *
+ * SOLID, and that is the whole promise in one border: what is in this box is
+ * what is in the terminal, now. The pane it replaced was DASHED and said
+ * "snapshot · just now" — a still frame, taken once — and the two borders were
+ * promised as the way a reader tells them apart without reading a word. There
+ * is one pane today and the border is the solid one; the dashed rule is kept
+ * below because the screenshot face (terminal-door-polish part 1) is still a
+ * still frame and will want it back.
+ */
+.olai-live {
+  border: 1px solid var(--color-rule);
+  border-radius: 0.375rem;
+  background-color: var(--color-panel);
+}
+
+/* The terminal's own box. A HEIGHT is set rather than left to the content
+ * because xterm measures its grid from the element: a box that sized itself to
+ * its contents would have no rows to report before the first frame, and the
+ * grid a pane asks at would be a grid it invented. */
+.olai-live-screen {
+  height: 22rem;
+  width: 100%;
+}
+
+/* xterm draws its own chrome; olai only asks it not to paint a background over
+ * the pane's. The theme sets a transparent background on the terminal, and
+ * this is the viewport half of the same statement. */
+.olai-live-screen .xterm-viewport {
+  background-color: transparent !important;
+}
+
+/**
+ * The DASHED still-frame border, kept for the screenshot face.
+ */
  *
  * DASHED, and that is the whole promise in one border: this is a still frame,
  * taken once, at the moment the age line names. Phase 6's live pane is a SOLID

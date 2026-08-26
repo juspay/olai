@@ -208,7 +208,39 @@ const padi = implementSurface(padiSurfaceSibling, {
       remove: () => {},
     },
   },
-  streams: floor(Object.keys(spec.streams ?? {}), () => ({ source: silent })),
+  streams: {
+    ...floor(Object.keys(spec.streams ?? {}), () => ({ source: silent })),
+    /**
+     * THE LIVE ATTACH — one snapshot frame, then the stream holds open.
+     *
+     * A SNAPSHOT AND THEN SILENCE is the honest fixture for a pane: it is what
+     * a real padi sends when a terminal is not currently emitting, which is
+     * most terminals most of the time. Holding open rather than ending matters
+     * — an ending stream is a re-attach under olai's own policy
+     * (`web/src/client/props/attaching.ts`), so a fixture that ended would
+     * drive a loop the scenario never asked for.
+     *
+     * The screen text is the SAME fixture the snapshot read used, so a scenario
+     * asserting what is on screen is asserting about one recorded terminal
+     * rather than two.
+     */
+    terminalAttach: {
+      source: (input: { readonly input: { readonly id: string } }) => {
+        const screen = fleet.screens[input.input.id]
+        // NO LIVE MIRROR IS A REFUSAL, not silence. A dormant terminal has no
+        // screen to attach to and padi says so at once — which is what makes
+        // the pane's "it may have closed" sentence a fast, deterministic
+        // scenario rather than a wait for a deadline to expire.
+        if (screen === undefined) {
+          return Stream.fail(new TerminalNotFound({ id: input.input.id }))
+        }
+        return Stream.concat(
+          Stream.make({ kind: "snapshot" as const, data: screen, topLine: 0 }),
+          Stream.never,
+        )
+      },
+    },
+  },
   events: floor(Object.keys(spec.events ?? {}), () => ({ source: silent })),
   procedures: {
     ...floor(

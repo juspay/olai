@@ -19,6 +19,7 @@
  * (`./reading.tsx`), asked of the address that pane is drawing.
  */
 
+import { unenrolledStreamCall } from "@kolu/surface/client"
 import { NOTHING_WRONG } from "@olai/format"
 import {
   createEffect,
@@ -65,7 +66,7 @@ import { SHEET, SHELL_LONE, SHELL_SPLIT } from "./layout/sheet.ts"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
 import { ServedProvider } from "./served.tsx"
-import { FleetProvider, readingScreen } from "./props/fleet.tsx"
+import { FleetProvider, readingScreen, watchingTerminal } from "./props/fleet.tsx"
 import { Preferences } from "./settings/Preferences.tsx"
 import { Sidebar } from "./Sidebar.tsx"
 import { TodayProvider } from "./today.tsx"
@@ -321,6 +322,13 @@ export default function App() {
           link: olai.cells.kolu.use().value,
           fold: olai.collections.fleet.use().fold,
           read: readingScreen(olai.procedures.screen.text),
+          // UN-ENROLLED BY NAME — see `./props/fleet.tsx`'s `watchingTerminal`:
+          // a pane's re-attach is normal and self-healing, and enrolling it
+          // would flash the app's Disconnected overlay every time a terminal
+          // resized.
+          watch: watchingTerminal((input) =>
+            unenrolledStreamCall(olai.streams.terminal.unenrolled, input)
+          ),
         }}
       >
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
