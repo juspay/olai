@@ -47,6 +47,7 @@ const row = (over: Partial<FleetTerminal> = {}): FleetTerminal => ({
   pr: null,
   recencyAt: null,
   repo: "olai",
+  themeName: null,
   owner: { kind: "unowned" },
   ...over,
 })

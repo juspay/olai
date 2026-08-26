@@ -132,7 +132,13 @@ export function TerminalBlock(context: BlockContext) {
         )}
       </Show>
       <Show when={open() && reading().row}>
-        {(row) => <LivePane value={row().id} onClose={() => setOpen(false)} />}
+        {(row) => (
+          <LivePane
+            value={row().id}
+            themeName={row().themeName}
+            onClose={() => setOpen(false)}
+          />
+        )}
       </Show>
     </div>
   )

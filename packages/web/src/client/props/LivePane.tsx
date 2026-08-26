@@ -44,6 +44,7 @@ import type { FitAddon } from "@xterm/addon-fit"
 import type { Terminal } from "@xterm/xterm"
 
 import { snapshotAnswersGrid } from "@kolu/padi-client/attach"
+import { FONT_FAMILY, getThemeByName } from "terminal-themes"
 import { Effect, Fiber, Stream } from "effect"
 
 import { TESTID } from "../testids.ts"
@@ -62,6 +63,9 @@ import { useFleet } from "./fleet.tsx"
 
 export function LivePane(props: {
   readonly value: string
+  /** The kolu theme this terminal was created with — `null` where padi has
+   *  none recorded, which the catalog's own fallback answers. */
+  readonly themeName: string | null
   readonly onClose: () => void
 }) {
   const fleet = useFleet()
@@ -90,19 +94,40 @@ export function LivePane(props: {
       import("@xterm/addon-fit"),
     ])
     const created = new Terminal({
-      // READ-ONLY, which is the whole of what this pane is. `disableStdin` is
-      // the difference between a window and a session: rung 3 of the door is
-      // looking, and anything that typed into a lane's terminal from an outline
-      // would be a gesture nobody asked for.
+      // READ-ONLY, which is the whole of what this pane is — confirmed as
+      // design by the human on the live look: monitoring lives in olai and
+      // typing stays in kolu until the actions phase. `disableStdin` is the
+      // difference between a window and a session.
       disableStdin: true,
+      // KOLU'S OWN THEME, and this is the whole of the theming decision: the
+      // catalog is `terminal-themes`, the record carries the name its terminal
+      // was created with, and the lookup falls back on its own. olai declares
+      // no palette — a terminal that looked different here than in the Dock
+      // would be the same drift the row's own extraction exists to prevent, one
+      // surface down.
+      theme: getThemeByName(props.themeName ?? undefined),
+      // ...and kolu's own type. The stack is the catalog's constant rather than
+      // a string spelled here, for the reason the palette is.
+      fontFamily: FONT_FAMILY,
+      fontSize: FONT_SIZE,
       convertEol: true,
-      fontSize: 12,
-      fontFamily: "var(--font-mono, monospace)",
-      // The pane is a box in a document, not a full screen: a scrollback the
-      // size of kolu's would be memory spent on lines this pane cannot reach,
-      // since it has no scrollback reader of its own.
+      // The three rendering options kolu's own terminal sets and a reader would
+      // notice the absence of. A block cursor while UNFOCUSED especially: this
+      // pane is never focused, so xterm's default hollow outline would be the
+      // one state a reader of olai always sees and a reader of kolu never does.
+      cursorBlink: true,
+      cursorInactiveStyle: "block",
+      reflowCursorLine: true,
+      // NOT `allowProposedApi`, which kolu sets for the serialize and image
+      // addons: this pane loads neither, and an option that only unlocks APIs
+      // nothing calls is a promise about a surface that does not exist here.
+      //
+      // The pane is a box in a document, not a full screen: kolu keeps fifty
+      // thousand lines because its terminal is the window you work in, and this
+      // one has no scrollback reader of its own — a line this pane cannot reach
+      // is memory spent to look identical while scrolled to a place it does not
+      // go.
       scrollback: 1_000,
-      theme: { background: "#00000000" },
     })
     const fitted = new FitAddon()
     created.loadAddon(fitted)
@@ -287,3 +312,19 @@ export function LivePane(props: {
     </div>
   )
 }
+
+/**
+ * THE FONT SIZE kolu's own terminal draws at.
+ *
+ * RESTATED, and it is the only number in this pane that is. Its home is
+ * `kolu-common/config`'s `DEFAULT_FONT_SIZE`, and that package cannot be
+ * consumed from here: it declares `effect` as `catalog:` — pnpm's
+ * workspace-catalog protocol, which resolves only inside kolu's own workspace —
+ * and drags sixteen workspace packages behind it for one integer. Filed as a
+ * finding against kolu#2217 (the same class as `@kolu/xterm-kit`'s), and the
+ * day either lands this constant is deleted and imported.
+ *
+ * Everything else the pane paints with IS consumed: the palette and the font
+ * stack are `terminal-themes`, which is a leaf and hydrates cleanly.
+ */
+const FONT_SIZE = 14

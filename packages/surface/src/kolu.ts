@@ -293,6 +293,16 @@ export const FleetTerminal = Schema.Struct({
    *  does not own one, so what crosses is the instant and not a phrase that
    *  would be stale before it arrived. */
   recencyAt: Schema.NullOr(Schema.Number),
+  /**
+   * WHICH KOLU THEME this terminal was created with, or `null`.
+   *
+   * A field that crosses because something DRAWS it (`./fleet.ts`'s law): the
+   * live pane paints with kolu's own catalog (`terminal-themes`), so a terminal
+   * looks in olai exactly as it looks in kolu rather than in xterm's washed-out
+   * default — the human's ruling on the first live look. `null` is a terminal
+   * padi has no theme recorded for, and the catalog's own fallback answers it.
+   */
+  themeName: Schema.NullOr(Schema.String),
   /** The repository this terminal is in, or `null` — the key the repo tint is
    *  hashed from, and the one word a pane header falls back to. */
   repo: Schema.NullOr(Schema.String),

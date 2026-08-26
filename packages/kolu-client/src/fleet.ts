@@ -194,6 +194,8 @@ export const rowOf = (
     pr: facts.pr,
     recencyAt: record.lastActivityAt,
     repo: git?.repoName ?? null,
+    // The terminal's own theme, so the live pane paints it as kolu does.
+    themeName: record.themeName ?? null,
     owner,
   }
 }

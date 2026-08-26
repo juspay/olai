@@ -89,6 +89,12 @@ let
     # The tokens both stylesheets resolve their colours against. A stylesheet
     # and nothing else: no manifest dependencies, no source.
     { src = npins.kolu; dir = "packages/theme"; name = "@kolu/theme"; }
+    # The terminal THEMES a pane paints with — kolu's own catalog, parsed from
+    # iTerm2-Color-Schemes and checked in beside the code. A padi record carries
+    # the `themeName` its terminal was created with, so olai's live pane renders
+    # a terminal exactly as kolu renders it rather than in xterm's washed-out
+    # default (the human, on the first live look).
+    { src = npins.kolu; dir = "packages/terminal-themes"; name = "terminal-themes"; }
 
     # ── The padi contract tier (juspay/kolu#2216) ───────────────────────────
     #

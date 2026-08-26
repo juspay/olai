@@ -49,6 +49,7 @@ const row = (id: string, bucket = "working"): FleetTerminal => ({
   pr: null,
   recencyAt: null,
   repo: null,
+  themeName: null,
   owner: { kind: "unowned" },
 })
 

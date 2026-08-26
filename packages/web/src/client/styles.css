@@ -913,13 +913,12 @@ mark.olai-hit {
 .olai-live-screen {
   height: 22rem;
   width: 100%;
-}
-
-/* xterm draws its own chrome; olai only asks it not to paint a background over
- * the pane's. The theme sets a transparent background on the terminal, and
- * this is the viewport half of the same statement. */
-.olai-live-screen .xterm-viewport {
-  background-color: transparent !important;
+  /* The terminal paints its OWN background (kolu's theme for that terminal),
+   * so the box is inset from the pane's border rather than bleeding into it —
+   * the theme is a fact about the terminal, not about olai's panel. */
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  overflow: hidden;
 }
 
 /**
