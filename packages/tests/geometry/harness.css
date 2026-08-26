@@ -1,0 +1,14 @@
+/* The harness's sheet: olai's own stylesheet (which brings Tailwind, olai's
+ * @theme tokens and its rules) plus the three kolu sheets the Dock row's README
+ * requires, in the order it requires them. The extra @source lines are that
+ * README's first instruction — the row spells utility classes, and Tailwind
+ * tree-shakes what it cannot see. */
+@import "../../web/src/client/styles.css";
+
+@source "../../../node_modules/@kolu/solid-dockrow/src";
+@source "../../../node_modules/@kolu/solid-statepip/src";
+@source "./";
+
+@import "@kolu/theme/theme.css";
+@import "@kolu/solid-statepip/statepip.css";
+@import "@kolu/solid-dockrow/dockrow.css";
