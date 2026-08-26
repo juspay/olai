@@ -105,8 +105,10 @@ Feature: A property key that declares its type
     # spent the typed gate at all.
     And the node "chips" refuses the property write with "it now says `human`"
     # ...and nothing was written, either way: the row and the file say what
-    # the agent said.
-    And the node "chips" shows the property "merge" holding "human"
+    # the agent said — the row as the variant's TITLE over the stored id (the
+    # ref chip's own rule, argued at this seam's first scenario), the file as
+    # the id itself, which stays the truth underneath the face.
+    And the node "chips" shows the property "merge" holding "the human merges"
     And "lanes.olai" holds the node "chips" with "merge" set to "human"
     And there should be no page errors
 
