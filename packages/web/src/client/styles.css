@@ -939,6 +939,13 @@ mark.olai-hit {
 }
 
 .olai-live-screen .xterm {
+  /* TRANSPARENT, so the padding below shows the WRAPPER's colour — which is
+   * this terminal's own theme background, set inline. xterm's stylesheet paints
+   * its own black behind the terminal element, and with padding on it that
+   * black became a frame around a cream terminal: the "black bars" the human
+   * saw on the real board. The theme reaches the viewport and the rows on its
+   * own; this is the one square it does not cover. */
+  background-color: transparent;
   /* Kolu's own terminal padding is app layout — a tile's chrome around the
    * canvas, spelled in utility classes at its call site rather than exported as
    * a constant. There is nothing to consume here, so this is olai's own
