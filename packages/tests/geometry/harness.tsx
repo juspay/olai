@@ -20,12 +20,11 @@
  */
 import { render } from "solid-js/web"
 
-import { DockRow } from "@kolu/solid-dockrow"
+import { DockRow, DockSection } from "@kolu/solid-dockrow"
 import {
   bindStatePip,
   displayRecencyAt,
-  DOCK_ROW_GAP,
-  DOCK_ROW_GRID,
+
   paintDockRow,
   recencyMode,
   rowSubline,
@@ -77,13 +76,10 @@ const CALM = bagFor(QUIET, "working")
  *  subgrid tracks and sets `--repo-color`, or the row has no columns to sit in. */
 function Row(props: { readonly bag: ReturnType<typeof bagFor>; readonly id: string }) {
   return (
-    <section
-      class={`dock-cards-section grid ${DOCK_ROW_GRID} ${DOCK_ROW_GAP} pl-3 pr-3`}
-      style={{ "--repo-color": "#7aa2f7" }}
-    >
+    <DockSection surface="desktop" repoColor="#7aa2f7">
       <DockRow
         id={props.id as never}
-        density="desktop"
+        surface="desktop"
         pip={props.bag.pip}
         bucket={props.bag.bucket}
         agentState={props.bag.agentState}
@@ -95,7 +91,7 @@ function Row(props: { readonly bag: ReturnType<typeof bagFor>; readonly id: stri
         recency={props.bag.recency}
         onSelect={() => {}}
       />
-    </section>
+    </DockSection>
   )
 }
 

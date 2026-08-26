@@ -35,13 +35,13 @@
  */
 
 import type { TerminalAttention } from "@kolu/padi-client/attention"
-import { activePr, type TerminalMetadata } from "@kolu/padi-client/surface"
+import type { TerminalMetadata } from "@kolu/padi-client/surface"
 import {
   annotationLine,
   bindStatePip,
+  dockRowFacts,
   identityColor,
   paintDockRow,
-  rowSubline,
 } from "@kolu/solid-dockrow/rowValues"
 import type { PadiTerminal } from "@kolu/padi-client/surface"
 import {
@@ -163,6 +163,11 @@ export const rowOf = (
 ): FleetTerminal => {
   const git = gitOf(record)
   const branch = git?.branch ?? ""
+  // THE THREE FACTS A ROW READS OFF ONE RECORD, taken from one read and
+  // returned together. Spelled separately they are three chances to pair one
+  // terminal's words with another terminal's PR — which is a real mistake in a
+  // projection that walks a fleet, and the reason kolu fused them.
+  const facts = dockRowFacts(record)
   // A TILE RECORD HAS A LIVE ARM by construction (`tileTerminalOf` narrowed the
   // parked one away before this was called), so the intent is simply read.
   const intent = record.intent
@@ -179,12 +184,14 @@ export const rowOf = (
     bucket: paintDockRow(record, attention.klass),
     // VERBATIM, and a plain string on the wire by ratification: the browser
     // narrows it through the row package's own guard, so an agent state this
-    // build has never heard of arrives as itself.
-    agentState: record.state === "active" ? record.agent?.state ?? null : null,
+    // build has never heard of arrives as itself. `undefined` (no live agent)
+    // folds to `null` here because a wire that carried both would make every
+    // reader ask the same question twice.
+    agentState: facts.agentState ?? null,
     label: annotationLine(intent, branch),
     labelColor: identityColor(branch),
-    subline: rowSubline(record),
-    pr: activePr(record),
+    subline: facts.subline,
+    pr: facts.pr,
     recencyAt: record.lastActivityAt,
     repo: git?.repoName ?? null,
     owner,

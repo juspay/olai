@@ -51,10 +51,8 @@
 
 import { createResource, createSignal, Match, Show, Switch } from "solid-js"
 
-import { DockRow } from "@kolu/solid-dockrow"
+import { DockRow, DockSection } from "@kolu/solid-dockrow"
 import {
-  DOCK_ROW_GAP,
-  DOCK_ROW_GRID,
   isDockRowBucket,
   isPipGlyphId,
   isPipMotionKind,
@@ -185,10 +183,16 @@ registerBlock(TERMINAL_KEY, TerminalBlock)
  * onto a neighbour and not dropped — `narrowAgentState` keeps it, the row
  * prints it, and a reader sees a strange state rather than a blank or a lie.
  *
- * The SECTION around the row is not decoration: the row is `grid-cols-subgrid`,
- * so the container declares the tracks (the package README's fourth
- * requirement) and sets the `--repo-color` socket every repo-tinted surface
- * reads.
+ * THE CONTAINER IS A COMPONENT, not a class name this file spells. It was a
+ * class name for a day, and that day is the argument: every wash, the active
+ * highlight and the row dividers are scoped to
+ * `:is(.dock-cards-section, .dock-needs-you-strip) > [data-dock-row]`, so a row
+ * rendered in a consumer's own `<div>` is structurally correct,
+ * attribute-complete, and has no "blocked on you" wash at all — with nothing
+ * failing anywhere. olai hand-spelled that class and got the wash by knowing a
+ * string; `<DockSection>` is kolu's answer to a consumer having to know it
+ * (filed from here as finding 4, landed as a component), and the difference
+ * between the two is whether the next reader of this file has to.
  */
 function Row(props: {
   readonly row: FleetTerminal
@@ -211,13 +215,10 @@ function Row(props: {
   }
   const mode = () => recencyMode(pip())
   return (
-    <section
-      class={`dock-cards-section grid ${DOCK_ROW_GRID} ${DOCK_ROW_GAP}`}
-      style={{ "--repo-color": "var(--color-rule)" }}
-    >
+    <DockSection surface="desktop" repoColor="var(--color-rule)">
       <DockRow
         id={props.row.id as never}
-        density="desktop"
+        surface="desktop"
         pip={pip()}
         bucket={isDockRowBucket(props.row.bucket) ? props.row.bucket : "idle"}
         agentState={narrowAgentState(props.row.agentState).attr}
@@ -239,7 +240,7 @@ function Row(props: {
         }}
         title={props.pressable ? "read this terminal's screen" : undefined}
       />
-    </section>
+    </DockSection>
   )
 }
 
