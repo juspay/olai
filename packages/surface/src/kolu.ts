@@ -428,5 +428,23 @@ export type TerminalFrame = typeof TerminalFrame.Type
 /** WHICH terminal a pane is attached to. Its own struct rather than a bare
  *  string for the reason every input here is: a member's input is a place
  *  fields get added, and a widened bare string is a breaking change. */
-export const TerminalAttach = Schema.Struct({ terminal: Schema.String })
+export const TerminalAttach = Schema.Struct({
+  terminal: Schema.String,
+  /**
+   * THE GRID THE PANE IS ASKING AT — one composite, never two scalars.
+   *
+   * A snapshot frame is bytes already laid out for a specific `cols × rows`,
+   * and painting one that answers a different grid does damage nothing undoes:
+   * a later resize repaints a full-screen app, but nothing rebuilds scrollback
+   * already wrapped at the wrong width (`@kolu/padi-client/attach`, which cost
+   * kolu two production incidents to learn). So the request carries the grid,
+   * and the pane checks the answer against it.
+   *
+   * BOTH OR NEITHER, for padi's own reason one wire up: a grid is a cols AND a
+   * rows, so half a grid must not be representable. Optional because a reader
+   * that has not measured yet — a pane in its first frame — has no grid to ask
+   * at, and padi's own input is optional for the same reason.
+   */
+  grid: Schema.optional(Schema.Struct({ cols: Schema.Number, rows: Schema.Number })),
+})
 export type TerminalAttach = typeof TerminalAttach.Type

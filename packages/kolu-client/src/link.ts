@@ -162,7 +162,10 @@ export interface Sink {
   readonly attacher: (
     face:
       | null
-      | ((input: { id: string }) => Stream.Stream<PadiAttachFrame, unknown>),
+      | ((input: {
+        id: string
+        resizeTo?: { cols: number; rows: number }
+      }) => Stream.Stream<PadiAttachFrame, unknown>),
   ) => void
   /** A dial ATTEMPT was made. Counted by the caller; see `./mirror.ts`'s
    *  header for why the count is worth a callback. */
