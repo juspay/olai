@@ -1,4 +1,9 @@
 {
+  // The one ambient declaration this repo owns — see the file itself. It rides
+  // `files` rather than each package's `include`, because a per-package
+  // `include` overrides the base's but leaves `files` inherited, so one entry
+  // here reaches every member's `tsc --noEmit`.
+  "files": ["types/bun-process-signals.d.ts"],
   "compilerOptions": {
     "target": "ESNext",
     "module": "ESNext",
