@@ -57,6 +57,7 @@
  * the map's side rather than the wire's.
  */
 
+import { PrInfoSchema } from "anyforge/schemas"
 import { Schema } from "effect"
 
 // ── The link ──────────────────────────────────────────────────────────────
@@ -148,55 +149,6 @@ export const sameKolu = (a: KoluLink, b: KoluLink): boolean =>
   && a.surfaceVersion === b.surfaceVersion
   && a.speaks === b.speaks
 
-// ── The dot's vocabulary ──────────────────────────────────────────────────
-
-/**
- * THE FOUR FACES a `terminal` chip's dot can wear — the closed set, declared
- * HERE because both ends read it and neither owns it.
- *
- * The server folds padi's agent states into one of these
- * (`@olai/kolu-client`'s `face.ts`, the only module in olai that has ever seen
- * a padi record) and the browser paints it. Declaring it in the surface is what makes that a
- * contract rather than two hand-copied switches — the class of defect kolu's
- * own `agentProjection.ts` header spends a page on, one wire further out.
- *
- *   - `working` — an agent is thinking, running a tool, or working in the
- *     background. Green, steady.
- *   - `awaiting` — an agent is BLOCKED ON YOU. Amber, pulsing, because it is
- *     the one face that is a request rather than a report.
- *   - `parked` — nothing is being asked of you and nothing is moving: a
- *     dormant record, a plain shell, or an agent whose turn is over.
- *   - `gone` — the fleet does not hold this terminal. NOT a value {@link
- *     FleetTerminal} can carry (a row that exists is a terminal that does); it
- *     is what a LOOKUP answers, so it lives in the vocabulary and not in the
- *     row. A property naming a retired terminal is still a true record of
- *     where the work happened, and a gray dot would imply it is sitting there
- *     idle.
- *
- * PADI BEING ABSENT IS NOT ONE OF THESE. A face is a reading of a record; no
- * padi means no records to read, which is a fact about the LINK ({@link
- * KoluLink}). Folding it in here would make "we cannot see" indistinguishable
- * from "we looked and it is quiet", which is the one confusion a status dot
- * must not have.
- */
-const FACE_KEYS: Record<"working" | "awaiting" | "parked" | "gone", null> = {
-  working: null,
-  awaiting: null,
-  parked: null,
-  gone: null,
-}
-export type DotFace = keyof typeof FACE_KEYS
-/** The set as a value, so a renderer's tone table is a `Record<DotFace, …>`
- *  and a fifth face is a compile error there rather than a colour nobody
- *  wrote (kolu's `ATTENTION_CLASS_KEYS` is the pattern). */
-export const DOT_FACES = Object.keys(FACE_KEYS) as ReadonlyArray<DotFace>
-
-/** The three a fleet ROW can wear — every face but `gone`, which is what an
- *  absent row already says. Spelled once so the schema below and the fold that
- *  fills it cannot disagree about which three. */
-export const LIVE_FACES = ["working", "awaiting", "parked"] as const satisfies
-  readonly Exclude<DotFace, "gone">[]
-
 /**
  * THE PROPERTY KEY the door hangs off.
  *
@@ -249,44 +201,101 @@ export type FleetOwner = typeof FleetOwner.Type
 export const UNOWNED: FleetOwner = { kind: "unowned" }
 
 /**
- * ONE TERMINAL, as olai holds it.
+ * ONE TERMINAL, as olai holds it — KOLU'S OWN ROW, projected flat.
  *
- * `face` is the fold (`@olai/kolu-client`'s `face.ts`) and not the raw
- * agent state, and that is the projection's main decision: what crosses is the
- * ANSWER a chip draws, computed once on the server against padi's own
- * vocabulary, rather than the state literals every consumer would then have to
- * fold for itself. The literals are exactly what churn — kolu adds an agent
- * state and every downstream switch is a hand-copy that silently routes to
- * idle. Sending the fold means a new state is a change in one file.
+ * Every field but the last is an argument to `@kolu/solid-dockrow`'s
+ * `DockRowProps`, and that is the whole design of this schema now: olai draws
+ * kolu's Dock row rather than a row of its own, so what crosses the wire is
+ * what that row's prop bag asks for and nothing else. `owner` is the one
+ * addition, and it is here for `./fleet.ts`'s own law — a field crosses when
+ * something draws it, and the owner is the half of a row that is olai's.
  *
- * `gone` is not a value this schema can carry: an absent row IS gone, and a
- * row that carried the word would be a row about a terminal that is not there.
- * The face vocabulary has four members and a fleet entry can wear three.
+ * ## Why the FOLDS run on the server and the ROW is what travels
+ *
+ * The row's pure folds (`bindStatePip`, `rowSubline`, `activePr`) read padi's
+ * `TerminalMetadata` deeply — the active arm, the sleeping arm, the intent, the
+ * PR. Running them in the BROWSER would mean shipping that record to every tab,
+ * which is padi's contract on olai's wire: every browser decoding the daemon's
+ * schema, every skew in it a skew here, and `@olai/kolu-client` no longer the
+ * only place that knows padi exists. So they run once, where the mirror is, and
+ * their ANSWERS travel.
+ *
+ * ## No closed set of kolu's vocabulary is declared here, ever
+ *
+ * `pip.variant`, `pip.glyph`, `pip.motion`, `bucket` and `agentState` are all
+ * closed sets in kolu — and all of them are `Schema.String` on this wire. The
+ * closed set has ONE home, the row package's own prop bag, which exports the
+ * guards that narrow into it (`@kolu/solid-dockrow/rowValues`'s
+ * `narrowAgentState`, `isDockRowBucket`, `isPipVariant` …). A second copy here
+ * would drift silently: kolu's `satisfies never` fences fire in kolu, so a new
+ * agent state would land as a literal this spec had simply never heard of.
+ * `@olai/surface` also never imports `@kolu/terminal-vocab` for them — the
+ * literals are not an array anywhere upstream (they compose per agent package),
+ * so the import would compile the whole per-agent schema graph into an outline
+ * wire spec. Ruled by the fifth Löwy sitting, 2026-08-26.
+ *
+ * `PrInfo` is the ONE kolu schema this file does import, and it is a different
+ * kind of thing: `anyforge/schemas` is a wire vocabulary — a struct of forge
+ * facts whose own header calls it "the wire vocabulary every forge adapter
+ * speaks" — and its closure is `effect` and `ts-pattern`. Restating it here
+ * would be a second spelling of a shape designed to travel, which is the drift
+ * the paragraph above exists to prevent, reached from the other side.
  */
 export const FleetTerminal = Schema.Struct({
   /** padi's terminal id — the same string a `terminal` property holds, which is
-   *  what makes the chip a lookup rather than a search. */
+   *  what makes the chip a resolution rather than a search. */
   id: Schema.String,
-  /** `working` | `awaiting` | `parked`. Not `gone`: see above. */
-  face: Schema.Literals(LIVE_FACES),
-  /** padi's own record state, kept beside the fold because `parked` has two
-   *  quite different causes (a dormant record, a live shell doing nothing) and
-   *  a fleet row has room to say which. A chip does not draw it. */
-  state: Schema.Literals(["active", "sleeping", "parked"]),
-  /** The agent's short vendor name (`claude`, `grok`, `pi`), or `null` for a
-   *  terminal with no agent in it. */
-  agent: Schema.NullOr(Schema.String),
-  /** Where it is working. `null` where padi's record does not carry one. */
-  cwd: Schema.NullOr(Schema.String),
+  /**
+   * THE BOUND PIP — `bindStatePip`'s answer, whole.
+   *
+   * Ten facts the row reads OFF this rather than from sibling props: the
+   * paint (`variant`/`glyph`/`motion`), whether the terminal is effectively
+   * active, whether an agent is blocked on YOU (`asking` — the one test every
+   * kolu surface reads for that), the two liveness bits, the recede, and the
+   * unread alert. They travel together because the row takes them together:
+   * a row given them separately is a row whose wash and whose pip can
+   * disagree.
+   */
+  pip: Schema.Struct({
+    variant: Schema.String,
+    glyph: Schema.String,
+    motion: Schema.String,
+    active: Schema.Boolean,
+    asking: Schema.Boolean,
+    bytesLive: Schema.Boolean,
+    shellLive: Schema.Boolean,
+    sleeping: Schema.Boolean,
+    alert: Schema.Boolean,
+    alertLabel: Schema.String,
+  }),
+  /** The row's ORDER/paint bucket, verbatim — narrowed browser-side by
+   *  `isDockRowBucket`. */
+  bucket: Schema.String,
+  /** The agent's state as kolu spells it, or `null` for a terminal with no
+   *  agent in it. A PLAIN STRING on purpose (see above): the browser narrows it
+   *  through `narrowAgentState`, which keeps an unrecognised word rather than
+   *  normalising it onto a neighbour — so a newer padi's state reaches the row
+   *  as itself and the row paints it quiet, which is what kolu does. */
+  agentState: Schema.NullOr(Schema.String),
+  /** The annotation line, as markdown source: kolu's intent line 1, else the
+   *  branch. The row renders it through the `renderLabel` a consumer injects. */
+  label: Schema.String,
+  /** The ink that line is drawn in — the per-branch hue. */
+  labelColor: Schema.String,
+  /** The status words on line 2, and whether they are an AGENT's words rather
+   *  than a foreground process's title. */
+  subline: Schema.Struct({ text: Schema.String, fromAgent: Schema.Boolean }),
+  /** The row's pull request, or `null`. `anyforge`'s own schema — see above. */
+  pr: Schema.NullOr(PrInfoSchema),
+  /** Epoch millis of the last activity padi saw, or `null` for never. The row's
+   *  recency RENDERING is computed from the pip (`recencyMode`) and the text is
+   *  formatted against a clock, which is the app's: kolu's package deliberately
+   *  does not own one, so what crosses is the instant and not a phrase that
+   *  would be stale before it arrived. */
+  recencyAt: Schema.NullOr(Schema.Number),
+  /** The repository this terminal is in, or `null` — the key the repo tint is
+   *  hashed from, and the one word a pane header falls back to. */
   repo: Schema.NullOr(Schema.String),
-  branch: Schema.NullOr(Schema.String),
-  worktree: Schema.NullOr(Schema.String),
-  /** What the terminal was created FOR — kolu's own intent line. */
-  intent: Schema.NullOr(Schema.String),
-  /** Epoch millis of the last activity padi saw, or `null` for never. Epoch
-   *  rather than ISO because it is padi's own number and a reformat here would
-   *  be olai restating a fact it did not measure. */
-  lastActivityAt: Schema.NullOr(Schema.Number),
   owner: FleetOwner,
 })
 export type FleetTerminal = typeof FleetTerminal.Type

@@ -1701,14 +1701,11 @@ export {
  *  read a chip makes. See {@link ./kolu.ts}, which argues why these are olai's
  *  own shapes rather than padi's re-exported. */
 export {
-  DOT_FACES,
-  type DotFace,
   FleetOwner,
   FleetTerminal,
   KOLU_UNDIALED,
   KoluLink,
   KoluStatus,
-  LIVE_FACES,
   sameKolu,
   Snapshot,
   SnapshotRefused,
