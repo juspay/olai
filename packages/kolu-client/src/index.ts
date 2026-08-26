@@ -91,9 +91,10 @@ import {
   KOLU_UNDIALED,
   type KoluLink,
   type Snapshot,
+  type TerminalFrame,
   SnapshotRefused,
 } from "@olai/surface"
-import { Effect } from "effect"
+import { Effect, Stream } from "effect"
 
 /**
  * What this half is handed.
@@ -133,6 +134,10 @@ export interface KoluHalf {
     terminal: string,
     lines: number | undefined,
   ) => Effect.Effect<Snapshot, SnapshotRefused>
+  /** ONE OPEN PANE'S TERMINAL, live — the mirror's own attach, relayed. A
+   *  face with no link answers the way every other member here does: in
+   *  words, on a failing stream, rather than with a window on nothing. */
+  readonly attach: (terminal: string) => Stream.Stream<TerminalFrame>
   /** A vault revision landed — re-derive who claims which terminal.
    *
    *  It takes CLAIMS rather than nodes, which is this package's boundary in one
@@ -168,6 +173,11 @@ export const koluHalf = (deps: KoluDeps): KoluHalf => {
       connect: () => Effect.never,
       rows: () => NO_ROWS,
       screen: () => Effect.fail(NO_LINK),
+      // A WINDOW ON NOTHING IS A SENTENCE, not an empty stream: see the
+      // header on why `null` is a setting rather than a failure, and
+      // `./mirror.ts` on why a refusal here fails rather than ends.
+      attach: () =>
+        Stream.make({ kind: "refused", says: NO_LINK.says } as TerminalFrame),
       reclaim: () => {},
     }
   }
@@ -193,6 +203,7 @@ export const koluHalf = (deps: KoluDeps): KoluHalf => {
       }),
     rows: mirror.rows,
     screen: (terminal, lines) => mirror.screen(terminal, lines, now),
+    attach: mirror.attach,
     reclaim: mirror.reclaim,
   }
 }

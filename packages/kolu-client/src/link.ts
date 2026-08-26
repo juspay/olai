@@ -69,7 +69,7 @@ import {
   isContractSkewError,
 } from "@kolu/surface-daemon-supervisor"
 import { KOLU_UNDIALED, type KoluLink } from "@olai/surface"
-import { Cause, Duration, Effect, Schedule } from "effect"
+import { Cause, Duration, Effect, Schedule, type Stream } from "effect"
 
 import { rendezvousIn } from "./socket.ts"
 
@@ -88,6 +88,15 @@ const REDIAL = Duration.seconds(5)
  * will be. `@olai/server`'s runtime wires them to the cell and the collection;
  * a test wires them to arrays.
  */
+
+/** ONE FRAME AS PADI SENDS IT — the shape `terminalAttach` yields, named here
+ *  so the seam above can be typed without this module re-exporting padi's whole
+ *  contract. The projection into olai's own `TerminalFrame` is `./mirror.ts`'s,
+ *  at the same seam every other record is projected at. */
+export type PadiAttachFrame =
+  | { readonly kind: "delta"; readonly data: string }
+  | { readonly kind: "snapshot"; readonly data: string; readonly topLine: number }
+
 export interface Sink {
   /** The link's state moved. Called on every dial outcome, including one that
    *  found what the last found — the CELL's own `equals` is what makes a
@@ -142,6 +151,19 @@ export interface Sink {
    * class a terminal is in must not be woken by it.
    */
   readonly live: (ids: ReadonlyArray<string>) => void
+  /** THE ATTACH FACE, handed over and taken back on the same edges as
+   *  {@link Sink.reader} and for the same reason — a live pane's subscription
+   *  is only meaningful while there is a link under it.
+   *
+   *  Typed as padi's `terminalAttach` stream and nothing wider, so what leaves
+   *  this module is one member rather than a whole daemon client. The frames
+   *  are padi's own shape; the projection into olai's is `./mirror.ts`'s, at
+   *  the same seam the records are projected. */
+  readonly attacher: (
+    face:
+      | null
+      | ((input: { id: string }) => Stream.Stream<PadiAttachFrame, unknown>),
+  ) => void
   /** A dial ATTEMPT was made. Counted by the caller; see `./mirror.ts`'s
    *  header for why the count is worth a callback. */
   readonly dialed: () => void
@@ -256,6 +278,7 @@ const dialOnce = (
       since: now(),
     })
     sink.reader(connection.client.padi.surface.screen.text)
+    sink.attacher(connection.client.padi.surface.terminalAttach.get)
     sink.say(`olai: padi connected at ${socket}`)
 
     const abort = new AbortController()
@@ -323,6 +346,7 @@ const dialOnce = (
     // anything. Said before the link state moves, so a reader never sees
     // `absent` beside rows it would still draw dots for.
     sink.reader(null)
+    sink.attacher(null)
     sink.cleared()
     sink.link(absent(socket, told, now()))
   }).pipe(

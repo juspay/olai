@@ -363,3 +363,70 @@ export class SnapshotRefused extends Schema.TaggedError<SnapshotRefused>(
     return this.says
   }
 }
+
+// ── The live pane ─────────────────────────────────────────────────────────
+
+/**
+ * ONE FRAME OF A LIVE TERMINAL — what a pane that is ATTACHED receives.
+ *
+ * The snapshot pane took a photograph; this is the window. padi already serves
+ * the shape (`streams.terminalAttach`) and olai relays it: the FIRST frame of
+ * any attach is a `snapshot` — the serialized screen, escape sequences and all,
+ * plus the absolute mirror line it starts at — and every frame after it is a
+ * `delta`, the bytes the terminal emitted, verbatim and in order.
+ *
+ * A REFUSAL IS A FRAME, not a failed stream. The member has no error channel
+ * by construction — a surface stream either yields its output type or ends —
+ * and that is the right shape here rather than a limitation worked around: the
+ * three reasons a window cannot open (no padi, no such terminal, a value naming
+ * three of them) are things a reader ACTS on, so they are content, not
+ * transport. A stream that merely ENDED would say "this terminal closed", which
+ * is a fourth fact and not one of these.
+ *
+ * A DISCRIMINATED UNION rather than a string with an optional field, which is
+ * padi's own decision one hop up and is right for the same reason here: a
+ * consumer must not be able to write a snapshot's bytes into a terminal without
+ * having reset it first, and a shape where the two are the same arm is a shape
+ * where that mistake compiles. A re-attach after an overflow sends a fresh
+ * `snapshot`, so the arm is also the instruction: START AGAIN FROM HERE.
+ *
+ * ## Why olai declares it rather than re-exporting padi's
+ *
+ * `@olai/surface` never imports `@kolu/padi-client` — the wire spec would then
+ * carry the daemon's whole contract, which is the argument this file's header
+ * makes about the fleet. So these are olai's own three fields, and the mapping
+ * is one function in `@olai/kolu-client` with a type error waiting at each end.
+ * They are also the whole of what crosses: padi's frame carries a reflow epoch
+ * for a scrollback-backfill cursor olai does not have, and a field nothing
+ * draws does not cross (`fleet.ts`'s law).
+ */
+export const TerminalFrame = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal("refused"),
+    /** Why there is no window — the same sentences the snapshot pane refuses
+     *  with, because a pane that opened on a value naming three terminals wants
+     *  the same words whichever rung it is on. */
+    says: Schema.String,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("delta"),
+    /** The bytes, verbatim — written straight into the terminal. */
+    data: Schema.String,
+  }),
+  Schema.Struct({
+    kind: Schema.Literal("snapshot"),
+    /** The serialized screen. A reader RESETS before writing it. */
+    data: Schema.String,
+    /** The absolute mirror line the screen starts at. Carried because it is
+     *  what a scrollback read would be asked for, and because a snapshot
+     *  without it is a screen a reader cannot place. */
+    topLine: Schema.Number,
+  }),
+])
+export type TerminalFrame = typeof TerminalFrame.Type
+
+/** WHICH terminal a pane is attached to. Its own struct rather than a bare
+ *  string for the reason every input here is: a member's input is a place
+ *  fields get added, and a widened bare string is a breaking change. */
+export const TerminalAttach = Schema.Struct({ terminal: Schema.String })
+export type TerminalAttach = typeof TerminalAttach.Type

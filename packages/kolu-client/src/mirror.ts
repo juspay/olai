@@ -36,9 +36,9 @@
  */
 
 import { type TerminalMetadata, tileTerminalOf } from "@kolu/padi-client/surface"
-import type { FleetOwner, FleetTerminal, KoluLink, Snapshot } from "@olai/surface"
+import type { FleetOwner, FleetTerminal, KoluLink, Snapshot, TerminalFrame } from "@olai/surface"
 import { KOLU_UNDIALED, resolveTerminal, SnapshotRefused, UNOWNED } from "@olai/surface"
-import { Effect } from "effect"
+import { Effect, Stream } from "effect"
 
 import {
   EMPTY_FRAME,
@@ -50,7 +50,7 @@ import {
 } from "@kolu/padi-client/attention"
 
 import { type Claimant, claimsIn, rowOf } from "./fleet.ts"
-import { type Dial, runLink, type Sink } from "./link.ts"
+import { type Dial, type PadiAttachFrame, runLink, type Sink } from "./link.ts"
 import { screenText } from "./screen.ts"
 
 export interface MirrorSink {
@@ -89,6 +89,19 @@ export interface Mirror {
     lines: number | undefined,
     now: () => string,
   ) => Effect.Effect<Snapshot, SnapshotRefused>
+  /**
+   * ONE OPEN PANE'S TERMINAL, live — a stream that ends when the subscriber
+   * drops it, and never when padi is merely quiet.
+   *
+   * The frames are olai's ({@link TerminalFrame}), projected at this seam the
+   * way records are. A terminal this mirror cannot resolve produces a stream
+   * that FAILS with the same refusal `screen` gives, because a pane that
+   * opened on a value naming three terminals wants the same sentence whichever
+   * rung it is on.
+   */
+  readonly attach: (
+    terminal: string,
+  ) => Stream.Stream<TerminalFrame>
   /** How many times the dial has been run. The one-connection claim's witness
    *  — see the header. */
   readonly dials: () => number
@@ -118,6 +131,10 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
   let claimants: ReadonlyArray<Claimant> = []
   /** The live padi face, or `null` — what makes `screen` a read or a refusal. */
   let reader: Parameters<typeof screenText>[0] = null
+  /** The live-attach face, or `null` — what makes a pane a window or a
+   *  refusal. Pushed on the same edges the reader is, because a subscription
+   *  is only meaningful while there is a link under it. */
+  let attacher: Parameters<Sink["attacher"]>[0] = null
   let dials = 0
   /**
    * PADI'S ATTENTION PARTITION, as this mirror holds it — the two feeds joined
@@ -212,6 +229,9 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
   const linkSink: Sink = {
     link: sink.link,
     say: sink.say,
+    attacher: (face) => {
+      attacher = face
+    },
     reader: (face) => {
       reader = face
     },
@@ -278,6 +298,7 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       }
       records.clear()
       reader = null
+      attacher = null
       // THE PARTITION GOES WITH THEM, and it has to be said rather than left:
       // a frame is a fact about a padi, and the padi is gone. Keeping the last
       // one would mean the next connect painted its first rows from a partition
@@ -336,6 +357,45 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       }
       return screenText(reader, found.id, lines, now)
     },
+    /**
+     * THE LIVE ATTACH — the same three refusals as `screen`, then padi's own
+     * stream projected frame by frame.
+     *
+     * The refusals are a FAILING STREAM rather than an empty one, which is the
+     * distinction a pane draws on: a stream that ended is a terminal that
+     * closed, and a stream that failed is a sentence to put on screen. An empty
+     * one would be a window on a terminal that is simply quiet — the same
+     * confusion the hollow dot was retired for, one rung up.
+     */
+    attach: (terminal) => {
+      if (attacher === null) {
+        return refused("olai is not connected to a padi, so there is no terminal to watch.")
+      }
+      const found = resolveTerminal(terminal, records.keys())
+      if (found.kind === "many") {
+        return refused(
+          `this names ${found.count} terminals — write more of the id to say which one to watch.`,
+        )
+      }
+      if (found.kind === "none") {
+        return refused(
+          "padi has no terminal by that name — it has been closed, or the property names something else.",
+        )
+      }
+      // RESOLVED BEFORE IT REACHES PADI, for the reason `screen` is: the
+      // property holds a prefix and padi's input schema declares a uuid, so an
+      // unresolved value fails at ENCODE — a defect rather than a refusal.
+      return Stream.map(attacher({ id: found.id }), frameOf).pipe(
+        // A DROPPED LINK IS NOT A PANE'S FAULT AND NOT ITS PROBLEM TO NAME.
+        // padi's stream dies when the socket does; what a reader wants then is
+        // the sentence, not a stack. The link's own re-dial is what brings it
+        // back, and a re-attach begins with a fresh `snapshot` frame — which is
+        // why a recovering pane needs nothing of its own.
+        Stream.catchCause(() =>
+          refused("the link to padi dropped — this window stopped where it is.")
+        ),
+      )
+    },
     dials: () => dials,
   }
 }
@@ -345,3 +405,26 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
  *  rather than given a fourth arm. Re-exported so the server's seed and this
  *  package's own default are one value. */
 export const UNDIALED: KoluLink = KOLU_UNDIALED
+
+/**
+ * PADI'S FRAME → OLAI'S — the projection, and it is deliberately three fields.
+ *
+ * padi's snapshot arm also carries a reflow epoch for a scrollback-backfill
+ * cursor olai does not keep: this pane is a window on the live screen, not a
+ * scrollback reader, and a field nothing draws does not cross (`./fleet.ts`'s
+ * law, one member over).
+ */
+const frameOf = (frame: PadiAttachFrame): TerminalFrame =>
+  frame.kind === "snapshot"
+    ? { kind: "snapshot", data: frame.data, topLine: frame.topLine }
+    : { kind: "delta", data: frame.data }
+
+/** A window that cannot open, as ONE frame and then the end.
+ *
+ *  `Stream.make` rather than a failing stream, because the member has no error
+ *  channel and that is the right shape: these three sentences are things a
+ *  reader ACTS on, so they are content. The stream ends after it, which is
+ *  honest — there is nothing more coming — and a pane that has drawn a refusal
+ *  is not waiting for anything. */
+const refused = (says: string): Stream.Stream<TerminalFrame> =>
+  Stream.make({ kind: "refused", says } as TerminalFrame)

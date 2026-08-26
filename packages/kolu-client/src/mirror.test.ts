@@ -74,6 +74,11 @@ const liveFace = () => ({
          missing member here reads as a dead link rather than as a missing
          feed. Empty and never-ending is the honest "nothing is asking of you":
          `Stream.never` after the seed is what every member here does. */
+      /* The live-attach member. A fake that omitted it would be a padi whose
+         `terminalAttach` is `undefined` — and the dial reads that member off
+         the face on every connect, so the omission reads as a dead link rather
+         than as a pane nobody opened. */
+      terminalAttach: { get: () => Stream.never },
       urgency: {
         get: () =>
           Stream.concat(
@@ -120,6 +125,11 @@ const faceWith = (
          missing member here reads as a dead link rather than as a missing
          feed. Empty and never-ending is the honest "nothing is asking of you":
          `Stream.never` after the seed is what every member here does. */
+      /* The live-attach member. A fake that omitted it would be a padi whose
+         `terminalAttach` is `undefined` — and the dial reads that member off
+         the face on every connect, so the omission reads as a dead link rather
+         than as a pane nobody opened. */
+      terminalAttach: { get: () => Stream.never },
       urgency: {
         get: () =>
           Stream.concat(

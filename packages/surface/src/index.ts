@@ -218,6 +218,8 @@ import {
   Snapshot,
   SnapshotRefused,
   SnapshotRequest,
+  TerminalAttach,
+  TerminalFrame,
 } from "./kolu.ts"
 import { NarrowingAnswer, NarrowingRequest } from "./narrowing.ts"
 import { SearchAnswer, SearchRequest } from "./search.ts"
@@ -1006,6 +1008,29 @@ export const surface = defineSurface({
       outputSchema: Owed,
     },
     /**
+     * ONE OPEN PANE'S TERMINAL, live.
+     *
+     * A subscription per open pane and none at all otherwise: this is the one
+     * member on olai's whole surface whose cost is a person LOOKING at
+     * something. Twelve lanes on a page are twelve rows and zero attached
+     * terminals until somebody presses one.
+     *
+     * THE BROWSER NEVER DIALS PADI, and this member is the whole of why the
+     * rule survives a live pane. The server holds padi's `terminalAttach`
+     * subscription — one per open pane, on the same one connection the fleet
+     * rides — and relays its frames here. A browser that attached for itself
+     * would be a second dialer of a unix socket it has no business knowing
+     * about, and ten tabs would be ten attaches to one terminal.
+     *
+     * The first frame of every attach is a `snapshot` and the rest are
+     * `delta`s ({@link TerminalFrame}) — including after a re-attach, which is
+     * what makes a dropped link recoverable without the reader doing anything.
+     */
+    terminal: {
+      inputSchema: TerminalAttach,
+      outputSchema: TerminalFrame,
+    },
+    /**
      * WHAT ONE PAGE SHOWS — the member this whole design was for. See
      * {@link ./page.ts}, which argues the shape, the stream, and what
      * deliberately does not ride here.
@@ -1710,6 +1735,8 @@ export {
   Snapshot,
   SnapshotRefused,
   SnapshotRequest,
+  TerminalAttach,
+  TerminalFrame,
   TERMINAL_KEY,
   UNOWNED,
 } from "./kolu.ts"

@@ -1214,6 +1214,27 @@ export const bind = (
        * watching, and it is never silence.
        */
       streams: {
+        /**
+         * ONE OPEN PANE'S TERMINAL — the relay, and the wall's one load-bearing
+         * line.
+         *
+         * `source` rather than the `read` + `install` pair every member above
+         * uses, because those re-READ a value when a pulse says it moved and
+         * this is a PUSH of bytes that exist only in flight: a terminal's output
+         * has no current value to re-read, and a frame missed between two pulses
+         * is a hole in a screen.
+         *
+         * The subscription is the SERVER'S. `@olai/kolu-client` holds padi's
+         * `terminalAttach` on the one connection the fleet already rides, and
+         * what reaches a browser is this member's frames — so ten tabs watching
+         * one terminal are ten subscribers here and one attach there, and no
+         * browser has ever heard of a unix socket. That is the same arrangement
+         * the fleet has, and it is the whole reason a live pane does not cost
+         * the wall.
+         */
+        terminal: {
+          source: (input: { readonly terminal: string }) => kolu.attach(input.terminal),
+        },
         dated: {
           read: (input) => Effect.runPromise(wiring.ops.dated(input)),
           install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
