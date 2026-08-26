@@ -195,7 +195,11 @@ Then("the tab says nothing is waiting", async function (this: OlaiWorld) {
     POLL_TIMEOUT,
   );
   const mark = await tabMark(this);
-  assert.strictEqual(mark.title, "olai");
+  // The deployment's word for itself: `olai [box]`, the machine the server
+  // answers for (`the_app_is_named.feature` pins the crossing). Which box is
+  // not this step's business — that the mark came OFF and left the name
+  // standing is.
+  assert.match(mark.title, /^olai \[.+\]$/);
   assert.ok(!mark.dotted, "the tab's icon still carries a dot");
 });
 

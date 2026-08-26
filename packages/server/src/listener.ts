@@ -52,8 +52,9 @@ import { ASSET_PREFIX } from "@olai/surface"
 import { Effect, Layer, type Scope } from "effect"
 
 import { BROWSER_FACE } from "./faces.ts"
+import { hostname } from "./hostname.ts"
 import { CurrentWho, whoOf, whoRoute } from "./identity.ts"
-import { MANIFEST } from "./manifest.ts"
+import { manifestOf } from "./manifest.ts"
 import { mcpRoute } from "./mcp/route.ts"
 import { mediaLayer } from "./media.ts"
 import { report } from "./report.ts"
@@ -149,11 +150,18 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     // vault file under `assets/` is a page rather than a miss under the
     // immutable prefix. One constant, both processes.
     assetPrefix: ASSET_PREFIX,
-    // What is in the manifest is `./manifest.ts`; that it is served at
-    // `/manifest.webmanifest`, beside a `no-store` shell, immutable hashed
-    // assets, a 404 on an asset miss and the SPA fallback that makes
-    // `/<file>` a real URL, is the shell half of the call.
-    manifest: MANIFEST,
+    // What is in the manifest is `./manifest.ts`, and its NAME is assembled
+    // HERE, at the one place every other server-side fact is assembled: the
+    // machine this process runs on joins `name`/`short_name`, so an olai
+    // installed from each of two boxes is two apps a person can tell apart
+    // (`./hostname.ts`; the tab and the wordmark draw the same spelling off
+    // `app.get`). That it is served at `/manifest.webmanifest` — beside a
+    // `no-store` shell, immutable hashed assets, a 404 on an asset miss and
+    // the SPA fallback that makes `/<file>` a real URL — is the shell half
+    // of the call, and SERVED is what makes a per-machine name possible at
+    // all: a manifest that shipped in `clientDist` would be frozen at build
+    // time, before the machine existed as an answer.
+    manifest: manifestOf(hostname()),
     // WHICH `/sw.js` this origin serves, and the one thing about it worth
     // arguing: olai has always been "live or nothing", and the framework's
     // DEFAULT worker is the self-destructing one that keeps it that way by

@@ -7,6 +7,13 @@
  * asserted: the sequencing `listener.ts` used to spell out went upstream as
  * `serveSurfaceApp`, and the app's name and mark did not go with it.
  *
+ * The NAME is not a constant: it carries the machine this server runs on
+ * (`@olai/surface`'s `appName`), so two deployments on two boxes install as
+ * two names a person can tell apart. The manifest is already SERVED — it is
+ * the framework's own layer answering `/manifest.webmanifest` with whatever
+ * this file hands `listen` — so carrying a per-machine truth in it costs a
+ * function instead of the constant it used to be, and nothing more.
+ *
  * Only what is olai's is here. `start_url` and `display: standalone` are the
  * framework's install-friendly defaults (`pwaManifestLayer`), and so is a
  * `short_name` that is just the name; restating any of them would be two
@@ -37,9 +44,10 @@
  */
 
 import type { ManifestOptions } from "@kolu/surface-app/server"
+import { appName } from "@olai/surface"
 
-export const MANIFEST: ManifestOptions = {
-  name: "olai",
+export const manifestOf = (hostname: string): ManifestOptions => ({
+  name: appName(hostname),
   description: "Self-hosted outliner: your files, your agent, a live web view.",
   themeColor: "#D7F0E8",
   backgroundColor: "#D7F0E8",
@@ -58,4 +66,4 @@ export const MANIFEST: ManifestOptions = {
       purpose: "maskable",
     },
   ],
-}
+})

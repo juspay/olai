@@ -139,6 +139,7 @@ import {
   type Published,
   publishedOf,
 } from "./published.ts"
+import { hostname } from "./hostname.ts"
 import { CurrentWho } from "./identity.ts"
 import { readFailed } from "./report.ts"
 
@@ -1299,6 +1300,19 @@ export const bind = (
             CurrentWho.use((who) => Effect.succeed(who))) as unknown as () => Effect.Effect<
               Who | null
             >,
+        },
+        /**
+         * What this deployment is CALLED — the machine's name, answered once
+         * (`./hostname.ts` is the one receptacle the variable is read in).
+         *
+         * Unlike its `who` twin there is nothing per-connection about it and
+         * no service to require: the box's name is the same for everything
+         * that asks, and `OLAI_HOSTNAME`/`os.hostname()` are both process
+         * facts — read on demand, so a harness pinning the variable after
+         * this module loaded still pins the answer.
+         */
+        app: {
+          get: () => Effect.succeed({ hostname: hostname() }),
         },
       },
     }

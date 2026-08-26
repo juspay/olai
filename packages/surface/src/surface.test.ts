@@ -32,6 +32,9 @@ test("the surface claims our members alongside the framework's own", () => {
   // cell — and `GET /olai/who` stays for the doors that have no websocket.
   expect(tags).toContain("surface/system/identity")
   expect(tags).toContain("surface/who/get")
+  // ... and its twin one fact over: what this deployment is CALLED, crossing
+  // the same way (`app.ts`).
+  expect(tags).toContain("surface/app/get")
   expect(WHO_PATH).toBe("/olai/who")
   expect(ASSET_PREFIX).toBe("/_olai/assets/")
   // surface mints these itself for liveness and identity — seeing them is how

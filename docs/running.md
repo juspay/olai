@@ -46,6 +46,10 @@ What it does not cover:
 - **A second olai on ANOTHER MACHINE** over the same network share, which no advisory lock promises on both Linux and macOS.
 - **A directory inside a directory.** `olai web ~/notes` and `olai web ~/notes/projects` are two different directories, so both start — and over the outlines they share, they are two brains with everything above back in play. Serve one or the other, not both.
 
+### What it calls itself
+
+The page names itself after the machine it is running on: `olai [machine]` — in the tab's title, in the header's wordmark, and in an installed app's name (`/manifest.webmanifest`, which is why it is served and not a static file). Run olai on a laptop and a NUC and the two are visually distinct everywhere a person meets them. The name is the machine's `os.hostname()`; `OLAI_HOSTNAME` overrides it, which is what a test harness pins — not a knob most deployments will want.
+
 ### Behind a reverse proxy
 
 Put it behind a reverse proxy or `tailscale serve` and the browser's origin will not be the `Host` it forwards, so name the origins you are serving from in `OLAI_ALLOWED_ORIGINS` (comma-separated); the websocket refuses the rest.
