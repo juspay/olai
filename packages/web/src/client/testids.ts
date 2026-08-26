@@ -203,12 +203,6 @@ export const TESTID = {
    *  verbatim, or a nudge that rode back on a write that landed. */
   propSaid: "prop-said",
 
-  /** THE TERMINAL DOOR's dot — the `terminal` chip's live status glyph
-   *  (`client/props/TerminalDoor.tsx`). `data-face` is the closed set
-   *  `working` / `awaiting` / `parked` / `gone`, and `data-hollow` is whether
-   *  it is a ring rather than a disc — which is `gone` AND every state where
-   *  there is no padi to ask, the two told apart by the title rather than by
-   *  the shape. */
   /** WHETHER THIS OLAI CAN SEE KOLU'S TERMINALS — the third chrome readout,
    *  beside the connection and the Commit pill (`client/padi/`). `data-padi`
    *  is the closed set `connected` / `absent` / `skew`. Always drawn on
@@ -216,6 +210,12 @@ export const TESTID = {
    *  trusted when it is absent. */
   padi: "padi",
 
+  /** THE TERMINAL DOOR's dot — the `terminal` chip's live status glyph
+   *  (`client/props/TerminalDoor.tsx`). `data-face` is the closed set
+   *  `working` / `awaiting` / `parked` / `gone`, and `data-hollow` is whether
+   *  it is a ring rather than a disc — which is `gone` AND every state where
+   *  there is no padi to ask, the two told apart by the title rather than by
+   *  the shape. */
   terminalDot: "terminal-dot",
   /** The snapshot pane the dot opens — dashed border, the age line, the two
    *  buttons. Present only while open; one per chip. */
