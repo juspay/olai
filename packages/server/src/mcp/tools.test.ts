@@ -2652,16 +2652,32 @@ test("PIN (the rebase shape): a read whose set the disk has moved past says so",
 test("PIN (what `stale: false` is worth): a same-stamp rewrite reads confirmed", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client, root }) => {
     const file = path.join(root, "house.olai")
-    const stamp = fs.statSync(file)
-    // The same line, the same length — `cabinets` for `CABINETS` — and the
-    // clock put back afterwards. Nothing a stat can see about this file moved.
-    const rewritten = (fs.readFileSync(file, "utf8")).replace(
-      "order the cabinets",
-      "order the CABINETS",
-    )
-    expect(rewritten).not.toBe(fs.readFileSync(file, "utf8"))
-    fs.writeFileSync(file, rewritten)
-    fs.utimesSync(file, stamp.atime, stamp.mtime)
+    // One handle for the whole manipulation, stat through re-stamp: a path
+    // named four times, checked and then used, is a check-then-use race
+    // (CodeQL js/file-system-race, and it is right about the general case),
+    // while an open followed by handle operations can only ever be talking
+    // about one file. The fixture's claim is unchanged — the stamp is taken
+    // of the SAME inode that is then read, rewritten and re-stamped.
+    const fd = fs.openSync(file, "r+")
+    try {
+      const stamp = fs.fstatSync(fd)
+      // The same line, the same length — `cabinets` for `CABINETS` — and the
+      // clock put back afterwards. Nothing a stat can see about this file moved.
+      const original = fs.readFileSync(fd, "utf8")
+      const rewritten = original.replace(
+        "order the cabinets",
+        "order the CABINETS",
+      )
+      expect(rewritten).not.toBe(original)
+      // The write starts from offset 0 and does not truncate, so the
+      // same-length half of the fixture's point is now load-bearing for the
+      // overwrite, not just for the stat — say so with an assertion.
+      expect(rewritten.length).toBe(original.length)
+      fs.writeSync(fd, rewritten, 0, "utf8")
+      fs.futimesSync(fd, stamp.atime, stamp.mtime)
+    } finally {
+      fs.closeSync(fd)
+    }
 
     const answered = await call(client, "read_node", { id: "order" })
     expect(answered.isError).toBe(false)

@@ -745,6 +745,9 @@ export const INBOX_COUNT = selector(TESTID.inboxCount);
 export const DAY_NOTE = selector(TESTID.dayNote);
 /** Its heading — the way from the day to the document's own page. */
 export const DAY_NOTE_LINK = selector(TESTID.dayNoteLink);
+/** Shown when the address names no file the directory holds. The sidebar stays.
+ *  Distinct from {@link NOT_FOUND}, which is a `/#id` that names no node. */
+export const NOTHING = selector(TESTID.nothing);
 /** Shown in the main pane when `/#<id>` names no node. The sidebar stays. */
 export const NOT_FOUND = selector(TESTID.notFound);
 /** Shown INSTEAD of the sidebar and the tree when a set has never validated. */
