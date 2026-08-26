@@ -70,6 +70,26 @@ let
     { src = npins.kolu; dir = "packages/log"; name = "@kolu/log"; }
     { src = npins.kolu; dir = "packages/url-shape"; name = "@kolu/url-shape"; }
 
+    # ── The Dock row tier (juspay/kolu#2217) ────────────────────────────────
+    #
+    # @kolu/solid-dockrow is kolu's Dock terminal row, whole — the row olai
+    # DRAWS beside a `terminal` property, rather than a second row olai draws
+    # instead. It is the reason this tier exists: the fifth Löwy sitting ruled
+    # that olai's homegrown face vocabulary dies and kolu's row replaces it, so
+    # what you see beside a node is literally what you would see in the Dock.
+    #
+    # It arrives as JSX rather than as a built bundle, like everything else
+    # here, so olai's own Solid transform and olai's own Tailwind pass compile
+    # it — which is what makes the row olai draws and the row kolu draws the
+    # same source rather than two builds of it.
+    { src = npins.kolu; dir = "packages/solid-dockrow"; name = "@kolu/solid-dockrow"; }
+    # The pip inside the row — extracted first (the statepip precedent the row
+    # names), and the home of the pip trio's own vocabulary and guards.
+    { src = npins.kolu; dir = "packages/solid-statepip"; name = "@kolu/solid-statepip"; }
+    # The tokens both stylesheets resolve their colours against. A stylesheet
+    # and nothing else: no manifest dependencies, no source.
+    { src = npins.kolu; dir = "packages/theme"; name = "@kolu/theme"; }
+
     # ── The padi contract tier (juspay/kolu#2216) ───────────────────────────
     #
     # @kolu/padi-client is padi's contract WITHOUT padi: the `padiSurface`
