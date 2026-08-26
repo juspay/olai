@@ -93,7 +93,19 @@ Then(
     // header docks is how this scenario stuck on "Reading…" under load
     // (documents.feature:340, #375's first CI run).
     const said = this.page.locator(NOTHING);
-    await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    try {
+      await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    } catch {
+      // TimeoutError names the locator that never came. Re-read main so
+      // a hang logs the face that stayed (`stuck on "Reading…"`) in the
+      // step error itself, the way the assert below names pane text.
+      const stuck = oneLine(
+        await this.page.locator("main").innerText().catch(() => ""),
+      );
+      throw new Error(
+        `timed out waiting for the pane to say there is no document ${JSON.stringify(file)}: stuck on ${JSON.stringify(stuck)}`,
+      );
+    }
     const text = oneLine(await said.innerText());
     assert.ok(
       text.includes(file) && text.includes("No document"),
