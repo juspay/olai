@@ -192,7 +192,9 @@ const Was = <A extends Schema.Top>(text: A) =>
   Schema.optionalKey(
     text.annotate({
       description:
-        "What this field is expected to hold right now. Omit to overwrite whatever is there (typing); supply it to make the write conditional (undo).",
+        "What this field is expected to hold right now. Omit to overwrite whatever is there " +
+        "(last-one-wins, which is what a bare write means); supply to make the write conditional " +
+        "— undo rides this field, and the chip's every commit, on the value its box was opened on.",
     }),
   )
 

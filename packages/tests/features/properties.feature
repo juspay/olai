@@ -209,7 +209,7 @@ Feature: Properties on a node, from the web
     And the node "handles" says nothing about its properties
     And there should be no page errors
 
-  Scenario: A typed commit meets an agent's write mid-edit — refused, naming what it found
+  Scenario: A typed commit meets an agent's write mid-edit — refused, naming what it found — and even a reopen re-reads the premise
     # THE WIRE HALF of the shape one scenario up: the box holds a genuine
     # change this time, so the chip commits against the snapshot — `was` rides
     # the op, and the gate refuses rather than landing on top of a word the
@@ -250,9 +250,36 @@ Feature: Properties on a node, from the web
     # row and on the disk — and the run SAYS SO, in the ops layer's own
     # sentence naming what the key says now: not a silent clobber, and not
     # the spurious no-change note `chip-blur-double-commit-2` was filed for.
-    And the node "handles" refuses the property write with "it now says `audit`"
+    Then the node "handles" refuses the property write with "it now says `audit`"
     And the node "handles" shows the property "stage" holding "audit"
     And "house.olai" holds the node "handles" with "stage" set to "audit"
+    # THE TWO-WRITES HALF (both reviews' SHOULD on the reopen, one ask): the
+    # refusal above CLOSED the box; pressing the chip again mints the snapshot
+    # FRESH, of the first agent's value — `audit` — and THAT is the premise
+    # the second commit rides. A third hand then moves the key once more:
+    # refused again, and this time it is `audit` the sentence says was
+    # expected — not `review`, from an open-once capture — while the write
+    # holds the SECOND agent's word.
+    When I edit the property "stage" on "handles"
+    And the property editor on "handles" holds "audit"
+    And I type "the third opinion" into the property editor on "handles" without pressing Enter
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home","custom":{"airing":"2026-08-12"}}
+      {"id":"handles","parent":"kitchen","ord":"a0","title":"choose the handles","custom":{"stage":"declared"}}
+      """
+    Then the node "kitchen" shows the property "airing" holding "2026-08-12"
+    And the property editor on "handles" holds "the third opinion"
+    When I press "Enter"
+    Then the property editor on "handles" is closed
+    # BOTH halves of the sentence are the evidence here: expected `audit` (the
+    # reopened read, not the first-open's `review`), found `declared` (the
+    # agent's second word) — a one-write refusal cannot tell the expected
+    # half apart from either bug.
+    And the node "handles" refuses the property write with "expected to replace (`audit`)"
+    And the node "handles" refuses the property write with "it now says `declared`"
+    And the node "handles" shows the property "stage" holding "declared"
+    And "house.olai" holds the node "handles" with "stage" set to "declared"
     And the page has not reloaded
     And there should be no page errors
 

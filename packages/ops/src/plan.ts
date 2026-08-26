@@ -2305,6 +2305,15 @@ const typedProps = (
  * exactly the seam the payload passes — a condition that does not FIT what its
  * key declares is no write's payload, so it compares as given, and simply
  * never matches.
+ *
+ * ONE spelling the seam does NOT close, recorded rather than hunted (Opus,
+ * review 2 of 2): a zone-LESS clock face. `2026-08-22 10:06` is stored with
+ * the offset minted at the write, and its condition re-mints the default from
+ * the clock AT THE CHECK — across a DST transition, that undo compares
+ * against an offset two hours adrift and is refused by its own store. Narrow
+ * — an undo stack has to outlive the transition — and the arguing place is
+ * {@link storedValue}'s clock, not this comparison: the Value READ here is
+ * the gate's own spelling, which the checker may only witness, not defer.
  */
 const propStale = (
   scope: Scope,
@@ -2337,7 +2346,8 @@ const propStale = (
   // `null` expects the key GONE — which is what an add is: the key holding
   // ANYTHING, list or text, is a movement.
   if (was === null) {
-    return held === undefined ? null : says(`it now says \`${text}\``)
+    if (text === undefined) return null
+    return says(text)
   }
   if (text === undefined) return says("the key is gone")
   // Normalise through {@link storedValue}, the very seam the payload passes —

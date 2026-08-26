@@ -2209,8 +2209,10 @@ describe("prop", () => {
       value: "submitted",
       was: null,
     })
-    expect(failure.message).toContain("had no `stage`")
-    expect(failure.message).toContain("`review`")
+    expect(failure.message).toContain(
+      "had no `stage` when this write was readied, and it now says `review` — " +
+        "it has been written since, so nothing was written",
+    )
   })
 
   test("a condition on a key that is GONE refuses, saying that — never 'nothing would change'", () => {
@@ -2223,7 +2225,9 @@ describe("prop", () => {
       value: "submitted",
       was: "review",
     })
-    expect(failure.message).toContain("the key is gone")
+    expect(failure.message).toContain(
+      "expected to replace (`review`) — the key is gone, so nothing was written",
+    )
   })
 
   test("no condition at all is last-one-wins, unchanged — which is what typing means", () => {
@@ -2261,8 +2265,8 @@ describe("prop", () => {
       value: "next thursdayish",
       was: "2026-08-20",
     })
-    expect(failure.message).toContain("expected to replace (`2026-08-20`)")
-    expect(failure.message).toContain("it now says `2026-08-21`")
+    expect(failure.message)
+      .toContain("expected to replace (`2026-08-20`) — it now says `2026-08-21`")
   })
 
   test("a LIST's condition compares as the members joined — the wire's `was` has no other shape", () => {
@@ -2285,7 +2289,7 @@ describe("prop", () => {
       value: null,
       was: "pi",
     })
-    expect(failure.message).toContain("it now says `pi, grok`")
+    expect(failure.message).toContain("expected to replace (`pi`) — it now says `pi, grok`")
   })
 
   test("a typed key's condition compares as the value the gate STORES", () => {
@@ -5249,6 +5253,27 @@ describe("typed properties", () => {
     // ...and nothing landed: a batch is one plan, so the first op's write is
     // gone with the second one's refusal.
     expect(failure.message).toContain("`ops[1]` (`prop`) was refused, so nothing in this batch was written")
+  })
+
+  test("apply's `prop` is set_prop's whole arm — the `was` included, refused as itself", () => {
+    // grok's SHOULD and Opus's SHOULD, the one ask on the batch door: the
+    // CONDITION half of `prop` rides the batch too, and its failure is
+    // dressed the same as any other — `ops[1]` naming the CONDITION'S own
+    // sentence, not some typed miss. The FOLD rather than the original set
+    // is what this claim locks: op [0]'s write is what moved the later
+    // condition's answer, so a `was` judged against the pre-batch set is
+    // the bug this going red would mean.
+    const failure = refused(board(), {
+      op: "apply",
+      ops: [
+        { op: "prop", id: "lane", key: "stage", value: "audit" },
+        { op: "prop", id: "lane", key: "stage", value: "submitted", was: "review" },
+      ],
+    })
+    expect(failure.message).toContain("`ops[1]` (`prop`) was refused, so nothing in this batch was written")
+    expect(failure.message).toContain(
+      "is not the value this write expected to replace (`review`) — it now says `audit`",
+    )
   })
 
   // A copy is isomorphic to a subtree the validator has already approved, so it

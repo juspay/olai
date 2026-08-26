@@ -4152,7 +4152,7 @@ const SECTIONS = {
   "prop-was": async (page) => {
     pinnedBy(
       "properties.feature",
-      "A typed commit meets an agent's write mid-edit — refused, naming what it found",
+      "A typed commit meets an agent's write mid-edit — refused, naming what it found — and even a reopen re-reads the premise",
     )
 
     // THE VAULT, to the shape the feature's scenario reads from: `handles`

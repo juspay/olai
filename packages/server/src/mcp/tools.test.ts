@@ -1184,7 +1184,9 @@ test("set_prop with a stale `was` is refused, naming what is there", async () =>
     // first: refused, naming the value the key says NOW.
     const stale = await call(client, "set_prop", { id: "order", key: "stage", value: "audit", was: "review" })
     expect(stale.isError).toBe(true)
-    expect(String(stale.structured["reason"])).toContain("it now says `submitted`")
+    expect(String(stale.structured["reason"])).toContain(
+      "expected to replace (`review`) — it now says `submitted`, so nothing was written",
+    )
     expect(read("house.olai")).toContain(`"custom":{"stage":"submitted"}`)
 
     // Omitting the guard is unchanged: last-one-wins, which is what a plain
