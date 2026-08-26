@@ -35,7 +35,7 @@
  * instead of a slow leak.
  */
 
-import type { PadiTerminal } from "@kolu/padi-client/surface"
+import { type TerminalMetadata, tileTerminalOf } from "@kolu/padi-client/surface"
 import type { FleetOwner, FleetTerminal, KoluLink, Snapshot } from "@olai/surface"
 import { KOLU_UNDIALED, resolveTerminal, SnapshotRefused, UNOWNED } from "@olai/surface"
 import { Effect } from "effect"
@@ -105,7 +105,7 @@ export interface MirrorOptions {
 export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => {
   /** padi's records, raw, exactly as the mirror delivers them. Kept because a
    *  row is a join and the vault half moves on its own clock. */
-  const records = new Map<string, PadiTerminal>()
+  const records = new Map<string, TerminalMetadata>()
   /** The rows, as published. The collection reads this map directly. */
   const rows = new Map<string, FleetTerminal>()
   /** Who claims what — keyed by the RESOLVED full id, rebuilt whenever either
@@ -219,13 +219,33 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       dials += 1
     },
     upsert: (id, record) => {
+      // A PARKED RECORD IS NOT A ROW. padi's parked arm is a terminal that is
+      // GONE with its record persisted — "not a tile, a row on a restore card"
+      // in padi's own words — so it has no live arm, no `sleptAt`, and no
+      // answer from any fold the row draws. `tileTerminalOf` is padi's own
+      // narrowing of its own union (kolu#2217, this consumer's finding 1), and
+      // it is asked HERE rather than in `./fleet.ts` so that a row is a total
+      // function of a tile rather than a partial one over the whole union.
+      //
+      // Dropping it is the honest publish: the chip's reading already has the
+      // right sentence for a terminal the fleet does not hold — closed or
+      // retired — and a parked record is exactly that. Drawing a live row for
+      // one would be a lit dot beside a terminal nobody can attach to.
+      const tile = tileTerminalOf(record)
+      if (tile === undefined) {
+        if (!records.delete(id)) return
+        rows.delete(id)
+        sink.remove(id)
+        rejoin()
+        return
+      }
       // A NEW KEY changes what every prefix resolves to, so the overlay is
       // re-joined; an UPDATE to a record already held cannot, so it is not.
       // That distinction is the whole reason this is not simply `rejoin()` on
       // every frame: padi pushes a record whenever anything about a terminal
       // moves, and the id set moves when a terminal opens or closes.
       const born = !records.has(id)
-      records.set(id, record)
+      records.set(id, tile)
       if (born) rejoin()
       republish(id)
     },

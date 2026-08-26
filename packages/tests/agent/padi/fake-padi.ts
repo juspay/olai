@@ -54,6 +54,15 @@ import { Effect, Stream } from "effect"
 interface Fleet {
   readonly terminals: Record<string, unknown>
   readonly screens: Record<string, string>
+  /** padi's attention partition, verbatim — which terminals are asking,
+   *  working, lingering, finished. Absent means nothing is asking of anyone,
+   *  which is the ordinary fixture. */
+  readonly urgency?: {
+    readonly awaitingIds: ReadonlyArray<string>
+    readonly finishedIds: ReadonlyArray<string>
+    readonly workingIds: ReadonlyArray<string>
+    readonly lingerIds: ReadonlyArray<string>
+  }
   /** What this padi claims its surface version is. Absent means "the one this
    *  build speaks" — the ordinary case; a scenario about SKEW sets it. */
   readonly surfaceVersion?: string
@@ -160,10 +169,29 @@ const floor = <T,>(keys: Iterable<string>, one: (key: string) => T): Record<stri
  *  simply nothing happening. */
 const silent = () => Stream.never
 
+/** Nothing is asking of anyone — the partition a fixture that says nothing
+ *  about attention gets. The same four empty lists padi's own cell defaults to. */
+const EMPTY_URGENCY = {
+  awaitingIds: [],
+  finishedIds: [],
+  workingIds: [],
+  lingerIds: [],
+}
+
 const padi = implementSurface(padiSurfaceSibling, {
-  cells: floor(Object.keys(spec.cells ?? {}), (key) => ({
-    store: inMemoryStore(spec.cells?.[key]?.default),
-  })),
+  cells: {
+    ...floor(Object.keys(spec.cells ?? {}), (key) => ({
+      store: inMemoryStore(spec.cells?.[key]?.default),
+    })),
+    // THE ATTENTION PARTITION, from the fixture. padi computes this on the host
+    // and every kolu surface reads its ANSWER rather than re-deriving one from
+    // the records — which means a scenario about a terminal that is blocked on
+    // you cannot be written by giving a fixture record an `awaiting_user`
+    // agent. It has to be written here, where padi would have said so, and
+    // that is the fixture being a real far end rather than a mock: the wire
+    // carries exactly the two facts the row is painted from.
+    urgency: { store: inMemoryStore(fleet.urgency ?? EMPTY_URGENCY) },
+  },
   collections: {
     ...floor(Object.keys(spec.collections ?? {}), () => ({
       readAll: () => new Map(),

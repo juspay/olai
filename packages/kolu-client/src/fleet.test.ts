@@ -13,7 +13,7 @@
  */
 
 import { describe, expect, it } from "bun:test"
-import type { PadiTerminal } from "@kolu/padi-client/surface"
+import type { TerminalMetadata } from "@kolu/padi-client/surface"
 
 import { TERMINAL_KEY, UNOWNED } from "@olai/surface"
 
@@ -26,7 +26,7 @@ const claimant = (id: string, terminal: string | undefined): Claimant => ({
   terminal,
 })
 
-const record = (over: Record<string, unknown> = {}): PadiTerminal =>
+const record = (over: Record<string, unknown> = {}): TerminalMetadata =>
   ({
     state: "active",
     agent: { kind: "claude-code", state: "thinking" },
@@ -36,10 +36,13 @@ const record = (over: Record<string, unknown> = {}): PadiTerminal =>
       branch: "terminal-door",
       worktreePath: "/home/srid/code/olai/.worktrees/terminal-door",
     },
+    // A real record always carries the forge axis; `activePr` reads it without
+    // guarding, so a fixture that omits it is testing a record padi never sends.
+    pr: { kind: "absent" },
     intent: "the terminal door",
     lastActivityAt: 1_700_000_000_000,
     ...over,
-  }) as unknown as PadiTerminal
+  }) as unknown as TerminalMetadata
 
 describe("a fleet row", () => {
   it("carries what KOLU'S ROW asks for, folded by kolu's own functions", () => {

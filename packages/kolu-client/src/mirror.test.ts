@@ -68,6 +68,27 @@ const recorder = () => {
 const liveFace = () => ({
   padi: {
     surface: {
+      /* THE ATTENTION FEEDS, quiet. A fake that announced the collection and
+         not these would be a padi the mirror subscribes to and never hears
+         from — the mirror unwinds on the FIRST subscription failure, so a
+         missing member here reads as a dead link rather than as a missing
+         feed. Empty and never-ending is the honest "nothing is asking of you":
+         `Stream.never` after the seed is what every member here does. */
+      urgency: {
+        get: () =>
+          Stream.concat(
+            Stream.make({
+              awaitingIds: [],
+              finishedIds: [],
+              workingIds: [],
+              lingerIds: [],
+            }),
+            Stream.never,
+          ),
+      },
+      activity: {
+        get: () => Stream.concat(Stream.make([] as ReadonlyArray<string>), Stream.never),
+      },
       terminals: {
         keys: () => Stream.concat(Stream.make(NO_KEYS), Stream.never),
         get: () => Stream.never,
@@ -93,12 +114,36 @@ const faceWith = (
 ) => ({
   padi: {
     surface: {
+      /* THE ATTENTION FEEDS, quiet. A fake that announced the collection and
+         not these would be a padi the mirror subscribes to and never hears
+         from — the mirror unwinds on the FIRST subscription failure, so a
+         missing member here reads as a dead link rather than as a missing
+         feed. Empty and never-ending is the honest "nothing is asking of you":
+         `Stream.never` after the seed is what every member here does. */
+      urgency: {
+        get: () =>
+          Stream.concat(
+            Stream.make({
+              awaitingIds: [],
+              finishedIds: [],
+              workingIds: [],
+              lingerIds: [],
+            }),
+            Stream.never,
+          ),
+      },
+      activity: {
+        get: () => Stream.concat(Stream.make([] as ReadonlyArray<string>), Stream.never),
+      },
       terminals: {
         keys: () => Stream.concat(Stream.make(ids), Stream.never),
         get: (input: { key: string }) =>
           Stream.concat(
             Stream.make({
               state: "active",
+              // The forge axis a real record always carries — `activePr` reads it
+              // without guarding, so omitting it is a record padi never sends.
+              pr: { kind: "absent" },
               agent: null,
               cwd: `/tmp/${input.key}`,
               git: null,

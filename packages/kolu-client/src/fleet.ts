@@ -35,7 +35,7 @@
  */
 
 import type { TerminalAttention } from "@kolu/padi-client/attention"
-import { activePr } from "@kolu/padi-client/surface"
+import { activePr, type TerminalMetadata } from "@kolu/padi-client/surface"
 import {
   annotationLine,
   bindStatePip,
@@ -116,8 +116,7 @@ export const claimsIn = (
 
 /** padi's git half, narrowed — `null` on a terminal that is not in a
  *  repository, which is most shells. */
-const gitOf = (record: PadiTerminal) =>
-  record.state === "active" || record.state === "sleeping" ? record.git : null
+const gitOf = (record: TerminalMetadata) => record.git
 
 /**
  * One row — the JOIN of three clocks.
@@ -138,27 +137,35 @@ const gitOf = (record: PadiTerminal) =>
  * a hue is hashed from the key ALONE, never from the set on screen, which is
  * what makes one repo one colour across the Dock, a palette and this).
  *
- * ## `parked` is a word two unrelated facts share, and neither is padi's arm
+ * ## `parked` is a word two unrelated facts share, and this takes NEITHER
  *
- * `paintDockRow`'s third argument is NOT `record.state === "parked"`. It is the
- * ACTIVITY-WINDOW staleness overlay — kolu's dock hides a row whose last
- * activity has fallen outside the window the user is looking through, and a
- * *fresh* sleeping tile keeps its own face until it does. olai has no activity
- * window: an outline shows the terminal a node names whenever it exists, and
- * nothing here compresses a fleet by recency. So the argument is OMITTED, which
- * is the overload that narrows the answer to the buckets a caller without a
- * window can actually reach (`UnparkedPaintBucket`) — a type fence rather than
- * a promise, which is why omitting it is right rather than merely harmless.
+ * padi's PARKED RECORD — the terminal is gone and its record persisted — is
+ * not a tile at all, and it never reaches this function: `./mirror.ts` narrows
+ * it away with `tileTerminalOf` before publishing, so what arrives here always
+ * has a live arm. That is padi's own reading of its own union, not olai's
+ * guess at it (`@kolu/padi-client/surface`'s note: "it is not a tile, it is a
+ * row on a restore card").
+ *
+ * `paintDockRow`'s third argument is the OTHER fact with that name: the
+ * activity-window staleness verdict (`isStale(recencyAt)`) over a terminal
+ * that is perfectly alive. kolu's dock compresses rows that fell outside the
+ * window a person is looking through; olai has no such window — an outline
+ * shows the terminal a node names whenever it exists — so the argument is
+ * OMITTED, which is the overload narrowing the answer to the buckets a caller
+ * without a window can reach (`UnparkedPaintBucket`). A type fence rather than
+ * a promise, which is why omitting is right rather than merely harmless.
  */
 export const rowOf = (
   id: string,
-  record: PadiTerminal,
+  record: TerminalMetadata,
   owner: FleetOwner = UNOWNED,
   attention: TerminalAttention = { klass: "idle", live: false },
 ): FleetTerminal => {
   const git = gitOf(record)
   const branch = git?.branch ?? ""
-  const intent = record.state === "parked" ? undefined : record.intent
+  // A TILE RECORD HAS A LIVE ARM by construction (`tileTerminalOf` narrowed the
+  // parked one away before this was called), so the intent is simply read.
+  const intent = record.intent
   return {
     id,
     // THE PIP IS BOUND ONCE, HERE, and travels as the ten facts it produced.
