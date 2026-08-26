@@ -34,6 +34,14 @@
  * and the two are one mark to a person looking at a row of tabs. Owned
  * together, they cannot come apart; owned apart, "keep these two in step" is a
  * rule with nowhere to live.
+ *
+ * WHAT the tab is called is not this file's to invent: the shell ships
+ * `olai` (`index.html` — the one spelling a static file can know), and the
+ * server's own word for this deployment crosses on `app.get`
+ * (`../named.ts`), landing here through {@link nameChrome} as the name the
+ * mark is composed over. iOS's Add to Home Screen reads no manifest, so the
+ * same landing retitles its `apple-mobile-web-app-title`: that meta is the
+ * only spelling of the deployment's name an installed iPhone app ever gets.
  */
 
 import { markSvg } from "./mark.ts"
@@ -85,8 +93,31 @@ let waiting = false
  *  composed rather than at import, so a module that only wants a palette does
  *  not need a document. Nothing else in this client writes `document.title`
  *  (`../claims.test.ts` holds that), so reading it once is reading it from the
- *  one writer there is; the day there is a second, this is where they meet. */
+ *  one writer there is; the day there is a second, this is where they meet.
+ *
+ *  What the shell ships is the START of it: `named.ts` replaces it with the
+ *  deployment's own word (`olai [machine]`) when the server's answer lands,
+ *  through {@link nameChrome} — a mark already worn is re-composed over the
+ *  new name, never lost to it. */
 let name: string | undefined
+
+/** The HOME-SCREEN word for an installed iPhone app, tagged once. Same
+ *  find-or-make rule as the theme-colour tag: the shell ships it
+ *  (`index.html`), and the day it stops doing so an unnamed app is worse
+ *  than an unretitled one — but the tag's being here is no reason a second
+ *  module should ever look for it. */
+let appleTitle: Element | undefined
+
+const apple = (): Element => {
+  appleTitle ??=
+    document.querySelector('meta[name="apple-mobile-web-app-title"]') ??
+    document.head.appendChild(
+      Object.assign(document.createElement("meta"), {
+        name: "apple-mobile-web-app-title",
+      }),
+    )
+  return appleTitle
+}
 
 /** What a marked tab wears in front of its name. A mark and not a count: the
  *  number belongs on an app icon, which is a place that has one, and `●3 olai`
@@ -130,6 +161,20 @@ export const markWaiting = (mark: boolean): void => {
   waiting = mark
   paintTitle()
   if (shown !== undefined) paintIcon(shown)
+}
+
+/**
+ * Name the deployment: THE half of the tab's title that is the app's word
+ * for itself, and the iOS home-screen's word beside it. Called once, when
+ * `app.get` has answered (`../named.ts`) — the name does not move again for
+ * the life of the page, and the mark the tab may already be wearing is
+ * re-composed over it rather than rubbed out: a question that arrived before
+ * the name did is still waiting after it.
+ */
+export const nameChrome = (called: string): void => {
+  name = called
+  paintTitle()
+  apple().setAttribute("content", called)
 }
 
 /** The tab's name and whatever is on it, composed. One writer, so the mark

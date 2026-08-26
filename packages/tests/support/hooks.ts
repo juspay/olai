@@ -105,6 +105,16 @@ const FAKE_AGENT = path.resolve(
 );
 
 /**
+ * The machine NAME every spawned server believes its own (the server's
+ * `OLAI_HOSTNAME` pin, `@olai/server`'s `hostname.ts`): the deployment
+ * names itself after its box, and a tab's title asserting the harness's own
+ * word for the box is the one check that the name crossed rather than
+ * agreeing with whatever container the run happened in. Exported for
+ * `step_definitions/named_steps.ts`, which spells the expected word.
+ */
+export const BOX_NAME = "cucumber";
+
+/**
  * The directory holding a fake `kolu`, put FIRST on every spawned server's
  * PATH — so whether this host "is running kolu" is a property of the scenario
  * rather than of the laptop the run is on. A developer whose machine really is
@@ -622,6 +632,10 @@ const startServerChild = async (
         // The harness parses logfmt (`findLogfmt` for the serving line). A
         // developer's `OLAI_LOG=pretty` would make every boot hang on readiness.
         OLAI_LOG: "logfmt",
+        // Every harness server runs on the SAME pretend box, so the word the
+        // app names itself with is assertable against a constant (`BOX_NAME`)
+        // rather than against `os.hostname()` of wherever the run landed.
+        OLAI_HOSTNAME: BOX_NAME,
       }),
     });
     live.add(child);

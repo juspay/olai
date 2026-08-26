@@ -35,9 +35,12 @@
  * (`search/HeaderSearch.tsx` argues both halves).
  *
  * The wordmark and the burger never give way at all: they are the app's
- * identity and the way back to the directory. The theme pill, which NAMED the
- * theme in force, is gone from the bar entirely (`settings/`), and what it
- * promised is kept a gesture in, on the theme row's own hint.
+ * identity and the way back to the directory — and the wordmark is the
+ * DEPLOYMENT's word now, not the app's: `olai [machine]`, the same spelling
+ * the tab and the install manifest carry (`named.ts`), so two boxes anyone
+ * runs are two bars. The theme pill, which NAMED the theme in force, is gone
+ * from the bar entirely (`settings/`), and what it promised is kept a gesture
+ * in, on the theme row's own hint.
  *
  * The one screen without this bar is the fault card: `main.tsx`'s
  * `SurfaceFaultBoundary` sits above `App`, so a thrown render never reaches
@@ -97,6 +100,7 @@ import { Show } from "solid-js"
 import { Toggle as ChatToggle } from "./chat/Panel.tsx"
 import { Leaf } from "./Leaf.tsx"
 import { WORDMARK } from "./look.ts"
+import { calledApp } from "./named.ts"
 import { Commit } from "./commit/Commit.tsx"
 import { Indicator } from "./connection/Indicator.tsx"
 import { Padi } from "./padi/Padi.tsx"
@@ -160,7 +164,11 @@ export function AppHeader(props: {
         </Show>
         <h1 class={WORDMARK}>
           <Leaf class="size-4 text-accent md:size-5" />
-          olai
+          {/* The deployment's own word once the server has said it
+              (`named.ts`): `olai [machine]`, so a laptop's olai and a
+              NUC's are two bars a person can tell apart. The shell's word
+              while it has not — a first paint, not a wrong name. */}
+          {calledApp() ?? "olai"}
         </h1>
       </div>
 

@@ -30,7 +30,7 @@ import * as path from "node:path"
 import * as net from "node:net"
 
 import { BOOT_TIMEOUT, startWeb } from "./child.testlib.ts"
-import { MANIFEST } from "./manifest.ts"
+import { manifestOf } from "./manifest.ts"
 import { serve } from "./serve.ts"
 import { served, SERVER_LAYERS, withServing } from "./serve.testlib.ts"
 
@@ -39,6 +39,14 @@ import { served, SERVER_LAYERS, withServing } from "./serve.testlib.ts"
 // port. child.testlib already strips it from CLI children; this is the
 // twin. withPortFile below puts it back for the tests that are about it.
 delete process.env.OLAI_PORT_FILE
+// The machine's NAME, pinned: the install manifest's name is composed from
+// it at serve time (`./manifest.ts`), so the fetch below is checkable
+// against a string this file chose rather than against whatever box the
+// run happened on — the harness's own `OLAI_HOSTNAME` pin, one test that
+// says the name actually crossed.
+const PIN = "serve-test-box"
+process.env.OLAI_HOSTNAME = PIN
+const MANIFEST = manifestOf(PIN)
 // Twin of startWeb: this file's `run()` does not go through withServe,
 // so it has to say the off switch itself. A PATH `opencode` would otherwise
 // spawn on every in-process boot, which is not what a listen test is about.
@@ -341,7 +349,9 @@ test("the install manifest is served as itself, not as the shell", async () => {
       icons?: ReadonlyArray<ManifestIcon>
     }
     expect(body.name).toBe(MANIFEST.name)
-    expect(body.short_name).toBe(MANIFEST.name)
+    // Box-first, not a cut-apart copy of `name`: the cramped label's one
+    // job is to say which BOX the icon belongs to (`./manifest.ts`).
+    expect(body.short_name).toBe(PIN)
     expect(body.display).toBe("standalone")
     expect(new URL(body.start_url ?? "/", url).pathname).toBe("/")
     expect((body.icons ?? []).map((icon) => icon.src)).toEqual(

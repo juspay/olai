@@ -12,6 +12,7 @@ import { followFolders } from "./fold/folders.ts"
 import { followFolds } from "./fold/memory.ts"
 import { trackDesktop } from "./layout/media.ts"
 import { followLayout } from "./layout/prefs.ts"
+import { followName } from "./named.ts"
 import { followKeys } from "./quiescence.ts"
 import { followAlerts } from "./settings/alerts.ts"
 import { followDensity } from "./settings/density.ts"
@@ -58,6 +59,12 @@ followStoredSize()
 // deliberately does not). Here for the reason above it: one keyboard, one
 // document, and a listener that lives exactly as long as one.
 followKeys()
+
+// What this deployment is CALLED crosses on the socket and lands on the tab,
+// the wordmark and the install name — the one ask `named.ts` argues. Here for
+// the same reason as the keys above it: the name belongs to the document, and
+// it outlives every component.
+followName()
 
 // Layout preferences (sidebar open/width, chat open/width/snap), whether the
 // agent's questions are announced and whether that makes a sound, how much of a

@@ -324,6 +324,11 @@ test("the agent's face is what it can SEE plus the doors its tools land through"
   // agent arrives on HTTP `/mcp` and has no login header on that face.
   expect(Object.keys(BROWSER)).toContain("who.get")
   expect(Object.keys(AGENT)).not.toContain("who.get")
+  // ...and so is what this deployment is CALLED, one fact over: the box's
+  // name is what the tab, the wordmark and the manifest draw — a paint
+  // instruction, not a fact an agent would ever act on.
+  expect(Object.keys(BROWSER)).toContain("app.get")
+  expect(Object.keys(AGENT)).not.toContain("app.get")
   // And the human's session is the human's, on this face as on the MCP one.
   expect(Object.keys(AGENT)).not.toContain("chat")
   expect(Object.keys(AGENT)).not.toContain("transcript")

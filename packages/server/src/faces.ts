@@ -306,6 +306,12 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   "git.setPolicy": "tool",
   "git.resume": "tool",
   "who.get": "tool",
+  // `app.get` is on this face and no other for exactly `who.get`'s reason:
+  // what this deployment is CALLED is a paint instruction for a person — the
+  // tab's title, the header's wordmark, the install manifest's name. An
+  // agent acts on the vault, not on the chrome; a `hostname` tool would be
+  // `os.hostname()` with a wire attached, for nobody.
+  "app.get": "tool",
 }
 
 /**

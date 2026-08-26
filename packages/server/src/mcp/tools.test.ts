@@ -47,6 +47,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
+import { hostname } from "../hostname.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { frozenPolicy } from "../serve.testlib.ts"
 import { clientOver, serveFace } from "./face.ts"
@@ -158,6 +159,7 @@ const withTools = <A>(
       chat: null,
       ops,
       writer: "mcp",
+      hostname: hostname(),
       // NO PADI. Every runtime in this file is a reader — a bound face, an MCP
       // route — and none of them is about the terminal door; dialing whatever
       // daemon happens to be on the machine running the suite would make these

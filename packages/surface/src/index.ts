@@ -77,6 +77,14 @@
  * reading is `@olai/identity`'s `identityOf`; which headers the upgrade
  * named is the serve's.
  *
+ * Beside it is WHAT THIS DEPLOYMENT IS CALLED: one fact about the process
+ * rather than about a connection, `app.get` (`./app.ts`). The box's name
+ * cannot cross any other way — a browser cannot know its server's
+ * `os.hostname()`, and a static shell ships before the server exists — so it
+ * arrives the way every other server-side fact in this spec arrives, over
+ * this socket. The tab's title, the header's wordmark and the install
+ * manifest's `name` all draw the one spelling it answers with.
+ *
  * One more is GIT, and it is a cell with two verbs beside it rather than a
  * member: a `pending` cell — what is waiting to be committed, and what is
  * committed and not pushed, derived from git on the server and never stored —
@@ -210,6 +218,7 @@ import { editProcedures } from "./edit.ts"
 import { opsProcedures } from "./ops.ts"
 import { DatedAnswer, DatedRequest, Owed, OwedRequest } from "./dates.ts"
 import { MovingAnswer, MovingRequest, PageReading, PageRequest } from "./page.ts"
+import { App } from "./app.ts"
 import {
   FleetTerminal,
   KOLU_UNDIALED,
@@ -1551,6 +1560,22 @@ export const surface = defineSurface({
         error: SnapshotRefused,
       },
     },
+    /**
+     * WHAT THIS DEPLOYMENT IS CALLED — the machine the server runs on, so the
+     * app can name itself `olai [machine]` everywhere it names itself
+     * (`./app.ts` says why, and what draws it).
+     *
+     * THE SAME SHAPE as `who.get` — one ask, asked once: a process constant
+     * is nothing to subscribe to, so it is a procedure and not a cell. And
+     * THE BROWSER'S ALONE, also for `who.get`'s reason: an agent acts on the
+     * vault, not on the chrome; the box's name is a paint instruction the
+     * manifest, the wordmark and the tab draw.
+     */
+    app: {
+      get: {
+        output: App,
+      },
+    },
   },
 })
 
@@ -1631,6 +1656,10 @@ export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
 /** Who is looking — the HTTP door both ends still spell, and the JSON the
  *  `who.get` procedure carries. See {@link ./who.ts}. */
 export { WHO_PATH, Who } from "./who.ts"
+
+/** What this deployment is called — the fact `app.get` carries, and the one
+ *  spelling every face of the app names itself with. See {@link ./app.ts}. */
+export { App, appName } from "./app.ts"
 
 /** Where the hashed browser bundle lives, and what the bundler names a split
  *  chunk in it — see {@link ./bundle.ts}. One spelling, both halves of the

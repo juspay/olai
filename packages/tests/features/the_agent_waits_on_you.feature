@@ -73,8 +73,11 @@ Feature: The agent waits on you, and says so
     Then a notification says "is waiting on your answer"
     # The conversation, named. This one has no name — the agent titles a
     # session a turn or two in, and this is its first — so the banner falls
-    # back to the app's own name rather than an empty line.
-    And the notification is titled "olai"
+    # back to the app's own word rather than an empty line, and WHICH app
+    # the deployment is is named after the box it runs on: `olai [cucumber]`
+    # under this suite's pinned serve, matched by shape because a reuse-mode
+    # run's box is its own (the_app_is_named.feature asserts the formula).
+    And the notification is titled what the app calls itself
     # ... and the mark that STAYS. Not until the banner is dismissed: until
     # somebody looks.
     And the tab says something is waiting

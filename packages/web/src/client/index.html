@@ -13,6 +13,10 @@
       name="viewport"
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
+    <!-- olai is the one word a static shell can know. The deployment's own
+         word — `olai [machine]` — crosses on `app.get` and the client's
+         chrome replaces this with it (src/client/named.ts, theme/chrome.ts),
+         which is the same place the waiting mark is composed on. -->
     <title>olai</title>
     <meta name="description" content="outlines in flat-record JSONL" />
     <!-- INLINE-NESS IS LOAD-BEARING, and this is the only script in the shell.
@@ -104,6 +108,10 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- iOS's installed-app word: Add to Home Screen reads THIS, not the
+         manifest — and the same landing that retitles the tab above retitles
+         it (theme/chrome.ts), so an installed phone app carries the box's
+         name the manifest already gave a desktop one. -->
     <meta name="apple-mobile-web-app-title" content="olai" />
     <!-- THE MARKDOWN PIPELINE, FETCHED FROM HERE — and this line is a reversal
          of what stood in its place (the human, 2026-08-24, roadmap

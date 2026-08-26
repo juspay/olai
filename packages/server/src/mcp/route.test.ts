@@ -37,6 +37,7 @@ import * as path from "node:path"
 import { watchFault } from "../fault.ts"
 import { listen } from "../listener.ts"
 import { frozenPolicy, SERVER_LAYERS } from "../serve.testlib.ts"
+import { hostname } from "../hostname.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "./route.ts"
@@ -78,6 +79,7 @@ const withRoute = <A>(
       chat: null,
       ops,
       writer: "mcp",
+      hostname: hostname(),
       // NO PADI. Every runtime in this file is a reader — a bound face, an MCP
       // route — and none of them is about the terminal door; dialing whatever
       // daemon happens to be on the machine running the suite would make these
@@ -114,6 +116,7 @@ const withRoute = <A>(
       bound: wired.bound,
       clientDist: root,
       root,
+      hostname: hostname(),
       host: listenOn.host,
       port: 0,
       allowedOrigins: [],
