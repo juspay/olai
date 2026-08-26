@@ -209,6 +209,15 @@ import { editProcedures } from "./edit.ts"
 import { opsProcedures } from "./ops.ts"
 import { DatedAnswer, DatedRequest, Owed, OwedRequest } from "./dates.ts"
 import { MovingAnswer, MovingRequest, PageReading, PageRequest } from "./page.ts"
+import {
+  FleetTerminal,
+  KOLU_UNDIALED,
+  KoluLink,
+  sameKolu,
+  Snapshot,
+  SnapshotRefused,
+  SnapshotRequest,
+} from "./kolu.ts"
 import { NarrowingAnswer, NarrowingRequest } from "./narrowing.ts"
 import { SearchAnswer, SearchRequest } from "./search.ts"
 import { Who } from "./who.ts"
@@ -749,6 +758,28 @@ export const surface = defineSurface({
       verbs: ["get"],
       equals: sameInboxHeld,
     },
+
+    /**
+     * WHETHER THERE IS A PADI, and where olai looked — see { ./kolu.ts}.
+     *
+     * The first member of this surface whose subject is not the vault. It is
+     * here because the terminal door hangs off a PROPERTY (phase 1a of
+     * `docs/brainstorming/orchestrator.md`), so an ordinary outline draws a
+     * live dot and therefore has to be able to say when it cannot — and a
+     * chip that has gone hollow is answering with THIS cell rather than with
+     * an empty fleet, which is the one distinction that must not blur.
+     *
+     * Wire-read-only: what is serving a unix socket is not something a browser
+     * could set. `equals` is { ./kolu.ts}'s `sameKolu`, which is what keeps
+     * `since` meaning "has been like this since" — a re-dial that found the
+     * same padi publishes nothing.
+     */
+    kolu: {
+      schema: KoluLink,
+      default: KOLU_UNDIALED,
+      verbs: ["get"],
+      equals: sameKolu,
+    },
   },
   collections: {
     /**
@@ -876,6 +907,36 @@ export const surface = defineSurface({
       keySchema: Schema.String,
       schema: Saying,
       verbs: ["deltas"],
+    },
+
+    /**
+     * THE FLEET — every terminal padi is holding, with olai's ownership
+     * overlay on it ({ ./kolu.ts}'s `FleetTerminal`).
+     *
+     * MIRRORED, NOT POLLED, and that is the member's whole economy: one
+     * server-side `mirrorRemoteSurface` of padi's `terminals` feeds this,
+     * however many tabs are subscribed, and kolu pushes when a record moves.
+     * Ten tabs on a lanes outline are ten subscriptions to THIS collection and
+     * exactly one connection to padi (`/orchestrator`'s `link.ts`, and
+     * the count is a test rather than a promise).
+     *
+     * `deltas`, for `heads`' reason one subject over: an entry is a dozen
+     * short fields, the set is tens of rows on a busy machine, and what a
+     * drawing tab wants is every row at once — a chip looks its terminal up by
+     * id in a map it already holds, so a page of twelve chips opens ONE stream
+     * and not twelve. A per-key `get` would also be the wrong shape for the
+     * question, which is "what is the fleet" and not "watch this one".
+     *
+     * Read-only on the wire. A browser cannot create, kill or rename a
+     * terminal here — those are padi verbs, and the day olai calls them it
+     * will be the driver calling them, not a tab (the actions PR).
+     */
+    fleet: {
+      /** padi's terminal id, verbatim — the same string a `terminal` property
+       *  holds, which is what makes the chip a lookup and not a search. */
+      keySchema: Schema.String,
+      schema: FleetTerminal,
+      verbs: ["keys", "get", "deltas"],
     },
   },
   /**
@@ -1428,6 +1489,35 @@ export const surface = defineSurface({
         output: Schema.NullOr(Who),
       },
     },
+    /**
+     * ONE READ OF ONE TERMINAL'S SCREEN — rung 2 of the terminal door.
+     *
+     * A PROCEDURE and not a stream, and that is the design rather than a
+     * simplification: a click asks a question and gets an answer, the pane
+     * says "snapshot" on its face, and nothing anywhere is subscribed. Twelve
+     * lanes on a page are twelve dots riding one mirror and ZERO attached
+     * terminals. Making the pane live is phase 6 (`terminal-stream`), where it
+     * is a refcounted stream member with a different border and a different
+     * promise — a separate thing, deliberately, so this one can be cheap.
+     *
+     * It passes through to padi's `screen.text`. What olai adds is the
+     * ergonomic (`lines` counted back from the end rather than a window a
+     * caller would need the buffer length to compute) and the two refusals a
+     * reader is owed rather than a fault ({ ./kolu.ts}'s
+     * `SnapshotRefused`).
+     *
+     * THE BROWSER'S ALONE. An agent wanting a terminal's screen is an agent
+     * that can already reach kolu's own MCP face, and re-serving padi's verbs
+     * through olai would be a second door onto somebody else's daemon with
+     * olai's credentials on it.
+     */
+    screen: {
+      text: {
+        input: SnapshotRequest,
+        output: Snapshot,
+        error: SnapshotRefused,
+      },
+    },
   },
 })
 
@@ -1598,3 +1688,23 @@ export {
   isAttachable,
   MAX_ATTACHMENT_BYTES,
 } from "./attach.ts"
+
+/** THE KOLU HALF — the padi link, the fleet it mirrors, and the one snapshot
+ *  read a chip makes. See {@link ./kolu.ts}, which argues why these are olai's
+ *  own shapes rather than padi's re-exported. */
+export {
+  DOT_FACES,
+  type DotFace,
+  FleetOwner,
+  FleetTerminal,
+  KOLU_UNDIALED,
+  KoluLink,
+  KoluStatus,
+  LIVE_FACES,
+  sameKolu,
+  Snapshot,
+  SnapshotRefused,
+  SnapshotRequest,
+  TERMINAL_KEY,
+  UNOWNED,
+} from "./kolu.ts"

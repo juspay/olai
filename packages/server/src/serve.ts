@@ -191,6 +191,13 @@ export const serve = (options: ServeOptions) =>
       ops,
       writer: "web",
       git: gitWiring(ops, policy, settled),
+      // THE PADI LINK, and this is the one place a process reaches for the
+      // real environment and the real clock. `olai web` is the face the
+      // terminal door is drawn on, so it is the face that dials; the headless
+      // and one-shot faces below pass `null` and every chip there goes hollow,
+      // which is the true answer for a process that has no business holding a
+      // socket to somebody's daemon open.
+      kolu: { env: process.env, now: () => new Date().toISOString() },
     })
     publish = wired.publish
 

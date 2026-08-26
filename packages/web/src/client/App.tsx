@@ -64,6 +64,7 @@ import { SHEET, SHELL_LONE, SHELL_SPLIT } from "./layout/sheet.ts"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
 import { ServedProvider } from "./served.tsx"
+import { FleetProvider, readingScreen } from "./props/fleet.tsx"
 import { Preferences } from "./settings/Preferences.tsx"
 import { Sidebar } from "./Sidebar.tsx"
 import { TodayProvider } from "./today.tsx"
@@ -307,6 +308,20 @@ export default function App() {
       <AirProvider value={air}>
       <OpensProvider opens={(path, at) => opensAt(directory.paths(), path, at)}>
       <ServedProvider paths={directory.paths()} head={directory.head}>
+      {/* THE FLEET, subscribed ONCE for the tab — the terminal door's rung 1
+          (`./props/fleet.tsx`). It sits here, inside the served provider and
+          around the page, for the same reason that one does: its reader is a
+          LEAF DRAWN PER ROW (a property chip), and a subscription per chip is
+          what this arrangement exists to refuse. `read` is the snapshot verb,
+          bound to the surface procedure once and reached through the context
+          rather than threaded through five component signatures. */}
+      <FleetProvider
+        sources={{
+          link: olai.cells.kolu.use().value,
+          fold: olai.collections.fleet.use().fold,
+          read: readingScreen(olai.procedures.screen.text),
+        }}
+      >
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
           the TAB (`./clock.ts`), and the panel reads it too — the `@` list's
           node half is matched by the format's own grammar, whose relative words
@@ -429,6 +444,7 @@ export default function App() {
         </div>
       </div>
       </TodayProvider>
+      </FleetProvider>
       </ServedProvider>
       </OpensProvider>
       </AirProvider>

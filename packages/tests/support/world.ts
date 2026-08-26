@@ -36,6 +36,7 @@ import {
   type TestId,
 } from "@olai/web/testlib";
 import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
+import type { LivePadi } from "./padi.ts";
 import {
   setDefaultTimeout,
   setWorldConstructor,
@@ -1645,6 +1646,16 @@ export class OlaiWorld extends World {
    *  are handed kolu's terminals as well as olai's own tools. Carried for the
    *  same reason again: a restart has to reproduce the first boot. */
   hasKolu = false;
+  /** `@padi:<fleet>`: which fleet this scenario's own padi is serving, or
+   *  `undefined` for every scenario without one — whose server derives the
+   *  rendezvous path, finds nothing, and reports `absent`. Carried on the world
+   *  for `hasKolu`'s reason: a restart has to reproduce the first boot, and the
+   *  socket is passed at spawn. */
+  padiFleet: string | undefined = undefined;
+  /** The padi this scenario spawned, so the After hook can stop it. One per
+   *  scenario, never shared: a fleet is a world, and two scenarios sharing one
+   *  would be two scenarios sharing a fixture they can both see. */
+  padi: LivePadi | undefined = undefined;
   /** `@opencode`: this scenario's machine HAS opencode, so its server's roster
    *  is two agents and the panel asks which one a conversation is with. Every
    *  other scenario's agent search path is empty — see `hooks.ts`. */

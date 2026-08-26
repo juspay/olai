@@ -98,6 +98,14 @@
         "@olai/format": "workspace:*",
       },
     },
+    "packages/kolu-client": {
+      "name": "@olai/kolu-client",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/surface": "workspace:*",
+        "effect": "4.0.0-rc.110",
+      },
+    },
     "packages/log": {
       "name": "@olai/log",
       "version": "0.1.0",
@@ -129,6 +137,7 @@
         "@olai/chat": "workspace:*",
         "@olai/format": "workspace:*",
         "@olai/identity": "workspace:*",
+        "@olai/kolu-client": "workspace:*",
         "@olai/log": "workspace:*",
         "@olai/ops": "workspace:*",
         "@olai/state": "workspace:*",
@@ -403,6 +412,8 @@
     "@olai/identity": ["@olai/identity@workspace:packages/identity"],
 
     "@olai/index": ["@olai/index@workspace:packages/index"],
+
+    "@olai/kolu-client": ["@olai/kolu-client@workspace:packages/kolu-client"],
 
     "@olai/log": ["@olai/log@workspace:packages/log"],
 

@@ -864,3 +864,83 @@ mark.olai-hit {
 .olai-md .hljs-strong {
   font-weight: var(--olai-md-weight-major);
 }
+
+/**
+ * THE TERMINAL DOOR's dot — the `terminal` property chip's live status glyph
+ * (`client/props/TerminalDoor.tsx`).
+ *
+ * The three live faces borrow the OUTLINE'S OWN vocabulary rather than
+ * inventing a status palette: `--color-done` is the green a finished task
+ * wears, `--color-doing` the amber a half-box wears, `--color-muted` the ink
+ * every quiet thing is set in. That is not thrift — a lane board draws these
+ * dots beside those glyphs, and a second green would read as a second meaning.
+ *
+ * HOLLOW IS A RING, and it is the one shape with no colour of its own: no live
+ * state to report, whether because padi is unreachable or because the terminal
+ * is gone. Which of the two is in the WORDS (the chip's title), never in the
+ * paint — see `client/props/terminal.ts`, which argues that at length.
+ *
+ * The pulse is `awaiting` alone, because it is the one face that is a REQUEST.
+ * Under `prefers-reduced-motion` it holds still at full strength: the state is
+ * carried by the colour and the words, and the motion is an emphasis a reader
+ * may decline without losing the fact.
+ */
+.olai-dot {
+  border-radius: 9999px;
+  height: 0.5rem;
+  width: 0.5rem;
+  flex: none;
+  background-color: var(--color-muted);
+}
+
+.olai-dot[data-face="working"] {
+  background-color: var(--color-done);
+}
+
+.olai-dot[data-face="awaiting"] {
+  background-color: var(--color-doing);
+}
+
+.olai-dot[data-hollow="true"] {
+  background-color: transparent;
+  border: 1.5px solid var(--color-rule);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .olai-dot[data-face="awaiting"] {
+    animation: olai-dot-awaiting 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes olai-dot-awaiting {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/**
+ * The SNAPSHOT pane the dot opens.
+ *
+ * DASHED, and that is the whole promise in one border: this is a still frame,
+ * taken once, at the moment the age line names. Phase 6's live pane is a SOLID
+ * border with a `● live` tag beside it — two panes, two borders, and a reader
+ * never has to remember which is which.
+ */
+.olai-snapshot {
+  border: 1px dashed var(--color-rule);
+  border-radius: 0.375rem;
+  background-color: var(--color-panel);
+}
+
+.olai-snapshot pre {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  margin: 0;
+  max-height: 22rem;
+  overflow: auto;
+  white-space: pre;
+}

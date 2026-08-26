@@ -28,6 +28,10 @@ let
       ./bun.nix
       ./bunfig.toml
       ./tsconfig.base.json
+      # The one ambient declaration this repo owns, because tsconfig.base.json
+      # names it in `files` — a tree whose base config points at a file that is
+      # not there is a tree nobody can run `tsc` in.
+      ./types
       ./packages
       # The one script the build runs — not all of scripts/, so editing the
       # dependency checker does not rotate this derivation and rebuild.

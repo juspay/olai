@@ -19,6 +19,7 @@
     "@olai/chat": "workspace:*",
     "@olai/format": "workspace:*",
     "@olai/identity": "workspace:*",
+    "@olai/kolu-client": "workspace:*",
     "@olai/log": "workspace:*",
     "@olai/ops": "workspace:*",
     "@olai/state": "workspace:*",

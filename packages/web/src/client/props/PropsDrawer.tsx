@@ -148,6 +148,9 @@ import { createMemo, createSignal, Index, Show } from "solid-js"
 
 import type { Entry } from "./drawer.ts"
 import { type Door, doorFor } from "./door.ts"
+import { TERMINAL_KEY } from "@olai/surface"
+
+import { SnapshotPane, TerminalDot } from "./TerminalDoor.tsx"
 import { type Editing, openedOn, sending, writes } from "./editor.ts"
 import { Link } from "../router.tsx"
 import { useNames } from "../reading.tsx"
@@ -249,6 +252,15 @@ export function PropsDrawer(props: {
    *  report (`../saying.ts`). */
   const saying = createSaying()
 
+  /**
+   * WHICH TERMINAL'S SNAPSHOT IS OPEN under this run — one at a time, for the
+   * editor's reason: opening a second means you are done with the first.
+   *
+   * The RUN's state and not the chip's, because the pane is drawn beneath the
+   * whole line (`./TerminalDoor.tsx` argues why). `null` is closed.
+   */
+  const [paneOn, setPaneOn] = createSignal<string | null>(null)
+
   /** Shut whichever editor is open, from either door. */
   const close = (): void => {
     setEditing(undefined)
@@ -287,6 +299,9 @@ export function PropsDrawer(props: {
             <Chip
               entry={entry()}
               doorOf={doorOf}
+              paneOn={paneOn() ?? undefined}
+              onPane={(terminal) =>
+                setPaneOn((was) => (was === terminal ? null : terminal))}
               // A chip is open when the editor is open ON IT — asked by the
               // chip's own identity ({@link keyOf}) rather than by its bare
               // key, which is the collision that identity exists to prevent
@@ -328,6 +343,17 @@ export function PropsDrawer(props: {
           </button>
         </Show>
       </div>
+      {/* THE SNAPSHOT PANE, under the whole run rather than inside a chip —
+          `./TerminalDoor.tsx` argues why, and `../SaidLine.tsx` below is the
+          precedent: a thing that belongs to ONE chip but cannot be drawn
+          inside an inline box of short facts goes here. Keyed by the terminal,
+          so switching chips REMOUNTS it — which is what makes "one read per
+          open" a fact about the component's lifetime. */}
+      <Show when={paneOn()}>
+        {(terminal) => (
+          <SnapshotPane value={terminal()} onClose={() => setPaneOn(null)} />
+        )}
+      </Show>
       <Show when={saying.said()}>
         {(said) => (
           <SaidLine
@@ -352,6 +378,16 @@ const CHIP = "inline-flex min-w-0 max-w-full gap-1.5 border border-rule bg-panel
 function Chip(props: {
   readonly entry: Entry
   readonly doorOf: (value: string) => Door | null
+  /**
+   * WHICH terminal's pane is open in this RUN, and how to toggle it.
+   *
+   * The pane is the RUN's state rather than the chip's, because it is drawn
+   * under the whole line — see `./TerminalDoor.tsx`, which argues why a screen
+   * cannot live inside an inline box of short facts. Absent wherever there is
+   * no wire behind the run, and then the dot is a glyph and nothing more.
+   */
+  readonly paneOn?: string
+  readonly onPane?: (terminal: string) => void
   /** What this chip is being edited AS, or `undefined` when it is not. */
   readonly open?: Editing
   /** Open it. ABSENT wherever the run is read-only, and then no half of this
@@ -433,6 +469,27 @@ function Chip(props: {
       data-system={props.entry.system ? "true" : undefined}
     >
       <Handle label={props.entry.key} onOpen={opens()} />
+      {/* THE TERMINAL DOOR — the dot, before the value.
+          KEYED ON THE PROPERTY KEY and on nothing else, which is the roadmap's
+          own scoping of this phase: `terminal` is the door, and keying off a
+          DECLARED TYPE instead is a rename-sized migration for the day typed
+          properties land — deliberately not a dependency of this one.
+          A SINGLE value only. A `terminal` key holding a list names three
+          terminals and one dot cannot report on three; the chip stays the run
+          of text it always was, which is `./door.ts`'s wrong-door rule read one
+          module over. The system half is excluded for its usual reason: those
+          are fields with verbs of their own. */}
+      <Show
+        when={!props.entry.system
+          && props.entry.key === TERMINAL_KEY
+          && props.entry.values.length === 1}
+      >
+        <TerminalDot
+          value={props.entry.value}
+          open={props.paneOn === props.entry.value}
+          onToggle={() => props.onPane?.(props.entry.value)}
+        />
+      </Show>
       <Show
         when={props.open}
         fallback={

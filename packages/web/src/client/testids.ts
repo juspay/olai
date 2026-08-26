@@ -203,6 +203,23 @@ export const TESTID = {
    *  verbatim, or a nudge that rode back on a write that landed. */
   propSaid: "prop-said",
 
+  /** THE TERMINAL DOOR's dot — the `terminal` chip's live status glyph
+   *  (`client/props/TerminalDoor.tsx`). `data-face` is the closed set
+   *  `working` / `awaiting` / `parked` / `gone`, and `data-hollow` is whether
+   *  it is a ring rather than a disc — which is `gone` AND every state where
+   *  there is no padi to ask, the two told apart by the title rather than by
+   *  the shape. */
+  terminalDot: "terminal-dot",
+  /** The snapshot pane the dot opens — dashed border, the age line, the two
+   *  buttons. Present only while open; one per chip. */
+  terminalPane: "terminal-pane",
+  /** The screen text inside it, verbatim, or the refusal in its place.
+   *  `data-state` is `reading` / `text` / `refused`. */
+  terminalScreen: "terminal-screen",
+  /** Read it again — the pane's whole promise is that it is a SNAPSHOT, and
+   *  this is the only thing that moves it. */
+  terminalRefetch: "terminal-refetch",
+
   /** The rollup badge — `3/5` of the tasks under a node. An annotation beside
    *  the title, never the node's own mark, which is the glyph. */
   progress: "progress",

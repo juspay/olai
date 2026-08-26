@@ -148,6 +148,14 @@ export const isolateEnv = (
   for (const key of Object.keys(host)) {
     if (key.startsWith("OLAI_IDENTITY_")) delete host[key];
   }
+  // WHERE PADI IS goes the same way and for the same reason, one variable over:
+  // a developer running kolu would otherwise hand every spawned server their
+  // own live padi, and the scenario that says a laptop without kolu draws
+  // hollow chips would draw their actual terminals. Taken off the HOST here
+  // rather than deleted after `extras`, which is where it used to be — that
+  // spelling also deleted the socket a `@padi:` scenario had just spawned, so
+  // the tag could not work at all.
+  delete host.PADI_SOCKET;
   const env: NodeJS.ProcessEnv = {
     ...host,
     ...extras,
@@ -159,7 +167,6 @@ export const isolateEnv = (
     // `.lock` files accumulated there.
     XDG_RUNTIME_DIR: runtime,
   };
-  delete env.PADI_SOCKET;
   // A worktree's `just run` writes OLAI_PORT_FILE; a spawned e2e server
   // that inherited it would try to rebind that address, which is the
   // other worktree's (or this one's) just-run — the defect this suite

@@ -100,6 +100,9 @@ import type {
 import {
   type Applied,
   CHAT_OFF,
+  type FleetTerminal,
+  KOLU_UNDIALED,
+  type KoluLink,
   type ChatState,
   type Edit,
   GIT_OFF,
@@ -108,9 +111,10 @@ import {
   type Manifest,
   type OpFailure,
   surface,
+  SnapshotRefused,
   type Who,
 } from "@olai/surface"
-import { UsageFailure } from "@olai/format"
+import { customText, isRegular, type Located, UsageFailure } from "@olai/format"
 import { surfaceTag } from "@kolu/surface/define"
 import {
   emptyHandlers,
@@ -125,6 +129,9 @@ import {
 import { Duration, Effect, Result, type Scope, Stream, SubscriptionRef } from "effect"
 
 import { cadence } from "@olai/chat"
+import { type Dial, koluHalf, type KoluHalf, SEED } from "@olai/kolu-client"
+
+import { claimantsIn } from "./claimants.ts"
 
 import type { Cadence, Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
@@ -181,6 +188,28 @@ const apply = <T>(
 
 export interface Wiring {
   readonly store: Store
+  /**
+   * THE PADI LINK, or `null` for a runtime that is not to have one.
+   *
+   * A whole half of this interface for two fields, and both are here for the
+   * reason every other seam here is handed in rather than read: `env` is what
+   * `$PADI_SOCKET` is read out of, and `now` is the clock `since` is stamped
+   * from — a test that asserts either needs to own it, and a composition root
+   * is where a process reaches for the real one.
+   *
+   * `null` is the OFF setting and it is what `olai surface` and the headless
+   * faces take: a one-shot CLI read has no use for a standing socket to
+   * somebody's daemon, and dialing one would be a process that touched kolu on
+   * its way to printing a node. The cell stays at its seed, which is `absent`,
+   * and every chip goes hollow — which is the true answer for that process.
+   */
+  readonly kolu: {
+    readonly env: Record<string, string | undefined>
+    readonly now: () => string
+    /** The dial, injectable for `/orchestrator`'s reason: a fake padi in
+     *  a test, and a countable one for the one-connection claim. */
+    readonly dial?: Dial
+  } | null
   /** Absent when no ACP agent is configured: the cell stays `off` and the
    *  procedures answer that they are. A directory is readable whether or not
    *  an agent is installed. */
@@ -626,7 +655,32 @@ export const bind = (
      * once — the same arrangement `held` above keeps for the projection.
      */
     let shelfFile: Convention | undefined
+| undefined
     let inboxFile: Convention | undefined
+
+    /**
+     * THE KOLU HALF — the padi link, the fleet it keeps, and the one screen
+     * read, assembled in `./kolu/` (which is where every line that knows kolu
+     * exists lives).
+     *
+     * MADE EAGERLY, STARTED LAZILY. Making it is free and gives the collection
+     * and the procedure something to read before anything has dialed — so a
+     * page that loads while the link is still coming up draws an empty fleet
+     * and a hollow chip rather than crashing on a null. STARTING it is the
+     * `kolu` cell's connector, which the framework runs when the surface BINDS:
+     * the same place the git sweep is forked, for the same reason — a standing
+     * fact about this machine is the runtime's to keep, not the first
+     * subscriber's to pay for.
+     */
+    const kolu = koluHalf({
+      options: wiring.kolu,
+      fleet: () => published?.collections.fleet,
+      // Chatter, at debug: on a machine with no kolu this is a line every few
+      // seconds and it is not news. What IS news — a connect, a skew, a link
+      // that dropped — is the same channel, because the alternative is this
+      // module deciding which of padi's sentences matter.
+      say: (line) => say(Effect.logDebug(line)),
+    })
 
     const deps: ImplementSurfaceDeps<typeof surface.spec> = {
       cells: {
@@ -785,6 +839,25 @@ export const bind = (
                 }),
             ),
         },
+        /**
+         * WHETHER THERE IS A PADI — and the connector that makes it true.
+         *
+         * The cell's connector is where the standing link is FORKED, which is
+         * the whole of the one-connection claim: the framework runs a connector
+         * when the surface binds, so the dial happens once per process and a
+         * hundred tabs subscribing to `fleet` cost nothing but a map read each.
+         * It is the git sweep's arrangement (`pending`, above) applied to a
+         * socket instead of a repository — a standing fact about this machine,
+         * kept by the runtime, not paid for by the first reader.
+         *
+         * A runtime with no kolu half never forks anything and the cell stays
+         * at its seed, which is `absent` — the true answer for a headless face
+         * that has no business holding a socket open.
+         */
+        kolu: {
+          store: inMemoryStore<KoluLink>(SEED),
+          connect: kolu.connect,
+        },
         /** The whole directory binding, because one revision is one write of
          *  everything it moved: for each collection the entries that changed
          *  and the keys that went, and then the facts that belong to no file.
@@ -831,6 +904,18 @@ export const bind = (
                   // so a reader who subscribed before the file existed is
                   // handed the body the announce frame above could not carry.
                   bodies.unread(revision.unread)
+                  // WHO CLAIMS WHICH TERMINAL, re-derived on the same
+                  // statement. The overlay is a reading of the set — a node
+                  // carrying a `terminal` property — so a revision is exactly
+                  // when it can have moved, and deriving it anywhere else would
+                  // be a second answer to what the vault says.
+                  //
+                  // It walks every node and publishes almost nothing: the
+                  // mirror compares each row's owner before it upserts, so a
+                  // keystroke that landed in a note costs one walk and zero
+                  // frames. What it costs on the revision a `terminal` property
+                  // is actually written is one frame for that terminal's row.
+                  kolu.reclaim(claimantsIn(snapshot.value.derived.nodes))
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest
@@ -1009,6 +1094,28 @@ export const bind = (
          */
         saying: {
           readAll: () => new Map(saying.onWire()),
+          upsert: () => {},
+          remove: () => {},
+        },
+        /**
+         * THE FLEET, as the mirror keeps it.
+         *
+         * `readAll` is the mirror's own map rather than a copy of it — the two
+         * directory collections' arrangement, for their reason: a fresh
+         * subscription's snapshot and the deltas an open one is watching are
+         * two readings of one map, so a tab that arrives mid-stream cannot be
+         * seeded from a moment the deltas have already moved past.
+         *
+         * EMPTY when there is no mirror, and empty is not the same claim as
+         * `absent` — which is exactly why the cell above exists and why a chip
+         * reads that one for its hollow. A fleet of nothing is what a machine
+         * running kolu with no terminals open also has.
+         *
+         * Read-only on the wire: creating and killing terminals are padi verbs,
+         * and the day olai calls them it is the driver calling them, not a tab.
+         */
+        fleet: {
+          readAll: kolu.rows,
           upsert: () => {},
           remove: () => {},
         },
@@ -1279,6 +1386,21 @@ export const bind = (
          * REQUIREMENT and nothing else (kolu's own `Viewer` seam, same
          * shape).
          */
+        /**
+         * ONE READ OF ONE SCREEN — the snapshot pane's whole server half.
+         *
+         * Straight through to `@olai/kolu-client`, which owns the arithmetic
+         * (a count back from the end, not padi's absolute window) and both
+         * refusals. Nothing is decided here, and that is the point of the
+         * package: the day padi's screen verb changes shape, this line does
+         * not.
+         *
+         * The clock is the wiring's, like the link's `since`, so a test that
+         * asserts what "snapshot · just now" was rendered from owns it.
+         */
+        screen: {
+          text: ({ input }) => kolu.screen(input.terminal, input.lines),
+        },
         who: {
           get: (() =>
             CurrentWho.use((who) => Effect.succeed(who))) as unknown as () => Effect.Effect<
