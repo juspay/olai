@@ -274,6 +274,10 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   // an agent gets for asking.
   kolu: "resource",
   fleet: "resource",
+  // THE LIVE PANE, and the browser's alone: an agent reading a terminal has
+  // `screen.text` and its own kolu MCP besides, so a byte stream that only
+  // exists while somebody is LOOKING has no reader on that face.
+  terminal: "resource",
   "screen.text": "tool",
   "chat.send": "tool",
   "chat.attach": "tool",
