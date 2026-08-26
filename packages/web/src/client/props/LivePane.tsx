@@ -162,6 +162,14 @@ export function LivePane(props: {
       }, FIRST_FRAME_MS)
 
       const act = (next: ReturnType<typeof onFrame>["next"]): void => {
+        // A STOP IS TERMINAL FOR THE PANE, and this guard is what makes it so.
+        // Without it a refusal arrives, the pane says why — and then the same
+        // stream ENDS (a refusal is one frame and then the end), which rule 3
+        // reads as a recoverable end and re-attaches, six times, before landing
+        // on its own budget-spent sentence. The reader would watch a correct
+        // answer be replaced by a vaguer one. Found by the e2e, which asserted
+        // the words padi gave and got the budget's instead.
+        if (halted) return
         switch (next.kind) {
           case "write":
             if (next.reset) term?.reset()
@@ -171,6 +179,7 @@ export function LivePane(props: {
             setGeneration((was) => was + 1)
             return
           case "stop":
+            halted = true
             setSays(next.says)
             return
           case "idle":
@@ -219,6 +228,11 @@ export function LivePane(props: {
    *  subscription's — six attaches that each thought they were the first would
    *  be no budget at all. */
   let carried: Attaching | undefined
+  /** Has this pane stopped for good? A refusal is padi's answer to the
+   *  question, and asking it again gets the same one — so nothing re-opens a
+   *  stream after one, and the sentence a reader is looking at stays the
+   *  sentence padi gave. */
+  let halted = false
 
   return (
     <div
