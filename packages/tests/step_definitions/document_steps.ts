@@ -26,6 +26,7 @@ import {
   DOCUMENT_REFERRERS,
   DOCUMENT_REFERRERS_SUMMARY,
   HYDRATION_TIMEOUT,
+  NOTHING,
   oneLine,
   POLL_TIMEOUT,
   PROP,
@@ -86,15 +87,22 @@ Then(
 Then(
   "the main pane says there is no document {string}",
   async function (this: OlaiWorld, file: string) {
+    // THE ANSWER, not two frames of Reading…. settle waits for the docked
+    // header (the directory is in hand). The nothing sentence is the page
+    // stream's first frame, a round trip later. Sampling `main` the tick the
+    // header docks is how this scenario stuck on "Reading…" under load
+    // (documents.feature:340, #375's first CI run).
+    const said = this.page.locator(NOTHING);
+    await said.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const text = oneLine(await said.innerText());
+    assert.ok(
+      text.includes(file) && text.includes("No document"),
+      `the pane says ${JSON.stringify(text)}, which does not name the missing document`,
+    );
     assert.strictEqual(
       await this.page.locator(DOCUMENT_PAGE).count(),
       0,
       "a document page is on screen for a document the directory does not have",
-    );
-    const said = oneLine(await this.page.locator("main").innerText());
-    assert.ok(
-      said.includes(file) && said.includes("No document"),
-      `the pane says ${JSON.stringify(said)}, which does not name the missing document`,
     );
   },
 );
