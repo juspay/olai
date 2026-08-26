@@ -469,6 +469,21 @@ test("no condition is what a person typing sends, and it stays absent", () => {
   expect("was" in asked({ verb: "title", id: "order", title: "anything" })).toBe(false)
 })
 
+test("a property's condition travels too — `null` expecting the key GONE", () => {
+  // The chip's commit ALWAYS sends one: the value the editor opened on, and
+  // `null` for a key the run did not have — the add editor's snapshot is the
+  // absence. The wire spells all three states for the note's reason: not
+  // checking, checking for nothing, checking for this text.
+  expect(asked({ verb: "prop", id: "order", key: "pr", value: "https://x/2", was: "https://x/1" }))
+    .toEqual({ op: "prop", id: "order", key: "pr", value: "https://x/2", was: "https://x/1" })
+  expect(asked({ verb: "prop", id: "order", key: "stage", value: "review", was: null }))
+    .toEqual({ op: "prop", id: "order", key: "stage", value: "review", was: null })
+  // ...and the one shape a caller may still spell without it, absent whole.
+  expect(asked({ verb: "prop", id: "order", key: "pr", value: "anything" }))
+    .toEqual({ op: "prop", id: "order", key: "pr", value: "anything" })
+  expect("was" in asked({ verb: "prop", id: "order", key: "pr", value: "anything" })).toBe(false)
+})
+
 // ── the mark, named outright — the menu's and an undo's ────────────────
 
 test("a mark named outright is that mark's own op", () => {
@@ -971,11 +986,19 @@ test("a stopped recurrence is put back as the rule it stopped", () => {
   expect(inverse({ verb: "repeat", id: "echo", repeat: null })).toEqual([])
 })
 
-test("a property is put back as the value it held, and a new one by removing it", () => {
+test("a property is put back as the value it held, conditional on the write's own shape", () => {
+  // The wire half of the same guarantee `textOf` makes: the undo may only
+  // overwrite what THIS write wrote, so `was` is the write's own value —
+  // `null` when the write REMOVED the key, which is the one way "its
+  // afterwards" has no text at all.
   expect(inverse({ verb: "prop", id: "order", key: "pr", value: null }))
-    .toEqual([{ verb: "prop", id: "order", key: "pr", value: "https://x/1" }])
+    .toEqual([{ verb: "prop", id: "order", key: "pr", value: "https://x/1", was: null }])
   expect(inverse({ verb: "prop", id: "install", key: "stage", value: "review" }))
-    .toEqual([{ verb: "prop", id: "install", key: "stage", value: null }])
+    .toEqual([{ verb: "prop", id: "install", key: "stage", value: null, was: "review" }])
+  // `""` is the removal's own spelling — an emptied value box sends it — so
+  // its afterwards is an absent key, which `null` expects.
+  expect(inverse({ verb: "prop", id: "order", key: "pr", value: "" }))
+    .toEqual([{ verb: "prop", id: "order", key: "pr", value: "https://x/1", was: null }])
 })
 
 /**

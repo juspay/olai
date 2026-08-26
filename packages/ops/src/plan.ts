@@ -2289,6 +2289,75 @@ const typedProps = (
 }
 
 /**
+ * The CONDITION a prop write may carry — the text verbs' `was`, one map in.
+ *
+ * `undefined` is not conditional at all, and anything else must match what the
+ * record holds NOW — including `null`, which expects the key GONE: that is
+ * what an ADD is, the drawer's new-chip editor sends it, and the day a key
+ * appears under an open add box the write is refused rather than dropping the
+ * other writer's value nobody read.
+ *
+ * A DECLARED key's condition is compared as the VALUE the gate stores rather
+ * than as the spelling the caller sent, or the undo of a normalising write
+ * would be refused by its own words: `2026-8-22` is what somebody typed and
+ * `2026-08-22` is what the gate stamped, and the inverse the server mints
+ * RE-SENDS the write's own payload as its `was`. Through {@link storedValue},
+ * exactly the seam the payload passes — a condition that does not FIT what its
+ * key declares is no write's payload, so it compares as given, and simply
+ * never matches.
+ *
+ * ONE spelling the seam does NOT close, recorded rather than hunted (Opus,
+ * review 2 of 2): a zone-LESS clock face. `2026-08-22 10:06` is stored with
+ * the offset minted at the write, and its condition re-mints the default from
+ * the clock AT THE CHECK — across a DST transition, that undo compares
+ * against an offset two hours adrift and is refused by its own store. Narrow
+ * — an undo stack has to outlive the transition — and the arguing place is
+ * {@link storedValue}'s clock, not this comparison: the Value READ here is
+ * the gate's own spelling, which the checker may only witness, not defer.
+ */
+const propStale = (
+  scope: Scope,
+  located: LocatedRegular,
+  key: string,
+  was: string | null | undefined,
+): OpFailure | null => {
+  if (was === undefined) return null
+  const node = located.node
+  // The held half, as TEXT — a hand-written LIST is its members joined,
+  // because the wire has no third shape: the chip's box is seeded with the
+  // members joined (`@olai/web`'s `Chip`: "the box is seeded with the joined
+  // members"), and the wire's `was` cannot spell a list, so both the compare
+  // and the sentence ask for the spelling a reader was actually shown.
+  const held = node.custom?.[key]
+  const text = held === undefined
+    ? undefined
+    : typeof held === "string" ? held : held.join(", ")
+  /** The sentence, from the expectation and the find — the found value is
+   *  always named, because the caller's next move is to read again. */
+  const says = (found: string): OpFailure =>
+    new UsageFailure({
+      reason: was === null
+        ? `\`${node.title}\` had no \`${key}\` when this write was ` +
+          `readied, and it now says \`${found}\` — ` +
+          `it has been written since, so nothing was written`
+        : `\`${node.title}\`'s \`${key}\` is not the value this write expected to ` +
+          `replace (\`${was}\`) — ${found}, so nothing was written`,
+    })
+  // `null` expects the key GONE — which is what an add is: the key holding
+  // ANYTHING, list or text, is a movement.
+  if (was === null) {
+    if (text === undefined) return null
+    return says(text)
+  }
+  if (text === undefined) return says("the key is gone")
+  // Normalise through {@link storedValue}, the very seam the payload passes —
+  // and keep what it could not read as given, which simply never matches.
+  const said = storedValue(scope.typed, located.file, key, was, scope.context.now())
+  const expected = Result.isFailure(said) ? was : said.success
+  return expected === text ? null : says(`it now says \`${text}\``)
+}
+
+/**
  * One custom key, set or taken off — the only writer of `custom`, and the one
  * op in this file whose subject is a key rather than a field.
  *
@@ -2318,6 +2387,28 @@ const planProp = (
   const named = propKey(key)
   if (named !== undefined) return Result.fail(named)
 
+  // The NODE, once and up front — two readers below need it. The write's
+  // CONDITION asks which value the key holds now; the typed gate asks which
+  // FILE the property lands in, which is the one thing a `doc` value is
+  // relative to. The refusal for a miss is the one {@link planEdit} would
+  // give a moment later, reached through the same {@link regularAt}, so a bad
+  // id is not answered twice in two voices.
+  const located = regularAt(scope, request.id)
+  if (Result.isFailure(located)) return Result.fail(located.failure)
+
+  // THE CONDITION IS JUDGED FIRST, before the value is readied below — the
+  // order the text verbs' {@link planEdit} spells as `holds`-before-the-edit,
+  // spelled HERE rather than inside it because the typed gate stands between:
+  // a premise that has moved voids the write whole and the answer must say SO
+  // (read again), where a value that does not fit what its key declares is a
+  // fact about the payload either way. One gesture, one refusal — a
+  // doubly-wrong call is told the half that voids the other. Either position
+  // is inside the plan, which is the half that may not move: the write gate
+  // re-plans this planner on every retry, so the condition is re-tested
+  // against the snapshot that attempt is judged on.
+  const moved = propStale(scope, located.success, key, request.was)
+  if (moved !== null) return Result.fail(moved)
+
   // WHAT THE KEY DECLARES, if anything — the value normalised into the one
   // spelling this vault stores it in, or the refusal naming what it may hold,
   // through the one seam every prop-writing planner reaches
@@ -2326,16 +2417,8 @@ const planProp = (
   //
   // A REMOVAL IS NOT A VALUE and is not checked: `null` and `""` take the key
   // off, and there is nothing left for a declaration to be about.
-  //
-  // The NODE is resolved first for the one thing the seam needs and this
-  // request does not carry — the file the property lands in, which is what a
-  // `doc` value is relative to. The refusal for a miss is the one
-  // {@link planEdit} would give a moment later, reached through the same
-  // {@link regularAt}, so a bad id is not answered twice in two voices.
   let value: string | null = request.value
   if (value !== null && value !== "") {
-    const located = regularAt(scope, request.id)
-    if (Result.isFailure(located)) return Result.fail(located.failure)
     const said = typedProps(scope, located.success.file, { [key]: value })
     if (Result.isFailure(said)) return Result.fail(said.failure)
     value = said.success[key] ?? value

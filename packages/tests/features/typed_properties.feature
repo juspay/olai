@@ -75,6 +75,41 @@ Feature: A property key that declares its type
     # unit file's half.
     And there should be no page errors
 
+  Scenario: A moved key refuses before the typed gate's work is spent — one gesture, one refusal
+    # THE COMPOSITION of the two gates the chip's commit now passes. Two
+    # refusals are reachable from ONE commit here — the value does not fit
+    # what `merge` declares AND its `was` has gone stale — and one gesture
+    # gets ONE answer: the CONDITION is judged first, because a premise that
+    # moved voids the write whole, where a value that does not fit is a fact
+    # about the payload either way. The typed sentence never draws.
+    Given I open the outline "lanes.olai"
+    And I mark the page
+    When I edit the property "merge" on "chips"
+    And I type "AUTO: grok review folded + CI green" into the property editor on "chips" without pressing Enter
+    # ...and now somebody else moves the key mid-edit: the chip stays (the
+    # lane still has a `merge`), and the open box is not the frame's business.
+    # The marker on `far` is the ordering the Enter owes the gate: the one
+    # republish that answers it is the parse that moved `merge`.
+    When I rewrite "lanes.olai" as:
+      """
+      {"id":"lanes","ord":"a0","title":"the lanes"}
+      {"id":"backlinks","parent":"lanes","ord":"a0","title":"the doc-backlinks lane","custom":{"records":"189","agent":"grok","merge":"auto","dispatched":"2026-08-19T09:00:00-04:00"}}
+      {"id":"props","parent":"lanes","ord":"a1","title":"the typed-properties lane","custom":{"records":"193","agent":"claude","merge":"human","dispatched":"2026-08-25T10:06:00-04:00","brief":"briefs/tp.md","worktree":".worktrees/typed-properties"}}
+      {"id":"chips","parent":"lanes","ord":"a2","title":"the chip-editor lane","custom":{"records":"200","agent":"pi","merge":"human","dispatched":"2026-08-21"}}
+      {"id":"far","parent":"lanes","ord":"a3","title":"a lane from long ago","custom":{"records":"999"}}
+      """
+    Then the node "far" shows the property "records" holding "999"
+    When I press "Enter"
+    Then the property editor on "chips" is closed
+    # ONE answer, and it is the CONDITION's — the value's unfitness never
+    # spent the typed gate at all.
+    And the node "chips" refuses the property write with "it now says `human`"
+    # ...and nothing was written, either way: the row and the file say what
+    # the agent said.
+    And the node "chips" shows the property "merge" holding "human"
+    And "lanes.olai" holds the node "chips" with "merge" set to "human"
+    And there should be no page errors
+
   Scenario: A value that FITS lands, and lands as the one stored spelling
     # The other half of the same gate, and the half a refusal test alone would
     # let rot: `2026-8-30` is what somebody types and `2026-08-30` is what the

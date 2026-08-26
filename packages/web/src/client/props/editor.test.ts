@@ -8,21 +8,21 @@
 
 import { expect, test } from "bun:test"
 
-import { type ClosedBy, leavingCommits, openedOn, sending, writes } from "./editor.ts"
+import { type ClosedBy, type Editing, leavingCommits, openedOn, sending, writes } from "./editor.ts"
 
 const PR = { key: "pr", value: "https://x/1" }
 
 test("changing a value is a write, and the key comes from the property, not the box", () => {
   expect(writes(PR, "pr", "https://x/2")).toBe(true)
   expect(sending(PR, "anything at all", "https://x/2"))
-    .toEqual({ key: "pr", value: "https://x/2" })
+    .toEqual({ key: "pr", value: "https://x/2", was: "https://x/1" })
 })
 
 test("clearing the value is a write, and it is the REMOVAL — the op's own reading", () => {
   // `set_prop` with `""` takes the key off, exactly as `null` does
   // (`@olai/ops`' plan). The face offers what the tool offers.
   expect(writes(PR, "pr", "")).toBe(true)
-  expect(sending(PR, "pr", "")).toEqual({ key: "pr", value: "" })
+  expect(sending(PR, "pr", "")).toEqual({ key: "pr", value: "", was: "https://x/1" })
 })
 
 test("changing nothing writes nothing — a chip opened and left alone is silent", () => {
@@ -43,10 +43,20 @@ test("a new property needs a key and something to hold", () => {
 
 test("a new key is trimmed, because a key is a name and the space around one is nobody's", () => {
   expect(sending(null, "  agent  ", "claude-opus"))
-    .toEqual({ key: "agent", value: "claude-opus" })
+    .toEqual({ key: "agent", value: "claude-opus", was: null })
   // The VALUE is not trimmed: it is somebody's text, and a sentence that ends
   // in a space is still that sentence.
   expect(sending(null, "merge", "the human approves ").value).toBe("the human approves ")
+})
+
+test("the snapshot is the write's condition — the one the editor opened on, or none at all", () => {
+  // The wire's `was`: the wire value of the SNAPSHOT, not the box's key — an
+  // OPEN chip name-checks the value it was opened on…
+  expect(sending(PR, "pr", "https://x/2").was).toBe("https://x/1")
+  // …and an ADD names absence: `null`, not a value — the key should not be
+  // there when the value lands, or somebody else's write is underneath and
+  // the call refuses.
+  expect(sending(null, "pr", "https://x/2").was).toBeNull()
 })
 
 // ── one gesture, one outcome ──────────────────────────────────────────
@@ -67,10 +77,20 @@ test("a new key is trimmed, because a key is a name and the space around one is 
  */
 const editor = () => {
   const sent: Array<"enter's write" | "the blur's write"> = []
+  /** Which SNAPSHOT each send rode in on — the wire half's `was`: the shape
+   *  of the claim that a blur may decide WHETHER it sends but never WHAT
+   *  (grok's axis 2, quoted at the test below). */
+  const carried: Array<Editing | null> = []
   /** One OPEN's answer-record. */
   let answeredBy: ClosedBy = null
+  /** The SNAPSHOT `PropsDrawer.tsx`'s `Chip` reads once at the draw and never
+   *  calls back — `null` for a key being added. Minted by `open`, because the
+   *  world the editor was opened on IS one of the things a fresh open
+   *  re-decides. */
+  let snapshot: Editing | null = null
   return {
     sent,
+    carried,
     /**
      * OPEN the box — and REOPEN is the same verb. THE REMOUNT IS THE LAW,
      * named rather than inherited: in production the record is a `let`
@@ -87,14 +107,16 @@ const editor = () => {
      * its `editor is closed` step under a keep-alive editor is the claim;
      * this sequence is the reading of it.
      */
-    open: () => {
+    open: (on: Editing | null = null) => {
       answeredBy = null
+      snapshot = on
     },
     // Enter as the caller answers it: the wrapper records the close it is
     // about to own, and then the commit sends.
     enter: () => {
       answeredBy = "enter"
       sent.push("enter's write")
+      carried.push(snapshot)
     },
     escape: () => {
       answeredBy = "escape"
@@ -105,7 +127,10 @@ const editor = () => {
     // stand-down can be counted at all: what a send DRAWS (the write landing,
     // the gate's refusal) is the browser suite's half.
     blur: () => {
-      if (leavingCommits(answeredBy)) sent.push("the blur's write")
+      if (leavingCommits(answeredBy)) {
+        sent.push("the blur's write")
+        carried.push(snapshot)
+      }
     },
   }
 }
@@ -154,6 +179,37 @@ test("Escape abandons — and the blur its close fires writes nothing", () => {
   gestures.escape()
   gestures.blur()
   expect(gestures.sent).toEqual([])
+})
+
+test("the blur's commit rides in on the very snapshot Enter's would — one open, one answer", () => {
+  // grok's axis-2 handoff flag, pinned where it can go red: the stand-down
+  // law decides WHETHER the unmount-blur sends; it may never decide WHAT it
+  // sends. A `was` written by half of the law would be a commit conditional
+  // on the wrong snapshot — or on none, which is the resurrect-shaped silent
+  // write this whole lane exists to refuse.
+  const stage = { key: "stage", value: "review" }
+  const enterFirst = editor()
+  enterFirst.open(stage)
+  enterFirst.enter()
+  enterFirst.blur()
+  expect(enterFirst.sent).toEqual(["enter's write"])
+  expect(enterFirst.carried).toEqual([stage])
+
+  const blurFirst = editor()
+  blurFirst.open(stage)
+  blurFirst.blur()
+  expect(blurFirst.sent).toEqual(["the blur's write"])
+  expect(blurFirst.carried).toEqual([stage])
+
+  // ...and a REOPEN mints the next open's snapshot, exactly as it mints the
+  // next open's record — the remount is the law, twice.
+  const twice = editor()
+  twice.open(stage)
+  twice.enter()
+  twice.blur()
+  twice.open({ key: "stage", value: "addressing" })
+  twice.blur()
+  expect(twice.carried).toEqual([stage, { key: "stage", value: "addressing" }])
 })
 
 // ── which chip the editor is open on ───────────────────────────────────

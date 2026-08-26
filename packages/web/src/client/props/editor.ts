@@ -56,14 +56,27 @@ export interface Editing {
 
 /** What a commit would send — the key trimmed, because a key is a name and the
  *  space around one is nobody's. The value is NOT trimmed: it is somebody's
- *  text, and a sentence that ends in a space is still that sentence. */
+ *  text, and a sentence that ends in a space is still that sentence.
+ *
+ *  `was` is the CONDITION the write rides in on, and it is the snapshot, not
+ *  an argument: the value the key held when this editor opened, or `null`
+ *  for one being ADDED — "the key should not be there", which is the one
+ *  shape of expectation with no text. Both commit paths send the same one
+ *  (grok's handoff flag on #401: an unmount-blur inherits `closedBy ===
+ *  null`, and what it sends may not differ from what the Enter would have
+ *  sent — one open, one answer). */
 export const sending = (
   was: Editing | null,
   key: string,
   value: string,
-): { readonly key: string; readonly value: string } => ({
+): {
+  readonly key: string
+  readonly value: string
+  readonly was: string | null
+} => ({
   key: (was === null ? key : was.key).trim(),
   value,
+  was: was === null ? null : was.value,
 })
 
 /**
@@ -111,9 +124,14 @@ export const writes = (was: Editing | null, key: string, value: string): boolean
   // and the file keeps `B`, silently. That is the same shape as the clobber and
   // the opposite outcome, and it is the one to prefer — the quiet loss is a
   // write that did not happen, where the alternative is a write that undid
-  // somebody else's. Telling the two apart needs the op to carry a `was`, which
-  // no face has for `prop` (`@olai/surface`'s `edit.ts`); until it does, this
-  // side declines rather than guesses.
+  // somebody else's. THE OTHER HALF is the wire's now: the op carries the
+  // snapshot as its `was` (`@olai/surface`'s `edit.ts`, the
+  // prop-op-conditional-was lane), so a typed change refused by a moved key
+  // says so, in the ops layer's own words. What stays local is the shape the
+  // box cannot tell apart: typing the very text the box holds IS touching
+  // nothing, as far as a content comparison can know — and the alarm that
+  // comparison would rent against a person's open-and-look is the spurious
+  // note the whole shape exists to prevent.
   return value !== was.value
 }
 
@@ -169,17 +187,16 @@ export type ClosedBy = "enter" | "escape" | null
  *   - the ROUTE leaving, or anything that takes the whole drawer with it:
  *     the same commit fires, and its answer has nowhere to be drawn —
  *     `saying` is disposed with the run, so the answer lands on a line that
- *     is gone (the queued `was` lane's second half: its stale-`was` refusal
- *     is the EXPECTED answer on this path, and it will have no reader).
+ *     is gone. What that costs is the person who left the page; the refuse
+ *     lands in nobody's visual field and the file is the truth either way.
  *   - the NODE changing under an open editor: an agent's `set_prop` dropping
  *     the key disposes the chip, and the blur commits what was typed against
  *     the OPEN-TIME snapshot — typed nothing, silent; typed something, the
- *     removed key is born again holding it. Pinned as-is in @olai/tests'
- *     `properties.feature` ("a chip whose key disappears under an open,
- *     typed editor") because that is the law's CURRENT default, not a ruling:
- *     the gate that can refuse the resurrect is a `was` riding the op — only
- *     the op can say the record moved — and that is the queued lane's
- *     business and deliberately not this record's.
+ *     commit rides the snapshot as its `was` now and the gate REFUSES it:
+ *     the key stays gone (the resurrect the pre-`was` law used to write
+ *     back), and the refusal is the EXPECTED answer on the path — drawn
+ *     where the row can still show it, since `./PropsDrawer.tsx`'s said-line
+ *     outlives the run it answered under, which went with the key.
  *
  * Affirming `null` for the three is not saying they are right; it is saying
  * the BLUR cannot be the one to judge them — byte-identical to a leaving,
