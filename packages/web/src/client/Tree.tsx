@@ -805,9 +805,9 @@ function Branch(props: {
                   // node the row SHOWS: a placement carries no properties of
                   // its own, so one typed at a mirror lands on its target
                   // exactly as a mark does.
-                  onProp={(key, value) =>
+                  onProp={(key, value, was) =>
                     applying(
-                      { verb: "prop", id: shows().node.id, key, value },
+                      { verb: "prop", id: shows().node.id, key, value, was },
                       undo.record,
                     )}
                   addingProp={adding()}

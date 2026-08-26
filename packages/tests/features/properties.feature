@@ -256,20 +256,20 @@ Feature: Properties on a node, from the web
     And the page has not reloaded
     And there should be no page errors
 
-  Scenario: A chip whose key disappears under an open, typed editor is written back — the inherited default
-    # THE THIRD GESTURELESS CLOSE, driven (Opus, review 2 of 2; the law's doc
-    # in `client/props/editor.ts` names all three). The agent's `set_prop`
-    # DROPS the key while its editor is open and typed; the drawer's chip is
-    # disposed, and the blur at that disposal has no gesture and is
-    # byte-identical to a person's leaving — the record is `null`, so the
-    # typed value is committed against the open-time snapshot and the removed
-    # key is born again holding it.
+  Scenario: A chip whose key disappears under an open, typed editor is refused — the resurrect dies at the gate
+    # THE FLIP the `was` lane was queued for — both reviewers' handoff flags
+    # ride here. The agent's `set_prop` DROPS the key while its editor is open
+    # and typed; the drawer's chip is disposed, and the blur at that disposal
+    # has no gesture and is byte-identical to a person's leaving — the record
+    # is `null`, so the typed value is still committed (grok's axis 2: the
+    # blur carries the VERY snapshot the Enter would have). What changes is
+    # the op it is committed AT: the write is conditional now, the snapshot
+    # says `review`, and the gate finds the key GONE and refuses — nothing is
+    # born again.
     #
-    # Pinned as the law's CURRENT default, NOT as a ruling: the gate that
-    # should refuse the resurrect is a `was` riding the op (only the op can
-    # say the record moved — the queued lane), and its refusal on this path
-    # would be drawn nowhere, the drawer being gone. When that lane lands,
-    # the tail below flips to the key staying gone.
+    # ...and the refusal has a READER (Opus's NIT 2): it is the EXPECTED
+    # answer on this path, not an accident — so the line that draws it had to
+    # outlive the run, which went with the key.
     Given I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
@@ -286,9 +286,13 @@ Feature: Properties on a node, from the web
       """
     # No key, no click: the rewrite's own frame is what closes the editor.
     Then the property editor on "handles" is closed
-    And the node "handles" shows the property "stage" holding "submitted"
-    And "house.olai" holds the node "handles" with "stage" set to "submitted"
-    And the node "handles" says nothing about its properties
+    # THE FLIP HALF: the typed "submitted" rides nowhere — the key stays gone,
+    # on the row and on the disk.
+    And the node "handles" shows no property "stage"
+    And "house.olai" holds the node "handles" with no "stage"
+    # ...and the note half: drawn under the row the chip was on, the run being
+    # gone with the key.
+    And the node "handles" refuses the property write with "the key is gone"
     And there should be no page errors
 
   Scenario: A value that names something keeps its link however long it is

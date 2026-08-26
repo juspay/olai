@@ -201,10 +201,18 @@ export const requestFor = (at: Reading, edit: Edit): Resolved => {
     case "repeat":
       return Result.succeed({ op: "repeat", id: edit.id, repeat: edit.repeat })
     // A property resolves nothing either: the key is the caller's and the value
-    // is text. Which keys are refused is the ops layer's answer, said in its own
-    // words at the one gate both faces go through.
+    // is text; which keys are refused is the ops layer's answer, said in its own
+    // words at the one gate both faces go through. Its `was` travels for the
+    // same reason the text edits' does (their case, above): a condition tested
+    // HERE is a condition the write gate's retry does not test.
     case "prop":
-      return Result.succeed({ op: "prop", id: edit.id, key: edit.key, value: edit.value })
+      return Result.succeed({
+        op: "prop",
+        id: edit.id,
+        key: edit.key,
+        value: edit.value,
+        ...(edit.was === undefined ? {} : { was: edit.was }),
+      })
     // The two COMPOUND keys, and they resolve nothing for the same reason the
     // five above do: everything either of them needs to work out — where the
     // tail lands, which sibling is above, what the archive's scaffold is — the
@@ -945,11 +953,13 @@ export const inverseOf = (
     case "repeat":
       return repeatOf(at.derived, edit.id)
     // The VALUE this write is about to replace, under the key it names — the
-    // date arm one map in. A property set where there was none is put back by
-    // removing it, which is the `null` this hands back and what makes the
-    // drawer's `Remove` a thing a person can take back.
+    // date arm one map in, WITH the text pair's guard now that the verb has it:
+    // the undo may only overwrite what this write wrote, and the snapshot it
+    // restores travels as the value. A property set where there was none is
+    // put back by removing it, which is the `null` this hands back and what
+    // makes the drawer's `Remove` a thing a person can take back.
     case "prop":
-      return propOf(at.derived, edit.id, edit.key)
+      return propOf(at.derived, edit)
     // A split is taken back by MERGING the half it made back into the half it
     // came off — one edit, and the ops layer's own inverse rather than one
     // assembled here. `applied` is the new node, which is the only id in this
@@ -1312,12 +1322,11 @@ const repeatOf = (derived: Derived, id: string): ReadonlyArray<Edit> => {
  */
 const propOf = (
   derived: Derived,
-  id: string,
-  key: string,
+  edit: Extract<Edit, { verb: "prop" }>,
 ): ReadonlyArray<Edit> => {
-  const located = derived.byId.get(id)
+  const located = derived.byId.get(edit.id)
   if (located === undefined || isMirror(located.node)) return []
-  const held = customOfNode(located.node)[key]
+  const held = customOfNode(located.node)[edit.key]
   // A LIST, and there is NO inverse for one. `set_prop` writes text, so an undo
   // that spelled a list would have to flatten three values into one string with
   // commas in it — and the arm that used to be here did something quieter and
@@ -1330,7 +1339,25 @@ const propOf = (
   // than pretending to put something back. `docs/editing.md` says so, and the
   // menu can only reach this at all for a list somebody wrote by hand.
   if (held !== undefined && typeof held !== "string") return []
-  return [{ verb: "prop", id, key, value: held ?? null }]
+  return [{
+    verb: "prop",
+    id: edit.id,
+    key: edit.key,
+    value: held ?? null,
+    // The guard half the text verbs' inverses have had from the start, and
+    // the reason a person pressing ⌘Z is now conditional like their chips
+    // are: the undo may only overwrite what THIS write wrote, so `was` is the
+    // write's own value — `null` when the write REMOVED or EMPTIED the key,
+    // the one shape of afterwards that has no text.
+    //
+    // It is the value AS GIVEN rather than AS STORED, and the difference is
+    // the gate's to absorb: a declared key's write stamps one canonical
+    // spelling of what it was asked for (`2026-8-22` lands as `2026-08-22`),
+    // so the planner compares a declared key's `was` by the value it
+    // normalises to — or the undo of a normalising write would be refused by
+    // its own words (`@olai/ops`' `propStale`).
+    was: edit.value === null || edit.value === "" ? null : edit.value,
+  }]
 }
 
 /**

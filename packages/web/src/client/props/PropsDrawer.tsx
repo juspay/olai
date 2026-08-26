@@ -181,8 +181,15 @@ const SUMMARISED_AT = 40
 /** WHAT THE CHIP RUN CAN SEND: one property set to one value, at the gate every
  *  other write goes through — a `Said` back is a refusal or a nudge to draw,
  *  nothing back is the ordinary success. An empty value is the REMOVAL; the
- *  caller does not have to know that, because the op already does. */
-export type SetProp = (key: string, value: string) => Promise<Said | undefined>
+ *  caller does not have to know that, because the op already does.
+ *
+ *  `was` is the snapshot the editor opened on — the value the key held when
+ *  the person began, or `null` for one being ADDED, whose condition is the
+ *  key's absence. Every commit is conditional, which is the point of the
+ *  trip (prop-op-conditional-was): a typed commit can no longer land on top
+ *  of an agent's in-flight write with nothing on screen to say so — the op
+ *  refuses and its sentence is what the line below is for. */
+export type SetProp = (key: string, value: string, was: string | null) => Promise<Said | undefined>
 
 export function PropsDrawer(props: {
   /**
@@ -264,18 +271,19 @@ export function PropsDrawer(props: {
       return
     }
     const sent = sending(was, key, value)
-    saying.say(await props.onSet?.(sent.key, sent.value))
+    saying.say(await props.onSet?.(sent.key, sent.value, sent.was))
   }
 
   return (
-    <Show when={props.entries.length > 0 || naming()}>
-      {/* One line that wraps, not a grid. `items-baseline` because the keys are
-          set in the mono face and the values are not, and two faces centred
-          against each other sit on two baselines. */}
-      <div
-        class="mt-0.5 mb-1 flex flex-wrap items-baseline gap-1 text-[0.8125rem] leading-snug"
-        data-testid={TESTID.props}
-      >
+    <>
+      <Show when={props.entries.length > 0 || naming()}>
+        {/* One line that wraps, not a grid. `items-baseline` because the keys are
+            set in the mono face and the values are not, and two faces centred
+            against each other sit on two baselines. */}
+        <div
+          class="mt-0.5 mb-1 flex flex-wrap items-baseline gap-1 text-[0.8125rem] leading-snug"
+          data-testid={TESTID.props}
+        >
         {/* `<Key>`, not `<For>`, for the reason the tree uses it
             (`../Tree.tsx`): `customEntries` mints fresh entries from a node
             that is itself a fresh object per frame on a ROW, so drawn by
@@ -327,7 +335,16 @@ export function PropsDrawer(props: {
             +
           </button>
         </Show>
-      </div>
+        </div>
+      </Show>
+      {/* THE ANSWER OUTLIVES THE RUN. The line hangs off the drawer's own
+          component rather than beside the chips, because one answer needs
+          exactly that: a chip whose key was dropped under its open, typed
+          editor commits at the gate with its snapshot as `was`, and the
+          refusal is the EXPECTED outcome of that gesture (Opus's NIT 2 on
+          #401) — where it used to land, inside the run's own `<Show>`, it
+          was written into a line that had just gone with the key. The row
+          outlives both, and so does this. */}
       <Show when={saying.said()}>
         {(said) => (
           <SaidLine
@@ -337,7 +354,7 @@ export function PropsDrawer(props: {
           />
         )}
       </Show>
-    </Show>
+    </>
   )
 }
 
