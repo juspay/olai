@@ -4,10 +4,20 @@
  * `perf-validate-incremental`'s claim is an equivalence — the same verdict,
  * reached from what an edit touched — so this suite asserts nothing about what
  * either arm SAYS. It replays sequences of revisions through the real
- * `validate`, with the real shadow running inside it, and asserts an EMPTY
- * divergence list plus enough counting to say the run was not vacuous
- * ({@link ./incremental.testlib.ts} is the harness; `./validate.test.ts` is
- * where what a finding says is pinned).
+ * `validate` twice per revision — once with the reading it follows, which is
+ * the narrowed arm and the product's own answer since `perf-validate-flip`,
+ * and once with nothing to follow, which is the six whole-set rules by
+ * construction — and asserts an EMPTY divergence list plus enough counting to
+ * say the run was not vacuous ({@link ./incremental.testlib.ts} is the harness
+ * and argues that shape; `./validate.test.ts` is where what a finding says is
+ * pinned).
+ *
+ * IT IS THE SUITE THE FLIP RESTS ON, which is a change of weight and not of
+ * code: while the narrowing was a shadow a wrong answer here cost a log line,
+ * and now it is a write accepted or refused differently. What that bought is
+ * one arm fewer to be wrong — the comparison used to be against a validator
+ * only the shadow called, and it is now against the same exported function
+ * under its other argument.
  *
  * THREE CORPORA, and each is here because the ones before it cannot reach what
  * it holds:
@@ -41,7 +51,14 @@
 import { expect, test } from "bun:test"
 
 import { seeded } from "./fixtures.testlib.ts"
-import { edited, replay, type Report, type Revision, revisionsOf } from "./incremental.testlib.ts"
+import {
+  differing,
+  edited,
+  replay,
+  type Report,
+  type Revision,
+  revisionsOf,
+} from "./incremental.testlib.ts"
 import { vaultAt } from "./scope.testlib.ts"
 
 /** The gate, in one place: no divergence, and both arms of the thing under test
@@ -49,21 +66,21 @@ import { vaultAt } from "./scope.testlib.ts"
  *  by walking the corpus anyway, proves the equivalence of nothing. */
 const holds = (report: Report, floors: {
   readonly narrowed: number
-  readonly cold: number
+  readonly whole: number
   readonly accepted: number
-  /** Which KINDS of cold this corpus has to have reached, and how many of each
-   *  at least. A count of colds is a sum over four different things
-   *  ({@link ./shadow.ts}'s `Seen.why`), and a run that met the sum by booting
+  /** Which DOORS the whole-corpus arm was reached through, and how many times
+   *  each at least. A count of them is a sum over six different things
+   *  ({@link ./validate.ts}'s `Cold`), and a run that met the sum by booting
    *  sixty times would have exercised nothing. */
   readonly declined: Readonly<Record<string, number>>
 }): void => {
   expect(report.divergences).toEqual([])
   expect(report.narrowed).toBeGreaterThan(floors.narrowed)
-  expect(report.cold).toBeGreaterThan(floors.cold)
+  expect(report.whole).toBeGreaterThan(floors.whole)
   expect(report.accepted).toBeGreaterThan(floors.accepted)
   for (const [why, many] of Object.entries(floors.declined)) {
-    // Named rather than counted, so a failure says WHICH kind of cold the
-    // corpus stopped reaching rather than that a total moved.
+    // Named rather than counted, so a failure says WHICH door the corpus
+    // stopped reaching rather than that a total moved.
     expect({ why, reached: (report.declined[why] ?? 0) >= many })
       .toEqual({ why, reached: true })
   }
@@ -74,6 +91,95 @@ const holds = (report: Report, floors: {
   expect(report.walked).toBeLessThan(report.narrowed)
 }
 
+// ── the comparator ─────────────────────────────────────────────────────
+
+/**
+ * THE GATE CAN SEE A DIFFERENCE.
+ *
+ * Everything below this section is a differential, and a differential whose
+ * comparator is blind is a green suite that means nothing. The way to prove a
+ * comparator is not blind is to hand it differences rather than to write a
+ * validator that is wrong in exactly one way — which is why
+ * {@link ./incremental.testlib.ts}'s `differing` is a function of two lists of
+ * report lines and this is a table.
+ *
+ * These cases came over from the shadow's own suite unchanged, because the
+ * comparator did: what moved at the flip is who runs the other arm, not what
+ * counts as the two of them parting.
+ */
+
+const ACCEPTED = { full: true, incremental: true }
+const REFUSED = { full: false, incremental: false }
+
+test("the comparator says nothing about two reports that are the same report", () => {
+  expect(differing([], [], ACCEPTED)).toBeNull()
+  expect(differing(["a.olai:1 one", "b.olai:2 two"], ["a.olai:1 one", "b.olai:2 two"], REFUSED))
+    .toBeNull()
+})
+
+test("one arm accepting the set and the other refusing it is the worst kind", () => {
+  // The verdict, not the wording: this is a write landing or being turned away
+  // differently, which is what a person would feel.
+  expect(differing([], ["a.olai:1 one"], { full: true, incremental: false })).toEqual({
+    why: "verdict",
+    missing: [],
+    invented: ["a.olai:1 one"],
+  })
+})
+
+test("a finding one arm has and the other does not is named in the entry", () => {
+  expect(differing(["a.olai:1 one", "b.olai:2 two"], ["a.olai:1 one"], REFUSED)).toEqual({
+    why: "findings",
+    missing: ["b.olai:2 two"],
+    invented: [],
+  })
+  expect(differing(["a.olai:1 one"], ["a.olai:1 one", "b.olai:2 two"], REFUSED)).toEqual({
+    why: "findings",
+    missing: [],
+    invented: ["b.olai:2 two"],
+  })
+})
+
+test("a sentence said twice where the other arm said it once is a difference", () => {
+  // A plain set difference would call these two lists equal, and the shape it
+  // would hide is a rule asked about one record twice — which is exactly what a
+  // narrowing that failed to dedupe its candidates would produce.
+  expect(differing(["a.olai:1 one"], ["a.olai:1 one", "a.olai:1 one"], REFUSED)).toEqual({
+    why: "findings",
+    missing: [],
+    invented: ["a.olai:1 one"],
+  })
+})
+
+test("the same findings in a different order is a difference, and its own kind", () => {
+  // Real, and quieter than the two above: the report is what a reader reads
+  // down, and two loads of one directory promise each other the same order.
+  //
+  // WHAT THE ENTRY CARRIES IS WHERE: this case has nothing in `missing` or
+  // `invented` by definition, so the first index they part at — with the line
+  // each arm has there — is what a reader acts on, rather than both reports
+  // whole, which on a badly broken directory is an assertion message the size
+  // of the report.
+  expect(differing(["a.olai:1 one", "a.olai:1 two"], ["a.olai:1 two", "a.olai:1 one"], REFUSED))
+    .toEqual({
+      why: "order",
+      missing: [],
+      invented: [],
+      parted: { at: 0, full: "a.olai:1 one", incremental: "a.olai:1 two" },
+    })
+})
+
+test("...and it names the first place they part, not the whole of both reports", () => {
+  const full = ["a:1 x", "b:1 y", "c:1 z"]
+  const said = ["a:1 x", "c:1 z", "b:1 y"]
+  expect(differing(full, said, REFUSED)).toEqual({
+    why: "order",
+    missing: [],
+    invented: [],
+    parted: { at: 1, full: "b:1 y", incremental: "c:1 z" },
+  })
+})
+
 // ── the corners ────────────────────────────────────────────────────────
 
 /**
@@ -82,8 +188,9 @@ const holds = (report: Report, floors: {
  *
  * A patch is only taken when something is left standing to patch ONTO
  * ({@link ./patch.ts} declines when the delta names every file that holds a
- * record), so a two-file corner whose edit touches both files rebuilds, runs
- * cold, and asserts that the full validator agrees with itself. One record
+ * record), so a two-file corner whose edit touches both files rebuilds, walks
+ * the whole corpus on both arms, and asserts that the full validator agrees
+ * with itself. One record
  * nobody ever edits is what makes the corner a corner. {@link alone} is for the
  * two corners that are ABOUT the decline.
  */
@@ -510,14 +617,14 @@ test("the narrowed verdict is the full verdict, on the edits that would break a 
     const report = replay(steps)
     expect({ why, divergences: report.divergences }).toEqual({ why, divergences: [] })
     // Every corner is a SEQUENCE, and all but one of them is about an edit the
-    // narrowing has to ANSWER: a corner that only ever ran cold would be
-    // asserting that the full validator equals itself. The first revision of
-    // each always declines, having nothing to follow, so a corner that is about
-    // a decline asks for a SECOND one.
+    // narrowing has to ANSWER: a corner where the narrowing declined every time
+    // would be asserting that the full validator equals itself. The first
+    // revision of each always declines, having nothing to follow, so a corner
+    // that is about a decline asks for a SECOND one.
     expect({
       why,
       narrowed: report.narrowed > 0,
-      declined: report.cold > 1,
+      declined: report.whole > 1,
     }).toEqual({ why, narrowed: narrows, declined: declines })
   }
 })
@@ -534,11 +641,11 @@ test("the narrowed verdict is the full verdict, over generated edit sequences", 
     found.push(replay(revisionsOf(random, DEEP)))
   }
   const report = summed(found)
-  // 884 narrowed, 616 cold (128 first loads, 488 rebuilds), 678 accepted of
+  // 884 narrowed, 616 whole (128 first loads, 488 rebuilds), 678 accepted of
   // 1,500 revisions as this is written.
   holds(report, {
     narrowed: ROUNDS * 4,
-    cold: ROUNDS,
+    whole: ROUNDS,
     accepted: ROUNDS * 4,
     declined: { first: ROUNDS, rebuilt: ROUNDS * 3 },
   })
@@ -567,7 +674,7 @@ test("the narrowed verdict is the full verdict, over generated edit sequences", 
 const summed = (found: ReadonlyArray<Report>): Report => ({
   divergences: found.flatMap((one) => one.divergences),
   narrowed: found.reduce((held, one) => held + one.narrowed, 0),
-  cold: found.reduce((held, one) => held + one.cold, 0),
+  whole: found.reduce((held, one) => held + one.whole, 0),
   declined: found.reduce<Record<string, number>>((held, one) => {
     for (const [why, many] of Object.entries(one.declined)) {
       held[why] = (held[why] ?? 0) + many
@@ -587,8 +694,8 @@ test("the narrowed verdict is the full verdict, over this repository's own docs/
   const vault = vaultAt(new URL("../../../docs", import.meta.url).pathname)
   expect(vault.size).toBeGreaterThan(10)
   const report = replay(edited(vault, seeded(20260826), 120))
-  // 120 narrowed, 1 cold (the load, which has nothing to follow), 11 of them
+  // 120 narrowed, 1 whole (the load, which has nothing to follow), 11 of them
   // walking the corpus anyway — this vault is a directory that VALIDATES, so
   // nearly every revision here is one the narrowing was really asked about.
-  holds(report, { narrowed: 60, cold: 0, accepted: 60, declined: { first: 1 } })
+  holds(report, { narrowed: 60, whole: 0, accepted: 60, declined: { first: 1 } })
 })
