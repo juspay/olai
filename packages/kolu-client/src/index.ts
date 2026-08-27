@@ -95,7 +95,7 @@ import {
   type Snapshot,
   type TerminalFrame,
   SnapshotRefused,
-} from "@olai/surface"
+} from "./wire/index.ts"
 import { Effect, Stream } from "effect"
 
 /**

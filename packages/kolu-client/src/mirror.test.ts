@@ -22,7 +22,7 @@
 import { describe, expect, it } from "bun:test"
 import { Effect, Fiber, Schedule, Stream } from "effect"
 
-import type { FleetTerminal, KoluLink } from "@olai/surface"
+import type { FleetTerminal, KoluLink } from "./wire/index.ts"
 import { DaemonContractSkewError } from "@kolu/surface-daemon-supervisor/dial"
 
 import { type Dial, SPEAKS } from "./link.ts"

@@ -15,7 +15,7 @@
 import { describe, expect, it } from "bun:test"
 import type { TerminalMetadata } from "@kolu/padi-client/surface"
 
-import { TERMINAL_KEY, UNOWNED } from "@olai/surface"
+import { TERMINAL_KEY, UNOWNED } from "./wire/index.ts"
 
 import { type Claimant, claimsIn, rowOf } from "./fleet.ts"
 

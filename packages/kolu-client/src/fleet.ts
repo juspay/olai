@@ -51,7 +51,7 @@ import {
   resolveTerminal,
   TERMINAL_KEY,
   UNOWNED,
-} from "@olai/surface"
+} from "./wire/index.ts"
 
 
 /**

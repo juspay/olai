@@ -105,7 +105,6 @@
       "name": "@olai/kolu-client",
       "version": "0.1.0",
       "dependencies": {
-        "@olai/surface": "workspace:*",
         "effect": "4.0.0-rc.112",
       },
     },
@@ -189,6 +188,7 @@
       "dependencies": {
         "@olai/acp": "workspace:*",
         "@olai/format": "workspace:*",
+        "@olai/kolu-client": "workspace:*",
         "effect": "4.0.0-rc.112",
       },
     },

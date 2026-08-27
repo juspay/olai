@@ -72,7 +72,7 @@ import {
   type DaemonContractSkewError,
   isContractSkewError,
 } from "@kolu/surface-daemon-supervisor/dial"
-import { KOLU_UNDIALED, type KoluLink } from "@olai/surface"
+import { KOLU_UNDIALED, type KoluLink } from "./wire/index.ts"
 import { Cause, Duration, Effect, Schedule, type Stream } from "effect"
 
 import { rendezvousIn } from "./socket.ts"

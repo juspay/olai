@@ -38,8 +38,8 @@
 import { isSnapshotFrame, snapshotGrid } from "@kolu/padi-client/attach"
 import { type TerminalMetadata, tileTerminalOf } from "@kolu/padi-client/surface"
 import { gridsEqual, type TerminalGrid } from "@kolu/terminal-vocab/schema"
-import type { FleetOwner, FleetTerminal, KoluLink, Snapshot, TerminalFrame } from "@olai/surface"
-import { KOLU_UNDIALED, resolveTerminal, SnapshotRefused, UNOWNED } from "@olai/surface"
+import type { FleetOwner, FleetTerminal, KoluLink, Snapshot, TerminalFrame } from "./wire/index.ts"
+import { KOLU_UNDIALED, resolveTerminal, SnapshotRefused, UNOWNED } from "./wire/index.ts"
 import { Effect, Queue, Stream } from "effect"
 
 import {

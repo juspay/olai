@@ -60,7 +60,7 @@
  * again.
  */
 
-import { type Snapshot, SnapshotRefused } from "@olai/surface"
+import { type Snapshot, SnapshotRefused } from "./wire/index.ts"
 import { tailLines } from "@kolu/padi-client/screenTail"
 
 /** Re-exported so this package's own tests pin kolu's fold rather than a
