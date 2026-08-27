@@ -36,9 +36,10 @@
  */
 
 import { type TerminalMetadata, tileTerminalOf } from "@kolu/padi-client/surface"
+import type { TerminalGrid } from "@kolu/terminal-vocab/schema"
 import type { FleetOwner, FleetTerminal, KoluLink, Snapshot, TerminalFrame } from "@olai/surface"
 import { KOLU_UNDIALED, resolveTerminal, SnapshotRefused, UNOWNED } from "@olai/surface"
-import { Effect, Stream } from "effect"
+import { Effect, Queue, Stream } from "effect"
 
 import {
   EMPTY_FRAME,
@@ -136,6 +137,53 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
    *  refusal. Pushed on the same edges the reader is, because a subscription
    *  is only meaningful while there is a link under it. */
   let attacher: Parameters<Sink["attacher"]>[0] = null
+  /**
+   * WHO IS WATCHING A TERMINAL'S GRID — the foreign-resize channel, and the
+   * whole of finding 8's answer on this side.
+   *
+   * Attaching is a WRITE on a shared pty and the policy is last-attach-wins, so
+   * a second viewer's terminal is reflowed under it with no event in the byte
+   * stream: a snapshot rides the initial attach and an overflow re-attach,
+   * never a foreign resize, so the loser goes on receiving deltas laid out for
+   * a grid no frame ever named. Its screen garbles and nothing tells it to
+   * re-attach.
+   *
+   * kolu's amendment puts the pty's CURRENT grid on the terminals RECORD rather
+   * than on a frame, "because that is the channel a mirror already watches" —
+   * this one. So the collection's own reactivity is the detector: a record
+   * arrives with a different grid, and every open attach on that terminal is
+   * re-opened.
+   */
+  const watchers = new Map<string, Set<() => void>>()
+
+  const watchGrid = (id: string, onMoved: () => void): (() => void) => {
+    const set = watchers.get(id) ?? new Set()
+    set.add(onMoved)
+    watchers.set(id, set)
+    return () => {
+      set.delete(onMoved)
+      if (set.size === 0) watchers.delete(id)
+    }
+  }
+  /** The pty's grid as the RECORD carries it — `optionalKey` on the snapshot
+   *  half (kolu 5.6), so a padi predating it simply omits the key and every
+   *  reader here behaves as it did before the field existed. Read through the
+   *  arms rather than off the union, because an optional key is absent from the
+   *  union's own shape. */
+  const gridOf = (record: TerminalMetadata): TerminalGrid | undefined =>
+    "grid" in record ? record.grid : undefined
+
+  /** Did the pty's grid MOVE? Absent on either side is a padi too old to say,
+   *  and that is not a change — a consumer that never sees one behaves exactly
+   *  as it did before the field existed. */
+  const gridMoved = (
+    before: TerminalGrid | undefined,
+    after: TerminalGrid | undefined,
+  ): boolean =>
+    before !== undefined && after !== undefined
+    && (before.cols !== after.cols || before.rows !== after.rows)
+
+
   let dials = 0
   /**
    * PADI'S ATTENTION PARTITION, as this mirror holds it — the two feeds joined
@@ -266,9 +314,18 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       // every frame: padi pushes a record whenever anything about a terminal
       // moves, and the id set moves when a terminal opens or closes.
       const born = !records.has(id)
+      const before = records.get(id)
+      const gridBefore = before === undefined ? undefined : gridOf(before)
       records.set(id, tile)
       if (born) rejoin()
       republish(id)
+      // A FOREIGN RESIZE REACHES ITS VIEWERS HERE. The record is the channel
+      // kolu chose for it (see `watchers` above), and this is the one line that
+      // reads it: every open attach on this terminal re-opens, and the fresh
+      // snapshot carries its own grid to size against.
+      if (gridMoved(gridBefore, gridOf(tile))) {
+        for (const moved of watchers.get(id) ?? []) moved()
+      }
     },
     remove: (id) => {
       records.delete(id)
@@ -397,9 +454,41 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       // has no arm for an exception coming out of a constructor, sat open and
       // empty. The e2e found it on the refusal scenario.
       const face = attacher
-      return Stream.suspend(() =>
+      const id = found.id
+      /**
+       * ONE ATTACH PER EPOCH, and an epoch is a foreign resize.
+       *
+       * Epoch zero is the pane opening, and it carries the grid the pane asked
+       * for — attaching is a write, and the ruled semantic is that every client
+       * sees the same size. Every epoch after it is somebody ELSE having won
+       * last-attach-wins, and carries NO grid: re-asserting ours would be a
+       * resize war between two viewers of one terminal, each answering the
+       * other. The loser adopts, and the fresh snapshot names the size it
+       * adopted (contract 5.5).
+       *
+       * `switchMap` is the whole of the re-attach: a new epoch interrupts the
+       * subscription the old one opened. There is no teardown to write and none
+       * to forget.
+       */
+      const epochs = Stream.concat(
+        Stream.make(0),
+        Stream.callback<number>((queue) =>
+          Effect.acquireRelease(
+            Effect.sync(() => {
+              let epoch = 0
+              const moved = (): void => {
+                epoch += 1
+                Queue.offerUnsafe(queue, epoch)
+              }
+              return watchGrid(id, moved)
+            }),
+            (unwatch) => Effect.sync(unwatch),
+          )
+        ),
+      )
+      return Stream.switchMap(epochs, (epoch) =>
         Stream.map(
-          face(grid === undefined ? { id: found.id } : { id: found.id, resizeTo: grid }),
+          face(epoch === 0 && grid !== undefined ? { id, resizeTo: grid } : { id }),
           frameOf,
         )
       ).pipe(

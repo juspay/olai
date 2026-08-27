@@ -20,7 +20,7 @@
  */
 
 import { describe, expect, it } from "bun:test"
-import { Effect, Fiber, Stream } from "effect"
+import { Effect, Fiber, Schedule, Stream } from "effect"
 
 import type { FleetTerminal, KoluLink } from "@olai/surface"
 import { DaemonContractSkewError } from "@kolu/surface-daemon-supervisor"
@@ -459,5 +459,134 @@ describe("the frame projection", () => {
 
   it("leaves a delta alone — bytes carry no layout claim", () => {
     expect(frameOf({ kind: "delta", data: "$ " })).toEqual({ kind: "delta", data: "$ " })
+  })
+})
+
+/**
+ * THE FOREIGN RESIZE — the arm kolu designed for it, exercised end to end on
+ * this side.
+ *
+ * Attaching is a WRITE on a shared pty and the policy is last-attach-wins, so a
+ * second viewer's terminal is reflowed under it with no event in the byte
+ * stream. kolu's answer (5.6) puts the pty's current grid on the terminals
+ * RECORD, "because that is the channel a mirror already watches" — so the
+ * detector is the collection's own reactivity, and the response is a re-attach
+ * whose fresh snapshot names the new size.
+ *
+ * What this pins is the part that is olai's: that a record arriving with a
+ * different grid re-opens the attach, and that the re-attach does NOT re-assert
+ * this viewer's size. The second half is the one worth a test — two viewers
+ * each answering the other's resize is a war that would look, from either
+ * screen, exactly like the bug this fixes.
+ */
+const resizingFace = (id: string, grids: ReadonlyArray<{ cols: number; rows: number }>) => {
+  const attaches: Array<{ id: string; resizeTo?: { cols: number; rows: number } }> = []
+  return {
+    attaches,
+    face: {
+      padi: {
+        surface: {
+          terminalAttach: {
+            get: (input: { id: string; resizeTo?: { cols: number; rows: number } }) => {
+              attaches.push(input)
+              return Stream.concat(
+                Stream.make({
+                  kind: "snapshot" as const,
+                  data: `attach ${attaches.length}`,
+                  topLine: 0,
+                }),
+                Stream.never,
+              )
+            },
+          },
+          urgency: {
+            get: () =>
+              Stream.concat(
+                Stream.make({
+                  awaitingIds: [],
+                  finishedIds: [],
+                  workingIds: [],
+                  lingerIds: [],
+                }),
+                Stream.never,
+              ),
+          },
+          activity: {
+            get: () => Stream.concat(Stream.make([] as ReadonlyArray<string>), Stream.never),
+          },
+          terminals: {
+            keys: () => Stream.concat(Stream.make([id]), Stream.never),
+            // THE RESIZE, as padi delivers it: the same terminal, published
+            // again, with a different grid on it. A quarter second apart so the
+            // first attach is unambiguously open before the second record lands.
+            get: () =>
+              Stream.concat(
+                Stream.fromIterable(
+                  grids.map((grid) => ({
+                    state: "active" as const,
+                    pr: { kind: "absent" as const },
+                    agent: null,
+                    cwd: "/tmp/t",
+                    git: null,
+                    lastActivityAt: null,
+                    grid,
+                  })),
+                ).pipe(Stream.schedule(Schedule.spaced("250 millis"))),
+                Stream.never,
+              ),
+          },
+          screen: { text: () => Effect.succeed("") },
+        },
+      },
+    },
+  }
+}
+
+describe("a foreign resize", () => {
+  const ID = "cb9dcd13-1e2e-4f7a-9c3d-2b5a7e8f1a44"
+
+  it("RE-ATTACHES when the record's grid moves, and does not re-assert its own", async () => {
+    const seen = recorder()
+    const resizing = resizingFace(ID, [{ cols: 80, rows: 24 }, { cols: 203, rows: 51 }])
+    const mirror = makeMirror(seen.sink, {
+      env: {},
+      now: () => AT,
+      dial: () =>
+        Effect.succeed({
+          client: resizing.face,
+          identity: { stateRoot: "/run/padi", surfaceVersion: SPEAKS },
+          startedAt: 0,
+          dispose: () => {},
+          onClose: () => {},
+        } as never),
+    })
+    const fiber = Effect.runFork(Effect.scoped(mirror.run))
+    // The first record lands a beat in (the fixture spaces them), so the pane
+    // opens once there is a terminal to open on.
+    await Effect.runPromise(Effect.sleep("400 millis"))
+
+    // A pane opens, asking at ITS size — attaching is a write, and the ruled
+    // semantic is that every client sees the same size.
+    const frames: string[] = []
+    const watching = Effect.runFork(
+      Stream.runForEach(mirror.attach(ID, { cols: 100, rows: 30 }), (frame) =>
+        Effect.sync(() => {
+          if (frame.kind === "snapshot") frames.push(frame.data)
+        })),
+    )
+    await Effect.runPromise(Effect.sleep("900 millis"))
+    await Effect.runPromise(Fiber.interrupt(watching))
+    await Effect.runPromise(Fiber.interrupt(fiber))
+
+    // TWO ATTACHES: the pane's own, and the one the record's moving grid drove.
+    expect(resizing.attaches.length).toBeGreaterThanOrEqual(2)
+    expect(resizing.attaches[0]?.resizeTo).toEqual({ cols: 100, rows: 30 })
+    // ...AND THE SECOND ASSERTS NOTHING. Re-sending this viewer's grid would
+    // answer the other viewer's resize with a resize, and two clients each
+    // answering the other is a war whose symptom on both screens is the garble
+    // this whole arm exists to end.
+    expect(resizing.attaches[1]?.resizeTo).toBeUndefined()
+    // The pane saw the fresh snapshot, which is what carries the new size.
+    expect(frames.length).toBeGreaterThanOrEqual(2)
   })
 })
