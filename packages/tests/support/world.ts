@@ -985,6 +985,7 @@ export const CHAT_LANE_DOOR = selector(TESTID.chatLaneDoor);
 export const CHAT_PREVIEW = selector(TESTID.chatPreview);
 export const CHAT_PREVIEW_OF = selector(TESTID.chatPreviewOf);
 export const CHAT_PREVIEW_SHUT = selector(TESTID.chatPreviewShut);
+export const CHAT_PREVIEW_ASKED = selector(TESTID.chatPreviewAsked);
 export const CHAT_PREVIEW_NOTHING = selector(TESTID.chatPreviewNothing);
 export const CHAT_SPAWN = selector(TESTID.chatSpawn);
 export const CHAT_SPAWN_WORKING = selector(TESTID.chatSpawnWorking);

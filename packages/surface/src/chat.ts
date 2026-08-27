@@ -463,17 +463,29 @@ const chatEntryHead = {
  *  tool calls reach olai on the same flat feed as the main agent's, so
  *  without this the panel drew them in one column, in one voice, and a
  *  reader had no way to know that three agents had been spawned at all — let
- *  alone which of them was the one grepping. The panel draws a row that has
- *  it in a lane, indented behind a rail, under the frame it names. Absent for
- *  the main agent's own calls and questions, which are most of them.
+ *  alone which of them was the one grepping. Absent for the main agent's own
+ *  calls and questions, which are most of them.
  *
- *  A QUESTION carries it for the same reason and one sharper one. A
- *  subagent's permission form is a decision a person is about to make, and a
- *  form drawn in the main column says the main agent is the one asking — the
- *  one row in this collection where being wrong about who is speaking
- *  changes what somebody does. It is also the row that BREAKS A RUN: a form
- *  with no lane, landing between two of a subagent's own calls, ends the
- *  stretch, and the lane re-opens and names itself again underneath it. */
+ *  WHAT THE PANEL DOES WITH IT differs by KIND now, and the difference is the
+ *  whole of `subagent-pin`. A **tool** row that has it LEAVES the conversation:
+ *  it is filed under the agent that made it and drawn where that agent is drawn
+ *  (`web/src/client/chat/lanes.ts`'s `filedUnder`, and the shelf behind the
+ *  strip), because five agents out is five agents' work in one column with the
+ *  main agent's own words pushed off the top of the screen. The exceptions are
+ *  drawn where they always were, in a lane under the frame this names: a
+ *  QUESTION, and a row whose `Agent` frame the panel never received — which has
+ *  no door anywhere to be reached through, so filing it away would destroy the
+ *  record rather than move it.
+ *
+ *  A QUESTION carries it for the same reason and one sharper one, and that
+ *  reason is why it is the exception. A subagent's permission form is a
+ *  decision a person is about to make; it BLOCKS the turn; and a form behind a
+ *  click is a turn that hangs forever. So it stays in the conversation, and the
+ *  lane over it names the agent that asked — the one row in this collection
+ *  where being wrong about who is speaking changes what somebody does, and now
+ *  the only evidence of it on screen, since that agent's calls are no longer
+ *  under the form to read. What that name is drawn from is
+ *  {@link sentToDo}, never the frame's title alone. */
 const parent = Schema.optionalKey(Schema.String)
 
 /**
@@ -917,6 +929,41 @@ export const isTaskOut = (entry: ToolEntry): boolean =>
  */
 export const isAgentOut = (entry: ToolEntry): boolean =>
   entry.spawned !== undefined && isStillRunning(entry)
+
+/**
+ * WHAT TO CALL THE AGENT a call sent out — its description, and the call's own
+ * title when the spawn described itself with none.
+ *
+ * THE ONE RULE, in the one place every end can ask it, and it is here because
+ * it was NOT here and the cost was measured twice. Under the adapter olai ships
+ * with, an `Agent` call's title is the TOOL's name — a row's title is pinned at
+ * the first frame that carries one ({@link ../../chat/src/transcript.ts}'s
+ * `#named`), deliberately, so a call cannot rename itself while somebody is
+ * reading it — so four agents dispatched in one message are four rows reading
+ * `Task`. {@link Spawned.said} exists to answer that, and answering it four
+ * separate times is how three of the four came out wrong:
+ *
+ *   - the STRIP, the shelf's head and the door said the description;
+ *   - the label on a subagent's QUESTION said `Task`, which is the one row in
+ *     this collection where being wrong about who is speaking changes what
+ *     somebody presses, and — with that agent's calls no longer drawn under it
+ *     — the only evidence left on the row;
+ *   - and the two DEATH lines at the bottom of the transcript said `Task`, so
+ *     a fan-out that fell over reported four identical endings.
+ *
+ * Five callers across three packages ask it now, and they ask one function.
+ *
+ * OVER THE TWO FIELDS rather than over a row, because one of the callers is the
+ * transcript's own writer and does not have a row yet: it is assembling one, and
+ * a rule it could only ask after the fact is a rule it would spell again.
+ *
+ * NEVER A CATEGORY. *agent* is what `web/src/client/chat/spawn.ts`'s `whoOf`
+ * answers, and it answers a different question — what KIND was sent, not what it
+ * was sent to do. A spawn nobody described is called what its row is called,
+ * which is the honest thing and is exactly what a reader sees on that row.
+ */
+export const sentToDo = (spawned: Spawned | undefined, title: string): string =>
+  spawned?.said ?? title
 
 /**
  * One piece of a picture on its way to the conversation's tmp directory.

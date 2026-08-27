@@ -143,6 +143,14 @@ export interface Lane {
  * stop being a function of its arguments. The panel hands its passes their
  * lookups the same way ({@link ./Entry.tsx} and `markNodeRefs`).
  *
+ * WHAT IT MUST ANSWER WITH is the agent's own description and not the frame's
+ * title ({@link ./Transcript.tsx}'s `titleOf`, over
+ * {@link @olai/surface}'s `sentToDo`). Under the adapter olai ships with, an
+ * `Agent` call's title is the TOOL's name — four agents of one fan-out are four
+ * rows reading `Task` — and this rule's whole subject is telling one agent from
+ * another. It is said here rather than left to the caller because the caller
+ * cannot see what this label is FOR.
+ *
  * @param row the row being drawn
  * @param above the row drawn directly above it, if any
  * @param nameOf what the transcript calls the row under a key, if it has one
@@ -207,6 +215,14 @@ const established = (row: ChatEntry, above: ChatEntry | undefined): boolean =>
  * answered in the wrong agent's name is a decision made on a false premise,
  * and this is the one row in the panel where that is possible. It costs one
  * line above a form that is already several.
+ *
+ * AND IT IS NOW THE ONLY EVIDENCE THERE IS. Before a subagent's calls left the
+ * conversation, a reader who doubted the name had the stretch of that agent's
+ * work under the form to read and the frame that spawned it directly above; the
+ * label was the fastest answer rather than the whole of it. The calls are drawn
+ * elsewhere now, so what is left on the row is this line — which is why what it
+ * is drawn FROM had to stop being the frame's pinned title and start being what
+ * the agent was sent to do (see `nameOf` above).
  *
  * The stretch is unaffected either way — the row below a form is still one of
  * the same agent's, so the lane does not open again underneath it.

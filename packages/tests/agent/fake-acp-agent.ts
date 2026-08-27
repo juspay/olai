@@ -188,6 +188,13 @@ const { notify, refuse, request, respond, take, withdraw } = speaking(emit, "age
  * held mid-turn prompts behind the running turn since before anything asked it
  * to. What this adds is the one question a cancel has to ask of it.
  */
+/** WHAT AN `Agent` CALL IS TITLED, which is the tool's name and never the
+ *  description it was sent with. The adapter's own behaviour, modelled here
+ *  because a fixture that titled a spawn by its description made four surfaces
+ *  that read the title look right in this suite and be wrong in front of a
+ *  person — see `spawn` below. */
+const SPAWN_TITLE = "Task"
+
 const waiting = new Set<unknown>()
 
 /**
@@ -1766,14 +1773,29 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
      *  the `Agent` tool's own (`AgentInput`): a short description, the prompt,
      *  and the optional kind of agent.
      *
+     *  THE TITLE IS THE TOOL'S NAME, and that is not cosmetic — it is the one
+     *  thing this fixture used to get wrong, and the whole reason a real defect
+     *  reached a review. The adapter titles an `Agent` call `Task`; a row's
+     *  title is then pinned at the first frame that carries one, so every agent
+     *  of a fan-out is a row reading `Task` and the DESCRIPTION is the only
+     *  thing that tells one from another. This file used to title a spawn with
+     *  its description, which made four surfaces that read the title look
+     *  correct in the suite and be wrong against the real adapter — including
+     *  the label over a subagent's permission form, which is the one row in the
+     *  panel where being wrong about who is speaking changes what somebody
+     *  presses.
+     *
+     *  So the two are DIFFERENT STRINGS here, always, and a scenario that reads
+     *  a name back is reading the description or it is reading nothing.
+     *
      *  `pending` rather than in_progress, which is what the adapter announces
      *  a tool use with — a spawn wears it until the first heartbeat, which for
      *  a slow one is a long time and exactly the stretch under test. */
-    const spawn = (id: string, title: string, kind?: string): void =>
-      announce(id, title, { toolName: "Agent", subagent: true }, {
+    const spawn = (id: string, said: string, kind?: string): void =>
+      announce(id, SPAWN_TITLE, { toolName: "Agent", subagent: true }, {
         rawInput: {
-          description: title,
-          prompt: `${title}, and report back`,
+          description: said,
+          prompt: `${said}, and report back`,
           ...(kind === undefined ? {} : { subagent_type: kind }),
         },
         status: "pending",

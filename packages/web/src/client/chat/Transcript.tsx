@@ -95,12 +95,12 @@ import { declaringFailure } from "./declared.ts"
 import { doorOf } from "./door.ts"
 import { laneOf } from "./lanes.ts"
 import { NEAR } from "./near.ts"
-import { isPreviewing, togglePreview } from "./previewing.ts"
+import { isPreviewing, previewing, togglePreview } from "./previewing.ts"
 import { railOf, sameRail } from "./rail.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
 import { Row } from "./Row.tsx"
-import { whoOf } from "./spawn.ts"
+import { sentOf, whoOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
 /** A question still waiting on somebody — `./AskForm.tsx`'s row with its own
@@ -261,23 +261,63 @@ export function Transcript(props: { readonly chat: Chat }) {
     return previous
   })
 
-  /** What the transcript calls the row under a key — for a lane, the `Agent`
-   *  frame's own title, which for this adapter is the description the call was
-   *  made with ("find every call site", "review the diff"). One function for
-   *  the whole list rather than one built per row per frame. */
-  const titleOf = (key: string): string | undefined => props.chat.entry(key)()?.text
+  /**
+   * What the transcript calls the row under a key — which for the one lane this
+   * column still draws is the AGENT a question came from.
+   *
+   * NOT THE ROW'S TITLE, and this is the correction the live run earned twice.
+   * A tool row's title is the name the call was announced with and it is pinned
+   * at the first frame that carries one — deliberately, so a call cannot rename
+   * itself while somebody is reading it — and under the adapter olai ships with
+   * that name is the TOOL's: four agents dispatched in one message are four
+   * rows reading `Task`. The strip, the shelf's head and the door were taught
+   * to say what the agent was SENT to do; this was not, and it is the surface
+   * where the cost is highest.
+   *
+   * Because this is the label over a FORM. It is the one row in the panel where
+   * being wrong about who is speaking changes what a person presses — and since
+   * that agent's calls are no longer drawn under it, the name is not merely the
+   * best evidence of whose question this is, it is the ONLY evidence. Two
+   * subagents asking at once over different permissions produced two forms
+   * reading *↳ Task*.
+   *
+   * Through {@link ./spawn.ts}'s `sentOf`, which is the one rule
+   * ({@link @olai/surface}'s `sentToDo`) every other surface asks — so the name
+   * on a form, the name on the strip and the name in the shelf's head are one
+   * answer rather than four that happen to agree. It falls back to the row's
+   * own title, which is what a spawn that described itself with nothing has to
+   * be called, and is exactly what a reader sees on that row.
+   *
+   * One function for the whole list rather than one built per row per frame.
+   */
+  const titleOf = (key: string): string | undefined => {
+    const frame = props.chat.entry(key)()
+    return sentOf(frame) ?? frame?.text
+  }
 
   return (
     <div
-      // A FLOOR, and it is about a shelf rather than about this pane. What can
-      // take room away from the conversation is above it — the strip wrapping
-      // as a fan-out grows, a preview of one agent’s calls opening — and every
-      // one of those is a strip that yields before this does. This is the other
-      // half of that promise, spelled where it is load-bearing: a question a
-      // subagent asked is drawn HERE, in the column, because a form behind a
-      // click is a turn that hangs forever — and a pane squeezed to nothing is
-      // a click of a different kind.
-      class="olai-scroll min-h-[7rem] min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-2 text-ink"
+      class="olai-scroll min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-2 text-ink"
+      classList={{
+        // A FLOOR, and ONLY WHILE A SHELF IS TAKING ROOM. What can squeeze this
+        // pane is above it — a preview of one agent's calls — and the promise
+        // that matters is that a question a subagent asked is drawn HERE, in
+        // the column, because a form behind a click is a turn that hangs
+        // forever. A pane squeezed to nothing is a click of a different kind.
+        //
+        // UNCONDITIONAL IT COSTS MORE THAN IT BUYS, which the phone measured:
+        // this pane's basis is `0` (`flex-1`), so flexbox never SHRINKS it — it
+        // simply gets no free space — and a floor turns that into the container
+        // OVERFLOWING instead, which pushes the composer off the bottom of a
+        // handset. That is the same failure one surface further along: a person
+        // who cannot reach the box cannot answer the form either, and it fired
+        // on every phone whether or not anything was open.
+        //
+        // So it is scoped to the one arrangement it was written for. The shelf
+        // is capped and yields first, and on the sheet opening one goes to the
+        // full snap, so by the time this applies there is room for both.
+        "min-h-[7rem]": previewing() !== null,
+      }}
       data-testid={TESTID.chatTranscript}
       ref={pane}
       onScroll={() => {

@@ -85,6 +85,7 @@ import {
   CHAT_OUTLINE_DIFF,
   CHAT_PANEL,
   CHAT_PREVIEW,
+  CHAT_PREVIEW_ASKED,
   CHAT_PREVIEW_NOTHING,
   CHAT_PREVIEW_OF,
   CHAT_PREVIEW_SHUT,
@@ -3317,14 +3318,25 @@ Then(
 );
 
 Then(
-  "the call that spawned it offers a door to {int} calls",
-  async function (this: OlaiWorld, many: number) {
+  "the call that spawned it offers a door to {int} calls, as {string}",
+  async function (this: OlaiWorld, many: number, named: string) {
     const door = this.page.locator(CHAT_LANE_DOOR).first();
     await door.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
     const said = oneLine(await door.innerText());
     assert.ok(
       said.includes(String(many)),
       `the door says "${said}" rather than naming ${many} calls behind it`,
+    );
+    // ... AND WHICH AGENT, which is the half a count cannot carry. The adapter
+    // titles every `Agent` call `Task`, so a fan-out is a column of identical
+    // rows and the door is where the difference has to be said. The fake agent
+    // titles its spawns the same way for exactly this reason, so a door that
+    // read the row's title instead of the description fails here.
+    assert.ok(
+      said.includes(named),
+      `the door says "${said}" rather than naming "${named}" — the row above it ` +
+        "is titled with the tool's name, so this is the only thing on it that " +
+        "says which agent is behind the door",
     );
     // WHICH agent it opens, off the attribute rather than off the words: the
     // door and the record are one thing named twice, and a control that named
@@ -3396,6 +3408,36 @@ Then(
     );
   },
 );
+
+Then(
+  "the agent's work says a question is waiting",
+  async function (this: OlaiWorld) {
+    // THE PROMISE THIS KEEPS is `docs/chat.md`'s: with the conversation in front
+    // of you, a form arriving is the whole of it — it lands where you are
+    // already looking and nothing rings, because a notification about something
+    // on your screen is nagging. A shelf is the one surface that takes a
+    // reader's eye off the transcript while the panel counts as open, so it
+    // owes them the sentence the transcript would have given them.
+    await this.page
+      .locator(CHAT_PREVIEW_ASKED)
+      .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  },
+);
+
+When(
+  "I go to the question from the agent's work",
+  async function (this: OlaiWorld) {
+    await this.page.locator(CHAT_PREVIEW_ASKED).click();
+  },
+);
+
+Then("no agent's work is open", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_PREVIEW).count()) === 0,
+    "the shelf to be put away",
+    HYDRATION_TIMEOUT,
+  );
+});
 
 Then("the agent's work shows nothing yet", async function (this: OlaiWorld) {
   // AN HONEST SENTENCE rather than an empty box: an agent's first act is to

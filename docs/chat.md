@@ -356,7 +356,11 @@ That is deliberate and it is the one place the rule at the top of this section d
 
 It is drawn indented behind the same rail its calls would have been, **with the lane naming who is asking** — always, on every form, wherever it sits. The reason is what a form is: the one row here where being wrong about who is speaking changes what you press. And you rarely meet it by reading down to it — a blocked question is announced in the composer, in the header and on the app's agent toggle (the thumb strip, on a phone), so you come looking for a form that may be anywhere.
 
+**That name is what the agent was SENT to do**, and it is worth saying where it comes from, because it is not the title on the row above. An `Agent` call is titled with the tool's name — four agents dispatched in one message are four rows reading *Task* — and a row's title is fixed at the first thing it was called, deliberately, so a call cannot rename itself while you are reading it. The short description the agent was sent with is a different thing, and it is the one every surface here uses: this label, the strip, the shelf's head and the door. It matters most here. Before, a form you doubted had that agent's whole stretch of work under it to read; now its calls are elsewhere, and this line is the only evidence on the row of whose question you are answering.
+
 The form is not copied into the shelf either. One decision drawn as two forms is one of them pressed by somebody who cannot see the other; so a run with a question in it reads as a gap in that agent's calls, and the answer is where the conversation is.
+
+**And the shelf says so.** Reading one agent's work while another stops to ask is the one way this panel could have let a form arrive somewhere you were not looking — so the shelf carries a line saying a question is waiting, and pressing it puts the shelf away and takes you to the form. It is the same press the alert banner makes, and there is still only one form.
 
 **What is deliberately not drawn at all is the subagent's own prose.** The agent olai ships with does not send it: a spawned agent's text and thinking are stripped from the feed unless a client asks for a nested transcript, and olai does not ask. So a running subagent is its calls and its status here, and the one place its own words appear is the report it hands back at the end. That is a floor rather than a preference — but it also means the main agent's voice in this panel is only ever the main agent's, which is worth having.
 
@@ -369,6 +373,8 @@ Nothing above is guessed from a tool's name. Whether a call sent an agent out, a
 A turn that stops on a question does not time out and does not carry on. It hangs — for as long as it takes you to notice — so the panel's job is to make sure you do.
 
 **If the conversation is in front of you, the form appearing is the whole of it.** It arrives where you are already looking, the composer says the agent is waiting on you, and nothing rings. A notification about something already on your screen is nagging, and the surest way to make somebody switch these off.
+
+The one place *where you are already looking* is not the conversation is the shelf that previews one agent's work, and that is why it carries the notice itself — see [when it is a subagent that asks](#when-it-is-a-subagent-that-asks). A surface that takes your eye off the transcript owes you the sentence the transcript would have given you.
 
 That counts ANOTHER TAB of the same olai, too. Two tabs are two documents and one person: the one you are reading says so to the others, so the tab behind it does not chime about a form you are looking at. A different olai — another directory, another address — is not caught by it, and goes on telling you.
 

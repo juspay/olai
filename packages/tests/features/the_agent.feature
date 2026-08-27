@@ -93,7 +93,7 @@ Feature: Talking to the agent
     # much is behind it. Two agents, three calls between them.
     When I ask the agent "subagent"
     Then the conversation carries none of the subagent's calls
-    And the call that spawned it offers a door to 2 calls
+    And the call that spawned it offers a door to 2 calls, as "explore the outline"
     And the call that spawned it is in no lane of its own
 
   @scratch:chat
@@ -156,7 +156,7 @@ Feature: Talking to the agent
     # worse than the true sentence above it.
     And the call that spawned it offers no door yet
     When the agent is released
-    Then the call that spawned it offers a door to 1 calls
+    Then the call that spawned it offers a door to 1 calls, as "read every note"
     And the chat says no agent is still working
 
   @scratch:chat
@@ -1565,6 +1565,34 @@ Feature: Talking to the agent
     And the question is drawn in the lane of the agent that asked it
     And exactly one lane names itself, as "explore the outline"
     And no lane introduces itself under the question
+
+  @scratch:chat
+  Scenario: A shelf open over a question says so, because the form is not in it
+    # `docs/chat.md`'s promise, and the one place this feature could have broken
+    # it: with the conversation in front of you, a form ARRIVING IS THE WHOLE OF
+    # IT — it lands where you are already looking, the composer says so, and
+    # nothing rings, because a notification about something on your screen is
+    # nagging.
+    #
+    # A shelf is the one surface that takes a reader's eye off the transcript
+    # while the panel still counts as open. The form is deliberately not copied
+    # into it — one decision drawn as two forms is one of them pressed by
+    # somebody who cannot see the other — so what the reader would have got is a
+    # gap in the calls and a form in a pane that has just been made smaller. The
+    # shelf therefore carries the sentence itself, and pressing it puts the
+    # shelf away and goes to the form: the same ask the alert banner raises, so
+    # there is one gesture and still exactly one form.
+    When I ask the agent "subagent asks"
+    Then the chat shows a question
+    When I open "explore the outline" from the strip
+    Then the agent's work says a question is waiting
+    When I go to the question from the agent's work
+    Then no agent's work is open
+    And the chat shows a question
+    And the question is drawn in the lane of the agent that asked it
+    When I choose "Allow Once"
+    And I answer the question
+    Then the agent's answer mentions "permission: allow"
 
   @scratch:chat
   Scenario: A question a subagent asked is drawn in the subagent's lane too

@@ -48,6 +48,25 @@
  * reads as a gap in the calls, and the form is where a form belongs — in the
  * conversation, with the composer, the header and the app's own alerts all
  * pointing at it.
+ *
+ * ... WHICH IS WHY THIS SURFACE POINTS AT ONE TOO, and the reason is a promise
+ * made one document over. `docs/chat.md` says that when the conversation is in
+ * front of you, a form ARRIVING IS THE WHOLE OF IT — it lands where you are
+ * already looking, the composer says so, and nothing rings, because a
+ * notification about something already on your screen is nagging. This shelf
+ * put a hole in that: a reader watching an agent work here has their eye on a
+ * box that is deliberately not where forms are drawn, the panel counts as open
+ * so nothing chimes, and the form lands in a transcript that has just been made
+ * smaller. Everything still SAYS a question is waiting — the composer, Busy,
+ * the header, the badge — but "where you are already looking" had stopped being
+ * true, and that promise is exactly what the brief's own constraint is: the
+ * losing case must be impossible rather than unlikely.
+ *
+ * So the shelf joins the surfaces that point. It draws the notice itself and
+ * presses through to the SAME ask the attention banner raises
+ * ({@link ./attention/reveal.ts}), which closes this and scrolls the waiting
+ * form into the middle of the pane — one gesture, one piece of machinery, and
+ * no second copy of the form anywhere.
  */
 
 import { For, Show } from "solid-js"
@@ -56,6 +75,7 @@ import type { ChatEntry } from "@olai/surface"
 
 import { TESTID } from "../testids.ts"
 import type { Lane } from "./lanes.ts"
+import { reveal } from "./attention/reveal.ts"
 import { closePreview, previewing } from "./previewing.ts"
 import { railOf } from "./rail.ts"
 import { Row } from "./Row.tsx"
@@ -94,6 +114,12 @@ function Shelf(props: {
    *  FOR is the rail, which is the same rail, from the same module, so a
    *  subagent's calls look the way they have always looked. */
   const lane = (): Lane => ({ parent: props.open.row, label: null })
+  /** Whether the turn is blocked on a question — the SERVER's count off the
+   *  rows (`ChatState.asking`), which is the same number the composer, the
+   *  header and the badge are drawn from. Never this shelf's own reading of the
+   *  transcript: a second answer to "is somebody being waited on" is a second
+   *  thing free to disagree with the row a person has to press. */
+  const asked = () => props.chat.state().asking > 0
   return (
     <section
       // SHRINKABLE, and that is the load-bearing half of the geometry. Every
@@ -108,6 +134,31 @@ function Shelf(props: {
       data-row={props.open.row}
       aria-label="what one agent is doing"
     >
+      {/* ABOVE EVERYTHING THIS BOX HAS TO SAY, because it is the one thing in
+          it that is not about the agent: the turn is stopped, and it is stopped
+          on the reader. It is drawn in the panel's alarm tone rather than its
+          quiet one — the rest of this shelf is *something is happening*, and
+          this is *nothing will happen until you look*. */}
+      <Show when={asked()}>
+        <button
+          type="button"
+          class="flex w-full shrink-0 items-center gap-1.5 border-b border-rule/70 bg-alarm/10 px-3 py-1.5 text-left font-mono text-[0.6875rem] leading-snug text-alarm hover:bg-alarm/20 focus-visible:outline focus-visible:outline-1 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+          data-testid={TESTID.chatPreviewAsked}
+          onClick={() => {
+            // BOTH, and in this order: the shelf is what is in the way, and the
+            // ask is what the banner's own press raises — so the form is
+            // scrolled into the middle of a pane that has already got its room
+            // back. Pressing through to the same ask rather than scrolling from
+            // here is what keeps one answer to "show me what is waiting".
+            closePreview()
+            reveal()
+          }}
+        >
+          <span aria-hidden="true">◆</span>
+          <span class="min-w-0 flex-1 truncate">a question is waiting on you</span>
+          <span class="shrink-0 opacity-70">show me</span>
+        </button>
+      </Show>
       <div class="flex shrink-0 items-baseline gap-2 px-3 py-1.5 font-mono text-[0.6875rem] leading-snug">
         <p
           class="flex min-w-0 flex-1 items-baseline gap-1 text-ink"

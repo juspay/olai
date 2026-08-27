@@ -32,9 +32,14 @@
  *
  * CLEARED WHEN THE CONVERSATION CHANGES, for {@link ./folds.ts}'s reason turned
  * round: a fold is remembered across conversations because the SAME id is the
- * same line, and a transcript key is not — the next conversation mints its own,
- * and a stale one would leave the shelf open on nothing. The panel says when
- * ({@link ./state.ts} already watches the session id for the thumbnails).
+ * same line, and a transcript key is not — the next conversation counts its own
+ * from `tool:1`. A stale key is not merely a shelf open on nothing, which the
+ * shelf's own guard would hide; it is a key that can COLLIDE, opening a shelf
+ * nobody pressed on some later conversation's third tool call and lighting the
+ * pressed state on a door that was never touched. Wired in
+ * {@link ./state.ts}'s session effect, beside the thumbnails it throws away for
+ * the same reason — the cell is the only thing that says a conversation
+ * changed.
  */
 
 import { createSignal } from "solid-js"

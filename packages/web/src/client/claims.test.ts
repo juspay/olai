@@ -309,6 +309,24 @@ test("a tool call's status is spelled where it is meant and where it is drawn", 
   ])
 })
 
+// previewing.ts's claim — that the open shelf is put away when the conversation
+// changes. It is a LIFETIME rather than a rule, so what pins it is the CALL: the
+// module documented the clearing and nothing did it, and the reason that
+// survived a read is that the failure hides — a shelf whose key names a row this
+// conversation does not have simply draws nothing. What it cannot hide is a
+// COLLISION, the day a server restarts without a page reload and a fresh
+// transcript re-mints keys from the same counter: a shelf nobody pressed, open
+// on somebody else's third tool call. Two callers, and the second is the one
+// that was missing — the shelf's own dismiss, and the cell that is the only
+// thing which knows a conversation changed.
+test("the open preview is put away by its own control and by the conversation ending", () => {
+  expect(filesSpelling(/closePreview\s*\(\s*\)/)).toEqual([
+    path.join("chat", "Preview.tsx"),
+    path.join("chat", "previewing.test.ts"),
+    path.join("chat", "state.ts"),
+  ])
+})
+
 // clock.ts's claim — "the one clock in the client", which for a while was a
 // claim about the DAY and silently untrue about the wall clock. Two readouts
 // here are a reading of it and therefore go stale where they stand — the commit

@@ -34,7 +34,7 @@
  * is what stops them disagreeing about whether a row is a spawn at all.
  */
 
-import type { ChatEntry } from "@olai/surface"
+import { type ChatEntry, sentToDo } from "@olai/surface"
 
 import { isRunning } from "./running.ts"
 
@@ -140,7 +140,7 @@ export const doingOf = (entry: ChatEntry | undefined): string | null => {
  */
 export const sentOf = (entry: ChatEntry | undefined): string | null => {
   if (entry?.kind !== "tool" || entry.spawned === undefined) return null
-  return entry.spawned.said ?? entry.text
+  return sentToDo(entry.spawned, entry.text)
 }
 
 /** What a spawn is called when it named no kind of agent. The `Agent` tool's

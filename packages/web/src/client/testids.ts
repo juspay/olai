@@ -1279,6 +1279,14 @@ export const TESTID = {
   chatPreviewOf: "chat-preview-of",
   /** ... and the control that closes it. */
   chatPreviewShut: "chat-preview-shut",
+  /** ... and the notice at its head saying the turn is blocked on a QUESTION,
+   *  which is the one thing in this box that is not about the agent. A form is
+   *  never drawn in here — it stays in the conversation, where a decision
+   *  belongs — so this is what keeps `docs/chat.md`'s promise that a form
+   *  arrives where a reader is already looking: pressing it closes the shelf
+   *  and raises the same ask the attention banner does. Absent whenever nothing
+   *  is waiting. */
+  chatPreviewAsked: "chat-preview-asked",
   /** ... and what it says when the agent has not called anything yet — which is
    *  the whole of the stretch a fan-out is watched through, and an honest thing
    *  to say rather than an empty box. */

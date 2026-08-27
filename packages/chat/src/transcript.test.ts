@@ -1368,3 +1368,89 @@ describe("refusals and replacement", () => {
     expect(rows(transcript)[0]?.seq).toBe(0)
   })
 })
+
+/**
+ * ... and what a death is CALLED, against the adapter this panel ships with
+ * rather than against the convenient fiction the fixtures above share.
+ *
+ * The block above titles its spawns with what they were sent to do, which is
+ * what the e2e fake agent does too — and it is not what the real adapter does.
+ * An `Agent` call is titled with the TOOL's name, and a row's title is pinned
+ * at the first frame that carries one, so every agent of a fan-out is a row
+ * reading `Task`. Every test up to here passes either way, which is exactly how
+ * the death lines came to say *the agent “Task” ended* while three other
+ * surfaces had already been taught better (both reviewers of #412, converging).
+ *
+ * So these drive the SHAPE THE ADAPTER SENDS: a title that is the tool's name,
+ * and the description beside it in `spawned.said`.
+ */
+describe("what a dead agent is called", () => {
+  /** One agent of a fan-out, as the real adapter announces it. */
+  const dispatched = (said: string) => ({
+    title: "Task",
+    status: "in_progress" as const,
+    spawned: { said },
+  })
+
+  const notices = (transcript: Transcript): ReadonlyArray<string> =>
+    rows(transcript).filter((entry) => entry.kind === "notice").map((entry) => entry.text)
+
+  test("a fan-out that falls over says WHICH agent, not four times `Task`", () => {
+    // The failure this is written against is not that the row is wrong — it is
+    // that four identical rows tell a reader something has gone wrong and then
+    // refuse to say what. A bottom line is the one place a dead subagent is
+    // reported now that its calls are drawn elsewhere.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01A", dispatched("count the markdown files"))
+    transcript.tool("toolu_01B", dispatched("find every chat file"))
+    transcript.tool("toolu_01A", { status: "failed" })
+    transcript.tool("toolu_01B", { status: "failed" })
+
+    expect(notices(transcript)).toEqual([
+      "the agent “count the markdown files” ended (failed)",
+      "the agent “find every chat file” ended (failed)",
+    ])
+  })
+
+  test("... and so does one the turn walked away from", () => {
+    // The other ending, and the one nothing reports: `#strand` names the agent
+    // out of the same field, so a fan-out abandoned at a turn's end reads as
+    // two agents rather than as two copies of a tool's name.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01A", dispatched("count the markdown files"))
+    transcript.tool("toolu_01B", dispatched("find every chat file"))
+    transcript.settle()
+
+    expect(notices(transcript)).toEqual([
+      "the agent “count the markdown files” ended (never reported back)",
+      "the agent “find every chat file” ended (never reported back)",
+    ])
+  })
+
+  test("a spawn that described itself with nothing is called what its row is", () => {
+    // The fallback, and it is the honest one: what a reader sees on the row.
+    // Never a category — *agent* is what KIND was sent, which is a different
+    // question and is drawn on the row's own line.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01A", { title: "Task", status: "in_progress", spawned: {} })
+    transcript.tool("toolu_01A", { status: "failed" })
+
+    expect(notices(transcript)).toEqual(["the agent “Task” ended (failed)"])
+  })
+
+  test("the harness's own description still wins where it registered a task", () => {
+    // An ASYNC launch is both a spawn and an armed task, and the harness knows
+    // what it armed. Two vocabularies for one question, and the more specific
+    // one is the harness's — so this is the one case `said` does not decide.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01A", {
+      ...dispatched("count the markdown files"),
+      armed: { task: "task-1", description: "counting markdown under docs" },
+    })
+    transcript.tool("toolu_01A", { armed: { task: "task-1", ended: "failed" } })
+
+    expect(notices(transcript)).toEqual([
+      "the agent “counting markdown under docs” ended (failed)",
+    ])
+  })
+})

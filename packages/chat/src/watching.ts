@@ -18,7 +18,7 @@
  * is a strip that goes on drawing something that has stopped being true.
  */
 
-import { type ChatEntry, isAgentOut, isTaskOut, type Watching } from "@olai/surface"
+import { type ChatEntry, isAgentOut, isTaskOut, sentToDo, type Watching } from "@olai/surface"
 
 /**
  * The background tasks this conversation armed and the agents it sent, read off
@@ -57,7 +57,7 @@ export const watching = (
       out.push({
         row: key,
         kind: "agent",
-        name: entry.spawned?.said ?? entry.text,
+        name: sentToDo(entry.spawned, entry.text),
         since: entry.since,
       })
     }

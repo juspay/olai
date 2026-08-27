@@ -54,7 +54,7 @@
 
 import { isDeepStrictEqual } from "node:util"
 
-import { isRunningStatus, isTaskOut } from "@olai/surface"
+import { isRunningStatus, isTaskOut, sentToDo } from "@olai/surface"
 
 import type {
   Armed,
@@ -705,7 +705,16 @@ export class Transcript {
       // it happened to), so a spawn that is stranded here after the harness has
       // already reported how its task ended does not say so twice.
       if (!alsoArmed && entry.spawned !== undefined) {
-        change = both(change, this.#dies(key, "agent", entry.text, STRANDED, undefined))
+        // BY WHAT IT WAS SENT TO DO, never by the row's title alone
+        // ({@link @olai/surface}'s `sentToDo`). This adapter titles an `Agent`
+        // call with the TOOL's name, so a fan-out that fell over reported four
+        // identical lines reading *the agent "Task" ended*, which is a bottom
+        // row that tells a reader something has gone wrong and refuses to say
+        // which of the four it was.
+        change = both(
+          change,
+          this.#dies(key, "agent", sentToDo(entry.spawned, entry.text), STRANDED, undefined),
+        )
       }
     }
     return change
@@ -880,12 +889,16 @@ export class Transcript {
       ? this.#dies(
         key,
         spawned === undefined ? "background task" : "agent",
-        armed.description ?? text,
+        // The harness's own description where it registered a task, and the
+        // spawn's where it did not — one line, two vocabularies for the same
+        // question, because an ASYNC `Agent` launch is both and the harness's
+        // word is the more specific of the two.
+        armed.description ?? sentToDo(spawned, text),
         armed.ended,
         move.progress,
       )
       : failed
-      ? this.#dies(key, "agent", text, "failed", move.progress)
+      ? this.#dies(key, "agent", sentToDo(spawned, text), "failed", move.progress)
       : EMPTY
     // A TOOL FRAME ENDS THE OPEN PARAGRAPH — the agent said something, then it
     // did something, and the next thing it says is a new paragraph. That is
