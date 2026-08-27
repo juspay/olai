@@ -5,7 +5,7 @@
 # here is backed by `base`, which needs it.
 { pkgs ? import ./nix/nixpkgs.nix { }, b2n, rev ? "dev" }:
 let
-  kolu = import ./nix/kolu.nix;
+  kolu = import ./nix/kolu.nix { inherit pkgs; };
   version = (pkgs.lib.importJSON ./package.json).version;
 
   # @kolu/surface-app's own helper for stamping a build's commit into the
@@ -29,9 +29,6 @@ let
       ./bunfig.toml
       ./tsconfig.base.json
       ./packages
-      # The one script the build runs — not all of scripts/, so editing the
-      # dependency checker does not rotate this derivation and rebuild.
-      ./scripts/hydrate-kolu-packages.sh
     ];
   };
 
@@ -66,11 +63,12 @@ let
     dontUseBunBuild = true;
     dontFixup = true;
 
-    # The @kolu/* packages are not in bun.lock — they are Nix-store sources
-    # from the overlay, dropped in *after* bun install populates node_modules.
-    # Same argv the dev shell uses (nix/kolu.nix).
+    # The @kolu/* packages are not in bun.lock — they are Nix-store sources,
+    # dropped in *after* bun install populates node_modules. Both the SCRIPT
+    # and the argv come off the pin (nix/kolu.nix), so this derivation and the
+    # dev shell run the same copier over the same list.
     postBunNodeModulesInstallPhase = ''
-      sh scripts/hydrate-kolu-packages.sh ${kolu.hydrateArgs pkgs}
+      sh ${kolu.hydrateScript} ${kolu.hydrateArgs}
     '';
 
     buildPhase = ''

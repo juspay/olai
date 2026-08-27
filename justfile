@@ -49,7 +49,7 @@ default:
 [macos]
 [parallel]
 [metadata("ci")]
-check: typecheck test e2e kolu-deps osfacts-pin fmt-check nix bun-nix-fresh hm-module
+check: typecheck test e2e kolu-deps fmt-check nix bun-nix-fresh hm-module
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
 # Every bun leg depends on this one recipe, so concurrent legs share a single
@@ -61,7 +61,7 @@ check: typecheck test e2e kolu-deps osfacts-pin fmt-check nix bun-nix-fresh hm-m
 # — so the expansion is deliberately unquoted.
 install:
     {{ nix_shell }} sh -c 'bun install --frozen-lockfile \
-      && sh scripts/hydrate-kolu-packages.sh $OLAI_KOLU_HYDRATE'
+      && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_KOLU_HYDRATE'
 
 # TypeScript type checking — every workspace member, from the glob bun
 # installs from
@@ -126,18 +126,12 @@ test: install
       ./packages/web/src/client/chat/declared.browsertest.ts \
       ./packages/web/src/client/props/held.browsertest.ts
 
-# The two npins pins that are a PAIR — olai's osfacts revision against the one
-# the pinned kolu itself names. Reads the pinned tree and this repo's manifest,
-# never node_modules, so it does not wait on `install` and fails fast.
-osfacts-pin:
-    {{ nix_shell }} sh scripts/check-osfacts-pin.sh
-
 # Every dependency the hydrated @kolu/* sources declare, checked against the
 # root package.json (bunfig.toml explains why they have to be there). Reads
 # the pinned sources in the store and this repo's manifests, never
 # node_modules — so it does not wait on `install` and fails fast.
 kolu-deps:
-    {{ nix_shell }} sh -c 'sh scripts/check-kolu-deps.sh $OLAI_KOLU_DIRS'
+    {{ nix_shell }} sh -c 'sh scripts/check-kolu-deps.sh'
 
 # Build the browser bundle into packages/web/dist. The nix build runs this
 # same script in its own sandbox (default.nix), so there is one bundler and not

@@ -30,7 +30,6 @@
 
   outputs = { self, bun2nix, ... }:
     let
-      kolu = import ./nix/kolu.nix;
       # One commit for the whole build: the browser shell and the server that
       # serves it are stamped with it, so a tab can tell whether the server it
       # reconnected to still ships the bundle it is running.
@@ -53,9 +52,14 @@
     in
     {
       packages = eachSystem ({ pkgs, b2n }:
-        let olai = import ./default.nix { inherit pkgs b2n rev; };
+        let
+          olai = import ./default.nix { inherit pkgs b2n rev; };
+          # Per-system now: `nix/kolu.nix` takes a `pkgs`, because kolu's
+          # `consumer.nix` builds the source copies rather than handing back a
+          # list for an overlay to build.
+          kolu = import ./nix/kolu.nix { inherit pkgs; };
         in
-        kolu.packages pkgs // {
+        kolu.packages // {
           inherit (olai) olai olai-client olai-fonts acp-agent;
           default = olai.olai;
           # `nix run .#bun2nix -- -l bun.lock -o bun.nix` regenerates the

@@ -37,7 +37,7 @@ The `@kolu/*` packages it imports — `@kolu/padi-client`, `@kolu/surface`, `@ko
 
 ## The second pin
 
-`@kolu/padi-client` needs `osfacts-client`, which is not in the kolu tree — kolu grafts it from its own npins pin of `juspay/osfacts` and gitignores it. So olai pins that repository too, at **the revision kolu pins**, and `scripts/check-osfacts-pin.sh` fails `just check` when the two have drifted. Re-pinning kolu always owes a look at this one.
+`@kolu/padi-client` needs `osfacts-client`, which is not in the kolu tree — kolu grafts it from its own npins pin of `juspay/osfacts` and gitignores it. So olai pins that repository too, at **the revision kolu pins**, and hands kolu both the tree and the revision (`nix/kolu.nix`'s `pinnedSources`). Kolu compares that revision against the one its own closure records and REFUSES AT EVAL if they differ, naming both. That refusal replaced `scripts/check-osfacts-pin.sh`: the check used to run in one `just` leg and now runs every time the build graph is evaluated, which is all of them.
 
 ## What is deliberately not here
 
