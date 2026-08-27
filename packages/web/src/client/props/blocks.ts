@@ -69,7 +69,30 @@ export interface BlockContext {
   /** Open this property's editor — `undefined` where the run is read-only, and
    *  then no half of the block is a button. */
   readonly onOpen?: () => void
+  /**
+   * THE RUN'S OWN CONTRACT, handed to the block rather than spelled by it.
+   *
+   * A block must wear the fact line every property wears —
+   * `[data-testid="prop"][data-key=…]` with the drawer's handle on it — and
+   * blocks live in other packages now (`@olai/kolu-ui`'s terminal door is the
+   * first). A block that spelled `"prop"` itself would be a second spelling of
+   * this drawer's contract, free to drift the day the drawer changed it, with
+   * the drawer's own suite still green because the block it broke is somewhere
+   * else. So the drawer hands its furniture across and there is one spelling.
+   */
+  readonly chrome: BlockChrome
 }
+
+/** What a block is handed to wear the run's contract — see {@link BlockContext}. */
+export interface BlockChrome {
+  readonly Handle: (props: {
+    readonly label: string
+    readonly onOpen?: () => void
+  }) => JSX.Element
+  readonly factId: string
+  readonly valueId: string
+}
+
 
 /** A property renderer that owns its row. */
 export type PropBlock = (context: BlockContext) => JSX.Element

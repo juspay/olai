@@ -61,10 +61,9 @@ import {
 import type { FleetTerminal, Snapshot, SnapshotRefused } from "@olai/surface"
 import { TERMINAL_KEY } from "@olai/surface"
 
-import type { BlockContext } from "./blocks.ts"
+import type { BlockContext } from "./block.ts"
 import { LivePane } from "./LivePane.tsx"
 import { useFleet } from "./fleet.tsx"
-import { Handle } from "./handle.tsx"
 import { readingOf } from "./terminal.ts"
 import { TESTID } from "../testids.ts"
 
@@ -101,11 +100,15 @@ export function TerminalBlock(context: BlockContext) {
           this the day the block landed. */}
       <div
         class="flex items-baseline gap-1.5"
-        data-testid={TESTID.prop}
+        data-testid={context.chrome.factId}
         data-key={context.entry.key}
       >
-        <Handle label={context.entry.key} onOpen={context.onOpen} />
-        <Value value={context.entry.value} onOpen={context.onOpen} />
+        <context.chrome.Handle label={context.entry.key} onOpen={context.onOpen} />
+        <Value
+          value={context.entry.value}
+          onOpen={context.onOpen}
+          valueId={context.chrome.valueId}
+        />
       </div>
       <Show
         when={reading().row}
@@ -145,12 +148,18 @@ export function TerminalBlock(context: BlockContext) {
  *  "a link goes where it says, everything else opens it for editing", and a
  *  terminal id is not a link. Not a door either way — `./door.ts` answers what
  *  a value NAMES, and padi's ids are not addresses this app can spell. */
-function Value(props: { readonly value: string; readonly onOpen?: () => void }) {
+function Value(props: {
+  readonly value: string
+  readonly onOpen?: () => void
+  /** The drawer's contract, handed through rather than respelled — see
+   *  `./block.ts`. */
+  readonly valueId: string
+}) {
   return (
     <Show
       when={props.onOpen}
       fallback={
-        <span class="min-w-0 truncate text-[0.8125rem] text-muted" data-testid={TESTID.propValue}>
+        <span class="min-w-0 truncate text-[0.8125rem] text-muted" data-testid={props.valueId}>
           {props.value}
         </span>
       }
@@ -159,7 +168,7 @@ function Value(props: { readonly value: string; readonly onOpen?: () => void }) 
         <button
           type="button"
           class="min-w-0 cursor-pointer truncate text-[0.8125rem] text-muted hover:text-accent"
-          data-testid={TESTID.propValue}
+          data-testid={props.valueId}
           title={`change ${props.value}`}
           onClick={(event) => {
             // The row's own line answers a click by opening the title editor.

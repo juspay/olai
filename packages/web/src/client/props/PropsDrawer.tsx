@@ -157,9 +157,9 @@ import { createMemo, createSignal, For, Index, Show } from "solid-js"
 import type { Entry } from "./drawer.ts"
 import { type Door, doorFor } from "./door.ts"
 
-import { layOut, registerBlock, TERMINAL_KEY } from "./blocks.ts"
+import { type BlockChrome, layOut, registerBlock, TERMINAL_KEY } from "./blocks.ts"
 import { Handle } from "./handle.tsx"
-import { TerminalBlock } from "./TerminalDoor.tsx"
+import { TerminalBlock } from "@olai/kolu-ui"
 import { type ClosedBy, type Editing, leavingCommits, openedOn, sending, writes } from "./editor.ts"
 import { Link } from "../router.tsx"
 import { useDoors, useNames } from "../reading.tsx"
@@ -182,6 +182,19 @@ import { TARGET } from "../touch.ts"
 // call the app makes. Against `TERMINAL_KEY` — `@olai/surface`'s exported
 // constant — never the string `"terminal"`: the key is the wire's, one
 // spelling, and a literal here would be a second one waiting to drift.
+
+/** THE DRAWER'S FURNITURE, minted once — every block gets the same object.
+ *
+ *  It lives HERE and not in `./blocks.ts` because that module is the seam and
+ *  is deliberately JSX-free: its own unit test imports it directly, and pulling
+ *  a `.tsx` in through it broke that test the moment the chrome was added
+ *  there. A type crosses a seam; a component belongs with the drawer. */
+const BLOCK_CHROME: BlockChrome = {
+  Handle,
+  factId: TESTID.prop,
+  valueId: TESTID.propValue,
+}
+
 registerBlock(TERMINAL_KEY, TerminalBlock)
 
 /**
@@ -400,6 +413,7 @@ export function PropsDrawer(props: {
             onOpen: props.onSet === undefined
               ? undefined
               : () => setEditing({ key: laid.entry.key, value: laid.entry.value }),
+            chrome: BLOCK_CHROME,
           })}
       </For>
       {/* THE ANSWER OUTLIVES THE RUN. The line hangs off the drawer's own

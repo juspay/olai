@@ -477,7 +477,6 @@ test("every dynamic import() the client spells takes a literal the bundler can r
     path.join("layout", "Rail.tsx"),
     path.join("markdown", "chunk.ts"),
     path.join("menu", "chunk.ts"),
-    path.join("props", "LivePane.tsx"),
   ])
 })
 

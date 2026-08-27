@@ -23,14 +23,14 @@
  * the same tree. */
 @source "./";
 
-/* THE BROWSER'S KOLU HALF, as one line — `./props/all.css`.
+/* THE BROWSER'S KOLU HALF, as one line — `@olai/kolu-ui/all.css`.
  *
  * This was two vendor imports and a paragraph explaining kolu's own chain. The
  * appliance carries that now: the row's sheet with its prerequisites, xterm's,
  * and a `@source` pointed at its own directory. Which sheets those are, and in
  * what order, is not something the app should have to know — the #2219 argument
  * one level down, made before the wall rather than after. */
-@import "./props/all.css";
+@import "@olai/kolu-ui/all.css";
 
 /* The typefaces themselves — `@font-face` and every `:root[data-font]`
  * block — are generated from `@olai/fonts`'s catalog and appended by the

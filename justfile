@@ -124,7 +124,7 @@ test: install
       ./packages/web/src/client/chat/attention/asked.browsertest.ts \
       ./packages/web/src/client/chat/attention/elsewhere.browsertest.ts \
       ./packages/web/src/client/chat/declared.browsertest.ts \
-      ./packages/web/src/client/props/held.browsertest.ts
+      ./packages/kolu-ui/src/props/held.browsertest.ts
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the
 # root package.json (bunfig.toml explains why they have to be there). Reads

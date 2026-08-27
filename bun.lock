@@ -108,6 +108,16 @@
         "effect": "4.0.0-rc.112",
       },
     },
+    "packages/kolu-ui": {
+      "name": "@olai/kolu-ui",
+      "version": "0.1.0",
+      "dependencies": {
+        "@olai/surface": "workspace:*",
+        "@xterm/addon-fit": "^0.11.0",
+        "@xterm/xterm": "^6.0.0",
+        "solid-js": "^1.9.0",
+      },
+    },
     "packages/log": {
       "name": "@olai/log",
       "version": "0.1.0",
@@ -205,11 +215,10 @@
         "@olai/child": "workspace:*",
         "@olai/fonts": "workspace:*",
         "@olai/format": "workspace:*",
+        "@olai/kolu-ui": "workspace:*",
         "@olai/surface": "workspace:*",
         "@solid-primitives/keyed": "^1.5.3",
         "@solid-primitives/scheduled": "^1.5.3",
-        "@xterm/addon-fit": "^0.11.0",
-        "@xterm/xterm": "^6.0.0",
         "effect": "4.0.0-rc.112",
         "highlight.js": "^11.11.1",
         "lowlight": "^3.3.0",
@@ -418,6 +427,8 @@
     "@olai/index": ["@olai/index@workspace:packages/index"],
 
     "@olai/kolu-client": ["@olai/kolu-client@workspace:packages/kolu-client"],
+
+    "@olai/kolu-ui": ["@olai/kolu-ui@workspace:packages/kolu-ui"],
 
     "@olai/log": ["@olai/log@workspace:packages/log"],
 

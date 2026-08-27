@@ -22,7 +22,7 @@ import type { KoluLink } from "@olai/surface"
 import { desktop } from "../layout/media.ts"
 import { DOT, PILL } from "../readout.ts"
 import { TESTID } from "../testids.ts"
-import { padiSaid } from "./said.ts"
+import { padiSaid } from "@olai/kolu-ui"
 
 export function Padi(props: { readonly link: KoluLink }) {
   const said = () => padiSaid(props.link)

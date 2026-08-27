@@ -357,6 +357,7 @@
   "@olai/identity" = copyPathToStore ./packages/identity;
   "@olai/index" = copyPathToStore ./packages/index;
   "@olai/kolu-client" = copyPathToStore ./packages/kolu-client;
+  "@olai/kolu-ui" = copyPathToStore ./packages/kolu-ui;
   "@olai/log" = copyPathToStore ./packages/log;
   "@olai/ops" = copyPathToStore ./packages/ops;
   "@olai/server" = copyPathToStore ./packages/server;
