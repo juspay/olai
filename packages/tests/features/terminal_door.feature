@@ -184,3 +184,24 @@ Feature: The `terminal` property is a DOOR
     And the padi indicator explains "99.0"
     And the padi indicator explains "needs an upgrade"
     And there should be no page errors
+
+  @scratch:lanes @padi:lanes
+  Scenario: A pane resized more than its whole budget is STILL LIVE
+    # THE DEFECT THIS FENCES, which reached the human's board: every grid
+    # change re-attaches and every re-attach spent from a budget nothing ever
+    # refilled, so `attempts` was really "how long has this pane been open".
+    # Eight resizes is past `ATTEMPT_BUDGET`; before the refill this pane was
+    # armed, and the next ordinary stream end printed "this terminal stopped
+    # answering — it has probably closed." over a working terminal.
+    #
+    # kolu's rule is that a delivered frame refills the budget — a pane that
+    # painted has proved the whole chain, so the next stumble is a fresh
+    # episode rather than an old one's accounting. This lane had copied the
+    # re-attach and not the refill.
+    Given I open the outline "lanes.olai"
+    When I watch the terminal on "door-implement"
+    Then a snapshot pane opens on "door-implement"
+    And the live screen shows "just check"
+    When I resize the window 8 times
+    Then the pane on "door-implement" is still live
+    And there should be no page errors

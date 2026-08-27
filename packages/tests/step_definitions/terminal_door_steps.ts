@@ -232,3 +232,42 @@ Then(
     );
   },
 );
+
+When(
+  "I resize the window {int} times",
+  async function (this: OlaiWorld, times: number) {
+    // EACH RESIZE THAT MOVES THE GRID RE-ATTACHES, which is the lane the
+    // budget defect lived in: the pane spent an attempt per resize and nothing
+    // ever put one back, so a pane that had been open a while was already out
+    // of budget when the next ordinary stream end arrived.
+    //
+    // The widths step in real jumps so every one of them crosses a column
+    // boundary — a resize that leaves the grid where it was is not the case
+    // under test and would make this pass for the wrong reason.
+    const { height } = this.page.viewportSize() ?? { width: 1280, height: 900 };
+    for (let i = 0; i < times; i += 1) {
+      await this.page.setViewportSize({ width: 1280 - i * 60, height });
+      await this.page.waitForTimeout(120);
+    }
+  },
+);
+
+Then(
+  "the pane on {string} is still live",
+  async function (this: OlaiWorld, id: string) {
+    // THE WHOLE POINT: still attached, and NOT wearing the budget's sentence.
+    const screen = this.node(id).locator(SCREEN).first();
+    await screen.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const state = await screen.getAttribute("data-state");
+    assert.equal(
+      state,
+      "attached",
+      `the pane should still be attached after the resizes — it is "${state}"`,
+    );
+    const said = await this.node(id).locator(SCREEN).first().textContent();
+    assert.ok(
+      !said?.includes("probably closed"),
+      `the pane declared a live terminal dead: "${said}"`,
+    );
+  },
+);
