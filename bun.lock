@@ -44,6 +44,7 @@
         "@olai/acp": "workspace:*",
         "@olai/child": "workspace:*",
         "@olai/format": "workspace:*",
+        "@olai/kolu-client": "workspace:*",
         "@olai/log": "workspace:*",
         "@olai/state": "workspace:*",
         "@olai/surface": "workspace:*",

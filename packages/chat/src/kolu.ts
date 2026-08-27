@@ -93,17 +93,24 @@ import type { ChildProcess } from "node:child_process"
 
 import {
   detect as detectKolu,
+  KOLU_COMMAND,
+  PADI_SOCKET_ENV,
   probe as probeKolu,
   type ProbeFailure,
-} from "@kolu/detect"
+} from "@olai/kolu-client/detect"
 import type { NotHere } from "./servers.ts"
 import { Effect } from "effect"
 
 /** The executable, its verb, and the variable that says which padi. All three
- *  are kolu's own `.mcp.json` entry, unchanged — and now kolu's own constants,
- *  so a rename there cannot leave this file quietly spelling the old one. */
-const COMMAND = "kolu"
-const SOCKET = "PADI_SOCKET"
+ *  are kolu's own `.mcp.json` entry — and they are now kolu's own CONSTANTS,
+ *  reached through `@olai/kolu-client/detect`, so a rename upstream cannot
+ *  leave this file quietly spelling the old one.
+ *
+ *  That sentence was here before and was FALSE: these were two string literals
+ *  and nothing in the tree imported kolu's exports, so the test pinned the
+ *  spelled values and an upstream rename would have stayed green. */
+const COMMAND = KOLU_COMMAND
+const SOCKET = PADI_SOCKET_ENV
 
 /**
  * ... and what it means when that variable is set and there is nothing to run.
@@ -334,4 +341,4 @@ export const askOver = async (
  *  package's fixtures answer under it — an answer carrying a different id is
  *  not an answer, and a fixture that spelled the number itself could go on
  *  passing while kolu's moved. */
-export { PROBE_ID } from "@kolu/detect"
+export { PROBE_ID } from "@olai/kolu-client/detect"

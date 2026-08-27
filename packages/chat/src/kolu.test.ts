@@ -18,6 +18,7 @@ import { tmpdir } from "node:os"
 import { delimiter, join } from "node:path"
 
 import { afterEach, describe, expect, test } from "bun:test"
+import { KOLU_COMMAND, KOLU_MCP_ARGS, PADI_SOCKET_ENV } from "@olai/kolu-client/detect"
 import { Effect } from "effect"
 
 import { mcpServersOf } from "./agent.ts"
@@ -131,12 +132,15 @@ describe("detecting kolu", () => {
     const bin = koluOnPath(script(true))
     process.env["PADI_SOCKET"] = "/run/user/1000/padi-abc/padi.sock"
 
+    // THE CONSTANTS, not their spellings. These used to be literals, and the
+    // pin was therefore green through any upstream rename — which was the
+    // whole finding behind the detect door.
     expect(await server()).toEqual({
-      name: "kolu",
+      name: KOLU_COMMAND,
       // The path that ANSWERED, absolute — not the word we looked up.
       command: bin,
-      args: ["mcp"],
-      env: { PADI_SOCKET: "/run/user/1000/padi-abc/padi.sock" },
+      args: KOLU_MCP_ARGS,
+      env: { [PADI_SOCKET_ENV]: "/run/user/1000/padi-abc/padi.sock" },
     })
   })
 
