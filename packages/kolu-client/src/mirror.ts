@@ -390,9 +390,18 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       // before serializing — last-attach-wins on a shared terminal, and that IS
       // what attaching means here: every client sees the same size, which is
       // what makes this a window on the terminal rather than a picture of it.
-      return Stream.map(
-        attacher(grid === undefined ? { id: found.id } : { id: found.id, resizeTo: grid }),
-        frameOf,
+      // SUSPENDED, so a stub that throws SYNCHRONOUSLY becomes a stream failure
+      // this can catch rather than an exception thrown out of `attach` itself.
+      // padi's client validates its input when it is CALLED, so an id or a grid
+      // it refuses escaped past the `catchCause` below — and the pane, which
+      // has no arm for an exception coming out of a constructor, sat open and
+      // empty. The e2e found it on the refusal scenario.
+      const face = attacher
+      return Stream.suspend(() =>
+        Stream.map(
+          face(grid === undefined ? { id: found.id } : { id: found.id, resizeTo: grid }),
+          frameOf,
+        )
       ).pipe(
         // A DROPPED LINK IS NOT A PANE'S FAULT AND NOT ITS PROBLEM TO NAME.
         // padi's stream dies when the socket does; what a reader wants then is

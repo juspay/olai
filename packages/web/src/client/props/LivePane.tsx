@@ -273,6 +273,23 @@ export function LivePane(props: {
               act(onEnd(state))
             }),
           ),
+          // ...AND A STREAM THAT FAILED IS NOT SILENCE EITHER. `andThen` runs on
+          // success only, so without this arm a subscription that died — a
+          // transport that dropped, a member that refused, anything the server
+          // did not turn into a `refused` FRAME — left the pane open, empty and
+          // waiting for a frame that was never coming. That is rule 4's failure
+          // mode arriving by a different road, and the e2e found it on the one
+          // scenario that asserts a refusal rather than bytes.
+          //
+          // `catchCause` and not `catch`: the interesting failures here are
+          // defects (an input a schema refuses fails at ENCODE, which no error
+          // channel knows about), and a `catch` would let exactly those through.
+          Effect.catchCause(() =>
+            Effect.sync(() => {
+              clearTimeout(deadline)
+              act(onEnd(state))
+            })
+          ),
         ),
       )
 

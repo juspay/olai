@@ -92,15 +92,19 @@ Feature: The `terminal` property is a DOOR
     And there should be no page errors
 
   @scratch:lanes @padi:lanes
-  Scenario: A terminal with no live screen refuses in words, in the pane
-    # A sleeping terminal has no live mirror to attach to, which is padi's own
-    # `TerminalNotFound` and the expected answer for a lane that finished. It is
-    # a sentence IN PLACE OF the terminal — not a fault, not an empty box, and
+  Scenario: A terminal with no live screen says so, rather than sitting blank
+    # A sleeping terminal has no live mirror to serialize, so the attach ends
+    # without a frame — and a clean end is NOT an exit (rule 3), so the pane
+    # re-attaches, gets the same nothing, and spends its budget before saying
+    # so. That budget is what makes "recoverable" safe: without it a pane over a
+    # terminal that closed an hour ago re-attaches until the tab does.
+    #
+    # A sentence IN PLACE OF the terminal — not a fault, not an empty box, and
     # not a frozen screen under a tag still claiming to be live.
     Given I open the outline "lanes.olai"
     When I watch the terminal on "quiet-implement"
     Then a snapshot pane opens on "quiet-implement"
-    And the pane refuses with "it may have closed"
+    And the pane refuses with "probably closed"
     And there should be no page errors
 
   @scratch:lanes @padi:ahead

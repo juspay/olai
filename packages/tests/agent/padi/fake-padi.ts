@@ -227,13 +227,17 @@ const padi = implementSurface(padiSurfaceSibling, {
     terminalAttach: {
       source: ({ id }: { readonly id: string }) => {
         const screen = fleet.screens[id]
-        // NO LIVE MIRROR IS A REFUSAL, not silence. A dormant terminal has no
-        // screen to attach to and padi says so at once — which is what makes
-        // the pane's "it may have closed" sentence a fast, deterministic
-        // scenario rather than a wait for a deadline to expire.
-        if (screen === undefined) {
-          return Stream.fail(new TerminalNotFound({ id }))
-        }
+        // NO LIVE MIRROR ENDS THE ATTACH AT ONCE. A dormant terminal has no
+        // screen to serialize, and what a client sees is a stream that
+        // finishes without a frame — which is rule 3's case (a clean end is not
+        // an exit) driven to its honest conclusion: the pane re-attaches, gets
+        // the same nothing, and spends its budget saying so.
+        //
+        // NOT `Stream.fail`. A failure here never reached the client at all —
+        // the pane sat silent until its first-frame deadline, which is a
+        // TWENTY-FOUR SECOND path a fifteen-second step cannot see. An ending
+        // stream is both the truer fixture and the fast one.
+        if (screen === undefined) return Stream.empty
         return Stream.concat(
           Stream.make({
             kind: "snapshot" as const,
