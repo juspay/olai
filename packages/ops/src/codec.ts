@@ -79,21 +79,30 @@ export const codec: Codec<Document, Reading, Verdict> = {
    *  every reader above deriving the corpus a second time from a value that had
    *  just been built and dropped inside this call.
    *
-   *  THIS is the expensive validation the write gate pays for once rather than
-   *  twice ({@link ../../store/src/store.ts}'s `commit`, which says how): one
-   *  call here is the whole corpus derived and six whole-set rules run over it,
-   *  so it used to be that walk twice per keystroke. The store states the
-   *  property generically because it must; the argument for olai is
-   *  `docs/brainstorming/model-indices.md`, slice 2.
+   *  THIS is the validation the write gate pays for once rather than twice
+   *  ({@link ../../store/src/store.ts}'s `commit`, which says how), and it used
+   *  to be that walk twice per keystroke. What one call costs is no longer one
+   *  sentence: handed nothing to follow it is the whole corpus derived and the
+   *  whole-set rules run over it, and handed the reading it follows it is
+   *  neither. The store states the property generically because it must; the
+   *  argument for olai is `docs/brainstorming/model-indices.md`, slice 2.
    *
-   *  AND THE DERIVATION IS NOW PATCHED, which is slice 3 of the same argument
-   *  and the whole of what this seam adds to it. The store says what it last
-   *  published and which paths have moved since; the format says what a set
-   *  means. Between them is one translation and no rule: each moved path, with
-   *  the records it decoded to, is an upsert, and the format's own patcher does
-   *  the rest — held to `derive` by a property test, and free to hand the whole
-   *  thing back to `derive` whenever it would rather. A corpus-sized walk per
-   *  keystroke becomes a walk of what the keystroke touched. */
+   *  BOTH HALVES OF THAT ARE THE SECOND ARGUMENT, and passing it is the whole
+   *  of what this seam adds. The store says what it last published and which
+   *  paths have moved since; the format says what a set means. Between them is
+   *  one translation and no rule: each moved path, with the records it decoded
+   *  to, is an upsert.
+   *
+   *  THE DERIVATION IS PATCHED from it (slice 3) — the format's own patcher,
+   *  held to `derive` by a property test and free to hand the whole thing back
+   *  to `derive` whenever it would rather. AND THE RULES ARE NARROWED OVER IT
+   *  (`perf-validate-flip`): since the flip the validator asks what the edit
+   *  touched and answers with it, walking the corpus only when there is nothing
+   *  to narrow from — which for a codec driven this way is the boot and the
+   *  revisions a patch was declined on. So a corpus-sized derivation AND a
+   *  corpus-sized set of rules per keystroke both become a walk of what the
+   *  keystroke touched, and neither of those is a promise this file makes: it
+   *  hands over what it knows and `@olai/format` decides what to do with it. */
   validate: (files, since) =>
     validate(
       assemble(files),

@@ -22,14 +22,42 @@
  *     carries the parse errors alongside whatever else was found. The store
  *     then keeps its last good snapshot and the browser shows a banner.
  *
- * THE RULES THEMSELVES ARE ONE FILE OVER ({@link ./rules.ts}), and that move is
- * about the SHADOW rather than about length. Each of them takes the records it
- * is asked about, so a second validator can ask the same functions about fewer
- * of them — which is what {@link ./incremental.ts} does, and what
- * {@link ./shadow.ts} runs beside every call below to prove the two agree.
- * Nothing about the verdict this function reaches has changed: the full rules
- * run over the whole corpus, exactly as they always did, and the narrowed
- * arm's answer is compared and dropped.
+ * ## TWO WAYS TO REACH ONE VERDICT, and the narrowed one is the answer
+ *
+ * A validation handed the reading it FOLLOWS ({@link Previous}) re-asks only
+ * the rules an edit could have changed the answer to: {@link ./incremental.ts}
+ * takes the previous verdict, the previous view and a delta naming what moved,
+ * and reaches the same verdict from the touched records instead of from the
+ * directory. That arm is AUTHORITATIVE as of this file's `narrowly` — its
+ * verdict is the one {@link validate} answers with, and the whole-set rules do
+ * not run beside it.
+ *
+ * It ran as a SHADOW first (#383, 2026-08-25 → 2026-08-27): both arms on every
+ * write, the full verdict obeyed, the narrowed one compared and dropped, and
+ * every disagreement appended to a log an orchestrator read. Three quiet nights
+ * and an empty log are what this change spends, and the shadow went with it —
+ * a shadow of an authoritative thing is meaningless.
+ *
+ * {@link wholly} is what a validation that CANNOT narrow runs, and it is the
+ * same six rules over the whole corpus that every validation used to run. It is
+ * reached on a boot, on a rebuilt view, on a reading nobody validated, and on
+ * the three doors the narrowing turns back at ({@link Cold}) — so the full
+ * arm is not gone, it is the answer for the writes that have nothing to narrow
+ * from.
+ *
+ * A THROW FROM THE NARROWED ARM IS NOT CAUGHT, which is a change of position
+ * and a deliberate one. The shadow ran inside a `try` because it decided
+ * nothing and a write that failed because its own understudy failed would have
+ * been a strictly worse product. That premise is gone: the narrowing decides,
+ * it has a word for every case it knows it cannot answer, and a validator that
+ * swallowed its own defects and quietly answered a different way would make
+ * the verdict depend on whether a bug threw or was merely wrong.
+ *
+ * THE RULES THEMSELVES ARE ONE FILE OVER ({@link ./rules.ts}), and that is what
+ * makes the two arms one set of rules rather than two opinions about the
+ * format. Each of them takes the records it is asked about, so the narrowed
+ * validator asks the same functions about fewer of them — which is the whole of
+ * what {@link ./incremental.ts} is.
  */
 
 import { Result } from "effect"
@@ -37,6 +65,7 @@ import { Result } from "effect"
 import { derive, type Derived } from "./derive.ts"
 import { type Document, isOutline } from "./document.ts"
 import type { OutlineError } from "./errors.ts"
+import { type Decline, incrementally, type Ledger } from "./incremental.ts"
 import type { Located } from "./node.ts"
 import { type FileNodes, patched, type SetDelta } from "./patch.ts"
 import { type Pointing, pointingOf, repointed } from "./pointing.ts"
@@ -55,7 +84,6 @@ import {
   reportUnknownTargets,
 } from "./rules.ts"
 import { type OutlineSet, outlinesIn, withDocuments } from "./set.ts"
-import { shadowed } from "./shadow.ts"
 import { declarationsOf, type Typed } from "./typing.ts"
 import { refusesLoad, type Verdict, verdictOf } from "./verdict.ts"
 
@@ -127,7 +155,6 @@ export const validate = (
   set: OutlineSet,
   previous?: Previous,
 ): Result.Result<Reading, Verdict> => {
-  const errors: Array<OutlineError> = []
   // One set of indexes, built once and shared by every rule below, so no two
   // of them can disagree about which record an id names or what hangs under it
   // — and so the browser derives the tree from the same code. It LEAVES with
@@ -136,55 +163,30 @@ export const validate = (
   const view = viewOf(set, previous)
   const derived = view.derived
 
-  // THE RECORDS ARE THE VIEW'S, which is the same records the set holds one
-  // level down. Asking the derivation is what keeps this from being a second
-  // flattening beside the one every rule below is run against — and the
-  // identity the duplicate-id rule turns on is exactly that these are the set's
-  // records rather than copies of them.
-  //
-  // BOUND ONCE, because a patched view builds this reading when somebody asks
-  // ({@link Derived.nodes}) and five rules asking is one question, not five.
-  const all = derived.nodes
-  // The `.md` paths a `doc` may point at, bound here rather than inside the
-  // rule that reads them so that the ledger the shadow files can carry them —
-  // building this walks every document in the directory
-  // ({@link ./rules.ts}'s `markdownPaths`).
-  const known = markdownPaths(set)
-  // WHAT THE VAULT DECLARES about its property keys, read once and handed to
-  // both halves of the typing rule below ({@link ./typing.ts}). One small
-  // file's top level — the same shape and the same cost as the shelf's reading
-  // one convention over — so it is built here rather than inside a rule that
-  // would build it per record, and it LEAVES with the shadow so the narrowed
-  // arm can tell a vocabulary that moved from one that did not.
-  const declarations = declarationsOf(derived)
-  const typed: Typed = { declarations, derived, documents: known }
-  reportDuplicateIds(all, derived, errors)
-  reportParents(all, derived, errors)
-  reportParentCycles(all, derived, errors)
-  reportUnknownTargets(danglingIn(derived), derived, errors)
-  reportAfterCycles(all, derived, errors)
-  reportMirrorCycles(all, derived, errors)
-  reportDocs(all, known, errors)
-  reportDeclarations(derived, errors)
-  reportPropValues(all, typed, errors)
+  // THE NARROWED ARM, AND ITS ANSWER IS THE ANSWER. This is the flip
+  // (roadmap `perf-validate-flip`): the rules an edit could not have changed
+  // the answer to are not re-asked, and what a write pays is the touched
+  // files' records rather than the directory. {@link wholly} is the same six
+  // rules the validator always ran, and it runs when — and only when — there
+  // is nothing to narrow from ({@link Cold} names the six doors).
+  const said = narrowly(set, previous, view)
+  const ledger = typeof said === "string" ? wholly(set, derived, said) : said
 
-  // THE UNDERSTUDY, and it decides nothing: it runs the narrowed validator over
-  // the same set and the same view, compares its verdict with the one above,
-  // and shouts if they differ ({@link ./shadow.ts}, which also says when and how
-  // the flip may happen and that it is not this call's to make). It returns
-  // nothing and it cannot throw.
-  shadowed(
-    set,
-    previous?.read.derived,
-    // The delta is offered only when the patch was TAKEN. A rebuilt view has no
-    // relation to the one this validation follows, so a narrowing against it
-    // would be sound about nothing ({@link ./incremental.ts}'s first fact).
-    view.patched ? previous?.delta : undefined,
-    derived,
-    errors,
-    known,
-    declarations,
-  )
+  // WHAT THIS VALIDATION LEAVES FOR THE NEXT ONE, filed under the view it was
+  // reached over. It is the same table the shadow kept and it is kept here for
+  // the same two reasons: a `WeakMap` so a view nobody held takes its ledger
+  // with it, and BESIDE the reading rather than inside it so that a `Reading`
+  // minted by {@link reading} or {@link following} — speculative, judged by
+  // nothing — carries no verdict for a later validation to narrow from. Such a
+  // reading is `unledgered` at the door above, which is a rebuild and never a
+  // guess.
+  //
+  // FILED WHATEVER THE VERDICT WAS, including a refusal, and read back only
+  // through {@link Previous} — which the store fills from the last reading it
+  // PUBLISHED. So the entry a refused validation leaves is one nothing follows,
+  // and the narrowing's second fact ({@link ./incremental.ts}) is still the
+  // store's discipline rather than this line's promise.
+  LEDGERS.set(derived, ledger)
 
   // WHAT EACH FINDING COSTS A LOAD, one class at a time ({@link ./verdict.ts}'s
   // tier table) — where this used to read `errors.length > 0` and mean "any
@@ -201,9 +203,168 @@ export const validate = (
   // is the report — the parse errors, which are the cause, the guesses taken
   // out, the whole thing in order ({@link ./rules.ts}'s `reportOf` assembles
   // both halves) — and the last good snapshot stays on screen underneath it.
-  return refusesLoad(errors)
-    ? Result.fail(verdictOf(reportOf(set, errors)))
+  return refusesLoad(ledger.errors)
+    ? Result.fail(verdictOf(reportOf(set, ledger.errors)))
     : Result.succeed({ set, derived, pointing: view.pointing })
+}
+
+/**
+ * WHY A VALIDATION HAD TO WALK THE CORPUS — one word per door, and the six of
+ * them are the whole of when {@link wholly} runs.
+ *
+ *   - `first` — no reading to follow at all: the boot, or a caller that
+ *     offered none;
+ *   - `rebuilt` — the view was BUILT rather than patched, so it carries no
+ *     relation to the one this validation follows ({@link patched} declined, or
+ *     {@link isSet} refused the delta). A narrowing against it would be sound
+ *     about nothing ({@link ./incremental.ts}'s first fact);
+ *   - `unledgered` — a previous view this file has no verdict for, which is a
+ *     reading minted somewhere other than a validation ({@link reading},
+ *     {@link following});
+ *   - and the three the narrowing itself turns back at
+ *     ({@link ./incremental.ts}'s `Decline`).
+ */
+export type Cold = "first" | "rebuilt" | "unledgered" | Decline
+
+/**
+ * The narrowed ledger, or the word for why there is none.
+ *
+ * THREE CHECKS AND THEN THE NARROWING'S OWN THREE, in the order that makes each
+ * one cheap: a validation with nothing to follow is turned back before a table
+ * is read, and a rebuilt view before the previous one is looked up at all.
+ *
+ * IT DOES NOT CATCH. A throw from here is a defect in the validator and the
+ * write fails with it — see this file's header for why that is a change of
+ * position from the shadow's `try` and not an oversight.
+ */
+const narrowly = (
+  set: OutlineSet,
+  previous: Previous | undefined,
+  view: Taken,
+): Ledger | Cold => {
+  if (previous === undefined) return "first"
+  if (!view.patched) return "rebuilt"
+  const followed = LEDGERS.get(previous.read.derived)
+  if (followed === undefined) return "unledgered"
+  const narrowed = incrementally(
+    set,
+    previous.read.derived,
+    followed,
+    previous.delta,
+    view.derived,
+  )
+  if (typeof narrowed === "string") return narrowed
+  reached({ kind: "narrowed", walked: narrowed.walked })
+  return narrowed.ledger
+}
+
+/**
+ * THE SIX WHOLE-SET RULES over the whole corpus — the validator as it was
+ * before the flip, and what a validation with nothing to narrow from runs.
+ *
+ * Five of these visit every record in the directory and the sixth reads an
+ * index (roadmap `perf-validate-incremental`), which is the cost the narrowed
+ * arm exists to stop paying per keystroke — and which a boot, a `git pull` and
+ * a duplicate id still pay, because each of those is a set nothing said
+ * anything true about yet.
+ *
+ * IT ANSWERS WITH A LEDGER and not a list of findings, so that the two arms
+ * leave the same value for whoever follows: the raw findings, the `.md` paths
+ * this verdict was reached against, and the vocabulary the vault declared
+ * ({@link ./incremental.ts}'s `Ledger` argues each of the three).
+ */
+const wholly = (set: OutlineSet, derived: Derived, why: Cold): Ledger => {
+  reached({ kind: "whole", why })
+  const errors: Array<OutlineError> = []
+  // THE RECORDS ARE THE VIEW'S, which is the same records the set holds one
+  // level down. Asking the derivation is what keeps this from being a second
+  // flattening beside the one every rule below is run against — and the
+  // identity the duplicate-id rule turns on is exactly that these are the set's
+  // records rather than copies of them.
+  //
+  // BOUND ONCE, because a patched view builds this reading when somebody asks
+  // ({@link Derived.nodes}) and five rules asking is one question, not five.
+  const all = derived.nodes
+  // The `.md` paths a `doc` may point at, bound here rather than inside the
+  // rule that reads them so that the ledger this leaves can carry them —
+  // building this walks every document in the directory
+  // ({@link ./rules.ts}'s `markdownPaths`), which is the one whole-corpus
+  // reading here that is not a walk of the records and the one the narrowed
+  // arm carries forward instead of repeating.
+  const known = markdownPaths(set)
+  // WHAT THE VAULT DECLARES about its property keys, read once and handed to
+  // both halves of the typing rule below ({@link ./typing.ts}). One small
+  // file's top level — the same shape and the same cost as the shelf's reading
+  // one convention over — so it is built here rather than inside a rule that
+  // would build it per record, and it LEAVES in the ledger so the next
+  // validation can tell a vocabulary that moved from one that did not.
+  const declarations = declarationsOf(derived)
+  const typed: Typed = { declarations, derived, documents: known }
+  reportDuplicateIds(all, derived, errors)
+  reportParents(all, derived, errors)
+  reportParentCycles(all, derived, errors)
+  reportUnknownTargets(danglingIn(derived), derived, errors)
+  reportAfterCycles(all, derived, errors)
+  reportMirrorCycles(all, derived, errors)
+  reportDocs(all, known, errors)
+  reportDeclarations(derived, errors)
+  reportPropValues(all, typed, errors)
+  return { errors, known, typing: declarations }
+}
+
+/** The verdict one validation reached about the view it built — read back by
+ *  the next validation that follows this one ({@link validate} says why the
+ *  table is here and not on the {@link Reading}). */
+const LEDGERS = new WeakMap<Derived, Ledger>()
+
+/** What this file holds about a view, read back. Nothing in the product asks —
+ *  it is here so that "the ledger a validation leaves is the one it ANSWERED
+ *  with" is a checked claim rather than a paragraph
+ *  (`./incremental.testlib.ts`). */
+export const ledgerOf = (derived: Derived): Ledger | undefined => LEDGERS.get(derived)
+
+/**
+ * HOW ONE VALIDATION REACHED ITS VERDICT — narrowed to what the edit touched,
+ * or over the whole corpus, and which door sent it there.
+ *
+ * It decides nothing and nothing in the product listens. What it exists for is
+ * the differential (`./incremental.test.ts`): the two arms are held to one
+ * answer by running both over the same set, and a run where the narrowing
+ * DECLINED every time would be the full validator agreeing with itself on every
+ * revision — a green suite proving nothing at all. Only this channel can tell
+ * the two apart, so the floors that keep that suite honest are read off it.
+ */
+export interface Reached {
+  readonly kind: "narrowed" | "whole"
+  /** Which door, on `whole` — a count of them is a sum over five different
+   *  things, and a floor met by booting sixty times has exercised none of
+   *  them. */
+  readonly why?: Cold
+  /** Whether the narrowed arm had to walk the corpus ANYWAY, for the two rules
+   *  that fall back to it — see {@link ./incremental.ts}'s `Narrowed`. Absent
+   *  on `whole`, where there was no narrowed arm to ask. */
+  readonly walked?: boolean
+}
+
+export type Watcher = (reached: Reached) => void
+
+/**
+ * Install the watcher — `null` takes it off, and off is the default.
+ *
+ * SILENCE AND NOT A SHOUT, which is where this differs from the shadow's
+ * witness it replaces: a divergence was news and had to reach somebody through
+ * a tree that had wired nothing, while "the validator narrowed this write" is
+ * every write and is news to no one. One slot, so a suite cannot end up
+ * printing what it is asserting on.
+ */
+export const watching = (installed: Watcher | null): void => {
+  watcher = installed
+}
+
+let watcher: Watcher | null = null
+
+const reached = (one: Reached): void => {
+  watcher?.(one)
 }
 
 /**
@@ -436,17 +597,19 @@ const recordsIn = (set: OutlineSet): ReadonlyArray<Located> =>
  * equal to the one it already had, and throw away the one identity worth
  * keeping: the patched list is stable across revisions that touched nothing.
  *
- * IT SAYS WHICH WAY IT WENT, which the shadow needs and nothing else does: a
- * narrowed verdict is only sound over a view that really was patched from the
- * one it is narrowing against ({@link ./incremental.ts}'s first fact), and a
- * rebuild carries no such relation. It asks {@link patched} rather than
- * `patch` for that word — the patcher with its fallback taken off, which is
- * the same door `./patch.test.ts` uses to count declines. The fallback the
- * patcher would have taken is this function's own last line, and the two are
- * the same value: `derive` over the delta applied to the previous grouping and
- * `derive` over the set's own records are one array whenever {@link isSet}
- * would have passed, and whenever it would not, this is the rebuild that used
- * to happen anyway — one derivation now where a missed file used to cost two.
+ * IT SAYS WHICH WAY IT WENT, and since the flip that word decides which arm
+ * answers: a narrowed verdict is only sound over a view that really was patched
+ * from the one it is narrowing against ({@link ./incremental.ts}'s first fact),
+ * and a rebuild carries no such relation — so a rebuilt view is `rebuilt` at
+ * {@link narrowly}'s second door and the whole corpus is walked. It asks
+ * {@link patched} rather than `patch` for that word — the patcher with its
+ * fallback taken off, which is the same door `./patch.test.ts` uses to count
+ * declines. The fallback the patcher would have taken is this function's own
+ * last line, and the two are the same value: `derive` over the delta applied
+ * to the previous grouping and `derive` over the set's own records are one
+ * array whenever {@link isSet} would have passed, and whenever it would not,
+ * this is the rebuild that used to happen anyway — one derivation now where a
+ * missed file used to cost two.
  */
 const viewOf = (set: OutlineSet, previous: Previous | undefined): Taken => {
   // WHAT POINTS WHERE is carried across the same step and by its own rule
