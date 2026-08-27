@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from "bun:test"
 import type { FleetTerminal, KoluLink } from "@olai/surface"
-import { isPipGlyphId, isPipVariant } from "@kolu/solid-dockrow/rowValues"
+import { isPipGlyphId, isPipVariant, rowRecency } from "@kolu/solid-dockrow/rowValues"
 
 import { readingOf } from "./terminal.ts"
 
@@ -155,5 +155,61 @@ describe("the fixture speaks kolu's vocabulary", () => {
     const { pip } = row()
     expect(isPipVariant(pip.variant)).toBe(true)
     expect(isPipGlyphId(pip.glyph)).toBe(true)
+  })
+})
+
+describe("the assembled recency bag — the line a row actually renders", () => {
+  // THE GAP THIS CLOSES, and it is why the assertion is on the assembled bag
+  // rather than on a formatter: the round's regression was a wrong ARGUMENT at
+  // one call site, not a wrong function. Every unit under it was correct, the
+  // types were satisfied, and an idle terminal silently stopped saying how long
+  // ago it finished. Nothing in the tree asserted an `ago` string anywhere.
+  const AT = 1_700_000_000_000
+  const bag = (
+    pip: { asking: boolean; active: boolean },
+    recencyAt: number | null,
+    now: number,
+  ) => rowRecency(pip, recencyAt, recencyAt, { tick: () => now, stable: () => now })
+
+  it("SAYS HOW LONG AGO a quiet terminal finished", () => {
+    // The regression, exactly: this rendered "" while `null` went down the
+    // window channel, because `displayRecencyAt` routes every non-chip mode
+    // there. Three hours of silence is the case a reader most wants the row to
+    // answer, and it was the case that went blank.
+    const said = bag({ asking: false, active: false }, AT - 3 * 60 * 60 * 1000, AT)
+    expect(said.mode).toBe("ago")
+    expect(said.mode === "ago" && said.text).toBe("3h ago")
+  })
+
+  it("says `just now` for one that finished a moment ago", () => {
+    const said = bag({ asking: false, active: false }, AT - 5_000, AT)
+    expect(said.mode === "ago" && said.text).toBe("just now")
+  })
+
+  it("renders NOTHING for a terminal padi has never seen activity in", () => {
+    // Empty is right HERE — on a line, absence reads as absence. It is only
+    // the violet capsule that may not be empty, which is the next case.
+    const said = bag({ asking: false, active: false }, null, AT)
+    expect(said.mode === "ago" && said.text).toBe("")
+  })
+
+  it("gives an ASKING row the compact capsule off its OWN wait", () => {
+    const said = bag({ asking: true, active: false }, AT - 7 * 60 * 1000, AT)
+    expect(said.mode).toBe("wait-chip")
+    expect(said.mode === "wait-chip" && said.text).toBe("7m")
+  })
+
+  it("...and a DASH when that row has no honest duration", () => {
+    // kolu's rule: a violet pill with no glyph reads as a rendering bug rather
+    // than as "unknown".
+    const said = bag({ asking: true, active: false }, null, AT)
+    expect(said.mode === "wait-chip" && said.text).toBe("—")
+  })
+
+  it("hides the cell entirely for a working row, with no text at all", () => {
+    // The `hidden` arm carries no `text` key — a type-level rule the old
+    // hand-written assembly had to restate and could have got wrong.
+    const said = bag({ asking: false, active: true }, AT - 60_000, AT)
+    expect(said).toEqual({ mode: "hidden" })
   })
 })

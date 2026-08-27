@@ -52,9 +52,16 @@ let
     # THE SEEDS — what olai's own source imports by name. Read the two tiers
     # rather than the list: `@kolu/surface*` is the FRAMEWORK olai's app is
     # built on (imported anywhere, like `effect`), and the rest is the padi
-    # INTEGRATION. `@kolu/padi-client` and `@kolu/terminal-vocab` are not here
-    # because they are not seeds — they arrive through `@kolu/detect`'s and the
-    # dock row's own closures, which is the point of a closure.
+    # INTEGRATION.
+    #
+    # `@kolu/padi-client` and `@kolu/terminal-vocab` are not here because they
+    # are not seeds: they arrive through `@kolu/solid-dockrow`, whose closure is
+    # 26 of the 32. That naming is load-bearing and was wrong here for a round —
+    # it credited `@kolu/detect`, whose closure is ONE member, itself. Nothing
+    # was missing, because the six-seed union is the same 32 either way; but an
+    # edit that believed it and dropped the dock row would hydrate a tree with no
+    # `@kolu/padi-client` in it while `@olai/kolu-client` still imports it, and
+    # the sibling walk that used to catch exactly that is gone by design.
     seeds = [
       "@kolu/detect"
       "@kolu/solid-dockrow"
@@ -74,10 +81,4 @@ let
     };
   };
 in
-consumer // {
-  # The hydrated sources as bare directories, for `scripts/check-kolu-deps.sh`.
-  # `consumer.nix` has no `sourceDirs` of its own — it exports `packages`, and
-  # this is that, spelled the way one shell script wants to read it.
-  sourceDirs = builtins.concatStringsSep " "
-    (map toString (builtins.attrValues consumer.packages));
-}
+consumer

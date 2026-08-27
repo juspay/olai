@@ -9,7 +9,7 @@
  * WHAT IS REAL HERE: kolu's own `DockRow` and `StatePip` components, kolu's own
  * three stylesheets, olai's own tokens and chip markup, and the row values
  * folded by kolu's own pure functions (`bindStatePip`, `rowSubline`,
- * `paintDockRow`, `activePr`, `recencyMode`) from a REAL padi record — the
+ * `paintDockRow`, `activePr`, `rowRecency`) from a REAL padi record — the
  * `active` arm of `../fixtures/padi/lanes.json`, the same record the e2e's fake
  * padi serves.
  *
@@ -23,10 +23,10 @@ import { render } from "solid-js/web"
 import { DockRow, DockSection } from "@kolu/solid-dockrow"
 import {
   bindStatePip,
-  displayRecencyAt,
+  rowRecency,
 
   paintDockRow,
-  recencyMode,
+
   rowSubline,
 } from "@kolu/solid-dockrow/rowValues"
 import { StatePip } from "@kolu/solid-statepip"
@@ -53,15 +53,24 @@ const bagFor = (record: Parameters<typeof rowSubline>[0], klass: "asking" | "wor
     attention: { klass, live: true },
     unread: false,
   })
-  const mode = recencyMode(pip)
-  const at = displayRecencyAt(mode, record.lastActivityAt ?? null, record.lastActivityAt ?? null)
+  // THE ROW'S OWN DOOR, the same one the app calls: `rowRecency` holds the
+  // mode branch, the two-channel seam and the clock pairing together, so a
+  // harness that assembled them by hand would be photographing a row nobody
+  // ships. The window channel carries the own instant because this row, like
+  // every row olai draws, is a degenerate window — see `TerminalDoor.tsx`.
+  const at = record.lastActivityAt ?? null
+  const NOW = 1_700_000_000_000
+  const recency = rowRecency({ asking: pip.asking, active: pip.active }, at, at, {
+    tick: () => NOW,
+    stable: () => NOW,
+  })
   return {
     pip,
     bucket: paintDockRow(record, klass),
     agentState: record.state === "active" ? (record.agent?.state ?? undefined) : undefined,
     subline: rowSubline(record),
     pr: activePr(record),
-    recency: { mode, text: at === null ? "" : "3m" },
+    recency,
     // PLACEHOLDERS — see the header. `label` is what `annotationLine` would
     // return (intent line 1, else the branch) and the ink is a fixed token.
     label: record.state === "active" ? (record.intent ?? "") : "",

@@ -19,11 +19,13 @@
 # answer, derived from the same manifests this script used to read.
 #
 # So what is left is the part that is genuinely olai's: agreeing with that
-# answer. Two assertions, and the second one is new.
+# answer. THREE assertions: the root list, every package manifest, and the root
+# `overrides` block — the last two are new, and the third guards the mechanism
+# the second one was written because of.
 #
 # ## The second assertion is the one that was missing
 #
-# `effect` is spelled seventeen times across thirteen olai manifests, and until
+# `effect` is spelled fourteen times across thirteen olai manifests, and until
 # now only the ROOT one was checked. What kept the other twelve honest was the
 # root `overrides` block — a resolution mechanism, not a check, so a package
 # declaring a different version was silently rewritten rather than refused. A
@@ -90,6 +92,36 @@ for manifest in "$root"/packages/*/package.json; do
     fail=1
   fi
 done
+
+
+# ── 3. The root `overrides` block agrees too ────────────────────────────────
+#
+# THE ARM THIS SCRIPT WAS MISSING, and it guarded the wrong side of the very
+# mechanism its own header names. `overrides` is how bun SILENTLY REWRITES a
+# version — it is the reason assertion 2 exists at all — and until now nothing
+# read it. Drift `overrides.effect` while `dependencies.effect` sits at kolu's
+# pin and the first two assertions stay green while the installed tree is
+# rewritten underneath them: the manifest is honest, the node_modules is not,
+# and the failure surfaces as two `effect` instances failing to recognise each
+# other's classes, which is the thing `//overrides` exists to prevent.
+#
+# Only overrides that NAME one of kolu's externals are checked. `@types/node` is
+# olai's own discipline for a different reason (bun-types nesting 26.x) and kolu
+# has no opinion about it; an override kolu does not declare is not drift.
+overridden=$(
+  printf '%s' "$OLAI_KOLU_EXTERNALS" | jq -r --slurpfile root "$root/package.json" '
+    to_entries[]
+    | . as $want
+    | (($root[0].overrides // {})[$want.key] // null) as $have
+    | select($have != null and $have != $want.value)
+    | "\($want.key): overrides says \($have); kolu pins \($want.value)"
+  '
+)
+if [ -n "$overridden" ]; then
+  echo "check-kolu-deps: the root overrides block disagrees with kolu:" >&2
+  echo "$overridden" | sed 's/^/  /' >&2
+  fail=1
+fi
 
 [ "$fail" -eq 0 ] || exit 1
 echo "check-kolu-deps: every external kolu's hydrated sources need is a root dependency at kolu's version, and no olai manifest spells one differently"

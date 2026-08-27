@@ -57,8 +57,6 @@ import {
   narrowAgentState,
   narrowRowVocab,
   rowRecency,
-
-
 } from "@kolu/solid-dockrow/rowValues"
 import type { FleetTerminal, Snapshot, SnapshotRefused } from "@olai/surface"
 import { TERMINAL_KEY } from "@olai/surface"
@@ -236,13 +234,23 @@ function Row(props: {
    * call site: the `hidden` arm carries no text, the two timestamp channels
    * feed different modes, and the two clocks are paired to the mode.
    *
-   * THE TWO CHANNELS, and why olai's answer to one of them is `null`. The chip
-   * shows how long THIS row has awaited you; the `ago` line shows the tile
-   * WINDOW's newest activity across a parent and its splits. olai draws one row
-   * per `terminal` property in an outline — there is no tile and no split here,
-   * so there is no window recency, and saying `null` is the honest answer
-   * rather than passing the same instant twice and having the two modes agree
-   * by accident.
+   * THE SAME INSTANT GOES DOWN BOTH CHANNELS, and that is kolu's shape for a
+   * row like this rather than a shortcut. The chip shows how long THIS row has
+   * awaited you; the `ago` line shows the tile WINDOW's newest activity across
+   * a parent and its splits. olai draws one row per `terminal` property in an
+   * outline — no tile, no splits — so the window is DEGENERATE, and kolu
+   * computes the degenerate case as exactly this: `rankDockRows` seeds the
+   * window with `rowRecencyAt(meta)` and folds sub-rows over it, so a row with
+   * no sub-rows carries the own instant in both channels, in every unsplit Dock
+   * row kolu ships.
+   *
+   * A previous version passed `null` for the window, reasoning that sending one
+   * instant twice would make the two modes agree by accident. That inverted the
+   * construction and cost a rendered line: `displayRecencyAt` routes every
+   * non-chip mode to the WINDOW channel, so a quiet terminal rendered
+   * `agoPhrase(null)` — the empty string — and an idle lane that finished three
+   * hours ago stopped saying so. Nothing could see it, because nothing asserted
+   * an `ago` string anywhere; the test below is the other half of this fix.
    *
    * THE TWO CLOCKS are one clock here, and deliberately. kolu ticks the chip
    * every second and the `ago` line every minute; this ticks both every minute,
@@ -250,11 +258,13 @@ function Row(props: {
    * terminal, is a re-render storm bought for a digit nobody is watching in a
    * document somebody is reading. Passing readers rather than a `now` is what
    * lets kolu decline to read either one at all: a blocked row with no honest
-   * duration renders the dash without touching a clock, so it stops repainting
-   * to redraw the same character.
+   * duration renders the dash without touching a clock.
    */
   const recency = (): RowRecency =>
-    rowRecency(pip(), null, props.row.recencyAt, { tick: now, stable: now })
+    rowRecency(pip(), props.row.recencyAt, props.row.recencyAt, {
+      tick: now,
+      stable: now,
+    })
   return (
     <DockSection surface="desktop" repoColor="var(--color-rule)">
       <DockRow

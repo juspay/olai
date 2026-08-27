@@ -7,9 +7,10 @@ in
 pkgs.mkShell {
   name = "olai-shell";
 
-  # The @kolu/* sources, as the argv the hydrate script and the dependency
-  # check take. Both are run by justfile recipes, not by a shellHook: entering
-  # the shell realises the sources but copies nothing.
+  # The @kolu/* sources, as the argv the hydrate script takes, and kolu's own
+  # answer for the versions the dependency check asserts against. Both are read
+  # by justfile recipes, not by a shellHook: entering the shell realises the
+  # sources but copies nothing.
   env = {
     # The hydrate SCRIPT is kolu's too now — the copy that lived in
     # `scripts/` claimed to be byte-identical with odu's and was not, and had
@@ -17,7 +18,6 @@ pkgs.mkShell {
     # concatenated argv, so a caller can see which half is which.
     OLAI_KOLU_HYDRATE_SCRIPT = kolu.hydrateScript;
     OLAI_KOLU_HYDRATE = kolu.hydrateArgs;
-    OLAI_KOLU_DIRS = kolu.sourceDirs;
 
     # KOLU'S OWN ANSWER for every external its hydrated sources need, as JSON.
     # `scripts/check-kolu-deps.sh` asserts olai's manifests against THIS rather

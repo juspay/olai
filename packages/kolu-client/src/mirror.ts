@@ -216,7 +216,6 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
   ): boolean =>
     before !== undefined && after !== undefined && !gridsEqual(before, after)
 
-
   let dials = 0
   /**
    * PADI'S ATTENTION PARTITION, as this mirror holds it — the two feeds joined

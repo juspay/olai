@@ -85,7 +85,9 @@ export type Next =
   | { readonly kind: "idle" }
 
 /** How long a pane waits for its FIRST frame before treating silence as a
- *  failure. kolu's number; see the header on why it is not re-derived. */
+ *  failure. OLAI'S number, not kolu's — kolu's is 45s, derived for a chain
+ *  with a wide-area leg this one does not have. The header has the derivation.
+ */
 export const FIRST_FRAME_MS = 4_000
 
 /** How many attaches a pane will make before it says the terminal is gone. */

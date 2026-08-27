@@ -1,5 +1,6 @@
 # The @kolu/* surface libraries are hydrated as raw TypeScript from the Nix
-# store (scripts/hydrate-kolu-packages.sh) rather than installed from
+# store (kolu's own hydrate script, off the pin — `nix/kolu.nix`'s
+# `hydrateScript`) rather than installed from
 # bun.lock, so their own imports (effect, @effect/platform-node, solid-js,
 # @solid-primitives/*, …) resolve by walking up out of
 # node_modules/@kolu/<name> to the ROOT node_modules.
