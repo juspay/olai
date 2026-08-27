@@ -10,6 +10,7 @@ import App from "./App.tsx"
 import { Fault } from "./errors/Fault.tsx"
 import { followFolders } from "./fold/folders.ts"
 import { followFolds } from "./fold/memory.ts"
+import { trackCamera } from "./chat/camera.ts"
 import { trackDesktop } from "./layout/media.ts"
 import { followLayout } from "./layout/prefs.ts"
 import { followName } from "./named.ts"
@@ -79,6 +80,7 @@ followDoneHidden()
 followOutlinesHidden()
 followFolds()
 followFolders()
+trackCamera()
 trackDesktop()
 
 const root = document.getElementById("root")

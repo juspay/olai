@@ -1050,8 +1050,13 @@ export const CHAT_ATTACHMENT_PREVIEW = selector(TESTID.chatAttachmentPreview);
 /** How big a NON-picture attachment is, beside its name — what a document
  *  chip says where a picture shows itself. */
 export const CHAT_ATTACHMENT_SIZE = selector(TESTID.chatAttachmentSize);
-/** The `+` beside the box: the file picker, and the only way in on a phone. */
+/** The `+` beside the box: the file picker, and one of the two way-ins on a
+ *  phone. */
 export const CHAT_ATTACH_BUTTON = selector(TESTID.chatAttachButton);
+/** The camera beside the `+` — drawn only where the primary pointer is
+ *  coarse (`web/src/client/chat/camera.ts`): on a desktop it is absent by
+ *  design, which is the fact a desktop scenario asserts. */
+export const CHAT_CAMERA_BUTTON = selector(TESTID.chatCameraButton);
 /** The panel saying a dragged file would land HERE. Present only while a drag
  *  carrying files is over the panel's body. */
 export const CHAT_DROP = selector(TESTID.chatDrop);
