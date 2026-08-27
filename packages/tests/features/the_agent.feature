@@ -1780,6 +1780,59 @@ Feature: Talking to the agent
     Then the agent's answer mentions "read 69 bytes from Type_04-C.pdf"
 
   @scratch:chat
+  Scenario: The camera is offered only where a finger is the pointer
+    # The `+`'s second door is a phone's, and a desktop — which is what this
+    # browser is — gets NO button for it: on a fine pointer the `capture`
+    # attribute is ignored, so the same markup would answer with an ordinary
+    # file dialog, and a camera button that opens a file dialog is a button
+    # that lies (web/src/client/chat/camera.ts). What must survive there is
+    # the roll's reach: one tap, the same picker as ever.
+    Then the composer is not offering a camera
+    When I pick "shot.png" with the attach button
+    Then the composer is holding the picture "shot.png"
+
+  @scratch:chat @phone
+  Scenario: Photos shot straight into the chat all ride one message
+    # The human's ask, verbatim: outside with only the phone, wanting to take
+    # photos into the chat. One invocation of a camera is ONE photo, so the
+    # strip is what makes it several — shoot → chip → shoot again — and the
+    # taps are the same two taps every time, with the `+` beside it exactly
+    # as reachable as it always was.
+    #
+    # The same photo TWICE is two attachments — what the chips pin here is
+    # the SERVER's answer to a name it has already stored (`porch-1.jpg`)
+    # and the strip keeping the order the shots were taken in. What they do
+    # NOT pin is the cleared input underneath: this harness injects files
+    # and fires `change` unconditionally, so an uncleared shutter would pass
+    # unnoticed — which is why the step itself reads the shutter's value
+    # back after every shot instead of leaving that to the chip count.
+    When I take a photo called "porch.jpg" with the camera
+    Then the composer is holding the picture "porch.jpg"
+    When I take a photo called "porch.jpg" with the camera
+    Then the composer is holding "porch.jpg, porch-1.jpg" in that order
+    When I take a photo called "door.jpg" with the camera
+    Then the composer is holding "porch.jpg, porch-1.jpg, door.jpg" in that order
+    When I ask the agent "what are these"
+    Then the agent read "porch.jpg, porch-1.jpg, door.jpg" in that order
+
+  @scratch:chat @phone
+  Scenario: A dismissed capture touches nothing — not even somebody else's refusal
+    # The guard in the composer's `picked` exists for exactly this: the
+    # camera answered with NOTHING — backed out of, permission refused; from
+    # this side the empty FileList is one shape — and the box must be
+    # exactly as it was. "Exactly" is the load-bearing word: the unguarded
+    # path reached `holding.take([])`, whose housekeeping CLEARS the refusal
+    # line — so a dismissal used to erase the record of a drop the app had
+    # just said no to. The refusal is earned first precisely so the last
+    # line has something to lose.
+    When I drop "whatever.zip" on the chat panel
+    Then the chat eventually shows "cannot be attached"
+    And the chat eventually shows "whatever.zip"
+    When I dismiss the camera
+    Then the composer is holding nothing
+    And the chat still shows "cannot be attached"
+
+  @scratch:chat
   Scenario: A dropped file olai cannot take says so, by name
     # HACKING's rule, at the gesture where it is easiest to break: a file that
     # is dragged somewhere and then disappears has been swallowed, and the

@@ -47,6 +47,7 @@ import {
   CHAT_AGENT,
   CHAT_AGENT_MARK,
   CHAT_BUSY,
+  CHAT_CAMERA_BUTTON,
   CHAT_CANCEL,
   CHAT_CHOOSE,
   CHAT_CHOOSE_AGENT,
@@ -410,6 +411,19 @@ Then(
     );
   },
 );
+
+/** A read, not a wait: the question is what a no-op gesture left STANDING.
+ *  If it touched what it should never reach, the line is gone for good —
+ *  nothing restores it — so there is no arrival to wait for, and waiting
+ *  would only blur the answer. */
+Then("the chat still shows {string}", async function (this: OlaiWorld, text: string) {
+  const said = await transcriptText(this);
+  assert.ok(
+    said.includes(text),
+    `the chat no longer says "${text}" — the gesture that answered with ` +
+      "nothing reached something it should never touch",
+  );
+});
 
 /** A read, not a wait: the step before it has already waited for something
  *  that arrives BEFORE the late growth this is about, so if the late line
@@ -2934,7 +2948,10 @@ When(
     // `image/*` would take this PDF here and grey it out for the person. The
     // one half-truth met with no refusal to explain it.
     const accept = await this.page
-      .locator(`${CHAT_PANEL} input[type=file]`)
+      // `[multiple]`: the ROLL input, not the camera's — on a phone there are
+      // two file inputs in the panel and the unscoped selector below is a
+      // strict-mode violation rather than a reading.
+      .locator(`${CHAT_PANEL} input[type=file][multiple]`)
       .getAttribute("accept");
     const extension = name.slice(name.lastIndexOf("."));
     assert.ok(
@@ -2953,6 +2970,74 @@ When(
     });
   },
 );
+
+When(
+  "I take a photo called {string} with the camera",
+  async function (this: OlaiWorld, name: string) {
+    const spec = fileSpec(name);
+    // The DOM fact the whole door hangs on, asserted before the photo is
+    // handed over: what makes a phone's browser open the CAMERA rather than
+    // a picker for this input is `capture="environment"`. No browser this
+    // suite can drive opens a real camera, so the attribute is what the
+    // claim is asserted on — the same arrangement as the pick step beside
+    // it, which asserts `accept` because the dialog itself cannot be
+    // photographed either.
+    const hole = this.page.locator(`${CHAT_PANEL} input[type=file][capture]`);
+    assert.strictEqual(
+      await hole.getAttribute("capture"),
+      "environment",
+      "the camera input must spell capture=\"environment\" — without it a " +
+        "phone opens the file picker, and the button is a second roll door",
+    );
+    const accept = await hole.getAttribute("accept");
+    assert.ok(
+      accept !== null && accept.includes("image/"),
+      `the camera offers "${accept}" — and one shot is only ever a picture`,
+    );
+    const [chooser] = await Promise.all([
+      this.page.waitForEvent("filechooser"),
+      this.page.locator(CHAT_CAMERA_BUTTON).click(),
+    ]);
+    await chooser.setFiles({
+      name: spec.name,
+      mimeType: spec.type,
+      buffer: Buffer.from(spec.data, "base64"),
+    });
+    // The mechanism the identical-second-shot case rides on, asserted AT the
+    // mechanism: this harness INJECTS files and fires `change`
+    // unconditionally, so two identical shots can never see whether the input
+    // was cleared between them — and the clear is the only way a real second
+    // identical shot fires at all. What the chips prove is the server's `-1`
+    // answer and the strip's order; what this proves is the clear.
+    assert.strictEqual(
+      await hole.inputValue(),
+      "",
+      "the shutter input must be cleared after a shot — an identical second " +
+        "capture fires no `change` on an uncleared one",
+    );
+  },
+);
+
+When("I dismiss the camera", async function (this: OlaiWorld) {
+  // The empty answer: backing out of a shutter hands the input no files and
+  // (on the browsers that fire for it) a `change` — the same shape a
+  // cancelled picker takes. The box must then be exactly as it was, which is
+  // what the next step is for.
+  const [chooser] = await Promise.all([
+    this.page.waitForEvent("filechooser"),
+    this.page.locator(CHAT_CAMERA_BUTTON).click(),
+  ]);
+  await chooser.setFiles([]);
+});
+
+Then("the composer is not offering a camera", async function (this: OlaiWorld) {
+  assert.strictEqual(
+    await this.page.locator(CHAT_CAMERA_BUTTON).count(),
+    0,
+    "a desktop draws no camera door: the attribute behind it would be " +
+      "ignored there, and a camera button that opens a file dialog lies",
+  );
+});
 
 When("the drag leaves the panel without dropping", async function (this: OlaiWorld) {
   await emptyDragAt(this, TESTID.chatTranscript, "dragleave");

@@ -1,9 +1,10 @@
 /**
  * A file, from a Blob in this tab to a path on the server's disk.
  *
- * Three ways in — paste, drop, and the file picker a phone needs because it
- * has no Ctrl+V — and one way through: read the bytes, base64 them once, and
- * send them as a SEQUENCE of bounded `chat.attach` calls. The first creates
+ * Four ways in — paste, drop, and the two doors a phone has because it has
+ * no Ctrl+V (the roll picker, and the camera beside it) — and one way
+ * through: read the bytes, base64 them once, and send them as a SEQUENCE of
+ * bounded `chat.attach` calls. The first creates
  * the file; each later one hands back the path it was given and appends. No
  * single frame scales with the file, which is the whole reason the calls are
  * chunked at all — the size of one is the framework's, derived beside the cap

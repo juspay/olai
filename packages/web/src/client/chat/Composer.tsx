@@ -27,23 +27,35 @@
  *     sight looks exactly like an agent that is thinking — and this row is
  *     where a person's attention already is, because it is where they were
  *     about to type.
- *   - **a file can be pasted, dropped, or picked.** Three events, one path:
- *     `attach` sends the bytes to the conversation's tmp directory and answers
- *     with a path, which rides the next `send`. All three ship together
+ *   - **a file can be pasted, dropped, picked, or SHOT.** Four events, one
+ *     path: `attach` sends the bytes to the conversation's tmp directory and
+ *     answers with a path, which rides the next `send`. All four ship together
  *     because they are the same function behind different listeners — paste is
  *     the desktop gesture, drop is the one for a file already on screen, and
- *     the picker is the only one a phone has, since a phone has no Ctrl+V.
+ *     the last two are the doors a phone has, since a phone has no Ctrl+V: the
+ *     roll picker, and a camera beside it whose input carries `capture` — the
+ *     spelling a phone's browser answers by opening the camera itself. That
+ *     door is drawn only where a finger is the pointer ({@link ./camera.ts}):
+ *     anywhere a mouse is, the attribute is ignored and the same button would
+ *     open a file dialog, which is a control lying about what it does — so
+ *     there the `+` is alone, exactly as reachable as it always was.
  *     Attaching does NOT send: the file sits in a strip above the box, where
  *     it can be removed or typed at, because "what is wrong here" needs the
- *     file and the question together. Two of those three listen HERE; the drop
- *     is caught by the panel around this row ({@link ./DropTarget.tsx}),
- *     because a file dragged at a conversation is aimed at the conversation.
- *     What all three land in is one owner above both ({@link ./holding.ts}).
+ *     file and the question together. What that makes of a camera invocation
+ *     is the multi-shot flow: one shot is ONE photo, so shoot → chip → shoot
+ *     again is how several photos come to ride one send. Three of the four
+ *     listen HERE; the drop is caught by the panel around this row
+ *     ({@link ./DropTarget.tsx}), because a file dragged at a conversation is
+ *     aimed at the conversation. What all four land in is one owner above both
+ *     ({@link ./holding.ts}).
  *
- *     All three take the same kinds, and the picker's `accept` is spelled from
- *     the gate's own list to keep that true: a dialog that greys out a PDF the
- *     drop would have taken is the one half-truth a person meets without any
- *     refusal to explain it.
+ *     Paste, drop and the roll take the same kinds, and the roll's `accept`
+ *     is spelled from the gate's own list to keep that true: a dialog that
+ *     greys out a PDF the drop would have taken is the one half-truth a
+ *     person meets without any refusal to explain it. The CAMERA's `accept`
+ *     is the one deliberate exception — `image/*`, argued where the door is
+ *     drawn: a lens makes only pictures, and what its kind misses of the
+ *     gate's list, the gate itself answers by name on the refusal line.
  *   - **a message can be ABOUT a node**, and there are two doors onto that.
  *     "Ask agent" on a row arms this box with that node ({@link ./armed.ts}),
  *     and it sits in a chip above the input until it is sent or taken off — the
@@ -108,6 +120,7 @@ import { agentIn, ATTACHMENT_EXTENSIONS } from "@olai/surface"
 import { batch, createEffect, createMemo, createSignal, on, Show } from "solid-js"
 
 import type { Written } from "../complete/trigger.ts"
+import { camera } from "./camera.ts"
 import { createChipTitles } from "./chips.ts"
 import { SaidLine } from "../SaidLine.tsx"
 import { sameIds } from "../ids.ts"
@@ -132,8 +145,8 @@ import { offers } from "./naming.ts"
 import type { Chat } from "./state.ts"
 
 /** Every control on the toolbar, the same height and the same corners. Written
- *  once because "these line up" is the property, and three copies of a class
- *  list line up only until somebody edits one. */
+ *  once because "these line up" is the property, and a class list copied per
+ *  button lines up only until somebody edits one of the copies. */
 const CONTROL =
   "flex h-8 shrink-0 items-center justify-center rounded border text-xs"
 
@@ -184,6 +197,23 @@ export function Composer(props: {
   const [taken, setTaken] = createSignal<ReadonlySet<string>>(new Set())
   let input: HTMLTextAreaElement | undefined
   let picker: HTMLInputElement | undefined
+  let shutter: HTMLInputElement | undefined
+
+  /**
+   * What either file DOOR does with what it was handed.
+   *
+   * One function, because picked and shot are the same thing below the
+   * listener, which is `./holding.ts`'s whole arrangement. The empty guard is
+   * the dismissal: backing out of a camera — or cancelling a picker, on the
+   * browsers that fire `change` for it — answers with NO files, and a gesture
+   * that ended in nothing must leave the box exactly as it was: no attachment,
+   * and not even the refusal line stirred.
+   */
+  const picked = (files: FileList | null): void => {
+    const chosen = [...(files ?? [])]
+    if (chosen.length === 0) return
+    void props.holding.take(chosen)
+  }
 
   const readCaret = (): void => {
     setCaret(input?.selectionStart ?? 0)
@@ -809,10 +839,14 @@ export function Composer(props: {
       </Show>
 
       <div class="mt-2 flex items-center gap-2">
-        {/* The only way in on a phone, which has no Ctrl+V and nothing to drag
-            from. `capture` is deliberately absent: a picture is usually one
-            already in the roll, and naming a camera would make that the
-            second-class case.
+        {/* One tap to the roll, on every device — and on a phone one of TWO
+            doors, the camera beside it. This comment used to argue
+            `capture`'s absence: a picture is usually one already in the roll,
+            and naming a camera ON THIS INPUT would have made the camera the
+            front door and the roll the second-class case. That was right for
+            one input; two inputs retire it rather than contradict it — each
+            door is one tap, so neither demotes the other, and the camera is
+            simply the next hole over.
 
             `accept` is SPELLED FROM THE GATE rather than said again as
             `image/*`: a picker that will not offer a PDF the gate would take
@@ -826,7 +860,7 @@ export function Composer(props: {
           multiple
           class="hidden"
           onChange={(event) => {
-            void props.holding.take([...(event.currentTarget.files ?? [])])
+            picked(event.currentTarget.files)
             // Cleared so picking the SAME file twice fires `change` twice.
             event.currentTarget.value = ""
           }}
@@ -840,6 +874,60 @@ export function Composer(props: {
         >
           +
         </button>
+        {/* THE CAMERA'S OWN DOOR. `capture="environment"` is the whole of
+            what makes it one: on a phone the browser opens the back camera
+            for it directly, so this button says photo and means photo rather
+            than opening a picker with the camera as one entry of it — which
+            is also why it carries no `multiple`: the platform hands one shot
+            back per invocation, and several photos are made by the
+            shoot → chip → shoot rhythm the strip above the box is for. The
+            value-clearing is the roll's own trick, and it is what makes two
+            IDENTICAL shots two attachments: without it the second fires no
+            `change` at all.
+
+            `accept` is the media WILDCARD rather than the gate's spelled
+            list, and that is not the `+`'s half-truth newly risked: what a
+            camera can produce is only ever a picture, and `image/*` is the
+            spelling the capture prompt itself reads its kind from. What the
+            gate would refuse, it refuses by name when the upload tries — the
+            same answer a drop gets.
+
+            Drawn ONLY where `./camera.ts` says a finger is the pointer: the
+            desktop gets no camera entry at all, because there the attribute
+            is ignored and the button would open an ordinary file dialog —
+            one that lies. Both elements stand or go together: the input alone
+            would be markup nothing can reach. */}
+        <Show when={camera()}>
+          <input
+            ref={shutter}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            class="hidden"
+            onChange={(event) => {
+              picked(event.currentTarget.files)
+              event.currentTarget.value = ""
+            }}
+          />
+          <button
+            type="button"
+            class={`${CONTROL} w-8 border-rule text-muted hover:text-ink`}
+            data-testid={TESTID.chatCameraButton}
+            aria-label="take a photo"
+            onClick={() => shutter?.click()}
+          >
+            {/* A camera, drawn with the `+`'s ink and at the `+`'s weight:
+                the body, the viewfinder hump and the lens as one filled
+                shape, the lens cut out of it. */}
+            <svg viewBox="0 0 16 16" class="size-4" aria-hidden="true" fill="currentColor">
+              <path
+                fill-rule="evenodd"
+                d="M5.5 2h5l1 2h1A1.5 1.5 0 0 1 14 5.5v6a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5v-6A1.5 1.5 0 0 1 3.5 4h1l1-2zM8 11a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </button>
+        </Show>
         {/* Only when the agent offers some: a button that opens nothing lies. */}
         <Show when={props.chat.state().commands.length > 0}>
           <button
