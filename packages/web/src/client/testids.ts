@@ -1468,6 +1468,13 @@ export const TESTID = {
   chatNodeRef: "chat-node-ref",
   /** The file picker beside the input — a phone has no Ctrl+V. */
   chatAttachButton: "chat-attach",
+  /** The camera's door beside the `+` — the second entry a phone gets
+   *  (`chat/camera.ts`). Its input carries `capture="environment"`, which is
+   *  what makes a phone's browser open the camera itself. Drawn ONLY where
+   *  the primary pointer is coarse: on a desktop the attribute is ignored
+   *  and the button would open a file dialog, so it is ABSENT there —
+   *  which is the fact a scenario on a desktop asserts. */
+  chatCameraButton: "chat-camera",
   /** The button that opens the WHOLE command list. Drawn only when the agent
    *  offers commands. */
   chatCommands: "chat-commands",

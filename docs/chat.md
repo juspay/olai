@@ -394,10 +394,12 @@ The notification is the one part that needs the browser's permission. olai asks 
 
 ## Attachments
 
-You can paste a file into the box — a screenshot, a photo of a whiteboard — or drag one onto the panel, or pick one with the **+** button, which is the way in on a phone. All three take the same kinds:
+You can paste a file into the box — a screenshot, a photo of a whiteboard — or drag one onto the panel, or pick one with the **+** button — one of the two doors a phone has; the other is the camera, next paragraph. All of those take the same kinds:
 
 - **pictures**: `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.avif`, `.bmp`, `.ico`
 - **documents**: `.pdf`, `.txt`, `.md`, `.csv`, `.json`
+
+**On a phone the `+` has a camera beside it.** One tap opens the camera itself rather than a picker: shoot, the photo lands in the strip above the box like any other attachment, and you can shoot again — tap the camera, one more photo joins the strip — until one send carries them all into the same message. It is drawn only where there is a finger to press it: a desktop has no button at all, because a "camera" that opened a file dialog would be a control that lies, and the roll is exactly as reachable there either way. A picture the list above does not take — say a camera that answers with a `.heic` — is named in the refusal, the same as a drop that misses the gate.
 
 The bytes go into a temporary directory belonging to that conversation, never under the directory being served, and the agent is handed the PATH: it reads the file itself, so nothing rides the prompt into the stored session, and nothing attached here can end up committed with your outlines. The files go away when you start a new conversation or stop the server.
 

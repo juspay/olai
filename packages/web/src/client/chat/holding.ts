@@ -9,10 +9,12 @@
  * strip at the bottom of it. One owner above both: `Panel.tsx` makes this and
  * hands it to each.
  *
- * Three gestures arrive here and there is deliberately one way through: paste
- * (the desktop one), drop (for a file already on screen), and the picker (the
- * only one a phone has). What differs between them is which listener called
- * {@link Holding.take}; nothing below that line knows which it was.
+ * Four gestures arrive here and there is deliberately one way through: paste
+ * (the desktop one), drop (for a file already on screen), and the two doors a
+ * phone has — the roll picker and the camera beside it. What differs between
+ * them is which listener called {@link Holding.take}; nothing below that line
+ * knows which it was. A camera's one-shot rhythm is no case of its own here:
+ * each invocation is one file, like one file in a drop.
  *
  * These chips refer to something the SERVER owns — files in the conversation's
  * tmp directory — so they are dropped when the conversation is. A chip left
