@@ -151,12 +151,20 @@ Then(
   "the pane refuses with {string}",
   async function (this: OlaiWorld, says: string) {
     // A REFUSAL IS PROSE, in its own state — not an empty screen and not a
-    // fault. A sleeping terminal has no live mirror to read, which is padi's
-    // own `TerminalNotFound` and the expected answer for a lane that finished.
+    // fault.
+    //
+    // WAITED FOR LONGER THAN THE SUITE'S USUAL BOUND, and the reason is the
+    // thing being asserted: this sentence is the end of a CONVERGENCE, not an
+    // instant. A terminal with no live screen ends its attach, which rule 3
+    // says is recoverable, so the pane re-attaches its whole budget before it
+    // concludes anything — six round trips to a server, and this suite runs
+    // four workers spawning a hundred servers each. It passed alone at fifteen
+    // seconds and failed under that load, which is a bound too tight rather
+    // than a defect: the budget's own arithmetic is what this has to outlast.
     const refused = this.page
       .locator(`${SCREEN}[data-state="refused"]`)
       .first();
-    await refused.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    await refused.waitFor({ state: "visible", timeout: POLL_TIMEOUT * 4 });
     const said = await refused.textContent();
     assert.ok(
       said?.includes(says),
