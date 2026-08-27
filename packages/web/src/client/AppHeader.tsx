@@ -134,7 +134,7 @@ export function AppHeader(props: {
    */
   readonly go?: (route: Route) => void
 }) {
-  // The SAME cell the terminal dots read, through the same context — a second
+  // The SAME cell the terminal rows read, through the same context — a second
   // reader rather than a second subscription. Outside the provider (the error
   // report, the waiting page) `useFleet` stands a hollow, which draws as the
   // unwatched face and is the truth for a page with no wire under it.

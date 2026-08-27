@@ -59,7 +59,7 @@ export const padiSaid = (link: KoluLink): Look => {
         dot: "bg-done",
         label: "kolu",
         detail:
-          `connected to padi at ${link.socket} — the terminal dots on this page are live.`,
+          `connected to padi at ${link.socket} — the terminal rows on this page are live.`,
       }
     case "skew":
       return {
