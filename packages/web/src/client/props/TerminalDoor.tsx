@@ -61,11 +61,10 @@ import {
 import type { FleetTerminal, Snapshot, SnapshotRefused } from "@olai/surface"
 import { TERMINAL_KEY } from "@olai/surface"
 
-import { type BlockContext, registerBlock } from "./blocks.ts"
+import type { BlockContext } from "./blocks.ts"
 import { LivePane } from "./LivePane.tsx"
 import { useFleet } from "./fleet.tsx"
 import { Handle } from "./handle.tsx"
-import { createRecencyNow } from "./recency.ts"
 import { readingOf } from "./terminal.ts"
 import { TESTID } from "../testids.ts"
 
@@ -175,8 +174,6 @@ function Value(props: { readonly value: string; readonly onOpen?: () => void }) 
   )
 }
 
-registerBlock(TERMINAL_KEY, TerminalBlock)
-
 /**
  * KOLU'S ROW, filled from olai's wire.
  *
@@ -204,7 +201,10 @@ function Row(props: {
   readonly pressable: boolean
   readonly onSelect: () => void
 }) {
-  const now = createRecencyNow()
+  // THE CLOCK COMES THROUGH THE SOCKET now — `./KoluUi.tsx` takes it as a pin,
+  // because the cadence is olai's judgement about olai's pages rather than
+  // anything kolu has an opinion about.
+  const now = useFleet().now
   /**
    * THE WIRE'S WORDS, narrowed by KOLU rather than here.
    *

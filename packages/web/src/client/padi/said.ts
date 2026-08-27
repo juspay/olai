@@ -37,7 +37,33 @@
 
 import type { KoluLink } from "@olai/surface"
 
-import type { Look } from "../readout.ts"
+/**
+ * WHAT THE READOUT SAYS, as its own shape.
+ *
+ * This used to be typed as `../readout.ts`'s `Look` — olai's chrome vocabulary,
+ * imported by a file whose whole content is kolu's three link states. The type
+ * is structurally identical and the import was harmless while both lived in one
+ * package; it stops being harmless the moment this file is behind a wall,
+ * because then a paragraph of kolu's words would be reaching back into the
+ * app's design system for the noun it returns.
+ *
+ * So the words own their shape and the chrome accepts it. `Look` and this are
+ * the same three fields by construction rather than by import, and the chrome
+ * side (`./Padi.tsx`) is where the two meet — which is the right place, since
+ * that is the file holding the pill, the dot geometry and the testid.
+ */
+export interface Said {
+  /** The dot's COLOUR — a background utility. The dot's geometry is the
+   *  chrome's (`../readout.ts`'s `DOT`); the two are concatenated at the call
+   *  site, which is why this is a colour and not a class list. */
+  readonly dot: string
+  /** Two or three words, on screen next to the dot. */
+  readonly label: string
+  /** What that means, spelled out — the longer sentence a reader gets from the
+   *  tip or the `title`, and the `aria-label` that keeps it from being
+   *  hover-only. */
+  readonly detail: string
+}
 
 /** One sentence about where olai looked, shared by the two arms that have
  *  nothing to report. Named once because the two differ in the WORD and not in
@@ -49,7 +75,7 @@ const lookedAt = (link: KoluLink): string =>
     ? `${link.socket}, which is where $PADI_SOCKET points.`
     : `${link.socket}, the default rendezvous path.`
 
-export const padiSaid = (link: KoluLink): Look => {
+export const padiSaid = (link: KoluLink): Said => {
   switch (link.status) {
     case "connected":
       return {

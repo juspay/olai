@@ -114,6 +114,10 @@ export interface Fleet {
    * transport-health alarm every time a terminal resizes.
    */
   readonly watch?: WatchTerminal
+  /** THE CLOCK, pinned by the app rather than created here — see `./KoluUi.tsx`.
+   *  The cadence is olai's judgement (a minute, not kolu's second) and the
+   *  argument for it is about olai's pages, so it arrives as a value. */
+  readonly now: Accessor<number>
 }
 
 const FleetContext = createContext<Fleet>()
@@ -144,6 +148,7 @@ export interface FleetSources {
 
 export function FleetProvider(props: {
   readonly sources: FleetSources
+  readonly now: Accessor<number>
   readonly children: JSX.Element
 }) {
   const held = props.sources.fold<Held>({
@@ -165,6 +170,7 @@ export function FleetProvider(props: {
     terminals: () => held()?.rows ?? NO_ROWS,
     read: props.sources.read,
     watch: props.sources.watch,
+    now: props.now,
   }
   return <FleetContext.Provider value={fleet}>{props.children}</FleetContext.Provider>
 }
@@ -184,11 +190,20 @@ export const useFleet = (): Fleet =>
   useContext(FleetContext) ?? {
     link: () => KOLU_UNDIALED,
     terminals: () => NO_ROWS,
+    // A HOLLOW STILL TICKS, because a row drawn outside a provider still draws
+    // its recency cell and the phrase is a pure function of an instant. A
+    // frozen clock is the honest answer for a host that never mounted the
+    // appliance — the cell renders, it simply does not count up.
+    now: NEVER_TICKS,
   }
 
 /** The empty fleet, minted once: what a providerless host reads, and what a
  *  provider reads before its first frame. */
 const NO_ROWS: ReadonlyMap<string, FleetTerminal> = new Map()
+
+/** A clock that does not move, for the hollow above. Minted once for the same
+ *  reason `NO_ROWS` is. */
+const NEVER_TICKS: Accessor<number> = () => 0
 
 /**
  * The surface procedure, as a {@link ReadScreen}.

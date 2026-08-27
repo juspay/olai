@@ -19,7 +19,6 @@
  * (`./reading.tsx`), asked of the address that pane is drawing.
  */
 
-import { unenrolledStreamCall } from "@kolu/surface/client"
 import { NOTHING_WRONG } from "@olai/format"
 import {
   createEffect,
@@ -66,7 +65,8 @@ import { SHEET, SHELL_LONE, SHELL_SPLIT } from "./layout/sheet.ts"
 import { createRouter, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
 import { ServedProvider } from "./served.tsx"
-import { FleetProvider, readingScreen, watchingTerminal } from "./props/fleet.tsx"
+import { KoluUi } from "./props/KoluUi.tsx"
+import { createRecencyNow } from "./props/recency.ts"
 import { Preferences } from "./settings/Preferences.tsx"
 import { Sidebar } from "./Sidebar.tsx"
 import { TodayProvider } from "./today.tsx"
@@ -317,20 +317,14 @@ export default function App() {
           what this arrangement exists to refuse. `read` is the snapshot verb,
           bound to the surface procedure once and reached through the context
           rather than threaded through five component signatures. */}
-      <FleetProvider
-        sources={{
-          link: olai.cells.kolu.use().value,
-          fold: olai.collections.fleet.use().fold,
-          read: readingScreen(olai.procedures.screen.text),
-          // UN-ENROLLED BY NAME — see `./props/fleet.tsx`'s `watchingTerminal`:
-          // a pane's re-attach is normal and self-healing, and enrolling it
-          // would flash the app's Disconnected overlay every time a terminal
-          // resized.
-          watch: watchingTerminal((input) =>
-            unenrolledStreamCall(olai.streams.terminal.unenrolled, input)
-          ),
-        }}
-      >
+      {/* THE BROWSER'S KOLU HALF, mounted whole — `./props/KoluUi.tsx`.
+          It used to be four kolu-named surface members bound by hand right
+          here, with a paragraph explaining a pane's re-attach semantics to a
+          reader of the app's composition root. Which members exist and how
+          they are bound is the appliance's business now; what the app supplies
+          is the composed client and a clock, because the wire is the app's to
+          compose and the cadence is the app's to choose. */}
+      <KoluUi client={olai} now={createRecencyNow()}>
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
           the TAB (`./clock.ts`), and the panel reads it too — the `@` list's
           node half is matched by the format's own grammar, whose relative words
@@ -453,7 +447,7 @@ export default function App() {
         </div>
       </div>
       </TodayProvider>
-      </FleetProvider>
+      </KoluUi>
       </ServedProvider>
       </OpensProvider>
       </AirProvider>

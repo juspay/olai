@@ -157,14 +157,9 @@ import { createMemo, createSignal, For, Index, Show } from "solid-js"
 import type { Entry } from "./drawer.ts"
 import { type Door, doorFor } from "./door.ts"
 
-import { layOut } from "./blocks.ts"
+import { layOut, registerBlock, TERMINAL_KEY } from "./blocks.ts"
 import { Handle } from "./handle.tsx"
-// IMPORTED FOR ITS REGISTRATION. `./blocks.ts` is a table a renderer puts
-// itself into, so the module that owns a block has to be loaded for its key to
-// be in the map — and the drawer, which is what draws blocks, is the honest
-// place to load it. The alternative is the drawer importing every block
-// component by name, which is the branch the seam replaced.
-import "./TerminalDoor.tsx"
+import { TerminalBlock } from "./TerminalDoor.tsx"
 import { type ClosedBy, type Editing, leavingCommits, openedOn, sending, writes } from "./editor.ts"
 import { Link } from "../router.tsx"
 import { useDoors, useNames } from "../reading.tsx"
@@ -173,6 +168,21 @@ import { createSaying } from "../saying.ts"
 import { SaidLine } from "../SaidLine.tsx"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
+
+// THE APP OWNS THE TABLE, and this is the whole of that ownership.
+//
+// It was a side-effect import: `./blocks.ts` was a table a renderer put ITSELF
+// into, and the drawer loaded the module so the key would be in the map. That
+// reads fine while everything is one package and stops being true the moment
+// the renderer is behind a wall — a self-registrant would put the appliance in
+// charge of the app's table, and the import direction would be a lie told by
+// an `import "…"` with no binding.
+//
+// So the renderer is a component and nothing else, and the registration is a
+// call the app makes. Against `TERMINAL_KEY` — `@olai/surface`'s exported
+// constant — never the string `"terminal"`: the key is the wire's, one
+// spelling, and a literal here would be a second one waiting to drift.
+registerBlock(TERMINAL_KEY, TerminalBlock)
 
 /**
  * HOW LONG A VALUE MAY BE before it is drawn folded.
