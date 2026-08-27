@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from "bun:test"
 import type { FleetTerminal, KoluLink } from "@olai/surface"
-import { isPipGlyphId, isPipMotionKind, isPipVariant } from "@kolu/solid-dockrow/rowValues"
+import { isPipGlyphId, isPipVariant } from "@kolu/solid-dockrow/rowValues"
 
 import { readingOf } from "./terminal.ts"
 
@@ -31,7 +31,6 @@ const row = (over: Partial<FleetTerminal> = {}): FleetTerminal => ({
   pip: {
     variant: "working",
     glyph: "claude-code",
-    motion: "glow",
     active: true,
     asking: false,
     bytesLive: true,
@@ -156,6 +155,5 @@ describe("the fixture speaks kolu's vocabulary", () => {
     const { pip } = row()
     expect(isPipVariant(pip.variant)).toBe(true)
     expect(isPipGlyphId(pip.glyph)).toBe(true)
-    expect(isPipMotionKind(pip.motion)).toBe(true)
   })
 })

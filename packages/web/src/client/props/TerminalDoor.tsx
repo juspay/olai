@@ -56,8 +56,8 @@ import { DockRow, DockSection, type RowRecency } from "@kolu/solid-dockrow"
 import {
   narrowAgentState,
   narrowRowVocab,
-  recencyMode,
-  recencyText,
+  rowRecency,
+
 
 } from "@kolu/solid-dockrow/rowValues"
 import type { FleetTerminal, Snapshot, SnapshotRefused } from "@olai/surface"
@@ -226,19 +226,35 @@ function Row(props: {
    */
   const vocab = () => narrowRowVocab({ pip: props.row.pip, bucket: props.row.bucket })
   const pip = () => vocab().pip
-  const mode = () => recencyMode(pip())
   /**
-   * THE RECENCY VALUE, assembled here because kolu exports the phrase and not
-   * the value. `RowRecency` is a discriminated union whose `hidden` arm carries
-   * NO text — a type-level rule — and `recencyText` refuses `"hidden"` at its
-   * signature, so every consumer has to write this branch itself. Filed as a
-   * finding against kolu#2219: `rowRecency.ts` composes exactly this, four
-   * lines, and the assembly is the part that drifts.
+   * THE RECENCY VALUE, and it is kolu's whole answer rather than olai's
+   * assembly of its parts.
+   *
+   * This was a hand-written branch over `recencyText`, filed as a finding
+   * against kolu#2219 because the assembly is the part that drifts — and the
+   * amendment took it. `rowRecency` holds three rules that are invisible at a
+   * call site: the `hidden` arm carries no text, the two timestamp channels
+   * feed different modes, and the two clocks are paired to the mode.
+   *
+   * THE TWO CHANNELS, and why olai's answer to one of them is `null`. The chip
+   * shows how long THIS row has awaited you; the `ago` line shows the tile
+   * WINDOW's newest activity across a parent and its splits. olai draws one row
+   * per `terminal` property in an outline — there is no tile and no split here,
+   * so there is no window recency, and saying `null` is the honest answer
+   * rather than passing the same instant twice and having the two modes agree
+   * by accident.
+   *
+   * THE TWO CLOCKS are one clock here, and deliberately. kolu ticks the chip
+   * every second and the `ago` line every minute; this ticks both every minute,
+   * for the reason `./recency.ts` gives — forty lanes on a page, each with a
+   * terminal, is a re-render storm bought for a digit nobody is watching in a
+   * document somebody is reading. Passing readers rather than a `now` is what
+   * lets kolu decline to read either one at all: a blocked row with no honest
+   * duration renders the dash without touching a clock, so it stops repainting
+   * to redraw the same character.
    */
-  const recency = (): RowRecency => {
-    const m = mode()
-    return m === "hidden" ? { mode: m } : { mode: m, text: recencyText(m, props.row.recencyAt, now()) }
-  }
+  const recency = (): RowRecency =>
+    rowRecency(pip(), null, props.row.recencyAt, { tick: now, stable: now })
   return (
     <DockSection surface="desktop" repoColor="var(--color-rule)">
       <DockRow

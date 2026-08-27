@@ -223,7 +223,7 @@ export const UNOWNED: FleetOwner = { kind: "unowned" }
  *
  * ## No closed set of kolu's vocabulary is declared here, ever
  *
- * `pip.variant`, `pip.glyph`, `pip.motion`, `bucket` and `agentState` are all
+ * `pip.variant`, `pip.glyph`, `bucket` and `agentState` are all
  * closed sets in kolu — and all of them are `Schema.String` on this wire. The
  * closed set has ONE home, the row package's own prop bag, which exports the
  * guards that narrow into it (`@kolu/solid-dockrow/rowValues`'s
@@ -250,7 +250,11 @@ export const FleetTerminal = Schema.Struct({
    * THE BOUND PIP — `bindStatePip`'s answer, whole.
    *
    * Ten facts the row reads OFF this rather than from sibling props: the
-   * paint (`variant`/`glyph`/`motion`), whether the terminal is effectively
+   * paint (`variant`/`glyph`; MOTION IS NOT HERE — kolu#2219 refuses it as a
+   * wire fact, because it is a total function of `variant` and `active` and a
+   * bag carrying all three can spell a `spin` beside an `active: false`. The
+   * row re-folds it from the two it is given), whether the terminal is
+   * effectively
    * active, whether an agent is blocked on YOU (`asking` — the one test every
    * kolu surface reads for that), the two liveness bits, the recede, and the
    * unread alert. They travel together because the row takes them together:
@@ -260,7 +264,6 @@ export const FleetTerminal = Schema.Struct({
   pip: Schema.Struct({
     variant: Schema.String,
     glyph: Schema.String,
-    motion: Schema.String,
     active: Schema.Boolean,
     asking: Schema.Boolean,
     bytesLive: Schema.Boolean,
