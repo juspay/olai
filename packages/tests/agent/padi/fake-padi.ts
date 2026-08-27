@@ -237,7 +237,7 @@ const padi = implementSurface(padiSurfaceSibling, {
         // the pane sat silent until its first-frame deadline, which is a
         // TWENTY-FOUR SECOND path a fifteen-second step cannot see. An ending
         // stream is both the truer fixture and the fast one.
-        if (screen === undefined) return Stream.empty
+        if (screen === undefined) return Stream.fail(new TerminalNotFound({ id }))
         return Stream.concat(
           Stream.make({
             kind: "snapshot" as const,

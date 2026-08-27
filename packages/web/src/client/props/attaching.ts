@@ -178,3 +178,21 @@ export const onSilence = (state: Attaching): Next =>
     : spent(state)
     ? { kind: "stop", says: "this terminal is not sending anything — it may have closed." }
     : { kind: "reattach", why: "no first frame inside the deadline" }
+
+/**
+ * HOW LONG A PANE WAITS BEFORE RE-ATTACHING.
+ *
+ * The flat backoff this module's header describes, finally spelled as a number
+ * — it was an argument with no code under it, and the gap had teeth: a stream
+ * that ends SYNCHRONOUSLY (a terminal with no live screen does exactly that)
+ * drove the re-attach from inside the effect that owns the subscription, which
+ * re-enters that effect while it is still running. Alone it converged; under
+ * the suite's load it stopped converging at all, and the step hit cucumber's
+ * own ceiling rather than a slow pass.
+ *
+ * A quarter second is enough to break the re-entrance — the next attach starts
+ * from a fresh turn of the event loop — and small enough that a whole budget is
+ * spent inside two seconds, which is what keeps "the pane says so" a fact a
+ * person waits through rather than reads about.
+ */
+export const REATTACH_MS = 250

@@ -55,6 +55,7 @@ import {
   onFrame,
   onSilence,
   opening,
+  REATTACH_MS,
   spent,
 } from "./attaching.ts"
 import { useFleet } from "./fleet.tsx"
@@ -158,8 +159,18 @@ export function LivePane(props: {
     // and none of the three ways the scaled version came apart on a real busy
     // terminal.
     const observer = new ResizeObserver(() => {
+      // ONLY WHEN THE GRID ACTUALLY MOVED. `fit()` resizes the terminal, which
+      // resizes the DOM, which fires this observer again — so an unguarded
+      // re-attach here is a loop that never settles: every attach is torn down
+      // by the next one before its first-frame deadline can fire, and a pane
+      // over a terminal with nothing to send sits open and silent forever
+      // rather than spending its budget and saying so. Thirty seconds of that,
+      // with no error anywhere, is what the probe found.
+      const was = term === undefined ? undefined : { cols: term.cols, rows: term.rows }
       fit?.fit()
-      setGeneration((g) => g + 1)
+      const now = term === undefined ? undefined : { cols: term.cols, rows: term.rows }
+      if (was === undefined || now === undefined) return
+      if (was.cols !== now.cols || was.rows !== now.rows) setGeneration((g) => g + 1)
     })
     observer.observe(host)
     onCleanup(() => {
@@ -243,7 +254,10 @@ export function LivePane(props: {
             term?.write(next.data)
             return
           case "reattach":
-            setGeneration((was) => was + 1)
+            // ON A LATER TURN OF THE EVENT LOOP, never inline: a stream that
+            // ends synchronously would otherwise re-enter the very effect that
+            // owns it (see `./attaching.ts`'s REATTACH_MS).
+            setTimeout(() => setGeneration((was) => was + 1), REATTACH_MS)
             return
           case "stop":
             halted = true
