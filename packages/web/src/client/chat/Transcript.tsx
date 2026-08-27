@@ -9,40 +9,43 @@
  * goes away, not when it changes, so the row component stays mounted across
  * every update and only the text inside it moves.
  *
- * SUBAGENT LANES are the one thing this file decides about a row rather than
- * delegating. A row a spawned agent produced carries the `Agent` frame it
- * belongs to ({@link ../../../../surface/src/chat.ts}'s `ToolEntry.parent`) —
- * a tool call it made, or a question it stopped to ask — and it is drawn
- * indented behind a rail under that frame. Whether the lane has to NAME itself
- * is {@link ./lanes.ts}'s rule; this file is where the only reader of it
- * lives, and the lane is a WRAPPER around whatever the row turns out to be, so
- * a kind of row learning it belongs to a subagent needs nothing here.
+ * THIS COLUMN IS THE MAIN AGENT'S, and that is the one thing about membership
+ * this file no longer decides — because it can no longer be decided per row.
+ * A tool call a spawned agent made is filed under the agent that made it
+ * ({@link ./lanes.ts}'s `filedUnder`) and is drawn where that agent is drawn,
+ * which is a shelf above this pane ({@link ./Preview.tsx}). What reaches
+ * `props.chat.rows()` is already the column: the fold that puts the
+ * conversation in order is where the two lists are cut ({@link ./order.ts}),
+ * once, because a `.filter()` here would be a fresh array on every token an
+ * agent streams.
+ *
+ * WHAT IS STILL DRAWN IN A LANE HERE is a QUESTION a subagent asked. It is not
+ * that agent's chatter — it is a question to the reader, it blocks the turn,
+ * and a form behind a click is a turn that hangs forever — so it stays in the
+ * column with the rail and the name that say who is asking. Whether a lane has
+ * to NAME itself is still {@link ./lanes.ts}'s rule; this file is still where
+ * its only reader lives; and the lane is still a WRAPPER around whatever the
+ * row turns out to be ({@link ./Row.tsx}), which is what lets the shelf draw
+ * the very same rows behind the very same rail.
  *
  * A LANE ALSO OPENS WITH NOTHING IN IT, and that is the same drawing decided
- * from the other end. Every rail above is hung off work a subagent has already
- * done, so an agent that has been sent out and has not called anything yet had
- * no rail, no name and no dot — nothing but the spawning call's own pending
- * row, which reads as an ordinary tool being slow. The row that SPAWNED an
- * agent carries what is known about it ({@link ./spawn.ts}), so the rail can
- * drop out of that row immediately and say what the agent is doing; when the
- * calls arrive they land in the lane already open under it.
+ * from the other end. Every rail here is hung off the SPAWNING row rather than
+ * off work a subagent has already done, so an agent that has been sent out and
+ * has not called anything yet still has a rail, a name and a dot — where before
+ * it had nothing but a pending row that read as an ordinary tool being slow.
+ * The row that SPAWNED an agent carries what is known about it
+ * ({@link ./spawn.ts}); under that, once there is anything to read, is that
+ * agent's DOOR ({@link ./door.ts}) — which is the half the fan-out change owes,
+ * since the record it opens is no longer under the rail where it used to be.
  *
- * WHETHER A TURN IS IN FLIGHT is the other thing decided out here, and it is
- * decided ONCE for the whole list rather than per row: it comes off the chat
- * cell, which moves several times a turn as the context usage is revised, and a
- * boolean memo propagates only when it flips.
- *
- * It has exactly one reader now, and that is the point of the shape the two
- * live faces ended up in. Both of them — the rail under a spawn
- * ({@link ./spawn.ts}) and the elapsed readout on a running call's own line
- * ({@link ./elapsed.ts}) — are functions of the ROW, because whether a call is
- * still going is a fact about the call's own turn and the server says so on the
- * row. Asking the conversation instead was the near-miss: a dead agent's rows
- * are deliberately left where they are, so the next thing anybody sent would
- * make the whole panel live again and light every abandoned call back up. What
- * liveness is still the right question for is the CLOCK — whether to run a
- * timer at all — so that is what it is still used for
- * ({@link ./elapsing.tsx}).
+ * WHETHER A TURN IS IN FLIGHT is no longer decided here, and the move is what
+ * this feature forced. The shelf draws tool rows too; every tool row asks for
+ * the elapsed reading in its own body; and that lookup THROWS outside the
+ * provider. So the provider went up, to the panel that mounts the strip, the
+ * shelf and this pane ({@link ./Panel.tsx}) — which is also what
+ * {@link ./elapsing.tsx} always claimed it was: ONE clock for the panel. Two
+ * providers would be two timers and two subscriptions to a chat cell that moves
+ * several times a turn.
  *
  * FOLLOWING THE BOTTOM is the other half of this file, and it is two questions
  * that were being answered as one:
@@ -89,15 +92,15 @@ import { useFollow } from "../router.tsx"
 import { selector, TESTID } from "../testids.ts"
 import { revealed, revealing, wholeYet } from "./attention/reveal.ts"
 import { declaringFailure } from "./declared.ts"
-import { ElapsedProvider } from "./elapsing.tsx"
-import { Entry } from "./Entry.tsx"
-
-import { laneOf, RAIL } from "./lanes.ts"
-import { LIVE_DOT } from "./live.ts"
+import { doorOf } from "./door.ts"
+import { laneOf } from "./lanes.ts"
 import { NEAR } from "./near.ts"
+import { isPreviewing, previewing, togglePreview } from "./previewing.ts"
 import { railOf, sameRail } from "./rail.ts"
 import { nodeRefIn } from "./refs.ts"
 import { Refusal } from "./Refusal.tsx"
+import { Row } from "./Row.tsx"
+import { sentOf, whoOf } from "./spawn.ts"
 import type { Chat } from "./state.ts"
 
 /** A question still waiting on somebody — `./AskForm.tsx`'s row with its own
@@ -129,7 +132,7 @@ export function Transcript(props: { readonly chat: Chat }) {
   }
 
   onMount(() => {
-    if (content === undefined) return
+    if (content === undefined || pane === undefined) return
     // Content growing does NOT move `scrollTop`, so the browser fires no scroll
     // event for it. New text is followed from here. The jump's own `scroll`
     // arrives later and is recognised by `assignedTop`, not by a flag.
@@ -137,6 +140,19 @@ export function Transcript(props: { readonly chat: Chat }) {
       if (following) jump()
     })
     grown.observe(content)
+    // ... AND THE PANE ITSELF, which is the same fact from the other end and was
+    // missing. Something above the transcript can take room away from it —
+    // a shelf opening onto a subagent's calls ({@link ./Preview.tsx}), the
+    // strip wrapping to a third line as a fan-out grows, the phone's sheet
+    // moving between its snaps — and a SHORTER pane leaves `scrollTop` exactly
+    // where it was while the bottom moves away from it. No scroll event (the
+    // top did not move, and shrinking a scroller only raises its maximum) and
+    // no content event (the content's own box is unchanged), so a reader who
+    // was at the bottom silently is not any more, with their own last message
+    // under the fold. The rule is the one this file already keeps — a follow
+    // that is owed is honoured whenever the geometry moves — and it was only
+    // ever watching half the geometry.
+    grown.observe(pane)
     onCleanup(() => grown.disconnect())
   })
 
@@ -245,39 +261,63 @@ export function Transcript(props: { readonly chat: Chat }) {
     return previous
   })
 
-  /** What the transcript calls the row under a key — for a lane, the `Agent`
-   *  frame's own title, which for this adapter is the description the call was
-   *  made with ("find every call site", "review the diff"). One function for
-   *  the whole list rather than one built per row per frame. */
-  const titleOf = (key: string): string | undefined => props.chat.entry(key)()?.text
-
   /**
-   * Whether anything is running in this conversation at all — WHEN THE PANEL'S
-   * ONE CLOCK TICKS ({@link ./elapsing.tsx}), and nothing else.
+   * What the transcript calls the row under a key — which for the one lane this
+   * column still draws is the AGENT a question came from.
    *
-   * TWO WAYS TO BE RUNNING, and the second is the whole of what this feature
-   * added. A turn in flight is the obvious one. The other is a BACKGROUND TASK
-   * the agent armed and nobody has reported the end of: a monitor spends its
-   * entire life in a conversation whose status is `idle`, which is exactly the
-   * state that used to stop the clock — so the longest-running thing in the
-   * panel was the one row whose readout never moved. What is out is the
-   * server's (`ChatState.watching`, read off the rows it already holds), and
-   * the same list the strip above the scroll draws ({@link ./Watching.tsx}).
+   * NOT THE ROW'S TITLE, and this is the correction the live run earned twice.
+   * A tool row's title is the name the call was announced with and it is pinned
+   * at the first frame that carries one — deliberately, so a call cannot rename
+   * itself while somebody is reading it — and under the adapter olai ships with
+   * that name is the TOOL's: four agents dispatched in one message are four
+   * rows reading `Task`. The strip, the shelf's head and the door were taught
+   * to say what the agent was SENT to do; this was not, and it is the surface
+   * where the cost is highest.
    *
-   * ONE memo for the whole list rather than one per row, and a BOOLEAN rather
-   * than the state: every row's rail would otherwise subscribe to the chat
-   * cell, which moves several times a turn as the context usage is revised, and
-   * re-run for each of them. A boolean propagates only when it flips.
+   * Because this is the label over a FORM. It is the one row in the panel where
+   * being wrong about who is speaking changes what a person presses — and since
+   * that agent's calls are no longer drawn under it, the name is not merely the
+   * best evidence of whose question this is, it is the ONLY evidence. Two
+   * subagents asking at once over different permissions produced two forms
+   * reading *↳ Task*.
+   *
+   * Through {@link ./spawn.ts}'s `sentOf`, which is the one rule
+   * ({@link @olai/surface}'s `sentToDo`) every other surface asks — so the name
+   * on a form, the name on the strip and the name in the shelf's head are one
+   * answer rather than four that happen to agree. It falls back to the row's
+   * own title, which is what a spawn that described itself with nothing has to
+   * be called, and is exactly what a reader sees on that row.
+   *
+   * One function for the whole list rather than one built per row per frame.
    */
-  const live = createMemo(() => {
-    const state = props.chat.state()
-    return state.status === "thinking" || state.watching.length > 0
-  })
-
+  const titleOf = (key: string): string | undefined => {
+    const frame = props.chat.entry(key)()
+    return sentOf(frame) ?? frame?.text
+  }
 
   return (
     <div
       class="olai-scroll min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-2 text-ink"
+      classList={{
+        // A FLOOR, and ONLY WHILE A SHELF IS TAKING ROOM. What can squeeze this
+        // pane is above it — a preview of one agent's calls — and the promise
+        // that matters is that a question a subagent asked is drawn HERE, in
+        // the column, because a form behind a click is a turn that hangs
+        // forever. A pane squeezed to nothing is a click of a different kind.
+        //
+        // UNCONDITIONAL IT COSTS MORE THAN IT BUYS, which the phone measured:
+        // this pane's basis is `0` (`flex-1`), so flexbox never SHRINKS it — it
+        // simply gets no free space — and a floor turns that into the container
+        // OVERFLOWING instead, which pushes the composer off the bottom of a
+        // handset. That is the same failure one surface further along: a person
+        // who cannot reach the box cannot answer the form either, and it fired
+        // on every phone whether or not anything was open.
+        //
+        // So it is scoped to the one arrangement it was written for. The shelf
+        // is capped and yields first, and on the sheet opening one goes to the
+        // full snap, so by the time this applies there is room for both.
+        "min-h-[7rem]": previewing() !== null,
+      }}
       data-testid={TESTID.chatTranscript}
       ref={pane}
       onScroll={() => {
@@ -317,138 +357,74 @@ export function Transcript(props: { readonly chat: Chat }) {
           whose HEIGHT can be observed: the pane's own size never changes, and
           it is the content inside it that grows. */}
       <div class="min-w-0" ref={content}>
-        {/* HOW LONG a running call has been going reaches the frame that draws
-            one from here ({@link ./elapsing.tsx}) rather than down through
-            `Entry`: it needs `live` and one clock, both of which are the
-            list's, and neither of which is anything the five other kinds of
-            row have a use for. */}
-        <ElapsedProvider live={live()}>
-          <For each={props.chat.rows()}>
-            {(key) => {
-              const entry = props.chat.entry(key)
-              /** The row drawn directly ABOVE this one, and the only thing a
-               *  lane needs that a row cannot see for itself — which is the
-               *  whole reason the lane is decided out here rather than inside
-               *  `Entry`.
-               *
-               *  Its own memo rather than folded into the lane below, and that
-               *  is a reactivity decision rather than a stylistic one: what
-               *  comes out is an ENTRY, whose identity survives a frame (the
-               *  collection reconciles in place), so a re-run here stops here.
-               *  Reading the row list straight into the lane would tie every
-               *  lane to the list instead — and a lane is a fresh object every
-               *  time it is computed, so one row arriving would re-run the
-               *  attribute effects of every row already on screen. */
-              const above = createMemo(() => {
-                const previous = previousOf().get(key)
-                return previous === undefined
-                  ? undefined
-                  : props.chat.entry(previous)()
-              })
-              const lane = createMemo(() => laneOf(entry(), above(), titleOf))
-              /** The live rail under a spawn — what a running subagent looks
-               *  like before it has made a call to draw a lane out of.
-               *
-               *  `null` for every row that spawned nobody, for a spawn that has
-               *  stopped, and for one whose CONVERSATION has, so the same memo
-               *  answers both "is there anything to draw" and "what does it say"
-               *  ({@link ./spawn.ts}). */
-              /** ... and the live RAIL under this row, whichever of the two it
-               *  is: a spawned agent still out, or a background task still
-               *  running ({@link ./rail.ts}, which owns the precedence and
-               *  carries the words together with the face they belong to).
-               *
-               *  Its own equality, because the answer is an OBJECT now and a
-               *  memo over one stops nothing by default: a row that recomputes
-               *  an identical rail would notify the attributes and the words
-               *  under it on every frame of that row. */
-              const working = createMemo(() => railOf(entry()), null, { equals: sameRail })
-              return (
-                <Show when={entry()}>
-                  {(row) => (
-                    /* The row's own box, and THE GAP UNDER IT — which is here
-                       rather than on the row because a rail has to be able to
-                       cross it. Padding, not a margin: a border is drawn around
-                       padding and outside a margin, so a lane's rail reaches
-                       from its row down through the space to the next one and
-                       the run comes out as one line rather than a column of
-                       dashes. It used to be a margin on the row and a matching
-                       negative here, which was the same picture drawn by two
-                       files agreeing about a number.
-  
-                       The lane is a WRAPPER rather than a branch, so a row that
-                       learns whose it is on its second frame moves into the lane
-                       without being drawn again from scratch — the same rule the
-                       row list itself follows, one level down. */
-                    <div
-                      classList={{
-                        [RAIL]: lane() !== null,
-                        // ... unless the rail below is carrying it instead, so
-                        // that one line crosses the gap rather than stopping at
-                        // the edge of this box and starting again inside it.
-                        "pb-2": working() === null,
-                      }}
-                      data-testid={lane() === null ? undefined : TESTID.chatLane}
-                      data-lane={lane()?.parent}
-                    >
-                      {/* Once per stretch of one agent's work, not once per call
-                          it makes — see `./lanes.ts`. */}
-                      <Show when={lane()?.label}>
-                        {(label) => (
-                          <p
-                            class="mb-1 flex min-w-0 items-center gap-1 font-mono text-[0.6875rem] text-muted"
-                            data-testid={TESTID.chatLaneLabel}
-                          >
-                            <span aria-hidden="true">↳</span>
-                            <span class="min-w-0 truncate">{label()}</span>
-                          </p>
-                        )}
-                      </Show>
-                      <Entry entry={row()} chat={props.chat} />
-                      {/* THE LANE, OPENED BY THE SPAWN ITSELF — a rail dropping
-                          out of the frame the moment an agent is sent out,
-                          rather than one that appears whenever the agent
-                          eventually greps something. It carries the gap to the
-                          next row (`pb-2`, taken off the wrapper above) so the
-                          rail runs down through it and meets the first call's
-                          own rail as one line, which is the same reason that
-                          gap is padding rather than a margin — and it is the
-                          same `RAIL`, from the module that owns what a lane
-                          looks like, so "meets as one line" is held by one
-                          spelling rather than by two that happen to agree.
-  
-                          The pulsing dot is the header's, by import: a turn in
-                          flight and an agent in flight are the same kind of
-                          fact, and a panel with two spellings of "this is
-                          happening" is a panel with one of them to learn. */}
-                      <Show when={working()}>
-                        {(rail) => (
-                          <div class={`${RAIL} pb-2 pt-1`}>
-                            {/* The NAME is on the words rather than on the rail
-                                around them, so that what a scenario measures is
-                                what a reader sees inset — the rail's own box
-                                starts at the row's left edge, and asserting on
-                                that would pass on a build that had lost the
-                                indent entirely. */}
-                            <p
-                              class="flex items-center gap-1 font-mono text-[0.6875rem] text-doing"
-                              data-testid={rail().name}
-                              data-lane={row().id}
-                              aria-live="polite"
-                            >
-                              <span class={LIVE_DOT} aria-hidden="true" />
-                              {rail().said}
-                            </p>
-                          </div>
-                        )}
-                      </Show>
-                    </div>
-                  )}
-                </Show>
-              )
-            }}
-          </For>
-        </ElapsedProvider>
+        <For each={props.chat.rows()}>
+          {(key) => {
+            const entry = props.chat.entry(key)
+            /** The row drawn directly ABOVE this one, and the only thing a
+             *  lane needs that a row cannot see for itself — which is the
+             *  whole reason the lane is decided out here rather than inside
+             *  `Entry`.
+             *
+             *  Its own memo rather than folded into the lane below, and that
+             *  is a reactivity decision rather than a stylistic one: what
+             *  comes out is an ENTRY, whose identity survives a frame (the
+             *  collection reconciles in place), so a re-run here stops here.
+             *  Reading the row list straight into the lane would tie every
+             *  lane to the list instead — and a lane is a fresh object every
+             *  time it is computed, so one row arriving would re-run the
+             *  attribute effects of every row already on screen. */
+            const above = createMemo(() => {
+              const previous = previousOf().get(key)
+              return previous === undefined
+                ? undefined
+                : props.chat.entry(previous)()
+            })
+            const lane = createMemo(() => laneOf(entry(), above(), titleOf))
+            /** ... and the live RAIL under this row, whichever of the two it
+             *  is: a spawned agent still out, or a background task still
+             *  running ({@link ./rail.ts}, which owns the precedence and
+             *  carries the words together with the face they belong to).
+             *
+             *  Its own equality, because the answer is an OBJECT now and a
+             *  memo over one stops nothing by default: a row that recomputes
+             *  an identical rail would notify the attributes and the words
+             *  under it on every frame of that row. */
+            const working = createMemo(() => railOf(entry()), null, { equals: sameRail })
+            /**
+             * HOW MUCH IS BEHIND THIS ROW'S DOOR — the number of calls the
+             * agent it sent has made, and `0` for every row that sent nobody.
+             *
+             * THE ROW IS READ BEFORE THE LIST IS, and the order is the whole
+             * of why this is cheap. `whoOf` is a fact about this row alone; a
+             * memo that answers on it and returns never touches `lanes()`, so
+             * it never subscribes to it — and a conversation's three hundred
+             * and ninety-seven non-spawn rows go on waking only when they
+             * themselves change, which is the property `./spawn.ts` records
+             * having deliberately bought. Only the three rows that sent
+             * somebody join the list-wide signal, and what leaves this memo is
+             * a NUMBER, so a re-run stops here the way `above`'s does.
+             */
+            const calls = createMemo(() => {
+              if (whoOf(entry()) === null) return 0
+              return props.chat.lanes().get(key)?.length ?? 0
+            })
+            return (
+              <Show when={entry()}>
+                {(row) => (
+                  <Row
+                    entry={row()}
+                    chat={props.chat}
+                    lane={lane()}
+                    rail={working()}
+                    door={calls() > 0 ? () => togglePreview(key) : null}
+                    says={doorOf(entry(), calls())}
+                    open={isPreviewing(key)}
+                  />
+                )}
+              </Show>
+            )
+          }}
+        </For>
 
         <Show when={props.chat.refused()}>
           {(failure) => (

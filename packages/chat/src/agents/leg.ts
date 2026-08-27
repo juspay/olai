@@ -157,6 +157,7 @@ export const allowingOurs = (
  *  what a transcript is. */
 export interface Spawn {
   readonly kind?: string
+  readonly said?: string
 }
 
 /**

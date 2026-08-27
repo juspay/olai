@@ -1,60 +1,110 @@
 /**
- * Which rows were somebody else's, and where to say so.
+ * Which rows are somebody else's — and, for the one kind that stays, where to
+ * say so.
  *
  * A turn can spawn agents, and their tool calls come back on the same feed as
- * the main agent's — one flat column of frames, all in one voice. That is the
- * one thing the panel was saying that is not true: three agents grepping at
- * once looked exactly like one agent grepping three times, and there was
- * nothing on screen to suggest a subagent had ever been started.
+ * the main agent's — one flat column of frames, all in one voice. This file has
+ * answered two versions of that problem and the second is the one it is on now.
  *
- * A row that names the `Agent` call it was made inside (`parent` on a tool
- * or ask row) is
- * drawn in a LANE — indented behind a rail, under the frame it belongs to.
- * Which rows those are is the transcript's answer and not this file's, and it
- * is not only tool calls: a subagent can stop and ASK, and its form belongs in
- * its lane for the same reason its greps do. What is decided here is the other
- * half, the one only the LIST can answer:
+ * IT USED TO BE ABOUT INDENTING THEM. Three agents grepping at once looked
+ * exactly like one agent grepping three times, so a row that named the `Agent`
+ * call it was made inside was drawn in a LANE — behind a rail, under the frame
+ * it belongs to — and this file decided when a lane had to write its own name
+ * on itself. That was true and it was not enough: five agents out is five
+ * agents' work in the column whatever it is indented behind, and the main
+ * agent's own words go off the top of the screen. Being able to tell whose wall
+ * of text you are drowning in is not the same as not drowning.
  *
- *   **when the lane has to name itself.** A rail is enough while it is
- *   obvious whose it is — the `Agent` frame is right above it, or the row
- *   above is another call by the same agent — and it stops being obvious the
- *   moment two agents are running at once, which is exactly what people spawn
- *   agents for. Their calls then interleave, and a rail with nothing written
- *   on it is a rail that says "somebody else did this" and refuses to say who.
+ * SO IT IS ABOUT MEMBERSHIP NOW ({@link filedUnder}): a subagent's tool calls
+ * leave the conversation entirely and are drawn where that agent is drawn
+ * (`./Preview.tsx`), and the column is the main agent's. What is left of the
+ * older rule is the row that is DELIBERATELY EXEMPT — a question — and the
+ * older rule is exactly what that row still needs.
  *
- * So the label is drawn on the row that OPENS a run and on no other: once per
- * stretch of one agent's work rather than once per call, which is what keeps a
- * subagent's ten `Read`s from being ten copies of its name down the panel.
+ *   **When the lane has to name itself.** A rail is enough while it is obvious
+ *   whose it is — the `Agent` frame is right above it, or the row above is
+ *   another call by the same agent — and it stops being obvious the moment the
+ *   rows around it are somebody else's. So the label is drawn on the row that
+ *   OPENS a run and on no other: once per stretch rather than once per call.
  *
- * ... AND ON EVERY QUESTION, which is the one exception and is about what a
- * row IS rather than about where it sits. A form blocks the turn and is
- * pointed at from outside the list, so a reader meets it without having read
- * the row above; and a permission form answered in the wrong agent's name is
- * the one row here where being misread changes a decision. See
- * {@link namesItself}.
+ * ... AND ON EVERY QUESTION, which is the exception that now carries the whole
+ * rule. A form blocks the turn and is pointed at from outside the list, so a
+ * reader meets it without having read the row above; and a permission form
+ * answered in the wrong agent's name is the one row here where being misread
+ * changes a decision. See {@link namesItself}.
+ *
+ * WHY THE TWO ARE STILL ONE FILE. They are one question asked at two moments —
+ * *whose row is this* — and answering them apart is how the panel would end up
+ * drawing a form in a lane it had already filed away, or filing away a row it
+ * had drawn a name on. They are two FUNCTIONS because their inputs differ:
+ * membership is a fact about a row alone, and a name is a fact about a row and
+ * the one above it.
  *
  * WHAT CHANGES BEHIND THIS, and the reason it is a module rather than an
  * expression in the row that draws it: **how much a lane has to say to be
- * read.** Every part of that has already moved once — whether a rail alone
- * carries it, where a name is owed, what the name is drawn from — and each
- * time the answer was a guess about what somebody scanning a 26rem drawer can
- * follow, which is the kind of question that is settled by looking rather than
- * by reasoning. A rule you expect to re-decide is one worth being able to
- * re-decide in one place, and to assert without a browser: the panel's own
- * precedent ({@link ./folds.ts}, {@link ./when.ts}) is that such a rule is a
- * function with unit tests rather than a branch reachable only by starting an
- * agent. What comes OUT does not move when the rule does — a lane still says
- * whose it is and still says what to write — so the row that draws one is not
- * a place any of that re-deciding lands.
+ * read.** Every part of that has already moved twice — whether a rail alone
+ * carries it, where a name is owed, what the name is drawn from, and now
+ * whether the row is in this list at all — and each time the answer was a guess
+ * about what somebody scanning a 26rem drawer can follow, which is the kind of
+ * question that is settled by looking rather than by reasoning. A rule you
+ * expect to re-decide is one worth being able to re-decide in one place, and to
+ * assert without a browser: the panel's own precedent ({@link ./folds.ts},
+ * {@link ./when.ts}) is that such a rule is a function with unit tests rather
+ * than a branch reachable only by starting an agent. What comes OUT does not
+ * move when the rule does — a lane still says whose it is and still says what
+ * to write — so the row that draws one is not a place any of that re-deciding
+ * lands.
  *
- * It is a pure function over two rows rather than a pass over the list,
- * because the list is drawn one row at a time from stable keys
+ * {@link laneOf} is a pure function over two rows rather than a pass over the
+ * list, because the list is drawn one row at a time from stable keys
  * ({@link ./state.ts}) and this may not be the thing that changes that: a row
- * that re-renders is a row whose fold, selection and scroll are still where
- * the reader left them.
+ * that re-renders is a row whose fold, selection and scroll are still where the
+ * reader left them. {@link filedUnder} is a pure function over ONE row for the
+ * sharper version of the same reason — it is asked inside the fold that puts
+ * the conversation in order ({@link ./order.ts}), on every upsert of every
+ * streaming row, which is the busiest path in the panel.
  */
 
 import type { ChatEntry } from "@olai/surface"
+
+/**
+ * WHOSE RECORD THIS ROW IS — the key of the `Agent` frame whose own list draws
+ * it, or `null` for a row the conversation's column draws itself.
+ *
+ * THE MEMBERSHIP RULE, and the one this file gained when subagents left the
+ * transcript. Everything else here is about how a row that is drawn in a lane
+ * is LABELLED; this is the prior question of whether the column draws it at
+ * all, and it is a different question with a different answer for one kind of
+ * row.
+ *
+ * **A subagent's tool calls are its own.** Five agents out is five agents'
+ * `cd … && grep …` interleaved in one column, in one voice, under a main agent
+ * whose own words are pushed off the screen — which is the panel telling you
+ * about work you did not ask to watch instead of the work you did. So they are
+ * filed under the agent that made them and drawn where that agent is drawn.
+ *
+ * **A subagent's QUESTION is not.** A permission form or an elicitation is not
+ * the subagent talking: it is a question TO THE READER, it blocks the turn, and
+ * it hangs until somebody presses something. Filing one under an agent would
+ * put it behind a click, and a form behind a click is a turn that hangs
+ * forever — so an `ask` stays in the column whoever asked it, and keeps the
+ * rail and the name that say which agent is asking ({@link namesItself}, which
+ * exists for exactly that row and is now the only reason a lane is drawn in the
+ * column at all). The losing case is not made unlikely here; it is made
+ * unrepresentable, because a form was never subject to the rule.
+ *
+ * `undefined` for the row is answered `null` too, for {@link laneOf}'s reason:
+ * the list holds keys and reads their values a frame behind, so "which row" is
+ * a question that can be asked about nothing.
+ *
+ * WHETHER THE PANEL HAS THAT FRAME is deliberately NOT asked here. It is a fact
+ * about the whole list rather than about this row, and the list is what answers
+ * it ({@link ./order.ts}): a row whose `Agent` frame never arrived has no door
+ * anywhere to reach it through, so it is kept in the column behind the rail it
+ * has always had, named *a subagent*.
+ */
+export const filedUnder = (entry: ChatEntry | undefined): string | null =>
+  entry?.kind === "tool" ? entry.parent ?? null : null
 
 /** A row drawn in a lane: whose it is, and what the lane says here. */
 export interface Lane {
@@ -92,6 +142,14 @@ export interface Lane {
  * naming an agent means reading another row, and a rule that read rows would
  * stop being a function of its arguments. The panel hands its passes their
  * lookups the same way ({@link ./Entry.tsx} and `markNodeRefs`).
+ *
+ * WHAT IT MUST ANSWER WITH is the agent's own description and not the frame's
+ * title ({@link ./Transcript.tsx}'s `titleOf`, over
+ * {@link @olai/surface}'s `sentToDo`). Under the adapter olai ships with, an
+ * `Agent` call's title is the TOOL's name — four agents of one fan-out are four
+ * rows reading `Task` — and this rule's whole subject is telling one agent from
+ * another. It is said here rather than left to the caller because the caller
+ * cannot see what this label is FOR.
  *
  * @param row the row being drawn
  * @param above the row drawn directly above it, if any
@@ -157,6 +215,14 @@ const established = (row: ChatEntry, above: ChatEntry | undefined): boolean =>
  * answered in the wrong agent's name is a decision made on a false premise,
  * and this is the one row in the panel where that is possible. It costs one
  * line above a form that is already several.
+ *
+ * AND IT IS NOW THE ONLY EVIDENCE THERE IS. Before a subagent's calls left the
+ * conversation, a reader who doubted the name had the stretch of that agent's
+ * work under the form to read and the frame that spawned it directly above; the
+ * label was the fastest answer rather than the whole of it. The calls are drawn
+ * elsewhere now, so what is left on the row is this line — which is why what it
+ * is drawn FROM had to stop being the frame's pinned title and start being what
+ * the agent was sent to do (see `nameOf` above).
  *
  * The stretch is unaffected either way — the row below a form is still one of
  * the same agent's, so the lane does not open again underneath it.

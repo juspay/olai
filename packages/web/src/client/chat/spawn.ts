@@ -34,7 +34,7 @@
  * is what stops them disagreeing about whether a row is a spawn at all.
  */
 
-import type { ChatEntry } from "@olai/surface"
+import { type ChatEntry, sentToDo } from "@olai/surface"
 
 import { isRunning } from "./running.ts"
 
@@ -116,6 +116,31 @@ export const doingOf = (entry: ChatEntry | undefined): string | null => {
   // on this same row asks the same question, and the frame draws the same
   // field.
   return whoOf(entry) !== null && isRunning(entry) ? WORKING : null
+}
+
+/**
+ * ... and WHAT IT WAS SENT TO DO, or `null` for a row that sent nobody.
+ *
+ * THE DESCRIPTION rather than the row's title, and the difference is the whole
+ * of why it exists. A tool row's title is the name the call was ANNOUNCED with
+ * and it is pinned at the first frame that carries one — deliberately, so a row
+ * cannot rename itself twice while somebody is reading it — and for this
+ * adapter that name is the tool's: `Task`. Four agents dispatched in one
+ * message are four rows reading `Task`.
+ *
+ * That was survivable while a subagent's calls were drawn under the row that
+ * spawned it, because a reader works downwards and finds out. It stopped being
+ * survivable the moment the work moved onto a strip and behind a door: the
+ * strip is then four identical buttons, and which one you press decides what
+ * you are reading.
+ *
+ * FALLS BACK TO THE TITLE, which is what a spawn nobody described has to be
+ * called and is exactly what the row itself says. Never a category — *agent*
+ * belongs to {@link whoOf}, which answers a different question.
+ */
+export const sentOf = (entry: ChatEntry | undefined): string | null => {
+  if (entry?.kind !== "tool" || entry.spawned === undefined) return null
+  return sentToDo(entry.spawned, entry.text)
 }
 
 /** What a spawn is called when it named no kind of agent. The `Agent` tool's

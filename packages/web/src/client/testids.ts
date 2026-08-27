@@ -1260,6 +1260,37 @@ export const TESTID = {
    *  rail's own box starts at the row's left edge. Absent the moment the call
    *  completes or fails. */
   chatSpawnWorking: "chat-spawn-working",
+  /** THE DOOR onto a spawned agent's own calls, under the row that sent it —
+   *  the durable half of reaching them, since the strip carries an agent only
+   *  while it is out. Its text is how many calls are behind it
+   *  (`web/src/client/chat/door.ts`), `data-lane` is the spawning frame's
+   *  transcript key (the same key `chatLane` and `chatSpawnWorking` use) and
+   *  `aria-expanded` says whether it is the open one. Absent on every row that
+   *  spawned nobody, and on a spawn nobody has heard from yet. */
+  chatLaneDoor: "chat-lane-door",
+  /** THE SHELF one agent's calls are read in, between the strip above the
+   *  scroll and the transcript — never over either, so the conversation is
+   *  still readable underneath and the composer is never covered. `data-row` is
+   *  the spawning frame's transcript key. Absent whenever nothing is open,
+   *  which is nearly always. */
+  chatPreview: "chat-preview",
+  /** Its head: the agent it is about, by the name the spawning row carries.
+   *  `data-spawn-kind` is the kind of agent, when the spawn named one. */
+  chatPreviewOf: "chat-preview-of",
+  /** ... and the control that closes it. */
+  chatPreviewShut: "chat-preview-shut",
+  /** ... and the notice at its head saying the turn is blocked on a QUESTION,
+   *  which is the one thing in this box that is not about the agent. A form is
+   *  never drawn in here — it stays in the conversation, where a decision
+   *  belongs — so this is what keeps `docs/chat.md`'s promise that a form
+   *  arrives where a reader is already looking: pressing it closes the shelf
+   *  and raises the same ask the attention banner does. Absent whenever nothing
+   *  is waiting. */
+  chatPreviewAsked: "chat-preview-asked",
+  /** ... and what it says when the agent has not called anything yet — which is
+   *  the whole of the stretch a fan-out is watched through, and an honest thing
+   *  to say rather than an empty box. */
+  chatPreviewNothing: "chat-preview-nothing",
   /** WHAT a call left running in the background, on the line of the call that
    *  armed it: the description the task was armed with. `data-task` is the
    *  harness's own id for the task, so a scenario asserts the FACT rather than
@@ -1271,9 +1302,15 @@ export const TESTID = {
    *  wherever the reader is — which is the half a row at its birth position
    *  cannot serve. */
   chatWatching: "chat-watching",
-  /** One task on it. `data-row` is the transcript key of the call that armed
-   *  it — the same key that row carries as `data-entry-id` — so a scenario can
-   *  say the strip and the record are one task named twice. */
+  /** One thing on it. `data-row` is the transcript key of the call that armed
+   *  the task or sent the agent — the same key that row carries as
+   *  `data-entry-id` — so a scenario can say the strip and the record are one
+   *  thing named twice. `data-kind` is which of the two it is (`agent` /
+   *  `task`), because they are drawn on one strip and only one of them is a
+   *  door: an agent entry is a BUTTON that opens that agent's own calls, and a
+   *  task entry is not pressable, since a task's events are on no wire olai can
+   *  reach. `aria-pressed` on an agent entry says whether its shelf is the one
+   *  open. */
   chatWatchingTask: "chat-watching-task",
   /** ... and how long it has been out, in the same words the row's own readout
    *  uses. It names the DURATION alone, so what a scenario reads back is the
