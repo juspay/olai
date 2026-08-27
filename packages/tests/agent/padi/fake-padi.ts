@@ -36,7 +36,7 @@ import { readFileSync } from "node:fs"
 
 import { implementSurface, inMemoryStore } from "@kolu/surface/server"
 import { serveOverUnixSocket } from "@kolu/surface/unix-socket"
-import { CONTROL_CORE_VERSION } from "@kolu/surface-daemon"
+import { CONTROL_CORE_VERSION } from "@kolu/surface-daemon/control-core"
 import {
   PADI_SURFACE_VERSION,
   padiControlSibling,

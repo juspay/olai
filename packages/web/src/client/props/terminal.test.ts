@@ -11,6 +11,7 @@
 
 import { describe, expect, it } from "bun:test"
 import type { FleetTerminal, KoluLink } from "@olai/surface"
+import { isPipGlyphId, isPipMotionKind, isPipVariant } from "@kolu/solid-dockrow/rowValues"
 
 import { readingOf } from "./terminal.ts"
 
@@ -29,8 +30,8 @@ const row = (over: Partial<FleetTerminal> = {}): FleetTerminal => ({
   id: "t1",
   pip: {
     variant: "working",
-    glyph: "claude",
-    motion: "pulse",
+    glyph: "claude-code",
+    motion: "glow",
     active: true,
     asking: false,
     bytesLive: true,
@@ -138,5 +139,23 @@ describe("the unwired reading", () => {
     expect(reading.row).toBeUndefined()
     expect(reading.says).toBe("olai is not watching a padi here.")
     expect(reading.says).not.toContain("looked at .")
+  })
+})
+
+describe("the fixture speaks kolu's vocabulary", () => {
+  it("uses pip words that EXIST", () => {
+    // THE DRIFT THIS EXISTS TO CATCH, which was live and green: the fixture
+    // said glyph `"claude"` and motion `"pulse"`. Neither is a kolu word —
+    // the glyph set is the agent kinds plus `"shell"` (olai's own roster
+    // spells the agent `claude`, kolu's is `claude-code`, so it was a
+    // namespace collision rather than a typo) and the motions are
+    // `spin | glow | none`. It compiled because olai's wire types these as
+    // plain strings and narrows at the render site — which is the right wire
+    // decision and exactly why a FIXTURE has to be checked against the guards
+    // instead of trusted to the compiler.
+    const { pip } = row()
+    expect(isPipVariant(pip.variant)).toBe(true)
+    expect(isPipGlyphId(pip.glyph)).toBe(true)
+    expect(isPipMotionKind(pip.motion)).toBe(true)
   })
 })

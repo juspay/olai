@@ -14,8 +14,11 @@
  * THIS COMPONENT DOES NOT DIAL PADI AND COULD NOT. What it subscribes to is
  * `@olai/surface`'s own `streams.terminal`, an ordinary member of the same
  * surface every other page reads; the olai SERVER holds padi's `terminalAttach`
- * on the one connection the fleet already rides. Ten tabs watching one terminal
- * are ten subscribers to that member and one attach to padi.
+ * on the one connection the fleet already rides. Ten tabs watching one
+ * terminal are ten subscribers to that member, ten attaches to padi, and ONE
+ * connection — the attach is per pane because it is a WRITE that carries the
+ * grid this box wants, and two panes at two sizes cannot share one. What the
+ * wall buys is the DIAL.
  *
  * ## Why the subscription is UN-ENROLLED
  *
@@ -245,6 +248,18 @@ export function LivePane(props: {
       const asked = measured !== undefined && measured.cols > 0 && measured.rows > 0
         ? measured
         : undefined
+      // THE GATE `attaching.ts` WAS WRITTEN FOR, and which this caller was
+      // skipping. `spent` says "asked before `again`, so a caller cannot spend
+      // a seventh attempt by forgetting to check" — and the caller forgot: the
+      // symbol was imported and never called, so the counter ran past the
+      // budget and the verdict arrived from whichever arm happened to fire
+      // next. Asked here, the budget's own sentence is what a reader sees, at
+      // the moment it is true.
+      if (carried !== undefined && spent(carried)) {
+        halted = true
+        setSays("this terminal stopped answering — it has probably closed.")
+        return
+      }
       let state: Attaching = g === 1 ? opening() : again(carried ?? opening())
       carried = state
       setSays(undefined)

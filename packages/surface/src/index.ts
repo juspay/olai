@@ -1029,7 +1029,8 @@ export const surface = defineSurface({
      * subscription — one per open pane, on the same one connection the fleet
      * rides — and relays its frames here. A browser that attached for itself
      * would be a second dialer of a unix socket it has no business knowing
-     * about, and ten tabs would be ten attaches to one terminal.
+     * about. (Ten tabs ARE ten attaches — "one per open pane", above, is the
+     * literal count. What the server holds one of is the CONNECTION.)
      *
      * The first frame of every attach is a `snapshot` and the rest are
      * `delta`s ({@link TerminalFrame}) — including after a re-attach, which is

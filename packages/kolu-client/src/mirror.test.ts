@@ -23,7 +23,7 @@ import { describe, expect, it } from "bun:test"
 import { Effect, Fiber, Schedule, Stream } from "effect"
 
 import type { FleetTerminal, KoluLink } from "@olai/surface"
-import { DaemonContractSkewError } from "@kolu/surface-daemon-supervisor"
+import { DaemonContractSkewError } from "@kolu/surface-daemon-supervisor/dial"
 
 import { type Dial, SPEAKS } from "./link.ts"
 import { frameOf, makeMirror } from "./mirror.ts"
@@ -588,5 +588,47 @@ describe("a foreign resize", () => {
     expect(resizing.attaches[1]?.resizeTo).toBeUndefined()
     // The pane saw the fresh snapshot, which is what carries the new size.
     expect(frames.length).toBeGreaterThanOrEqual(2)
+  })
+})
+
+describe("the pty grid as a FALLBACK — kolu's two channels are independently optional", () => {
+  it("takes the RECORD's grid when the frame names none", () => {
+    // Rule 2c's recovery, and the half that was missing: the mirror detected
+    // the foreign resize off the record and then handed the pane a frame with
+    // `grid: null`, which means "keep the size you have" — guaranteed wrong,
+    // because the size it has is the one somebody else just moved away from.
+    expect(
+      frameOf({ kind: "snapshot", data: "hello", topLine: 0 }, { cols: 80, rows: 24 }),
+    ).toEqual({ kind: "snapshot", data: "hello", topLine: 0, grid: { cols: 80, rows: 24 } })
+  })
+
+  it("prefers the FRAME's grid when both say — it is the one that describes THIS screen", () => {
+    // The frame's grid is the size the bytes were laid out at; the record's is
+    // the pty's current size. When they disagree the bytes win, because the
+    // bytes are what is about to be painted.
+    expect(
+      frameOf(
+        { kind: "snapshot", data: "x", topLine: 0, grid: { cols: 203, rows: 51 } },
+        { cols: 80, rows: 24 },
+      ),
+    ).toEqual({ kind: "snapshot", data: "x", topLine: 0, grid: { cols: 203, rows: 51 } })
+  })
+
+  it("still says `null` when NEITHER channel names one", () => {
+    // A padi too old on both halves. Not knowing stays not knowing — inventing
+    // a size here is the failure the whole field was added to end.
+    expect(frameOf({ kind: "snapshot", data: "x", topLine: 0 })).toEqual({
+      kind: "snapshot",
+      data: "x",
+      topLine: 0,
+      grid: null,
+    })
+  })
+
+  it("leaves a DELTA alone — bytes carry no layout claim", () => {
+    expect(frameOf({ kind: "delta", data: "$ " }, { cols: 80, rows: 24 })).toEqual({
+      kind: "delta",
+      data: "$ ",
+    })
   })
 })

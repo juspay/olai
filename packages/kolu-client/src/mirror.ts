@@ -35,6 +35,7 @@
  * instead of a slow leak.
  */
 
+import { isSnapshotFrame, snapshotGrid } from "@kolu/padi-client/attach"
 import { type TerminalMetadata, tileTerminalOf } from "@kolu/padi-client/surface"
 import type { TerminalGrid } from "@kolu/terminal-vocab/schema"
 import type { FleetOwner, FleetTerminal, KoluLink, Snapshot, TerminalFrame } from "@olai/surface"
@@ -154,14 +155,39 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
    * arrives with a different grid, and every open attach on that terminal is
    * re-opened.
    */
-  const watchers = new Map<string, Set<() => void>>()
+  const watchers = new Map<string, Set<(now: TerminalGrid | undefined) => void>>()
 
-  const watchGrid = (id: string, onMoved: () => void): (() => void) => {
+  /**
+   * WATCH ONE TERMINAL'S PTY GRID for a move somebody ELSE made.
+   *
+   * `asked` is the grid this watcher's own attach requested, and it is what
+   * makes the detector honest rather than merely reactive. The first shape
+   * compared record-before against record-after, which fires on the WATCHER'S
+   * OWN attach: a pane opening at 100x30 over an 80x24 pty moves the record
+   * itself, and the pane then re-attached in answer to its own write. kolu
+   * states the property this restores — "Your OWN resize is not this case and
+   * needs no special-casing ... the two agree and nothing fires."
+   *
+   * So the question is not "did the record change" but "is the pty at a size
+   * this pane did not ask for". A pane that asked for nothing (`asked`
+   * undefined) is watching a terminal it never sized, and any grid the record
+   * names is news to it.
+   */
+  const watchGrid = (
+    id: string,
+    asked: TerminalGrid | undefined,
+    onMoved: () => void,
+  ): (() => void) => {
+    const fire = (now: TerminalGrid | undefined): void => {
+      if (now === undefined) return
+      if (asked !== undefined && asked.cols === now.cols && asked.rows === now.rows) return
+      onMoved()
+    }
     const set = watchers.get(id) ?? new Set()
-    set.add(onMoved)
+    set.add(fire)
     watchers.set(id, set)
     return () => {
-      set.delete(onMoved)
+      set.delete(fire)
       if (set.size === 0) watchers.delete(id)
     }
   }
@@ -172,6 +198,14 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
    *  union's own shape. */
   const gridOf = (record: TerminalMetadata): TerminalGrid | undefined =>
     "grid" in record ? record.grid : undefined
+
+  /** The pty grid this mirror currently holds for one terminal, or `undefined`
+   *  where it holds no record for it — the fallback a snapshot that names no
+   *  grid is read against. */
+  const recordGrid = (id: string): TerminalGrid | undefined => {
+    const record = records.get(id)
+    return record === undefined ? undefined : gridOf(record)
+  }
 
   /** Did the pty's grid MOVE? Absent on either side is a padi too old to say,
    *  and that is not a change — a consumer that never sees one behaves exactly
@@ -323,8 +357,11 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       // kolu chose for it (see `watchers` above), and this is the one line that
       // reads it: every open attach on this terminal re-opens, and the fresh
       // snapshot carries its own grid to size against.
+      // Every watcher is handed the pty's CURRENT grid and decides for itself
+      // whether that is news: the one that asked for this size is looking at its
+      // own write, and the ones that did not are the viewers 2c is about.
       if (gridMoved(gridBefore, gridOf(tile))) {
-        for (const moved of watchers.get(id) ?? []) moved()
+        for (const moved of watchers.get(id) ?? []) moved(gridOf(tile))
       }
     },
     remove: (id) => {
@@ -480,7 +517,7 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
                 epoch += 1
                 Queue.offerUnsafe(queue, epoch)
               }
-              return watchGrid(id, moved)
+              return watchGrid(id, grid, moved)
             }),
             (unwatch) => Effect.sync(unwatch),
           )
@@ -489,7 +526,15 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       return Stream.switchMap(epochs, (epoch) =>
         Stream.map(
           face(epoch === 0 && grid !== undefined ? { id, resizeTo: grid } : { id }),
-          frameOf,
+          // THE RECORD'S GRID IS THE FALLBACK, read at frame time rather than
+          // captured: after a foreign resize the fresh snapshot is the pane's
+          // only chance to learn its new size, and two reachable padis send a
+          // snapshot that names none (a kaval predating 5.5, and an
+          // abort-before-snapshot open). Detecting the move and then handing
+          // the pane nothing to adopt is a correct detector with no recovery
+          // behind it — the pane paints 80-column bytes at 100 columns and
+          // nothing fires again.
+          (frame) => frameOf(frame, recordGrid(id)),
         )
       ).pipe(
         // A DROPPED LINK IS NOT A PANE'S FAULT AND NOT ITS PROBLEM TO NAME.
@@ -517,13 +562,33 @@ export const UNDIALED: KoluLink = KOLU_UNDIALED
 /**
  * PADI'S FRAME → OLAI'S — the projection, and it is deliberately three fields.
  *
+ * THE TWO PREDICATES ARE KOLU'S, imported rather than restated. They were
+ * open-coded here, and the reason was one type: this module read a hand-written
+ * copy of padi's frame union, and kolu's helpers are typed on padi's own. With
+ * the copy gone (`./link.ts`) the helpers apply, and the rules are now held by
+ * an import edge instead of by a comment that agrees with a fold.
+ *
+ * `isSnapshotFrame` also does the arm test, which is the fence this projection
+ * did not have: it WAS a bare ternary, so a third arm added upstream would have
+ * projected as a delta — bytes written to a terminal that never asked for them.
+ * Now an arm kolu adds is not a snapshot, is not silently a delta, and the
+ * compiler has padi's real union to check the claim against.
+ *
  * padi's snapshot arm also carries a reflow epoch for a scrollback-backfill
  * cursor olai does not keep: this pane is a window on the live screen, not a
  * scrollback reader, and a field nothing draws does not cross (`./fleet.ts`'s
  * law, one member over).
  */
-export const frameOf = (frame: PadiAttachFrame): TerminalFrame =>
-  frame.kind === "snapshot"
+export const frameOf = (
+  frame: PadiAttachFrame,
+  /** The pty's grid as the terminal's RECORD carries it, where the frame does
+   *  not name one. Kolu's two channels for the same fact are independently
+   *  optional (`attach.ts`'s 5.5 field, `servePadi`'s 5.6 record), so a pane
+   *  that reads only the frame can detect a foreign resize and still have
+   *  nothing to size against. */
+  ptyGrid?: TerminalGrid,
+): TerminalFrame =>
+  isSnapshotFrame(frame)
     ? {
       kind: "snapshot",
       data: frame.data,
@@ -531,7 +596,7 @@ export const frameOf = (frame: PadiAttachFrame): TerminalFrame =>
       // ABSENT BECOMES `null` HERE, which is the projection's job: padi says
       // nothing when it is too old to know, and olai's wire has one spelling
       // for "no grid" so no reader asks the question twice.
-      grid: frame.grid ?? null,
+      grid: snapshotGrid(frame) ?? ptyGrid ?? null,
     }
     : { kind: "delta", data: frame.data }
 

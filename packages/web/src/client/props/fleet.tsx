@@ -49,7 +49,8 @@
  *     surface members to that dial; `claimants.ts` walks the vault for who
  *     OWNS a terminal.
  *   - **The web props** — this directory, which reads both members as one
- *     subscription per tab and draws the chip, and `../padi/`, the header's
+ *     subscription per tab and draws kolu's own Dock ROW (it was a chip; the
+ *     dock-row fold retired olai's home-made vocabulary wholesale), and `../padi/`, the header's
  *     link indicator: a second reader of the same cell.
  *   - **`@olai/chat`'s `kolu.ts`** — A TWIN, not a floor of that stack. A
  *     one-shot spawn-time probe (`@kolu/detect`, over MCP stdio) that tells

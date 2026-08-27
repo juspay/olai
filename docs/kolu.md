@@ -6,7 +6,7 @@
 
 ## The connection
 
-One olai per directory, one padi per machine, one connection between them. The BROWSER never dials padi — the server holds the one connection the fleet rides, and every tab is a subscriber to it, so twelve tabs watching one terminal are twelve readers and one attach.
+One olai per directory, one padi per machine, one connection between them. The BROWSER never dials padi — the server holds the one connection the fleet rides, and every tab is a subscriber to it. Twelve tabs watching one terminal are twelve attaches over that ONE connection: an attach is a write that carries the size the viewer wants, so panes cannot share one, and what the wall saves is the dial rather than the attach. Whose size wins is [below](#the-live-pane).
 
 Which padi it dials is `$PADI_SOCKET` where that is set, and otherwise the rendezvous path kolu derives from its state root — so the two of them find each other with nothing written down. Both are on this machine, which makes the machine the thing worth naming: olai already titles itself after its host (`olai [machine]` — [running.md](running.md)), so the fleet on the page is that host's kolu, and two boxes are two tabs you can tell apart. There is no cross-machine fleet, and this page is not a step towards one.
 
@@ -54,6 +54,8 @@ A machine not running kolu is the ordinary case, not a fault. There is no row, a
 - `this terminal is no longer in the fleet — it has been closed or retired.`
 - `this names 3 terminals — write more of the id to say which.` (a prefix too short to be one terminal)
 - `no padi is running — olai looked at …/padi-a1b2c3/padi.sock.`
+- `no padi is answering at …/padi-a1b2c3/padi.sock, which is where $PADI_SOCKET points.` (somebody SAID where it would be, and it is not there — a different fact from having looked in the default place)
+- `olai is not watching a padi here.` (no socket at all: a run drawn outside the fleet, or a server in the first instant of its life. "olai looked at ." is not a sentence)
 - `kolu at … speaks padi 99.0, and this olai speaks 12.0 — one of the two needs an upgrade.`
 
 None of those are things kolu's row has a face for, because from kolu's side they do not happen. They are olai's to say, and they are words rather than a shape for the same reason the header readout has three states: *we cannot see* must never be drawn as *we looked and it is quiet*.

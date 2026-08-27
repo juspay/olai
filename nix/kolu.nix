@@ -105,13 +105,17 @@ let
     # what `@olai/kolu-client`'s mirror dials.
     { src = npins.kolu; dir = "packages/padi-client"; name = "@kolu/padi-client"; }
     # The dial's own tier: the frozen control core and the socket endpoint the
-    # handshake runs over. Both are reached through their BARE barrels, which
-    # value-re-export the daemon runtime — kolu records that as the known cost
-    # of `connectPadi` (`hydrate.closure.test.ts`'s recorded barrels) and would
-    # close it with leaf entries on both packages, which is drishti-gated. Two
-    # consequences land here rather than there: `types/bun-process-signals.d.ts`
-    # exists so the daemon's teardown compiles, and `osfacts-client` below is
-    # required at all.
+    # handshake runs over. Both are reached through LEAVES now —
+    # `surface-daemon-supervisor/dial` and `surface-daemon/control-core` — which
+    # is what closed the last of this: the bare barrels value-re-export the
+    # daemon runtime, and the shim `types/bun-process-signals.d.ts` existed only
+    # so that runtime's teardown would compile. kolu closed its own half (the
+    # padi client dials through the supervisor's leaf); olai's three remaining
+    # barrel imports were the rest of it, and the shim is deleted with them.
+    #
+    # The two members stay: the leaves live in these packages, and `/home`,
+    # `/control-core`, `/lifetime`, `/states` and `/dial` are all still read.
+    # `osfacts-client` below is likewise still required — see its own note.
     { src = npins.kolu; dir = "packages/surface-daemon"; name = "@kolu/surface-daemon"; }
     { src = npins.kolu; dir = "packages/surface-daemon-supervisor"; name = "@kolu/surface-daemon-supervisor"; }
     # The records padi's surface is MADE of — terminal ids, agent info, the

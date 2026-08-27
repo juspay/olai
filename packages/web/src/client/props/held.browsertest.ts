@@ -31,8 +31,8 @@ const row = (id: string, bucket = "working"): FleetTerminal => ({
   id,
   pip: {
     variant: "working",
-    glyph: "claude",
-    motion: "pulse",
+    glyph: "claude-code",
+    motion: "glow",
     active: true,
     asking: false,
     bytesLive: true,

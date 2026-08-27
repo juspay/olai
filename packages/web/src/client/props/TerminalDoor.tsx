@@ -242,7 +242,7 @@ function Row(props: {
         renderLabel={(markdown) => markdown}
         subline={props.row.subline}
         pr={props.row.pr}
-        recency={{ mode: mode(), text: recencyText(props.row.recencyAt, now()) }}
+        recency={{ mode: mode(), text: recencyText(mode(), props.row.recencyAt, now()) }}
         onSelect={() => {
           if (props.pressable) props.onSelect()
         }}

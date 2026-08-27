@@ -160,3 +160,52 @@ describe("the budget", () => {
     expect(spent(state)).toBe(true)
   })
 })
+
+describe("the budget refills on a delivered frame", () => {
+  it("gives a pane that PAINTED its budget back", () => {
+    // The defect this pins: `attempts` counted attaches spent without ever
+    // painting, but nothing ever put one back, so the count was really "how
+    // long has this pane been open". Six grid changes over an afternoon and a
+    // live agent got the closed sentence.
+    const { state } = onFrame(exhausted(), { kind: "delta", data: "x" })
+    expect(spent(state)).toBe(false)
+    expect(onEnd(state).kind).toBe("reattach")
+  })
+
+  it("...and a SNAPSHOT refills it too — painting is painting", () => {
+    const { state } = onFrame(exhausted(), {
+      kind: "snapshot",
+      data: "hello",
+      grid: { cols: 80, rows: 24 },
+    })
+    expect(spent(state)).toBe(false)
+  })
+
+  it("SURVIVES the resize lane — six grid changes on a painting pane", () => {
+    // The exact production path: every grid change re-attaches, and every
+    // re-attach that delivers refills. Without the refill this pane is dead on
+    // the sixth; with it, it is still a window on a live terminal.
+    let state = fresh()
+    for (let i = 0; i < 6; i += 1) {
+      state = again(state)
+      state = onFrame(state, { kind: "snapshot", data: `frame ${i}` }).state
+    }
+    expect(spent(state)).toBe(false)
+    expect(onSilence(state).kind).toBe("idle")
+  })
+
+  it("does NOT refill for a pane that never painted — convergence is kept", () => {
+    // The other half, and the one a careless refill would break: the budget
+    // exists for a terminal that is gone, and that terminal never delivers a
+    // frame, so nothing ever refills and the sentence still arrives.
+    let state = fresh()
+    while (!spent(state)) state = again(state)
+    expect(onEnd(state).kind).toBe("stop")
+  })
+
+  it("a REFUSAL does not refill — it stops, and stopping is terminal", () => {
+    const { state, next } = onFrame(exhausted(), { kind: "refused", says: "no padi" })
+    expect(next.kind).toBe("stop")
+    expect(spent(state)).toBe(true)
+  })
+})

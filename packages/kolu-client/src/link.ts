@@ -19,9 +19,12 @@
  * So there is no refcount here and no per-reader anything, and the count is a
  * TEST rather than a promise (`./mirror.test.ts` stands N readers up against one
  * fake padi and asserts the dial ran once). The day a reader does need its own
- * subscription is phase 6's stream, and that one is refcounted BECAUSE it is
- * per-terminal — which is a different arrangement for a different reason, and
- * the contrast is the argument for keeping this one dumb.
+ * subscription is phase 6's stream, and that one is per-terminal AND
+ * per-subscriber: its lifetime is the consuming fiber's and interrupting it IS
+ * the teardown. (It is NOT refcounted, and this paragraph said so for a while.
+ * It cannot be: an attach is a WRITE carrying the grid one pane wants, so two
+ * panes at two sizes have nothing to share.) A different arrangement for a
+ * different reason, and the contrast is the argument for keeping this one dumb.
  *
  * ## Absent is a state, not a failure
  *
@@ -63,11 +66,12 @@ import {
   padiSurface,
   type PadiTerminal,
   type PadiUrgency,
+  type TerminalAttachFrame,
 } from "@kolu/padi-client/surface"
 import {
   type DaemonContractSkewError,
   isContractSkewError,
-} from "@kolu/surface-daemon-supervisor"
+} from "@kolu/surface-daemon-supervisor/dial"
 import { KOLU_UNDIALED, type KoluLink } from "@olai/surface"
 import { Cause, Duration, Effect, Schedule, type Stream } from "effect"
 
@@ -89,20 +93,20 @@ const REDIAL = Duration.seconds(5)
  * a test wires them to arrays.
  */
 
-/** ONE FRAME AS PADI SENDS IT — the shape `terminalAttach` yields, named here
- *  so the seam above can be typed without this module re-exporting padi's whole
- *  contract. The projection into olai's own `TerminalFrame` is `./mirror.ts`'s,
- *  at the same seam every other record is projected at. */
-export type PadiAttachFrame =
-  | { readonly kind: "delta"; readonly data: string }
-  | {
-    readonly kind: "snapshot"
-    readonly data: string
-    readonly topLine: number
-    /** The grid this screen was serialized at — kolu 5.5, additive and
-     *  optional, so a padi older than it simply does not say. */
-    readonly grid?: { readonly cols: number; readonly rows: number }
-  }
+/** ONE FRAME AS PADI SENDS IT — padi's own type, aliased rather than copied.
+ *
+ *  It WAS a hand-written copy of padi's union, and the copy was the reason
+ *  `./mirror.ts` open-coded two of kolu's exported policy helpers instead of
+ *  calling them: the helpers are typed on `TerminalAttachFrame`, and a
+ *  structurally-similar local union is not that type. So the rules were held by
+ *  a comment agreeing with a fold, which is the arrangement this package exists
+ *  to refuse.
+ *
+ *  The alias is a widening, and the widening is the point — padi's snapshot arm
+ *  carries a `reflowEpoch` the copy did not have. Nothing here draws it; the
+ *  projection into olai's own `TerminalFrame` (`./mirror.ts`'s `frameOf`) is
+ *  still where a field earns its place on olai's wire. */
+export type PadiAttachFrame = TerminalAttachFrame
 
 export interface Sink {
   /** The link's state moved. Called on every dial outcome, including one that

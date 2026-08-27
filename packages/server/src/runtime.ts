@@ -696,7 +696,8 @@ export const bind = (
      *     three surface members to that dial, and `./claimants.ts`, which walks
      *     the vault for who OWNS a terminal.
      *   - **The web props** — `web/src/client/props/` reads both members as one
-     *     subscription per tab and draws the chip; `web/src/client/padi/` is the
+     *     subscription per tab and draws kolu's own Dock ROW (it was a chip; the
+     *     dock-row fold retired olai's home-made vocabulary wholesale); `web/src/client/padi/` is the
      *     header's link indicator, a second reader of the same cell.
      *   - **`@olai/chat`'s `kolu.ts`** — A TWIN, not a floor of that stack. A
      *     one-shot spawn-time probe (`@kolu/detect`, over MCP stdio) that tells
@@ -1233,10 +1234,14 @@ export const bind = (
          * The subscription is the SERVER'S. `@olai/kolu-client` holds padi's
          * `terminalAttach` on the one connection the fleet already rides, and
          * what reaches a browser is this member's frames — so ten tabs watching
-         * one terminal are ten subscribers here and one attach there, and no
-         * browser has ever heard of a unix socket. That is the same arrangement
-         * the fleet has, and it is the whole reason a live pane does not cost
-         * the wall.
+         * one terminal are ten subscribers here, ten attaches there, and ONE
+         * CONNECTION, and no browser has ever heard of a unix socket. The attach
+         * is per pane by design: it is a WRITE that carries the grid it wants, so
+         * two panes at two sizes cannot share one (`kolu-client/mirror.ts` — last
+         * attach wins, and the loser adopts rather than fights). What this member
+         * saves is the DIAL, which is the thing that was ever scarce — the same
+         * arrangement the fleet has, and the whole reason a live pane does not
+         * cost the wall.
          */
         terminal: {
           source: (
