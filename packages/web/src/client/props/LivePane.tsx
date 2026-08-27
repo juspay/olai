@@ -188,9 +188,19 @@ export function LivePane(props: {
         return
       }
       // WHAT THIS PANE CAN SHOW, measured from its own box — the size padi is
-      // asked to put the terminal at. `undefined` only before the terminal
-      // exists, and then padi picks.
-      const asked = term === undefined ? undefined : { cols: term.cols, rows: term.rows }
+      // asked to put the terminal at.
+      //
+      // A GRID IS SENT ONLY WHEN IT IS A REAL ONE. padi's input declares both
+      // numbers positive, so a degenerate measurement — a terminal in a box the
+      // browser has not laid out yet — fails at ENCODE, which is a defect
+      // rather than a declared failure and takes the whole attach down with no
+      // frame and no refusal. The pane then sits open and empty, which is what
+      // the e2e caught. Omitting the grid is a valid attach: padi serializes at
+      // whatever size the terminal already has.
+      const measured = term === undefined ? undefined : { cols: term.cols, rows: term.rows }
+      const asked = measured !== undefined && measured.cols > 0 && measured.rows > 0
+        ? measured
+        : undefined
       let state: Attaching = g === 1 ? opening() : again(carried ?? opening())
       carried = state
       setSays(undefined)
