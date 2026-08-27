@@ -299,11 +299,31 @@ test("a tool call's status is spelled where it is meant and where it is drawn", 
   expect(filesSpelling(statuses)).toEqual([
     path.join("chat", "ToolFrame.tsx"),
     path.join("chat", "background.test.ts"),
+    path.join("chat", "door.test.ts"),
     path.join("chat", "elapsed.test.ts"),
     path.join("chat", "lanes.test.ts"),
+    path.join("chat", "order.test.ts"),
     path.join("chat", "rail.test.ts"),
     path.join("chat", "rows.testlib.ts"),
     path.join("chat", "spawn.test.ts"),
+  ])
+})
+
+// previewing.ts's claim — that the open shelf is put away when the conversation
+// changes. It is a LIFETIME rather than a rule, so what pins it is the CALL: the
+// module documented the clearing and nothing did it, and the reason that
+// survived a read is that the failure hides — a shelf whose key names a row this
+// conversation does not have simply draws nothing. What it cannot hide is a
+// COLLISION, the day a server restarts without a page reload and a fresh
+// transcript re-mints keys from the same counter: a shelf nobody pressed, open
+// on somebody else's third tool call. Two callers, and the second is the one
+// that was missing — the shelf's own dismiss, and the cell that is the only
+// thing which knows a conversation changed.
+test("the open preview is put away by its own control and by the conversation ending", () => {
+  expect(filesSpelling(/closePreview\s*\(\s*\)/)).toEqual([
+    path.join("chat", "Preview.tsx"),
+    path.join("chat", "previewing.test.ts"),
+    path.join("chat", "state.ts"),
   ])
 })
 

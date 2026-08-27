@@ -235,6 +235,23 @@ export const Spawned = Schema.Struct({
    *  unrecognised model id raw: rounding somebody's agent to the nearest one
    *  this panel has heard of would be naming an agent nobody started. */
   kind: Schema.optionalKey(Schema.String),
+  /** ... and WHAT IT WAS SENT TO DO — the short description the `Agent` call
+   *  was made with, which is the only thing that tells one agent of a fan-out
+   *  from another.
+   *
+   *  It is not the row's TITLE, and that is the whole reason it is a field. A
+   *  tool row's title is the name the call was announced with and it is pinned
+   *  at the first frame that carries one — for this adapter that is the tool's
+   *  own name, so four agents dispatched in one message are four rows reading
+   *  `Task`. Drawn under the call that sent them, that was survivable: a reader
+   *  works downwards and finds out. Lifted onto a strip and put behind a door
+   *  it is four identical buttons, which is the one thing the strip may not be.
+   *
+   *  ABSENT when nobody has said, like {@link Spawned.kind} and for its reason:
+   *  the arguments arrive across frames, so "unchanged" is spelled by the field
+   *  not being there. Every reader falls back to the row's own title, which is
+   *  what a spawn nobody described has to be called. */
+  said: Schema.optionalKey(Schema.String),
 })
 export type Spawned = typeof Spawned.Type
 
@@ -317,35 +334,73 @@ export type Delivery = typeof Delivery.Type
  * that is a value on the row rather than a default every reader re-applies.
  */
 /**
- * ONE BACKGROUND TASK THIS CONVERSATION STILL HAS OUT — the strip's row, on
- * the state cell rather than in the transcript.
+ * What a strip row IS — a task the conversation armed, or an agent it sent
+ * out.
  *
- * The transcript already holds the task: the call that armed it is a row, with
- * everything on it. What that row cannot be is IN FRONT OF SOMEBODY. A monitor
- * armed at the top of a three-hour session is at the top of a three-hour
- * session — unreachable scrollback by the time it matters, and the question it
- * answers ("is my watch still up?") is asked at the bottom, where the reader
- * is. So the live half is lifted onto the cell and drawn above the scroll,
- * exactly as the MCP roster is and for the same reason: a standing property of
- * the conversation belongs where the header's other facts are.
+ * ONE STRIP, TWO KINDS, and the kind is on the wire rather than inferred at
+ * the far end from which fields happen to be filled in. Both are the same
+ * sentence to a reader — *something is still going on, and it has been going
+ * on for this long* — which is why they share a strip; what differs is what
+ * pressing one is FOR. An agent has a record behind it (every call it made,
+ * kept out of the transcript now) and the strip is the door to it. A task has
+ * no such record — its events are on no wire olai can reach — so there is
+ * nothing behind that door and it is not drawn one.
  *
- * The HISTORY stays where it happened. This is not a second copy of the task —
- * it is the same task named twice, and it is here only while it is out: when
- * it ends this row is gone from the cell and the ending is a fresh row at the
- * bottom of the transcript, where the reader is looking now.
+ * A CALL CAN BE BOTH, and the precedence is stated here once rather than
+ * falling out of the order two reads happen to be written in: **the agent
+ * wins.** An asynchronous `Agent` launch arms a background task as well as
+ * sending somebody out, and who was sent is the more specific thing to say
+ * about it — the same precedence the rail under the row already keeps
+ * (`web/src/client/chat/rail.ts`), so a row and its strip entry cannot
+ * disagree about what kind of thing it is.
+ */
+export const Watched = Schema.Literals(["agent", "task"])
+export type Watched = typeof Watched.Type
+
+/**
+ * ONE THING THIS CONVERSATION STILL HAS OUT — the strip's row, on the state
+ * cell rather than in the transcript.
+ *
+ * The transcript already holds it: the call that armed the task, or sent the
+ * agent, is a row with everything on it. What that row cannot be is IN FRONT
+ * OF SOMEBODY. A monitor armed at the top of a three-hour session is at the
+ * top of a three-hour session — unreachable scrollback by the time it matters,
+ * and the question it answers ("is my watch still up?") is asked at the
+ * bottom, where the reader is. So the live half is lifted onto the cell and
+ * drawn above the scroll, exactly as the MCP roster is and for the same
+ * reason: a standing property of the conversation belongs where the header's
+ * other facts are.
+ *
+ * THE SAME ARGUMENT CARRIES AN AGENT, and one step further. A subagent's own
+ * calls are no longer drawn in the transcript at all — the column is the main
+ * agent's ({@link ToolEntry.parent}) — so for a fan-out this strip is not
+ * merely the convenient place to read who is out: it is the DOOR to what they
+ * are doing. A person watching five agents work reads the strip, presses one,
+ * and gets that agent's calls.
+ *
+ * The HISTORY stays where it happened. This is not a second copy — it is the
+ * same thing named twice, and it is here only while it is out: when it ends
+ * this row is gone from the cell, and the record is still reachable from the
+ * row that started it, which never moved.
  */
 export const Watching = Schema.Struct({
-  /** The transcript key of the call that armed it — the row that IS this task,
-   *  so the strip and the record are one thing named twice rather than two
-   *  facts to keep in step. Also what the strip draws its list by. */
+  /** The transcript key of the call that armed the task or sent the agent —
+   *  the row that IS this thing, so the strip and the record are one thing
+   *  named twice rather than two facts to keep in step. Also what the strip
+   *  draws its list by, and what a preview of an agent's calls is addressed
+   *  by ({@link ToolEntry.parent} names the very same key). */
   row: Schema.String,
+  /** Which of the two it is — see {@link Watched}. */
+  kind: Watched,
   /** What to call it: the description the task was armed with, and the call's
-   *  own title when it was armed with none. Decided by the server, because
-   *  the fallback is a field of a row this cell does not carry. */
+   *  own title when it was armed with none (which is always what an agent is
+   *  called, since a spawn's title IS the description it was sent with).
+   *  Decided by the server, because the fallback is a field of a row this cell
+   *  does not carry. */
   name: Schema.String,
-  /** When it was armed, as an ISO 8601 instant — the same stamp the row wears
-   *  ({@link ToolEntry}'s `since`), so the strip's *running for* and the row's
-   *  own readout count from one moment rather than from two. */
+  /** When it was armed or sent, as an ISO 8601 instant — the same stamp the
+   *  row wears ({@link ToolEntry}'s `since`), so the strip's *running for* and
+   *  the row's own readout count from one moment rather than from two. */
   since: Schema.String,
 })
 export type Watching = typeof Watching.Type
@@ -408,17 +463,29 @@ const chatEntryHead = {
  *  tool calls reach olai on the same flat feed as the main agent's, so
  *  without this the panel drew them in one column, in one voice, and a
  *  reader had no way to know that three agents had been spawned at all — let
- *  alone which of them was the one grepping. The panel draws a row that has
- *  it in a lane, indented behind a rail, under the frame it names. Absent for
- *  the main agent's own calls and questions, which are most of them.
+ *  alone which of them was the one grepping. Absent for the main agent's own
+ *  calls and questions, which are most of them.
  *
- *  A QUESTION carries it for the same reason and one sharper one. A
- *  subagent's permission form is a decision a person is about to make, and a
- *  form drawn in the main column says the main agent is the one asking — the
- *  one row in this collection where being wrong about who is speaking
- *  changes what somebody does. It is also the row that BREAKS A RUN: a form
- *  with no lane, landing between two of a subagent's own calls, ends the
- *  stretch, and the lane re-opens and names itself again underneath it. */
+ *  WHAT THE PANEL DOES WITH IT differs by KIND now, and the difference is the
+ *  whole of `subagent-pin`. A **tool** row that has it LEAVES the conversation:
+ *  it is filed under the agent that made it and drawn where that agent is drawn
+ *  (`web/src/client/chat/lanes.ts`'s `filedUnder`, and the shelf behind the
+ *  strip), because five agents out is five agents' work in one column with the
+ *  main agent's own words pushed off the top of the screen. The exceptions are
+ *  drawn where they always were, in a lane under the frame this names: a
+ *  QUESTION, and a row whose `Agent` frame the panel never received — which has
+ *  no door anywhere to be reached through, so filing it away would destroy the
+ *  record rather than move it.
+ *
+ *  A QUESTION carries it for the same reason and one sharper one, and that
+ *  reason is why it is the exception. A subagent's permission form is a
+ *  decision a person is about to make; it BLOCKS the turn; and a form behind a
+ *  click is a turn that hangs forever. So it stays in the conversation, and the
+ *  lane over it names the agent that asked — the one row in this collection
+ *  where being wrong about who is speaking changes what somebody does, and now
+ *  the only evidence of it on screen, since that agent's calls are no longer
+ *  under the form to read. What that name is drawn from is
+ *  {@link sentToDo}, never the frame's title alone. */
 const parent = Schema.optionalKey(Schema.String)
 
 /**
@@ -838,6 +905,65 @@ export const isStillRunning = (entry: ToolEntry): boolean =>
  */
 export const isTaskOut = (entry: ToolEntry): boolean =>
   entry.armed !== undefined && entry.armed.ended === undefined && isStillRunning(entry)
+
+/**
+ * ... and whether the AGENT this call sent out is still out there.
+ *
+ * The sibling of {@link isTaskOut}, one field over, and the reason it is not
+ * spelled in terms of that one: **a spawn does not have to arm anything.**
+ * Only an ASYNCHRONOUS `Agent` launch registers a background task with the
+ * harness (`acp/patches/README.md`'s `BACKGROUND_LAUNCHES` table — a
+ * synchronous subagent answers ordinarily and arms nothing), so a rule that
+ * asked about `armed` would carry a fan-out's agents on some wires and none of
+ * them on others, and which of the two you got would be a fact about a patch
+ * rather than about the conversation. What says an agent was sent out is
+ * {@link Spawned}, which is on the frame that announces the call.
+ *
+ * `spawned` PLUS {@link isStillRunning}, and the second half is what makes the
+ * strip go quiet when a fan-out ends — including the ending nothing reports.
+ * A dead agent never completes the `Agent` calls it left open; what takes them
+ * off is {@link ToolEntry.stranded}, written by the turn that walked away from
+ * them, and that is the same rule the rail under the row already follows
+ * (`web/src/client/chat/spawn.ts`). One answer, so a strip entry cannot outlive
+ * the rail under the row it names.
+ */
+export const isAgentOut = (entry: ToolEntry): boolean =>
+  entry.spawned !== undefined && isStillRunning(entry)
+
+/**
+ * WHAT TO CALL THE AGENT a call sent out — its description, and the call's own
+ * title when the spawn described itself with none.
+ *
+ * THE ONE RULE, in the one place every end can ask it, and it is here because
+ * it was NOT here and the cost was measured twice. Under the adapter olai ships
+ * with, an `Agent` call's title is the TOOL's name — a row's title is pinned at
+ * the first frame that carries one ({@link ../../chat/src/transcript.ts}'s
+ * `#named`), deliberately, so a call cannot rename itself while somebody is
+ * reading it — so four agents dispatched in one message are four rows reading
+ * `Task`. {@link Spawned.said} exists to answer that, and answering it four
+ * separate times is how three of the four came out wrong:
+ *
+ *   - the STRIP, the shelf's head and the door said the description;
+ *   - the label on a subagent's QUESTION said `Task`, which is the one row in
+ *     this collection where being wrong about who is speaking changes what
+ *     somebody presses, and — with that agent's calls no longer drawn under it
+ *     — the only evidence left on the row;
+ *   - and the two DEATH lines at the bottom of the transcript said `Task`, so
+ *     a fan-out that fell over reported four identical endings.
+ *
+ * Five callers across three packages ask it now, and they ask one function.
+ *
+ * OVER THE TWO FIELDS rather than over a row, because one of the callers is the
+ * transcript's own writer and does not have a row yet: it is assembling one, and
+ * a rule it could only ask after the fact is a rule it would spell again.
+ *
+ * NEVER A CATEGORY. *agent* is what `web/src/client/chat/spawn.ts`'s `whoOf`
+ * answers, and it answers a different question — what KIND was sent, not what it
+ * was sent to do. A spawn nobody described is called what its row is called,
+ * which is the honest thing and is exactly what a reader sees on that row.
+ */
+export const sentToDo = (spawned: Spawned | undefined, title: string): string =>
+  spawned?.said ?? title
 
 /**
  * One piece of a picture on its way to the conversation's tmp directory.
@@ -1402,8 +1528,9 @@ export const ChatState = Schema.Struct({
    */
   asking: Schema.Int,
   /**
-   * ... and the BACKGROUND TASKS this conversation has armed and not been told
-   * the end of — see {@link Watching}.
+   * ... and WHAT THIS CONVERSATION STILL HAS OUT — the background tasks it
+   * armed and the agents it sent, neither of which anything has reported the
+   * end of. See {@link Watching}.
    *
    * Its own fact for {@link ChatState.asking}'s reason and one stronger: it is
    * true at the same time as `idle`, which is the state a monitor spends its
@@ -1412,11 +1539,25 @@ export const ChatState = Schema.Struct({
    * panel that asked `status` would answer "nothing is happening" about the
    * thing a person is watching the panel FOR.
    *
-   * Read off the rows, like `asking` and for its argument: a task being out is
+   * Read off the rows, like `asking` and for its argument: a thing being out is
    * already written down, and a list kept beside the rows would be the same
    * fact in a second place, free to disagree with the row a person is reading.
    *
-   * WHICH ROWS COUNT is {@link isTaskOut} and is not restated here — that is
+   * WHICH ROWS COUNT is {@link isTaskOut}'s and {@link isAgentOut}'s, and the
+   * ORDER those two are asked in is {@link Watched}'s: a call can be both — an
+   * asynchronous `Agent` launch arms a harness task as well as sending somebody
+   * out — and the agent wins, so a row reaches this list once and reaches it as
+   * the more specific thing. Written as two independent pushes it would reach
+   * the strip twice under one key.
+   *
+   * WHY THE SECOND MEMBERSHIP IS NOT SPELLED OVER `armed`: only an ASYNCHRONOUS
+   * spawn registers a task with the harness (`acp/patches/README.md`'s
+   * `BACKGROUND_LAUNCHES` — a synchronous subagent answers ordinarily and arms
+   * nothing), so a rule that asked about `armed` would carry a fan-out's agents
+   * on some wires and none of them on others, and which you got would be a fact
+   * about a patch rather than about the conversation.
+   *
+   * ... and it is not restated here — that is
    * how the older, shorter version of this rule ("the row whose `armed` has no
    * ending") got back into the code once already. It is two conjuncts and the
    * second is the one that goes missing: a call can reach a terminal ACP status
@@ -1431,6 +1572,23 @@ export const ChatState = Schema.Struct({
    * is the half a count could not have served: a task's row is at its birth
    * position in the transcript, and by the time somebody asks whether their
    * watch is still up, that position is an hour of scrollback away.
+   *
+   * ... AND FOR AN AGENT IT IS ALSO THE DOOR, which is the third reader and the
+   * one that made the second membership worth having. A subagent's own calls
+   * are not drawn in the transcript at all now ({@link ToolEntry.parent}), so
+   * the strip is not merely where you read WHO is out: pressing an agent on it
+   * opens that agent's calls. Which is why {@link Watching} carries a kind, and
+   * why the two memberships had to reach one list rather than two.
+   *
+   * WHICH MEANS IT MOVES ON MORE THAN TOOL FRAMES NOW, and that is the trap
+   * worth writing down. A background task is exempt from stranding by
+   * construction (`chat/src/transcript.ts`'s `#strand`), so while this list held
+   * only tasks its membership could change on a tool frame and on nothing else.
+   * An AGENT is not exempt: a spawn its turn walked away from is over, and
+   * nothing after that point will ever say so on a frame. A producer that
+   * republished only on tool frames would leave a dead subagent on the strip,
+   * with a clock ticking under it in every open tab, for the rest of the
+   * conversation.
    */
   watching: Schema.Array(Watching),
   /** The last thing that went wrong where no caller was waiting — a boot that

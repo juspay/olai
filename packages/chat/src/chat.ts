@@ -96,9 +96,7 @@ import {
   CHAT_OFF,
   type ChatEntry,
   type ChatState,
-  isTaskOut,
   type NodeContext,
-  type Watching,
   type OpFailure,
   type Listed,
   type Talking,
@@ -115,6 +113,7 @@ import * as Listings from "./listings.ts"
 import * as Memory from "./memory.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
+import { sameWatching, watching } from "./watching.ts"
 
 export type { ToolServer } from "./agent.ts"
 
@@ -376,26 +375,6 @@ const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "nei
  * what a spawned agent inherits, and a systemd user unit's is not a login
  * shell's ({@link ../../../docs/running.md}).
  */
-/** Whether two answers to "what is still out" say the same thing — the guard on
- *  republishing the cell, and the reason that reading can be taken on every
- *  frame which could have moved it.
- *
- *  Field by field rather than by reference: the list is a PROJECTION of the
- *  rows, built fresh each time it is read (deliberately — that is what stops it
- *  drifting from the rows a person is reading), so a reference test would
- *  answer "moved" every time and put the whole cell on every open socket once
- *  per tool frame. */
-const sameWatching = (
-  now: ReadonlyArray<Watching>,
-  before: ReadonlyArray<Watching>,
-): boolean =>
-  now.length === before.length
-  && now.every((task, at) =>
-    task.row === before[at]?.row
-    && task.name === before[at]?.name
-    && task.since === before[at]?.since
-  )
-
 const silence = (agent: string): string =>
   `${agent} ended the turn without saying anything. That is what an agent that ` +
   `cannot reach a model looks like from here — check that it is signed in and ` +
@@ -675,31 +654,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       return waiting
     }
 
-    /**
-     * ... and how many BACKGROUND TASKS are still out, counted off the rows for
-     * the same reason and published under the same rule.
+    /** ... and WHAT THIS CONVERSATION STILL HAS OUT — the background tasks it
+     *  armed and the agents it sent, read off the rows for the same reason and
+     *  published under the same rule. The projection itself is over values and
+     *  lives beside its own tests ({@link ./watching.ts}); what belongs to this
+     *  file is only which rows to ask it about.
      *
-     * WHICH ROWS COUNT is `isTaskOut`'s and not this file's — the same rule the
-     * transcript's own stranding asks and the panel's rail asks, in the surface
-     * beside the status vocabulary. Written out here it was already wrong in one
-     * direction the others were not (it forgot the status), which is a count
-     * that stays above zero after the last rail has gone out — and a count above
-     * zero is a clock ticking in every open tab.
-     */
-    const watching = (): ReadonlyArray<Watching> => {
-      const out: Array<Watching> = []
-      for (const [key, entry] of transcript.entries()) {
-        if (entry.kind !== "tool" || !isTaskOut(entry)) continue
-        // WHAT TO CALL IT is decided here because the fallback is a field of a
-        // row: the description the task was armed with, and the call's own
-        // title when it was armed with none (a `Monitor` reads better on a
-        // strip than nothing at all does).
-        out.push({ row: key, name: entry.armed?.description ?? entry.text, since: entry.since })
-      }
-      return out
-    }
-
-    /** ... published only when it MOVED. Unlike a question, a task is reported
+     *  ... published only when it MOVED. Unlike a question, a task is reported
      *  on by frames that arrive several times a turn and mostly say nothing
      *  about it, and a cell republished per tool frame is a cell every open tab
      *  pays for saying what it already said.
@@ -708,7 +669,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *  fields are what the strip draws, and a task whose name or stamp has not
      *  changed is not news to it. */
     const watched = (): void => {
-      const out = watching()
+      const out = watching(transcript.entries())
       if (!sameWatching(out, state.watching)) move({ watching: out })
     }
     /** The agent's events, as rows and as state. The one place the vocabulary
@@ -750,13 +711,24 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               armed: event.armed,
             }),
           )
-          // A tool frame is the only frame that can arm a background task or
-          // report the end of one — and only a frame that says something about
-          // one of the two fields the count is made of can move it, which is a
-          // small fraction of the frames a turn sends. The count is a walk of
-          // the rows (`asking` next door makes the argument for that), so the
-          // walk is worth not taking per progress chunk of every call.
-          if (event.armed !== undefined || event.status !== undefined) watched()
+          // A tool frame is the only frame that can arm a background task, send
+          // an agent out, or report the end of either — and only a frame that
+          // says something about one of the three fields the list is made of can
+          // move it, which is a small fraction of the frames a turn sends. The
+          // list is a walk of the rows (`asking` next door makes the argument
+          // for that), so the walk is worth not taking per progress chunk of
+          // every call.
+          //
+          // `spawned` is the one that had to be ADDED with the strip's second
+          // kind, and it is not covered by `status`: a spawn is announced
+          // `pending` and a frame carrying only `_meta.claudeCode.subagent`
+          // moves nothing else. Left out, an agent reached the strip late — on
+          // whatever unrelated frame happened to carry a status next — which for
+          // a fan-out is the whole of the stretch anybody is watching.
+          if (
+            event.armed !== undefined || event.spawned !== undefined
+            || event.status !== undefined
+          ) watched()
           return
         case "asked":
           publish(transcript.ask(event.id, event.message, event.fields, event.parent))
@@ -840,7 +812,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             session: null,
             commands: [],
             asking: asking(),
-            watching: watching(),
+            watching: watching(transcript.entries()),
             servers: [],
             usage: null,
           })
@@ -859,6 +831,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           return
         case "replayEnded":
           publish(transcript.settle())
+          // ... and the strip with it, for the reason the two turn boundaries
+          // below recount: settling STRANDS, an agent is strandable where a
+          // background task is not, and a replayed conversation whose last turn
+          // left somebody out would otherwise open with a dead subagent on the
+          // strip and a clock ticking under it.
+          watched()
           return
         case "gone":
           // ABANDON rather than settle, and this is the one place the
@@ -1453,7 +1431,20 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         // has walked away from nothing. Its calls are live, and stranding them
         // because somebody typed a second message would be the panel saying a
         // running grep had been abandoned.
-        if (!alongside) publish(transcript.begins())
+        // ... and STRANDING TAKES THINGS OFF THE STRIP, which is why the recount
+        // is here beside it rather than only on the frames the agent sends. A
+        // background task is exempt from stranding by construction
+        // ({@link ./transcript.ts}'s `#strand`), so while the strip carried only
+        // tasks its membership could move on a tool frame and on nothing else,
+        // and one gate covered it. An AGENT is not exempt: a spawn its turn
+        // walked away from is over, and nothing after this point will ever say
+        // so on a frame — so a strip that was not recounted here would carry a
+        // dead subagent, with a clock ticking under it in every open tab, for
+        // the rest of the conversation.
+        if (!alongside) {
+          publish(transcript.begins())
+          watched()
+        }
         move({ status: "thinking", trouble: null })
         // How much the agent had SHOWN before this turn was asked for — the
         // narrow count ({@link EVIDENCE}), and it answers one question in both
@@ -1508,6 +1499,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // sentence — two answers in one paragraph, with the question
             // between them somewhere above.
             publish(current ? transcript.settle() : transcript.stopSaying())
+            // ... and the strip is recounted with it, for `begins`' reason one
+            // turn-boundary over: settling is the OTHER place a spawn can be
+            // stranded, and a stranded spawn is one the strip must stop
+            // carrying.
+            if (current) watched()
             // WHOEVER THE AGENT IS ON NOW HAS STOPPED WAITING. This turn is
             // over, so the message behind it is the one being worked on — and
             // this row is not waiting for anything either, however it ended.

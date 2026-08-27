@@ -212,9 +212,30 @@ export const spawnedIn = (meta: Meta, input: unknown): Spawn | null => {
   // that name. Requiring the flag costs nothing — the adapter builds both into
   // the same frames (`claudeCodeMetaFromToolUse` rides every announcement and
   // every refinement of an Agent call).
-  const asked = (input as { readonly subagent_type?: unknown } | null | undefined)
-    ?.subagent_type
-  return typeof asked === "string" && asked !== "" ? { kind: asked } : {}
+  const args = input as
+    | { readonly subagent_type?: unknown; readonly description?: unknown }
+    | null
+    | undefined
+  const asked = args?.subagent_type
+  // ... and WHAT IT WAS SENT TO DO, out of the same arguments and through the
+  // same gate. The `Agent` tool takes a short description beside the prompt,
+  // and it is the only thing anywhere that tells one agent of a fan-out from
+  // another: the call's TITLE is the tool's name, so four agents dispatched in
+  // one message reach a panel as four rows reading `Task`. That was survivable
+  // while a subagent's work was drawn under the row that spawned it — you read
+  // downwards and found out — and it stopped being survivable when the work
+  // moved onto a strip and behind a door, because the strip is then a row of
+  // four identical buttons.
+  //
+  // Read here rather than left to the row's title for the reason the title
+  // cannot be moved: it is PINNED at the first frame that carries one
+  // ({@link ../transcript.ts}'s `#named`), deliberately, so that a call cannot
+  // rename itself twice while somebody is reading it.
+  const said = args?.description
+  return {
+    ...(typeof asked === "string" && asked !== "" ? { kind: asked } : {}),
+    ...(typeof said === "string" && said !== "" ? { said } : {}),
+  }
 }
 
 // ── which call ARMED A BACKGROUND TASK ─────────────────────────────────

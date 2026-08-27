@@ -341,7 +341,10 @@ describe("which call started an agent", () => {
     // The whole point of reading this rather than waiting for the parent
     // stamp: it is on the frame that ANNOUNCES the spawn, so it is known
     // before the agent has done anything anybody could draw.
-    expect(spawnedIn(SPAWN, ASKED)).toEqual({ kind: "Explore" })
+    expect(spawnedIn(SPAWN, ASKED)).toEqual({
+      kind: "Explore",
+      said: "explore the outline",
+    })
     // ... and what says so is the FLAG rather than the tool name, which the
     // adapter maps two of its own words onto.
     expect(spawnedIn({ claudeCode: { toolName: "Task", subagent: true } }, {}))
@@ -424,10 +427,31 @@ describe("which call started an agent", () => {
     // arguments arrive incrementally besides. The frame is still a spawn; the
     // kind is still unsaid, and an absent field is how this says that.
     const { subagent_type: _named, ...anonymous } = ASKED
-    expect(spawnedIn(SPAWN, anonymous)).toEqual({})
+    expect(spawnedIn(SPAWN, anonymous)).toEqual({ said: "explore the outline" })
     expect(spawnedIn(SPAWN, undefined)).toEqual({})
     expect(spawnedIn(SPAWN, { subagent_type: "" })).toEqual({})
     expect(spawnedIn(SPAWN, { subagent_type: 7 })).toEqual({})
+  })
+
+  test("... and it says WHAT the agent was sent to do, which is not the row's name", () => {
+    // MEASURED ON A REAL FAN-OUT: this adapter titles an `Agent` call with the
+    // TOOL's name, so four agents dispatched in one message reach the panel as
+    // four rows reading `Task`. That was survivable while their calls were
+    // drawn under the row that sent them — a reader works downwards and finds
+    // out — and it stopped being survivable when the work moved onto a strip
+    // and behind a door, because the strip is then four identical buttons.
+    //
+    // Through the SAME gate as the kind, and for the same reason: `description`
+    // is a name one tool gives one of its arguments, and the tools on a session
+    // are not a closed set.
+    expect(spawnedIn(SPAWN, { description: "count the notes" }))
+      .toEqual({ said: "count the notes" })
+    expect(spawnedIn({ claudeCode: { toolName: "Agent" } }, ASKED)).toBeNull()
+    // Absent rather than empty when nobody said, which is how every other field
+    // here spells "unchanged" — the arguments arrive across frames, and a blank
+    // taken as an answer would take the description back off a row that had it.
+    expect(spawnedIn(SPAWN, { description: "" })).toEqual({})
+    expect(spawnedIn(SPAWN, { description: 7 })).toEqual({})
   })
 
   test("a spawn's own response cannot name the agent either", () => {
@@ -453,7 +477,7 @@ describe("which call started an agent", () => {
         },
         ASKED,
       ),
-    ).toEqual({ kind: "Explore" })
+    ).toEqual({ kind: "Explore", said: "explore the outline" })
   })
 })
 

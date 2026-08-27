@@ -6,12 +6,17 @@
  * The case that matters is two agents running at once — the reason anybody
  * spawns them — because that is when the rails interleave and an unlabelled
  * one stops being an answer.
+ *
+ * ... AND THE PRIOR QUESTION, which arrived later and is the last block here:
+ * whether the column draws the row at all. `filedUnder` is that rule, and the
+ * two are answered by the same file because a row that leaves the column has no
+ * lane to label and a row that stays has to keep one.
  */
 
 import type { ChatEntry } from "@olai/surface"
 import { describe, expect, test } from "bun:test"
 
-import { laneOf } from "./lanes.ts"
+import { filedUnder, laneOf } from "./lanes.ts"
 
 /** A row, as the transcript serves one. Only three fields are read here and
  *  all three are named: its own key, the agent it belongs to, and what KIND of
@@ -35,6 +40,16 @@ const asked = (id: string, parent?: string): ChatEntry => ({
   text: id,
   ask: { fields: [], outcome: null },
   ...(parent === undefined ? {} : { parent }),
+})
+
+/** ... and a row that is neither, which cannot be filed under anybody: the
+ *  agent's own prose has no `parent` field to carry. */
+const said = (id: string): ChatEntry => ({
+  id,
+  seq: 0,
+  since: "2026-08-21T12:00:00.000Z",
+  kind: "agent",
+  text: id,
 })
 
 /** Nothing above it at all — the top of the transcript. */
@@ -62,11 +77,20 @@ describe("which rows are drawn in a lane", () => {
     expect(laneOf(undefined, row("tool:agent-1"), nameOf)).toBeNull()
   })
 
-  test("the first call under the frame that spawned it needs no label", () => {
-    // The ordinary case, and the one worth NOT labelling: the `Agent` frame is
-    // the row directly above, so a rail dropping out of it says everything a
-    // name would.
-    expect(laneOf(row("tool:call-1", "tool:agent-1"), row("tool:agent-1"), nameOf))
+  test("a call drawn under the very frame that spawned it is not drawn here at all", () => {
+    // RE-POINTED, and the note is the point. This used to claim that such a row
+    // needs no label — the `Agent` frame is the row directly above, so a rail
+    // dropping out of it says everything a name would. The column can no longer
+    // hold that row: `filedUnder` files a call whose `Agent` frame the panel HAS
+    // into that agent's own shelf, and `laneOf` is asked of the column and of
+    // nothing else (`./Transcript.tsx`). So the old scenario is a shape
+    // production cannot produce, and what is left of it is the filing.
+    const call = row("tool:call-1", "tool:agent-1")
+    expect(filedUnder(call)).toBe("tool:agent-1")
+    // The rule it used to reach is still live for the rows that STAY — a run
+    // whose `Agent` frame never arrived, where the second call is established
+    // by the first and the lookup misses.
+    expect(laneOf(call, row("tool:call-0", "tool:agent-1"), () => undefined))
       .toEqual({ parent: "tool:agent-1", label: null })
   })
 
@@ -175,5 +199,43 @@ describe("which rows are drawn in a lane", () => {
     // is actually in.
     expect(laneOf(row("tool:agent-1", "tool:agent-2"), row("tool:agent-1"), nameOf))
       .toEqual({ parent: "tool:agent-2", label: "sent to tool:agent-2" })
+  })
+})
+
+describe("which rows leave the column entirely", () => {
+  test("a call a subagent made answers with the agent that made it", () => {
+    // Five agents out is five agents' greps interleaved in one column, in one
+    // voice, under a main agent whose own words are pushed off the screen —
+    // the panel telling you about work you did not ask to watch instead of the
+    // work you did. The key is the `Agent` frame's own, so the shelf hangs off
+    // the row a reader scrolling back actually arrives at.
+    expect(filedUnder(row("tool:call-1", "tool:agent-1"))).toBe("tool:agent-1")
+  })
+
+  test("the main agent's own call stays in the column", () => {
+    // Nearly every row in nearly every conversation, and the case a mistake
+    // here would empty the transcript over.
+    expect(filedUnder(row("tool:call-1"))).toBeNull()
+  })
+
+  test("a subagent's QUESTION stays in the column whoever asked it", () => {
+    // A FORM BEHIND A CLICK IS A TURN THAT HANGS FOREVER. An `ask` blocks the
+    // turn — nothing else in the conversation happens until somebody presses
+    // something — and the panel points people at one from outside the list
+    // entirely. Filed into a shelf that has to be opened, the one row that has
+    // to be findable would be the one row nobody can find. It keeps the rail
+    // and the name instead, which is what `laneOf` above is now mostly for.
+    expect(filedUnder(asked("ask:1", "tool:agent-1"))).toBeNull()
+  })
+
+  test("a row that is neither a call nor a question is the column's", () => {
+    expect(filedUnder(said("agent:1"))).toBeNull()
+  })
+
+  test("a row that has not arrived yet is filed nowhere", () => {
+    // The transient the list has: a key is in `rows()` and its value is a frame
+    // behind. A row asked about nothing that answered a parent would drop a key
+    // out of the column and into a shelf that has no such row.
+    expect(filedUnder(undefined)).toBeNull()
   })
 })

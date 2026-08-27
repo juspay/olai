@@ -12,7 +12,7 @@
 import { describe, expect, test } from "bun:test"
 
 import { toolRow as row } from "./rows.testlib.ts"
-import { doingOf, whoOf } from "./spawn.ts"
+import { doingOf, sentOf, whoOf } from "./spawn.ts"
 
 describe("which rows sent somebody", () => {
   test("a call that spawned nobody has no face at all", () => {
@@ -99,5 +99,46 @@ describe("whether it is still going", () => {
     // happened rather than about what is happening.
     expect(whoOf(row({ spawned: { kind: "Explore" }, status: "pending", stranded: true })))
       .toBe("Explore")
+  })
+})
+
+/**
+ * ... and WHAT IT WAS SENT TO DO, which is the question the row's own title
+ * cannot answer against the adapter this panel ships with.
+ *
+ * Every other table in this file can be written with a spawn titled by its
+ * description, because that is what the fixtures do and what the e2e fake agent
+ * does. The real adapter titles an `Agent` call with the TOOL's name and the
+ * title is pinned at the first frame that carries one — so a fan-out is a
+ * column of rows reading `Task`. Four surfaces ask this: the strip, the shelf's
+ * head, the door, and the label over a subagent's QUESTION. The last of those
+ * was reading the title directly, which is the one row in the panel where being
+ * wrong about who is speaking changes what somebody presses.
+ */
+describe("what an agent was sent to do", () => {
+  test("a call that sent nobody was sent to do nothing", () => {
+    expect(sentOf(row({ status: "completed" }))).toBeNull()
+    // Including a call a subagent MADE, which carries a parent and no spawn.
+    expect(sentOf(row({ parent: "tool:agent-1" }))).toBeNull()
+    // ... and the transient the list has: a key whose value is a frame behind.
+    expect(sentOf(undefined)).toBeNull()
+  })
+
+  test("a spawn answers with its description, not with the tool's name", () => {
+    expect(sentOf(row({ text: "Task", spawned: { said: "read every note" } })))
+      .toBe("read every note")
+    // The kind is a different question and does not stand in for this one: an
+    // agent's KIND is `Explore`, and four `Explore`s tell you nothing either.
+    expect(sentOf(row({ text: "Task", spawned: { kind: "Explore", said: "read every note" } })))
+      .toBe("read every note")
+  })
+
+  test("... and falls back to what the row is called when it described none", () => {
+    // The honest fallback: it is exactly what a reader sees on that row. The
+    // arguments arrive across frames, so a spawn is briefly one of these even
+    // when it does end up describing itself.
+    expect(sentOf(row({ text: "Task", spawned: {} }))).toBe("Task")
+    expect(sentOf(row({ text: "read every note", spawned: { kind: "Explore" } })))
+      .toBe("read every note")
   })
 })
