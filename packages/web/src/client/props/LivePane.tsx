@@ -72,7 +72,40 @@ export function LivePane(props: {
    *  glyphs with it, and the wrapper paints the padding around them with its
    *  background — which is what makes the breathing room read as terminal
    *  rather than as a light gutter of chrome (the human, on the second look). */
-  const theme = () => getThemeByName(props.themeName ?? undefined)
+  /**
+   * THE TERMINAL'S OWN THEME, with one key added.
+   *
+   * The scrollbar the human saw as a white block on the pane's right edge is
+   * xterm's OVERLAY slider — not, as it looks, an unstyled native scrollbar.
+   * xterm 6 stacks two: the browser's own on `.xterm-viewport`, which never
+   * moves (`scrollHeight === clientHeight`; the page was asked), and its own
+   * div, painted from `theme.scrollbarSliderBackground`. That key defaults to
+   * this terminal's FOREGROUND at 20% — so on a dark theme the thumb is a pale
+   * stub, and over a thousand lines of scrollback a very short one, which is
+   * what read as a stray corner rather than as a scrollbar.
+   *
+   * Set from `brightBlack` instead: the palette's own dim grey is the nearest
+   * thing a terminal theme has to the `edge` token kolu draws its scrollbars
+   * from, and unlike the foreground it is a colour chosen to sit quietly. The
+   * three states are xterm's three keys — a thumb that did not answer the
+   * pointer would read as furniture rather than as a control.
+   *
+   * Through the THEME rather than CSS because xterm injects its own stylesheet
+   * at runtime, after this app's: on `background-color` the two rules tie on
+   * specificity and the later one wins. Colour is xterm's door; the shape
+   * (`styles.css`) is the part it has no key for.
+   */
+  const theme = () => {
+    const base = getThemeByName(props.themeName ?? undefined)
+    const edge = base.brightBlack ?? base.foreground
+    if (edge === undefined) return base
+    return {
+      ...base,
+      scrollbarSliderBackground: withAlpha(edge, 0.85),
+      scrollbarSliderHoverBackground: edge,
+      scrollbarSliderActiveBackground: edge,
+    }
+  }
   const [says, setSays] = createSignal<string>()
   /** Bumped to re-attach. A SIGNAL rather than a call, so the effect below is
    *  the only thing that ever opens a stream — one place a subscription is
@@ -359,7 +392,9 @@ export function LivePane(props: {
           <div
             ref={host}
             class="olai-live-screen"
-            style={{ "background-color": theme().background ?? "transparent" }}
+            style={{
+              "background-color": theme().background ?? "transparent",
+            }}
             data-testid={TESTID.terminalScreen}
             data-state="attached"
           />
@@ -394,4 +429,19 @@ export function LivePane(props: {
  * stack are `terminal-themes`, which is a leaf and hydrates cleanly.
  */
 const FONT_SIZE = 14
+
+/**
+ * A THEME COLOR AT AN OPACITY, as `#rrggbbaa`.
+ *
+ * The eight-digit hex is xterm's own accepted spelling and the one that
+ * survives its color parser unambiguously; anything this cannot read (a named
+ * color, an `rgb()`, a theme that ships something exotic) comes back untouched,
+ * because a fully opaque slider in the terminal's ink is still a far better
+ * answer than the white default this exists to replace.
+ */
+const withAlpha = (color: string, opacity: number): string => {
+  const hex = /^#([0-9a-f]{6})$/i.exec(color)?.[1]
+  if (hex === undefined) return color
+  return `#${hex}${Math.round(opacity * 255).toString(16).padStart(2, "0")}`
+}
 

@@ -952,6 +952,31 @@ mark.olai-hit {
 .olai-live-screen .xterm-viewport {
   background-color: transparent;
 }
+
+/* THE SLIDER'S SHAPE — the other half of the pale block on the pane's right
+ * edge; the colour is `LivePane.tsx`'s, through xterm's own theme key.
+ *
+ * The recipe is kolu's `.scrollbar-subtle` (`client/src/index.css`): thin,
+ * fully rounded, and inset by a transparent border so the thumb floats clear
+ * of the edge instead of butting against it. That rule lives in kolu's APP
+ * rather than in a package, so there is nothing to import — this is the same
+ * shape drawn on the element xterm hands us. One more thing kolu should
+ * export; filed as such, and this deletes the day it is.
+ *
+ * THE `.xterm` IN THE MIDDLE IS LOAD-BEARING, and is why the first attempt
+ * changed nothing visible. xterm injects its own stylesheet at runtime, after
+ * this one, and its rule for this element carries four classes; a rule with
+ * four of its own ties and LOSES on source order. `background-clip` is the
+ * property that matters — xterm sets `background` shorthand, which resets the
+ * clip to `border-box` and fills the inset border right back in. Five classes
+ * win it outright. (Asked of the page, not reasoned: computed style said
+ * `radius: 9999px` and `clip: border-box` in the same breath.)
+ */
+.olai-live-screen .xterm .xterm-scrollable-element > .scrollbar > .slider {
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
 .olai-live-screen .xterm {
   /* TRANSPARENT, so the padding below shows the WRAPPER's colour — which is
    * this terminal's own theme background, set inline. xterm's stylesheet paints
