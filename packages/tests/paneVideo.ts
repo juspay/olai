@@ -15,12 +15,13 @@
  * `bun paneVideo.ts <url> <node-id> <out-dir> [seconds]`
  */
 import { chromium } from "playwright"
+import { spawn } from "node:child_process"
 import { mkdirSync } from "node:fs"
 import { resolve } from "node:path"
 
 import { BROWSER_ARGS } from "./support/browser.ts"
 
-const [, , url, node, outDir, secondsArg] = process.argv
+const [, , url, node, outDir, secondsArg, resizeAfter, socket, terminal] = process.argv
 if (url === undefined || node === undefined || outDir === undefined) {
   throw new Error("paneVideo.ts <url> <node-id> <out-dir> [seconds]")
 }
@@ -58,6 +59,25 @@ await page.waitForSelector('[data-testid="terminal-screen"][data-state="attached
 // ...and now just watch. Nothing is driven from here: every frame after this is
 // the agent's own output arriving over padi.
 await page.waitForTimeout(seconds * 1_000)
+
+// THE FOREIGN RESIZE, if the caller asked for one — a SECOND VIEWER attaching
+// at its own size, which is what a kolu window on the same terminal does.
+// Driven from outside this page on purpose: the recovery being shown is the
+// mirror noticing the record's grid move, and a resize this page caused would
+// be a different story with the same pictures.
+if (resizeAfter !== undefined) {
+  const [cols, rows] = resizeAfter.split("x")
+  const held = spawn(
+    "bun",
+    [resolve(import.meta.dirname, "foreignResize.ts"), socket!, terminal!, cols!, rows!, "12"],
+    { stdio: "inherit" },
+  )
+  // Long enough to see it land and settle: the pane goes wrong for the moment
+  // it is rendering deltas for a grid it is not at, then the record moves, the
+  // mirror re-attaches, and the fresh snapshot repaints it whole.
+  await page.waitForTimeout(18_000)
+  held.kill()
+}
 
 await context.close()
 await browser.close()
