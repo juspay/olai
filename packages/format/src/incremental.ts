@@ -10,12 +10,13 @@
  * possibly be different, and every other record's answer is the one it already
  * had.
  *
- * IT IS A SHADOW AND IT IS NOT AUTHORITATIVE. Every write runs both arms
- * ({@link ./shadow.ts}); the full validator's verdict is what the product
- * obeys, and this one's is compared and thrown away. Making it authoritative is
- * a later PR of ONE LINE, gated on the divergence log being empty and on a
- * soak — see `./shadow.ts` for the gate and the deadline. Nothing here may be
- * read as "the validator now does this".
+ * IT IS THE ANSWER. {@link ./validate.ts} asks this arm first and answers with
+ * what it says; the whole-set rules run only when this one declines, which is a
+ * boot, a rebuilt view, a reading nobody validated, or one of the three doors
+ * below. It shipped as a SHADOW first (#383) — both arms on every write, the
+ * full verdict obeyed, this one compared and dropped, every disagreement
+ * logged — and the flip is what three quiet nights of an empty divergence log
+ * bought (roadmap `perf-validate-flip`).
  *
  * ## What it rests on, in one place
  *
@@ -50,10 +51,13 @@
  *      documents, so it is structurally unable to witness the half this file's
  *      `doc` rule spends. The store claims the delta names every path that
  *      moved; a `.md` it missed would leave the outlines matching, the patch
- *      taken, and the carried `.md` list quietly wrong — a `ledger` divergence
- *      today and a missed `missing-doc` after the flip. So the carry is held
- *      against the set it is about, every time, and a disagreement DECLINES
- *      rather than answering. It is one pass of membership tests over the
+ *      taken, and the carried `.md` list quietly wrong — which since the flip
+ *      is a missed `missing-doc` in the product and not a line in a log. So the
+ *      carry is held against the set it is about, every time, and a
+ *      disagreement DECLINES rather than answering. It is the one class the
+ *      shadow watched for that no comparison could have caught after the
+ *      shadow came out, and it is a DOOR rather than an alarm for exactly that
+ *      reason. It is one pass of membership tests over the
  *      documents, allocating nothing, where building the list afresh allocates
  *      three arrays the size of the directory's `.md` count.
  *
@@ -125,10 +129,14 @@ import { declarationsOf, type PropDeclarations, sameTyping } from "./typing.ts"
  * is the one whole-corpus reading the rules do that is not a walk of the
  * records.
  *
- * It is kept BESIDE the view rather than inside it ({@link ./shadow.ts} holds
- * the table) for the reason `Derived` holds indexes and not verdicts: a view is
- * what a set MEANS, and every reader of one — the browser, the planner, the
- * publisher — would otherwise carry a validator's scratch space around with it.
+ * It is kept BESIDE the view rather than inside it ({@link ./validate.ts}
+ * holds the table) for the reason `Derived` holds indexes and not verdicts: a
+ * view is what a set MEANS, and every reader of one — the browser, the planner,
+ * the publisher — would otherwise carry a validator's scratch space around with
+ * it. Beside the READING rather than inside it for a second reason the flip
+ * sharpened: a `Reading` minted by `reading` or `following` was judged by
+ * nothing, and a table nothing filed for it is what makes the next validation
+ * rebuild rather than narrow from a verdict that was never reached.
  */
 export interface Ledger {
   readonly errors: ReadonlyArray<OutlineError>
@@ -155,13 +163,12 @@ export interface Ledger {
  * `walked` is the honest half. Two of the six rules can decline to narrow and
  * fall back to the corpus — the cycle walks when the graph moved, and the `doc`
  * rule when a `.md` went away — so a run that says `true` did the very
- * whole-corpus work this whole file exists to avoid. It is a fact the shadow
- * OBSERVED, published on the one channel the shadow has out
- * ({@link ./shadow.ts}'s `Seen`); what spends it today is the property test's
- * ceiling, which is what stops a narrowing that walked every time from passing
- * as one that narrowed. A soak that wanted the same number could count it from
- * the same place, and the two rows of `./validate.bench.ts` say what the two
- * fallbacks cost, which is nothing like each other.
+ * whole-corpus work this whole file exists to avoid. It is published on the one
+ * channel the validator has out ({@link ./validate.ts}'s `Reached`); what
+ * spends it is the property test's ceiling, which is what stops a narrowing
+ * that walked every time from passing as one that narrowed. The two rows of
+ * `./validate.bench.ts` say what the two fallbacks cost, which is nothing like
+ * each other.
  */
 export interface Narrowed {
   readonly ledger: Ledger
@@ -172,16 +179,19 @@ export interface Narrowed {
  * WHY the narrowing turned back — one word per door, and a word rather than a
  * bare `null`.
  *
- * A decline is not a failure and is not a divergence: it is the ordinary answer
- * for a rebuild, a first load, or a validation following one that was refused.
- * But "cold" was ONE bucket for four different things, and a property test
- * asserting a floor on the sum could not say the run had reached the right
- * kinds — so the reason travels with the decline, the shadow puts it on the
- * witness, and the floors below it are claims rather than a total.
+ * A decline is not a failure and is not a wrong answer: it is the ordinary
+ * word for a validation following one that was refused, for a corpus the
+ * patcher handed back, or for a carry the set disagrees with — and what it
+ * COSTS is the whole-corpus arm, which is the answer every validation reached
+ * before the narrowing existed. But "cold" was ONE bucket for four different
+ * things, and a property test asserting a floor on the sum could not say the
+ * run had reached the right kinds — so the reason travels with the decline,
+ * {@link ./validate.ts} puts it on the watcher, and the floors below it are
+ * claims rather than a total.
  *
  * A decline is published rather than swallowed for {@link ./patch.ts}'s reason:
  * a narrowing that quietly fell back to walking the corpus would agree with the
- * full arm on every write and prove nothing.
+ * full arm on every revision of the differential and prove nothing.
  */
 export type Decline = "refused" | "duplicates" | "documents"
 
@@ -396,8 +406,9 @@ const shapeOf = (at: Located): string =>
  * order is the record's.
  *
  * A key whose list is empty cannot happen — `namedBy` files a key by filing a
- * naming into it — and the fallback ties rather than throwing, because a
- * comparator is not where a shadow gets to take the process down.
+ * naming into it — and the fallback ties rather than throwing, because the
+ * order two findings come out in is not where a validator gets to take a write
+ * down.
  */
 const byNaming = (derived: Derived, one: string, other: string): number => {
   const first = derived.namedBy.get(one)?.[0]?.at

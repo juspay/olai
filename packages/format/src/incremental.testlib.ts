@@ -5,9 +5,47 @@
  * `./incremental.ts` narrows the validator to what an edit touched, and the
  * claim it makes is an equivalence — so what holds it is a differential and not
  * a table of expectations. This module replays a SEQUENCE of revisions through
- * the real `validate`, exactly as the store drives it, and collects what the
- * shadow saw. A case asserts an empty divergence list plus enough counting to
- * say the run was not vacuous.
+ * the real `validate`, exactly as the store drives it, and asks the SAME
+ * function for the other answer. A case asserts an empty divergence list plus
+ * enough counting to say the run was not vacuous.
+ *
+ * ## BOTH ARMS ARE `validate`, WHICH IS WHAT THE FLIP LEFT
+ *
+ * The narrowed verdict is the product's now (`./validate.ts`), so there is no
+ * shadow running beside it to compare against and no divergence to log. What
+ * replaced it is the one door this harness always drove:
+ *
+ *   - `validate(set, previous)` is the write, exactly as the store's codec
+ *     makes it — the narrowed arm, whenever there is a reading to follow and a
+ *     view that was really patched from it;
+ *   - `validate(set)` with nothing to follow is the whole-corpus arm BY
+ *     CONSTRUCTION — the six rules over every record, which is what a boot
+ *     runs and what every validation ran before #383.
+ *
+ * So the equivalence is now stated in the product's own vocabulary: THE
+ * VALIDATOR HANDED A PREVIOUS READING ANSWERS WHAT THE VALIDATOR HANDED
+ * NOTHING ANSWERS, over the same set — and the comparison is of the REPORTS,
+ * which is what a reader would have been shown, error scope and presentation
+ * order and all. That is a sharper claim than the shadow's, because the second
+ * arm is reached through the same door as the first rather than through a
+ * function only the shadow called.
+ *
+ * WHAT THE COUNTERS ARE FOR is that half of it can be vacuous. A revision the
+ * narrowing DECLINED runs the whole-corpus arm on both sides — the full
+ * validator agreeing with itself — so a replay has to say how many revisions
+ * really narrowed and which doors the rest went through
+ * ({@link ./validate.ts}'s `Reached`, which is the one channel that can tell
+ * them apart).
+ *
+ * THREE OF THE FIVE CLASSES THE SHADOW WATCHED FOR are the report comparison
+ * below: a set accepted by one arm and refused by the other (`verdict`), a
+ * finding one had and the other did not (`findings`), and the same findings in
+ * a different order (`order`). The fourth, a carried `.md` list the walk does
+ * not agree with, is checked directly — {@link ./validate.ts}'s `ledgerOf`
+ * against both arms' views — and is a DOOR in the product besides
+ * (`carriedDocuments` declines rather than answering). The fifth was the
+ * narrowed arm THROWING, which the shadow caught and logged; nothing catches it
+ * now, so it arrives here as a replay that raises and a suite that fails.
  *
  * A SEQUENCE and not a pair, which is the whole shape of it. The narrowing
  * rests on the reading a validation FOLLOWS, so nearly everything that can go
@@ -33,12 +71,16 @@
  * the answer is.
  *
  * Nothing here has tests of its own — it is a helper module, not a suite, and
- * `bun test` collects only `*.test.ts`.
+ * `bun test` collects only `*.test.ts`. {@link differing} is the exception it
+ * EXPORTS for one: a differential whose comparator cannot see a difference is a
+ * green suite that means nothing, so the comparator is a function of two lists
+ * and `./incremental.test.ts` hands it differences directly.
  */
 
 import { Result } from "effect"
 
 import type { Document } from "./document.ts"
+import { errorLine } from "./errors.ts"
 import { type Verdict, verdictOf } from "./verdict.ts"
 
 import { type Corpus, corpusOf, editOf, FILES, pick } from "./corpora.testlib.ts"
@@ -46,35 +88,110 @@ import { fileKind } from "./kinds.ts"
 import { byPath } from "./paths.ts"
 import { decodedVault } from "./scope.testlib.ts"
 import { assemble, nodesIn } from "./set.ts"
+import { baseOf, type PropDeclarations } from "./typing.ts"
 
-import type { Divergence, Seen } from "./shadow.ts"
-import { witnessing } from "./shadow.ts"
-import { type Reading, validate } from "./validate.ts"
+import type { Cold, Reached, Reading } from "./validate.ts"
+import { ledgerOf, validate, watching } from "./validate.ts"
 
 /** One revision of the served directory: every path it holds and the bytes at
  *  it. The shape {@link ./scope.testlib.ts}'s `vaultAt` reads a real directory
  *  into, so a generated corpus and a real one are the same value here. */
 export type Revision = ReadonlyMap<string, string>
 
+/**
+ * WHAT THE TWO ARMS SAID, when they did not say the same thing.
+ *
+ * It was a log line an orchestrator read while the narrowing was a shadow; it
+ * is a FAILURE MESSAGE now, and the shape survived the move because what a
+ * person needs at four in the morning and what a person needs from a red suite
+ * are the same thing: which way the two parted, where, and the few lines that
+ * differ rather than two reports to diff by eye.
+ */
+export interface Divergence {
+  /**
+   * WHICH WAY they differed, in one word:
+   *
+   *   - `verdict` — one arm passed the set and the other refused it. The worst
+   *     one there is: this is a write accepted or rejected differently, which
+   *     is the product's behaviour and not its wording;
+   *   - `findings` — both refused, but not with the same findings;
+   *   - `order` — the same findings, in a different order. Real, because the
+   *     order is what a reader reads down and what two loads of one directory
+   *     promise each other;
+   *   - `ledger` — the two arms agreed about this set, and the narrowed one is
+   *     carrying a `.md` list or a property vocabulary that the walk does not
+   *     agree with. It has not produced a wrong finding YET and it will, and
+   *     the next revision is where it would.
+   */
+  readonly why: "verdict" | "findings" | "order" | "ledger"
+  /** WHICH REVISION of the replay, counting from one — where the shadow's entry
+   *  carried a wall-clock instant, because the thing reading it was a person
+   *  with a commit log rather than a suite with a sequence. */
+  readonly revision: number
+  /** The files the delta named — where to start looking. */
+  readonly touched: ReadonlyArray<string>
+  /** Whether each arm accepted the set. */
+  readonly accepted: { readonly full: boolean; readonly incremental: boolean }
+  /** How many findings each arm reported. The SIZE of the two reports, which is
+   *  what the lists below no longer carry. */
+  readonly counts: { readonly full: number; readonly incremental: number }
+  /** Said by the full arm and not by the narrowed one — the findings the
+   *  narrowing LOST. Under `ledger`, the entries the walk holds and the carry
+   *  does not. Capped at {@link SAID}. */
+  readonly missing: ReadonlyArray<string>
+  /** Said by the narrowed arm and not by the full one — the findings the
+   *  narrowing INVENTED. Under `ledger`, the entries the carry holds and the
+   *  walk does not. Capped at {@link SAID}. */
+  readonly invented: ReadonlyArray<string>
+  /** How many lines the lists above dropped to stay under their caps. A number
+   *  rather than a truncation nobody can see: an entry that says "twenty
+   *  findings, and here are the first ten" is one a reader can act on, and one
+   *  silently holding ten of twenty is one they cannot. */
+  readonly elided: number
+  /** WHERE the two reports part company, for the `order` case — the first index
+   *  at which they differ and the line each arm has there. That case has
+   *  nothing in `missing` or `invented` by definition (the findings are the
+   *  same findings), and carrying BOTH reports whole is, on a badly broken
+   *  directory, an assertion message the size of the report. */
+  readonly parted?: {
+    readonly at: number
+    readonly full: string
+    readonly incremental: string
+  }
+}
+
+/**
+ * How many lines of any one list an entry carries.
+ *
+ * A divergence is supposed to be impossible, so an entry is written to be READ
+ * rather than to be complete: the first few findings and a count is what
+ * somebody acts on. What is never capped is the COUNT —
+ * {@link Divergence.counts} and {@link Divergence.elided} say how much was left
+ * out, so the entry cannot read as smaller than it was.
+ */
+const SAID = 12
+
 /** What a replay found. An equality to the empty list is the gate; every other
  *  field is a claim that the gate was asked anything at all. */
 export interface Report {
   /** The whole point. */
   readonly divergences: ReadonlyArray<Divergence>
-  /** Revisions where both arms ran and agreed. */
+  /** Revisions the narrowing ANSWERED — the ones where the differential
+   *  compared two different pieces of code. */
   readonly narrowed: number
-  /** Revisions where only the full arm ran, and WHICH cold each of them was
-   *  ({@link ./shadow.ts}'s `Seen.why`). A count on its own is a floor a run
-   *  can meet without having reached any particular kind — a suite asserting
-   *  `cold > 60` over sixty first-loads would be asserting that a boot boots. */
-  readonly cold: number
+  /** Revisions where the narrowing declined and the whole-corpus arm answered,
+   *  and WHICH door each of them went through ({@link ./validate.ts}'s
+   *  `Reached.why`). A count on its own is a floor a run can meet without
+   *  having reached any particular kind — a suite asserting `whole > 60` over
+   *  sixty first-loads would be asserting that a boot boots. */
+  readonly whole: number
   readonly declined: Readonly<Record<string, number>>
   /** Narrowed revisions that had to walk the corpus ANYWAY, because the graph
    *  moved or a `.md` went away. The number the flip is worth arguing over, and
    *  a floor AND a ceiling here: all of them means the narrowing narrows
    *  nothing, none of them means the corpora never reparented anything. */
   readonly walked: number
-  /** Revisions the full validator accepted, and revisions it refused. Both are
+  /** Revisions the validator accepted, and revisions it refused. Both are
    *  floors: a corpus nothing ever refuses never tests the ledger's own gate,
    *  and one that is never accepted never gives the narrowing a reading to
    *  follow. */
@@ -87,22 +204,36 @@ export interface Report {
 }
 
 /**
- * Replay a sequence of revisions through the real validator, and say what the
- * shadow saw.
+ * Replay a sequence of revisions through the real validator, twice per
+ * revision, and say where the two arms parted.
  *
- * The witness is installed for the length of the replay and taken off in a
- * `finally`: a suite that left one behind would silence the next file's
- * divergences, and a suite that threw mid-replay would leave the default alarm
- * off for the rest of the process.
+ * The watcher is installed for the length of the replay and taken off in a
+ * `finally`: a suite that left one behind would go on pushing into a dead
+ * array from the next file's validations, and one that threw mid-replay would
+ * leave it installed for the rest of the process.
+ *
+ * THE NARROWED ARM RUNS FIRST and it is the one that drives the sequence: what
+ * it accepts is what gets published and followed, so the stream this harness
+ * replays is the stream the store would have produced. The whole-corpus arm is
+ * asked afterwards and its answer is thrown away — it decides nothing here,
+ * which is the shadow's relationship to the product turned exactly around.
  */
 export const replay = (revisions: Iterable<Revision>): Report => {
-  const seen: Array<Seen> = []
+  const reached: Array<Reached> = []
+  const divergences: Array<Divergence> = []
+  // WHAT THE VALIDATION IN FRONT OF US DID — drained after each call rather
+  // than accumulated, because there are TWO calls per revision and only the
+  // first one is a fact about the narrowing. The second is `validate(set)`,
+  // whose account is `first` every time by construction; counting it would put
+  // one whole-corpus run per revision into the floors below and make the
+  // `first` door a number about this harness.
+  const account: Array<Reached> = []
   let accepted = 0
   let refused = 0
   let unreadable = 0
   let many = 0
-  witnessing((one) => {
-    seen.push(one)
+  watching((one) => {
+    account.push(one)
   })
   try {
     // THE DECODE CACHE, which is the probe's and is not an optimisation here.
@@ -155,6 +286,7 @@ export const replay = (revisions: Iterable<Revision>): Report => {
       held = revision
       const set = assemble(decoded)
       if (set.broken.length > 0) unreadable++
+      const touched = [...changed, ...removed]
       const verdict = validate(
         set,
         published === null ? undefined : {
@@ -167,6 +299,17 @@ export const replay = (revisions: Iterable<Revision>): Report => {
           },
         },
       )
+      reached.push(...account.splice(0))
+      // THE OTHER ARM, over the SAME set and with nothing to follow, which is
+      // the whole-corpus validator by construction. Its view is its own — a
+      // second derivation of the same records — and that is the point: it
+      // shares no index, no ledger and no carry with the arm above, so an
+      // agreement between them is an agreement between two readings of the
+      // directory rather than two readings of one table.
+      const whole = validate(set)
+      account.length = 0
+      const found = parting(many, touched, whole, verdict)
+      if (found !== null) divergences.push(found)
       if (Result.isFailure(verdict)) {
         refused++
         continue
@@ -177,24 +320,197 @@ export const replay = (revisions: Iterable<Revision>): Report => {
       removed.clear()
     }
   } finally {
-    witnessing(null)
+    watching(null)
   }
   return {
-    divergences: seen.flatMap((one) => (one.divergence === undefined ? [] : [one.divergence])),
-    narrowed: seen.filter((one) => one.kind === "narrowed").length,
-    cold: seen.filter((one) => one.kind === "cold").length,
-    declined: seen.reduce<Record<string, number>>((held, one) => {
-      if (one.kind !== "cold") return held
-      const why = one.why ?? "unsaid"
+    divergences,
+    narrowed: reached.filter((one) => one.kind === "narrowed").length,
+    whole: reached.filter((one) => one.kind === "whole").length,
+    declined: reached.reduce<Record<string, number>>((held, one) => {
+      if (one.kind !== "whole") return held
+      const why: Cold | "unsaid" = one.why ?? "unsaid"
       return { ...held, [why]: (held[why] ?? 0) + 1 }
     }, {}),
-    walked: seen.filter((one) => one.walked === true).length,
+    walked: reached.filter((one) => one.walked === true).length,
     accepted,
     refused,
     unreadable,
     revisions: many,
   }
 }
+
+/**
+ * The two verdicts compared as REPORTS — what a reader would have been shown,
+ * error scope and presentation order and all — and then the LEDGERS behind
+ * them.
+ *
+ * The verdict first and the CARRY second, which is the order they matter in and
+ * not the order they happen in: a wrong ledger that has not yet produced a
+ * wrong finding is worth an entry, and it must not be the entry that hides one
+ * that has.
+ */
+const parting = (
+  revision: number,
+  touched: ReadonlyArray<string>,
+  whole: Result.Result<Reading, Verdict>,
+  narrowed: Result.Result<Reading, Verdict>,
+): Divergence | null => {
+  const full = linesOf(whole)
+  const said = linesOf(narrowed)
+  const accepted = { full: Result.isSuccess(whole), incremental: Result.isSuccess(narrowed) }
+  const counts = { full: full.length, incremental: said.length }
+  const found = differing(full, said, accepted) ?? carried(whole, narrowed)
+  return found === null ? null : raise(revision, touched, { ...found, accepted, counts })
+}
+
+/** One verdict as the lines a reader reads down — the report itself when the
+ *  set was refused, and nothing at all when it was accepted, since an accepted
+ *  set's findings are the ones the error scope carried and both arms embed the
+ *  same parse errors in the same set. */
+const linesOf = (verdict: Result.Result<Reading, Verdict>): ReadonlyArray<string> =>
+  Result.isFailure(verdict) ? verdict.failure.findings.map(errorLine) : []
+
+/** What a comparison decided, before {@link raise} stamps the revision and the
+ *  place on it. */
+type Told = Pick<Divergence, "why" | "missing" | "invented" | "parted">
+
+/**
+ * HOW TWO REPORTS DIFFER, or `null` when they do not — the whole of the
+ * comparison, as a function of two lists of lines.
+ *
+ * Its own function, and exported, because it is the one thing here that has to
+ * be tested directly rather than through a corpus (`./incremental.test.ts`): a
+ * differential whose comparator cannot see a difference is a green suite that
+ * means nothing, and reaching each of these three answers by writing a
+ * validator that is wrong in exactly one way is a lot of machinery to prove
+ * something about eight lines.
+ */
+export const differing = (
+  full: ReadonlyArray<string>,
+  said: ReadonlyArray<string>,
+  accepted: Divergence["accepted"],
+): Told | null => {
+  const missing = held(full, said)
+  const invented = held(said, full)
+  if (accepted.full !== accepted.incremental) return { why: "verdict", missing, invented }
+  if (missing.length > 0 || invented.length > 0) return { why: "findings", missing, invented }
+  // THE SAME FINDINGS IN A DIFFERENT ORDER, and what the entry carries is WHERE
+  // rather than both reports whole: the lists above are empty by definition
+  // here, so the first index the two part at — with the line each arm has there
+  // — is the entirety of what a reader could act on.
+  const at = full.findIndex((line, which) => line !== said[which])
+  return at === -1 ? null : {
+    why: "order",
+    missing: [],
+    invented: [],
+    parted: { at, full: full[at] ?? "", incremental: said[at] ?? "" },
+  }
+}
+
+/**
+ * Whether the two arms are carrying the same LEDGER — the `.md` paths and the
+ * property vocabulary each of them reached its verdict against
+ * ({@link ./incremental.ts}'s `Ledger`).
+ *
+ * The class the shadow called `ledger`, and the reason it is still asked when
+ * the reports already agree: the carry is what the NEXT validation narrows
+ * from, so a carry that has drifted is a wrong finding one revision from now
+ * and a report comparison today cannot see it. Both halves are read back out
+ * of the validator's own table ({@link ./validate.ts}'s `ledgerOf`), which is
+ * the only door onto it and is exported for this.
+ *
+ * ONLY WHERE THERE ARE TWO LEDGERS TO COMPARE. A refused set is one nothing
+ * follows, so the entry it leaves is one no narrowing will ever read, and the
+ * arms' views are not in hand here anyway.
+ */
+const carried = (
+  whole: Result.Result<Reading, Verdict>,
+  narrowed: Result.Result<Reading, Verdict>,
+): Told | null => {
+  if (Result.isFailure(whole) || Result.isFailure(narrowed)) return null
+  const walked = ledgerOf(whole.success.derived)
+  const said = ledgerOf(narrowed.success.derived)
+  if (walked === undefined || said === undefined) return null
+  const missing = [
+    ...held([...walked.known], [...said.known]),
+    ...held(typings(walked.typing), typings(said.typing)),
+  ]
+  const invented = [
+    ...held([...said.known], [...walked.known]),
+    ...held(typings(said.typing), typings(walked.typing)),
+  ]
+  return missing.length === 0 && invented.length === 0
+    ? null
+    : { why: "ledger", missing, invented }
+}
+
+/**
+ * A vocabulary as lines, one per key — the four fields `sameTyping` compares
+ * and no others ({@link ./typing.ts} argues each: the kind, a `ref`'s roster,
+ * where a path resolves from, and WHERE the key was declared, since a `ref`
+ * with no `under` takes its variants from the declaring node's own children).
+ *
+ * Lines rather than a predicate so that the two vocabularies diff the way the
+ * two reports do, through {@link held}, and an entry names the key AND what
+ * each arm said about it.
+ */
+const typings = (said: PropDeclarations): ReadonlyArray<string> =>
+  [...said].map(([key, declared]) => {
+    const under = declared.type.kind === "ref" ? declared.type.under ?? "" : ""
+    return `${key}=${declared.type.kind}${under === "" ? "" : ` under ${under}`}` +
+      ` base ${baseOf(declared)} at ${declared.at}`
+  }).sort()
+
+/** The lines of one report that the other does not hold, counting REPEATS: a
+ *  rule that said the same sentence twice where the other said it once is a
+ *  divergence, and a plain set difference would call the two lists equal. */
+const held = (
+  said: ReadonlyArray<string>,
+  against: ReadonlyArray<string>,
+): ReadonlyArray<string> => {
+  const left = new Map<string, number>()
+  for (const line of against) left.set(line, (left.get(line) ?? 0) + 1)
+  const only: Array<string> = []
+  for (const line of said) {
+    const many = left.get(line) ?? 0
+    if (many === 0) only.push(line)
+    else left.set(line, many - 1)
+  }
+  return only
+}
+
+/**
+ * The entry, stamped with the revision and CUT TO SIZE.
+ *
+ * Every list an entry carries is capped here rather than at each of the places
+ * one is built, and what was dropped is counted rather than quietly missing
+ * ({@link SAID} argues both). `touched` is capped for the same reason the
+ * findings are: a revision that rewrote a directory names every file in it, and
+ * the entry a failing suite prints should say "these, and four hundred more"
+ * rather than four hundred paths.
+ */
+const raise = (
+  revision: number,
+  touched: ReadonlyArray<string>,
+  found: Told & Pick<Divergence, "accepted" | "counts">,
+): Divergence => {
+  const missing = found.missing.slice(0, SAID)
+  const invented = found.invented.slice(0, SAID)
+  return {
+    why: found.why,
+    revision,
+    touched: touched.slice(0, SAID),
+    accepted: found.accepted,
+    counts: found.counts,
+    missing,
+    invented,
+    elided: (touched.length - touched.slice(0, SAID).length) +
+      (found.missing.length - missing.length) +
+      (found.invented.length - invented.length),
+    ...(found.parted === undefined ? {} : { parted: found.parted }),
+  }
+}
+
 // ── the generated stream ───────────────────────────────────────────────
 
 /**

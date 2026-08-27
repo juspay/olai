@@ -1,19 +1,28 @@
 /**
  * WHAT VALIDATION COSTS A WRITE — the whole-corpus rules against the narrowed
- * ones, and the price of running both.
+ * ones, and what the soak cost in between.
  *
  * Five of the six whole-set rules walk every record in the directory on every
- * write (roadmap `perf-validate-incremental`), and `./incremental.ts` is the
- * other way to reach the same verdict. This is the number for it, and the
- * THIRD ARM is the honest one: until the flip, a write pays BOTH validators, so
- * what this change costs today is printed beside what it will buy.
+ * write, and `./incremental.ts` is the other way to reach the same verdict.
+ * Since `perf-validate-flip` the narrowed column is WHAT A WRITE PAYS: the
+ * narrowed verdict is the answer and the whole-set rules run only for a
+ * validation with nothing to narrow from ({@link ./validate.ts}). The full
+ * column is what a write paid before the narrowing existed and what a boot, a
+ * `git pull` and a duplicate id still pay.
+ *
+ * THE THIRD ARM IS A RECORD OF THE SOAK. Between #383 and the flip a write ran
+ * BOTH validators — the full verdict obeyed, the narrowed one compared and
+ * dropped — and that column is what those three days cost. It is kept because
+ * it is the one number that says what the flip GAVE BACK, and nothing in the
+ * product runs it any more.
  *
  * IT IS A LEG, NOT A CLAIM (`just bench`), for the reason every bench in this
  * package is: a timing that fails a lane on a busy machine teaches nobody
  * anything, and what the equivalence rests on is `./incremental.test.ts` — the
  * two arms compared for their VERDICTS, over generated edit sequences and over
  * this repository's own vault, in the suite. Perf numbers are reported
- * artifacts and never gates.
+ * artifacts and never gates. That division is what let the flip be decided on
+ * a suite and a soak rather than on a millisecond.
  *
  * ONE THING HERE DOES FAIL THE RUN, and it is not a timing: if the two arms
  * reach a different verdict the ratio between them means nothing, so the row
@@ -196,9 +205,10 @@ const DELETIONS: ReadonlyArray<Edit> = documents
 
 // ── the run ────────────────────────────────────────────────────────────
 
-/** The full validator's rules over a whole view — `./validate.ts`'s body with
- *  the derivation and the answer taken off, which is what one write pays
- *  today. */
+/** The full validator's rules over a whole view — `./validate.ts`'s `wholly`
+ *  with the ledger and the answer taken off, which is what one write paid
+ *  before the narrowing and what a validation with nothing to narrow from pays
+ *  still. */
 const whole = (set: OutlineSet, view: Derived): ReadonlyArray<OutlineError> => {
   const errors: Array<OutlineError> = []
   const all = view.nodes
@@ -299,7 +309,7 @@ const row = (what: string, edits: ReadonlyArray<Edit>): void => {
     `${what.padEnd(26)}${`${(full / many).toFixed(2)}ms`.padStart(10)}` +
       `${`${(narrow / many).toFixed(2)}ms`.padStart(11)}` +
       `${`${(full / Math.max(narrow, 1e-9)).toFixed(1)}×`.padStart(9)}` +
-      `${`${(both / many).toFixed(2)}ms`.padStart(15)}` +
+      `${`${(both / many).toFixed(2)}ms`.padStart(18)}` +
       `${`${walked}/${many}`.padStart(11)}`,
   )
 }
@@ -332,7 +342,7 @@ console.log(
 )
 console.log(
   `${"edit".padEnd(26)}${"full".padStart(10)}${"narrowed".padStart(11)}${"ratio".padStart(9)}` +
-    `${"both (today)".padStart(15)}${"walked".padStart(11)}`,
+    `${"both (the soak)".padStart(18)}${"walked".padStart(11)}`,
 )
 row("a keystroke", KEYSTROKES)
 row("an edge added", EDGES)

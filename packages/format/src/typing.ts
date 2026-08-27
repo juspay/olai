@@ -458,12 +458,12 @@ export const declarationsOf = (derived: Derived): PropDeclarations => {
  * ONE READING PER VIEW, and it is a memo rather than a cache: a `Derived` is
  * one revision of the set, so what that set declares cannot move under it.
  *
- * A `WeakMap` for `./shadow.ts`'s reason, which is the only other table in this
- * package keyed by a view: a revision nobody kept takes its entry with it, and
- * nothing above learns that anything is remembered. What it buys is that the
- * four readers of this — the validator, the narrowed validator beside it, every
- * search, and the write planner, which asks once per op of a batch — pay one
- * walk of the declarations file between them rather than one each. The walk
+ * A `WeakMap` for the reason `./validate.ts`'s ledger table is one, and that is
+ * the only other table in this package keyed by a view: a revision nobody kept
+ * takes its entry with it, and nothing above learns that anything is
+ * remembered. What it buys is that the readers of this — the validator's two
+ * arms, every search, and the write planner, which asks once per op of a batch
+ * — pay one walk of the declarations file between them rather than one each. The walk
  * itself is small; the `propertiesIn` in front of it is `O(files)`, and that
  * one was worth not paying a hundred times for a hundred-op batch.
  */
