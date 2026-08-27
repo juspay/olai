@@ -87,16 +87,18 @@ import {
   danglingIn,
   markdownPaths,
   reportAfterCycles,
+  reportDeclarations,
   reportDocs,
   reportDuplicateIds,
   reportMirrorCycles,
   reportOf,
   reportParentCycles,
   reportParents,
+  reportPropValues,
   reportUnknownTargets,
 } from "./rules.ts"
 import { assemble, type OutlineSet } from "./set.ts"
-import { declarationsOf } from "./typing.ts"
+import { declarationsOf, type Typed } from "./typing.ts"
 import { Result } from "effect"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
@@ -205,14 +207,26 @@ const DELETIONS: ReadonlyArray<Edit> = documents
 
 // ── the run ────────────────────────────────────────────────────────────
 
-/** The full validator's rules over a whole view — `./validate.ts`'s `wholly`
- *  with the ledger and the answer taken off, which is what one write paid
- *  before the narrowing and what a validation with nothing to narrow from pays
- *  still. */
+/**
+ * The full validator's rules over a whole view — `./validate.ts`'s `wholly`
+ * with the ledger and the answer taken off, which is what one write paid
+ * before the narrowing and what a validation with nothing to narrow from pays
+ * still.
+ *
+ * EVERY RULE THAT FUNCTION RUNS, and the two typing ones are here because a
+ * timed arm that leaves a rule out is a cheap arm wearing the other one's name:
+ * the narrowed side calls `reportDeclarations` whole on every write and
+ * `reportPropValues` over the touched records, so a `full` column missing both
+ * would be flattering the ratio with the very work the row is about. The order
+ * is that function's, so the two arms' findings can be compared line by line
+ * below.
+ */
 const whole = (set: OutlineSet, view: Derived): ReadonlyArray<OutlineError> => {
   const errors: Array<OutlineError> = []
   const all = view.nodes
   const known = markdownPaths(set)
+  const declarations = declarationsOf(view)
+  const typed: Typed = { declarations, derived: view, documents: known }
   reportDuplicateIds(all, view, errors)
   reportParents(all, view, errors)
   reportParentCycles(all, view, errors)
@@ -220,6 +234,8 @@ const whole = (set: OutlineSet, view: Derived): ReadonlyArray<OutlineError> => {
   reportAfterCycles(all, view, errors)
   reportMirrorCycles(all, view, errors)
   reportDocs(all, known, errors)
+  reportDeclarations(view, errors)
+  reportPropValues(all, typed, errors)
   return errors
 }
 
