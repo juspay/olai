@@ -34,7 +34,7 @@ const row = (over: Partial<FleetTerminal> = {}): FleetTerminal => ({
     active: true,
     asking: false,
     bytesLive: true,
-    shellLive: false,
+    hasAgent: true,
     sleeping: false,
     alert: false,
     alertLabel: "",
@@ -169,7 +169,11 @@ describe("the assembled recency bag — the line a row actually renders", () => 
     pip: { asking: boolean; active: boolean },
     recencyAt: number | null,
     now: number,
-  ) => rowRecency(pip, recencyAt, recencyAt, { tick: () => now, stable: () => now })
+  ) =>
+    rowRecency(pip, { window: recencyAt, own: recencyAt }, {
+      counting: () => now,
+      glancing: () => now,
+    })
 
   it("SAYS HOW LONG AGO a quiet terminal finished", () => {
     // The regression, exactly: this rendered "" while `null` went down the

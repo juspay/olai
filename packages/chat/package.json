@@ -22,7 +22,7 @@
     "@olai/log": "workspace:*",
     "@olai/state": "workspace:*",
     "@olai/surface": "workspace:*",
-    "effect": "4.0.0-rc.110",
+    "effect": "4.0.0-rc.112",
     "zod": "^4.0.0"
   },
   "//devDependencies": "@types/node is for the Node stream types `pipes.ts` still names (the ACP transport, residue on top of `@olai/child`) and for the `ChildProcess` type `kolu.ts` still names — `@kolu/detect`'s probe takes Node's own, which is why that import lives on.",

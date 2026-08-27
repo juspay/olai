@@ -34,6 +34,7 @@
  * The key is named ONCE, here, so that rename is one constant.
  */
 
+import { activeArm } from "@kolu/padi-client/vocab"
 import type { TerminalAttention } from "@kolu/padi-client/attention"
 import type { TerminalMetadata } from "@kolu/padi-client/surface"
 import {
@@ -178,7 +179,18 @@ export const rowOf = (
     // output you have not looked at in ITS window manager — and olai has no
     // such notion, so it is `false` rather than invented. It is an optional
     // prop precisely so a consumer can decline it.
-    pip: bindStatePip({ meta: record, attention, unread: false }),
+    pip: {
+      ...bindStatePip({ meta: record, attention, unread: false }),
+      // THE ONE INPUT THE BAG'S FOLDS CANNOT RECOVER. `bindStatePip` returns
+      // the RENDER bag, which carries `shellLive` already folded; the WIRE
+      // carries the fold's inputs instead, so what crosses is `hasAgent` and
+      // the row re-folds. `@olai/surface`'s `pip` states the general rule.
+      //
+      // Read the same way kolu reads it — the active arm's agent — rather than
+      // off `record.agent`, so a record shape that grows a second place to
+      // mention an agent cannot make the two disagree.
+      hasAgent: activeArm(record)?.agent !== undefined,
+    },
     // The ORDER bucket, which is a different fold from the pip's paint: kolu
     // spends a page on why those two must not be derived from each other.
     bucket: paintDockRow(record, attention.klass),

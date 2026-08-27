@@ -13,7 +13,7 @@
   },
   "//dependencies": "`effect` and nothing else, deliberately: this is a LEAF beside `format`, `git` and `log` (docs/architecture.md), and it is the whole point of the extraction — a package that knows where a machine keeps files and knows nothing about outlines, git or a wire. A workspace sibling appearing here would be that knowledge coming back.",
   "dependencies": {
-    "effect": "4.0.0-rc.110"
+    "effect": "4.0.0-rc.112"
   },
   "//devDependencies": "@types/node is for `node:fs`, `node:crypto` and `node:os`, which this package IS.",
   "devDependencies": {

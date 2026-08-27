@@ -23,7 +23,7 @@
     "@solid-primitives/scheduled": "^1.5.3",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "effect": "4.0.0-rc.110",
+    "effect": "4.0.0-rc.112",
     "highlight.js": "^11.11.1",
     "lowlight": "^3.3.0",
     "mdast-util-to-string": "^4.0.0",

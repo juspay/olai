@@ -250,17 +250,40 @@ export const FleetTerminal = Schema.Struct({
   /**
    * THE BOUND PIP — `bindStatePip`'s answer, whole.
    *
-   * Ten facts the row reads OFF this rather than from sibling props: the
-   * paint (`variant`/`glyph`; MOTION IS NOT HERE — kolu#2219 refuses it as a
-   * wire fact, because it is a total function of `variant` and `active` and a
-   * bag carrying all three can spell a `spin` beside an `active: false`. The
-   * row re-folds it from the two it is given), whether the terminal is
-   * effectively
-   * active, whether an agent is blocked on YOU (`asking` — the one test every
-   * kolu surface reads for that), the two liveness bits, the recede, and the
-   * unread alert. They travel together because the row takes them together:
-   * a row given them separately is a row whose wash and whose pip can
-   * disagree.
+   * The facts the row reads OFF this rather than from sibling props: the paint
+   * identity (`variant`/`glyph`), whether the terminal is effectively active,
+   * whether an agent is blocked on YOU (`asking` — the one test every kolu
+   * surface reads for that), whether an agent is driving it at all
+   * (`hasAgent`), live PTY bytes, the recede, and the unread alert. They travel
+   * together because the row takes them together: a row given them separately
+   * is a row whose wash and whose pip can disagree.
+   *
+   * ## A DERIVED FIELD IS NOT A WIRE FACT — the rule, not a list of exceptions
+   *
+   * Two of the bag's members are FOLDS of others, and neither crosses: `motion`
+   * is a total function of `variant` and `active`, and `shellLive` of
+   * `variant`, `bytesLive` and `hasAgent`. What is on the wire is the INPUTS a
+   * fold cannot recover, and `hasAgent` is here for exactly that reason — it is
+   * the one thing `shellLive`'s fold needs that the rest of the bag does not
+   * already say.
+   *
+   * The argument is one argument, and it is worth stating once rather than
+   * re-reaching twice. A bag that carried a fold alongside its inputs can spell
+   * a combination no producer generates — a `spin` beside `active: false`, a
+   * `{ variant: "working", shellLive: true }` — and each of those is three
+   * fields honest alone and lying jointly. Transporting one is also the wrong
+   * answer on the merits, because a fold has to agree with the variant THIS
+   * build will paint, which after narrowing may not be the one the wire named.
+   * So a fold is recomputed, always, and the illegal combination is unspellable
+   * rather than merely unlikely.
+   *
+   * THE TEST FOR THE NEXT FIELD that tempts somebody, so it is decided rather
+   * than re-argued: can the row compute it from what the bag already carries?
+   * Then it does not cross, and if the fold needs one input the bag lacks, that
+   * INPUT crosses instead. Both of these arrived as kolu removals — `motion` in
+   * kolu#2219, `shellLive` in the lens pass on #2219's head — and both times
+   * olai had been transporting a field nothing read, which `fleet.ts`'s own law
+   * already forbade.
    */
   pip: Schema.Struct({
     variant: Schema.String,
@@ -268,7 +291,7 @@ export const FleetTerminal = Schema.Struct({
     active: Schema.Boolean,
     asking: Schema.Boolean,
     bytesLive: Schema.Boolean,
-    shellLive: Schema.Boolean,
+    hasAgent: Schema.Boolean,
     sleeping: Schema.Boolean,
     alert: Schema.Boolean,
     alertLabel: Schema.String,

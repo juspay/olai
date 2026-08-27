@@ -13,10 +13,10 @@
   },
   "//dependencies": "No workspace sibling, deliberately: the store is generic over its content and must not know what an outline is (docs/brainstorming/architecture.live-store.md). If @olai/format ever appears here, the seam has leaked.",
   "dependencies": {
-    "effect": "4.0.0-rc.110"
+    "effect": "4.0.0-rc.112"
   },
   "//devDependencies": "@effect/platform-node is the FileSystem the unit tests probe a real temp directory through. It is a DEV dependency and stays one: the store asks for the `FileSystem` service and never names an implementation, which is what lets the same probe run under the server's Node layer, a test's, and whatever the browser or a worker would bring. Pinned with the rest of the fleet — see the root package.json overrides.",
   "devDependencies": {
-    "@effect/platform-node": "4.0.0-rc.110"
+    "@effect/platform-node": "4.0.0-rc.112"
   }
 }

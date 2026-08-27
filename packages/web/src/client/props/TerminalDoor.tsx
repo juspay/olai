@@ -261,9 +261,9 @@ function Row(props: {
    * duration renders the dash without touching a clock.
    */
   const recency = (): RowRecency =>
-    rowRecency(pip(), props.row.recencyAt, props.row.recencyAt, {
-      tick: now,
-      stable: now,
+    rowRecency(pip(), { window: props.row.recencyAt, own: props.row.recencyAt }, {
+      counting: now,
+      glancing: now,
     })
   return (
     <DockSection surface="desktop" repoColor="var(--color-rule)">

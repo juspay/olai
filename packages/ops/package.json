@@ -19,11 +19,11 @@
     "@olai/git": "workspace:*",
     "@olai/index": "workspace:*",
     "@olai/store": "workspace:*",
-    "effect": "4.0.0-rc.110"
+    "effect": "4.0.0-rc.112"
   },
   "//devDependencies": "@effect/platform-node is the FileSystem the tests drive a real temp directory through, exactly as @olai/store's are. @types/node is for the node built-ins the tests reach for. @olai/log is here for its `./testlib` collector ONLY — hearing a log line has exactly one spelling in this tree. It is deliberately not a runtime dependency: the levels and the verbs are Effect's, so nothing in src/ imports it.",
   "devDependencies": {
-    "@effect/platform-node": "4.0.0-rc.110",
+    "@effect/platform-node": "4.0.0-rc.112",
     "@olai/log": "workspace:*",
     "@types/node": "^22.0.0"
   }

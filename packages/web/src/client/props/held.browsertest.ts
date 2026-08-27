@@ -35,7 +35,7 @@ const row = (id: string, bucket = "working"): FleetTerminal => ({
     active: true,
     asking: false,
     bytesLive: true,
-    shellLive: false,
+    hasAgent: true,
     sleeping: false,
     alert: false,
     alertLabel: "",

@@ -60,9 +60,9 @@ const bagFor = (record: Parameters<typeof rowSubline>[0], klass: "asking" | "wor
   // every row olai draws, is a degenerate window — see `TerminalDoor.tsx`.
   const at = record.lastActivityAt ?? null
   const NOW = 1_700_000_000_000
-  const recency = rowRecency({ asking: pip.asking, active: pip.active }, at, at, {
-    tick: () => NOW,
-    stable: () => NOW,
+  const recency = rowRecency({ asking: pip.asking, active: pip.active }, { window: at, own: at }, {
+    counting: () => NOW,
+    glancing: () => NOW,
   })
   return {
     pip,
