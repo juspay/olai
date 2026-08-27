@@ -218,6 +218,8 @@ A tool call is one folded line, and what the call CHANGED is not folded away —
 
 **A file the agent rewrote** — a `.md`, a source file, anything that is not a node — shows its diff, right there in the conversation: the path, how many lines came and went, and the change itself, with the unchanged stretches between two edits collapsed so what you read first is what moved. A long line wraps inside the change — the line number and the +/- stay in their column — so the conversation never grows a horizontal scrollbar. It is TRIMMED to a few lines, and a click opens the rest where it stands. That is the one thing the transcript is for here: an edit like this appears in no outline, so before it was drawn, the only way to see what an agent had done to a file was a terminal.
 
+An edit a SUBAGENT made is drawn the same way, in that agent's own shelf rather than in the conversation — see [when the agent sends other agents](#when-the-agent-sends-other-agents). Same box, same trim, same click; one door away, because the conversation is the main agent's.
+
 **One edit can show up as several of those boxes**, and it is not a bug when it does: the agent reports what its patch actually did, one block per place the change landed, so an edit that touched three parts of a file is three boxes under the one name — each with its own lines and its own counts, each trimmed and expanded on its own. They are three things that happened to that file, and running them together would be the panel deciding they were one.
 
 **An outline never gets a text diff**, and that is deliberate: an outline is one line per node, so a text diff of one would be a single enormous line with everything on it changing at once. What shows instead is what changed about the NODE, in the same words the Commit panel uses for the same edit — *marked done*, *note rewritten*, *moved* — with the outline it lives in and, when the rollup has something to say, its remark underneath. The tree in front of you has already moved anyway; this is the sentence that says which write did it.
@@ -266,6 +268,8 @@ What is on it is what the harness itself says: the **description** the task was 
 
 That is not a second copy of the row. A background task's row is at its *birth position*: a monitor armed at the top of a three-hour session is three hours of scrollback away by the time you wonder whether it is still up — and you wonder at the bottom, where you are. The strip is above the scroll and never carried away by it, so the question has an answer wherever you are reading. It is absent when nothing is running, which is nearly every conversation.
 
+**An agent the turn sent out is on that same strip**, for the same reason and one step further — pressing it opens what that agent is doing. A background task is not pressable, because a task's own events reach nothing olai can read. That half is [below](#when-the-agent-sends-other-agents).
+
 **And its death lands where you are looking.** When the task ends, the strip clears and a fresh row arrives at the bottom of the transcript, at that moment:
 
 ```
@@ -293,48 +297,72 @@ The word after the description is the **harness's own** — `completed`, `failed
 - **An agent that is not Claude Code** says none of this, so its background work is drawn as it always was: a call that completed at the moment it started. Nothing here guesses from a tool's name.
 ## When the agent sends other agents
 
-An agent can spawn agents of its own — one to search, one to read, several at once — and their work comes back to olai on the same wire as everything else the turn does. So it is drawn as what it is: a call a subagent made sits **indented behind a rail**, under the call that spawned it, and the ordinary column is the main agent's own.
+An agent can spawn agents of its own — one to search, one to read, five at once — and their work comes back to olai on the same wire as everything else the turn does. **It does not come into this conversation.**
 
-Where a stretch of one agent's work begins, the lane says whose it is — the description the agent was sent with, *explore the outline*, *review the notes* — and then stops repeating itself: a subagent that reads ten files gets one name and ten rows, not ten names. That name comes back whenever the thread is picked up again, which is what makes two agents running at once readable: their calls interleave, and each stretch says which of them it was.
+That is the ruling, and it came from a real turn: five survey agents and a monitor, and the transcript became a wall of other agents' `cd … && grep …` with the main agent's own words pushed off the top of the screen. The panel was reporting, faithfully and at full length, on work nobody had asked to watch. So the column here is the main agent's and only the main agent's — its prose, its own calls, and every question anybody stops to ask you. A subagent's calls are filed under the agent that made them, and read where that agent is: on the strip, and in the shelf behind it.
 
-None of this is anything you turn on, and there is nothing to fold: a turn that spawned nobody looks exactly as it always did. What it replaces is a panel where three agents grepping at once and one agent grepping three times were the same five lines — which was the only thing in this conversation that was not true.
-
-### An agent that has not reported back yet
-
-**A rail drops out of the call that sent an agent out, at the moment it sends one**, and it says the agent is working — which is already true before it has done anything you can see:
+**The call that sent the agent out stays exactly where it was.** It is the main agent's own call — it is the record of what happened — so it keeps its place in the conversation, its title, its ending, and the agent's report in its fold. Scrolling back to it a week later still tells the story.
 
 ```
 · read every note                        ↳ Explore
 │ ● working…
+│ ↳ 7 calls
 ```
 
-That is the fix for the thing everything above missed. A lane is drawn out of work a subagent has ALREADY done, and a subagent's first act is to read its instructions, which produces nothing to draw — so for the whole of the stretch you actually watch a fan-out through, the panel had a pending dot with an ordinary title on it and nothing anywhere saying an agent had been started. Three agents out looked exactly like one slow `Read`.
+**Under it, the rail says the agent is working and the door says how much it has done.** Press the door and that agent's calls open in a shelf above the conversation — the same rows, behind the same rail, with the same folds, the same diffs and the same clocks they would have had in the column. It is the same drawing moved, never a summary of it.
 
-Three things are on that row and every one of them comes off the wire:
+The door is drawn only once there is something behind it. An agent that has just been sent out has made no calls yet — its first act is to read its instructions, which produces nothing — and the rail above already says the true thing about that stretch. An agent that finished having called nothing has its whole answer in the row's own fold.
 
-- **who it is** — the kind of agent, on the right of the row, in the words of whoever defined it: *Explore*, *general-purpose*, a name out of your own agents. A spawn that named no kind says the bare word **agent**, which is the honest thing to say about an agent nobody labelled — never rounded to whichever kind looks closest.
-- **what it was asked** — the row's own title, which is the short description the call was made with. The whole prompt is one click away, in the fold, where a call's arguments always are.
-- **that it is running** — the rail, which says *working…* and **goes away the moment the call stops**. One word, and it was briefly two: a *starting…* that became *working…* at the agent's first heartbeat. That read as more precise and was less true — every tool call is announced *pending* whether or not it has got going, the subagent is dispatched at once, and a heartbeat can be half a minute away, so a subagent whose work was already listed in the lane below went on being described as starting while you watched it. A face that outlived the agent would say a fan-out was running after the turn was over, which is the same lie in the other direction — so it also goes when the CONVERSATION stops, which is what covers the way this actually goes wrong: an agent that died between sending somebody out and reporting on it leaves a row that will never say it finished, and the rows a dead agent left are deliberately still on screen to read.
+None of this is anything you turn on, and a turn that spawned nobody looks exactly as it always did.
 
-Then the calls arrive in the lane that is already open under it, and when the agent reports back the row completes and its answer is in the fold. Nothing about the rest of the drawing changes — the same rail, the same names, in the same places.
+### The strip is the other door
+
+While an agent is out it is **on the strip above the scroll**, beside the background tasks, saying what it was sent to do and how long it has been gone:
+
+```
+● read every note 47s   ● review the notes 12s
+```
+
+That is the same strip a `Monitor` sits on and it is there for the same reason — a live fact you can only reach by scrolling is a live fact nobody reads — but for an agent it does one thing more: **it is pressable.** Five agents out is five entries and one shelf; press one and you are reading that agent, press it again and you are not. A background task is not pressable, and that is honest rather than inconsistent: a task's own events are on no wire olai can reach, so there is nothing behind that door and there never will be.
+
+The strip goes quiet when an agent reports back. **The record does not go with it** — the door under the spawning row is permanent, because that row is permanent, and it is where you go when you want to know what an agent actually did an hour after it finished.
+
+### An agent that does not come back
+
+**A subagent's death is said at the end of the transcript, where you are looking**, and not only on a row somewhere above:
+
+```
+the agent “survey the web package” ended (failed)
+```
+
+It is the same rule a background task's ending follows and it matters more here, because a subagent's calls are no longer in front of you: a fan-out whose agents quietly stop leaves nothing on the screen that changed. So the news comes to the bottom, at the moment it happens, in the harness's own word where there is one — and in olai's own where there is not, which is the turn ending with the agent still out: *the agent “…” ended (never reported back)*.
+
+An agent that came back FINE says nothing here, and that is the difference from a background task. A monitor's completion is news on a row that has been saying *still running* for an hour; a subagent has just reported into the fold of the row that sent it, and the main agent speaks in the next breath. A line per agent per fan-out would be five rows of furniture under an answer.
+
+**A whole agent dying is still one sentence, not one per agent it had out.** When the conversation itself falls over, that is what the panel says — once, at the bottom — and the rows every abandoned agent left are still there to read.
 
 ### When it is a subagent that asks
 
-A spawned agent can stop and ask — permission for a tool nothing recognises, or a question with options to pick from — and the form lands **in that agent's lane**, indented behind the same rail its calls are, with the lane naming who is asking:
+A spawned agent can stop and ask — permission for a tool nothing recognises, or a question with options to pick from — and **the form is in this conversation**, not in that agent's shelf:
 
 ```
 · explore the outline                    ↳ Explore
 │ ↳ explore the outline
 │ ┌ Allow `rg --files`?
 │ │  [ Allow Once ]  [ Deny ]
-│ grep for worktops
 ```
 
-That name is drawn on a form wherever it sits, which is the one place the *once per stretch* rule above does not apply. The reason is what a form is: the one row here where being wrong about who is speaking changes what you press. And you rarely meet it by reading down to it — a blocked question is announced in the composer, in the header and on the app's agent toggle (the thumb strip, on a phone), so you come looking for a form that may be anywhere, including scrolled off the top of a long turn with nothing above it you have read.
+That is deliberate and it is the one place the rule at the top of this section does not apply, because a question is not the subagent talking. It is a question **to you**, it blocks the turn, and a turn blocked on a form nobody meets hangs for as long as you fail to notice. A form behind a click is a form nobody presses — so a question was never subject to being moved, and there is no state of the panel in which one is hidden.
 
-Before this, the form was drawn in the ordinary column and read as the agent you are talking to. The second half was louder: a row in nobody's lane, landing between two of one subagent's calls, **ends the stretch** — so the lane opened again and introduced itself a second time under the form, and one agent's run read as two.
+It is drawn indented behind the same rail its calls would have been, **with the lane naming who is asking** — always, on every form, wherever it sits. The reason is what a form is: the one row here where being wrong about who is speaking changes what you press. And you rarely meet it by reading down to it — a blocked question is announced in the composer, in the header and on the app's agent toggle (the thumb strip, on a phone), so you come looking for a form that may be anywhere.
 
-**What is deliberately not drawn is the subagent's own prose.** The agent olai ships with does not send it: a spawned agent's text and thinking are stripped from the feed unless a client asks for a nested transcript, and olai does not ask. So a running subagent is its calls and its status here, and the one place its own words appear is the report it hands back at the end. That is a floor rather than a preference — but it also means the main agent's voice in this panel is only ever the main agent's, which is worth having.
+The form is not copied into the shelf either. One decision drawn as two forms is one of them pressed by somebody who cannot see the other; so a run with a question in it reads as a gap in that agent's calls, and the answer is where the conversation is.
+
+**What is deliberately not drawn at all is the subagent's own prose.** The agent olai ships with does not send it: a spawned agent's text and thinking are stripped from the feed unless a client asks for a nested transcript, and olai does not ask. So a running subagent is its calls and its status here, and the one place its own words appear is the report it hands back at the end. That is a floor rather than a preference — but it also means the main agent's voice in this panel is only ever the main agent's, which is worth having.
+
+### What an agent whose feed says none of this looks like
+
+Nothing above is guessed from a tool's name. Whether a call sent an agent out, and which agent a call was made inside, are two facts olai reads off the frames — and an agent that carries neither (opencode does not) is drawn exactly as it always was: one column, every call in it, no strip entries, no doors and no shelf. That is the direction this is safe to be wrong in, and it is the direction it is wrong in.
 
 ## When it is waiting on you
 

@@ -111,9 +111,19 @@ export interface Chat {
   /** Where the conversation stands: session, model, commands, whether a turn
    *  is running. */
   readonly state: Accessor<ChatState>
-  /** The row KEYS, in conversation order. Keys rather than values so a
-   *  `<For>` over them diffs stable strings — see the header. */
+  /** The row KEYS OF THE CONVERSATION'S OWN COLUMN, in order. Keys rather than
+   *  values so a `<For>` over them diffs stable strings — see the header.
+   *
+   *  NOT every row: a subagent's tool calls are filed under the agent that
+   *  made them and are drawn where that agent is drawn ({@link lanes}), so this
+   *  is the main agent's work and the reader's, plus every question whoever
+   *  asked it. */
   readonly rows: Accessor<ReadonlyArray<string>>
+  /** ... and each spawned agent's own calls, by the transcript key of the
+   *  `Agent` frame that sent it out — what a preview of that agent draws, in
+   *  the same order the conversation put them in. Empty for every conversation
+   *  that spawned nobody. */
+  readonly lanes: Accessor<ReadonlyMap<string, ReadonlyArray<string>>>
   /** One row's current value, read lazily inside that row. `undefined` while a
    *  key is in the list and its value has not arrived (or has just left). */
   readonly entry: (key: string) => Accessor<ChatEntry | undefined>
@@ -380,7 +390,8 @@ export const createChat = (): Chat => {
 
   return {
     state,
-    rows,
+    rows: rows.keys,
+    lanes: rows.lanes,
     entry,
     refused,
     refuse: (reasons) =>

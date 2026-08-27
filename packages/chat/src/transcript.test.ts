@@ -614,6 +614,199 @@ describe("tool calls", () => {
   })
 })
 
+// A SUBAGENT'S ENDING IS THE ONE THING A READER IS OWED WHERE THEY ARE LOOKING.
+//
+// Its calls have left this column — the panel files them under the `Agent` row
+// that made them — so a fan-out that goes wrong changes nothing on screen, and
+// the spawning row is at its birth position, which for a five-agent fan-out is
+// above five agents' worth of whatever the main agent said next. So an ending
+// is ALSO a line at the bottom, in the same place a background task's death
+// lands and through the same guard.
+//
+// The word is what these are mostly about. *The background task “survey the web
+// package” ended (failed)* is a sentence about a shell; what happened is that an
+// agent died, and a person reading a fan-out has to tell those apart at a glance
+// to know whether the work they are waiting on is coming.
+
+describe("an agent that was sent out", () => {
+  /** The frame the adapter sends as an `Agent` tool use starts: a title, a
+   *  running status, and the fact that this one sent somebody. */
+  const sent = {
+    title: "survey the web package",
+    status: "in_progress" as const,
+    spawned: { kind: "Explore" },
+  }
+
+  /** The lines at the bottom, which is the whole subject here — a death is
+   *  counted as well as read, because reporting one death twice is the failure
+   *  half of these exist against. */
+  const notices = (transcript: Transcript): ReadonlyArray<string> =>
+    rows(transcript).filter((entry) => entry.kind === "notice").map((entry) => entry.text)
+
+  test("a spawn whose call fails says an AGENT ended, not a background task", () => {
+    // A SYNCHRONOUS subagent arms nothing — only an async `Agent` launch
+    // registers a task with the harness — so there is no harness ending to read
+    // and the row's own `failed` is the whole of what happened. Without this the
+    // one visible trace of a dead agent is a status on a row somewhere above.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", sent)
+    transcript.say("meanwhile I will keep reading the other package")
+    transcript.tool("toolu_01AGENT", { status: "failed" })
+
+    const said = rows(transcript)
+    // At the BOTTOM, under what the main agent went on to say — and the call's
+    // own row keeps its ending, because a reader who scrolls back is owed it.
+    expect(said[said.length - 1]).toMatchObject({
+      kind: "notice",
+      text: "the agent “survey the web package” ended (failed)",
+    })
+    expect(said[0]).toMatchObject({ kind: "tool", status: "failed" })
+  })
+
+  test("a spawn that comes back lands no line at all", () => {
+    // The carve-out, and the reason it is not symmetrical with a task's. A
+    // task's completion is news on a row that has been saying *still running*
+    // for an hour; a subagent's is not — it reported into its own row's fold and
+    // the main agent speaks in the very next breath. A line here would be one
+    // row of furniture per agent per fan-out.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", sent)
+    transcript.tool("toolu_01AGENT", { status: "completed" })
+
+    expect(notices(transcript)).toEqual([])
+    expect(rows(transcript)).toHaveLength(1)
+  })
+
+  test("an async spawn's every ending is said, good ones included", () => {
+    // The other kind of spawn: an async launch IS a background task, and the
+    // harness reports how it ended in a turn of its own, minutes later. That
+    // ending keeps the line a task's ending has always had — the row is far
+    // above by then — and only the word changes.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.settle()
+    transcript.user("what else is on the list?")
+    transcript.say("this and that")
+    transcript.settle()
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+
+    expect(notices(transcript)).toEqual([
+      "the agent “survey the web package” ended (completed)",
+    ])
+  })
+
+  test("ONE DEATH IS ONE ROW, however many ways it is reported", () => {
+    // The bug the re-keying closes. An async `Agent` launch ends TWICE as far
+    // as this file is concerned — the call reaches `failed`, and the harness
+    // says how the task it armed ended — and the two guards used to be in two
+    // key spaces: one remembered by the row, one by the task's own id. So they
+    // could not see each other, and the one death a person actually watches for
+    // was reported to them twice, in two lines, at the bottom.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    // The call falls over first — its own status, with nothing about the task.
+    transcript.tool("toolu_01AGENT", { status: "failed" })
+    // ... and the harness's ending for the task it armed arrives after it.
+    transcript.tool("toolu_01AGENT", {
+      status: "failed",
+      armed: { task: "bu13xz2ie", ended: "failed" },
+    })
+
+    expect(notices(transcript)).toEqual([
+      "the agent “survey the web package” ended (failed)",
+    ])
+    expect(rows(transcript)).toHaveLength(2)
+  })
+
+  test("the harness's sentence about a dead agent refines that one row", () => {
+    // The two bookends, one row over from the task case: a guaranteed patch
+    // carrying the ending, and the notification carrying the sentence a beat
+    // later. A second row would be the same death reported twice — which is
+    // exactly what a reader at the bottom would read it as.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", {
+      status: "failed",
+      armed: { task: "bu13xz2ie", ended: "failed" },
+    })
+    expect(notices(transcript)).toEqual([
+      "the agent “survey the web package” ended (failed)",
+    ])
+
+    transcript.tool("toolu_01AGENT", {
+      status: "failed",
+      armed: { task: "bu13xz2ie", ended: "failed" },
+      progress: 'Agent "survey the web package" exited before reporting',
+    })
+    expect(notices(transcript)).toEqual([
+      'Agent "survey the web package" exited before reporting',
+    ])
+  })
+
+  test("an ordinary background task is still a background task", () => {
+    // The half that keeps the new word honest. Nothing about a task's death
+    // moved: a monitor is not an agent, a reader who learned that sentence over
+    // three hours of session is owed it unchanged, and the only thing that
+    // decides between the two words is whether the call sent somebody out.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01WATCH", {
+      title: "Monitor",
+      status: "in_progress",
+      armed: { task: "bu13xz2ie", description: "kolu fleet watch" },
+    })
+    transcript.tool("toolu_01WATCH", {
+      status: "failed",
+      armed: { task: "bu13xz2ie", ended: "killed" },
+    })
+
+    expect(notices(transcript)).toEqual([
+      "the background task “kolu fleet watch” ended (killed)",
+    ])
+  })
+
+  test("a spawn its turn walked away from says it never reported back", () => {
+    // The ending NOTHING reports, and the reason a stranding is the one mark a
+    // reader has to be told about rather than shown: the mark lands on a row
+    // whose own calls are not in this column, so a fan-out whose agents never
+    // come back leaves nothing on screen that changed. The word is olai's own —
+    // the harness has none, because the harness does not know it happened.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", sent)
+    transcript.settle()
+
+    expect(notices(transcript)).toEqual([
+      "the agent “survey the web package” ended (never reported back)",
+    ])
+    expect(asKind(rows(transcript)[0], "tool")?.stranded).toBe(true)
+
+    // ... and said ONCE. Stranding is asked at both ends of every turn, so a
+    // line per idle spawn per turn would fill the bottom of the conversation
+    // with the same death.
+    transcript.begins()
+    transcript.settle()
+    expect(notices(transcript)).toHaveLength(1)
+  })
+
+  test("... but an agent out when the CONVERSATION died says nothing of its own", () => {
+    // The one stranding that mints nothing. A dead agent owes a reader one
+    // sentence about itself, which `chat.ts` publishes; six of them, one per
+    // agent it happened to have out, would bury it in its own consequences.
+    // The rows are still marked — the rails have to go out — and only the
+    // telling is left to the conversation.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", sent)
+    transcript.tool("toolu_02AGENT", { ...sent, title: "survey the server package" })
+    transcript.abandon()
+
+    expect(notices(transcript)).toEqual([])
+    expect(rows(transcript).map((entry) => asKind(entry, "tool")?.stranded))
+      .toEqual([true, true])
+  })
+})
+
 describe("what a turn leaves behind", () => {
   test("a call still running when the turn ends is marked, status untouched", () => {
     // The agent that would have reported has finished, so nothing will ever

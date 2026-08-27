@@ -215,12 +215,27 @@ const minted = (
  *
  * The harness's own summary is what a reader is owed — it names the task and
  * carries a background shell's exit code — and this is the honest thing to say
- * when the ending arrived without one: the task, by the name it was armed with,
- * and the word the harness ended it with. Never a word of ours: `stopped` and
- * `failed` are the harness's own, and a monitor somebody stopped did not fail.
+ * when the ending arrived without one: what it was, by the name it was armed
+ * or sent with, and the word it ended with. Never a word of ours where there is
+ * one to use: `stopped` and `failed` are the harness's own, and a monitor
+ * somebody stopped did not fail.
+ *
+ * WHAT IT WAS is a word rather than a fixed phrase because there are two kinds
+ * of thing that end this way now, and calling one of them by the other's name
+ * is worse than saying nothing. *The background task “survey the web package”
+ * ended (failed)* is a sentence about a shell; what actually happened is that
+ * an agent died, and a person reading a fan-out has to be able to tell those
+ * apart at a glance to know whether the work they are waiting on is coming.
  */
-const endedSaid = (name: string, ended: string): string =>
-  `the background task “${name}” ended (${ended})`
+const endedSaid = (what: string, name: string, ended: string): string =>
+  `the ${what} “${name}” ended (${ended})`
+
+/** ... and OLAI'S OWN WORD for the one ending nothing reports: the turn that
+ *  sent an agent out finished without it, so nobody is ever going to say what
+ *  became of it. The harness has no word for this because the harness does not
+ *  know it happened — which is exactly why it is spelled here, in olai's voice
+ *  and not in the harness's, beside the three that are the harness's own. */
+const STRANDED = "never reported back"
 
 const toolKey = (id: string): string => `tool:${id}`
 
@@ -295,9 +310,17 @@ export class Transcript {
    * ({@link tool}), which is the only thing that could make the claim untrue.
    */
   #stranded = new Set<string>()
-  /** Which row said a background task DIED, by the task's own id — so the
-   *  sentence the harness sends a beat after the ending refines that row
-   *  instead of minting a second one ({@link #dies}). */
+  /** Which row said something DIED, by the key of the row it happened to — so
+   *  the sentence the harness sends a beat after an ending refines that row
+   *  instead of minting a second one ({@link #dies}).
+   *
+   *  BY THE ROW rather than by the task's own id, which is what it was. A call
+   *  that armed a task and a call that sent an agent out are two ways of
+   *  ending, and an ASYNCHRONOUS `Agent` launch is both at once
+   *  (`acp/patches/README.md`) — so keyed by task id the two guards would be in
+   *  two key spaces, unable to see each other, and the one death a person
+   *  actually watches for would be reported to them twice. Every ending has a
+   *  row; only one of them has a task. */
   #ended = new Map<string, string>()
   /**
    * The calls whose NAME has been picked — the one place "this row has been
@@ -634,6 +657,26 @@ export class Transcript {
    * ends of every turn, and a frame per idle call per turn would be a
    * conversation republishing its whole history to say nothing.
    */
+  /**
+   * ... AND AN AGENT LEFT BEHIND IS A ROW AT THE BOTTOM, which a task left
+   * behind is not.
+   *
+   * Two facts make this the one stranding a reader has to be TOLD about rather
+   * than shown. A subagent's own calls are not in this conversation's column
+   * any more — the panel files them under the agent that made them — so a
+   * fan-out whose agents never report leaves a reader with nothing on screen
+   * that changed. And the spawning row is at its BIRTH POSITION, which for the
+   * turn that opened a five-agent fan-out is above five agents' worth of
+   * whatever the main agent went on to say. That is `#dies`' own argument
+   * arriving from the only other direction an ending comes from: the one where
+   * nothing reports it.
+   *
+   * ONLY AT A TURN'S END, never when the whole agent has gone
+   * ({@link abandon}, which is what `alsoArmed` means here). A dead agent owes
+   * a reader ONE sentence about itself — {@link ./chat.ts} publishes it — and
+   * six, one per agent it happened to have out, would bury it in its own
+   * consequences.
+   */
   #strand(alsoArmed: boolean): Change {
     let change: Change = EMPTY
     for (const [key, entry] of this.#entries) {
@@ -657,6 +700,13 @@ export class Transcript {
       if (!alsoArmed && isTaskOut(entry)) continue
       this.#stranded.add(key)
       change = both(change, this.#put(key, contentOf(entry)))
+      // ... and the news, for an agent and at a turn's end only. Through the
+      // same guard every other ending goes through ({@link #ended}, by the row
+      // it happened to), so a spawn that is stranded here after the harness has
+      // already reported how its task ended does not say so twice.
+      if (!alsoArmed && entry.spawned !== undefined) {
+        change = both(change, this.#dies(key, "agent", entry.text, STRANDED, undefined))
+      }
     }
     return change
   }
@@ -802,9 +852,41 @@ export class Transcript {
     // is a fact about what has been written, and {@link #dies} is what holds
     // that. A caller deciding it out here would be the same question answered
     // in two places, one of them by the order two frames happened to arrive in.
-    const died = armed?.ended === undefined
-      ? EMPTY
-      : this.#dies(armed.task, armed.description ?? text, armed.ended, move.progress)
+    //
+    // TWO WAYS TO END, and the second is a spawn's. A subagent's calls are not
+    // in this conversation's column any more — the panel files them under the
+    // agent that made them — so the one thing a reader is owed where they are
+    // looking is that an agent they sent is not coming back. A spawn that ARMED
+    // a task ends the first way (the harness says how, in its own word); a
+    // spawn that armed nothing — which is every SYNCHRONOUS subagent, since the
+    // patch registers a task only for an async launch — has nothing but its own
+    // call's status, so a `failed` on a spawn row is the ending.
+    //
+    // ONLY A BAD ONE for that second way. A task's completion is news on a row
+    // that has been saying *still running* for an hour; a subagent's is not —
+    // it reported back into the spawning row's own fold and the main agent
+    // speaks in the very next breath, so a line saying so would be one row of
+    // furniture per agent per fan-out.
+    //
+    // NOTHING HERE FIRES FOR A STRANDED SPAWN, which is the ending nothing
+    // reports: a call its turn walked away from is a call the agent will never
+    // speak about again, and for a subagent that means the CONVERSATION died.
+    // That is said once, for the conversation ({@link ./chat.ts}'s `gone`), and
+    // a dead agent with five agents out owes a reader one sentence rather than
+    // six.
+    const failed = spawned !== undefined && content.status === "failed"
+      && held?.status !== "failed"
+    const died = armed?.ended !== undefined
+      ? this.#dies(
+        key,
+        spawned === undefined ? "background task" : "agent",
+        armed.description ?? text,
+        armed.ended,
+        move.progress,
+      )
+      : failed
+      ? this.#dies(key, "agent", text, "failed", move.progress)
+      : EMPTY
     // A TOOL FRAME ENDS THE OPEN PARAGRAPH — the agent said something, then it
     // did something, and the next thing it says is a new paragraph. That is
     // true of a call made IN THIS TURN and it is the only kind of frame this
@@ -876,14 +958,20 @@ export class Transcript {
    * ({@link #ended}) rather than re-minted. A second row would be the same
    * death reported twice.
    */
-  #dies(task: string, name: string, ended: string, said: string | undefined): Change {
-    const already = this.#ended.get(task)
+  #dies(
+    row: string,
+    what: string,
+    name: string,
+    ended: string,
+    said: string | undefined,
+  ): Change {
+    const already = this.#ended.get(row)
     if (already === undefined) {
       // NOT CLOSING what is open. The death arrives whenever the harness says
       // so — which may be in the middle of somebody else's answer — and the
       // answer goes on being one paragraph with this line under it.
-      const { key, change } = this.#row("notice", said ?? endedSaid(name, ended), {}, false)
-      this.#ended.set(task, key)
+      const { key, change } = this.#row("notice", said ?? endedSaid(what, name, ended), {}, false)
+      this.#ended.set(row, key)
       return change
     }
     // The summary, arriving after the ending it belongs to. Nothing to say

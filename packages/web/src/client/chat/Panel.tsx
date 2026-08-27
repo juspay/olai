@@ -44,7 +44,7 @@
  * furniture on every panel in the app.
  */
 
-import { createSignal, Match, Show, Switch } from "solid-js"
+import { createEffect, createMemo, createSignal, Match, on, Show, Switch } from "solid-js"
 
 import type { AgentChoice } from "@olai/surface"
 
@@ -66,11 +66,14 @@ import { createAttention } from "./attention/attention.ts"
 import { Choose } from "./Choose.tsx"
 import { Composer } from "./Composer.tsx"
 import { DropTarget } from "./DropTarget.tsx"
+import { ElapsedProvider } from "./elapsing.tsx"
 import { Header } from "./Header.tsx"
 import { faceOf } from "./face.ts"
 import { createHolding } from "./holding.ts"
 import { createLastAgent } from "./last.ts"
 import { Minimized } from "./Minimized.tsx"
+import { Preview } from "./Preview.tsx"
+import { previewing } from "./previewing.ts"
 import { Roster } from "./Roster.tsx"
 import { Watching } from "./Watching.tsx"
 import { Busy } from "./Busy.tsx"
@@ -304,9 +307,48 @@ function Face(props: { readonly chat: Chat }) {
  */
 function Body(props: { readonly chat: Chat }) {
   const holding = createHolding(props.chat)
+  /**
+   * Whether anything is running in this conversation at all — WHEN THE PANEL'S
+   * ONE CLOCK TICKS ({@link ./elapsing.tsx}), and nothing else.
+   *
+   * TWO WAYS TO BE RUNNING. A turn in flight is the obvious one. The other is
+   * something the agent LEFT RUNNING and nobody has reported the end of — a
+   * background task, or an agent it sent out: a monitor spends its entire life
+   * in a conversation whose status is `idle`, which is exactly the state that
+   * used to stop the clock, so the longest-running thing in the panel was the
+   * one row whose readout never moved. What is out is the server's
+   * (`ChatState.watching`, read off the rows it already holds), and the same
+   * list the strip above the scroll draws ({@link ./Watching.tsx}).
+   *
+   * ONE memo for the whole panel rather than one per row, and a BOOLEAN rather
+   * than the state: every row's readout would otherwise subscribe to the chat
+   * cell, which moves several times a turn as the context usage is revised, and
+   * re-run for each of them. A boolean propagates only when it flips.
+   *
+   * HERE RATHER THAN IN THE TRANSCRIPT, which is where it was, because there
+   * are two places tool rows are drawn now: the conversation, and the shelf
+   * that previews one subagent's calls. Every tool row asks for the elapsed
+   * reading in its own body and that lookup THROWS outside the provider — so a
+   * shelf mounted beside the transcript rather than inside it needed the
+   * provider above them both. Which is what `./elapsing.tsx` always said it
+   * was: ONE clock for the panel. A second provider inside the shelf would be a
+   * second timer and a second subscription to the cell.
+   */
+  const live = createMemo(() => {
+    const state = props.chat.state()
+    return state.status === "thinking" || state.watching.length > 0
+  })
   return (
     <DropTarget onFiles={(files) => void holding.take(files)}>
-      <Transcript chat={props.chat} />
+      <ElapsedProvider live={live()}>
+        {/* ABOVE THE CONVERSATION AND INSIDE THE SAME COLUMN — a shelf rather
+            than an overlay, so the transcript keeps its own scroll, its
+            follow-the-bottom and the reveal that puts a blocked form in front
+            of somebody ({@link ./Preview.tsx} argues the placement). It is
+            absent whenever nothing is open, which is nearly always. */}
+        <Preview chat={props.chat} />
+        <Transcript chat={props.chat} />
+      </ElapsedProvider>
       {/* BETWEEN the two, which is the whole point of it: the reader's eye is
           at the bottom of the transcript because that is where their own
           message just landed, and this is the line under it
@@ -360,6 +402,26 @@ function MobileSheet() {
     if (drag !== null) return drag
     return chatSnap() === "full" ? 92 : 50
   }
+
+  /**
+   * OPENING A SUBAGENT'S WORK GOES FULL, and this is the one place in the panel
+   * that has to know it.
+   *
+   * At the half snap this sheet is half a phone, and what is above the
+   * conversation in it — the header, the roster, the strip (three lines once
+   * five agents are out) — plus the composer under it already leave the
+   * transcript a hundred-odd pixels. A shelf on top of that squeezes the
+   * conversation toward its floor, and the conversation is where a question a
+   * subagent asked is drawn. So the sheet grows rather than the reader losing
+   * the thing they must not miss. The desktop dock is full height already and
+   * has no such gesture, which is why this lives here and not in
+   * {@link ./previewing.ts}: what the panel does about its own geometry is the
+   * panel's, and a rule module that reached for a layout preference would move
+   * the phone's snap from a click made on a desk.
+   */
+  createEffect(on(previewing, (open) => {
+    if (open !== null) setChatSnap("full")
+  }, { defer: true }))
 
   const onHandlePointerDown = (event: PointerEvent) => {
     if (event.button !== 0) return

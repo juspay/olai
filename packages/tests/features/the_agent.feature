@@ -81,26 +81,58 @@ Feature: Talking to the agent
     And the agent is idle
 
   @scratch:chat
-  Scenario: An agent the agent spawned is drawn as one, not as the agent itself
-    # A subagent's tool calls come back on the SAME feed as the main agent's,
-    # with nothing in the protocol to tell them apart — so the panel drew a
-    # turn that spawned three agents as one agent doing everything, and there
-    # was no way to tell from the conversation that a subagent had ever been
-    # started. The adapter does know, and says so in a `_meta` olai used to
-    # drop on the floor.
+  Scenario: The conversation is the main agent's, and a subagent's calls are behind a door
+    # The human, with a screenshot of the panel drowning: five survey agents
+    # out, and the transcript a wall of other agents' `cd … && grep …` with the
+    # main agent's own words pushed off the top of the screen. Being able to
+    # tell WHOSE wall of text you are drowning in — which is what the lanes
+    # bought — is not the same as not drowning.
+    #
+    # So the column is the main agent's. What is left of a fan-out in it is the
+    # calls the main agent itself made, each with a door under it saying how
+    # much is behind it. Two agents, three calls between them.
     When I ask the agent "subagent"
-    Then the chat draws a subagent's tool call under the call that spawned it
+    Then the conversation carries none of the subagent's calls
+    And the call that spawned it offers a door to 2 calls
     And the call that spawned it is in no lane of its own
 
   @scratch:chat
-  Scenario: Two agents at once each say which one is which
-    # The case a rail alone cannot answer, and the reason anybody spawns agents
-    # in the first place: two running together interleave on one feed, so a
-    # lane that resumes under somebody else's work has to name itself. Once per
-    # stretch, though — a subagent's ten reads are not ten copies of its name.
+  Scenario: Pressing that door opens the agent's own work, drawn as it always was
+    # The other half, and the claim that makes the first half honest rather than
+    # merely quieter: nothing is thrown away. Behind the door are the very rows
+    # that used to be in the column — the same frames, behind the same rail,
+    # with the same folds — and only that agent's, which is the thing a wall of
+    # interleaved calls could never give you.
     When I ask the agent "subagent"
-    Then the chat draws 3 tool calls in subagent lanes
-    And exactly one lane names itself, as "explore the outline"
+    And I open the agent's work from the transcript
+    Then the agent's work is open, and it is "explore the outline"
+    And the agent's work shows 2 calls
+    And the agent's work is above the conversation and clear of the box
+    And I can close the agent's work
+
+  @scratch:chat
+  Scenario: The strip is the other door, and it carries one entry per agent out
+    # A fan-out is watched WHILE it runs, and while it runs the spawning row is
+    # already scrolling away — so the live door is above the scroll, where the
+    # background tasks are and for the same reason. Five agents out is five
+    # entries and one shelf: you pick.
+    #
+    # Asserted while they are still out, which is the only moment this claim is
+    # falsifiable.
+    When I ask the agent "subagent slow"
+    Then the strip lists 1 agents still out
+    When I open "read every note" from the strip
+    Then the agent's work is open, and it is "read every note"
+    # ... and an agent that has been sent out and called nothing yet says so,
+    # rather than opening an empty box: its first act is to read its
+    # instructions, which produces no frame at all.
+    And the agent's work shows nothing yet
+    When the agent is released
+    Then the strip lists no agent still out
+    # THE RECORD DOES NOT GO WITH THE STRIP. The agent has reported back and is
+    # off the strip; the shelf it was opened into is still open on it, because
+    # a record you could read only while you were too busy to is not a record.
+    And the agent's work shows 1 calls
 
   @scratch:chat
   Scenario: An agent that has been sent out and reported nothing yet still has a face
@@ -118,9 +150,13 @@ Feature: Talking to the agent
     # would look right too.
     When I ask the agent "subagent slow"
     Then the chat says an agent is working, of the kind "Explore"
-    And no tool call is drawn in a subagent lane
+    # ... and NOTHING else, which is what makes the rail the whole of the claim:
+    # there is no call to draw and so no door to offer, and a control opened
+    # onto an empty box at the one moment somebody is watching hardest would be
+    # worse than the true sentence above it.
+    And the call that spawned it offers no door yet
     When the agent is released
-    Then the chat draws a subagent's tool call under the call that spawned it
+    Then the call that spawned it offers a door to 1 calls
     And the chat says no agent is still working
 
   @scratch:chat
@@ -1516,6 +1552,13 @@ Feature: Talking to the agent
     Then the chat shows a question
     And the question is drawn in the lane of the agent that asked it
     And the question's lane names itself, as "explore the outline"
+    # THE CONSTRAINT THIS SCENARIO NOW ALSO CARRIES, and the sharper half of it.
+    # A subagent's calls are filed under that agent and read through a door —
+    # and a QUESTION is the one row deliberately exempt from that. It is not the
+    # subagent talking: it is a question to the reader, it blocks the turn, and
+    # a form behind a click is a turn that hangs forever. So the form is HERE,
+    # in the conversation, in the very turn whose calls are not.
+    And the conversation carries none of the subagent's calls
     When I choose "Allow Once"
     And I answer the question
     Then the agent's answer mentions "permission: allow"
@@ -1534,6 +1577,9 @@ Feature: Talking to the agent
     Then the chat shows a question
     And the question is drawn in the lane of the agent that asked it
     And the question's lane names itself, as "explore the outline"
+    # ... and here too, on the path where the attribution is remembered rather
+    # than read: the calls are behind the door and the form is not.
+    And the conversation carries none of the subagent's calls
     When I choose "oak"
     And I answer the question
     Then the agent's answer mentions "oak"

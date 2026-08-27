@@ -69,6 +69,7 @@ import {
   CHAT_INSTALL,
   CHAT_INTERRUPT,
   CHAT_LANE,
+  CHAT_LANE_DOOR,
   CHAT_LANE_LABEL,
   CHAT_MINE,
   CHAT_MISSING,
@@ -83,6 +84,10 @@ import {
   CHAT_QUEUES,
   CHAT_OUTLINE_DIFF,
   CHAT_PANEL,
+  CHAT_PREVIEW,
+  CHAT_PREVIEW_NOTHING,
+  CHAT_PREVIEW_OF,
+  CHAT_PREVIEW_SHUT,
   CHAT_REFUSAL,
   CHAT_REOPEN,
   CHAT_RESEND,
@@ -1594,13 +1599,6 @@ Then("the tool call's detail is folded away", async function (this: OlaiWorld) {
 
 // ── subagent lanes ─────────────────────────────────────────────────────
 
-/** The lane a subagent's row is drawn in, and the `Agent` frame it names. The
- *  attribution is the `data-lane`, not the indent: an indent is a thing a
- *  panel could get right by accident, and this is a claim about WHICH agent.
- *  The indent is asserted too, as GEOMETRY, one step down — both halves,
- *  because either alone passes a build that lost the other. */
-const firstLane = (world: OlaiWorld) => world.page.locator(CHAT_LANE).first();
-
 /** One row of the conversation, as a selector. Spelled once, the way a node
  *  and a day already are (`world.ts`): three literals of one scheme in one
  *  file is two of them being missed the day the scheme moves. */
@@ -1682,26 +1680,18 @@ const drawnInALane = async (
 };
 
 Then(
-  "the chat draws a subagent's tool call under the call that spawned it",
-  async function (this: OlaiWorld) {
-    const lane = firstLane(this);
-    await drawnInALane(
-      this,
-      lane,
-      lane.locator(CHAT_ENTRY).first(),
-      "the subagent's row",
-      "a lane that names no agent is an indent, not an attribution",
-    );
-  },
-);
-
-Then(
   "the call that spawned it is in no lane of its own",
   async function (this: OlaiWorld) {
-    // The other half of the claim, and the one that catches a panel indenting
-    // everything: the `Agent` call is the MAIN agent's own, so it sits in the
-    // conversation's own column with the lane hanging off it.
-    const parent = await firstLane(this).getAttribute("data-lane");
+    // The other half of the claim, and the one that catches a panel that filed
+    // the WRONG row away: the `Agent` call is the MAIN agent's own work, so it
+    // stays in the conversation's own column with the door hanging off it —
+    // which is the whole reason the record is still reachable an hour later.
+    //
+    // Asked of the DOOR rather than of a lane, because a lane is what this
+    // change removed from the column: a subagent's calls are not drawn there
+    // any more, so there is no longer a lane to read the spawn's key off.
+    const parent = await this.page.locator(CHAT_LANE_DOOR).first().getAttribute("data-lane");
+    assert.ok(parent !== null && parent !== "", "a door that names no agent opens onto nothing");
     const nested = await this.page
       .locator(`${CHAT_LANE} ${entrySelector(parent ?? "")}`)
       .count();
@@ -1744,18 +1734,6 @@ Then(
     await insetBelow(this, spawner ?? "", working, "the agent that was sent out");
   },
 );
-
-Then("no tool call is drawn in a subagent lane", async function (this: OlaiWorld) {
-  // The other half, and the one that makes the assertion above mean anything:
-  // the agent has produced NOTHING, so every lane the old panel could draw is
-  // absent and the face on screen is the spawn's own.
-  assert.strictEqual(
-    await this.page.locator(CHAT_LANE).count(),
-    0,
-    "a subagent's work is on screen; this scenario is about the stretch " +
-      "before any of it exists",
-  );
-});
 
 Then(
   "the chat still shows a call that sent out an {string}",
@@ -2043,17 +2021,6 @@ Then("the chat times no call", async function (this: OlaiWorld) {
     HYDRATION_TIMEOUT,
   );
 });
-
-Then(
-  "the chat draws {int} tool calls in subagent lanes",
-  async function (this: OlaiWorld, many: number) {
-    await this.waitUntil(
-      async () => (await this.page.locator(CHAT_LANE).count()) === many,
-      `${many} rows to be drawn in subagent lanes`,
-      HYDRATION_TIMEOUT,
-    );
-  },
-);
 
 Then(
   "exactly one lane names itself, as {string}",
@@ -3324,4 +3291,171 @@ Then(
  *  uninstalling an agent between two serves looks like from here. */
 When("opencode is no longer installed", function (this: OlaiWorld) {
   this.hasOpencode = false;
+});
+
+/**
+ * WHAT A SUBAGENT LEFT BEHIND IN THE CONVERSATION, which is meant to be
+ * nothing but the call that sent it.
+ *
+ * A lane in the column is not by itself a failure — a QUESTION is deliberately
+ * still drawn in one, because a form behind a click is a turn that hangs
+ * forever. What may not be there is a subagent's WORK, so the claim is spelled
+ * over lanes that contain a tool call rather than over lanes.
+ */
+const laneCalls = (world: OlaiWorld) =>
+  world.page.locator(`${CHAT_LANE}:has(${CHAT_TOOL})`);
+
+Then(
+  "the conversation carries none of the subagent's calls",
+  async function (this: OlaiWorld) {
+    await this.waitUntil(
+      async () => (await laneCalls(this).count()) === 0,
+      "the transcript to carry no subagent tool calls",
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+Then(
+  "the call that spawned it offers a door to {int} calls",
+  async function (this: OlaiWorld, many: number) {
+    const door = this.page.locator(CHAT_LANE_DOOR).first();
+    await door.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const said = oneLine(await door.innerText());
+    assert.ok(
+      said.includes(String(many)),
+      `the door says "${said}" rather than naming ${many} calls behind it`,
+    );
+    // WHICH agent it opens, off the attribute rather than off the words: the
+    // door and the record are one thing named twice, and a control that named
+    // nothing would be an indent rather than a way in.
+    const opens = await door.getAttribute("data-lane");
+    assert.ok(opens !== null && opens !== "", "a door that names no agent opens onto nothing");
+    // ... and the same geometry a lane owes, because it is the same rail: a
+    // door drawn level with the conversation says the main agent did this.
+    await insetBelow(this, opens ?? "", door, "the door onto a subagent's work");
+  },
+);
+
+Then("the call that spawned it offers no door yet", async function (this: OlaiWorld) {
+  // The other half of the stretch this scenario is about: the agent has made
+  // no calls, so there is nothing behind a door — and a control that opened an
+  // empty box at the one moment somebody is watching hardest is worse than the
+  // rail above it, which is already saying the true thing.
+  assert.strictEqual(
+    await this.page.locator(CHAT_LANE_DOOR).count(),
+    0,
+    "a door is offered onto an agent that has not called anything",
+  );
+});
+
+When("I open the agent's work from the transcript", async function (this: OlaiWorld) {
+  await this.page.locator(CHAT_LANE_DOOR).first().click();
+});
+
+When("I open {string} from the strip", async function (this: OlaiWorld, named: string) {
+  // BY NAME, because the strip is the tab bar of a fan-out and the whole point
+  // of pressing one entry rather than another is which agent you get.
+  const entry = this.page
+    .locator(`${CHAT_WATCHING_TASK}[data-kind="agent"]`, { hasText: named })
+    .first();
+  await entry.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+  await entry.click();
+});
+
+Then("I can close the agent's work", async function (this: OlaiWorld) {
+  await this.page.locator(CHAT_PREVIEW_SHUT).click();
+  await this.waitUntil(
+    async () => (await this.page.locator(CHAT_PREVIEW).count()) === 0,
+    "the shelf to close",
+    HYDRATION_TIMEOUT,
+  );
+});
+
+Then(
+  "the agent's work is open, and it is {string}",
+  async function (this: OlaiWorld, named: string) {
+    const head = this.page.locator(CHAT_PREVIEW_OF);
+    await head.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const said = oneLine(await head.innerText());
+    assert.ok(
+      said.includes(named),
+      `the shelf is about "${said}" rather than about "${named}"`,
+    );
+  },
+);
+
+Then(
+  "the agent's work shows {int} calls",
+  async function (this: OlaiWorld, many: number) {
+    const rows = this.page.locator(`${CHAT_PREVIEW} ${CHAT_TOOL}`);
+    await this.waitUntil(
+      async () => (await rows.count()) === many,
+      `${many} of the agent's own calls to be drawn in the shelf`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+Then("the agent's work shows nothing yet", async function (this: OlaiWorld) {
+  // AN HONEST SENTENCE rather than an empty box: an agent's first act is to
+  // read its instructions, which produces no frame, and a shelf that drew
+  // nothing at all would read as one that had failed to load.
+  await this.page
+    .locator(CHAT_PREVIEW_NOTHING)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
+Then(
+  "the agent's work is above the conversation and clear of the box",
+  async function (this: OlaiWorld) {
+    // THE THREE THINGS THE PLACEMENT WAS CHOSEN FOR, measured rather than
+    // asserted in a docstring. It is a real browser claim and it earns a
+    // scenario: a shelf that overlapped the transcript would hide a question a
+    // subagent asked — which is the one row this whole design keeps in the
+    // conversation on purpose — and one that overlapped the box would take the
+    // reply away from somebody in the middle of typing it.
+    const shelf = await this.page.locator(CHAT_PREVIEW).boundingBox();
+    const pane = await this.page.locator(CHAT_TRANSCRIPT).boundingBox();
+    const box = await this.page.locator(CHAT_INPUT).boundingBox();
+    assert.ok(
+      shelf !== null && pane !== null && box !== null,
+      "the shelf, the conversation or the box is not drawn",
+    );
+    assert.ok(
+      shelf.y + shelf.height <= pane.y + 1,
+      `the shelf ends at ${shelf.y + shelf.height} and the conversation starts at ` +
+        `${pane.y} — a shelf drawn over the transcript hides the one row a ` +
+        "subagent's question is allowed to be",
+    );
+    assert.ok(
+      shelf.y + shelf.height <= box.y,
+      "the shelf reaches the composer; the reply is never what a preview costs",
+    );
+    assert.ok(
+      pane.height > 0,
+      "the conversation has been squeezed to nothing by the shelf above it",
+    );
+  },
+);
+
+Then(
+  "the strip lists {int} agents still out",
+  async function (this: OlaiWorld, many: number) {
+    const agents = this.page.locator(`${CHAT_WATCHING_TASK}[data-kind="agent"]`);
+    await this.waitUntil(
+      async () => (await agents.count()) === many,
+      `${many} agents to be listed on the strip`,
+      HYDRATION_TIMEOUT,
+    );
+  },
+);
+
+Then("the strip lists no agent still out", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () =>
+      (await this.page.locator(`${CHAT_WATCHING_TASK}[data-kind="agent"]`).count()) === 0,
+    "the strip to stop listing any agent",
+    HYDRATION_TIMEOUT,
+  );
 });
