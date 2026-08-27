@@ -52,14 +52,13 @@
 
 import { createResource, createSignal, Match, Show, Switch } from "solid-js"
 
-import { DockRow, DockSection } from "@kolu/solid-dockrow"
+import { DockRow, DockSection, type RowRecency } from "@kolu/solid-dockrow"
 import {
-  isDockRowBucket,
-  isPipGlyphId,
-  isPipMotionKind,
-  isPipVariant,
   narrowAgentState,
+  narrowRowVocab,
   recencyMode,
+  recencyText,
+
 } from "@kolu/solid-dockrow/rowValues"
 import type { FleetTerminal, Snapshot, SnapshotRefused } from "@olai/surface"
 import { TERMINAL_KEY } from "@olai/surface"
@@ -68,7 +67,7 @@ import { type BlockContext, registerBlock } from "./blocks.ts"
 import { LivePane } from "./LivePane.tsx"
 import { useFleet } from "./fleet.tsx"
 import { Handle } from "./handle.tsx"
-import { createRecencyNow, recencyText } from "./recency.ts"
+import { createRecencyNow } from "./recency.ts"
 import { readingOf } from "./terminal.ts"
 import { TESTID } from "../testids.ts"
 
@@ -208,27 +207,45 @@ function Row(props: {
   readonly onSelect: () => void
 }) {
   const now = createRecencyNow()
-  const pip = () => {
-    const bag = props.row.pip
-    return {
-      ...bag,
-      // The three pip fields the wire carries as text. A word this build does
-      // not know falls back to the quiet rendering rather than throwing: the
-      // row is a status readout, and a status readout that crashes the page it
-      // is on is worse than one that under-reports for a release.
-      variant: isPipVariant(bag.variant) ? bag.variant : "idle",
-      glyph: isPipGlyphId(bag.glyph) ? bag.glyph : "shell",
-      motion: isPipMotionKind(bag.motion) ? bag.motion : "none",
-    }
-  }
+  /**
+   * THE WIRE'S WORDS, narrowed by KOLU rather than here.
+   *
+   * This was four hand-picked fallbacks, and one of them was wrong in the way
+   * only kolu could have known: motion fell back to `"none"`, which stills the
+   * mark on a terminal the same bag calls active. `narrowRowVocab` does not
+   * default motion at all — it RE-FOLDS it from the narrowed variant and the
+   * bag's own `active`, through the same fold that produced the wire's word
+   * server-side. One fewer literal here, and the one that is gone is the one
+   * that lied.
+   *
+   * It takes `{ pip, bucket }` NESTED, which is deliberate on kolu's side: the
+   * bucket is the ORDER fold and the pip's variant is the PAINT fold, and they
+   * disagree in a case kolu names (a fresh `waiting` agent paints `linger`
+   * while the order bucket ranks it `idle`). Flattening them would assert one
+   * derives from the other.
+   */
+  const vocab = () => narrowRowVocab({ pip: props.row.pip, bucket: props.row.bucket })
+  const pip = () => vocab().pip
   const mode = () => recencyMode(pip())
+  /**
+   * THE RECENCY VALUE, assembled here because kolu exports the phrase and not
+   * the value. `RowRecency` is a discriminated union whose `hidden` arm carries
+   * NO text — a type-level rule — and `recencyText` refuses `"hidden"` at its
+   * signature, so every consumer has to write this branch itself. Filed as a
+   * finding against kolu#2219: `rowRecency.ts` composes exactly this, four
+   * lines, and the assembly is the part that drifts.
+   */
+  const recency = (): RowRecency => {
+    const m = mode()
+    return m === "hidden" ? { mode: m } : { mode: m, text: recencyText(m, props.row.recencyAt, now()) }
+  }
   return (
     <DockSection surface="desktop" repoColor="var(--color-rule)">
       <DockRow
         id={props.row.id as never}
         surface="desktop"
         pip={pip()}
-        bucket={isDockRowBucket(props.row.bucket) ? props.row.bucket : "idle"}
+        bucket={vocab().bucket}
         agentState={narrowAgentState(props.row.agentState).attr}
         label={props.row.label}
         labelColor={props.row.labelColor}
@@ -242,7 +259,7 @@ function Row(props: {
         renderLabel={(markdown) => markdown}
         subline={props.row.subline}
         pr={props.row.pr}
-        recency={{ mode: mode(), text: recencyText(mode(), props.row.recencyAt, now()) }}
+        recency={recency()}
         onSelect={() => {
           if (props.pressable) props.onSelect()
         }}

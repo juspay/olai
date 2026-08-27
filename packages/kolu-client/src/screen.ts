@@ -38,11 +38,14 @@
  *
  * A rendered buffer ends in the empty viewport below the cursor. Take the last
  * six lines of a fresh shell naively and you get six blank lines — a real bug
- * kolu caught on its own MCP face, which is why `@kolu/padi`'s `tailLines`
- * drops the trailing whitespace run before slicing. That function lives in the
- * DAEMON package, which this one exists not to install, so the fold is written
- * out below — three lines, and the reason is here rather than in a comment
- * pointing at code nobody can import.
+ * kolu caught on its own MCP face, which is why its `tailLines` drops the
+ * trailing whitespace run before slicing.
+ *
+ * That fold WAS written out here, because the only copy of it lived in the
+ * daemon package this one exists not to install. kolu#2219 moved it to
+ * `@kolu/padi-client/screenTail`, a leaf, so the copy is deleted and the
+ * function imported — which is the whole shape of this lane: the reason a
+ * consumer restates something is almost always where it lives, not what it is.
  *
  * ## The two refusals
  *
@@ -58,6 +61,12 @@
  */
 
 import { type Snapshot, SnapshotRefused } from "@olai/surface"
+import { tailLines } from "@kolu/padi-client/screenTail"
+
+/** Re-exported so this package's own tests pin kolu's fold rather than a
+ *  copy of it — the point of the swap is that there is one implementation, and
+ *  a test importing a different one would defeat it. */
+export { tailLines }
 import { Effect } from "effect"
 
 /**
@@ -95,13 +104,6 @@ export type ScreenReader =
  * rather than imported, and for the blank-tail bug it exists to avoid. Blank
  * lines BETWEEN content are kept verbatim: they are what the terminal printed.
  */
-export const tailLines = (text: string, lines: number): string => {
-  const all = text.split("\n")
-  let end = all.length
-  while (end > 0 && (all[end - 1] ?? "").trim() === "") end -= 1
-  return all.slice(Math.max(0, end - Math.max(0, lines)), end).join("\n")
-}
-
 /** Read one terminal's screen, and keep its tail. */
 export const screenText = (
   read: ScreenReader,

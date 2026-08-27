@@ -23,24 +23,23 @@
  * the same tree. */
 @source "./";
 
-/* KOLU'S OWN SHEETS, in the order `@kolu/solid-dockrow`'s README requires:
- * the tokens every colour in them resolves against, the pip's sheet, then the
- * row's. They are here rather than beside the component because a `.css` file
- * cannot be imported from a `.tsx` in this build, and because the ORDER is the
- * requirement — three imports in one place is a thing a reader can check.
+/* KOLU'S ROW, WHOLE — one import, and the order is no longer olai's problem.
  *
- * The `@source` beside them is that README's first instruction and is not
- * optional: the row spells Tailwind utility classes, and Tailwind emits only
- * what it can SEE. Without it the row arrives with its class names intact and
- * every one of them undefined — which is not a missing style, it is a row with
- * no layout at all. The path is the hydrated package's real directory (the
- * hydrate script copies rather than symlinks, exactly so that resolution and
- * scanning both work from where the file actually is). */
-@source "../../../../node_modules/@kolu/solid-dockrow/src";
-@source "../../../../node_modules/@kolu/solid-statepip/src";
-@import "@kolu/theme/theme.css";
-@import "@kolu/solid-statepip/statepip.css";
-@import "@kolu/solid-dockrow/dockrow.css";
+ * This was three imports plus two `@source` lines, in an order the row's README
+ * spelled out and this file restated: the theme tokens every colour resolves
+ * against, then the pip's sheet, then the row's, then a `@source` per package
+ * pointing at where that package landed in node_modules. Every one of those was
+ * a fact about a SIBLING that a consumer had to know, and the `@source` paths
+ * reached into a vendor's source tree from four directories away — a kolu
+ * refactor that moved a file broke olai's CSS build with nothing typechecked in
+ * between.
+ *
+ * kolu#2219 made each sheet carry its own prerequisites: `all.css` imports the
+ * pip's `all.css` (which brings the theme), then the row's sheet, then a
+ * `@source "./"` relative only to itself. Each package states what IT needs and
+ * nobody states what a sibling needs, so the chain is upstream's to keep in
+ * order — which is the only place it can be kept right. */
+@import "@kolu/solid-dockrow/all.css";
 
 /* xterm.js's own sheet — the live pane's terminal (`client/props/LivePane.tsx`).
  * The emulator ships its layout as CSS and there is no version of drawing a

@@ -37,7 +37,7 @@
 
 import { isSnapshotFrame, snapshotGrid } from "@kolu/padi-client/attach"
 import { type TerminalMetadata, tileTerminalOf } from "@kolu/padi-client/surface"
-import type { TerminalGrid } from "@kolu/terminal-vocab/schema"
+import { gridsEqual, type TerminalGrid } from "@kolu/terminal-vocab/schema"
 import type { FleetOwner, FleetTerminal, KoluLink, Snapshot, TerminalFrame } from "@olai/surface"
 import { KOLU_UNDIALED, resolveTerminal, SnapshotRefused, UNOWNED } from "@olai/surface"
 import { Effect, Queue, Stream } from "effect"
@@ -180,7 +180,7 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
   ): (() => void) => {
     const fire = (now: TerminalGrid | undefined): void => {
       if (now === undefined) return
-      if (asked !== undefined && asked.cols === now.cols && asked.rows === now.rows) return
+      if (asked !== undefined && gridsEqual(asked, now)) return
       onMoved()
     }
     const set = watchers.get(id) ?? new Set()
@@ -214,8 +214,7 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
     before: TerminalGrid | undefined,
     after: TerminalGrid | undefined,
   ): boolean =>
-    before !== undefined && after !== undefined
-    && (before.cols !== after.cols || before.rows !== after.rows)
+    before !== undefined && after !== undefined && !gridsEqual(before, after)
 
 
   let dials = 0

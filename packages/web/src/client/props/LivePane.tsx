@@ -46,7 +46,8 @@ import { createEffect, createSignal, on, onCleanup, onMount, Show } from "solid-
 import type { FitAddon } from "@xterm/addon-fit"
 import type { Terminal } from "@xterm/xterm"
 
-import { FONT_FAMILY, getThemeByName } from "terminal-themes"
+import { gridsEqual } from "@kolu/terminal-vocab/schema"
+import { DEFAULT_FONT_SIZE, FONT_FAMILY, getThemeByName } from "terminal-themes"
 import { Effect, Fiber, Stream } from "effect"
 
 import { TESTID } from "../testids.ts"
@@ -158,7 +159,7 @@ export function LivePane(props: {
       // ...and kolu's own type. The stack is the catalog's constant rather than
       // a string spelled here, for the reason the palette is.
       fontFamily: FONT_FAMILY,
-      fontSize: FONT_SIZE,
+      fontSize: DEFAULT_FONT_SIZE,
       convertEol: true,
       // The three rendering options kolu's own terminal sets and a reader would
       // notice the absence of. A block cursor while UNFOCUSED especially: this
@@ -206,7 +207,7 @@ export function LivePane(props: {
       fit?.fit()
       const now = term === undefined ? undefined : { cols: term.cols, rows: term.rows }
       if (was === undefined || now === undefined) return
-      if (was.cols !== now.cols || was.rows !== now.rows) setGeneration((g) => g + 1)
+      if (!gridsEqual(was, now)) setGeneration((g) => g + 1)
     })
     observer.observe(host)
     onCleanup(() => {
@@ -294,7 +295,7 @@ export function LivePane(props: {
             // the bytes are actually for. No scaling: 1:1, wrapped, exactly as
             // kolu's own client draws the same terminal.
             if (next.grid !== undefined && term !== undefined) {
-              if (term.cols !== next.grid.cols || term.rows !== next.grid.rows) {
+              if (!gridsEqual(term, next.grid)) {
                 term.resize(next.grid.cols, next.grid.rows)
               }
             }
@@ -428,22 +429,6 @@ export function LivePane(props: {
     </div>
   )
 }
-
-/**
- * THE FONT SIZE kolu's own terminal draws at.
- *
- * RESTATED, and it is the only number in this pane that is. Its home is
- * `kolu-common/config`'s `DEFAULT_FONT_SIZE`, and that package cannot be
- * consumed from here: it declares `effect` as `catalog:` — pnpm's
- * workspace-catalog protocol, which resolves only inside kolu's own workspace —
- * and drags sixteen workspace packages behind it for one integer. Filed as a
- * finding against kolu#2217 (the same class as `@kolu/xterm-kit`'s), and the
- * day either lands this constant is deleted and imported.
- *
- * Everything else the pane paints with IS consumed: the palette and the font
- * stack are `terminal-themes`, which is a leaf and hydrates cleanly.
- */
-const FONT_SIZE = 14
 
 /**
  * A THEME COLOR AT AN OPACITY, as `#rrggbbaa`.
