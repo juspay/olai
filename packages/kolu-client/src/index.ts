@@ -86,6 +86,7 @@
  * `@olai/surface`'s shapes and cannot reach padi even by accident.
  */
 
+import { type CellStore, inMemoryStore } from "@kolu/surface/server"
 import { type Claimant } from "./fleet.ts"
 import { makeMirror, type MirrorOptions } from "./mirror.ts"
 import {
@@ -106,7 +107,7 @@ import { Effect, Stream } from "effect"
  * rows can move before any socket is subscribed. Reading it at the moment a row
  * moves is the same arrangement `@olai/server`'s `bodies.ts` has, for its reason.
  */
-export interface KoluDeps {
+export interface KoluDeps<N> {
   /** The link's environment and clock, or `null` for a face that is not to have
    *  one (see the header). */
   readonly options: MirrorOptions | null
@@ -114,13 +115,19 @@ export interface KoluDeps {
     readonly upsert: (key: string, value: FleetTerminal) => void
     readonly remove: (key: string) => void
   } | undefined
+  /** THE VAULT WALK, injected. Who claims which terminal is read off outline
+   *  records, and an outline record is a thing this package must not know —
+   *  so the server passes its own walk in (`@olai/server`'s `claimants.ts`,
+   *  which stays there whole) and what comes back is four strings per claim.
+   *  The ruling's words: "the server passes the vault-walk in". */
+  readonly claimants: (nodes: ReadonlyArray<N>) => Iterable<Claimant>
   /** Routine narration, at debug: on a machine with no kolu this is a line
    *  every few seconds and it is not news. */
   readonly say: (line: string) => void
 }
 
 /** The three bindings, plus the one hook a revision pulls. */
-export interface KoluHalf {
+export interface KoluHalf<N> {
   /** `cells.kolu`'s connector — where the standing link is FORKED, once, when
    *  the surface binds. Not when a browser subscribes: that is the whole of the
    *  one-connection claim, and it is the git sweep's own arrangement applied to
@@ -149,7 +156,83 @@ export interface KoluHalf {
    *  signature: the walk over the vault belongs to whoever holds the vault
    *  (`@olai/server`'s `claimants.ts`), and what arrives here is four strings
    *  per claim. See {@link Claimant}. */
-  readonly reclaim: (claims: Iterable<Claimant>) => void
+  /**
+   * THE FOUR MEMBER HANDLERS, as `@olai/server` spreads them.
+   *
+   * They used to be four clumps written out in `runtime.ts` — a store and a
+   * connector for the cell, a `readAll` and two no-op writers for the
+   * collection, a stream `source`, a procedure `text` — each one naming a verb
+   * of this package's. Four clumps is not much code, but it is four places the
+   * server had to know what a kolu member is SHAPED like, and every one of them
+   * moved the day this package's surface moved.
+   *
+   * So the package returns them. The server spreads the slice into its own
+   * sections and names no kolu verb at all.
+   *
+   * THE COLLECTION IS READ-ONLY ON THE WIRE and the two writers are no-ops on
+   * purpose: creating and killing terminals are padi verbs, and the day olai
+   * calls them it is the driver calling them, not a tab. That sentence was in
+   * `runtime.ts` and travels with the handler it is about.
+   */
+  readonly handlers: KoluHandlers
+  /**
+   * A VAULT REVISION LANDED. The server drives it; what it hands over is the
+   * nodes, and the WALK is this package's to run through the one it was given.
+   *
+   * It used to be `kolu.reclaim(claimantsIn(nodes))` at the call site — the
+   * server holding both the trigger and the walk, and naming a kolu verb to do
+   * it. The walk still belongs to whoever holds the vault (it reads outline
+   * records and this package has no business knowing what one is), so it
+   * arrives as {@link KoluDeps.claimants} and this hook closes over it. The
+   * server's line is now `join.revision(nodes)`, which names nothing of kolu's.
+   */
+  readonly revision: (nodes: ReadonlyArray<N>) => void
+}
+
+
+/**
+ * ONE VAULT NODE, as this package needs to see it — which is not at all.
+ *
+ * The walk over the vault is the server's ({@link KoluDeps.claimants}), so what
+ * crosses is whatever that walk takes. Typed as `unknown` deliberately: this
+ * package must not learn what an outline record is, and a structural shape here
+ * would be exactly that learning, written down.
+ */
+export type VaultNode = unknown
+
+// (kept as the documentation of the intent; the interfaces below are PARAMETRIC
+// in the node type, which is the same claim the compiler can check: a package
+// generic in N cannot read an N.)
+
+/** The four member handlers, in the shape `defineSurface`'s sections take. */
+export interface KoluHandlers {
+  readonly cells: {
+    readonly kolu: {
+      readonly store: CellStore<KoluLink>
+      readonly connect: (cell: { set: (value: KoluLink) => void }) => Effect.Effect<void>
+    }
+  }
+  readonly collections: {
+    readonly fleet: {
+      readonly readAll: () => Map<string, FleetTerminal>
+      readonly upsert: () => void
+      readonly remove: () => void
+    }
+  }
+  readonly streams: {
+    readonly terminal: {
+      readonly source: (
+        input: { readonly terminal: string; readonly grid?: { cols: number; rows: number } },
+      ) => Stream.Stream<TerminalFrame>
+    }
+  }
+  readonly procedures: {
+    readonly screen: {
+      readonly text: (
+        args: { readonly input: { readonly terminal: string; readonly lines?: number } },
+      ) => Effect.Effect<Snapshot, SnapshotRefused>
+    }
+  }
 }
 
 /** The seed every face starts at, kolu or not — see `@olai/surface`'s
@@ -168,7 +251,7 @@ const NO_LINK = new SnapshotRefused({
 /** Minted once: the empty fleet a linkless face reads, which nothing writes. */
 const NO_ROWS = new Map<string, FleetTerminal>()
 
-export const koluHalf = (deps: KoluDeps): KoluHalf => {
+export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
   if (deps.options === null) {
     return {
       // A connector that PARKS rather than returns. A connector that returns
@@ -183,7 +266,8 @@ export const koluHalf = (deps: KoluDeps): KoluHalf => {
       // `./mirror.ts` on why a refusal here fails rather than ends.
       attach: () =>
         Stream.make({ kind: "refused", says: NO_LINK.says } as TerminalFrame),
-      reclaim: () => {},
+      revision: () => {},
+      handlers: linklessHandlers(),
     }
   }
   const { now } = deps.options
@@ -200,16 +284,20 @@ export const koluHalf = (deps: KoluDeps): KoluHalf => {
     },
     deps.options,
   )
+  const connect = (handle: { set: (value: KoluLink) => void }): Effect.Effect<void> =>
+    Effect.suspend(() => {
+      cell = handle
+      return mirror.run
+    })
+  const screen = (terminal: string, lines: number | undefined) =>
+    mirror.screen(terminal, lines, now)
   return {
-    connect: (handle) =>
-      Effect.suspend(() => {
-        cell = handle
-        return mirror.run
-      }),
+    connect,
     rows: mirror.rows,
-    screen: (terminal, lines) => mirror.screen(terminal, lines, now),
+    screen,
     attach: mirror.attach,
-    reclaim: mirror.reclaim,
+    revision: (nodes) => mirror.reclaim(deps.claimants(nodes)),
+    handlers: handlersOf({ connect, rows: mirror.rows, screen, attach: mirror.attach }),
   }
 }
 
@@ -218,3 +306,66 @@ export { DEFAULT_LINES } from "./screen.ts"
 export { PADI_SOCKET, type Rendezvous, rendezvousIn } from "./socket.ts"
 export { type Claimant } from "./fleet.ts"
 export { type MirrorOptions } from "./mirror.ts"
+
+/**
+ * THE FOUR HANDLERS, built from the four verbs.
+ *
+ * One function so the SHAPE lives once. `runtime.ts` used to spell it four
+ * times and this package used to spell the verbs; now the package spells both
+ * and the server spreads the result. The doc sentences travelled with the
+ * handlers they are about, which is why they read as answers to questions
+ * nobody asks in this file — they are answers a reader of the SURFACE asks.
+ */
+const handlersOf = (verbs: {
+  readonly connect: (cell: { set: (value: KoluLink) => void }) => Effect.Effect<void>
+  readonly rows: () => Map<string, FleetTerminal>
+  readonly screen: (
+    terminal: string,
+    lines: number | undefined,
+  ) => Effect.Effect<Snapshot, SnapshotRefused>
+  readonly attach: (
+    terminal: string,
+    grid: { readonly cols: number; readonly rows: number } | undefined,
+  ) => Stream.Stream<TerminalFrame>
+}): KoluHandlers => ({
+  cells: {
+    kolu: {
+      // The face's own store, seeded `absent`: the true answer for a headless
+      // face that has no business holding a socket open.
+      store: inMemoryStore<KoluLink>(SEED),
+      connect: verbs.connect,
+    },
+  },
+  collections: {
+    fleet: {
+      // The mirror's own map rather than a copy of it, for the two directory
+      // collections' reason: a fresh subscription's snapshot and the deltas an
+      // open one is watching are two readings of one map.
+      readAll: verbs.rows,
+      // READ-ONLY ON THE WIRE. Creating and killing terminals are padi verbs,
+      // and the day olai calls them it is the driver calling them, not a tab.
+      upsert: () => {},
+      remove: () => {},
+    },
+  },
+  streams: {
+    terminal: {
+      source: (input) => verbs.attach(input.terminal, input.grid),
+    },
+  },
+  procedures: {
+    screen: {
+      text: ({ input }) => verbs.screen(input.terminal, input.lines),
+    },
+  },
+})
+
+/** What a face with no link answers on all four members — the same refusal the
+ *  verbs above give, in the shape the surface takes. */
+const linklessHandlers = (): KoluHandlers =>
+  handlersOf({
+    connect: () => Effect.never,
+    rows: () => NO_ROWS,
+    screen: () => Effect.fail(NO_LINK),
+    attach: () => Stream.make({ kind: "refused", says: NO_LINK.says } as TerminalFrame),
+  })

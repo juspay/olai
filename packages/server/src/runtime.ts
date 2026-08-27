@@ -712,6 +712,11 @@ export const bind = (
     const kolu = koluHalf({
       options: wiring.kolu,
       fleet: () => published?.collections.fleet,
+      // THE VAULT WALK, passed in — the ruling's own words. `claimants.ts`
+      // stays here whole because it reads outline records, which is a thing
+      // the package that dials padi must not learn; what crosses is four
+      // strings per claim.
+      claimants: claimantsIn,
       // Chatter, at debug: on a machine with no kolu this is a line every few
       // seconds and it is not news. What IS news — a connect, a skew, a link
       // that dropped — is the same channel, because the alternative is this
@@ -905,10 +910,7 @@ export const bind = (
          * at its seed, which is `absent` — the true answer for a headless face
          * that has no business holding a socket open.
          */
-        kolu: {
-          store: inMemoryStore<KoluLink>(SEED),
-          connect: kolu.connect,
-        },
+        ...kolu.handlers.cells,
         /** The whole directory binding, because one revision is one write of
          *  everything it moved: for each collection the entries that changed
          *  and the keys that went, and then the facts that belong to no file.
@@ -966,7 +968,7 @@ export const bind = (
                   // keystroke that landed in a note costs one walk and zero
                   // frames. What it costs on the revision a `terminal` property
                   // is actually written is one frame for that terminal's row.
-                  kolu.reclaim(claimantsIn(snapshot.value.derived.nodes))
+                  kolu.revision(snapshot.value.derived.nodes)
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest
@@ -1165,11 +1167,7 @@ export const bind = (
          * Read-only on the wire: creating and killing terminals are padi verbs,
          * and the day olai calls them it is the driver calling them, not a tab.
          */
-        fleet: {
-          readAll: kolu.rows,
-          upsert: () => {},
-          remove: () => {},
-        },
+        ...kolu.handlers.collections,
       },
       /**
        * A poll-shape stream is three things and the framework wires them into
@@ -1244,12 +1242,7 @@ export const bind = (
          * arrangement the fleet has, and the whole reason a live pane does not
          * cost the wall.
          */
-        terminal: {
-          source: (
-            input: { readonly terminal: string; readonly grid?: { cols: number; rows: number } },
-          ) =>
-            kolu.attach(input.terminal, input.grid),
-        },
+        ...kolu.handlers.streams,
         dated: {
           read: (input) => Effect.runPromise(wiring.ops.dated(input)),
           install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
@@ -1477,9 +1470,7 @@ export const bind = (
          * The clock is the wiring's, like the link's `since`, so a test that
          * asserts what "snapshot · just now" was rendered from owns it.
          */
-        screen: {
-          text: ({ input }) => kolu.screen(input.terminal, input.lines),
-        },
+        ...kolu.handlers.procedures,
         who: {
           get: (() =>
             CurrentWho.use((who) => Effect.succeed(who))) as unknown as () => Effect.Effect<
