@@ -10,6 +10,7 @@ import type { ChatEntry } from "@olai/surface"
 import { ValidationFailure, verdictOf } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 
+import { clock } from "./clock.testlib.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 
 /** The rows as a reader would see them: conversation order, which is `seq`. */
@@ -677,6 +678,150 @@ describe("an agent that was sent out", () => {
     expect(rows(transcript)).toHaveLength(1)
   })
 
+  test("A REOPENED CALL'S TASK HAS NOT ENDED, whatever the last outing said", () => {
+    // The sharpest of the three facts an outing owns, and the one that is not
+    // about drawing at all. `armed.ended` is what takes a call OUT of the
+    // stranding exemption (`isTaskOut`), so an async agent still carrying its
+    // first outing's ending is an agent whose face the next turn boundary
+    // takes straight back off — the bug this whole change exists to end,
+    // arriving one layer underneath it.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+
+    const out = asKind(rows(transcript)[0], "tool")
+    // Everything else the harness said about the task is as true of this outing
+    // as of the last, and is still on the row.
+    expect(out?.armed).toEqual({ task: "bu13xz2ie" })
+    expect(out?.status).toBe("in_progress")
+
+    // ... AND IT IS PUT BACK WHEN THIS OUTING ENDS, which is the other half and
+    // the one a test that only watched the clearing would let rot: the harness
+    // reports the second ending exactly as it reported the first
+    // (`acp/patches/README.md` — the settle of a reopened call stamps it), so
+    // the row is a call that has ended again rather than one that quietly
+    // stopped being a task.
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+    expect(asKind(rows(transcript)[0], "tool")?.armed)
+      .toEqual({ task: "bu13xz2ie", ended: "completed" })
+  })
+
+  test("... so a turn ending under a RESUMED async agent leaves it alone", () => {
+    // The consequence, said where a reader can see it: the exemption that keeps
+    // a background task off the stranding sweep applies to the second outing
+    // exactly as it applied to the first.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+    transcript.settle()
+
+    expect(asKind(rows(transcript)[0], "tool")?.stranded).toBeUndefined()
+  })
+
+  test("A SECOND OUTING'S ENDING IS ITS OWN NEWS, not the first one's again", () => {
+    // {@link #ended} remembers that a row's death has been reported, so that
+    // the sentence arriving a beat after an ending refines that row rather than
+    // minting a second. Spent on the first outing and never released, it would
+    // silence the second — and the ending it would silence is the one a person
+    // supervising a fan-out must not miss.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+    expect(notices(transcript)).toEqual([
+      "the agent “survey the web package” ended (completed)",
+    ])
+
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+    transcript.tool("toolu_01AGENT", { status: "failed" })
+    expect(notices(transcript)).toEqual([
+      "the agent “survey the web package” ended (completed)",
+      "the agent “survey the web package” ended (failed)",
+    ])
+  })
+
+  test("A SECOND OUTING THAT WENT FINE SAYS SO TOO, like the first one did", () => {
+    // The variant the no-arming judgment was asked to weigh, and got wrong on
+    // the settle: an async agent's completion is news at the bottom because the
+    // row is an hour of scrollback away and the strip going quiet is the only
+    // other face it has. That is as true of the outing somebody sent it on this
+    // afternoon as of the one it was spawned with — so a second ending is said
+    // where the first was, and a reader who was not watching the strip is told
+    // both times.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+
+    expect(notices(transcript)).toEqual([
+      "the agent “survey the web package” ended (completed)",
+      "the agent “survey the web package” ended (completed)",
+    ])
+  })
+
+  test("... and a SECOND OUTING'S FAILURE takes the harness's sentence too", () => {
+    // The two bookends: a guaranteed patch that carries the status, and the
+    // notification beside it that carries the words. The line is minted on the
+    // first and REFINED by the second — on every outing, which is what the row's
+    // own guard ({@link #dies}) was always able to do and what the spawn arm's
+    // *has it only just failed* condition made unreachable. Left as it was, a
+    // second outing's death said `failed` and nothing about why, with the reason
+    // on a row at its birth position.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+    transcript.tool("toolu_01AGENT", {
+      status: "failed",
+      armed: { task: "bu13xz2ie", ended: "failed" },
+    })
+    transcript.tool("toolu_01AGENT", {
+      status: "failed",
+      armed: { task: "bu13xz2ie", ended: "failed" },
+      progress: "the agent ran out of context",
+    })
+
+    expect(notices(transcript)).toEqual([
+      "the agent “survey the web package” ended (completed)",
+      "the agent ran out of context",
+    ])
+  })
+
+  test("... and so does a SYNCHRONOUS spawn's, whose reason lands a beat late", () => {
+    // The same gap one kind of spawn over, and the one this arm is written for:
+    // a subagent that armed nothing has only its own call's status to end on, so
+    // a failure whose sentence arrives on a later frame had nowhere to put it.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", sent)
+    transcript.tool("toolu_01AGENT", { status: "failed" })
+    transcript.tool("toolu_01AGENT", { status: "failed", progress: "the agent was killed" })
+
+    expect(notices(transcript)).toEqual(["the agent was killed"])
+  })
+
   test("an async spawn's every ending is said, good ones included", () => {
     // The other kind of spawn: an async launch IS a background task, and the
     // harness reports how it ended in a turn of its own, minutes later. That
@@ -978,13 +1123,6 @@ describe("what a turn leaves behind", () => {
 })
 
 describe("when a row arrived", () => {
-  /** A clock that says what it is told to, so a stamp is a value rather than
-   *  something asserted by comparing it with itself. */
-  const clock = (from: string) => {
-    let at = Date.parse(from)
-    return { now: () => at, pass: (ms: number) => { at += ms } }
-  }
-
   test("a row is stamped with the instant it first appeared", () => {
     const time = clock("2026-08-21T12:00:00.000Z")
     const transcript = new Transcript(time.now)
@@ -1022,6 +1160,105 @@ describe("when a row arrived", () => {
     const transcript = new Transcript(time.now)
     transcript.user("hello", { since: "1999-01-01T00:00:00.000Z" } as never)
     expect(rows(transcript)[0]?.since).toBe("2026-08-21T12:00:00.000Z")
+  })
+
+  test("A CALL THAT WAS OVER AND IS RUNNING AGAIN is stamped with the moment", () => {
+    // A subagent that reported and was sent MORE WORK. The call that answers
+    // for it is the one that SPAWNED it — the adapter reopens that very call
+    // when the harness starts its task again (`acp/patches/README.md`), because
+    // everything the agent does goes on being stamped with it — so the row goes
+    // from over to running again, which is a transition nothing else makes.
+    //
+    // TWO STAMPS, and each answers a different question. `since` is where the
+    // record starts and does not move, because a reader who scrolls back to
+    // this row is owed when the agent was first sent out. `resumed` is what a
+    // clock counts from, because *how long has this been out* is about the
+    // outing rather than about the row.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("toolu_01AGENT", {
+      title: "Task",
+      status: "in_progress",
+      spawned: { said: "author the PR" },
+    })
+    time.pass(20 * 60_000)
+    transcript.tool("toolu_01AGENT", { status: "completed" })
+    time.pass(3 * 60 * 60_000)
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+
+    const said = rows(transcript)
+    expect(said).toHaveLength(1)
+    expect(asKind(said[0], "tool")).toMatchObject({
+      status: "in_progress",
+      since: "2026-08-21T12:00:00.000Z",
+      resumed: "2026-08-21T15:20:00.000Z",
+    })
+  })
+
+  test("... and a call on its FIRST outing carries no such stamp", () => {
+    // Every call in nearly every conversation. `pending` is a running state —
+    // it means "announced" — so the ordinary announcement-then-progress pair is
+    // not a call going round twice, and a row that said it was would put a
+    // second clock on the panel's commonest row.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("call-1", { title: "Grep", status: "pending" })
+    time.pass(1_000)
+    transcript.tool("call-1", { status: "in_progress", progress: "halfway" })
+
+    expect(asKind(rows(transcript)[0], "tool")?.resumed).toBeUndefined()
+  })
+
+  test("... nor does a call its turn walked away from, reporting late", () => {
+    // A stranded call is not a call that STOPPED: its status is still running
+    // and stays running, deliberately, because the row is the honest record of
+    // a call that was announced and never came back. So a late report unmarks
+    // it (which the mark's own rule already does) and starts no second outing —
+    // the agent never went out twice, one turn simply stopped waiting.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("call-1", { title: "Grep", status: "in_progress" })
+    transcript.settle()
+    time.pass(60_000)
+    transcript.tool("call-1", { status: "in_progress", progress: "still here" })
+
+    const late = asKind(rows(transcript)[0], "tool")
+    expect(late?.stranded).toBeUndefined()
+    expect(late?.resumed).toBeUndefined()
+  })
+
+  test("a REPEAT of the reopening frame does not restamp the outing", () => {
+    // Agents repeat themselves, and the transcript's own rule is that a frame
+    // saying nothing new changes nothing. A stamp taken before that guard would
+    // be the one field a repeat could still move — and it moves the clock a
+    // person is reading, backwards, once per repeat.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("toolu_01AGENT", { title: "Task", status: "in_progress", spawned: {} })
+    transcript.tool("toolu_01AGENT", { status: "completed" })
+    time.pass(60_000)
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+    time.pass(60_000)
+    const again = transcript.tool("toolu_01AGENT", { status: "in_progress" })
+
+    expect(says(again)).toBe(false)
+    expect(asKind(rows(transcript)[0], "tool")?.resumed).toBe("2026-08-21T12:01:00.000Z")
+  })
+
+  test("a stamp cannot be handed in either: it is the writer's, like `since`", () => {
+    // `resumed` is off `RowContent` for the reason `since`, `seq` and
+    // `stranded` are — every re-publish spreads the row as it stands, so a
+    // field a caller could set is a field that rides past the decision meant to
+    // make it. Handed one anyway, nothing lands: this row has been round once.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("call-1", {
+      title: "Grep",
+      status: "pending",
+      resumed: "1999-01-01T00:00:00.000Z",
+    } as never)
+
+    expect(asKind(rows(transcript)[0], "tool")?.resumed).toBeUndefined()
   })
 
   test("the row a person typed is stamped too — one rule, not a tool's", () => {

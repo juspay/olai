@@ -73,6 +73,11 @@
  *                what a fan-out looks like for as long as anybody watches it:
  *                the spawn's own frame is on the wire and not one frame from
  *                the agent is
+ *   subagent again  RESUME the agent the last subagent turn spawned: the
+ *                harness starts that agent's task a second time, so the
+ *                adapter reopens the call that SPAWNED it and the same row
+ *                runs, calls and reports again — one agent, one row, one door,
+ *                two outings
  *   subagent crash  the same, and then FALL OVER while it is still out —
  *                which leaves a `pending` Agent call nothing will ever
  *                complete, on rows a dead agent's panel deliberately keeps
@@ -678,6 +683,16 @@ const COMMANDS = [
 // ── the internal MCP server, called for real ───────────────────────────
 
 let nextMcpId = 0
+/** The `Agent` call the last subagent turn sent somebody out on — what
+ *  `subagent again` reopens.
+ *
+ *  ACROSS TURNS, which is the whole point of it being module state: a resume
+ *  is a thing that happens to an agent that reported in an EARLIER turn, and
+ *  that is exactly the shape the panel got wrong (the human, 2026-08-28: an
+ *  agent worked for twenty minutes with no face anywhere). A verb that spawned
+ *  and resumed inside one turn would be a different claim, and the easier
+ *  one. */
+let lastSpawn: string | null = null
 
 const callMcp = async (
   method: string,
@@ -1801,7 +1816,10 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
      *  `pending` rather than in_progress, which is what the adapter announces
      *  a tool use with — a spawn wears it until the first heartbeat, which for
      *  a slow one is a long time and exactly the stretch under test. */
-    const spawn = (id: string, said: string, kind?: string): void =>
+    const spawn = (id: string, said: string, kind?: string): void => {
+      // REMEMBERED ACROSS TURNS ({@link lastSpawn}), because that is what a
+      // later turn's `subagent again` reopens.
+      lastSpawn = id
       announce(id, SPAWN_TITLE, { toolName: "Agent", subagent: true }, {
         rawInput: {
           description: said,
@@ -1810,10 +1828,28 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
         },
         status: "pending",
       })
+    }
     /** One call made INSIDE a spawned agent — the main agent's own frame, plus
      *  the one field that says whose it is. */
     const inside = (id: string, title: string, parent: string): void =>
       announce(id, title, { toolName: "Grep", parentToolUseId: parent })
+    /** A SPAWN'S OWN COMPLETION, carrying the subagent's report the way the
+     *  adapter does — content blocks on the call, never prose in the main
+     *  agent's voice. It is what the live face RESOLVES INTO, and it is spelled
+     *  once because two turns end this way now (an agent that reported, and one
+     *  that reported twice): the whole claim of this fixture is the frame
+     *  SHAPE, so a correction to it that landed on one turn and not the other
+     *  would be a fixture disagreeing with itself about the adapter. */
+    const reported = (call: string, said: string): void =>
+      notify("session/update", {
+        sessionId,
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: call,
+          status: "completed",
+          content: [{ type: "content", content: { type: "text", text: said } }],
+        },
+      })
 
     // A SUBAGENT THAT STOPS TO ASK, in the two shapes the adapter has for one.
     // Both put a form in front of a person on behalf of an agent nobody sent
@@ -1895,6 +1931,48 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       return
     }
 
+    // A SUBAGENT SENT MORE WORK, in a LATER TURN — the shape the panel had no
+    // face for at all.
+    //
+    // A subagent that has reported can be woken with a follow-up instruction
+    // over the same transcript, and the harness starts its task again. What
+    // reaches a client then is not a new agent: everything that agent does goes
+    // on being stamped with the call that SPAWNED it, so olai's patched adapter
+    // reopens that very call (`acp/patches/README.md`'s "a task's second life",
+    // measured on the real wire by `packages/tests/tasks.ts`). Which is exactly
+    // what this sends: a `tool_call_update` putting the old call back to
+    // `in_progress`, with nothing else on the frame — no title (the row was
+    // named an outing ago and a name may not move), and NO `backgroundTask`,
+    // because a resume arms nothing.
+    if (argument === "again") {
+      const agent = lastSpawn
+      if (agent === null) {
+        say("nobody has been sent out yet.")
+        reply(id, { stopReason: "end_turn" })
+        return
+      }
+      const more = `sub-${++nextMcpId}`
+      notify("session/update", {
+        sessionId,
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: agent,
+          status: "in_progress",
+          _meta: { claudeCode: {} },
+        },
+      })
+      say("sent it more work.")
+      await released()
+      // ... and its new work files under the SAME row, which is what makes one
+      // agent one door however many times it goes out.
+      inside(more, "push the branch", agent)
+      completed(more)
+      reported(agent, "the branch is pushed.")
+      say(" the agent reported back again.")
+      reply(id, { stopReason: "end_turn" })
+      return
+    }
+
     // ... AND THEN FALLING OVER UNDER IT. The face has to come off, and the
     // row's own status cannot be what takes it off: a status is sticky, an
     // agent that dies mid-spawn reports no completion for the call it was in
@@ -1923,23 +2001,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       await released()
       inside(read, "read the note", alone)
       completed(read)
-      // The spawn's own completion, carrying the subagent's report the way the
-      // adapter does — content blocks on the call, never prose in the main
-      // agent's voice. It is what the face RESOLVES INTO.
-      notify("session/update", {
-        sessionId,
-        update: {
-          sessionUpdate: "tool_call_update",
-          toolCallId: alone,
-          status: "completed",
-          content: [
-            {
-              type: "content",
-              content: { type: "text", text: "there are three notes." },
-            },
-          ],
-        },
-      })
+      reported(alone, "there are three notes.")
       say(" the agent reported back.")
       reply(id, { stopReason: "end_turn" })
       return

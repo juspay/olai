@@ -159,32 +159,39 @@ function Shelf(props: {
           <span class="shrink-0 opacity-70">show me</span>
         </button>
       </Show>
-      <div class="flex shrink-0 items-baseline gap-2 px-3 py-1.5 font-mono text-[0.6875rem] leading-snug">
-        <p
-          class="flex min-w-0 flex-1 items-baseline gap-1 text-ink"
-          data-testid={TESTID.chatPreviewOf}
-          data-spawn-kind={whoOf(props.open.entry) ?? undefined}
-        >
-          {/* The lane's own glyph, so that the head of the shelf and the label
-              a lane draws in the column are visibly the same fact: somebody
-              else is doing this. */}
-          <span aria-hidden="true">↳</span>
-          <span class="sr-only">the work of&#32;</span>
-          {/* WHAT IT WAS SENT TO DO ({@link ./spawn.ts}'s `sentOf`), which is
-              not the row's title: the title is the tool's name, so four agents
-              of one fan-out would give four shelves with one heading. */}
-          <span class="min-w-0 truncate">{sentOf(props.open.entry)}</span>
-        </p>
-        <button
-          type="button"
-          class="shrink-0 rounded-sm px-1 text-muted hover:text-ink focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          data-testid={TESTID.chatPreviewShut}
-          onClick={() => closePreview()}
-        >
-          <span class="sr-only">close</span>
-          <span aria-hidden="true">×</span>
-        </button>
-      </div>
+      {/* THE HEAD IS ONE LINE AND NOTHING ELSE — no control beside it, and the
+          ruling is the human's (2026-08-28, after a resumed agent went missing
+          from the strip): get rid of the ×.
+
+          It was a second way to close one thing — the door that opened this
+          shelf closes it, both of them, because pressing the agent you are
+          already reading means *put it away* ({@link ./previewing.ts}) — and a
+          × on a box about an AGENT reads as a control over the agent rather
+          than over the box. The person who pressed it read it that way: they
+          took it for a dismissal, and when the same agent was resumed and no
+          face came back, the × was the thing they had done. It is the row's own
+          door and the strip's entry that open and shut this, and neither of
+          them can ever mean anything about the agent. `Header.tsx`'s own rule,
+          arriving here from the other side.
+
+          Which is why this line is not wrapped in anything: a flex row with a
+          gap and a `flex-1` child is a box laid out for a SECOND thing, and
+          there is no second thing. */}
+      <p
+        class="flex min-w-0 shrink-0 items-baseline gap-1 px-3 py-1.5 font-mono text-[0.6875rem] leading-snug text-ink"
+        data-testid={TESTID.chatPreviewOf}
+        data-spawn-kind={whoOf(props.open.entry) ?? undefined}
+      >
+        {/* The lane's own glyph, so that the head of the shelf and the label
+            a lane draws in the column are visibly the same fact: somebody
+            else is doing this. */}
+        <span aria-hidden="true">↳</span>
+        <span class="sr-only">the work of&#32;</span>
+        {/* WHAT IT WAS SENT TO DO ({@link ./spawn.ts}'s `sentOf`), which is
+            not the row's title: the title is the tool's name, so four agents
+            of one fan-out would give four shelves with one heading. */}
+        <span class="min-w-0 truncate">{sentOf(props.open.entry)}</span>
+      </p>
       {/* ITS OWN SCROLL, so a long-running agent's fortieth call is reachable
           without the shelf growing past its cap and without the conversation
           under it moving. */}

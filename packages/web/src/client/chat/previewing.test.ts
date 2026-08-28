@@ -51,10 +51,14 @@ test("the door is the same control both ways round", () => {
 })
 
 test("and it can be closed by something that is not a door", () => {
-  // The shelf's own dismiss, and the conversation changing under it — which is
-  // the caller this existed for and did not have. A key from a conversation
-  // that is gone is not merely stale: the next one re-mints keys from the same
-  // counter, so it can name a row nobody opened.
+  // NOT A DISMISSAL, and there is no longer anything here that is one: the
+  // shelf's own × was retired (the human, 2026-08-28) because a control on a
+  // box about an agent reads as a control over the AGENT. What is left are the
+  // two closings that are the PANEL's own — the question banner, which shuts
+  // this to reveal the form it points at, and the conversation changing
+  // underneath it, which is the caller this existed for and did not have. A key
+  // from a conversation that is gone is not merely stale: the next one re-mints
+  // keys from the same counter, so it can name a row nobody opened.
   closePreview()
   togglePreview("tool:agent-1")
   closePreview()

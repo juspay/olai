@@ -113,6 +113,33 @@ describe("when it says nothing", () => {
       .toBe("9s")
   })
 
+  test("a call sent out AGAIN is timed from the resume, not from its birth", () => {
+    // The row is the same row and its birth is where the record starts — an
+    // agent sent out this morning, which reported, and which was sent more work
+    // three hours later. The adapter reopens the call that spawned it
+    // (`acp/patches/README.md`), so the clock has two instants to choose from
+    // and only one of them answers *how long has this been out*: a readout off
+    // the birth would say 3h under an agent that went out a minute ago, and it
+    // would go on being wronger every minute. The strip above the scroll counts
+    // from the same rule ({@link @olai/surface}'s `outSince`) because the two
+    // are drawn from one row at one moment.
+    expect(
+      elapsedOf(
+        row({ resumed: "2026-08-21T15:00:00.000Z" }),
+        at("2026-08-21T15:01:00.000Z"),
+      ),
+    ).toBe("1m 0s")
+  })
+
+  test("... and a resumed stamp that is not a time says nothing, like the other", () => {
+    // Same refusal as below, one field over: the fallback would be the row's
+    // birth, and a duration measured from the wrong one of two instants is the
+    // failure this pair exists to avoid — so nothing is drawn at all.
+    expect(
+      elapsedOf(row({ resumed: "the other day" }), at("2026-08-21T12:05:00.000Z")),
+    ).toBeNull()
+  })
+
   test("a stamp that is not a time is left alone rather than guessed at", () => {
     // The wire REQUIRES the stamp, so this is never a missing field — it is
     // somebody else's string, and `Invalid Date` in a transcript is worse than
