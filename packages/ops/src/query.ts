@@ -218,11 +218,15 @@ export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
  */
 const carriedOf = (
   node: LocatedRegular["node"],
-): Pick<Found, "see" | "after" | "custom"> => {
+): Pick<Found, "parent" | "see" | "after" | "custom"> => {
   // Pruned first, so what `nothing` is asked about is what the file would hold:
   // a map of keys that all hold nothing is `{}`, and `{}` is nothing.
   const custom = heldCustom(node.custom)
   return {
+    // The parent's id, absent at a root — the record's own field, omitted the
+    // same way an empty edge list is. `path` beside it is titles; a write takes
+    // this.
+    ...(node.parent === undefined ? {} : { parent: node.parent }),
     ...(nothing(node.see) ? {} : { see: node.see }),
     ...(nothing(node.after) ? {} : { after: node.after }),
     ...(nothing(custom) ? {} : { custom }),
@@ -958,12 +962,18 @@ export const subtree = (
   // advertises — one place to change it, rather than a schema saying "default
   // 3" over a walk that had stopped agreeing.
   const depth = request.depth ?? DEFAULT_SUBTREE_DEPTH
+  // ON by default: a targeted walk usually wants the note. `false` is the lean
+  // read — depth bounds levels, not prose, and notes dominate the cost. Same
+  // flag `search` already has, the other way round on the default.
+  const wantsNotes = request.withDesc !== false
   const walk = (located: LocatedRegular, left: number): Subtree => {
     const children = countedChildren(at.derived, located.node.id)
     return {
       ...foundOf(at.derived, located),
       ...(located.node.date === undefined ? {} : { date: located.node.date }),
-      ...(located.node.desc === undefined ? {} : { desc: located.node.desc }),
+      ...(wantsNotes && located.node.desc !== undefined
+        ? { desc: located.node.desc }
+        : {}),
       children: left <= 0 ? [] : children.map((child) => walk(child, left - 1)),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
     }

@@ -107,6 +107,22 @@ export const Found = Schema.Struct({
   /** The canonical ancestor titles, outermost first. What makes a bare title
    *  like "order" mean something in a list of strangers. */
   path: Schema.Array(Schema.String),
+  /**
+   * The parent node's id. Absent at a top-level root — a root has no parent,
+   * and an empty string would be an id nobody minted.
+   *
+   * HERE rather than reconstructed from {@link path}: that field is titles,
+   * and every write that names a parent takes an id. A caller that can see
+   * "Bugs" and not `bugs` can only file a sibling by searching (a word match
+   * for an exact structural fact) or by walking a subtree whose notes they
+   * did not want. The incident that named this field (2026-08-28) was exactly
+   * that: one identifier, and the cheap reads did not carry it.
+   *
+   * The RECORD'S OWN field, like {@link Placement.parent} one declaration
+   * over — same absence rule, same id. A second spelling here would be free
+   * to stop meaning what the file means.
+   */
+  parent: RegularNode.fields.parent,
   /** Free cross-references this node carries, as target ids. Absent when the
    *  node has none — so a reader can traverse without a second read, and a node
    *  that does not point anywhere does not pretend to.
@@ -618,6 +634,14 @@ export const DEFAULT_SUBTREE_DEPTH = 3
  *
  * `depth` means one thing on both arms — how far to descend, from the node, or
  * from EACH of the file's roots.
+ *
+ * `withDesc` is the same flag {@link SearchRequest.withDesc} already is, and
+ * the other way round on the default. Search is a shortlist over the directory,
+ * asked on every keystroke by doors that never draw a note, so that one is off
+ * until asked. This is a targeted walk: you named a node or a file, and the
+ * prose under it is usually why you asked, so the notes ride unless you turn
+ * them off. Depth bounds LEVELS, not notes; `false` is the lean read for a
+ * table of contents.
  */
 export const SubtreeRequest = Schema.Struct({
   id: Schema.optionalKey(
@@ -635,7 +659,31 @@ export const SubtreeRequest = Schema.Struct({
   depth: Schema.optionalKey(
     Schema.Number.annotate({
       description:
-        `How many levels of children to include — from the node, or from each of a file's roots. Default ${DEFAULT_SUBTREE_DEPTH}.`,
+        `How many levels of children to include — from the node, or from each of a file's roots. Default ${DEFAULT_SUBTREE_DEPTH}. Depth bounds levels, not notes; \`withDesc: false\` is how a walk omits the prose.`,
+    }),
+  ),
+  /**
+   * THE NOTES, ON THE WALK — the same flag `search_nodes` already has, and the
+   * other way round on the default.
+   *
+   * ON BY DEFAULT, because a targeted read usually wants the note: you named a
+   * node or a file, and the prose under it is why you asked. Search is the
+   * other shape, so that one is off until asked ({@link SearchRequest.withDesc}).
+   *
+   * TURN IT OFF for a table of contents. Depth bounds how many LEVELS come
+   * back, not how much PROSE each row carries, and notes dominate the cost: an
+   * outline of roots with forensics under them is tens of thousands of
+   * characters for the ids a structural question actually needed. `false`
+   * answers ids, titles, marks, props, structure only; per-node `truncated`
+   * is unchanged.
+   *
+   * WHOLE OR ABSENT, never cut — {@link SearchRequest.withDesc}'s own rule,
+   * one field over: a shortened note is a note an edit gets written against.
+   */
+  withDesc: Schema.optionalKey(
+    Schema.Boolean.annotate({
+      description:
+        "Carry each row's `desc` — its note, whole. ON by default: a targeted read usually wants the note. `false` is the lean read for a table of contents — ids, titles, marks, props, structure only. Depth bounds levels, not notes; notes dominate the cost of a walk. Per-node `truncated` is unchanged.",
     }),
   ),
 })

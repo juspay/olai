@@ -144,7 +144,7 @@ const reading = () => readingOf(LEDGER())
  * absent from every answer — which is precisely how a field once reached an
  * agent through `search_nodes` and was dropped on the way to the palette
  * (`@olai/format`'s `searching.ts` header). `carriedOf`'s list and `Found`'s
- * are two hand-written lists of the same three fields; this is the cheap thing
+ * are two hand-written lists of the same fields; this is the cheap thing
  * that fails when they stop agreeing, and it names the field when it does.
  */
 test("a node carrying everything produces every field `Found` declares", () => {
@@ -454,6 +454,7 @@ describe("what refers to a node", () => {
         line: 5,
         status: "doing",
         path: ["Bugs"],
+        parent: "bugs",
         see: ["git"],
         after: ["git"],
         ways: ["see"],
@@ -558,6 +559,37 @@ describe("placements", () => {
     // write lands.
     expect(search(reading(), { text: "git" }, TODAY).hits.filter(isNodeHit).map((hit) => hit.id))
       .not.toContain("now-git")
+  })
+})
+
+/**
+ * THE PARENT'S ID, on every situated answer — a hit, a child in a node's list,
+ * a row of a subtree, and the node read itself.
+ *
+ * `path` is titles. Every write that names a parent takes an id. A caller that
+ * can see "Bugs" and not `bugs` cannot file a sibling without a second guess,
+ * which is the 2026-08-28 incident that named the field.
+ */
+describe("the parent a node sits under", () => {
+  test("a child carries `parent`; a root does not", () => {
+    expect(detail(at(), "git")).toMatchObject({ parent: "bugs" })
+    expect(detail(at(), "bugs")).not.toHaveProperty("parent")
+    expect(detail(at(), "bugs")?.children.find((child) => child.id === "git"))
+      .toMatchObject({ parent: "bugs" })
+  })
+
+  test("a search hit carries it too — the same field, one `foundOf`", () => {
+    expect(nodeHits(search(reading(), { text: "indicators" }, TODAY))[0])
+      .toMatchObject({ id: "git", parent: "bugs" })
+    expect(nodeHits(search(reading(), { text: "Bugs" }, TODAY))[0])
+      .not.toHaveProperty("parent")
+  })
+
+  test("a subtree row carries it, at every depth the walk kept", () => {
+    const bugs = nodeOf(walked(reading(), { id: "bugs" }))
+    expect(bugs).not.toHaveProperty("parent")
+    expect(bugs.children.find((child) => child.id === "git"))
+      .toMatchObject({ parent: "bugs" })
   })
 })
 
@@ -678,6 +710,43 @@ describe("a whole outline, walked", () => {
     expect(answer.roots[0]?.children[0]).toMatchObject({ id: "call", truncated: true })
     // …while its neighbour bottoms out at a leaf, and says nothing.
     expect(answer.roots[1]).not.toHaveProperty("truncated")
+  })
+
+  /**
+   * THE LEAN WALK — `withDesc: false` omits every note, default keeps them,
+   * and `truncated` does not move. Depth bounds levels, not prose; the flag
+   * is how a table-of-contents question does not pay for the forensics.
+   */
+  test("the notes ride by default, and `withDesc: false` takes them off", () => {
+    const withNotes = outlineOf(walked(shelf(), { file: "plan.olai" }))
+    expect(withNotes.roots[1]).toMatchObject({ desc: "nothing urgent" })
+    // Explicit `true` is the same answer as omitting the flag — ON is the
+    // default, said out loud rather than inferred from the line above.
+    expect(outlineOf(walked(shelf(), { file: "plan.olai", withDesc: true })).roots[1])
+      .toMatchObject({ desc: "nothing urgent" })
+
+    const lean = outlineOf(walked(shelf(), { file: "plan.olai", withDesc: false }))
+    expect(lean.roots[1]).not.toHaveProperty("desc")
+    // Structure is unchanged: both roots, the child, the grandchild.
+    expect(lean.roots.map((root) => root.id)).toEqual(["today", "later"])
+    expect(lean.roots[0]?.children[0]?.children.map((child) => child.id))
+      .toEqual(["hinges"])
+  })
+
+  test("`truncated` is unchanged by the flag", () => {
+    const lean = outlineOf(
+      walked(shelf(), { file: "plan.olai", depth: 1, withDesc: false }),
+    )
+    expect(lean.roots[0]?.children[0]).toMatchObject({ id: "call", truncated: true })
+    expect(lean.roots[0]?.children[0]).not.toHaveProperty("desc")
+    expect(lean.roots[1]).not.toHaveProperty("truncated")
+  })
+
+  test("the id arm honours the flag too — one walk, two ways in", () => {
+    expect(nodeOf(walked(shelf(), { id: "later" })))
+      .toMatchObject({ desc: "nothing urgent" })
+    expect(nodeOf(walked(shelf(), { id: "later", withDesc: false })))
+      .not.toHaveProperty("desc")
   })
 
   /**

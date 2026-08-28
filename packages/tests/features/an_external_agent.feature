@@ -202,6 +202,24 @@ Feature: An agent olai did not start
     And the terminal agent was handed the note "brass, if the budget survives"
     And there should be no page errors
 
+  Scenario: A node read carries the parent's id
+    # `path` is titles. Every write that names a parent takes an id. A caller
+    # that can see "install the cabinets" and not `install` cannot file a
+    # sibling without a second guess — which is the 2026-08-28 incident.
+    When the terminal agent reads the node "hinges"
+    Then the terminal agent was handed the parent "install"
+    And there should be no page errors
+
+  Scenario: A subtree can be walked without the notes
+    # Depth bounds levels, not prose. The same outline with its notes is the
+    # expensive read; `withDesc: false` is the table of contents — ids, titles,
+    # marks, structure. `hinges` in this fixture carries a note, so a walk that
+    # kept it would fail the absence below for the wrong reason.
+    When the terminal agent reads the whole outline "house.olai" without the notes
+    Then the terminal agent was handed the roots "kitchen remodel #home"
+    And no node in the answer carries a note
+    And there should be no page errors
+
   Scenario: A terminal writes a document, both faces of one gate
     # The consistency rule, end to end: `create_document` mints the file and
     # `write_document` replaces its text — the same two ops the browser's
