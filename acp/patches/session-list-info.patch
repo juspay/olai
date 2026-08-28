@@ -1,0 +1,180 @@
+--- a/dist/acp-agent.js
++++ b/dist/acp-agent.js
+@@ -572,6 +572,100 @@
+         return this.ctx.notify(method, params);
+     }
+ }
++/**
++ * olai patch (session-list-info) — two facts a `session/list` entry has on
++ * disk that ACP's SessionInfo has no field for: HOW BIG the conversation is
++ * (`messageCount`), and WHICH session clearing it brought the session that
++ * replaced it about (`supersededBy`, attached to the OLDER row).
++ *
++ * Both arrive on the entry's `_meta.claudeCode` — the same vendor corner this
++ * adapter already uses for `backgroundTask` — and only when they were actually
++ * read: a session whose transcript could not be scanned keeps its protocol
++ * fields and says nothing here, rather than costing the whole list.
++ *
++ * `messageCount` is the SDK's own definition of a session's messages
++ * (`getSessionMessages().length`, with the harness's meta rows already out of
++ * it), not a line or byte count: the cheap versions measure the wrong thing on
++ * a real transcript — a coding conversation's own CONTENT quotes
++ * `"type":"user"` markers too often for substring counting to survive
++ * (measured 4x the true count on a 26 MB corpus).
++ *
++ * A read is memoized by the SDK record's own `(fileSize, lastModified)`, which
++ * move exactly when the transcript does — so a repeated `session/list` pays
++ * the full parse only for the conversations that moved since the last one.
++ */
++const sessionListFactsCache = new Map();
++
++/**
++ * The text of one SDK message, as a person reads it. User content is a bare
++ * string or a list of typed blocks; local commands ride it wrapped in
++ * `<command-name>` markers.
++ */
++const sdkMessageText = (message) => {
++    const content = message?.message?.content;
++    if (typeof content === "string") {
++        return content;
++    }
++    if (Array.isArray(content)) {
++        return content
++            .map((block) => (block?.type === "text" ? String(block.text ?? "") : ""))
++            .join("\n");
++    }
++    return "";
++};
++
++/**
++ * When a session was OPENED BY `/clear`, in epoch ms — the timestamp of the
++ * clearing command, which the harness records as the session's own opening
++ * conversation entries (verified against the vendored CLI, 2026-08-28). The
++ * first message that is not a command marker ends the opening stretch: a
++ * session opened some other way answers `undefined`.
++ */
++const clearStartedAtMsOf = (messages) => {
++    for (const message of messages.slice(0, 8)) {
++        const command = sdkMessageText(message).match(/<command-name>\s*(\S+)\s*<\/command-name>/);
++        if (command === null) {
++            return undefined;
++        }
++        if (command[1] === "/clear") {
++            const at = Date.parse(message.timestamp ?? "");
++            return Number.isNaN(at) ? undefined : at;
++        }
++    }
++    return undefined;
++};
++
++/**
++ * Read the two facts for ONE listed session: its conversation size and the
++ * moment it began by clearing another. `log` hears about an unreadable
++ * transcript; the row does not.
++ */
++const sessionListFactsOf = async (session, dir, log) => {
++    const had = sessionListFactsCache.get(session.sessionId);
++    if (had !== undefined &&
++        had.fileSize === session.fileSize &&
++        had.lastModified === session.lastModified) {
++        return had.facts;
++    }
++    let facts = undefined;
++    try {
++        const messages = await getSessionMessages(session.sessionId, { dir });
++        const clearedAt = clearStartedAtMsOf(messages);
++        facts = {
++            messageCount: messages.length,
++            ...(clearedAt === undefined ? {} : { clearedAt }),
++        };
++    }
++    catch (error) {
++        log(`session/list: could not scan ${session.sessionId}: ${error}`);
++    }
++    sessionListFactsCache.set(session.sessionId, {
++        fileSize: session.fileSize,
++        lastModified: session.lastModified,
++        facts,
++    });
++    return facts;
++};
+ export class ClaudeAcpAgent {
+     sessions;
+     client;
+@@ -790,20 +884,68 @@
+         return result;
+     }
+     async listSessions(params) {
+-        const sdk_sessions = await listSessions({ dir: params.cwd ?? undefined });
+-        const sessions = [];
++        const dir = params.cwd ?? undefined;
++        const sdk_sessions = await listSessions({ dir });
++        // olai patch (session-list-info), second half — the protocol's own row
++        // beside the facts its transcript has ready, and the supersession link
++        // derived over the listed set. The machinery is the helper block above
++        // the class; nothing here may throw away the list: one unreadable
++        // transcript says nothing and every other row is still answered.
++        const rows = [];
+         for (const session of sdk_sessions) {
+             if (!session.cwd)
+                 continue;
+-            sessions.push({
+-                sessionId: session.sessionId,
+-                cwd: session.cwd,
+-                title: sanitizeTitle(session.summary),
+-                updatedAt: new Date(session.lastModified).toISOString(),
++            rows.push({
++                entry: {
++                    sessionId: session.sessionId,
++                    cwd: session.cwd,
++                    title: sanitizeTitle(session.summary),
++                    updatedAt: new Date(session.lastModified).toISOString(),
++                },
++                lastModified: session.lastModified,
++                facts: await sessionListFactsOf(session, dir, (line) => this.logger.error(line)),
+             });
+         }
++        // A session OPENED BY `/clear` was born of another in the same
++        // directory, but the harness writes no link — so the one it cleared is
++        // the session whose transcript was last written before the moment the
++        // clearing command stamps. UNIQUELY that one, and only among rows of
++        // the same directory: a tie or no candidate both read as "no link",
++        // which is the direction this inference may fail in.
++        for (const row of rows) {
++            if (row.facts?.clearedAt === undefined)
++                continue;
++            let predecessor;
++            let tied = false;
++            for (const other of rows) {
++                if (other === row ||
++                    other.entry.cwd !== row.entry.cwd ||
++                    other.lastModified >= row.facts.clearedAt)
++                    continue;
++                if (predecessor === undefined || other.lastModified > predecessor.lastModified) {
++                    predecessor = other;
++                    tied = false;
++                }
++                else if (other.lastModified === predecessor.lastModified) {
++                    tied = true;
++                }
++            }
++            if (predecessor !== undefined && !tied) {
++                predecessor.facts = { ...predecessor.facts, supersededBy: row.entry.sessionId };
++            }
++        }
+         return {
+-            sessions,
++            sessions: rows.map(({ entry, facts }) => facts === undefined
++                ? entry
++                : {
++                    ...entry,
++                    _meta: {
++                        claudeCode: {
++                            messageCount: facts.messageCount,
++                            ...(facts.supersededBy === undefined ? {} : { supersededBy: facts.supersededBy }),
++                        },
++                    },
++                }),
+         };
+     }
+     /** Read the SDK-maintained title for a session and, if it changed since the

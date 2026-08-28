@@ -33,11 +33,14 @@
  * with the same one.
  *
  * Every row says WHEN it was last touched, to the minute ({@link ./when.ts}),
- * and that is the whole of what this list can honestly say about two rows that
- * look identical. `/clear` ends one conversation and starts another under the
- * same name, and ACP has no field for "this one supersedes that one" — so what
- * is drawn is the fact the protocol does carry, for every agent, rather than a
- * relationship guessed from two rows that happen to share a title.
+ * and — where the agent said them — HOW BIG the conversation is and WHICH one
+ * of the rows replaced it. `/clear` ends one conversation and starts another
+ * under the same name, and ACP has no field for "this one supersedes that
+ * one": olai's pinned Claude Code adapter says it in its own `_meta` corner
+ * ({@link ../../../../../acp/patches/README.md}, the transcripts' own
+ * clocks), and any other agent's rows carry the stamp alone. What is drawn is
+ * still always a fact somebody SENT — never a relationship inferred here from
+ * two rows that happen to share a title.
  *
  * ## HOW IT SHUTS, which for a while was "it does not"
  *
@@ -179,6 +182,15 @@ export function Sessions(props: { readonly chat: Chat }) {
       : []
   })
 
+  /** The rows by id, for naming the one a `supersededBy` points at. Untracked
+   *  like {@link groups}: the answer is asked for afresh every time the list
+   *  opens, which is the only time the links move. */
+  const byId = createMemo((): ReadonlyMap<string, SessionInfo> => {
+    const answer = picker()
+    if (answer._tag !== "listed") return new Map()
+    return new Map(answer.sessions.map((session) => [session.id, session]))
+  })
+
   /** Whether the groups are worth a heading each. ONE agent on the machine is a
    *  heading over the whole list, saying what the panel's own header already
    *  says — the picker's own rule, read at the other door. */
@@ -278,6 +290,9 @@ export function Sessions(props: { readonly chat: Chat }) {
                           {(session) => (
                             <Row
                               session={session}
+                              successor={session.supersededBy === null
+                                ? undefined
+                                : byId().get(session.supersededBy)}
                               current={session.id === current()}
                               onPick={() => {
                                 setPicker({ _tag: "shut" })
@@ -327,16 +342,30 @@ export function Sessions(props: { readonly chat: Chat }) {
  */
 function Row(props: {
   readonly session: SessionInfo
+  /** The conversation that replaced this one, when it is on the screen —
+   *  `undefined` when the `supersededBy` id names nothing the list knows: the
+   *  row it pointed at can be gone, and a named successor is the whole of the
+   *  hint's worth, so without one the line says nothing. */
+  readonly successor: SessionInfo | undefined
   /** Whether this is the conversation the panel is already in. Passed rather
    *  than looked up, so the row does not need the cell. */
   readonly current: boolean
   readonly onPick: () => void
 }) {
+  /** The agent's own count of the conversation, drawn when it was SENT:
+   *  `null` is nobody's answer and draws nothing rather than a zero of our
+   *  own, and zero itself is an answer — a conversation nobody has spoken in
+   *  yet — which is the one a `0 messages` cell exists to make visible. */
+  const size = (): string | null => {
+    const count = props.session.messageCount
+    if (count === null) return null
+    return `${count} ${count === 1 ? "message" : "messages"}`
+  }
   return (
     <li>
       <button
         type="button"
-        class="flex w-full items-baseline gap-2 rounded px-2 py-1 text-left text-xs hover:bg-rule"
+        class="flex w-full flex-col rounded px-2 py-1 text-left text-xs hover:bg-rule"
         data-testid={TESTID.chatSession}
         data-session-id={props.session.id}
         data-agent={props.session.agent}
@@ -346,15 +375,33 @@ function Row(props: {
         disabled={props.current}
         onClick={() => props.onPick()}
       >
-        <span class={`min-w-0 flex-1 truncate ${props.current ? "text-accent" : ""}`}>
-          {props.session.title ?? props.session.id}
+        <span class="flex w-full items-baseline gap-2">
+          <span class={`min-w-0 flex-1 truncate ${props.current ? "text-accent" : ""}`}>
+            {props.session.title ?? props.session.id}
+          </span>
+          <Show when={size()}>
+            {(drawn) => (
+              <span class="shrink-0 font-mono text-[0.625rem] text-muted">{drawn()}</span>
+            )}
+          </Show>
+          {/* The stamp does not shrink and the title does: two rows that share a
+              title (a `/clear` leaves a pair) differ in nothing else, so the one
+              thing that tells them apart may not be the thing a long title pushes
+              off the end. */}
+          <Show when={whenOf(props.session.updatedAt)}>
+            {(at) => <span class="shrink-0 font-mono text-[0.625rem] text-muted">{at()}</span>}
+          </Show>
         </span>
-        {/* The stamp does not shrink and the title does: two rows that share a
-            title (a `/clear` leaves a pair) differ in nothing else, so the one
-            thing that tells them apart may not be the thing a long title pushes
-            off the end. */}
-        <Show when={whenOf(props.session.updatedAt)}>
-          {(at) => <span class="shrink-0 font-mono text-[0.625rem] text-muted">{at()}</span>}
+        <Show when={props.successor}>
+          {(next) => (
+            <span
+              class="truncate text-[0.625rem] text-muted"
+              data-testid={TESTID.chatSessionSuperseded}
+              data-successor={next().id}
+            >
+              superseded by {next().title ?? next().id}
+            </span>
+          )}
         </Show>
       </button>
     </li>

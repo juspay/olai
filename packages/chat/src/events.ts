@@ -32,11 +32,23 @@ export interface Command {
   readonly description: string
 }
 
-/** One of the agent's stored conversations for the served directory. */
+/**
+ * One of the agent's stored conversations for the served directory.
+ *
+ * `messageCount` and `supersededBy` come from the adapter's OWN corner of the
+ * answer (`_meta.claudeCode` on the pinned Claude Code adapter —
+ * `acp/patches/session-list-info.patch`, the lane in
+ * {@link ./agents/claude.ts}'s `listedIn`), so they are facts that exist only
+ * where an adapter chooses to volunteer them. `null` — the reading's losing
+ * direction — is what the request's absence produces, and the picker's answer
+ * for it is to draw nothing rather than a zero or a guessed pair.
+ */
 export interface Stored {
   readonly id: string
   readonly title: string | null
   readonly updatedAt: string | null
+  readonly messageCount: number | null
+  readonly supersededBy: string | null
 }
 
 export type AgentEvent =

@@ -396,7 +396,14 @@ const holdsLoad = (): boolean => existsSync(`${cwd}/${MARKER.holdLoad}`)
 const silent = (): boolean => existsSync(`${cwd}/${MARKER.saysNothing}`)
 
 /** The client's own two, NEWEST LAST — so a client that takes the first entry
- *  instead of the most recently updated one adopts the wrong conversation. */
+ *  instead of the most recently updated one adopts the wrong conversation.
+ *
+ *  Each carries the one FACT the patched adapter's `session/list` adds beyond
+ *  the protocol's four fields (`_meta.claudeCode`,
+ *  `acp/patches/session-list-info.patch`): the adapter always reads a count,
+ *  and the OLDER of this pair is the one a `/clear` left behind, so the fake
+ *  names what replaced it. The second line of a picker's row is what a
+ *  scenario reads off this. */
 const storedSessions = () =>
   [
     {
@@ -404,6 +411,7 @@ const storedSessions = () =>
       cwd,
       title: STORED_TITLES["fake-stored-old"],
       updatedAt: "2026-07-01T09:00:00.000Z",
+      _meta: { claudeCode: { messageCount: 47, supersededBy: "fake-stored-new" } },
     },
     {
       sessionId: "fake-stored-new",
@@ -412,6 +420,7 @@ const storedSessions = () =>
       cwd: `${cwd}/`,
       title: STORED_TITLES["fake-stored-new"],
       updatedAt: "2026-08-01T17:30:00.000Z",
+      _meta: { claudeCode: { messageCount: 3 } },
     },
   ].filter((session) => !forgotten(session.sessionId))
 

@@ -23,6 +23,8 @@ const said = (agent: string, id: string, updatedAt: string | null): SessionInfo 
   agent,
   title: null,
   updatedAt,
+  messageCount: null,
+  supersededBy: null,
 })
 
 describe("grouping the chats list", () => {

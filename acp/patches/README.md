@@ -1,12 +1,17 @@
-# The one patch this pin carries
+# The patches this pin carries
 
-`background-tasks-visible.patch` applies to the pinned
-`@agentclientprotocol/claude-agent-acp` 0.66.0 — to its **compiled**
-`dist/acp-agent.js`, because npm is the only channel the adapter ships through
-(`nix/acp-agent.nix` says why that pin is npm-shaped). It is applied by that
-derivation's `postInstall`, so every documented way of starting olai — `nix
-run`, the packaged binary, `just serve`, `just run`, the e2e suite's
-`OLAI_BIN` — gets the same agent.
+## What the pin is for
+
+Two patches apply to the pinned `@agentclientprotocol/claude-agent-acp`
+0.66.0 — to its **compiled** `dist/acp-agent.js`, because npm is the only
+channel the adapter ships through (`nix/acp-agent.nix` says why that pin is
+npm-shaped). They are applied by that derivation's `postInstall`, so every
+documented way of starting olai — `nix run`, the packaged binary, `just
+serve`, `just run`, the e2e suite's `OLAI_BIN` — gets the same agent.
+
+---
+
+# `background-tasks-visible.patch` — a background task lives past its launch
 
 ## What it is for
 
@@ -102,25 +107,84 @@ adapter has nothing to forward per event, and this patch does not pretend
 otherwise: what it carries is the task's LIFE — armed, still running, and how
 it ended. Per-event streaming is a change one layer further down, in the CLI.
 
+---
+
+# `session-list-info.patch` — what a stored conversation holds, and which one a `/clear` moved you to
+
+## What it is for
+
+Two questions about an agent's stored conversations that `session/list`
+cannot answer today:
+
+- **How big is the conversation?** The wire carries an id, a title,
+  timestamps, and a file size — and nothing that says how many messages a
+  conversation holds. Two sessions can share a title and an hour; three
+  versus three hundred messages is usually the difference the person reading
+  the picker means.
+- **Which conversation did `/clear` move you into?** The CLI starts a fresh
+  session for the same directory and leaves no pointer connecting the two,
+  so the picker shows the pair as twins and cannot say which row the reader
+  is in. A session that *opens* with the `/clear` local-command replaces the
+  one last touched at that moment.
+
+The patch answers both by stamping each listed session's `_meta.claudeCode`
+(the protocol's extension point for exactly this) when `session/list` replies:
+
+- `messageCount: number`, read from the transcript; and
+- `supersededBy: <sessionId>` on the OLDER of a `/clear` pair.
+
+The link is **inference, said without guessing**: candidates that tie at the
+cleared second, or a missing one, mean the field is absent rather than a best
+pick — a wrong link is worse than no link on the row somebody is about to
+click. The asking that follows from that is written up in
+[claude-agent-acp#ISSUE](https://github.com/agentclientprotocol/claude-agent-acp/issues/ISSUE),
+which also asks whether the CLI can stop making it an inference question at
+all (a session that replaced another knows it did).
+
+The cost is held the way the SDK gauges its own listings: `getSessionMessages`
+once per session in the cwd, under a memo keyed by session id, file size, and
+mtime — so the common second list of a busy directory costs a cache lookup —
+in a sequential scan rather than a `Promise.all` (a busy directory is not
+allowed to become a storm), and one unreadable transcript costs that row's
+stamp, not the list.
+
+## What neither patch gets you
+
+The CLI's own `/resume` picker still shows file size. The link never becomes
+anything but inferred while the harness does not write it. An agent that is
+not this adapter — opencode — has no stamp, and olai's picker's answer for
+an unstamped row is to say nothing rather than invent a count for it.
+
+---
+
 ## Upstreaming
 
-**Asked, not sent**:
+**`background-tasks-visible.patch` — asked, not sent**:
 [claude-agent-acp#1038](https://github.com/agentclientprotocol/claude-agent-acp/issues/1038)
 describes this extension, links to this patch, and asks the maintainers whether
 a PR of it would be welcome. That issue is the whole of what has been done on
-that repo — no branch, no PR — and it was opened on the human's own narrow
-ratification, because acting on somebody else's repository is theirs to allow
-and never this lane's to assume.
+that repo on it — no branch, no PR — and it was opened on the human's own
+narrow ratification, because acting on somebody else's repository is theirs to
+allow and never this lane's to assume.
 
-The patch is written against the compiled output because that is what the pin
-ships; against `src/acp-agent.ts` the same change is a mechanical translation,
-which is what a PR would carry if the answer is yes.
+**`session-list-info.patch` — asked, not sent**:
+[claude-agent-acp#ISSUE](https://github.com/agentclientprotocol/claude-agent-acp/issues/ISSUE),
+same shape: what the two stamps are, why, and a pointer at this patch, ending
+in the same two questions — would a PR be welcome, and could the CLI make the
+link a fact rather than an inference. That issue was opened under the same
+narrow ratification, and naming the ratification here is what keeps both
+issues from looking like an editorial habit.
+
+Both patches are written against the compiled output because that is what the
+pin ships; against `src/acp-agent.ts` the same change is a mechanical
+translation, which is what a PR would carry if the answers are yes.
 
 ## When the pin moves
 
 `patch -p1` fails the build if the context has moved, which is the point: a
 version bump makes this loud rather than silently dropping the behaviour. The
-fix is to re-apply the edits against the new `dist/acp-agent.js` (the anchors
-are all in `toAcpNotifications`' tool-result branch and in the SDK-message
-switch's `task_*` cases) — or to drop the patch if upstream has landed it, and
-say so here.
+fix is to re-apply the edits against the new `dist/acp-agent.js` — the
+anchors in `background-tasks-visible.patch` are all in `toAcpNotifications`'
+tool-result branch and in the SDK-message switch's `task_*` cases; the anchors
+in `session-list-info.patch` are `listSessions` and the module surface above
+it — or to drop a patch upstream has landed, and say so here.

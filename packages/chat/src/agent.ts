@@ -1191,11 +1191,20 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           (raw) =>
             (raw as ListSessionsResponse).sessions
               .filter((entry) => sameDirectory(entry.cwd, options.cwd))
-              .map((entry): Stored => ({
-                id: entry.sessionId,
-                title: entry.title ?? null,
-                updatedAt: entry.updatedAt ?? null,
-              }))
+              .map((entry): Stored => {
+                // What the AGENT'S OWN CORNER of the answer says on top of the
+                // protocol's four fields — read by the leg (only it knows
+                // whose corner), with the older conversations falling back to
+                // the absence: a count nobody says is drawn as nothing at all.
+                const listed = options.leg.listedIn(entry._meta)
+                return {
+                  id: entry.sessionId,
+                  title: entry.title ?? null,
+                  updatedAt: entry.updatedAt ?? null,
+                  messageCount: listed?.messageCount ?? null,
+                  supersededBy: listed?.supersededBy ?? null,
+                }
+              })
               .sort(newestFirst),
         )
         : Effect.succeed([])

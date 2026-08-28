@@ -967,6 +967,10 @@ export const CHAT_SESSION_AGENT = selector(TESTID.chatSessionAgent);
  *  selector and not the whole call's refusal, because the two are two states:
  *  this one leaves every other agent's conversations on the screen. */
 export const CHAT_SESSION_UNREACHABLE = selector(TESTID.chatSessionUnreachable);
+/** The line under one row saying WHICH conversation replaced this one — it
+ *  carries `data-successor`, because the successor need not be on the screen
+ *  and the sentence alone could not pick it out of two sharing a title. */
+export const CHAT_SESSION_SUPERSEDED = selector(TESTID.chatSessionSuperseded);
 export const CHAT_TRANSCRIPT = selector(TESTID.chatTranscript);
 /** The strip under the chat header: which MCP servers this conversation has.
  *  Drawn on every conversation, so its absence means there is none. */

@@ -137,4 +137,11 @@ describe("what opencode does not do", () => {
     // Its settings come back in method RESPONSES; nothing is pushed.
     expect(OPENCODE.rawMessages).toBeNull()
   })
+
+  test("says nothing beyond the protocol about a stored conversation", () => {
+    // No `_meta` corner on this wire, so no count and no link: the picker's
+    // own signal of a read it never got is nothing drawn, not a zero.
+    expect(OPENCODE.listedIn({ messageCount: 5 })).toBeNull()
+    expect(OPENCODE.listedIn(undefined)).toBeNull()
+  })
 })

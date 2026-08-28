@@ -21,6 +21,7 @@ import { describe, expect, test } from "bun:test"
 import {
   allowedWithoutAsking,
   backgroundTaskIn,
+  listedIn,
   CLAUDE,
   liveModelIn,
   liveServersIn,
@@ -800,5 +801,38 @@ describe("the leg", () => {
         message: { type: "system", subtype: "init", model: "claude-sonnet-5" },
       }),
     ).toBe("claude-sonnet-5")
+  })
+})
+
+describe("what a listed conversation holds", () => {
+  test("reads the count and the link together", () => {
+    // The shape the patched adapter answers for a `/clear` sibling: the count
+    // is always read when the transcript scanned, and the link only exists on
+    // the OLDER row.
+    expect(listedIn({ claudeCode: { messageCount: 3, supersededBy: "s2" } }))
+      .toEqual({ messageCount: 3, supersededBy: "s2" })
+    expect(listedIn({ claudeCode: { messageCount: 4 } }))
+      .toEqual({ messageCount: 4, supersededBy: null })
+  })
+
+  test("zero is an answer", () => {
+    // A conversation nobody has spoken in yet — exactly what a freshly cleared
+    // session reads as, and the one count a generous reader would drop.
+    expect(listedIn({ claudeCode: { messageCount: 0 } }))
+      .toEqual({ messageCount: 0, supersededBy: null })
+  })
+
+  test("a row that said nothing reads as nothing", () => {
+    // The losing direction: an old adapter, an unreadable transcript, an agent
+    // that is not this one. Never a count of our own in its place.
+    expect(listedIn({ claudeCode: {} })).toBeNull()
+    expect(listedIn({})).toBeNull()
+    expect(listedIn(null)).toBeNull()
+    expect(listedIn(undefined)).toBeNull()
+    expect(listedIn({ claudeCode: { messageCount: "3" } })).toBeNull()
+    expect(listedIn({ claudeCode: { messageCount: Number.NaN } })).toBeNull()
+    expect(listedIn({ claudeCode: { messageCount: -1 } })).toBeNull()
+    expect(listedIn({ claudeCode: { supersededBy: "" } })).toBeNull()
+    expect(listedIn({ claudeCode: { supersededBy: 4 } })).toBeNull()
   })
 })

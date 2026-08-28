@@ -136,6 +136,9 @@ export const OPENCODE: Leg = {
   // panel can draw one: a client that inferred a live task from a tool's name
   // would be putting a ticking clock on somebody's ordinary call.
   backgroundTask: () => null,
+  // ... and its `session/list` carries no `_meta` corner, so its rows say as
+  // much about a conversation as the protocol alone says.
+  listedIn: () => null,
   // Refused (`-32602`): the modes are `build` and `plan`. Unattended
   // auto-approval for opencode lives in its own `opencode.json`, outside ACP —
   // olai answers what it is asked and never widens what it answers.

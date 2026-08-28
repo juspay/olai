@@ -386,6 +386,24 @@ Feature: Choosing an agent
     And the chats list is grouped under the agent "opencode"
 
   @opencode @agent-stored @scratch:chat
+  Scenario: A row says how big its conversation is, and which conversation replaced it
+    # `/clear` ends one conversation and starts another under a shared title,
+    # and ACP's SessionInfo answers four fields and stops — so the list used
+    # to answer "which of these two is the live one" with nothing. What the
+    # fixture carries is the pinned adapter's own answer (the patch olai
+    # ships, `acp/patches/session-list-info.patch`): the count per row, and
+    # on the OLDER of the pair, which conversation replaced it.
+    When I choose the agent "claude"
+    And I open the session picker
+    Then the chats row for "the last conversation" says it has 3 messages
+    And the chats row for "an older conversation" says it has 47 messages
+    And the chats row for "an older conversation" was superseded by "the last conversation"
+    And the chats row for "the last conversation" was not superseded
+    # ... while an agent whose list carries no corner says nothing — never a
+    # zero standing in for a reading nobody did.
+    And the chats row for "an opencode conversation" shows no message count
+
+  @opencode @agent-stored @scratch:chat
   Scenario: Picking another agent's conversation switches the panel to that agent
     # The consequence of the list spanning both: a row in it may belong to the
     # agent this panel is NOT talking to, and a session id means nothing to the

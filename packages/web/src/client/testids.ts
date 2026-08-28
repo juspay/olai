@@ -1159,6 +1159,11 @@ export const TESTID = {
   chatSessions: "chat-sessions",
   chatSessionList: "chat-session-list",
   chatSession: "chat-session",
+  /** The line under a chats row that says WHICH conversation replaced this
+   *  one — with a `data-successor` of its id, because the successor need not
+   *  be on the screen (it is drawn only when it is), and the sentence alone
+   *  would be a claim nothing could pick out of two sharing a title. */
+  chatSessionSuperseded: "chat-session-superseded",
   /** The heading over one agent's rows in the chats list. Drawn only where
    *  more than one agent has conversations here — one agent is a heading over
    *  the whole list. */
