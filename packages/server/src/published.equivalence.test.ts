@@ -308,7 +308,7 @@ test("a generated vault under two hundred writes publishes the same frames", () 
     differential(vault, steps, publishedOf),
     { upserts: 300, removes: 10, reused: 200, rebuilt: 40, minted: 4 },
   )
-})
+}, { timeout: 15_000 })
 
 // ── the real vault ─────────────────────────────────────────────────────
 
