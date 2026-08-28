@@ -67,9 +67,15 @@ await call(agent, "read_subtree", { file: "plan.olai" })
 say("(a) …and `depth` still applies, per root")
 await call(agent, "read_subtree", { file: "plan.olai", depth: 1 })
 
+say("(a) …and `withDesc: false` is the lean read — structure, no notes")
+await call(agent, "read_subtree", { file: "plan.olai", withDesc: false })
+
 say("(b) a selection, and the same selection WITH its notes")
 await call(agent, "search_nodes", { text: "is:todo" })
 await call(agent, "search_nodes", { text: "is:todo", withDesc: true })
+
+say("(c) a node read carries the parent's id — `path` is titles")
+await call(agent, "read_node", { id: "call" })
 
 say("the refusals: a path that is not an outline")
 await call(agent, "read_subtree", { file: "plans.olai" })

@@ -251,6 +251,25 @@ When(
     this.toolAnswer = await tryTool(agentOf(this), "read_subtree", { file });
   },
 );
+
+/** The lean walk: same outline, no notes. Depth still applies; truncated is
+ *  unchanged; `desc` is what leaves. */
+When(
+  "the terminal agent reads the whole outline {string} without the notes",
+  async function (this: OlaiWorld, file: string) {
+    this.toolAnswer = await tryTool(agentOf(this), "read_subtree", {
+      file,
+      withDesc: false,
+    });
+  },
+);
+
+When(
+  "the terminal agent reads the node {string}",
+  async function (this: OlaiWorld, id: string) {
+    this.toolAnswer = await callTool(agentOf(this), "read_node", { id });
+  },
+);
 When(
   "the terminal agent creates the document {string} holding {string}",
   async function (this: OlaiWorld, file: string, text: string) {
@@ -369,6 +388,49 @@ Then(
       { readonly desc?: string }
     >;
     assert.deepStrictEqual(hits.map((hit) => hit.desc), [note]);
+  },
+);
+
+/** The parent id a node read answers — the fact a write takes, which `path`
+ *  (titles) does not carry. */
+Then(
+  "the terminal agent was handed the parent {string}",
+  function (this: OlaiWorld, parent: string) {
+    assert.strictEqual(
+      structuredOf(this)["parent"],
+      parent,
+      `the read did not carry parent ${parent}: ${
+        JSON.stringify(structuredOf(this))
+      }`,
+    );
+  },
+);
+
+/**
+ * Walk every node in a subtree answer — a single tree or an outline of roots —
+ * and assert none of them carried a note. The lean read's whole claim.
+ */
+Then(
+  "no node in the answer carries a note",
+  function (this: OlaiWorld) {
+    type Row = {
+      readonly desc?: unknown
+      readonly children?: ReadonlyArray<Row>
+    };
+    const walk = (node: Row): ReadonlyArray<Row> => [
+      node,
+      ...(node.children ?? []).flatMap(walk),
+    ];
+    const answer = structuredOf(this);
+    const rows = "roots" in answer
+      ? (answer["roots"] as ReadonlyArray<Row>).flatMap(walk)
+      : walk(answer as Row);
+    const noted = rows.filter((row) => Object.hasOwn(row, "desc"));
+    assert.deepStrictEqual(
+      noted,
+      [],
+      `the lean walk still carried notes: ${JSON.stringify(noted)}`,
+    );
   },
 );
 

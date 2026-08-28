@@ -457,6 +457,14 @@ test("the read tools teach the fields the mirror and edge ops depend on", async 
     // …and that a selection can arrive WITH its notes, for the same reason: it
     // is off by default, so an agent that is not told will read a node per hit.
     expect(said("search_nodes")).toContain("`withDesc: true`")
+    // The parent's id, on every situated read: `path` is titles, a write takes
+    // the id, and an agent that is not told will dump a subtree for one fact.
+    expect(said("read_node")).toContain("`parent`")
+    expect(said("read_subtree")).toContain("`parent`")
+    expect(said("search_nodes")).toContain("`parent`")
+    // …and that a subtree can be walked WITHOUT its notes. ON by default, so
+    // an agent that is not told will haul every root's forensics for a TOC.
+    expect(said("read_subtree")).toContain("`withDesc: false`")
   })
 })
 
@@ -672,7 +680,11 @@ test("read_subtree answers a whole outline — every root, one call", async () =
     // already does.
     const children = roots[0]?.["children"] as ReadonlyArray<Record<string, unknown>>
     expect(children.map((child) => child["id"])).toEqual(["call"])
-    expect(children[0]).toMatchObject({ status: "todo", path: ["Today"] })
+    expect(children[0]).toMatchObject({
+      status: "todo",
+      path: ["Today"],
+      parent: "today",
+    })
 
     // And `depth` means the same thing on this arm, per ROOT: one bottoms out
     // where it was told to and says so, the other bottoms out at a leaf.
@@ -680,6 +692,31 @@ test("read_subtree answers a whole outline — every root, one call", async () =
       .structured["roots"] as ReadonlyArray<Record<string, unknown>>
     expect(cut[0]).toMatchObject({ id: "today", truncated: true })
     expect(cut[1]).not.toHaveProperty("truncated")
+  })
+})
+
+/**
+ * THE LEAN WALK, through the encoder — the same fence `custom` and the notes
+ * on a hit already have. `withDesc` is a field of the request, and a field
+ * the schema has never heard of is silently dropped on the way out of a
+ * walk that produced it. ON by default, so this is the arm that has to be
+ * asked for.
+ */
+test("read_subtree omits the notes when asked, and keeps them otherwise", async () => {
+  await withTools({ "plan.olai": PLAN }, async ({ client }) => {
+    const withNotes = (await call(client, "read_subtree", { id: "call" }))
+      .structured
+    expect(withNotes).toMatchObject({
+      id: "call",
+      desc: "about the hinges, and the delivery slot",
+    })
+
+    const lean = (await call(client, "read_subtree", {
+      id: "call",
+      withDesc: false,
+    })).structured
+    expect(lean).toMatchObject({ id: "call", parent: "today" })
+    expect(lean).not.toHaveProperty("desc")
   })
 })
 
@@ -799,6 +836,26 @@ test("read_subtree refuses a call naming both ways in, or neither", async () => 
     // about the ANSWER, not about the kind of answer, so an absence names its
     // vault exactly as a hit does.
     expect(withoutAge(gone.structured)).toEqual({ missing: "nope", root })
+  })
+})
+
+test("a node read, a hit and a subtree row all carry the parent's id", async () => {
+  await withTools({ "house.olai": HOUSE }, async ({ client }) => {
+    const order = (await call(client, "read_node", { id: "order" })).structured
+    expect(order).toMatchObject({ id: "order", parent: "kitchen" })
+    const kitchen = (await call(client, "read_node", { id: "kitchen" })).structured
+    expect(kitchen).not.toHaveProperty("parent")
+
+    const hit = ((await call(client, "search_nodes", { text: "cabinets" }))
+      .structured["hits"] as ReadonlyArray<Record<string, unknown>>)[0]
+    expect(hit).toMatchObject({ id: "order", parent: "kitchen" })
+
+    const tree = (await call(client, "read_subtree", { id: "kitchen", depth: 1 }))
+      .structured
+    const children = tree["children"] as ReadonlyArray<Record<string, unknown>>
+    expect(children.find((child) => child["id"] === "order"))
+      .toMatchObject({ parent: "kitchen" })
+    expect(tree).not.toHaveProperty("parent")
   })
 })
 
@@ -1806,6 +1863,7 @@ test("read_node answers what a curated list holds, with what each entry shows", 
             title: "order the cabinets",
             file: "house.olai",
             line: 3,
+            parent: "kitchen",
             path: ["Kitchen remodel"],
           },
         },
@@ -1819,6 +1877,7 @@ test("read_node answers what a curated list holds, with what each entry shows", 
             title: "install them",
             file: "house.olai",
             line: 4,
+            parent: "kitchen",
             status: "doing",
             path: ["Kitchen remodel"],
           },
@@ -2097,6 +2156,7 @@ test("read_node says what a node is waiting on, and drops the field when it clea
         title: "order the cabinets",
         file: "house.olai",
         line: 3,
+        parent: "kitchen",
         path: ["Kitchen remodel"],
         status: "todo",
       }])

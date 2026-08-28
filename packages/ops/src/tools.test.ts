@@ -141,6 +141,9 @@ const CALLS: Record<string, ReadonlyArray<unknown>> = {
     { file: "house.olai" },
     { file: "house.olai", depth: 1 },
     { id: "shed" },
+    // The lean walk: notes off, structure on. Reached here so the decode
+    // above is not vacuous about a `withDesc: false` answer.
+    { id: "house", withDesc: false },
   ],
   list_documents: [{}],
   // The reads that REFUSE are not called here: this walk decodes ANSWERS, and
@@ -214,7 +217,9 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
   })
 
   const searches = of("search_nodes")
-  expect(searches[0]?.["hits"]).toMatchObject([{ id: "paint", matched: "title" }])
+  expect(searches[0]?.["hits"]).toMatchObject([
+    { id: "paint", matched: "title", parent: "house" },
+  ])
   // A query the grammar could not read carries the reason rather than an
   // empty list with nothing to say.
   expect(searches[1]?.["refusals"]).toBeArrayOfSize(1)
@@ -245,7 +250,12 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
     after: ["paint"],
     placed: [{ id: "in-house", shows: { id: "paint" } }],
   })
-  expect(paint).toMatchObject({ done: "2026-08-09T10:15:00-04:00" })
+  // A root has no parent; a child carries the id a write would take.
+  expect(house).not.toHaveProperty("parent")
+  expect(paint).toMatchObject({
+    done: "2026-08-09T10:15:00-04:00",
+    parent: "house",
+  })
   // A placement with a parent and one without, on the one node both show.
   expect((paint?.["mirrors"] as ReadonlyArray<Placement>).map((one) => one.parent))
     .toEqual(["house", undefined])
@@ -276,11 +286,17 @@ test("the fixture reaches every optional field, so the check is not vacuous", ()
     text: "# Finishes\n\nDoors: matte.\n",
   })
 
-  const [cut, whole, outline, outlineCut, absent] = of("read_subtree")
+  const [cut, whole, outline, outlineCut, absent, lean] = of("read_subtree")
   expect((cut?.["children"] as ReadonlyArray<Subtree>)[1])
     .toMatchObject({ id: "sand", truncated: true })
   expect(whole).not.toHaveProperty("truncated")
   expect(absent).toEqual({ missing: "shed" })
+  // Default walk keeps the note; the lean walk takes it off and keeps the
+  // children — `truncated` is a fact about depth, not about prose.
+  expect(whole).toMatchObject({ desc: "the note" })
+  expect(lean).not.toHaveProperty("desc")
+  expect((lean?.["children"] as ReadonlyArray<Subtree>).map((child) => child.id))
+    .toEqual(["paint", "sand"])
   // The whole outline: both of this fixture's top-level roots, and NOT the
   // placement sitting between them — a mirror is a second view of a node that
   // lives elsewhere, and elsewhere is where this read answers it.
