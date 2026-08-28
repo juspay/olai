@@ -37,6 +37,16 @@ serve:
     # `OLAI_ACP_AGENT="${AGENT:-}"`). Empty is off. Seeding HOME cannot
     # produce an agent — OLAI_AGENT_PATH is a binary search path, and
     # empty is "look nowhere".
-    export OLAI_ACP_AGENT="${AGENT:-}"
-    export OLAI_AGENT_PATH=
+    if [[ "${PI:-}" == "yes" ]]; then
+        # THE PI LANE: both rows real — the pinned claude adapter for the
+        # first, the pinned pi-acp for the second, and `pi` found on the
+        # DEFAULT search path (the invoking shell's PATH, which is what makes
+        # the lane useful: a box that has pi shows the row, and this one
+        # decides nothing for it).
+        export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
+        export OLAI_ACP_PI="$(sh scripts/acp-pi.sh)"
+    else
+        export OLAI_ACP_AGENT="${AGENT:-}"
+        export OLAI_AGENT_PATH=
+    fi
     exec {{ nix_shell }} bun packages/server/src/main.ts web "$DATA" --port "$PORT"

@@ -36,9 +36,28 @@ export const AGENT_ENV = "OLAI_ACP_AGENT"
  *  be the roster importing itself (the roster reads this file). */
 export const AGENT_PATH_ENV = "OLAI_AGENT_PATH"
 
+/** Which executable speaks ACP FOR PI — the pi-acp adapter, pinned and baked
+ *  into the packaged binary's wrapper beside the Claude Code one. One variable
+ *  per adapter rather than a pair syntax on {@link AGENT_ENV}.
+ *
+ *  pi-acp is the second adapter olai SHIPS rather than finds — the npm world
+ *  floats a new build under every `npx -y pi-acp`, and the wire facts the pi
+ *  leg is written against are one revision's — so this variable is the row's
+ *  whole door, exactly as {@link AGENT_ENV} is the claude row's. Spelled here
+ *  for {@link AGENT_PATH_ENV}'s reason. */
+export const PI_AGENT_ENV = "OLAI_ACP_PI"
+
 export interface Adapter {
   readonly command: string
   readonly args: ReadonlyArray<string>
+  /** Extra environment for the SPAWN, merged over olai's own — the one door an
+   *  adapter has for being pointed at something that is not on olai's PATH.
+   *  pi-acp's is the `pi` it is to wrap, which the roster found on the AGENT
+   *  search path: olai's PATH is not your shell's (the roster says why), and
+   *  without it the adapter would resolve the word `pi` against a third path,
+   *  its child's. Omitted for adapters that want nothing, so a child inherits
+   *  exactly what olai has. */
+  readonly env?: Readonly<Record<string, string>>
 }
 
 /**

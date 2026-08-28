@@ -123,7 +123,8 @@ let
     makeWrapper ${pkgs.bun}/bin/bun $out/bin/olai \
       --add-flags "${base}/packages/server/src/main.ts" \
       --set OLAI_DIST_DIR "${olai-client}" \
-      --set-default OLAI_ACP_AGENT "${acp-agent}/bin/claude-agent-acp"
+      --set-default OLAI_ACP_AGENT "${acp-agent}/bin/claude-agent-acp" \
+      --set-default OLAI_ACP_PI "${acp-agent}/bin/pi-acp"
   '';
 in
 {

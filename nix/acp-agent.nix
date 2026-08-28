@@ -34,7 +34,7 @@ buildNpmPackage {
     filter = path: _type:
       baseNameOf path == "package.json" || baseNameOf path == "package-lock.json";
   };
-  npmDepsHash = "sha256-773leTH1zrV0X/VuCzU6ZRiIPzplzeh40BqIfTFauM0=";
+  npmDepsHash = "sha256-67N6fffjlupkpliEpMkAcwN7map54TPYP68TeV7mwy8=";
 
   # acp/ is a shim around one dependency: nothing to compile, and no package in
   # the tree has an install script to run.
@@ -99,6 +99,16 @@ buildNpmPackage {
         --set DISABLE_INSTALLATION_CHECKS 1 \
         --set USE_BUILTIN_RIPGREP 0 \
         --prefix PATH : "${lib.makeBinPath [ ripgrep procps ]}"
+      # THE SECOND SHIPPED ADAPTER: pi-acp, the bridge that spawns `pi --mode
+      # rpc` for the pi leg. Pinned at the shim's revision like everything in
+      # here — a floating `npx -y pi-acp` would be a different build every
+      # day and the leg's facts are one revision's. No wrapper env of its
+      # own: the `pi` IT drives is a per-machine find, so the roster names it
+      # at spawn time (`PI_ACP_PI_COMMAND`) rather than it being baked.
+      pi_entry="${mods}/pi-acp/dist/index.js"
+      test -f "$pi_entry"
+      makeWrapper ${nodejs}/bin/node "$out/bin/pi-acp" \
+        --add-flags "$pi_entry"
     '';
 
   # No meta.license on purpose: the adapter is Apache-2.0 but the `claude`

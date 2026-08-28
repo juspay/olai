@@ -6,7 +6,7 @@ What you type sits on the right, in a tinted bubble. What the agent answers sits
 
 ## Which agent
 
-The panel speaks [ACP](https://agentclientprotocol.com), and it talks to whichever agents this machine has. It finds them itself: the pinned Claude Code adapter, which comes with olai — `nix run`, the packaged binary and `just serve` all bake it in, so there is nothing to install and nothing to configure — and an **opencode** on the server's own PATH.
+The panel speaks [ACP](https://agentclientprotocol.com), and it talks to whichever agents this machine has. It finds them itself: the pinned Claude Code adapter, which comes with olai — `nix run`, the packaged binary and `just serve` all bake it in, so there is nothing to install and nothing to configure — an **opencode** on the server's own PATH, and **pi**, whose adapter is pinned and shipped like the Claude Code one but whose agent is found the way opencode is: a `pi` on the server's agent search path is the machine saying it has one, and without it there is no pi row.
 
 **A conversation is with ONE agent, and you choose it when the chat starts.** Not a setting, and not something a conversation can be moved to afterwards: the way to talk to the other agent is to start a chat with it. What you choose is remembered *for that conversation* and nowhere else, so a new chat asks again — there is no default quietly deciding for you, and no way to find yourself in a conversation with an agent you did not pick.
 
@@ -15,9 +15,9 @@ With only ONE agent installed there is nothing to ask, so nothing is asked. That
 The list itself:
 
 - **found once, when the server starts.** An agent installed while olai is running is offered by the next start. What decides whether the panel has an agent at all is not a thing to change under somebody who is reading it.
-- `OLAI_ACP_AGENT` points at a different ACP agent for the Claude row — that override has always meant *read this the way you read Claude Code*, and it still does.
+- `OLAI_ACP_AGENT` points at a different ACP agent for the Claude row — that override has always meant *read this the way you read Claude Code*, and it still does. `OLAI_ACP_PI` is the pi row's half of the same arrangement: which pi-acp adapter the panel spawns is a pin olai bakes in or a person overrides, never whatever `npx -y pi-acp` would have fetched today.
 - Setting it to the empty string turns chat off — the whole panel, not one row of it: nothing is looked for, and the panel says there is no agent and how to get one. The outlines are served the same either way.
-- `OLAI_AGENT_PATH` is where the probes look, and defaults to `PATH`. It is worth knowing about because **olai's PATH is not your shell's**: run as a systemd user service (the home-manager unit) it inherits neither your profile nor your login shell, so an `opencode` you can run in a terminal is not necessarily one this process can see. Set it and it REPLACES the search path.
+- `OLAI_AGENT_PATH` is where the probes look, and defaults to `PATH`. It is worth knowing about because **olai's PATH is not your shell's**: run as a systemd user service (the home-manager unit) it inherits neither your profile nor your login shell, so an `opencode` you can run in a terminal is not necessarily one this process can see. Set it and it REPLACES the search path. For pi it answers a second question too: the `pi` the probe finds there is handed to the pinned adapter as the one it wraps, so the pi the row runs is the pi the probe found rather than one the adapter resolved against its own environment.
 
 With no agent at all the panel still draws, and says which agents olai can talk to and where to get one — because a feature that is silently absent cannot be told apart from one that is broken.
 
@@ -27,9 +27,10 @@ The conversation is the agent's own session for that directory: close olai, reop
 
 Anything an agent does not offer simply is not drawn — except where you would expect the behaviour, and then the absence is stated rather than left to be discovered:
 
-- **opencode cannot be INTERRUPTED.** Sending is identical on both agents — the message goes at once and waits its turn at the agent — but the Claude agent also takes a message straight into the turn it is running, on the deliberate gesture, and opencode has no such method. So the `interrupt` control simply is not drawn there ([below](#talking-while-it-works)).
-- **opencode's subagents carry no attribution**, so a fan-out is drawn flat — every call in one column — rather than in lanes ([below](#when-the-agent-sends-other-agents)). Nothing here guesses at whose a call was.
-- **a tool call's name comes from wherever that agent says it.** Claude Code says it in a field of its own; opencode says it at the head of the call's id (`bash:0`). Either way the row keeps the name it was announced with, and a tool olai cannot name is one you are asked about rather than one that is quietly allowed.
+- **opencode cannot be INTERRUPTED.** Sending is identical on both agents — the message goes at once and waits its turn at the agent — but the Claude agent also takes a message straight into the turn it is running, on the deliberate gesture, and opencode has no such method. So the `interrupt` control simply is not drawn there ([below](#talking-while-it-works)). Neither can pi: `_session/steering` is not a method on its wire, and the one in its own slash menu is about pi's message delivery, not this one.
+- **opencode's subagents carry no attribution**, so a fan-out is drawn flat — every call in one column — rather than in lanes ([below](#when-the-agent-sends-other-agents)). Nothing here guesses at whose a call was. The same is true of pi's: no stamp, no lanes, no strip — and no background-task faces either.
+- **a tool call's name comes from wherever that agent says it.** Claude Code says it in a field of its own; opencode says it at the head of the call's id (`bash:0`), and pi saying it the same way is a fact its adapter shares (`edit:1`). Either way the row keeps the name it was announced with, and a tool olai cannot name is one you are asked about rather than one that is quietly allowed.
+- **pi is handed olai's own tools and cannot use them.** Its adapter accepts the session's MCP servers and wires them to nothing, so the writes the other agents make through the ops layer — the checkbox moving while you watch — pi makes or does not make with its OWN file tools, and any permission it could ask is a person's every time: there is no spelling of *ours* on its wire to match. What you lose on pi, said here rather than discovered missing: no per-server ticks, no counts in the chats list, no usage readout in the header, and its bash output stays in the tool row's detail rather than under it (file edits draw as diffs, fully).
 
 ## Which conversation you come back to
 

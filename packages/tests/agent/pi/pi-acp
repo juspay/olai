@@ -1,0 +1,400 @@
+#!/usr/bin/env bun
+/**
+ * A `pi-acp` adapter, shaped the way the real one is on the wire.
+ *
+ * The suite's third scripted agent, and what makes it a WITNESS rather than a
+ * mode of one of the others: every frame shape below was captured live against
+ * **pi-acp 0.0.33 driving pi 0.84.2** (the spike, 2026-08-28 — the leg file,
+ * `packages/chat/src/agents/pi.ts`, carries the whole table), and none of it
+ * is shared with `agent/opencode/opencode` or `agent/fake-acp-agent.ts`:
+ *
+ *   - **call ids are `<tool>:<n>`** — `bash:0` — and nothing on any frame
+ *     names the tool: a bash call's `_meta` corners are its terminal
+ *     bookkeeping (`terminal_info`, `terminal_output`, `terminal_exit`), which
+ *     a client reads for nothing and must not crash on.
+ *   - **a `session/new` DOUBLES a prologue as utterance.** The answer's
+ *     `_meta.piAcp.startupInfo` is a banner for an editor, and then the SAME
+ *     TEXT arrives as one ordinary `agent_message_chunk` — the client that
+ *     draws no editor block is expected to still show it, and olai is
+ *     expected to drop it: the response's own field is what makes the match
+ *     exact. A `session/load` answers the corner `null`.
+ *   - **no tool is ever olai's**: the handed `mcpServers` are accepted and
+ *     stored and wired to NOTHING, so this fake never calls one — the shape
+ *     the fail-safe rule has to survive on this wire is that a permission
+ *     request naming one of ours cannot even be WRITTEN.
+ *   - **no bypass mode, no steering**: `session/set_mode` answers `-32602`
+ *     (the modes are pi's thinking levels) and `_session/steering` `-32601`.
+ *     `/steering` in this adapter is a slash command about pi's own message
+ *     delivery, not the ACP extension of the same name.
+ *   - **a mid-turn `session/prompt` is held, announced, and answered in
+ *     order** — for real, one at a time: the queued request says so
+ *     ("Queued message (position 1).", and a `session_info_update` carrying
+ *     `_meta.piAcp.{queueDepth, running}`) and is answered when its turn
+ *     comes. What `session/cancel` does to a queue was not captured; scripted
+ *     here the way the other fake scripts it, because a fake is a shape olai
+ *     must survive rather than a fact.
+ *   - **the model is a `configOptions` select** (`id: "model"`) beside a
+ *     thought-level one, the two facts the real answer carries, and a change
+ *     comes back in the method RESPONSE.
+ *   - **an error inside a turn is silence**: keyed "silent", the turn sends
+ *     NOTHING and answers `end_turn` — pi-acp maps a model error to a plain
+ *     end of turn and never sends `usage_update`, so olai's silence arm is
+ *     the whole of what a person gets. Kept beside a prologue ON PURPOSE:
+ *     the banner is the one chunk that could make a silent first turn look
+ *     said.
+ *
+ * `OLAI_FAKE_PI_STORED` works the way the other agents' does: unset means
+ * nothing is stored; set means `session/list` answers (scoped EXACTLY to the
+ * request's `cwd`, as the real one filters) and `session/load` replays.
+ *
+ * It lives beside a stub `pi` in a directory of its own because that directory
+ * is what a `@pi` scenario puts on a spawned server's `OLAI_AGENT_PATH`: the
+ * roster's row is the PAIR — adapter from `OLAI_ACP_PI`, agent from the probe
+ * — and whether this machine "has pi" is a property of the scenario, not of
+ * the laptop the run is on. The stub is never run: the adapter is handed its
+ * path as `PI_ACP_PI_COMMAND` and a scripted adapter spawns nothing.
+ *
+ * Behaviour is keyed on the prompt text:
+ *
+ *   hello       one chunk of prose and an `end_turn`
+ *   slow        a `bash:0` call with the real one's terminal corners, HELD
+ *               until a scenario says when — a turn to look at WHILE it runs,
+ *               which is when a mid-turn message is a question anybody has
+ *   silent      nothing at all and `end_turn` — the model error as the wire
+ *               reports it, which is never
+ *   anything    `pi says: <text>`
+ */
+
+import { existsSync, rmSync } from "node:fs";
+
+import { readMessages } from "../../support/ndjson.ts";
+import { emitter, MARKER, released, speaking } from "../../support/scripted.ts";
+
+const emit = emitter(process.stdout);
+const { notify, refuse, respond, take } = speaking(emit, "pi");
+
+const cwd = process.cwd();
+
+/** A turn that gave up because somebody pressed cancel. */
+class Cancelled extends Error {}
+
+const STORED = process.env.OLAI_FAKE_PI_STORED ?? "";
+
+/** The one stored conversation, when a scenario asked for one. */
+const STORED_SESSION = "pi_stored_session";
+
+let sessionId = "";
+
+// ── the frames ─────────────────────────────────────────────────────────
+
+const say = (text: string): void => {
+  notify("session/update", {
+    sessionId,
+    update: { sessionUpdate: "agent_message_chunk", content: { type: "text", text } },
+  });
+};
+
+/** The banner, spelled once: the response announces it and one chunk doubles
+ *  it, byte for byte — the exactness IS the protocol detail under test. */
+const BANNER = "pi v0.84.2\n---\n";
+
+/** Running or not, as the real adapter says it: a `session_info_update` whose
+ *  only content is the queue corner. */
+const info = (running: boolean, queueDepth: number): void => {
+  notify("session/update", {
+    sessionId,
+    update: {
+      sessionUpdate: "session_info_update",
+      _meta: { piAcp: { queueDepth, running } },
+    },
+  });
+};
+
+// ── turns ──────────────────────────────────────────────────────────────
+
+const turn = async (text: string): Promise<string> => {
+  const said = text.trim();
+
+  if (said === "slow") {
+    // The bash call as the real one announces it: `pending`, a terminal
+    // content block, the terminal corner — and then held, so a mid-turn
+    // message lands on a turn that is visibly running.
+    const toolCallId = "bash:0";
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId,
+        title: "sleep 30",
+        kind: "execute",
+        status: "pending",
+        content: [{ type: "terminal", terminalId: toolCallId }],
+        _meta: { terminal_info: { terminal_id: toolCallId, cwd } },
+      },
+    });
+    notify("session/update", {
+      sessionId,
+      update: { sessionUpdate: "tool_call_update", toolCallId, status: "in_progress" },
+    });
+    await released(cwd, () => {
+      if (cancelled) throw new Cancelled();
+    });
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId,
+        status: "completed",
+        _meta: {
+          terminal_output: { terminal_id: toolCallId, data: "(no output)" },
+          terminal_exit: { terminal_id: toolCallId, exit_code: 0, signal: null },
+        },
+      },
+    });
+    say("done dawdling");
+    return "end_turn";
+  }
+
+  if (said === "silent") {
+    // THE ERROR AS THE WIRE REPORTS IT, which is never: pi's log line says
+    // `stopReason: "error"`, the adapter maps that to a plain end of turn,
+    // and not one frame crosses in between.
+    return "end_turn";
+  }
+
+  if (said === "hello") {
+    say("pi says: hello");
+    return "end_turn";
+  }
+
+  say(`pi says: ${said}`);
+  return "end_turn";
+};
+
+// ── the protocol ───────────────────────────────────────────────────────
+
+let currentModel = "litellm/kimi-k3";
+
+/** The pickers, as the real answer carries them: the model the panel's header
+ *  follows, and a THOUGHT-LEVEL select beside it — the two facts a reader of
+ *  "the model is the `model` select" has to survive reading past. */
+const configOptions = () => [
+  {
+    type: "select",
+    id: "model",
+    category: "model",
+    name: "Model",
+    currentValue: currentModel,
+    options: [
+      { value: "litellm/kimi-k3", name: "litellm/kimi-k3" },
+      { value: "litellm/claude-opus-4-6", name: "litellm/claude-opus-4-6" },
+    ],
+  },
+  {
+    type: "select",
+    id: "thought_level",
+    category: "thought_level",
+    name: "Thinking",
+    currentValue: "medium",
+    options: [
+      { value: "off", name: "Thinking: off" },
+      { value: "medium", name: "Thinking: medium" },
+      { value: "high", name: "Thinking: high" },
+    ],
+  },
+];
+
+const modes = () => ({
+  currentModeId: "medium",
+  availableModes: [
+    { id: "off", name: "Thinking: off" },
+    { id: "medium", name: "Thinking: medium" },
+    { id: "high", name: "Thinking: high" },
+  ],
+});
+
+/** ONE TURN AT A TIME — the chain is the claim, the same shape the other
+ *  fake's is for the same reason. */
+let queue: Promise<unknown> = Promise.resolve();
+/** How deep the chain is RIGHT NOW: 0 while idle, 1 mid-turn, 2 with one
+ *  held — the value the notices and the queue corner are computed from. */
+let queued = 0;
+
+/** Somebody pressed cancel: what is running gives up, what is waiting answers
+ *  `cancelled`. Reset once the chain drains. */
+let cancelled = false;
+
+const handle = async (message: Record<string, unknown>): Promise<void> => {
+  const id = message["id"];
+  const method = message["method"];
+  const params = (message["params"] ?? {}) as Record<string, unknown>;
+
+  if (method === undefined) {
+    take(id)?.(message["result"] ?? null);
+    return;
+  }
+
+  switch (method) {
+    case "initialize":
+      respond(id, {
+        protocolVersion: 1,
+        agentInfo: { name: "pi-acp", title: "pi ACP adapter", version: "0.0.33" },
+        authMethods: [
+          {
+            id: "pi_terminal_login",
+            name: "Launch pi in the terminal",
+            description: "Start pi in an interactive terminal to configure API keys or login",
+            type: "terminal",
+            args: ["--terminal-login"],
+            env: {},
+          },
+        ],
+        agentCapabilities: {
+          loadSession: true,
+          mcpCapabilities: { http: false, sse: false },
+          promptCapabilities: { image: true, audio: false, embeddedContext: false },
+          sessionCapabilities: { list: {}, delete: {} },
+        },
+      });
+      return;
+
+    case "session/new": {
+      sessionId = `pi_new_${++openCalls}`;
+      respond(id, {
+        sessionId,
+        configOptions: configOptions(),
+        models: {
+          availableModels: [{ modelId: currentModel, name: currentModel }],
+          currentModelId: currentModel,
+        },
+        modes: modes(),
+        _meta: { piAcp: { startupInfo: BANNER } },
+      });
+      // The doubling, delivered exactly the way the real one delivers it: the
+      // byte-same string, as ONE chunk, behind the response.
+      setTimeout(() => say(BANNER), 0);
+      return;
+    }
+
+    case "session/list":
+      // Filtered by the request's OWN cwd, exactly — the real one reads pi's
+      // own store and compares the string, which is the behaviour olai's
+      // client-side narrowing sits on top of.
+      respond(id, {
+        sessions:
+          STORED === "" || params["cwd"] !== cwd
+            ? []
+            : [{
+              sessionId: STORED_SESSION,
+              cwd,
+              title: "a pi conversation",
+              updatedAt: "2026-08-21T09:00:00Z",
+            }],
+        nextCursor: null,
+        _meta: {},
+      });
+      return;
+
+    case "session/load": {
+      sessionId = String(params["sessionId"]);
+      // History first, the answer after — which is also the real one's order.
+      notify("session/update", {
+        sessionId,
+        update: {
+          sessionUpdate: "user_message_chunk",
+          content: { type: "text", text: "what did we say" },
+        },
+      });
+      notify("session/update", {
+        sessionId,
+        update: {
+          sessionUpdate: "agent_message_chunk",
+          content: { type: "text", text: "pi remembers this conversation" },
+        },
+      });
+      respond(id, {
+        configOptions: configOptions(),
+        models: {
+          availableModels: [{ modelId: currentModel, name: currentModel }],
+          currentModelId: currentModel,
+        },
+        modes: modes(),
+        _meta: { piAcp: { startupInfo: null } },
+      });
+      return;
+    }
+
+    case "session/set_mode":
+      // The thinking levels and nothing else — which is why olai's pi leg
+      // asks for no permission mode at all.
+      refuse(id, -32602, `Unknown modeId: ${String(params["modeId"])}`);
+      return;
+
+    case "session/set_config_option": {
+      const configId = String(params["configId"]);
+      if (configId !== "model" && configId !== "thought_level") {
+        refuse(id, -32602, `Unknown config option: ${configId}`);
+        return;
+      }
+      if (configId === "model") currentModel = String(params["value"]);
+      respond(id, { configOptions: configOptions() });
+      return;
+    }
+
+    case "_session/steering":
+      refuse(id, -32601, '"Method not found": _session/steering');
+      return;
+
+    case "session/prompt": {
+      const blocks = (params["prompt"] ?? []) as ReadonlyArray<Record<string, unknown>>;
+      const text = blocks
+        .map((block) => (block["type"] === "text" ? String(block["text"] ?? "") : ""))
+        .join("");
+      queued += 1;
+      const heldBehind = queued - 1;
+      if (heldBehind > 0) {
+        // HELD, ANNOUNCED, ANSWERED WHEN ITS TURN COMES. The notice is what
+        // the adapter tells a client whose only signal is the stream.
+        say(`Queued message (position ${heldBehind}).`);
+        info(true, heldBehind);
+      }
+      queue = queue
+        .then(async () => {
+          queued -= 1;
+          info(true, queued);
+          if (cancelled) {
+            info(false, queued);
+            respond(id, { stopReason: "cancelled" });
+            return;
+          }
+          try {
+            if (heldBehind > 0) say(`Starting queued message. (${heldBehind - 1} remaining)`);
+            const stopReason = await turn(text);
+            info(false, queued);
+            respond(id, { stopReason });
+          } catch {
+            info(false, queued);
+            respond(id, { stopReason: "cancelled" });
+          }
+        });
+      return;
+    }
+
+    case "session/cancel":
+      cancelled = true;
+      void queue.then(() => {
+        cancelled = false;
+      });
+      return;
+
+    default:
+      if (id !== undefined) refuse(id, -32601, `method not found: ${String(method)}`);
+      return;
+  }
+};
+
+let openCalls = 0;
+
+readMessages<Record<string, unknown>>(process.stdin, (message) => {
+  void handle(message);
+});
