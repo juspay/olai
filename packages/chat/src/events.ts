@@ -9,7 +9,7 @@
  * what keeps the ACP version in one file and the conversation in another.
  *
  * The list is the racket bridge's, member for member, because the panel it
- * feeds is the racket panel's behaviour (docs/brainstorming/acp.md, round two).
+ * feeds is the racket panel's behaviour (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/acp.md, round two).
  * A turn's END is deliberately not here: `prompt` returns its stop reason, and
  * the caller that asked is the one waiting.
  */

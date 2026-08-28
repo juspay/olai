@@ -271,7 +271,7 @@ export interface Scope extends Reading {
    * and they are one rule: `set_prop`, `add_node`'s `props` (children
    * included), `apply`, `update` and `capture` all reach {@link typedProps} or
    * {@link planProp}, which is the plan/validate seam the design names
-   * (docs/brainstorming/typed-properties.md: births are gated too).
+   * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/typed-properties.md: births are gated too).
    *
    * BESIDE `asked` rather than inside it: `asked` is what THIS CALL asked for,
    * and this is what the VAULT says about every call — two lifetimes, and the
@@ -1007,7 +1007,7 @@ const emit = (
   // and the refusal is worth reading at the node it is about rather than after
   // the whole tree has been walked. THE CHILDREN ARE COVERED because this walk
   // reaches them — a capture nests, and every generation of it comes through
-  // here (docs/brainstorming/typed-properties.md: births are gated too).
+  // here (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/typed-properties.md: births are gated too).
   const stored = typedProps(scope, file, capture.props)
   if (Result.isFailure(stored)) return locus(capture, stored.failure)
   into.records.push(capturedNode(scope, capture, at, stored.success))

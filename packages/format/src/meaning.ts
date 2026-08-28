@@ -122,7 +122,7 @@ export const Meaning = Schema.Union([
      * may ride on the wire: it is true exactly when the vault DECLARED this key
      * a reference (`ref` or `node`), and a reference is a thing whose name is
      * not its identity — "names rename, ids don't" read from the display end
-     * (docs/brainstorming/typed-properties.md, Converged §1).
+     * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/typed-properties.md, Converged §1).
      *
      * FALSE for a value that merely turned out to be an id. Nobody declared it
      * a reference, so the string the record holds is the fact somebody wrote,
@@ -310,7 +310,9 @@ const declaredly = (
       // whatever kind of file that is. A `worktree` naming a directory on
       // somebody's machine is not served here and stays the text it is; a
       // `brief` declared `path` — which is what the live board declares, since
-      // `docs/briefs/` is gitignored and a `doc` would make every checkout red
+      // a brief is working material the served set does not always hold
+      // (`docs/briefs/` was gitignored when this was ruled) and a `doc` would
+      // make every checkout red
       // — opens exactly when the file is actually there. That asymmetry with
       // the arm above is the argued call: two arms of one consult may differ
       // about what they PROMISE, and may not differ about the same promise.

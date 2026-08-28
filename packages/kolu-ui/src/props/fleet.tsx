@@ -36,7 +36,7 @@
  * It was FIVE homes, and the list lived in five headers because a reader who
  * grepped `kolu` landed on whichever came first and had to assemble the rest.
  * The sixth Löwy sitting ended that arrangement rather than documenting it
- * better (`docs/lowy-electricity/debate-2026-08-27.md`), on the human's ruling:
+ * better (`https://github.com/juspay/oss.olai/blob/master/olai/lowy-electricity/debate-2026-08-27.md`), on the human's ruling:
  * *"all of Kolu stuff should be encapsulated out, as a package or more
  * packages, so the non-kolu packages part of Olai doesn't contain Kolu
  * implementation"* — and *"a directory wall can be broken easily by importing;

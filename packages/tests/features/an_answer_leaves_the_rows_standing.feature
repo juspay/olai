@@ -10,7 +10,7 @@ Feature: An answer leaves the rows it did not change standing
   a cursor is walking down, replaced under it. The rest are about an ear — a
   refusal is `role="alert"` and `aria-live="assertive"`, so a line rebuilt for
   the next keystroke is a sentence read out loud a second time to somebody who
-  has not changed their mind (docs/brainstorming/reactivity-after-the-flip.md
+  has not changed their mind (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md
   §3.2, findings 2.6 to 2.9). One scenario per door, because the three now draw
   ONE component (`client/SaidLine.tsx`) and the ear is the thing that
   swap could have cost.

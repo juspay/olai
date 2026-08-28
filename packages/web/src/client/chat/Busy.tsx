@@ -9,7 +9,7 @@
  * the box and the message above it. A turn that then produces nothing for
  * twenty seconds looks exactly like a turn that produced nothing at all, and
  * the one report that started this file was precisely that: *the row appears,
- * then nothing* (`docs/roadmap/bugs.olai`, `opencode-send-silent`).
+ * then nothing* (`https://github.com/juspay/oss.olai/blob/master/olai/roadmap/bugs.olai`, `opencode-send-silent`).
  *
  * The composer's own border turns while a turn runs, and that is FOCUS styling
  * — it is the same border a click into the box draws — so it says "you are

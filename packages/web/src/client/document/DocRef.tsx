@@ -54,7 +54,7 @@ export function DocRef(props: {
   // below is one line read out of a whole body, so an outline attaching
   // hundreds of documents at once pays for hundreds of them — the answer to
   // that is a preview on the wire, once something measures it needing one
-  // (docs/brainstorming/surface-mcp-viewing.md). It is the same question the
+  // (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/surface-mcp-viewing.md). It is the same question the
   // `heads` member answered for a `.html` page: a reader that wants a small
   // fact about a file should be able to ask for the small fact. This one has
   // not been measured, and a `doc` naming a `.html` — which draws a line out

@@ -187,7 +187,7 @@ export interface Published {
    * read — no content of any kind (`@olai/surface`'s `Head`).
    *
    * THE DIRECTORY AS A BROWSER HOLDS IT since PR 10 of
-   * `docs/brainstorming/vault-in-browser.md`: the sidebar's tree, the page
+   * `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`: the sidebar's tree, the page
    * model's membership test and the palette's titles all come from here, where
    * the first three used to come from every record of every outline. So its
    * source list is {@link OutlineSet.documents} itself — every file the
@@ -436,7 +436,7 @@ const changeOf = <S extends Document, T>(
   // dropped from what a FRESH subscriber reads and told to NOBODY — an open
   // reader kept it until reconnect, which is how a file removed via
   // `git checkout` + `resync` went on showing in every open sidebar
-  // (`docs/_olai/Inbox.olai`'s `phantom-sidebar-key-on-unnamed-remove`).
+  // (`https://github.com/juspay/oss.olai/blob/master/_olai/Inbox.olai`'s `phantom-sidebar-key-on-unnamed-remove`).
   const minted = complete || held === undefined ? NO_MINTED : mintedOf(held, entries, moved.removed)
   return {
     entries,

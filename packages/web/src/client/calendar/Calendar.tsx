@@ -23,7 +23,7 @@
  *
  * The dots are asked of the SERVER, per month, and the question is the shown
  * month — so the vault is walked for the month somebody is looking at and for
- * no other. That is `docs/brainstorming/vault-in-browser.md`'s PR 4: the walk
+ * no other. That is `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`'s PR 4: the walk
  * is `@olai/format`'s `datedDays` still, called where the set is. What makes a
  * dated node saved on disk light its day WITHOUT A RELOAD is no longer a memo
  * over a local derivation but the subscription itself — the server re-reads the

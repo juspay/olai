@@ -4,7 +4,7 @@
  * `./testlib` is the subpath @olai/format, @olai/git, @olai/log and
  * @olai/ops already publish for their tests' sake; why this package joined
  * them late is recorded where the deal was struck
- * (`docs/lowy-electricity/debate-2026-08-19.md`, finding 5). The suite used
+ * (`https://github.com/juspay/oss.olai/blob/master/olai/lowy-electricity/debate-2026-08-19.md`, finding 5). The suite used
  * to spell nineteen paths into `client/`'s own modules while the manifest
  * answered for none of them — two lies, one lie each end. One door retires
  * both: the suite imports this file and nothing deeper, and `exports` in the

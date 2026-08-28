@@ -4,7 +4,7 @@
  * Two things are asserted here and they are different in kind.
  *
  * **Which page an address names**, which is the model the browser used to hold
- * (`@olai/web`'s `page.ts`, deleted with `docs/brainstorming/vault-in-browser.md`'s
+ * (`@olai/web`'s `page.ts`, deleted with `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`'s
  * PR 10). Every claim it made is made here, over the same shape of fixture,
  * because the rules did not move — the set did.
  *
@@ -19,8 +19,8 @@
  * **And that it survives the wire.** The parity is worth nothing if the encoder
  * drops a field on the way — which is not hypothetical: a field added to a
  * search answer once type-checked clean across every package, reached an agent,
- * and was silently dropped by the wire's own encoder (docs/brainstorming/
- * surface-mcp-positions.md). So every reading below is encoded, put through
+ * and was silently dropped by the wire's own encoder
+ * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/surface-mcp-positions.md). So every reading below is encoded, put through
  * JSON, decoded, and compared with what went in.
  */
 

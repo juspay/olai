@@ -26,7 +26,7 @@
  * a node, rides on the FOCUSED PAGE's own reading (`../reading.tsx`), because
  * that is the page whose ids were resolved. The second half was the tab's own
  * walk of its copy of the set until PR 10 of
- * `docs/brainstorming/vault-in-browser.md`.
+ * `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`.
  */
 
 import type { Shelf } from "@olai/surface"

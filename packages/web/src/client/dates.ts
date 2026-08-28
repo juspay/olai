@@ -6,7 +6,7 @@
  * Two of these three were lines in `./App.tsx`: the tab held every node of
  * every outline, so `datedDays` and `owedOf(agendaOf(…))` ran here, over the
  * local copy, on every published revision. That copy is what
- * `docs/brainstorming/vault-in-browser.md` is taking away — the browser may
+ * `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md` is taking away — the browser may
  * hold at most the page in front of somebody — and this is its PR 4 (§3's
  * Sidebar row, §6's item 4). The WALKS did not move: they are
  * `@olai/format`'s still, called on the other side of the wire by `@olai/ops`'
@@ -54,7 +54,7 @@
  * paragraph rules out, re-asked once per page frame, each ask a walk of the
  * whole vault. It is a stream beside the page it narrows since
  * `filter-ask-carries-revision` (`./filter/asking.ts`,
- * docs/brainstorming/filter-rides-the-page.md), which is this paragraph read
+ * https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/filter-rides-the-page.md), which is this paragraph read
  * back at the one door that had not taken it.
  *
  * ## What this hands out is a VALUE

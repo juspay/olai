@@ -229,7 +229,7 @@ test("tools/list and a resource read answer over the same POST", async () => {
  * beside the prose — over an `InMemoryTransport`, where a result is handed
  * across in one call. This face is the one transport olai wrote itself: a
  * half-duplex HTTP shape with a waiter table, built because neither of the
- * SDK's Streamable modes fits (`docs/brainstorming/surface-mcp-viewing.md`).
+ * SDK's Streamable modes fits (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/surface-mcp-viewing.md`).
  * It has three ways to get a refusal wrong that an in-memory pair cannot have
  * — an HTTP status keyed off `isError`, a JSON-RPC `error` frame instead of a
  * result, or the structured half dropped in the reply's serialization — and

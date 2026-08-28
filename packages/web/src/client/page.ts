@@ -2,7 +2,7 @@
  * The page a route asks for, and what the answer put on the screen.
  *
  * WHAT A PAGE IS is not decided here any more, and that is PR 10 of
- * `docs/brainstorming/vault-in-browser.md`: this module used to hold `pageOf`,
+ * `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`: this module used to hold `pageOf`,
  * a pure function over the tab's own copy of every record in the directory, and
  * `drawnBy` beside it walking that copy again for the rows. The copy is gone.
  * What is left is the two ends of the seam it became — the QUESTION a route

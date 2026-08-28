@@ -14,8 +14,8 @@
  * It used to. There was a `DotFace` vocabulary in `@olai/surface`, a fold in
  * `@olai/kolu-client`, a tone table in a renderer and a `.olai-dot` family in
  * the stylesheet — four files restating, in olai's words, a state machine that
- * is kolu's. The fifth Löwy sitting (`docs/lowy-electricity/
- * debate-2026-08-26.md`, finding 1) retired all of it by DELETION rather than
+ * is kolu's. The fifth Löwy sitting
+ * (`https://github.com/juspay/oss.olai/blob/master/olai/lowy-electricity/debate-2026-08-26.md`, finding 1) retired all of it by DELETION rather than
  * reconciliation, and the human's word was the plainest statement of the rule:
  * "This way we don't have to invent yet another shit in Olai." A second visual
  * vocabulary for one fleet is two surfaces free to disagree about it.

@@ -15,8 +15,8 @@
  * genuinely collide survive the retry, and then it is the op's own refusal that
  * speaks: the node is gone, or somebody else already marked it.
  *
- * A retry that SUCCEEDS is invisible, and deliberately so (docs/brainstorming/
- * acp.md). Everything else is not: a refusal comes back as an `OpFailure` with
+ * A retry that SUCCEEDS is invisible, and deliberately so
+ * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/acp.md). Everything else is not: a refusal comes back as an `OpFailure` with
  * its structured detail, and a retry that keeps colliding comes back as `busy`
  * rather than as silence.
  */
@@ -157,7 +157,7 @@ export interface Ops extends Asking {
    * whole-vault walk per frame of a bulk gesture. Read on the same pulse
    * {@link page} is and sent when it moved by value, it costs a page and, for a
    * gesture that changes no match, costs the wire nothing at all
-   * (docs/brainstorming/filter-rides-the-page.md).
+   * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/filter-rides-the-page.md).
    */
   readonly narrowing: (
     request: NarrowingRequest,
@@ -193,7 +193,7 @@ export interface Ops extends Asking {
   /**
    * THE CALENDAR'S DOTS and WHAT IS OWED — the two date readings the sidebar
    * used to take off the browser's own copy of the set
-   * (`docs/brainstorming/vault-in-browser.md`, PR 4).
+   * (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`, PR 4).
    *
    * HERE RATHER THAN ON {@link Asking}, beside {@link narrowing} and for its
    * argument word for word: `Asking` is what a TOOL may ask, and neither of
@@ -215,8 +215,8 @@ export interface Ops extends Asking {
   readonly owed: (request: OwedRequest) => Effect.Effect<Owed, OpFailure>
   /**
    * WHAT ONE PAGE SHOWS — the reading a browser draws, for the address it is
-   * drawing (`@olai/format`'s `page.ts`, and `docs/brainstorming/
-   * vault-in-browser.md`'s PR 10).
+   * drawing (`@olai/format`'s `page.ts`, and
+   * `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`'s PR 10).
    *
    * HERE RATHER THAN ON {@link Asking} for {@link dated}'s reason, and it is
    * the sharpest instance of it: what comes back is a SCREEN — rows carrying

@@ -18,7 +18,7 @@
  * carries a memo across the corpus ({@link findCycles}), so a walk seeded from
  * a subset is not the same walk with less work — it is free to find a different
  * set of simple cycles. What the incremental validator narrows there is not the
- * walk but HOW OFTEN it runs (`docs/brainstorming/model-indices.md:57`): never
+ * walk but HOW OFTEN it runs (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/model-indices.md:57`): never
  * on an edit that left the graph where it was.
  *
  * WHAT A REPORT IS lives here too ({@link reportOf}), for the same one-place

@@ -2,7 +2,7 @@
  * WHAT A PLACE IN A SERVED DIRECTORY IS CALLED.
  *
  * One grammar — `[document]#[element]` — and every feature that has to name
- * something trades in it (docs/brainstorming/first-class-documents.md, ruled
+ * something trades in it (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/first-class-documents.md, ruled
  * 2026-08-19). A URL is one, a pin holds one, a link in a note writes one, and
  * an agent will speak one; what they have in common is not a prefix table but
  * a *type*, so a feature does not handle nodes AND documents, it handles

@@ -510,7 +510,7 @@ test("a body is owed for the kinds this process can read, and no others", () => 
 // reader takes its FILE LIST from here, so a head missing for a file the
 // directory holds is a file the sidebar stops listing — and a bodied file's
 // head is always here to open its body against. It is a SUPERSET of the
-// documents' keys since `docs/brainstorming/vault-in-browser.md`'s PR 10, where
+// documents' keys since `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`'s PR 10, where
 // it was the same list: the browser stopped reading the outlines collection, so
 // this is where it learns an outline exists at all.
 test("every served file has a head, and it is that file's revision alone", () => {

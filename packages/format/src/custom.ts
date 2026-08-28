@@ -15,7 +15,7 @@
  * reading wants `isbn`, the key is already sayable.
  *
  * ONE OPEN FIELD RATHER THAN AN OPEN RECORD is the whole of the design
- * (docs/brainstorming/properties.md, ratified 2026-08-15 after two shapes that
+ * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/properties.md, ratified 2026-08-15 after two shapes that
  * did not survive review). The alternative — let unknown top-level keys through
  * as user properties — would have bought the same expressiveness by giving up
  * the refusal that catches typos, and it would have put `pr` and `title` in one

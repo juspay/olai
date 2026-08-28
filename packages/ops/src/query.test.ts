@@ -507,7 +507,7 @@ describe("placements", () => {
    * entries here would name a record `remove_mirror` could never reach, since
    * that verb takes an ID and one of the two would always be the other.
    *
-   * The rule is §3 of docs/brainstorming/model-indices.md — the tax an index
+   * The rule is §3 of https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/model-indices.md — the tax an index
    * charges for answering by id — and this is where it first shows.
    */
   test("two placements sharing an id are the one record that id means", () => {
@@ -1116,7 +1116,7 @@ const generatedCorpus = (): OutlineSet =>
  * "3 of 41" off twelve rows. Plus the one that is newer and is the reason this
  * member exists at all: the candidates are the PAGE's rows, so a node the page
  * does not draw is not in the answer however well it matches
- * (docs/brainstorming/filter-rides-the-page.md).
+ * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/filter-rides-the-page.md).
  */
 describe("which nodes of a page a query selects", () => {
   const PILE = (): OutlineSet =>

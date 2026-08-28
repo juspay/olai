@@ -5,7 +5,7 @@
  * draws the TITLE, because a handle in a strip of handles says nothing. The
  * title is a fact about the vault, and the browser used to look it up in its
  * own copy of every record (`nodeNamed`, over the tab's derivation). That copy
- * is gone (`docs/brainstorming/vault-in-browser.md`), and this is the same
+ * is gone (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`), and this is the same
  * lookup one door along: `nodes.named`, the identical `nodeNamed` run where the
  * set is.
  *

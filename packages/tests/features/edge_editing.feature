@@ -41,7 +41,7 @@ Feature: Writing a node's edges — `see` and `after`
   # honest thing to draw. It is not an honest thing to WRITE from: `Enter`
   # inside that window took the row the LAST query found, and a take here puts
   # a `see` on somebody's node
-  # (`docs/brainstorming/reactivity-after-the-flip.md`'s 4.12).
+  # (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md`'s 4.12).
   Scenario: Enter does not take a row the query has already moved past
     When I open the node menu of "handles"
     And I choose "Link to a node…" from the node menu

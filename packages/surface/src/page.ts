@@ -2,7 +2,7 @@
  * WHAT ONE PAGE SHOWS, as the wire speaks it — the member this whole design was
  * for.
  *
- * `docs/brainstorming/vault-in-browser.md`'s §2 in one sentence: the contract
+ * `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`'s §2 in one sentence: the contract
  * goes from "the whole set, plus every delta" to "what this page shows, plus
  * updates to that". A tab subscribes to the address it is drawing; the server
  * computes the reading and re-sends it whenever a revision changes it. The

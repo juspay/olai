@@ -58,20 +58,23 @@ import { granting, read, tracked, unresolved } from "./support/sweep.ts";
 /**
  * What may still spell it, and why each one may.
  *
- * FOUR of the six are the RECORD OF THE PAST, which this rename does not get to
- * edit: `docs/brainstorming/` holds the decisions and why the alternatives lost
- * — including the argument for this very rename, which is unwritable without
- * the word it argued against — `docs/RCA/` holds incidents as they were
+ * FOUR of the six used to be the RECORD OF THE PAST, which this rename does not
+ * get to edit: `docs/brainstorming/` held the decisions and why the alternatives
+ * lost — including the argument for this very rename, which is unwritable
+ * without the word it argued against — `docs/RCA/` held incidents as they were
  * diagnosed on the day, and the roadmap and its archive are ledgers whose
- * entries describe PRs that shipped against `.jsonl` files. Rewriting any of
- * them would not tidy history, it would falsify it.
+ * entries describe PRs that shipped against `.jsonl` files. None of them is in
+ * this repository any more: the orchestrator's vault moved to
+ * https://github.com/juspay/oss.olai, where they go on saying what they said on
+ * the day, and a grant for a path this repository no longer owns would be a
+ * fence closed on nothing. What is left is the TWO that are about the present.
  *
- * The fifth is `@olai/format`'s own `kinds.test.ts`, which asserts that
+ * The first is `@olai/format`'s own `kinds.test.ts`, which asserts that
  * `fileKind` does not claim the suffix. That is the cutover itself, and it has
  * to be written out to be tested.
  *
- * The sixth is `docs/format.md`, and it is the only one that is about the
- * PRESENT: it carries the migration recipe — the `git mv` line a person runs
+ * The second is `docs/format.md`, and it is the only one that is about the
+ * user: it carries the migration recipe — the `git mv` line a person runs
  * once on a vault they already have — plus the sentence that says why they have
  * to. That is the entire user-facing story of a cutover with no auto-migration
  * behind it, and it cannot be written without the old spelling.
@@ -95,11 +98,7 @@ import { granting, read, tracked, unresolved } from "./support/sweep.ts";
  * rather than four lines each sweep writes for itself.
  */
 const MAY_SPELL_IT: ReadonlyArray<string> = [
-  "docs/_olai/Trash.olai",
-  "docs/RCA/",
-  "docs/brainstorming/",
   "docs/format.md",
-  "docs/roadmap/",
   "packages/format/src/kinds.test.ts",
 ];
 

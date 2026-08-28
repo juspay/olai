@@ -280,7 +280,7 @@ export const createMoving = (
    * the reading of a page is and for the same reason: a panel stands open while
    * anybody writes, and what it judges has to be where the row has actually got
    * to. It was a walk of the tab's own copy of the vault
-   * (`docs/brainstorming/vault-in-browser.md`); the rules did not move, the set
+   * (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`); the rules did not move, the set
    * did (`@olai/format`'s `moving.ts`).
    *
    * A `null` INPUT with no panel open, which is the framework's own way of

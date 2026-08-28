@@ -9,7 +9,7 @@
  * to date from what a revision actually moved, asked for the small set of
  * records and documents a query COULD select. The design, with the libraries
  * that were surveyed and why none of them can be used, is
- * docs/brainstorming/search-index.md.
+ * https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/search-index.md.
  *
  * ## The one thing to understand
  *
@@ -237,7 +237,7 @@ export interface Index {
    *
    * A reading for the bench, and it exists because of where these postings
    * live. The design priced the engine on DISK ("index ≈ 3× the text",
-   * docs/brainstorming/search-index.md) and this implementation put it in
+   * https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/search-index.md) and this implementation put it in
    * memory instead, for the life of the process, which is a different bill
    * nobody had been shown: a figure the leg prints is the difference between
    * that trade being made and being assumed (pi's review of `cca1b21`).

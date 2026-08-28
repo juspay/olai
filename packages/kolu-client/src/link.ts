@@ -1,7 +1,7 @@
 /**
  * THE PADI LINK — one connection, one mirror, however many readers.
  *
- * This is the module `docs/brainstorming/orchestrator.md` means by "the padi
+ * This is the module `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/orchestrator.md` means by "the padi
  * link in one module": everything olai knows about reaching kolu is here, and
  * what leaves is a reading (`@olai/surface`'s own shapes) rather than padi's
  * contract.

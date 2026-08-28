@@ -766,7 +766,7 @@ test("the backstop notices a change with no watcher and nobody asking", () =>
 // the recursive watch did not follow it and this package closed the gap
 // itself (the walk arms a watcher on each new directory). Bun 1.4.0's
 // runtime follows it too — measured, rows 8 and 9 of the mutation table
-// in docs/brainstorming/watcher-fd-cost.md. The test still holds the
+// in https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/watcher-fd-cost.md. The test still holds the
 // claim at the store, with the backstop left at sixty seconds so a pass
 // cannot be the sweep.
 //

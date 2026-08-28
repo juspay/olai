@@ -17,7 +17,7 @@
  * over the set the tab held — "a completion cannot make a round trip per
  * keystroke", which was true while the alternative was a round trip and the
  * whole vault was here anyway. The vault is leaving
- * (docs/brainstorming/vault-in-browser.md), so the round trip is what a
+ * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md), so the round trip is what a
  * completion costs now, and the door it goes through is the one the ⌘K palette,
  * the header box, the `((` widget and the edge panel already share
  * (`../search/nodes.ts`, which owns the debounce and the staleness rule for all

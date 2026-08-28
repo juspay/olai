@@ -18,7 +18,7 @@
  * (`@olai/format`'s `page.ts`, the trash arm's `records`), and the prop's own
  * docstring below carries the argument for why the rows on screen are not an
  * answer. It was `./counting.ts` over the tab's copy of the vault until PR 10
- * of `docs/brainstorming/vault-in-browser.md`; the rule did not move, the set
+ * of `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`; the rule did not move, the set
  * did. What this component owns is only WHEN to ask — which is every frame the
  * reading moves on, so a pile that arrives while somebody is reading the
  * question puts the question away rather than silently re-wording it.
@@ -59,7 +59,7 @@ export function EmptyTrash(props: {
    * children of a live outline's node that emptying does not touch. Either one
    * alone would make a count read off the page an understatement. It was the
    * browser's own walk of its copy of the directory until PR 10 of
-   * `docs/brainstorming/vault-in-browser.md`; the rule did not move, the set
+   * `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`; the rule did not move, the set
    * did.
    *
    * Zero is what takes the control off the page entirely.

@@ -15,7 +15,7 @@
  * kept against the very array (`./served.tsx`, `./file/matching.ts`); a fresh
  * value per frame said "a frame arrived" where the question was "did the
  * unreadable files / the files change"
- * (docs/brainstorming/reactivity-after-the-flip.md §4.2). Those cases are
+ * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md §4.2). Those cases are
  * identity assertions for that reason, not for taste.
  *
  * A MEMO TEST rather than a test of the fold alone, because the accumulator on

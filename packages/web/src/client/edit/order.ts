@@ -52,7 +52,7 @@ export const flatten = (
  * was `…/install/measure` is `…/handles/measure` the moment the file says so —
  * and anything still holding the old chain is pointing at nothing.
  *
- * The brainstorming note (docs/brainstorming/editing-web.md) filed this as "a
+ * The brainstorming note (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/editing-web.md) filed this as "a
  * primitive nobody owns", to be moved the day a second consumer appeared. It
  * appeared.
  *
@@ -82,7 +82,7 @@ export const refound = (
  *  a gesture that asks two questions of one page should walk it once
  *  (`./editing.tsx`'s `drawn`, `../select/selection.ts`'s `grow`). Flattening
  *  for itself, this made that walk a second one every time
- *  (docs/brainstorming/reactivity-after-the-flip.md §4.8). */
+ *  (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md §4.8). */
 export const neighbour = (
   drawn: ReadonlyArray<Row>,
   place: string,

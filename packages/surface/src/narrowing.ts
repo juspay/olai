@@ -15,7 +15,7 @@
  * reader of the answer is a membership test against a row the page already
  * draws. So the narrowing is a READING OF A PAGE — bounded by the page, asked
  * with the page's own request, and re-read on the same revision pulse the page
- * rides. The design is docs/brainstorming/filter-rides-the-page.md.
+ * rides. The design is https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/filter-rides-the-page.md.
  *
  * A STREAM and not a procedure, for {@link ./page.ts}'s reason: a stream is a
  * cell with an argument — read, listen, re-read on every published revision,

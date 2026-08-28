@@ -196,7 +196,7 @@ export function Palette(props: {
    * change: `cursor.at()` reads `items().length`, so every row of the list
    * re-evaluated its `active` binding whenever the list moved OR the cursor
    * did, where at most two rows can have changed
-   * (docs/brainstorming/reactivity-after-the-flip.md §4.6). `createSelector`
+   * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md §4.6). `createSelector`
    * keeps one signal per subscribed key and wakes only the row that was lit
    * and the row that now is.
    *
@@ -317,7 +317,7 @@ export function Palette(props: {
     // anywhere, `router.route()` on every navigation, and `props.names` on a
     // navigation that renamed something — so a shut palette rebuilt its whole
     // list, re-parsing the shelf for `pinnedAt` each time, on every one of them
-    // (docs/brainstorming/reactivity-after-the-flip.md §4.5). Solid re-tracks
+    // (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md §4.5). Solid re-tracks
     // per run, so while the palette is shut this depends on `paletteOpen()`
     // and nothing else.
     if (!paletteOpen() || !listing()) return [] as ReadonlyArray<PaletteItem>

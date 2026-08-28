@@ -36,7 +36,7 @@
  *     ops layer where the search procedure is, because a browser filtering rows
  *     it already holds and an agent calling `search_nodes` must not be two
  *     answers to one question (./filter.ts's own header, and
- *     docs/brainstorming/filter-in-place.md);
+ *     https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/filter-in-place.md);
  *   - how a set is WRITTEN back, `serializeOutline`, `ordBetween` and
  *     `stampOf` — the canonical bytes, the sibling order and the one way an
  *     instant becomes a date value, held here for the same reason the rules
@@ -144,7 +144,7 @@ export {
 /** THE SUM the set serves, and the whole world of it: the three arms, their
  *  shared face, the constructors a decode calls and the narrowings a reader
  *  asks for. `Document` is what a served file IS
- *  (docs/brainstorming/first-class-documents.md, PR 2); the nodes are the
+ *  (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/first-class-documents.md, PR 2); the nodes are the
  *  substructure of one arm rather than a collection beside it. */
 export {
   bodiedDocument,
@@ -232,7 +232,7 @@ export type { BodyKind, FileKind, TextKind, UnkeptKind } from "./kinds.ts"
 export type { Split } from "./address.ts"
 /** WHAT A PLACE IS CALLED — `[document]#[element]`, the one grammar every
  *  feature that has to name something trades in
- *  (docs/brainstorming/first-class-documents.md). Exported whole, primitives
+ *  (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/first-class-documents.md). Exported whole, primitives
  *  included, because the point of it is that a consumer does not re-derive
  *  what an address is: the browser's URLs are `/` plus one of these, a pin
  *  holds one, and the parse and the print are a bijection with a test standing
@@ -1061,7 +1061,7 @@ export {
  * of the vault it used to walk, and the request that asks for one.
  *
  * Public because it crosses, which is the whole of what PR 10 of
- * `docs/brainstorming/vault-in-browser.md` is: the server computes this per
+ * `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md` is: the server computes this per
  * open page per published revision and sends it when it changed by value, and
  * every page in the app is drawn out of it.
  */
@@ -1085,7 +1085,7 @@ export {
  * READING rather than a search of the directory — bounded by the page, re-read
  * on the same revision pulse, sent only when it changed by value — which is
  * what stopped a filtered page re-searching the vault once per frame
- * (docs/brainstorming/filter-rides-the-page.md).
+ * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/filter-rides-the-page.md).
  */
 export {
   /** The reading over a page ALREADY COMPUTED — for a caller holding a

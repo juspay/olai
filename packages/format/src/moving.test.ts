@@ -15,7 +15,7 @@
  * a destination the planner would have taken — which is the one thing the
  * header's standing rule forbids.
  *
- * It moved here with the reading (`docs/brainstorming/vault-in-browser.md`'s
+ * It moved here with the reading (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`'s
  * PR 10): the picker judges an arbitrary node the SEARCH offered against the
  * row being moved, which is a question about the set and about no page, so it
  * is asked over the wire and answered where the records are.

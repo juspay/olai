@@ -3,7 +3,7 @@
  * directory.
  *
  * IT IS A LEG, NOT A CLAIM (`just bench`), and that is the whole reason it
- * exists. Slice 3 of `docs/brainstorming/model-indices.md` measured this pair
+ * exists. Slice 3 of `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/model-indices.md` measured this pair
  * as a one-off on a laptop, quoted the ratio in `docs/architecture.md`, and did
  * not commit the harness — so the tree carried a number nobody could re-run,
  * and said so in the same breath ("one laptop sample that this tree cannot

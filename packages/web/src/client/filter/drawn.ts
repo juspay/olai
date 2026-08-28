@@ -15,7 +15,7 @@
  * knew. It is the server's now (`@olai/format`'s `showsPutAway`), asked of the
  * page it is already computing: the browser stopped describing its page to the
  * matcher the day it started naming it instead
- * (docs/brainstorming/filter-rides-the-page.md).
+ * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/filter-rides-the-page.md).
  *
  * WHY THE SPLIT IS WORTH A FILE. Every function here is a `switch` over the
  * five shapes a page can be, and each is one line per shape; the reading is

@@ -151,8 +151,10 @@ build-client: install
 # directory's outlines are watched by the running server itself and reach the
 # open page with no reload at all.
 #
-# Defaults to docs/, which is itself an outline set (docs/roadmap.olai), so
-# `just serve` with no arguments shows this project's own plan. `just nix` is
+# Defaults to docs/, which is a served set of DOCUMENTS since the orchestrator's
+# vault moved to https://github.com/juspay/oss.olai — `just serve` with no
+# arguments shows this project's engineering docs, and a directory of outlines
+# (that vault, a checkout of your own) is the argument to pass. `just nix` is
 # the other path: the packaged binary, built from tracked files only. Use this
 # one while working; that one is what CI proves.
 serve dir="docs" *args: build-client
@@ -237,7 +239,7 @@ hm-module:
 # THE FIFTH WAS THE TAB's own frame, and it is gone with what it timed: it
 # measured what a browser paid between a `deltas` frame of the whole set landing
 # and having a view of the directory again, and a browser holds no view of the
-# directory any more (`docs/brainstorming/vault-in-browser.md`'s PR 10). What
+# directory any more (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`'s PR 10). What
 # replaced it is not a timing at all but a WIRE measurement, which is the thing
 # that actually changed — `packages/tests/wire.ts`'s `pages` session, run
 # against two worktrees with `wire.sh`'s `ROOT=`.

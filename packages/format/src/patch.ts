@@ -8,7 +8,7 @@
  * reached the other way: the previous {@link Derived}, plus what moved, gives
  * the next one. The dirty set for a title edit is one record, so the cost is
  * what the edit touched rather than what the directory holds
- * (`docs/brainstorming/model-indices.md`, direction C).
+ * (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/model-indices.md`, direction C).
  *
  * THE ORACLE IS THE SPEC, and it is not a figure of speech: for any set and any
  * delta, `patch(derive(before), delta)` must be the view `derive(after)` is,
@@ -287,7 +287,7 @@ interface Edit {
  * have had no key at all. That last line is the one another copy gets wrong —
  * the oracle compares what a map HOLDS and not only what it answers — and it
  * had been written out five times before the sixth arrived, which is the count
- * the house rule said would force this (`docs/roadmap/`).
+ * the house rule said would force this (`https://github.com/juspay/oss.olai/tree/master/olai/roadmap`).
  *
  * WHAT EACH INDEX STILL SAYS FOR ITSELF IS ITS FOLD, and it says it ONCE.
  * `derive` owns what a record files into an index — {@link parentInto},

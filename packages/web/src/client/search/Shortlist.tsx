@@ -113,7 +113,7 @@ export function Shortlist(props: {
      *
      * It exists because one of them is not: the move picker's verdict is a
      * reading of the SET (can this row go under that node), which is the
-     * server's since `docs/brainstorming/vault-in-browser.md`'s PR 10 — so it
+     * server's since `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`'s PR 10 — so it
      * has to say which nodes it wants judged before it can answer about any of
      * them (`../move/moving.tsx`). Handed rather than the door reaching in: the
      * list is what knows its hits, and this is the one line between the two.

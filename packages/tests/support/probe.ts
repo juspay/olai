@@ -22,7 +22,7 @@
  *     between a mark that MOVED from one entry to another and a mark that went
  *     out and came back a round trip later.
  *
- * It is `docs/brainstorming/reactivity-after-the-flip.md` §6's own script,
+ * It is `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md` §6's own script,
  * moved here the first time a PR of that campaign needed it (PR 1), so the ones
  * after it assert on the same reading rather than each writing their own.
  *
@@ -419,7 +419,7 @@ export const regionHeld = async (
     `${churn.gone} of the ${churn.marked} elements of the ${what} were torn ` +
       "down and drawn again for a frame that did not change what they say. A " +
       "list keyed by REFERENCE over an array the store rebuilds every frame " +
-      "does that (docs/brainstorming/reactivity-after-the-flip.md §2), and it " +
+      "does that (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md §2), and it " +
       "costs the reader the caret, the hover and the scroll position it was " +
       "holding.",
   );
