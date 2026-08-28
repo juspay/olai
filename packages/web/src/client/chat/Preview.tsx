@@ -159,6 +159,18 @@ function Shelf(props: {
           <span class="shrink-0 opacity-70">show me</span>
         </button>
       </Show>
+      {/* NO CONTROL IN THIS HEAD, and the ruling is the human's (2026-08-28,
+          after a resumed agent went missing from the strip): get rid of the ×.
+          It was a second way to close one thing — the door that opened this
+          shelf closes it, both of them, because pressing the agent you are
+          already reading means *put it away* ({@link ./previewing.ts}) — and a
+          × on a box about an AGENT reads as a control over the agent rather
+          than over the box. The person who pressed it read it that way: they
+          took it for a dismissal, and when the same agent was resumed and no
+          face came back, the × was the thing they had done. It is the row's own
+          door and the strip's entry that open and shut this, and neither of
+          them can ever mean anything about the agent. Header.tsx's own rule,
+          arriving here from the other side. */}
       <div class="flex shrink-0 items-baseline gap-2 px-3 py-1.5 font-mono text-[0.6875rem] leading-snug">
         <p
           class="flex min-w-0 flex-1 items-baseline gap-1 text-ink"
@@ -175,15 +187,6 @@ function Shelf(props: {
               of one fan-out would give four shelves with one heading. */}
           <span class="min-w-0 truncate">{sentOf(props.open.entry)}</span>
         </p>
-        <button
-          type="button"
-          class="shrink-0 rounded-sm px-1 text-muted hover:text-ink focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-accent"
-          data-testid={TESTID.chatPreviewShut}
-          onClick={() => closePreview()}
-        >
-          <span class="sr-only">close</span>
-          <span aria-hidden="true">×</span>
-        </button>
       </div>
       {/* ITS OWN SCROLL, so a long-running agent's fortieth call is reachable
           without the shelf growing past its cap and without the conversation
