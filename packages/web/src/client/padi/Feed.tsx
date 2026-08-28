@@ -29,7 +29,11 @@ export function Feed(props: {
   return (
     <section
       ref={props.inside}
-      class={`fixed ${LAYER.over} flex min-h-0 w-80 flex-col gap-2 overflow-y-auto overscroll-contain rounded-2xl border-0 bg-panel p-4 text-sm shadow-xl ring-1 ring-rule/40 focus:outline-none`}
+      // No `w-*`: `styleOf(at)` writes the width inline, so a class could
+      // never beat it — the panels this wears (`commit/Panel.tsx`,
+      // `settings/Panel.tsx`) wear that as a rule, and carry
+      // `overflow-x-hidden` with it. Folded in here.
+      class={`fixed ${LAYER.over} flex min-h-0 flex-col gap-2 overflow-x-hidden overflow-y-auto overscroll-contain rounded-2xl border-0 bg-panel p-4 text-sm shadow-xl ring-1 ring-rule/40 focus:outline-none`}
       style={styleOf(props.at)}
       // Focusable, never in the tab order — the popover's half of the focus
       // cycle, worn the way every one of these panels wears it.

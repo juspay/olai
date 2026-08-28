@@ -21,6 +21,13 @@
  * `@olai/kolu-ui`'s to answer and this file's to hang). The popover is
  * `../popover.ts`'s, as the Commit panel's and the preferences' are: one
  * focus cycle for the bar, rather than four.
+ *
+ * What the live announce SEEDS: `aria-live` was on the readout's pill, and
+ * this file's own edit DROPS it deliberately — an interactive element
+ * double-roars every twin announce keypress, and a door that says two
+ * lines (its press AND its changed status) is worse than a door saying
+ * none. Status still reads in its `data-padi` attribute, asserted where
+ * a scenario needs it.
  */
 
 import { Show } from "solid-js"

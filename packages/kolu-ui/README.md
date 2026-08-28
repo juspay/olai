@@ -2,7 +2,7 @@
 
 Everything a page draws about kolu, in one package: the row on a `terminal` property, the live pane the row opens, the fleet a tab holds **once**, the events a header press shows — and the words the padi readout says. What the app reaches it through is `KoluUi`, one mount taking the composed client and a `now`: which surface members exist, what two named verbs the pane calls — the whole of what would otherwise be spelled in olai's composition root. `Block` registration, the pill's chrome and olai's preference cadence are web's.
 
-- **`src/props/KoluUi.tsx`** — the socket: `KoluClient`, the structural pin, and the four members of the composition.
+- **`src/props/KoluUi.tsx`** — the socket: `KoluClient`, the structural pin, and the five members of the composition (the cell, the two collections — fleet and the watcher's events — the screen read, the live pane).
 - **`src/props/fleet.tsx` / `src/props/held.ts`** — the fleet the tab holds once: one subscription per tab however many chips are down the page, one map, one counter; and the accumulator the events ring reuses (a frame the events ring sees is the same move as one the fleet sees, since the server's ring is one Store).
 - **`src/props/EventsFeed.tsx` / `src/padi/events.ts`** — the drawer the Padi pill opens: what recently wanted attention, the folds over kolu's own, the words spelled **once, in `padi/events.ts`, and nowhere else** — past tense means the past, even for a still-held state.
 - **`src/props/TerminalDoor.tsx` / `src/props/LivePane.tsx`** — the block and the window, wearing web's own chrome.
