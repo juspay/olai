@@ -36,7 +36,7 @@ import {
   type TestId,
 } from "@olai/web/testlib";
 import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
-import type { LivePadi } from "./padi.ts";
+import type { LivePadi } from "@olai/kolu-client/testlib";
 import {
   setDefaultTimeout,
   setWorldConstructor,

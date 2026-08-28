@@ -29,19 +29,15 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-/** The far end, run by bun the way the fake ACP agent is. */
-const FAKE_PADI = path.resolve(
-  import.meta.dirname,
-  "..",
-  "agent",
-  "padi",
-  "fake-padi.ts",
-);
+/** The far end, run by bun the way the fake ACP agent is — and its NEIGHBOUR
+ *  now, which is the point: the readiness line it prints and the wait below are
+ *  one protocol, and this path is one directory rather than one package away. */
+const FAKE_PADI = path.resolve(import.meta.dirname, "fake-padi.ts");
 
 /** Where a `@padi:<name>` tag's fleet is read from. One JSON per fleet, named
  *  by the tag, so a scenario says which world it is in and the file says what
  *  is in it. */
-const FLEETS = path.resolve(import.meta.dirname, "..", "fixtures", "padi");
+const FLEETS = path.resolve(import.meta.dirname, "fixtures");
 
 export interface LivePadi {
   /** What to put in the server's `$PADI_SOCKET`. */

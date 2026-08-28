@@ -123,5 +123,66 @@ if [ -n "$overridden" ]; then
   fail=1
 fi
 
+
+# ── 4. The PRODUCT tier lives in the two kolu packages, and nowhere else ─────
+#
+# THE FIRST ASSERTION HERE THAT OPENS A `.ts` FILE. The three above check
+# versions — what a manifest SAYS — and a version check cannot see an import.
+# So which olai package may reach kolu's product packages was enforced by
+# nothing but review, and `docs/architecture.md` said as much in as many words.
+#
+# The sixth sitting ended that: kolu implementation lives in `@olai/kolu-client`
+# and `@olai/kolu-ui`, and the wall is a package wall because — the human's
+# ruling — "a directory wall can be broken easily by importing; package walls
+# cannot, and are conceptually self-explanatory." This is the machine half of
+# that sentence.
+#
+# ZERO EXCEPTIONS, which was itself a ruling. The design carried a named
+# allowlist row for `packages/chat/src/kolu.ts` until the human chose Option B;
+# the seat that proposed the row retracted it first, as "a file-grained
+# exception in a package-grained fence — discipline dressed as physics." A path
+# a reviewer has to remember is weaker than a wall, so chat reaches
+# `@kolu/detect` through `@olai/kolu-client/detect` and this list is empty.
+#
+# THE FRAMEWORK TIER IS OUT OF SCOPE and deliberately unlisted: `@kolu/surface*`
+# is olai's foundation, imported anywhere, like `effect`. What is confined is
+# the PRODUCT tier — the padi integration — plus the terminal emulator, which is
+# `@olai/kolu-ui`'s appliance and no other package's business.
+PRODUCT='@kolu/padi-client|@kolu/terminal-vocab|@kolu/solid-dockrow|@kolu/solid-statepip|@kolu/detect|terminal-themes|@xterm/'
+
+# Import statements and CSS `@import`s — the two ways a specifier actually
+# enters a build. Prose that merely NAMES a package is not a dependency, and a
+# fence that failed on a comment would be a fence people learn to work around.
+leaked=$(
+  rg --no-messages -l \
+    "^\s*(import|export)\b.*from \"($PRODUCT)|^\s*@import \"($PRODUCT)" \
+    "$root"/packages/*/src 2>/dev/null | grep -v '/packages/kolu-client/' | grep -v '/packages/kolu-ui/' || true
+)
+if [ -n "$leaked" ]; then
+  echo "check-kolu-deps: kolu's PRODUCT tier is imported outside the two kolu packages:" >&2
+  echo "$leaked" | sed "s|^$root/||; s|^|  |" >&2
+  echo "  → it belongs behind @olai/kolu-client or @olai/kolu-ui. The fence has no exceptions." >&2
+  fail=1
+fi
+
+# ── 5. The wire entry stays pure, because every listener pulls it in ─────────
+#
+# `@olai/surface` spreads `@olai/kolu-client/wire` into its own spec, so that
+# module is on the static graph of everything that reads the surface — the
+# browser bundle and the server both. It may import `effect` and
+# `anyforge/schemas`. It may NOT import padi (which would put the daemon's whole
+# contract on the browser's graph), `solid-js` (a UI runtime on the server's),
+# or `@olai/format`. Schemas and types only.
+impure=$(
+  rg --no-messages -l \
+    "^\s*(import|export)\b.*from \"(@kolu/padi-client|solid-js|@olai/format|@xterm/)" \
+    "$root/packages/kolu-client/src/wire" 2>/dev/null || true
+)
+if [ -n "$impure" ]; then
+  echo "check-kolu-deps: the wire entry must stay types-and-schemas only:" >&2
+  echo "$impure" | sed "s|^$root/||; s|^|  |" >&2
+  fail=1
+fi
+
 [ "$fail" -eq 0 ] || exit 1
-echo "check-kolu-deps: every external kolu's hydrated sources need is a root dependency at kolu's version, and no olai manifest spells one differently"
+echo "check-kolu-deps: versions agree with kolu, the product tier is confined to the two kolu packages, and the wire entry is pure"

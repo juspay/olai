@@ -54,36 +54,39 @@
  * no business holding a socket open" and "this laptop is not running kolu" are
  * the same thing to a reader, so they should be the same thing to the code.
  *
- * ## The five homes — the map, so a grep for `kolu` is not a reconstruction
+ * ## The two packages — the map, so a grep for `kolu` is not a reconstruction
  *
- * Five files in this repo carry kolu in their name or their imports, and they
- * are four independent concerns plus one twin. The list is kept in all five
- * headers on purpose (the fifth Löwy sitting, finding 4:
- * `docs/lowy-electricity/debate-2026-08-26.md`) — a reader who greps `kolu`
- * lands on whichever of them came first, and the map should be under that
- * reader's cursor rather than assembled out of the five files themselves.
+ * It was FIVE homes, and the list lived in five headers because a reader who
+ * grepped `kolu` landed on whichever came first and had to assemble the rest.
+ * The sixth Löwy sitting ended that arrangement rather than documenting it
+ * better (`docs/lowy-electricity/debate-2026-08-27.md`), on the human's ruling:
+ * *"all of Kolu stuff should be encapsulated out, as a package or more
+ * packages, so the non-kolu packages part of Olai doesn't contain Kolu
+ * implementation"* — and *"a directory wall can be broken easily by importing;
+ * package walls cannot."*
  *
- *   - **`@olai/surface`'s `kolu.ts`** — THE WIRE SHAPES. What a browser is
- *     told about the link and the fleet, in olai's own vocabulary.
- *   - **`@olai/kolu-client`** — THE DIAL, and this package. The only one that
- *     speaks padi's wire: one socket per server, the standing mirror, the
- *     projection into those shapes.
- *   - **`@olai/server`'s join** — `runtime.ts`'s kolu half binds the three
- *     surface members to that dial; `claimants.ts` walks the vault for who
- *     OWNS a terminal.
- *   - **The web props** — `web/src/client/props/` reads both members as one
- *     subscription per tab and draws kolu's own Dock ROW (it was a chip; the
- *     dock-row fold retired olai's home-made vocabulary wholesale);
- *     `web/src/client/padi/` is the
- *     header's link indicator, a second reader of the same cell.
- *   - **`@olai/chat`'s `kolu.ts`** — A TWIN, not a floor of that stack. A
- *     one-shot spawn-time probe (`@kolu/detect`, over MCP stdio) that tells
- *     the chat panel's agent this host runs a kolu. Shares no code with the
- *     four above, deliberately.
+ *   - **`@olai/kolu-client`** — THE DIAL and the wire. The only package that
+ *     speaks padi: one socket per server, the standing mirror, the projection
+ *     into olai's own shapes. Four doors beside the root — `./wire` (the
+ *     vocabulary and the four surface members, which `@olai/surface` spreads
+ *     into its spec and re-exports), `./detect` (the spawn-time probe's
+ *     surface), `./testlib` (the fake padi and its lifecycle) and `./drivers`
+ *     (the two padi-dialing evidence scripts).
+ *   - **`@olai/kolu-ui`** — EVERYTHING BROWSER. The Dock row on a `terminal`
+ *     property, the live pane, the re-attach policy, the fleet the tab holds
+ *     once, and the words the header readout says. Its socket is `KoluUi` —
+ *     the app hands over its composed client and a clock, and nothing else
+ *     crosses.
  *
- * The wall this package is (above) is what keeps that a list of four homes
- * and not one blur: only this one dials, so the other three read
- * `@olai/surface`'s shapes and cannot reach padi even by accident.
+ * What is left outside them is not kolu implementation but olai's own
+ * judgement ABOUT kolu, and it is worth naming so the distinction survives:
+ * `@olai/server`'s `claimants.ts` walks the vault for who OWNS a terminal
+ * (outline records, injected into the dial rather than known by it);
+ * `@olai/chat`'s `kolu.ts` decides what an absent kolu MEANS, in five English
+ * sentences only chat can write, over the probe it reaches through
+ * `@olai/kolu-client/detect`; `@olai/web` owns the pill, the block table and
+ * the cadence. None of those import kolu, and `scripts/check-kolu-deps.sh`'s
+ * fourth assertion is what makes that a fact rather than a habit.
  */
 
 import { type CellStore, inMemoryStore } from "@kolu/surface/server"

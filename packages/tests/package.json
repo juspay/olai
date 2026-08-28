@@ -14,7 +14,8 @@
     "@olai/format": "workspace:*",
     "@olai/identity": "workspace:*",
     "@olai/surface": "workspace:*",
-    "@olai/web": "workspace:*"
+    "@olai/web": "workspace:*",
+    "@olai/kolu-client": "workspace:*"
   },
   "//devDependencies": "@olai/log is here for its `./testlib` DECODER only: the readiness signal this suite waits on is a line on the server's stdout, and that line's format belongs to @olai/log — so the thing that reads it back is @olai/log's too, rather than a regex this suite would maintain alone and silently stop matching the day a value needed quoting. playwright is pinned to 1.61.1 — the version of `pkgs.playwright-driver` in the pinned nixpkgs. The npm package ships only the driver's JS; the browsers come from the Nix store via PLAYWRIGHT_BROWSERS_PATH, and the driver refuses a browser build it was not compiled against. A minor-version drift here (kolu's 1.59.0, say) does not fail at install time — it fails at `chromium.launch()` with \"Executable doesn't exist\", pointing at a path inside the store that is real but wrong. Bump this only together with the nixpkgs pin, never on its own.",
   "devDependencies": {
