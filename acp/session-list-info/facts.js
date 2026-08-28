@@ -99,11 +99,18 @@ export const clearOpenedAtOf = (messages) => {
  * `session` — the SDK's row: `{ sessionId, fileSize?, lastModified, dir? }`.
  * `deps`:
  *   - `messages(id, { dir })` — like the SDK's `getSessionMessages`;
- *   - `info(id, { dir })` — like the SDK's `getSessionInfo`, the ARBITER of
- *     "readable at all": its own contract is `undefined` for a session whose
- *     file cannot be located or opened, and the SAME sources make
- *     `getSessionMessages` answer `[]` for "not readable" as for "never
- *     anyone spoke" — which is why the count cannot be read off `[]` alone;
+ *   - `info(id, { dir })` — like the SDK's `getSessionInfo`, the DESCRIBE
+ *     oracle for the messages call's empty answer: its own contract is
+ *     `undefined` both for a session whose file cannot be located or opened
+ *     (`Yo` is the messages call's own locator — a failure the reviewer
+ *     walked in through is a failure here too) AND for less-severe losses
+ *     like a sidechain or a summaryless row — a transcript there CAN be
+ *     read but the SDK declines to describe it. Either way NO stamp, because
+ *     "we could not say" and "the harness keeps nothing to repeat" price
+ *     out the same on a row a person is about to click; and the same
+ *     sources make `getSessionMessages` answer `[]` for "not readable" as
+ *     for "never anyone spoke" — which is why the count cannot be read off
+ *     `[]` alone;
  *   - `say(line)` — the operator's channel rather than the row's;
  *   - `cache` — a `Map`; keyed by session id with the row's own
  *     `(fileSize, lastModified)` carried beside the facts, so a transcript
@@ -194,6 +201,12 @@ const RECENT_WITHIN_MS = 7 * 24 * 60 * 60 * 1000
  *   - nothing written more than RECENT_WITHIN_MS before the command is the
  *     predecessor; where it would have come from is we have no idea, NOT a
  *     guess at whatever was touched last before it.
+ *
+ * The residual the rules do NOT defend: an opener that makes NO claim —
+ * unreadable or undated — does not protect its predecessor: a later opener
+ * can still link that predecessor alone, and that is the same shape of
+ * wrong-lie one step rarer, which we say in the notes as the walk's limit
+ * rather than cheat with a guard that walks past it.
  */
 export const pairSupersessions = (rows, opts = {}) => {
     const include = opts.includeId ?? (() => true)
@@ -239,4 +252,34 @@ export const pairSupersessions = (rows, opts = {}) => {
         links.set(predecessor, successors[0])
     }
     return links
+}
+
+// ── the once-per-process announcement of an SDK build going quiet ─────
+
+/**
+ * Say it ONCE, the way the notes promise: the timestamp passthrough is
+ * undocumented and the bump-day its own loss — facts carry the shape
+ * (`timestampLoss`), the CALLER possesses the row list at one slice of
+ * time, and this emits ONE sentence on the logger for the first call that
+ * actually has a lost case, never on rows that carry the borrowed words of
+ * health.
+ *
+ * - `factsList` — row facts or `undefined` values, the caller's own
+ *   shape (passthroughs don't filter: an unreadable transcript is not here,
+ *   exactly as the row is).
+ * - `state` — a shared `{ told: boolean }` the caller owns; the ONLY
+ *   amortization this has, and the caller's own to hold.
+ * - `say` — the operator's channel; emit the line
+ *
+ * Returns true when THIS call spoke (mostly for the test).
+ */
+export const sayTimestampLossOnce = (factsList, state, say) => {
+    if (state.told || !factsList.some((facts) => facts?.timestampLoss === true)) {
+        return false
+    }
+    state.told = true
+    say("session/list: a transcript opened by /clear has no timestamp " +
+        "— SessionMessage's timestamp passthrough may be gone; " +
+        "no supersession links can be made on this build")
+    return true
 }

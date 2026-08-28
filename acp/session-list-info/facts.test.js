@@ -14,6 +14,7 @@ import { describe, expect, test } from "bun:test"
 import {
     clearOpenedAtOf,
     pairSupersessions,
+    sayTimestampLossOnce,
     sdkMessageText,
     sessionListFactsOf,
 } from "./facts.js"
@@ -43,10 +44,15 @@ describe("the opening of a conversation", () => {
     })
 
     test("a clear past the opening stretch is a REOPEN, not an opening", () => {
+        // The pads must be command markers too: any speaking entry would end
+        // the stretch by the FIRST-line rule, which is not what this test's
+        // name is about. Twelve markers and one /clear in slot twelve: the
+        // walk sees ten and closes without finding the command at the end
+        // of its stretch, WHICH is the refusal being claimed.
         const stretch = Array.from({ length: 12 }, (_, i) => ({
             type: "user",
-            timestamp: `2026-08-20T13:0${i}Z`.replace("Z", ":00.000Z"),
-            message: { content: `<command-message>noise-${i}</command-message>` },
+            timestamp: "2026-08-20T13:13:00.000Z",
+            message: { content: `<command-name>/settings</command-name>` },
         }))
         stretch.push({
             type: "user",
@@ -179,9 +185,8 @@ describe("what one listed session says", () => {
             messageCount: 1,
             timestampLoss: true,
         })
-        // Nothing cached: it is stamped, but a stamp that could not say the
-        // one fact it exists to carry is no more an answer than the other
-        // failure arm is.
+        // The stamp still IS one: the count exists, and while the pairing
+        // rule refuses its part, the stamp-having list keeps the fact.
         expect(deps.cache.size).toBe(1)
     })
 })
@@ -317,5 +322,33 @@ describe("which conversation a /clear moved", () => {
             { id: "old", cwd: "/d", lastModified: T0 - 1000 },
         ])
         expect(forward).toEqual(backward)
+    })
+})
+
+// ── the once-per-process loudness the notes promise ─────────────────
+
+describe("the build going quiet about timestamps is announced, once", () => {
+    test("first case in the process speaks; every call after answers nothing", () => {
+        const state = { told: false }
+        const said = []
+        const say = (line) => said.push(line)
+        expect(sayTimestampLossOnce([{ messageCount: 4, timestampLoss: true }], state, say)).toBe(true)
+        expect(said).toHaveLength(1)
+        expect(sayTimestampLossOnce([{ messageCount: 4, timestampLoss: true }], state, say)).toBe(false)
+        expect(sayTimestampLossOnce([], state, say)).toBe(false)
+        expect(said).toHaveLength(1)
+    })
+
+    test("every untouched-reading list is total silence", () => {
+        const state = { told: false }
+        const said = []
+        const say = (line) => said.push(line)
+        expect(sayTimestampLossOnce([
+            undefined,
+            { messageCount: 47 },
+            { messageCount: 0, timestampLoss: false },
+        ], state, say)).toBe(false)
+        expect(said).toEqual([])
+        expect(state.told).toBe(false)
     })
 })

@@ -62,6 +62,10 @@ first_line="$(grep -n '── reading the opening' "$facts" | head -1 | cut -d: 
 
 const sessionListFactsCache = new Map();
 
+// The amortizing state sayTimestampLossOnce asks the caller to hold: one
+// line per process, and this is what remembers having said it.
+const timestampLossOnce = { told: false };
+
 BUNDLEHEAD
   tail -n +"$first_line" "$facts" | sed -E -e 's/^export //'
 } > "$work/helpers.js"
@@ -122,6 +126,11 @@ cat > "$work/listSessions.js" <<'BODY'
             includeId: (id) => detectable === null || detectable.has(id),
             say: (line) => this.logger.error(line),
         });
+        // The notes promise ONE logger line the day `SessionMessage`'s
+        // timestamp passthrough goes away, and links quietly dying is the
+        // signpost's scenario: facts carry the shape, the row list is right
+        // here, the amortizing state next to the cache holds having said it.
+        sayTimestampLossOnce(rows.map((row) => row.facts), timestampLossOnce, (line) => this.logger.error(line));
         return {
             sessions: rows.map(({ entry, facts }) => facts === undefined
                 ? entry

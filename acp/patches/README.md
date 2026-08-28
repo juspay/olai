@@ -184,6 +184,14 @@ one.** Its rules, each an edge the suite asserts:
   conversation to protect a link guess would be the wrong friend), is not
   a predecessor a person reading the list can see in front of them — the
   case olai's own scripted drivers would manufacture otherwise;
+- and the walk's own limit, said rather than kept quiet: an EARLIER
+  opener that made NO claim (its transcript unreadable or undated) carries
+  no protection for its predecessor — a LATER opener can still link that
+  predecessor alone. Same shape of the answer this whole pairing is
+  refusing to risk, one step rarer; the limit is named in the docstring
+  alongside, not guarded, because the honest walk's refusal of one wrong
+  case is not the coach for guarding the next possible mistake against
+  rules we do not have about undated requests.
 
 **`timestamp` is an undocumented passthrough of the SDK's `SessionMessage`,**
 not a manufactured value like `sessionId`: a pin bump that drops it turns
