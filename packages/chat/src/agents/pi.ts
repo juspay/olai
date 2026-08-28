@@ -45,13 +45,17 @@
  * And the floors the spike established, which the capability claims below are
  * the shape of:
  *
- *   - **queueing is real and client-visible.** A `session/prompt` sent while a
- *     turn runs is accepted and held in the adapter's own turn queue: it
- *     announces "Queued message (position 1)." and a `session_info_update`
- *     carrying `_meta.piAcp.{queueDepth, running}`, and the REQUEST answers
- *     when its turn comes — verified with a 12-second held turn, the message
- *     run after it, in order. Not advertised at `initialize` anywhere;
- *     established against 0.0.33 the way opencode's was against 1.17.9.
+ *   - **queueing is real and client-visible — and it is the word, not a
+ *     stand-in for the interruption this adapter has no verb for.** A
+ *     `session/prompt` sent while a turn runs is accepted and held in the
+ *     adapter's own turn queue: it announces "Queued message (position 1)."
+ *     and a `session_info_update` carrying `_meta.piAcp.{queueDepth,
+ *     running}`, and the REQUEST answers when its turn comes — verified with
+ *     a 12-second held turn, the message run after it, in order. Not
+ *     advertised at `initialize` anywhere; established against 0.0.33 the
+ *     way opencode's was against 1.17.9. Nothing on this wire will steer a
+ *     running turn: see `steering: null` below, and `docs/chat.md` for the
+ *     statement a person gets.
  *   - **an error inside a turn is silent.** A provider pi cannot reach maps to
  *     `stopReason: "end_turn"` with not one frame — no prose, no tool, and no
  *     usage either (pi-acp never sends `usage_update`). Olai's silence arm is
@@ -73,8 +77,11 @@
  *     (`PAGE_SIZE = 50` in the pin's source, with `nextCursor` a real offset
  *     thereafter), not a wire observation of this repo's, and olai sends no
  *     limit and follows no cursor — a directory with more than fifty stored
- *     pi conversations draws the newest page and loses the tail, silently:
- *     filed as `pi-list-pagination`.
+ *     pi conversations draws the newest page and loses the rest. That is the
+ *     AGREED posture, not a follow-up parked in code: the picker's promise is
+ *     how-one-reaches-recent-conversations, and `docs/chat.md` answers the
+ *     size-of-the-page question the way the other pi characteristics live
+ *     there.
  *   - **`session/load` replays — by the adapter's own map, not pi's store.**
  *     pi-acp keeps a session map of its own (`~/.pi/pi-acp/session-map.json`)
  *     and PREFERS it, spawning a fresh `pi --session <file>` at the mapped
@@ -218,8 +225,8 @@ export const PI: Leg = {
   // Refused (`-32601`): `/steering` in this adapter is a SLASH COMMAND about
   // pi's own message delivery, not the ACP extension of the same name — the
   // one collision of vocabularies the spike was built to catch, and the
-  // gesture this panel therefore does not draw (pi-midturn-steering files
-  // what an adapter with the real extension would change).
+  // gesture this panel therefore does not draw, as a permanent word rather
+  // than a pending one.
   steering: null,
   // YES, from what the spike established rather than from the handshake: the
   // queue is the adapter's own, and it announces and answers in order.

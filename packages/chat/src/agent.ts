@@ -1225,8 +1225,10 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  NO LIMIT IS SENT and no `nextCursor` is followed: the protocol
      *  defaults apply, which on pi-acp is a page of fifty (its own
      *  `PAGE_SIZE`) — a directory with more stored pi conversations than one
-     *  page draws the newest and loses the tail, silently. Filed as
-     *  `pi-list-pagination`. */
+     *  page draws the newest and loses the rest. The posture is agreed, not
+     *  parked: the list answers which-conversation-recently rather than
+     *  indexing an agent's database, and `docs/chat.md` says the size
+     *  `pi`'s adapter pages at. */
     const storedFor = (at: Live): Effect.Effect<ReadonlyArray<Stored>, AgentGone> =>
       at.canList
         ? Effect.map(
