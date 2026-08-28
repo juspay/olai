@@ -223,10 +223,7 @@ const carriedOf = (
   // a map of keys that all hold nothing is `{}`, and `{}` is nothing.
   const custom = heldCustom(node.custom)
   return {
-    // The parent's id, absent at a root — the record's own field, omitted the
-    // same way an empty edge list is. `path` beside it is titles; a write takes
-    // this.
-    ...(node.parent === undefined ? {} : { parent: node.parent }),
+    ...(nothing(node.parent) ? {} : { parent: node.parent }),
     ...(nothing(node.see) ? {} : { see: node.see }),
     ...(nothing(node.after) ? {} : { after: node.after }),
     ...(nothing(custom) ? {} : { custom }),
