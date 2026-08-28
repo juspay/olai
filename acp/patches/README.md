@@ -137,7 +137,7 @@ The link is **inference, said without guessing**: candidates that tie at the
 cleared second, or a missing one, mean the field is absent rather than a best
 pick — a wrong link is worse than no link on the row somebody is about to
 click. The asking that follows from that is written up in
-[claude-agent-acp#ISSUE](https://github.com/agentclientprotocol/claude-agent-acp/issues/ISSUE),
+[claude-agent-acp#1052](https://github.com/agentclientprotocol/claude-agent-acp/issues/1052),
 which also asks whether the CLI can stop making it an inference question at
 all (a session that replaced another knows it did).
 
@@ -168,7 +168,7 @@ narrow ratification, because acting on somebody else's repository is theirs to
 allow and never this lane's to assume.
 
 **`session-list-info.patch` — asked, not sent**:
-[claude-agent-acp#ISSUE](https://github.com/agentclientprotocol/claude-agent-acp/issues/ISSUE),
+[claude-agent-acp#1052](https://github.com/agentclientprotocol/claude-agent-acp/issues/1052),
 same shape: what the two stamps are, why, and a pointer at this patch, ending
 in the same two questions — would a PR be welcome, and could the CLI make the
 link a fact rather than an inference. That issue was opened under the same
