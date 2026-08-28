@@ -165,7 +165,7 @@ test("a removal that leaves nothing leaves nothing", () => {
 // `triggerIn` is a parse and mints a fresh object every time; the widget asks
 // it on every CARET MOVE (`./completing.tsx`), so `sameTrigger` is what keeps a
 // click three characters along from re-running the choices, the failure slot
-// and both question thunks (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md
+// and both question thunks (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md
 // §4.3). These are the cases where being wrong either way shows.
 
 test("the caret moving inside one tag is the same offer", () => {

@@ -21,7 +21,7 @@
  * where `merge` is a word a driver switches on and `dispatched` is a date with
  * a story stapled to it. THE VALUE IS THE VALUE; the story belongs in the note.
  * Declaring the two keys is what makes that a refusal instead of a convention
- * somebody remembers (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/typed-properties.md).
+ * somebody remembers (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/typed-properties.md).
  *
  * ## The seven kinds, and the one that is missing
  *

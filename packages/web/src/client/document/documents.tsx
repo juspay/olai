@@ -13,7 +13,7 @@
  * WHAT IT NO LONGER OWNS is the file list. The paths, the faces and the
  * revisions used to be this module's too, off the `heads` collection beside
  * this one — and `heads` has since become the DIRECTORY, every served file
- * rather than every bodied one (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`'s PR
+ * rather than every bodied one (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`'s PR
  * 10). A module named for documents holding the list of outlines as well would
  * be a module named for half of what it does, so the list moved to
  * `../directory.ts` and what is left here is the subject this file always had:
@@ -36,7 +36,7 @@
  * The bound is worth naming: what this costs is the documents ON SCREEN, and a
  * `doc` reference draws a one-line preview out of a whole body. An outline that
  * attaches hundreds of documents at once therefore pays for hundreds of them.
- * That is the shape the design agreed (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/surface-mcp-viewing.md`):
+ * That is the shape the design agreed (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/surface-mcp-viewing.md`):
  * if a preview for many nodes at once is needed, the answer is a small member
  * on the wire carrying what a row draws rather than what a page does — the head
  * beside this one is that idea's first instance, and a one-line preview would
@@ -131,7 +131,7 @@ export const createDocuments = (): Documents => {
    * `mapArray` and re-ran every per-key `read()` accessor in the app — no
    * refetch, because the string memos downstream stop there, but a walk of
    * every open document for a reference that changed nothing
-   * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md §3.7).
+   * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §3.7).
    */
   const wanted = createMemo(() => [...askers().keys()], [], { equals: sameList })
   const held = (file: string, by: number): void => {

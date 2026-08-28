@@ -4,7 +4,7 @@ Every door that searches the DIRECTORY — an agent's `search_nodes`, the `⌘K`
 
 **It answers candidates, never an answer.** What matches, in what order, with which field carrying the hit, is [`@olai/format`](../format/README.md)'s one matcher, and this package cannot reach it. That is the correctness argument rather than a division of labour: an index that over-includes costs one comparison per extra candidate and cannot change what search finds; an index that *decided* would be a second reading of a grammar with five doors on it, and the day it disagreed with `filter.ts` is the day `is:done` means two things ([docs/search.md](../../docs/search.md)).
 
-The design, with the eleven libraries that were surveyed and why none of them can be used, is [brainstorming/search-index.md](https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/search-index.md).
+The design, with the eleven libraries that were surveyed and why none of them can be used, is [brainstorming/search-index.md](https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/search-index.md).
 
 ## The whole surface
 
@@ -75,7 +75,7 @@ Building the cold table over that corpus is ~121ms, paid by the first query of a
 
 ## What it weighs
 
-The design priced this engine **on disk** — "index ≈ 3× the text", with *zero process memory* as the reason to put it there ([brainstorming/search-index.md](https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/search-index.md)). This implementation puts the same postings **in memory**, held for the life of the process. That trade is deliberate — a file beside somebody's vault is a file to invalidate, version, garbage-collect and explain — and it went unpriced until a reviewer said so, so the bench prints it:
+The design priced this engine **on disk** — "index ≈ 3× the text", with *zero process memory* as the reason to put it there ([brainstorming/search-index.md](https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/search-index.md)). This implementation puts the same postings **in memory**, held for the life of the process. That trade is deliberate — a file beside somebody's vault is a file to invalidate, version, garbage-collect and explain — and it went unpriced until a reviewer said so, so the bench prints it:
 
 ```
 MEMORY table 6.0 MB over 20780 rows (291 bytes each, 3.44× the folded text) · rss +6.7 MB across that build

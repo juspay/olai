@@ -10,7 +10,7 @@
  * implementation detail: a `.md` has nowhere to write an id, so the words are
  * the identity — and rewording a heading breaks the address that named it. The
  * later evolution is an opt-in explicit `## Install {#setup}`, which is named
- * in the design (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/first-class-documents.md) and not designed
+ * in the design (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/first-class-documents.md) and not designed
  * here.
  *
  * ## Why the rule is here and not in the renderer

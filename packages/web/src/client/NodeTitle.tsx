@@ -94,7 +94,7 @@ export function NodeTitle(props: {
          *  faces make of a title (`./address/address.ts`) — and the set's half
          *  of it read off the names this PAGE was sent with (`./reading.tsx`).
          *  It was a lookup in the tab's own copy of the vault until PR 10 of
-         *  `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`; both faces are answered by
+         *  `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`; both faces are answered by
          *  the server now, the shelf's on its own member and this one on the
          *  reading of the page the row is drawn in. */
         const face = createMemo(() =>

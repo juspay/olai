@@ -162,7 +162,7 @@ export default function App() {
    * page instead, every one of them went `A → undefined → B` on every click:
    * the open file's folder chain folded and was rebuilt, the current wash went
    * out for a round trip, and undo's stack was cleared twice
-   * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md §3.1).
+   * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §3.1).
    */
   const focused = createMemo(() => readings.at(router.workspace().focus))
 

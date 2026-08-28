@@ -2,7 +2,7 @@
  * Opencode's bets, over values — and the fail-safe rule, pinned.
  *
  * The payloads are what opencode 1.17.9 actually sends (the spike,
- * `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/opencode-chat.md`): call ids of the shape `bash:0` and
+ * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/opencode-chat.md`): call ids of the shape `bash:0` and
  * `olaiprobe_ping:0`, MCP tools named `<server>_<tool>`, permission options
  * that lead with an ALLOW rather than with the refusal, and not one `_meta` on
  * any frame.

@@ -339,7 +339,7 @@ export function Composer(props: {
    * header box, the `((` widget and the edge panel call, with the same debounce
    * and the same rule about a stale answer (`../search/nodes.ts`). It used to
    * be a walk over the set this tab held, which is the copy
-   * https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md is taking away.
+   * https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md is taking away.
    *
    * `"node"` because this list writes an id into a sentence and arms it: a
    * document has no id to write, so the narrowing rides the REQUEST rather than

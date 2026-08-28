@@ -800,7 +800,7 @@ Feature: A `.html` in the vault
     # the address. So a file REWRITTEN under an open page re-ran it — an agent's
     # write, a `git pull`, another tab — and dragged whoever was reading it back
     # to a heading they had asked for minutes ago
-    # (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md`'s 4.9).
+    # (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md`'s 4.9).
     #
     # A SHORT WINDOW rather than a long fixture: what this needs is a page with
     # somewhere to be, and the height of the window is the cheaper half of that.

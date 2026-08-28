@@ -25,8 +25,9 @@
  *   - a GENERATED vault with steps drawn off it, for size and for the shapes at
  *     rates — hundreds of saves, dozens of births, `git pull`-shaped revisions
  *     that move a dozen files at once;
- *   - THE REAL VAULT, this repository's `docs/`, edited: files people actually
- *     grew, in a directory with an archive in it;
+ *   - THE REAL VAULT, the orchestrator's own at the revision this repository
+ *     pins (`OSS_OLAI_VAULT`), edited: files people actually grew, in a
+ *     directory with an archive in it;
  *   - and the two MUTANTS, which is how the harness is held to being able to
  *     see the failure at all.
  *
@@ -47,7 +48,7 @@
  */
 
 import { vaultOf } from "@olai/format/testlib"
-import { vaultAt } from "@olai/format/testlib/scope"
+import { pinnedVault, vaultAt } from "@olai/format/testlib/scope"
 import { expect, test } from "bun:test"
 
 import { publishedOf } from "./published.ts"
@@ -312,19 +313,21 @@ test("a generated vault under two hundred writes publishes the same frames", () 
 // ── the real vault ─────────────────────────────────────────────────────
 
 /**
- * `docs/`, from this file's own position in the tree — the same directory
- * `@olai/format`'s scope differential reads, and reached through the same
- * reader (`vaultAt`), so there is one answer here to "what files does a served
- * directory hold".
+ * THE ORCHESTRATOR'S VAULT at the revision this repository pins — the same
+ * directory `@olai/format`'s scope differential reads, reached through the same
+ * reader (`vaultAt`) and located the same way (`pinnedVault`), so there is one
+ * answer here to "what files does a served directory hold" and one place that
+ * says where the real one is.
  *
- * A relative walk rather than a repository root resolved from git, because what
- * is wanted is the directory beside this package and not whatever a checkout
- * happens to be called.
+ * It was a relative walk to this repository's `docs/` until the board moved out
+ * (https://github.com/juspay/oss.olai). The corpus did not become a fixture: it
+ * is pinned, so it is still a directory people grew, and `pinnedVault` throws
+ * naming `OSS_OLAI_VAULT` rather than letting this leg pass over nothing.
  */
-const DOCS = new URL("../../../docs", import.meta.url).pathname
+const VAULT = pinnedVault()
 
-test("this repository's own vault, edited, publishes the same frames", () => {
-  const vault = vaultAt(DOCS)
+test("the real vault, edited, publishes the same frames", () => {
+  const vault = vaultAt(VAULT)
   // A live directory, so nothing asserted here is about its contents — but a
   // run over an empty one would compare nothing, so the floor is about it being
   // a vault rather than about it being this one.

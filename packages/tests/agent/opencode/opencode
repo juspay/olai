@@ -6,7 +6,7 @@
  * CODE adapter's shape and has been since there was only one: a `_meta` on
  * every frame, tool names inside it, a bypass mode, a steering extension. This
  * one is the other shape, and every difference in it was captured live against
- * **opencode 1.17.9** (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/opencode-chat.md`):
+ * **opencode 1.17.9** (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/opencode-chat.md`):
  *
  *   - **no `_meta` on any frame, ever.** Which is what makes the tool name
  *     unreachable except at the head of the call id.

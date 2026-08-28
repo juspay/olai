@@ -26,7 +26,7 @@
  * And because the memo has a RULE in it that both of them need. Every frame the
  * server published used to replace every element of `names` with a fresh object
  * — the store wrote frames with `reconcile(next, { key: null })` and no `merge`
- * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md §2) — so a memo that merely
+ * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §2) — so a memo that merely
  * built the table notified on EVERY frame, whatever the frame said. Its readers
  * are the leaves: every `NodeTitle`'s face memo, every `EdgeRefs` row, every
  * `NodeRefs` key. A page of a thousand rows re-ran all of them for a keystroke

@@ -10,7 +10,7 @@
  * with the others by memory.
  *
  * The rule the whole feature is built on is one line long: **derive it from
- * git, store nothing** (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/git-commits.md). Same discipline as
+ * git, store nothing** (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/git-commits.md). Same discipline as
  * node status and blockedness. Anything cached here would be a second answer to
  * a question git already answers, and it would be wrong the moment somebody
  * edits a file in vim.

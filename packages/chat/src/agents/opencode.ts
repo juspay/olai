@@ -3,7 +3,7 @@
  *
  * Every reading here was captured live against **opencode 1.17.9** running
  * `opencode acp --cwd <dir>` (the spike, 2026-08-21; the wire facts and their
- * consequences are written up in `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/opencode-chat.md`). It is
+ * consequences are written up in `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/opencode-chat.md`). It is
  * plain ACP over stdio and most of it needs nothing said: the sessions, the
  * MCP handing, the permission round trip and the model picker are the
  * protocol's own and are read where the protocol is read.

@@ -26,7 +26,7 @@
  * WHAT THE SET SAYS IS ASKED, not walked. This module used to take a whole
  * `Derived` and read the id→file map of every record in the directory out of
  * it, per fold; the browser is giving that copy up
- * (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md` — it may hold at most the page in
+ * (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` — it may hold at most the page in
  * front of somebody), so the two facts pruning needs are a question with an
  * answer ({@link Homes}, asked by ./refiling.ts). The RULE did not move: what a
  * home, an absence and an unheard-of file each mean is still spelled once, in

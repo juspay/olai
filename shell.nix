@@ -2,6 +2,7 @@
 { pkgs ? import ./nix/nixpkgs.nix { } }:
 let
   kolu = import ./nix/kolu.nix { inherit pkgs; };
+  pins = import ./npins;
   olaiFonts = import ./packages/fonts { inherit pkgs; };
 in
 pkgs.mkShell {
@@ -24,6 +25,24 @@ pkgs.mkShell {
     # than against a second copy of the list — which is the difference between
     # a version constraint that is checked and one that is hoped.
     OLAI_KOLU_EXTERNALS = builtins.toJSON kolu.externals;
+
+    # THE ORCHESTRATOR'S VAULT, pinned — the corpus four differential legs read
+    # (`@olai/format`'s scope, incremental and splice, and `@olai/server`'s
+    # published equivalence). What they want is a REAL vault: trees people
+    # actually grew, ids people actually chose, a mirror somebody placed for a
+    # reason, an archive with a hundred records in it — none of which a
+    # generator draws. That used to be this repository's own `docs/`, and it
+    # left with the board (https://github.com/juspay/oss.olai). A PIN is how it
+    # stays real without being here: `npins/sources.json` records the revision,
+    # `just update-pins` moves it, the store path is content-addressed, and
+    # nothing in this tree is a copy of the vault.
+    #
+    # Set HERE, in the shell every `bun test` runs in, rather than defaulted in
+    # the tests. A leg that quietly fell back to a fixture — or skipped — would
+    # be a green run that checked nothing, which is the one failure every sweep
+    # in this package is built to prevent, so an unset variable or an absent
+    # path is a LOUD failure naming this variable.
+    OSS_OLAI_VAULT = "${pins.oss-olai}";
 
     # The browsers come from nixpkgs, in the `e2e` shell only (flake.nix) — so
     # the npm package must never try to fetch its own. This is set HERE, in the

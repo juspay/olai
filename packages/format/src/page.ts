@@ -2,7 +2,7 @@
  * WHAT ONE PAGE SHOWS — the reading a browser is handed, in place of the vault
  * it used to walk.
  *
- * This is `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md` §3's table, written down as
+ * This is `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` §3's table, written down as
  * a value: an address goes in, and what the page draws comes out. Every arm is
  * built from the reading functions this package already had — `rowsOf`, `zoom`,
  * `datedOn`, `dailyNotesOn`, `agendaOf`, `backlinksOf`, `referrersTo` — and not
@@ -107,7 +107,7 @@ import { Zoomed, zoom } from "./zoom.ts"
  * reading of its own (`./narrowing.ts`, over the page this one produces) — one
  * that changes on every settled keystroke, where a page does not. Folded in,
  * every word typed would re-open this subscription and re-send every row of the
- * page it is already drawing (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/filter-rides-the-page.md §4).
+ * page it is already drawing (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-rides-the-page.md §4).
  */
 export const PageRequest = Schema.Union([
   /** An address in the served directory — `null` for the front page, which

@@ -70,7 +70,7 @@
  *
  * It was the browser's, over the browser's own copy of the vault — the last
  * gesture in the app that judged an arbitrary node of the directory against
- * another one. That copy is what `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md` takes
+ * another one. That copy is what `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` takes
  * away, and this question cannot be folded into a page's reading: the
  * destination is whatever the search just answered with, which is not on the
  * page at all. So it is a reading of its own, asked of the set, re-answered per

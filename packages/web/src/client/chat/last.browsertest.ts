@@ -6,7 +6,7 @@
  * looping over every row's `.kind`/`.seq`/`.text`, the panel was subscribed to
  * the TEXT OF EVERY ROW, so each token an agent streamed re-ran a walk of the
  * whole transcript to set one module signal
- * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md §4.4). So the fake chat
+ * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §4.4). So the fake chat
  * (`./live.testlib.ts`) COUNTS its reads, and the cases are about that number.
  *
  * The scan itself is `./newest.ts` now, shared with the banner's snapshot; the

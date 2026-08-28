@@ -193,7 +193,7 @@ Feature: Keyboard editing
     # the box is not moved, it is replaced, and a fresh box opens at the end of
     # the text. A reorder keeps the key and so keeps the box, which is why
     # `Alt+Shift+Up` never showed this
-    # (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md`'s 4.10).
+    # (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md`'s 4.10).
     When I click the title of "knobs"
     And I put the caret after "pick"
     And I press "Tab"

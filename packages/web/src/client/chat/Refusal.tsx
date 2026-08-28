@@ -8,7 +8,7 @@
  *
  * Nothing here summarises. Everything the refusal knows is on screen, because
  * the whole rule is that only a SUCCEEDING retry is invisible: a genuine
- * failure renders, with its detail (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/acp.md).
+ * failure renders, with its detail (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/acp.md).
  */
 
 import { isClean } from "@olai/format"

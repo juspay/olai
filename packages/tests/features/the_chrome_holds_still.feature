@@ -10,7 +10,7 @@ Feature: The chrome holds still while the page changes
   column that folded and relit under the reader settles into exactly the markup
   it started with. So these scenarios MARK the screen first and count what
   survived (`support/probe.ts`), which is the audit's own probe
-  (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md §6) with words on it.
+  (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §6) with words on it.
 
   What they are about is one rule: where am I is the ADDRESS's answer and it is
   synchronous. Derived instead from the page the focused pane was answered with

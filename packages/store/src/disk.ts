@@ -178,7 +178,7 @@ export const make = (
     // Bun 1.4.0's `fs.watch(root, { recursive: true })` follows a directory
     // made after it is armed — measured, all nine mutation shapes deliver,
     // including a file created and then edited inside a post-boot folder
-    // (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/watcher-fd-cost.md). The WALK still arms a watcher
+    // (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/watcher-fd-cost.md). The WALK still arms a watcher
     // on each directory it enters that nothing covers yet. That cover was
     // built for 1.3.13's blind spot; on 1.4.0 it is defense in depth, and
     // it is also what 1.3.13 needed for a path that has been watched once,

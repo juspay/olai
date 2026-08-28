@@ -4,7 +4,7 @@
  *
  * `./validate.ts` runs six whole-set rules, and five of them walk every record
  * in the directory on every write (roadmap `perf-validate-incremental`; the
- * costs are in `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/model-indices.md:57`). This is the other way
+ * costs are in `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/model-indices.md:57`). This is the other way
  * to reach the same answer: the previous verdict, the previous view, and a
  * delta naming the files that moved are enough to say which findings could
  * possibly be different, and every other record's answer is the one it already

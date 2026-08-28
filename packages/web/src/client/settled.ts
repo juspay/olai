@@ -107,7 +107,7 @@ export const SETTLE_MS = 200
  * the label was read correctly at the two doors somebody was thinking about
  * and not at the three next to them, because a fact a caller must remember to
  * consult is a fact a caller forgets
- * (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md`'s 4.12, and the deferral
+ * (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md`'s 4.12, and the deferral
  * it left behind).
  *
  * WHAT IT IS FOR IS `Enter`, and only `Enter`. A key means "the row under the
@@ -208,7 +208,7 @@ export interface Settled<Q, A> {
    * as answering a question the reader had already typed past. What a door does
    * with the label is take a row on `Enter`, so the gap was a keystroke that
    * wrote the wrong node (the audit's 4.12 in
-   * `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md`). It is compared
+   * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md`). It is compared
    * against what is WANTED now, which is the sentence above as it was always
    * written.
    */

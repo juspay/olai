@@ -29,7 +29,7 @@
  * `redrawing` is reached for `move`, `toggle`, `walk`, `split` and `merge`
  * alone, and each either changes this page's reading or is REFUSED at its
  * boundary — and a refusal clears the debt in `redrawing` itself.
- * `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md` §3.4's 4.11 footnote is
+ * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md` §3.4's 4.11 footnote is
  * that argument verb by verb, with the browser drives behind it. What is left
  * is a hazard about a coincidence rather than a defect anybody can show: a verb
  * added to the list below that is a NO-OP on the page it was pressed in would

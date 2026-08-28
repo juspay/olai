@@ -204,7 +204,7 @@ export const writeVerbs = (
    *  one question a subject cannot answer, and the number the archive's confirm
    *  has to name. It rides on the row now (`@olai/format`'s `Row.under`),
    *  counted where the set is, because the browser stopped holding one
-   *  (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`). `undefined` only while a
+   *  (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`). `undefined` only while a
    *  page's first reading is still arriving, which is a moment no row is drawn
    *  in — and the one verb that asks is then not offered rather than offered
    *  with a number nobody checked. */

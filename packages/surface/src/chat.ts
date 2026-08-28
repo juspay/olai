@@ -14,7 +14,7 @@
  *     a call, then reports it again with a status, and the second report is an
  *     upsert on the same key rather than a second row.
  *
- *     The framework audit (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/surface-utilization.md) asked for
+ *     The framework audit (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/surface-utilization.md) asked for
  *     "events paired with a collection", because an event replays nothing to a
  *     late joiner. A `deltas` collection is that pair in one member — the push
  *     and the history are the same frames down the same subscription — so

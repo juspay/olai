@@ -6,12 +6,12 @@
  *
  * It used to be one line: the tab held every node of every outline, so the
  * matcher ran here, over the local copy, per keystroke. That copy is what
- * `https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md` took away — the browser may hold at
+ * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` took away — the browser may hold at
  * most the page in front of somebody — and what replaced it was a PROCEDURE
  * (`search.matching`), debounced and stale-guarded.
  *
  * A procedure was the wrong shape, and this file is the second half of that
- * story (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/filter-rides-the-page.md`, roadmap
+ * story (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-rides-the-page.md`, roadmap
  * `filter-ask-carries-revision`). A FILTER IS A STANDING VIEW: "which nodes
  * match" has a different true answer after every write, so an answer that
  * outlives the set it was computed over is a wrong answer that looks like a
@@ -207,7 +207,7 @@ export interface Asked {
    * screen yet draws its `Reading…` line — the one honest beat `vault-in-browser`
    * §5a already licenses for a navigation. It is the join between the two
    * readings, made where they are both drawn rather than by folding one into
-   * the other's frame (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/filter-rides-the-page.md` §4 argues
+   * the other's frame (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-rides-the-page.md` §4 argues
    * why they are two members).
    *
    * FALSE WHILE NOTHING IS ASKED, so an unfiltered pane is never held. A

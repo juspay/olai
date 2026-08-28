@@ -10,8 +10,8 @@
 - [architecture.md](architecture.md) — how the packages fit, and the reasoning behind the layering.
 The development docs — the roadmap in the format itself, the decisions and why the alternatives lost, and the root-cause analyses — live in the orchestrator's own vault, [juspay/oss.olai](https://github.com/juspay/oss.olai), under its `olai/` folder:
 
-- [olai/roadmap/](https://github.com/juspay/oss.olai/tree/master/olai/roadmap) — the plan, in the format itself.
-- [olai/brainstorming/](https://github.com/juspay/oss.olai/tree/master/olai/brainstorming) — the decisions, and why the alternatives lost.
-- [olai/RCA/](https://github.com/juspay/oss.olai/tree/master/olai/RCA) — root-cause analyses of things that went wrong.
+- [olai/roadmap/](https://github.com/juspay/oss.olai/tree/main/olai/roadmap) — the plan, in the format itself.
+- [olai/brainstorming/](https://github.com/juspay/oss.olai/tree/main/olai/brainstorming) — the decisions, and why the alternatives lost.
+- [olai/RCA/](https://github.com/juspay/oss.olai/tree/main/olai/RCA) — root-cause analyses of things that went wrong.
 
 Developing is [../HACKING.md](../HACKING.md). The public site, [olai.kolu.dev](https://olai.kolu.dev), is the pitch; these pages are how to use it.

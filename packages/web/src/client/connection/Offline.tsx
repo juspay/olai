@@ -2,7 +2,7 @@
  * THE APP, FROZEN — one overlay over everything, drawn exactly while a
  * question cannot reach the server.
  *
- * The human's ruling (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md` §5b): "the app
+ * The human's ruling (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` §5b): "the app
  * freezes with an offline overlay." It is the "live or nothing" doctrine —
  * this app ships no service worker, because a cached shell shows outlines that
  * have stopped being true — carried to the end it was always headed for. The
@@ -99,7 +99,7 @@ export function Offline(props: { readonly readout: SurfaceReadout }) {
    * function had both effects tracking every field of it — and the second one
    * unregistered and re-registered the window's keydown swallower on every
    * attempt, mid-freeze, for a boolean that had not moved
-   * (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/reactivity-after-the-flip.md §4.1).
+   * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §4.1).
    */
   const frozen = createMemo(() => !reachable(props.readout))
   const look = () => lookOf(props.readout)

@@ -15,7 +15,7 @@
  * and archive all nine. That count used to live here, walking the browser's own
  * copy of the directory; it rides on the row now (`@olai/format`'s
  * `Row.under`), counted where the set is
- * (`https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/vault-in-browser.md`). The rule did not move — the set
+ * (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`). The rule did not move — the set
  * did — and the sentence above is why the two answers may never be the same
  * walk.
  *

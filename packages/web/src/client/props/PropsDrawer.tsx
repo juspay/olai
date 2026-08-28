@@ -10,7 +10,7 @@
  * table-shaped in this view (human). The RUN's problem was different and it was
  * a weighting one: every pair was set in the same muted ink at the same size,
  * so `agent claude-opus` read as two equally quiet words and the five facts on
- * a lane node read as a wall (https://github.com/juspay/oss.olai/blob/master/olai/brainstorming/props-ui.html, drawn after the
+ * a lane node read as a wall (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/props-ui.html, drawn after the
  * wall-of-prose screenshot). What a reader wants from five facts is the VALUES,
  * with the keys as labels — so the key stays mono and muted and one step
  * smaller, the value takes the reading ink, and each pair sits in its own
