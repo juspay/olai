@@ -24,6 +24,7 @@ import { describe, expect, test } from "bun:test"
 
 import type { ChatEntry, ToolEntry, Watching } from "@olai/surface"
 
+import { clock } from "./clock.testlib.ts"
 import { Transcript } from "./transcript.ts"
 import { sameWatching, watching } from "./watching.ts"
 
@@ -127,6 +128,13 @@ describe("what is still out", () => {
     // (`acp/patches/README.md`), so the row is running again and this reads it
     // running again. What matters here is that it is the SAME row — one agent,
     // one entry, one door — rather than a second entry beside the first.
+    //
+    // ... AND ITS CLOCK COUNTS FROM THE RESUME, which is the `since` below and
+    // the half a re-armed entry would otherwise get wrong out loud. The row was
+    // born when the agent was FIRST sent out — the record starts there and must
+    // — so a strip drawn off the row's own stamp would meet somebody watching a
+    // minute-old resume with *running for 3h 12m*. {@link @olai/surface}'s
+    // `outSince` is the one rule, and the row's own readout asks it too.
     expect(
       watching(rows(call("tool:2", {
         text: "author the PR",
@@ -135,17 +143,6 @@ describe("what is still out", () => {
         resumed: LATER,
       }))),
     ).toEqual([{ row: "tool:2", kind: "agent", name: "author the PR", since: LATER }])
-  })
-
-  test("... and its clock counts from the resume, never from the row's birth", () => {
-    // The half a re-armed entry would otherwise get wrong out loud. The row was
-    // born when the agent was FIRST sent out — the record starts there and must
-    // — so a strip drawn off `since` would meet somebody watching a minute-old
-    // resume with *running for 3h 12m*. {@link @olai/surface}'s `outSince` is
-    // the one rule, and the row's own readout asks it too.
-    const [entry] = watching(rows(call("tool:2", { spawned: {}, resumed: LATER })))
-    expect(entry?.since).toBe(LATER)
-    expect(entry?.since).not.toBe(SINCE)
   })
 
   test("a resumed spawn that has come back AGAIN is off the list again", () => {
@@ -260,10 +257,6 @@ describe("whether the strip has moved", () => {
  * structure and this is the projection over it.
  */
 describe("out, back, out again", () => {
-  const clock = (from: string) => {
-    let at = Date.parse(from)
-    return { now: () => at, pass: (ms: number) => { at += ms } }
-  }
   /** The strip as a reader would read it: what it says, in order. */
   const strip = (transcript: Transcript): ReadonlyArray<string> =>
     watching(transcript.entries()).map((one) => `${one.kind} ${one.name} since ${one.since}`)

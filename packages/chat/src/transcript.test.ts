@@ -10,6 +10,7 @@ import type { ChatEntry } from "@olai/surface"
 import { ValidationFailure, verdictOf } from "@olai/format"
 import { describe, expect, test } from "bun:test"
 
+import { clock } from "./clock.testlib.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 
 /** The rows as a reader would see them: conversation order, which is `seq`. */
@@ -1040,13 +1041,6 @@ describe("what a turn leaves behind", () => {
 })
 
 describe("when a row arrived", () => {
-  /** A clock that says what it is told to, so a stamp is a value rather than
-   *  something asserted by comparing it with itself. */
-  const clock = (from: string) => {
-    let at = Date.parse(from)
-    return { now: () => at, pass: (ms: number) => { at += ms } }
-  }
-
   test("a row is stamped with the instant it first appeared", () => {
     const time = clock("2026-08-21T12:00:00.000Z")
     const transcript = new Transcript(time.now)

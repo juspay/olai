@@ -19,6 +19,7 @@ import { Effect } from "effect"
 
 import { AgentGone } from "./agent.ts"
 import type { Installed } from "./agents/roster.ts"
+import { clock } from "./clock.testlib.ts"
 import type { Stored } from "./events.ts"
 import { KEEP_FOR_MS, type Listings, make, type Where } from "./listings.ts"
 
@@ -42,12 +43,6 @@ const stored = (
   supersededBy: said.supersededBy ?? null,
 })
 
-/** A clock a test moves by hand — the whole reason {@link Where} takes one. */
-const clock = () => {
-  let at = 1_000
-  return { now: () => at, pass: (ms: number) => (at += ms) }
-}
-
 /** What each agent answers, and how many times it was actually asked. */
 interface Answers {
   readonly [agent: string]: ReadonlyArray<Stored> | AgentGone
@@ -64,7 +59,9 @@ const asking = (
       const said = where.answers[row.id] ?? []
       return said instanceof AgentGone ? Effect.fail(said) : Effect.succeed(said)
     })
-  const time = clock()
+  // FROM A BARE NUMBER, because what this file is about is two instants a
+  // known distance apart rather than a moment anybody reads back.
+  const time = clock(1_000)
   const built: Where = {
     roster: where.roster ?? [CLAUDE, OPENCODE],
     running: where.running ?? (() => null),
