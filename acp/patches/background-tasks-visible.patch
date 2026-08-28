@@ -1,6 +1,6 @@
 --- a/dist/acp-agent.js
 +++ b/dist/acp-agent.js
-@@ -1221,6 +1221,201 @@
+@@ -1221,6 +1221,234 @@
              }
              await this.client.sessionUpdate(notification);
          };
@@ -86,14 +86,14 @@
 +                // A FIRST LIFE — every task, the first time the harness names it.
 +                // Remember which call it belongs to, and leave it to the ordinary
 +                // arming path, which is the only thing that may put a launch on
-+                // the wire.
-+                session.taskOrigins.set(taskId, toolUseId);
++                // the wire. `armed` is what that path answers, below.
++                session.taskOrigins.set(taskId, { toolUseId, armed: false });
 +                return false;
 +            }
-+            if (origin === toolUseId) {
++            if (origin.toolUseId === toolUseId) {
 +                return false;
 +            }
-+            const record = registerBackgroundTask(taskId, origin, taskType, description);
++            const record = registerBackgroundTask(taskId, origin.toolUseId, taskType, description);
 +            if (record === undefined) {
 +                return false;
 +            }
@@ -103,9 +103,21 @@
 +            // would hold its own ending forever (the hold below) and the call
 +            // would never close.
 +            record.launched = true;
-+            record.resumed = true;
 +            record.settled = false;
 +            record.terminal = undefined;
++            // WHETHER THIS OUTING'S ENDING IS THE HARNESS'S TO REPORT is the
++            // LAUNCH's answer and never the resume's, which is the whole of what
++            // `quiet` carries. An asynchronous `Agent` launch told the client it
++            // had armed a task, so every ending of that task is news the same way
++            // — including this one, and including the sentence that refines it.
++            // A synchronous one told the client nothing, and a resume is not the
++            // moment to start: it would make a subagent's second return louder
++            // than its first, which is the same asymmetry from the other side.
++            //
++            // NOT A GUESS ABOUT THE TOOL: it is read off what this adapter
++            // actually said about the launch (`armed` on the origin, set below at
++            // the only place a launch's own settle can be emitted).
++            record.quiet = origin.armed !== true;
 +            const toolUse = session.toolUseCache[record.toolUseId];
 +            // The client is being told about this call again, which is what that
 +            // set means. It is dropped at every settle, so an agent on its third
@@ -164,6 +176,17 @@
 +                return;
 +            }
 +            const toolUse = session.toolUseCache[record.toolUseId];
++            // THE LAUNCH ARMED THIS CALL, and getting here is the proof of it:
++            // only a record the arming acknowledgement marked `launched` reaches
++            // this line on a FIRST life. Remembered on the origin because the
++            // record does not outlive the settle, and it is what a later resume
++            // asks to decide how loudly its own outing may end. Never marked from
++            // a reopened record — that one's `launched` is the reopen's own doing
++            // — or a third outing would speak on the strength of the second.
++            const armedOrigin = session.taskOrigins.get(taskId);
++            if (armedOrigin !== undefined && record.quiet !== true) {
++                armedOrigin.armed = true;
++            }
 +            await sendUpdate({
 +                sessionId: params.sessionId,
 +                update: {
@@ -171,12 +194,22 @@
 +                        claudeCode: {
 +                            ...(toolUse ? { toolName: toolUse.name } : {}),
 +                            taskStatus: status,
-+                            // olai patch (background-tasks-visible): the stamp
-+                            // belongs to the LAUNCH, and a reopened call was not
-+                            // launched again — see `reopenBackgroundTask`. The
-+                            // summary below still rides it: that is the agent's
-+                            // own report, and it is news whichever outing ends.
-+                            ...(record.resumed ? {} : {
++                            // olai patch (background-tasks-visible): AN ENDING IS
++                            // AN ENDING. The reopen says nothing about arming —
++                            // a resume registers no new task — but the settle of
++                            // a reopened call is not a launch being restated, it
++                            // is this outing finishing, and a client that draws a
++                            // task's death from this stamp would otherwise hear
++                            // about the first outing's and never about the
++                            // second's. It is also what lets the sentence that
++                            // lands a beat later REFINE that death rather than
++                            // arrive with nowhere to go.
++                            //
++                            // `quiet` is the one exception and it is the launch's
++                            // own (see `reopenBackgroundTask`): a synchronous
++                            // subagent never announced a task to the client, so
++                            // its resumed outing does not announce one either.
++                            ...(record.quiet === true ? {} : {
 +                                backgroundTask: backgroundTaskMeta(record, {
 +                                    status,
 +                                    ...(summary === undefined ? {} : { summary }),
@@ -202,7 +235,7 @@
          const resetTurnScratch = () => {
              lastAssistantTotalUsage = null;
              lastAssistantUsage = null;
-@@ -2155,11 +2350,29 @@
+@@ -2155,11 +2383,29 @@
                                      parentToolUseId: message.tool_use_id,
                                      isSubagent: !!message.subagent_type,
                                  });
@@ -232,7 +265,7 @@
                                  // The task settled — no further tool calls can originate
                                  // from it, so its registry entry can be dropped.
                                  session.liveBackgroundTasks.delete(message.task_id);
-@@ -2173,6 +2386,10 @@
+@@ -2173,6 +2419,10 @@
                                  if (message.patch.status === "completed" ||
                                      message.patch.status === "failed" ||
                                      message.patch.status === "killed") {
@@ -243,7 +276,7 @@
                                      session.liveBackgroundTasks.delete(message.task_id);
                                  }
                                  break;
-@@ -2306,6 +2523,35 @@
+@@ -2306,6 +2556,35 @@
                                          }
                                      }
                                  }
@@ -279,7 +312,7 @@
                                  break;
                              default:
                                  unreachable(message, this.logger);
-@@ -3017,6 +3263,10 @@
+@@ -3017,6 +3296,10 @@
                              taskState: session.taskState,
                              emittedToolCalls: session.emittedToolCalls,
                              messageId: messageIdForGrouping(message),
@@ -290,7 +323,7 @@
                              toolUseResult: message.type === "user" ? message.tool_use_result : undefined,
                              // On the wire since CLI 2.1.216 but not in SDKUserMessage's
                              // type, hence the cast. Validated by parseToolResultMeta.
-@@ -3030,6 +3280,21 @@
+@@ -3030,6 +3313,21 @@
                              // meta and are excluded there.
                              await sendUpdate(notification);
                          }
@@ -312,7 +345,7 @@
                          break;
                      }
                      case "tool_progress": {
-@@ -4759,6 +5024,19 @@
+@@ -4759,6 +5057,21 @@
              toolUseCache: {},
              emittedToolCalls: new Set(),
              liveBackgroundTasks: new Map(),
@@ -325,14 +358,16 @@
 +            // ... and which call each task BELONGS to, for as long as the session
 +            // does — the one thing here that must not be pruned at a settle,
 +            // because it is what says a task starting again is an old call going
-+            // round again rather than a new one (`reopenBackgroundTask`). One
-+            // task id and one tool use id per task the session ever started,
-+            // which is the order of memory `toolUseCache` keeps per call.
++            // round again rather than a new one (`reopenBackgroundTask`), and
++            // whether that call's LAUNCH announced a task to the client, which is
++            // how loudly a later outing of it may end. One task id, one tool use
++            // id and one flag per task the session ever started, which is the
++            // order of memory `toolUseCache` keeps per call.
 +            taskOrigins: new Map(),
              emittedAssistantText: false,
              owedTrailingIdles: 0,
              messageIdToUuid: new Map(),
-@@ -5836,6 +6114,49 @@
+@@ -5836,6 +6149,49 @@
      return byToolUseId;
  }
  /**
@@ -382,7 +417,7 @@
   * Convert an SDKAssistantMessage (Claude) to a SessionNotification (ACP).
   * Only handles text, image, and thinking chunks for now.
   */
-@@ -6020,7 +6341,26 @@
+@@ -6020,7 +6376,26 @@
              case "text_editor_code_execution_tool_result":
              case "mcp_tool_result": {
                  const wasEmitted = options?.emittedToolCalls?.has(chunk.tool_use_id) === true;
@@ -410,7 +445,7 @@
                  // Why this is_error result carries harness prose instead of tool
                  // output (user-rejected / interrupted / …), when the SDK said so.
                  // Spread into the claudeCode meta of every update emitted below; the
-@@ -6028,6 +6368,66 @@
+@@ -6028,6 +6403,66 @@
                  // carry `toolName`, which is unknown there).
                  const nonExecution = toolResultMeta?.get(chunk.tool_use_id);
                  const toolUse = toolUseCache[chunk.tool_use_id];

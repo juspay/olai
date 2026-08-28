@@ -698,6 +698,19 @@ describe("an agent that was sent out", () => {
     // as of the last, and is still on the row.
     expect(out?.armed).toEqual({ task: "bu13xz2ie" })
     expect(out?.status).toBe("in_progress")
+
+    // ... AND IT IS PUT BACK WHEN THIS OUTING ENDS, which is the other half and
+    // the one a test that only watched the clearing would let rot: the harness
+    // reports the second ending exactly as it reported the first
+    // (`acp/patches/README.md` — the settle of a reopened call stamps it), so
+    // the row is a call that has ended again rather than one that quietly
+    // stopped being a task.
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+    expect(asKind(rows(transcript)[0], "tool")?.armed)
+      .toEqual({ task: "bu13xz2ie", ended: "completed" })
   })
 
   test("... so a turn ending under a RESUMED async agent leaves it alone", () => {
@@ -738,6 +751,75 @@ describe("an agent that was sent out", () => {
       "the agent “survey the web package” ended (completed)",
       "the agent “survey the web package” ended (failed)",
     ])
+  })
+
+  test("A SECOND OUTING THAT WENT FINE SAYS SO TOO, like the first one did", () => {
+    // The variant the no-arming judgment was asked to weigh, and got wrong on
+    // the settle: an async agent's completion is news at the bottom because the
+    // row is an hour of scrollback away and the strip going quiet is the only
+    // other face it has. That is as true of the outing somebody sent it on this
+    // afternoon as of the one it was spawned with — so a second ending is said
+    // where the first was, and a reader who was not watching the strip is told
+    // both times.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+
+    expect(notices(transcript)).toEqual([
+      "the agent “survey the web package” ended (completed)",
+      "the agent “survey the web package” ended (completed)",
+    ])
+  })
+
+  test("... and a SECOND OUTING'S FAILURE takes the harness's sentence too", () => {
+    // The two bookends: a guaranteed patch that carries the status, and the
+    // notification beside it that carries the words. The line is minted on the
+    // first and REFINED by the second — on every outing, which is what the row's
+    // own guard ({@link #dies}) was always able to do and what the spawn arm's
+    // *has it only just failed* condition made unreachable. Left as it was, a
+    // second outing's death said `failed` and nothing about why, with the reason
+    // on a row at its birth position.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+    transcript.tool("toolu_01AGENT", {
+      status: "failed",
+      armed: { task: "bu13xz2ie", ended: "failed" },
+    })
+    transcript.tool("toolu_01AGENT", {
+      status: "failed",
+      armed: { task: "bu13xz2ie", ended: "failed" },
+      progress: "the agent ran out of context",
+    })
+
+    expect(notices(transcript)).toEqual([
+      "the agent “survey the web package” ended (completed)",
+      "the agent ran out of context",
+    ])
+  })
+
+  test("... and so does a SYNCHRONOUS spawn's, whose reason lands a beat late", () => {
+    // The same gap one kind of spawn over, and the one this arm is written for:
+    // a subagent that armed nothing has only its own call's status to end on, so
+    // a failure whose sentence arrives on a later frame had nowhere to put it.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", sent)
+    transcript.tool("toolu_01AGENT", { status: "failed" })
+    transcript.tool("toolu_01AGENT", { status: "failed", progress: "the agent was killed" })
+
+    expect(notices(transcript)).toEqual(["the agent was killed"])
   })
 
   test("an async spawn's every ending is said, good ones included", () => {

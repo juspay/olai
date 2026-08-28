@@ -104,15 +104,35 @@ Added here, and not in #941:
   What it does is reopen the SPAWNING call — `status: in_progress` on the id
   the client already knows — and let the settle bookends above close it again.
   Never the waking call: a resume is not a second agent, and a second face for
-  one agent is a strip that counts two of everybody. It says NOTHING about
-  arming in either direction: `backgroundTask` is what a launch says about
-  itself, a resume registers nothing new, and the settle of a reopened call
-  drops the stamp accordingly — so a client's reading of the launch stays
-  exactly as true as the launch made it. `taskOrigins` is the one record here
-  that survives a settle, because it is what says a task starting again is an
-  old call going round again rather than a new one; it is one pair of ids per
-  task the session ever started, the order of memory `toolUseCache` already
-  keeps per call.
+  one agent is a strip that counts two of everybody.
+
+  **THE REOPEN SAYS NOTHING ABOUT ARMING AND THE SETTLE SAYS EVERYTHING IT
+  ALWAYS DID**, which is one rule rather than two: `backgroundTask` is what a
+  LAUNCH says about itself and a resume registers no new task, so the reopen
+  carries a status and no more — but the settle of a reopened call is an
+  ENDING, not a launch restated, and a client that draws a task's death from
+  that stamp would otherwise hear about the first outing's and never about the
+  second's (and the sentence that lands a beat later would have no line to
+  refine). So the settle stamps `{ status, summary }` exactly as it does on a
+  first life.
+
+  **AS LOUDLY AS ITS OWN LAUNCH, and no louder** (`quiet` on the record,
+  `armed` on the origin). An ASYNCHRONOUS `Agent` launch told the client it had
+  armed a task, so every ending of that task is news the same way. A
+  SYNCHRONOUS one told it nothing — under this pin that is every `Agent` call,
+  measured: no launch answers `async_launched`, so no `backgroundTask` appears
+  on any of their frames — and a resume is not the moment to start, because a
+  subagent whose second return was announced while its first was silent is the
+  same asymmetry this bullet is about, mirrored. Which of the two a call was is
+  read off what this adapter actually emitted for it, never guessed from the
+  tool: the origin is marked when a settle for it is emitted, which only a
+  record the arming acknowledgement launched can reach.
+
+  `taskOrigins` is the one record here that survives a settle, because it is
+  what says a task starting again is an old call going round again rather than
+  a new one — and, with `armed`, how loudly it may end. One task id, one tool
+  use id and one flag per task the session ever started, the order of memory
+  `toolUseCache` already keeps per call.
 - **`background_tasks_changed` as the bound** on the record above: a task that
   has both settled and left the live set is forgotten. It is never read as a
   settle in itself — the level carries no status, and closing a call on an

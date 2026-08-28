@@ -1008,8 +1008,15 @@ export class Transcript {
     // That is said once, for the conversation ({@link ./chat.ts}'s `gone`), and
     // a dead agent with five agents out owes a reader one sentence rather than
     // six.
+    // ... AND IT IS THE ROW'S OWN GUARD THAT KEEPS IT TO ONE LINE, not this
+    // condition. {@link #dies} is keyed by the row and mints once; what it does
+    // on every call after that is take the SENTENCE, if one has arrived, and
+    // refine the line it already wrote — which is the whole shape of the two
+    // bookends a harness ending arrives in, and was unreachable here while this
+    // asked whether the row had only just failed. A spawn whose failure and
+    // whose reason land on two frames left the reason on a row at its birth
+    // position and the line at the bottom saying nothing but *failed*.
     const failed = spawned !== undefined && content.status === "failed"
-      && held?.status !== "failed"
     const died = armed?.ended !== undefined
       ? this.#dies(
         key,
