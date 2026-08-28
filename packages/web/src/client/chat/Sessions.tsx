@@ -182,13 +182,16 @@ export function Sessions(props: { readonly chat: Chat }) {
       : []
   })
 
-  /** The rows by id, for naming the one a `supersededBy` points at. Untracked
-   *  like {@link groups}: the answer is asked for afresh every time the list
-   *  opens, which is the only time the links move. */
+  /** The rows by id and their OWNER, for naming the one a `supersededBy`
+   *  points at. An id is the adapter's own space — two agents can collide
+   *  formally, and a Claude-A's link resolving to an opencode row would
+   *  be a lie by lookup. Untracked for the same reason as {@link groups}:
+   *  the answer is asked afresh every time the list opens, which is the
+   *  only time the links move. */
   const byId = createMemo((): ReadonlyMap<string, SessionInfo> => {
     const answer = picker()
     if (answer._tag !== "listed") return new Map()
-    return new Map(answer.sessions.map((session) => [session.id, session]))
+    return new Map(answer.sessions.map((session) => [`${session.agent}/${session.id}`, session]))
   })
 
   /** Whether the groups are worth a heading each. ONE agent on the machine is a
@@ -292,7 +295,7 @@ export function Sessions(props: { readonly chat: Chat }) {
                               session={session}
                               successor={session.supersededBy === null
                                 ? undefined
-                                : byId().get(session.supersededBy)}
+                                : byId().get(`${session.agent}/${session.supersededBy}`)}
                               current={session.id === current()}
                               onPick={() => {
                                 setPicker({ _tag: "shut" })

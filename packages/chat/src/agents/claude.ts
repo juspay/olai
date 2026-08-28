@@ -405,7 +405,12 @@ export const listedIn = (meta: Meta): ListedFacts | null => {
   const said = claudeIn(meta)
   const supersededBy = wordIn(said, "supersededBy")
   const count = said?.["messageCount"]
-  const messageCount = typeof count === "number" && Number.isFinite(count) && count >= 0
+  // The count is one the adapter reports or it is NOTHING at all: a fraction
+  // like 3.5 is forfeited with the same weight as a string — a row drawing
+  // `3.5 messages` (the review's catch) is the stamp announcing a reader
+  // that trusted anything with a decimal point, which is the other side of
+  // what the strict `=== 3` case in the test exists to pin.
+  const messageCount = typeof count === "number" && Number.isInteger(count) && count >= 0
     ? count
     : null
   return messageCount === null && supersededBy === null

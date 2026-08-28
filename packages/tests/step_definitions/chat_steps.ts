@@ -2458,7 +2458,10 @@ const rowOf = (world: OlaiWorld, title: string): Locator =>
   world.page.locator(CHAT_SESSION, { hasText: title }).first();
 
 /** HOW BIG a conversation it says — the adapter's own count, read off the row
- *  the way a person's eye takes it: the words, not the element carrying them. */
+ *  the way a person's eye takes it: the words, not the element carrying them.
+ *  The plural pattern; one message is checked by its own, because the drawn
+ *  word changes to "message" — and the singular, not the number, is what the
+ *  review noted the step below could otherwise never observe. */
 Then(
   "the chats row for {string} says it has {int} messages",
   async function (this: OlaiWorld, title: string, count: number) {
@@ -2468,6 +2471,18 @@ Then(
     assert.ok(
       said.includes(`${count} messages`),
       `the row for "${title}" to say "${count} messages" — it says: "${said}"`,
+    );
+  },
+);
+
+Then(
+  "the chats row for {string} says it has one message",
+  async function (this: OlaiWorld, title: string) {
+    const row = rowOf(this, title);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.ok(
+      oneLine(await row.innerText()).includes("1 message"),
+      `the row for "${title}" to say "1 message"`,
     );
   },
 );

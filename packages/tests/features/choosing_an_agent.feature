@@ -395,13 +395,27 @@ Feature: Choosing an agent
     # on the OLDER of the pair, which conversation replaced it.
     When I choose the agent "claude"
     And I open the session picker
-    Then the chats row for "the last conversation" says it has 3 messages
+    Then the chats row for "the last conversation" says it has one message
     And the chats row for "an older conversation" says it has 47 messages
     And the chats row for "an older conversation" was superseded by "the last conversation"
     And the chats row for "the last conversation" was not superseded
     # ... while an agent whose list carries no corner says nothing — never a
     # zero standing in for a reading nobody did.
     And the chats row for "an opencode conversation" shows no message count
+
+  @opencode @agent-stored @scratch:chat
+  Scenario: A superseded line that names a conversation the list no longer knows
+    # The successor may have been deleted since the stamp was earned: the row
+    # then carries a link with nothing at its end, and a link a reader cannot
+    # click at must not draw — the adapter's "no second claimant" refusals
+    # are the same posture one level down. The COUNT stays: it IS what the
+    # transcript said, and while it does, the named-half of the sentence
+    # alone goes.
+    When I choose the agent "claude"
+    And the conversation "fake-stored-new" is gone from the agent
+    And I open the session picker
+    Then the chats row for "an older conversation" says it has 47 messages
+    And the chats row for "an older conversation" was not superseded
 
   @opencode @agent-stored @scratch:chat
   Scenario: Picking another agent's conversation switches the panel to that agent

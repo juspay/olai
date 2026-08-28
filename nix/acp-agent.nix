@@ -74,9 +74,13 @@ buildNpmPackage {
       # `patch -p1` reads is `dist/acp-agent.js` rather than the TypeScript it
       # was built from. `acp/patches/README.md` says what each one is and
       # what olai added; a version bump makes this FAIL rather than silently
-      # drop the behaviour, which is the auditable direction.
-      patch -p1 -d "$adapter" < ${backgroundTasksPatch}
-      patch -p1 -d "$adapter" < ${sessionListPatch}
+      # drop the behaviour, which is the auditable direction. `-F0` is the
+      # audible half of that promise: `patch`'s default fuzz would land a
+      # hunk up to two LINES from where the context said it belongs, which
+      # is exactly the drift a re-anchor exists to catch — one reviewer had
+      # it right and the other had it stated as a promise it was not yet.
+      patch -p1 -F0 -d "$adapter" < ${backgroundTasksPatch}
+      patch -p1 -F0 -d "$adapter" < ${sessionListPatch}
       claude="${mods}/@anthropic-ai/claude-agent-sdk-${nodeArch}/claude"
       test -x "$claude"
     '' + lib.optionalString stdenv.hostPlatform.isLinux ''

@@ -832,6 +832,8 @@ describe("what a listed conversation holds", () => {
     expect(listedIn({ claudeCode: { messageCount: "3" } })).toBeNull()
     expect(listedIn({ claudeCode: { messageCount: Number.NaN } })).toBeNull()
     expect(listedIn({ claudeCode: { messageCount: -1 } })).toBeNull()
+    // A fraction is not an integer amount of anything — same rule.
+    expect(listedIn({ claudeCode: { messageCount: 3.5 } })).toBeNull()
     expect(listedIn({ claudeCode: { supersededBy: "" } })).toBeNull()
     expect(listedIn({ claudeCode: { supersededBy: 4 } })).toBeNull()
   })

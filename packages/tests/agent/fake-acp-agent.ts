@@ -420,7 +420,8 @@ const storedSessions = () =>
       cwd: `${cwd}/`,
       title: STORED_TITLES["fake-stored-new"],
       updatedAt: "2026-08-01T17:30:00.000Z",
-      _meta: { claudeCode: { messageCount: 3 } },
+      // One, and that is the point: the row draws "1 message" singular.
+      _meta: { claudeCode: { messageCount: 1 } },
     },
   ].filter((session) => !forgotten(session.sessionId))
 

@@ -123,9 +123,8 @@ cannot answer today:
   the picker means.
 - **Which conversation did `/clear` move you into?** The CLI starts a fresh
   session for the same directory and leaves no pointer connecting the two,
-  so the picker shows the pair as twins and cannot say which row the reader
-  is in. A session that *opens* with the `/clear` local-command replaces the
-  one last touched at that moment.
+  so a picker shows the pair as twins and cannot say which row the reader
+  is in.
 
 The patch answers both by stamping each listed session's `_meta.claudeCode`
 (the protocol's extension point for exactly this) when `session/list` replies:
@@ -133,20 +132,89 @@ The patch answers both by stamping each listed session's `_meta.claudeCode`
 - `messageCount: number`, read from the transcript; and
 - `supersededBy: <sessionId>` on the OLDER of a `/clear` pair.
 
-The link is **inference, said without guessing**: candidates that tie at the
-cleared second, or a missing one, mean the field is absent rather than a best
-pick — a wrong link is worse than no link on the row somebody is about to
-click. The asking that follows from that is written up in
+The asking that follows from that is written up in
 [claude-agent-acp#1052](https://github.com/agentclientprotocol/claude-agent-acp/issues/1052),
 which also asks whether the CLI can stop making it an inference question at
 all (a session that replaced another knows it did).
 
-The cost is held the way the SDK gauges its own listings: `getSessionMessages`
-once per session in the cwd, under a memo keyed by session id, file size, and
-mtime — so the common second list of a busy directory costs a cache lookup —
-in a sequential scan rather than a `Promise.all` (a busy directory is not
-allowed to become a storm), and one unreadable transcript costs that row's
-stamp, not the list.
+The pairing and the scanning rules are vendored OUT of this file and into
+[`acp/session-list-info/`](../session-list-info/README.md): the patch is
+GENERATED from that source (`bash acp/session-list-info/regenerate.sh`,
+with the hunks computed by `diff -u` against the pristine npm extract — one
+generation of hand-numbered hunks failed at `-F0` on the pristine corpus and
+that was the argument). The suite in `facts.test.js` is why each rule below
+is a claimed edge and not a hope. The patch remains diff-shaped because the
+build must stay LOUD: `patch -p1 -F0` at `nix/acp-agent.nix:81-82` is what
+makes a pin bump fail rather than silently drop the behaviour — one reviewer
+had it as the promise, one as evidence it was not yet keeping itself; both
+hunters are now bound the same way: loudly, by construction.
+
+## Where the reading's honesty comes from
+
+**There is no "empty transcript" that reads as zero.** `getSessionMessages`
+answers `[]` for an unreadable file the same as for a genuine empty one, and
+a row drawing `0 messages` for an EACCES would erase the failure the whole
+stamp exists to catch. When the messages call answers empty, the patch calls
+`getSessionInfo` with the same dir — and `info` answers `undefined` on
+every loss window the messages call swallows (unlocatable, zero-byte,
+unopenable) — and THIS is the arbiter: nothing comes back, the row carries
+NO stamps and a logged line, SOMETHING comes back and the zero is earned.
+Failure is UNDATED too: a row that lost its read drops out of the pairing
+alongside its count. Failure is not MEMOIZED either: a transient read
+failure is retried on the next list, never remembered for the process's
+life; the cache remembers only successful facts, capped at 2000 entries,
+oldest evicted. (The cache's key is the row's own `(fileSize, lastModified)`
+— under a sessionStore the former is `undefined` and the key collapses to
+mtime: the notes say so, because anything else would be a claim.)
+
+**The pairing says no rather than any of the ways it could pick a wrong
+one.** Its rules, each an edge the suite asserts:
+
+- a candidate's `lastModified` may equal the command's timestamp — mtime
+  and stamps share a domain, and excluding the boundary walks past a
+  same-moment predecessor; two candidates AT the maximum are no answer;
+- an heir that claims a predecessor already claimed is no answer FOR
+  EITHER — the first version's overwrite was the way in;
+- the candidate's touch must lie within one week of the command: a longer
+  reach names whatever row existed back then with identical confidence,
+  which is the begging-a-question the first version did in code;
+- a session the listing's own IDE-parity rule excludes (headless or
+  daemon-written: `includeProgrammatic: false`, asked of the CANDIDATE
+  set only — olai's visible list keeps the same shape, because hiding a
+  conversation to protect a link guess would be the wrong friend), is not
+  a predecessor a person reading the list can see in front of them — the
+  case olai's own scripted drivers would manufacture otherwise;
+
+**`timestamp` is an undocumented passthrough of the SDK's `SessionMessage`,**
+not a manufactured value like `sessionId`: a pin bump that drops it turns
+the pairing into silent nothing. `clearOpenedAtOf` reports that shape
+separately from "not a clear" (`sawClear`, no `at`), and the first process
+to meet one logs it ONCE — the same shape as the row: nothing drawn where
+nothing was said, but always said where something was tried.
+
+## Numbers it costs
+
+Measured on the developer's own directory (32 sessions, ~410 MB,
+2026-08-28): cold list against a stopped adapter (the picker's own
+booted-for-a-minute shape) ~1.6 s, against the warm one inside an attached
+panel ~24 ms; the scan is per session sequential on purpose, a ready
+`Promise.all`'s storm: it trades fifty ms on a cold row-ask for not
+walling the machine. Every failure mode names itself once on the logger
+rather than the row.
+
+## What this patch does NOT do
+
+- ANSWER BEYOND the seven-day window: a real reader returning weeks later
+  then sees no link, where the notes once presented a months-old sibling
+  with the same confidence as the conversation the reader was just in —
+  the narrow direction this picks is saying nothing rather than guessing.
+- Make tool stops read as conversation turns: the count is the transcript's
+  length (both directions of the SDK drain), not the chat's own turn count
+  — `docs/chat.md` says the same, in the measure the screen shows you.
+- Claim anything beyond ONE agent's listing for ONE directory: the id a
+  stamp references is scoped there — the same id in another listing is a
+  different row (and the picker's own map of the names a successor points
+  at is keyed by the owner precisely so one cannot drift into another).
 
 ## What neither patch gets you
 
@@ -181,10 +249,29 @@ translation, which is what a PR would carry if the answers are yes.
 
 ## When the pin moves
 
-`patch -p1` fails the build if the context has moved, which is the point: a
-version bump makes this loud rather than silently dropping the behaviour. The
-fix is to re-apply the edits against the new `dist/acp-agent.js` — the
-anchors in `background-tasks-visible.patch` are all in `toAcpNotifications`'
-tool-result branch and in the SDK-message switch's `task_*` cases; the anchors
-in `session-list-info.patch` are `listSessions` and the module surface above
-it — or to drop a patch upstream has landed, and say so here.
+`patch -p1 -F0` fails the build if the context has moved, which is the point:
+a version bump makes this loud rather than silently dropping the behaviour —
+the `-F0` is the audible half, because patch's default fuzz would land a hunk
+up to two lines from where its context said it belonged, and one reviewer's
+"this is the promise" and the other's "it was true" were both right and
+both mattered. The fix for a move is to re-apply the edits against the new
+`dist/acp-agent.js` — the anchors in `background-tasks-visible.patch` are
+all in `toAcpNotifications`' tool-result branch and in the SDK-message
+switch's `task_*` cases; the anchors in `session-list-info.patch` are
+`listSessions` and the module surface above it — or to drop a patch
+upstream has landed, and say so here.
+
+**TWO things about `session-list-info` are NOT a hunk context and both of
+them must survive a bump standing alone**
+
+1. `message.timestamp` — an UNDOCUMENTED passthrough of the SDK's
+   `SessionMessage`: the day it stops arriving, `patch` still applies
+   cleanly and every supersession link just disappears, rows wearing the
+   finest possible health. Look for the adapter's log telling you exactly
+   the scene's name: the pairing reports the case (`sawClear`, without a
+   `at`) and the harness names the line.
+2. The pairing rules, period: they are the tests mattered the most at and
+   the change any port of the rest MUST carry unchanged. The shape to
+   transplant is `acp/session-list-info/facts.js`, not the diff: run
+   `bash acp/session-list-info/regenerate.sh` and the diff that follows
+   is itself the sign the port is the same one the suite validated.
