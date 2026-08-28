@@ -62,6 +62,12 @@ for section in "${sections[@]}"; do
   # real monitor keeps its own clock.
   case "$section" in
     a-background-task-*|markdown-waits-illegibly) agent="$PWD/agent/fake-acp-agent.ts" ;;
+    # ... and the two sections whose subject is what a REAL harness does keep
+    # whatever the caller handed in, which is the whole of how they are run
+    # (each says so in its own docstring: AGENT=$(sh ../../scripts/acp-agent.sh)).
+    # This arm was missing, so the documented command exported an empty AGENT
+    # over the caller and the section met a panel with no agent at all.
+    chat-sends-queue|chat-agent-resumed) agent="${AGENT:-}" ;;
     *) agent="" ;;
   esac
   # ... and it has to be in the ENVIRONMENT before the spawn, not on the line

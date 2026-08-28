@@ -238,6 +238,7 @@ const CHAT_ARMED_STILL = '[data-testid="chat-armed-still"]'
 const CHAT_TRANSCRIPT = '[data-testid="chat-transcript"]'
 const TESTID_WATCHING = "chat-watching"
 const CHAT_WATCHING = `[data-testid="${TESTID_WATCHING}"]`
+const CHAT_LANE_DOOR = '[data-testid="chat-lane-door"]'
 const CHAT_TOOL_ELAPSED = '[data-testid="chat-tool-elapsed"]'
 const CHAT_TOOL_PROGRESS = '[data-testid="chat-tool-progress"]'
 
@@ -3970,6 +3971,110 @@ const SECTIONS = {
     console.log("  no abort anywhere in the transcript")
     await chatBottom(page)
     await shot(page, "the-message-runs-after-the-compaction")
+  },
+
+  /**
+   * AN AGENT SENT MORE WORK, in ONE conversation with a REAL agent — because
+   * the whole claim is about what a real harness does when a subagent is
+   * resumed, and a scripted agent can only ever restate what this repo already
+   * believes about that.
+   *
+   * The bug it photographs (the human, 2026-08-28): an agent authored a PR and
+   * reported, its strip entry went quiet — correctly — and it was then RESUMED
+   * with a follow-up over the same transcript. It worked for twenty minutes and
+   * the strip showed nothing at all. A running agent with no face anywhere in
+   * the panel.
+   *
+   * It is the second section that needs `AGENT` set to a real one:
+   *
+   *   AGENT=$(sh ../../scripts/acp-agent.sh) bash evidence.sh chat-agent-resumed
+   *
+   * ... and it must be the PATCHED adapter that script prints, because the
+   * reopening frame this whole section is about is olai's own patch
+   * (`acp/patches/README.md`). Against a stock adapter the third shot below is
+   * an empty strip, which is the picture of the bug.
+   *
+   * Every wait is on a STATE the panel publishes — the strip carrying an agent,
+   * the panel going idle — and never on a clock, because the subject is a
+   * language model and there is no duration to assume. The two prompts ask for
+   * a subagent that sleeps, so the window each face is photographed in is long
+   * enough to photograph rather than a race with the shutter.
+   */
+  "chat-agent-resumed": async (page) => {
+    pinnedBy(
+      "the_agent.feature",
+      "An agent sent MORE WORK is back on the strip, under the same door",
+    )
+    /** The strip's entries that are AGENTS — a background task sits on the same
+     *  strip and is not what any of this is about. */
+    const agents = page.locator(`${CHAT_WATCHING} [data-kind="agent"]`)
+    const SPAWN =
+      'Use the Agent tool exactly once, with description "audit the pins" and ' +
+      "subagent_type general-purpose, and give it this task: run `sleep 20; echo one` " +
+      "with the Bash tool, then reply with the word ONE and nothing else. When it " +
+      "reports, reply with just the word SPAWNED and end your turn. Do not call any " +
+      "other tool."
+    const RESUME =
+      "Use SendMessage to send that SAME subagent a follow-up: run `sleep 20; echo two` " +
+      "with the Bash tool, then reply with the word TWO. Do NOT spawn a new agent with " +
+      "the Agent tool. When it answers, reply with just the word RESUMED and end your " +
+      "turn."
+
+    await openChatForAgent(page)
+
+    // ── ONE: out ─────────────────────────────────────────────────────
+    await chatSend(page, SPAWN)
+    await agents.first().waitFor({ timeout: AGENT_PATIENCE })
+    console.log(`  the strip carries: ${await textOf(page, CHAT_WATCHING)}`)
+    await shot(page, "the-agent-is-out")
+
+    // ── TWO: reported, and the strip goes quiet ──────────────────────
+    // The correct half of the human's report, and the one that has never been
+    // in doubt: what is on this strip is what is OUT.
+    await chatIdle(page)
+    await agents.first().waitFor({ state: "detached", timeout: AGENT_PATIENCE })
+    await chatBottom(page)
+    await shot(page, "the-strip-goes-quiet")
+
+    // ── THREE: sent more work ────────────────────────────────────────
+    // The shot this lane exists for. The harness starts the same task again,
+    // the adapter reopens the call that SPAWNED the agent, and the face is
+    // back — with a clock counting from the resume rather than from the
+    // conversation's first minute.
+    await chatSend(page, RESUME)
+    // WAITED FOR ON WORK, never on a clock, and the wait is what makes this
+    // frame worth anything on EITHER build: the door under the spawning row
+    // counts that agent's calls, so a door reading *2 calls* is the panel's own
+    // proof that the resumed agent is doing something at the moment the shutter
+    // opens. Against a stock adapter the very same wait succeeds and the strip
+    // beside it is EMPTY — which is the picture of the bug, and why the shot is
+    // taken here rather than after the claim below.
+    await page.locator(CHAT_LANE_DOOR).filter({ hasText: "2 calls" }).first()
+      .waitFor({ timeout: AGENT_PATIENCE })
+    console.log(`  and again: ${await textOf(page, CHAT_WATCHING)}`)
+    await shot(page, "the-resumed-agent-is-back-on-the-strip")
+    // ... and THEN the claim, so a build that fails it has already left the
+    // frame that says how it failed.
+    await agents.first().waitFor({ timeout: AGENT_PATIENCE })
+
+    // ... and it is a DOOR again, onto one record with both outings in it:
+    // press the entry and the shelf opens on that agent's calls, the second
+    // outing's under the first's, because the work of a resumed agent files
+    // under the very call that sent it out.
+    await agents.first().click()
+    await page.locator('[data-testid="chat-preview"]').waitFor({ timeout: AGENT_PATIENCE })
+    await page.waitForTimeout(DRAWN)
+    await shot(page, "both-outings-behind-one-door")
+
+    // ── FOUR: quiet again ────────────────────────────────────────────
+    // The second outing ends the way the first did. The shelf stays open on the
+    // record — nothing closes itself, and nothing dismisses an agent: the way
+    // to put this away is the door it was opened by (the human, 2026-08-28:
+    // get rid of the ×).
+    await chatIdle(page)
+    await agents.first().waitFor({ state: "detached", timeout: AGENT_PATIENCE })
+    await chatBottom(page)
+    await shot(page, "quiet-again-with-the-record-still-open")
   },
 
   /**

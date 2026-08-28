@@ -325,7 +325,9 @@ While an agent is out it is **on the strip above the scroll**, beside the backgr
 
 That is the same strip a `Monitor` sits on and it is there for the same reason — a live fact you can only reach by scrolling is a live fact nobody reads — but for an agent it does one thing more: **it is pressable.** Five agents out is five entries and one shelf; press one and you are reading that agent, press it again and you are not. A background task is not pressable, and that is honest rather than inconsistent: a task's own events are on no wire olai can reach, so there is nothing behind that door and there never will be.
 
-The strip goes quiet when an agent reports back. **The record does not go with it** — the door under the spawning row is permanent, because that row is permanent, and it is where you go when you want to know what an agent actually did an hour after it finished.
+The strip goes quiet when an agent reports back. **The record does not go with it** — the door under the spawning row is permanent, because that row is permanent, and it is where you go when you want to know what an agent actually did an hour after it finished. There is nothing to dismiss and nothing that dismisses: what the strip says is what is out, so the way to put a shelf away is the door you opened it by, pressed again.
+
+**And it lights again if that agent is sent more work.** A subagent can be resumed — a follow-up instruction over the same transcript, an hour later — and it comes back as the same agent: the same row, the same door, the same entry on the strip, with the count behind that door carrying on from where it stopped. The clock restarts, because it is answering *how long has this been out* and the agent went out again a minute ago; the row's own stamp does not move, because that is where the record starts. Everything the agent does is filed under the call that sent it out in the first place, whichever outing it is on, so there is never a second face for one agent.
 
 ### An agent that does not come back
 
