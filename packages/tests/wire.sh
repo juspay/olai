@@ -26,7 +26,8 @@
 # — the vault, the files in it, the browser — is this script's, so the only
 # difference between two runs is the code being served.
 #
-# How a server is stood up is `support/serve.sh`'s, shared with evidence.sh:
+# How a server is stood up is `support/serve.sh`'s, shared with reads.sh and
+# skew.sh:
 # one spelling of the boot, so a driver cannot end up measuring a server that
 # was never started — or another worktree's, which a shared PORT= used to do.
 set -euo pipefail

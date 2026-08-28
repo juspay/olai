@@ -17,8 +17,8 @@
 # typo's near miss, and one file that does not parse. A fixture shared with the
 # suite would drift away from the exhibit the moment a scenario needed a row.
 #
-# How a server is stood up is `support/serve.sh`'s, shared with evidence.sh and
-# wire.sh: one spelling of the boot, so a driver cannot end up printing a
+# How a server is stood up is `support/serve.sh`'s, shared with wire.sh and
+# skew.sh: one spelling of the boot, so a driver cannot end up printing a
 # session against a server that was never started, or another worktree's.
 set -euo pipefail
 

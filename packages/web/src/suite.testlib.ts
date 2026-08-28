@@ -88,15 +88,9 @@ export { DEFAULT_THEME, THEME_ATTRIBUTE, THEME_STORAGE_KEY } from "./client/them
 export { SIZE_STORAGE_KEY } from "./client/theme/sizes.ts"
 export { customProperty } from "./client/theme/css.ts"
 
-// ── the two reads where no attribute carries the fact ──────────────────────
+// ── a read where no attribute carries the fact ─────────────────────────────
 //
 // The suite asks the client's OWN question rather than re-deciding it: which
-// trigger the composer has armed for this draft, and whether the line drew
-// dimmed. The second is THE DOOR'S ONE STYLING MEMBER — a class, not a
-// `data-` fact — and its only reader is `evidence.ts`, a screenshot driver
-// and no scenario: HACKING.md's rule against class assertions stands. A
-// cucumber step that ever needs the dim as a fact is a day for a `data-`
-// attribute, not for this import.
+// trigger the composer has armed for this draft.
 
 export { completingIn } from "./client/chat/completion.ts"
-export { ROW_DIM } from "./client/blocked.ts"

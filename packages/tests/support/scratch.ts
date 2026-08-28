@@ -22,8 +22,8 @@
  *
  * Bytes put back are not a signal the server honours. The store's cheap look
  * is entitled to see nothing in a same-length rewrite that landed in the same
- * second (packages/tests/README.md, the evidence driver's own warning;
- * `@olai/store`'s probe), which is exactly the shape a restore has. So the
+ * second (`@olai/store`'s probe), which is exactly the shape a restore has.
+ * So the
  * POST asks the store for its OTHER freshness class — `verified`, "a look you
  * may believe against a tree something outside this process rewrote" — and
  * what that costs the store is the store's business rather than this

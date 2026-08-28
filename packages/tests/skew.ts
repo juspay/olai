@@ -2,8 +2,8 @@
  * The SKEW driver: hold one frame back, and photograph the window it opens.
  *
  * The fourth driver in this package, and the question it answers is not the
- * other three's. `evidence.ts` photographs a LOOK, `wire.ts` counts a COST,
- * `reads.ts` prints what a tool surface ANSWERS — each of them over a wire
+ * other three's. `wire.ts` counts a COST, `reads.ts` prints what a tool
+ * surface ANSWERS — each of them over a wire
  * behaving exactly as it does for everybody. What this one is about is a wire
  * behaving in one of the two ways it is ALLOWED to and normally does not: the
  * `manifest` cell and the `heads` collection are two members on two channels,

@@ -13,7 +13,7 @@
  *
  * The first fence is FOR the suite, and its sweep is the package, not the
  * step definitions alone: a support file is a step's contract one indirection
- * in, and a driver (`evidence.ts` reading the dim class) stands on the same
+ * in, and a driver (`wire.ts`, `reads.ts`) stands on the same
  * names for the same reason. Any specifier past the door is the boundary
  * moving back to day one, one import at a time.
  *
