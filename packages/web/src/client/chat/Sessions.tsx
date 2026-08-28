@@ -37,10 +37,10 @@
  * of the rows replaced it. `/clear` ends one conversation and starts another
  * under the same name, and ACP has no field for "this one supersedes that
  * one": olai's pinned Claude Code adapter says it in its own `_meta` corner
- * ({@link ../../../../../acp/patches/README.md}, the transcripts' own
- * clocks), and any other agent's rows carry the stamp alone. What is drawn is
- * still always a fact somebody SENT — never a relationship inferred here from
- * two rows that happen to share a title.
+ * ({@link ../../../../../acp/patches/README.md}, off the transcripts' own
+ * clock), and on every other row the minute goes on carrying the answer
+ * alone. What is drawn is always a fact somebody SENT — never a relationship
+ * inferred here from two rows that happen to share a title.
  *
  * ## HOW IT SHUTS, which for a while was "it does not"
  *

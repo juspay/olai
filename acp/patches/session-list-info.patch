@@ -70,7 +70,7 @@
 +/**
 + * Read the two facts for ONE listed session: its conversation size and the
 + * moment it began by clearing another. `log` hears about an unreadable
-+ * transcript; the row does not.
++ * transcript; the list does not — that row simply carries no stamp.
 + */
 +const sessionListFactsOf = async (session, dir, log) => {
 +    const had = sessionListFactsCache.get(session.sessionId);

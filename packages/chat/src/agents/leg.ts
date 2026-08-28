@@ -180,16 +180,16 @@ export interface Background {
 }
 
 /**
- * ... and what one AGENT's `session/list` answer says BEYOND the protocol's
- * own four fields, off an entry's own `_meta` corner: how many messages the
- * conversation holds, and which session's clearing produced the one listed
- * (the picker's `superseded by`).
+ * What one agent's answer to `session/list` says BEYOND the protocol's own
+ * four fields, off an entry's own `_meta` corner: how many messages the
+ * conversation holds, and which stored conversation was cleared to make it
+ * (the picker's "superseded by" line).
  *
- * Every reader asks the same question of the same shape: a `null` halves is
- * the answer for an entry whose corner carries the other fact alone, and the
- * reader returning no facts at all answers for an agent whose `session/list`
- * carries no corner. Both are the losing direction this can afford: the
- * picker's row says nothing about it.
+ * A corner that carries ONE of the two reads for both: the absent half is
+ * `null`, because the reader returning no facts at all is one answer (the
+ * agent's list has no corner) and a row that drew only the count is the
+ * other. Both are the losing direction this can afford: the picker's row
+ * says nothing for them.
  */
 export interface ListedFacts {
   readonly messageCount: number | null
@@ -198,7 +198,7 @@ export interface ListedFacts {
 
 /**
  * What a leg says an agent reported about one of ITS OWN connections to an MCP
-  server.
+ * server.
  *
  * Here beside {@link Spawn} and for its reason: this is a payload reading, and
  * what {@link ../servers.ts} then makes of it — a roster row, a standing, a
