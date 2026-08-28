@@ -634,14 +634,6 @@ export const DEFAULT_SUBTREE_DEPTH = 3
  *
  * `depth` means one thing on both arms — how far to descend, from the node, or
  * from EACH of the file's roots.
- *
- * `withDesc` is the same flag {@link SearchRequest.withDesc} already is, and
- * the other way round on the default. Search is a shortlist over the directory,
- * asked on every keystroke by doors that never draw a note, so that one is off
- * until asked. This is a targeted walk: you named a node or a file, and the
- * prose under it is usually why you asked, so the notes ride unless you turn
- * them off. Depth bounds LEVELS, not notes; `false` is the lean read for a
- * table of contents.
  */
 export const SubtreeRequest = Schema.Struct({
   id: Schema.optionalKey(
@@ -659,7 +651,7 @@ export const SubtreeRequest = Schema.Struct({
   depth: Schema.optionalKey(
     Schema.Number.annotate({
       description:
-        `How many levels of children to include — from the node, or from each of a file's roots. Default ${DEFAULT_SUBTREE_DEPTH}. Depth bounds levels, not notes; \`withDesc: false\` is how a walk omits the prose.`,
+        `How many levels of children to include — from the node, or from each of a file's roots. Default ${DEFAULT_SUBTREE_DEPTH}.`,
     }),
   ),
   /**
