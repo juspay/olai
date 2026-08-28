@@ -48,7 +48,7 @@ const ABSENT: NotHere = {
 
 describe("the roster as olai composed it", () => {
   test("every server handed over is on it, in the order it was handed", () => {
-    expect(rosterOf([OLAI, KOLU], null)).toEqual([
+    expect(rosterOf([OLAI, KOLU], null, null)).toEqual([
       { name: "olai", where: OLAI.url, standing: { kind: "handed" } },
       { name: "kolu", where: KOLU.command, standing: { kind: "handed" } },
     ])
@@ -60,7 +60,7 @@ describe("the roster as olai composed it", () => {
     // `connected` — only an agent's own word moves a row that far, and a tick
     // drawn on olai's say-so would be the panel making the claim the model made
     // wrongly.
-    expect(rosterOf([OLAI, KOLU], null).every((server) => server.standing.kind === "handed"))
+    expect(rosterOf([OLAI, KOLU], null, null).every((server) => server.standing.kind === "handed"))
       .toBe(true)
   })
 
@@ -68,7 +68,7 @@ describe("the roster as olai composed it", () => {
     // A URL for the route on this process's own listener, an absolute file for
     // somebody else's program. Both come off the entry the session was given,
     // so the panel cannot name a path the session was not opened with.
-    const [olai, kolu] = rosterOf([OLAI, KOLU], null)
+    const [olai, kolu] = rosterOf([OLAI, KOLU], null, null)
     expect(olai?.where).toBe("http://127.0.0.1:7714/mcp")
     expect(kolu?.where).toBe("/nix/store/abc/bin/kolu")
   })
@@ -78,13 +78,13 @@ describe("the roster as olai composed it", () => {
     // day should draw a name with no path rather than a guess — and never a
     // path off some other server's row.
     const acp = { type: "acp", name: "somewhere", serverId: "s1" } as unknown as McpServer
-    expect(rosterOf([acp], null)).toEqual([
+    expect(rosterOf([acp], null, null)).toEqual([
       { name: "somewhere", where: null, standing: { kind: "handed" } },
     ])
   })
 
   test("the one it did not get is on the roster too, last, with its sentence", () => {
-    expect(rosterOf([OLAI], ABSENT)).toEqual([
+    expect(rosterOf([OLAI], ABSENT, null)).toEqual([
       { name: "olai", where: OLAI.url, standing: { kind: "handed" } },
       // The probe answers its own verdict; WHICH STANDING that is, is minted
       // here — the one module where all four are named and explained.
@@ -96,16 +96,33 @@ describe("the roster as olai composed it", () => {
     // Nothing failed on a machine that is not running kolu, and `kolu.ts`
     // answers `null` for it. A roster row saying so would be a permanent
     // complaint on every machine that has never heard of kolu.
-    expect(rosterOf([OLAI], null)).toHaveLength(1)
+    expect(rosterOf([OLAI], null, null)).toHaveLength(1)
   })
 
   test("a session handed nothing has an empty roster rather than an invented one", () => {
-    expect(rosterOf([], null)).toEqual([])
+    expect(rosterOf([], null, null)).toEqual([])
+  })
+
+  test("a wire that will never speak per server says so at the open, in its own sentence", () => {
+    // The leg's answer for a wire whose `handed` would be a lie by design —
+    // pi-acp's is the one today: it stores the servers it is handed and wires
+    // them to nothing, its build assigns the field and never reads it back,
+    // and no frame of its wire can move the row afterwards. A `handed` that
+    // waited forever would be the panel repeating the model's wrong answer.
+    const why = "the adapter accepts the servers and wires them to nothing"
+    expect(rosterOf([OLAI, KOLU], null, why)).toEqual([
+      { name: "olai", where: OLAI.url, standing: { kind: "unattached", why } },
+      { name: "kolu", where: KOLU.command, standing: { kind: "unattached", why } },
+    ])
+    // ... and a row olai never handed over is left its probe's answer, which
+    // has the better claim either way.
+    const rows = rosterOf([OLAI], ABSENT, why)
+    expect(rows[1]?.standing).toEqual({ kind: "missing", why: ABSENT.why })
   })
 })
 
 describe("the roster as the agent's own report leaves it", () => {
-  const handed = rosterOf([OLAI, KOLU], null)
+  const handed = rosterOf([OLAI, KOLU], null, null)
 
   test("the agent's own verdict is what puts a tick on a row", () => {
     // WHICH WORD meant yes was the leg's to decide (`./agents/claude.test.ts`),
@@ -185,7 +202,7 @@ describe("the roster as the agent's own report leaves it", () => {
     // never given one. An agent reporting a `kolu` is reporting ITS OWN — one
     // out of somebody's `~/.claude.json` — and letting that turn the row into a
     // tick would erase the one failure `mcp-fail-visible` exists to show.
-    const withAbsent = rosterOf([OLAI], ABSENT)
+    const withAbsent = rosterOf([OLAI], ABSENT, null)
     expect(movedBy(withAbsent, [{ name: "kolu", attached: true, said: "connected" }])).toBeNull()
   })
 

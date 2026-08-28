@@ -113,6 +113,18 @@ describe("what pi-acp does not do", () => {
   })
 })
 
+describe("what the roster is told of a handed server", () => {
+  test("is the wire's own sentence at the open, never a `handed` that waits forever", () => {
+    // The servers are accepted and wired to nothing, and this wire carries
+    // no report that could move the row later (`rawMessages: null`; ACP's
+    // `session/new` has no per-server answer). The sentence is the claim and
+    // is shown verbatim under the row: it must name the adapter and what it
+    // did with what it was handed.
+    expect(PI.handedStandsAs).toContain("pi-acp")
+    expect(PI.handedStandsAs).toContain("wires them to nothing")
+  })
+})
+
 describe("the one YES", () => {
   test("a prompt sent mid-turn is held for its turn, in order", () => {
     // Not an advertisement — the handshake carries no `promptQueueing` word

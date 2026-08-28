@@ -1427,7 +1427,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // session as much as a failed one — and a panel told only about
         // failures leaves the other answer to the model, which is the incident
         // this comes from (`mcp-roster-visible`).
-        announce(rosterOf(handing, Kolu.missingFrom(found)))
+        announce(rosterOf(handing, Kolu.missingFrom(found), options.leg.handedStandsAs))
         return handing
       },
     )

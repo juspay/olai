@@ -16,10 +16,14 @@
  *
  *   - **olai's MCP servers never reach pi.** `session/new`'s `mcpServers` are
  *     accepted and stored and wired to NOTHING ("Pi doesn't support
- *     mcpServers, but we accept and store"): pi does its I/O with its own
- *     tools, and no `olai_*` tool ever exists on this wire. So nothing here is
- *     ever answered without asking — there is no spelling of "ours" to match
- *     — and the one permission path that exists is a person's every time.
+ *     mcpServers, but we accept and store" — and the pin's own build assigns
+ *     the field at construction and never reads it back): pi does its I/O
+ *     with its own tools, and no `olai_*` tool ever exists on this wire. So
+ *     nothing here is ever answered without asking — there is no spelling of
+ *     "ours" to match — the one permission path that exists is a person's
+ *     every time, and the roster's rows say it from the first moment rather
+ *     than standing `handed` for the life of the conversation, waiting on a
+ *     report this wire cannot carry ({@link Leg.handedStandsAs}).
  *   - **the programmatic tool name is the `toolCallId` PREFIX, exactly as on
  *     the opencode wire**: `bash:0`, `edit:1`. Nothing on any frame says it —
  *     a bash call's `_meta` corners are its terminal bookkeeping

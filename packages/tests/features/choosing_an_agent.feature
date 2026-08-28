@@ -480,6 +480,14 @@ Feature: Choosing an agent
     When I choose the agent "pi"
     Then the header names the agent "pi"
     And the header draws that agent's own mark
+    # ... and so does the roster: the servers olai hands every conversation
+    # never reach pi (the adapter stores them and wires them to nothing, and
+    # pi-acp's wire carries no per-server report that could ever refine the
+    # answer) — so the row says so AT THE OPEN, with the sentence, rather
+    # than standing "handed" for the life of the conversation the way the
+    # model that got asked would answer: certain, wrong, trustable-looking.
+    And the panel says the agent could not attach "olai"
+    And the reason the panel gives for "olai" is "wires them to nothing"
     When I ask the agent "hello"
     Then the chat eventually shows "pi says: hello"
     And the chat does not yet show "pi v0.84.2"

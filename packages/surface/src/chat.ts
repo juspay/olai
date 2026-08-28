@@ -1333,8 +1333,13 @@ export type Command = typeof Command.Type
  *     of it. The ordinary state on an agent that reports nothing per server
  *     (ACP's `session/new` answers with a session id and says no more), and
  *     the state every conversation is in until its agent has spoken.
- *   - `unattached` — olai handed it over and the agent says it did NOT attach.
- *     Its `why` is the agent's own word for it.
+ *   - `unattached` — olai handed it over and the conversation will NOT have
+ *     it: the agent says it did not attach, or the wire the handover went
+ *     down never carried it anywhere (an adapter can accept a session's
+ *     servers and wire them to nothing — then the whole of what will ever be
+ *     said is known at the open, and saying it then is the alternative to a
+ *     `handed` that waits forever). Its `why` is the word that was had for
+ *     it: the agent's, or the wire's.
  *   - `missing` — olai could not hand it over at all, because its own probe
  *     said no. `why` is that probe's sentence — the whole of `mcp-fail-visible`
  *     (`../../chat/src/kolu.ts`).
@@ -1364,10 +1369,10 @@ export const ServerStanding = Schema.Union([
   Schema.Struct({ kind: Schema.Literal("connected") }),
   /** Olai gave it to the session and nothing has said what became of it. */
   Schema.Struct({ kind: Schema.Literal("handed") }),
-  /** Olai handed it over and the agent says it did NOT attach. */
+  /** Olai handed it over and the conversation will not have it. */
   Schema.Struct({
     kind: Schema.Literal("unattached"),
-    /** The agent's own word for it. */
+    /** The agent's own word for it, or the wire's design said at the open. */
     why: Schema.String,
   }),
   /** Olai could not hand it over at all, because its own probe said no. */

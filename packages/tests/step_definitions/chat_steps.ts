@@ -2788,6 +2788,25 @@ Then(
   },
 );
 
+/** The same question asked OF A NAMED ROW — the composition the step above
+ *  cannot make: a world that already has one absent-server sentence (a corpus
+ *  with a kolu its probe refused) draws the strip for two, and a claim about
+ *  one of them must scope itself. */
+Then(
+  "the reason the panel gives for {string} is {string}",
+  async function (this: OlaiWorld, name: string, reason: string) {
+    const row = this.page.locator(
+      `${CHAT_MISSING_SERVER}${attr("data-server", name)}`,
+    );
+    await row.waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+    const said = oneLine(await row.innerText());
+    assert.ok(
+      said.includes(reason),
+      `the panel's sentence under "${name}" lacks "${reason}". It reads: ${said}`,
+    );
+  },
+);
+
 Then(
   "the reason it gives is {string}",
   async function (this: OlaiWorld, reason: string) {

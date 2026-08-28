@@ -696,6 +696,9 @@ export const CLAUDE: Leg = {
   // No doubling on this wire: the adapter's `session/new` answers with a
   // session id and `configOptions` and never announces a chunk in advance.
   prologueIn: () => null,
+  // `handed`, genuinely: the forwarded `init` answers per server with the
+  // first turn, so the standing it starts at is the one the answer moves on.
+  handedStandsAs: null,
   bypassMode: BYPASS_MODE,
   steering: {
     method: STEER_METHOD,
