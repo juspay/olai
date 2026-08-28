@@ -90,8 +90,10 @@ export const whyNoAgent = (value: string | undefined): string =>
   value === undefined
     ? `no agent: ${AGENT_ENV} is unset and nothing baked one in — the packaged binary and ` +
       `\`just serve\` both default to the pinned Claude Code adapter, so this is a hand-rolled start ` +
-      `— and no other known agent was found on ${AGENT_PATH_ENV} (or PATH, where that is unset). ` +
-      `The outlines are served as usual and the chat panel says the same thing.`
+      `— and no other known agent was found on ${AGENT_PATH_ENV} (or PATH, where that is unset), ` +
+      `and the pi row found neither of its halves (${PI_AGENT_ENV} for the adapter, a \`pi\` on the ` +
+      `agent search path for the agent). The outlines are served as usual and the chat panel says ` +
+      `the same thing.`
     : `no agent: ${AGENT_ENV} is set to the empty string, which is the explicit off switch — the ` +
       `whole panel, so nothing else was looked for either. The outlines are served as usual and the ` +
       `chat panel says so.`

@@ -24,7 +24,13 @@
 
 buildNpmPackage {
   pname = "olai-acp-agent";
-  version = "0.66.0"; # tracks @agentclientprotocol/claude-agent-acp
+  # One lockfile, TWO adapters. The version names both pins rather than
+  # claiming the build is the claude one alone: a bump of either line of
+  # acp/package.json moves the store path's NAME, not only its hash — a
+  # pi-acp bump that left the path stamped "0.66.0" would be the old claim
+  # living on after its evidence.
+  # tracks acp/package.json: @agentclientprotocol/claude-agent-acp + pi-acp
+  version = "0.66.0+pi-0.0.33";
 
   # ../acp would also pull in whatever else lands in that directory; keep the
   # src (and its hash) to just the two files the build actually reads.
@@ -36,8 +42,8 @@ buildNpmPackage {
   };
   npmDepsHash = "sha256-67N6fffjlupkpliEpMkAcwN7map54TPYP68TeV7mwy8=";
 
-  # acp/ is a shim around one dependency: nothing to compile, and no package in
-  # the tree has an install script to run.
+  # acp/ is a shim around its two pinned dependencies: nothing to compile,
+  # and no package in the tree has an install script to run.
   dontNpmBuild = true;
   npmFlags = [ "--ignore-scripts" ];
 
@@ -116,7 +122,7 @@ buildNpmPackage {
   # that unfree would make `nix build` demand allowUnfree from every consumer of
   # this flake.
   meta = {
-    description = "Claude Code ACP adapter, pinned for olai";
+    description = "The ACP adapters olai ships: claude-code-acp and pi-acp, pinned together";
     homepage = "https://github.com/zed-industries/claude-code-acp";
     mainProgram = "claude-agent-acp";
     platforms = lib.platforms.unix;

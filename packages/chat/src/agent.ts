@@ -1220,7 +1220,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  about every agent working under it — a worktree, an orchestrator in the
      *  root. Adopting the newest of what came back would make somebody else's
      *  coding session this panel's conversation, so the list is narrowed to the
-     *  exact directory here, once, and everything downstream draws from it. */
+     *  exact directory here, once, and everything downstream draws from it.
+     *
+     *  NO LIMIT IS SENT and no `nextCursor` is followed: the protocol
+     *  defaults apply, which on pi-acp is a page of fifty (its own
+     *  `PAGE_SIZE`) — a directory with more stored pi conversations than one
+     *  page draws the newest and loses the tail, silently. Filed as
+     *  `pi-list-pagination`. */
     const storedFor = (at: Live): Effect.Effect<ReadonlyArray<Stored>, AgentGone> =>
       at.canList
         ? Effect.map(

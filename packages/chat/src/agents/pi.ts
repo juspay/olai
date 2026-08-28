@@ -63,18 +63,28 @@
  *     standard fields the transcript draws from (progress, diffs) say nothing
  *     about it. pi's EDITS arrive as structured `diff` blocks with
  *     `path:line` locations and draw fully; the floor is the command's output.
- *   - **`session/list` is exact-cwd, paginated, and says nothing extra.** The
- *     request's `cwd` is honoured by string equality (olai's client-side
- *     narrowing still reads the same rows), rows are the protocol's four
- *     fields and a `null`-cursored page of FIFTY — a directory with more
- *     stored conversations has the newest page — and `_meta` is an empty
- *     object at response level, never a corner on a row. Titles are pi's own:
- *     the first user message.
- *   - **`session/load` replays.** The adapter keeps a session map of its own
- *     (`~/.pi/pi-acp/session-map.json`), spawns a fresh `pi --session <file>`,
- *     replays user and agent messages and completed tool rows, then answers
- *     with `configOptions` and a `null` prologue. The ids are pi's uuids; the
- *     memory's note is what a boot follows.
+ *   - **`session/list` is exact-cwd and says nothing extra.** The request's
+ *     `cwd` is honoured by string equality (olai's client-side narrowing
+ *     still reads the same rows), rows are the protocol's four fields and
+ *     `_meta` is an empty object at response level, never a corner on a row.
+ *     Titles are pi's own: the first user message. PAGINATION the spike saw
+ *     only one end of: a directory with one stored conversation answers it
+ *     and a `null` cursor; the page size is the adapter's own word
+ *     (`PAGE_SIZE = 50` in the pin's source, with `nextCursor` a real offset
+ *     thereafter), not a wire observation of this repo's, and olai sends no
+ *     limit and follows no cursor — a directory with more than fifty stored
+ *     pi conversations draws the newest page and loses the tail, silently:
+ *     filed as `pi-list-pagination`.
+ *   - **`session/load` replays — by the adapter's own map, not pi's store.**
+ *     pi-acp keeps a session map of its own (`~/.pi/pi-acp/session-map.json`)
+ *     and PREFERS it, spawning a fresh `pi --session <file>` at the mapped
+ *     path sight-unseen: a map hit whose file is gone (a deleted session, a
+ *     moved store) is the adapter failing to start pi, which olai draws with
+ *     its generic refusal face — what pi's store would have said about it
+ *     never gets asked (unspiked; the scripted adapter always replays). A
+ *     live load replays user and agent messages and completed tool rows, then
+ *     answers with `configOptions` and a `null` prologue. The ids are pi's
+ *     uuids; the memory's note is what a boot follows.
  *   - **nothing says whose a call was, or that one went BACKGROUND.** pi has
  *     no subagent stamp and no task registry on this wire, so {@link
  *     Leg.parentToolUse}, {@link Leg.spawned} and {@link Leg.backgroundTask}
