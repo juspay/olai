@@ -1,0 +1,6 @@
+# Everything below this line is throwaway. `git clean -fx .saatchi/` is a fresh run.
+evidence.ts
+home/
+data/
+app.log
+shots/

@@ -1,6 +1,5 @@
-# A dev server for a DRIVER — the shell half of `../evidence.sh` and
-# `../wire.sh`, which are the two scripts in this package that stand olai up
-# outside the suite.
+# A dev server for a DRIVER — the shell half of `../wire.sh`, `../reads.sh`
+# and `../skew.sh`, which stand olai up outside the suite.
 #
 #   . support/serve.sh
 #   olai_serve "$root" "$vault" "$log"   # spawn, wait for it to answer
@@ -8,12 +7,11 @@
 #   kill "$OLAI_SERVER"
 #
 # Sourced rather than executed, because a spawned server has to outlive the
-# call: the caller needs the pid to kill afterwards. There is no third caller
-# and no ambition to have one — what this holds is the ONE spelling of how a
-# dev server boots (which env vars, which entry file, which flag), and the
-# reason it is not written twice is that when that spelling changes, the copy
-# nobody edited goes on booting nothing while its driver measures or
-# photographs whatever is already listening.
+# call: the caller needs the pid to kill afterwards. What this holds is the
+# ONE spelling of how a dev server boots (which env vars, which entry file,
+# which flag), and the reason it is not written twice is that when that
+# spelling changes, the copy nobody edited goes on booting nothing while its
+# driver measures whatever is already listening.
 #
 # The suite itself does NOT come through here: it drives the NIX-BUILT binary
 # through `support/hooks.ts` (`OLAI_BIN`), which is what a user actually runs.
@@ -71,9 +69,9 @@ olai_serve() {
   local port=${PORT:-0}
   local port_file
   port_file=$(mktemp)
-  # Drop a previous section's URL so a failed boot cannot silently reuse it
-  # (`evidence.sh` calls this in a loop). Unset rather than empty: callers
-  # run `set -u` and should die naming the miss if we return without setting.
+  # Drop a previous call's URL so a failed boot cannot silently reuse it.
+  # Unset rather than empty: callers run `set -u` and should die naming the
+  # miss if we return without setting.
   unset OLAI_URL
   OLAI_DIST_DIR="$root/packages/web/dist" OLAI_ACP_AGENT="${AGENT:-}" \
     OLAI_AGENT_PATH= \
@@ -83,7 +81,7 @@ olai_serve() {
   OLAI_SERVER=$!
   # Fifteen seconds of quarter-seconds. A boot that never answers used to
   # fall through with status 0 and leave OLAI_URL unset (or, from the
-  # second evidence section on, still holding the previous section's).
+  # second call on, still holding the previous call's).
   for _ in $(seq 1 60); do
     if [ -s "$port_file" ]; then
       OLAI_URL=$(head -n1 "$port_file")
