@@ -1,0 +1,3 @@
+{"id":"plans","ord":"a0","title":"weekend plans"}
+{"id":"market","parent":"plans","ord":"a0","title":"go to the market","todo":"2026-08-29"}
+{"id":"bake","parent":"plans","ord":"a1","title":"bake the bread","after":["market"]}
