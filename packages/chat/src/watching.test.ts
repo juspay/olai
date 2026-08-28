@@ -323,6 +323,33 @@ describe("out, back, out again", () => {
     expect(strip(transcript)).toEqual(["agent author the PR since 2026-08-28T10:21:00.000Z"])
   })
 
+  test("AN ASYNC agent, resumed, survives the turn boundary its task always did", () => {
+    // The same life as above for the launch that ARMS a harness task, which is
+    // where the strip had a second hole: the ending the harness reported for
+    // the FIRST outing is what exempts a call from stranding, so a row still
+    // carrying it loses its face at the next `settle()` — the strip going
+    // quiet under a working agent all over again, this time in a turn boundary
+    // rather than in the wire.
+    const time = clock("2026-08-28T09:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("toolu_01AGENT", {
+      title: "Task",
+      status: "in_progress",
+      spawned: { said: "audit the pins" },
+      armed: { task: "bu13xz2ie" },
+    })
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+    expect(strip(transcript)).toEqual([])
+
+    time.pass(60 * 60_000)
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+    transcript.settle()
+    expect(strip(transcript)).toEqual(["agent audit the pins since 2026-08-28T10:00:00.000Z"])
+  })
+
   test("a turn that ends under a resumed agent takes the face off, as ever", () => {
     // The stranding rule is untouched by any of this, and it must be: an agent
     // whose turn walked away from it is over whichever outing it was on, and a

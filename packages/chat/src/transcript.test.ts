@@ -677,6 +677,68 @@ describe("an agent that was sent out", () => {
     expect(rows(transcript)).toHaveLength(1)
   })
 
+  test("A REOPENED CALL'S TASK HAS NOT ENDED, whatever the last outing said", () => {
+    // The sharpest of the three facts an outing owns, and the one that is not
+    // about drawing at all. `armed.ended` is what takes a call OUT of the
+    // stranding exemption (`isTaskOut`), so an async agent still carrying its
+    // first outing's ending is an agent whose face the next turn boundary
+    // takes straight back off — the bug this whole change exists to end,
+    // arriving one layer underneath it.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+
+    const out = asKind(rows(transcript)[0], "tool")
+    // Everything else the harness said about the task is as true of this outing
+    // as of the last, and is still on the row.
+    expect(out?.armed).toEqual({ task: "bu13xz2ie" })
+    expect(out?.status).toBe("in_progress")
+  })
+
+  test("... so a turn ending under a RESUMED async agent leaves it alone", () => {
+    // The consequence, said where a reader can see it: the exemption that keeps
+    // a background task off the stranding sweep applies to the second outing
+    // exactly as it applied to the first.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+    transcript.settle()
+
+    expect(asKind(rows(transcript)[0], "tool")?.stranded).toBeUndefined()
+  })
+
+  test("A SECOND OUTING'S ENDING IS ITS OWN NEWS, not the first one's again", () => {
+    // {@link #ended} remembers that a row's death has been reported, so that
+    // the sentence arriving a beat after an ending refines that row rather than
+    // minting a second. Spent on the first outing and never released, it would
+    // silence the second — and the ending it would silence is the one a person
+    // supervising a fan-out must not miss.
+    const transcript = new Transcript()
+    transcript.tool("toolu_01AGENT", { ...sent, armed: { task: "bu13xz2ie" } })
+    transcript.tool("toolu_01AGENT", {
+      status: "completed",
+      armed: { task: "bu13xz2ie", ended: "completed" },
+    })
+    expect(notices(transcript)).toEqual([
+      "the agent “survey the web package” ended (completed)",
+    ])
+
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+    transcript.tool("toolu_01AGENT", { status: "failed" })
+    expect(notices(transcript)).toEqual([
+      "the agent “survey the web package” ended (completed)",
+      "the agent “survey the web package” ended (failed)",
+    ])
+  })
+
   test("an async spawn's every ending is said, good ones included", () => {
     // The other kind of spawn: an async launch IS a background task, and the
     // harness reports how it ended in a turn of its own, minutes later. That

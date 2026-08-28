@@ -218,6 +218,19 @@ const minted = (
   }
 }
 
+/** A task as a NEW outing finds it: everything the harness said about it,
+ *  except how it ended — because it has not ended, and the field that says so
+ *  is read as a live fact rather than as history ({@link ToolEntry.armed},
+ *  `isTaskOut`).
+ *
+ *  A function rather than a spread at the one call site, because taking a key
+ *  OFF a value is the shape a reader has to look twice at, and it is worth
+ *  looking at once here with a name on it. */
+const withoutEnding = (armed: Armed): Armed => {
+  const { ended: _ended, ...before } = armed
+  return before
+}
+
 /** What a tool call is filed under. Spelled ONCE: the row a call writes and
  *  the row it names as the agent that made it are the same kind of key, and
  *  two literals for one scheme is one of them being missed the day the scheme
@@ -380,6 +393,14 @@ export class Transcript {
    */
   #outings = new Map<string, string>()
   readonly #now: () => number
+
+  /** The injected clock, in the format a row wears it in — spelled once
+   *  because two fields are minted from it now ({@link ChatEntry.since} and
+   *  {@link ToolEntry.resumed}), and a stamp is only comparable with another
+   *  stamp while both are written the same way. */
+  #stamp(): string {
+    return new Date(this.#now()).toISOString()
+  }
 
   constructor(now: () => number = Date.now) {
     this.#now = now
@@ -801,6 +822,44 @@ export class Transcript {
     const key = toolKey(id)
     const current = this.#entries.get(key)
     const held = current?.kind === "tool" ? current : undefined
+    const status = move.status ?? held?.status ?? "pending"
+    // A CALL THAT WAS OVER AND IS RUNNING AGAIN — a call going round a SECOND
+    // time, which is the one transition here that is about the row's LIFE
+    // rather than about its content, and the reason it is decided before any
+    // of the merges below: three of them are scoped to an OUTING, and each of
+    // the three is a face that lies if it survives into the next one.
+    //
+    // It is one shape and one adapter's ({@link ../../../acp/patches/README.md}):
+    // a subagent that reported is sent more work, and the call reopened for it
+    // is the one that SPAWNED it, because that is the call everything the agent
+    // does is stamped with for as long as it lives.
+    //
+    //   - WHEN IT WENT OUT ({@link #outings}), which is what both of the
+    //     panel's clocks count from ({@link @olai/surface}'s `outSince`);
+    //   - WHETHER ITS DEATH HAS BEEN SAID ({@link #ended}), spent on the last
+    //     outing — and a second ending that could not be announced is a death
+    //     nobody is told about;
+    //   - and HOW THE HARNESS SAID THE LAST ONE ENDED (`armed.ended`, below),
+    //     which is the sharpest of the three: that field is what exempts a call
+    //     from being stranded by a turn's end ({@link #strand}, through
+    //     `isTaskOut`), so an ASYNC agent still carrying its first outing's
+    //     ending has its face taken straight back off at the next turn
+    //     boundary — the very bug this change exists to end, one layer down.
+    //
+    // THE RECORD OF THE LAST OUTING IS NOT LOST WITH IT: its ending was said at
+    // the bottom of the transcript at the moment it happened, and that row is
+    // still there. What is dropped is the claim that THIS outing has ended,
+    // which was never true of it.
+    //
+    // BEFORE THE REPEAT GUARD and cheap enough to be: a frame that says nothing
+    // new cannot pass this test either, since a status that has not moved
+    // cannot have moved from over to running.
+    const reopened = held !== undefined && !isRunningStatus(held.status)
+      && isRunningStatus(status)
+    if (reopened) {
+      this.#outings.set(key, this.#stamp())
+      this.#ended.delete(key)
+    }
     const detail = move.detail ?? held?.detail
     // The protocol's own rule, and the reason neither of these accumulates: a
     // report carries the call's content and locations AS THEY STAND, so
@@ -850,9 +909,17 @@ export class Transcript {
     // and how it ended, minutes later and in another turn. Neither repeats the
     // other's fields, so a spread is what keeps the description on the row at
     // the moment it dies — which is the row a person reads.
-    const armed = move.armed === undefined
+    const merged = move.armed === undefined
       ? held?.armed
       : { ...held?.armed, ...move.armed }
+    // ... and a REOPENED call's task has not ended, whatever the last outing's
+    // ending said (see `reopened` above). The spread is what makes this the
+    // one field that needs saying: every other fact about a task — its id, its
+    // kind, the description it was armed with — is as true of the second outing
+    // as it was of the first, and is carried forward exactly as it always was.
+    const armed = reopened && merged?.ended !== undefined
+      ? withoutEnding(merged)
+      : merged
     // THE NAME, PICKED ONCE — at the first frame that carries a title, which
     // for a live call is its announcement and for a replayed one is the
     // collapsed frame that is all there ever was of it. Whether the question
@@ -878,7 +945,7 @@ export class Transcript {
     const content: Extract<RowContent, { kind: "tool" }> = {
       kind: "tool",
       text,
-      status: move.status ?? held?.status ?? "pending",
+      status,
       ...(detail === undefined ? {} : { detail }),
       ...(progress === undefined ? {} : { progress }),
       ...(diffs === undefined ? {} : { diffs }),
@@ -900,12 +967,6 @@ export class Transcript {
     // BEFORE THE REPEAT GUARD and cheap enough to be: a frame that says
     // nothing new cannot pass this test either, since a status that has not
     // moved cannot have moved from over to running.
-    if (
-      held !== undefined && !isRunningStatus(held.status)
-      && isRunningStatus(content.status)
-    ) {
-      this.#outings.set(key, new Date(this.#now()).toISOString())
-    }
     // THE DEATH OF A TASK IS ALSO A ROW AT THE BOTTOM ({@link #dies}), and
     // this is where the transition is seen: the frame that carries an ending
     // for a row that did not have one. Computed before the repeat guard below
@@ -1221,7 +1282,7 @@ export class Transcript {
     const derived = {
       id: key,
       seq: existing?.seq ?? this.#seq++,
-      since: existing?.since ?? new Date(this.#now()).toISOString(),
+      since: existing?.since ?? this.#stamp(),
     }
     const next = minted(
       entry,
