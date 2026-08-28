@@ -839,11 +839,6 @@ test("read_subtree refuses a call naming both ways in, or neither", async () => 
   })
 })
 
-/**
- * A SELECTION WITH ITS NOTES — the other half of the same item, through the
- * encoder, which is where a field the schema has never heard of is silently
- * dropped (`matched`, once).
- */
 test("a node read, a hit and a subtree row all carry the parent's id", async () => {
   await withTools({ "house.olai": HOUSE }, async ({ client }) => {
     const order = (await call(client, "read_node", { id: "order" })).structured
@@ -864,6 +859,11 @@ test("a node read, a hit and a subtree row all carry the parent's id", async () 
   })
 })
 
+/**
+ * A SELECTION WITH ITS NOTES — the other half of the same item, through the
+ * encoder, which is where a field the schema has never heard of is silently
+ * dropped (`matched`, once).
+ */
 test("search_nodes carries the notes when the query asks for them", async () => {
   await withTools({ "plan.olai": PLAN }, async ({ client }) => {
     const asked = (await call(client, "search_nodes", { text: "joiner", withDesc: true }))
