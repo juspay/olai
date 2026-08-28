@@ -18,7 +18,7 @@
  *     the second is what it is supposed to be beside
  *     (`preview-body-not-shipped`).
  *   - `pages` — an ORDINARY READING session over a realistic vault: open the
- *     app, then walk the routes. Before `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`'s
+ *     app, then walk the routes. Before `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`'s
  *     PR 10 the first frame carried every record of every outline and no
  *     navigation cost a byte; after it, the first frame carries the file list
  *     and each page asks for itself. That is the trade the design demands land
@@ -36,7 +36,7 @@
  *   - `filter` — a page somebody has NARROWED, with the vault moving under it.
  *     A filter is a standing view, so every frame the open page drew used to be
  *     a reason to ask the matcher again — one whole-vault `search.matching` PER
- *     FRAME, uncoalesced (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md`
+ *     FRAME, uncoalesced (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md`
  *     §3.5). So this one counts ASKS rather than bytes: it opens a filtered
  *     outline, picks a section of it and ticks the pick off — one gesture, one
  *     write per topmost row, one page frame back per write — and reports what
@@ -44,7 +44,7 @@
  *     whole-vault search costs is a function of the vault.
  *
  *     It is the acceptance test for `filter-ask-carries-revision`
- *     (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-rides-the-page.md), which is why the counter
+ *     (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-rides-the-page.md), which is why the counter
  *     knows both spellings of the ask ({@link MATCHER}): the narrowing is a
  *     stream over the page now, so the gesture should cost the matcher NOTHING
  *     — the subscription is opened once, when the query is, and thirty writes

@@ -5,7 +5,7 @@
  * ancestry, a `file:line`. Never bytes, never a line of a file, never a
  * directory listing of them. That is the read half of the same decision the
  * write half makes — the agent works in the format's own terms, so the things
- * it can express are the things the format can be (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/acp.md,
+ * it can express are the things the format can be (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/acp.md,
  * resolved 2026-08-09: "query tools are over parsed nodes, not raw lines").
  *
  * A DOCUMENT is the exception the write half already made, read back. A `.md`
@@ -129,7 +129,7 @@ import { noSuchDocument, notLoaded, outlineAt } from "./refusals.ts"
  * here and produced by {@link foundOf} type-checked clean everywhere, reached
  * the agent, and was dropped by the palette's encoder. The other three moved
  * BEFORE anything carried them, which is the cheaper end of the same lesson
- * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/surface-mcp-positions.md).
+ * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/surface-mcp-positions.md).
  *
  * A CONSUMER IMPORTS THEM FROM THE FLOOR, which is where they are declared;
  * this file used to re-export the lot and rename three, and nothing anywhere
@@ -243,7 +243,7 @@ const carriedOf = (
  * `@olai/format`'s `filter.ts`, because a browser narrowing rows it already
  * holds cannot call this procedure on every keystroke and must not answer
  * differently for having to do it itself. One matcher, five callers; that
- * file's header names them and https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-in-place.md argues it.
+ * file's header names them and https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-in-place.md argues it.
  *
  * NEITHER IS THE ORDER, as of the chat composer's `@` list: the done penalty
  * and the sort went down to the matcher with the same argument one door later
@@ -438,7 +438,7 @@ export const search = (
  * in the corpus — of which the caller looked up only the ones its own rows
  * named. A page's reading has already resolved every mirror, so the records it
  * draws are a set this side holds in its hand, and the honest question is the
- * size of a page (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-rides-the-page.md).
+ * size of a page (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-rides-the-page.md).
  *
  * NOTHING IS DECIDED HERE, which is the restraint {@link page} and {@link tags}
  * keep beside it: which page an address names, which of its records a query
@@ -480,7 +480,7 @@ export const narrowing = (
  * can be shown is the node at the end of the chain. That is the SAME function
  * an edge target, a `see` link and the composer's chip already resolve through
  * — which is the point of asking it here rather than answering it in the
- * browser out of a copy of the set (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`
+ * browser out of a copy of the set (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`
  * §3's transcript row). One reading, one rule, other side of the wire.
  *
  * WHY A BATCH IS THE UNIT: the caller is one message, and a message holds every
@@ -527,7 +527,7 @@ export const named = (
  * which remembers collapsed node ids grouped by the file each node is defined
  * in. It used to answer both out of the whole id→file map of its own copy of
  * the set — a scan of every record in the directory per fold — which is the
- * copy `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` is taking away. Nothing about
+ * copy `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md` is taking away. Nothing about
  * the RULE moved with it: what the caller does with a home, an absence and an
  * unheard-of file is still the caller's, and is still spelled once, in the
  * module that owns the memory.
@@ -597,7 +597,7 @@ export const homes = (
  *
  * The browser used to walk its own copy of the set for this, once per month
  * drawn and again on every published revision. It cannot any more
- * (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`: the browser may hold at most the
+ * (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`: the browser may hold at most the
  * page in front of somebody), so the reading runs here and the answer travels —
  * which is the whole of what changed. The READING is `@olai/format`'s
  * {@link datedDays}, unmoved: what is dated, what a mark's own date counts for
@@ -871,7 +871,7 @@ const placedUnder = (derived: Derived, id: string): ReadonlyArray<Placed> =>
  * (duplicate ids), every other index in `Derived` already collapses duplicates
  * exactly this way, and `remove_mirror` takes an ID — so a second entry named
  * a record no write could reach. It is the duplicate-id rule §3 of
- * https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/model-indices.md names, arriving here first.
+ * https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/model-indices.md names, arriving here first.
  */
 const placementsOf = (
   derived: Derived,

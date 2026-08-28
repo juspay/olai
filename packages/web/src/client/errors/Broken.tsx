@@ -1,7 +1,7 @@
 /**
  * One outline that could not be read, in that outline's own place.
  *
- * The hybrid error scope (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/architecture.live-store.md,
+ * The hybrid error scope (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/architecture.live-store.md,
  * resolved 2026-08-09): a file whose lines do not parse costs the reader that
  * file and nothing else. The sidebar still lists it, every other outline is
  * still live, and this is what opening it shows — its own errors, where its

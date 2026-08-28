@@ -11,7 +11,7 @@
  * are fixed the moment it exists, so a scan that subscribed to every row's
  * value would re-run per streamed token — a thousand-row conversation paying a
  * thousand reads per token, which is exactly the defect
- * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md` §4.4 recorded and
+ * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md` §4.4 recorded and
  * `./last.browsertest.ts` was written to hold. The key list is `chat.rows()`,
  * which is the fold's own and hands back THE SAME ARRAY for a frame that added
  * no row (`./order.ts`), so nothing but membership wakes this.

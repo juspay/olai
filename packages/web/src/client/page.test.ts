@@ -3,7 +3,7 @@
  * route turns into, and the reading folded into the shape a filter narrows.
  *
  * WHICH PAGE AN ADDRESS NAMES is not here any more, and that is PR 10 of
- * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`: it was a pure function over the
+ * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`: it was a pure function over the
  * tab's copy of every record in the directory, and it is now a reading the
  * server sends. Every claim that model made is made in `@olai/format`'s
  * `page.test.ts`, over the same shape of fixture, beside the parity that says

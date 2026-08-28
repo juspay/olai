@@ -16,7 +16,7 @@
  * search.ts has the argument). That used to be a restraint — the browser held
  * every node and could have grepped them, and deliberately did not. Since
  * `search-server-side` it is not even that: the matcher left this bundle with
- * the vault (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`), so there is nothing
+ * the vault (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`), so there is nothing
  * here to grep. The conclusion is the one it always was; only its premise got
  * smaller.
  *

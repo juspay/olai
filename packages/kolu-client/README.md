@@ -2,7 +2,7 @@
 
 One package holds the dial, the standing mirror, the projection into olai's own vocabulary, and the one screen read. What leaves is [`@olai/surface`](../surface/README.md)'s shapes — a `KoluLink`, a `FleetTerminal`, a `Snapshot` — so a change to padi's contract is a change **here** and stops.
 
-**Olai works on top of kolu and never launches agents itself.** Every process with a model in it is a kolu terminal (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/orchestrator.md`); what olai does is *read* the fleet those terminals make and put it where the fact already is. This package is the whole of the reading.
+**Olai works on top of kolu and never launches agents itself.** Every process with a model in it is a kolu terminal (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/orchestrator.md`); what olai does is *read* the fleet those terminals make and put it where the fact already is. This package is the whole of the reading.
 
 ## What it is for, today
 
@@ -43,4 +43,4 @@ The `@kolu/*` packages it imports — `@kolu/padi-client`, `@kolu/solid-dockrow`
 
 ## What is deliberately not here
 
-The driver, the gate predicates and the procedure registry `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/orchestrator.md` also names are later phases. A registry with one entry is a shape arguing for itself before anything needs it — and when they land, they land here, which is the other half of what the wall buys: there is somewhere for them to go that is not the composition root.
+The driver, the gate predicates and the procedure registry `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/orchestrator.md` also names are later phases. A registry with one entry is a shape arguing for itself before anything needs it — and when they land, they land here, which is the other half of what the wall buys: there is somewhere for them to go that is not the composition root.

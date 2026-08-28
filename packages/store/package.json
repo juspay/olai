@@ -11,7 +11,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "No workspace sibling, deliberately: the store is generic over its content and must not know what an outline is (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/architecture.live-store.md). If @olai/format ever appears here, the seam has leaked.",
+  "//dependencies": "No workspace sibling, deliberately: the store is generic over its content and must not know what an outline is (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/architecture.live-store.md). If @olai/format ever appears here, the seam has leaked.",
   "dependencies": {
     "effect": "4.0.0-rc.112"
   },

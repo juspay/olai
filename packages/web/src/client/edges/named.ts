@@ -28,7 +28,7 @@
  * WHAT THE TABLE IS: the ids THIS PAGE points at, resolved where the set is and
  * sent with the page (`@olai/format`'s `page.ts`, and `../reading.tsx`). It was
  * a lookup in the tab's own copy of every record in the directory until PR 10
- * of `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`; the rule for what an id names is
+ * of `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`; the rule for what an id names is
  * the same one, `nodeNamed`, run on the side that holds the vault.
  *
  * A TARGET NAMED TWICE IS NAMED ONCE, and that is decided here, at the read,

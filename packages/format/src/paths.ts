@@ -27,7 +27,7 @@
  * it is spelled as one character rule rather than as a split-and-compare so
  * that sorting a corpus allocates nothing.
  *
- * Slice 4 of `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/model-indices.md` is why there is one of these
+ * Slice 4 of `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/model-indices.md` is why there is one of these
  * rather than two: the browser began PATCHING the format's view of the set, and
  * a client that placed a file by one order while the patcher placed it by
  * another would be the same directory read two ways — the same records in a

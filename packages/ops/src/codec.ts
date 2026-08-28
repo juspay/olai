@@ -85,7 +85,7 @@ export const codec: Codec<Document, Reading, Verdict> = {
    *  sentence: handed nothing to follow it is the whole corpus derived and the
    *  whole-set rules run over it, and handed the reading it follows it is
    *  neither. The store states the property generically because it must; the
-   *  argument for olai is `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/model-indices.md`, slice 2.
+   *  argument for olai is `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/model-indices.md`, slice 2.
    *
    *  BOTH HALVES OF THAT ARE THE SECOND ARGUMENT, and passing it is the whole
    *  of what this seam adds. The store says what it last published and which

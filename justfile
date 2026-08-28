@@ -239,7 +239,7 @@ hm-module:
 # THE FIFTH WAS THE TAB's own frame, and it is gone with what it timed: it
 # measured what a browser paid between a `deltas` frame of the whole set landing
 # and having a view of the directory again, and a browser holds no view of the
-# directory any more (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`'s PR 10). What
+# directory any more (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`'s PR 10). What
 # replaced it is not a timing at all but a WIRE measurement, which is the thing
 # that actually changed — `packages/tests/wire.ts`'s `pages` session, run
 # against two worktrees with `wire.sh`'s `ROOT=`.

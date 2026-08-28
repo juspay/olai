@@ -28,7 +28,7 @@
  * trip to re-derive a fact in hand.
  *
  * The premise went, not the argument. The human's ruling (2026-08-19,
- * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`) is that the browser may hold at
+ * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`) is that the browser may hold at
  * most the current page's data — never the whole vault — so there is no local
  * `taggedBy` left to enumerate, and the tab that used to answer this for itself
  * now asks (`@olai/web`'s `complete/asking.ts`, over the `vocabulary.tags`
