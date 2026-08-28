@@ -202,13 +202,24 @@ export const PI: Leg = {
   // picker says nothing beyond them, never a zero.
   listedIn: () => null,
   prologueIn,
+  // SAID AT THE OPEN, because nothing will ever say it later: the handed
+  // servers are stored and wired to nothing (the header's first bullet), and
+  // this wire carries no report to move the row — ACP answers `session/new`
+  // per session, not per server, and `rawMessages` below is `null`. Standing
+  // at `handed` here would be the panel repeating the model's wrong answer in
+  // the place a person has decided to trust.
+  handedStandsAs:
+    "pi-acp accepts the session's MCP servers and wires them to nothing — its " +
+    "own build assigns the field and never reads it back, so olai's tool " +
+    "servers never reach the agent",
   // Refused (`-32602`): the modes are the thinking levels. Unattended
   // auto-approval for pi lives in its own settings, outside ACP.
   bypassMode: null,
   // Refused (`-32601`): `/steering` in this adapter is a SLASH COMMAND about
   // pi's own message delivery, not the ACP extension of the same name — the
   // one collision of vocabularies the spike was built to catch, and the
-  // gesture this panel therefore does not draw.
+  // gesture this panel therefore does not draw (pi-midturn-steering files
+  // what an adapter with the real extension would change).
   steering: null,
   // YES, from what the spike established rather than from the handshake: the
   // queue is the adapter's own, and it announces and answers in order.

@@ -95,8 +95,15 @@ const say = (text: string): void => {
 };
 
 /** The banner, spelled once: the response announces it and one chunk doubles
- *  it, byte for byte — the exactness IS the protocol detail under test. */
-const BANNER = "pi v0.84.2\n---\n";
+ *  it, byte for byte — the exactness IS the protocol detail under test.
+ *
+ *  THE SHAPE IS THE REAL ONE'S — `buildStartupInfo` in the pin's source:
+ *  a version header, a rule, then markdown SECTIONS (`## Context`, `##
+ *  Skills`, …) for whatever it found, the whole thing trimmed with a
+ *  trailing blank line and sent as ONE chunk. A three-line stand-in would
+ *  make the witness answer a question nobody asked of it: whether the
+ *  filter holds against a banner with lines a person could also type. */
+const BANNER = "pi v0.84.2\n---\n\n## Context\n- /served/AGENTS.md\n\n";
 
 /** Running or not, as the real adapter says it: a `session_info_update` whose
  *  only content is the queue corner. */
@@ -216,9 +223,17 @@ const modes = () => ({
 /** ONE TURN AT A TIME — the chain is the claim, the same shape the other
  *  fake's is for the same reason. */
 let queue: Promise<unknown> = Promise.resolve();
-/** How deep the chain is RIGHT NOW: 0 while idle, 1 mid-turn, 2 with one
- *  held — the value the notices and the queue corner are computed from. */
-let queued = 0;
+
+/** THE TWO FACTS THE ANNOUNCEMENT IS READ OFF, kept apart: the RUNNING turn
+ *  is not in the WAITING count, and an arriving prompt's POSITION is one past
+ *  how many already wait — `running` is what makes a fresh prompt's position
+ *  1 rather than 0. (The first cut held these in one `queued`, the turn
+ *  stood it down at turn START, and a prompt arriving mid-turn was told its
+ *  position was 0 — an announcement a client could never have been shown.)
+ *  The positions are what a client hears; how they compose is the spike's
+ *  reading of the real adapter. */
+let running = false;
+let waiting = 0;
 
 /** Somebody pressed cancel: what is running gives up, what is waiting answers
  *  `cancelled`. Reset once the chain drains. */
@@ -350,30 +365,33 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
       const text = blocks
         .map((block) => (block["type"] === "text" ? String(block["text"] ?? "") : ""))
         .join("");
-      queued += 1;
-      const heldBehind = queued - 1;
-      if (heldBehind > 0) {
-        // HELD, ANNOUNCED, ANSWERED WHEN ITS TURN COMES. The notice is what
-        // the adapter tells a client whose only signal is the stream.
-        say(`Queued message (position ${heldBehind}).`);
-        info(true, heldBehind);
+      if (running || waiting > 0) {
+        // HELD, ANNOUNCED, ANSWERED WHEN ITS TURN COMES. The position counts
+        // the running turn's country too: one ahead is one wait.
+        waiting += 1;
+        say(`Queued message (position ${waiting}).`);
+        info(true, waiting);
       }
       queue = queue
         .then(async () => {
-          queued -= 1;
-          info(true, queued);
+          if (waiting > 0) {
+            waiting -= 1;
+            say(`Starting queued message. (${waiting} remaining)`);
+          }
           if (cancelled) {
-            info(false, queued);
+            info(false, waiting);
             respond(id, { stopReason: "cancelled" });
             return;
           }
+          running = true;
           try {
-            if (heldBehind > 0) say(`Starting queued message. (${heldBehind - 1} remaining)`);
             const stopReason = await turn(text);
-            info(false, queued);
+            running = false;
+            info(false, waiting);
             respond(id, { stopReason });
           } catch {
-            info(false, queued);
+            running = false;
+            info(false, waiting);
             respond(id, { stopReason: "cancelled" });
           }
         });

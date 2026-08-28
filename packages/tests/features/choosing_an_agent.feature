@@ -523,6 +523,11 @@ Feature: Choosing an agent
     When I type "hello" into the chat
     And I send the chat message
     Then the chat shows my message "hello"
+    # ... and the wire's own answer to the queued message is what the panel
+    # shows: the adapter's queue-announce chunk, spoken as speech where a
+    # client shows speech. The composer claim above is the leg's word; this
+    # line is the frames the word was the reading of.
+    And the chat eventually shows "Queued message (position 1)."
     When the agent is released
     Then the chat eventually shows "done dawdling"
     And the chat eventually shows "pi says: hello"

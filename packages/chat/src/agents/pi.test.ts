@@ -58,12 +58,16 @@ describe("which permissions are answered without asking", () => {
 })
 
 describe("the prologue the open doubles", () => {
-  test("is the response corner's own string, verbatim", () => {
+  test("is the response corner's own string, verbatim — sections, nag, trailing blank and all", () => {
+    // The real banner's shape (the pin's `buildStartupInfo`): a version
+    // header, a rule, then markdown sections for what it found, sent as ONE
+    // chunk.
+    const banner = "pi v0.84.2\n---\n\n## Context\n- /served/AGENTS.md\n\n"
     const opened = {
       sessionId: "01a",
-      _meta: { piAcp: { startupInfo: "pi v0.84.2\n---\n" } },
+      _meta: { piAcp: { startupInfo: banner } },
     }
-    expect(prologueIn(opened)).toBe("pi v0.84.2\n---\n")
+    expect(prologueIn(opened)).toBe(banner)
   })
 
   test("a load's null is nothing to drop", () => {
