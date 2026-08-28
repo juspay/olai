@@ -146,6 +146,11 @@ export interface KoluDeps<N> {
   /** Routine narration, at debug: on a machine with no kolu this is a line
    *  every few seconds and it is not news. */
   readonly say: (line: string) => void
+  /** The sentences the OWNER must read — the vault's malformed knob values
+   *  (`@olai/server`'s `koluConfig.ts`) and the watcher's ambiguous-mute
+   *  (`./watch.ts`) — wired to a level the default console turns on: a
+   *  broken spell would stay behind `OLAI_LOG_LEVEL=debug` otherwise. */
+  readonly warn: (line: string) => void
 }
 
 /** The three bindings, plus the one hook a revision pulls. */
@@ -291,7 +296,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
     {
       emit: (event) => deps.events()?.upsert(event.id, event),
       evict: (id) => deps.events()?.remove(id),
-      say: deps.say,
+      say: deps.warn,
     },
     { now: () => Date.now() },
   )
@@ -311,7 +316,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
     const lines = next.malformed.join("\n")
     if (lines !== saidMalformed) {
       saidMalformed = lines
-      for (const line of next.malformed) deps.say(line)
+      for (const line of next.malformed) deps.warn(line)
     }
   }
   if (deps.options === null) {
@@ -342,7 +347,11 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
       link: (state) => cell?.set(state),
       // Every row the mirror moves is an observation, in the same breath
       // — that is the whole of the watcher's economy, and it is why the
-      // watcher is sure its view is what the fleet tabs see.
+      // watcher is sure its view is what the fleet tabs see. The two
+      // leave-shapes are kept apart on the same breath: a row CLOSING is
+      // `remove`, a fleet emptied by the link dying is `suspend` — the
+      // difference a restart's `since` would re-date, which `./watch.ts`'s
+      // header argues.
       upsert: (id, row) => {
         deps.fleet()?.upsert(id, row)
         watch.observe(id, row)
@@ -350,6 +359,10 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
       remove: (id) => {
         deps.fleet()?.remove(id)
         watch.remove(id)
+      },
+      clearedRow: (id) => {
+        deps.fleet()?.remove(id)
+        watch.suspend(id)
       },
       say: deps.say,
     },
@@ -456,7 +469,11 @@ const handlersOf = (verbs: {
  *  watcher pulses, for the fresh-install preview its header argues for. */
 const linklessHandlers = (watch: Watch): KoluHandlers =>
   handlersOf({
-    connect: () => Effect.never,
+    // The connector beholds forever, and the RUNTIME's interrupt of it is
+    // the same death the linked half plans: `ensuring`'s second arm is not
+    // irrelevance — a connector that merely never-ends is where the
+    // watcher's heartbeat has to be allowed to stop with the runtime.
+    connect: () => Effect.ensuring(Effect.never, Effect.sync(() => watch.stop())),
     rows: () => NO_ROWS,
     events: watch.events,
     screen: () => Effect.fail(NO_LINK),

@@ -491,9 +491,12 @@ export const KoluEvent = Schema.Struct({
     label: Schema.String,
     labelColor: Schema.String,
     /** WHEN this server first saw the terminal holding this state, ISO. It is
-     *  an OBSERVATION-lifetime clock: padi's daemon knows the true `since`, and
-     *  olai restarting re-dates every standing hold — the difference is an
-     *  ordinary restart, not a lie. */
+     *  an OBSERVATION-lifetime clock: olai's restart re-dates every standing
+     *  hold — the difference is an ordinary restart, not a lie. A LINK flap
+     *  does not: the hold's clock is the watcher's own, not the record's —
+     *  padi's daemon keeps `since` through a client reconnect, and this
+     *  clock follows that (`@olai/kolu-client`'s `A link drop is not a
+     *  closing fleet`). */
     since: Schema.String,
   })),
 })

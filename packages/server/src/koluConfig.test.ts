@@ -158,3 +158,58 @@ test("an empty terminal value earns no mute", () => {
   )
   expect(reading.config.muted).toEqual([])
 })
+
+test("ONE FILE decides the whole: a `watch` here and a `mutes` there do not compose", () => {
+  const reading = watchConfigIn(
+    setOf({
+      "_olai/kolu.olai": rec("watch", { "held-for": "20s" }),
+      // The mutes this one holds are the mistake the first file's occupants
+      // already answered: the convention judges one file.
+      "_olai/torn/kolu.olai":
+        `{"id":"m2","ord":"a0","title":"mutes"}\n` +
+        `{"id":"c9","parent":"m2","ord":"a1","title":"elsewhere's wilful","custom":{"terminal":"d3adbeef"}}`,
+    }),
+  )
+  expect(reading.config.heldForMs).toBe(20_000)
+  expect(reading.config.muted).toEqual([])
+})
+
+test("`0s` is a legal `held-for` — the instant report — but never a `nag` or a `heartbeat`", () => {
+  const legal = watchConfigIn(
+    setOf({ "_olai/kolu.olai": rec("watch", { "held-for": "0s" }) }),
+  )
+  expect(legal.config.heldForMs).toBe(0)
+  expect(legal.malformed).toEqual([])
+
+  const spin = watchConfigIn(
+    setOf({
+      "_olai/kolu.olai": rec("watch", { nag: "0s", heartbeat: "0s" }),
+    }),
+  )
+  expect(spin.config.nagMs).toBe(DEFAULT_WATCH.nagMs)
+  expect(spin.config.heartbeatMs).toBe(DEFAULT_WATCH.heartbeatMs)
+  expect(spin.malformed.length).toBe(2)
+  expect(spin.malformed[0]).toContain("nag")
+  expect(spin.malformed[1]).toContain("heartbeat")
+})
+
+test("past the ~24.8-day ceiling is past a timer's grammar", () => {
+  const reading = watchConfigIn(
+    setOf({
+      // 597 hours is past 2_147_483_647 ms; 596 is not, which is exactly the
+      // arithmetic the test cares about: the word must be lined and defaulted.
+      "_olai/kolu.olai": rec("watch", { heartbeat: "597h" }),
+    }),
+  )
+  expect(reading.config.heartbeatMs).toBe(DEFAULT_WATCH.heartbeatMs)
+  expect(reading.malformed.length).toBe(1)
+  expect(reading.malformed[0]).toContain("heartbeat")
+})
+
+test("`held-for` just inside the ceiling parses and is silent", () => {
+  const reading = watchConfigIn(
+    setOf({ "_olai/kolu.olai": rec("watch", { "held-for": "596h" }) }),
+  )
+  expect(reading.config.heldForMs).toBe(596 * 3_600_000)
+  expect(reading.malformed).toEqual([])
+})

@@ -34,6 +34,20 @@
  * A `heartbeat` fires every `heartbeatMs` (immediately once, at boot), so a
  * quiet feed and a dead watcher do not look alike.
  *
+ * ## A link drop is not a closing fleet
+ *
+ * There are TWO ways a row leaves the fleet, and the watcher reads them
+ * apart (`./mirror.ts`'s `remove` vs `clearedRow`). A row leave against a
+ * standing fleet is a terminal that SHUT: its hold goes with it. A fleet
+ * emptied whole — the padi socket reboot under olai's hands — leaves the
+ * waiting exactly where it was: the daemon re-dates nothing, and neither
+ * does this module. The hold's clock is the watcher's own, not the
+ * record's: `suspend` freezes it timerless, a returning `observe` in the
+ * same bucket resumes it from its own `since`, and nothing in the flap
+ * interval ever fires. The soak (`kolu watch`'s `PadiStateEvent` snapshot
+ * semantics) behaves the same, which is the comparison the events are
+ * soaked against.
+ *
  * ## What is deliberately not computed here
  *
  * The KNOB reading. `_olai/Kolu.olai` is outline records, and this package
@@ -112,12 +126,19 @@ export interface WatchSink {
 
 export interface Watch {
   /** A fleet row MOVED — start, refresh or kill a hold, according to its
-   *  bucket. */
+   *  bucket. An id that was SUSPENDED returns through this same door: a
+   *  resume, rather than a re-dating. */
   readonly observe: (id: string, row: FleetTerminal) => void
-  /** A row left the fleet — the terminal shut, or the link dropped and
-   *  every row went. Its hold goes with it, silently: a terminal that left
-   *  is not waiting for anything. */
+  /** A row left the fleet underneath a STANDING link — a terminal that
+   *  shut. Its hold goes with it, silently: a terminal that left is not
+   *  waiting for anything. */
   readonly remove: (id: string) => void
+  /** The LINK fell, carrying every row with it. The waiting underneath did
+   *  not move: the holds PAUSE — no timer fires while there is no fleet to
+   *  watch — and a returning `observe` in the same bucket resumes from the
+   *  hold's own clock. Holds whose id never returns keep no timer and hold
+   *  only their memory; `stop` clears them with the rest. */
+  readonly suspend: (id: string) => void
   /** The config the vault NOW says, freshly derived on every revision. */
   readonly reconfigure: (config: WatchConfig) => void
   /** The ring, oldest first — the collection's `readAll` reads it
@@ -144,10 +165,18 @@ interface Hold {
   readonly id: string
   /** The held bucket — `awaiting` | `waiting`. */
   readonly state: string
-  /** The verbatim agent state the row spelled when the hold began. */
+  /** The verbatim agent state the row spelled when the hold began — the
+   *  typed literal {@link heldStateOf} narrowed out of the row's word, which
+   *  IS the verbatism for a known state. */
   agentState: string
   /** Epoch ms of the FIRST observation in this hold. */
   readonly since: number
+  /** Epoch ms of the LAST emission. Seeded with `since` so an unfired hold's
+   *  arithmetic needs no third field; set by every `emitHold`, which is the
+   *  sole producer of events — and the seam by which both a `reconfigure`
+   *  re-arm and a flap RESUME measure from the emission that already
+   *  happened rather than the moment somebody edited a knob. */
+  lastEmittedAt: number
   /** The draw facts, refreshed per observation, frozen into the event at
    *  fire time. */
   row: FleetTerminal
@@ -158,20 +187,27 @@ interface Hold {
 }
 
 /**
- * The HOLDABLE bucket a row's agent state folds to, or `null` when there
- * is none to hold: no agent in the row, a state this build's vocabulary
- * does not know (a newer padi — `narrowAgentState` keeps the word verbatim
- * and marks it unknown), or a bucket that is not `HELD_BUCKETS` — `other`,
- * and `working`, the flood this whole feature exists to replace.
+ * The HOLDABLE state a row folds to, or `null` when there is none to
+ * hold: no agent in the row, a state this build's vocabulary does not know
+ * (a newer padi — `narrowAgentState` keeps the word verbatim and marks it
+ * unknown), or a bucket that is not `HELD_BUCKETS` — `other`, and
+ * `working`, the flood this whole feature exists to replace.
  *
  * The ONE fold in this file, and there is exactly one of it: `observe`'s
  * gate asks this and nothing else.
  */
-const heldBucketOf = (row: FleetTerminal): string | null => {
+interface HeldState {
+  /** The bucket the hold is about — one of `HELD_BUCKETS`. */
+  readonly bucket: string
+  /** The state the row spelled, as the narrowed LITERAL — the same word the
+   *  wire's verbatim contract already promises. */
+  readonly spelled: string
+}
+const heldStateOf = (row: FleetTerminal): HeldState | null => {
   const narrowed = narrowAgentState(row.agentState)
   if (narrowed.state === undefined) return null
   const bucket = agentBucket(narrowed.state)
-  return HELD_BUCKETS.has(bucket) ? bucket : null
+  return HELD_BUCKETS.has(bucket) ? { bucket, spelled: narrowed.state } : null
 }
 
 export const makeWatch = (
@@ -183,6 +219,10 @@ export const makeWatch = (
   let config: WatchConfig = DEFAULT_WATCH
   /** The holds, keyed by fleet id. */
   const holds = new Map<string, Hold>()
+  /** The suspended-half of the same book: holds whose fleet emptied under a
+   *  flap (see the `suspend` doc). No timer lives here — one is armed at
+   *  resume or at the hold's death, and `stop()` clears them. */
+  const suspended = new Map<string, Hold>()
   /** The fleet's id SET as the mirror knows it, kept for one job: prefix
    *  resolution of the mute values. */
   const seen = new Set<string>()
@@ -251,6 +291,7 @@ export const makeWatch = (
    *  the facts are read NOW rather than held from the first observation. */
   const emitHold = (hold: Hold, kind: "transition" | "nag"): void => {
     const at = options.now()
+    hold.lastEmittedAt = at
     seq += 1
     push({
       id: `ev-${seq}`,
@@ -288,19 +329,45 @@ export const makeWatch = (
     heartbeatTimer = setInterval(pulse, config.heartbeatMs)
   }
 
+  /** Arm one hold's nag timer under the config in force, anchored at the
+   *  LAST EMISSION: the interval is measured from the line that already
+   *  ran, so a re-arm in a knob edit (or on resume, through a flap) cannot
+   *  push a nag out by another full window. */
+  const armNag = (hold: Hold): void => {
+    const remaining = hold.lastEmittedAt + config.nagMs - options.now()
+    hold.nagTimer = setTimeout(() => fireNag(hold), Math.max(0, remaining))
+  }
+
+  /** Re-arm ONE hold's timers under the knob set now in force — the one fold
+   *  of the pacing that `reconfigure` (an interval moved) and resume (a
+   *  fleet came back) both walk. */
+  const rearmHold = (hold: Hold): void => {
+    if (hold.holdTimer !== undefined) clearTimeout(hold.holdTimer)
+    if (hold.nagTimer !== undefined) clearTimeout(hold.nagTimer)
+    hold.holdTimer = undefined
+    hold.nagTimer = undefined
+    if (hold.fired) {
+      armNag(hold)
+    } else {
+      const remaining = hold.since + config.heldForMs - options.now()
+      hold.holdTimer = setTimeout(() => fireTransition(hold), Math.max(0, remaining))
+    }
+  }
+
   // ARM IT AT CONSTRUCTION: the one immediate pulse, for the reader who
   // sees a feed come up empty and wants to know it is not dead.
   pulse()
   rearmHeartbeat()
 
   /** Cancel ONE hold's timers and forget it. Idempotent, and the ONLY
-   *  door out of `holds`. */
+   *  door out of both maps the indices will say it lives in. */
   const releaseHold = (hold: Hold): void => {
     if (hold.holdTimer !== undefined) clearTimeout(hold.holdTimer)
     if (hold.nagTimer !== undefined) clearTimeout(hold.nagTimer)
     hold.holdTimer = undefined
     hold.nagTimer = undefined
     if (holds.get(hold.id) === hold) holds.delete(hold.id)
+    if (suspended.get(hold.id) === hold) suspended.delete(hold.id)
   }
 
   /** What a fired timer must first ask: is this hold still live? A nag
@@ -313,14 +380,14 @@ export const makeWatch = (
     hold.fired = true
     hold.holdTimer = undefined
     emitHold(hold, "transition")
-    hold.nagTimer = setTimeout(() => fireNag(hold), config.nagMs)
+    armNag(hold)
   }
 
   const fireNag = (hold: Hold): void => {
     if (!liveHold(hold)) return
     hold.nagTimer = undefined
     emitHold(hold, "nag")
-    hold.nagTimer = setTimeout(() => fireNag(hold), config.nagMs)
+    armNag(hold)
   }
 
   return {
@@ -333,13 +400,30 @@ export const makeWatch = (
       // half itself.
       const fold = foldMutes()
       sayAmbiguousMutes(fold)
-      const bucket = heldBucketOf(row)
+      const state = heldStateOf(row)
+      // FIRST: an id whose fleet fell out from under it is a resume, not a
+      // reopen — the daemon's own `since` does not move on a reconnect, and
+      // neither does ours. Same bucket, still un-muted: the hold returns
+      // with the timer re-armed off its own clock. A different bucket is
+      // what `observe` always takes it for: one hold closes and another
+      // opens, herein falling through to it as usual.
+      const suspendedHold = suspended.get(id)
+      if (suspendedHold !== undefined) {
+        suspended.delete(id)
+        if (state !== null && state.bucket === suspendedHold.state && !fold.silenced.has(id)) {
+          suspendedHold.row = row
+          holds.set(id, suspendedHold)
+          rearmHold(suspendedHold)
+          return
+        }
+        releaseHold(suspendedHold)
+      }
       const previous = holds.get(id)
-      if (bucket === null || fold.silenced.has(id)) {
+      if (state === null || fold.silenced.has(id)) {
         if (previous !== undefined) releaseHold(previous)
         return
       }
-      if (previous !== undefined && previous.state === bucket) {
+      if (previous !== undefined && previous.state === state.bucket) {
         // Still the same hold — refresh the facts and let the timers run.
         previous.row = row
         return
@@ -351,9 +435,10 @@ export const makeWatch = (
       if (previous !== undefined) releaseHold(previous)
       const hold: Hold = {
         id,
-        state: bucket,
-        agentState: row.agentState ?? bucket,
+        state: state.bucket,
+        agentState: state.spelled,
         since: options.now(),
+        lastEmittedAt: options.now(),
         row,
         fired: false,
         holdTimer: undefined,
@@ -366,51 +451,69 @@ export const makeWatch = (
       seen.delete(id)
       const hold = holds.get(id)
       if (hold !== undefined) releaseHold(hold)
+      const gone = suspended.get(id)
+      if (gone !== undefined) {
+        suspended.delete(id)
+        releaseHold(gone)
+      }
+      // A fleet move is a mute-fold move, on LEAVING as much as on
+      // arriving: a prefix that was ambiguous two rows back might be an
+      // address now, and the newly-silenced hold should not nag its lone
+      // remaining row before the next upsert.
+      const fold = foldMutes()
+      for (const singing of [...holds.values()]) {
+        if (fold.silenced.has(singing.id)) releaseHold(singing)
+      }
+      sayAmbiguousMutes(fold)
+    },
+    suspend: (id) => {
+      const hold = holds.get(id)
+      if (hold === undefined) return
+      holds.delete(id)
+      if (hold.holdTimer !== undefined) clearTimeout(hold.holdTimer)
+      if (hold.nagTimer !== undefined) clearTimeout(hold.nagTimer)
+      hold.holdTimer = undefined
+      hold.nagTimer = undefined
+      suspended.set(id, hold)
     },
     reconfigure: (next) => {
       // WHICH KNOBS MOVED, asked BEFORE the swap — load-bearing in exactly
       // this shape: `revision` calls this on every keystroke that lands in
       // the vault, and a pacing reset per keystroke under a busy vault is
       // a nag (and a heartbeat) that never fires. A moved KNOB re-paces;
-      // a keystroke does not.
-      const intervalsMoved = next.heldForMs !== config.heldForMs
-        || next.nagMs !== config.nagMs
+      // a keystroke does not. The TWO interval guards stay apart: `held-for`
+      // is an arm altogether beside `nag` — each moves its OWN holds.
+      const heldForMoved = next.heldForMs !== config.heldForMs
+      const nagMoved = next.nagMs !== config.nagMs
       const heartbeatMoved = next.heartbeatMs !== config.heartbeatMs
       config = next
       // A terminal muted under the NEW list loses its hold NOW — the
       // event it was about to fire is exactly the event the vault just
-      // said nobody wants.
+      // said nobody wants. Suspended holds are released through the same
+      // door: the flap is not an excuse from the list.
       const fold = foldMutes()
-      for (const hold of [...holds.values()]) {
+      for (const hold of [...holds.values(), ...suspended.values()]) {
         if (fold.silenced.has(hold.id)) releaseHold(hold)
       }
       sayAmbiguousMutes(fold)
       if (heartbeatMoved) rearmHeartbeat()
-      if (!intervalsMoved) return
-      // Re-pace the holds under the moved knob, ONE pass: clear each hold's
-      // timers and re-arm from the same breath. The nag re-seeds — the
-      // interval is measured from the last emission, so a re-arm IS that —
-      // and the debounce keeps its clock: the hold did not move, so a
-      // raised `held-for` fires at once and a lowered one sits out its
-      // time. Both honest answers.
+      if (!heldForMoved && !nagMoved) return
+      // Re-pace, ONE pass, through the one re-arm fold: each hold asks the
+      // interval its own timers run on, and only a moved knob wakes it.
+      // Two inherited semantics worth naming: a debounce measures from
+      // `since` — the hold did not move — so a LOWERED `held-for` fires at
+      // once and a RAISED one sits out the difference; a nag measures from
+      // `lastEmittedAt` — so a knob edit can never push the next one out
+      // another full window, no matter how the file is typed.
       for (const hold of holds.values()) {
-        if (hold.holdTimer !== undefined) clearTimeout(hold.holdTimer)
-        if (hold.nagTimer !== undefined) clearTimeout(hold.nagTimer)
-        hold.holdTimer = undefined
-        hold.nagTimer = undefined
-        if (hold.fired) {
-          hold.nagTimer = setTimeout(() => fireNag(hold), config.nagMs)
-        } else {
-          const remaining = config.heldForMs - (options.now() - hold.since)
-          hold.holdTimer = setTimeout(() => fireTransition(hold), Math.max(0, remaining))
-        }
+        if (hold.fired ? nagMoved : heldForMoved) rearmHold(hold)
       }
     },
     events: () => ring,
     stop: () => {
       if (heartbeatTimer !== undefined) clearInterval(heartbeatTimer)
       heartbeatTimer = undefined
-      for (const hold of [...holds.values()]) releaseHold(hold)
+      for (const hold of [...holds.values(), ...suspended.values()]) releaseHold(hold)
     },
   }
 }

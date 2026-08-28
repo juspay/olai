@@ -257,25 +257,22 @@ describe("the attention watcher", () => {
     watch.stop()
   })
 
-  it("pulses on the heartbeat's cadence, reset only by the knob", async () => {
+  it("pulses on the heartbeat's cadence, not a keystroke's", async () => {
     const seen = collected()
     const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    watch.reconfigure(tiny({ heartbeatMs: 45 }))
+    watch.reconfigure(tiny({ heartbeatMs: 200 }))
 
-    await sleep(45 + 20)
-    const first = seen.events.filter((e) => e.kind === "heartbeat").length
-    // The boot beat plus the first interval — count loosely, because timers
-    // are civics rather than physics: at least one interval has passed.
-    expect(first).toBeGreaterThanOrEqual(2)
-
-    // A config ECHO (the same knob, the same list — what every keystroke
-    // hands the watch) leaves the cadence exactly as it stands: the ring's
-    // `revision` wiring proves this every keystroke, so the case is honest
-    // only if the knob is a silhouette of itself.
-    watch.reconfigure(tiny({ heartbeatMs: 45 }))
+    // 120 ms into one 200-cycle: the boot pulse and nothing else. An echoed
+    // knob (what every vault keystroke hands the watch) leaves the in-flight
+    // interval alone, so the next beat lands 80 ms hence — a clear-then-
+    // re-arm would charge a full 200, and the count is where that shows.
+    await sleep(120)
+    const atEcho = seen.events.filter((e) => e.kind === "heartbeat").length
+    expect(atEcho).toBe(1)
+    watch.reconfigure(tiny({ heartbeatMs: 200 }))
     await sleep(90)
     const afterEcho = seen.events.filter((e) => e.kind === "heartbeat").length
-    expect(afterEcho).toBeGreaterThanOrEqual(first)
+    expect(afterEcho).toBe(atEcho + 1)
 
     // Raising the knob clears the in-flight interval: the next pulse may
     // not ride on the shorter cadence's trail.
@@ -285,10 +282,11 @@ describe("the attention watcher", () => {
     watch.stop()
   })
 
-  it("a raised `held-for` re-arms the debounce without re-asking TIME", async () => {
+  it("a LOWERED `held-for` re-arms the debounce without re-asking TIME", async () => {
     const seen = collected()
     const watch = makeWatch(seen.sink, { now: () => Date.now() })
-    // Long window first, then the edit while the hold is settled.
+    // Long window first, then the LOWERED edit while the hold is settled.
+    // (A raised one sits out the difference — see `reconfigure`.)
     watch.reconfigure(tiny({ heldForMs: 400 }))
     watch.observe("t1", row("t1", "awaiting_user"))
     await sleep(30)
@@ -313,6 +311,67 @@ describe("the attention watcher", () => {
     watch.stop()
   })
 
+  it("editing `held-for` mid-lodge does not touch a fired hold's nag pace", async () => {
+    const seen = collected()
+    const watch = makeWatch(seen.sink, { now: () => Date.now() })
+    watch.reconfigure(tiny({ heldForMs: 40, nagMs: 80 }))
+
+    watch.observe("t1", row("t1", "waiting"))
+    await sleep(190)
+    // FIRED, the debounce spent; the first nag lands at emission+80.
+    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
+    expect(seen.events.filter((e) => e.kind === "nag").length).toBe(1)
+
+    // A knob the nag does not care about must not push it out. A re-ARM by
+    // now+nag would put the next one 80 ms from the edit; the cadence
+    // keeps — measured from the last EMISSION through `armNag`.
+    watch.reconfigure(tiny({ heldForMs: 400, nagMs: 80 }))
+    await sleep(60)
+    expect(seen.events.filter((e) => e.kind === "nag").length).toBeGreaterThanOrEqual(2)
+    watch.stop()
+  })
+
+  it("a moved nag knob re-arms from the LAST EMISSION, not from the edit", async () => {
+    const seen = collected()
+    const watch = makeWatch(seen.sink, { now: () => Date.now() })
+    watch.reconfigure(tiny({ heldForMs: 40, nagMs: 200 }))
+
+    watch.observe("t1", row("t1", "waiting"))
+    await sleep(60)
+    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
+
+    // The transition fired; the editor lowers `nag` 60 ms later, so the
+    // next one lands at emission+100 — not EDIT+100, which is opus's
+    // minute-long typing of one file, shelved at a hundredth the clock.
+    await sleep(60)
+    watch.reconfigure(tiny({ heldForMs: 40, nagMs: 100 }))
+    await sleep(50)
+    expect(seen.events.filter((e) => e.kind === "nag").length).toBeGreaterThanOrEqual(1)
+    watch.stop()
+  })
+
+  it("the ring caps and evicts, in both directions", async () => {
+    const seen = collected()
+    const watch = makeWatch(seen.sink, { now: () => Date.now() })
+    watch.reconfigure(tiny({ heldForMs: 5, nagMs: 60_000 }))
+    for (let i = 1; i <= 207; i += 1) {
+      watch.observe(`t${i}`, row(`t${i}`, "waiting"))
+    }
+    await sleep(70)
+    // The two halves of "the cap fired": the oldest ids are GONE from the
+    // live ring (the deltas saw them drop) and the newest arrived.
+    const live = watch.events()
+    expect(live.size).toBe(200)
+    const ghosted = seen.events.slice(0, 8).filter((e) => !live.has(e.id))
+    expect(ghosted.length).toBe(8)
+    expect(live.has(seen.events.at(-1)!.id)).toBe(true)
+    // And the view a subscriber rebuilt from deltas alone agrees —
+    // `readAll` cannot name what the wire evicted.
+    expect(seen.ring().size).toBe(200)
+    expect(seen.ring().has(seen.events.at(-1)!.id)).toBe(true)
+    watch.stop()
+  })
+
   it("stops cleanly — no timer outlives it", async () => {
     const seen = collected()
     const watch = makeWatch(seen.sink, { now: () => Date.now() })
@@ -324,6 +383,122 @@ describe("the attention watcher", () => {
     const atStop = seen.events.length
     await sleep(120)
     expect(seen.events.length).toBe(atStop)
+  })
+
+  it("a close an unsettled prefix re-asks the mute fold", async () => {
+    const seen = collected()
+    const watch = makeWatch(seen.sink, { now: () => Date.now() })
+    watch.reconfigure(tiny())
+    // BOTH ids live, the prefix `t` names two: the mute silences nobody
+    // (padi's own verdict once a mutes' answer is two) — both fire.
+    watch.observe("t1", row("t1", "awaiting_user"))
+    watch.observe("t2", row("t2", "awaiting_user"))
+    watch.reconfigure(tiny({ muted: ["t"] }))
+    await sleep(70)
+    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(2)
+
+    // THE fleet moves one more time — t2 closes — and the ride out should
+    // not leave the answer at ambient: `t` names one now, so the hold dies
+    // without a first nag packing the ring past its target.
+    watch.remove("t2")
+    await sleep(180)
+    expect(seen.events.filter((e) => e.kind === "nag").length).toBe(0)
+    watch.stop()
+  })
+})
+
+describe("a link drop is not a closing fleet", () => {
+  it("the flap fires nothing — no transition the wire already said", async () => {
+    const seen = collected()
+    const watch = makeWatch(seen.sink, { now: () => Date.now() })
+    watch.reconfigure(tiny({ heldForMs: 40, nagMs: 110 }))
+    watch.observe("t1", row("t1", "awaiting_user"))
+    await sleep(70)
+    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
+    const saidSince = seen.events.find((e) => e.kind === "transition")!.row!.since
+
+    // THE FLAP: rows fall, the link says nothing, time alone talks. Through
+    // the blind span, the nag arm would have fired — save no.
+    watch.suspend("t1")
+    await sleep(140)
+    expect(seen.events.filter((e) => e.kind === "nag").length).toBe(0)
+
+    // AND RESUME. A re-dated hold would answer at once; the hold's own
+    // clock keeps ticking — the DEBT of the nag the blind span swallowed
+    // folds especially: the row was waiting through the flap, so the
+    // next said is fired on the row's return, by the same arithmetic the
+    // soak's own `kolu watch` runs on a reconnect of its own daemon.
+    watch.observe("t1", row("t1", "awaiting_user"))
+    await sleep(40)
+    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
+    const nags = seen.events.filter((e) => e.kind === "nag")
+    expect(nags.length).toBe(1)
+    // And the said hands the ORIGINAL `since` — the flap's lie is exactly
+    // what it doesn't say.
+    expect(nags[0]!.row!.since).toBe(saidSince)
+    await sleep(120)
+    // And the cadence resumes: the next one rides emission+110 from THAT
+    // emission — its own.
+    expect(seen.events.filter((e) => e.kind === "nag").length).toBeGreaterThanOrEqual(2)
+    watch.stop()
+  })
+
+  it("a hold that crossed its window while the fleet was blind fires on its return", async () => {
+    const seen = collected()
+    const watch = makeWatch(seen.sink, { now: () => Date.now() })
+    watch.reconfigure(tiny({ heldForMs: 40, nagMs: 110 }))
+    watch.observe("t1", row("t1", "awaiting_user"))
+    await sleep(20)
+    // Suspended INSIDE the debounce at 20 of 40; the blind span swallows
+    // five times the window.
+    watch.suspend("t1")
+    await sleep(200)
+    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(0)
+    // On the resume the math reads left from `since + heldFor`: the debt
+    // lands at once, once — not re-deferred the flap's length.
+    watch.observe("t1", row("t1", "awaiting_user"))
+    await sleep(30)
+    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
+    watch.stop()
+  })
+
+  it("a preserved hold answers only to its own bucket — a different one is a renewed hold", async () => {
+    const seen = collected()
+    const watch = makeWatch(seen.sink, { now: () => Date.now() })
+    watch.reconfigure(tiny({ heldForMs: 40, nagMs: 110 }))
+    watch.observe("t1", row("t1", "awaiting_user"))
+    await sleep(70)
+    const flappedAt = seen.events.filter((e) => e.kind === "transition").length
+    expect(flappedAt).toBe(1)
+
+    // The flap, and the id RETURNS in the OTHER held bucket: it is the rule
+    // `observe` always holds — one hold closes, another opens with its own
+    // since — and the flap changes nothing about it.
+    watch.suspend("t1")
+    await sleep(100)
+    watch.observe("t1", row("t1", "waiting"))
+    await sleep(70)
+    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(2)
+    watch.stop()
+  })
+
+  it("an edit saying a suspended hold is to die is obeyed at the flap", async () => {
+    const seen = collected()
+    const watch = makeWatch(seen.sink, { now: () => Date.now() })
+    watch.reconfigure(tiny())
+    watch.observe("t1", row("t1", "awaiting_user"))
+    await sleep(70)
+    expect(seen.events.filter((e) => e.kind === "transition").length).toBe(1)
+
+    watch.suspend("t1")
+    watch.reconfigure(tiny({ muted: ["t1"] }))
+    // The return of the muted id is another plain observation — the gate
+    // folds it and no arm is set: through a nag window and some, the ring
+    // gets no nag.
+    watch.observe("t1", row("t1", "awaiting_user"))
+    await sleep(180)
+    expect(seen.events.filter((e) => e.kind === "nag").length).toBe(0)
+    watch.stop()
   })
 })
 
@@ -395,6 +570,7 @@ describe("the watcher's chain through the mirror", () => {
         link: () => {},
         upsert: (id: string, row: FleetTerminal) => watch.observe(id, row),
         remove: (id: string) => watch.remove(id),
+        clearedRow: (id: string) => watch.suspend(id),
         say: seen.sink.say,
       },
       {

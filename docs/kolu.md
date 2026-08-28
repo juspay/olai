@@ -53,7 +53,7 @@ Press the `● kolu` readout and a panel opens: **what recently wanted attention
 
 Every row is a **frozen draw of the moment the event fired** — which pip it wore, which label it had, how long it had already held. The row is a fact about the past, not a current affairs teller: a terminal that found its answer ten minutes ago still shows the ask it was, and the headline age runs off the same clock as the pips.
 
-The watch is the SERVER's — one watcher, one ring of the last roughly two hundred events, and every browser is a reader of it. A quiet feed and a dead feed read alike from a distance, so the watcher also **pulses** — a heartbeat row every `heartbeat` — the line `the watcher is alive` proving the silence is peace, not a hang.
+The watch is the SERVER's — one watcher, one ring of the last roughly two hundred events, and every browser is a reader of it. A quiet feed and a dead feed read alike from a distance, so the watcher also **pulses** — a heartbeat row every `heartbeat` — the line `the watcher is alive` proving the silence is peace, not a hang. A padi link flapping under olai fires nothing: a fleet emptied because the socket went is a fleet PAUSED, not a closing one — the holds keep their own clocks through it, and a `since` survives a reconnect the way padi's own daemon runs it.
 
 Where a terminal asks is the only thing a held state cannot tell: you WANT it to ask somewhere. **Mute the fleet one at a time** in `_olai/Kolu.olai`, the same file the watch reads its cadence from:
 
@@ -63,7 +63,7 @@ Where a terminal asks is the only thing a held state cannot tell: you WANT it to
 {"id":"one","parent":"mutes","ord":"a0","title":"a side shell nobody watches","custom":{"terminal":"5c5824d5"}}
 ```
 
-The file is normal outline records. The watch node carries the knobs — `held-for` (the pause that holds a terminal's state out of the feed), `nag` (how often an unanswered one is said again) and `heartbeat` — written as `<n>s`, `<n>m` or `<n>h`; an absent value defaults, and a malformed one defaults **and is said on the server's console**, so a typing mistake is never silent. The mutes are children of a `mutes` node holding one `terminal` property each — full id or a unique prefix of one. Edits land live: the watch reads its knobs on every vault revision, so the file a person is *editing* is the file a person is **already being watched by**.
+The file is normal outline records. The watch node carries the knobs — `held-for` (the pause that holds a terminal's state out of the feed), `nag` (how often an unanswered one is said again) and `heartbeat` — written as `<n>s`, `<n>m` or `<n>h`; an absent value defaults, and a malformed one defaults **and is said on the server's console at warning level**, so a typing mistake is never silent. The grammar is padi's own: `held-for` may be `0` — the report the INSTANT a state lands, which padi's watch flags also allow — but the other two never are, because a nag every 0 ms is the spin padi's own schema refuses, and both cap at the ~24.8-day timer bound. The mutes are children of a `mutes` node holding one `terminal` property each — full id or a unique prefix of one. Edits land live: the watch reads its knobs on every vault revision, so the file a person is *editing* is the file a person is **already being watched by**.
 
 An ambiguous prefix — one that names two open terminals — silences neither, and says so: write more of the id.
 

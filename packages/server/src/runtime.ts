@@ -730,6 +730,11 @@ export const bind = (
       // that dropped — is the same channel, because the alternative is this
       // module deciding which of padi's sentences matter.
       say: (line) => say(Effect.logDebug(line)),
+      // What the OWNER must read: a malformed `_olai/Kolu.olai` value, an
+      // ambiguous mute — the sentences whose promise lives in `docs/kolu.md`.
+      // Rare by latch (one line per new shape or value), and the default
+      // console level is `info`, so the channel is `warning`, not `debug`.
+      warn: (line) => say(Effect.logWarning(line)),
     })
 
     /**

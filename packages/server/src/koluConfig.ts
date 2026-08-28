@@ -30,10 +30,19 @@
  * text is authoritative-as-written rather than repaired: olai does not
  * edit the person's file.
  *
- * The values are read across the whole file's nodes, and the FIRST
- * `watch` node decides, for the reason throttle decided the key: one
- * file is one decision, and a second `watch` node is the owner's mistake,
- * not a precedence question.
+ * One file decides THE WHOLE reading, the way the convention decides a
+ * file: the shallowest file holding EITHER node, ties by path, and both
+ * halves are then read inside it — a `watch` in one file and a `mutes` in
+ * another is not composed, any more than two `watch` nodes would be: the
+ * SECOND of any of them is the owner's mistake, not a precedence
+ * question.
+ *
+ * The VALUES also answer padi's grammar, besides the vault's: `held-for`
+ * accepts `0` the way padi's own `heldForMs` does — the instant report —
+ * and `nag` and `heartbeat` do not, because a nag every 0 ms is the spin
+ * padi itself refuses. Every duration is capped at `MAX_TIMER_MS`: past
+ * that, the timer wrap fires near-instantly forever and it is the
+ * malformed half rather than a knob.
  *
  * WHAT IS NOT READ here is the mutes' resolution: a `terminal` value may
  * be a full id or a prefix of one, and which fleet ids it names is a
@@ -55,6 +64,22 @@ const MUTES_TITLE = "mutes"
 /** One duration written as the vault writes it, `<n>s|m|h`, in ms. */
 const DURATION = /^(\d+)(s|m|h)$/
 const UNIT_MS: Readonly<Record<string, number>> = { s: 1_000, m: 60_000, h: 3_600_000 }
+
+/** The timer ceiling padi's own schema documents: past it a `setTimeout`
+ *  wraps to a near-instant fire-forever. Spelled locally: the `@kolu`
+ *  product tier is confined by the repo's fence to the two kolu packages.
+ */
+const MAX_TIMER_MS = 2_147_483_647
+
+/** Each prop's floor, in padi's own reading: `held-for` is a debounce and
+ *  `0` is its legal "say it the instant it holds"; `nag` and `heartbeat`
+ *  are INTERVALS, whose zero cannot be spelled into a loop the timers are
+ *  then asked to hold. */
+const FLOORS: Readonly<Record<WatchProp, number>> = {
+  "held-for": 0,
+  nag: 1,
+  heartbeat: 1,
+}
 
 /** The three props `watch` carries, in the order a reader sets them. */
 type WatchProp = "held-for" | "nag" | "heartbeat"
@@ -114,14 +139,20 @@ const mutesOf = (nodes: ReadonlyArray<Located>, parent: string): ReadonlyArray<s
  */
 export const watchConfigIn = (nodes: ReadonlyArray<Located>): WatchReading => {
   const regulars = nodes.filter(isRegular).filter(inKoluFile).sort(byConvention)
-  const watch = regulars.find(({ node }) => node.title === WATCH_TITLE)
-  const mutes = regulars.find(({ node }) => node.title === MUTES_TITLE)
-  if (watch === undefined && mutes === undefined) {
-    return { config: DEFAULT_WATCH, malformed: [] }
-  }
+  // THE ONE FILE that decides: the first by convention holding EITHER node;
+  // both halves are read inside it — a `watch` in one file and a `mutes`
+  // in another would be two minds the way two `watch` nodes would.
+  const theFile = regulars.find(({ node }) =>
+    node.title === WATCH_TITLE || node.title === MUTES_TITLE
+  )?.file
+  if (theFile === undefined) return { config: DEFAULT_WATCH, malformed: [] }
+  const inside = regulars.filter((located) => located.file === theFile)
+  const watch = inside.find(({ node }) => node.title === WATCH_TITLE)
+  const mutes = inside.find(({ node }) => node.title === MUTES_TITLE)
   const malformed: Array<string> = []
   /** One prop, defensively: the default stands, and a line names the file,
-   *  the node, the value and the grammar it violated. */
+   *  the node, the value and the grammar it violated. The vault is left
+   *  with its word — a repair is the editor's, not this reader's. */
   const readDuration = (key: WatchProp, fallback: number): number => {
     if (watch === undefined) return fallback
     const value = customText(watch.node, key)
@@ -135,7 +166,20 @@ export const watchConfigIn = (nodes: ReadonlyArray<Located>): WatchReading => {
     }
     const [, amount, unit] = match
     if (amount === undefined || unit === undefined) return fallback
-    return Number(amount) * (UNIT_MS[unit] ?? 1_000)
+    const ms = Number(amount) * (UNIT_MS[unit] ?? 1_000)
+    if (ms < FLOORS[key]) {
+      malformed.push(
+        `kolu: \`${key}: ${value}\` in ${watch.file} is not an interval its timer allows — padi refuses a ${key} of 0 as the spin it is.`,
+      )
+      return fallback
+    }
+    if (ms > MAX_TIMER_MS) {
+      malformed.push(
+        `kolu: \`${key}: ${value}\` in ${watch.file} is past the ~24.8-day timer ceiling — it over-writes a setTimeout into a steady fire.`,
+      )
+      return fallback
+    }
+    return ms
   }
   return {
     config: {
