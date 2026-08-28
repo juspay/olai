@@ -13,7 +13,13 @@
  *   1. **the adapter completes a background task's call at LAUNCH** — which is
  *      why olai carries a patch on its pin (`acp/patches/README.md`), and
  *      which stops being true the day upstream lands one of its own;
- *   2. **the task's own EVENTS are on no wire underneath it.** A monitor's
+ *   2. **a resumed subagent is the same call, going round again.** A subagent
+ *      that has reported can be sent more work; the harness starts its task a
+ *      second time and names the call that WOKE it, while everything the agent
+ *      does goes on being stamped with the call that SPAWNED it. So olai's
+ *      patch reopens the spawning call — and what a client can see of a resume
+ *      is exactly what this prints;
+ *   3. **the task's own EVENTS are on no wire underneath it.** A monitor's
  *      every line reaches the model and the task's output file, and no message
  *      in the SDK stream carries one — so the panel draws the task's life and
  *      not its events, and the next person to look will assume the adapter is
@@ -28,12 +34,23 @@
  *   AGENT=$(nix build .#acp-agent --no-link --print-out-paths)/bin/claude-agent-acp \
  *     bun tasks.ts
  *   KIND=bash bun tasks.ts        # a background shell, whose ending carries an exit code
+ *   KIND=resume bun tasks.ts      # a subagent, reported, and then sent more work
  *   RAW=1 bun tasks.ts            # every SDK message the adapter forwarded, too
  *
  * `KIND=monitor` (the default) arms a `Monitor` that ticks a few times and
  * ends; `KIND=bash` sends a shell command to the background that exits 3,
  * because the two endings are different sentences and only one of them has an
- * exit code in it.
+ * exit code in it. `KIND=resume` is TWO turns rather than one — spawn, then
+ * wake the same agent with `SendMessage` — because a resume is only a resume
+ * once somebody has reported.
+ *
+ * WHAT TO LOOK FOR under `KIND=resume`, against the patched pin: the second
+ * `task_started` carries the SAME `task_id` as the first and a DIFFERENT
+ * `tool_use_id` (the `SendMessage`), a `tool_call_update` puts the original
+ * `Agent` call back to `in_progress` beside it, the agent's new calls carry
+ * that same original id as their parent, and the settle closes it again.
+ * Against an UNPATCHED adapter every one of those middle frames is missing,
+ * which is the panel this lane was opened about: a running agent with no face.
  */
 
 import { spawn } from "node:child_process"
@@ -49,22 +66,38 @@ const RAW = process.env["RAW"] === "1"
  *  half a minute to end on its own. */
 const AFTER_MS = Number(process.env["AFTER_MS"] ?? "45000")
 
-/** The two prompts, each written to produce exactly one background task and
- *  then stop. They name the tool because what is being measured is that tool's
- *  frames; a prompt that let the model choose would measure the model. */
-const PROMPTS: Record<string, string> = {
-  monitor:
+/** The turns each kind sends, each written to produce exactly one background
+ *  task and then stop. They name the tool because what is being measured is
+ *  that tool's frames; a prompt that let the model choose would measure the
+ *  model.
+ *
+ *  A LIST rather than a prompt, for the one kind that cannot be a single turn:
+ *  a resume is a thing that happens to an agent that has already reported, so
+ *  the first turn has to be over before the second is worth sending. */
+const PROMPTS: Record<string, ReadonlyArray<string>> = {
+  monitor: [
     'Use the Monitor tool exactly once with description "tick watch", persistent false, ' +
     "timeout_ms 60000, and command: for i in 1 2 3; do echo tick-$i; sleep 2; done. " +
     "Then reply with just the word ARMED and end your turn. Do not call any other tool.",
-  bash:
+  ],
+  bash: [
     "Run this with the Bash tool with run_in_background true: sleep 4; echo halfway; sleep 4; " +
     "exit 3 — then reply with just the word ARMED and end your turn. Do not poll it, do not " +
     "call BashOutput.",
+  ],
+  resume: [
+    'Use the Agent tool exactly once, with description "count the ticks" and subagent_type ' +
+    "general-purpose, and give it this task: run `echo tick-one` with the Bash tool, then " +
+    "reply with the word ONE and nothing else. When it reports, reply with just the word " +
+    "SPAWNED and end your turn. Do not call any other tool.",
+    "Use SendMessage to send that SAME subagent a follow-up: run `echo tick-two` with the " +
+    "Bash tool and reply with the word TWO. Do NOT spawn a new agent with the Agent tool. " +
+    "When it answers, reply with just the word RESUMED and end your turn.",
+  ],
 }
 
-const prompt = PROMPTS[KIND]
-if (prompt === undefined) {
+const prompts = PROMPTS[KIND]
+if (prompts === undefined) {
   console.error(`KIND must be one of ${Object.keys(PROMPTS).join(", ")} — got "${KIND}"`)
   process.exit(2)
 }
@@ -131,11 +164,17 @@ const heard = (message: Record<string, unknown>): void => {
       | Record<string, unknown>
       | undefined
     const task = claude?.["backgroundTask"]
+    // WHOSE CALL IT IS, beside the two fields above, because that is the
+    // whole of what a resume can be read from: the agent's own work names the
+    // call that spawned it, on its first outing and on every one after.
+    const parent = claude?.["parentToolUseId"]
     say(
       `ACP  ${String(update["sessionUpdate"]).padEnd(17)} ${
-        String(update["status"] ?? "—").padEnd(12)
-      }`,
-      `${String(claude?.["toolName"] ?? "")}${
+        String(update["toolCallId"] ?? "—").padEnd(30)
+      } ${String(update["status"] ?? "—").padEnd(12)}`,
+      `${String(claude?.["toolName"] ?? "—")}${
+        claude?.["subagent"] === true ? "  subagent" : ""
+      }${parent === undefined ? "" : `  parent=${String(parent)}`}${
         task === undefined ? "" : `  backgroundTask=${JSON.stringify(task)}`
       }`,
     )
@@ -187,9 +226,14 @@ const sessionId = ((opened["result"] ?? {}) as Record<string, string>)["sessionI
 say("open", `session=${sessionId}`)
 await ask("session/set_mode", { sessionId, modeId: "bypassPermissions" })
 
-say("prompt", `KIND=${KIND}`)
-const answered = await ask("session/prompt", { sessionId, prompt: [{ type: "text", text: prompt }] })
-say("prompt returned", JSON.stringify(answered["result"] ?? answered["error"]).slice(0, 120))
+let turn = 0
+for (const text of prompts) {
+  turn++
+  say(`prompt ${turn}`, `KIND=${KIND}`)
+  const answered = await ask("session/prompt", { sessionId, prompt: [{ type: "text", text }] })
+  const outcome = JSON.stringify(answered["result"] ?? answered["error"])
+  say(`prompt ${turn} returned`, outcome.slice(0, 120))
+}
 say("listening", `${AFTER_MS / 1000}s — everything below arrives in NO turn`)
 
 await new Promise((done) => setTimeout(done, AFTER_MS))

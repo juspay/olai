@@ -65,8 +65,8 @@ Added here, and not in #941:
   behaviour and the direction this is safe to fail in. Nothing here can invent
   a live face for a call the harness never registered a task for, and nothing
   guards against the vocabulary drifting: what would catch that is a run of
-  `packages/tests/tasks.ts`, which prints the timeline for a real `Monitor` and
-  a real background shell;
+  `packages/tests/tasks.ts`, which prints the timeline for a real `Monitor`, a
+  real background shell and a real subagent sent more work;
 - **correlation and metadata off `task_started.tool_use_id`**. The harness
   names the arming tool use on that frame, and it also names the task's KIND
   (`task_type`) and the DESCRIPTION it was armed with — none of which the
@@ -87,6 +87,32 @@ Added here, and not in #941:
   bookend and carries no summary, so it settles the call and the
   `task_notification` beside it refines the same call with the sentence —
   which is ACP's own upsert rule rather than a second mechanism;
+- **a task's SECOND LIFE** (`reopenBackgroundTask`, `taskOrigins`), which is
+  a subagent's: an agent that has reported can be sent more work, and the
+  harness starts the SAME task again. Measured against this pin
+  (`packages/tests/tasks.ts`, `KIND=resume`): the second `task_started` carries
+  the same `task_id` and a DIFFERENT `tool_use_id` — the `SendMessage` that
+  woke the agent — while every frame the agent then produces goes on naming the
+  call that SPAWNED it as its parent. Unpatched, and patched until this, the
+  wire said nothing at all about that: the spawning call completed at the first
+  report and nothing reopened it, the waking call completes at DELIVERY
+  (seconds before the work it delivered), and the task's own bookends are SDK
+  frames a client never sees. So a client had a running agent it could not draw
+  and no way to learn otherwise — the panel this was written for showed nothing
+  but a monitor while an agent worked for twenty minutes.
+
+  What it does is reopen the SPAWNING call — `status: in_progress` on the id
+  the client already knows — and let the settle bookends above close it again.
+  Never the waking call: a resume is not a second agent, and a second face for
+  one agent is a strip that counts two of everybody. It says NOTHING about
+  arming in either direction: `backgroundTask` is what a launch says about
+  itself, a resume registers nothing new, and the settle of a reopened call
+  drops the stamp accordingly — so a client's reading of the launch stays
+  exactly as true as the launch made it. `taskOrigins` is the one record here
+  that survives a settle, because it is what says a task starting again is an
+  old call going round again rather than a new one; it is one pair of ids per
+  task the session ever started, the order of memory `toolUseCache` already
+  keeps per call.
 - **`background_tasks_changed` as the bound** on the record above: a task that
   has both settled and left the live set is forgotten. It is never read as a
   settle in itself — the level carries no status, and closing a call on an
@@ -264,8 +290,9 @@ up to two lines from where its context said it belonged, and one reviewer's
 "this is the promise" and the other's "it was true" were both right and
 both mattered. The fix for a move is to re-apply the edits against the new
 `dist/acp-agent.js` — the anchors in `background-tasks-visible.patch` are
-all in `toAcpNotifications`' tool-result branch and in the SDK-message
-switch's `task_*` cases; the anchors in `session-list-info.patch` are
+all in `toAcpNotifications`' tool-result branch, in the session-state
+literal, and in the SDK-message switch's `task_*` cases (the `task_started`
+case now decides between reopening and registering); the anchors in `session-list-info.patch` are
 `listSessions` and the module surface above it — or to drop a patch
 upstream has landed, and say so here.
 

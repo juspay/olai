@@ -1,6 +1,6 @@
 --- a/dist/acp-agent.js
 +++ b/dist/acp-agent.js
-@@ -1221,6 +1221,108 @@
+@@ -1221,6 +1221,201 @@
              }
              await this.client.sessionUpdate(notification);
          };
@@ -41,6 +41,92 @@
 +            session.backgroundTasks.delete(record.taskId);
 +            session.emittedToolCalls.delete(record.toolUseId);
 +            delete session.toolUseCache[record.toolUseId];
++        };
++        /**
++         * olai patch (background-tasks-visible) — A TASK'S SECOND LIFE, which is
++         * an agent's: a subagent that has reported can be sent MORE WORK.
++         *
++         * The harness wakes it with a `SendMessage` and starts the SAME task
++         * again, naming on `task_started` the call that WOKE it rather than the
++         * call that spawned it — while everything the agent then does goes on
++         * being stamped with the spawning call (`parent_tool_use_id`). So to a
++         * client this is one agent, with one face, doing more work; and until
++         * this ran, that face was the one thing the wire never said was alive
++         * again. The spawning call completed at the first report and nothing
++         * afterwards reopened it, so a client had a running agent it could not
++         * draw and no way to learn otherwise: the resume's own bookends name a
++         * call that is already over (a `SendMessage` completes at delivery,
++         * seconds before the work it delivered).
++         *
++         * So the SPAWNING call is reopened, and the two bookends below close it
++         * again — the same call, going round a second time. Never the waking
++         * call: a resume is not a second agent, and a second face for one agent
++         * is a strip that counts two of everybody.
++         *
++         * NOTHING IS SAID HERE ABOUT ARMING, which is the one thing this must
++         * not restate. `backgroundTask` is what a LAUNCH says about itself — a
++         * task was registered, of this kind, with this description — and a
++         * resume registers nothing: the task running again is the one the launch
++         * already named. So the reopen carries the status and no more, and
++         * `settleBackgroundTask` drops the stamp for a call that got here, which
++         * leaves a client's reading of the launch exactly as true as the launch
++         * made it.
++         *
++         * The other direction — a beat reopening a call that has finished for
++         * good — is what `tool_progress` guards against by dropping ids that
++         * have left `emittedToolCalls`. This is the case that guard is not
++         * about: the harness has SAID the task started again.
++         */
++        const reopenBackgroundTask = async (taskId, toolUseId, taskType, description) => {
++            if (!taskId || !toolUseId) {
++                return false;
++            }
++            const origin = session.taskOrigins.get(taskId);
++            if (origin === undefined) {
++                // A FIRST LIFE — every task, the first time the harness names it.
++                // Remember which call it belongs to, and leave it to the ordinary
++                // arming path, which is the only thing that may put a launch on
++                // the wire.
++                session.taskOrigins.set(taskId, toolUseId);
++                return false;
++            }
++            if (origin === toolUseId) {
++                return false;
++            }
++            const record = registerBackgroundTask(taskId, origin, taskType, description);
++            if (record === undefined) {
++                return false;
++            }
++            // LAUNCHED, because nothing will arm this call a second time: what
++            // arms one is a tool RESULT carrying an acknowledgement, and this
++            // call answered its own an outing ago. A record left unlaunched
++            // would hold its own ending forever (the hold below) and the call
++            // would never close.
++            record.launched = true;
++            record.resumed = true;
++            record.settled = false;
++            record.terminal = undefined;
++            const toolUse = session.toolUseCache[record.toolUseId];
++            // The client is being told about this call again, which is what that
++            // set means. It is dropped at every settle, so an agent on its third
++            // outing arrives here with nothing but its id — which is enough,
++            // since a client names a row at the first frame that carries a title
++            // and no later one moves it.
++            session.emittedToolCalls.add(record.toolUseId);
++            await sendUpdate({
++                sessionId: params.sessionId,
++                update: {
++                    _meta: {
++                        claudeCode: {
++                            ...(toolUse ? { toolName: toolUse.name } : {}),
++                        },
++                    },
++                    toolCallId: record.toolUseId,
++                    sessionUpdate: "tool_call_update",
++                    status: "in_progress",
++                },
++            });
++            return true;
 +        };
 +        /** A task reached a terminal state: close the call that armed it, in the
 +         *  harness's own word for what happened (ACP folds killed/stopped into
@@ -85,9 +171,16 @@
 +                        claudeCode: {
 +                            ...(toolUse ? { toolName: toolUse.name } : {}),
 +                            taskStatus: status,
-+                            backgroundTask: backgroundTaskMeta(record, {
-+                                status,
-+                                ...(summary === undefined ? {} : { summary }),
++                            // olai patch (background-tasks-visible): the stamp
++                            // belongs to the LAUNCH, and a reopened call was not
++                            // launched again — see `reopenBackgroundTask`. The
++                            // summary below still rides it: that is the agent's
++                            // own report, and it is news whichever outing ends.
++                            ...(record.resumed ? {} : {
++                                backgroundTask: backgroundTaskMeta(record, {
++                                    status,
++                                    ...(summary === undefined ? {} : { summary }),
++                                }),
 +                            }),
 +                        },
 +                    },
@@ -109,7 +202,7 @@
          const resetTurnScratch = () => {
              lastAssistantTotalUsage = null;
              lastAssistantUsage = null;
-@@ -2155,11 +2257,20 @@
+@@ -2155,11 +2350,29 @@
                                      parentToolUseId: message.tool_use_id,
                                      isSubagent: !!message.subagent_type,
                                  });
@@ -117,7 +210,16 @@
 +                                // pair for the CLIENT's sake — this is the frame that names
 +                                // the task's kind and the description it was armed with, and
 +                                // the call it names stays open until the task settles.
-+                                registerBackgroundTask(message.task_id, message.tool_use_id, message.task_type, message.description);
++                                //
++                                // ... unless the harness is starting a task it has started
++                                // BEFORE, which is a subagent being sent more work: that
++                                // reopens the call the agent was SPAWNED by rather than
++                                // registering the task under the call that woke it
++                                // (`reopenBackgroundTask` says why one agent may only ever
++                                // have one face).
++                                if (!(await reopenBackgroundTask(message.task_id, message.tool_use_id, message.task_type, message.description))) {
++                                    registerBackgroundTask(message.task_id, message.tool_use_id, message.task_type, message.description);
++                                }
                                  if (message.subagent_type && session.activeTurn && !session.activeTurn.settled) {
                                      (session.activeTurn.spawnedTaskIds ??= new Set()).add(message.task_id);
                                  }
@@ -130,7 +232,7 @@
                                  // The task settled — no further tool calls can originate
                                  // from it, so its registry entry can be dropped.
                                  session.liveBackgroundTasks.delete(message.task_id);
-@@ -2173,6 +2284,10 @@
+@@ -2173,6 +2386,10 @@
                                  if (message.patch.status === "completed" ||
                                      message.patch.status === "failed" ||
                                      message.patch.status === "killed") {
@@ -141,7 +243,7 @@
                                      session.liveBackgroundTasks.delete(message.task_id);
                                  }
                                  break;
-@@ -2306,6 +2421,35 @@
+@@ -2306,6 +2523,35 @@
                                          }
                                      }
                                  }
@@ -177,7 +279,7 @@
                                  break;
                              default:
                                  unreachable(message, this.logger);
-@@ -3017,6 +3161,10 @@
+@@ -3017,6 +3263,10 @@
                              taskState: session.taskState,
                              emittedToolCalls: session.emittedToolCalls,
                              messageId: messageIdForGrouping(message),
@@ -188,7 +290,7 @@
                              toolUseResult: message.type === "user" ? message.tool_use_result : undefined,
                              // On the wire since CLI 2.1.216 but not in SDKUserMessage's
                              // type, hence the cast. Validated by parseToolResultMeta.
-@@ -3030,6 +3178,21 @@
+@@ -3030,6 +3280,21 @@
                              // meta and are excluded there.
                              await sendUpdate(notification);
                          }
@@ -210,7 +312,7 @@
                          break;
                      }
                      case "tool_progress": {
-@@ -4759,6 +4922,12 @@
+@@ -4759,6 +5024,19 @@
              toolUseCache: {},
              emittedToolCalls: new Set(),
              liveBackgroundTasks: new Map(),
@@ -220,10 +322,17 @@
 +            // own attribution registry and is pruned on the settle bookends; these
 +            // outlive it, because the client has to be TOLD about the settle.
 +            backgroundTasks: new Map(),
++            // ... and which call each task BELONGS to, for as long as the session
++            // does — the one thing here that must not be pruned at a settle,
++            // because it is what says a task starting again is an old call going
++            // round again rather than a new one (`reopenBackgroundTask`). One
++            // task id and one tool use id per task the session ever started,
++            // which is the order of memory `toolUseCache` keeps per call.
++            taskOrigins: new Map(),
              emittedAssistantText: false,
              owedTrailingIdles: 0,
              messageIdToUuid: new Map(),
-@@ -5836,6 +6005,49 @@
+@@ -5836,6 +6114,49 @@
      return byToolUseId;
  }
  /**
@@ -273,7 +382,7 @@
   * Convert an SDKAssistantMessage (Claude) to a SessionNotification (ACP).
   * Only handles text, image, and thinking chunks for now.
   */
-@@ -6020,7 +6232,26 @@
+@@ -6020,7 +6341,26 @@
              case "text_editor_code_execution_tool_result":
              case "mcp_tool_result": {
                  const wasEmitted = options?.emittedToolCalls?.has(chunk.tool_use_id) === true;
@@ -301,7 +410,7 @@
                  // Why this is_error result carries harness prose instead of tool
                  // output (user-rejected / interrupted / …), when the SDK said so.
                  // Spread into the claudeCode meta of every update emitted below; the
-@@ -6028,6 +6259,66 @@
+@@ -6028,6 +6368,66 @@
                  // carry `toolName`, which is unknown there).
                  const nonExecution = toolResultMeta?.get(chunk.tool_use_id);
                  const toolUse = toolUseCache[chunk.tool_use_id];
