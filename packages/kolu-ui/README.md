@@ -4,7 +4,7 @@ Everything a page draws about kolu, in one package: the row on a `terminal` prop
 
 - **`src/props/KoluUi.tsx`** — the socket: `KoluClient`, the structural pin, and the four members of the composition.
 - **`src/props/fleet.tsx` / `src/props/held.ts`** — the fleet the tab holds once: one subscription per tab however many chips are down the page, one map, one counter; and the accumulator the events ring reuses (a frame the events ring sees is the same move as one the fleet sees, since the server's ring is one Store).
-- **`src/props/EventsFeed.tsx` / `src/padi/events.ts`** — the drawer the Padi pill opens: what recently wanted attention, folded once on kolu's own folds, the words spelled here and **the renders spelled nowhere** — past tense means the past, even for a still-held state.
+- **`src/props/EventsFeed.tsx` / `src/padi/events.ts`** — the drawer the Padi pill opens: what recently wanted attention, the folds over kolu's own, the words spelled **once, in `padi/events.ts`, and nowhere else** — past tense means the past, even for a still-held state.
 - **`src/props/TerminalDoor.tsx` / `src/props/LivePane.tsx`** — the block and the window, wearing web's own chrome.
 - **`src/padi/said.ts`** — every word a status reads has one home; the header and the chat's probe speak this three-state sentence.
 - **`src/testids.ts`** — this half's `data-testid`s. Web keeps its own side of the bar.
