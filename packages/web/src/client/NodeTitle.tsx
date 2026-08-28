@@ -15,7 +15,7 @@
  *
  * ## AND A TITLE THAT IS NOTHING BUT AN ADDRESS IS DRAWN AS THE PAGE IT NAMES
  *
- * `/orchestrator/instructions.md` is a title this app WRITES: it is how a
+ * `/orchestrator/orchestrator.olai` is a title this app WRITES: it is how a
  * pin is spelled, because storing a name beside the address would be storing a
  * copy of a fact the set already holds (docs/format.md's Pins). The sidebar's
  * shelf resolved those rows from the first day and the FILE's own page did
