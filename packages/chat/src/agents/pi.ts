@@ -2,7 +2,10 @@
  * What PI-ACP means by what it sends — the third leg ({@link ./leg.ts}).
  *
  * Every reading here was captured live against **pi-acp 0.0.33**
- * (svkozak/pi-acp @ d1cffc0) driving **pi 0.84.2** as `pi --mode rpc
+ * (svkozak/pi-acp @ d1cffc047ab37a096ee70ca39cfc1de463db8d12 — two commits
+ * past the v0.0.33 tag, and the delta is `README.md` alone, so the revision
+ * this file was spiked against and the 0.0.33 the pin ships ARE the same
+ * wire) driving **pi 0.84.2** as `pi --mode rpc
  * --no-themes` (the spike, 2026-08-28: the adapter was spawned over stdio and
  * spoken to the way olai speaks — `fs` off, no terminal capability, a plain
  * `session/prompt` stream, a held turn, a mid-turn message, a `session/list`,
