@@ -145,6 +145,21 @@ describe("what is still out", () => {
     ).toEqual([{ row: "tool:2", kind: "agent", name: "author the PR", since: LATER }])
   })
 
+  test("a stamp on a call that is OVER dates from the row, not the last outing", () => {
+    // {@link @olai/surface}'s `outSince` carries its own running conjunct, so
+    // the stamp an outing left behind cannot date a row that has come back for
+    // good. Asserted here because this is where the strip would show it: nothing
+    // on the strip reads a settled row today, and the day something does, the
+    // wrong one of two instants is the failure this whole field was added to
+    // prevent.
+    expect(
+      watching(rows(
+        call("tool:2", { spawned: {}, status: "completed", resumed: LATER }),
+        call("tool:3", { spawned: {}, status: "in_progress", resumed: LATER }),
+      )),
+    ).toEqual([{ row: "tool:3", kind: "agent", name: "Agent", since: LATER }])
+  })
+
   test("a resumed spawn that has come back AGAIN is off the list again", () => {
     // The second outing ends the way the first did, and the stamp that says the
     // row has been round twice is not a licence to stay: what decides membership

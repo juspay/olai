@@ -980,8 +980,20 @@ export const isAgentOut = (entry: ToolEntry): boolean =>
  * somebody sent more work an hour after it reported, the honest answer counts
  * from the resume. A face is about what is happening now; the row is about
  * everything that happened.
+ *
+ * IT CARRIES ITS OWN CONJUNCT, the way {@link isTaskOut} and {@link isAgentOut}
+ * do and for their reason: an outing's stamp is not cleared when the call
+ * settles (it is the record of when the last one began, and a writer that
+ * unwrote it would be a second rule about the same field), so a row that has
+ * come back for good still has one. Both callers today ask this only of a
+ * running row and would never see the difference — which is exactly the shape
+ * of thing that stops being true at the third caller, and the difference it
+ * would answer with is the whole failure this function exists to prevent: two
+ * answers to when one call started. So a call that is over is dated from its
+ * birth, here, rather than in a precondition every reader has to have read.
  */
-export const outSince = (entry: ToolEntry): string => entry.resumed ?? entry.since
+export const outSince = (entry: ToolEntry): string =>
+  isStillRunning(entry) ? entry.resumed ?? entry.since : entry.since
 
 /**
  * WHAT TO CALL THE AGENT a call sent out — its description, and the call's own
