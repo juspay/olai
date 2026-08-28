@@ -15,16 +15,17 @@
   "//dependencies": "The composition root: it is the only package allowed to know about all of the others, and the direction is strictly downward (docs/architecture.md). @olai/identity is the person on the request, as a value — this package is the HTTP door over it, not the parse. @olai/state is where this machine keeps olai's own files — the runtime home the one-brain lock claims in and the state home a remembered git policy lives in, neither of them inside the vault. @olai/web is deliberately absent — the server serves a built bundle it is handed, it does not import the client.",
   "//acp": "The ACP SDK is NOT here: talking to an agent is @olai/chat's, and this package composes it. What is left of the agent in this file is a workspace dependency and one call.",
   "dependencies": {
-    "@effect/platform-node": "4.0.0-rc.110",
+    "@effect/platform-node": "4.0.0-rc.112",
     "@olai/chat": "workspace:*",
     "@olai/format": "workspace:*",
     "@olai/identity": "workspace:*",
+    "@olai/kolu-client": "workspace:*",
     "@olai/log": "workspace:*",
     "@olai/ops": "workspace:*",
     "@olai/state": "workspace:*",
     "@olai/store": "workspace:*",
     "@olai/surface": "workspace:*",
-    "effect": "4.0.0-rc.110"
+    "effect": "4.0.0-rc.112"
   },
   "//ws": "Not here any more, and that is the point of serveSurfaceApp: no source in this package names a websocket implementation. `ws` is the hydrated @kolu/surface-app's own peer dependency, declared at the ROOT with the rest of them (bunfig.toml has the argument).",
   "//devDependencies": "@olai/child is the subprocess socket the process-boundary tests ride (`child.testlib.ts`, `surfaceCli.test.ts`); product spawn is `@olai/chat`'s and `@olai/git`'s. Deliberately not a runtime dependency: nothing in the served binary imports it.",

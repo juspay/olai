@@ -218,6 +218,11 @@ import { editProcedures } from "./edit.ts"
 import { opsProcedures } from "./ops.ts"
 import { DatedAnswer, DatedRequest, Owed, OwedRequest } from "./dates.ts"
 import { MovingAnswer, MovingRequest, PageReading, PageRequest } from "./page.ts"
+/** KOLU'S SLICE, contributed rather than declared here — Design B, the sixth
+ *  sitting. The four members spread into their own sections below; the types
+ *  are re-exported at the tail, so a consumer still reads them off the composed
+ *  spec and no import outside this package changed. */
+import { koluMembers } from "@olai/kolu-client/wire"
 import { App } from "./app.ts"
 import { NarrowingAnswer, NarrowingRequest } from "./narrowing.ts"
 import { SearchAnswer, SearchRequest } from "./search.ts"
@@ -548,6 +553,7 @@ const sameSet = (a: Manifest, b: Manifest): boolean => (a === null) === (b === n
 
 export const surface = defineSurface({
   cells: {
+    ...koluMembers.cells,
     // Wire-read-only: the server is the only writer, and a write verb it never
     // serves would crash surface's boot walk.
     errors: {
@@ -765,8 +771,10 @@ export const surface = defineSurface({
       verbs: ["get"],
       equals: sameInboxHeld,
     },
+
   },
   collections: {
+    ...koluMembers.collections,
     /**
      * The served directory, one entry per outline file.
      *
@@ -893,6 +901,7 @@ export const surface = defineSurface({
       schema: Saying,
       verbs: ["deltas"],
     },
+
   },
   /**
    * THE TWO DATE READINGS THE SIDEBAR DRAWS — the shown month's dots, and how
@@ -936,6 +945,7 @@ export const surface = defineSurface({
    * neither is an answer anything without a screen can act on.
    */
   streams: {
+    ...koluMembers.streams,
     /** Which days of one month have something on them — see `@olai/format`'s
      *  `DatedRequest` / `DatedAnswer`, and the `sameDated` beside them, which
      *  the server binds as this member's `isEqual` and is what keeps a revision
@@ -1044,6 +1054,7 @@ export const surface = defineSurface({
     },
   },
   procedures: {
+    ...koluMembers.procedures,
     chat: {
       /** Prompt the agent. Answers as soon as the turn is ACCEPTED, not when
        *  it ends: what the panel draws comes back on the transcript, so every
@@ -1637,3 +1648,30 @@ export {
   isAttachable,
   MAX_ATTACHMENT_BYTES,
 } from "./attach.ts"
+
+/** THE KOLU HALF — the padi link, the fleet it mirrors, the pane's frames and
+ *  the one snapshot read a chip makes.
+ *
+ *  RE-EXPORTED FROM `@olai/kolu-client/wire`, which is where these shapes live
+ *  now: the sixth sitting ruled everything kolu-named out of the non-kolu
+ *  packages, spec included, and this is the one package the browser always
+ *  bundles. The re-export is the whole reason no consumer had to rewrite an
+ *  import — the composed spec still answers for its own members, which is what
+ *  a composed spec is for. */
+export {
+  FleetOwner,
+  FleetTerminal,
+  KOLU_UNDIALED,
+  KoluLink,
+  KoluStatus,
+  type Resolved,
+  resolveTerminal,
+  sameKolu,
+  Snapshot,
+  SnapshotRefused,
+  SnapshotRequest,
+  TerminalAttach,
+  TerminalFrame,
+  TERMINAL_KEY,
+  UNOWNED,
+} from "@olai/kolu-client/wire"

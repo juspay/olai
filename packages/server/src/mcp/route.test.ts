@@ -80,6 +80,12 @@ const withRoute = <A>(
       ops,
       writer: "mcp",
       hostname: hostname(),
+      // NO PADI. Every runtime in this file is a reader — a bound face, an MCP
+      // route — and none of them is about the terminal door; dialing whatever
+      // daemon happens to be on the machine running the suite would make these
+      // tests depend on it. `null` is the OFF setting, and what it produces is
+      // the same `absent` cell a laptop without kolu has.
+      kolu: null,
       git: gitWiring(
         ops,
         frozenPolicy({ commit: "off", push: null }),

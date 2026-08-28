@@ -1,0 +1,46 @@
+# @olai/kolu-client — how olai reaches kolu
+
+One package holds the dial, the standing mirror, the projection into olai's own vocabulary, and the one screen read. What leaves is [`@olai/surface`](../surface/README.md)'s shapes — a `KoluLink`, a `FleetTerminal`, a `Snapshot` — so a change to padi's contract is a change **here** and stops.
+
+**Olai works on top of kolu and never launches agents itself.** Every process with a model in it is a kolu terminal (`docs/brainstorming/orchestrator.md`); what olai does is *read* the fleet those terminals make and put it where the fact already is. This package is the whole of the reading.
+
+## What it is for, today
+
+The terminal door's two rungs (roadmap: `terminal-door`). A lane step carries `terminal: <id>`, so that property draws **kolu's own Dock row** in a plain outline and opens onto the terminal's screen — no route, no page, and no second visual language for a fleet that already has one.
+
+- **`link.ts`** — the dial and the **one standing mirror**. `connectPadi` over the unix socket, `mirrorRemoteSurface` of padi's `terminals` collection plus the two attention feeds (the `urgency` cell and the `activity` stream), and a five-second re-dial that never gives up. Ten tabs are ten subscriptions to olai's own `fleet` collection and *one* connection to padi, because the link is forked by the `kolu` cell's connector when the surface **binds** — the git sweep's arrangement applied to a socket. The invariant is structural at bind; `mirror.test.ts` counts it as well.
+- **`mirror.ts`** — the three clocks joined. padi's records move on one, its attention partition on two more (an agent transition; kaval's byte edge), and olai's ownership overlay on a fourth — the vault's revision stream. Each publishes only the rows it actually moved.
+- **`fleet.ts`** — one padi record projected to one row of kolu's own prop bag, joined with olai's ownership overlay. Every field is kolu's own fold: `bindStatePip`, `paintDockRow`, `rowSubline`, `activePr`, `annotationLine`, `identityColor`. Nothing here decides what a state means or what colour it paints — that was `face.ts`, and the fifth Löwy sitting deleted it by ratification.
+- **`socket.ts`** — where padi is: `$PADI_SOCKET` first, the rendezvous path algebra second. kolu's own README asks a client to be *given* the socket, because the correcting read-back stayed with the daemon.
+- **`screen.ts`** — one `screen.text` read, tailed here.
+- **`index.ts`** — `koluHalf`, which is what a server composes: three surface members and one revision hook.
+
+## Absent is a state, not a failure
+
+A machine with no kolu running is the ordinary case and every page must draw on it. So a dial that finds nothing produces a `KoluLink` on the `absent` arm and an empty fleet — never a failed effect, never a log at error level, and never a fleet that has quietly stopped moving with its last good rows still on screen. `skew` is a third arm rather than a flag on the second because the two have **opposite fixes**: one is "start kolu", the other is "these two builds disagree, and here are the versions".
+
+Nothing a dial can do may be fatal, and that is a rule with a scar on it: `connectPadi`'s compatibility gate *throws*, so a padi one major ahead arrives as a **defect**. Caught only on the error channel, it escaped, killed the connector's fiber and faulted the whole surface runtime — a skewed kolu took olai's server down on a machine where every page would otherwise have opened fine. The handler reads the **cause** now, and two tests plus an e2e scenario hold it.
+
+## The tail is taken here
+
+padi's `screen.text` window (`startLine`/`endLine`) is **absolute** into the scrollback, and kaval's only clamp is low-side — so "the last N lines" cannot be spelled in it without already knowing the buffer length, and a caller that tries gets the empty string for any terminal shorter than N. This package asks for the whole rendered buffer and slices the tail beside the padi hop, which is what kolu's own MCP face does for the same verb: the expensive wire is the one to the browser, and it carries only the tail. The trailing run of blank rows goes first, because a rendered buffer ends in the empty viewport below the cursor.
+
+kaval already resolves a `tail` extent internally and padi does not expose it; the ask is filed (`kolu-screen-tail`) rather than worked around further.
+
+## Why it is a package
+
+Because the wall makes the dependency direction **physics**. It began as a directory under [`@olai/server`](../server/README.md), and a directory can import its parent: one convenient reach into `runtime.ts` for a type and the boundary is a comment somebody has to keep believing. `@olai/kolu-client` cannot depend on `@olai/server` — a cycle does not resolve — so nothing has to be remembered and nothing has to be swept for. A grep-for-padi-imports check written while this was a directory was deleted when it became a package: it was a substitute for a wall.
+
+The manifest is **`@olai/surface` and `effect`**, and that is the whole olai half of it. `@olai/format` is deliberately not in it: the walk over the vault that decides who *owns* a terminal reads outline records, so it belongs to whoever holds the vault ([`@olai/server`](../server/README.md)'s `claimants.ts`), and what crosses into this package is four strings per claim (`fleet.ts`'s `Claimant`). Keeping that edge out is what stops "how olai reaches kolu" from also knowing what an outline node is.
+
+The `@kolu/*` packages it imports — `@kolu/padi-client`, `@kolu/solid-dockrow`, `@kolu/surface`, `@kolu/surface-daemon-supervisor`, `@kolu/terminal-vocab` — are absent from the manifest for [`@olai/surface`](../surface/README.md)'s reason (`bunfig.toml`): they are hydrated as raw TypeScript from the Nix store rather than installed from `bun.lock`, so they are declared once for the whole tree in the root `package.json`, and `scripts/check-kolu-deps.sh` keeps those versions honest.
+
+**What is NOT true, and was asserted here until 2026-08-27: that this is the only olai package importing them.** Six do. The honest partition is two tiers — `@kolu/surface*` is a FRAMEWORK olai's app is built on and is imported anywhere, like `effect`; the PRODUCT tier is the padi integration, and of that tier only `padi-client` and `terminal-vocab` are confined here. `@kolu/solid-dockrow` is deliberately shared with `@olai/web` — the fold here, the render there — which the fifth debate sitting ruled when it retired the one-package ceremony. What the wall actually is, and all it is, is the DIAL: this is the only package that opens padi's socket. Nothing mechanical enforces the rest; no `packages/*/package.json` declares an `@kolu/*` dependency at all.
+
+## The second pin
+
+`@kolu/padi-client` needs `osfacts-client`, which is not in the kolu tree — kolu grafts it from its own npins pin of `juspay/osfacts` and gitignores it. So olai pins that repository too, at **the revision kolu pins**, and hands kolu both the tree and the revision (`nix/kolu.nix`'s `pinnedSources`). Kolu compares that revision against the one its own closure records and REFUSES AT EVAL if they differ, naming both. That refusal replaced `scripts/check-osfacts-pin.sh`: the check used to run in one `just` leg and now runs every time the build graph is evaluated, which is all of them.
+
+## What is deliberately not here
+
+The driver, the gate predicates and the procedure registry `docs/brainstorming/orchestrator.md` also names are later phases. A registry with one entry is a shape arguing for itself before anything needs it — and when they land, they land here, which is the other half of what the wall buys: there is somewhere for them to go that is not the composition root.

@@ -61,7 +61,7 @@ check: typecheck test e2e kolu-deps fmt-check nix bun-nix-fresh hm-module
 # — so the expansion is deliberately unquoted.
 install:
     {{ nix_shell }} sh -c 'bun install --frozen-lockfile \
-      && sh scripts/hydrate-kolu-packages.sh $OLAI_KOLU_HYDRATE'
+      && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_KOLU_HYDRATE'
 
 # TypeScript type checking — every workspace member, from the glob bun
 # installs from
@@ -123,14 +123,15 @@ test: install
       ./packages/web/src/client/chat/last.browsertest.ts \
       ./packages/web/src/client/chat/attention/asked.browsertest.ts \
       ./packages/web/src/client/chat/attention/elsewhere.browsertest.ts \
-      ./packages/web/src/client/chat/declared.browsertest.ts
+      ./packages/web/src/client/chat/declared.browsertest.ts \
+      ./packages/kolu-ui/src/props/held.browsertest.ts
 
 # Every dependency the hydrated @kolu/* sources declare, checked against the
 # root package.json (bunfig.toml explains why they have to be there). Reads
 # the pinned sources in the store and this repo's manifests, never
 # node_modules — so it does not wait on `install` and fails fast.
 kolu-deps:
-    {{ nix_shell }} sh -c 'sh scripts/check-kolu-deps.sh $OLAI_KOLU_DIRS'
+    {{ nix_shell }} sh -c 'sh scripts/check-kolu-deps.sh'
 
 # Build the browser bundle into packages/web/dist. The nix build runs this
 # same script in its own sandbox (default.nix), so there is one bundler and not

@@ -23,6 +23,15 @@
  * the same tree. */
 @source "./";
 
+/* THE BROWSER'S KOLU HALF, as one line — `@olai/kolu-ui/all.css`.
+ *
+ * This was two vendor imports and a paragraph explaining kolu's own chain. The
+ * appliance carries that now: the row's sheet with its prerequisites, xterm's,
+ * and a `@source` pointed at its own directory. Which sheets those are, and in
+ * what order, is not something the app should have to know — the #2219 argument
+ * one level down, made before the wall rather than after. */
+@import "@olai/kolu-ui/all.css";
+
 /* The typefaces themselves — `@font-face` and every `:root[data-font]`
  * block — are generated from `@olai/fonts`'s catalog and appended by the
  * build. What stays here is the TOKEN NAMES and the default row's stacks, so
@@ -863,4 +872,132 @@ mark.olai-hit {
 
 .olai-md .hljs-strong {
   font-weight: var(--olai-md-weight-major);
+}
+
+/**
+ * The LIVE pane the row opens.
+ *
+ * SOLID, and that is the whole promise in one border: what is in this box is
+ * what is in the terminal, now. The pane it replaced was DASHED and said
+ * "snapshot · just now" — a still frame, taken once — and the two borders were
+ * promised as the way a reader tells them apart without reading a word. There
+ * is one pane today and the border is the solid one; the dashed rule is kept
+ * below because the screenshot face (terminal-door-polish part 1) is still a
+ * still frame and will want it back.
+ */
+.olai-live {
+  border: 1px solid var(--color-rule);
+  border-radius: 0.375rem;
+  background-color: var(--color-panel);
+}
+
+/* The terminal's own box.
+ *
+ * A HEIGHT is set rather than left to the content because xterm measures its
+ * grid from the element: a box that sized itself to its contents would have no
+ * rows to report before the first frame, and the grid a pane asks at would be a
+ * grid it invented.
+ *
+ * THE PADDING IS ON `.xterm`, NOT ON THIS WRAPPER, and that is the whole of the
+ * snipped-edges fix. Two things go wrong when a wrapper holds it: the theme
+ * paints the terminal and the wrapper's padding stays panel-coloured, so a
+ * light gutter frames a dark terminal; and glyphs sit flush against the canvas
+ * edge with the first and last columns shaved. xterm's own fit reads the
+ * padding off `terminal.element` and subtracts it before proposing a grid
+ * (`@xterm/addon-fit`'s `proposeDimensions`), so putting it there is what makes
+ * the measurement account for it — no fractional column is clipped at the right
+ * or the bottom, by construction rather than by arithmetic here.
+ *
+ * The wrapper's background is set INLINE from the resolved theme
+ * (`client/props/LivePane.tsx`), so the padding reads as terminal rather than
+ * as chrome. It cannot be a rule here: which background it is depends on which
+ * terminal is in the pane.
+ */
+.olai-live-screen {
+  /* A FIXED HEIGHT, and the terminal is fitted to it. The pane asks padi for
+   * the grid this box can show and renders it 1:1 — so the box is the
+   * measurement, not something computed back from a scaled terminal. */
+  height: 22rem;
+  width: 100%;
+  border-radius: 0.25rem;
+  overflow: hidden;
+}
+
+
+/* THE VIEWPORT IS WHERE THE BLACK CAME FROM, and it took the browser to say so
+ * rather than a third guess: `@xterm/xterm`'s own stylesheet sets
+ * `.xterm .xterm-viewport { background-color: #000 }` for a macOS scrollbar
+ * reason, and the runtime theme does NOT override it — the theme reaches the
+ * rows and the screen, so a cream terminal sat inside a black box and showed a
+ * ring of it around the edges. That ring is the "black bars" from the real
+ * board.
+ *
+ * Transparent rather than the theme colour: the wrapper already paints the
+ * theme, and one element painting it is one place for it to be wrong. */
+.olai-live-screen .xterm-viewport {
+  background-color: transparent;
+}
+
+/* THE SLIDER'S SHAPE — the other half of the pale block on the pane's right
+ * edge; the colour is `LivePane.tsx`'s, through xterm's own theme key.
+ *
+ * The recipe is kolu's `.scrollbar-subtle` (`client/src/index.css`): thin,
+ * fully rounded, and inset by a transparent border so the thumb floats clear
+ * of the edge instead of butting against it. That rule lives in kolu's APP
+ * rather than in a package, so there is nothing to import — this is the same
+ * shape drawn on the element xterm hands us. One more thing kolu should
+ * export; filed as such, and this deletes the day it is.
+ *
+ * THE `.xterm` IN THE MIDDLE IS LOAD-BEARING, and is why the first attempt
+ * changed nothing visible. xterm injects its own stylesheet at runtime, after
+ * this one, and its rule for this element carries four classes; a rule with
+ * four of its own ties and LOSES on source order. `background-clip` is the
+ * property that matters — xterm sets `background` shorthand, which resets the
+ * clip to `border-box` and fills the inset border right back in. Five classes
+ * win it outright. (Asked of the page, not reasoned: computed style said
+ * `radius: 9999px` and `clip: border-box` in the same breath.)
+ */
+.olai-live-screen .xterm .xterm-scrollable-element > .scrollbar > .slider {
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+.olai-live-screen .xterm {
+  /* TRANSPARENT, so the padding below shows the WRAPPER's colour — which is
+   * this terminal's own theme background, set inline. xterm's stylesheet paints
+   * its own black behind the terminal element, and with padding on it that
+   * black became a frame around a cream terminal: the "black bars" the human
+   * saw on the real board. The theme reaches the viewport and the rows on its
+   * own; this is the one square it does not cover. */
+  background-color: transparent;
+  /* Kolu's own terminal padding is app layout — a tile's chrome around the
+   * canvas, spelled in utility classes at its call site rather than exported as
+   * a constant. There is nothing to consume here, so this is olai's own
+   * breathing room and not a restatement of a number with a home elsewhere. */
+  padding: 0.375rem;
+}
+
+/**
+ * The DASHED still-frame border, kept for the screenshot face.
+ *
+ * Nothing wears it today: the pane the row opens is a live window and its
+ * border is solid, which is the distinction a reader is meant to make without
+ * reading a word. It stays because the screenshot face (terminal-door-polish
+ * part 1) is a still frame and will want exactly this back — and because the
+ * pair only means anything as a pair.
+ */
+.olai-snapshot {
+  border: 1px dashed var(--color-rule);
+  border-radius: 0.375rem;
+  background-color: var(--color-panel);
+}
+
+.olai-snapshot pre {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  margin: 0;
+  max-height: 22rem;
+  overflow: auto;
+  white-space: pre;
 }

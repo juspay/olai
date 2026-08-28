@@ -27,5 +27,12 @@ let
   };
 in
 args: nixpkgs (args // {
-  overlays = (args.overlays or [ ]) ++ [ (import ./kolu.nix).overlay bunFromPr ];
+  # The kolu sources are NOT an overlay any more. They used to be, so that
+  # `pkgs.kolu-src-<x>` resolved anywhere; but `nix/kolu.nix` is a function of
+  # `pkgs` now (kolu's `consumer.nix` needs one to build its copies), and an
+  # overlay that needs the package set it is extending is a cycle. Consumers
+  # take the sources from `(import ./nix/kolu.nix { inherit pkgs; }).packages`
+  # instead — already-realized derivations, reached by name rather than by
+  # having been spliced into `pkgs`.
+  overlays = (args.overlays or [ ]) ++ [ bunFromPr ];
 })

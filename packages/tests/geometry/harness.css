@@ -1,0 +1,17 @@
+/* The harness's sheet, and it is now exactly what the app's is.
+ *
+ * `styles.css` brings Tailwind, olai's own `@theme` tokens and its rules, and —
+ * since kolu#2219 — `@kolu/solid-dockrow/all.css`, which carries the pip's
+ * sheet and the theme tokens and points Tailwind at each package from inside
+ * that package. So there is nothing left for this file to arrange.
+ *
+ * It used to repeat the retired arrangement on top of that import: two
+ * `@source` lines reaching into `node_modules/@kolu/*/src` from three
+ * directories up, and the three sheets in the order the README used to require.
+ * That double-loaded every one of them, and — worse for a harness whose whole
+ * job is measurement — it measured a CASCADE THE APP NO LONGER HAS. A geometry
+ * shot is only evidence if the thing photographed is the thing that ships. */
+@import "../../web/src/client/styles.css";
+
+/* The harness's own components, which `styles.css` cannot see from here. */
+@source "./";

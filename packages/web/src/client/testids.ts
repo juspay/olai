@@ -203,6 +203,37 @@ export const TESTID = {
    *  verbatim, or a nudge that rode back on a write that landed. */
   propSaid: "prop-said",
 
+  /** WHETHER THIS OLAI CAN SEE KOLU'S TERMINALS — the third chrome readout,
+   *  beside the connection and the Commit pill (`client/padi/`). `data-padi`
+   *  is the closed set `connected` / `absent` / `skew`. Always drawn on
+   *  desktop: an indicator that appears only when something is wrong cannot be
+   *  trusted when it is absent. */
+  padi: "padi",
+
+  /** THE TERMINAL DOOR's row — kolu's own Dock row, drawn where the `terminal`
+   *  property is (`client/props/TerminalDoor.tsx`). The row's own attribute
+   *  contract is kolu's (`[data-dock-row]`, `data-bucket`, `data-agent-state`)
+   *  and is asserted through it rather than restated here; what olai owns is
+   *  this wrapper and `data-terminal`, the value the property holds. */
+  terminalBlock: "terminal-block",
+  /** What is drawn IN THE ROW'S PLACE when there is none — the sentence, and
+   *  the only thing that says why (`client/props/terminal.ts`). Its presence is
+   *  the assertion: a row and a reason are never both on screen. */
+  terminalSays: "terminal-says",
+  /** The snapshot pane the ROW opens — dashed border, the age line, the two
+   *  buttons. Present only while open; one per block. */
+  terminalPane: "terminal-pane",
+  /** THE LIVE TAG — the one word that separates this pane from the snapshot it
+   *  replaced, and the assertion a scenario makes that a window is a window.
+   *  Present only on a pane that is attached. */
+  terminalLive: "terminal-live",
+  /** The screen text inside it, verbatim, or the refusal in its place.
+   *  `data-state` is `reading` / `text` / `refused`. */
+  terminalScreen: "terminal-screen",
+  /** Read it again — the pane's whole promise is that it is a SNAPSHOT, and
+   *  this is the only thing that moves it. */
+  terminalRefetch: "terminal-refetch",
+
   /** The rollup badge — `3/5` of the tasks under a node. An annotation beside
    *  the title, never the node's own mark, which is the glyph. */
   progress: "progress",

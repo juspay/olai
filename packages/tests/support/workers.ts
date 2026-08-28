@@ -64,11 +64,28 @@ export const spawnFingerprint = (opts: {
    *  `GET /olai/who` differently — a scenario about the rung below it may not
    *  reuse one. */
   readonly avatar?: string;
+  /**
+   * WHICH PADI this server was pointed at (`@padi:<fleet>`), if any.
+   *
+   * Part of the key for the sharpest version of this function's whole reason:
+   * a server dialed at one padi is showing one FLEET, and a scenario that
+   * wants another must not reuse it — it would draw the first scenario's
+   * terminals and pass or fail on them.
+   *
+   * It also stops a `@padi:` server being shared BEYOND its own scenario at
+   * all, and that is not a side effect but the point: the padi dies in that
+   * scenario's After hook, so the next scenario would inherit a server whose
+   * link has gone — a page that draws hollow chips for a reason nothing in
+   * the feature says. Each socket is a fresh temp path, so the fingerprint is
+   * unique per scenario by construction.
+   */
+  readonly padiSocket?: string;
 }): string =>
   `stored=${opts.stored ? 1 : 0},agent=${opts.agent ? 1 : 0},opencode=${
     opts.opencode ? 1 : 0
   },kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}` +
-  `,commit=${opts.pin?.commit ?? "-"},push=${opts.pin?.push ?? "-"},avatar=${opts.avatar ?? "-"}`;
+  `,commit=${opts.pin?.commit ?? "-"},push=${opts.pin?.push ?? "-"},avatar=${opts.avatar ?? "-"}` +
+  `,padi=${opts.padiSocket ?? "-"}`;
 
 /** Cucumber numbers workers from 0. Unset means this process is the only
  *  one — a serial run, or a unit test. Used to name the per-worker temp
@@ -148,6 +165,14 @@ export const isolateEnv = (
   for (const key of Object.keys(host)) {
     if (key.startsWith("OLAI_IDENTITY_")) delete host[key];
   }
+  // WHERE PADI IS goes the same way and for the same reason, one variable over:
+  // a developer running kolu would otherwise hand every spawned server their
+  // own live padi, and the scenario that says a laptop without kolu draws
+  // hollow chips would draw their actual terminals. Taken off the HOST here
+  // rather than deleted after `extras`, which is where it used to be — that
+  // spelling also deleted the socket a `@padi:` scenario had just spawned, so
+  // the tag could not work at all.
+  delete host.PADI_SOCKET;
   const env: NodeJS.ProcessEnv = {
     ...host,
     ...extras,
@@ -159,7 +184,6 @@ export const isolateEnv = (
     // `.lock` files accumulated there.
     XDG_RUNTIME_DIR: runtime,
   };
-  delete env.PADI_SOCKET;
   // A worktree's `just run` writes OLAI_PORT_FILE; a spawned e2e server
   // that inherited it would try to rebind that address, which is the
   // other worktree's (or this one's) just-run — the defect this suite

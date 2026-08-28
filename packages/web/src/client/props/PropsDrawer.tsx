@@ -152,10 +152,14 @@
  */
 
 import { Key } from "@solid-primitives/keyed"
-import { createMemo, createSignal, Index, Show } from "solid-js"
+import { createMemo, createSignal, For, Index, Show } from "solid-js"
 
 import type { Entry } from "./drawer.ts"
 import { type Door, doorFor } from "./door.ts"
+
+import { type BlockChrome, layOut, registerBlock, TERMINAL_KEY } from "./blocks.ts"
+import { Handle } from "./handle.tsx"
+import { TerminalBlock } from "@olai/kolu-ui"
 import { type ClosedBy, type Editing, leavingCommits, openedOn, sending, writes } from "./editor.ts"
 import { Link } from "../router.tsx"
 import { useDoors, useNames } from "../reading.tsx"
@@ -164,6 +168,34 @@ import { createSaying } from "../saying.ts"
 import { SaidLine } from "../SaidLine.tsx"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
+
+// THE APP OWNS THE TABLE, and this is the whole of that ownership.
+//
+// It was a side-effect import: `./blocks.ts` was a table a renderer put ITSELF
+// into, and the drawer loaded the module so the key would be in the map. That
+// reads fine while everything is one package and stops being true the moment
+// the renderer is behind a wall — a self-registrant would put the appliance in
+// charge of the app's table, and the import direction would be a lie told by
+// an `import "…"` with no binding.
+//
+// So the renderer is a component and nothing else, and the registration is a
+// call the app makes. Against `TERMINAL_KEY` — `@olai/surface`'s exported
+// constant — never the string `"terminal"`: the key is the wire's, one
+// spelling, and a literal here would be a second one waiting to drift.
+
+/** THE DRAWER'S FURNITURE, minted once — every block gets the same object.
+ *
+ *  It lives HERE and not in `./blocks.ts` because that module is the seam and
+ *  is deliberately JSX-free: its own unit test imports it directly, and pulling
+ *  a `.tsx` in through it broke that test the moment the chrome was added
+ *  there. A type crosses a seam; a component belongs with the drawer. */
+const BLOCK_CHROME: BlockChrome = {
+  Handle,
+  factId: TESTID.prop,
+  valueId: TESTID.propValue,
+}
+
+registerBlock(TERMINAL_KEY, TerminalBlock)
 
 /**
  * HOW LONG A VALUE MAY BE before it is drawn folded.
@@ -274,6 +306,15 @@ export function PropsDrawer(props: {
    *  seconds, replaced by the next one, cleared by a commit with nothing to
    *  report (`../saying.ts`). */
   const saying = createSaying()
+  /**
+   * THE ENTRIES, CUT INTO WHAT DRAWS INLINE AND WHAT OWNS A ROW.
+   *
+   * `./blocks.ts` decides; this only draws what it is handed. The editor's own
+   * key goes in so that a property being TYPED draws as a chip even where it
+   * would otherwise be a block — one text box for every property in the vault,
+   * which is what stops each new block renderer from growing its own.
+   */
+  const laid = createMemo(() => layOut(props.entries, editing()?.key))
 
   /** Shut whichever editor is open, from either door. */
   const close = (): void => {
@@ -295,7 +336,7 @@ export function PropsDrawer(props: {
 
   return (
     <>
-      <Show when={props.entries.length > 0 || naming()}>
+      <Show when={laid().run.length > 0 || naming()}>
         {/* One line that wraps, not a grid. `items-baseline` because the keys are
             set in the mono face and the values are not, and two faces centred
             against each other sit on two baselines. */}
@@ -309,7 +350,7 @@ export function PropsDrawer(props: {
             reference every chip of every row would be rebuilt on every frame
             of the page. Keyed by {@link keyOf}, which is where the one thing
             that could collide is answered. */}
-        <Key each={props.entries} by={keyOf}>
+        <Key each={laid().run} by={keyOf}>
           {(entry) => (
             <Chip
               entry={entry()}
@@ -339,7 +380,7 @@ export function PropsDrawer(props: {
             with no chips is offered `Add property…` in its `•••` instead, for
             the reason the header gives. Hidden while the add chip is open,
             because two ways to open one box is one of them doing nothing. */}
-        <Show when={props.onSet !== undefined && props.entries.length > 0 && !naming()}>
+        <Show when={props.onSet !== undefined && laid().run.length > 0 && !naming()}>
           <button
             type="button"
             class={`${CHIP} cursor-pointer items-baseline rounded-full text-muted hover:text-accent`}
@@ -356,6 +397,25 @@ export function PropsDrawer(props: {
         </Show>
         </div>
       </Show>
+      {/* THE BLOCKS, under the run and in the file's own key order.
+          A property whose renderer OWNS ITS ROW draws here rather than in the
+          line above — `./blocks.ts` decides which, and this knows nothing about
+          any of them, which is the point: the drawer stopped asking "is this
+          the terminal key?" and started asking "does this property have a
+          block?". A block's own state (a pane it opens, a thing it expands)
+          belongs to the block, because a block already owns the width a chip
+          never had. Outside the run's `<Show>` for the said line's reason
+          below: a run can be empty of chips and still have blocks in it. */}
+      <For each={laid().blocks}>
+        {(laid) =>
+          laid.block({
+            entry: laid.entry,
+            onOpen: props.onSet === undefined
+              ? undefined
+              : () => setEditing({ key: laid.entry.key, value: laid.entry.value }),
+            chrome: BLOCK_CHROME,
+          })}
+      </For>
       {/* THE ANSWER OUTLIVES THE RUN. The line hangs off the drawer's own
           component rather than beside the chips, because one answer needs
           exactly that: a chip whose key was dropped under its open, typed
@@ -537,33 +597,6 @@ function Chip(props: {
 /** The KEY half, which is the handle — a button where the run may be written
  *  and the label it always was where it may not. One element either way as far
  *  as the eye is concerned; what differs is whether it answers a press. */
-function Handle(props: { readonly label: string; readonly onOpen?: () => void }) {
-  return (
-    <Show
-      when={props.onOpen}
-      fallback={
-        <span class="shrink-0 font-mono text-[0.6875rem] text-muted">{props.label}</span>
-      }
-    >
-      {(open) => (
-        <button
-          type="button"
-          class="shrink-0 cursor-pointer font-mono text-[0.6875rem] text-muted hover:text-accent"
-          data-testid={TESTID.propKey}
-          title={`change ${props.label}`}
-          onClick={(event) => {
-            // The row's own line answers a click by opening the title editor,
-            // and this one is about the fact under the pointer.
-            event.stopPropagation()
-            open()()
-          }}
-        >
-          {props.label}
-        </button>
-      )}
-    </Show>
-  )
-}
 
 /**
  * The members of a value, comma-separated, each asked the door question on its

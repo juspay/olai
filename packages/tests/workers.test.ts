@@ -156,15 +156,26 @@ test("PIN (env): the host's identity family never reaches a spawned server", () 
 test("PIN (env): a spawned server does not inherit the host's padi or cache", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "olai-e2e-iso-"));
   try {
+    // The HOST's padi, as a developer running kolu really has it.
+    process.env.PADI_SOCKET = "/run/user/1000/padi.sock";
     const env = isolateEnv(root, {
-      PADI_SOCKET: "/run/user/1000/padi.sock",
       OLAI_PORT_FILE: "/tmp/olai-dev/url",
       GIT_DIR: "/home/someone/notes/.git",
       GIT_WORK_TREE: "/home/someone/notes",
       XDG_CACHE_HOME: "/tmp/host-cache",
       XDG_STATE_HOME: "/tmp/host-state",
     });
+    // SCRUBBED, so a developer running kolu does not hand every spawned server
+    // their own live padi — the scenario that says a laptop without kolu draws
+    // hollow terminal chips would otherwise draw their actual terminals.
     expect(env.PADI_SOCKET).toBeUndefined();
+    // ...and what the SPAWN asked for still gets through, which is how
+    // `@padi:<fleet>` points a server at the padi the scenario just started.
+    // The same pair as the avatar template above, one variable over: the HOST's
+    // copy is taken off before the extras go on, so neither wins by accident.
+    expect(
+      isolateEnv(root, { PADI_SOCKET: "/tmp/scenario/padi.sock" }).PADI_SOCKET,
+    ).toBe("/tmp/scenario/padi.sock");
     expect(env.OLAI_PORT_FILE).toBeUndefined();
     expect(env.GIT_DIR).toBeUndefined();
     expect(env.GIT_WORK_TREE).toBeUndefined();
@@ -186,6 +197,7 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
     // HOME stays the host's: overriding it emptied apply inverse.
     expect(env.HOME).toBe(process.env.HOME);
   } finally {
+    delete process.env.PADI_SOCKET;
     fs.rmSync(root, { recursive: true, force: true });
   }
 });

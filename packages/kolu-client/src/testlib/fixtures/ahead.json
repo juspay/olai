@@ -1,0 +1,6 @@
+{
+  "//": "A padi one MAJOR ahead of what this build speaks. The fleet is deliberately empty — what the scenario reads is the CHIP, not a terminal. The control core still answers (its schemas never move), so olai's refusal is a judgement on a readable hello rather than a decode failure three calls later, and the sentence names BOTH versions because one of the two has to move.",
+  "surfaceVersion": "99.0",
+  "terminals": {},
+  "screens": {}
+}

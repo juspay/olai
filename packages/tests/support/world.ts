@@ -36,6 +36,7 @@ import {
   type TestId,
 } from "@olai/web/testlib";
 import { listenHeaderProxy, type HeaderProxy } from "./headerProxy.ts";
+import type { LivePadi } from "@olai/kolu-client/testlib";
 import {
   setDefaultTimeout,
   setWorldConstructor,
@@ -798,6 +799,20 @@ export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   TESTID.headerSearch,
   TESTID.headerSearchOpen,
   TESTID.connection,
+  // The padi link, between the two promises it sits with: whether this page is
+  // still READING (the connection, before it) and whether what is written to it
+  // is KEPT (the Commit pill, after it). This is the third — whether it can see
+  // kolu's terminals.
+  //
+  // Added as the deliberate edit this list demands, and it does NOT weaken what
+  // the fence guards. `one-git-indicator` is about a SECOND control answering
+  // for GIT, and this one answers for a padi socket: it never reports a
+  // repository state, it draws from `cells.kolu` and from nothing else, and the
+  // assertion below still holds that the Commit pill is the only control in the
+  // row that reports on the repository. Chrome that is orthogonal grows the
+  // list by one; chrome that answers a question already answered is what the
+  // list exists to stop, and this is the first kind.
+  TESTID.padi,
   TESTID.commitPill,
   TESTID.chatToggle,
   TESTID.prefsTrigger,
@@ -1664,6 +1679,16 @@ export class OlaiWorld extends World {
    *  are handed kolu's terminals as well as olai's own tools. Carried for the
    *  same reason again: a restart has to reproduce the first boot. */
   hasKolu = false;
+  /** `@padi:<fleet>`: which fleet this scenario's own padi is serving, or
+   *  `undefined` for every scenario without one — whose server derives the
+   *  rendezvous path, finds nothing, and reports `absent`. Carried on the world
+   *  for `hasKolu`'s reason: a restart has to reproduce the first boot, and the
+   *  socket is passed at spawn. */
+  padiFleet: string | undefined = undefined;
+  /** The padi this scenario spawned, so the After hook can stop it. One per
+   *  scenario, never shared: a fleet is a world, and two scenarios sharing one
+   *  would be two scenarios sharing a fixture they can both see. */
+  padi: LivePadi | undefined = undefined;
   /** `@opencode`: this scenario's machine HAS opencode, so its server's roster
    *  is two agents and the panel asks which one a conversation is with. Every
    *  other scenario's agent search path is empty — see `hooks.ts`. */

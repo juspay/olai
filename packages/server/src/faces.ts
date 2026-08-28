@@ -259,6 +259,26 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   chat: "resource",
   git: "resource",
   pending: "resource",
+  // THE TERMINAL DOOR's three, and all three are the browser's alone.
+  //
+  // `kolu` and `fleet` are what a chip draws: whether there is a padi at all,
+  // and the row it looks its terminal up in. An AGENT asking what terminals
+  // exist is an agent that can already reach kolu's own MCP face — re-serving
+  // padi's fleet through olai would be a second door onto somebody else's
+  // daemon with olai's credentials on it, which is the whole reason the
+  // orchestrator design has olai read padi and never re-publish it.
+  //
+  // `screen.text` is the same line drawn harder: it READS A TERMINAL'S SCREEN,
+  // which may hold anything the person working in it has on screen. It is a
+  // gesture somebody made in a tab they are looking at, and it is not a verb
+  // an agent gets for asking.
+  kolu: "resource",
+  fleet: "resource",
+  // THE LIVE PANE, and the browser's alone: an agent reading a terminal has
+  // `screen.text` and its own kolu MCP besides, so a byte stream that only
+  // exists while somebody is LOOKING has no reader on that face.
+  terminal: "resource",
+  "screen.text": "tool",
   "chat.send": "tool",
   "chat.attach": "tool",
   "chat.resend": "tool",

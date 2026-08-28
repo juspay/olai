@@ -17,7 +17,7 @@
   "//dependencies": "The bottom of the layering (docs/architecture.md): nothing here can reach a disk, a server or a browser. @olai/git is the one workspace sibling, and it is not a layer violation but the other half of this floor — a LEAF beside this package, on `effect` alone, whose `./state` subpath is pure data (RepoState, Reason) that this package re-exports because it travels the wire. Only that subpath is imported: the main entry shells out to git, and this module is bundled into a browser. fastest-levenshtein is the did-you-mean distance — a focused, dependency-free library rather than eighteen lines of textbook matrix arithmetic we would then own.",
   "dependencies": {
     "@olai/git": "workspace:*",
-    "effect": "4.0.0-rc.110",
+    "effect": "4.0.0-rc.112",
     "fastest-levenshtein": "^1.0.16"
   },
   "//devDependencies": "`yaml` is TEST-ONLY and nothing here imports it but src/frontmatter.library.test.ts, which holds this package's frontmatter value subset against the real parser — for every line: we agree, we refuse together, or we are narrower for a reason src/frontmatter.ts's header argues by name. It is deliberately NOT in the module. Putting it there was tried and measured: +10.6 KB brotli on the client's eager bundle (this package is bundled into the browser), for a parse the browser never runs, since a face is built at the decode and its props travel the wire. Same shape as @olai/web's remark-frontmatter, which fences the other half of the same rule — where the block ENDS — and also ships nowhere.",

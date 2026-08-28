@@ -50,23 +50,64 @@
  * `PADI_SOCKET` — olai's environment, under olai's service manager — and kolu
  * has no business asserting a fact about our PATH. That judgement, and the
  * sentence it produces ({@link EXPECTED}), stay here.
+ *
+ * ## The two packages — the map, so a grep for `kolu` is not a reconstruction
+ *
+ * It was FIVE homes, and the list lived in five headers because a reader who
+ * grepped `kolu` landed on whichever came first and had to assemble the rest.
+ * The sixth Löwy sitting ended that arrangement rather than documenting it
+ * better (`docs/lowy-electricity/debate-2026-08-27.md`), on the human's ruling:
+ * *"all of Kolu stuff should be encapsulated out, as a package or more
+ * packages, so the non-kolu packages part of Olai doesn't contain Kolu
+ * implementation"* — and *"a directory wall can be broken easily by importing;
+ * package walls cannot."*
+ *
+ *   - **`@olai/kolu-client`** — THE DIAL and the wire. The only package that
+ *     speaks padi: one socket per server, the standing mirror, the projection
+ *     into olai's own shapes. Four doors beside the root — `./wire` (the
+ *     vocabulary and the four surface members, which `@olai/surface` spreads
+ *     into its spec and re-exports), `./detect` (the spawn-time probe's
+ *     surface), `./testlib` (the fake padi and its lifecycle) and `./drivers`
+ *     (the two padi-dialing evidence scripts).
+ *   - **`@olai/kolu-ui`** — EVERYTHING BROWSER. The Dock row on a `terminal`
+ *     property, the live pane, the re-attach policy, the fleet the tab holds
+ *     once, and the words the header readout says. Its socket is `KoluUi` —
+ *     the app hands over its composed client and a clock, and nothing else
+ *     crosses.
+ *
+ * What is left outside them is not kolu implementation but olai's own
+ * judgement ABOUT kolu, and it is worth naming so the distinction survives:
+ * `@olai/server`'s `claimants.ts` walks the vault for who OWNS a terminal
+ * (outline records, injected into the dial rather than known by it);
+ * `@olai/chat`'s `kolu.ts` decides what an absent kolu MEANS, in five English
+ * sentences only chat can write, over the probe it reaches through
+ * `@olai/kolu-client/detect`; `@olai/web` owns the pill, the block table and
+ * the cadence. None of those import kolu, and `scripts/check-kolu-deps.sh`'s
+ * fourth assertion is what makes that a fact rather than a habit.
  */
 
 import type { ChildProcess } from "node:child_process"
 
 import {
   detect as detectKolu,
+  KOLU_COMMAND,
+  PADI_SOCKET_ENV,
   probe as probeKolu,
   type ProbeFailure,
-} from "@kolu/detect"
+} from "@olai/kolu-client/detect"
 import type { NotHere } from "./servers.ts"
 import { Effect } from "effect"
 
 /** The executable, its verb, and the variable that says which padi. All three
- *  are kolu's own `.mcp.json` entry, unchanged — and now kolu's own constants,
- *  so a rename there cannot leave this file quietly spelling the old one. */
-const COMMAND = "kolu"
-const SOCKET = "PADI_SOCKET"
+ *  are kolu's own `.mcp.json` entry — and they are now kolu's own CONSTANTS,
+ *  reached through `@olai/kolu-client/detect`, so a rename upstream cannot
+ *  leave this file quietly spelling the old one.
+ *
+ *  That sentence was here before and was FALSE: these were two string literals
+ *  and nothing in the tree imported kolu's exports, so the test pinned the
+ *  spelled values and an upstream rename would have stayed green. */
+const COMMAND = KOLU_COMMAND
+const SOCKET = PADI_SOCKET_ENV
 
 /**
  * ... and what it means when that variable is set and there is nothing to run.
@@ -297,4 +338,4 @@ export const askOver = async (
  *  package's fixtures answer under it — an answer carrying a different id is
  *  not an answer, and a fixture that spelled the number itself could go on
  *  passing while kolu's moved. */
-export { PROBE_ID } from "@kolu/detect"
+export { PROBE_ID } from "@olai/kolu-client/detect"

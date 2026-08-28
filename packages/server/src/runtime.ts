@@ -101,6 +101,9 @@ import type {
 import {
   type Applied,
   CHAT_OFF,
+  type FleetTerminal,
+  KOLU_UNDIALED,
+  type KoluLink,
   type ChatState,
   type Edit,
   GIT_OFF,
@@ -109,9 +112,10 @@ import {
   type Manifest,
   type OpFailure,
   surface,
+  SnapshotRefused,
   type Who,
 } from "@olai/surface"
-import { UsageFailure } from "@olai/format"
+import { customText, isRegular, type Located, UsageFailure } from "@olai/format"
 import { surfaceTag } from "@kolu/surface/define"
 import {
   emptyHandlers,
@@ -126,6 +130,9 @@ import {
 import { Duration, Effect, Result, type Scope, Stream, SubscriptionRef } from "effect"
 
 import { cadence } from "@olai/chat"
+import { type Dial, koluHalf, type KoluHalf, SEED } from "@olai/kolu-client"
+
+import { claimantsIn } from "./claimants.ts"
 
 import type { Cadence, Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
@@ -188,6 +195,28 @@ export interface Wiring {
    *  under a running server drifts neither. */
   readonly hostname: string
   readonly store: Store
+  /**
+   * THE PADI LINK, or `null` for a runtime that is not to have one.
+   *
+   * A whole half of this interface for two fields, and both are here for the
+   * reason every other seam here is handed in rather than read: `env` is what
+   * `$PADI_SOCKET` is read out of, and `now` is the clock `since` is stamped
+   * from — a test that asserts either needs to own it, and a composition root
+   * is where a process reaches for the real one.
+   *
+   * `null` is the OFF setting and it is what `olai surface` and the headless
+   * faces take: a one-shot CLI read has no use for a standing socket to
+   * somebody's daemon, and dialing one would be a process that touched kolu on
+   * its way to printing a node. The cell stays at its seed, which is `absent`,
+   * and every chip goes hollow — which is the true answer for that process.
+   */
+  readonly kolu: {
+    readonly env: Record<string, string | undefined>
+    readonly now: () => string
+    /** The dial, injectable for `/orchestrator`'s reason: a fake padi in
+     *  a test, and a countable one for the one-connection claim. */
+    readonly dial?: Dial
+  } | null
   /** Absent when no ACP agent is configured: the cell stays `off` and the
    *  procedures answer that they are. A directory is readable whether or not
    *  an agent is installed. */
@@ -636,6 +665,69 @@ export const bind = (
     let inboxFile: Convention | undefined
 
     /**
+     * THE KOLU HALF — the padi link, the fleet it keeps, and the one screen
+     * read, assembled in `@olai/kolu-client` — the package where every line
+     * that knows kolu exists lives.
+     *
+     * MADE EAGERLY, STARTED LAZILY. Making it is free and gives the collection
+     * and the procedure something to read before anything has dialed — so a
+     * page that loads while the link is still coming up draws an empty fleet
+     * and a hollow chip rather than crashing on a null. STARTING it is the
+     * `kolu` cell's connector, which the framework runs when the surface BINDS:
+     * the same place the git sweep is forked, for the same reason — a standing
+     * fact about this machine is the runtime's to keep, not the first
+     * subscriber's to pay for.
+     *
+     * ## The two packages — the map, so a grep for `kolu` is not a reconstruction
+     *
+     * It was FIVE homes, and the list lived in five headers because a reader who
+     * grepped `kolu` landed on whichever came first and had to assemble the rest.
+     * The sixth Löwy sitting ended that arrangement rather than documenting it
+     * better (`docs/lowy-electricity/debate-2026-08-27.md`), on the human's ruling:
+     * *"all of Kolu stuff should be encapsulated out, as a package or more
+     * packages, so the non-kolu packages part of Olai doesn't contain Kolu
+     * implementation"* — and *"a directory wall can be broken easily by importing;
+     * package walls cannot."*
+     *
+     *   - **`@olai/kolu-client`** — THE DIAL and the wire. The only package that
+     *     speaks padi: one socket per server, the standing mirror, the projection
+     *     into olai's own shapes. Four doors beside the root — `./wire` (the
+     *     vocabulary and the four surface members, which `@olai/surface` spreads
+     *     into its spec and re-exports), `./detect` (the spawn-time probe's
+     *     surface), `./testlib` (the fake padi and its lifecycle) and `./drivers`
+     *     (the two padi-dialing evidence scripts).
+     *   - **`@olai/kolu-ui`** — EVERYTHING BROWSER. The Dock row on a `terminal`
+     *     property, the live pane, the re-attach policy, the fleet the tab holds
+     *     once, and the words the header readout says. Its socket is `KoluUi` —
+     *     the app hands over its composed client and a clock, and nothing else
+     *     crosses.
+     *
+     * What is left outside them is not kolu implementation but olai's own
+     * judgement ABOUT kolu, and it is worth naming so the distinction survives:
+     * `@olai/server`'s `claimants.ts` walks the vault for who OWNS a terminal
+     * (outline records, injected into the dial rather than known by it);
+     * `@olai/chat`'s `kolu.ts` decides what an absent kolu MEANS, in five English
+     * sentences only chat can write, over the probe it reaches through
+     * `@olai/kolu-client/detect`; `@olai/web` owns the pill, the block table and
+     * the cadence. None of those import kolu, and `scripts/check-kolu-deps.sh`'s
+     * fourth assertion is what makes that a fact rather than a habit.
+     */
+    const kolu = koluHalf({
+      options: wiring.kolu,
+      fleet: () => published?.collections.fleet,
+      // THE VAULT WALK, passed in — the ruling's own words. `claimants.ts`
+      // stays here whole because it reads outline records, which is a thing
+      // the package that dials padi must not learn; what crosses is four
+      // strings per claim.
+      claimants: claimantsIn,
+      // Chatter, at debug: on a machine with no kolu this is a line every few
+      // seconds and it is not news. What IS news — a connect, a skew, a link
+      // that dropped — is the same channel, because the alternative is this
+      // module deciding which of padi's sentences matter.
+      say: (line) => say(Effect.logDebug(line)),
+    })
+
+    /**
      * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
      * pair: the set, and how old it is (`@olai/store`'s `Aged`). These take
      * the first and drop the second, which is right and is not the leak it
@@ -806,6 +898,22 @@ export const bind = (
                 }),
             ),
         },
+        /**
+         * WHETHER THERE IS A PADI — and the connector that makes it true.
+         *
+         * The cell's connector is where the standing link is FORKED, which is
+         * the whole of the one-connection claim: the framework runs a connector
+         * when the surface binds, so the dial happens once per process and a
+         * hundred tabs subscribing to `fleet` cost nothing but a map read each.
+         * It is the git sweep's arrangement (`pending`, above) applied to a
+         * socket instead of a repository — a standing fact about this machine,
+         * kept by the runtime, not paid for by the first reader.
+         *
+         * A runtime with no kolu half never forks anything and the cell stays
+         * at its seed, which is `absent` — the true answer for a headless face
+         * that has no business holding a socket open.
+         */
+        ...kolu.handlers.cells,
         /** The whole directory binding, because one revision is one write of
          *  everything it moved: for each collection the entries that changed
          *  and the keys that went, and then the facts that belong to no file.
@@ -852,6 +960,18 @@ export const bind = (
                   // so a reader who subscribed before the file existed is
                   // handed the body the announce frame above could not carry.
                   bodies.unread(revision.unread)
+                  // WHO CLAIMS WHICH TERMINAL, re-derived on the same
+                  // statement. The overlay is a reading of the set — a node
+                  // carrying a `terminal` property — so a revision is exactly
+                  // when it can have moved, and deriving it anywhere else would
+                  // be a second answer to what the vault says.
+                  //
+                  // It walks every node and publishes almost nothing: the
+                  // mirror compares each row's owner before it upserts, so a
+                  // keystroke that landed in a note costs one walk and zero
+                  // frames. What it costs on the revision a `terminal` property
+                  // is actually written is one frame for that terminal's row.
+                  kolu.revision(snapshot.value.derived.nodes)
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest
@@ -1033,6 +1153,24 @@ export const bind = (
           upsert: () => {},
           remove: () => {},
         },
+        /**
+         * THE FLEET, as the mirror keeps it.
+         *
+         * `readAll` is the mirror's own map rather than a copy of it — the two
+         * directory collections' arrangement, for their reason: a fresh
+         * subscription's snapshot and the deltas an open one is watching are
+         * two readings of one map, so a tab that arrives mid-stream cannot be
+         * seeded from a moment the deltas have already moved past.
+         *
+         * EMPTY when there is no mirror, and empty is not the same claim as
+         * `absent` — which is exactly why the cell above exists and why a chip
+         * reads that one for its hollow. A fleet of nothing is what a machine
+         * running kolu with no terminals open also has.
+         *
+         * Read-only on the wire: creating and killing terminals are padi verbs,
+         * and the day olai calls them it is the driver calling them, not a tab.
+         */
+        ...kolu.handlers.collections,
       },
       /**
        * A poll-shape stream is three things and the framework wires them into
@@ -1085,6 +1223,29 @@ export const bind = (
        * watching, and it is never silence.
        */
       streams: {
+        /**
+         * ONE OPEN PANE'S TERMINAL — the relay, and the wall's one load-bearing
+         * line.
+         *
+         * `source` rather than the `read` + `install` pair every member above
+         * uses, because those re-READ a value when a pulse says it moved and
+         * this is a PUSH of bytes that exist only in flight: a terminal's output
+         * has no current value to re-read, and a frame missed between two pulses
+         * is a hole in a screen.
+         *
+         * The subscription is the SERVER'S. `@olai/kolu-client` holds padi's
+         * `terminalAttach` on the one connection the fleet already rides, and
+         * what reaches a browser is this member's frames — so ten tabs watching
+         * one terminal are ten subscribers here, ten attaches there, and ONE
+         * CONNECTION, and no browser has ever heard of a unix socket. The attach
+         * is per pane by design: it is a WRITE that carries the grid it wants, so
+         * two panes at two sizes cannot share one (`kolu-client/mirror.ts` — last
+         * attach wins, and the loser adopts rather than fights). What this member
+         * saves is the DIAL, which is the thing that was ever scarce — the same
+         * arrangement the fleet has, and the whole reason a live pane does not
+         * cost the wall.
+         */
+        ...kolu.handlers.streams,
         dated: {
           read: (input) => Effect.runPromise(wiring.ops.dated(input)),
           install: (_input, onEvent) => revisions.consume({ onEvent, onError: NEVER }),
@@ -1300,6 +1461,19 @@ export const bind = (
          * REQUIREMENT and nothing else (kolu's own `Viewer` seam, same
          * shape).
          */
+        /**
+         * ONE READ OF ONE SCREEN — the snapshot pane's whole server half.
+         *
+         * Straight through to `@olai/kolu-client`, which owns the arithmetic
+         * (a count back from the end, not padi's absolute window) and both
+         * refusals. Nothing is decided here, and that is the point of the
+         * package: the day padi's screen verb changes shape, this line does
+         * not.
+         *
+         * The clock is the wiring's, like the link's `since`, so a test that
+         * asserts what "snapshot · just now" was rendered from owns it.
+         */
+        ...kolu.handlers.procedures,
         who: {
           get: (() =>
             CurrentWho.use((who) => Effect.succeed(who))) as unknown as () => Effect.Effect<

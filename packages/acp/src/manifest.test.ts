@@ -69,21 +69,39 @@ interface Source {
   readonly runtime: ReadonlyArray<string>
 }
 
+/** Every `.ts` under one package, skipping `node_modules` BEFORE descending.
+ *
+ *  It used to be one `readdirSync(recursive: true)` with a `node_modules`
+ *  filter on the results, and that filter was too late: the walk had already
+ *  gone in. A workspace `node_modules` is full of symlinks back to sibling
+ *  packages (`@olai/surface -> ../../../surface`), each of which has a
+ *  `node_modules` of its own, so the recursion descends the workspace over and
+ *  over and eventually dies on `ELOOP`. It survived on luck — the chains were
+ *  short — until `@olai/kolu-ui` and the surface inversion made one long
+ *  enough. Refusing the directory rather than its files is the fix, and it is
+ *  also just faster. */
+const sourcesUnder = (dir: string): ReadonlyArray<string> =>
+  readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isDirectory()) {
+      return entry.name === "node_modules"
+        ? []
+        : sourcesUnder(path.join(dir, entry.name))
+    }
+    return entry.isFile() && /\.tsx?$/.test(entry.name)
+      ? [path.join(dir, entry.name)]
+      : []
+  })
+
 /** The whole tree, read ONCE: every `.ts` in every package — the package, not
  *  its `src`, so a scripted agent in `tests/agent/` counts — keyed by package
- *  name. `node_modules` is skipped for the reason it always is. */
+ *  name. */
 const tree: ReadonlyMap<string, ReadonlyArray<Source>> = new Map(
   readdirSync(PACKAGES, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((pkg) => [
       pkg.name,
-      readdirSync(path.join(PACKAGES, pkg.name), { recursive: true, withFileTypes: true })
-        .filter((entry) =>
-          entry.isFile() && /\.tsx?$/.test(entry.name) &&
-          !entry.parentPath.split(path.sep).includes("node_modules")
-        )
-        .map((entry): Source => {
-          const file = path.join(entry.parentPath, entry.name)
+      sourcesUnder(path.join(PACKAGES, pkg.name))
+        .map((file): Source => {
           // A scripted agent opens with a shebang, which the transpiler
           // refuses; the line holds no import, so dropping it loses nothing.
           const text = readFileSync(file, "utf8").replace(/^#![^\n]*\n/, "")
