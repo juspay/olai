@@ -11,7 +11,7 @@
  * has stopped parsing says nothing at all about its nodes. All three were
  * answered out of one thing — the whole id→file map of the tab's own copy of
  * the set, walked per fold. That copy is what
- * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` is taking away (the browser may hold
+ * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md` is taking away (the browser may hold
  * at most the page in front of somebody), so the two facts the rule needs are a
  * question: `nodes.homes`, which answers where a handful of ids are and which
  * of a handful of files this directory has actually read.

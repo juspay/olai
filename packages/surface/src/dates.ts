@@ -6,7 +6,7 @@
  * it, and the entry above it wears how much is owed. Both were walks over the
  * browser's own copy of the whole set until `vault-in-browser`'s PR 4; both are
  * now asked of the server, which is where the set is
- * (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` §3's Sidebar row, §6's item 4).
+ * (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md` §3's Sidebar row, §6's item 4).
  *
  * ## Why the shapes are `@olai/format`'s, re-exported and not re-declared
  *

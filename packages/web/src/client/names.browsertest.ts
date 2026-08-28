@@ -3,7 +3,7 @@
  * did.
  *
  * The defect it is written against is the audit's 2.10
- * (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md`). The store merges every
+ * (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md`). The store merges every
  * frame with `reconcile(next, { key: null })` and no `merge`, so every element
  * of `reading.names` is a fresh object on every frame — and the table was built
  * by a memo that read them, so it handed out a new closure whenever anything

@@ -19,7 +19,7 @@
  * a second olai on a directory an `olai web` was already serving booted a second
  * store — 418 MB and 2099 open descriptors on a 1020-file vault, two parses of
  * everything per edit, and two probe clocks a reader could be seconds apart on
- * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/surface-mcp-positions.md, position (c)).
+ * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/surface-mcp-positions.md, position (c)).
  *
  * With the verbs HERE, an agent's whole vocabulary is something a surface can
  * carry, so the second process can dial the first one's socket instead of

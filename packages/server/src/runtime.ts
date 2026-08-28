@@ -44,7 +44,7 @@
  * Two members are neither the directory nor a fact about it but a READING of
  * it, and they are the first: the pinned SHELF and how full the INBOX is,
  * which the sidebar draws and used to work out for itself over a copy of
- * every outline in the browser (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`
+ * every outline in the browser (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`
  * §6's item 5, and the inbox door's count). Each connector is the whole of
  * it — re-read `@olai/format`'s `shelfIn` / `inboxHeldIn` on every
  * published revision and write the cell, whose `equals` keeps a revision
@@ -683,7 +683,7 @@ export const bind = (
      * It was FIVE homes, and the list lived in five headers because a reader who
      * grepped `kolu` landed on whichever came first and had to assemble the rest.
      * The sixth Löwy sitting ended that arrangement rather than documenting it
-     * better (`https://github.com/juspay/oss.olai/blob/main/olai/lowy-electricity/debate-2026-08-27.md`), on the human's ruling:
+     * better (`https://github.com/juspay/oss.olai/blob/main/projects/olai/lowy-electricity/debate-2026-08-27.md`), on the human's ruling:
      * *"all of Kolu stuff should be encapsulated out, as a package or more
      * packages, so the non-kolu packages part of Olai doesn't contain Kolu
      * implementation"* — and *"a directory wall can be broken easily by importing;
@@ -1258,7 +1258,7 @@ export const bind = (
         },
         /**
          * ONE OPEN PAGE, re-read per revision — the member
-         * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` was written for, and three
+         * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md` was written for, and three
          * lines because everything above it was built to make it three.
          *
          * The read is the ops layer's gated one, the install is the same pulse
@@ -1276,7 +1276,7 @@ export const bind = (
         /**
          * WHICH OF THAT PAGE'S NODES THE QUERY SELECTS, on the same three legs
          * and beside the page it narrows — `filter-ask-carries-revision`,
-         * landed (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-rides-the-page.md).
+         * landed (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-rides-the-page.md).
          *
          * It was a PROCEDURE, and that is the whole of what was wrong with it:
          * a filter is a standing view, so the browser had to re-ask it on a

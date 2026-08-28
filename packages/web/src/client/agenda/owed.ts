@@ -12,7 +12,7 @@
  * not be a third argument about what late work looks like.
  *
  * WHAT IT IS A TABLE OVER is two integers off the wire (../dates.ts's `owed`
- * stream), which is `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`'s PR 4: the
+ * stream), which is `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`'s PR 4: the
  * counting is `@olai/format`'s `owedNow`, on the server, where the set is —
  * an index read since `perf-agenda-history-walk`, where it was the agenda
  * assembled and counted. Nothing here reads a directory, and there is no longer
@@ -109,7 +109,7 @@ const PAINT: Record<Face, { readonly entry: string; readonly chip: string; reado
  *
  * IT TAKES THE COUNTS, and it used to take the `Agenda` and count them itself.
  * The counting is `@olai/format`'s either way — what changed is WHICH SIDE OF
- * THE WIRE calls it, which is `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`'s PR 4:
+ * THE WIRE calls it, which is `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`'s PR 4:
  * the two numbers arrive on the `owed` stream (../dates.ts) and this table
  * paints them. The rule that made this take an answer rather than a set to walk
  * survives the move intact and is now enforced by a wire: there is no directory

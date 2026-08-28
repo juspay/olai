@@ -114,7 +114,7 @@ test("nothing outside connection/status.ts reads the readout's raw states", () =
 // and they lead into it differently (a pane has a file, a picked row has a
 // title), so the sentence itself is the shared part. It moved to
 // `@olai/format`'s `moving.ts` when the second of those two readings did
-// (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`'s PR 10): one of its readers is on
+// (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`'s PR 10): one of its readers is on
 // the other side of the wire now, and a browser-side copy would be the second
 // spelling this claim exists to forbid.
 test("no file here spells the same-file law — it is the format's", () => {
@@ -371,7 +371,7 @@ test("only saying.ts counts SAID_MS down", () => {
 })
 
 // routes.ts's monopoly, and finding 4's (a) from the debate on some of these
-// sweeps (https://github.com/juspay/oss.olai/blob/main/olai/lowy-electricity/debate-2026-08-19.md): ONE door decides "is
+// sweeps (https://github.com/juspay/oss.olai/blob/main/projects/olai/lowy-electricity/debate-2026-08-19.md): ONE door decides "is
 // this string one of our addresses". `routeNamed` is the only reading of the
 // format's grammar in this client, and a `parseAddress(` anywhere else is a
 // second answer free to disagree with the first — a pin and a written link

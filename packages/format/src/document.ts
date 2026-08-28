@@ -2,7 +2,7 @@
  * WHAT ONE FILE OF A SERVED DIRECTORY IS.
  *
  * The type this whole arc exists to make
- * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/first-class-documents.md, ruled 2026-08-19). Before it,
+ * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/first-class-documents.md, ruled 2026-08-19). Before it,
  * a served directory held two wildly unequal things: a `Node` — id, position,
  * title, marks, date, edges, props — and a document, which was `{file, text}`.
  * No id, no title, no edges. The root cause was one sentence: **a document had
@@ -105,7 +105,7 @@
  * file of the directory on every revision: a face built there would re-walk the
  * whole corpus's prose for each keystroke, which is precisely the cost the
  * patched derivation was built to stop paying
- * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/model-indices.md). So the constructors below are what a decode calls, and
+ * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/model-indices.md). So the constructors below are what a decode calls, and
  * `assemble` only collects what they made.
  */
 

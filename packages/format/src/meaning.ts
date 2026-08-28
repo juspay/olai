@@ -122,7 +122,7 @@ export const Meaning = Schema.Union([
      * may ride on the wire: it is true exactly when the vault DECLARED this key
      * a reference (`ref` or `node`), and a reference is a thing whose name is
      * not its identity — "names rename, ids don't" read from the display end
-     * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/typed-properties.md, Converged §1).
+     * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/typed-properties.md, Converged §1).
      *
      * FALSE for a value that merely turned out to be an id. Nobody declared it
      * a reference, so the string the record holds is the fact somebody wrote,

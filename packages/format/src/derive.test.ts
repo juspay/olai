@@ -1489,7 +1489,7 @@ test("a cyclic set derives without hanging", () => {
 // The number an archive's confirm names — and the reason it is a fact about the
 // SET rather than about the rows drawn from it. It rides on every row
 // (`Row.under`) so a browser holding one page can say it without holding a
-// vault (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`'s PR 10); it was the client's
+// vault (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`'s PR 10); it was the client's
 // own walk of its copy of the directory until then.
 
 const UNDER_HOUSE = [

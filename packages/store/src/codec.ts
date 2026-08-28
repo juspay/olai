@@ -10,7 +10,7 @@
  *
  * `validate` takes each file's `Result`, decode FAILURES INCLUDED, rather than
  * a map of the ones that parsed. That is deliberate and it is the whole of the
- * error-scope decision (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/architecture.live-store.md, resolved
+ * error-scope decision (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/architecture.live-store.md, resolved
  * 2026-08-09): only the codec knows whether one unreadable file poisons the set
  * or is a hole the rest can be rendered around, so only the codec can decide
  * whether the answer is a published `S` with that failure embedded in it — an

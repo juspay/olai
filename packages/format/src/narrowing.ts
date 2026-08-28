@@ -19,7 +19,7 @@
  * the records it draws are a set the server holds in its hand — which makes
  * the honest question O(page) rather than O(corpus), and makes it a STANDING
  * reading on the revision pulse rather than a call per frame. The design, and
- * the shape that lost, is https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-rides-the-page.md.
+ * the shape that lost, is https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-rides-the-page.md.
  *
  * ## What is NOT decided here
  *
@@ -222,7 +222,7 @@ export const narrowedIn = (
  * node archived after it was placed (`./derive.ts`'s `follow`), so a placement
  * can draw an archived row on a live page. What that row should BE is a ruling
  * about the set rather than about a filter, and is filed as one (docs/search.md,
- * https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/editing-web.md's Open).
+ * https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/editing-web.md's Open).
  *
  * WHAT IT NO LONGER DECIDES is a candidate set. It used to be the browser's
  * (`@olai/web`'s `filter/drawn.ts`), and `true` put every archived node in the

@@ -25,7 +25,7 @@
  * says so on the next revision; delete it and the row goes back to `unowned`.
  *
  * That is the same arrangement the door itself has
- * (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/orchestrator.md`: policy lives on nodes, code interprets), and it is what
+ * (`https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/orchestrator.md`: policy lives on nodes, code interprets), and it is what
  * makes phase 1a's payoff visible without a route: the property IS the claim.
  *
  * KEYED ON THE PROP KEY, `terminal` — not on a declared type, which is what

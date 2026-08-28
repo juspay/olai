@@ -7,7 +7,7 @@
  * make the same claim about what they READ, and it is a claim only a count can
  * hold: written as a loop over every row's value, either would re-walk the
  * whole transcript per streamed token
- * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §4.4). So the fake `Chat`
+ * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md §4.4). So the fake `Chat`
  * below counts how many times a row's VALUE was pulled, and both browsertests
  * are about that number.
  *

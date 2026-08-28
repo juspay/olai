@@ -187,7 +187,7 @@ export interface Published {
    * read — no content of any kind (`@olai/surface`'s `Head`).
    *
    * THE DIRECTORY AS A BROWSER HOLDS IT since PR 10 of
-   * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`: the sidebar's tree, the page
+   * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`: the sidebar's tree, the page
    * model's membership test and the palette's titles all come from here, where
    * the first three used to come from every record of every outline. So its
    * source list is {@link OutlineSet.documents} itself — every file the

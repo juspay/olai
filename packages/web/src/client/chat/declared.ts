@@ -8,7 +8,7 @@
  * span in an agent's prose became a reference by a `Map.get` over the local
  * copy ({@link ./refs.ts} has the rule and always did; `./Entry.tsx` passed it
  * the format's `nodeNamed` bound to that copy). The copy is what
- * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` is taking away — the browser may
+ * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md` is taking away — the browser may
  * hold at most the page in front of somebody — so the lookup crosses the wire
  * (`nodes.named`, the same `nodeNamed` run on the other side).
  *

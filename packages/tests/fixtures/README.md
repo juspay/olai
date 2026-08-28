@@ -281,6 +281,6 @@ a key changes the whole namespace" looks like from a test suite.
 | an UNDECLARED key on a typed board | `terminal` on `far` — prose, legal, untouched |
 
 The set validates as it stands, which is the point: a declaration never lands on
-a board with violations (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/typed-properties.md's
+a board with violations (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/typed-properties.md's
 clean-then-declare), so a fixture that shipped one would be a fixture nobody
 could serve.

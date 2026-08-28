@@ -258,7 +258,7 @@ export function Sidebar(props: {
   //
   // AND IT IS READ HERE rather than published, which is the line the shelf
   // sits on the other side of: a browser holds no view of the DIRECTORY's
-  // records any more (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md), so resolving a
+  // records any more (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md), so resolving a
   // shelf — every pin's live title — is the server's. This is a reading of the
   // PATHS, and a browser holds every one of those already: it is the same list
   // the tree above is built from, and one more pass over it is not a vault

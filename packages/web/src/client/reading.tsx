@@ -2,7 +2,7 @@
  * WHAT THE PAGE IN FRONT OF SOMEBODY SAYS — asked of the server, once per open
  * pane.
  *
- * This is the browser's half of `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`'s PR
+ * This is the browser's half of `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md`'s PR
  * 10. A tab used to subscribe to every record of every outline and answer every
  * page out of that copy; it subscribes to ONE ADDRESS now and is handed what
  * that address draws (`@olai/surface`'s `page` stream). The walks did not move
@@ -102,7 +102,7 @@ export interface Reading {
    * over, and while that answer was a CALL the only way to say so was to re-ask
    * on this number. The answer is a reading of its own on the same pulse now
    * (`./filter/asking.ts`), so the browser holds no token about a set it does
-   * not have — see https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-rides-the-page.md.
+   * not have — see https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-rides-the-page.md.
    *
    * IT CANNOT BE THE VALUE'S IDENTITY, which is what it was when the tab held
    * a derivation: a subscription's value is a RECONCILED STORE, so its identity
@@ -118,7 +118,7 @@ export interface Reading {
    * there was — put two `structuredClone`s of the whole page on every frame to
    * hand over a `{prev, next}` pair this file discarded, two deep copies of a
    * hundred kilobytes per keystroke for an integer
-   * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §3.6). So the count was
+   * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md §3.6). So the count was
    * taken off the STORE instead, by a module of this client's own
    * (`frames.ts`, deleted with this line), which said in its header that it was
    * a stand-in and named the upstream fact that would end it. `changed` is that
@@ -161,7 +161,7 @@ export interface Reading {
    * once here so the pane's leaves and the chrome outside it (the palette's pin
    * row) look up the same Map. A second `createNames` over this reading would
    * copy the array again on every navigation, which is the defect this field
-   * closes (`https://github.com/juspay/oss.olai/blob/main/olai/roadmap/deferred.olai`'s `names-table-once`).
+   * closes (`https://github.com/juspay/oss.olai/blob/main/projects/olai/roadmap/deferred.olai`'s `names-table-once`).
    */
   readonly names: Accessor<Names>
   /**
@@ -239,7 +239,7 @@ export const createReading = (
    * it is a LIE for every other reader — what is on screen while B is in flight
    * is still A, and the chrome that believed the blank spent one round trip per
    * navigation saying no file is open, no day is open, no node is zoomed
-   * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §3.1: the folder chain
+   * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md §3.1: the folder chain
    * folded and was rebuilt, the current wash went out, the page and its filter
    * bar were torn down to `Reading…`).
    *
