@@ -68,8 +68,9 @@
  *   - **`@olai/kolu-client`** — THE DIAL and the wire. The only package that
  *     speaks padi: one socket per server, the standing mirror, the projection
  *     into olai's own shapes. Four doors beside the root — `./wire` (the
- *     vocabulary and the four surface members, which `@olai/surface` spreads
- *     into its spec and re-exports), `./detect` (the spawn-time probe's
+ *     vocabulary and the five surface members — the events ring is the newest
+ *     — which `@olai/surface` spreads into its spec and re-exports),
+ *     `./detect` (the spawn-time probe's
  *     surface), `./testlib` (the fake padi and its lifecycle) and `./drivers`
  *     (the two padi-dialing evidence scripts).
  *   - **`@olai/kolu-ui`** — EVERYTHING BROWSER. The Dock row on a `terminal`
@@ -95,11 +96,13 @@ import { makeMirror, type MirrorOptions } from "./mirror.ts"
 import {
   type FleetTerminal,
   KOLU_UNDIALED,
+  type KoluEvent,
   type KoluLink,
   type Snapshot,
   type TerminalFrame,
   SnapshotRefused,
 } from "./wire/index.ts"
+import { makeWatch, type Watch, type WatchConfig } from "./watch.ts"
 import { Effect, Stream } from "effect"
 
 /**
@@ -118,12 +121,28 @@ export interface KoluDeps<N> {
     readonly upsert: (key: string, value: FleetTerminal) => void
     readonly remove: (key: string) => void
   } | undefined
-  /** THE VAULT WALK, injected. Who claims which terminal is read off outline
-   *  records, and an outline record is a thing this package must not know —
+  /** The events ring's writer verbs, as a FUNCTION for `fleet`'s reason: the
+   *  surface may not exist yet when the first event fires. */
+  readonly events: () => {
+    readonly upsert: (key: string, value: KoluEvent) => void
+    readonly remove: (key: string) => void
+  } | undefined
+  /** THE FIRST VAULT WALK, injected. Who claims which terminal is read off
+   *  outline records, and an outline record is a thing this package must not
+   *  know —
    *  so the server passes its own walk in (`@olai/server`'s `claimants.ts`,
    *  which stays there whole) and what comes back is four strings per claim.
    *  The ruling's words: "the server passes the vault-walk in". */
   readonly claimants: (nodes: ReadonlyArray<N>) => Iterable<Claimant>
+  /** THE SECOND VAULT WALK, injected, and the same boundary again. What
+   *  `_olai/Kolu.olai`'s watch knobs and mutes say is read off the same
+   *  nodes by `@olai/server`'s `koluConfig.ts`; what crosses is the derived
+   *  intervals and the MUTE VALUES, plus the malformed lines this package
+   *  then says. See `koluConfig.ts` for what a malformed value means. */
+  readonly config: (nodes: ReadonlyArray<N>) => {
+    readonly config: WatchConfig
+    readonly malformed: ReadonlyArray<string>
+  }
   /** Routine narration, at debug: on a machine with no kolu this is a line
    *  every few seconds and it is not news. */
   readonly say: (line: string) => void
@@ -160,7 +179,7 @@ export interface KoluHalf<N> {
    *  (`@olai/server`'s `claimants.ts`), and what arrives here is four strings
    *  per claim. See {@link Claimant}. */
   /**
-   * THE FOUR MEMBER HANDLERS, as `@olai/server` spreads them.
+   * THE FIVE MEMBER HANDLERS, as `@olai/server` spreads them.
    *
    * They used to be four clumps written out in `runtime.ts` — a store and a
    * connector for the cell, a `readAll` and two no-op writers for the
@@ -180,18 +199,19 @@ export interface KoluHalf<N> {
   readonly handlers: KoluHandlers
   /**
    * A VAULT REVISION LANDED. The server drives it; what it hands over is the
-   * nodes, and the WALK is this package's to run through the one it was given.
+   * nodes, and the WALKS are this package's to run through the TWO it was
+   * given — one for the claims, one for the watcher's config.
    *
-   * It used to be `kolu.reclaim(claimantsIn(nodes))` at the call site — the
-   * server holding both the trigger and the walk, and naming a kolu verb to do
-   * it. The walk still belongs to whoever holds the vault (it reads outline
-   * records and this package has no business knowing what one is), so it
-   * arrives as {@link KoluDeps.claimants} and this hook closes over it. The
-   * server's line is now `join.revision(nodes)`, which names nothing of kolu's.
+   * The claims are re-derived and the mirror told, as before; the second
+   * half is the watcher's CONFIG, re-derived on the same revision — the way
+   * `held-for`, `nag`, `heartbeat` and the mutes move under a live watcher's
+   * hands. Both walks are the SERVER's (`@olai/server`'s `claimants.ts` and
+   * `koluConfig.ts`); what crosses is four strings per claim and one
+   * `WatchConfig` per revision — the boundary the header draws, grown one
+   * sibling rather than relaxed one jot.
    */
   readonly revision: (nodes: ReadonlyArray<N>) => void
 }
-
 
 /**
  * ONE VAULT NODE, as this package needs to see it — which is not at all.
@@ -207,7 +227,7 @@ export type VaultNode = unknown
 // in the node type, which is the same claim the compiler can check: a package
 // generic in N cannot read an N.)
 
-/** The four member handlers, in the shape `defineSurface`'s sections take. */
+/** The five member handlers, in the shape `defineSurface`'s sections take. */
 export interface KoluHandlers {
   readonly cells: {
     readonly kolu: {
@@ -218,6 +238,13 @@ export interface KoluHandlers {
   readonly collections: {
     readonly fleet: {
       readonly readAll: () => Map<string, FleetTerminal>
+      readonly upsert: () => void
+      readonly remove: () => void
+    }
+    /** The events ring — `readAll` is the watcher's own map for `fleet`'s
+     *  own reason, and the writers are no-ops for `fleet`'s too. */
+    readonly events: {
+      readonly readAll: () => Map<string, KoluEvent>
       readonly upsert: () => void
       readonly remove: () => void
     }
@@ -255,6 +282,38 @@ const NO_LINK = new SnapshotRefused({
 const NO_ROWS = new Map<string, FleetTerminal>()
 
 export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
+  /** THE WATCHER, built for every face — linked or not. On a machine with
+   *  no kolu the collection is not dead, it is heartbeating, and a UI
+   *  stating recently in that case is a healthy fresh-install preview. The
+   *  clock is the wall: the tests that need a vocabulary of their own get
+   *  it through `./watch.ts`'s `options.now`, not through here. */
+  const watch: Watch = makeWatch(
+    {
+      emit: (event) => deps.events()?.upsert(event.id, event),
+      evict: (id) => deps.events()?.remove(id),
+      say: deps.say,
+    },
+    { now: () => Date.now() },
+  )
+  /** The malformed-set last said, joined for a one-line compare: the vault
+   *  re-derives on every keystroke, and saying the same malformed value on
+   *  each one is the noise this exists against. */
+  let saidMalformed = ""
+  /** A VAULT REVISION, as both walks. `mirror` may not exist (a linkless
+   *  face), which is why the claims walk sits behind the optional call and
+   *  the vault walk's `ReadonlyArray<N>` is satisfied by the surface-driven
+   *  walk on the server's side. */
+  let mirror: ReturnType<typeof makeMirror> | undefined
+  const revision = (nodes: ReadonlyArray<N>): void => {
+    mirror?.reclaim(deps.claimants(nodes))
+    const next = deps.config(nodes)
+    watch.reconfigure(next.config)
+    const lines = next.malformed.join("\n")
+    if (lines !== saidMalformed) {
+      saidMalformed = lines
+      for (const line of next.malformed) deps.say(line)
+    }
+  }
   if (deps.options === null) {
     return {
       // A connector that PARKS rather than returns. A connector that returns
@@ -269,8 +328,8 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
       // `./mirror.ts` on why a refusal here fails rather than ends.
       attach: () =>
         Stream.make({ kind: "refused", says: NO_LINK.says } as TerminalFrame),
-      revision: () => {},
-      handlers: linklessHandlers(),
+      revision,
+      handlers: linklessHandlers(watch),
     }
   }
   const { now } = deps.options
@@ -278,11 +337,20 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
    *  the rest of the sink — there is exactly one connector and it runs for the
    *  life of the runtime, so a closure is the whole of the plumbing. */
   let cell: { set: (value: KoluLink) => void } | undefined
-  const mirror = makeMirror(
+  mirror = makeMirror(
     {
       link: (state) => cell?.set(state),
-      upsert: (id, row) => deps.fleet()?.upsert(id, row),
-      remove: (id) => deps.fleet()?.remove(id),
+      // Every row the mirror moves is an observation, in the same breath
+      // — that is the whole of the watcher's economy, and it is why the
+      // watcher is sure its view is what the fleet tabs see.
+      upsert: (id, row) => {
+        deps.fleet()?.upsert(id, row)
+        watch.observe(id, row)
+      },
+      remove: (id) => {
+        deps.fleet()?.remove(id)
+        watch.remove(id)
+      },
       say: deps.say,
     },
     deps.options,
@@ -290,7 +358,10 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
   const connect = (handle: { set: (value: KoluLink) => void }): Effect.Effect<void> =>
     Effect.suspend(() => {
       cell = handle
-      return mirror.run
+      // The watcher's death is ordinary closure machinery: the connector
+      // runs for the runtime's life (see `@anyforge/surface`'s
+      // `driver.conn`), and an interruption of it is its stop.
+      return Effect.ensuring(mirror.run, Effect.sync(() => watch.stop()))
     })
   const screen = (terminal: string, lines: number | undefined) =>
     mirror.screen(terminal, lines, now)
@@ -299,8 +370,14 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
     rows: mirror.rows,
     screen,
     attach: mirror.attach,
-    revision: (nodes) => mirror.reclaim(deps.claimants(nodes)),
-    handlers: handlersOf({ connect, rows: mirror.rows, screen, attach: mirror.attach }),
+    revision,
+    handlers: handlersOf({
+      connect,
+      rows: mirror.rows,
+      events: watch.events,
+      screen,
+      attach: mirror.attach,
+    }),
   }
 }
 
@@ -309,19 +386,22 @@ export { DEFAULT_LINES } from "./screen.ts"
 export { PADI_SOCKET, type Rendezvous, rendezvousIn } from "./socket.ts"
 export { type Claimant } from "./fleet.ts"
 export { type MirrorOptions } from "./mirror.ts"
+export { DEFAULT_WATCH, makeWatch, WATCH_RING, type Watch, type WatchConfig } from "./watch.ts"
 
 /**
- * THE FOUR HANDLERS, built from the four verbs.
+ * THE FIVE HANDLERS, built from the verbs.
  *
- * One function so the SHAPE lives once. `runtime.ts` used to spell it four
- * times and this package used to spell the verbs; now the package spells both
- * and the server spreads the result. The doc sentences travelled with the
- * handlers they are about, which is why they read as answers to questions
- * nobody asks in this file — they are answers a reader of the SURFACE asks.
+ * One function so the SHAPE lives once. `runtime.ts` used to spell it one
+ * clump a member and this package used to spell the verbs; now the package
+ * spells both and the server spreads the result. The doc sentences travelled
+ * with the handlers they are about, which is why they read as answers to
+ * questions nobody asks in this file — they are answers a reader of the
+ * SURFACE asks.
  */
 const handlersOf = (verbs: {
   readonly connect: (cell: { set: (value: KoluLink) => void }) => Effect.Effect<void>
   readonly rows: () => Map<string, FleetTerminal>
+  readonly events: () => Map<string, KoluEvent>
   readonly screen: (
     terminal: string,
     lines: number | undefined,
@@ -350,6 +430,13 @@ const handlersOf = (verbs: {
       upsert: () => {},
       remove: () => {},
     },
+    events: {
+      // The ring's own map — snapshot-then-deltas against a LIVE source,
+      // for `fleet`'s same reason. No writers: the watcher alone writes it.
+      readAll: verbs.events,
+      upsert: () => {},
+      remove: () => {},
+    },
   },
   streams: {
     terminal: {
@@ -364,11 +451,14 @@ const handlersOf = (verbs: {
 })
 
 /** What a face with no link answers on all four members — the same refusal the
- *  verbs above give, in the shape the surface takes. */
-const linklessHandlers = (): KoluHandlers =>
+ *  verbs above give, in the shape the surface takes. The events collection is
+ *  the one member that is ALIVE here: no fleet, no screen, no pane — but the
+ *  watcher pulses, for the fresh-install preview its header argues for. */
+const linklessHandlers = (watch: Watch): KoluHandlers =>
   handlersOf({
     connect: () => Effect.never,
     rows: () => NO_ROWS,
+    events: watch.events,
     screen: () => Effect.fail(NO_LINK),
     attach: () => Stream.make({ kind: "refused", says: NO_LINK.says } as TerminalFrame),
   })

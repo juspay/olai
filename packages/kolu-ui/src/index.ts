@@ -45,6 +45,12 @@ export { TerminalBlock } from "./props/TerminalDoor.tsx"
 export { padiSaid } from "./padi/said.ts"
 export type { Said } from "./padi/said.ts"
 
+/** THE FEED — what recently wanted attention, as a log. The Padi pill's
+ *  press opens it: the panel chrome is the app's, and this is the content. */
+export { EventsFeed, EventRow } from "./props/EventsFeed.tsx"
+export { eventLine } from "./padi/events.ts"
+export type { EventLine } from "./padi/events.ts"
+
 /** The fleet context, for the chrome readout that reads the link beside the
  *  pill — the one thing outside this package that needs the fleet itself. */
 export { useFleet } from "./props/fleet.tsx"

@@ -41,4 +41,18 @@ export const TESTID = {
   terminalScreen: "terminal-screen",
   /** Read it again — kept for the snapshot face; nothing wears it today. */
   terminalRefetch: "terminal-refetch",
+  /** THE EVENTS FEED — the list a Padi press opens (`./props/EventsFeed.tsx`).
+   *  `data-kind` per row is the event's own word, and `data-asking` is the
+   *  wire's frozen draw; the scenario asserts on THOSE rather than re-asking
+   *  what a violet means. */
+  eventsFeed: "events-feed",
+  /** ONE ROW of it — the frozen draw. */
+  eventsRow: "events-row",
+  /** The sentence half under a frozen row — "has been waiting for input for
+   *  38m". The words are the server-fold's words; this door is how a test
+   *  stops spelling them twice. */
+  eventsWords: "events-words",
+  /** What the feed says where the list is empty — the link's own sentence in
+   *  place of a blank. */
+  eventsEmpty: "events-empty",
 } as const

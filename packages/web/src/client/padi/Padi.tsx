@@ -13,23 +13,37 @@
  * wordmark, the burger and search, and everything else is news under the bar
  * or a row in the drawer. A padi that is absent is not news of that kind —
  * nothing is broken, and the terminal chips say so where they are.
+ *
+ * ## Press it
+ *
+ * It is a DOOR as well as a readout: pressing it opens the events feed,
+ * what recently wanted attention (`./Feed.tsx` — the log the watcher keeps,
+ * `@olai/kolu-ui`'s to answer and this file's to hang). The popover is
+ * `../popover.ts`'s, as the Commit panel's and the preferences' are: one
+ * focus cycle for the bar, rather than four.
  */
 
 import { Show } from "solid-js"
+import { Portal } from "solid-js/web"
 
 import type { KoluLink } from "@olai/surface"
 
 import { desktop } from "../layout/media.ts"
 import { DOT, PILL } from "../readout.ts"
 import { TESTID } from "../testids.ts"
+import { createPopover } from "../popover.ts"
+import { Feed } from "./Feed.tsx"
 import { padiSaid } from "@olai/kolu-ui"
 
 export function Padi(props: { readonly link: KoluLink }) {
   const said = () => padiSaid(props.link)
+  const popover = createPopover()
   return (
     <Show when={desktop()}>
-      <div
-        class={`${PILL} max-w-[9.5rem] shrink-0 sm:max-w-none`}
+      <button
+        type="button"
+        ref={popover.setTrigger}
+        class={`${PILL} max-w-[9.5rem] shrink-0 cursor-pointer sm:max-w-none`}
         data-testid={TESTID.padi}
         // The STATUS as an attribute as well as a paint, so a scenario asserts
         // the state rather than a colour — the same contract the terminal dot
@@ -37,11 +51,20 @@ export function Padi(props: { readonly link: KoluLink }) {
         data-padi={props.link.status}
         title={said().detail}
         aria-label={`kolu: ${said().detail}`}
-        aria-live="polite"
+        aria-expanded={popover.open()}
+        aria-haspopup="true"
+        onClick={() => popover.toggle()}
       >
         <span class={`${DOT} ${said().dot}`} aria-hidden="true" />
         <span class="min-w-0 truncate">{said().label}</span>
-      </div>
+      </button>
+      <Show when={popover.open() ? popover.at() : null}>
+        {(at) => (
+          <Portal>
+            <Feed at={at()} inside={popover.setPanel} />
+          </Portal>
+        )}
+      </Show>
     </Show>
   )
 }

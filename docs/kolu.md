@@ -47,6 +47,28 @@ Attaching is a write on a shared pty, and kolu's semantic is that every client s
 
 Closing drops the attach. Twelve lanes on a page are twelve rows and **zero** attached terminals until somebody presses one.
 
+## The events feed
+
+Press the `● kolu` readout and a panel opens: **what recently wanted attention**, as a log. olai watches the fleet it already holds and says when a terminal has been sitting in a state only a person can carry — `awaiting` your answer, or `waiting` on input — past the moment it is worth saying so. While a pressed Terminal waits on a machine's other half somewhere, the watch itself stays the same economy as the fleet drawer it sits on: the one daemon, the one subscriber, the map the server already held.
+
+Every row is a **frozen draw of the moment the event fired** — which pip it wore, which label it had, how long it had already held. The row is a fact about the past, not a current affairs teller: a terminal that found its answer ten minutes ago still shows the ask it was, and the headline age runs off the same clock as the pips.
+
+The watch is the SERVER's — one watcher, one ring of the last roughly two hundred events, and every browser is a reader of it. A quiet feed and a dead feed read alike from a distance, so the watcher also **pulses** — a heartbeat row every `heartbeat` — the line `the watcher is alive` proving the silence is peace, not a hang.
+
+Where a terminal asks is the only thing a held state cannot tell: you WANT it to ask somewhere. **Mute the fleet one at a time** in `_olai/Kolu.olai`, the same file the watch reads its cadence from:
+
+```
+{"id":"watch","ord":"a0","title":"watch","custom":{"held-for":"60s"}}
+{"id":"mutes","ord":"a1","title":"mutes"}
+{"id":"one","parent":"mutes","ord":"a0","title":"a side shell nobody watches","custom":{"terminal":"5c5824d5"}}
+```
+
+The file is normal outline records. The watch node carries the knobs — `held-for` (the pause that holds a terminal's state out of the feed), `nag` (how often an unanswered one is said again) and `heartbeat` — written as `<n>s`, `<n>m` or `<n>h`; an absent value defaults, and a malformed one defaults **and is said on the server's console**, so a typing mistake is never silent. The mutes are children of a `mutes` node holding one `terminal` property each — full id or a unique prefix of one. Edits land live: the watch reads its knobs on every vault revision, so the file a person is *editing* is the file a person is **already being watched by**.
+
+An ambiguous prefix — one that names two open terminals — silences neither, and says so: write more of the id.
+
+The file is yours, not installed: without it the watch runs its defaults (sixty seconds, ten minutes, half an hour).
+
 ## When there is nothing to see
 
 A machine not running kolu is the ordinary case, not a fault. There is no row, and in its place a **sentence** — never a grey row, which would claim the terminal is sitting there doing nothing, and that is a different and wrong fact:

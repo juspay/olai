@@ -1662,6 +1662,7 @@ export {
 export {
   FleetOwner,
   FleetTerminal,
+  KoluEvent,
   KOLU_UNDIALED,
   KoluLink,
   KoluStatus,
