@@ -57,7 +57,7 @@ const DURATION = /^(\d+)(s|m|h)$/
 const UNIT_MS: Readonly<Record<string, number>> = { s: 1_000, m: 60_000, h: 3_600_000 }
 
 /** The three props `watch` carries, in the order a reader sets them. */
-const PROPS = ["held-for", "nag", "heartbeat"] as const
+type WatchProp = "held-for" | "nag" | "heartbeat"
 
 /** What {@link watchConfigIn} returns — the config itself plus the malformed
  *  VALUE LINES, said by the caller so a vault typo is a sentence on the
@@ -122,7 +122,7 @@ export const watchConfigIn = (nodes: ReadonlyArray<Located>): WatchReading => {
   const malformed: Array<string> = []
   /** One prop, defensively: the default stands, and a line names the file,
    *  the node, the value and the grammar it violated. */
-  const readDuration = (key: (typeof PROPS)[number], fallback: number): number => {
+  const readDuration = (key: WatchProp, fallback: number): number => {
     if (watch === undefined) return fallback
     const value = customText(watch.node, key)
     if (value === undefined) return fallback

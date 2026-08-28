@@ -58,9 +58,10 @@ export interface EventLine {
 }
 
 /** The state's own word, narrowed by kolu rather than spelled: the label
- *  is `narrowAgentState`'s (`awaiting_user` — a new padi's word kept as
- *  itself), and the fallback arm says the BUCKET — which is already a word
- *  in the right vocabulary. Lowercased to sit inside a sentence. */
+ *  a known state carries (`awaiting_user` reads "awaiting input"); an
+ *  agent state this build's narrowing does not know falls to the BUCKET,
+ *  which is already a word in the right vocabulary. Lowercased to sit
+ *  inside a sentence. */
 const stateWord = (agentState: string | null, state: string): string =>
   (narrowAgentState(agentState).label ?? state).toLowerCase()
 
@@ -84,18 +85,14 @@ export const eventLine = (event: KoluEvent, now: number): EventLine => {
       about: null,
     }
   }
-  // THE HELD-FOR, frozen at FIRE time: a log line is a fact at a time, and
-  // the `…for 38m` is the hold AS the event said it, not as the reader's
-  // now stretches it. The `since === null` arm is the wire's spelling of
-  // "olai caught the state ALREADY held" — drop the duration, never invent.
-  const held = row.since === null
-    ? null
-    : recencyText("wait-chip", Date.parse(row.since), atMs)
+  // THE HELD-FOR, frozen at FIRE time: a log line is a fact at a time,
+  // and the `…for 38m` is the hold AS the event said it, not as the
+  // reader's now stretches it. The wire GUARANTEES a `since` — the
+  // watcher's own observation clock — so no row folds here without one.
+  const held = recencyText("wait-chip", Date.parse(row.since), atMs)
   const word = stateWord(row.agentState, row.state)
   const words = event.kind === "nag"
-    ? held === null ? `still ${word}` : `still ${word} for ${held}`
-    : held === null
-    ? `has been ${word}`
+    ? `still ${word} for ${held}`
     : `has been ${word} for ${held}`
   return {
     asking: row.pip.asking,
