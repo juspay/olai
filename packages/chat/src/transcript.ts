@@ -136,9 +136,9 @@ export const movesRows = (change: Change): boolean =>
  */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
 
-/** The five fields {@link Transcript} derives, named once — the list is
- *  spelled in three casts and a public type below, and five spellings of one
- *  list is one of them being missed the day a sixth is derived. */
+/** The six fields {@link Transcript} derives, named once — the list is
+ *  spelled in three casts and a public type below, and four spellings of one
+ *  list is one of them being missed the day a seventh is derived. */
 type Derived = "id" | "seq" | "since" | "streaming" | "stranded" | "resumed"
 
 const contentOf = <E extends ChatEntry>(entry: E): DistributiveOmit<E, Derived> => {
@@ -174,8 +174,9 @@ const contentOf = <E extends ChatEntry>(entry: E): DistributiveOmit<E, Derived> 
  * whether the turn that announced it has ended without it coming back.
  * Naming them once, here, is what makes them unsettable: every door into this
  * class takes this rather than a `Partial<ChatEntry>`, so a caller cannot hand
- * in a `seq` or a `since` for the writer to have to ignore, and a fifth derived
- * field inherits the rule instead of needing each door to be told about it.
+ * in a `seq` or a `since` for the writer to have to ignore, and a seventh
+ * derived field inherits the rule instead of needing each door to be told
+ * about it.
  *
  * Exported because two of those doors are public and their argument has to be
  * nameable from outside.
@@ -190,28 +191,36 @@ type RowPatch<K extends ChatEntry["kind"]> = Partial<Extract<RowContent, { kind:
 /** The writer's derived fields, applied onto already-kind-correct content.
  *
  *  A function rather than a spread in `#put`, so `streaming` cannot land on a
- *  tool row and `stranded` cannot land on a user row — the flags are arguments
+ *  tool row and `stranded` cannot land on a user row — the marks are arguments
  *  the matching arm accepts, not keys sprinkled onto every kind. `resumed`
  *  joins the tool arm the same way, and is a STAMP rather than a flag: absent
- *  is a call on its first outing, which is nearly all of them. */
+ *  is a call on its first outing, which is nearly all of them.
+ *
+ *  NAMED, and that is what the third of them bought: two adjacent booleans and
+ *  a stamp, passed positionally, are three unlabelled expressions at the call
+ *  site of which two are silently transposable. {@link Derived} names the list
+ *  once on the type side; this is the same list on the value side, and a fourth
+ *  mark is a field here rather than a tail nobody can read. */
 const minted = (
   entry: RowContent,
   derived: { readonly id: string; readonly seq: number; readonly since: string },
-  streaming: boolean,
-  stranded: boolean,
-  resumed: string | undefined,
+  marks: {
+    readonly streaming: boolean
+    readonly stranded: boolean
+    readonly resumed: string | undefined
+  },
 ): ChatEntry => {
   switch (entry.kind) {
     case "agent":
-      return streaming
+      return marks.streaming
         ? { ...entry, ...derived, streaming: true as const }
         : { ...entry, ...derived }
     case "tool":
       return {
         ...entry,
         ...derived,
-        ...(stranded ? { stranded: true as const } : {}),
-        ...(resumed === undefined ? {} : { resumed }),
+        ...(marks.stranded ? { stranded: true as const } : {}),
+        ...(marks.resumed === undefined ? {} : { resumed: marks.resumed }),
       }
     default:
       return { ...entry, ...derived }
@@ -1284,13 +1293,11 @@ export class Transcript {
       seq: existing?.seq ?? this.#seq++,
       since: existing?.since ?? this.#stamp(),
     }
-    const next = minted(
-      entry,
-      derived,
-      entry.kind === "agent" && key === this.#open,
-      entry.kind === "tool" && this.#stranded.has(key),
-      entry.kind === "tool" ? this.#outings.get(key) : undefined,
-    )
+    const next = minted(entry, derived, {
+      streaming: entry.kind === "agent" && key === this.#open,
+      stranded: entry.kind === "tool" && this.#stranded.has(key),
+      resumed: entry.kind === "tool" ? this.#outings.get(key) : undefined,
+    })
     this.#entries.set(key, next)
     return next
   }
