@@ -226,9 +226,8 @@ const sessionId = ((opened["result"] ?? {}) as Record<string, string>)["sessionI
 say("open", `session=${sessionId}`)
 await ask("session/set_mode", { sessionId, modeId: "bypassPermissions" })
 
-let turn = 0
-for (const text of prompts) {
-  turn++
+for (const [at, text] of prompts.entries()) {
+  const turn = at + 1
   say(`prompt ${turn}`, `KIND=${KIND}`)
   const answered = await ask("session/prompt", { sessionId, prompt: [{ type: "text", text }] })
   const outcome = JSON.stringify(answered["result"] ?? answered["error"])

@@ -62,13 +62,17 @@ for section in "${sections[@]}"; do
   # real monitor keeps its own clock.
   case "$section" in
     a-background-task-*|markdown-waits-illegibly) agent="$PWD/agent/fake-acp-agent.ts" ;;
-    # ... and the two sections whose subject is what a REAL harness does keep
-    # whatever the caller handed in, which is the whole of how they are run
-    # (each says so in its own docstring: AGENT=$(sh ../../scripts/acp-agent.sh)).
-    # This arm was missing, so the documented command exported an empty AGENT
-    # over the caller and the section met a panel with no agent at all.
-    chat-sends-queue|chat-agent-resumed) agent="${AGENT:-}" ;;
-    *) agent="" ;;
+    # ... and EVERY OTHER SECTION takes whatever the caller handed in, which
+    # with AGENT unset is the empty string this line used to hard-code: byte
+    # for byte the old behaviour for the sections that talk to nobody, and the
+    # documented command for the ones that do (each says so in its own
+    # docstring: AGENT=$(sh ../../scripts/acp-agent.sh) bash evidence.sh …).
+    # It was a hard-coded "" and so it silently overrode the caller — a section
+    # run that way met a panel with no agent at all, which fails as a wait
+    # rather than as an error, i.e. as a plausible screenshot of the wrong
+    # thing. An allowlist of the real-agent sections would have closed today's
+    # two and left the next one to find it again.
+    *) agent="${AGENT:-}" ;;
   esac
   # ... and it has to be in the ENVIRONMENT before the spawn, not on the line
   # that drives the browser: it is the SERVER that is given an agent.

@@ -3995,10 +3995,11 @@ const SECTIONS = {
    * an empty strip, which is the picture of the bug.
    *
    * Every wait is on a STATE the panel publishes — the strip carrying an agent,
-   * the panel going idle — and never on a clock, because the subject is a
-   * language model and there is no duration to assume. The two prompts ask for
-   * a subagent that sleeps, so the window each face is photographed in is long
-   * enough to photograph rather than a race with the shutter.
+   * the door under the spawning row counting that agent's calls, the panel going
+   * idle — and never on a clock, because the subject is a language model and
+   * there is no duration to assume. The two prompts ask for a subagent that
+   * sleeps, so the window each face is photographed in is long enough to
+   * photograph rather than a race with the shutter.
    */
   "chat-agent-resumed": async (page) => {
     pinnedBy(

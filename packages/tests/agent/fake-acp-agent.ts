@@ -1816,8 +1816,10 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
      *  `pending` rather than in_progress, which is what the adapter announces
      *  a tool use with — a spawn wears it until the first heartbeat, which for
      *  a slow one is a long time and exactly the stretch under test. */
-    const spawn = (id: string, said: string, kind?: string): void => (
-      lastSpawn = id,
+    const spawn = (id: string, said: string, kind?: string): void => {
+      // REMEMBERED ACROSS TURNS ({@link lastSpawn}), because that is what a
+      // later turn's `subagent again` reopens.
+      lastSpawn = id
       announce(id, SPAWN_TITLE, { toolName: "Agent", subagent: true }, {
         rawInput: {
           description: said,
@@ -1826,11 +1828,28 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
         },
         status: "pending",
       })
-    )
+    }
     /** One call made INSIDE a spawned agent — the main agent's own frame, plus
      *  the one field that says whose it is. */
     const inside = (id: string, title: string, parent: string): void =>
       announce(id, title, { toolName: "Grep", parentToolUseId: parent })
+    /** A SPAWN'S OWN COMPLETION, carrying the subagent's report the way the
+     *  adapter does — content blocks on the call, never prose in the main
+     *  agent's voice. It is what the live face RESOLVES INTO, and it is spelled
+     *  once because two turns end this way now (an agent that reported, and one
+     *  that reported twice): the whole claim of this fixture is the frame
+     *  SHAPE, so a correction to it that landed on one turn and not the other
+     *  would be a fixture disagreeing with itself about the adapter. */
+    const reported = (call: string, said: string): void =>
+      notify("session/update", {
+        sessionId,
+        update: {
+          sessionUpdate: "tool_call_update",
+          toolCallId: call,
+          status: "completed",
+          content: [{ type: "content", content: { type: "text", text: said } }],
+        },
+      })
 
     // A SUBAGENT THAT STOPS TO ASK, in the two shapes the adapter has for one.
     // Both put a form in front of a person on behalf of an agent nobody sent
@@ -1948,17 +1967,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       // agent one door however many times it goes out.
       inside(more, "push the branch", agent)
       completed(more)
-      notify("session/update", {
-        sessionId,
-        update: {
-          sessionUpdate: "tool_call_update",
-          toolCallId: agent,
-          status: "completed",
-          content: [
-            { type: "content", content: { type: "text", text: "the branch is pushed." } },
-          ],
-        },
-      })
+      reported(agent, "the branch is pushed.")
       say(" the agent reported back again.")
       reply(id, { stopReason: "end_turn" })
       return
@@ -1992,23 +2001,7 @@ const runTurn = async (id: unknown, text: string): Promise<void> => {
       await released()
       inside(read, "read the note", alone)
       completed(read)
-      // The spawn's own completion, carrying the subagent's report the way the
-      // adapter does — content blocks on the call, never prose in the main
-      // agent's voice. It is what the face RESOLVES INTO.
-      notify("session/update", {
-        sessionId,
-        update: {
-          sessionUpdate: "tool_call_update",
-          toolCallId: alone,
-          status: "completed",
-          content: [
-            {
-              type: "content",
-              content: { type: "text", text: "there are three notes." },
-            },
-          ],
-        },
-      })
+      reported(alone, "there are three notes.")
       say(" the agent reported back.")
       reply(id, { stopReason: "end_turn" })
       return
