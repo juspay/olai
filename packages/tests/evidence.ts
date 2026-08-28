@@ -4051,8 +4051,19 @@ const SECTIONS = {
     // taken here rather than after the claim below.
     await page.locator(CHAT_LANE_DOOR).filter({ hasText: "2 calls" }).first()
       .waitFor({ timeout: AGENT_PATIENCE })
-    console.log(`  and again: ${await textOf(page, CHAT_WATCHING)}`)
     await shot(page, "the-resumed-agent-is-back-on-the-strip")
+    // ... and READ AFTER THE SHUTTER, tolerantly: the strip is not drawn at all
+    // when nothing is out (a panel with a permanent "nothing running" line
+    // would be furniture on every conversation in the app), so on a stock
+    // adapter there is no element here to read — and a driver that threw on
+    // that would throw one line before the frame that shows it.
+    console.log(
+      `  and again: ${
+        (await page.locator(CHAT_WATCHING).count()) === 0
+          ? "(no strip at all — nothing is out, as far as the panel was told)"
+          : await textOf(page, CHAT_WATCHING)
+      }`,
+    )
     // ... and THEN the claim, so a build that fails it has already left the
     // frame that says how it failed.
     await agents.first().waitFor({ timeout: AGENT_PATIENCE })
