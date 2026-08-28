@@ -65,7 +65,7 @@
  *   anything    `pi says: <text>`
  */
 
-import { existsSync, rmSync } from "node:fs";
+import { existsSync, realpathSync, rmSync } from "node:fs";
 
 import { readMessages } from "../../support/ndjson.ts";
 import { emitter, MARKER, released, speaking } from "../../support/scripted.ts";
@@ -74,6 +74,15 @@ const emit = emitter(process.stdout);
 const { notify, refuse, respond, take } = speaking(emit, "pi");
 
 const cwd = process.cwd();
+
+/** The request names THIS DIRECTORY? `getcwd(2)` answers the PHYSICAL
+ *  spelling — `/var/folders/…` is `/private/var/folders/…` on darwin — and a
+ *  client may ask in whichever spelling started it ({@link cwd} is this
+ *  process's own answer already). One tree, either spelling, the other side
+ *  of the wire's string-equality contract read generously. */
+const thisTree = (candidate: unknown): boolean =>
+  typeof candidate === "string" &&
+  (candidate === cwd || realpathSync(candidate) === cwd);
 
 /** A turn that gave up because somebody pressed cancel. */
 class Cancelled extends Error {}
@@ -292,16 +301,18 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
     }
 
     case "session/list":
-      // Filtered by the request's OWN cwd, exactly — the real one reads pi's
-      // own store and compares the string, which is the behaviour olai's
-      // client-side narrowing sits on top of.
+      // Scoped to the request's OWN directory — the real one reads pi's own
+      // store and compares the string; this one says it about a DIRECTORY
+      // (see {@link thisTree}), and answers the row in the REQUEST's
+      // spelling, whose spelling the store would carry is something a fake
+      // cannot know.
       respond(id, {
         sessions:
-          STORED === "" || params["cwd"] !== cwd
+          STORED === "" || !thisTree(params["cwd"])
             ? []
             : [{
               sessionId: STORED_SESSION,
-              cwd,
+              cwd: String(params["cwd"]),
               title: "a pi conversation",
               updatedAt: "2026-08-21T09:00:00Z",
             }],
