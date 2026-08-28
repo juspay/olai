@@ -519,6 +519,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       questions.withdrawAll()
       calls.forget()
       forgetModel()
+      // ... and the doubled-prologue arm along with the rest: it names a chunk
+      // the session BEING LEFT announced. Spared this line, an arm whose
+      // banner never landed (an adapter that reordered it behind something
+      // else) would outlive its open and spend the life of the process
+      // waiting to consume the first chunk of ANY later conversation that
+      // happens to equal it — the load below replays its history BEFORE the
+      // answer that would disarm this, with `fromElsewhere` passing the
+      // frames, and "the banner showed" (the safe direction) and "a replayed
+      // message was eaten" are the same mis-set bit apart.
+      prologue = null
       // The servers were HANDED to a conversation that is over, and the next
       // one is probed fresh before it opens. Emptied rather than left standing
       // so a forwarded `init` still in flight from the finished session has
@@ -1492,10 +1502,12 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               emit({ _tag: "replayEnded" })
             }),
         )) as LoadSessionResponse | undefined
-        // A load answers this adapter's `null` prologue, so arming here is
-        // really disarming: whatever a previous conversation of this process
-        // announced, nothing of it may consume a chunk of THIS session's
-        // replay, whose first agent chunk could be anything somebody said.
+        // A REARM, not the disarm: that already happened in {@link leaving},
+        // before a single frame of the replay above could arrive — which is
+        // the ordering that matters, because the replay lands DURING the ask
+        // and this line of it after. A `session/load` that announces a
+        // prologue of its own arms it here; this adapter's answers `null`,
+        // and null is "drop nothing", the whole of the claim.
         prologue = options.leg.prologueIn(loaded ?? null)
         // AFTER THE ANSWER, and that ordering is the whole of one bug. Entering
         // a conversation is what this module records being IN one — it sets the
