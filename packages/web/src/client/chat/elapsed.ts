@@ -67,7 +67,7 @@
  * `../commit/ago.ts` makes for the same reason.
  */
 
-import type { ChatEntry } from "@olai/surface"
+import { type ChatEntry, outSince } from "@olai/surface"
 import type { Accessor } from "solid-js"
 
 import { createTicking, HOUR, instantOf, MINUTE, SECOND } from "../clock.ts"
@@ -102,7 +102,13 @@ export const elapsedOf = (
   // `status` is a tool row's field. It NARROWS, so the stamp below is read
   // off a row this line has already established is a call.
   if (!isRunning(entry)) return null
-  const started = instantOf(entry.since)
+  // THE CURRENT OUTING'S start rather than the row's birth, which are the same
+  // instant for every call that has been round once — and are not for an agent
+  // that reported and was sent more work, whose spawning call is reopened where
+  // it stands ({@link @olai/surface}'s `outSince`). The strip above the scroll
+  // counts from the same rule, because it is drawn from the same row at the
+  // same moment.
+  const started = instantOf(outSince(entry))
   // A stamp that is not a time. It cannot be a MISSING one — the wire requires
   // it — so this means exactly what it says: somebody else's string, and a
   // readout of `NaN` is worse than a row with no readout.

@@ -89,7 +89,6 @@ import {
   CHAT_PREVIEW_ASKED,
   CHAT_PREVIEW_NOTHING,
   CHAT_PREVIEW_OF,
-  CHAT_PREVIEW_SHUT,
   CHAT_REFUSAL,
   CHAT_REOPEN,
   CHAT_RESEND,
@@ -3539,7 +3538,12 @@ When("I open {string} from the strip", async function (this: OlaiWorld, named: s
 });
 
 Then("I can close the agent's work", async function (this: OlaiWorld) {
-  await this.page.locator(CHAT_PREVIEW_SHUT).click();
+  // THROUGH THE DOOR IT WAS OPENED BY, which is the only way there is now: the
+  // shelf's own × was retired (the human, 2026-08-28), because a control on a
+  // box about an agent reads as a control over the AGENT — and one reader had
+  // already read it that way. Pressing the door again is what "put it away"
+  // means at both doors, and this scenario opened the shelf from the row's.
+  await this.page.locator(CHAT_LANE_DOOR).first().click();
   await this.waitUntil(
     async () => (await this.page.locator(CHAT_PREVIEW).count()) === 0,
     "the shelf to close",

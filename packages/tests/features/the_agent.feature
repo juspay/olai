@@ -135,6 +135,44 @@ Feature: Talking to the agent
     And the agent's work shows 1 calls
 
   @scratch:chat
+  Scenario: An agent sent MORE WORK is back on the strip, under the same door
+    # The bug, seen live (the human, 2026-08-28): an agent authored a PR and
+    # reported — its strip entry went quiet, correctly — and was then RESUMED,
+    # a follow-up instruction over the same transcript. It worked for twenty
+    # minutes and the strip said NOTHING. A running agent with no face anywhere
+    # in the panel, which is the one thing this strip exists to make impossible.
+    #
+    # What the wire does on a resume was measured rather than assumed
+    # (`packages/tests/tasks.ts`, against the real adapter): the harness starts
+    # that agent's task a SECOND time, and everything the agent does goes on
+    # being stamped with the call that SPAWNED it — so olai's patched adapter
+    # reopens that very call, and the membership rule that was already there
+    # ("spawned, and still running") picks the face back up.
+    #
+    # ONE AGENT, ONE ROW, ONE DOOR, however many times it goes out: the door's
+    # count grows rather than a second door appearing, which is the half a
+    # second strip entry would have got wrong while looking right.
+    When I ask the agent "subagent slow"
+    Then the strip lists 1 agents still out
+    When the agent is released
+    Then the strip lists no agent still out
+    And the call that spawned it offers a door to 1 calls, as "read every note"
+    When I ask the agent "subagent again"
+    Then the strip lists 1 agents still out
+    # ... and it is the same agent, by the name it was sent out with in the turn
+    # before — the strip is a tab bar, and an entry that could not be recognised
+    # is an entry nobody would press.
+    When I open "read every note" from the strip
+    Then the agent's work is open, and it is "read every note"
+    When the agent is released
+    Then the strip lists no agent still out
+    # BOTH OUTINGS ARE ONE RECORD. The work of the second is filed under the
+    # same row as the work of the first, so the door that was worth opening an
+    # hour ago is the door that is worth opening now.
+    And the call that spawned it offers a door to 2 calls, as "read every note"
+    And the agent's work shows 2 calls
+
+  @scratch:chat
   Scenario: An agent that has been sent out and reported nothing yet still has a face
     # The human's screenshot: a fan-out running, and a panel drawing one
     # pending dot with an ordinary title on it, because every lane above is

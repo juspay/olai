@@ -18,7 +18,14 @@
  * is a strip that goes on drawing something that has stopped being true.
  */
 
-import { type ChatEntry, isAgentOut, isTaskOut, sentToDo, type Watching } from "@olai/surface"
+import {
+  type ChatEntry,
+  isAgentOut,
+  isTaskOut,
+  outSince,
+  sentToDo,
+  type Watching,
+} from "@olai/surface"
 
 /**
  * The background tasks this conversation armed and the agents it sent, read off
@@ -53,12 +60,20 @@ export const watching = (
     // agent needs no fallback and is given the row's own name — the SAME string
     // the transcript draws on the spawning row, so the strip and the record
     // cannot come out reading as two things.
+    //
+    // ... and WHEN IT WENT OUT, which is the row's birth for a call on its first
+    // outing and is not that for an agent somebody sent MORE WORK: the call
+    // reopened for a resumed subagent is the one that spawned it, hours ago
+    // ({@link @olai/surface}'s `outSince`, which the readout on the row's own
+    // line asks too). A strip counting from the birth would meet a person
+    // watching a minute-old resume with *running for 3h 12m*, which is the
+    // shape of wrongness this strip exists to not have.
     if (isAgentOut(entry)) {
       out.push({
         row: key,
         kind: "agent",
         name: sentToDo(entry.spawned, entry.text),
-        since: entry.since,
+        since: outSince(entry),
       })
     }
     else if (isTaskOut(entry)) {
@@ -66,7 +81,7 @@ export const watching = (
         row: key,
         kind: "task",
         name: entry.armed?.description ?? entry.text,
-        since: entry.since,
+        since: outSince(entry),
       })
     }
   }

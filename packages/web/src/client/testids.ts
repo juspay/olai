@@ -1313,8 +1313,6 @@ export const TESTID = {
   /** Its head: the agent it is about, by the name the spawning row carries.
    *  `data-spawn-kind` is the kind of agent, when the spawn named one. */
   chatPreviewOf: "chat-preview-of",
-  /** ... and the control that closes it. */
-  chatPreviewShut: "chat-preview-shut",
   /** ... and the notice at its head saying the turn is blocked on a QUESTION,
    *  which is the one thing in this box that is not about the agent. A form is
    *  never drawn in here — it stays in the conversation, where a decision

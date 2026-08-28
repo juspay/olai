@@ -316,10 +316,16 @@ test("a tool call's status is spelled where it is meant and where it is drawn", 
 // conversation does not have simply draws nothing. What it cannot hide is a
 // COLLISION, the day a server restarts without a page reload and a fresh
 // transcript re-mints keys from the same counter: a shelf nobody pressed, open
-// on somebody else's third tool call. Two callers, and the second is the one
-// that was missing — the shelf's own dismiss, and the cell that is the only
-// thing which knows a conversation changed.
-test("the open preview is put away by its own control and by the conversation ending", () => {
+// on somebody else's third tool call.
+//
+// TWO CALLERS, and NEITHER of them is a reader putting the shelf away: the
+// shelf's own × was retired (the human, 2026-08-28) and closing is the door's
+// job now, so what is left is the question banner — which shuts this to reveal
+// the form it points at — and the cell that is the only thing which knows a
+// conversation changed. The count is the same and the list is the same; what
+// changed is that a control which meant "I am done with this AGENT" is gone
+// from it, which is the thing this test would otherwise let back in.
+test("the open preview is put away for a reason of the panel's, never as a dismissal", () => {
   expect(filesSpelling(/closePreview\s*\(\s*\)/)).toEqual([
     path.join("chat", "Preview.tsx"),
     path.join("chat", "previewing.test.ts"),

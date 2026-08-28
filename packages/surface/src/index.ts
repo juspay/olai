@@ -1507,6 +1507,7 @@ export {
   NodeContext,
   NoticeEntry,
   OpFailure,
+  outSince,
   RefusalEntry,
   Conversation,
   Listed,
