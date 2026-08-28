@@ -180,6 +180,23 @@ export interface Background {
 }
 
 /**
+ * What one agent's answer to `session/list` says BEYOND the protocol's own
+ * four fields, off an entry's own `_meta` corner: how many messages the
+ * conversation holds, and which stored conversation was cleared to make it
+ * (the picker's "superseded by" line).
+ *
+ * A corner that carries ONE of the two reads for both: the absent half is
+ * `null`, because the reader returning no facts at all is one answer (the
+ * agent's list has no corner) and a row that drew only the count is the
+ * other. Both are the losing direction this can afford: the picker's row
+ * says nothing for them.
+ */
+export interface ListedFacts {
+  readonly messageCount: number | null
+  readonly supersededBy: string | null
+}
+
+/**
  * What a leg says an agent reported about one of ITS OWN connections to an MCP
  * server.
  *
@@ -292,6 +309,14 @@ export interface Leg {
    *  background work is drawn as it always was: a call that completed at the
    *  moment it started. */
   readonly backgroundTask: (meta: Meta) => Background | null
+
+  /**
+   * The two facts a `session/list` entry carries about ITS conversation, off
+   * the entry's `_meta` — see {@link ListedFacts}. An agent whose answer
+   * carries no `_meta` corner answers `null` for everything, and its rows say
+   * nothing.
+   */
+  readonly listedIn: (meta: Meta) => ListedFacts | null
 
   /** The permission mode to ask a fresh session for, or `null` for an agent
    *  that has none. A refusal is not a boot failure either way:

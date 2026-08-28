@@ -1051,6 +1051,16 @@ export const SessionInfo = Schema.Struct({
   ...Conversation.fields,
   /** One of {@link AGENTS}' ids. */
   agent: Schema.String,
+  /** How many messages the conversation holds, as the agent counts them —
+   *  `null` when nothing says: an agent without a count, or a transcript it
+   *  could not read. The list draws no number for `null`, which is the
+   *  answer's losing direction and never a zero drawn instead of it. */
+  messageCount: Schema.NullOr(Schema.Number),
+  /** The conversation that replaced this one, by id — or `null` when nothing
+   *  says one did. An adapter says it when its transcripts make the link (see
+   *  {@link ../chat/src/events.ts}'s `Stored`); a `/clear` sibling is where a
+   *  person meets it. */
+  supersededBy: Schema.NullOr(Schema.String),
 })
 export type SessionInfo = typeof SessionInfo.Type
 

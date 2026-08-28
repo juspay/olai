@@ -1191,11 +1191,21 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           (raw) =>
             (raw as ListSessionsResponse).sessions
               .filter((entry) => sameDirectory(entry.cwd, options.cwd))
-              .map((entry): Stored => ({
-                id: entry.sessionId,
-                title: entry.title ?? null,
-                updatedAt: entry.updatedAt ?? null,
-              }))
+              .map((entry): Stored => {
+                // What the AGENT'S OWN CORNER of the answer added, on top of
+                // the protocol's four fields — read by the leg, who is the
+                // only one that knows the corner's name; a listing that said
+                // nothing extra answers `null`, which is what a row says
+                // rather than a zero.
+                const listed = options.leg.listedIn(entry._meta)
+                return {
+                  id: entry.sessionId,
+                  title: entry.title ?? null,
+                  updatedAt: entry.updatedAt ?? null,
+                  messageCount: listed?.messageCount ?? null,
+                  supersededBy: listed?.supersededBy ?? null,
+                }
+              })
               .sort(newestFirst),
         )
         : Effect.succeed([])

@@ -167,6 +167,8 @@ export const make = (where: Where): Effect.Effect<Listings> =>
         agent: row.id,
         title: entry.title,
         updatedAt: entry.updatedAt,
+        messageCount: entry.messageCount,
+        supersededBy: entry.supersededBy,
       })),
       unreachable: [],
     })

@@ -40,6 +40,7 @@ import {
   allowingOurs,
   type Background,
   type Leg,
+  type ListedFacts,
   type Meta,
   type Reported,
   type Spawn,
@@ -380,6 +381,43 @@ const wordIn = (
   return typeof value === "string" && value !== "" ? value : null
 }
 
+// ── what `session/list` says about one conversation ────────────────────
+
+/**
+ * What the adapter's `session/list` says about ONE conversation beyond the
+ * protocol's four fields — how many messages it holds, and which session's
+ * clearing produced the one listed — out of the entry's own `_meta.claudeCode`.
+ *
+ * The SECOND reading of this corner that comes from the patch olai carries on
+ * its pin (the first is {@link backgroundTaskIn}): that the list has anything
+ * more to say at all is the patch's own news (`acp/patches/README.md`),
+ * because ACP's `SessionInfo` answers `{sessionId, cwd, title, updatedAt}`
+ * and stops, and the picker's per-row count and `superseded by` pair had
+ * nothing to read ({@link ../events.ts}'s `Stored` is where the two land).
+ *
+ * Each fact is said for itself, the way the patch attaches it: an entry whose
+ * transcript never yielded a count still has every protocol field, and an
+ * absent `supersededBy` is a conversation nothing replaced. So the answer is
+ * `null` for a corner saying nothing, and `null` per field inside it — the
+ * corners between (a count and no link) being the ordinary case of them all.
+ */
+export const listedIn = (meta: Meta): ListedFacts | null => {
+  const said = claudeIn(meta)
+  const supersededBy = wordIn(said, "supersededBy")
+  const count = said?.["messageCount"]
+  // The count is one the adapter reports or it is NOTHING at all: a fraction
+  // like 3.5 is forfeited with the same weight as a string — a row drawing
+  // `3.5 messages` (the review's catch) is the stamp announcing a reader
+  // that trusted anything with a decimal point, which is the other side of
+  // what the strict `=== 3` case in the test exists to pin.
+  const messageCount = typeof count === "number" && Number.isInteger(count) && count >= 0
+    ? count
+    : null
+  return messageCount === null && supersededBy === null
+    ? null
+    : { messageCount, supersededBy }
+}
+
 // ── what the adapter says it can do, at the handshake ──────────────────
 
 /**
@@ -654,6 +692,7 @@ export const CLAUDE: Leg = {
   parentToolUse: parentToolUseIn,
   spawned: spawnedIn,
   backgroundTask: backgroundTaskIn,
+  listedIn,
   bypassMode: BYPASS_MODE,
   steering: {
     method: STEER_METHOD,

@@ -30,10 +30,16 @@ const rowFor = (id: string): Installed =>
 const CLAUDE = rowFor("claude")
 const OPENCODE = rowFor("opencode")
 
-const stored = (id: string, updatedAt: string | null): Stored => ({
+const stored = (
+  id: string,
+  updatedAt: string | null,
+  said: { readonly messageCount?: number; readonly supersededBy?: string } = {},
+): Stored => ({
   id,
   title: null,
   updatedAt,
+  messageCount: said.messageCount ?? null,
+  supersededBy: said.supersededBy ?? null,
 })
 
 /** A clock a test moves by hand — the whole reason {@link Where} takes one. */
@@ -96,6 +102,25 @@ describe("asking every installed agent", () => {
       ["cc", "claude"],
     ])
     expect(listed.unreachable).toEqual([])
+  })
+
+  test("what the adapter said ABOUT a conversation rides its row", async () => {
+    // The count and the link are the picker's material for the row's second
+    // half — the projection must drop neither.
+    const { where } = asking({
+      answers: {
+        claude: [
+          stored("older", "2026-08-01T00:00:00Z", { messageCount: 47, supersededBy: "newer" }),
+          stored("newer", "2026-08-02T00:00:00Z", { messageCount: 3 }),
+        ],
+      },
+    })
+    const listed = await listOf(await Effect.runPromise(make(where)))
+    expect(listed.sessions.map((row) => [row.id, row.messageCount, row.supersededBy]))
+      .toEqual([
+        ["newer", 3, null],
+        ["older", 47, "newer"],
+      ])
   })
 
   test("an UNDATED row sorts last, never first", async () => {

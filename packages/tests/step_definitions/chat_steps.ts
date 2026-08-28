@@ -102,6 +102,7 @@ import {
   CHAT_SESSION_AGENT,
   CHAT_SESSION_UNREACHABLE,
   CHAT_SESSION_LIST,
+  CHAT_SESSION_SUPERSEDED,
   CHAT_SESSIONS,
   CHAT_ARMED,
   CHAT_ARMED_ENDED,
@@ -2450,6 +2451,83 @@ Then(
 Then("the chats list has no headings", async function (this: OlaiWorld) {
   assert.strictEqual(await this.page.locator(CHAT_SESSION_AGENT).count(), 0);
 });
+
+/** One row of the list, by its title — the hand every row-level claim shares,
+ *  because the title is what a person means by the conversation. */
+const rowOf = (world: OlaiWorld, title: string): Locator =>
+  world.page.locator(CHAT_SESSION, { hasText: title }).first();
+
+/** HOW BIG a conversation it says — the adapter's own count, read off the row
+ *  the way a person's eye takes it: the words, not the element carrying them.
+ *  The plural pattern; one message is checked by its own, because the drawn
+ *  word changes to "message" — and the singular, not the number, is what the
+ *  review noted the step below could otherwise never observe. */
+Then(
+  "the chats row for {string} says it has {int} messages",
+  async function (this: OlaiWorld, title: string, count: number) {
+    const row = rowOf(this, title);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const said = oneLine(await row.innerText());
+    assert.ok(
+      said.includes(`${count} messages`),
+      `the row for "${title}" to say "${count} messages" — it says: "${said}"`,
+    );
+  },
+);
+
+Then(
+  "the chats row for {string} says it has one message",
+  async function (this: OlaiWorld, title: string) {
+    const row = rowOf(this, title);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.ok(
+      oneLine(await row.innerText()).includes("1 message"),
+      `the row for "${title}" to say "1 message"`,
+    );
+  },
+);
+
+/** ... and the other answer, for the agent whose `session/list` carries no
+ *  corner to read a count out of: nothing there — never a zero standing in
+ *  for nobody having asked. */
+Then(
+  "the chats row for {string} shows no message count",
+  async function (this: OlaiWorld, title: string) {
+    const row = rowOf(this, title);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.ok(
+      !/\d+ messages?/.test(oneLine(await row.innerText())),
+      `the row for "${title}" to show no message count`,
+    );
+  },
+);
+
+/** WHICH conversation replaced this one, read off the row — the picker's own
+ *  answer to "which of these two do I want" before anybody opens the wrong
+ *  half of a `/clear` pair. */
+Then(
+  "the chats row for {string} was superseded by {string}",
+  async function (this: OlaiWorld, title: string, successor: string) {
+    const line = rowOf(this, title).locator(CHAT_SESSION_SUPERSEDED).first();
+    await line.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const said = oneLine(await line.innerText());
+    assert.ok(
+      said.includes(successor),
+      `the row for "${title}" to name "${successor}" — it says: "${said}"`,
+    );
+  },
+);
+
+Then(
+  "the chats row for {string} was not superseded",
+  async function (this: OlaiWorld, title: string) {
+    // The absence of the line, not of the word: a title could supersede in
+    // name only, and a superseded row carries the one element with the fact.
+    const row = rowOf(this, title);
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(await row.locator(CHAT_SESSION_SUPERSEDED).count(), 0);
+  },
+);
 
 // ── what the OUTLINE did about it ──────────────────────────────────────
 

@@ -1,12 +1,17 @@
-# The one patch this pin carries
+# The patches this pin carries
 
-`background-tasks-visible.patch` applies to the pinned
-`@agentclientprotocol/claude-agent-acp` 0.66.0 — to its **compiled**
-`dist/acp-agent.js`, because npm is the only channel the adapter ships through
-(`nix/acp-agent.nix` says why that pin is npm-shaped). It is applied by that
-derivation's `postInstall`, so every documented way of starting olai — `nix
-run`, the packaged binary, `just serve`, `just run`, the e2e suite's
-`OLAI_BIN` — gets the same agent.
+## What the pin is for
+
+Two patches apply to the pinned `@agentclientprotocol/claude-agent-acp`
+0.66.0 — to its **compiled** `dist/acp-agent.js`, because npm is the only
+channel the adapter ships through (`nix/acp-agent.nix` says why that pin is
+npm-shaped). They are applied by that derivation's `postInstall`, so every
+documented way of starting olai — `nix run`, the packaged binary, `just
+serve`, `just run`, the e2e suite's `OLAI_BIN` — gets the same agent.
+
+---
+
+# `background-tasks-visible.patch` — a background task lives past its launch
 
 ## What it is for
 
@@ -102,25 +107,179 @@ adapter has nothing to forward per event, and this patch does not pretend
 otherwise: what it carries is the task's LIFE — armed, still running, and how
 it ended. Per-event streaming is a change one layer further down, in the CLI.
 
+---
+
+# `session-list-info.patch` — what a stored conversation holds, and which one a `/clear` moved you to
+
+## What it is for
+
+Two questions about an agent's stored conversations that `session/list`
+cannot answer today:
+
+- **How big is the conversation?** The wire carries an id, a title,
+  timestamps, and a file size — and nothing that says how many messages a
+  conversation holds. Two sessions can share a title and an hour; three
+  versus three hundred messages is usually the difference the person reading
+  the picker means.
+- **Which conversation did `/clear` move you into?** The CLI starts a fresh
+  session for the same directory and leaves no pointer connecting the two,
+  so a picker shows the pair as twins and cannot say which row the reader
+  is in.
+
+The patch answers both by stamping each listed session's `_meta.claudeCode`
+(the protocol's extension point for exactly this) when `session/list` replies:
+
+- `messageCount: number`, read from the transcript; and
+- `supersededBy: <sessionId>` on the OLDER of a `/clear` pair.
+
+The asking that follows from that is written up in
+[claude-agent-acp#1052](https://github.com/agentclientprotocol/claude-agent-acp/issues/1052),
+which also asks whether the CLI can stop making it an inference question at
+all (a session that replaced another knows it did).
+
+The pairing and the scanning rules are vendored OUT of this file and into
+[`acp/session-list-info/`](../session-list-info/README.md): the patch is
+GENERATED from that source (`bash acp/session-list-info/regenerate.sh`,
+with the hunks computed by `diff -u` against the pristine npm extract — one
+generation of hand-numbered hunks failed at `-F0` on the pristine corpus and
+that was the argument). The suite in `facts.test.js` is why each rule below
+is a claimed edge and not a hope. The patch remains diff-shaped because the
+build must stay LOUD: `patch -p1 -F0` at `nix/acp-agent.nix:81-82` is what
+makes a pin bump fail rather than silently drop the behaviour — one reviewer
+had it as the promise, one as evidence it was not yet keeping itself; both
+hunters are now bound the same way: loudly, by construction.
+
+## Where the reading's honesty comes from
+
+**There is no "empty transcript" that reads as zero.** `getSessionMessages`
+answers `[]` for an unreadable file the same as for a genuine empty one, and
+a row drawing `0 messages` for an EACCES would erase the failure the whole
+stamp exists to catch. When the messages call answers empty, the patch calls
+`getSessionInfo` with the same dir — and `info` answers `undefined` on
+every loss window the messages call swallows (unlocatable, zero-byte,
+unopenable) — and THIS is the arbiter: nothing comes back, the row carries
+NO stamps and a logged line, SOMETHING comes back and the zero is earned.
+Failure is UNDATED too: a row that lost its read drops out of the pairing
+alongside its count. Failure is not MEMOIZED either: a transient read
+failure is retried on the next list, never remembered for the process's
+life; the cache remembers only successful facts, capped at 2000 entries,
+oldest evicted. (The cache's key is the row's own `(fileSize, lastModified)`
+— under a sessionStore the former is `undefined` and the key collapses to
+mtime: the notes say so, because anything else would be a claim.)
+
+**The pairing says no rather than any of the ways it could pick a wrong
+one.** Its rules, each an edge the suite asserts:
+
+- a candidate's `lastModified` may equal the command's timestamp — mtime
+  and stamps share a domain, and excluding the boundary walks past a
+  same-moment predecessor; two candidates AT the maximum are no answer;
+- an heir that claims a predecessor already claimed is no answer FOR
+  EITHER — the first version's overwrite was the way in;
+- the candidate's touch must lie within one week of the command: a longer
+  reach names whatever row existed back then with identical confidence,
+  which is the begging-a-question the first version did in code;
+- a session the listing's own IDE-parity rule excludes (headless or
+  daemon-written: `includeProgrammatic: false`, asked of the CANDIDATE
+  set only — olai's visible list keeps the same shape, because hiding a
+  conversation to protect a link guess would be the wrong friend), is not
+  a predecessor a person reading the list can see in front of them — the
+  case olai's own scripted drivers would manufacture otherwise;
+- and the walk's own limit, said rather than kept quiet: an EARLIER
+  opener that made NO claim (its transcript unreadable or undated) carries
+  no protection for its predecessor — a LATER opener can still link that
+  predecessor alone. Same shape of the answer this whole pairing is
+  refusing to risk, one step rarer; the limit is named in the docstring
+  alongside, not guarded, because the honest walk's refusal of one wrong
+  case is not the coach for guarding the next possible mistake against
+  rules we do not have about undated requests.
+
+**`timestamp` is an undocumented passthrough of the SDK's `SessionMessage`,**
+not a manufactured value like `sessionId`: a pin bump that drops it turns
+the pairing into silent nothing. `clearOpenedAtOf` reports that shape
+separately from "not a clear" (`sawClear`, no `at`), and the first process
+to meet one logs it ONCE — the same shape as the row: nothing drawn where
+nothing was said, but always said where something was tried.
+
+## Numbers it costs
+
+Measured on the developer's own directory (32 sessions, ~410 MB,
+2026-08-28): cold list against a stopped adapter (the picker's own
+booted-for-a-minute shape) ~1.6 s, against the warm one inside an attached
+panel ~24 ms; the scan is per session sequential on purpose, a ready
+`Promise.all`'s storm: it trades fifty ms on a cold row-ask for not
+walling the machine. Every failure mode names itself once on the logger
+rather than the row.
+
+## What this patch does NOT do
+
+- ANSWER BEYOND the seven-day window: a real reader returning weeks later
+  then sees no link, where the notes once presented a months-old sibling
+  with the same confidence as the conversation the reader was just in —
+  the narrow direction this picks is saying nothing rather than guessing.
+- Make tool stops read as conversation turns: the count is the transcript's
+  length (both directions of the SDK drain), not the chat's own turn count
+  — `docs/chat.md` says the same, in the measure the screen shows you.
+- Claim anything beyond ONE agent's listing for ONE directory: the id a
+  stamp references is scoped there — the same id in another listing is a
+  different row (and the picker's own map of the names a successor points
+  at is keyed by the owner precisely so one cannot drift into another).
+
+## What neither patch gets you
+
+The CLI's own `/resume` picker still shows file size. The link never becomes
+anything but inferred while the harness does not write it. An agent that is
+not this adapter — opencode — has no stamp, and olai's picker's answer for
+an unstamped row is to say nothing rather than invent a count for it.
+
+---
+
 ## Upstreaming
 
-**Asked, not sent**:
+**`background-tasks-visible.patch` — asked, not sent**:
 [claude-agent-acp#1038](https://github.com/agentclientprotocol/claude-agent-acp/issues/1038)
 describes this extension, links to this patch, and asks the maintainers whether
 a PR of it would be welcome. That issue is the whole of what has been done on
-that repo — no branch, no PR — and it was opened on the human's own narrow
-ratification, because acting on somebody else's repository is theirs to allow
-and never this lane's to assume.
+that repo on it — no branch, no PR — and it was opened on the human's own
+narrow ratification, because acting on somebody else's repository is theirs to
+allow and never this lane's to assume.
 
-The patch is written against the compiled output because that is what the pin
-ships; against `src/acp-agent.ts` the same change is a mechanical translation,
-which is what a PR would carry if the answer is yes.
+**`session-list-info.patch` — asked, not sent**:
+[claude-agent-acp#1052](https://github.com/agentclientprotocol/claude-agent-acp/issues/1052),
+same shape: what the two stamps are, why, and a pointer at this patch, ending
+in the same two questions — would a PR be welcome, and could the CLI make the
+link a fact rather than an inference. That issue was opened under the same
+narrow ratification, and naming the ratification here is what keeps both
+issues from looking like an editorial habit.
+
+Both patches are written against the compiled output because that is what the
+pin ships; against `src/acp-agent.ts` the same change is a mechanical
+translation, which is what a PR would carry if the answers are yes.
 
 ## When the pin moves
 
-`patch -p1` fails the build if the context has moved, which is the point: a
-version bump makes this loud rather than silently dropping the behaviour. The
-fix is to re-apply the edits against the new `dist/acp-agent.js` (the anchors
-are all in `toAcpNotifications`' tool-result branch and in the SDK-message
-switch's `task_*` cases) — or to drop the patch if upstream has landed it, and
-say so here.
+`patch -p1 -F0` fails the build if the context has moved, which is the point:
+a version bump makes this loud rather than silently dropping the behaviour —
+the `-F0` is the audible half, because patch's default fuzz would land a hunk
+up to two lines from where its context said it belonged, and one reviewer's
+"this is the promise" and the other's "it was true" were both right and
+both mattered. The fix for a move is to re-apply the edits against the new
+`dist/acp-agent.js` — the anchors in `background-tasks-visible.patch` are
+all in `toAcpNotifications`' tool-result branch and in the SDK-message
+switch's `task_*` cases; the anchors in `session-list-info.patch` are
+`listSessions` and the module surface above it — or to drop a patch
+upstream has landed, and say so here.
+
+**TWO things about `session-list-info` are NOT a hunk context and both of
+them must survive a bump standing alone**
+
+1. `message.timestamp` — an UNDOCUMENTED passthrough of the SDK's
+   `SessionMessage`: the day it stops arriving, `patch` still applies
+   cleanly and every supersession link just disappears, rows wearing the
+   finest possible health. Look for the adapter's log telling you exactly
+   the scene's name: the pairing reports the case (`sawClear`, without a
+   `at`) and the harness names the line.
+2. The pairing rules, period: they are the tests mattered the most at and
+   the change any port of the rest MUST carry unchanged. The shape to
+   transplant is `acp/session-list-info/facts.js`, not the diff: run
+   `bash acp/session-list-info/regenerate.sh` and the diff that follows
+   is itself the sign the port is the same one the suite validated.

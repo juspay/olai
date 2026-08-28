@@ -58,19 +58,29 @@ buildNpmPackage {
       # exists to keep the deps hash tied to the two files npm reads, and this
       # is read after npm has finished. Named here, so the derivation depends
       # on the patch's own hash and a change to it rebuilds the adapter.
+      # Each of this pin's patches gets its own store path: interpolate the
+      # PATH ITSELF rather than a string of them, so the derivation holds both
+      # as sources — a list joined into one string reaches the builder as a
+      # path it has no input for.
       backgroundTasksPatch = ../acp/patches/background-tasks-visible.patch;
+      sessionListPatch = ../acp/patches/session-list-info.patch;
     in
     ''
       adapter="${mods}/@agentclientprotocol/claude-agent-acp"
       entry="$adapter/dist/index.js"
       test -f "$entry"
-      # THE ONE PATCH THIS PIN CARRIES, and the whole reason it is applied here
-      # rather than lived with: npm ships the adapter compiled, so what a
+      # THE PATCHES THIS PIN CARRIES, and the whole reason they are applied
+      # here rather than lived with: npm ships the adapter compiled, so what a
       # `patch -p1` reads is `dist/acp-agent.js` rather than the TypeScript it
-      # was built from. `acp/patches/README.md` says what came from the
-      # upstream PR and what olai added; a version bump makes this FAIL rather
-      # than silently drop the behaviour, which is the auditable direction.
-      patch -p1 -d "$adapter" < ${backgroundTasksPatch}
+      # was built from. `acp/patches/README.md` says what each one is and
+      # what olai added; a version bump makes this FAIL rather than silently
+      # drop the behaviour, which is the auditable direction. `-F0` is the
+      # audible half of that promise: `patch`'s default fuzz would land a
+      # hunk up to two LINES from where the context said it belongs, which
+      # is exactly the drift a re-anchor exists to catch — one reviewer had
+      # it right and the other had it stated as a promise it was not yet.
+      patch -p1 -F0 -d "$adapter" < ${backgroundTasksPatch}
+      patch -p1 -F0 -d "$adapter" < ${sessionListPatch}
       claude="${mods}/@anthropic-ai/claude-agent-sdk-${nodeArch}/claude"
       test -x "$claude"
     '' + lib.optionalString stdenv.hostPlatform.isLinux ''

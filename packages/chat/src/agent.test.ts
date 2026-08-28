@@ -37,8 +37,20 @@ const REMEMBERS_NOTHING: Memory = {
 }
 
 /** The list as {@link storedFor} hands it over: newest first. */
-const NEWEST: Stored = { id: "b", title: "somebody else's", updatedAt: "2026-08-13T10:00:00Z" }
-const OLDER: Stored = { id: "a", title: "mine", updatedAt: "2026-07-01T09:00:00Z" }
+const NEWEST: Stored = {
+  id: "b",
+  title: "somebody else's",
+  updatedAt: "2026-08-13T10:00:00Z",
+  messageCount: null,
+  supersededBy: null,
+}
+const OLDER: Stored = {
+  id: "a",
+  title: "mine",
+  updatedAt: "2026-07-01T09:00:00Z",
+  messageCount: null,
+  supersededBy: null,
+}
 const STORED: ReadonlyArray<Stored> = [NEWEST, OLDER]
 
 describe("which conversation a boot opens in", () => {
