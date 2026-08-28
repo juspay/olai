@@ -1024,6 +1024,105 @@ describe("when a row arrived", () => {
     expect(rows(transcript)[0]?.since).toBe("2026-08-21T12:00:00.000Z")
   })
 
+  test("A CALL THAT WAS OVER AND IS RUNNING AGAIN is stamped with the moment", () => {
+    // A subagent that reported and was sent MORE WORK. The call that answers
+    // for it is the one that SPAWNED it — the adapter reopens that very call
+    // when the harness starts its task again (`acp/patches/README.md`), because
+    // everything the agent does goes on being stamped with it — so the row goes
+    // from over to running again, which is a transition nothing else makes.
+    //
+    // TWO STAMPS, and each answers a different question. `since` is where the
+    // record starts and does not move, because a reader who scrolls back to
+    // this row is owed when the agent was first sent out. `resumed` is what a
+    // clock counts from, because *how long has this been out* is about the
+    // outing rather than about the row.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("toolu_01AGENT", {
+      title: "Task",
+      status: "in_progress",
+      spawned: { said: "author the PR" },
+    })
+    time.pass(20 * 60_000)
+    transcript.tool("toolu_01AGENT", { status: "completed" })
+    time.pass(3 * 60 * 60_000)
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+
+    const said = rows(transcript)
+    expect(said).toHaveLength(1)
+    expect(asKind(said[0], "tool")).toMatchObject({
+      status: "in_progress",
+      since: "2026-08-21T12:00:00.000Z",
+      resumed: "2026-08-21T15:20:00.000Z",
+    })
+  })
+
+  test("... and a call on its FIRST outing carries no such stamp", () => {
+    // Every call in nearly every conversation. `pending` is a running state —
+    // it means "announced" — so the ordinary announcement-then-progress pair is
+    // not a call going round twice, and a row that said it was would put a
+    // second clock on the panel's commonest row.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("call-1", { title: "Grep", status: "pending" })
+    time.pass(1_000)
+    transcript.tool("call-1", { status: "in_progress", progress: "halfway" })
+
+    expect(asKind(rows(transcript)[0], "tool")?.resumed).toBeUndefined()
+  })
+
+  test("... nor does a call its turn walked away from, reporting late", () => {
+    // A stranded call is not a call that STOPPED: its status is still running
+    // and stays running, deliberately, because the row is the honest record of
+    // a call that was announced and never came back. So a late report unmarks
+    // it (which the mark's own rule already does) and starts no second outing —
+    // the agent never went out twice, one turn simply stopped waiting.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("call-1", { title: "Grep", status: "in_progress" })
+    transcript.settle()
+    time.pass(60_000)
+    transcript.tool("call-1", { status: "in_progress", progress: "still here" })
+
+    const late = asKind(rows(transcript)[0], "tool")
+    expect(late?.stranded).toBeUndefined()
+    expect(late?.resumed).toBeUndefined()
+  })
+
+  test("a REPEAT of the reopening frame does not restamp the outing", () => {
+    // Agents repeat themselves, and the transcript's own rule is that a frame
+    // saying nothing new changes nothing. A stamp taken before that guard would
+    // be the one field a repeat could still move — and it moves the clock a
+    // person is reading, backwards, once per repeat.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("toolu_01AGENT", { title: "Task", status: "in_progress", spawned: {} })
+    transcript.tool("toolu_01AGENT", { status: "completed" })
+    time.pass(60_000)
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+    time.pass(60_000)
+    const again = transcript.tool("toolu_01AGENT", { status: "in_progress" })
+
+    expect(says(again)).toBe(false)
+    expect(asKind(rows(transcript)[0], "tool")?.resumed).toBe("2026-08-21T12:01:00.000Z")
+  })
+
+  test("a stamp cannot be handed in either: it is the writer's, like `since`", () => {
+    // `resumed` is off `RowContent` for the reason `since`, `seq` and
+    // `stranded` are — every re-publish spreads the row as it stands, so a
+    // field a caller could set is a field that rides past the decision meant to
+    // make it. Handed one anyway, nothing lands: this row has been round once.
+    const time = clock("2026-08-21T12:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("call-1", {
+      title: "Grep",
+      status: "pending",
+      resumed: "1999-01-01T00:00:00.000Z",
+    } as never)
+
+    expect(asKind(rows(transcript)[0], "tool")?.resumed).toBeUndefined()
+  })
+
   test("the row a person typed is stamped too — one rule, not a tool's", () => {
     // It is minted beside `seq`, by the one writer, for every kind of row. A
     // stamp that existed only for the rows the elapsed readout happens to draw

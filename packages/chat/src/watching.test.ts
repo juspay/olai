@@ -24,6 +24,7 @@ import { describe, expect, test } from "bun:test"
 
 import type { ChatEntry, ToolEntry, Watching } from "@olai/surface"
 
+import { Transcript } from "./transcript.ts"
 import { sameWatching, watching } from "./watching.ts"
 
 /** When a row was announced. The strip's clock counts from it, so it is the
@@ -117,6 +118,45 @@ describe("what is still out", () => {
     expect(watching(rows(call("tool:2", { spawned: {}, status: "failed" })))).toEqual([])
   })
 
+  test("a spawn SENT OUT AGAIN is back on it, and it is still one entry", () => {
+    // The bug this rule was rewritten for (the human, 2026-08-28): a subagent
+    // that had reported was sent more work, ran for twenty minutes, and the
+    // strip said nothing at all — a running agent with no face anywhere in the
+    // panel. The membership rule never had to change: the adapter reopens the
+    // call that SPAWNED the agent when the harness starts its task again
+    // (`acp/patches/README.md`), so the row is running again and this reads it
+    // running again. What matters here is that it is the SAME row — one agent,
+    // one entry, one door — rather than a second entry beside the first.
+    expect(
+      watching(rows(call("tool:2", {
+        text: "author the PR",
+        spawned: {},
+        status: "in_progress",
+        resumed: LATER,
+      }))),
+    ).toEqual([{ row: "tool:2", kind: "agent", name: "author the PR", since: LATER }])
+  })
+
+  test("... and its clock counts from the resume, never from the row's birth", () => {
+    // The half a re-armed entry would otherwise get wrong out loud. The row was
+    // born when the agent was FIRST sent out — the record starts there and must
+    // — so a strip drawn off `since` would meet somebody watching a minute-old
+    // resume with *running for 3h 12m*. {@link @olai/surface}'s `outSince` is
+    // the one rule, and the row's own readout asks it too.
+    const [entry] = watching(rows(call("tool:2", { spawned: {}, resumed: LATER })))
+    expect(entry?.since).toBe(LATER)
+    expect(entry?.since).not.toBe(SINCE)
+  })
+
+  test("a resumed spawn that has come back AGAIN is off the list again", () => {
+    // The second outing ends the way the first did, and the stamp that says the
+    // row has been round twice is not a licence to stay: what decides membership
+    // is the status, and `resumed` only says what a clock counts from.
+    expect(
+      watching(rows(call("tool:2", { spawned: {}, status: "completed", resumed: LATER }))),
+    ).toEqual([])
+  })
+
   test("a task the harness has told us the end of is off the list", () => {
     // The ordinary way a task stops being out, and the one a status cannot
     // say: the call completed the moment the task was armed.
@@ -200,5 +240,102 @@ describe("whether the strip has moved", () => {
     // the last of them coming home.
     expect(sameWatching([agent], [])).toBe(false)
     expect(sameWatching([], [agent])).toBe(false)
+  })
+})
+
+/**
+ * ... AND THE WHOLE LIFE OF ONE AGENT, through the writer that stamps the rows
+ * this reads.
+ *
+ * The one test here that is not over hand-built values, and it is the one the
+ * human's bug asks for. Both halves of that bug passed their own tests: the
+ * projection read `spawned + still running` correctly, and the transcript
+ * updated a call in place correctly — what nothing anywhere asserted was the
+ * SEQUENCE, and the sequence is where a resumed agent went missing. So this
+ * drives the transcript with the frames the patched adapter really sends
+ * (`acp/patches/README.md`, measured through `packages/tests/tasks.ts`) and
+ * reads the strip after each one.
+ *
+ * Still no subprocess, no socket and no browser: a Transcript is a data
+ * structure and this is the projection over it.
+ */
+describe("out, back, out again", () => {
+  const clock = (from: string) => {
+    let at = Date.parse(from)
+    return { now: () => at, pass: (ms: number) => { at += ms } }
+  }
+  /** The strip as a reader would read it: what it says, in order. */
+  const strip = (transcript: Transcript): ReadonlyArray<string> =>
+    watching(transcript.entries()).map((one) => `${one.kind} ${one.name} since ${one.since}`)
+
+  test("the strip carries an agent, loses it, and carries it AGAIN", () => {
+    const time = clock("2026-08-28T09:00:00.000Z")
+    const transcript = new Transcript(time.now)
+
+    // SENT OUT — the adapter announces the `Agent` tool use, titled with the
+    // tool's own name and carrying the description in its arguments.
+    transcript.tool("toolu_01AGENT", {
+      title: "Task",
+      status: "pending",
+      spawned: { kind: "general-purpose", said: "author the PR" },
+    })
+    expect(strip(transcript)).toEqual(["agent author the PR since 2026-08-28T09:00:00.000Z"])
+
+    // ... AND REPORTED, twenty minutes later. The strip goes quiet: the record
+    // is not gone, it is on the row where it happened, behind that row's door.
+    time.pass(20 * 60_000)
+    transcript.tool("toolu_01AGENT", { status: "completed" })
+    expect(strip(transcript)).toEqual([])
+
+    // ... AND SENT MORE WORK, an hour after that. The harness starts the same
+    // task again, the adapter reopens the call that spawned the agent, and the
+    // face comes back — with a clock counting from the resume rather than from
+    // this morning.
+    time.pass(60 * 60_000)
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+    expect(strip(transcript)).toEqual(["agent author the PR since 2026-08-28T10:20:00.000Z"])
+
+    // ... and its work still files under the SAME row, which is what makes one
+    // agent one door rather than two.
+    transcript.tool("toolu_01CALL", {
+      title: "run the tests",
+      status: "in_progress",
+      parent: "toolu_01AGENT",
+    })
+    expect(
+      [...transcript.entries().values()].filter((row) =>
+        row.kind === "tool" && row.parent === "tool:toolu_01AGENT"
+      ),
+    ).toHaveLength(1)
+
+    // ... AND QUIET AGAIN when the second outing ends, by the same rule that
+    // took it off the first time. Nothing anywhere remembers this agent having
+    // been on the strip, which is the property that makes a third outing draw a
+    // third face: there is no dismissal to leak, because there is nothing that
+    // dismisses one (the human, 2026-08-28: get rid of the ×).
+    transcript.tool("toolu_01CALL", { status: "completed" })
+    transcript.tool("toolu_01AGENT", { status: "completed" })
+    expect(strip(transcript)).toEqual([])
+
+    // ... and ONCE MORE, to say that in the only way worth saying it.
+    time.pass(60_000)
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+    expect(strip(transcript)).toEqual(["agent author the PR since 2026-08-28T10:21:00.000Z"])
+  })
+
+  test("a turn that ends under a resumed agent takes the face off, as ever", () => {
+    // The stranding rule is untouched by any of this, and it must be: an agent
+    // whose turn walked away from it is over whichever outing it was on, and a
+    // face that outlived one is the failure the whole strip is written against.
+    const time = clock("2026-08-28T09:00:00.000Z")
+    const transcript = new Transcript(time.now)
+    transcript.tool("toolu_01AGENT", { title: "Task", status: "pending", spawned: {} })
+    transcript.tool("toolu_01AGENT", { status: "completed" })
+    time.pass(60_000)
+    transcript.tool("toolu_01AGENT", { status: "in_progress" })
+    expect(strip(transcript)).toHaveLength(1)
+
+    transcript.settle()
+    expect(strip(transcript)).toEqual([])
   })
 })

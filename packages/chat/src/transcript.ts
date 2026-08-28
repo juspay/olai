@@ -136,24 +136,32 @@ export const movesRows = (change: Change): boolean =>
  */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
 
-const contentOf = <E extends ChatEntry>(entry: E): DistributiveOmit<
-  E,
-  "id" | "seq" | "since" | "streaming" | "stranded"
-> => {
+/** The five fields {@link Transcript} derives, named once — the list is
+ *  spelled in three casts and a public type below, and five spellings of one
+ *  list is one of them being missed the day a sixth is derived. */
+type Derived = "id" | "seq" | "since" | "streaming" | "stranded" | "resumed"
+
+const contentOf = <E extends ChatEntry>(entry: E): DistributiveOmit<E, Derived> => {
   switch (entry.kind) {
     case "agent": {
       const { id: _id, seq: _seq, since: _since, streaming: _streaming, ...content } =
         entry
-      return content as DistributiveOmit<E, "id" | "seq" | "since" | "streaming" | "stranded">
+      return content as DistributiveOmit<E, Derived>
     }
     case "tool": {
-      const { id: _id, seq: _seq, since: _since, stranded: _stranded, ...content } =
-        entry
-      return content as DistributiveOmit<E, "id" | "seq" | "since" | "streaming" | "stranded">
+      const {
+        id: _id,
+        seq: _seq,
+        since: _since,
+        stranded: _stranded,
+        resumed: _resumed,
+        ...content
+      } = entry
+      return content as DistributiveOmit<E, Derived>
     }
     default: {
       const { id: _id, seq: _seq, since: _since, ...content } = entry
-      return content as DistributiveOmit<E, "id" | "seq" | "since" | "streaming" | "stranded">
+      return content as DistributiveOmit<E, Derived>
     }
   }
 }
@@ -172,10 +180,7 @@ const contentOf = <E extends ChatEntry>(entry: E): DistributiveOmit<
  * Exported because two of those doors are public and their argument has to be
  * nameable from outside.
  */
-export type RowContent = DistributiveOmit<
-  ChatEntry,
-  "id" | "seq" | "since" | "streaming" | "stranded"
->
+export type RowContent = DistributiveOmit<ChatEntry, Derived>
 
 /** A patch onto one kind's content. Correlated with the `kind` argument so
  *  `{ refusal }` is legal for a refusal row and a type error for a user row —
@@ -185,13 +190,16 @@ type RowPatch<K extends ChatEntry["kind"]> = Partial<Extract<RowContent, { kind:
 /** The writer's derived fields, applied onto already-kind-correct content.
  *
  *  A function rather than a spread in `#put`, so `streaming` cannot land on a
- *  tool row and `stranded` cannot land on a user row — the two flags are
- *  arguments the matching arm accepts, not keys sprinkled onto every kind. */
+ *  tool row and `stranded` cannot land on a user row — the flags are arguments
+ *  the matching arm accepts, not keys sprinkled onto every kind. `resumed`
+ *  joins the tool arm the same way, and is a STAMP rather than a flag: absent
+ *  is a call on its first outing, which is nearly all of them. */
 const minted = (
   entry: RowContent,
   derived: { readonly id: string; readonly seq: number; readonly since: string },
   streaming: boolean,
   stranded: boolean,
+  resumed: string | undefined,
 ): ChatEntry => {
   switch (entry.kind) {
     case "agent":
@@ -199,9 +207,12 @@ const minted = (
         ? { ...entry, ...derived, streaming: true as const }
         : { ...entry, ...derived }
     case "tool":
-      return stranded
-        ? { ...entry, ...derived, stranded: true as const }
-        : { ...entry, ...derived }
+      return {
+        ...entry,
+        ...derived,
+        ...(stranded ? { stranded: true as const } : {}),
+        ...(resumed === undefined ? {} : { resumed }),
+      }
     default:
       return { ...entry, ...derived }
   }
@@ -343,6 +354,31 @@ export class Transcript {
    * stays where a reader of the row can see it.
    */
   #named = new Set<string>()
+  /**
+   * The calls that have been round MORE THAN ONCE, and when the current outing
+   * began — the one place a resume is written down, with
+   * {@link ToolEntry.resumed} derived from it on every write exactly as
+   * `stranded` and `streaming` are derived from their own.
+   *
+   * A subagent that has reported can be sent more work, and the call that
+   * answers for it is the one that SPAWNED it: the adapter reopens that call
+   * when the harness starts the same task again (`acp/patches/README.md`'s
+   * "a task's second life"), because everything that agent does goes on being
+   * stamped with the spawning call and a second row for it would be one agent
+   * drawn twice. So the row goes from over to running again — which is a
+   * transition no other kind of call makes, and the whole of what is noticed
+   * here.
+   *
+   * WHAT IT IS FOR IS THE CLOCK. `since` is the row's birth and must stay it,
+   * so a duration counted from it would say an agent resumed a minute ago has
+   * been out for three hours — a face that gets louder the longer it is wrong,
+   * which is `stranded`'s own argument arriving on the other side of the same
+   * row. {@link @olai/surface}'s `outSince` is what both ends ask.
+   *
+   * Beside the rows for that flag's reason, word for word: half a dozen paths
+   * re-publish a row by spreading it as it stands.
+   */
+  #outings = new Map<string, string>()
   readonly #now: () => number
 
   constructor(now: () => number = Date.now) {
@@ -363,6 +399,7 @@ export class Transcript {
     this.#stranded.clear()
     this.#ended.clear()
     this.#named.clear()
+    this.#outings.clear()
     this.#open = null
     this.#seq = 0
     return { ...EMPTY, removes }
@@ -851,6 +888,24 @@ export class Transcript {
       ...(spawned === undefined ? {} : { spawned }),
       ...(armed === undefined ? {} : { armed }),
     }
+    // A CALL THAT WAS OVER AND IS RUNNING AGAIN is a call going round a
+    // SECOND time, and the moment it starts is written down here ({@link
+    // #outings}). It is one shape and one adapter's ({@link
+    // ../../../acp/patches/README.md}): a subagent that reported is sent more
+    // work, and the call reopened for it is the one that SPAWNED it, because
+    // that is the call everything the agent does is stamped with for as long
+    // as it lives. Nothing else about the row moves — this is the same call,
+    // and its record starts where it always started.
+    //
+    // BEFORE THE REPEAT GUARD and cheap enough to be: a frame that says
+    // nothing new cannot pass this test either, since a status that has not
+    // moved cannot have moved from over to running.
+    if (
+      held !== undefined && !isRunningStatus(held.status)
+      && isRunningStatus(content.status)
+    ) {
+      this.#outings.set(key, new Date(this.#now()).toISOString())
+    }
     // THE DEATH OF A TASK IS ALSO A ROW AT THE BOTTOM ({@link #dies}), and
     // this is where the transition is seen: the frame that carries an ending
     // for a row that did not have one. Computed before the repeat guard below
@@ -1173,6 +1228,7 @@ export class Transcript {
       derived,
       entry.kind === "agent" && key === this.#open,
       entry.kind === "tool" && this.#stranded.has(key),
+      entry.kind === "tool" ? this.#outings.get(key) : undefined,
     )
     this.#entries.set(key, next)
     return next

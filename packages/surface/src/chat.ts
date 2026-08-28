@@ -664,6 +664,38 @@ export const ToolEntry = Schema.Struct({
    * the live face at the moment the task is doing its work.
    */
   stranded: Schema.optionalKey(Schema.Literal(true)),
+  /**
+   * This call has been round MORE THAN ONCE, and this is when the current
+   * outing began.
+   *
+   * A subagent that has reported can be sent more work — the harness wakes it
+   * and starts the same task again — and the call that answers for it is the
+   * one that SPAWNED it: everything the agent does is stamped with that call
+   * for as long as it lives (`chat/src/agents/claude.ts`'s `parentToolUseId`),
+   * so a resumed agent is one row, one lane and one face rather than a second
+   * of each. The adapter reopens that call when the harness says the task
+   * started again (`acp/patches/README.md`), which is what puts the agent back
+   * on the strip through the membership rule that was already there.
+   *
+   * WHAT IT COSTS IS THE CLOCK, which is what this field is. `since` is the
+   * row's BIRTH and must stay that — it is where the record starts, and a call
+   * that reset it at every frame would restart the duration a person is
+   * watching. But a duration counted from a birth three hours ago is not what
+   * anybody means by *how long has this been out*: the agent went out again a
+   * minute ago. So the two facts are two fields, and the strip and the row's
+   * own readout both count from this one when it is there
+   * ({@link outSince}).
+   *
+   * DERIVED, like {@link ToolEntry.stranded} and for its reason: it is olai's
+   * own observation about its own conversation (a row whose status went from
+   * over to running again), the transcript's one writer makes it, and half a
+   * dozen paths re-publish a row by spreading it as it stands — so a field a
+   * caller could set is a field that would ride straight past the decision
+   * that is supposed to make it.
+   *
+   * Absent on every call on its first outing, which is very nearly all of them.
+   */
+  resumed: Schema.optionalKey(Schema.String),
 })
 export type ToolEntry = typeof ToolEntry.Type
 
@@ -929,6 +961,27 @@ export const isTaskOut = (entry: ToolEntry): boolean =>
  */
 export const isAgentOut = (entry: ToolEntry): boolean =>
   entry.spawned !== undefined && isStillRunning(entry)
+
+/**
+ * WHEN THE THING A LIVE FACE IS ABOUT STARTED — the row's birth, or the
+ * beginning of its current outing for a call that has been round more than once
+ * ({@link ToolEntry.resumed}).
+ *
+ * THE ONE RULE, in the one place both ends can ask it, for
+ * {@link isRunningStatus}'s reason word for word: the STRIP counts from it
+ * (`chat/src/watching.ts`) and so does the readout on the row's own line
+ * (`web/src/client/chat/elapsed.ts`), the two are drawn from one row at one
+ * moment, and two answers here is a strip saying an agent has been out for a
+ * minute beside a row saying three hours.
+ *
+ * `since` is the row's birth and stays it: it is where the RECORD of the call
+ * starts, and it is what a reader scrolling back to that row is owed. What a
+ * clock is asked, though, is *how long has this been going* — and for an agent
+ * somebody sent more work an hour after it reported, the honest answer counts
+ * from the resume. A face is about what is happening now; the row is about
+ * everything that happened.
+ */
+export const outSince = (entry: ToolEntry): string => entry.resumed ?? entry.since
 
 /**
  * WHAT TO CALL THE AGENT a call sent out — its description, and the call's own
