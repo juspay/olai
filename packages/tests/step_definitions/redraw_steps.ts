@@ -2,7 +2,7 @@
  * WHAT WAS PATCHED AND WHAT WAS TORN DOWN, asked of one region of the screen.
  *
  * `holding_still_steps.ts` asks the same question of a NAVIGATION, which is the
- * gesture PR 1 of `docs/brainstorming/reactivity-after-the-flip.md` is about.
+ * gesture PR 1 of `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md` is about.
  * These are the rest of that campaign's question: the lists that were rebuilt by
  * something other than a navigation — a frame of the page arriving, an answer
  * landing, a keystroke — because they were drawn by REFERENCE over an array the

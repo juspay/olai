@@ -3981,7 +3981,9 @@ const SECTIONS = {
    *
    * THE RECORD IS WRITTEN HERE rather than kept in the corpus, exactly as the
    * suite's own scenarios write theirs: the subject is a shape the ORCHESTRATOR
-   * produces (`docs/orchestrator/lanes.olai`), and a lane node in the fixtures
+   * produces (`orchestrator/lanes.olai`, in the orchestrator's own vault —
+   * https://github.com/juspay/oss.olai — and out of version control there as
+   * it was here), and a lane node in the fixtures
    * would be a corpus about this repository's own workflow
    * (`fixtures/README.md`). What it points AT is the corpus's own: `finishes.md`
    * is a document the directory serves, `basil` is a node `garden.olai`

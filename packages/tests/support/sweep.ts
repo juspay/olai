@@ -148,13 +148,13 @@ export const granting = (
  * thing being hunted, and a claim about a path that has been moved is not a
  * loosened fence — it is a fence that has quietly TIGHTENED onto whatever the
  * path became. `docs/roadmap.olai` became the `docs/roadmap/` directory on
- * 2026-08-20, and both sweeps went red on the ledger they were written to
- * excuse, on master, for two days: the grant was still spelled, and it granted
- * nothing.
+ * 2026-08-20 — both spellings gone from this repository since, with the vault
+ * — and both sweeps went red on the ledger they were written to excuse, on
+ * master, for two days: the grant was still spelled, and it granted nothing.
  *
  * A directory entry is asked about WITHOUT its trailing slash, which is what
- * makes `docs/RCA/` a question about the directory rather than about a file
- * whose name ends in one.
+ * makes `packages/tests/` a question about the directory rather than about a
+ * file whose name ends in one.
  */
 export const unresolved = (
   allowed: ReadonlyArray<string>,

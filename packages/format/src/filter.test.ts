@@ -2111,7 +2111,7 @@ test("no run a needle produces is ever empty, whatever the fold did", () => {
 // corpus asked twice: once with the declarations, once without.
 
 /** A board that types two keys and leaves a third alone — the shape the live
- *  one is being migrated to (`docs/brainstorming/typed-properties.md`). */
+ *  one is being migrated to (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/typed-properties.md`). */
 const BOARD = {
   "_olai/Properties.olai": [
     `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,

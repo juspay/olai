@@ -39,7 +39,7 @@
  * composes: three surface members and one revision hook.
  *
  * The driver, the gate predicates and the procedure registry
- * `docs/brainstorming/orchestrator.md` also names are LATER PHASES and are
+ * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/orchestrator.md` also names are LATER PHASES and are
  * deliberately absent — a registry with one entry is a shape arguing for itself
  * before anything needs it. When they land they land here, which is the other
  * half of what the wall buys: there is somewhere for them to go that is not the
@@ -59,7 +59,7 @@
  * It was FIVE homes, and the list lived in five headers because a reader who
  * grepped `kolu` landed on whichever came first and had to assemble the rest.
  * The sixth Löwy sitting ended that arrangement rather than documenting it
- * better (`docs/lowy-electricity/debate-2026-08-27.md`), on the human's ruling:
+ * better (`https://github.com/juspay/oss.olai/blob/main/olai/lowy-electricity/debate-2026-08-27.md`), on the human's ruling:
  * *"all of Kolu stuff should be encapsulated out, as a package or more
  * packages, so the non-kolu packages part of Olai doesn't contain Kolu
  * implementation"* — and *"a directory wall can be broken easily by importing;

@@ -559,14 +559,18 @@ export const readingOfVault = (vault: ReadonlyMap<string, string>): Reading =>
 /**
  * THE REAL VAULT: a directory on disk, read as the set it is.
  *
- * `docs/` is this repository's own — the roadmap the item under test is written
- * in, the orchestrator's board, the inbox and the archive — and it is here
- * because a generated corpus is a corpus somebody designed. What a real one has
- * that no generator draws is history: trees people actually grew, ids people
- * actually chose, a mirror somebody placed for a reason, and an archive with a
- * hundred records in it. It also CHANGES, which is exactly why nothing asserted
- * about it may be about its contents — the differential compares two answers
- * and holds no opinion about what either says.
+ * The orchestrator's own — the roadmap the item under test is written in, the
+ * board, the inbox and the archive — and it is here because a generated corpus
+ * is a corpus somebody designed. What a real one has that no generator draws is
+ * history: trees people actually grew, ids people actually chose, a mirror
+ * somebody placed for a reason, and an archive with a hundred records in it. It
+ * also CHANGES, which is exactly why nothing asserted about it may be about its
+ * contents — the differential compares two answers and holds no opinion about
+ * what either says.
+ *
+ * It used to be this repository's `docs/` and is {@link pinnedVault} now: the
+ * vault moved to https://github.com/juspay/oss.olai and is READ AT A PIN from
+ * there, which is the only way a corpus stays real without living here.
  *
  * WHAT IS READ is what the set holds CONTENT for, asked of the REGISTRY
  * ({@link ./kinds.ts}) rather than of a suffix written out here — an `endsWith`
@@ -589,4 +593,40 @@ export const vaultAt = (dir: string): ReadonlyMap<string, string> => {
   }
   walk("")
   return vault
+}
+
+/**
+ * WHERE THE REAL VAULT IS, as the shell says — the orchestrator's own, pinned.
+ *
+ * The vault left this repository with the board (it is
+ * https://github.com/juspay/oss.olai now), and the legs that read a real corpus
+ * did not want a fixture instead: `npins` pins the vault the way `kolu` and
+ * `osfacts` are pinned, `shell.nix` puts the store path on `OSS_OLAI_VAULT`,
+ * and every `bun test` — this machine's and CI's — runs inside that shell. The
+ * pin is what makes the corpus REPRODUCIBLE as well as real: a revision in
+ * `npins/sources.json`, moved by `just update-pins` and by nothing else.
+ *
+ * UNSET OR ABSENT IS A THROW, named. The alternative every harness reaches for
+ * — fall back to a fixture, or skip the case — is a green run that checked
+ * nothing, which is the single failure mode the sweeps in `@olai/tests` exist
+ * to prevent; a leg whose corpus is missing has to say so in the words that fix
+ * it.
+ */
+export const pinnedVault = (): string => {
+  const at = process.env["OSS_OLAI_VAULT"]
+  if (at === undefined || at === "") {
+    throw new Error(
+      "OSS_OLAI_VAULT is not set: the real-vault corpus is the pinned " +
+        "https://github.com/juspay/oss.olai (npins/sources.json, exported by " +
+        "shell.nix). Run this suite inside `nix develop` — `just test` does.",
+    )
+  }
+  if (!fs.existsSync(at)) {
+    throw new Error(
+      `OSS_OLAI_VAULT names nothing on disk: ${at}. The pin is stale or the ` +
+        "store path was garbage-collected — `just update-pins`, or re-enter " +
+        "`nix develop` to realise it.",
+    )
+  }
+  return at
 }

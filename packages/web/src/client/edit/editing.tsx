@@ -274,7 +274,7 @@ export const createEditor = (
    * effect, so a keystroke anywhere in the vault or a mark somebody else set
    * runs it — and again per CALL for the other two, which arrive from key
    * handlers outside any tracking scope
-   * (docs/brainstorming/reactivity-after-the-flip.md §4.8). One memo is one
+   * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §4.8). One memo is one
    * walk per frame, and the other two read what it already answered.
    *
    * GATED ON {@link where}, which is what keeps this from being a fourth cost
@@ -318,7 +318,7 @@ export const createEditor = (
     // waiting for, and an effect runs after that row has been moved.
     //
     // THE FRAME COUNT and not the rows, which is a correction the page reading
-    // forced (`docs/brainstorming/vault-in-browser.md`'s PR 10). This used to
+    // forced (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`'s PR 10). This used to
     // read `page.rows()`, and it worked because the rows were a fresh array on
     // every frame — the tab derived them from its own copy of the set. They
     // arrive on a subscription now, whose value is a RECONCILED STORE: the

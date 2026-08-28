@@ -74,7 +74,7 @@ const SEARCH_CAP = 48
  * caret moved three characters inside one `#tag` — and without this each of them
  * re-ran the whole widget: the choices, the failure slot, whether the popup is
  * showing, its kind, and both question thunks
- * (docs/brainstorming/reactivity-after-the-flip.md §4.3).
+ * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §4.3).
  *
  * The SIGIL is compared as well as the three fields every arm has, because `#`
  * and `@` are two different lists asked of the same door; `kind` alone would

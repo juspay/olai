@@ -72,7 +72,7 @@ export const koluMembers = {
      *
      * The first member of this surface whose subject is not the vault. It is
      * here because the terminal door hangs off a PROPERTY (phase 1a of
-     * `docs/brainstorming/orchestrator.md`), so an ordinary outline draws a
+     * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/orchestrator.md`), so an ordinary outline draws a
      * live dot and therefore has to be able to say when it cannot — and a
      * chip that has gone hollow is answering with THIS cell rather than with
      * an empty fleet, which is the one distinction that must not blur.

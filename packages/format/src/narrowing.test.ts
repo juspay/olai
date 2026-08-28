@@ -6,7 +6,7 @@
  * **That the page-scoped answer is the whole-set answer, on this page.** The
  * narrowing used to be a search of the DIRECTORY that a page then pruned; it is
  * a reading of the PAGE now, and the whole claim of
- * docs/brainstorming/filter-rides-the-page.md is that a reader cannot tell the
+ * https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-rides-the-page.md is that a reader cannot tell the
  * difference. So the oracle is the reference matcher: for every page and every
  * query, the page narrowed by what `narrowedIn` selected must be the same page,
  * row for row, as the page narrowed by what `matching` selected over the whole
@@ -20,7 +20,7 @@
  *
  * **It survives the wire**, like every other reading that crosses one: encoded,
  * put through JSON, decoded, compared. A field dropped by an encoder is not
- * hypothetical (docs/brainstorming/surface-mcp-positions.md).
+ * hypothetical (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/surface-mcp-positions.md).
  */
 
 import { expect, test } from "bun:test"

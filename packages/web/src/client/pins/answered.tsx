@@ -5,7 +5,7 @@
  * One subscription to the `pins` cell, one context over it. The cell carries
  * the rows of `Pins.olai` with every node address resolved, re-sent whenever a
  * published revision changes what it says (`@olai/format`'s `shelfOf`,
- * `docs/brainstorming/vault-in-browser.md` §6's item 5) — so there is nothing
+ * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` §6's item 5) — so there is nothing
  * to ask for here and no generation to ask on: the server is the one that knows
  * when the directory moved.
  *

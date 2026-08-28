@@ -437,7 +437,7 @@ Feature: Undo
     # file" was got asked of the PAGE, which blanks for one round trip on every
     # navigation, so a same-file zoom read as house.olai → nothing → house.olai
     # and the effect fired twice on the way through
-    # (docs/brainstorming/reactivity-after-the-flip.md §3.1's 1.7).
+    # (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §3.1's 1.7).
     When I click the title of "knobs"
     And I press "Tab"
     And I click away from the editor

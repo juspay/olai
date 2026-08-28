@@ -167,7 +167,7 @@ test("rows the reader has typed past are not labelled as theirs", async () => {
     // had been ASKED, and `asked` does not move until the debounce fires — so
     // for 200ms the rows were labelled as the reader's own, and a door that
     // takes one on `Enter` took the wrong node
-    // (`docs/brainstorming/reactivity-after-the-flip.md`'s 4.12).
+    // (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md`'s 4.12).
     ask("hom")
     expect(asker.answer()).toEqual(["#home", "#hob"])
     expect(asker.answering()).toBeNull()

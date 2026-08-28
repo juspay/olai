@@ -19,7 +19,7 @@
  *     one — the framework's own contract — so there is nothing to resume.
  *
  *     NO BROWSER READS IT any more, and that is PR 10 of
- *     `docs/brainstorming/vault-in-browser.md` landing: a tab held every record
+ *     `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` landing: a tab held every record
  *     of every file and answered every page out of its own copy, which is the
  *     ruling this arc reversed ("the browser may hold at most the current
  *     page's data"). What a tab reads now is the `page` stream below and the
@@ -56,7 +56,7 @@
  *   - `pins` is a CELL, and it is the first member here that carries a READING
  *     of the set rather than the set: the sidebar's shelf, recomputed per
  *     revision and sent when it changed by value. It is where
- *     `docs/brainstorming/vault-in-browser.md` is going — the browser is handed
+ *     `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` is going — the browser is handed
  *     what it draws instead of every record it would have had to walk to work
  *     it out.
  *   - `inbox` is that same kind of cell, one integer over: how many top-level
@@ -105,7 +105,7 @@
  * moving — server-authoritative, never an optimistic echo.
  *
  * Four members are STREAMS, which this surface had none of until PR 4 of
- * `docs/brainstorming/vault-in-browser.md`. A stream is a CELL WITH AN
+ * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`. A stream is a CELL WITH AN
  * ARGUMENT — read, listen, re-read on every published revision, send only when
  * the answer moved — and an argument is exactly what each of them needs and a
  * cell cannot have:
@@ -127,7 +127,7 @@
  * juspay/kolu#2190): undeclared, a frame replaces every element of every array
  * it merges, so a frame that merely repeats what a tab already holds still
  * notifies every reader of every row — which is the whole of
- * `docs/brainstorming/reactivity-after-the-flip.md` §2's Fact B. Declared, an
+ * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md` §2's Fact B. Declared, an
  * identical frame notifies nothing and a reorder moves the objects a keyed view
  * follows. It is one field per member, reaching every array at every depth;
  * arrays whose elements do not carry it merge by POSITION, which is silent on a
@@ -243,7 +243,7 @@ import { Who } from "./who.ts"
  * the base a write is derived from is the revision the entry it read was at.
  * The expectation it defeats is that all the entries on screen share it — see
  * the cross-file consistency paragraph in
- * `docs/brainstorming/outlines-as-collection.md`. Only the files that MOVED in
+ * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/outlines-as-collection.md`. Only the files that MOVED in
  * a tick are upserted, so an unchanged neighbour keeps the older number until
  * something changes it.
  *
@@ -411,7 +411,7 @@ export type DocumentEntry = typeof DocumentEntry.Type
  * ahead of the fetch that actually drew it. That was PR #206's standing
  * deferral, and this is the member it named.
  *
- * EVERY served file since PR 10 of `docs/brainstorming/vault-in-browser.md`,
+ * EVERY served file since PR 10 of `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`,
  * where it was every BODIED one. That is the design's §3 Sidebar row arriving:
  * the file tree is paths and faces, which is key-set-sized, and it was the only
  * thing a browser still read the whole `outlines` collection for. An outline's
@@ -691,7 +691,7 @@ export const surface = defineSurface({
      * a reading of the whole vault — which file the shelf is, that file's top
      * level, and a name that may live in any other file — and it was the
      * browser's own walk over its copy of every outline until PR 5 of
-     * `docs/brainstorming/vault-in-browser.md`. Nothing about it depends on who
+     * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`. Nothing about it depends on who
      * is asking or on what they are looking at, so there is no input to give a
      * stream and no question to make a procedure of: the server recomputes it
      * on every published revision and sends it when it changed by value, which
@@ -833,8 +833,8 @@ export const surface = defineSurface({
      * EVERY SERVED FILE, one HEAD each and no content — see {@link Head}.
      *
      * THE DIRECTORY, as a browser holds it. This is the whole of what a tab
-     * knows about the vault since PR 10 of `docs/brainstorming/
-     * vault-in-browser.md`: the sidebar's tree is these paths, a page model
+     * knows about the vault since PR 10 of
+     * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`: the sidebar's tree is these paths, a page model
      * asks these for membership, the palette draws these titles, and everything
      * else a screen shows comes from that page's own reading (`./page.ts`).
      * `outlines` used to answer the first four of those, by handing every tab
@@ -908,8 +908,8 @@ export const surface = defineSurface({
    * much is owed today.
    *
    * STREAMS, and this surface's first: a stream is a CELL WITH AN ARGUMENT.
-   * The design doc's mechanism paragraph (`docs/brainstorming/
-   * vault-in-browser.md` §2) says what "updates to that" has to mean — "on
+   * The design doc's mechanism paragraph
+   * (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` §2) says what "updates to that" has to mean — "on
    * every published revision the server recomputes each open page's reading and
    * sends it when it changed by value — the surface framework's
    * `equals`-guarded cells already work exactly this way" — and that is
@@ -992,7 +992,7 @@ export const surface = defineSurface({
        * every reader of every row: `Tree.tsx`'s `<Key each={rows} by="key">`
        * keeps its DOM, but `keyArray` hands every `Branch` a new object, and
        * some twenty-five bindings per row re-run for a one-character change in
-       * one row (`docs/brainstorming/reactivity-after-the-flip.md`'s 2.11 — the
+       * one row (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md`'s 2.11 — the
        * one finding of that audit with no client-side fix). With it, an
        * identical frame notifies nothing at all, a changed row notifies that
        * row, and a REORDER moves the row objects the keyed view is following

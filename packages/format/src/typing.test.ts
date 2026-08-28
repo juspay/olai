@@ -37,7 +37,7 @@ import { Result } from "effect"
  * A vault that declares one of every kind, with the rosters the reference kinds
  * point at — the corpus nearly every case below is asked of.
  *
- * The keys are the live board's own (`docs/brainstorming/typed-properties.md`
+ * The keys are the live board's own (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/typed-properties.md`
  * audited them), because a fixture that invented its vocabulary would be
  * proving something about a vault nobody has.
  */

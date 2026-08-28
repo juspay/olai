@@ -4,7 +4,7 @@
 
 ## PR workflow
 
-- Keep docs up to date: README.md, docs/*.md
+- Keep docs up to date: README.md, docs/*.md — the engineering docs that change in the same PR as the code. Development docs — brainstorms, RCAs, roadmap, the board — live in https://github.com/juspay/oss.olai; file roadmap items via the olai MCP.
 - CI = [odu SKILL.md](https://github.com/juspay/odu/blob/master/.apm/skills/odu/SKILL.md) (read in FULL), Linux; skip macOS unless the PR impacts macOS (this rule applies to all repos). On the PR is ready: run CI to satisfy "CI green". Merge latest master into the PR only when the PR has conflicts (or CI needs code from master).
 
 ## PR evidence uploads

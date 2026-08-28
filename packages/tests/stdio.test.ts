@@ -17,40 +17,28 @@
  * guarantee and the grant rule are `./support/sweep.ts`', shared with the two
  * sweeps next door rather than spelled a third time.
  *
- * The RECORD OF THE PAST may still say it: `docs/brainstorming/` holds the
- * decisions and why the alternatives lost — including the argument for the
- * face this sweep retires — `docs/RCA/` holds incidents as they were
- * diagnosed, and the roadmap and `_olai/Trash.olai` are ledgers whose entries
- * describe PRs that shipped the subcommand. Rewriting any of them would
- * not tidy history, it would falsify it.
+ * The RECORD OF THE PAST used to be granted here — `docs/brainstorming/` held
+ * the decisions and why the alternatives lost, including the argument for the
+ * face this sweep retires, `docs/RCA/` held incidents as they were diagnosed,
+ * and the roadmap and `_olai/Trash.olai` were ledgers whose entries describe
+ * PRs that shipped the subcommand. Those ledgers are not in this repository
+ * any more: the orchestrator's vault moved to
+ * https://github.com/juspay/oss.olai, where they go on saying what they said
+ * on the day. So there is no grant list left — nothing this repository owns
+ * may spell the retired face, and the sweep is the whole tree with no
+ * exceptions in it.
  *
  * This file is excluded outright: it quotes what it hunts.
  */
 
 import { expect, test } from "bun:test";
 
-import { exists, granting, read, tracked, unresolved } from "./support/sweep.ts";
-
-/** The record of the past, as paths. A const rather than an argument spelled
- *  inline, so the test below can ask whether every one of them still names
- *  something — a grant that has gone stale is a fence closing on the ledger it
- *  was written to excuse, which is exactly what `docs/roadmap.olai` becoming a
- *  directory did to this sweep. */
-const MAY_SPELL_IT: ReadonlyArray<string> = [
-  "docs/_olai/Trash.olai",
-  "docs/RCA/",
-  "docs/brainstorming/",
-  "docs/lowy-electricity/",
-  "docs/roadmap/",
-];
-
-const granted = granting(MAY_SPELL_IT);
+import { exists, read, tracked } from "./support/sweep.ts";
 
 const TRACKED = tracked(import.meta.filename);
 
 const spelling = (pattern: RegExp): ReadonlyArray<string> =>
   TRACKED
-    .filter((file) => !granted(file))
     // `exists` first: `git ls-files` still names a path that is deleted in the
     // work tree until the deletion is staged, and a missing file cannot spell
     // anything.
@@ -59,10 +47,6 @@ const spelling = (pattern: RegExp): ReadonlyArray<string> =>
 
 test("the sweep is actually reading the repository", () => {
   expect(TRACKED.length).toBeGreaterThan(200);
-});
-
-test("every grant still names a record of the past that is there", () => {
-  expect(unresolved(MAY_SPELL_IT)).toEqual([]);
 });
 
 test("nothing outside the record of the past spells the retired stdio face", () => {

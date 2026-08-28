@@ -7,7 +7,7 @@ Feature: A frame leaves the rest of the page standing
 
   The store publishes a whole frame whenever anything on the open page changes,
   and — because a frame is merged without an array key — every element of every
-  array in it is a FRESH OBJECT (docs/brainstorming/reactivity-after-the-flip.md
+  array in it is a FRESH OBJECT (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md
   §2). A list drawn by reference therefore rebuilt itself on every frame,
   whether or not one word of it had changed: the crumbs over a zoomed node, the
   properties under a row, the chips in an open edge panel, the rows in a

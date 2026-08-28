@@ -21,7 +21,7 @@
  *
  * **THE SET IS ASKED, and this tab no longer holds one to ask.** The lookup ran
  * over the browser's own copy of the directory until `vib-3-transcript-ids`;
- * that copy is what `docs/brainstorming/vault-in-browser.md` is taking away, so
+ * that copy is what `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` is taking away, so
  * the question crosses the wire — one batch per message, {@link ./declared.ts},
  * over the format's own `nodeNamed` on the other side. What is left here is the
  * rule and the DOM pass, neither of which ever read the set: this file takes

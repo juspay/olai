@@ -69,7 +69,7 @@ Feature: Pinning a page to the sidebar
     # it. It used to be: the question was gated on the page having rows, that
     # collapsed for the length of the navigation, and the query in the address
     # was thrown away and re-debounced from the frame the page landed
-    # (docs/brainstorming/reactivity-after-the-flip.md §3.1's 1.6).
+    # (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §3.1's 1.6).
     And the node "demo" was never drawn
     # AND IT NEVER EMPTIED ON THE WAY, which is the SAME seam read from the
     # other side. The page and its narrowing are two members and two frames; the

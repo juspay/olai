@@ -51,6 +51,19 @@
       "revision": "24d3e87a0ae7a6c4fa752c94ed01a7911590de68",
       "url": "https://github.com/juspay/osfacts/archive/24d3e87a0ae7a6c4fa752c94ed01a7911590de68.tar.gz",
       "hash": "sha256-KuOvLxFoV5WmbLVooLDIpFZwzbbN+CWa0ypypheAtvo="
+    },
+    "oss-olai": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "juspay",
+        "repo": "oss.olai"
+      },
+      "branch": "main",
+      "submodules": false,
+      "revision": "3e03cf051b0e8f20079cbf37715d9d89ba854848",
+      "url": "https://github.com/juspay/oss.olai/archive/3e03cf051b0e8f20079cbf37715d9d89ba854848.tar.gz",
+      "hash": "sha256-DNxapKgFTBBxy61+sySDF8IchtvSgRcxh8ezy25hcQo="
     }
   },
   "version": 8

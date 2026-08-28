@@ -110,7 +110,7 @@ import { refusesLoad, type Verdict, verdictOf } from "./verdict.ts"
  * exist is behind it: PATCHED from the reading this one follows when a caller
  * offers one and the records line up ({@link Previous}, {@link viewOf}), and
  * built from scratch when either is missing. That landed as slice 3 of
- * `docs/brainstorming/model-indices.md` and it was a change of one function
+ * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/model-indices.md` and it was a change of one function
  * inside this file, with no consumer of this type able to tell — which was the
  * claim this paragraph made while the patcher was still ahead of it.
  */

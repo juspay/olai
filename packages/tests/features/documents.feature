@@ -410,7 +410,7 @@ Feature: Documents
   # `doc: finishes.md` and the file itself says nothing about the node. Until a
   # document travelled with the addresses it points AT — and every other file
   # did too — "what is talking about this?" was a question nothing could answer
-  # (docs/brainstorming/first-class-documents.md).
+  # (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/first-class-documents.md).
 
   @corpus:good
   Scenario: A document's page says what points at it

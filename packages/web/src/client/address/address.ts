@@ -162,7 +162,7 @@ export const titleFace = (
  *
  *   - the pinned SHELF takes it off the server's answer (`../pins/pins.ts`,
  *     the `pins` cell), because a shelf is a reading of the whole vault and
- *     the browser no longer holds one (`docs/brainstorming/vault-in-browser.md`);
+ *     the browser no longer holds one (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`);
  *   - an ORDINARY OUTLINE ROW whose title is an address takes it off the
  *     reading of the page it is drawn in ({@link shownIn}), which the same
  *     design moved with the rest of a page's readings.
@@ -215,7 +215,7 @@ export const nameOf = (
  * shelf, takes the same fact off its own member (`../pins/pins.ts`). Both are
  * the server's answer now — the same `nodeNamed`, run where the set is — which
  * is what keeps the shelf and the file's own page from having two answers about
- * one title, and it is what PR 10 of `docs/brainstorming/vault-in-browser.md`
+ * one title, and it is what PR 10 of `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`
  * took: this was the last address resolution a browser did over a copy of the
  * vault.
  *

@@ -8,8 +8,10 @@
 - [kolu.md](kolu.md) — the kolu integration: what olai does with a padi when one is running (the Dock row a `terminal` property draws, and the live read-only pane it opens), what it says when there is none, the header readout's three states, the chat panel's `kolu mcp`, and which slice of the Orchestrator this is.
 - [format.md](format.md) — the file format and its rules: the record shapes, the fields, status, references (`see`, `@<id>` in prose, and what a zoomed node reads backwards), days, the pinned shelf (`Pins.olai`, and why a pin is an address rather than a field), which files a served directory is made of (`.olai`, `.md`, and the four kinds olai only shows — `.html`, `.csv`, the picture suffixes, `.pdf`), and merge safety.
 - [architecture.md](architecture.md) — how the packages fit, and the reasoning behind the layering.
-- [roadmap.olai](roadmap.olai) — the plan, in the format itself.
-- [brainstorming/](brainstorming) — the decisions, and why the alternatives lost.
-- [RCA/](RCA) — root-cause analyses of things that went wrong.
+The development docs — the roadmap in the format itself, the decisions and why the alternatives lost, and the root-cause analyses — live in the orchestrator's own vault, [juspay/oss.olai](https://github.com/juspay/oss.olai), under its `olai/` folder:
+
+- [olai/roadmap/](https://github.com/juspay/oss.olai/tree/main/olai/roadmap) — the plan, in the format itself.
+- [olai/brainstorming/](https://github.com/juspay/oss.olai/tree/main/olai/brainstorming) — the decisions, and why the alternatives lost.
+- [olai/RCA/](https://github.com/juspay/oss.olai/tree/main/olai/RCA) — root-cause analyses of things that went wrong.
 
 Developing is [../HACKING.md](../HACKING.md). The public site, [olai.kolu.dev](https://olai.kolu.dev), is the pitch; these pages are how to use it.

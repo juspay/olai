@@ -181,7 +181,7 @@ in
           # Restart=always (not on-failure) still brings a stray kill -TERM
           # back: on-failure does not restart a successful exit, which is
           # how two outside SIGTERMs left the ledger dark for hours
-          # (docs/RCA/2026-08-20-olai-service-sigterm.md). systemd never
+          # (https://github.com/juspay/oss.olai/blob/main/olai/RCA/2026-08-20-olai-service-sigterm.md). systemd never
           # restarts a unit whose death was a systemd stop or restart
           # (man systemd.service, Restart=).
           Restart = "always";

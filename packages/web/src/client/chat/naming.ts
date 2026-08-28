@@ -46,7 +46,7 @@
  *
  * The files are matched here, out of the key sets this tab holds; the nodes are
  * a debounce and a round trip away since `search-server-side`
- * (docs/brainstorming/vault-in-browser.md). So the node block can appear a beat
+ * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md). So the node block can appear a beat
  * after the file block, and the file block can be standing alone when a reader
  * starts walking it. That is exactly the case {@link RESERVE} was written for
  * from the other direction — each kind keeps its rows whatever the other found

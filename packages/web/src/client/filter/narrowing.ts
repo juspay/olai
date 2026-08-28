@@ -41,7 +41,7 @@
  * the matcher, off the page it holds; the matcher reads it off the page ITSELF
  * now (`@olai/format`'s `showsPutAway`, over the `Shown` the server computed),
  * which is the same sentence with nobody left to describe a page to anybody
- * (docs/brainstorming/filter-rides-the-page.md).
+ * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-rides-the-page.md).
  *
  * The ORDER of the two prunings is the decision worth naming: done-hidden goes
  * FIRST. It is a standing claim about the reader ("I do not want to look at

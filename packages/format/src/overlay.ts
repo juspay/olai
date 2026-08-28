@@ -8,7 +8,7 @@
  * `byId` clone alone is ABOUT HALF of a patch, which `patch.bench.ts` prints
  * as `patch+clone` against `patch` — and all of them together are most of what
  * is left once the work the edit really caused is taken out. This is the lever
- * open question 1 of `docs/brainstorming/model-indices.md` named: a LAYER over
+ * open question 1 of `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/model-indices.md` named: a LAYER over
  * the map the last patch left standing, holding the entries this one changed,
  * so an edit costs what it touched rather than what the directory holds.
  *

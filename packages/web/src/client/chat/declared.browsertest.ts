@@ -3,7 +3,7 @@
  * an older batch may not take back what a newer one said.
  *
  * The defect it is written against is the audit's 4.13
- * (`docs/brainstorming/reactivity-after-the-flip.md`). Batches overlap by
+ * (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md`). Batches overlap by
  * construction — `askAll` clears the gather BEFORE its call goes, so the ids
  * wanted while one question is in flight leave on the next — and they come back
  * in any order. The slot was last-to-SETTLE-wins, so a slow refusal of an older

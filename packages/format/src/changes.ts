@@ -6,7 +6,7 @@
  * answers with records; what the two sides ARE is the caller's business, and
  * there are two callers by design: what is pending is HEAD against the working
  * tree, and a past change is a commit against its parent
- * (docs/brainstorming/git-commits.md).
+ * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/git-commits.md).
  *
  * **Never a text diff.** A `.olai` diff is one enormous line per node with
  * everything on it changing at once, which is exactly the thing this format

@@ -61,8 +61,8 @@ test("an empty list grants nothing, and grants are read together", () => {
 // to excuse turned both sweeps red on master. A directory is asked about
 // without its trailing slash; a file exactly as written.
 test("an entry that names nothing on disk is reported, and a live one is not", () => {
-  expect(unresolved(["justfile", "docs/brainstorming/"])).toEqual([]);
-  expect(unresolved(["docs/roadmap.olai", "docs/roadmap/", "docs/nowhere/"]))
+  expect(unresolved(["justfile", "packages/tests/"])).toEqual([]);
+  expect(unresolved(["docs/roadmap.olai", "docs/", "docs/nowhere/"]))
     .toEqual(["docs/roadmap.olai", "docs/nowhere/"]);
 });
 

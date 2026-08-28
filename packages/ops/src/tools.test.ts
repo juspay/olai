@@ -8,7 +8,7 @@
  * is the one search's drift arrived through: object-literal freshness is lost
  * through a `.map`, so a field DROPPED from a declaration still compiles at the
  * one place it is produced, and every consumer encoding against the declaration
- * would drop it in silence (docs/brainstorming/surface-mcp-positions.md,
+ * would drop it in silence (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/surface-mcp-positions.md,
  * position (a)).
  *
  * So this walks {@link TOOLS}, asks every read of an {@link asking} door over

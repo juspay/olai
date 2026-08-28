@@ -18,8 +18,8 @@
  * is a behaviour change with a real cost: this list is instant and offline
  * (the tab already holds the paths), and the index is a debounce and a round
  * trip away — and it would need the index to answer about OUTLINES too, which
- * is a ruling the design has not made (docs/brainstorming/
- * first-class-documents.md).
+ * is a ruling the design has not made
+ * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/first-class-documents.md).
  *
  * It lives under `file/` rather than inside its caller for the reason
  * `../search/nodes.ts` lives in `search/` rather than in `palette/`: this

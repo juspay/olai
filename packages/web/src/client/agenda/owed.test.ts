@@ -5,8 +5,8 @@
  * `@olai/format/testlib` rather than record literals, so every fixture here is
  * text a real load would accept.
  *
- * THE COUNTING NOW HAPPENS ON THE SERVER (`docs/brainstorming/
- * vault-in-browser.md`'s PR 4), which changes what this file is a test OF and
+ * THE COUNTING NOW HAPPENS ON THE SERVER
+ * (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`'s PR 4), which changes what this file is a test OF and
  * not what it is a test over: the mark's table is still the browser's, so this
  * is still the place its faces, its loud-wins-whole ruling and its sentence are
  * pinned. The fixture calls the same two `@olai/format` functions the server's

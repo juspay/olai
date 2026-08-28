@@ -230,7 +230,7 @@ export function PageView() {
             Asked of the page's own rows instead, it was drawn on a value that
             collapses to `none` while a navigation is in flight — so the bar and
             the `<input>` somebody was typing in unmounted and were built again
-            on every click (docs/brainstorming/reactivity-after-the-flip.md
+            on every click (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md
             §3.1's 1.4). */}
         <Show when={narrowable(route())}>
           <FilterBar narrowing={narrowing} asked={asked} onType={narrow} />

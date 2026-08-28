@@ -2,7 +2,7 @@
  * WHAT A FRAME COSTS THE TREE — the audit's 2.11, measured on both sides of the
  * declaration that ended it.
  *
- * `docs/brainstorming/reactivity-after-the-flip.md`'s 2.11 is the one finding of
+ * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md`'s 2.11 is the one finding of
  * that whole audit with no client-side fix. `./Tree.tsx` already draws its rows
  * with `<Key each={props.rows} by="key">`, so the DOM survives a frame — that
  * part was never the complaint. What did not survive was the ROW OBJECT: the

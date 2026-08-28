@@ -4,8 +4,8 @@
  * A day page asks what is on a day; this asks what has not happened yet and
  * should have. It is the same kind of question and the same kind of answer —
  * derived at view time, over every node in every outline, stored nowhere — so
- * it is built out of ./dates.ts rather than beside it (docs/brainstorming/
- * agenda.md, ratified 2026-08-12).
+ * it is built out of ./dates.ts rather than beside it
+ * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/agenda.md, ratified 2026-08-12).
  *
  * ## No new field: `date` and the mark, read together
  *

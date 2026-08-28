@@ -7,7 +7,7 @@
  * prose — and the plan's own file says nothing about any of them. A node's page
  * has had the reverse since `../backlinks/Backlinks.tsx`; a document's could
  * not, because a document had no identity below the file and nothing carried
- * what a file points AT (docs/brainstorming/first-class-documents.md).
+ * what a file points AT (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/first-class-documents.md).
  *
  * It does now: every document travels with its FACE, and a face carries the
  * addresses its content points at (`@olai/format`'s `Face`). So this is a

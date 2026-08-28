@@ -7,7 +7,7 @@
  * level, and what a bare pin is CALLED is the live title of whatever node its
  * address names — a node that may sit in any other file. The browser used to
  * do all three over its own copy of every outline; that copy is what
- * `docs/brainstorming/vault-in-browser.md` is taking away, so the reading is
+ * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` is taking away, so the reading is
  * here — isomorphic, called on the server, published to the tab that draws it
  * (§6's item 5).
  *

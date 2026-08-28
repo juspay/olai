@@ -15,7 +15,7 @@
  * the whole vault. Every page was then a pure function over that copy. The
  * human's ruling of 2026-08-19 reversed it: **the browser may hold at most the
  * current page's data in memory — never the whole vault**
- * (`docs/brainstorming/vault-in-browser.md`). So the fold is gone, the
+ * (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`). So the fold is gone, the
  * derivation is not in the browser bundle at all, and what is left of "the
  * directory" is this: a list of files. Each PAGE is a reading of its own
  * (`./reading.tsx`).
@@ -196,7 +196,7 @@ export interface Directory {
    *  a file's breakage moved, so its identity says "the unreadable files
    *  changed" rather than "a frame arrived", and a rename three folders away
    *  leaves every `<File>` row of the sidebar where it was
-   *  (docs/brainstorming/reactivity-after-the-flip.md §4.2).
+   *  (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §4.2).
    *
    *  IT KEEPS ITS `sameMap`, and the fold narrowed that guard rather than
    *  retiring it. Per FRAME there is nothing left for it to catch — the map

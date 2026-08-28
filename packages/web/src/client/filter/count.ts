@@ -7,7 +7,7 @@
  * among the 57 at all: the 57 counted the rows LEFT after finished work was
  * taken off, and the 17 counted matches that were taken off with it. Two
  * numbers, two different universes, one sentence
- * (docs/brainstorming/filter-in-place.md filed it, and this is the fix).
+ * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-in-place.md filed it, and this is the fix).
  *
  * So the numbers here are one universe: the rows the page HOLDS, before any
  * preference of this reader's takes something off it. Of those, some matched

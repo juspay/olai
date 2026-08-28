@@ -9,12 +9,12 @@
  *
  * IT USED TO HOLD A PREDICATE as well — whether two answers said the same
  * thing, so a page re-asked on every frame did not prune itself again for a
- * match set that had not moved (`docs/brainstorming/reactivity-after-the-flip.md`
+ * match set that had not moved (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md`
  * §3.5). There is no such frame any more: the narrowing is a reading the server
  * re-takes on the revision pulse and sends only when it changed by value, so an
  * answer that did not move never arrives, this map is never rebuilt, and the
  * comparison happens once on the side that can act on it
- * (`docs/brainstorming/filter-rides-the-page.md`).
+ * (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-rides-the-page.md`).
  */
 
 import type { MatchedNode } from "@olai/surface"

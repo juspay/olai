@@ -35,8 +35,9 @@
  *
  * THE CASES ARE REAL and are harvested rather than invented: a generated corpus
  * and an edit over it ({@link ./corpora.testlib.ts}, the same generator both
- * other differentials in this package run on), and THIS REPOSITORY'S OWN
- * `docs/`, which is where the popular keys are — a tag with sixty members, a
+ * other differentials in this package run on), and THE REAL VAULT — the
+ * orchestrator's own, at the revision this repository pins (`OSS_OLAI_VAULT`)
+ * — which is where the popular keys are: a tag with sixty members, a
  * day with seventy-eight, a parent with seventeen children — and where a key's
  * members really do span files nobody touched. What a case holds is what the
  * view held for that key, what the touched files put back under it, and what
@@ -58,7 +59,7 @@ import { decodedOf, recordsOf, seeded } from "./fixtures.testlib.ts"
 import { fileKind } from "./kinds.ts"
 import type { Located } from "./node.ts"
 import { bySibling, patched, spliced, touchedBy } from "./patch.ts"
-import { vaultAt } from "./scope.testlib.ts"
+import { pinnedVault, vaultAt } from "./scope.testlib.ts"
 import { assemble } from "./set.ts"
 
 // ── the two arms ───────────────────────────────────────────────────────
@@ -336,7 +337,7 @@ const shortly = (members: ReadonlyArray<string>): string => {
  * discipline borrowed for a reason of this file's own.
  *
  * Every case here needs two views of one directory, and this file asks for a
- * hundred and twenty of them over `docs/`. Re-reading eleven outlines each time
+ * hundred and twenty of them over the pinned vault. Re-reading its outlines each time
  * spends thirteen milliseconds parsing files no revision touched, which is a
  * suite that measures the parser to test a splice. A file whose text has not
  * moved decodes once and its records are the very objects the last revision
@@ -378,14 +379,16 @@ const generated = (): ReadonlyArray<Case> => {
   return found
 }
 
-/** THIS REPOSITORY'S OWN `docs/`, read as the set it is — the outlines only,
- *  since a `.md` beside them holds no records and the patcher never sees one.
- *  A generated corpus is a corpus somebody designed; what this has that no
- *  generator draws is keys people really grew ({@link ./scope.testlib.ts}'s
- *  `vaultAt` argues it at length). */
+/** THE REAL VAULT, read as the set it is — the outlines only, since a `.md`
+ *  beside them holds no records and the patcher never sees one. A generated
+ *  corpus is a corpus somebody designed; what this has that no generator draws
+ *  is keys people really grew ({@link ./scope.testlib.ts}'s `vaultAt` argues it
+ *  at length). It was this repository's `docs/` until the board moved out, and
+ *  is the PINNED vault now — `pinnedVault`, off `OSS_OLAI_VAULT`, which throws
+ *  by name rather than handing this file an empty corpus to be vacuous over. */
 const REAL = ((): Corpus => {
   const outlines: Corpus = {}
-  for (const [file, text] of vaultAt(new URL("../../../docs", import.meta.url).pathname)) {
+  for (const [file, text] of vaultAt(pinnedVault())) {
     if (fileKind(file) === "outline") outlines[file] = text
   }
   return outlines
@@ -545,7 +548,7 @@ test("the run reached the corners a splice can only be wrong at", () => {
   // The popular key is the whole subject of the item, and the generated corpora
   // cannot reach it — five files of a few records each never grow one. It is
   // the real vault's contribution and it is asserted separately for that:
-  // a floor met by generated rounds alone would go on passing over a `docs/`
+  // a floor met by generated rounds alone would go on passing over a vault
   // this harness had stopped reading.
   expect(CASES.filter((one) => one.shape.has("popular") && one.shape.has("moved")).length)
     .toBeGreaterThan(100)
@@ -595,7 +598,7 @@ test("no key a real index produces can tie a survivor with an arrival", () => {
 
 // ── and the same claim at the view ─────────────────────────────────────
 
-test("the patched view is the derived view over this repository's own docs/", () => {
+test("the patched view is the derived view over the real vault", () => {
   // THE SPLICE WIRED IN, over the directory the popular keys are actually in.
   // `./patch.test.ts` is the oracle in general and runs on generated corpora;
   // what this adds is the one corpus with a sixty-member tag and a

@@ -3,7 +3,7 @@
 #
 # bun is overlaid from NixOS/nixpkgs#556047 (npins pin `nixpkgs-bun`), not
 # from the nixpkgs-unstable pin. That PR is 1.3.13 → 1.4.0: the watcher
-# rewrite this repo is waiting on (docs/brainstorming/watcher-fd-cost.md).
+# rewrite this repo is waiting on (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/watcher-fd-cost.md).
 # The extra pin records the PR's head on the fork that actually carries
 # the branch (`hesprs/nixpkgs`, `bun-1.4-update`) — `nixos/nixpkgs` has no
 # such ref, so a pin that named that owner made `just update-pins` fail

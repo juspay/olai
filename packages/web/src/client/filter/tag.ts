@@ -3,7 +3,7 @@
  *
  * Workflowy's gesture, and the one it was always going to be: clicking a tag
  * filters the page to what carries it, ancestors kept
- * (docs/brainstorming/viewing-web.md — "tag click lands with search, not
+ * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/viewing-web.md — "tag click lands with search, not
  * navigation"). Tags have been decorative since title-markdown precisely
  * because promising this before the filter machinery existed would have been a
  * pill that did nothing.

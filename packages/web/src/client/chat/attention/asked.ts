@@ -23,7 +23,7 @@
  *
  * WHAT IT READS is `../newest.ts`, which owns the reactivity lesson both this
  * and the pill's snapshot were written against
- * (docs/brainstorming/reactivity-after-the-flip.md §4.4) — and the one
+ * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §4.4) — and the one
  * departure this makes from it is argued at the pick below.
  */
 

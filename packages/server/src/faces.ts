@@ -50,7 +50,7 @@
  * now has nothing to expose: no URI was published and withdrawn.
  *
  * The full argument, including the two deployment shapes and what is still owed
- * upstream, is docs/brainstorming/surface-mcp-viewing.md.
+ * upstream, is https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/surface-mcp-viewing.md.
  */
 
 import { surface } from "@olai/surface"

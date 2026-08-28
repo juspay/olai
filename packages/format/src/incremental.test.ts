@@ -37,9 +37,9 @@
  *     churning and a file breaking and mending — which is where the volume is,
  *     and what it drives is `unknown-target`, `missing-doc` and the unreadable
  *     file, at size and in sequence;
- *   - THE REAL VAULT, this repository's `docs/`, edited: files people actually
- *     grew, in a directory with a trash in it and documents attached to real
- *     nodes.
+ *   - THE REAL VAULT, the orchestrator's own at the revision this repository
+ *     pins (`OSS_OLAI_VAULT`), edited: files people actually grew, in a
+ *     directory with a trash in it and documents attached to real nodes.
  *
  * THE GATE IS AN EQUALITY TO THE EMPTY LIST rather than a count, so a failure
  * names the revision, what each arm said, and which findings one of them had
@@ -59,7 +59,7 @@ import {
   type Revision,
   revisionsOf,
 } from "./incremental.testlib.ts"
-import { vaultAt } from "./scope.testlib.ts"
+import { pinnedVault, vaultAt } from "./scope.testlib.ts"
 
 /** The gate, in one place: no divergence, and both arms of the thing under test
  *  were reached. A replay that never narrowed, or one that narrowed every time
@@ -690,8 +690,13 @@ const summed = (found: ReadonlyArray<Report>): Report => ({
 
 // ── the real vault ─────────────────────────────────────────────────────
 
-test("the narrowed verdict is the full verdict, over this repository's own docs/", () => {
-  const vault = vaultAt(new URL("../../../docs", import.meta.url).pathname)
+// The corpus is the orchestrator's own vault, at the revision this repository
+// pins (`./scope.testlib.ts`' `pinnedVault`, off `OSS_OLAI_VAULT`). It used to
+// be this repository's `docs/`; it left with the board and was pinned rather
+// than copied into a fixture, because what this leg is asked over is a
+// directory that VALIDATES and that people really grew.
+test("the narrowed verdict is the full verdict, over the real vault", () => {
+  const vault = vaultAt(pinnedVault())
   expect(vault.size).toBeGreaterThan(10)
   const report = replay(edited(vault, seeded(20260826), 120))
   // 120 narrowed, 1 whole (the load, which has nothing to follow), 11 of them

@@ -58,7 +58,7 @@ export const rememberAgentText = (text: string | undefined): void => {
  * it was — the effect was subscribed to the text of EVERY row in the
  * conversation, so each token the agent streamed re-ran a walk of the whole
  * transcript to set one module signal
- * (docs/brainstorming/reactivity-after-the-flip.md §4.4). A thousand-row
+ * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md §4.4). A thousand-row
  * conversation paid a thousand reads per token.
  *
  * THE SCAN ITSELF is `./newest.ts`, which is where that rule lives now that a

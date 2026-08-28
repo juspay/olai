@@ -246,7 +246,7 @@ export function NodeBody(props: {
 
           THE FACTS COME FIRST, as they do on a row — the mockup's own line,
           "facts above the line, story below it"
-          (docs/brainstorming/props-ui.html). They used to sit under the note
+          (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/props-ui.html). They used to sit under the note
           here and over it there, which was one component reading two ways on
           two surfaces for no reason anybody had written down.
 

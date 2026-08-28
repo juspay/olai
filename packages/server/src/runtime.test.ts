@@ -464,7 +464,7 @@ test("a directory that never loaded publishes no head, and the first head is the
  * THE PINNED SHELF, published: the resolution happens here, and it happens
  * again when the directory moves.
  *
- * The claim is `docs/brainstorming/vault-in-browser.md`'s mechanism sentence
+ * The claim is `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`'s mechanism sentence
  * made concrete for the one member that carries a reading rather than a file: a
  * pin stores an ADDRESS and no name, so what the shelf says a node is called is
  * true of the revision it was answered at — and a rename in some OTHER file

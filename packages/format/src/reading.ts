@@ -25,7 +25,7 @@
  * anything carries them rather than after, which is the whole lesson of the
  * search case: that one was found the other way round, live on the wire, with
  * an agent reading a field the palette's encoder silently dropped
- * (docs/brainstorming/surface-mcp-positions.md, position (a)).
+ * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/surface-mcp-positions.md, position (a)).
  *
  * **Three things this move had to get right, and all three were written down
  * before it was made** (that document, position (c)):
@@ -745,7 +745,7 @@ export type SubtreeAnswer = typeof SubtreeAnswer.Type
  * spans of which some name nodes and the rest are flags, file names and words,
  * and the whole of what the panel needs is which is which. That used to be a
  * lookup in the browser's own copy of the set, which is the copy
- * `docs/brainstorming/vault-in-browser.md` is taking away.
+ * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` is taking away.
  *
  * A BATCH, and that is the whole reason this is not the read next door: one
  * message is one question. A `read_node` per span would be a dozen round trips
@@ -797,7 +797,7 @@ const NamedNode = Schema.Struct({
    * message is about and has nothing but the id to draw one from
    * (`@olai/web`'s `chat/Composer.tsx`). It was a lookup in the browser's own
    * copy of every record until PR 10 of
-   * `docs/brainstorming/vault-in-browser.md`.
+   * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md`.
    *
    * ONE FIELD rather than a second member, because it is one more fact about
    * the node this row already names: a lookup that answered "which ids are
@@ -840,7 +840,7 @@ export type NamedAnswer = typeof NamedAnswer.Type
  * a node somebody deleted should stop being remembered, and a file that has
  * stopped parsing says nothing at all about its nodes. It answered all three
  * out of the whole id→file map of its own copy of the set, which is the copy
- * `docs/brainstorming/vault-in-browser.md` is taking away.
+ * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` is taking away.
  *
  * TWO LISTS, ANSWERED INDEPENDENTLY, and that is the shape rather than an
  * accident: nothing here pairs an id with a file. Which of them was filed under

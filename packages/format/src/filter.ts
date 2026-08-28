@@ -31,13 +31,13 @@
  * `is:done` meaning one thing to an agent and another to the box a person types
  * in. The browser holds no vault to grep since `vault-in-browser`, and the
  * filter stopped being a call at all with `filter-ask-carries-revision`
- * (docs/brainstorming/filter-rides-the-page.md): what moved was WHO CALLS this,
+ * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-rides-the-page.md): what moved was WHO CALLS this,
  * never what it says, and the rule the move was made for is the reason it stays.
  * The ranking followed it down for the same reason, one door later: see
  * {@link ranked}.
  *
  * The design, with the alternatives that lost, is
- * docs/brainstorming/filter-in-place.md.
+ * https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-in-place.md.
  */
 
 import { Schema } from "effect"
@@ -768,7 +768,7 @@ const NOTHING_QUOTED =
  * doors that ask it, and no door has two. Those two CAN differ — a tab across
  * a time-zone boundary from the server has its own local day — and docs/
  * search.md says why that is accepted rather than fixed by putting a clock on
- * the wire. The deferral this lifts (docs/brainstorming/filter-in-place.md)
+ * the wire. The deferral this lifts (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-in-place.md)
  * named the price as "threading `today` through the parse", and that is
  * exactly what it cost.
  *
@@ -1491,7 +1491,7 @@ export const relativeSpan = (word: string, now: string): Span | null => {
  * that boundary is deliberate: telling those apart needs a calendar, and this
  * module's whole date stance — the same one that makes a month's upper bound
  * `-31` — is that a comparison over text answers the question without inventing
- * one. Named in docs/brainstorming/filter-in-place.md as the line.
+ * one. Named in https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-in-place.md as the line.
  */
 const datePart = (value: string): string | null => {
   const shape = PARTIAL_DAY.exec(value)
@@ -1692,7 +1692,7 @@ export interface Match {
    * of four places a WORD is looked for, weighted for tie-breaking; a property
    * key is an open namespace somebody invented, and putting the two in one
    * union is the same collapse `custom` itself exists to refuse
-   * (docs/brainstorming/properties.md). The absence of `field` still means
+   * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/properties.md). The absence of `field` still means
    * exactly what it meant — the query named no words.
    *
    * The NODE'S spelling, not the query's, because the query's is folded
@@ -1713,7 +1713,7 @@ export interface Matched {
 /** Which corner of the set to ask. Both are optional and both narrow: `file`
  *  is one outline, `under` is a node and everything beneath it (the node
  *  itself included). They are the two scopes a tree page can BE, which is why
- *  they exist — see docs/brainstorming/filter-in-place.md's MCP face. */
+ *  they exist — see https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-in-place.md's MCP face. */
 export interface Scope {
   readonly file?: string | undefined
   readonly under?: string | undefined
@@ -1759,7 +1759,7 @@ export interface Scope {
  * `is:blocked` is a question about the SET (what this node waits on, and
  * whether that is still unfinished work), and the answer is an index every
  * caller of {@link matching} already holds. Named as the cost of this operator
- * in docs/brainstorming/filter-in-place.md when it was deferred, and it is the
+ * in https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-in-place.md when it was deferred, and it is the
  * whole of it — a lookup at the gate, no walk.
  */
 const matchOf = (
@@ -2761,7 +2761,7 @@ const namedInScope = (
  * which already holds the records it draws — mirrors resolved, ancestry walked,
  * every arm of the reading decided — and for which a walk of the corpus is a
  * walk of everything the answer will be thrown away for
- * (docs/brainstorming/filter-rides-the-page.md). That caller hands its own rows
+ * (https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/filter-rides-the-page.md). That caller hands its own rows
  * in (`./narrowing.ts`), and what it gets is this same `matchOf` behind this
  * same grammar, so the two cannot mean different things by `is:done`.
  *

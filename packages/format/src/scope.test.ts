@@ -19,8 +19,9 @@
  *     precisely the ground both walks promise to stand on;
  *   - a GENERATED one with depth in it, for size and for the shapes at rates —
  *     hundreds of placements and hundreds of records beneath one;
- *   - THE REAL VAULT, this repository's `docs/`: trees people grew, an archive
- *     with a hundred records in it, and a mirror somebody placed for a reason;
+ *   - THE REAL VAULT, the orchestrator's own, read at the revision this
+ *     repository pins (`OSS_OLAI_VAULT`): trees people grew, an archive with a
+ *     hundred records in it, and a mirror somebody placed for a reason;
  *   - an EDITED one, where the question is asked again after a write — because
  *     the descent reads an index the PATCHER maintains ({@link
  *     Derived.children}) and the walk it is held to reads only `byId`, so a
@@ -40,6 +41,7 @@ import {
   decodedVault,
   deepVaultOf,
   differential,
+  pinnedVault,
   readingOfVault,
   TANGLED,
   vaultAt,
@@ -244,17 +246,19 @@ const deepest = (derived: Derived): number => {
 // ── the real vault ─────────────────────────────────────────────────────
 
 /**
- * `docs/`, from this file's own position in the tree.
+ * The orchestrator's vault, at the revision this repository pins.
  *
- * A relative walk rather than a repository root resolved from git, because what
- * is wanted is the directory beside this package and not whatever a checkout
- * happens to be called — and because a test that shells out to find its own
- * fixture is a test that fails differently in a sandbox.
+ * It used to be a relative walk to `docs/` beside this package. The vault moved
+ * out (https://github.com/juspay/oss.olai) and the corpus went with it rather
+ * than becoming a fixture: `npins` pins the repository, `shell.nix` exports the
+ * store path, and {@link pinnedVault} throws by name if the suite is run
+ * outside that shell — no fallback and no skip, so this leg cannot go green
+ * having read nothing.
  */
-const DOCS = new URL("../../../docs", import.meta.url).pathname
+const VAULT = pinnedVault()
 
 test("the real vault agrees at every scope", () => {
-  const vault = vaultAt(DOCS)
+  const vault = vaultAt(VAULT)
   const at = readingOfVault(vault)
   // The vault is a live directory and this test holds no opinion about what is
   // in it — but a run over an EMPTY one would assert nothing at all, so the

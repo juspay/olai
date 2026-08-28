@@ -7,7 +7,7 @@
  * It used to be a walk, and then a read: the tab held every node of every
  * outline, so the vocabulary was the keys of the derivation's own tag index and
  * the widget counted them locally, once per frame. That copy is what
- * `docs/brainstorming/vault-in-browser.md` is taking away — the browser may
+ * `https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/vault-in-browser.md` is taking away — the browser may
  * hold at most the page in front of somebody — so there is no `taggedBy` here
  * to enumerate any more. The counting moved beside the index it reads
  * (`@olai/format`'s `vocabulary.ts`, which carries the argument for every rule

@@ -61,7 +61,7 @@
  * A REVISION IS A DIRECTORY, spelled the way `./scope.testlib.ts` spells one —
  * path to bytes, `.olai` and `.md` and `.html` alike, decoded through the same
  * door a load goes through ({@link decodedVault}). That is what lets the same
- * replay take a generated corpus and take THIS REPOSITORY'S OWN `docs/`, and
+ * replay take a generated corpus and take THE REAL VAULT, pinned, and
  * it is why nothing here builds an `OutlineSet` by hand: a differential judged
  * against a set no load could produce proves something about itself.
  *

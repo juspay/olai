@@ -266,7 +266,7 @@ Then(
  * of a reader who had tabbed onto an `×` went to the document body with the
  * element it was on. That is not visible in anything the panel SAYS — which is
  * why the question is asked of `document.activeElement`
- * (`docs/brainstorming/reactivity-after-the-flip.md` §3.2, finding 2.3).
+ * (`https://github.com/juspay/oss.olai/blob/main/olai/brainstorming/reactivity-after-the-flip.md` §3.2, finding 2.3).
  */
 When("I put the caret on the edge panel's ×", async function (this: OlaiWorld) {
   await (await panelOf(this)).locator(EDGE_DROP).first().focus();
