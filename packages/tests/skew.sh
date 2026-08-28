@@ -21,8 +21,8 @@
 # would boot to a directory. Both states of the vault are skew.ts's, so there
 # is one spelling of them and the repair cannot drift from what was refused.
 #
-# How a server is stood up is `support/serve.sh`'s, shared with evidence.sh
-# and wire.sh.
+# How a server is stood up is `support/serve.sh`'s, shared with wire.sh and
+# reads.sh.
 set -euo pipefail
 
 . support/serve.sh

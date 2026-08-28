@@ -11,7 +11,7 @@
  *
  * It lives in its own module rather than in `./hooks.ts` beside the suite's own
  * launch, because importing that module REGISTERS cucumber hooks: a driver that
- * is not the suite (`../evidence.ts`, `../wire.ts`, `../shot.ts`) cannot reach
+ * is not the suite (`../wire.ts`, `../shot.ts`) cannot reach
  * for it without also enrolling itself in a run. This file imports nothing —
  * not even from `@olai/*` — so a driver that is deliberately version-independent
  * can share it too.

@@ -3,7 +3,6 @@
  * fourth driver in this package, and the only one that talks to no olai at
  * all.
  *
- * `evidence.ts` photographs the app because what it shows is a LOOK,
  * `wire.ts` counts bytes because what it shows is a COST, and `reads.ts`
  * prints a session because what a tool surface promises is an ANSWER. What
  * this one shows is a WIRE: `chat-background-tasks-visible` rests on two

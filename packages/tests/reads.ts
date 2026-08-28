@@ -1,9 +1,7 @@
 /**
- * What the read tools ANSWER, printed as a session — the third driver in this
- * package, and the one whose output is prose rather than a screenshot or a
- * byte count.
+ * What the read tools ANSWER, printed as a session — a driver in this
+ * package whose output is prose rather than a screenshot or a byte count.
  *
- * `evidence.ts` photographs the app because what it is showing is a look;
  * `wire.ts` counts bytes because what it is showing is a cost. What a TOOL
  * SURFACE has to show is neither: the claim is "this question is one call
  * now", and the only honest exhibit is the call and the answer beside it. So

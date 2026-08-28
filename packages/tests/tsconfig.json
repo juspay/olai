@@ -8,10 +8,10 @@
   // suite's, and the TypeScript side re-exports it.
   //
   // `*.ts` is the package ROOT, and it is here because it was missing: the
-  // unit tests beside this file and the four DRIVERS (`evidence.ts`,
-  // `wire.ts`, `shot.ts`, `underload.ts`) are TypeScript that the `typecheck`
-  // leg was not reading, so a rename inside one of them failed in a lane —
-  // or in a screenshot nobody could take — rather than in a second here.
+  // unit tests beside this file and the DRIVERS (`wire.ts`, `shot.ts`,
+  // `underload.ts`, `reads.ts`, `skew.ts`) are TypeScript that the
+  // `typecheck` leg was not reading, so a rename inside one of them failed
+  // in a lane rather than in a second here.
   "extends": "../../tsconfig.base.json",
   "compilerOptions": { "allowJs": true, "checkJs": false },
   "include": ["*.ts", "agent", "support", "step_definitions"]
