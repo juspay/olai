@@ -280,6 +280,18 @@ test("started round-trips, and is held to the same ISO rule as the marks", () =>
     .toEqual(["bad-date"])
   expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","started":"yesterday"}`)))
     .toEqual(["bad-date"])
+
+  // The ZONE is required, and it is a requirement ON TOP of the calendar,
+  // never a swap for it: a shaped-with-offset value whose day the calendar
+  // rejects is still not an instant. The day-only refusal's predicate is a
+  // bare regex — if it ever replaced the shared check rather than joining
+  // it, these two would silently read as starts, land on disk, and the chip
+  // would draw nothing. (The very regression the review probed; the
+  // conjunction is what keeps the field's two answers one answer.)
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","started":"2026-02-30T10:00:00Z"}`)))
+    .toEqual(["bad-date"])
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","started":"2026-13-01T10:00:00Z"}`)))
+    .toEqual(["bad-date"])
 })
 
 // Shape is not enough: `2026-02-30` matches the pattern and is still not a
