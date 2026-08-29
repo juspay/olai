@@ -68,20 +68,26 @@ export const sinceOf = (startedAt: string): string => {
  * {@link createTicking} takes a fixed interval, so the handoff is a
  * signal: `slow` flips when the start is a minute old, the seconds
  * clock's gate closes, the minute clock's opens. A page that has not
- * heard a start keeps neither.
+ * heard a start — or heard one that is not a time — keeps neither.
  */
 export const createNow = (
   started: Accessor<string | undefined>,
 ): Accessor<number> => {
   const [slow, setSlow] = createSignal(false)
+  /** A parseable start — the same refusal {@link upOf} makes. An
+   *  unparseable stamp must not keep the seconds clock: there is no
+   *  chip to redraw. */
+  const armed = (): boolean => {
+    const at = started()
+    return at !== undefined && instantOf(at) !== null
+  }
   createEffect(() => {
     const at = started()
-    if (at === undefined) {
+    const then = at === undefined ? null : instantOf(at)
+    if (then === null) {
       setSlow(false)
       return
     }
-    const then = instantOf(at)
-    if (then === null) return
     const wait = MINUTE - Math.max(0, Date.now() - then)
     if (wait <= 0) {
       setSlow(true)
@@ -91,13 +97,7 @@ export const createNow = (
     const handoff = setTimeout(() => setSlow(true), wait)
     onCleanup(() => clearTimeout(handoff))
   })
-  const fast = createTicking(
-    SECOND,
-    () => started() !== undefined && !slow(),
-  )
-  const paced = createTicking(
-    MINUTE,
-    () => started() !== undefined && slow(),
-  )
+  const fast = createTicking(SECOND, () => armed() && !slow())
+  const paced = createTicking(MINUTE, () => armed() && slow())
   return () => (slow() ? paced() : fast())
 }

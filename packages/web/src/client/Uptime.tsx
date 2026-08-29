@@ -9,8 +9,8 @@
  *
  * DESKTOP ONLY, like the pills it sits with: a healthy phone does not
  * advertise health. The chip is not a control. The exact start instant
- * is in a visually-hidden span (and on the tip, for a pointer or a
- * focused chip) so it is not hover-only.
+ * is in a visually-hidden span (and on the tip, for a pointer) so it
+ * is not hover-only.
  */
 
 import { Show } from "solid-js"
@@ -41,7 +41,7 @@ export function Uptime() {
     <span data-testid={TESTID.uptime} data-started={startedAt()} class="contents">
       <Show when={says() !== ""}>
         <Tip text={said()} layer={LAYER.over}>
-          <div class={`${PILL} shrink-0`} tabindex="0">
+          <div class={`${PILL} shrink-0`}>
             {says()}
             <span class="sr-only">{said()}</span>
           </div>

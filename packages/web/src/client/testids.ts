@@ -945,9 +945,10 @@ export const TESTID = {
    *  the `aria-label`, never a colour. */
   commitPill: "commit-pill",
   /** How long the olai SERVER has been up — process start, not this tab's.
-   *  Desktop only, furniture: `up 2h`, hover the exact start instant.
-   *  `data-started` is the ISO the wire sent, so a scenario asserts the
-   *  instant rather than the ticking phrase. */
+   *  Desktop only, furniture: `up 2h`, the exact start instant in a
+   *  visually-hidden span (and on the tip). `data-started` is the ISO
+   *  the wire sent, so a scenario asserts the instant rather than the
+   *  ticking phrase. */
   uptime: "uptime",
   /** The panel it opens. One row per node, never a text diff. */
   commitPanel: "commit-panel",

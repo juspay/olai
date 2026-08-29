@@ -38,6 +38,11 @@ describe("how long the server has been up", () => {
     expect(stillSeconds(started, at("2026-08-29T09:31:12.000Z"))).toBe(true)
     expect(stillSeconds(started, at("2026-08-29T09:31:59.999Z"))).toBe(true)
     expect(stillSeconds(started, at("2026-08-29T09:32:00.000Z"))).toBe(false)
+    // The same refusal `upOf` makes: an unparseable stamp is not a
+    // seconds-band, so `createNow` must not keep a one-second clock
+    // for a chip it will not draw.
+    expect(stillSeconds("not a date", at("2026-08-29T09:31:12.000Z"))).toBe(false)
+    expect(stillSeconds("", at("2026-08-29T09:31:12.000Z"))).toBe(false)
   })
 
   test("a stamp from the future is up 0s, never a negative", () => {
@@ -52,7 +57,7 @@ describe("how long the server has been up", () => {
   })
 })
 
-describe("the hover", () => {
+describe("the start sentence", () => {
   test("carries the exact start instant the wire sent", () => {
     expect(sinceOf("2026-08-29T09:31:00.000Z")).toBe(
       "up since 2026-08-29T09:31:00.000Z",
