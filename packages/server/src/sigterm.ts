@@ -509,10 +509,18 @@ const apply = (receipt: Receipt, libc: Libc): void => {
   // Hand the signal back to whatever disposition was installed before the
   // guard — Bun's, which is what main.ts's listeners and runMain are on —
   // and re-raise. From here this is EXACTLY today's orderly shutdown: the
-  // `received SIGTERM` line, runMain's interrupt, exit 130. (Restoring
-  // also re-exposes the default disposition, so a TERM racing an unwedged
-  // shutdown can still deliver the swift second death an operator expects
-  // from a stuck stop.)
-  if (oldAct !== undefined) libc.sigaction(SIGTERM, ptr(oldAct), null)
+  // `received SIGTERM` line, runMain's interrupt, exit 130. (A SECOND
+  // term after the restore re-runs that same interrupt — the bouncer's
+  // shape changes nothing there; the fast-forward an impatient operator
+  // reaches with is SIGKILL, which no disposition was ever part of.)
+  if (oldAct === undefined || libc.sigaction(SIGTERM, ptr(oldAct), null) !== 0) {
+    // The restore failed: the re-raise would bounce back into OUR catcher
+    // and be dropped on `shuttingDown` — a stop nobody delivers, held
+    // until systemd's SIGKILL. The honored intent is to DIE, so die.
+    process.stderr.write(
+      "olai web: honoring SIGTERM, but restoring the pre-guard disposition failed — exiting directly rather than letting the stop be swallowed\n",
+    )
+    process.exit(130)
+  }
   process.kill(process.pid, "SIGTERM")
 }

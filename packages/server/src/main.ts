@@ -36,9 +36,9 @@
  *
  * Every SIGTERM additionally goes through the GUARD first (`./sigterm.ts`):
  * a stranger's TERM is refused and named, an accepted one is handed back to
- * the disposition these listeners armed — so an honored TERM reads exactly
- * like today in a journal. The SIGTERM listener below now fires only when
- * the guard itself was unavailable.
+ * the disposition these listeners armed and re-raised — so the listener
+ * below fires on the guard's own reraise, which is by construction: an
+ * honored TERM reads exactly like today in a journal.
  */
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
