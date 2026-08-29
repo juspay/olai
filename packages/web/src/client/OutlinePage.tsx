@@ -17,7 +17,8 @@
 import type { Row } from "@olai/format"
 import { createEffect, onCleanup, Show } from "solid-js"
 
-import { collapsedNodes, setFolded } from "./fold/memory.ts"
+import { setFolded } from "./fold/memory.ts"
+import { createFoldReading } from "./fold/reading.ts"
 import { chainTo, shutAlong } from "./fold/landing.ts"
 import { Editable } from "./edit/Editable.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
@@ -37,6 +38,7 @@ export function OutlinePage(props: {
   readonly rows: ReadonlyArray<Row>
 }) {
   const narrowed = useNarrowed()
+  const folds = createFoldReading()
   const here = useHere()
   const landing = useLanding(() => props.file)
 
@@ -66,13 +68,22 @@ export function OutlinePage(props: {
    * draw), so a collapsed ancestor is unshut with the tree's own expand verb
    * before the row is selected and brought on screen, instead of the reader
    * being left pointing at somewhere they cannot see.
+   *
+   * The fold half is asked of the READING, not of the memory —
+   * `createFoldReading`, the same door the tree, the editor, the selection
+   * and the drag ask. They differ on exactly one page: a NARROWED one, where
+   * the reading has already suspended every collapse and the memory still
+   * names the reader's real ones — so `shut` under a filter comes back
+   * empty, and the act writes nothing: a landing that wrote there could
+   * un-collapse branches nobody was hiding from it, which is the promise
+   * `./fold/reading.ts`'s header is for.
    */
   createEffect(() => {
     const at = landing.owed()
     if (at === undefined) return
     const chain = chainTo(props.rows, at)
     if (chain === undefined) return
-    const shut = shutAlong(chain, collapsedNodes())
+    const shut = shutAlong(chain, folds())
     if (shut.length > 0) setFolded(shut, false)
     selectNode(at)
     const frame = requestAnimationFrame(() => {
