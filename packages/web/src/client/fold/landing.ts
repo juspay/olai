@@ -12,7 +12,7 @@
  *
  *   - **which chain of rows leads to the node.** A row on a drawn page is a
  *     place (`Row.key`), and the row an address asks about is the first —
- *     deepest-first — that SHOWS the id, mirror or not: each of them wears the
+ *     depth-first — that SHOWS the id, mirror or not: each of them wears the
  *     accent (`../focus.ts`'s `data-focused` is matched the same way), so the
  *     act needs only one to aim at.
  *   - **which folds stand between the reader and that row**, spelled as
@@ -56,25 +56,28 @@ import { type Fold, foldOf } from "./rows.ts"
  * FIRST MATCH, depth-first: a node may BE any number of places on one page
  * (mirrors), every one of them wears the accent, and the scroll at the end of
  * the act aims at the first the DOM holds in document order — which is what
- * depth-first answers for it. The fold membership is a question about the
- * path alone: every row below a folded ancestor is one this page does not
- * draw, so the walk can stop descending at the first shut step.
+ * depth-first answers for it.
+ *
+ * Folds are not a question this function takes, on purpose: `rows` is the
+ * reading, which holds a row under a collapsed ancestor as surely as any
+ * other (the memory prunes the DRAW, `../Tree.tsx`), so the row an address
+ * named is findable exactly where `shutAlong` can name what hides it.
  */
 export const chainTo = (
   rows: ReadonlyArray<Row>,
   id: string,
 ): ReadonlyArray<Row> | undefined => {
-  const folded = (row: Row, at: ReadonlyArray<Row>): ReadonlyArray<Row> | undefined => {
+  const descend = (row: Row, at: ReadonlyArray<Row>): ReadonlyArray<Row> | undefined => {
     const chain = [...at, row]
     if (shownRecord(row).node.id === id) return chain
     for (const child of row.children) {
-      const down = folded(child, chain)
+      const down = descend(child, chain)
       if (down !== undefined) return down
     }
     return undefined
   }
   for (const row of rows) {
-    const found = folded(row, [])
+    const found = descend(row, [])
     if (found !== undefined) return found
   }
   return undefined
