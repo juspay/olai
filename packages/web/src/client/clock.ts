@@ -183,7 +183,7 @@ export const createTicking = (
  * the half of the machinery that is not about pace at all.
  */
 export const createTwoSpeed = (
-  started: Accessor<string | undefined>,
+  started: Accessor<string | number | undefined | null>,
   coarsenAfter: number,
 ): Accessor<number> => {
   const [coarse, setCoarse] = createSignal(false)
@@ -229,9 +229,21 @@ export const createTwoSpeed = (
  * `null` for a missing stamp as well as a malformed one, checked rather than
  * left to the parse — `new Date(null)` is the epoch, not an invalid date, so a
  * session with no `updatedAt` would otherwise be drawn as 1970.
+ *
+ * A STAMP THAT IS ALREADY A NUMBER passes straight through, and that is this
+ * function doing its ONE job over one more encoding rather than two jobs. A
+ * fourth readout arrived carrying `Date.now()` off the wire (the CI chip's
+ * running node — odu stamps in milliseconds, not ISO), and the alternative was
+ * for it to spell the instant into text so this could parse it back: a value
+ * laundered through a string to satisfy a signature, on every read. The
+ * question this answers is "what number is that instant"; an instant that is
+ * already the number is the identity case of it.
  */
-export const instantOf = (at: string | null | undefined): number | null => {
+export const instantOf = (
+  at: string | number | null | undefined,
+): number | null => {
   if (at === null || at === undefined) return null
+  if (typeof at === "number") return Number.isFinite(at) ? at : null
   const then = Date.parse(at)
   return Number.isNaN(then) ? null : then
 }

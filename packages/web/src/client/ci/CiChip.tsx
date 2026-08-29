@@ -63,16 +63,18 @@ export function CiChip(context: ChipContext) {
   const run = () => runs.runOf(context.entry.value)
   /**
    * THE TICK, armed off the running node's start and disarmed by everything
-   * else. `createNow` takes the instant as ISO text (three other readouts hand
-   * it one straight off the wire), so the wire's `Date.now()` number is spelled
-   * into one here rather than a second clock being written for the one member
-   * that carries a number — the seam is the argument, not the encoding.
+   * else — a settled run's words never move, so a settled chip keeps no clock.
+   *
+   * The instant goes in AS IT ARRIVED. odu stamps in milliseconds and the
+   * app's other three readouts carry ISO text, and `instantOf` is where the
+   * two stop being two questions (`../clock.ts`); this used to spell the
+   * number into a string so that parse could turn it back, which is a value
+   * laundered through text on every read to satisfy a signature.
    */
-  const started = (): string | undefined => {
+  const started = (): number | null => {
     const held = run()
-    if (held === undefined || !held.live) return undefined
-    const at = runningIn(held)?.startedAt
-    return at === null || at === undefined ? undefined : new Date(at).toISOString()
+    if (held === undefined || !held.live) return null
+    return runningIn(held)?.startedAt ?? null
   }
   const now = createNow(started)
   const words = () => {

@@ -99,7 +99,13 @@ export const tickingOf = (elapsedMs: number): string => {
  * only thing this chip adds is its BAND, an hour. The whole thing exists for
  * the doing arm alone: a settled row's words never move, so a settled row
  * keeps no clock at all.
+ *
+ * TWO READOUTS WEAR THE HOUR BAND now — this chip and the CI chip's running
+ * node — and they hold their stamps in different encodings, which is why the
+ * door takes either: a record's `started` is ISO text and odu's `startedAt`
+ * is milliseconds. {@link ./clock.ts}'s `instantOf` is where that stops being
+ * two questions.
  */
 export const createNow = (
-  started: Accessor<string | undefined>,
+  started: Accessor<string | number | undefined | null>,
 ): Accessor<number> => createTwoSpeed(started, HOUR)
