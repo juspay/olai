@@ -359,14 +359,14 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
    *  holds only the seed. Settling through the FRAMEWORK's `set` is the
    *  point anyway: the `equals` gate turns a no-op settle back into
    *  silence, so the walk is never answered twice. */
-  let read: KoluMutes = NO_MUTES
+  let reading: KoluMutes = NO_MUTES
   /** The BIND hook named in the verbs map: capture the handle, then settle
    *  with the walk's last reading — the framework's gate is what lets this
    *  settle run unconditionally: a boot on defaults publishes nothing. */
   const mutesConnect = (cell: { set: (value: KoluMutes) => void }): Effect.Effect<void> =>
     Effect.sync(() => {
       mutesCell = cell
-      cell.set(read)
+      cell.set(reading)
     })
   const watch: Watch = makeWatch(
     {
@@ -398,10 +398,10 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
     // publishes beside, so the line a reader sees can never name a
     // different mute list from the one gating the timers. The publish rides
     // the cell's OWN handle — the manifest connector and this cell's bind
-    // run in no promised order, so `read` keeps the answer and the
+    // run in no promised order, so `reading` keeps the answer and the
     // cell's `connect` settles it as its first act.
-    read = next.mutes
-    mutesCell?.set(read)
+    reading = next.mutes
+    mutesCell?.set(reading)
     const lines = next.malformed.join("\n")
     if (lines !== saidMalformed) {
       saidMalformed = lines

@@ -622,9 +622,10 @@ function Trash() {
  *
  *  It is an entry rather than a tree row for the reason the Trash is one: the
  *  file it opens is a file olai named for itself, and the tree does not draw
- *  those — the quiet vault group at the column's foot is their home, and two
- *  doors onto one file is fine the way the shelf has always doubled a pinned
- *  file's own row. Unlike the Trash it is a FILE PAGE —
+ *  those — the vault group at the column's foot now holds those rows, so
+ *  that is never the reason the door exists. It is a door beside Agenda
+ *  because that is where you REACH it (human, 2026-08-20). Unlike the Trash:
+ *  it is a FILE PAGE —
  *  an ordinary outline you can type into — so the entry lights up the way a
  *  tree row does, off the open page's file, rather than off the route.
  *
