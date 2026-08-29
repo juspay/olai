@@ -242,6 +242,7 @@ export {
   AtDocument,
   AtHeading,
   AtNode,
+  AtRow,
   addressOf,
   DocumentPath,
   /** The address a TITLE carries, and the two halves of the one link it may be

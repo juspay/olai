@@ -52,9 +52,15 @@ Feature: An agent olai did not start
     # all. The store's watcher already handles a new `.olai` (see
     # it_stays_live.feature); this scenario proves the write path that mints
     # one reaches the same live tab — no reload.
+    #
+    # THREE, and the number is a fact about the FIXTURE, not the claim: the
+    # claim is "one more than the corpus held", and this corpus now ships TWO
+    # outlines on purpose — `house.olai`, plus `yard.olai`, which
+    # node_context.feature pins the cross-outline landing against — so the one
+    # write is the one that turns it into three.
     When the terminal agent creates the outline "shed.olai" seeded with "clear out the shed"
     Then the outline list links to "shed.olai"
-    And the outline list has 2 entries
+    And the outline list has 3 entries
     And the page has not reloaded
     And there should be no page errors
 

@@ -195,7 +195,7 @@ While the list is up the keys are the list's: ↑/↓ walk it — through both b
 
 ## Pointing back at a node
 
-Ids in the panel are pressable, and pressing one shows you that node: the row scrolls into view and says it is the one being talked about. If it is not on the page you are reading — another outline, a branch you have collapsed — you go to its own page instead.
+Ids in the panel are pressable, and pressing one shows you that node: the row scrolls into view and says it is the one being talked about. If it is not drawn on the page you are reading — another outline, a branch you have collapsed — you are landed on its own file's page instead, unfolded to the row and sat on it, because *show this node* promised the row and a collapse may not hide what an address asked for. The address in the bar is the row's own (`house.olai#order`), never the zoom (`/#id` stays the permalink it always was).
 
 Three things in the conversation are ids, and none of them is a syntax anybody had to invent:
 
@@ -206,7 +206,7 @@ Three things in the conversation are ids, and none of them is a syntax anybody h
 **Which of them are ids is asked of the server**, once per message — the browser used to answer it out of its own copy of the whole directory, and that copy is what it is giving up ([brainstorming/vault-in-browser.md](https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/vault-in-browser.md)). Two things follow, and both are visible:
 
 - a backtick is **plain until the answer lands**, a beat after the words. It is never marked on a guess and unmarked afterwards: a reference that vanishes under your cursor is worse than one that arrives a millisecond late.
-- the answer is **what the set said when the message was drawn**. A message is a record of something that happened; a node named an hour ago and put away since keeps its mark in that paragraph, and pressing it takes you to its page, which says where it now is. The next message that names it asks again.
+- the answer is **what the set said when the message was drawn**. A message is a record of something that happened; a node named an hour ago keeps its mark in that paragraph, even after somebody put it away — and pressing the mark then goes quietly nowhere, because *show this node* cannot be answered about an id nobody draws. The next message that names it asks again.
 
 If the lookup itself fails, the panel says so at the end of the conversation — one line, because one question carries every message's ids. The words are all still there; what is missing is which of them can be pressed.
 

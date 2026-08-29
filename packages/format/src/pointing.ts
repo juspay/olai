@@ -152,8 +152,11 @@ const pointInto = (into: Map<string, Array<Face>>, face: Face): void => {
     fileAt(into, printAddress(link), face)
     // A LINK ONTO A HEADING POINTS AT THE DOCUMENT as well, which is the
     // module header's one shape decision and the only place this fold does
-    // more than write down what it read.
-    if (link.kind === "heading") {
+    // more than write down what it read. A link onto a ROW points at its
+    // outline for the same sentence's reason: the reader opening the file is
+    // who wants to know, and the row's address already carries the file it
+    // is a row of, so the second key costs one print and no rule.
+    if (link.kind === "heading" || link.kind === "row") {
       fileAt(into, printAddress({ kind: "document", path: link.path }), face)
     }
   }

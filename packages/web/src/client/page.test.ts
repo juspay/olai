@@ -49,6 +49,15 @@ test("the narrowing is dropped: it is not part of which page this is", () => {
   expect(requestFor({ kind: "trash", filter: "is:todo" }, TODAY)).toEqual({ kind: "trash" })
 })
 
+// The ROUTE keeps the row — `landingOf` answers from it — and the request
+// keeps the FILE, because the outline page the row lands in is the same
+// outline its file spelled. Sent whole, a link to a row would re-ask the page
+// for each row of it.
+test("a row is the outline it sits in: its element is a landing, not a page", () => {
+  expect(requestFor(atElement("house.olai", "install"), TODAY))
+    .toEqual(requestFor(atFile("house.olai"), TODAY))
+})
+
 // ── which sidebar entry lights up ──────────────────────────────────────
 
 const ROW: Row = {
@@ -162,5 +171,5 @@ test("a fragment is read by the grammar that would have written it", () => {
   // After an OUTLINE it is a node, because an outline's places are node ids —
   // which is the grammar's own answer (`@olai/format`'s `address.ts`), asked
   // here rather than re-decided.
-  expect(opensAt(SERVED, "house.olai", "install")).toEqual(atNode("install"))
+  expect(opensAt(SERVED, "house.olai", "install")).toEqual(atElement("house.olai", "install"))
 })

@@ -200,7 +200,11 @@ const pinOf = (row: Pinned): Pin | undefined => {
  */
 const showing = (route: Route, row: Pinned): string | undefined => {
   const address = route.kind === "at" ? route.address : null
-  return address !== null && address.kind === "node" && address.id === row.shows?.id
+  if (address === null || row.shows === undefined) return undefined
+  // A ROW names the node too (`/house.olai#install` is what a hand writes)
+  // and draws its live name exactly as the bare spelling would: the id half
+  // is what moves survive, wherever the pin's file half went stale.
+  return (address.kind === "node" || address.kind === "row") && address.id === row.shows.id
     ? row.shows.name
     : undefined
 }

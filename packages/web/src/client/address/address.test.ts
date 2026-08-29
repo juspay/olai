@@ -11,9 +11,12 @@
 
 import { expect, test } from "bun:test"
 
+import { addressOf } from "@olai/format"
+
 import type { Names } from "../names.ts"
-import { atFile, atNode, HOME_ROUTE, hrefOf, routeIn } from "../routes.ts"
+import { atElement, atFile, atNode, HOME_ROUTE, hrefOf, routeIn, routeOf } from "../routes.ts"
 import { ROUTES } from "../routes.testlib.ts"
+import { requestFor } from "../page.ts"
 import { addressIn, labelIn, nameOf, shownIn } from "./address.ts"
 
 // ── what is an address ─────────────────────────────────────────────────
@@ -129,10 +132,11 @@ test("the label somebody wrote is a name; a blank one is not", () => {
 // ── what a place is called ─────────────────────────────────────────────
 //
 // The switch is PURE: exactly one address is not called what it says it is —
-// a node, which is called whatever that node is called right now — so that
-// one fact is handed in. Who asks it is the caller's, and the two callers ask
-// it on opposite sides of the wire (the shelf's is the server's answer, an
-// outline row's is `shownIn` below).
+// a node, which is called whatever that node is called right now — and the
+// row arm asks the same question when the set can answer it, and answers like
+// a heading when not. So that one fact is handed in. Who asks it is the
+// caller's, and the two callers ask it on opposite sides of the wire (the
+// shelf's is the server's answer, an outline row's is `shownIn` below).
 
 test("a node address is called whatever that node is called right now", () => {
   expect(nameOf(atNode("herbs"), "the herb bed")).toBe("the herb bed")
@@ -143,6 +147,8 @@ test("a node address is called whatever that node is called right now", () => {
 test("an address nobody can name says the address rather than a blank", () => {
   expect(nameOf(atNode("gone"), undefined)).toBe("/#gone")
 })
+
+
 
 test("a file is called by its own name, not by its path", () => {
   expect(nameOf(atFile("notes/finishes.md"), undefined)).toBe("finishes.md")
@@ -178,4 +184,25 @@ test("nothing to say, said the same way three times", () => {
   expect(shownIn(named("the herb bed"), atNode("gone"))).toBeUndefined()
   expect(shownIn(named("the herb bed"), atFile("notes/finishes.md"))).toBeUndefined()
   expect(shownIn(named("the herb bed"), { kind: "agenda" })).toBeUndefined()
+})
+
+// A landed row page is what the PALETTE names, and the palette is handed the
+// table of the REQUEST, not of the route: `requestFor` strips the row to its
+// document before the wire (`../page.ts`), so the table it answers with can
+// never hold the id. The width answers with the FILE — the heading arm's own
+// answer, and the opposite of the raw href this used to fall through to.
+test("a landed row page is named by its file — the request the table answered held no row", () => {
+  expect(requestFor(routeOf("/house.olai#install"), "2026-08-29")).toEqual({
+    kind: "at",
+    address: addressOf("house.olai", null),
+  })
+  expect(nameOf(routeOf("/house.olai#install"), undefined)).toBe("house.olai")
+})
+
+// …and where the table DOES see the id — an in-tree title of the qualified
+// spelling, which `namesFor`'s pin half reliably asks about — the row arm
+// answers the node's live name, the same answer the bare spelling draws.
+test("the qualified spelling of a node answers the node's own live name", () => {
+  expect(shownIn(named("the herb bed"), atElement("garden.olai", "herbs"))).toBe("the herb bed")
+  expect(nameOf(routeOf("/garden.olai#herbs"), "the herb bed")).toBe("the herb bed")
 })
