@@ -103,8 +103,12 @@ export function OutlinePage(props: {
       // (`./Tree.tsx`), even mirrors — the placement stays put.
       const placement = chain.at(-1)
       if (placement === undefined) return
+      // An id is a string somebody typed one day: escaped, because a quote
+      // in it would be a selector that throws, and a throw inside the frame
+      // is a landing this pane will never spend. (`document/faces.tsx`'s
+      // heading half does exactly this, on the same argument.)
       const row = root.querySelector(
-        `[data-testid="${TESTID.node}"][data-node-id="${placement.at.node.id}"]`,
+        `[data-testid="${TESTID.node}"][data-node-id="${CSS.escape(placement.at.node.id)}"]`,
       )
       if (row === null) return
       bringOntoScreen(row)
