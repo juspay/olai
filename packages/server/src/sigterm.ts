@@ -37,10 +37,10 @@
  *      sigaction itself, the pipe, the policy, /proc resolution, the log
  *      lines — is TypeScript right here.
  *
- * The handler appends {signo, si_code, si_pid, si_uid} to a non-blocking
- * self-pipe; a poll loop drains it in ordinary context, where /proc and
- * stderr are safe. The kernel queue IS the flag/self-pipe the classic
- * constraint asks for.
+ * The handler appends {si_pid, si_uid} to a non-blocking self-pipe; a
+ * poll loop drains it in ordinary context, where /proc and stderr are
+ * safe. The kernel queue IS the flag/self-pipe the classic constraint
+ * asks for.
  *
  * The POLICY is {@link judge}, honored at drain time: the supervisor —
  * `getppid()`, which is how `systemctl --user stop|restart olai` delivers
@@ -144,14 +144,12 @@ const SA_RESTART = 0x10000000
 const O_NONBLOCK = 0o4000
 const O_CLOEXEC = 0o2000000
 
-/** Bytes per record the C handler writes — {signo, si_code, si_pid,
- *  si_uid} as four little-endian u32s. */
-const RECORD_BYTES = 16
+/** Bytes per record the C handler writes — {si_pid, si_uid} as two
+ *  little-endian u32s. */
+const RECORD_BYTES = 8
 
 /** One caught SIGTERM, as the kernel described the sender at send time. */
 interface Receipt {
-  readonly signo: number
-  readonly code: number
   readonly pid: number
   readonly uid: number
 }
@@ -291,7 +289,8 @@ export const installSigtermGuard = async (): Promise<void> => {
     process.kill(process.pid, "SIGTERM")
     while (Date.now() < deadline && !proven) {
       for (const record of drain(readEnd)) {
-        if (record.signo === SIGTERM && record.pid === process.pid && record.uid === getuid()) {
+        // The catcher covers only SIGTERM, so any record IS one.
+        if (record.pid === process.pid && record.uid === getuid()) {
           proven = true
         } else {
           // A real TERM that raced the self-test: it still deserves the policy.
@@ -356,10 +355,8 @@ const drain = (fd: number): Array<Receipt> => {
   const out: Array<Receipt> = []
   for (let off = 0; off + RECORD_BYTES <= n; off += RECORD_BYTES) {
     out.push({
-      signo: view.getInt32(off, true),
-      code: view.getInt32(off + 4, true),
-      pid: view.getInt32(off + 8, true),
-      uid: view.getUint32(off + 12, true),
+      pid: view.getInt32(off, true),
+      uid: view.getUint32(off + 4, true),
     })
   }
   return out

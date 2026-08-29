@@ -5,7 +5,7 @@
  * a malloc lock may be held, the JS VM is unapproachable, and nothing
  * that allocates, takes a lock, or calls into libc userspace state may
  * run here. The POSIX list of allowed calls is short; write(2) is on it,
- * and that is all this handler does: copy the four numbers the kernel
+ * and that is all this handler does: copy the two numbers the kernel
  * already recorded (the record IS the attribution) into a self-pipe
  * TypeScript drains in ordinary context. No printf, no /proc reads, no
  * logging — those happen across the pipe, where it is safe.
@@ -28,22 +28,23 @@
  * si_pid == 0 and si_uid == 0 — not a possible sender pid, so they can
  * never be confused for a user-space process's send.
  *
- * The record is 16 bytes so a batch read can slice it without a length
- * word: { signo, si_code, si_pid, si_uid }, all little-endian i32s.
- * Pipe floods drop records (counted, reported from the drain side)
- * rather than blocking a signal sender on us. */
+ * The record is 8 bytes — { si_pid, si_uid }, two little-endian i32s, so
+ * a batch read can slice it without a length word. signo is not in it
+ * (this handler is only ever SIGTERM's disposition) and neither is
+ * si_code (the kill/tgkill/kernel split would color a log line, which no
+ * reader today asks for — a fact to revisit the day one does, not a field
+ * to carry meanwhile). Pipe floods drop records (counted, reported from
+ * the drain side) rather than blocking a signal sender on us. */
 static int outFd = -1;
 static long (*x_write)(int, const void *, unsigned long);
 static volatile long dropped = 0;
 
 static void olaiSigterm(int sig, void *info, void *uctx) {
-  int rec[4];
+  int rec[2];
   char *p = (char *)info;
-  rec[0] = sig;
-  rec[1] = *(int *)(p + 8);                 /* si_code */
-  rec[2] = *(int *)(p + 16);                /* si_pid  */
-  rec[3] = (int)*(unsigned int *)(p + 20);  /* si_uid  */
-  if (outFd < 0 || x_write(outFd, rec, 16) != 16) {
+  rec[0] = *(int *)(p + 16);                /* si_pid */
+  rec[1] = (int)*(unsigned int *)(p + 20);  /* si_uid */
+  if (outFd < 0 || x_write(outFd, rec, 8) != 8) {
     dropped = dropped + 1;
   }
 }
