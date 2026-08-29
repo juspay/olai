@@ -162,6 +162,32 @@ test("a node carrying everything produces every field `Found` declares", () => {
   expect(Object.keys(carrying ?? {}).sort()).toEqual(Object.keys(Found.fields).sort())
 })
 
+// The work's own instants: the record's `started` handed back verbatim, and
+// `took` derived off it and the settling one — an annotation beside
+// `progress`, with the same absences doing the saying.
+test("a node's read carries `started` and the derived `took` — and the jump carries neither", () => {
+  const at = derivedOf(setOf({
+    "house.olai": [
+      `{"id":"bake","ord":"a0","title":"bake the bread","done":"2026-08-29T12:26:44-04:00","started":"2026-08-29T09:52:00-04:00"}`,
+      `{"id":"plumber","ord":"a1","title":"call the plumber","done":"2026-08-29T12:26:44-04:00"}`,
+      `{"id":"hinge","ord":"a2","title":"fix the hinge on the door","cancelled":"2026-08-29T10:33:00-04:00","started":"2026-08-29T09:52:00-04:00"}`,
+      `{"id":"water","ord":"a3","title":"water the plants","doing":true,"started":"2026-08-29T09:52:00-04:00"}`,
+    ].join("\n"),
+  }))
+  // SETTLED: the instant, and the span it closes — 2h34m44s and 41m, in
+  // whole seconds either way, because the two settling marks read the same.
+  expect(detail(at, "bake")).toMatchObject({ started: "2026-08-29T09:52:00-04:00", took: 9284 })
+  expect(detail(at, "hinge")).toMatchObject({ started: "2026-08-29T09:52:00-04:00", took: 2460 })
+  // STILL RUNNING: the instant is there for the tick, and there is no `took`
+  // to say — a span needs both ends, and the wire carries no durations.
+  expect(detail(at, "water")).toHaveProperty("started")
+  expect(detail(at, "water")).not.toHaveProperty("took")
+  // THE JUMP: a todo→done has no span, and `created` is never the fallback —
+  // neither field is invented at read time.
+  expect(detail(at, "plumber")).not.toHaveProperty("started")
+  expect(detail(at, "plumber")).not.toHaveProperty("took")
+})
+
 describe("the edges a node carries", () => {
   test("a search hit carries `after` and `see`, and omits what is not there", () => {
     const hits = search(reading(), { text: "header" }, TODAY).hits

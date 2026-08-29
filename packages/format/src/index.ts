@@ -471,6 +471,13 @@ export {
   rowsOf,
   rowsUnder,
   siblingsOf,
+  /** How long the work TOOK, in whole seconds — an annotation derived from
+   *  the record's own `started` and settling instant, never stored, and
+   *  `undefined` when either half is absent (the todo→done jump has no span;
+   *  `created` is never the fallback). The browser's settled chip and
+   *  `read_node`'s `took` are the two readers; the doing half of the same
+   *  story is a tick the wire does not carry at all. */
+  tookOf,
   /** What a node's `after` targets hold up, asked of a node that is not work
    *  yet. Exported for the reason `drawnFrom` above is: two rules read
    *  blockedness and they must agree. The rows a page draws and `read_node`'s

@@ -193,7 +193,7 @@ const checkRecord = ({ file, line, node }: Located): ReadonlyArray<OutlineError>
     }
   }
 
-  for (const field of [...MARKS, "date", "created", "changed"] as const) {
+  for (const field of [...MARKS, "started", "date", "created", "changed"] as const) {
     const value = node[field]
     if (typeof value === "string" && !isIsoInstant(value)) {
       at(

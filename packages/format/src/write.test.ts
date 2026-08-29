@@ -249,6 +249,7 @@ const EVERY_REGULAR_FIELD: RegularNode = {
   cancelled: true,
   doing: true,
   todo: true,
+  started: "2026-08-11T08:30:00-04:00",
   date: "2026-08-11",
   repeat: "every week on monday",
   desc: "a note",

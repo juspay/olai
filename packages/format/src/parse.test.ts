@@ -240,6 +240,44 @@ test("the cancelled mark round-trips, and is exclusive with the other three", ()
     .toEqual(["bad-date"])
 })
 
+/**
+ * `started` — the work's own instant, and the format's side of the bargain
+ * the ops layer keeps the other half of: the field EXISTS (a key the schema
+ * does not declare would be a `bad-record`), it round-trips in canonical
+ * order beside the marks, and its value answers the same ISO rule the marks
+ * and the two stamps answer. What it is WORTH — stamped once, kept on a
+ * re-open, subtracted at read time — is not grammar, so it is not asked here.
+ */
+test("started round-trips, and is held to the same ISO rule as the marks", () => {
+  const line = `{"id":"a","ord":"a","title":"t","doing":true,"started":"2026-08-29T09:52:00-04:00"}`
+  const parsed = outlineOf(line)
+  expect(parsed.nodes[0]?.node).toEqual({
+    id: "a",
+    ord: "a",
+    title: "t",
+    doing: true,
+    started: "2026-08-29T09:52:00-04:00",
+  })
+  // Byte for byte — the writer's canonical order places it with the marks,
+  // before `date`: it never reaches disk otherwise (`write.test.ts`'s rule).
+  expect(serializeOutline(parsed.nodes.map((one) => one.node))).toBe(`${line}\n`)
+
+  // A day-only value is legal, the same reading `date` gets: what a hand
+  // writes, and readable back — a span counted in days is still a span.
+  expect(outlineOf(`{"id":"a","ord":"a","title":"t","started":"2026-08-29"}`).nodes.length)
+    .toBe(1)
+
+  // It is an INSTANT and nothing else: the marks take `true` because a bare
+  // `` `true` `` is the state, but `started` answered true would say WHEN and
+  // mean it, so the schema itself turns it away rather than the ISO check.
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","started":true}`)))
+    .toEqual(["bad-record"])
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","started":"2026-02-30"}`)))
+    .toEqual(["bad-date"])
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","started":"yesterday"}`)))
+    .toEqual(["bad-date"])
+})
+
 // Shape is not enough: `2026-02-30` matches the pattern and is still not a
 // day, and a date the calendar rejects would silently vanish from the day view.
 test("a date is checked against the calendar, not just the pattern", () => {

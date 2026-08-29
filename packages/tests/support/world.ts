@@ -576,6 +576,7 @@ export const PROP_SAID = selector(TESTID.propSaid);
 /** The rollup badge beside a title: how many of the tasks under this node are
  *  done. An annotation — the node's OWN mark is the checkbox. */
 export const PROGRESS = selector(TESTID.progress);
+export const TOOK = selector(TESTID.took);
 export const DESC = selector(TESTID.desc);
 /** The pilcrow beside a title: the door to the row's open state. Drawn only on
  *  a node that HAS one — a note, or a property somebody added — so its absence

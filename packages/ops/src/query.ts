@@ -91,6 +91,7 @@ import {
   type Placed,
   type Placement,
   progressOf,
+  tookOf,
   type Reading,
   type Reference,
   ranked,
@@ -748,6 +749,11 @@ export const detail = (derived: Derived, id: string): Detail | null => {
   if (located === undefined || !isRegular(located)) return null
   const node = located.node
   const progress = progressOf(derived, id)
+  // When the work first started, and — once it has SETTLED — how long that
+  // took: the record's own `started` handed back verbatim for the tick a
+  // reader runs from it, and the derived span for the one that wants the
+  // answer. Both absent on the todo→done jump, which has no span to tell.
+  const took = tookOf(node)
   const placements = placementsOf(derived, id)
   const placed = placedUnder(derived, id)
   const referencedBy = referrersOf(derived, id)
@@ -763,6 +769,7 @@ export const detail = (derived: Derived, id: string): Detail | null => {
     // built out of — a hit, a child in this list, a row of a subtree.
     ...(node.created === undefined ? {} : { created: node.created }),
     ...(node.changed === undefined ? {} : { changed: node.changed }),
+    ...(node.started === undefined ? {} : { started: node.started }),
     ...stampsOf(node),
     // AS WRITTEN, sigil and all: `#alice` and `@alice` are two tags, so a list
     // that dropped the character that started them could not tell a reader
@@ -780,6 +787,7 @@ export const detail = (derived: Derived, id: string): Detail | null => {
       part.kind === "tag" ? [tagText(part)] : []
     ),
     ...(progress === undefined ? {} : { progress }),
+    ...(took === undefined ? {} : { took }),
     children: countedChildren(derived, id).map((child) => foundOf(derived, child)),
     ...(placements.length === 0 ? {} : { mirrors: placements }),
     ...(placed.length === 0 ? {} : { placed }),

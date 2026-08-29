@@ -1412,6 +1412,19 @@ const planMark = (
   // elsewhere stays the text it was.
   if (!undo) next[mark] = marker(scope, mark)
 
+  // …and STARTING stamps the work's own instant once, beside the marks the
+  // way `created` rides the record: what went under way, and when. The span is
+  // DERIVED from it later (`took` = the settling instant − this), never
+  // stored — and the one rule of the stamp is that PRESENT IS UNTOUCHED: a
+  // re-opened node keeps its FIRST start, so what a later settle reports is
+  // first start → final settle, and the span-by-span story stays `git log`'s.
+  // Every other path through here — settling, un-marking — leaves the field
+  // exactly as it found it, and a settle with no `started` invents none: a
+  // todo→done jump has no span, and `created` is never the fallback.
+  if (!undo && mark === "doing" && next.started === undefined) {
+    next.started = scope.context.now()
+  }
+
   // WHAT COMES BACK ({@link recurring}): a `done` on a node that repeats hands
   // the rule to the occurrence it spawns, so `next` above stops carrying one.
   // `undefined` is every other write, which is nearly every write.

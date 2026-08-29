@@ -1,0 +1,107 @@
+@share-scratch
+@scratch:good
+Feature: Native task timing — `started`, `took`, and the ticking row
+
+  Every mark on a row is a fact the record stores; until this, only the two
+  SETTLING instants were. Starting went by unrecorded, so nothing could say
+  how long the work took — the orchestrator's lane timings had to be
+  subtracted from the neighbours' settling instants, and a human vault's
+  chores timed nothing at all.
+
+  `started` is a field beside the marks, stamped by `set_doing` the FIRST
+  time and kept (a re-open stamps nothing again); the span is derived at
+  read time, never stored — `took` is the settling instant minus the start,
+  whole seconds, with no fallback to `created` for a jump that stored no
+  start. And it is DRAWN, in two registers: a doing row ticks locally from
+  the wire-carried instant (the uptime chip's seam), a settled row wears the
+  quiet chip, always visible — on both a REAL span and the time sunk into
+  work that got called off, and on NOTHING that never passed through doing.
+
+  Scenarios are written against the shared `good` vault and restore it
+  between them; `handles` and `knobs` are two leaves with nothing in their
+  way. (A row the scenario is walking is in its editor — the chip is for
+  the row as it STANDS, so each reading below first steps away from it.)
+
+  Background:
+    Given I open the outline "house.olai"
+    And I mark the page
+
+  # ── the running span ───────────────────────────────────────────────
+
+  Scenario: A row set doing ticks live from its stored start
+    When I click the title of "handles"
+    And I press "Control+Shift+Enter"
+    And I press "Control+Shift+Enter"
+    Then the node "handles" has status "doing"
+    And "house.olai" holds a node marked doing titled "choose the handles"
+    When I click away from the editor
+    # The clock reads SECOND: from one frame to the next, without another
+    # write from anybody, the chip must not sit still.
+    Then the node "handles" is ticking
+    And there should be no page errors
+
+  Scenario: Settling closes the span, and the row wears it
+    When I click the title of "handles"
+    And I press "Control+Shift+Enter"
+    And I press "Control+Shift+Enter"
+    Then the node "handles" has status "doing"
+    When I press "Control+Enter"
+    Then the node "handles" has status "done"
+    When I click away from the editor
+    # The tick is done: the chip is the settled reading, seconds derived off
+    # the two stamps — not a freeze frame of whatever the counter last said.
+    Then the node "handles" shows a settled took chip
+    # And the journal reads it: the same row on today's page, the same chip.
+    When I open today
+    Then the node "handles" shows a settled took chip
+    And there should be no page errors
+
+  # `knobs` stands at `todo` in the fixture: ONE ⌘⇧Enter walks it to doing
+  # (the walk is the three-state clean → todo → doing → clean).
+  Scenario: Calling it off wears the time sunk, not the shame of it
+    When I click the title of "knobs"
+    And I press "Control+Shift+Enter"
+    Then the node "knobs" has status "doing"
+    When I press "Alt+Enter"
+    Then the node "knobs" has status "cancelled"
+    When I click away from the editor
+    # A mark where a walk landed is never *true*, and the span the wait took
+    # is worth keeping on the row.
+    Then the node "knobs" shows a settled took chip
+    And "house.olai" holds a node marked cancelled titled "pick the knobs"
+    And there should be no page errors
+
+  # ── the silences ───────────────────────────────────────────────────
+
+  Scenario: The jump carries nothing
+    # Straight to done, never through doing: no `started` was ever stamped,
+    # so there is no span to tell — and falling back to `created` would be
+    # the chip measuring the node's age and calling it work.
+    When I click the title of "knobs"
+    And I press "Control+Enter"
+    Then the node "knobs" has status "done"
+    When I click away from the editor
+    Then the node "knobs" shows no took chip
+    # And work settled before spans existed says nothing either: `demo` has
+    # a `done` and no `started`, and no chip — the ordinary shape of an old
+    # vault, not an error case.
+    And the node "demo" shows no took chip
+    # Bullets carry nothing, however interesting their day gets.
+    And the node "install" shows no took chip
+    And there should be no page errors
+
+  Scenario: A re-open is one span, first start to final settle
+    When I click the title of "handles"
+    And I press "Control+Shift+Enter"
+    And I press "Control+Shift+Enter"
+    Then the node "handles" has status "doing"
+    When I press "Control+Enter"
+    And I press "Control+Enter"
+    # `todo → doing → done → undone → doing`: the started stamped on the
+    # first pass is the one the record still carries.
+    When I press "Control+Shift+Enter"
+    And I press "Control+Shift+Enter"
+    Then the node "handles" has status "doing"
+    When I click away from the editor
+    Then the node "handles" is ticking
+    And there should be no page errors

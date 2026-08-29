@@ -265,6 +265,14 @@ export const TESTID = {
    *  worth knowing — on a fold whose ROLLUP already reports the same number,
    *  since two spellings of one fact is one of them written twice. */
   foldedDone: "folded-done",
+  /** The ⏱ chip — how long the work TOOK on a settled row (an annotation
+   *  drawn from the stored `started` and the settling instant), and how long
+   *  it has been GOING on a doing one (ticking locally off that same
+   *  `started`, the instant rather than a carried duration). `data-took` is
+   *  the whole seconds when settled, `data-started` the instant it runs from
+   *  when live. Absent on a bullet, on a jump-to-done, and on work nobody
+   *  has ever started. */
+  took: "took",
   desc: "desc",
   /** The one clamped line of a note a filter found the row BY, drawn under the
    *  title on a row whose only hit is behind its ¶ (`client/note/

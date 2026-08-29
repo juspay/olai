@@ -484,6 +484,11 @@ export type Reference = typeof Reference.Type
 export const Detail = Schema.Struct({
   ...Found.fields,
   ...STAMPED,
+  /** When the work was first STARTED — the record's own `started`, verbatim.
+   *  It is what `took` below is derived from and what a `doing` row's live
+   *  tick runs from: the instant crosses the wire once, and the clock the
+   *  chip ticks against is the reader's. */
+  started: RegularNode.fields.started,
   date: RegularNode.fields.date,
   /** The repeat rule, as the record spells it — the node's own text, handed
    *  back for the writer that is about to change it. Present only on the
@@ -506,6 +511,14 @@ export const Detail = Schema.Struct({
    *  ANNOTATION: it decides nothing, and in particular the node's own status is
    *  `status` above whatever this says. */
   progress: Schema.optionalKey(Progress),
+  /** How long the work TOOK, in WHOLE SECONDS — `done` or `cancelled` minus
+   *  `started`, derived at read time and never stored (`@olai/format`'s
+   *  `tookOf`). An annotation exactly as `progress` is. Absent when there is
+   *  no span to tell: no `started` (a todo→done jump has none, and `created`
+   *  is never the fallback — that measures the node's age, not the work), no
+   *  settling mark yet, or a settling mark holding the instants-less `true`
+   *  of work finished before olai stamped anything. */
+  took: Schema.optionalKey(Schema.Int),
   children: Schema.Array(Found),
   /** Everywhere else this node is drawn — the mirrors that show it, chains
    *  included. Absent when nothing does, which is nearly every node.
