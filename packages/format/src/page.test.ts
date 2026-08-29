@@ -137,6 +137,26 @@ test("a named outline opens that one, with its own rows", () => {
   expect(roots(shows)).toEqual(["kitchen"])
 })
 
+// A ROW address names the outline the row is in: which ROW of it the address
+// asked to land on is a fact for the reader of the page, not for the reading
+// — exactly as `notes/finishes.md#install` is the document and a landing.
+test("a row address opens the outline that holds it", () => {
+  const shows = readAt(at("house.olai", "kitchen"))
+  expect(shows.kind === "outline" ? shows.file : undefined).toBe("house.olai")
+  expect(roots(shows)).toEqual(["kitchen"])
+})
+
+// ...and one whose file went stale is the outline-nothing, not a blank page:
+// the id is durable and the file half is not, which is the price this arm
+// chose to pay the way the heading arm pays it.
+test("a row of an outline the directory does not hold is a nothing that names it", () => {
+  expect(readAt(at("shed.olai", "kitchen"))).toEqual({
+    kind: "nothing",
+    sought: "outline",
+    requested: "shed.olai",
+  })
+})
+
 // The two nothings are decided HERE rather than by a view counting files, so
 // the screen that says them has one thing to say and no reasoning to do.
 test("an outline the directory does not have is a nothing that names it", () => {

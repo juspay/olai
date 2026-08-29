@@ -466,8 +466,11 @@ export const shownOf = (at: Reading, request: PageRequest): Shown => {
   }
 
   // WHICH PAGE AN ADDRESS OPENS, in the order the grammar asks: a node is an
-  // element with no document; a heading is in a BODY by construction; and a
-  // path with no element is whatever its suffix says — an outline is a tree of
+  // element with no document; a heading is in a BODY by construction; a ROW
+  // names its outline by its path and falls through to the last arm, because
+  // where it lands is that arm's caller's: the page is the file's and the
+  // fragment is a place inside it; and a path with no element is whatever its
+  // suffix says — an outline is a tree of
   // rows, everything else with a body is drawn whole.
   const address = request.address
   if (address?.kind === "node") {
@@ -577,7 +580,13 @@ const trashOf = (derived: Derived, faces: ReadonlyArray<Face>): Shown => {
  *
  * The REQUESTED address joins them, and it is the one entry that is not about a
  * row: the palette's pin row names the page it is standing on, and a `/#id`
- * page is called whatever that node is called right now.
+ * page is called whatever that node is called right now. Nothing here answers
+ * for the ROW arm, and that is by rule rather than by omission: the one client
+ * who asks never builds a request with a row in it — `@olai/web`'s
+ * `requestFor` turns it into the document, because the row is a landing and
+ * two links to one outline are one question — and its palette names the row
+ * page by its file, which is the heading arm's own answer
+ * (`@olai/web`'s `address/address.ts`).
  */
 const namesFor = (
   derived: Derived,

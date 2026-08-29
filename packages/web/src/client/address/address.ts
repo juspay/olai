@@ -155,10 +155,11 @@ export const titleFace = (
  *
  * Exactly ONE arm of this switch is a question about the directory rather than
  * about the address: a bare `#id` is called whatever that node is called right
- * now, and everything else names itself — a file by its own filename, a day by
- * its date, the pages that spell a word by the word. So the node's title is
- * handed IN, and who asked it is the caller's business, which is what let the
- * two callers end up on opposite sides of the wire:
+ * now — the row arm asks it too when the set can be, and is its file
+ * otherwise. Everything else names itself — a file by its own filename, a day
+ * by its date, the pages that spell a word by the word. So the node's title
+ * is handed IN, and who asked it is the caller's business, which is what let
+ * the two callers end up on opposite sides of the wire:
  *
  *   - the pinned SHELF takes it off the server's answer (`../pins/pins.ts`,
  *     the `pins` cell), because a shelf is a reading of the whole vault and
@@ -189,6 +190,16 @@ export const nameOf = (
       // and its own address when nothing did, which is the honest dead row
       // (docs/format.md's Pins).
       if (address.kind === "node") return shows ?? hrefOf(route)
+      // A ROW is at once the node and a heading: where the set was asked, it
+      // is the node — an in-tree title or a pin names the live id — and
+      // where nobody could have asked, it is its file: the page model strips
+      // a row to its document before the wire (`../page.ts`'s `requestFor`),
+      // so the ONE table the page's own name can be read from never saw the
+      // id. A landed row page is a pin to that outline as far as this width
+      // is concerned, which is the heading arm's own answer — and a downright
+      // better one than the printed href it fell through to, which is the
+      // dead row's sentence that this arm never owed.
+      if (address.kind === "row") return shows ?? basenameOf(address.path)
       // A FILE is its own name, through the format's own spelling of "the last
       // segment of a path" rather than a second slice — and a heading is
       // named by the file it is in, because a pin to a section of a document is
@@ -224,15 +235,17 @@ export const nameOf = (
  * not in it — and cannot be, since the reading is built by walking exactly the
  * records this page draws. A row's own title is one of those.
  *
- * `undefined` for every address that is not a node's, for a node the set does
+ * `undefined` for every address that names no node, for a node the set does
  * not declare, and for the frame before the reading arrives — three states with
- * one answer, because a name nobody can say is a name nobody can say.
+ * one answer, because a name nobody can say is a name nobody can say. A ROW
+ * address names a node (the qualified spelling of the same id), so it is
+ * answered the way the bare one is.
  */
 export const shownIn = (
   names: Names,
   route: Route,
 ): string | undefined => {
   const address = route.kind === "at" ? route.address : null
-  if (address === null || address.kind !== "node") return undefined
+  if (address === null || (address.kind !== "node" && address.kind !== "row")) return undefined
   return names(address.id)?.title
 }

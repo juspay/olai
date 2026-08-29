@@ -41,10 +41,18 @@ test("the suffix decides which page a document address opens", () => {
 // between files, and the grammar's own spelling of a node carries no file.
 test("a node is a fragment and nothing else", () => {
   expect(routeOf("/#kitchen")).toEqual(atNode("kitchen"))
-  // Written with the file it lives in — which somebody who knows where it is
-  // will write — and normalised to the bare id on the way in.
-  expect(routeOf("/house.olai#kitchen")).toEqual(atNode("kitchen"))
-  expect(hrefOf(routeOf("/house.olai#kitchen"))).toBe("/#kitchen")
+})
+
+// Written with the file it lives in — which somebody who knows where it is
+// will write — a node address KEEPS its file: the qualified spelling is what
+// the outline's landing answers, `/File.olai#id`, and zoom is what the bare
+// one still means. The two were one address until the outline arm gained its
+// landing, and they are two rather than one normalised away, because the file
+// half is now where the reader LANDS rather than a fact to discard before the
+// page can go stale.
+test("a node's row keeps its file", () => {
+  expect(routeOf("/house.olai#kitchen")).toEqual(atElement("house.olai", "kitchen"))
+  expect(hrefOf(routeOf("/house.olai#kitchen"))).toBe("/house.olai#kitchen")
 })
 
 // ── the filter, which is the one thing that is not a path ──────────────
@@ -227,9 +235,9 @@ test("a link on the page is a route when it names a page of this app", () => {
 // a document is a heading it can land on, and `#a1b2c3` on its own is a node.
 test("a link into a section of a document is this app's", () => {
   expect(routeIn("/garden.md#beds")).toEqual(atElement("garden.md", "beds"))
-  // …including the qualified spelling of a node, which this app reads and would
-  // not have written: what decides is whether the parser recognised it.
-  expect(routeIn("/house.olai#kitchen")).toEqual(atNode("kitchen"))
+  // …including the qualified spelling of a node — the outline's landing,
+  // which is the page that spelling draws since the outline arm gained one.
+  expect(routeIn("/house.olai#kitchen")).toEqual(atElement("house.olai", "kitchen"))
 })
 
 /**
@@ -273,9 +281,11 @@ test("a link that is not this app's address is left to the browser", () => {
 // round, `?q=is:done#beds` narrows a page by a word nobody typed.
 test("a fragment and a filter are read as themselves", () => {
   expect(routeOf("/garden.md#beds")).toEqual(atElement("garden.md", "beds"))
-  // The fragment is the ELEMENT half of the address — here an id in an
-  // outline, which normalises to the node — and the query is neither half.
-  expect(routeOf("/house.olai?q=is:done#beds")).toEqual({ ...atNode("beds"), filter: "is:done" })
+  // The fragment is the ELEMENT half of the address — here the row of an
+  // outline — and the query is neither half. A row route is narrowable like
+  // the outline it opens, so both halves ride.
+  expect(routeOf("/house.olai?q=is:done#beds"))
+    .toEqual({ ...atElement("house.olai", "beds"), filter: "is:done" })
   expect(routeOf("/house.olai?q=is:done")).toEqual({ ...atFile("house.olai"), filter: "is:done" })
   // An empty fragment names no place, and neither does one that cannot be
   // decoded — both are a page that draws fine without one.

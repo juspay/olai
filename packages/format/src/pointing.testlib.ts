@@ -64,8 +64,13 @@ export const scannedReferrers = (
   const points = (link: Address): boolean => {
     if (address.kind === "node") return link.kind === "node" && link.id === address.id
     if (link.kind === "node" || link.path !== address.path) return false
-    return address.kind === "document" || link.kind === "heading" &&
-      link.slug === address.slug
+    if (address.kind === "heading") {
+      return link.kind === "heading" && link.slug === address.slug
+    }
+    if (address.kind === "row") {
+      return link.kind === "row" && link.id === address.id
+    }
+    return true
   }
   const found: Array<Referrer> = []
   for (const face of faces) {
@@ -95,9 +100,12 @@ export const facesIn = (set: OutlineSet): ReadonlyArray<Face> => set.documents.m
 /**
  * EVERY ADDRESS THIS DIRECTORY CAN BE ASKED ABOUT, and a few it cannot answer.
  *
- * The three arms of the grammar, each drawn from the set itself: every served
- * file as a document, every heading of every `.md` as a heading, and every id
- * any record claims as a node. Then the negatives, which are the half a
+ * The four arms of the grammar, each drawn from the set itself: every served
+ * file as a document, every heading of every `.md` as a heading, every id any
+ * record claims as a node — and as a ROW of the outline it lives in, which
+ * nothing in this app asks about yet and the differential must be able to ask
+ * anyway, since an unqueryable answerer's arms are exactly the ones that
+ * drift. Then the negatives, which are the half a
  * differential over a corpus would otherwise never reach — a path the directory
  * does not serve, a heading nothing spells, an id nobody claims — because
  * "nothing points here" is an answer an index can get wrong in exactly the same
@@ -114,7 +122,10 @@ export const addressesIn = (set: OutlineSet): ReadonlyArray<Address> => {
       for (const slug of document.headings) add(addressOf(document.path, slug))
     }
     if (document.kind === "outline") {
-      for (const located of document.nodes) add(addressOf("", located.node.id))
+      for (const located of document.nodes) {
+        add(addressOf("", located.node.id))
+        add(addressOf(document.path, located.node.id))
+      }
     }
   }
   add(addressOf("nowhere.md", null))
@@ -125,10 +136,11 @@ export const addressesIn = (set: OutlineSet): ReadonlyArray<Address> => {
 
 /** …and the same list capped, for a vault read off disk: `docs/` claims
  *  thousands of ids and hundreds of headings, and asking the WALK about every
- *  one of them at every revision is the cost this whole node is about, paid by
- *  the test rather than by the app. Every DOCUMENT path is kept whichever way —
- *  it is the arm a page asks — and the other two are sampled evenly so the
- *  sample is a fixture rather than the first `n` of a directory walk. */
+ *  one of them at every revision is the cost this whole node is about, paid
+ *  by the test rather than by the app. Every DOCUMENT path is kept whichever
+ *  way — it is the arm a page asks — and the ELEMENT arms are sampled evenly
+ *  so the sample is a fixture rather than the first `n` of a directory
+ *  walk. */
 export const sampledAddresses = (
   set: OutlineSet,
   every: number,

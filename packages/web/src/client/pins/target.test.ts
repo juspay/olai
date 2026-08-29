@@ -36,12 +36,15 @@ import { addressIn } from "../address/address.ts"
 import { pinsOf } from "./pins.ts"
 
 /** What the BROWSER's parser says this title's node is, if it says one — the
- *  reference the answer is judged against. */
+ *  reference the answer is judged against. A ROW names a node too (the
+ *  qualified spelling of the same id), so it is read the way the bare one is. */
 const nodeIn = (title: string): string | undefined => {
   const route = addressIn(title)
   if (route === undefined || route.kind !== "at") return undefined
   const address = route.address
-  return address !== null && address.kind === "node" ? address.id : undefined
+  return address !== null && (address.kind === "node" || address.kind === "row")
+    ? address.id
+    : undefined
 }
 
 const TITLES = [
@@ -53,7 +56,9 @@ const TITLES = [
   "/?q=is%3Atodo#herbs",
   "/#the%20bed",
   "  /#herbs  ",
-  // …including the QUALIFIED one, which both sides normalise to the same id.
+  // …including the QUALIFIED one, which both sides read as the same id — the
+  // file half now scores where the page LANDS, and what a pin asks about is
+  // still the node.
   "/garden.olai#herbs",
   "[the bed](/garden.olai#herbs)",
   // Addresses that name themselves.

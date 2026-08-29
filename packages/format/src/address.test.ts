@@ -14,7 +14,7 @@ import {
   Slug,
 } from "./address.ts"
 
-/** The three arms, spelled out — through the schemas' own constructors, since
+/** The four arms, spelled out — through the schemas' own constructors, since
  *  the halves of an address are branded and a test that cast around them would
  *  be reading a different type from the one the app holds. */
 const document = (path: string): Address => ({
@@ -22,6 +22,11 @@ const document = (path: string): Address => ({
   path: DocumentPath.make(path),
 })
 const node = (id: string): Address => ({ kind: "node", id: NodeId.make(id) })
+const row = (path: string, id: string): Address => ({
+  kind: "row",
+  path: DocumentPath.make(path),
+  id: NodeId.make(id),
+})
 const heading = (path: string, slug: string): Address => ({
   kind: "heading",
   path: DocumentPath.make(path),
@@ -38,6 +43,7 @@ const CANONICAL: ReadonlyArray<readonly [string, Address]> = [
   ["saved/report.html", document("saved/report.html")],
   ["#a1b2c3", node("a1b2c3")],
   ["#kitchen", node("kitchen")],
+  ["Tasks.olai#a1b2c3", row("Tasks.olai", "a1b2c3")],
   ["notes/README.md#install", heading("notes/README.md", "install")],
   // A `.html` carries whatever ids its author wrote, which are not slugs and
   // are not promised to be free of characters an address gives its own meaning
@@ -64,20 +70,23 @@ test("every canonical spelling reads back as itself", () => {
 // ── the two halves ─────────────────────────────────────────────────────
 
 // What a `#` means is read off the DOCUMENT it follows, because nothing about
-// the fragment itself says: an outline has nodes and no headings, a body has
-// headings and no nodes.
-test("an element of an outline is a node, an element of a body is a heading", () => {
-  expect(parseAddress("Tasks.olai#a1b2c3")).toEqual(node("a1b2c3"))
+// the fragment itself says: an outline has rows and no headings, a body has
+// headings and no rows.
+test("an element of an outline is a row, an element of a body is a heading", () => {
+  expect(parseAddress("Tasks.olai#a1b2c3")).toEqual(row("Tasks.olai", "a1b2c3"))
   expect(parseAddress("README.md#a1b2c3")).toEqual(heading("README.md", "a1b2c3"))
 })
 
-// The document half of a node address is a fact that can go stale — the node
-// moves between files and keeps its id — so the qualified form is READ and the
-// bare one is what comes back out.
-test("a doc-qualified node normalises to the bare node", () => {
-  const address = parseAddress("Tasks.olai#a1b2c3")
-  expect(address).toEqual(node("a1b2c3"))
-  expect(printAddress(address as Address)).toBe("#a1b2c3")
+// The document half of a row address is a fact that can go stale — the node
+// moves between files and keeps its id — and that is paid the way a renamed
+// heading pays it: reading keeps the file the address spelled, because the
+// qualified form is what a LANDING needs and the bare form is what a
+// permalink needs. The two are deliberately NOT one arm.
+test("a doc-qualified node keeps its file, and a bare one prints bare", () => {
+  const qualified = parseAddress("Tasks.olai#a1b2c3")
+  expect(qualified).toEqual(row("Tasks.olai", "a1b2c3"))
+  expect(printAddress(qualified as Address)).toBe("Tasks.olai#a1b2c3")
+  expect(printAddress(node("a1b2c3"))).toBe("#a1b2c3")
 })
 
 // One constructor, so the arm a pair of halves lands on is decided in one
@@ -86,7 +95,7 @@ test("the halves name the same places the written forms do", () => {
   expect(addressOf("Tasks.olai", null)).toEqual(document("Tasks.olai"))
   expect(addressOf(null, "a1b2c3")).toEqual(node("a1b2c3"))
   expect(addressOf("README.md", "install")).toEqual(heading("README.md", "install"))
-  expect(addressOf("Tasks.olai", "a1b2c3")).toEqual(node("a1b2c3"))
+  expect(addressOf("Tasks.olai", "a1b2c3")).toEqual(row("Tasks.olai", "a1b2c3"))
   // An empty element is a document with nothing after the `#`, which names the
   // document — not a failure.
   expect(addressOf("README.md", "")).toEqual(document("README.md"))
