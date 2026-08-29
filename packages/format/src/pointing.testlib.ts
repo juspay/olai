@@ -122,8 +122,10 @@ export const addressesIn = (set: OutlineSet): ReadonlyArray<Address> => {
       for (const slug of document.headings) add(addressOf(document.path, slug))
     }
     if (document.kind === "outline") {
-      for (const located of document.nodes) add(addressOf("", located.node.id))
-      for (const located of document.nodes) add(addressOf(document.path, located.node.id))
+      for (const located of document.nodes) {
+        add(addressOf("", located.node.id))
+        add(addressOf(document.path, located.node.id))
+      }
     }
   }
   add(addressOf("nowhere.md", null))
@@ -134,10 +136,11 @@ export const addressesIn = (set: OutlineSet): ReadonlyArray<Address> => {
 
 /** …and the same list capped, for a vault read off disk: `docs/` claims
  *  thousands of ids and hundreds of headings, and asking the WALK about every
- *  one of them at every revision is the cost this whole node is about, paid by
- *  the test rather than by the app. Every DOCUMENT path is kept whichever way —
- *  it is the arm a page asks — and the other two are sampled evenly so the
- *  sample is a fixture rather than the first `n` of a directory walk. */
+ *  one of them at every revision is the cost this whole node is about, paid
+ *  by the test rather than by the app. Every DOCUMENT path is kept whichever
+ *  way — it is the arm a page asks — and the ELEMENT arms are sampled evenly
+ *  so the sample is a fixture rather than the first `n` of a directory
+ *  walk. */
 export const sampledAddresses = (
   set: OutlineSet,
   every: number,
