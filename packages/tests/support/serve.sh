@@ -85,6 +85,12 @@ olai_serve() {
     # loopback address that happens to appear in the log. The busy-port
     # fallback carries a `url=` of its own; matching the message keeps the
     # two apart the way the suite's findLogfmt does.
+    # Only a newline-terminated log is complete: a trailing fragment whose
+    # `message=` already looks right has not finished arriving, and a cut
+    # inside `url=` would otherwise match a truncated port. `$(…)` strips a
+    # trailing newline, so an empty last byte is "the file ended on a line
+    # boundary".
+    [ -z "$(tail -c1 "$log" 2>/dev/null)" ] || continue
     OLAI_URL=$(grep 'message=serving' "$log" 2>/dev/null \
       | grep -oE 'url=https?://(127\.0\.0\.1|\[::1\]):[0-9]+' \
       | head -n1 \
