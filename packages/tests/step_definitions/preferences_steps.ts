@@ -614,7 +614,8 @@ Then(
 // TWO ROWS, because they are two independent facts: what is waiting can record
 // itself, and a recorded commit can be pushed. Either alone is a shipped case —
 // Auto-push with the Commit button is what #283 built — so the rows are asked
-// for separately here too.
+// for separately here too. There is no toggle: both rows are always the
+// instance's, always read-only.
 
 const asGit = (value: string): "off" | "on" => {
   if (value !== "off" && value !== "on") {
@@ -622,20 +623,6 @@ const asGit = (value: string): "off" | "on" => {
   }
   return value;
 };
-
-When(
-  "I set Git commit to {string}",
-  async function (this: OlaiWorld, value: string) {
-    await pickChoice(this.page, "git-commit", asGit(value));
-  },
-);
-
-When(
-  "I set Git push to {string}",
-  async function (this: OlaiWorld, value: string) {
-    await pickChoice(this.page, "git-push", asGit(value));
-  },
-);
 
 Then(
   "the Git commit row explains that a write {string}",
@@ -668,9 +655,9 @@ Then(
  * The two git rows used to write `olai.git.autocommit` and `olai.git.autopush`
  * here, which is what made a quiet window a claim about a reader: two tabs of
  * two browsers could each believe something different about one directory, and
- * a directory nobody had a tab open on recorded nothing. The rows set the
- * SERVER's policy now and it is remembered outside the vault, so a key of
- * either name in this browser is the old shape coming back.
+ * a directory nobody had a tab open on recorded nothing. The rows draw the
+ * instance's policy now, so a key of either name in this browser is the old
+ * shape coming back.
  */
 Then(
   "this browser has stored nothing about git",
@@ -685,13 +672,12 @@ Then(
   },
 );
 
-// ── a git policy the SERVER pinned ─────────────────────────────────────
+// ── a git policy the INSTANCE holds ────────────────────────────────────
 //
-// Both git rows are the server's now: they set its policy for this directory
-// and draw its answer. What a PIN adds (`vault-level-settings`) is that a flag
-// on the command line freezes one read-only, so a reader cannot change it at
-// all — drawn in that state and naming the flag. Never hidden: a policy a
-// reader cannot see is one they cannot ask anybody about.
+// Both git rows are the instance's: they draw its policy for this directory,
+// always read-only. A flag on the command line is named; omitting it is the
+// built-in default. Never hidden: a policy a reader cannot see is one they
+// cannot ask anybody about.
 
 /** Which of the two rows a scenario names, in the words the panel uses. */
 const asGitRow = (label: string): "git-commit" | "git-push" => {
@@ -741,7 +727,7 @@ Then(
 );
 
 Then(
-  "the {string} row is this browser's",
+  "the {string} row is the instance's built-in default",
   async function (this: OlaiWorld, label: string) {
     const pref = asGitRow(label);
     await showPreferences(this.page);
@@ -749,13 +735,13 @@ Then(
     await it.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.equal(
       await it.getAttribute("data-pinned"),
-      null,
-      `the ${label} row is drawn as the server's`,
+      "true",
+      `the ${label} row is not drawn as the instance's`,
     );
-    assert.equal(
-      await it.locator(PREFS_SET_BY).count(),
-      0,
-      `the ${label} row names a server that did not set it`,
+    const said = await it.locator(PREFS_SET_BY).innerText();
+    assert.ok(
+      /built-in default/i.test(said),
+      `the ${label} row says "${said}", which does not name the built-in default`,
     );
   },
 );
@@ -808,13 +794,13 @@ When("I resume auto-commit", async function (this: OlaiWorld) {
 });
 
 Then(
-  "the preferences panel says two rows are the server's",
+  "the preferences panel says two rows are the instance's",
   async function (this: OlaiWorld) {
     await showPreferences(this.page);
     const said = await this.page.locator(PREFS_SCOPE).innerText();
     assert.ok(
-      said.includes("started with a git policy"),
-      `the panel says "${said}", which does not name the pinned rows as read-only`,
+      /instance's policy/i.test(said) && /cannot be changed/i.test(said),
+      `the panel says "${said}", which does not name the git rows as the instance's, read-only`,
     );
   },
 );

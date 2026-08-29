@@ -60,10 +60,10 @@
  *
  * ALL OF THAT IS `@olai/state`'s NOW, which is the module this file predicted
  * by name ("not a receptacle for where this machine keeps olai's state, though
- * that is what it would be at population two"). Population reached three — this
- * panel's memory, the one-brain lock's runtime file, and a directory's
- * remembered git policy — so it is a leaf package, and what is left here is the
- * only part that was ever this package's: what one of these records SAYS.
+ * that is what it would be at population two"). Chat is the remaining tenant of
+ * the state home (a git policy used to live there too), so it is a leaf package,
+ * and what is left here is the only part that was ever this package's: what one
+ * of these records SAYS.
  *
  * ## What it does with a failure
  *

@@ -148,10 +148,9 @@ export class LockUnavailable extends Data.TaggedError("LockUnavailable")<{
  * processes that share nothing else land on the same file.
  *
  * WHERE the runtime home is, and what a served directory is called under it,
- * are `@olai/state`'s. They were spelled here first and are answered three
- * times now — this lock, the chat panel's memory, and the remembered git
- * policy — and two answers to "which file is this vault's" is exactly the
- * drift that would make one of them read somebody else's.
+ * are `@olai/state`'s. They were spelled here first and are answered here and
+ * in the chat panel's memory — and two answers to "which file is this vault's"
+ * is exactly the drift that would make one of them read somebody else's.
  */
 export const lockFor = (root: string): string =>
   join(runtimeHome(), `${digestOf(canonical(root))}.lock`)

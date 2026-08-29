@@ -34,11 +34,8 @@ import { manifestOf } from "./manifest.ts"
 import { serve } from "./serve.ts"
 import { served, SERVER_LAYERS, withServing } from "./serve.testlib.ts"
 
-// A developer who exported OLAI_PORT_FILE (just run's file) would have
-// every in-process serve() here rewrite that file and try their live
-// port. child.testlib already strips it from CLI children; this is the
-// twin. withPortFile below puts it back for the tests that are about it.
-delete process.env.OLAI_PORT_FILE
+// A leftover OLAI_PORT_FILE from an older olai is ignored; the test that
+// pins that sits below. Nothing here writes the file.
 // The machine's NAME, pinned: the install manifest's name is composed from
 // it at serve time (`./manifest.ts`), so the fetch below is checkable
 // against a string this file chose rather than against whatever box the
@@ -189,84 +186,26 @@ test("the process default asks the OS, it does not bind 7714", async () => {
   }
 })
 
-/** Point `OLAI_PORT_FILE` at a temp path for the length of `body`, and
- *  restore whatever was there. The env is the public seam (`just run`
- *  sets it); mutating it here is the test of that seam, not a back door. */
-const withPortFile = async <A>(
-  file: string,
-  body: () => Promise<A>,
-): Promise<A> => {
-  const previous = process.env.OLAI_PORT_FILE
-  process.env.OLAI_PORT_FILE = file
-  try {
-    return await body()
-  } finally {
-    if (previous === undefined) delete process.env.OLAI_PORT_FILE
-    else process.env.OLAI_PORT_FILE = previous
-  }
-}
-
-test("the bound url is written to OLAI_PORT_FILE", async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "olai-port-file-"))
-  const file = path.join(dir, "url")
-  try {
-    const said = await withPortFile(file, () => run({ port: 0 }))
-    const bound = String(findSaid(said, "serving")?.annotations.url)
-    expect(bound).toMatch(url)
-    expect(fs.readFileSync(file, "utf8")).toBe(`${bound}\npid=${process.pid}\n`)
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true })
-  }
-})
-
-test("a remembered url is rebound when the ask is port 0", async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "olai-port-file-"))
-  const file = path.join(dir, "url")
-  try {
-    const first = await withPortFile(file, () => run({ port: 0 }))
-    const bound = String(findSaid(first, "serving")?.annotations.url)
-    expect(bound).toMatch(url)
-    const again = await withPortFile(file, () => run({ port: 0 }))
-    expect(findSaid(again, "serving")?.annotations.url).toBe(bound)
-    expect(findSaid(again, "port in use")).toBeUndefined()
-  } finally {
-    fs.rmSync(dir, { recursive: true, force: true })
-  }
-})
-
-test("a remembered port that is taken is a fallback, and the file follows", async () => {
+test("a leftover port file is ignored: port 0 asks the OS every boot", async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "olai-port-file-"))
   const file = path.join(dir, "url")
   const taken = await occupied()
+  const leftover = `http://127.0.0.1:${taken.port}\n`
+  const previous = process.env.OLAI_PORT_FILE
+  process.env.OLAI_PORT_FILE = file
   try {
-    fs.writeFileSync(file, `http://127.0.0.1:${taken.port}\n`)
-    const said = await withPortFile(file, () => run({ port: 0 }))
+    fs.writeFileSync(file, leftover)
+    const said = await run({ port: 0 })
     const bound = String(findSaid(said, "serving")?.annotations.url)
     expect(bound).toMatch(url)
     expect(bound).not.toBe(`http://127.0.0.1:${taken.port}`)
-    expect(findSaid(said, "port in use")?.annotations.asked).toBe(taken.port)
-    expect(fs.readFileSync(file, "utf8")).toBe(`${bound}\npid=${process.pid}\n`)
+    expect(findSaid(said, "port in use")).toBeUndefined()
+    // Nothing written back. The leftover is inert.
+    expect(fs.readFileSync(file, "utf8")).toBe(leftover)
   } finally {
+    if (previous === undefined) delete process.env.OLAI_PORT_FILE
+    else process.env.OLAI_PORT_FILE = previous
     await taken.release()
-    fs.rmSync(dir, { recursive: true, force: true })
-  }
-})
-
-test("a port file that cannot be written is a failure, not a defect", async () => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "olai-port-file-"))
-  const blocker = path.join(dir, "not-a-dir")
-  fs.writeFileSync(blocker, "x")
-  const file = path.join(blocker, "url")
-  try {
-    const failure = await withPortFile(file, () => run({ port: 0 })).then(
-      () => undefined,
-      (cause: unknown) => String(cause),
-    )
-    expect(failure).toBeDefined()
-    expect(failure).toContain("cannot write the bound url")
-    expect(failure).not.toContain("[object Object]")
-    expect(failure).not.toContain("faulted")
-  } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }
 })

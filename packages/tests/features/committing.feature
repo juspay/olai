@@ -146,17 +146,17 @@ Feature: Committing on purpose
     And the remote has "olai: the herb bed needs splitting"
     And there should be no page errors
 
+  @pin:push=auto
   Scenario: A commit is pushed when the directory's push policy is Auto-push
-    # The row sets the SERVER's policy, so it governs every commit olai makes
-    # here — the button's, an agent's, and the quiet window's. The existing
-    # scenario above is the manual pair: commit, then Push. This one is the
-    # composition, without pressing Push, and it earns the browser because the
-    # pill's unpushed count is a live cell: it goes to 0 when the server has
+    # The instance's policy governs every commit olai makes here — the
+    # button's, an agent's, and the quiet window's. The existing scenario above
+    # is the manual pair: commit, then Push. This one is the composition,
+    # without pressing Push, and it earns the browser because the pill's
+    # unpushed count is a live cell: it goes to 0 when the server has
     # republished, which is what says the push landed rather than sitting in
     # flight.
     Given the served repository has a remote
     When I open the preferences
-    And I set Git push to "on"
     Then the Git push row explains that a commit "is pushed"
     And this browser has stored nothing about git
     When I press Escape on the preferences
@@ -202,6 +202,7 @@ Feature: Committing on purpose
     And the commit button is disabled
     And there should be no page errors
 
+  @pin:commit=auto @pin:push=auto
   Scenario: A flurry of edits records itself as one commit, and is pushed
     # The whole of the quiet window, end to end, with the push beside it: the
     # human's goal in his own words — "with both enabled, all changes sync to
@@ -210,18 +211,14 @@ Feature: Committing on purpose
     # amount of chrome can show. The last two are documents nobody edited
     # through olai's ops, so what is being swept is the whole repository.
     #
-    # The loop is the SERVER's now, so what this scenario drives is a policy
-    # rather than a preference: the same two rows, setting the same directory's
-    # answer for every reader of it. `headless.test.ts` in @olai/server is the
-    # other half — the same window, with no browser anywhere.
+    # The loop is the SERVER's, driven by flags, not a preference. `headless.test.ts`
+    # in @olai/server is the other half — the same window, with no browser anywhere.
     Given the served repository has a remote
     When I open the preferences
-    And I set Git commit to "on"
-    And I set Git push to "on"
     Then the Git commit row explains that a write "records what is waiting"
-    # NOTHING IS STORED HERE. The rows set the server's policy for this
-    # directory, so a key of either name in this browser is the shape this
-    # feature retired — a quiet window that only ran while a tab was open.
+    # NOTHING IS STORED HERE. The rows draw the instance's policy, so a key of
+    # either name in this browser is the shape this feature retired — a quiet
+    # window that only ran while a tab was open.
     And this browser has stored nothing about git
     When I press Escape on the preferences
     Then the preferences are shut
@@ -268,13 +265,13 @@ Feature: Committing on purpose
     Then the panel promises nothing
     And there should be no page errors
 
+  @pin:commit=auto
   Scenario: The window alone records, and the commits wait to be pushed
     # The other half of the pair. Without Auto-push the commit is still made on
     # its own and the pill carries the honest count of what is recorded here and
     # nowhere else — which is the fact the header exists to surface.
     Given the served repository has a remote
     When I open the preferences
-    And I set Git commit to "on"
     Then the Git push row explains that a commit "waits"
     When I press Escape on the preferences
     And I rewrite "notes.md" as:
@@ -286,6 +283,7 @@ Feature: Committing on purpose
     And the commit pill says 1 unpushed
     And there should be no page errors
 
+  @pin:commit=auto @pin:push=auto
   Scenario: A branch somebody else has moved stops the loop, and says so
     # THE CONFLICT, ruled at dispatch: conflict-safe enough not to corrupt, and
     # on one, STOP rather than retry blindly. A divergence is what a single user
@@ -302,11 +300,7 @@ Feature: Committing on purpose
     # directory's now, so the tick comes off and git's words are on the label.
     Given the served repository has a remote
     And somebody else has pushed to the remote
-    When I open the preferences
-    And I set Git commit to "on"
-    And I set Git push to "on"
-    And I press Escape on the preferences
-    And I rewrite "notes.md" as:
+    When I rewrite "notes.md" as:
       """
       the herb bed needs splitting again
       """
@@ -333,6 +327,7 @@ Feature: Committing on purpose
     And the commit pill says auto-commit is "paused"
     And there should be no page errors
 
+  @pin:commit=auto @pin:push=auto
   Scenario: A reload does not clear a stop, and Resume in any tab does
     # THE WHOLE OF THE MOVE, as one scenario. The pause used to live in this
     # tab's memory, so reloading the page started the loop again with nothing
@@ -341,11 +336,7 @@ Feature: Committing on purpose
     # the reload, and the one gesture that clears it is a server procedure.
     Given the served repository has a remote
     And somebody else has pushed to the remote
-    When I open the preferences
-    And I set Git commit to "on"
-    And I set Git push to "on"
-    And I press Escape on the preferences
-    And I rewrite "notes.md" as:
+    When I rewrite "notes.md" as:
       """
       the herb bed needs splitting again
       """

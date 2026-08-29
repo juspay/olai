@@ -9,18 +9,15 @@
  * settings popover, whose shape this adopts: its rows read and write wire
  * singletons, because its preferences are the server's.
  *
- * **The two GIT rows are the one exception, and only when an operator asks for
- * it** (`vault-level-settings`). Started with `--commit` or `--push`, the
- * server has stated a policy for everybody looking at this directory — in a
- * team deployment auto-push is not a thing one colleague's browser gets to
- * decide for the branch — and the pinned row is drawn in that state, read-only,
- * naming the flag that set it. Never hidden: a policy a reader cannot see is
- * one they cannot ask anybody about. Nothing is SENT even then; the pin arrives
- * on the git cell, which this panel READS and never writes, and what this
- * browser had stored is left exactly as it was for the day the flag goes away.
- * Theme, font, size, notes and done are untouched by any of it — those are
- * personal view choices and there is nothing about them for a server to have
- * an opinion on.
+ * **The two GIT rows are the one exception.** They are this INSTANCE's policy,
+ * set at launch (a flag, the nix module, or the built-in default), the same in
+ * every browser, always read-only. Never hidden: a policy a reader cannot see
+ * is one they cannot ask anybody about. Nothing is SENT; the policy arrives on
+ * the git cell, which this panel READS and never writes. Theme, font, size,
+ * notes and done are untouched by any of it — those are personal view choices
+ * and there is nothing about them for a server to have an opinion on. The
+ * read-only row presentation is generic (`./Row.tsx`'s `setBy`), not a git
+ * special case, so a future instance setting can join them.
  *
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
@@ -78,14 +75,10 @@ import { doneHiddenOn, pageFileOf, setDoneHidden } from "./done.ts"
 import { useReadings } from "../reading.tsx"
 import { useRouter } from "../router.tsx"
 import {
-  commitFrozen,
-  commitPick,
   commitOn,
   commitSetBy,
   commitsOff,
-  pushFrozen,
   pushOn,
-  pushPick,
   pushSetBy,
 } from "./policy.ts"
 import { QUIET_MS } from "@olai/format"
@@ -267,9 +260,8 @@ export function Panel(props: {
       </Row>
 
       {/* The two git rows, in the order the two verbs happen in — and the only
-          two on this panel that are about the DIRECTORY rather than about the
-          reader, so they set the server's policy and draw its answer
-          (`./policy.ts`). */}
+          two on this panel that are about the INSTANCE rather than about the
+          reader, so they draw the server's policy read-only (`./policy.ts`). */}
       <Row
         label="Git commit"
         pref="git-commit"
@@ -308,13 +300,7 @@ export function Panel(props: {
         <Segmented
           choices={COMMIT_CHOICES}
           value={commitOn(git()) ? "on" : "off"}
-          // `manual` rather than `off` for the row's Off, because that is what
-          // the row means: a write waits for the Commit button. `off` is
-          // `--commit=off`, which is olai never touching git here at all — a
-          // pinned-only state, and one a browser must not be able to arrive at
-          // by pressing the same control that says "wait for me instead".
-          onPick={(value) => policy.setPolicy(commitPick(value === "on"))}
-          frozen={commitFrozen(git())}
+          frozen
         />
       </Row>
 
@@ -327,18 +313,14 @@ export function Panel(props: {
         <Segmented
           choices={PUSH_CHOICES}
           value={pushOn(git()) ? "on" : "off"}
-          onPick={(value) => policy.setPolicy(pushPick(value === "on"))}
-          frozen={pushFrozen(git())}
+          frozen
         />
       </Row>
 
-      {/* WHAT THE SERVER WOULD NOT TAKE, beside the two rows that asked. The
-          git rows are the only controls on this panel that reach a server at
-          all, so they are the only ones that can silently do nothing: a pinned
-          half refuses by name, and a dropped socket refuses without one. Either
-          way a control that moved on screen and nowhere else is the failure
-          this whole feature is about, and Resume is the sharpest case — a loop
-          that stays stopped with the button pressed and no words anywhere. */}
+      {/* WHAT THE SERVER WOULD NOT TAKE, beside the row that asked. Resume is
+          the one remaining git gesture on this panel, and a dropped socket or
+          a usage refusal would be a button that did nothing with no words
+          anywhere. */}
       <Show when={policy.refused()}>
         {(said) => (
           <p class="wrap-anywhere text-xs text-alarm" data-testid={TESTID.prefsGitRefused}>
@@ -352,22 +334,15 @@ export function Panel(props: {
           doctrine. It is here at all because "where did this go" is exactly
           what a person wonders about a setting they just changed.
 
-          The pinned rows are named as the exception rather than left to
-          contradict it, and only when there IS one: on the ordinary serve this
-          sentence is exactly as true as it ever was, and a caveat about a
-          feature nobody is using is a caveat that teaches a reader to stop
-          believing the sentence. */}
+          The git rows are named as the exception rather than left to contradict
+          it: they are always the instance's, and a caveat about a feature
+          nobody is using is not a caveat here — every serve has them. */}
       <p class="border-t border-rule pt-3 text-xs text-muted" data-testid={TESTID.prefsScope}>
         These are this browser's. They are stored here, reach every tab you have
-        olai open in, and are never sent to the server. The two git rows are the
-        exception: committing and pushing are facts about this DIRECTORY, so
-        they are the server's — the same in every browser, and remembered there
-        rather than here.
-        <Show when={commitFrozen(git()) || pushFrozen(git())}>
-          {" "}
-          This one was also started with a git policy on the command line, so
-          those rows are read-only.
-        </Show>
+        olai open in, and are never sent to the server. The two git rows are
+        this instance's policy, set at launch — a flag, the nix module, or the
+        built-in default. They are the same in every browser and cannot be
+        changed from one.
       </p>
     </section>
   )

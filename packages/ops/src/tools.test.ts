@@ -132,9 +132,16 @@ const CALLS: Record<string, ReadonlyArray<unknown>> = {
     // The one field of a record a hit does not carry unless it is asked for.
     { text: "House", withDesc: true },
   ],
-  read_node: [{ id: "house" }, { id: "paint" }, { id: "shed" }],
+  read_node: [
+    { id: "house" },
+    { id: "paint" },
+    { id: "shed" },
+    // The caller SHAPED its children — the one new arm of the answer.
+    { id: "house", fields: ["title", "status", "done"] },
+  ],
   // All three arms of the answer: one node walked, the WHOLE outline walked,
-  // and an id the set does not hold.
+  // and an id the set does not hold — and both walks SHAPED, since `fields`
+  // joined the answer's union.
   read_subtree: [
     { id: "house", depth: 1 },
     { id: "house" },
@@ -144,6 +151,10 @@ const CALLS: Record<string, ReadonlyArray<unknown>> = {
     // The lean walk: notes off, structure on. Reached here so the decode
     // above is not vacuous about a `withDesc: false` answer.
     { id: "house", withDesc: false },
+    // The shaped walks: one per way in, so both projected arms of the union
+    // are actually decoded.
+    { id: "house", fields: ["title", "status", "done"] },
+    { file: "house.olai", depth: 1, fields: ["title", "status", "custom"] },
   ],
   list_documents: [{}],
   // The reads that REFUSE are not called here: this walk decodes ANSWERS, and
