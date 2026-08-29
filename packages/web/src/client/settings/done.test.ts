@@ -66,7 +66,9 @@ test("a zoom is about the outline its node is canonical in — the same page", (
     .toBe("house.olai")
 })
 
-test("a day, the agenda, the trash and a document are about nothing", () => {
+test("a day is about nothing — the arm every non-tree page takes", () => {
+  // Day stands for the shape: agenda, the trash and a document fall into the
+  // same `else`, and pinning one pins the branch.
   expect(pageFileOf({ kind: "day", date: "2026-08-03", groups: [], notes: [] }))
     .toBeUndefined()
 })
@@ -125,8 +127,10 @@ test("the pick reaches a tree and nothing else", () => {
     // Even on a page that SHOWS: a day is a record of what happened, and this
     // preference was never asked about it (the file argument is the tree's).
     expect(visibleIn(day, "house.olai")).toBe(day)
-    // A tree with no page to be about answers with the default everywhere:
-    // not hidden and not pruned — nobody ever asked about it.
+    // A tree with NO page to be about is not pruned either: with hidden the
+    // default, this is the one arm that does the opposite — there is no file
+    // for a pick to be read off, so the unpruned value stands (unreachable
+    // in practice: the no-file tree is the empty zoom, which holds no rows).
     expect(visibleIn({ kind: "tree", rows: house.rows }, undefined)).toEqual({
       kind: "tree",
       rows: house.rows,
