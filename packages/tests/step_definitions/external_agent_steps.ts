@@ -430,7 +430,7 @@ Then(
   "the node arrived whole and its children carry exactly {word}",
   function (this: OlaiWorld, field: string) {
     const answer = structuredOf(this);
-    // "Whole" as facts the shape cannnot name back: the place, the ancestry,
+    // "Whole" as facts the shape cannot name back: the place, the ancestry,
     // and the answer's own id.
     assert.strictEqual(answer["id"], "kitchen");
     assert.strictEqual(answer["file"], "house.olai");
