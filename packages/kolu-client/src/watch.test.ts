@@ -272,23 +272,31 @@ describe("the attention watcher", () => {
     const watch = makeWatch(seen.sink, { now: () => Date.now() })
     watch.reconfigure(tiny({ heartbeatMs: 200 }))
 
-    // 120 ms into one 200-cycle: the boot pulse and nothing else. An echoed
-    // knob (what every vault keystroke hands the watch) leaves the in-flight
-    // interval alone, so the next beat lands 80 ms hence — a clear-then-
-    // re-arm would charge a full 200, and the count is where that shows.
+    // The test's arrival at t≈0 includes the DETAIL of the eat: the
+    // reconfigure MOVES the heartbeat (200 ≠ default) — `rearmHeartbeat`'s
+    // the-forward-fond eat is the answer it gives ON the eat. Then 120 ms
+    // into the new 200-cycle: the two of them, and nothing else. An echoed
+    // knob (what every vault keystroke hands the watch) leaves the
+    // in-flight interval alone, so the next beat lands 80 ms hence — a
+    // clear-then-re-arm would charge a full 200, and the count is where
+    // that shows.
     await sleep(120)
-    expect(seen.beats.length).toBe(1)
+    expect(seen.beats.length).toBe(2)
     watch.reconfigure(tiny({ heartbeatMs: 200 }))
     await sleep(90)
-    expect(seen.beats.length).toBe(2)
+    expect(seen.beats.length).toBe(3)
 
-    // Raising the knob clears the in-flight interval: the next pulse may
-    // not ride on the shorter cadence's trail. And the beat carries its
-    // own cadence, so the door's age arithmetic never asks after it.
+    // Raising the knob answers with ONE beat — `reconfigure`'s echo
+    // guard eats the keystroke (beats stay 3), but the moved knob
+    // `rearmHeartbeat` restsamp at once AND lands a 4th one: the eat's
+    // stamp says the new cadence NOW, so the door never has to read the
+    // shorter one's margin off the previous `everyMs` for two whole
+    // windows)
     watch.reconfigure(tiny({ heartbeatMs: 10_000 }))
+    expect(seen.beats.length).toBe(4)
+    expect(seen.beats[3]?.everyMs).toBe(10_000)
     await sleep(100)
-    expect(seen.beats.length).toBe(2)
-    expect(seen.beats[1]?.everyMs).toBe(200)
+    expect(seen.beats.length).toBe(4)
     // The ring holds the ATTENTION rows, and nothing else — the beat is
     // not a row, and never was one (see the header).
     expect(seen.events.filter((e) => e.kind === "heartbeat").length).toBe(0)

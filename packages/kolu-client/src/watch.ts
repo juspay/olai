@@ -328,11 +328,18 @@ export const makeWatch = (
     sink.beat(new Date(options.now()).toISOString(), config.heartbeatMs)
   }
 
-  /** Re-arm the heartbeat under the config in force. The interval is
-   *  cleared even on an unchanged knob, so a config edit re-times the
-   *  cadence cleanly rather than inheriting a staggered one. */
+  /** Re-arm the heartbeat under the config in force — called only when
+   *  `heartbeat` MOVED (`reconfigure`'s echo-guard's job), so the eat is
+   *  a real knob move and never a vault keystroke: the interval is
+   *  re-called cleanly rather than inheriting a staggered one, and one
+   *  beat says the eat at once: the stamp carries `everyMs` with it, so a
+   *  LENGTHENED cadence (the edit to 120s in the evidence's own run)
+   *  would leave the door remembering the shorter one's margin in the
+   *  meantime without this.
+   */
   const rearmHeartbeat = (): void => {
     if (heartbeatTimer !== undefined) clearInterval(heartbeatTimer)
+    pulse()
     heartbeatTimer = setInterval(pulse, config.heartbeatMs)
   }
 
@@ -361,9 +368,8 @@ export const makeWatch = (
     }
   }
 
-  // ARM IT AT CONSTRUCTION: the one immediate pulse, for the reader who
-  // sees a feed come up empty and wants to know it is not dead.
-  pulse()
+  // ARM IT AT CONSTRUCTION: `rearmHeartbeat` pulses once when it eats
+  // the arm, so the boot's answer needs no second call of its own.
   rearmHeartbeat()
 
   /** Cancel ONE hold's timers and forget it. Idempotent, and the ONLY
