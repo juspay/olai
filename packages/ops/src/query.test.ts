@@ -689,7 +689,7 @@ describe("the caller shapes the rows", () => {
         `{"id":"lane","ord":"a0","title":"the lane"}`,
         `{"id":"one","parent":"lane","ord":"a0","title":"first","done":"2026-08-29T09:12:00-04:00","desc":"the forensics","custom":{"took":"4m","agent":"claude-opus"}}`,
         `{"id":"one-a","parent":"one","ord":"a0","title":"the wrinkle","todo":true}`,
-        `{"id":"two","parent":"lane","ord":"a1","title":"second","doing":true,"started":"2026-08-29T09:14:00-04:00"}`,
+        `{"id":"two","parent":"lane","ord":"a1","title":"second","doing":true,"started":"2026-08-29T09:14:00-04:00","worked":600}`,
       ].join("\n"),
     })
 
@@ -703,6 +703,7 @@ describe("the caller shapes the rows", () => {
       "custom.took",
       "desc",
       "started",
+      "worked",
     ])
     // A MARK INSTANT (`done`) — the field this request was born for; the
     // custom key asked alone comes back AS a map of one; the note rides
@@ -727,14 +728,17 @@ describe("the caller shapes the rows", () => {
       "status",
       "title",
     ])
-    // The SECOND row carries this lane's OWN clock: `started`, the stamp
-    // `set_doing` wrote — and the asked-for names it does not hold stay
-    // ABSENT, exactly as they are on a full row.
+    // The SECOND row carries this lane's OWN clock, BOTH halves: `started`,
+    // the stamp `set_doing` wrote, and `worked`, the bank it cannot be read
+    // without — a multi-round row naming the stamp alone would say one
+    // round's wall for several rounds' work. And the asked-for names it
+    // does not hold stay ABSENT, exactly as they are on a full row.
     expect(lane?.children[1]).toEqual({
       id: "two",
       title: "second",
       status: "doing",
       started: "2026-08-29T09:14:00-04:00",
+      worked: 600,
     })
   })
 

@@ -831,6 +831,7 @@ const FIELDS_READ = {
   doing: ({ node }) => node.doing,
   todo: ({ node }) => node.todo,
   started: ({ node }) => node.started,
+  worked: ({ node }) => node.worked,
   date: ({ node }) => node.date,
   repeat: ({ node }) => node.repeat,
   desc: ({ node }) => node.desc,
