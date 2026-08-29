@@ -114,22 +114,29 @@ export const judge = (
 ): Verdict =>
   sender.pid === 0 || sender.pid === here.self || sender.pid === here.parent ? "honor" : "refuse"
 
-/** Rendered attribution for one sender: the kernel and ourselves by name,
- *  a process by what `/proc/<pid>/cmdline` says — read at DRAIN time,
- *  the earliest point it is safe to touch the filesystem, and still often
- *  too late: a `pkill` has exited by then, in which case the pid and uid
- *  (kernel-recorded at send time, unforgeable) are the attribution and the
- *  line says the cmdline was already gone. */
+/** Rendered attribution for one sender, as the parenthetical both
+ *  journal lines carry: the kernel and ourselves by name, a process by
+ *  what `/proc/<pid>/cmdline` says — read at DRAIN time, the earliest
+ *  point it is safe to touch the filesystem, and still often too late:
+ *  a `pkill` has exited by then, in which case the pid and uid
+ *  (kernel-recorded at send time, unforgeable) are the attribution and
+ *  the line says the cmdline was already gone. */
 export const who = (pid: number, self: number): string => {
-  if (pid === 0) return "the kernel"
-  if (pid === self) return "this process"
+  if (pid === 0) return "(the kernel)"
+  if (pid === self) return "(this process)"
   try {
     const words = fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0").filter(Boolean)
-    return words.length === 0 ? "(empty cmdline)" : words.join(" ")
+    return words.length === 0 ? "(empty cmdline)" : `(${words.join(" ")})`
   } catch {
     return "(already gone — pid and uid above were recorded at send time)"
   }
 }
+
+/** One journal line, whichever way the verdict went — the format is a
+ *  promise the docs and the tests both read, so it is built once here:
+ *  `olai web: honoring|refused SIGTERM from pid N uid U (…)`. */
+const journal = (word: "honoring" | "refused", sender: Sender): string =>
+  `olai web: ${word} SIGTERM from pid ${sender.pid} uid ${sender.uid} ${who(sender.pid, process.pid)}\n`
 
 /* ── the mechanism, below the policy ─────────────────────────────── */
 
@@ -368,16 +375,12 @@ const apply = (record: Receipt, libc: Libc): void => {
   const sender: Sender = { pid: record.pid, uid: record.uid }
   const verdict = judge(sender, { self: process.pid, parent: process.ppid })
   if (verdict === "refuse") {
-    process.stderr.write(
-      `olai web: refused SIGTERM from pid ${sender.pid} uid ${sender.uid} (${who(sender.pid, process.pid)})\n`,
-    )
+    process.stderr.write(journal("refused", sender))
     return
   }
   if (shuttingDown) return
   shuttingDown = true
-  process.stderr.write(
-    `olai web: honoring SIGTERM from pid ${sender.pid} uid ${sender.uid} (${who(sender.pid, process.pid)})\n`,
-  )
+  process.stderr.write(journal("honoring", sender))
   // Hand the signal back to whatever disposition was installed before the
   // guard — Bun's, which is what main.ts's listeners and runMain are on —
   // and re-raise. From here this is EXACTLY today's orderly shutdown: the

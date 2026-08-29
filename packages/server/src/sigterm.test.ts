@@ -42,8 +42,8 @@ test("the supervisor is judged at receipt time: a reparented server honors its N
 })
 
 test("who() names the kernel and this process without touching /proc", () => {
-  expect(who(0, 400)).toBe("the kernel")
-  expect(who(400, 400)).toBe("this process")
+  expect(who(0, 400)).toBe("(the kernel)")
+  expect(who(400, 400)).toBe("(this process)")
 })
 
 test("who() reads a live sender's cmdline and says when it was already gone", () => {
