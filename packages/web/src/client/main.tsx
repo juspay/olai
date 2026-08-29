@@ -15,6 +15,7 @@ import { trackDesktop } from "./layout/media.ts"
 import { followLayout } from "./layout/prefs.ts"
 import { followName } from "./named.ts"
 import { followKeys } from "./quiescence.ts"
+import { runAsync } from "./run.ts"
 import { followAlerts } from "./settings/alerts.ts"
 import { followDensity } from "./settings/density.ts"
 import { followDoneHidden } from "./settings/done.ts"
@@ -23,6 +24,7 @@ import { followStoredFont } from "./theme/fontState.ts"
 import { followStoredSize } from "./theme/sizeState.ts"
 import { followStoredTheme } from "./theme/state.ts"
 import { trackVisibleViewport } from "./viewport.ts"
+import { connectionReadout, olai } from "./wire.ts"
 
 // The paired half of the `/sw.js` the server serves, which is now the
 // framework's NOTIFICATION worker (packages/server/src/listener.ts says why):
@@ -61,11 +63,17 @@ followStoredSize()
 // document, and a listener that lives exactly as long as one.
 followKeys()
 
-// What this deployment is CALLED crosses on the socket and lands on the tab,
-// the wordmark and the install name — the one ask `named.ts` argues. Here for
-// the same reason as the keys above it: the name belongs to the document, and
-// it outlives every component.
-followName()
+// What this deployment is CALLED, and when the process serving it started,
+// cross on the socket and land on the tab, the wordmark, the install name
+// and the uptime chip — the one ask `named.ts` argues. The readout and
+// the ask are this file's because `named.ts` must not import the wire
+// (a test of the landing has no socket). Here for the same reason as
+// the keys above it: both facts belong to the document, and they
+// outlive every component.
+followName({
+  readout: connectionReadout,
+  ask: () => runAsync(olai.procedures.app.get()),
+})
 
 // Layout preferences (sidebar open/width, chat open/width/snap), whether the
 // agent's questions are announced and whether that makes a sound, how much of a

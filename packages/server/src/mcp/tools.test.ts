@@ -160,6 +160,7 @@ const withTools = <A>(
       ops,
       writer: "mcp",
       hostname: hostname(),
+      startedAt: "2026-08-29T09:31:00.000Z",
       // NO PADI. Every runtime in this file is a reader — a bound face, an MCP
       // route — and none of them is about the terminal door; dialing whatever
       // daemon happens to be on the machine running the suite would make these
