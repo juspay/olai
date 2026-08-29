@@ -432,8 +432,10 @@ export function Sidebar(props: {
                     though: a parent you could collapse is the hiding
                     switch wearing a tree's clothes. */}
                 <div class={DIR} data-testid={TESTID.vaultGroup}>
-                  <span class={CONTROL} aria-hidden="true" />
-                  <span class="min-w-0 truncate">olai</span>
+                  {/* No glyph, no page: `FileAnatomy` reads `of: null` as
+                      the plain name — the one component, the one column
+                      it is about. */}
+                  <FileAnatomy of={null} name="olai" broken={false} />
                 </div>
                 <ul class="m-0 ml-2 list-none border-l border-paper/20 p-0 pl-2">
                   <Key each={vault()} by={(file) => file}>
@@ -655,11 +657,9 @@ function Trash() {
       testid={TESTID.trashLink}
       current={router.route().kind === "trash"}
     >
-      {/* Not a file: the CONTROL seat but no glyph, like the parent —
-          the page's whole look is that of the furniture it sits under,
-          and a file kind's drawing would lie about it. */}
-      <span class={CONTROL} aria-hidden="true" />
-      <span class="min-w-0 truncate">Trash</span>
+      {/* Not a file: no glyph, like the parent — a file kind's drawing
+          would lie about a page that is none of them. */}
+      <FileAnatomy of={null} name="Trash" broken={false} />
     </DoorRow>
   )
 }

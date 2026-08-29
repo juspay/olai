@@ -75,16 +75,16 @@ function FeedFoot(props: {
           </Show>
           {/* A plain press closes the drawer without handing the caret to
               the trigger (the dismissal's day job): the page the wrench
-              opens is where the reader goes. A click held with a modifier
-              aims the page, not the drawer, so the leaving is conditional
-              on the aim being the place itself. `onLeave` wraps the link
-              rather than riding it because `../router.tsx`'s `Link` carries
-              no press slot, and the click bubbles. */}
+              opens is where the reader goes. A click held with ANY modifier
+              aims the page, not the drawer — the browser's own new-tab ask
+              and this app's own split (`alt`, `../press.ts`'s `splitClick`)
+              alike — so the leaving is conditional on the aim being the
+              place itself. `onLeave` wraps the link rather than riding it
+              because `../router.tsx`'s `Link` carries no press slot, and
+              the click bubbles. */}
           <span
             onClick={(event) => {
-              // A modifier press is another aim: new tab, new window — the
-              // reader asked for the page, kept the drawer.
-              if (event.metaKey || event.ctrlKey || event.shiftKey) return
+              if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
               props.onLeave()
             }}
           >

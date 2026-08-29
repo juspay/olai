@@ -212,3 +212,20 @@ test("the deepest duplicate loses by convention while sharing the name", () => {
   })
   expect(reading.config.nagMs).toEqual(10 * 60_000)
 })
+
+test("the convention is by NAME, the way the shelf's is: a silent front-runner decides, and deeper said ones do not", () => {
+  // The one behaviour this PR changed on purpose and the rule every
+  // convention file already keeps (`inboxIn`, `pinsIn`): a root
+  // `Kolu.olai` of notes DECIDES — it is the shallowest file holding the
+  // name — so the knobs say defaults, the mutes say nobody, and the
+  // wrench lands on the ROOT file. The reader's note file is not vetoed
+  // by a correctly-shaped config sitting deeper: the answer is the name,
+  // and a reader keeping one there finds it, not a layout the code knew
+  // to skip. Before `koluFileIn` the walk dodged the silent one, silently.
+  const reading = setOf({
+    "Kolu.olai": `{"id":"k","ord":"a0","title":"kolu notes"}`,
+    "_olai/Kolu.olai": [rec("watch", { nag: "1m" })].join("\n"),
+  })
+  expect(reading.config).toEqual(DEFAULT_WATCH)
+  expect(reading.mutes).toEqual({ file: "Kolu.olai", entries: [] })
+})

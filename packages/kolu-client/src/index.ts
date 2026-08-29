@@ -451,7 +451,6 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
   const revision = (nodes: ReadonlyArray<N>, file: string | null): void => {
     mirror?.reclaim(deps.claimants(nodes))
     const next = deps.config(nodes, file)
-    watch.reconfigure(next.config)
     // THE DRAWER'S FOOT, off the SAME reading: one walk, two mouths — the
     // watcher's values reconfigure the timers here, and the display half
     // publishes beside, so the line a reader sees can never name a
@@ -459,7 +458,15 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
     // the cell's OWN handle — the manifest connector and this cell's bind
     // run in no promised order, so `reading` keeps the answer and the
     // cell's `connect` settles it as its first act.
+    //
+    // THE READING MOVES FIRST: `reconfigure` folds, and the fold's
+    // verdict announce publishes the foot against the words a reader is
+    // about to read them under — holding the OLD `reading` through that
+    // beat would spell the previous walk's mutes against the new
+    // verdicts for one frame, a wrench onto a file just removed being
+    // its worst shape.
     reading = next.mutes
+    watch.reconfigure(next.config)
     publishMutes()
     const lines = next.malformed.join("\n")
     if (lines !== saidMalformed) {
