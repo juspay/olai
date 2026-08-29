@@ -11,13 +11,17 @@
  * palette section), where it has been held since the door that has been sending
  * captures the longest was written.
  *
- * HOW FULL THE INBOX IS is the rest: top-level regular nodes of whichever
- * outline is the inbox that still await processing, found by name over the
- * SET's paths — the same list capture walks — so an empty or torn shallowest
- * file is the file the door names, not a deeper one that still holds records.
- * Nested children and placements do not count, a done row does not, and a
- * bare-bullet header whose every descendant is finished does not: the badge
- * is what is left to process, not every capture the file has ever held.
+ * HOW FULL THE INBOX IS is the rest, and it is the law in one sentence: the
+ * badge counts the rows in the inbox marked `todo` or `doing — any depth,
+ * full stop. There is no walk and no branch arithmetic left to pin: a record
+ * answers for itself. What the cases below hold is the truth table of the
+ * marks (todo counts, doing counts, done and cancelled do not, an unmarked
+ * row — loose line or header — never did), the one clause that is still a
+ * clause (a placement is not a node), and the two halves of the convention
+ * meeting (a capture lands already counted, because its row was born `todo`).
+ * Which FILE the count is asked of is found by name over the SET's paths —
+ * the same list capture walks — so an empty or torn shallowest file is the
+ * file the door names, not a deeper one that still holds records.
  */
 
 import { expect, test } from "bun:test"
@@ -50,99 +54,22 @@ test("a directory with no inbox holds none", () => {
     .toEqual(NO_INBOX)
 })
 
-test("top-level regular nodes are the count, in whichever file the inbox is", () => {
+test("the marked rows of whichever file the inbox is are the count", () => {
   expect(heldOf({
     "Inbox.olai": [
-      `{"id":"a","ord":"a0","title":"buy the walnut stain"}`,
-      `{"id":"b","ord":"a1","title":"and a tin of oil"}`,
+      `{"id":"a","ord":"a0","title":"buy the walnut stain","todo":true}`,
+      `{"id":"b","ord":"a1","title":"and a tin of oil","doing":true}`,
     ].join("\n"),
   })).toEqual({ count: 2 })
 
   expect(heldOf({
-    "_olai/Inbox.olai": `{"id":"a","ord":"a0","title":"buy the walnut stain"}`,
+    "_olai/Inbox.olai": `{"id":"a","ord":"a0","title":"buy the walnut stain","todo":true}`,
     "house.olai": `{"id":"k","ord":"a0","title":"kitchen"}`,
   })).toEqual({ count: 1 })
 })
 
-test("a nested child does not inflate it — a capture with a note under it is still one", () => {
-  expect(heldOf({
-    "Inbox.olai": [
-      `{"id":"a","ord":"a0","title":"buy the walnut stain"}`,
-      `{"id":"note","parent":"a","ord":"a0","title":"the 250ml tin"}`,
-    ].join("\n"),
-  })).toEqual({ count: 1 })
-})
-
-test("a mirror is not a capture — a placement does not count", () => {
-  expect(heldOf({
-    "Inbox.olai": `{"id":"m","ord":"a0","mirror":"herbs"}`,
-    "garden.olai": `{"id":"herbs","ord":"a0","title":"the herb bed"}`,
-  })).toEqual(NO_INBOX)
-})
-
-test("the shallowest Inbox.olai wins, the way capture does", () => {
-  expect(heldOf({
-    "Inbox.olai": `{"id":"root","ord":"a0","title":"at the root"}`,
-    "_olai/Inbox.olai": `{"id":"minted","ord":"a0","title":"olai made this"}`,
-  })).toEqual({ count: 1 })
-})
-
-test("an empty shallowest inbox is the file the door names — not a deeper one that still holds captures", () => {
-  // THE DIVERGENCE: capture twice into `_olai/Inbox.olai`, then create
-  // `Inbox.olai` from the sidebar. Door and capture walk outlinePaths and
-  // land on the empty root file; byFile.keys() would still name the deeper
-  // one and the badge would read 2 on a door that opens nothing.
-  expect(heldOf({
-    "Inbox.olai": "",
-    "_olai/Inbox.olai": [
-      `{"id":"a","ord":"a0","title":"olai made this"}`,
-      `{"id":"b","ord":"a1","title":"and another"}`,
-    ].join("\n"),
-  })).toEqual(NO_INBOX)
-})
-
-test("a torn shallowest inbox is the file the door names — its count is zero, not a deeper file's", () => {
-  expect(heldOf(
-    { "_olai/Inbox.olai": `{"id":"minted","ord":"a0","title":"olai made this"}` },
-    { "Inbox.olai": `{"id":"i0","ord":"a0",title:"broken"}` },
-  )).toEqual(NO_INBOX)
-})
-
-test("a done row does not count — the badge is what still awaits processing", () => {
-  // A bullet, a todo, a doing: still in the inbox. A done row has been
-  // processed, so it does not inflate the door.
-  expect(heldOf({
-    "Inbox.olai": [
-      `{"id":"a","ord":"a0","title":"buy the walnut stain"}`,
-      `{"id":"b","ord":"a1","title":"and a tin of oil","todo":true}`,
-      `{"id":"c","ord":"a2","title":"wipe the bench","doing":true}`,
-      `{"id":"d","ord":"a3","title":"the leftover stain","done":"2026-08-22T12:00:00-04:00"}`,
-    ].join("\n"),
-  })).toEqual({ count: 3 })
-
-  // All processed: the door wears nothing, the way an empty inbox does.
-  expect(heldOf({
-    "Inbox.olai": [
-      `{"id":"a","ord":"a0","title":"buy the walnut stain","done":true}`,
-      `{"id":"b","ord":"a1","title":"and a tin of oil","done":"2026-08-22T12:01:00-04:00"}`,
-      `{"id":"c","ord":"a2","title":"wipe the bench","done":true}`,
-    ].join("\n"),
-  })).toEqual(NO_INBOX)
-})
-
-test("a finished branch does not count — a bare-bullet header whose every task is done is not awaiting", () => {
-  // The Inbox's Deferrals root: unmarked, 10/10 done underneath. #348 counted
-  // it because a bullet counts; a finished branch is not awaiting processing.
-  expect(heldOf({
-    "Inbox.olai": [
-      `{"id":"h","ord":"a0","title":"Deferrals"}`,
-      `{"id":"a","parent":"h","ord":"a0","title":"one","done":true}`,
-      `{"id":"b","parent":"h","ord":"a1","title":"two","done":"2026-08-22T16:00:00-04:00"}`,
-    ].join("\n"),
-  })).toEqual(NO_INBOX)
-})
-
-test("a header holding one todo still counts, even two levels down", () => {
+test("todo counts at any depth, and every marked row counts for itself", () => {
+  // Two levels down under furniture: the mark, nothing above it, is the one.
   expect(heldOf({
     "Inbox.olai": [
       `{"id":"h","ord":"a0","title":"Deferrals"}`,
@@ -151,35 +78,100 @@ test("a header holding one todo still counts, even two levels down", () => {
       `{"id":"d","parent":"h","ord":"a1","title":"already done","done":true}`,
     ].join("\n"),
   })).toEqual({ count: 1 })
-})
 
-test("a header holding a bullet leaf still counts — that line is unprocessed", () => {
-  expect(heldOf({
-    "Inbox.olai": [
-      `{"id":"h","ord":"a0","title":"Deferrals"}`,
-      `{"id":"d","parent":"h","ord":"a0","title":"already done","done":true}`,
-      `{"id":"b","parent":"h","ord":"a1","title":"an unprocessed line"}`,
-    ].join("\n"),
-  })).toEqual({ count: 1 })
-})
-
-test("a leaf bullet root still counts, and a todo root still counts even when every child is done", () => {
-  expect(heldOf({
-    "Inbox.olai": `{"id":"a","ord":"a0","title":"buy the walnut stain"}`,
-  })).toEqual({ count: 1 })
-
+  // No walk, no dedup: two marks in one branch are two rows awaiting you.
   expect(heldOf({
     "Inbox.olai": [
       `{"id":"t","ord":"a0","title":"the remodel","todo":true}`,
-      `{"id":"a","parent":"t","ord":"a0","title":"demo","done":true}`,
-      `{"id":"b","parent":"t","ord":"a1","title":"paint","done":true}`,
+      `{"id":"a","parent":"t","ord":"a0","title":"demo first","doing":true}`,
+    ].join("\n"),
+  })).toEqual({ count: 2 })
+})
+
+test("done and cancelled settle a row — neither counts", () => {
+  expect(heldOf({
+    "Inbox.olai": [
+      `{"id":"a","ord":"a0","title":"buy the walnut stain","done":true}`,
+      `{"id":"b","ord":"a1","title":"and a tin of oil","done":"2026-08-22T12:01:00-04:00"}`,
+      `{"id":"c","ord":"a2","title":"wipe the bench","cancelled":true}`,
+      `{"id":"d","ord":"a3","title":"the leftover stain","todo":true}`,
     ].join("\n"),
   })).toEqual({ count: 1 })
 })
 
+// THE INCIDENT THIS LAW CLOSES. An emptied section header — "Awaiting the
+// human's word", a childless bare bullet — wore a badge of 1 over a page
+// showing nothing open, and the old top-level walk could only excuse it with
+// a special clause. Under the one sentence it wears 0 with none: an unmarked
+// row is furniture, bare bullet or branch-full header alike.
+test("a bare bullet is furniture — a childless one wears 0, and so does a whole branch of them", () => {
+  expect(heldOf({
+    "Inbox.olai": `{"id":"h","ord":"a0","title":"Awaiting the human's word"}`,
+  })).toEqual(NO_INBOX)
+
+  expect(heldOf({
+    "Inbox.olai": [
+      `{"id":"h","ord":"a0","title":"Deferrals"}`,
+      `{"id":"a","parent":"h","ord":"a0","title":"one","done":true}`,
+      `{"id":"b","parent":"h","ord":"a1","title":"an unprocessed line"}`,
+    ].join("\n"),
+  })).toEqual(NO_INBOX)
+})
+
+test("a placement never counts — not even a mirror of a todo, at any depth", () => {
+  // A placement is not a node: the marked row lives in `garden.olai`, and the
+  // mirror standing in the inbox is a view of it, so the count excludes it
+  // without a clause of its own.
+  expect(heldOf({
+    "Inbox.olai": `{"id":"m","ord":"a0","mirror":"herbs"}`,
+    "garden.olai": `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`,
+  })).toEqual(NO_INBOX)
+
+  // …and placed under a real row: the clause is depth-blind the way the
+  // count is, so this pins it at depth too.
+  expect(heldOf({
+    "Inbox.olai": [
+      `{"id":"h","ord":"a0","title":"Awaiting the human's word"}`,
+      `{"id":"m","parent":"h","ord":"a0","mirror":"herbs"}`,
+    ].join("\n"),
+    "garden.olai": `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`,
+  })).toEqual(NO_INBOX)
+})
+
+test("the shallowest Inbox.olai wins, the way capture does", () => {
+  expect(heldOf({
+    "Inbox.olai": `{"id":"root","ord":"a0","title":"at the root","todo":true}`,
+    "_olai/Inbox.olai": [
+      `{"id":"m1","ord":"a0","title":"olai made this","todo":true}`,
+      `{"id":"m2","ord":"a1","title":"and another","todo":true}`,
+    ].join("\n"),
+  })).toEqual({ count: 1 })
+})
+
+test("an empty shallowest inbox is the file the door names — not a deeper one that holds marked rows", () => {
+  // THE DIVERGENCE: capture twice into `_olai/Inbox.olai`, then create
+  // `Inbox.olai` from the sidebar. Door and capture walk outlinePaths and
+  // land on the empty root file; byFile.keys() would still name the deeper
+  // one and the badge would read 2 on a door that opens nothing.
+  expect(heldOf({
+    "Inbox.olai": "",
+    "_olai/Inbox.olai": [
+      `{"id":"a","ord":"a0","title":"olai made this","todo":true}`,
+      `{"id":"b","ord":"a1","title":"and another","todo":true}`,
+    ].join("\n"),
+  })).toEqual(NO_INBOX)
+})
+
+test("a torn shallowest inbox is the file the door names — its count is zero, not a deeper file's", () => {
+  expect(heldOf(
+    { "_olai/Inbox.olai": `{"id":"minted","ord":"a0","title":"olai made this","todo":true}` },
+    { "Inbox.olai": `{"id":"i0","ord":"a0",title:"broken"}` },
+  )).toEqual(NO_INBOX)
+})
+
 test("two answers that say the same number are the same reading", () => {
-  const a = heldOf({ "Inbox.olai": `{"id":"a","ord":"a0","title":"one"}` })
-  const b = heldOf({ "Inbox.olai": `{"id":"a","ord":"a0","title":"one"}` })
+  const a = heldOf({ "Inbox.olai": `{"id":"a","ord":"a0","title":"one","todo":true}` })
+  const b = heldOf({ "Inbox.olai": `{"id":"a","ord":"a0","title":"one","todo":true}` })
   expect(sameInboxHeld(a, b)).toBe(true)
   expect(sameInboxHeld(a, { count: 2 })).toBe(false)
 })
@@ -196,9 +188,9 @@ const WHOLE: Capturing = {
   props: { from: "joinery@example.com", "message-id": "<abc@mail>" },
 }
 
-test("every field reaches the `add`, when the directory already has an inbox", () => {
+test("every field reaches the `add` — with the minted todo — when the directory already has an inbox", () => {
   expect(captureInto(outlinePaths(setOf({ "house.olai": HOUSE, [INBOX]: "" })), WHOLE))
-    .toEqual({ op: "add", file: INBOX, ...WHOLE })
+    .toEqual({ op: "add", file: INBOX, ...WHOLE, mark: "todo" })
 })
 
 test("…and the identical fields reach the seed of the inbox it mints", () => {
@@ -206,7 +198,24 @@ test("…and the identical fields reach the seed of the inbox it mints", () => {
   // `add`'s capture (./writing.ts), which is what makes one resolution serve
   // both doors.
   expect(captureInto(outlinePaths(setOf({ "house.olai": HOUSE })), WHOLE))
-    .toEqual({ op: "create", file: mintedInto(INBOX), seed: WHOLE })
+    .toEqual({ op: "create", file: mintedInto(INBOX), seed: { ...WHOLE, mark: "todo" } })
+})
+
+test("a capture lands already counted — the row it mints is the row the badge reads", () => {
+  // The two halves of this convention meeting is the point of the law, so it
+  // is ONE case rather than two: the mark above is what the file holds after
+  // the write planner stores it (`todo` stores `true`, the way `set_todo`
+  // writes it), and a file holding that record counts it.
+  //
+  // The literal is hand-written and the case says so, because the join — a
+  // `captureInto` request THROUGH the planner, stored, and counted by this
+  // same function — is held end to end one package over, where the planner
+  // lives: `@olai/server`'s `mcp/tools.test.ts` ("a capture lands in a minted
+  // inbox, dated and attributed") runs the real tool door and then asserts
+  // `inboxHeldOf` over the set it left. A drift between the plan's spelling
+  // of a born mark and this literal would fail THERE, loudly.
+  const landed = `{"id":"c1","ord":"a0","title":"the thread about cabinets","todo":true,"date":"2026-08-21T09:15:00-04:00"}`
+  expect(heldOf({ "_olai/Inbox.olai": landed })).toEqual({ count: 1 })
 })
 
 // ── WHAT A CAPTURE IS on the way in ────────────────────────────────────
