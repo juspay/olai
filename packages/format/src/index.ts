@@ -796,7 +796,11 @@ export {
  *  PATHS, for the caller that is aiming a capture rather than reading a
  *  directory. It is not the listing narrowed — the listing keeps its counts,
  *  and this exists so that asking for the names does not cost the records
- *  ({@link PathsAnswer} argues it). */
+ *  ({@link PathsAnswer} argues it).
+ *
+ *  {@link Projected} is the counter-atom to {@link Found}: the row a read
+ *  hands back when the caller SHAPED it with `fields` — the id and only what
+ *  was named, the full rows' other arm. */
 
 export {
   DEFAULT_SUBTREE_DEPTH,
@@ -818,6 +822,11 @@ export {
   PathsAnswer,
   Placed,
   Placement,
+  Projected,
+  PROJECTABLE,
+  type Projectable,
+  ProjectedRoots,
+  ProjectedSubtree,
   Reference,
   type Stamps,
   Subtree,

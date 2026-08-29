@@ -90,6 +90,10 @@ import {
   rankedTogether,
   type Placed,
   type Placement,
+  PROJECTABLE,
+  type Projectable,
+  type Projected,
+  type ProjectedSubtree,
   progressOf,
   tookOf,
   type Reading,
@@ -740,13 +744,158 @@ const stampsOf = (node: LocatedRegular["node"]): Stamps =>
     MARKS.flatMap((mark) => node[mark] === undefined ? [] : [[mark, node[mark]]]),
   )
 
-export const detail = (derived: Derived, id: string): Detail | null => {
+// ── the caller-shaped row ──────────────────────────────────────────────
+
+/**
+ * WHAT A `fields` REQUEST BOILS DOWN TO — one bit per record field that can
+ * be asked for, and the custom keys.
+ *
+ * A RECORD and not a handwritten mix of optional keys, which is what makes
+ * this a CLOSED table rather than a list of strings with a wish: it is keyed
+ * by {@link PROJECTABLE} itself, so a fifth mark or a new nameable field
+ * lands HERE by compile error, at the table, instead of arriving as a name
+ * the walk quietly carries nothing for. All-false is a legal ask — the row is
+ * then the ids — and that is what makes it a projection rather than a
+ * refusal: the caller shaped it.
+ */
+interface Wants {
+  /** One bit per field {@link PROJECTABLE} lists — `custom` in it means the
+   *  whole map. */
+  readonly named: Record<Projectable, boolean>
+  /** The properties asked one at a time — `custom.<key>`. */
+  readonly keys: ReadonlySet<string>
+}
+
+/** What an unknown `fields` name is told: the legal ones, whole, with the
+ *  lone prefix form beside them. REFUSED rather than silently dropped — a
+ *  read that quietly answered without the field the caller asked for is the
+ *  walk's own shape of a lie. */
+const unknownField = (field: string): UsageFailure =>
+  new UsageFailure({
+    reason: `\`${field}\` is not a field \`fields\` names — the legal ones are ` +
+      PROJECTABLE.map((name) => `\`${name}\``).join(", ") +
+      ", and one property spelled as `custom.<key>`; `id` rides every row " +
+      "already.",
+  })
+
+const CUSTOM_PREFIX = "custom."
+
+/**
+ * THE REQUEST'S own check, spelled beside the walk that consumes it — named
+ * rather than inlined so each of the two reads can be said to have ONE
+ * shape: legality first, then the walk. The vocabulary is the floor's
+ * {@link PROJECTABLE}; the sentence is this layer's way for the same reason
+ * every other refusal's is.
+ */
+const projectionOf = (
+  fields: ReadonlyArray<string>,
+): Result.Result<Wants, UsageFailure> => {
+  const named: Partial<Record<Projectable, boolean>> = {}
+  const keys = new Set<string>()
+  for (const field of fields) {
+    if (field.startsWith(CUSTOM_PREFIX)) {
+      const key = field.slice(CUSTOM_PREFIX.length)
+      if (key === "") return Result.fail(unknownField(field))
+      keys.add(key)
+      continue
+    }
+    if (!PROJECTABLE.includes(field as Projectable)) {
+      return Result.fail(unknownField(field))
+    }
+    named[field as Projectable] = true
+  }
+  return Result.succeed({ named: named as Record<Projectable, boolean>, keys })
+}
+
+/**
+ * ONE SHAPED ROW of one located record — the id, then exactly what was
+ * named, carried by today's own rules.
+ *
+ * THE RECORD'S OWN VALUES, VERBATIM, exactly as {@link foundOf} hands back
+ * its `custom` and {@link detail} its marks: a key asked for and absent is
+ * absent, an empty map is no map at all (`nothing`), and `status` remains
+ * the derivation's word — `Found`'s reading of the one map, kept so a
+ * projected row cannot disagree with a full one. It is deliberately NOT a
+ * re-derivation of `Found`'s whole situating — `file`, `line`, `path` are the
+ * row's PLACE, and the caller shaping a lean read is shaping them away first;
+ * that is the whole point of the dial.
+ */
+const shapedOf = (
+  derived: Derived,
+  located: LocatedRegular,
+  wants: Wants,
+): Projected => {
+  const node = located.node
+  const named = wants.named
+  const status = derived.status.get(node.id)
+  // PRUNED ONCE through `heldCustom`, for {@link carriedOf}'s reason word for
+  // word: a key holding nothing is a key the file does not carry. The whole
+  // map, or the keys asked for — the pruned map answers either, and both keep
+  // the file's canonical key order it puts back.
+  const held = heldCustom(node.custom)
+  const custom = named["custom"]
+    ? held
+    : Object.fromEntries(
+      [...wants.keys].flatMap((key) => {
+        const heldValue = held[key]
+        return heldValue === undefined ? [] : [[key, heldValue]] as const
+      }),
+    )
+  return {
+    id: node.id,
+    ...(named["title"] ? { title: node.title } : {}),
+    // A bullet — the same spelling of absence every other answer gives it,
+    // `Found`'s reading of the one derivation.
+    ...(named["status"] && status !== undefined ? { status } : {}),
+    // The marks asked for, verbatim from the record — {@link stampsOf}'s own
+    // loop narrowed to the named ones, so a row carrying `done` carries the
+    // settle INSTANT the record stores.
+    ...Object.fromEntries(
+      MARKS.flatMap((mark) =>
+        named[mark] && node[mark] !== undefined ? [[mark, node[mark]]] : []
+      ),
+    ),
+    ...(named["started"] && node.started !== undefined
+      ? { started: node.started }
+      : {}),
+    ...(named["date"] && node.date !== undefined ? { date: node.date } : {}),
+    ...(named["repeat"] && node.repeat !== undefined ? { repeat: node.repeat } : {}),
+    ...(named["desc"] && node.desc !== undefined ? { desc: node.desc } : {}),
+    ...(named["created"] && node.created !== undefined
+      ? { created: node.created }
+      : {}),
+    ...(named["changed"] && node.changed !== undefined
+      ? { changed: node.changed }
+      : {}),
+    ...(named["parent"] && !nothing(node.parent) ? { parent: node.parent } : {}),
+    ...(named["see"] && !nothing(node.see) ? { see: node.see } : {}),
+    ...(named["after"] && !nothing(node.after) ? { after: node.after } : {}),
+    ...(nothing(custom) ? {} : { custom }),
+  }
+}
+
+export const detail = (
+  derived: Derived,
+  id: string,
+  fields?: ReadonlyArray<string> | undefined,
+): Result.Result<Detail | null, OpFailure> => {
+  let wants: Wants | undefined
+  if (fields !== undefined) {
+    // CHECKED BEFORE THE RECORD IS EVER LOOKED UP: an id the set does not
+    // hold is still its own ANSWER (`{ missing }`), and a field nobody may
+    // name is a complaint about the request itself — the two are different
+    // classes of news, and the usage comes first, exactly as `id` and `file`
+    // are checked before either of them is read, one answer over.
+    const checked = projectionOf(fields)
+    if (Result.isFailure(checked)) return Result.fail(checked.failure)
+    wants = checked.success
+  }
   const located = derived.byId.get(id)
   // `isRegular` narrows the PAIR, where `isMirror` narrows the record and
   // leaves the place around it as wide as it was — which is what this line used
   // to pay for with an assertion on the next one (`@olai/format`'s `node.ts`
   // declares the guard for exactly that).
-  if (located === undefined || !isRegular(located)) return null
+  if (located === undefined || !isRegular(located)) return Result.succeed(null)
   const node = located.node
   const progress = progressOf(derived, id)
   // When the work first started, and — once it has SETTLED — how long that
@@ -758,7 +907,7 @@ export const detail = (derived: Derived, id: string): Detail | null => {
   const placed = placedUnder(derived, id)
   const referencedBy = referrersOf(derived, id)
   const blockedBy = waitingFor(derived, id)
-  return {
+  return Result.succeed({
     ...foundOf(derived, located),
     ...(node.date === undefined ? {} : { date: node.date }),
     // The rule as the record spells it — the answer a writer about to change
@@ -788,12 +937,17 @@ export const detail = (derived: Derived, id: string): Detail | null => {
     ),
     ...(progress === undefined ? {} : { progress }),
     ...(took === undefined ? {} : { took }),
-    children: countedChildren(derived, id).map((child) => foundOf(derived, child)),
+    // SHAPED, or today's rows, in the same sibling order either way: `fields`
+    // names what the children carry — the node itself is answered in full
+    // regardless, since "one node in full" is what this read IS.
+    children: countedChildren(derived, id).map((child) =>
+      wants === undefined ? foundOf(derived, child) : shapedOf(derived, child, wants)
+    ),
     ...(placements.length === 0 ? {} : { mirrors: placements }),
     ...(placed.length === 0 ? {} : { placed }),
     ...(referencedBy.length === 0 ? {} : { referencedBy }),
     ...(blockedBy.length === 0 ? {} : { blockedBy }),
-  }
+  })
 }
 
 /**
@@ -971,6 +1125,31 @@ export const subtree = (
   // read — depth bounds levels, not prose, and notes dominate the cost. Same
   // flag `search` already has, the other way round on the default.
   const wantsNotes = request.withDesc !== false
+
+  // THE SHAPE, ASKED FOR — checked BEFORE the arms below on the same footing
+  // as they are checked before the set: a request that cannot be read gets a
+  // refusal, never a walk whose rows quietly miss what was asked. Two
+  // mistakes have their own sentence each, because they are different
+  // mistakes: a NAME outside the vocabulary is `unknownField`'s list; naming
+  // `fields` and `withDesc` together is two dials competing for the one row.
+  let wants: Wants | undefined
+  if (request.fields !== undefined) {
+    const checked = projectionOf(request.fields)
+    if (Result.isFailure(checked)) return Result.fail(checked.failure)
+    wants = checked.success
+    if (request.withDesc !== undefined) {
+      return Result.fail(
+        new UsageFailure({
+          reason:
+            "`fields` is the whole shape of each row — `withDesc` is the " +
+            "default projection's note dial, and there is nothing left of it " +
+            "to turn. Name `desc` in `fields` for the notes, and drop " +
+            "`withDesc` altogether.",
+        }),
+      )
+    }
+  }
+
   const walk = (located: LocatedRegular, left: number): Subtree => {
     const children = countedChildren(at.derived, located.node.id)
     return {
@@ -980,6 +1159,20 @@ export const subtree = (
         ? { desc: located.node.desc }
         : {}),
       children: left <= 0 ? [] : children.map((child) => walk(child, left - 1)),
+      ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
+    }
+  }
+  // `walk`'s other shape: the caller named the rows. The ROWS change and the
+  // WALK does not — same depth dial, same counted children, same `truncated`
+  // — because those are the walk's own structure, and `fields` has nothing to
+  // say about structure. `wants` is handed IN rather than closed over: the
+  // outer binding also carries the unasked case, and an assertion at this one
+  // function would be the walk's own way to stop checking it.
+  const shapedWalk = (wants: Wants, located: LocatedRegular, left: number): ProjectedSubtree => {
+    const children = countedChildren(at.derived, located.node.id)
+    return {
+      ...shapedOf(at.derived, located, wants),
+      children: left <= 0 ? [] : children.map((child) => shapedWalk(wants, child, left - 1)),
       ...(left <= 0 && children.length > 0 ? { truncated: true as const } : {}),
     }
   }
@@ -999,7 +1192,9 @@ export const subtree = (
     if (located === undefined || !isRegular(located)) {
       return Result.succeed({ missing: request.id })
     }
-    return Result.succeed(walk(located, depth))
+    return Result.succeed(
+      wants === undefined ? walk(located, depth) : shapedWalk(wants, located, depth),
+    )
   }
 
   if (request.file !== undefined) {
@@ -1010,14 +1205,16 @@ export const subtree = (
     if (Result.isFailure(outline)) return Result.fail(outline.failure)
     const broken = brokenIn(at.set, request.file)
     if (broken !== undefined) return Result.fail(notLoaded(request.file, broken))
-    return Result.succeed({
-      file: request.file,
-      // The roots a READER sees: `@olai/format`'s own reading of an outline's
-      // top level, `ord`-sorted, placements dropped for the reason the walk
-      // never descends into one — a mirror is a second view of a node that
-      // lives elsewhere, and elsewhere is where this read answers it.
-      roots: rootsOf(at.derived, request.file).map((root) => walk(root, depth)),
-    })
+    // The roots a READER sees: `@olai/format`'s own reading of an outline's
+    // top level, `ord`-sorted, placements dropped for the reason the walk
+    // never descends into one — a mirror is a second view of a node that
+    // lives elsewhere, and elsewhere is where this read answers it.
+    const roots = rootsOf(at.derived, request.file)
+    return Result.succeed(
+      wants === undefined
+        ? { file: request.file, roots: roots.map((root) => walk(root, depth)) }
+        : { file: request.file, roots: roots.map((root) => shapedWalk(wants, root, depth)) },
+    )
   }
 
   return Result.fail(
