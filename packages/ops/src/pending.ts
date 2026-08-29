@@ -399,7 +399,7 @@ export interface Options {
  * moves.
  *
  * WHERE IT IS KEPT is deliberately not here. This layer is handed the answer;
- * `@olai/server`'s `gitPolicy.ts` composes the flags with the defaults.
+ * the composition root builds it with {@link fixedPolicy}.
  */
 export interface Policy {
   /** What the operator pinned — the flags as given, `null` for each one nobody

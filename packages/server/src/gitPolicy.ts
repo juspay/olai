@@ -31,15 +31,11 @@
  * **What these flags produce is a PIN, not a mode.** Whether a flag was GIVEN is
  * a fact every browser has to be told, because a given flag is named under the
  * row (`--commit=auto`) while an omitted one is the built-in default. Both are
- * the instance's policy, read-only, the same in every browser — there is no
- * runtime door. So {@link gitPin} answers with `null` for a flag nobody typed.
- * A single `CommitMode` here could not tell the two apart: `--commit=manual`
- * typed out loud is a team's policy named as a flag, while the same mode
- * arrived at by saying nothing is the default.
- *
- * **The policy is immutable after boot.** Flags plus the built-in defaults,
- * held in memory. There is no remembered file and no `git.setPolicy`. Stale
- * files under `$XDG_STATE_HOME/olai/git/` from an older olai are inert.
+ * the instance's policy, read-only, the same in every browser. So {@link gitPin}
+ * answers with `null` for a flag nobody typed. A single `CommitMode` here could
+ * not tell the two apart: `--commit=manual` typed out loud is a team's policy
+ * named as a flag, while the same mode arrived at by saying nothing is the
+ * default. What the server then DOES with the pin is `@olai/ops`' `fixedPolicy`.
  */
 
 import {
@@ -50,7 +46,7 @@ import {
   type PushMode,
   QUIET_MS,
 } from "@olai/format"
-import { type CommitFace, commitDoors, fixedPolicy, type Policy } from "@olai/ops"
+import { type CommitFace, commitDoors } from "@olai/ops"
 import { Flag } from "effect/unstable/cli"
 
 /**
@@ -163,15 +159,6 @@ export const gitPin = (
   off: boolean,
   pushes: PushMode | null,
 ): GitPin => ({ commit: off ? "off" : chosen, push: pushes })
-
-/**
- * Open this directory's policy: the flags, plus the built-in defaults.
- *
- * IMMUTABLE after boot. Held in memory; nothing is read from disk and nothing
- * is written. A leftover `$XDG_STATE_HOME/olai/git/<digest>.json` from an older
- * olai is not consulted.
- */
-export const openPolicy = (pin: GitPin): Policy => fixedPolicy(pin)
 
 /** The defaults, re-exported beside the flags that decline to apply them — so a
  *  reader of this file can see what "nobody said" comes to without going two

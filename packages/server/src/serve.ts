@@ -27,14 +27,13 @@ import { surface } from "@olai/surface"
 import { AGENT_ENV, roster, whyNoAgent } from "@olai/chat"
 import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
-import { make as makeOps, TOOLS } from "@olai/ops"
+import { fixedPolicy, make as makeOps, TOOLS } from "@olai/ops"
 import { Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
 
 import * as Chat from "@olai/chat"
 import { openDirectory } from "./directory.ts"
 import { watchFault } from "./fault.ts"
-import { openPolicy } from "./gitPolicy.ts"
 import { hostname } from "./hostname.ts"
 import { listen } from "./listener.ts"
 import { clientOver, serveFace } from "./mcp/face.ts"
@@ -59,9 +58,8 @@ export interface ServeOptions {
   /** The git policy this serve runs under, as the operator PINNED it —
    *  `--commit=off | manual | auto` and `--push=off | auto`, each `null` when
    *  the flag was not given (`@olai/format`'s `GitPin`). What the server DOES
-   *  is that composed with the built-in defaults (`./gitPolicy.ts`'s
-   *  `openPolicy`); what every browser draws read-only is the instance's
-   *  policy. */
+   *  is that composed with the built-in defaults (`@olai/ops`' `fixedPolicy`);
+   *  what every browser draws read-only is the instance's policy. */
   readonly pin: GitPin
 }
 
@@ -123,9 +121,9 @@ export const serve = (options: ServeOptions) =>
     const settled = yield* SubscriptionRef.make(0)
 
     /** WHAT THIS DIRECTORY'S GIT POLICY IS: the flags plus the built-in
-     *  defaults (`./gitPolicy.ts`). Immutable after boot. Opened before the
-     *  ops layer, because that layer asks it on every decision it makes. */
-    const policy = openPolicy(options.pin)
+     *  defaults. Immutable after boot. Built before the ops layer, because
+     *  that layer asks it on every decision it makes. */
+    const policy = fixedPolicy(options.pin)
 
     const ops = makeOps({
       store,

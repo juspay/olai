@@ -34,15 +34,13 @@ import * as path from "node:path"
 import {
   COMMIT_DEFAULT,
   COMMIT_MODES,
-  DEFAULT_POLICY,
   NO_PIN,
   policyOf,
-  PUSH_DEFAULT,
   PUSH_MODES,
 } from "@olai/format"
 import { COMMIT_BUTTON, commitDoors, COMMIT_TOOL } from "@olai/ops"
 import { BOOT_TIMEOUT, startWeb } from "./child.testlib.ts"
-import { commitsSaid, gitPin, openPolicy, pushesSaid } from "./gitPolicy.ts"
+import { commitsSaid, gitPin, pushesSaid } from "./gitPolicy.ts"
 import { served } from "./serve.testlib.ts"
 
 // ── what the flags come to between them ────────────────────────────────
@@ -205,56 +203,3 @@ test("olai web without --no-commit still boots", async () => {
     server.kill()
   }
 }, BOOT_TIMEOUT * 3)
-
-// ── flags win, defaults otherwise, nothing is remembered ───────────────
-
-test("a directory nobody pinned runs on the built-in defaults", () => {
-  const policy = openPolicy(NO_PIN)
-  expect(policy.now()).toEqual(DEFAULT_POLICY)
-  expect(policy.pin).toEqual(NO_PIN)
-})
-
-test("a flag wins its half, and the other half is the built-in default", () => {
-  expect(openPolicy({ commit: "auto", push: null }).now()).toEqual({
-    commit: "auto",
-    push: PUSH_DEFAULT,
-  })
-  expect(openPolicy({ commit: null, push: "auto" }).now()).toEqual({
-    commit: COMMIT_DEFAULT,
-    push: "auto",
-  })
-  expect(openPolicy({ commit: "off", push: "off" }).now()).toEqual({
-    commit: "off",
-    push: "off",
-  })
-})
-
-/**
- * A leftover file from an older olai is INERT. The ruling: no migration, no
- * boot cleanup. The policy is the flags and the defaults even when a file
- * under the state home claims otherwise.
- */
-test("a leftover remembered file is inert: the policy is the flags and the defaults", () => {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-policy-root-")))
-  const state = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-policy-state-")))
-  const before = process.env["XDG_STATE_HOME"]
-  process.env["XDG_STATE_HOME"] = state
-  try {
-    const at = path.join(state, "olai", "git", "leftover.json")
-    fs.mkdirSync(path.dirname(at), { recursive: true })
-    fs.writeFileSync(
-      at,
-      JSON.stringify({ cwd: root, commit: "auto", push: "auto" }),
-    )
-    expect(openPolicy(NO_PIN).now()).toEqual(DEFAULT_POLICY)
-    expect(openPolicy({ commit: "manual", push: null }).now()).toEqual({
-      commit: "manual",
-      push: PUSH_DEFAULT,
-    })
-  } finally {
-    if (before === undefined) delete process.env["XDG_STATE_HOME"]
-    else process.env["XDG_STATE_HOME"] = before
-    fs.rmSync(root, { recursive: true, force: true })
-    fs.rmSync(state, { recursive: true, force: true })
-  }
-})
