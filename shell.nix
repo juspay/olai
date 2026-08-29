@@ -58,11 +58,15 @@ pkgs.mkShell {
     OLAI_FONTS_DIR = "${olaiFonts}";
   };
 
+  # nodejs is knotted through here rather than ambient: the acp/ pin's
+  # `npm ci` is an eat step of `just install`, and the devShells CI runs
+  # without an ambient one must bring their own.
   packages = with pkgs; [
     bun
     just
     jq # scripts/check-kolu-deps.sh
     nixpkgs-fmt
+    nodejs_24
     npins
   ];
 }
