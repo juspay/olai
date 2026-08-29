@@ -262,10 +262,14 @@ test("started round-trips, and is held to the same ISO rule as the marks", () =>
   // before `date`: it never reaches disk otherwise (`write.test.ts`'s rule).
   expect(serializeOutline(parsed.nodes.map((one) => one.node))).toBe(`${line}\n`)
 
-  // A day-only value is legal, the same reading `date` gets: what a hand
-  // writes, and readable back — a span counted in days is still a span.
-  expect(outlineOf(`{"id":"a","ord":"a","title":"t","started":"2026-08-29"}`).nodes.length)
-    .toBe(1)
+  // An INSTANT and nothing else, and that extends to the day: a value read
+  // by subtraction is not readable as a day (a day-only string is UTC by
+  // spec where the dated spellings beside it read local — the two ends of
+  // one span would land in two zones, and the span would slide by half a
+  // day). `date` has a day arm because the calendar ASKS if it has a day;
+  // nothing asks that of a start.
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","started":"2026-08-29"}`)))
+    .toEqual(["bad-date"])
 
   // It is an INSTANT and nothing else: the marks take `true` because a bare
   // `` `true` `` is the state, but `started` answered true would say WHEN and

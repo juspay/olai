@@ -193,7 +193,7 @@ const checkRecord = ({ file, line, node }: Located): ReadonlyArray<OutlineError>
     }
   }
 
-  for (const field of [...MARKS, "started", "date", "created", "changed"] as const) {
+  for (const field of [...MARKS, "date", "created", "changed"] as const) {
     const value = node[field]
     if (typeof value === "string" && !isIsoInstant(value)) {
       at(
@@ -201,6 +201,21 @@ const checkRecord = ({ file, line, node }: Located): ReadonlyArray<OutlineError>
         `\`${field}\` is \`${value}\`, which is not an ISO date (\`2026-08-10\`) or datetime (\`2026-08-10T14:30:00Z\`)`,
       )
     }
+  }
+
+  // `started` asks for MORE than the loop's shape check: it is SUBTRACTED
+  // from the settling instant, so both ends of the subtraction must read the
+  // same kind of instant — and a day-only value is UTC by spec where every
+  // other datetime spelling here reads local (the rule `dates.ts`'s calendar
+  // module argues: `new Date("2026-08-01")` is midnight UTC, which is the
+  // previous day for half the world). One arm day-only, another offset-local,
+  // and a span slides by half a day — so the field has no day arm at all.
+  // ISO in shape AND clock in content.
+  if (typeof node.started === "string" && !isIsoDatetime(node.started)) {
+    at(
+      "bad-date",
+      `\`started\` is \`${node.started}\`, which is not an ISO datetime (\`2026-08-10T14:30:00Z\`) — a span gets subtracted from it, so a day-only value will not do (and \`date\` is the field that means one)`,
+    )
   }
 
   return errors
@@ -236,6 +251,13 @@ export const isIsoInstant = (value: string): boolean => {
     utc.getUTCDate() === Number(day)
   )
 }
+
+/** An INSTANT with its clock — the shape `started` is held to: minutes at
+ *  least, a zone spelled out or `Z`. `isIsoInstant` above takes any field
+ *  whose value is only LOOKED AT (which a day can carry); this is for the
+ *  one whose value is ARITHMETIC, so both its ends read the same zone. */
+const isIsoDatetime = (value: string): boolean =>
+  /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/.test(value)
 
 const describe = (json: unknown): string =>
   json === null ? "null" : Array.isArray(json) ? "an array" : `a ${typeof json}`
