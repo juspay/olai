@@ -23,7 +23,14 @@ const T0 = 1_700_000_000_000
 
 const heldEvent = (
   kind: "transition" | "nag",
-  opts: { state?: string; agentState?: string | null; heldMs?: number; ageMs?: number } = {},
+  opts: {
+    state?: string
+    agentState?: string | null
+    heldMs?: number
+    ageMs?: number
+    label?: string
+    repo?: string | null
+  } = {},
 ): KoluEvent => {
   const ageMs = opts.ageMs ?? 4 * 60_000
   const heldMs = opts.heldMs ?? 38 * 60_000
@@ -47,8 +54,9 @@ const heldEvent = (
         alertLabel: "",
       },
       bucket: "awaiting",
-      label: "panel-step",
+      label: opts.label ?? "panel-step",
       labelColor: "#a2c",
+      repo: opts.repo === undefined ? "olai" : opts.repo,
       since: new Date(T0 - ageMs - heldMs).toISOString(),
     },
   }
@@ -63,6 +71,7 @@ test("a `nag` is a hold made louder, not one made new", () => {
 test("a `transition` says has been", () => {
   const line = eventLine(heldEvent("transition"), T0)
   expect(line.label).toBe("panel-step")
+  expect(line.who).toBe("olai·panel-step")
   expect(line.words).toBe("has been waiting for input for 38m")
   // The AGE is kolu's own ago-phrase.
   expect(line.age).toBe("4m ago")
@@ -74,6 +83,17 @@ test("`awaiting_user` lands differently than plain `waiting`", () => {
     agentState: "awaiting_user",
   }), T0)
   expect(line.words).toBe("has been awaiting input for 38m")
+})
+
+test("the `who` is the Dock's own spelling — `repo·label`, or the label alone", () => {
+  expect(eventLine(heldEvent("transition", { repo: "olai", label: "kolu-events-feed" }), T0).who)
+    .toBe("olai·kolu-events-feed")
+  expect(eventLine(heldEvent("transition", { repo: "nixos-config", label: "master" }), T0).who)
+    .toBe("nixos-config·master")
+  // And the no-repo case answers what the Dock's group answers: nothing
+  // extra, the plain label.
+  expect(eventLine(heldEvent("transition", { repo: null, label: "the lane the evidence rides" }), T0).who)
+    .toBe("the lane the evidence rides")
 })
 
 test("an event younger than one tick is `just now`, never a dash", () => {

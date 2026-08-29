@@ -315,6 +315,7 @@ export const makeWatch = (
         bucket: hold.row.bucket,
         label: hold.row.label,
         labelColor: hold.row.labelColor,
+        repo: hold.row.repo,
         since: new Date(hold.since).toISOString(),
       },
     })

@@ -100,8 +100,11 @@ export function EventRow(props: {
             </span>
             <div class="min-w-0 flex-1">
               <div class="flex items-baseline gap-2">
+                {/* THE WHO — `repo·label` in the Dock's own spelling, fed
+                    from the fold's `who` (the frozen `label` alone is
+                    what made three repos read `master` alike). */}
                 <RowLabel
-                  markdown={line().label === "" ? props.event.row!.terminal : line().label}
+                  markdown={line().who === "" ? props.event.row!.terminal : line().who}
                   render={(markdown) => markdown}
                   class="min-w-0 text-[0.8125rem] leading-4"
                   color={line().labelColor === ""

@@ -44,6 +44,12 @@ export interface EventLine {
   /** Whether the frozen pip was blocked on somebody when this fired — the one
    *  test every kolu surface reads for the violet emphasis. */
   readonly asking: boolean
+  /** THE WHO line, as the drawer writes it: `repo · label` when the frozen
+   *  row carries a repo (kolu's own `repo·branch` spelling, the Dock's
+   *  grouping answer in one breath), the plain label where nobody ever
+   *  named one — the drawer never reads `label` raw. Blank on a
+   *  heartbeat. */
+  readonly who: string
   /** The frozen label — the intent line, else the branch, blank on a
    *  heartbeat. */
   readonly label: string
@@ -58,6 +64,13 @@ export interface EventLine {
    *  full id, so a row's title can say what it could not fit. */
   readonly about: string | null
 }
+
+/** The WHO fold, separately named: `repo · label` in the Dock's own
+ *  spelling, or the label alone. A lab R following another row whose word
+ *  is exactly the same (`master`, twice) was never disambiguated without
+ *  this. */
+export const repoPrefix = (repo: string | null, label: string): string =>
+  repo === null ? label : `${repo}·${label}`
 
 /** The state's own word, narrowed by kolu rather than spelled: the label
  *  a known state carries (`awaiting_user` reads "awaiting input"); an
@@ -82,6 +95,7 @@ export const eventLine = (event: KoluEvent, now: number): EventLine => {
   if (row === null) {
     return {
       asking: false,
+      who: "",
       label: "",
       labelColor: "",
       words: "",
@@ -100,6 +114,7 @@ export const eventLine = (event: KoluEvent, now: number): EventLine => {
     : `has been ${word} for ${held}`
   return {
     asking: row.pip.asking,
+    who: repoPrefix(row.repo, row.label),
     label: row.label,
     labelColor: row.labelColor,
     words,

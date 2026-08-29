@@ -519,6 +519,14 @@ export const KoluEvent = Schema.Struct({
     /** The annotation line (intent, else branch) and its ink, frozen. */
     label: Schema.String,
     labelColor: Schema.String,
+    /** THE REPOSITORY, frozen — the row's only DISAMBIGUATOR: three
+     *  terminals' labels can all read `master` (the human's drawer
+     *  screenshot, on the first real free-for-all watch). The fold that
+     *  names it is `repo·label` — kolu's own `repo·branch` spelling the
+     *  Dock's grouping answers — and a terminal with no repo carries a
+     *  `null`, so the row shows what the Dock's own group shows in that
+     *  case: the label alone. */
+    repo: Schema.NullOr(Schema.String),
     /** WHEN this server first saw the terminal holding this state, ISO. It is
      *  an OBSERVATION-lifetime clock: olai's restart re-dates every standing
      *  hold — the difference is an ordinary restart, not a lie. A LINK flap
