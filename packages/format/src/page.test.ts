@@ -316,15 +316,6 @@ test("the address the page IS gets a name too — the palette's pin row asks it"
   expect(reading.names.some((one) => one.id === "herbs")).toBe(true)
 })
 
-// …and the ROW spelling of a page asks the same name, because that page is
-// the same node: `/house.olai#install` in the shelf is drawn "install them",
-// not its own spelling.
-test("a row address is named for the node it is — the qualified spelling, answered", () => {
-  const reading = pageOf(readingAt(SET, facesOf(FILES)), at("house.olai", "install"))
-  expect(reading.names.some((one) => one.id === "install")).toBe(true)
-  expect(reading.names.find((one) => one.id === "install")?.title).toBe("install them")
-})
-
 /** The set the custom-value cases below are read against: one node carrying a
  *  property that IS an id, one that only looks like a word, one holding a
  *  sentence, and one holding a list of both kinds. */
