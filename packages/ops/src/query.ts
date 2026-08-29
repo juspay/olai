@@ -830,43 +830,32 @@ const shapedOf = (
   const status = derived.status.get(node.id)
   // PRUNED ONCE through `heldCustom`, for {@link carriedOf}'s reason word for
   // word: a key holding nothing is a key the file does not carry. The whole
-  // map, or the keys asked for — the pruned map answers either, and both keep
-  // the file's canonical key order it puts back.
+  // map, or a selection of its keys — the sub-selection is walked over the
+  // pruned map itself, so its keys answer in the FILE's canonical order,
+  // the one a whole-map row answers in, rather than the request's.
   const held = heldCustom(node.custom)
   const custom = named["custom"]
     ? held
-    : Object.fromEntries(
-      [...wants.keys].flatMap((key) => {
-        const heldValue = held[key]
-        return heldValue === undefined ? [] : [[key, heldValue]] as const
-      }),
-    )
+    : Object.fromEntries(Object.entries(held).filter(([key]) => wants.keys.has(key)))
   return {
     id: node.id,
     ...(named["title"] ? { title: node.title } : {}),
     // A bullet — the same spelling of absence every other answer gives it,
     // `Found`'s reading of the one derivation.
     ...(named["status"] && status !== undefined ? { status } : {}),
-    // The marks asked for, verbatim from the record — {@link stampsOf}'s own
-    // loop narrowed to the named ones, so a row carrying `done` carries the
-    // settle INSTANT the record stores.
+    // The rest of the record's own ROW CONTENT, verbatim — the marks
+    // included, so a row carrying `done` carries the settle INSTANT the record
+    // stores. ONE loop the way {@link stampsOf} loops the marks, and one
+    // closed table inside it: copied when the caller named the field AND the
+    // record carries it, the two questions as a pairing, so a name
+    // {@link PROJECTABLE} gains is copied without this row passing again.
     ...Object.fromEntries(
-      MARKS.flatMap((mark) =>
-        named[mark] && node[mark] !== undefined ? [[mark, node[mark]]] : []
-      ),
+      ([...MARKS, "started", "date", "repeat", "desc", "created", "changed"] as const)
+        .flatMap((name) => {
+          const value = node[name]
+          return named[name] && value !== undefined ? [[name, value]] as const : []
+        }),
     ),
-    ...(named["started"] && node.started !== undefined
-      ? { started: node.started }
-      : {}),
-    ...(named["date"] && node.date !== undefined ? { date: node.date } : {}),
-    ...(named["repeat"] && node.repeat !== undefined ? { repeat: node.repeat } : {}),
-    ...(named["desc"] && node.desc !== undefined ? { desc: node.desc } : {}),
-    ...(named["created"] && node.created !== undefined
-      ? { created: node.created }
-      : {}),
-    ...(named["changed"] && node.changed !== undefined
-      ? { changed: node.changed }
-      : {}),
     ...(named["parent"] && !nothing(node.parent) ? { parent: node.parent } : {}),
     ...(named["see"] && !nothing(node.see) ? { see: node.see } : {}),
     ...(named["after"] && !nothing(node.after) ? { after: node.after } : {}),
