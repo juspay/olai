@@ -14,7 +14,7 @@ The terminal door's two rungs (roadmap: `terminal-door`). A lane step carries `t
 - **`watch.ts`** — the ATTENTION WATCH: a local reading of the mirror the server already holds, not a second ask of padi. A fleet row folded into a held bucket starts a hold; held past `held-for` the watcher emits a `transition`; still held after `nag`, the `nag`s; and the **pulse** lives off that ring — it lands on the `pulse` cell instead (the wire's `pulse` member, which the pill folds), so a quiet feed and a dead one read differently and the drawer eats attention rows alone. The knobs are the SERVER's (`@olai/server`'s `koluConfig.ts` reads `_olai/Kolu.olai`), and what the watch owns is one ring of `WATCH_RING` events — the same economy as the mirror's own rows.
 - **`socket.ts`** — where padi is: `$PADI_SOCKET` first, the rendezvous path algebra second. kolu's own README asks a client to be *given* the socket, because the correcting read-back stayed with the daemon.
 - **`screen.ts`** — one `screen.text` read, tailed here.
-- **`index.ts`** — `koluHalf`, which is what a server composes: five surface members and one revision hook carrying the two walks (the claims and the knobs of the watch).
+- **`index.ts`** — `koluHalf`, which is what a server composes: the surface members (three cells, two collections, the terminal stream and the screen read) and the vault hooks carrying the two walks (the claims and the knobs of the watch) — plus `unloaded`, the reset the manifest asks for when the store has never published.
 
 ## Absent is a state, not a failure
 

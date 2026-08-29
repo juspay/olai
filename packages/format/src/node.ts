@@ -650,17 +650,16 @@ const OLAI_PREFIX = `${OLAI_DIR}/`
  * the reason {@link isTrashed} is one: it is a statement about what a served
  * file IS, and a second spelling of `_olai/` is a second answer about one
  * directory. It has exactly one reader today and that is on purpose — the
- * sidebar's file tree, which stops drawing these rows because each of them
- * already has a door of its own (the shelf IS `Pins.olai`'s face, the Trash
- * entry is the trash's, the Inbox entry is the inbox's), and draws them again
- * for a reader who asks (`@olai/web`'s `settings/hiddenOutlines.ts`). It is a
+ * sidebar, which keeps the reader's own corpus and the vault's own files in
+ * their own seats (`@olai/web`'s `Sidebar.tsx`): the tree is the corpus, and
+ * the quiet group at the column's foot is the `_olai/` rows' home. It is a
  * DRAWING rule and nothing more: search, the agents, `list_outlines`, the
  * trash page and the shelf read the same set either way.
  *
  * The ROOT `_olai/`, exactly, because that is the only one {@link mintedInto}
  * writes. A `notes/_olai/` is a directory somebody made inside their own
- * folder, and hiding it would be this app deciding something about a name a
- * person chose.
+ * folder, and seating it apart would be this app deciding something about a
+ * name a person chose.
  *
  * Asked the way {@link isTrashed} is — once per FILE, against a prefix built
  * once, so a walk of a whole directory allocates nothing.

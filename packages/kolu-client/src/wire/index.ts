@@ -50,7 +50,10 @@ import {
   KOLU_UNPULSED,
   KoluEvent,
   KoluLink,
+  KoluMutes,
+  NO_MUTES,
   sameKolu,
+  sameMutes,
   Snapshot,
   SnapshotRefused,
   SnapshotRequest,
@@ -106,6 +109,29 @@ export const koluMembers = {
       schema: Schema.NullOr(WatchPulse),
       default: KOLU_UNPULSED,
       verbs: ["get"],
+    },
+    /**
+     * WHO IS MUTED, and the file that says so ({ ./kolu.ts}'s
+     * `KoluMutes`): the events drawer's foot reads the whole of it off
+     * this one cell — the line (`2 muted · …`) and the page the wrench
+     * opens.
+     *
+     * Re-answered on every vault revision, the way the `pins` cell one
+     * spec over is and for its reason: the reading is a walk of the same
+     * records the watcher itself reads for its VALUES, so the file a
+     * person edits is the file the drawer shows — rename a mute and the
+     * line moves on the frame the revision publishes. `equals` is what
+     * keeps that from costing anything: almost every revision has nothing
+     * new to say about who is silenced.
+     *
+     * Wire-read-only: a mute is written by EDITING the vault's own
+     * config outline, never through this wire.
+     */
+    mutes: {
+      schema: KoluMutes,
+      default: NO_MUTES,
+      verbs: ["get"],
+      equals: sameMutes,
     },
   },
   collections: {
