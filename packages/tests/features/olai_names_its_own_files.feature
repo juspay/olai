@@ -12,12 +12,14 @@ Feature: The files olai names for itself, and the doors onto them
   reader has to OPT INTO is inspectability they have to know to ask for.
 
   So the tree goes on keeping the reader's rows, and the `_olai/` outlines
-  get a HOME of their own: a quiet group in Trash's register, at the foot
-  of the column, where each is one click from being opened as the ordinary
-  outline it is. It is still a DRAWING rule and not a set rule, which is
-  the line these scenarios keep: the files stay in the directory either
-  way, and nothing here touches search, an agent's `list_outlines`, the
-  trash page or the shelf.
+  get a HOME of their own: one special parent at the foot of the column,
+  named for the house itself (ruled 2026-08-31: one mechanism, one
+  parent, one door for the vault's own furniture), whose rows open each
+  as the ordinary outline it is — and the Trash door nests with them.
+  It is still a DRAWING rule and not a set rule, which is the line these
+  scenarios keep: the files stay in the directory either way, and nothing
+  here touches search, an agent's `list_outlines`, the trash page or the
+  shelf.
 
   The INBOX moved under `_olai/` with them (human, 2026-08-20, reversing
   format.md's "deliberately NOT"), and it got the door that goes with being
@@ -70,6 +72,18 @@ Feature: The files olai names for itself, and the doors onto them
     Then the address is "/_olai/Pins.olai"
     And the outline has 1 rows
     And the vault group's "_olai/Pins.olai" row marks the current page
+    And there should be no page errors
+
+  Scenario: The furniture nests under one parent, and the Trash is in it
+    # THE 2026-08-31 RULING: one mechanism, one parent, one door for the
+    # house's own furniture — the group's rows AND the Trash sit under a
+    # row named for the house; nothing stands alone at the column's foot
+    # any more. The parent is no page, though, and no fold either: a door
+    # in name only.
+    Then the sidebar's foot is one parent named "olai"
+    And the parent nests the Trash door
+    When I pin the page
+    Then the parent nests the vault group's "_olai/Pins.olai" row
     And there should be no page errors
 
   Scenario: The trash is out of the tree either way, because it is not a file you edit

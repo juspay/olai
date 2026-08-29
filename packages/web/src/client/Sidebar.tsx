@@ -115,7 +115,7 @@
  * scroll position rather than parked at the foot of the page.
  */
 
-import { type BrokenFile, fileKind, inboxIn, inOlaiDir, isTrashed, stemOf } from "@olai/format"
+import { type BrokenFile, type FileKind, fileKind, inboxIn, inOlaiDir, isTrashed, stemOf } from "@olai/format"
 import { Key } from "@solid-primitives/keyed"
 import {
   createMemo,
@@ -407,30 +407,47 @@ export function Sidebar(props: {
             </div>
           </section>
 
-          {/* THE COLUMN'S FOOT — the vault's own furniture, then the way
-              OUT of the directory: one list, one mechanism (`DoorRow`),
-              because the group and the Trash are the same thing — doors
-              onto pages the tree does not draw, differing only in who is
-              named. The `_olai/` outlines sit above the Trash and in its
-              own register (the quiet ink of a door rather than the list's):
-              not this reader's corpus, but pages this reader may well open
-              — the watch's config is the one the drawer's wrench lands on.
-              An empty group is simply no rows (the shelf's own rule: never
-              an empty box); the Trash is always there, always was. Inbox
+          {/* THE COLUMN'S FOOT — the vault's own furniture, under ONE
+              special parent named after the house itself: the `_olai/`
+              outlines AND the way out (the Trash) nest under "olai"
+              (ruled 2026-08-31: one mechanism, one parent, one door for
+              the vault's own furniture — the Trash's top-level entry used
+              to sit alone here and is absorbed). The parent is no page:
+              the rows under it are the doors, each in the quiet ink of a
+              door rather than the list's — not this reader's corpus, but
+              pages this reader may well open (the watch's config is the
+              one the drawer's wrench lands on). An empty group is the
+              parent and the Trash alone (the shelf's own rule: never an
+              empty box); the Trash is always there, always was. Inbox
               used to sit here; it moved up beside Agenda (human,
               2026-08-20). */}
           <section class={REGION}>
             <ul class="m-0 list-none p-0">
-              <Key each={vault()} by={(file) => file}>
-                {(file) => (
-                  <VaultFile
-                    file={file()}
-                    isActive={isActive}
-                    broken={props.broken}
-                  />
-                )}
-              </Key>
-              <Trash />
+              <li class="mb-0.5">
+                {/* THE PARENT — the door in name only: no page behind it,
+                    so it is not a `DoorRow`; the underlined rows are the
+                    doors. It reads as the tree's folders read (the DIR
+                    register) so the furniture looks nested the way
+                    everything nested looks — there is no fold in this one,
+                    though: a parent you could collapse is the hiding
+                    switch wearing a tree's clothes. */}
+                <div class={DIR} data-testid={TESTID.vaultGroup}>
+                  <span class={CONTROL} aria-hidden="true" />
+                  <span class="min-w-0 truncate">olai</span>
+                </div>
+                <ul class="m-0 ml-2 list-none border-l border-paper/20 p-0 pl-2">
+                  <Key each={vault()} by={(file) => file}>
+                    {(file) => (
+                      <VaultFile
+                        file={file()}
+                        isActive={isActive}
+                        broken={props.broken}
+                      />
+                    )}
+                  </Key>
+                  <Trash />
+                </ul>
+              </li>
             </ul>
           </section>
         </div>
@@ -547,9 +564,45 @@ function DoorRow(props: {
   )
 }
 
+/** ONE FILE-ROW BODY, for every row that opens a file page — the
+ *  fold-control's own seat (held even where nothing folds, so the glyph
+ *  lands in the tree's one column), the kind's glyph, the truncating
+ *  name and the ⚠ a file that could not be read wears. The tree's `File`
+ *  and the `olai` parent's `VaultFile` rows both wear it: two lists
+ *  agreeing about one anatomy is not two lists that remembered the same
+ *  four elements by luck, it is one. */
+function FileAnatomy(props: {
+  readonly of: FileKind | null | undefined
+  readonly name: string
+  readonly broken: boolean
+}) {
+  return (
+    <>
+      {/* The fold control's box, empty: a file has no triangle, and leaving
+          the cell out put its glyph where a folder's triangle sits — so the
+          four drawings that were supposed to be one column
+          (`./file/icons.tsx`) never were. The outline tree already holds
+          this seat open (`./Tree.tsx`'s HOVER_CELL fallback). */}
+      <span class={CONTROL} aria-hidden="true" />
+      {/* Which kind of file this is — the thing four characters of extension
+          were carrying on their own (`./file/icons.tsx`). */}
+      <Show when={props.of ?? undefined}>{(of) => <Glyph of={of()} />}</Show>
+      <span class="min-w-0 truncate">{props.name}</span>
+      <Show when={props.broken}>
+        {/* No margin of its own: the row has one gap and this is on it. */}
+        <span class="text-alarm" title="this file could not be read">
+          ⚠
+        </span>
+      </Show>
+    </>
+  )
+}
+
 /**
- * ONE OF THE VAULT'S OWN FILES — a seat of the quiet group at the column's
- * foot, the `DoorRow` dressed as a file page.
+ * ONE OF THE VAULT'S OWN FILES — nested under the foot's `olai` parent,
+ * the `DoorRow` dressed as a file page. The body is the tree's own
+ * (`FileAnatomy`): tests assert the rows' agreement by asking one
+ * component of both.
  *
  * It is a FILE PAGE, not a page of its own the way Trash is: `Kolu.olai`
  * opens like any outline, so the seat lights the current-page wash off the
@@ -559,10 +612,10 @@ function DoorRow(props: {
  * swallowing the mark would be the silent failure the corpus's own rules
  * refuse.
  *
- * QUIET INK, deliberately: the register is the Trash door's (`DOOR`), and it
- * is how the group reads as the house's furniture rather than as a few more
- * of the reader's own outlines parked lower — the 2026-08-29 design's one
- * treatment for what there used to be a switch about.
+ * NESTED, so the foot marks it the way a tree's child is marked (the
+ * spine on the left), and the quiet ink says what stays true of any of
+ * these: the house's furniture, not another outline of the reader's own
+ * parked lower.
  */
 function VaultFile(props: {
   readonly file: string
@@ -579,17 +632,7 @@ function VaultFile(props: {
       broken={unreadable()}
       title={props.file}
     >
-      {/* The tree rows' own seat for a fold control, held here too, so the
-          glyph lands in the same column as the tree's — one column of
-          names, the quiet ink said why these ones are quiet. */}
-      <span class={CONTROL} aria-hidden="true" />
-      <Show when={of}>{(kind) => <Glyph of={kind()} />}</Show>
-      <span class="min-w-0 truncate">{stemOf(props.file)}</span>
-      <Show when={unreadable()}>
-        <span class="text-alarm" title="this file could not be read">
-          ⚠
-        </span>
-      </Show>
+      <FileAnatomy of={of} name={stemOf(props.file)} broken={unreadable()} />
     </DoorRow>
   )
 }
@@ -612,7 +655,11 @@ function Trash() {
       testid={TESTID.trashLink}
       current={router.route().kind === "trash"}
     >
-      Trash
+      {/* Not a file: the CONTROL seat but no glyph, like the parent —
+          the page's whole look is that of the furniture it sits under,
+          and a file kind's drawing would lie about it. */}
+      <span class={CONTROL} aria-hidden="true" />
+      <span class="min-w-0 truncate">Trash</span>
     </DoorRow>
   )
 }
@@ -783,22 +830,11 @@ function File(props: {
         broken={outline && props.view.broken.has(props.row.file)}
         title={props.row.file}
       >
-        {/* The fold control's box, empty: a file has no triangle, and leaving
-            the cell out put its glyph where a folder's triangle sits — so the
-            four drawings that were supposed to be one column (`./file/icons.tsx`)
-            never were. The outline tree already holds this seat open
-            (`./Tree.tsx`'s HOVER_CELL fallback). */}
-        <span class={CONTROL} aria-hidden="true" />
-        {/* Which kind of file this is — the thing four characters of extension
-            were carrying on their own (`./file/icons.tsx`). */}
-        <Glyph of={props.row.of} />
-        <span class="min-w-0 truncate">{props.row.name}</span>
-        <Show when={outline && props.view.broken.has(props.row.file)}>
-          {/* No margin of its own: the row has one gap and this is on it. */}
-          <span class="text-alarm" title="this file could not be read">
-            ⚠
-          </span>
-        </Show>
+        <FileAnatomy
+          of={props.row.of}
+          name={props.row.name}
+          broken={outline && props.view.broken.has(props.row.file)}
+        />
       </Link>
     </li>
   )

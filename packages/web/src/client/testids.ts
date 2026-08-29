@@ -851,11 +851,17 @@ export const TESTID = {
    *  the inbox is empty: an empty inbox wears no chip, not a zero. */
   inboxCount: "inbox-count",
   /** THE VAULT'S OWN FILES — the `_olai/` outlines' home at the foot of the
-   *  directory column, below the reader's own files, in Trash's quiet
-   *  register (`client/Sidebar.tsx`). Drawn only when the directory has
+   *  directory column, nested under the `vaultGroup` parent beside the
+   *  Trash door (`client/Sidebar.tsx`). Drawn only when the directory has
    *  one. `data-file` carries the path it opens, so a scenario names the
    *  row rather than the words on it. */
   vaultLink: "vault-link",
+  /** THE FURNITURE'S PARENT, naming the house itself: the one special
+   *  node the `_olai/` outlines and the Trash nest under (ruled
+   *  2026-08-31: one mechanism, one parent, one door for the vault's own
+   *  furniture). It is no page itself — the rows under it are the doors
+   *  — and it is always drawn, the way the agenda is. */
+  vaultGroup: "vault-group",
   /** The trash, as a page. Every archive the directory holds, read-only. */
   trashPage: "trash-page",
   /** One archive's worth of rows on it; `data-file` is which `_olai/Trash.olai`.

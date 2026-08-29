@@ -23,6 +23,8 @@ import {
   PADI_FEED_MUTES,
   PADI_FEED_WRENCH,
   POLL_TIMEOUT,
+  TRASH_LINK,
+  VAULT_GROUP,
   VAULT_LINK,
   type OlaiWorld,
 } from "../support/world.ts"
@@ -135,6 +137,36 @@ Then("the vault group's {string} row marks the current page", async function(thi
   const row = this.page.locator(vaultFile(file)).first()
   await visible(this, vaultFile(file))
   assert.equal(await row.getAttribute("aria-current"), "page")
+})
+
+Then("the sidebar's foot is one parent named \"olai\"", async function(this: OlaiWorld) {
+  await visible(this, VAULT_GROUP)
+  assert.equal(
+    (await this.page.locator(VAULT_GROUP).first().innerText()).trim(),
+    "olai",
+    "the furniture's parent was named something other than the house",
+  )
+})
+
+Then("the parent nests the Trash door", async function(this: OlaiWorld) {
+  await visible(this, VAULT_GROUP)
+  // Nothing beside the nested door carries the mark: one parent, and
+  // everything under it is the house's own.
+  await this.waitUntil(
+    async () =>
+      (await this.page
+        .locator(`${VAULT_GROUP} ~ ul ${TRASH_LINK}`)
+        .count()) === 1,
+    "the Trash door to nest under the foot's parent",
+  )
+})
+
+Then("the parent nests the vault group's {string} row", async function(this: OlaiWorld, file: string) {
+  await this.waitUntil(
+    async () =>
+      (await this.page.locator(`${VAULT_GROUP} ~ ul ${vaultFile(file)}`).count()) === 1,
+    `the vault group's ${file} row to nest under the foot's parent`,
+  )
 })
 
 Then("the vault group sits below the file tree", async function(this: OlaiWorld) {

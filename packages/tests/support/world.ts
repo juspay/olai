@@ -737,9 +737,13 @@ export const TRASH_EMPTY_CANCEL = selector(TESTID.trashEmptyCancel);
 export const TRASH_PAGE_SAID = selector(TESTID.trashPageSaid);
 /** The way to it, at the foot of the directory column. */
 export const TRASH_LINK = selector(TESTID.trashLink);
-/** THE VAULT'S OWN FILES — the `_olai/` outlines' rows in the quiet group
- *  at the foot of the directory column; `data-file` is which. */
+/** THE VAULT'S OWN FILES — the `_olai/` outlines' rows nested under the
+ *  foot's `olai` parent; `data-file` is which. */
 export const VAULT_LINK = selector(TESTID.vaultLink);
+/** THE FURNITURE'S PARENT — the one row the `_olai/` outlines and the
+ *  Trash nest under, at the foot of the directory column. It is no
+ *  page: its children are the doors. */
+export const VAULT_GROUP = selector(TESTID.vaultGroup);
 /** And the way to the INBOX, beside Agenda — drawn only when the directory
  *  has one, which is what the scenarios about a never-captured vault read. */
 export const INBOX_LINK = selector(TESTID.inboxLink);
