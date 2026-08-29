@@ -717,6 +717,7 @@ export const bind = (
       options: wiring.kolu,
       fleet: () => published?.collections.fleet,
       events: () => published?.collections.events,
+      pulse: () => published?.cells.pulse,
       // THE VAULT WALKS, passed in — the ruling's own words. `claimants.ts`
       // stays here whole because it reads outline records, which is a thing
       // the package that dials padi must not learn; what crosses is four

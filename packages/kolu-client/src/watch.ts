@@ -31,8 +31,11 @@
  * is never said at all — that is the debounce padi's `heldForMs` documents
  * and the soak runs beside.
  *
- * A `heartbeat` fires every `heartbeatMs` (immediately once, at boot), so a
- * quiet feed and a dead watcher do not look alike.
+ * A beat is said every `heartbeatMs` (immediately once, at boot) — into
+ * the SINK's `beat`, not the ring. Liveness lives on the pill (the wire's
+ * `pulse` member); the ring holds ATTENTION events only, so a feed drawn
+ * over a dead fleet is a page that had nothing to say, not a beat failing
+ * to reach it.
  *
  * ## A link drop is not a closing fleet
  *
@@ -121,6 +124,9 @@ export interface WatchSink {
   readonly emit: (event: KoluEvent) => void
   /** Fired ONLY on a ring eviction: events are never edited, only dropped. */
   readonly evict: (id: string) => void
+  /** The beat: the watcher is alive. Attentive value (`at` + the cadence it
+   *  was stamped under) rides beside it, which is the pill's whole read. */
+  readonly beat: (at: string, everyMs: number) => void
   readonly say: (line: string) => void
 }
 
@@ -314,11 +320,12 @@ export const makeWatch = (
     })
   }
 
-  /** The heartbeat: no row, no terminal, no nag — the watcher is alive. */
+  /** The heart: attention events are not its to say — one stamp per
+   *  beat, onto the sink's `beat`, with the cadence eaten beside it. No
+   *  row, no terminal, no nag — the watcher's whole answer to the
+   *  door's quiet face. */
   const pulse = (): void => {
-    const at = options.now()
-    seq += 1
-    push({ id: `ev-${seq}`, kind: "heartbeat", at: new Date(at).toISOString(), row: null })
+    sink.beat(new Date(options.now()).toISOString(), config.heartbeatMs)
   }
 
   /** Re-arm the heartbeat under the config in force. The interval is

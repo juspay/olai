@@ -1,5 +1,5 @@
 /**
- * KOLU'S SLICE OF OLAI'S WIRE — the vocabulary and the four members, here
+ * KOLU'S SLICE OF OLAI'S WIRE — the vocabulary and the members, here
  * rather than in `@olai/surface`.
  *
  * ## Why the spec moved
@@ -47,6 +47,7 @@ import { Schema } from "effect"
 import {
   FleetTerminal,
   KOLU_UNDIALED,
+  KOLU_UNPULSED,
   KoluEvent,
   KoluLink,
   sameKolu,
@@ -55,6 +56,7 @@ import {
   SnapshotRequest,
   TerminalAttach,
   TerminalFrame,
+  WatchPulse,
 } from "./kolu.ts"
 
 /**
@@ -88,6 +90,22 @@ export const koluMembers = {
       default: KOLU_UNDIALED,
       verbs: ["get"],
       equals: sameKolu,
+    },
+    /**
+     * THE PULSE — the watcher's liveness, as a timestamp (see
+     * { ./kolu.ts}'s `WatchPulse`): WHEN the heart last beat, and HOW LONG
+     * the cadence is allowed to run once it is overdue. The door reads
+     * `at` off this one stamp; the pill's answer to "has it gone quiet" is
+     * arithmetic it can do itself (`everyMs` is carried beside the stamp,
+     * so the browser never guesses the vault's cadence name). Two values,
+     * one stamp per beat.
+     *
+     * Wire-read-only: what is beating is not something a browser could set.
+     */
+    pulse: {
+      schema: Schema.NullOr(WatchPulse),
+      default: KOLU_UNPULSED,
+      verbs: ["get"],
     },
   },
   collections: {
@@ -127,9 +145,9 @@ export const koluMembers = {
      *
      * The knob set these events came from is `_olai/Kolu.olai` in the served
      * directory (the vault owner's, read live); what olai owns is the reading
-     * and the math — the mirror's rows folded into transition/hold/nag, plus
-     * the heartbeat that says the watcher is alive. See
-     * `@olai/kolu-client`'s `watch.ts` for the semantics and
+     * and the math — the mirror's rows folded into transition/hold/nag. The
+     * ring is ATTENTION ONLY — liveness is the `pulse` cell above, not a row
+     * here. See `@olai/kolu-client`'s `watch.ts` for the semantics and
      * {@link ./kolu.ts}'s `KoluEvent` for the shape.
      *
      * A COLLECTION rather than a stream: the ring is a standing thing every

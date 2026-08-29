@@ -1664,6 +1664,7 @@ export {
   FleetTerminal,
   KoluEvent,
   KOLU_UNDIALED,
+  KOLU_UNPULSED,
   KoluLink,
   KoluStatus,
   type Resolved,
@@ -1676,4 +1677,5 @@ export {
   TerminalFrame,
   TERMINAL_KEY,
   UNOWNED,
+  type WatchPulse,
 } from "@olai/kolu-client/wire"

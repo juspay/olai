@@ -68,8 +68,8 @@
  *   - **`@olai/kolu-client`** — THE DIAL and the wire. The only package that
  *     speaks padi: one socket per server, the standing mirror, the projection
  *     into olai's own shapes. Four doors beside the root — `./wire` (the
- *     vocabulary and the five surface members — the events ring is the newest
- *     — which `@olai/surface` spreads into its spec and re-exports),
+ *     vocabulary and the members — the events ring and the `pulse` cell are
+ *     the newest — which `@olai/surface` spreads into its spec and re-exports),
  *     `./detect` (the spawn-time probe's
  *     surface), `./testlib` (the fake padi and its lifecycle) and `./drivers`
  *     (the two padi-dialing evidence scripts).
@@ -101,6 +101,7 @@ import {
   type Snapshot,
   type TerminalFrame,
   SnapshotRefused,
+  type WatchPulse,
 } from "./wire/index.ts"
 import { makeWatch, type Watch, type WatchConfig } from "./watch.ts"
 import { Effect, Stream } from "effect"
@@ -126,6 +127,11 @@ export interface KoluDeps<N> {
   readonly events: () => {
     readonly upsert: (key: string, value: KoluEvent) => void
     readonly remove: (key: string) => void
+  } | undefined
+  /** The pulse cell's setter, as a FUNCTION for `events`' reason: the
+   *  surface may not exist yet when the first beat lands. */
+  readonly pulse: () => {
+    readonly set: (value: WatchPulse) => void
   } | undefined
   /** THE FIRST VAULT WALK, injected. Who claims which terminal is read off
    *  outline records, and an outline record is a thing this package must not
@@ -239,6 +245,12 @@ export interface KoluHandlers {
       readonly store: CellStore<KoluLink>
       readonly connect: (cell: { set: (value: KoluLink) => void }) => Effect.Effect<void>
     }
+    /** The watcher's pulse — the whole of what the header's pill reads
+     *  beyond the link's own `since`. Read-only on the wire: a beat
+     *  never asks for a browser's opinion. */
+    readonly pulse: {
+      readonly store: CellStore<WatchPulse | null>
+    }
   }
   readonly collections: {
     readonly fleet: {
@@ -292,10 +304,19 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
    *  stating recently in that case is a healthy fresh-install preview. The
    *  clock is the wall: the tests that need a vocabulary of their own get
    *  it through `./watch.ts`'s `options.now`, not through here. */
+  /** The beat's LAST value, so the cell's snapshot answer is the one the
+   *  live broadcast ate: the setter publishes to open subscribers and the
+   *  store answers a fresh one — the events collection's two paths, one
+   *  member over. */
+  let pulse: WatchPulse | null = null
   const watch: Watch = makeWatch(
     {
       emit: (event) => deps.events()?.upsert(event.id, event),
       evict: (id) => deps.events()?.remove(id),
+      beat: (at, everyMs) => {
+        pulse = { at, everyMs }
+        deps.pulse()?.set(pulse)
+      },
       say: deps.warn,
     },
     { now: () => Date.now() },
@@ -334,7 +355,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
       attach: () =>
         Stream.make({ kind: "refused", says: NO_LINK.says } as TerminalFrame),
       revision,
-      handlers: linklessHandlers(watch),
+      handlers: linklessHandlers(watch, () => pulse),
     }
   }
   const { now } = deps.options
@@ -388,6 +409,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
       connect,
       rows: mirror.rows,
       events: watch.events,
+      pulse: () => pulse,
       screen,
       attach: mirror.attach,
     }),
@@ -415,6 +437,10 @@ const handlersOf = (verbs: {
   readonly connect: (cell: { set: (value: KoluLink) => void }) => Effect.Effect<void>
   readonly rows: () => Map<string, FleetTerminal>
   readonly events: () => Map<string, KoluEvent>
+  /** The pulse's LAST beat, for the cell's snapshot — the column the
+   *  dep fold reads as the standing value, beside the broadcast the
+   *  setter walks. */
+  readonly pulse: () => WatchPulse | null
   readonly screen: (
     terminal: string,
     lines: number | undefined,
@@ -430,6 +456,12 @@ const handlersOf = (verbs: {
       // face that has no business holding a socket open.
       store: inMemoryStore<KoluLink>(SEED),
       connect: verbs.connect,
+    },
+    pulse: {
+      // Wire-read-only, like `kolu`: a beat is something the server
+      // records, never a value a tab could set. The store's getter is the
+      // LAST stamped beat; the setter walks a hollow arm on purpose.
+      store: { get: verbs.pulse, set: () => {} },
     },
   },
   collections: {
@@ -463,11 +495,15 @@ const handlersOf = (verbs: {
   },
 })
 
-/** What a face with no link answers on all four members — the same refusal the
- *  verbs above give, in the shape the surface takes. The events collection is
- *  the one member that is ALIVE here: no fleet, no screen, no pane — but the
- *  watcher pulses, for the fresh-install preview its header argues for. */
-const linklessHandlers = (watch: Watch): KoluHandlers =>
+/** What a face with no link answers on the whole surface — the same refusal
+ *  the verbs above give, in the shape the surface takes. The events
+ *  collection and the pulse cell are the one arm that is ALIVE here: no
+ *  fleet, no screen, no pane — but the watcher pulses, which is the
+ *  fresh-install preview its header argues for. */
+const linklessHandlers = (
+  watch: Watch,
+  beat: () => WatchPulse | null,
+): KoluHandlers =>
   handlersOf({
     // The connector beholds forever, and the RUNTIME's interrupt of it is
     // the same death the linked half plans: `ensuring`'s second arm is not
@@ -476,6 +512,7 @@ const linklessHandlers = (watch: Watch): KoluHandlers =>
     connect: () => Effect.ensuring(Effect.never, Effect.sync(() => watch.stop())),
     rows: () => NO_ROWS,
     events: watch.events,
+    pulse: beat,
     screen: () => Effect.fail(NO_LINK),
     attach: () => Stream.make({ kind: "refused", says: NO_LINK.says } as TerminalFrame),
   })

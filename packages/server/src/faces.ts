@@ -273,6 +273,9 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   // gesture somebody made in a tab they are looking at, and it is not a verb
   // an agent gets for asking.
   kolu: "resource",
+  // The watcher pulse — the pill's only liveness read. Same standing as
+  // `kolu`: a browser wants the answer, not a handle.
+  pulse: "resource",
   fleet: "resource",
   // THE EVENTS FEED, same door and the same reasoning: an agent asking what
   // recently wanted attention has kolu's own MCP face, and olai's log rows

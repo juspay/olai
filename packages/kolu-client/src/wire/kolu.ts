@@ -141,6 +141,33 @@ export const KOLU_UNDIALED: KoluLink = {
   since: "",
 }
 
+/**
+ * WHERE THE WATCHER'S HEART IS, at last count — the pill's only liveness
+ * fact.
+ *
+ * The AT is the beat's own timestamp — ISO, like every `KoluEvent` row's.
+ * The `everyMs` is the CADENCE: the vault's `heartbeat:` knob, in
+ * milliseconds, as the watcher is currently configured. The pill doesn't
+ * know the knob, so the cadence rides beside the stamp: the fold's answer
+ * to "has the pulse gone quiet" is arithmetic the header can do itself
+ * without a second reader (the fold — `padiSaid`'s — eats
+ * `age > everyMs * 2`).
+ */
+export const WatchPulse = Schema.Struct({
+  /** The beat — and the entry's only wall-clock truth about liveness. */
+  at: Schema.String,
+  /** The vault's `heartbeat:` knob at this beat's reading, in
+   *  milliseconds — the cadence the stamp answers to. */
+  everyMs: Schema.Number,
+})
+
+export type WatchPulse = typeof WatchPulse.Type
+
+/** No beat has been read yet — the pill before the watcher exposed its
+ *  cadence. The door answers `kolu` on its own, the quiet face of the
+ *  fold: no recency value answers, so the header can't compute an age. */
+export const KOLU_UNPULSED: WatchPulse | null = null
+
 /** Two readings that say the same thing about the link — the member's `equals`,
  *  so a re-dial that found exactly what it found last time publishes nothing
  *  and `since` does not creep. Everything but `since` is compared; `since` is
@@ -438,7 +465,9 @@ export class SnapshotRefused extends Schema.TaggedError<SnapshotRefused>(
  *     after one line.
  *   - `heartbeat` — the watcher is alive and watching. It names NO terminal:
  *     a reader who has seen nothing for half an hour needs to be able to tell
- *     "nothing matched" from "nothing is running".
+ *     "nothing matched" from "nothing is running". The kind survives as the
+ *     spelling; the RING eats attention events only — boot and liveness sit
+ *     on the `pulse` cell instead ({ ./index.ts}'s `pulse` member).
  */
 export const KOLU_EVENT_KINDS = ["transition", "nag", "heartbeat"] as const
 

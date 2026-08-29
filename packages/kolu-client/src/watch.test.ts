@@ -88,10 +88,14 @@ const collected = () => {
   const said: Array<string> = []
   const sets_full: Array<KoluEvent> = []
   const ring = new Map<string, KoluEvent>()
+  /** Every beat as it landed on the sink: the pill's recency, which LIVES
+   *  here since the beat came out of the ring (see `./watch.ts`'s header). */
+  const beats: Array<{ at: string; everyMs: number }> = []
   return {
     sets,
     said,
     events: sets_full,
+    beats,
     ring: () => new Map(ring),
     sink: {
       emit: (event: KoluEvent) => {
@@ -104,6 +108,9 @@ const collected = () => {
       evict: (id: string) => {
         ring.delete(id)
       },
+      beat: (at: string, everyMs: number) => {
+        beats.push({ at, everyMs })
+      },
     },
   }
 }
@@ -112,10 +119,13 @@ describe("the attention watcher", () => {
   it("boots with a heartbeat and tells no other lies", () => {
     const seen = collected()
     const watch = makeWatch(seen.sink, { now: () => 1_700_000_000_000 })
-    // THE BEAT IS IMMEDIATE — a feed opened one breath after the server's
-    // own measure answers "quiet" with a pulse, not with nothing.
-    expect(seen.sets.length).toBe(1)
-    expect(seen.events[0]?.kind).toBe("heartbeat")
+    // THE BEAT IS IMMEDIATE — the pill stamps once at boot, and the RING
+    // holds attention only: a feed opened one breath in answers "quiet"
+    // with a pulse, never with a ring row.
+    expect(seen.beats.length).toBe(1)
+    expect(seen.beats[0]?.at).toBe(new Date(1_700_000_000_000).toISOString())
+    expect(seen.beats[0]?.everyMs).toBe(DEFAULT_WATCH.heartbeatMs)
+    expect(seen.events.filter((e) => e.kind === "heartbeat").length).toBe(0)
     watch.stop()
   })
 
@@ -267,18 +277,21 @@ describe("the attention watcher", () => {
     // interval alone, so the next beat lands 80 ms hence — a clear-then-
     // re-arm would charge a full 200, and the count is where that shows.
     await sleep(120)
-    const atEcho = seen.events.filter((e) => e.kind === "heartbeat").length
-    expect(atEcho).toBe(1)
+    expect(seen.beats.length).toBe(1)
     watch.reconfigure(tiny({ heartbeatMs: 200 }))
     await sleep(90)
-    const afterEcho = seen.events.filter((e) => e.kind === "heartbeat").length
-    expect(afterEcho).toBe(atEcho + 1)
+    expect(seen.beats.length).toBe(2)
 
     // Raising the knob clears the in-flight interval: the next pulse may
-    // not ride on the shorter cadence's trail.
+    // not ride on the shorter cadence's trail. And the beat carries its
+    // own cadence, so the door's age arithmetic never asks after it.
     watch.reconfigure(tiny({ heartbeatMs: 10_000 }))
     await sleep(100)
-    expect(seen.events.filter((e) => e.kind === "heartbeat").length).toBe(afterEcho)
+    expect(seen.beats.length).toBe(2)
+    expect(seen.beats[1]?.everyMs).toBe(200)
+    // The ring holds the ATTENTION rows, and nothing else — the beat is
+    // not a row, and never was one (see the header).
+    expect(seen.events.filter((e) => e.kind === "heartbeat").length).toBe(0)
     watch.stop()
   })
 
@@ -354,7 +367,10 @@ describe("the attention watcher", () => {
     const seen = collected()
     const watch = makeWatch(seen.sink, { now: () => Date.now() })
     watch.reconfigure(tiny({ heldForMs: 5, nagMs: 60_000 }))
-    for (let i = 1; i <= 207; i += 1) {
+    // 208 arrivals into a ring of 200, for the evict-on-eight-threshold the
+    // assertions below count on. ( beats never REACH the ring now — the
+    // fill is attention rows or nothing. )
+    for (let i = 1; i <= 208; i += 1) {
       watch.observe(`t${i}`, row(`t${i}`, "waiting"))
     }
     await sleep(70)
