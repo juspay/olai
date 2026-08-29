@@ -1,0 +1,56 @@
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -133,11 +133,27 @@
+   static async spawn(params) {
+     const cmd = getPiCommand(params.piCommand);
+     const args = ["--mode", "rpc", "--no-themes"];
++    // olai patch (pi-mcp-servers), first half — the bridge THE PIN ships:
++    // when the wrapper armed PI_ACP_MCP_EXTENSION and the request handed
++    // tool servers, this session's pi loads the bridge and its process env
++    // carries the servers as JSON. mcpServers beyond this point have
++    // reached pi; what pi does with the bridge's registerTool'd surface is
++    // the agent's own answer. Regenerate with
++    // `bash acp/mcp-bridge/regenerate.sh` — editing this text in the patch
++    // file is the drift the tooling exists to remove.
++    const mcpExtension = typeof process.env.PI_ACP_MCP_EXTENSION === "string" ? process.env.PI_ACP_MCP_EXTENSION : "";
++    const mcpServers = Array.isArray(params.mcpServers) ? params.mcpServers : [];
++    const childEnv = mcpExtension !== "" && mcpServers.length > 0
++      ? { ...process.env, PI_ACP_MCP_SERVERS: JSON.stringify(mcpServers) }
++      : void 0;
++    if (childEnv) {
++      args.push("-e", mcpExtension);
++    }
+     if (params.sessionPath) args.push("--session", params.sessionPath);
+     const child = spawn(cmd, args, {
+       cwd: params.cwd,
+       stdio: "pipe",
+-      env: process.env,
++      env: childEnv ?? process.env,
+       shell: shouldUseShellForPiCommand(cmd)
+     });
+     try {
+@@ -714,6 +730,7 @@
+     try {
+       proc = await PiRpcProcess.spawn({
+         cwd: params.cwd,
++        mcpServers: params.mcpServers,
+         piCommand: params.piCommand
+       });
+     } catch (e) {
+@@ -1888,6 +1905,7 @@
+       try {
+         proc = await PiRpcProcess.spawn({
+           cwd,
++          mcpServers: opts?.mcpServers,
+           sessionPath: stored.sessionFile,
+           piCommand: process.env.PI_ACP_PI_COMMAND
+         });
+@@ -1933,7 +1951,7 @@
+       }),
+       agentCapabilities: {
+         loadSession: true,
+-        mcpCapabilities: { http: false, sse: false },
++        mcpCapabilities: { http: typeof process.env.PI_ACP_MCP_EXTENSION === "string" && process.env.PI_ACP_MCP_EXTENSION !== "", sse: typeof process.env.PI_ACP_MCP_EXTENSION === "string" && process.env.PI_ACP_MCP_EXTENSION !== "" },
+         promptCapabilities: {
+           image: true,
+           audio: false,

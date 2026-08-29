@@ -45,10 +45,13 @@ describe("which tool a call is", () => {
 })
 
 describe("which permissions are answered without asking", () => {
-  test("NONE — on this wire olai's tools do not exist, so nothing is ours", () => {
-    // pi-acp accepts the handed `mcpServers` and wires them to nothing. The
-    // names this list is called with are the ones a FUTURE wiring might mint,
-    // whatever shape that takes — the claim is the refusal, not the shape.
+  test("NONE — olai's tools ARE pi's own now, and pi never asks on this wire", () => {
+    // The pin's bridge (acp/patches/README.md) registerTools the handed
+    // servers INTO the agent under the same names the other agents answer
+    // by — and pi-acp still mints NO permission requests about calls on
+    // such a wire: its own settings govern its tools, not an answering
+    // request on ACP, so the refusal answer stands where it stood — the
+    // claim is the refusal, not the shape the tool reached pi by.
     expect(allowedWithoutAsking("olai_set_done", ["olai", "kolu"], []))
       .toBeNull()
     expect(allowedWithoutAsking("mcp__olai__set_done", ["olai"], [])).toBeNull()
@@ -114,18 +117,6 @@ describe("what pi-acp does not do", () => {
     // and never a corner on a row.
     expect(PI.listedIn({})).toBeNull()
     expect(PI.listedIn(undefined)).toBeNull()
-  })
-})
-
-describe("what the roster is told of a handed server", () => {
-  test("is the wire's own sentence at the open, never a `handed` that waits forever", () => {
-    // The servers are accepted and wired to nothing, and this wire carries
-    // no report that could move the row later (`rawMessages: null`; ACP's
-    // `session/new` has no per-server answer). The sentence is the claim and
-    // is shown verbatim under the row: it must name the adapter and what it
-    // did with what it was handed.
-    expect(PI.handedStandsAs).toContain("pi-acp")
-    expect(PI.handedStandsAs).toContain("wires them to nothing")
   })
 })
 

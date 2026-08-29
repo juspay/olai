@@ -86,28 +86,18 @@ export interface NotHere {
  * @param missing what a person is owed about the server it was not given, or
  *   `null` when there was nothing to miss ({@link ./kolu.ts}'s `missingFrom` —
  *   a host with no kolu on it had nothing go wrong)
- * @param handedAs the leg's answer for a wire that will never speak per
- *   server ({@link ./agents/leg.ts}'s `Leg.handedStandsAs`), or `null` —
- *   the ordinary case, where `handed` stands until the agent's own word
- *   moves it. On the one wire olai knows HANDED is INERT by construction,
- *   holding the word `handed` up for the life of the conversation would be
- *   repeating the model's wrong answer at this panel's own confidence —
- *   which is the wrong answer this module exists to stop.
  */
 export const rosterOf = (
   handing: ReadonlyArray<McpServer>,
   missing: NotHere | null,
-  handedAs: string | null,
 ): ReadonlyArray<ChatServer> => [
   ...handing.map((server): ChatServer => ({
     name: server.name,
     where: whereOf(server),
     // HANDED, never `connected`, and this is the layering in one line: olai
     // knows it gave the server to the session and cannot know the session took
-    // it. Only an agent's own word moves a row past here ({@link movedBy}) —
-    // or, on a wire that will never carry such a word, the leg's sentence,
-    // said at the open rather than never.
-    standing: handedAs === null ? { kind: "handed" } : { kind: "unattached", why: handedAs },
+    // it. Only an agent's own word moves a row past here ({@link movedBy}).
+    standing: { kind: "handed" },
   })),
   // ... and the one it did not get, as the fourth standing. `missing` is the
   // arm for a server olai could not hand over AT ALL, which is exactly what a

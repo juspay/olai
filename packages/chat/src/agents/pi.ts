@@ -16,14 +16,10 @@
  *
  *   - **olai's MCP servers never reach pi.** `session/new`'s `mcpServers` are
  *     accepted and stored and wired to NOTHING ("Pi doesn't support
- *     mcpServers, but we accept and store" — and the pin's own build assigns
- *     the field at construction and never reads it back): pi does its I/O
- *     with its own tools, and no `olai_*` tool ever exists on this wire. So
- *     nothing here is ever answered without asking — there is no spelling of
- *     "ours" to match — the one permission path that exists is a person's
- *     every time, and the roster's rows say it from the first moment rather
- *     than standing `handed` for the life of the conversation, waiting on a
- *     report this wire cannot carry ({@link Leg.handedStandsAs}).
+ *     mcpServers, but we accept and store"): pi does its I/O with its own
+ *     tools, and no `olai_*` tool ever exists on this wire. So nothing here is
+ *     ever answered without asking — there is no spelling of "ours" to match
+ *     — and the one permission path that exists is a person's every time.
  *   - **the programmatic tool name is the `toolCallId` PREFIX, exactly as on
  *     the opencode wire**: `bash:0`, `edit:1`. Nothing on any frame says it —
  *     a bash call's `_meta` corners are its terminal bookkeeping
@@ -209,17 +205,15 @@ export const PI: Leg = {
   // picker says nothing beyond them, never a zero.
   listedIn: () => null,
   prologueIn,
-  // SAID AT THE OPEN, because nothing will ever say it later: the handed
-  // servers are stored and wired to nothing (the header's first bullet), and
-  // this wire carries no report to move the row — ACP answers `session/new`
-  // per session, not per server, and `rawMessages` below is `null`. Standing
-  // at `handed` here would be the panel repeating the model's wrong answer in
-  // the place a person has decided to trust.
-  handedStandsAs:
-    "pi-acp accepts the session's MCP servers and wires them to nothing — its " +
-    "own build assigns the field and never reads it back, so olai's tool " +
-    "servers never reach the agent",
-  // Refused (`-32602`): the modes are the thinking levels. Unattended
+  // The handed servers REACH pi: the pin's adapter ships the bridge —
+  // pi-acp (patched, acp/patches/README.md's `pi-mcp-servers` section)
+  // spawns every session's pi with `-e <bridge>` and the session's servers
+  // in its env, and pi's own registerTool API makes them real, callable
+  // tools. Standing here is therefore the same as the other legs': what
+  // olai handed, pi holds. What NO lane can answer is a foreign adapter
+  // (the override lane in scripts/acp-pi.sh) — its capability flags are
+  // its own claim, and olai's banner is exactly as strong as them, which
+  // is the conversation every leg has with its adapter.
   // auto-approval for pi lives in its own settings, outside ACP.
   bypassMode: null,
   // Refused (`-32601`): `/steering` in this adapter is a SLASH COMMAND about
@@ -237,3 +231,4 @@ export const PI: Leg = {
   // subscription here.
   rawMessages: null,
 }
+  // is the conversation every leg has with its adapter.

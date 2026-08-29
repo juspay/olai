@@ -18,10 +18,15 @@
  *     draws no editor block is expected to still show it, and olai is
  *     expected to drop it: the response's own field is what makes the match
  *     exact. A `session/load` answers the corner `null`.
- *   - **no tool is ever olai's**: the handed `mcpServers` are accepted and
- *     stored and wired to NOTHING, so this fake never calls one — the shape
- *     the fail-safe rule has to survive on this wire is that a permission
- *     request naming one of ours cannot even be WRITTEN.
+ *   - **the handed `mcpServers` reach pi through the pin's bridge** —
+ *     pi-acp patched the way acp/patches/README.md's `pi-mcp-servers` section
+ *     describes (the spiked answer of Route A): every session spawns with
+ *     `PI_ACP_MCP_SERVERS` in its env and a bridge on its `-e` line that
+ *     registers them as pi tools. A fake never RUNS pi — the wire shape
+ *     it carries from that world is the CAPABILITY answer
+ *     (`mcpCapabilities: {http,sse}: true`) and the round trip's three
+ *     frames under an `olai_<tool>` id; the protocol-true mid-cheek is
+ *     `acp/mcp-bridge/roundtrip.test.js` (a real SDK pair).
  *   - **no bypass mode, no steering**: `session/set_mode` answers `-32602`
  *     (the modes are pi's thinking levels) and `_session/steering` `-32601`.
  *     `/steering` in this adapter is a slash command about pi's own message
@@ -178,6 +183,44 @@ const turn = async (text: string): Promise<string> => {
     return "end_turn";
   }
 
+  if (said.startsWith("mcp read title ")) {
+    // THE HANDED TOOL, the way the pin's bridge has pi call it: id is the
+    // panel's `${server}_${tool}` name with the call's ordinal — the shape
+    // the real adapter's own `olm_echo_mark:0` smoke answered — pending,
+    // running, then ANSWERED with the tool's text riding `content` the way
+    // the real one rides.
+    const node = said.slice("mcp read title ".length).trim();
+    const toolCallId = "olai_read_node:0";
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call",
+        toolCallId,
+        title: "olai: read_node",
+        kind: "other",
+        status: "pending",
+        rawInput: { node },
+      },
+    });
+    notify("session/update", {
+      sessionId,
+      update: { sessionUpdate: "tool_call_update", toolCallId, status: "in_progress" },
+    });
+    const answered = `the node's title is ${node}`;
+    notify("session/update", {
+      sessionId,
+      update: {
+        sessionUpdate: "tool_call_update",
+        toolCallId,
+        status: "completed",
+        content: [{ type: "content", content: { type: "text", text: answered } }],
+        rawOutput: { content: [{ type: "text", text: answered }] },
+      },
+    });
+    say(`the node's title is ${node}`);
+    return "end_turn";
+  }
+
   if (said === "hello") {
     say("pi says: hello");
     return "end_turn";
@@ -275,7 +318,7 @@ const handle = async (message: Record<string, unknown>): Promise<void> => {
         ],
         agentCapabilities: {
           loadSession: true,
-          mcpCapabilities: { http: false, sse: false },
+          mcpCapabilities: { http: true, sse: true },
           promptCapabilities: { image: true, audio: false, embeddedContext: false },
           sessionCapabilities: { list: {}, delete: {} },
         },

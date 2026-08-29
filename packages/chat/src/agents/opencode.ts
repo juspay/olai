@@ -142,11 +142,6 @@ export const OPENCODE: Leg = {
   // ... and its `session/new` says nothing it will repeat as a chunk: an
   //  answer on this wire is a row and a field, never both.
   prologueIn: () => null,
-  // opencode never reports per server, but `handed` stays honest about it: it
-  // wires every server it is handed (the `mcp-roster-visible` incident was it
-  // CALLING kolu's tools while the model misnamed them), so "nothing has said
-  // what became of it" is the conversation's true last word.
-  handedStandsAs: null,
   // Refused (`-32602`): the modes are `build` and `plan`. Unattended
   // auto-approval for opencode lives in its own `opencode.json`, outside ACP —
   // olai answers what it is asked and never widens what it answers.

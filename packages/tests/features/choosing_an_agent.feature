@@ -480,14 +480,6 @@ Feature: Choosing an agent
     When I choose the agent "pi"
     Then the header names the agent "pi"
     And the header draws that agent's own mark
-    # ... and so does the roster: the servers olai hands every conversation
-    # never reach pi (the adapter stores them and wires them to nothing, and
-    # pi-acp's wire carries no per-server report that could ever refine the
-    # answer) — so the row says so AT THE OPEN, with the sentence, rather
-    # than standing "handed" for the life of the conversation the way the
-    # model that got asked would answer: certain, wrong, trustable-looking.
-    And the panel says the agent could not attach "olai"
-    And the reason the panel gives for "olai" is "wires them to nothing"
     When I ask the agent "hello"
     Then the chat eventually shows "pi says: hello"
     And the chat does not yet show "pi v0.84.2"
@@ -506,6 +498,23 @@ Feature: Choosing an agent
     Then the chat eventually shows "ended the turn without saying anything"
     And the chat does not yet show "pi v0.84.2"
     And the agent is idle
+
+  @pi @scratch:chat
+  Scenario: pi works a tool olai handed its conversation
+    # THE PIN'S BRIDGE, answered: pi-acp (0.0.33) stores the session's
+    # handed mcpServers and wires them nowhere — the pin patches its
+    # `session/new` spawn into `-e <bridge>` + the servers in the process
+    # env (acp/patches/README.md's pi-mcp-servers section), and the bridge
+    # registers them on pi's own extension API under the SAME names this
+    # surface already reads. The scenario mirrors the wire the patch mints:
+    # an `olai_read_node:0` call — pending, in_progress, completed, with
+    # the tool's answer riding its card. The round trip that is protocol-
+    # true lives down in acp/mcp-bridge/roundtrip.test.js, one SDK pair
+    # away from the real servers.
+    When I choose the agent "pi"
+    And I ask the agent "mcp read title install"
+    Then the chat shows a completed tool call
+    And the chat eventually shows "the node's title is install"
 
   @pi @scratch:chat
   Scenario: A message sent mid-turn to pi queues, with no interruption to offer

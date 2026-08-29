@@ -345,26 +345,6 @@ export interface Leg {
    */
   readonly prologueIn: (opened: unknown) => string | null
 
-  /**
-   * What the roster says about a server olai HANDED this agent's session, from
-   * the first moment — or `null` for "`handed` until the agent says", which is
-   * the ordinary answer and the layering's ({@link ../servers.ts}).
-   *
-   * A non-null here is a sentence for a wire whose silence is not uncertainty
-   * but DESIGN: the adapter accepted the handed servers and the wire holds no
-   * word that could refine the row afterwards — no per-server answer at open
-   * (ACP has none), no forwarded report ever ({@link Leg.rawMessages} is `null`
-   * on such a wire by construction). Such a conversation drawn `handed` for
-   * its whole life is the panel repeating the MODEL's wrong answer — certain,
-   * unsourced, in the place a person has decided to trust ({@link
-   * ../../surface/src/chat.ts}'s roster docs) — so the leg says the row's
-   * `unattached` sentence at the open rather than leaving a standing to wait
-   * on a word that is never coming. The sentence is the claim, quoted on
-   * screen: it names the adapter and what it does with the servers it was
-   * handed.
-   */
-  readonly handedStandsAs: string | null
-
   /** The permission mode to ask a fresh session for, or `null` for an agent
    *  that has none. A refusal is not a boot failure either way:
    *  {@link Leg.allowedWithoutAsking} is the backstop, and what a refusal costs
