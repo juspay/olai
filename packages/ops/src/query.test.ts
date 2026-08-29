@@ -743,10 +743,11 @@ describe("the caller shapes the rows", () => {
 
   test("`took` projects the span — whole seconds on a settled row, absent when there is none", () => {
     // The one derived name beside `status`, asked for DIRECTLY: a settled
-    // step answers the NUMBER, and the three ways to have no span answer
-    // none — the todo→done jump (no `started`), the still-running step (no
-    // settle), and the merely dated bullet (neither). `tookOf`'s three
-    // absences, spelled through the projection rather than the full row.
+    // step answers the NUMBER, and `tookOf`'s three absences answer none —
+    // four rows for them: the todo→done jump (no `started`), the
+    // still-running step (no settle), the merely dated bullet (neither),
+    // and work finished before olai stamped instants (a settling mark
+    // holding the instant-less `true`).
     const SPAN = (): OutlineSet =>
       setOf({
         "steps.olai": [
@@ -755,6 +756,7 @@ describe("the caller shapes the rows", () => {
           `{"id":"jump","parent":"lane","ord":"a1","title":"jumped to done","done":"2026-08-29T09:12:00-04:00"}`,
           `{"id":"running","parent":"lane","ord":"a2","title":"under way","doing":true,"started":"2026-08-29T09:14:00-04:00"}`,
           `{"id":"dated","parent":"lane","ord":"a3","title":"only dated","date":"2026-08-29"}`,
+          `{"id":"stamped-free","parent":"lane","ord":"a4","title":"done before instants","started":"2026-08-29T09:18:00-04:00","done":true}`,
         ].join("\n"),
       })
     const expected = [
@@ -762,6 +764,7 @@ describe("the caller shapes the rows", () => {
       { id: "jump", title: "jumped to done", status: "done" },
       { id: "running", title: "under way", status: "doing" },
       { id: "dated", title: "only dated" },
+      { id: "stamped-free", title: "done before instants", status: "done" },
     ] as const
     // The child list of a `read_node` …
     expect(read(readingOf(SPAN()).derived, "lane", ["title", "status", "took"])?.children)
