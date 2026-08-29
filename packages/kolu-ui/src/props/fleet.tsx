@@ -71,7 +71,14 @@ import type { CollectionDelta } from "@kolu/surface/define"
 import type { CollectionFold } from "@kolu/surface/solid"
 import { Effect, Result, type Stream } from "effect"
 
-import type { FleetTerminal, KoluLink, Snapshot, TerminalFrame } from "@olai/surface"
+import type {
+  FleetTerminal,
+  KoluEvent,
+  KoluLink,
+  Snapshot,
+  TerminalFrame,
+  WatchPulse,
+} from "@olai/surface"
 import { after, type Held, seeded } from "./held.ts"
 import { KOLU_UNDIALED, SnapshotRefused } from "@olai/surface"
 
@@ -92,12 +99,21 @@ export type WatchTerminal = (
 /** What a chip asks: the link, the rows it resolves against, and the one verb. */
 export interface Fleet {
   readonly link: Accessor<KoluLink>
+  /** THE PILL'S LIVENESS READ — the beat, or `undefined` while the wire
+   *  has not arrived, or `null` until the watcher has stamped once (see
+   *  `@olai/surface`'s `pulse` cell). */
+  readonly pulse: Accessor<WatchPulse | null | undefined>
   /** THE ROWS, as a map keyed by padi's full id — handed over whole rather
    *  than as a lookup, because a chip does not look its value UP: it RESOLVES
    *  it (`@olai/surface`'s `resolveTerminal`), and a prefix needs the key set
    *  to resolve against. A lookup was what drew a working terminal as retired
    *  for every one of the board's eight-character values. */
   readonly terminals: () => ReadonlyMap<string, FleetTerminal>
+  /** THE EVENT LOG, as the server keeps it — the watcher's ring, in fire
+   *  order. Same handing rule as `terminals`: a reader reads it whole,
+   *  because the feed's ordering is the ring's and a second walk is a
+   *  second answer. */
+  readonly events: () => ReadonlyMap<string, KoluEvent>
   /**
    * See the header. `undefined` where there is no wire — a test that mounts a
    * run, a document page drawn statically — and then the dot is a status glyph
@@ -126,14 +142,22 @@ export interface Fleet {
 const FleetContext = createContext<Fleet>()
 
 /**
- * The three things this provider is handed — narrowed at the parameter for the
+ * The things this provider is handed — narrowed at the parameter for the
  * reason every seam in this client is (`../directory.ts`'s note): what a module
  * is handed should be what it reads, and a suite can then stand one up out of a
  * hand-driven frame source instead of a wire socket.
  */
 export interface FleetSources {
   readonly link: Accessor<KoluLink | undefined>
+  /** The wire's `pulse` cell's value — the watcher's last stamp, so the
+   *  pill can read liveness on its own cadence. */
+  readonly pulse: Accessor<WatchPulse | null | undefined>
   readonly fold: CollectionFold<string, FleetTerminal>
+  /** THE LOG the server is keeping — the events collection's fold, fed by the
+   *  watcher (`@olai/kolu-client`'s `watch.ts`). It reads THROUGH the same
+   *  machinery as the fleet's own: one subscription per tab, a map the readers
+   *  re-ask rather than a store per reader. */
+  readonly events: CollectionFold<string, KoluEvent>
   /**
    * WATCH one terminal — the live pane's subscription, and `undefined` in the
    * same places `read` is: a run drawn with no wire behind it.
@@ -163,6 +187,14 @@ export function FleetProvider(props: {
     step: (previous, delta: CollectionDelta<string, FleetTerminal>) =>
       after(previous, delta.upserts, delta.removes),
   })
+  const ring = props.sources.events<Held<KoluEvent>>({
+    // THE RING'S OWN FOLD, same machinery as the fleet's: a snapshot replaces,
+    // an upsert appends and an eviction drops — and insertion order is the
+    // fire order the Map gives it for free.
+    init: seeded,
+    step: (previous, delta: CollectionDelta<string, KoluEvent>) =>
+      after(previous, delta.upserts, delta.removes),
+  })
   const fleet: Fleet = {
     // The SEED is `absent` and not `undefined`, which is `@olai/surface`'s own
     // decision one wire back: a server that has not finished dialing has not
@@ -170,7 +202,9 @@ export function FleetProvider(props: {
     // hollow chip it would draw a moment later anyway, and a fourth state would
     // reach every renderer for the sake of it.
     link: createMemo(() => props.sources.link() ?? KOLU_UNDIALED),
+    pulse: props.sources.pulse,
     terminals: () => held()?.rows ?? NO_ROWS,
+    events: () => ring()?.rows ?? NO_EVENTS,
     read: props.sources.read,
     watch: props.sources.watch,
     now: props.now,
@@ -192,7 +226,9 @@ export function FleetProvider(props: {
 export const useFleet = (): Fleet =>
   useContext(FleetContext) ?? {
     link: () => KOLU_UNDIALED,
+    pulse: () => null,
     terminals: () => NO_ROWS,
+    events: () => NO_EVENTS,
     // A HOLLOW STILL TICKS, because a row drawn outside a provider still draws
     // its recency cell and the phrase is a pure function of an instant. A
     // frozen clock is the honest answer for a host that never mounted the
@@ -203,6 +239,11 @@ export const useFleet = (): Fleet =>
 /** The empty fleet, minted once: what a providerless host reads, and what a
  *  provider reads before its first frame. */
 const NO_ROWS: ReadonlyMap<string, FleetTerminal> = new Map()
+
+/** The empty ring, minted once, for the same two readers — a providerless
+ *  host's feed, and a provider's first draw. An EMPTY ring is the honest
+ *  answer in both places, the one the watcher's boot beat is not. */
+const NO_EVENTS: ReadonlyMap<string, KoluEvent> = new Map()
 
 /** A clock that does not move, for the hollow above. Minted once for the same
  *  reason `NO_ROWS` is. */

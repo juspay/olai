@@ -133,6 +133,7 @@ import { cadence } from "@olai/chat"
 import { type Dial, koluHalf, type KoluHalf, SEED } from "@olai/kolu-client"
 
 import { claimantsIn } from "./claimants.ts"
+import { watchConfigIn } from "./koluConfig.ts"
 
 import type { Cadence, Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
@@ -715,16 +716,26 @@ export const bind = (
     const kolu = koluHalf({
       options: wiring.kolu,
       fleet: () => published?.collections.fleet,
-      // THE VAULT WALK, passed in — the ruling's own words. `claimants.ts`
+      events: () => published?.collections.events,
+      pulse: () => published?.cells.pulse,
+      // THE VAULT WALKS, passed in — the ruling's own words. `claimants.ts`
       // stays here whole because it reads outline records, which is a thing
       // the package that dials padi must not learn; what crosses is four
-      // strings per claim.
+      // strings per claim. `koluConfig.ts` is the second of the kind, for
+      // the watcher's knobs: what crosses is the derived intervals, the
+      // mute VALUES verbatim, and the malformed lines to say.
       claimants: claimantsIn,
+      config: watchConfigIn,
       // Chatter, at debug: on a machine with no kolu this is a line every few
       // seconds and it is not news. What IS news — a connect, a skew, a link
       // that dropped — is the same channel, because the alternative is this
       // module deciding which of padi's sentences matter.
       say: (line) => say(Effect.logDebug(line)),
+      // What the OWNER must read: a malformed `_olai/Kolu.olai` value, an
+      // ambiguous mute — the sentences whose promise lives in `docs/kolu.md`.
+      // Rare by latch (one line per new shape or value), and the default
+      // console level is `info`, so the channel is `warning`, not `debug`.
+      warn: (line) => say(Effect.logWarning(line)),
     })
 
     /**

@@ -218,7 +218,7 @@ export function AppHeader(props: {
               is no fleet", and a page with no `terminal` property says nothing
               at all). A second reader of the same `cells.kolu` the dots
               consume; nothing new on the wire. */}
-          <Padi link={fleet.link()} />
+          <Padi link={fleet.link()} pulse={fleet.pulse()} now={fleet.now} />
           <Commit />
           <ChatToggle />
           <Preferences />

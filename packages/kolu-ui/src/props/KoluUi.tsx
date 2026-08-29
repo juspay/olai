@@ -54,12 +54,21 @@ import type { Accessor, JSX } from "solid-js"
 import { unenrolledStreamCall } from "@kolu/surface/client"
 import type { Effect, Stream } from "effect"
 
-import type { FleetTerminal, KoluLink, Snapshot, TerminalFrame } from "@olai/surface"
+import type {
+  FleetTerminal,
+  KoluEvent,
+  KoluLink,
+  Snapshot,
+  TerminalFrame,
+  WatchPulse,
+} from "@olai/surface"
 
 import { FleetProvider, readingScreen, watchingTerminal } from "./fleet.tsx"
 
 /**
- * THE FOUR MEMBERS this appliance reads, structurally.
+ * THE FIVE MEMBERS this appliance reads, structurally — the cell, the two
+ * collections (`fleet` and the watcher's `events`), the screen read and
+ * the live pane.
  *
  * Written as the shape rather than imported as the client's type for the reason
  * the header gives: a pin a suite can satisfy, and a name-change that stops
@@ -69,9 +78,16 @@ import { FleetProvider, readingScreen, watchingTerminal } from "./fleet.tsx"
 export interface KoluClient {
   readonly cells: {
     readonly kolu: { use: () => { readonly value: Accessor<KoluLink | undefined> } }
+    /** The pill's liveness cell — the beat the watcher last stamped, or
+     *  `null` before the boot pulse is ever read. */
+    readonly pulse: { use: () => { readonly value: Accessor<WatchPulse | null | undefined> } }
   }
   readonly collections: {
     readonly fleet: { use: () => { readonly fold: unknown } }
+    /** The watcher's ring — added with events, so a hand-built mock from
+     *  before them must say so at the type level rather than draw a feed
+     *  off nothing. */
+    readonly events: { use: () => { readonly fold: unknown } }
   }
   readonly procedures: {
     readonly screen: {
@@ -106,7 +122,9 @@ export function KoluUi(props: {
       now={props.now}
       sources={{
         link: props.client.cells.kolu.use().value,
+        pulse: props.client.cells.pulse.use().value,
         fold: props.client.collections.fleet.use().fold as never,
+        events: props.client.collections.events.use().fold as never,
         read: readingScreen(props.client.procedures.screen.text),
         watch: watchingTerminal((input) =>
           unenrolledStreamCall(

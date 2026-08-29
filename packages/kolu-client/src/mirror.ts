@@ -62,6 +62,12 @@ export interface MirrorSink {
   readonly upsert: (id: string, row: FleetTerminal) => void
   /** A row left — wired to the same collection's `remove`. */
   readonly remove: (id: string) => void
+  /** THE FLAP's row leave: the fleet went whole because the LINK did, which is
+   *  a different event from any one terminal closing. The collection's rows
+   *  read the same emptiness as `remove`; what this door is FOR is whoever is
+   *  hanging semantic money on the difference — the watcher, whose holds
+   *  pause through a flap rather than re-firing after one (`./watch.ts`). */
+  readonly clearedRow: (id: string) => void
   /** Routine narration, wired to the server's log. */
   readonly say: (line: string) => void
 }
@@ -380,14 +386,15 @@ export const makeMirror = (sink: MirrorSink, options: MirrorOptions): Mirror => 
       refeed({ byClass: frame.byClass, liveIds: [...ids] as never })
     },
     cleared: () => {
-      // EVERY row goes, one remove each, because that is what the collection's
-      // wire can say. It is not the same event as thirty terminals closing and
-      // a reader should not have to tell them apart from the frames — which is
-      // why the `kolu` cell moves to `absent` in the same breath, and why a
-      // chip reads THAT for its hollow rather than reading an empty fleet.
+      // EVERY row goes, one call each — but on `clearedRow`, not `remove`:
+      // the LINK went, so each row's leaving is a suspension, not a
+      // shutting down, and a reader hanging semantics on the difference (the
+      // watcher, `./watch.ts`) needs the door to tell them apart. The one the
+      // chip WEARS is the `kolu` cell's own `absent`, which `linkSink` moves
+      // the same breath.
       for (const id of [...rows.keys()]) {
         rows.delete(id)
-        sink.remove(id)
+        sink.clearedRow(id)
       }
       records.clear()
       reader = null

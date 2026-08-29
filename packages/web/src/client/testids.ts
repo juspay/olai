@@ -209,6 +209,10 @@ export const TESTID = {
    *  desktop: an indicator that appears only when something is wrong cannot be
    *  trusted when it is absent. */
   padi: "padi",
+  /** THE FEED the pill's press opens — the box of `@olai/kolu-ui`'s
+   *  `EventsFeed`. THE PANEL'S OWN HANDLE only: the rows are the appliance's
+   *  and are asserted through `./kolu-ui`'s `./testids`. */
+  padiFeed: "padi-feed",
 
   /** THE TERMINAL DOOR's row — kolu's own Dock row, drawn where the `terminal`
    *  property is (`client/props/TerminalDoor.tsx`). The row's own attribute

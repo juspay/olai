@@ -24,14 +24,17 @@ import type { FleetTerminal } from "@olai/surface"
  * handing out the same map with no counter would be a value that never appears
  * to change, so nothing would re-run at all.
  */
-export interface Held {
-  readonly rows: Map<string, FleetTerminal>
+export interface Held<T = FleetTerminal> {
+  readonly rows: Map<string, T>
   readonly at: number
 }
 
 /** Nothing held yet — a fresh map each time, because it is about to be written
- *  into. */
-export const holdingNothing = (): Held => ({ rows: new Map(), at: 0 })
+ *  into. This went GENERIC the day the events ring (`./EventsFeed.tsx`'s
+ *  fold) started running the same arithmetic over the watcher's log: a
+ *  second accumulator's file would be the two things that can go wrong,
+ *  fenced twice. */
+export const holdingNothing = <T = FleetTerminal,>(): Held<T> => ({ rows: new Map(), at: 0 })
 
 /**
  * One frame, applied.
@@ -47,11 +50,11 @@ export const holdingNothing = (): Held => ({ rows: new Map(), at: 0 })
  * and closed between two frames reaches a tab as a remove with no upsert
  * before it. `Map.delete` of an absent key is the whole of the handling.
  */
-export const after = (
-  held: Held,
-  upserts: ReadonlyArray<readonly [string, FleetTerminal]>,
+export const after = <T,>(
+  held: Held<T>,
+  upserts: ReadonlyArray<readonly [string, T]>,
   removes: ReadonlyArray<string>,
-): Held => {
+): Held<T> => {
   for (const [id, row] of upserts) held.rows.set(id, row)
   for (const id of removes) held.rows.delete(id)
   // The counter moves on EVERY frame, including one that changed nothing. That
@@ -71,7 +74,8 @@ export const after = (
  * that was killed during a link flap would sit on the page wearing its last
  * face, forever, because nothing will ever send a remove for it.
  */
-export const seeded = (entries: ReadonlyArray<readonly [string, FleetTerminal]>): Held =>
-  after(holdingNothing(), entries, NO_REMOVES)
+export const seeded = <T,>(
+  entries: ReadonlyArray<readonly [string, T]>,
+): Held<T> => after(holdingNothing<T>(), entries, NO_REMOVES)
 
 const NO_REMOVES: ReadonlyArray<string> = []

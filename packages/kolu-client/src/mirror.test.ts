@@ -35,10 +35,12 @@ const recorder = () => {
   const rows = new Map<string, FleetTerminal>()
   const removed: string[] = []
   const lines: string[] = []
+  const cleared: string[] = []
   return {
     links,
     rows,
     removed,
+    cleared,
     lines,
     sink: {
       link: (state: KoluLink) => links.push(state),
@@ -48,6 +50,12 @@ const recorder = () => {
       remove: (id: string) => {
         rows.delete(id)
         removed.push(id)
+      },
+      // The flap's own door — kept apart the way `./mirror.ts`'s sink
+      // declares it: a reader of ITS list only ever means “the LINK went.”
+      clearedRow: (id: string) => {
+        rows.delete(id)
+        cleared.push(id)
       },
       say: (line: string) => lines.push(line),
     },
@@ -369,6 +377,36 @@ describe("the padi mirror", () => {
       Effect.flip(mirror.screen("t1", undefined, () => AT)),
     )
     expect(refused.reason).toBe("no-padi")
+  })
+
+  it("a LINK closing empties the rows on `clearedRow` — never on `remove`", async () => {
+    // The separation the watcher braces on: a flap must not look like a
+    // fleet closing, or every standing hold gets re-dated (`./watch.ts`'s
+    // "A link drop is not a closing fleet").
+    const seen = recorder()
+    let close: (() => void) | undefined
+    const dropping: Dial = () =>
+      Effect.succeed({
+        client: faceWith([FULL_ID]),
+        identity: { stateRoot: "/run/padi", surfaceVersion: SPEAKS },
+        startedAt: 0,
+        dispose: () => {},
+        onClose: (cb: () => void) => {
+          close = cb
+        },
+      } as never)
+    const mirror = makeMirror(seen.sink, { env: {}, now: () => AT, dial: dropping })
+    const fiber = Effect.runFork(Effect.scoped(mirror.run))
+    await Effect.runPromise(Effect.sleep("80 millis"))
+    expect(seen.rows.has(FULL_ID)).toBe(true)
+
+    close?.()
+    await Effect.runPromise(Effect.sleep("50 millis"))
+    await Effect.runPromise(Fiber.interrupt(fiber))
+
+    expect(seen.cleared).toContain(FULL_ID)
+    expect(seen.removed).not.toContain(FULL_ID)
+    expect(mirror.rows().size).toBe(0)
   })
 
 
