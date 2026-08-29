@@ -79,6 +79,7 @@ const ORDER = [
   "cancelled",
   "doing",
   "todo",
+  "started",
   "date",
   "repeat",
   "desc",

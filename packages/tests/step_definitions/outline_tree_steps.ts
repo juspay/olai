@@ -35,6 +35,7 @@ import {
   POLL_TIMEOUT,
   TAG,
   TOGGLE,
+  TOOK,
   ZOOM,
 } from "../support/world.ts";
 import type { OlaiWorld } from "../support/world.ts";
@@ -258,6 +259,99 @@ Then(
       progress,
       `node "${id}"`,
     );
+  },
+);
+
+// ── how long the work took, or is taking ────────────────────────────────
+//
+// The two states the chip can be in, asked the way the row reports them
+// (web/src/client/TookChip.tsx): the SETTLED one is a value the set derived
+// and the wire carried, so it is read off the chip's attributes like the
+// rollup beside it; the RUNNING one ticks locally off the stored instant,
+// so "live" is asked as the one thing a wire cannot answer — the words moved.
+
+Then(
+  "the node {string} shows a settled took chip",
+  async function (this: OlaiWorld, id: string) {
+    const chip = this.node(id).locator(NODE_GUTTER).locator(TOOK);
+    await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    // The span is the attr: whole seconds, derived with the set. Which of the
+    // two settling marks closed it is data-status.
+    await this.waitUntil(
+      async () => /^\d+$/.test((await chip.getAttribute("data-took")) ?? ""),
+      `the node "${id}" wears a settled took chip (data-took of whole seconds)`,
+    );
+    // And the hover says the exact figure, in words, off the same attr —
+    // whole seconds while it is under a minute, which every scenario here
+    // keeps its span, so `took 7s` is the shape the tooltip is held to.
+    const seconds = parseInt((await chip.getAttribute("data-took")) ?? "-1", 10);
+    assert.ok(seconds >= 0 && seconds < 60, `"${id}"'s took attr is ${seconds}s`);
+    await this.waitUntil(
+      async () => (await chip.getAttribute("title")) === `took ${seconds}s`,
+      `the node "${id}"'s chip hovers the exact figure ("took ${seconds}s")`,
+    );
+  },
+);
+
+Then(
+  "the node {string} wears a start",
+  async function (this: OlaiWorld, id: string) {
+    const chip = this.node(id).locator(NODE_GUTTER).locator(TOOK);
+    await this.waitUntil(
+      async () => (await chip.getAttribute("data-started")) !== null,
+      `the node "${id}"'s chip wears the instant it was stamped with`,
+    );
+    this.clockedStart = (await chip.getAttribute("data-started")) ?? undefined;
+  },
+);
+
+Then(
+  "the node {string} still wears that start",
+  async function (this: OlaiWorld, id: string) {
+    assert.ok(
+      this.clockedStart !== undefined,
+      `"still wears that start" has nothing to compare with — say "wears a start" first`,
+    );
+    // The rule it asserts is the planner's: `set_doing` stamps once and the
+    // first is KEPT — so this is the one assertion a re-stamping planner
+    // fails (the chip reads the wire, the wire reads the record).
+    const asked = this.clockedStart;
+    const chip = this.node(id).locator(NODE_GUTTER).locator(TOOK);
+    await this.waitUntil(
+      async () =>
+        (await chip.getAttribute("data-started")) === asked,
+      `the node "${id}" still wears its first start (${asked})`,
+    );
+    this.clockedStart = undefined;
+  },
+);
+
+Then(
+  "the node {string} is ticking",
+  async function (this: OlaiWorld, id: string) {
+    const chip = this.node(id).locator(NODE_GUTTER).locator(TOOK);
+    await this.waitUntil(
+      async () => (await chip.getAttribute("data-status")) === "doing",
+      `the node "${id}" wears the running chip`,
+    );
+    // The words MOVED, and that is the whole assertion: the rule is that the
+    // instant crosses once and the tick is local (web/src/client/took.ts, the
+    // uptime chip's own seam) — a chip that shows the same reading twice has
+    // a dead clock or a carried duration.
+    const said = await chip.innerText();
+    await this.waitUntil(
+      async () => (await chip.innerText()) !== said,
+      `the node "${id}"'s chip ticks (it read ${JSON.stringify(said)} for seconds)`,
+    );
+  },
+);
+
+Then(
+  "the node {string} shows no took chip",
+  async function (this: OlaiWorld, id: string) {
+    // The jump-to-done, the bullet, and the row settled before spans existed:
+    // no chip drawn is how the rule says there is nothing to tell.
+    await drawsNothing(this, id, TOOK, "took chip");
   },
 );
 

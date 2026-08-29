@@ -23,6 +23,7 @@ import {
   tagText,
   titleParts,
   titleTagRe,
+  tookOf,
   under,
   unfinishedWithin,
 
@@ -243,6 +244,87 @@ test("the rollup counts the child tasks, and only the child tasks", () => {
       `{"id":"leaf","parent":"mid","ord":"a","title":"leaf","done":true}`,
     "top",
   )).toEqual({ done: 0, total: 1 })
+})
+
+// The OTHER annotation, and the same sentence in another register: a span is
+// derived from the record's own fields, is never stored, and is absent rather
+// than zero when there is no span to tell. Fixed instants, so the arithmetic
+// is the assertion — local offsets included, because `stampOf` writes them.
+test("took is the settling instant minus the stored start, in whole seconds", () => {
+  const took = (record: string): number | undefined => {
+    const [located] = nodesOf(record)
+    if (located === undefined || isMirror(located.node)) throw new Error("fixture")
+    return tookOf(located.node)
+  }
+
+  // 09:52 to 12:26:44 is 2h34m44s — the whole seconds, and only them.
+  expect(took(
+    `{"id":"a","ord":"a","title":"t","done":"2026-08-29T12:26:44-04:00","started":"2026-08-29T09:52:00-04:00"}`,
+  )).toBe(9284)
+
+  // A CALLED-OFF node is read the same way: the span is the time sunk, which
+  // is what the two settling marks share — read off the one pair of
+  // rules, never a second one for the fourth mark.
+  expect(took(
+    `{"id":"a","ord":"a","title":"t","cancelled":"2026-08-29T10:33:00-04:00","started":"2026-08-29T09:52:00-04:00"}`,
+  )).toBe(2460)
+
+  // A `done` that lands the same SECOND it started has a span worth saying:
+  // zero is not `undefined`, and the chip reads it.
+  expect(took(
+    `{"id":"a","ord":"a","title":"t","done":"2026-08-29T09:52:00-04:00","started":"2026-08-29T09:52:00-04:00"}`,
+  )).toBe(0)
+
+  // THE THREE SILENCES, and each is a refused invention rather than a missing
+  // case. No `started` — the todo→done jump, and every node settled before
+  // olai stamped a start: there is no span, and `created` is never the
+  // fallback, because that measures the node's age rather than the work.
+  expect(took(`{"id":"a","ord":"a","title":"t","done":"2026-08-29T12:26:44-04:00","created":"2026-08-01T09:52:00-04:00"}`))
+    .toBeUndefined()
+  // Nothing settled yet: a `doing` node's span is the tick's own question,
+  // asked of a clock — this one answers when the wait is over.
+  expect(took(
+    `{"id":"a","ord":"a","title":"t","doing":true,"started":"2026-08-29T09:52:00-04:00"}`,
+  )).toBeUndefined()
+  expect(took(
+    `{"id":"a","ord":"a","title":"t","todo":true,"started":"2026-08-29T09:52:00-04:00"}`,
+  )).toBeUndefined()
+  // And an instant-free settle: the shape finished work written before olai
+  // stamped instants still has — it says the wait ended and declines to say
+  // when, so there is nothing to subtract from.
+  expect(took(
+    `{"id":"a","ord":"a","title":"t","done":true,"started":"2026-08-29T09:52:00-04:00"}`,
+  )).toBeUndefined()
+})
+
+test("took says nothing the record cannot support, and never goes under zero", () => {
+  const took = (node: RegularNode): number | undefined => tookOf(node)
+  // A value the parser would refuse still answers rather than throws — a set
+  // already condemned is still read ({@link drawingPath}'s reason).
+  expect(took({
+    id: "a", ord: "a", title: "t",
+    done: "2026-08-29T12:26:44-04:00",
+    started: "not a date",
+  })).toBeUndefined()
+  expect(took({
+    id: "a", ord: "a", title: "t",
+    done: "still not one",
+    started: "2026-08-29T09:52:00-04:00",
+  })).toBeUndefined()
+  // A start AFTER the settle is a record a hand or a merge wrote; a span of
+  // minus six minutes is a worse answer than none of the truth at all.
+  expect(took({
+    id: "a", ord: "a", title: "t",
+    done: "2026-08-29T09:52:00-04:00",
+    started: "2026-08-29T09:58:36-04:00",
+  })).toBe(0)
+  // And a sub-second span is its whole seconds — rounded, because a stamp
+  // olai did not mint may carry the fractions its own writer never writes.
+  expect(took({
+    id: "a", ord: "a", title: "t",
+    done: "2026-08-29T09:52:12.726Z",
+    started: "2026-08-29T09:52:09.185Z",
+  })).toBe(4)
 })
 
 // What a `done` on a node would be a claim about — and what the sweep that

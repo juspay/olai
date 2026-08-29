@@ -357,4 +357,18 @@ export const SCRIPT: ReadonlyArray<Step> = [
     what: "split a node that carries a mark, a date and children",
     op: { op: "split", id: "kitchen", title: "Kitchen", rest: "remodel" },
   },
+  // BORN UNDER WAY (native-timing, appended): the orchestrator's shape — a
+  // lane is captured with its `doing` in one call, and the record must come
+  // out carrying the `started` a `set_doing` would have stamped, since a
+  // later `set_doing` is refused. Appended per the differential's own rule,
+  // so the rows the braid answered stay checkable as unmoved.
+  {
+    what: "add born doing — the start rides the capture",
+    op: {
+      op: "add",
+      parent: "kitchen",
+      title: "boil the kettle",
+      children: [{ title: "watch it", mark: "doing" }],
+    },
+  },
 ]

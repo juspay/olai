@@ -576,6 +576,7 @@ export const PROP_SAID = selector(TESTID.propSaid);
 /** The rollup badge beside a title: how many of the tasks under this node are
  *  done. An annotation — the node's OWN mark is the checkbox. */
 export const PROGRESS = selector(TESTID.progress);
+export const TOOK = selector(TESTID.took);
 export const DESC = selector(TESTID.desc);
 /** The pilcrow beside a title: the door to the row's open state. Drawn only on
  *  a node that HAS one — a note, or a property somebody added — so its absence
@@ -2284,6 +2285,15 @@ export class OlaiWorld extends World {
    *  down. `undefined` between gestures, which is what makes "no finger is down
    *  to drag" an assertion rather than a stale point from the last scenario. */
   private held?: Point;
+
+  /** The `started` a running chip wore when a scenario noted it — memory for
+   *  the re-open story in `native_timing.feature`, whose second half asks
+   *  "still?" against the first pass, which is a question nothing can pose
+   *  without somewhere to keep the answer while the walk goes by. (The drag
+   *  case in {@link holdDown} rules the step-file-global out; a member of
+   *  this world is one per scenario, which is the shape the drag's comment
+   *  asks for.) `undefined` between asks, like every other transience here. */
+  clockedStart?: string;
 
   /**
    * A finger that lands on something and then SCROLLS the page with it.

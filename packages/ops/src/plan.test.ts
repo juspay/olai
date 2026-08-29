@@ -319,6 +319,12 @@ describe("add with children", () => {
     // mark ops read, so a captured mark and a marked capture agree.
     expect(record(nodes, "n2").done).toBe(STAMP)
     expect(record(nodes, "n3").doing).toBe(true)
+    // …and that agreement includes the STAMP, or "exactly as set_doing would"
+    // is the sentence the door would be lying with: a node BORN `doing` is
+    // work born under way, so it carries its `started` from birth — the only
+    // door it has, since `set_doing` refuses a node already doing. This is
+    // the orchestrator's shape: a lane is captured with its mark in one call.
+    expect(record(nodes, "n3").started).toBe(STAMP)
     expect(record(nodes, "n4")).toMatchObject({
       todo: true,
       date: "2026-09-02",
@@ -506,6 +512,73 @@ describe("done and doing", () => {
     expect(marked("cancelled").cancelled).toBe(STAMP)
     expect(marked("doing").doing).toBe(true)
     expect(marked("todo").todo).toBe(true)
+  })
+
+  // Starting records its instant one FIELD over, never on the mark — `doing`
+  // stays `true`, because a dated mark is a day the journal would otherwise
+  // have to read, and the start belongs on no day.
+  test("`doing` stamps `started` — and settling, un-marking and re-filing do not", () => {
+    const doing = record(fileOf(planned(house(), { op: "doing", id: "order" }), "house.olai"), "order")
+    expect(doing.started).toBe(STAMP)
+    expect(doing.doing).toBe(true)
+    // The field is the marks' neighbour, and the only one of these verbs that
+    // mints it is the one that starts: a settle, a filing and an un-doing
+    // write the node without inventing a start it never had.
+    for (const op of ["done", "cancelled", "todo"] as const) {
+      expect(record(fileOf(planned(house(), { op, id: "order" }), "house.olai"), "order").started)
+        .toBeUndefined()
+    }
+  })
+
+  // Rule two of the stamp — PRESENT IS UNTOUCHED: a plan over a record that
+  // already carries one writes the field back exactly as it found it, and
+  // nothing is re-stamped. The fixture's `now` always says the same instant,
+  // so the one that proves a carry rather than a re-stamp is a `started` NO
+  // op here could have minted.
+  test("a `started` already on the record is never rewritten", () => {
+    const set = setOf({
+      "a.olai": `{"id":"x","ord":"a0","title":"x","todo":true,"started":"2026-08-01T07:00:00-04:00"}`,
+    })
+    const node = record(fileOf(planned(set, { op: "doing", id: "x" }), "a.olai"), "x")
+    expect(node.doing).toBe(true)
+    expect(node.started).toBe("2026-08-01T07:00:00-04:00")
+  })
+
+  // The carried start is what makes re-opening one span rather than a new one:
+  // a settle keeps it (nothing settles a clock), an UNDO keeps it (the span-
+  // by-span story is the log's), and the second `doing` is one byte move short
+  // of a no-op — `changed` alone moves. So the answer settles report later is
+  // first start → final settle, the whole time under way.
+  test("settling and un-marking keep the `started` they found", () => {
+    const read = (set: OutlineSet): RegularNode =>
+      nodesOf(derive(recordsOf(set)), "house.olai")
+        .map((located) => located.node)
+        .find((node) => node.id === "order") as RegularNode
+    const doing = after(house(), { op: "doing", id: "order" })
+    expect(read(after(doing, { op: "done", id: "order" })).started).toBe(STAMP)
+    expect(read(after(doing, { op: "doing", id: "order", undo: true })).started).toBe(STAMP)
+    // And a full RE-OPEN after the settle — undo the `done`, start again, and
+    // the second start IS the first: nothing re-stamped, so the span the next
+    // settle closes is the whole time under way rather than the last leg of
+    // it. The undo is the gate, not the rule: a settled node refuses a new
+    // mark until it is walked back (the refusal a few tests up has the words).
+    const settled = after(doing, { op: "done", id: "order" })
+    const unmarked = after(settled, { op: "done", id: "order", undo: true })
+    const reopened = after(unmarked, { op: "doing", id: "order" })
+    expect(read(reopened).started).toBe(STAMP)
+    expect(read(reopened).doing).toBe(true)
+  })
+
+  // …and the jump has NO span: a todo→done stores no `started`, so no `took`
+  // can be derived. Falling back to `created` would measure the node's age
+  // rather than the work — the one rule the chip and the answer share.
+  test("a todo→done jump stores no `started`", () => {
+    const once = after(house(), { op: "done", id: "order" })
+    const node = nodesOf(derive(recordsOf(once)), "house.olai")
+      .map((located) => located.node)
+      .find((one) => one.id === "order") as RegularNode
+    expect(node.started).toBeUndefined()
+    expect(node.done).toBe(STAMP)
   })
 
   test("undo takes the mark off", () => {

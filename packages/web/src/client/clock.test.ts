@@ -3,7 +3,7 @@ import { stampOf } from "@olai/format"
 import { inZone } from "@olai/format/testlib"
 import { createRoot } from "solid-js"
 
-import { createToday, isoDayOf, untilMidnight } from "./clock.ts"
+import { createToday, instantOf, isoDayOf, untilMidnight } from "./clock.ts"
 
 /** An instant built from LOCAL parts, which is what these two functions read.
  *  A UTC literal would make the suite pass or fail by the runner's time zone,
@@ -159,4 +159,22 @@ test("the listener lives exactly as long as the clock", () => {
   expect(page.watching()).toBe(1)
   clock.dispose()
   expect(page.watching()).toBe(0)
+})
+
+// A `started` carries its offset for a reason: the RUNNING chip is arithmetic
+// on that instant now-minus-then, in epochs, so two browsers in two zones
+// reading the one stamp must count the same span — a reading through the day
+// TEXT (the wrong two doors together: a day written where the work started,
+// re-zoned midnight-local where someone reads it) would be half a day out,
+// which is why it is refused (a day-only `started` is somehow worse than
+// malformed). One stamp, two zones, one answer: the lane assertion.
+test("one stamp, two zones, one instant — the chip's arithmetic has no zone", () => {
+  const stamp = "2026-08-29T17:47:00-04:00"
+  const instant = Date.parse(stamp)
+  inZone("America/New_York", () => {
+    expect(instantOf(stamp)).toBe(instant)
+  })
+  inZone("Asia/Kolkata", () => {
+    expect(instantOf(stamp)).toBe(instant)
+  })
 })

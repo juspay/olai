@@ -115,6 +115,7 @@ import { followed, followedSplit, useGo } from "./router.tsx"
 import { density, showsPreview, startsOpen } from "./settings/density.ts"
 import { TESTID } from "./testids.ts"
 import { useToday } from "./today.tsx"
+import { TookChip } from "./TookChip.tsx"
 import {
   CHILD_INDENT,
   GUTTER_GAP,
@@ -682,6 +683,10 @@ function Branch(props: {
                 says={shows().node.date}
                 repeat={shows().node.repeat}
                 overdue={isOverdue(shows().node, today())}
+                // The span this row's work took, or is taking — read off the
+                // record it SHOWS, so a mirror's row ticks and settles with
+                // its target exactly as its glyph does.
+                took={<TookChip node={shows().node} />}
                 onEdit={clickTitle}
                 onPickDate={openPicker}
                 onPickRepeat={openRepeat}

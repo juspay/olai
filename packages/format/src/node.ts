@@ -195,6 +195,27 @@ export const RegularNode = Schema.Struct({
    *  and `@person`, two namespaces rather than two spellings of one. */
   title: Schema.String,
   ...STAMPED,
+  /**
+   * When the work was first STARTED: the instant `set_doing` stamps when the
+   * field is absent, and never writes over — a re-open keeps the FIRST start
+   * and the span-by-span story is `git log`'s, not this field's. Standing
+   * alone beside the marks like `created` and `changed` do, rather than as a
+   * value on `doing`: a mark has ONE shape (`doing` is always `true`), so the
+   * start is its own instant field.
+   *
+   * STAMPED, never asked for: there is no verb for it and none may write it,
+   * exactly as the two stamps below. And nothing DERIVES from its absence
+   * being filled in: a node without one simply has no span to tell — the
+   * todo→done jump stores no `started` and answers no `took`
+   * (`./derive.ts`), because falling back to `created` would measure the
+   * node's age rather than the work.
+   *
+   * It puts the node on NO day, which is the reason it is not a value on the
+   * `doing` mark: the journal reads a node's `date` and its SETTLING
+   * instants only (`./occasion.ts`), and this is neither. It places nothing
+   * the way `created` places nothing.
+   */
+  started: Schema.optionalKey(Schema.String),
   date: Schema.optionalKey(Schema.String),
   /** How this node COMES BACK, in the words it is written in — `every week on
    *  monday` (./repeat.ts). Only on the occurrence that is NEXT: completing one
@@ -271,6 +292,8 @@ const DOORS = {
   cancelled: "`set_cancelled` writes it, and records the instant",
   doing: "`set_doing` writes it, and records the instant",
   todo: "`set_todo` writes it, and records the instant",
+  started:
+    "`set_doing` stamps it the first time — absent, it is written; present, it is left exactly as it was",
   status:
     "the mark is `done`, `cancelled`, `doing` or `todo` — `set_done` / `set_cancelled` / `set_doing` / `set_todo` write it",
   date: "`set_date` writes it, and validates the day",

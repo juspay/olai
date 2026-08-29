@@ -16,9 +16,8 @@
  */
 
 import type { Accessor } from "solid-js"
-import { createEffect, createSignal, onCleanup } from "solid-js"
 
-import { createTicking, DAY, HOUR, instantOf, MINUTE, SECOND } from "./clock.ts"
+import { createTwoSpeed, DAY, HOUR, instantOf, MINUTE, SECOND } from "./clock.ts"
 
 /**
  * `startedAt` as a phrase relative to `now`.
@@ -63,41 +62,12 @@ export const sinceOf = (startedAt: string): string => {
 
 /**
  * The clock this chip is drawn against — a second while seconds are the
- * question, a minute once they are not.
- *
- * {@link createTicking} takes a fixed interval, so the handoff is a
- * signal: `slow` flips when the start is a minute old, the seconds
- * clock's gate closes, the minute clock's opens. A page that has not
- * heard a start — or heard one that is not a time — keeps neither.
+ * question, a minute once they are not. The pacing machinery is `clock.ts`'s
+ * ({@link createTwoSpeed}); the only thing this chip adds to it is its
+ * BAND — a minute — since the row's took chip asks the same question with a
+ * different border (`./took.ts`, an hour), and that question now has one
+ * answer rather than two.
  */
 export const createNow = (
   started: Accessor<string | undefined>,
-): Accessor<number> => {
-  const [slow, setSlow] = createSignal(false)
-  /** A parseable start — the same refusal {@link upOf} makes. An
-   *  unparseable stamp must not keep the seconds clock: there is no
-   *  chip to redraw. */
-  const armed = (): boolean => {
-    const at = started()
-    return at !== undefined && instantOf(at) !== null
-  }
-  createEffect(() => {
-    const at = started()
-    const then = at === undefined ? null : instantOf(at)
-    if (then === null) {
-      setSlow(false)
-      return
-    }
-    const wait = MINUTE - Math.max(0, Date.now() - then)
-    if (wait <= 0) {
-      setSlow(true)
-      return
-    }
-    setSlow(false)
-    const handoff = setTimeout(() => setSlow(true), wait)
-    onCleanup(() => clearTimeout(handoff))
-  })
-  const fast = createTicking(SECOND, () => armed() && !slow())
-  const paced = createTicking(MINUTE, () => armed() && slow())
-  return () => (slow() ? paced() : fast())
-}
+): Accessor<number> => createTwoSpeed(started, MINUTE)

@@ -33,11 +33,11 @@
   },
   {
     "what": "doing again, now that the way is clear",
-    "sha": "35f5041205c3c2a4"
+    "sha": "9d6095c9ae22ed75"
   },
   {
     "what": "cancelled over open work below it",
-    "sha": "9d55b810dfb3be2f"
+    "sha": "8dd564259fa3f789"
   },
   {
     "what": "done over unfinished work below it — refused, naming what stands there",
@@ -45,7 +45,7 @@
   },
   {
     "what": "todo undone, back to a bullet",
-    "sha": "595276650c1709f5"
+    "sha": "288a81bd0590663e"
   },
   {
     "what": "a mark on a mirror — refused, naming the node",
@@ -53,7 +53,7 @@
   },
   {
     "what": "title",
-    "sha": "74b478a600589b65"
+    "sha": "9bbf340a225513a7"
   },
   {
     "what": "title with a stale `was` — refused without reading the set",
@@ -61,35 +61,35 @@
   },
   {
     "what": "desc",
-    "sha": "fb6a81c6aff60e7f"
+    "sha": "9fb84919ff717f20"
   },
   {
     "what": "desc cleared",
-    "sha": "786af8d2899a90e7"
+    "sha": "66729b538153009e"
   },
   {
     "what": "date",
-    "sha": "be4444b0ad604bf2"
+    "sha": "197bd22aab451c71"
   },
   {
     "what": "date cleared",
-    "sha": "08fcc4a2933c5dd8"
+    "sha": "d3bd9a579ea5aaa7"
   },
   {
     "what": "repeat, canonicalised",
-    "sha": "72806961dc865fe2"
+    "sha": "4370156550765ccf"
   },
   {
     "what": "repeat cleared",
-    "sha": "42e35e1934674684"
+    "sha": "c44d379ed09f6230"
   },
   {
     "what": "prop written",
-    "sha": "ddd0010948942199"
+    "sha": "fa41f9d92bd95679"
   },
   {
     "what": "prop removed",
-    "sha": "eff7b51eacc56e63"
+    "sha": "10e7f586dd4adb7a"
   },
   {
     "what": "prop shadowing a field the format has — refused toward the verb that writes it",
@@ -97,11 +97,11 @@
   },
   {
     "what": "move under another parent",
-    "sha": "955a4507ddebd065"
+    "sha": "938de7c36d26443d"
   },
   {
     "what": "move to the top level",
-    "sha": "7e7c27c551514e1e"
+    "sha": "355036de7bb174bd"
   },
   {
     "what": "move under its own descendant — refused, naming the loop",
@@ -109,11 +109,11 @@
   },
   {
     "what": "split a title in two",
-    "sha": "cae8483eed641e1e"
+    "sha": "6bd8e1d7a6d14118"
   },
   {
     "what": "merge into the sibling above",
-    "sha": "b220071c0687a02b"
+    "sha": "62cb12db8d162993"
   },
   {
     "what": "merge the first row of a file — refused, there is nothing above it",
@@ -129,7 +129,7 @@
   },
   {
     "what": "trash a node and what is under it",
-    "sha": "c06abe052c22415d"
+    "sha": "97c50b39bd9de248"
   },
   {
     "what": "trash an id nothing declares — refused with the near miss",
@@ -153,11 +153,11 @@
   },
   {
     "what": "untrash by the recorded chain, now that the source file is back",
-    "sha": "aa13417010eb7ec4"
+    "sha": "b9207e572118eb3e"
   },
   {
     "what": "untrash into a named file",
-    "sha": "a9d7f73f3d7f6f0f"
+    "sha": "4ed2c3a750c4af16"
   },
   {
     "what": "empty an outline that is not the trash — refused",
@@ -282,5 +282,9 @@
   {
     "what": "split a node that carries a mark, a date and children",
     "sha": "9092b2f5b3610525"
+  },
+  {
+    "what": "add born doing — the start rides the capture",
+    "sha": "9f01367d3ecde4bc"
   }
 ]

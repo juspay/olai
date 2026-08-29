@@ -1112,6 +1112,53 @@ export const progressOf = (derived: Derived, id: string): Progress | undefined =
 }
 
 /**
+ * How long the work TOOK: the settling instant minus the stored `started`, in
+ * WHOLE SECONDS — and one more ANNOTATION, to the rule {@link progressOf}
+ * keeps: it decides nothing, it is derived and never stored, and it is
+ * `undefined` rather than zero when there is no span to tell.
+ *
+ * THREE cases answer `undefined`, and each is a refusal to invent a past:
+ *
+ *   - NO `started`. A todo→done jump has no span, and `created` is never the
+ *     fallback — that measures the node's age, not the work;
+ *   - NO SETTLING MARK. A `doing` node's span is still running, and the
+ *     running half is a reading of a clock — the browser ticks it locally
+ *     from the stored instant (`@olai/web`'s `took.ts`), which is why the
+ *     wire carries the INSTANT and never a duration;
+ *   - a settling mark holding `true`, the shape finished work written before
+ *     instants still has: it says the wait ended and declines to say when, so
+ *     there is nothing to subtract from. The values are validated ISO by the
+ *     time a set reaches here (`./parse.ts`), and this still asks rather than
+ *     assumes, for {@link drawingPath}'s reason: a set already condemned is
+ *     still read.
+ *
+ * How MUCH is derived is the two rules of `set_doing`'s stamp: the kept
+ * `started` is the FIRST start, so re-opening after a `done` lengthens what a
+ * LATER `done` answers by the whole time under way — first start to final
+ * settle — and a `cancelled` node's span is the time sunk before it was
+ * called off. The two settling marks are read the same way, exactly as
+ * `./occasion.ts` reads them for a day.
+ *
+ * A NEGATIVE is clamped to zero: a `started` after the settling instant is a
+ * record a hand or a merge wrote, and a span of minus six minutes is a worse
+ * answer than none of the truth at all. Arriving HERE rather than at the
+ * prompt that writes — the planner's `started` and `done` come off the same
+ * clock, so a clamp they never need is a guard for the file they may meet.
+ */
+export const tookOf = (node: RegularNode): number | undefined => {
+  const started = node.started
+  if (started === undefined) return undefined
+  const mark = storedMarker(node)
+  if (mark === undefined || !settles(mark)) return undefined
+  const settled = node[mark]
+  if (typeof settled !== "string") return undefined
+  const from = Date.parse(started)
+  const at = Date.parse(settled)
+  if (Number.isNaN(from) || Number.isNaN(at)) return undefined
+  return Math.max(0, Math.round((at - from) / 1000))
+}
+
+/**
  * Every task in a node's SUBTREE that is not done — what a `done` on it would
  * be a claim about, and what done-hiding would take off the screen with it.
  *

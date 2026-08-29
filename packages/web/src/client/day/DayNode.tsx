@@ -67,6 +67,7 @@ import { hasBody } from "../body.ts"
 import { density, showsPreview, startsOpen } from "../settings/density.ts"
 import { TESTID } from "../testids.ts"
 import { useToday } from "../today.tsx"
+import { TookChip } from "../TookChip.tsx"
 import { GUTTER_GAP, PAST_BULLET } from "../touch.ts"
 
 export function DayNode(props: {
@@ -152,6 +153,10 @@ export function DayNode(props: {
           occasion={props.dated.occasion}
           overdue={isOverdue(node(), today())}
           repeat={node().repeat}
+          // The span the work took, or is taking — the same chip the tree
+          // wears: a day page and the agenda are the same row drawn
+          // read-only, and the figure is no verb either way.
+          took={<TookChip node={node()} />}
         />
       </div>
 

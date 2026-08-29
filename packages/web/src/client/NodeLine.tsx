@@ -11,7 +11,7 @@
  *
  * ## The line, left to right
  *
- *   title (ellipsized) · the note's pilcrow · the aside · the date · the repeat rule
+ *   title (ellipsized) · the note's pilcrow · the aside · the date · the repeat rule · ⏱ AT THE FAR HAND
  *
  * THE TITLE ELLIPSIZES rather than wrapping (the quiet outline, human): a row is
  * a line, and a title that wrapped to three of them turned the column into
@@ -84,6 +84,11 @@ export function NodeLine(props: {
   readonly open?: boolean
   /** The one fact allowed beside the title, already built (./Aside.tsx). */
   readonly aside?: JSX.Element
+  /** The ⏱ chip, already built (./TookChip.tsx): how long the work took, or
+   *  how long it has been going. It is the line's CLOSING figure, drawn after
+   *  the filler at the far hand — not one of the facts hugging the words —
+   *  so it is handed over whole, exactly as the two left of the words are. */
+  readonly took?: JSX.Element
   /** The door to the note, when the node has one (./note/Mark.tsx). */
   readonly mark?: JSX.Element
   /** What the date pill beside the title SAYS, and whether there is one at
@@ -177,6 +182,11 @@ export function NodeLine(props: {
             along a row opens its editor, exactly as it did when the title span
             itself was the thing that stretched. */}
         <span class="min-w-0 flex-1" aria-hidden="true" />
+        {/* …and what sits at its far hand, past the filler: the ⏱ chip. It is
+            a readout, never a control — so it stops no click: like the
+            READ-ONLY date pill beside the words, one on it bubbles to the
+            line's editor (./DateBadge.tsx and ./Pill.tsx make the same rule). */}
+        {props.took}
       </span>
     </>
   )
