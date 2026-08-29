@@ -74,7 +74,12 @@ import { reposRootIn } from "./resolve.ts"
 import { type Lane, makeWatch, type Watch, type WatchDeps } from "./runs.ts"
 import { type CiRuns, NO_RUNS } from "./wire/index.ts"
 
-export { type LanePath, REPOS_DIR, repoIn, reposRootIn, worktreeAt } from "./resolve.ts"
+/** TWO NAMES leave this package, and they are the two the server actually
+ *  holds: what one lane looks like on the way in ({@link Lane}), and the dial
+ *  a test substitutes ({@link DialRun}). The resolution rule's own symbols
+ *  are NOT re-exported — `./resolve.ts` is where they are argued and where
+ *  its bench imports them from, and a door onto a module nothing outside
+ *  opens is a public API with no caller. */
 export { type DialRun, type Lane } from "./runs.ts"
 
 /**
