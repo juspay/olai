@@ -1009,9 +1009,8 @@ export type { Pinned } from "./shelf.ts"
  * two faces compose a capture and neither may do it differently.
  *
  * HOW FULL IT IS — `inboxHeldOf`, the number the sidebar's Inbox door wears,
- * which is the top-level regular nodes of that same outline that still await
- * processing (a done row does not count, and neither does a finished
- * branch). Public because it crosses, the way
+ * which is the rows of that same outline marked `todo` or `doing`, at any
+ * depth. Public because it crosses, the way
  * the shelf does: the server answers it per revision and the sidebar draws
  * it (`@olai/surface`'s `inbox` cell). `sameInboxHeld` is the cell's
  * `equals`. `inboxHeldIn` is that reading with the convention walk lifted

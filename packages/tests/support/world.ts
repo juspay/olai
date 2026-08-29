@@ -748,7 +748,7 @@ export const VAULT_GROUP = selector(TESTID.vaultGroup);
  *  has one, which is what the scenarios about a never-captured vault read. */
 export const INBOX_LINK = selector(TESTID.inboxLink);
 /** What that entry REPORTS, wrapped round the link: `data-count` is how many
- *  top-level captures still await processing. */
+ *  rows of the inbox are marked `todo` or `doing`, at any depth. */
 export const INBOX_HELD = selector(TESTID.inboxHeld);
 /** The number on it. Absent when the inbox is empty — a quiet door wears no
  *  chip rather than a zero. */

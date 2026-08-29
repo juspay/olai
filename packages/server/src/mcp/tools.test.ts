@@ -28,8 +28,8 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
-import { type FailureKind, type OutlineSet, outlinePaths, verdictOf } from "@olai/format"
-import { recordsOf } from "@olai/format/testlib"
+import { type FailureKind, inboxHeldOf, type OutlineSet, outlinePaths, verdictOf } from "@olai/format"
+import { readingOf, recordsOf } from "@olai/format/testlib"
 import {
   codec,
   fixedPolicy,
@@ -2479,6 +2479,17 @@ test("a capture lands in a minted inbox, dated and attributed", async () => {
     // DATED, which is the half a capture made while nobody was looking needs:
     // it is on the day's journal page as well as in the inbox.
     expect(typeof node.date).toBe("string")
+    // MARKED, which is the other half: the badge counts the rows marked
+    // `todo` or `doing`, so a capture is born wearing one — it is visible to
+    // the door from the moment it lands.
+    expect(node.todo).toBe(true)
+    // …AND THE MEETING OF THE TWO, end to end: the real door's request,
+    // planned and stored and read back by the law's own function. The
+    // format's suite can only hand-write the landed literal (the planner
+    // lives here, a package up); this is where a drift between the two
+    // spellings of a born mark would fail.
+    const landed = readingOf(await set())
+    expect(inboxHeldOf(landed.set, landed.derived)).toEqual({ count: 1 })
   })
 })
 
