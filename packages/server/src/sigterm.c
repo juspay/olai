@@ -40,10 +40,23 @@
  * the drain side) rather than blocking a signal sender on us — and a
  * dropped record can be the supervisor's STOP, not only an unnamed
  * stranger: that is the one way this guard's failure is worse than no
- * guard, and the drain side's message says so. */
-static int outFd = -1;
-static long (*x_write)(int, const void *, unsigned long);
-static volatile long dropped = 0;
+ * guard, and the drain side's message says so.
+ *
+ * ATOMICITY, pedantically: two threads may run this handler
+ * back-to-back (a process-directed TERM goes to one arbitrary
+ * unblocked thread at a time). The write(2) is safe: 12 bytes is far
+ * under PIPE_BUF, so one record can never interleave with another.
+ * `dropped` is sig_atomic_t — POSIX's word for "safe to touch in a
+ * handler" — and the arm-time globals the handler reads are volatile
+ * with it. tcc (measured) grows no __sync builtins, so a cross-CPU
+ * read-modify-write CAN still lose an increment: a flood counter is
+ * allowed to lie by how much it flooded. */
+typedef int sig_atomic_t; /* freestanding: what <signal.h> calls it, on
+                             glibc and musl alike */
+
+static volatile int outFd = -1;
+static volatile long (*x_write)(int, const void *, unsigned long);
+static volatile sig_atomic_t dropped = 0;
 
 static void olaiSigterm(int sig, void *info, void *uctx) {
   int rec[3];
