@@ -331,6 +331,12 @@ test("worked round-trips, and is held to whole seconds", () => {
     .toEqual(["bad-record"])
   expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","worked":12.5}`)))
     .toEqual(["bad-record"])
+  // …and NEVER NEGATIVE: the read clamps a hostile bank to zero, but the
+  // SCHEMA refusing one is the fence that keeps the bytes honest at all —
+  // a hand-written `-30` would otherwise sit in the file forever, quietly
+  // eating the next round's answer.
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","worked":-7}`)))
+    .toEqual(["bad-record"])
   expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","worked":"9284"}`)))
     .toEqual(["bad-record"])
 })

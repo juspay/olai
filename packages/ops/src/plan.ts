@@ -1446,21 +1446,34 @@ const planMark = (
     next.started = scope.context.now()
   }
 
-  // …and SETTLING BANKS THE ROUND IT CLOSES: `worked` gains the span just
-  // written over it (`spanOf` — the one subtraction, shared with the read,
-  // so the bank and the answer cannot disagree), and the pause that came
-  // before this round is gone from every later reading. A settle with no
-  // `started` mints NOTHING — a todo→done jump closed no round, `created`
-  // is never the fallback, and an absent bank reads as the zero it is. undo
-  // is never here: walking a settle back leaves the bank standing, because
-  // the work did happen — the field survives the mark coming off, and the
-  // fresh `started` above is what makes adding the same seconds twice
-  // impossible.
+  // …and SETTLING BANKS THE ROUND IT CLOSES — or BURIES THE STAMP of one
+  // it cannot close. A round is open exactly while `doing` says so, so the
+  // check is the STORED mark, not the stamp: a settle over a `doing` adds
+  // the round's span into `worked` (`spanOf` — the one subtraction, shared
+  // with the read, so the bank and the answer cannot disagree), and the
+  // stamp stays, the pair it makes with the settle still honest. A settle
+  // over anything else mints NOTHING — and the mark-borne closure is what
+  // the SECOND settle can see: an undone settle leaves `started` where it
+  // found it and the bank untouched (the work did happen), but it removes
+  // the `doing` that made the round closable. Re-settling from there cannot
+  // answer `spanOf` from the same start a second time — that is the round,
+  // counted twice, plus the whole pause between the settles: the wall-clock
+  // failure through a second door. The stamp is dropped instead: a record's
+  // `started` survives exactly as long as the bank can still account for
+  // it, and the pair a later `set_doing` writes can only be a fresh round's.
+  // A settle with no `started` mints nothing and buries nothing — a
+  // todo→done jump closed no round, `created` is never the fallback. undo
+  // is never here either way: walking a settle back leaves the bank
+  // standing.
   if (!undo && settles(mark)) {
     const closed = next[mark]
-    if (node.started !== undefined && typeof closed === "string") {
-      const round = spanOf(node.started, closed)
-      if (round !== undefined) next.worked = (node.worked ?? 0) + round
+    if (stored === "doing") {
+      if (node.started !== undefined && typeof closed === "string") {
+        const round = spanOf(node.started, closed)
+        if (round !== undefined) next.worked = (node.worked ?? 0) + round
+      }
+    } else {
+      delete next.started
     }
   }
 

@@ -200,10 +200,12 @@ export const RegularNode = Schema.Struct({
    * on EVERY start — a re-open after a settle writes a fresh one, because
    * the round that came before is no longer this field's concern: the
    * settle already banked it into `worked` below, and the pause between
-   * two rounds is nobody's work. Standing alone beside the marks like
-   * `created` and `changed` do, rather than as a value on `doing`: a mark
-   * has ONE shape (`doing` is always `true`), so the start is its own
-   * instant field.
+   * two rounds is nobody's work. And it SURVIVES only while the bank can
+   * still account for it: a settle keeps it when the round just closed was
+   * live (`doing` said so), and buries it when none was — an undone settle
+   * re-settled with no `set_doing` between, a queued hop: the alternative
+   * is the same round countable twice (the stamp is dead weight a second
+   * settle would mistake for a fresh round's).
    *
    * STAMPED, never asked for: there is no verb for it and none may write
    * it, exactly as the two stamps below. And nothing DERIVES from its
@@ -230,15 +232,19 @@ export const RegularNode = Schema.Struct({
    * and nothing is lost — and an undo that is never re-started leaves the
    * bank alone, because the work did happen.
    *
-   * Written by the settles ONLY: there is no verb for it, no request
-   * carries one, and `set_prop` turns the key away toward them, exactly
-   * as `started` above. ABSENT is the ordinary state of a node whose
-   * rounds all predate the bank — and of the todo→done jump, which never
-   * had a round to close — and absent reads as zero everywhere it is
-   * asked (`./derive.ts`'s `tookOf`): no migration, every old record
-   * already legal.
+   * Written by the settles ONLY — and only from a live round, so a settle
+   * can never bank the same span twice: the `doing` that made the round
+   * closable is gone by the time a second settle could reach for it. There
+   * is no verb for it, no request carries one, and `set_prop` turns the
+   * key away toward them, exactly as `started` above. Never NEGATIVE and
+   * never fractional: whole seconds, and the schema says so rather than
+   * the read having to argue with a hostile bank. ABSENT is the ordinary
+   * state of a node whose rounds all predate the bank — and of the
+   * todo→done jump, which never had a round to close — and absent reads
+   * as zero everywhere it is asked (`./derive.ts`'s `tookOf`): no
+   * migration, every old record already legal.
    */
-  worked: Schema.optionalKey(Schema.Int),
+  worked: Schema.optionalKey(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))),
   date: Schema.optionalKey(Schema.String),
   /** How this node COMES BACK, in the words it is written in — `every week on
    *  monday` (./repeat.ts). Only on the occurrence that is NEXT: completing one
@@ -315,9 +321,10 @@ const DOORS = {
   cancelled: "`set_cancelled` writes it, and records the instant",
   doing: "`set_doing` writes it, and records the instant",
   todo: "`set_todo` writes it, and records the instant",
-  started: "`set_doing` stamps it on every start — the round just settled is already banked",
+  started:
+    "`set_doing` stamps it on every start — a settle keeps it when the round banked, buries it when none could",
   worked:
-    "the settles bank it — `set_done` / `set_cancelled` each add the round they closed",
+    "the settles bank it — `set_done` / `set_cancelled` each add the round they closed, and only a live `doing` opens one",
   status:
     "the mark is `done`, `cancelled`, `doing` or `todo` — `set_done` / `set_cancelled` / `set_doing` / `set_todo` write it",
   date: "`set_date` writes it, and validates the day",

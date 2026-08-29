@@ -376,7 +376,13 @@ export const SCRIPT: ReadonlyArray<Step> = [
   // re-stamps `started`. The one `steady()` clock makes every span ZERO, so
   // what these rows pin is the FIELD moving through the batch-path plans —
   // the arithmetic itself is `./plan.test.ts`'s, at a clock driven minutes
-  // apart.
+  // apart. THE TELL OF THE ZERO CLOCK: "done — the round is banked" and
+  // "done again — the second round adds in" SHA the SAME `750bf26f…`
+  // record — `0` banked, then `0 + 0` — so this appendix proves presence
+  // through the batch path and NOTHING about accumulation; a reader
+  // hunting the sum belongs in `plan.test.ts`'s moving clock.
+  // (The SECOND settle nests a fresh `doing` because a settle from anywhere
+  // else mints nothing: the bank only counts what a live round closed.)
   {
     what: "a node to run rounds on",
     op: { op: "add", parent: "kitchen", title: "season the pan", id: "season" },

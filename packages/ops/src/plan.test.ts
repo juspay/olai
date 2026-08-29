@@ -647,6 +647,52 @@ describe("done and doing", () => {
     expect(read(set).worked).toBe(600 + 480)
   })
 
+  // THE SECOND DOOR the reviews probed: undo walks a settle back to a
+  // BULLET, and from a bullet the same `started` would answer every later
+  // settle — the round counted twice, and the pause with it, forever. The
+  // choreography the reviewers walked: 09:00 doing, 09:10 done, 10:00 undo,
+  // 10:00:05 done (no `set_doing` in between) — and what the bank must say
+  // at the end is still 600, with the stamp BURIED: the second settle
+  // closed no round (the `doing` that made one closable went with the undo),
+  // and a kept stamp would draw [09:00, 10:00:05] against 600 banked
+  // seconds. The third beat pins that the growth stays bounded: another
+  // undo, another settle, the answer unchanged.
+  test("settle → undo → settle mints nothing again: the stamp is buried, the bank stands", () => {
+    const read = (set: OutlineSet): RegularNode =>
+      nodesOf(derive(recordsOf(set)), "house.olai")
+        .map((located) => located.node)
+        .find((node) => node.id === "order") as RegularNode
+    let set = at(house(), "2026-08-29T09:00:00-04:00", { op: "doing", id: "order" })
+    set = at(set, "2026-08-29T09:10:00-04:00", { op: "done", id: "order" })
+    expect(read(set).worked).toBe(600)
+    set = at(set, "2026-08-29T10:00:00-04:00", { op: "done", id: "order", undo: true })
+    set = at(set, "2026-08-29T10:00:05-04:00", { op: "done", id: "order" })
+    expect(read(set)).toMatchObject({ done: "2026-08-29T10:00:05-04:00", worked: 600 })
+    expect(read(set).started).toBeUndefined()
+    set = at(set, "2026-08-29T11:00:00-04:00", { op: "done", id: "order", undo: true })
+    set = at(set, "2026-08-29T12:00:00-04:00", { op: "done", id: "order" })
+    expect(read(set).worked).toBe(600)
+  })
+
+  // The SAME door by way of `todo` (the reviewers' other walk): undone,
+  // back on the queue, then called off — the call-off banks nothing either
+  // and buries the stamp just the same. The verdict of the dance is one
+  // sentence: a settle banks what a live `doing` opened and nothing else.
+  test("…and the `todo` detour mints nothing: back on the queue, called off, the bank stands", () => {
+    const read = (set: OutlineSet): RegularNode =>
+      nodesOf(derive(recordsOf(set)), "house.olai")
+        .map((located) => located.node)
+        .find((node) => node.id === "order") as RegularNode
+    let set = at(house(), "2026-08-29T09:00:00-04:00", { op: "doing", id: "order" })
+    set = at(set, "2026-08-29T09:10:00-04:00", { op: "done", id: "order" })
+    set = at(set, "2026-08-29T10:00:00-04:00", { op: "done", id: "order", undo: true })
+    set = at(set, "2026-08-29T10:05:00-04:00", { op: "todo", id: "order" })
+    expect(read(set)).toMatchObject({ todo: true, worked: 600 })
+    set = at(set, "2026-08-29T10:30:00-04:00", { op: "cancelled", id: "order" })
+    expect(read(set)).toMatchObject({ cancelled: "2026-08-29T10:30:00-04:00", worked: 600 })
+    expect(read(set).started).toBeUndefined()
+  })
+
   // A call-off is a settle: it banks the round it closed exactly as a finish
   // does — the time sunk is the whole of what there is to keep.
   test("calling it off banks the round too", () => {

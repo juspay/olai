@@ -183,6 +183,11 @@ test("a node's read carries `started`, `worked` and the derived `took` — and t
   // whole seconds either way, because the two settling marks read the same.
   expect(detail(at, "bake")).toMatchObject({ started: "2026-08-29T09:52:00-04:00", took: 9284 })
   expect(detail(at, "hinge")).toMatchObject({ started: "2026-08-29T09:52:00-04:00", took: 2460 })
+  // …and NO BANK IS ANSWERED for them: `toMatchObject` ignores extra keys,
+  // so a `worked: 0` default grown later would slip the span pins above —
+  // the property's ABSENCE is the byte-identical rule, named on purpose.
+  expect(detail(at, "bake")).not.toHaveProperty("worked")
+  expect(detail(at, "hinge")).not.toHaveProperty("worked")
   // STILL RUNNING: the instant is there for the tick, and there is no `took`
   // to say — a span needs both ends, and the wire carries no durations.
   expect(detail(at, "water")).toHaveProperty("started")
