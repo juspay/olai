@@ -63,22 +63,28 @@ const house = (): OutlineSet => setOf({ "house.olai": KITCHEN })
  *  archive that drifted from what `planTrash` writes would test a fixture
  *  rather than the inverse — and the door-two block replays the sequence that
  *  can legally mint a contradiction inside the archive. */
-const after = (set: OutlineSet, request: Request): OutlineSet => {
+const after = (set: OutlineSet, request: Request): OutlineSet =>
+  performed(set, planned(set, request))
+
+/** The set a plan's FILES make of a set: every file re-serialized through
+ *  the format's own writer and re-parsed, which is the path a real write
+ *  takes. THE DOCUMENTS COME ACROSS TOO, and that is not decoration: a
+ *  `doc` field and a `doc`-typed property are both PATHS the validator
+ *  resolves against the files the set actually serves, so a rebuilt set
+ *  that dropped them would report every such path as missing — and a test
+ *  about retargeting one would pass because nothing was served rather than
+ *  because the path is right (found while pinning the typed-`doc` boundary
+ *  below). */
+const performed = (set: OutlineSet, result: Plan): OutlineSet => {
   const texts = Object.fromEntries(
     outlinePaths(set).map((file) => [
       file,
       serializeOutline(nodesOf(derive(recordsOf(set)), file).map((located) => located.node)),
     ]),
   )
-  for (const file of planned(set, request).files) {
+  for (const file of result.files) {
     texts[file.file] = serializeOutline(file.nodes)
   }
-  // THE DOCUMENTS COME ACROSS TOO, and that is not decoration: a `doc` field
-  // and a `doc`-typed property are both PATHS the validator resolves against
-  // the files the set actually serves, so a rebuilt set that dropped them
-  // would report every such path as missing — and a test about retargeting one
-  // would pass because nothing was served rather than because the path is
-  // right (found while pinning the typed-`doc` boundary below).
   return setOf(texts, markdownIn(set).map((one) => [one.path, one.body] as const))
 }
 
@@ -90,20 +96,14 @@ const after = (set: OutlineSet, request: Request): OutlineSet => {
  *  not capture), and it answers one id, so a capture accidentally asked in
  *  one of these chains names the same thing twice and trips its own
  *  refusal. */
-const at = (set: OutlineSet, now: string, request: Request): OutlineSet => {
-  const texts = Object.fromEntries(
-    outlinePaths(set).map((file) => [
-      file,
-      serializeOutline(nodesOf(derive(recordsOf(set)), file).map((located) => located.node)),
-    ]),
+const at = (set: OutlineSet, now: string, request: Request): OutlineSet =>
+  performed(
+    set,
+    succeeded(
+      plan(scoping(readingOf(set), { mint: () => "n1", now: () => now }), request),
+      `\`${request.op}\` to plan`,
+    ),
   )
-  const made = succeeded(
-    plan(scoping(readingOf(set), { mint: () => "n1", now: () => now }), request),
-    `\`${request.op}\` to plan`,
-  )
-  for (const file of made.files) texts[file.file] = serializeOutline(file.nodes)
-  return setOf(texts, markdownIn(set).map((one) => [one.path, one.body] as const))
-}
 
 /** The children of a node, in the order the format sorts them — which is what
  *  a placement assertion is actually about. */
