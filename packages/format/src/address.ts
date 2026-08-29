@@ -205,11 +205,11 @@ const slug = (text: string): Slug => text as Slug
  *
  * ONE constructor for all four arms, because the arms are not a choice a
  * caller makes: which one a document-and-element pair lands on is this
- * grammar's rule (an element of an outline is a node AND KEEPS ITS FILE,
- * since the row is where a link to it lands; an element of a body is a
- * heading; an element with no document is a bare node), and a caller that
- * picked the arm itself would be a second copy of that rule free to disagree
- * with {@link parseAddress}.
+ * grammar's rule (an element of an outline is a ROW — its file kept, since
+ * the row is where a link to it lands; an element of a body is a heading;
+ * an element with no document is a bare node), and a caller that picked the
+ * arm itself would be a second copy of that rule free to disagree with
+ * {@link parseAddress}.
  *
  * `null` for both halves empty (nothing named), for a document half that is
  * not a served file's path, and for an element with neither a document nor a
