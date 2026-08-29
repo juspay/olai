@@ -422,6 +422,15 @@ export type DocumentBody = typeof DocumentBody.Type
  * lands, the answer's rows can already carry it, which is the closure
  * `STAMPED`'s `satisfies` buys on disk.
  *
+ * THAT CLOSURE, the whole way round, since the second review made it the
+ * ask: the refusal sentence and the descriptions read this list THROUGH
+ * {@link LEGAL_FIELDS}; membership is {@link isProjectable} and no `as`
+ * speaks for it; the layer that copies the fields onto a row holds a
+ * {@code Record<Projectable, …>} the compiler asks one entry per name of, so
+ * a field added HERE is a missing key THERE the moment it exists; and the
+ * row schema below, the list's one remaining second spelling, is pinned by a
+ * test in `@olai/ops` that fails the day the two spellings disagree.
+ *
  * What is NOT nameable, and why. `id` rides every row already; `children`,
  * `truncated` and `path` are the walk's or the derivation's, not the record's;
  * `doc` and `blocks` are record fields the read vocabulary has never answered
@@ -446,6 +455,28 @@ export const PROJECTABLE = [
   "custom",
 ] as const
 export type Projectable = (typeof PROJECTABLE)[number]
+
+/** THE one membership answer — the {@link PROJECTABLE} list read as a
+ *  narrowing, so a caller learns a string is nameable and the compiler
+ *  learns it too in the same breath, and neither `as` nor a second list
+ *  ever speaks for it. */
+export const isProjectable = (name: string): name is Projectable =>
+  (PROJECTABLE as ReadonlyArray<string>).includes(name)
+
+/**
+ * The VOCABULARY AS ONE SENTENCE — the backticked enumeration with the one
+ * phrasing for the property half, composed exactly here and read everywhere
+ * the vocabulary is TOLD: the refusal of a name outside it, the {@link
+ * FieldsRequest} parameter's own description, and the two MCP descriptions
+ * that teach it. The `"title", …, "cancelled"` spelling of the same list in
+ * four voices — refusal, schema prose, two tool descriptions — is the drift
+ * the second review of `read-rows-shaped` caught mid-PR, and this is the
+ * spelling those four now read; the enumeration is {@link PROJECTABLE}'s own
+ * order, so a name added to the list joins every sentence about it.
+ */
+export const LEGAL_FIELDS =
+  PROJECTABLE.map((name) => `\`${name}\``).join(", ") +
+  ", and one property spelled as `custom.<key>`"
 
 /**
  * The row itself: `id`, and NOTHING ELSE guaranteed — the rest is what was
@@ -492,13 +523,12 @@ export type Projected = typeof Projected.Type
 const FieldsRequest = Schema.optionalKey(
   Schema.Array(Schema.String).annotate({
     description:
-      "Name what each row carries: `title`, `parent`, `status`, the four marks " +
-      "(`done`, `cancelled`, `doing`, `todo` — the two settles carry their " +
-      "instants), `started` (when the work first went doing), `date`, " +
-      "`repeat`, `desc`, `created`, `changed`, `see`, `after`, `custom` for " +
-      "the whole property map, or `custom.<key>` for one property. The id " +
-      "rides regardless, and an unknown name is refused with this list. " +
-      "Absent: the full row this read answers today.",
+      "Name what each row carries: " +
+      LEGAL_FIELDS +
+      ". The two settles carry their instants, and `started` is when the work " +
+      "first went doing. The id rides regardless, and an unknown name is " +
+      "refused with this same list. Absent: the full row this read answers " +
+      "today.",
   }),
 )
 

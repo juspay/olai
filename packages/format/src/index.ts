@@ -822,6 +822,8 @@ export {
   PathsAnswer,
   Placed,
   Placement,
+  isProjectable,
+  LEGAL_FIELDS,
   Projected,
   PROJECTABLE,
   type Projectable,

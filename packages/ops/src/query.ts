@@ -54,7 +54,9 @@ import {
   type HomesAnswer,
   type HomesRequest,
   isMirror,
+  isProjectable,
   isRegular,
+  LEGAL_FIELDS,
   type LocatedRegular,
   markdownAt,
   markdownIn,
@@ -104,6 +106,7 @@ import {
   type SearchHit,
   type SearchRequest,
   type Stamps,
+  type Status,
   type Subtree,
   type SubtreeAnswer,
   type SubtreeRequest,
@@ -759,24 +762,88 @@ const stampsOf = (node: LocatedRegular["node"]): Stamps =>
  * refusal: the caller shaped it.
  */
 interface Wants {
-  /** One bit per field {@link PROJECTABLE} lists — `custom` in it means the
-   *  whole map. */
-  readonly named: Record<Projectable, boolean>
+  /** The fields named — membership only, answered by {@link isProjectable}
+   *  once and remembered, rather than asked of the list again with a cast. */
+  readonly named: ReadonlySet<Projectable>
   /** The properties asked one at a time — `custom.<key>`. */
   readonly keys: ReadonlySet<string>
 }
 
 /** What an unknown `fields` name is told: the legal ones, whole, with the
- *  lone prefix form beside them. REFUSED rather than silently dropped — a
- *  read that quietly answered without the field the caller asked for is the
- *  walk's own shape of a lie. */
+ *  lone prefix form beside them — {@link LEGAL_FIELDS} read aloud rather
+ *  than respelled, because this sentence is the vocabulary's face and the
+ *  day it disagrees with the list that accepts names, it teaches the wrong
+ *  list. REFUSED rather than silently dropped — a read that quietly answered
+ *  without the field the caller asked for is the walk's own shape of a lie. */
 const unknownField = (field: string): UsageFailure =>
   new UsageFailure({
-    reason: `\`${field}\` is not a field \`fields\` names — the legal ones are ` +
-      PROJECTABLE.map((name) => `\`${name}\``).join(", ") +
-      ", and one property spelled as `custom.<key>`; `id` rides every row " +
-      "already.",
+    reason:
+      `\`${field}\` is not a field \`fields\` names — the legal ones are ` +
+      LEGAL_FIELDS +
+      "; `id` rides every row already.",
   })
+
+/**
+ * What ONE ROW's worth of field-reads already knows before a single name is
+ * asked — computed once per row and read by {@link FIELDS_READ} once per
+ * name: the record itself, its derived mark, the ONE-answer pick of where it
+ * sits and what it holds ({@link carriedOf}), the pruned property map, and
+ * the request's own dial.
+ */
+interface RowParts {
+  readonly node: LocatedRegular["node"]
+  readonly status: Status | undefined
+  readonly carried: Pick<Found, "parent" | "see" | "after" | "custom">
+  readonly held: ReturnType<typeof heldCustom>
+  readonly wants: Wants
+}
+
+/**
+ * THE ONE TABLE a shaped row reads its fields from — one entry per
+ * {@link Projectable}, keyed by it, so the closure holds where it is spent:
+ * a field the vocabulary gains with no entry HERE is a compile error on this
+ * table the day it lands, which makes "the refusal names it and no row
+ * carries it" unrepresentable. {@link PROJECTABLE}'s own header describes
+ * the other end of the same clasp.
+ *
+ * The special cases are ENTRIES here like any other, not a second walk of
+ * the names: `status` is the derivation's answer; `custom` is the whole
+ * pruned map, or the caller's keys alone when that was the ask — walked over
+ * the pruned map itself, so its keys answer in the FILE's canonical order,
+ * the one a whole-map row answers in, rather than the request's. Everything
+ * else is the record's own value, and `parent` / `see` / `after` / the whole
+ * map come through one {@link carriedOf} pick, so a shaped row and a full
+ * one cannot disagree about when a field is absent.
+ *
+ * An entry's `undefined` IS the full row's absent — the day a value needs
+ * deciding by a rule of its own is the day it stops being verbatim, and the
+ * table is where that rule would be argued.
+ */
+const FIELDS_READ = {
+  title: ({ node }) => node.title,
+  parent: ({ carried }) => carried.parent,
+  status: ({ status }) => status,
+  done: ({ node }) => node.done,
+  cancelled: ({ node }) => node.cancelled,
+  doing: ({ node }) => node.doing,
+  todo: ({ node }) => node.todo,
+  started: ({ node }) => node.started,
+  date: ({ node }) => node.date,
+  repeat: ({ node }) => node.repeat,
+  desc: ({ node }) => node.desc,
+  created: ({ node }) => node.created,
+  changed: ({ node }) => node.changed,
+  see: ({ carried }) => carried.see,
+  after: ({ carried }) => carried.after,
+  custom: ({ held, wants }) => {
+    const picked = wants.named.has("custom")
+      ? held
+      : Object.fromEntries(
+          Object.entries(held).filter(([key]) => wants.keys.has(key)),
+        )
+    return nothing(picked) ? undefined : picked
+  },
+} satisfies Record<Projectable, (parts: RowParts) => unknown>
 
 const CUSTOM_PREFIX = "custom."
 
@@ -790,7 +857,7 @@ const CUSTOM_PREFIX = "custom."
 const projectionOf = (
   fields: ReadonlyArray<string>,
 ): Result.Result<Wants, UsageFailure> => {
-  const named: Partial<Record<Projectable, boolean>> = {}
+  const named = new Set<Projectable>()
   const keys = new Set<string>()
   for (const field of fields) {
     if (field.startsWith(CUSTOM_PREFIX)) {
@@ -799,12 +866,10 @@ const projectionOf = (
       keys.add(key)
       continue
     }
-    if (!PROJECTABLE.includes(field as Projectable)) {
-      return Result.fail(unknownField(field))
-    }
-    named[field as Projectable] = true
+    if (!isProjectable(field)) return Result.fail(unknownField(field))
+    named.add(field)
   }
-  return Result.succeed({ named: named as Record<Projectable, boolean>, keys })
+  return Result.succeed({ named, keys })
 }
 
 /**
@@ -826,40 +891,36 @@ const shapedOf = (
   wants: Wants,
 ): Projected => {
   const node = located.node
-  const named = wants.named
-  const status = derived.status.get(node.id)
-  // PRUNED ONCE through `heldCustom`, for {@link carriedOf}'s reason word for
-  // word: a key holding nothing is a key the file does not carry. The whole
-  // map, or a selection of its keys — the sub-selection is walked over the
-  // pruned map itself, so its keys answer in the FILE's canonical order,
-  // the one a whole-map row answers in, rather than the request's.
-  const held = heldCustom(node.custom)
-  const custom = named["custom"]
-    ? held
-    : Object.fromEntries(Object.entries(held).filter(([key]) => wants.keys.has(key)))
+  const parts: RowParts = {
+    node,
+    status: derived.status.get(node.id),
+    carried: carriedOf(node),
+    // PRUNED ONCE through `heldCustom`, for {@link carriedOf}'s reason word
+    // for word: a key holding nothing is a key the file does not carry.
+    held: heldCustom(node.custom),
+    wants,
+  }
   return {
     id: node.id,
-    ...(named["title"] ? { title: node.title } : {}),
-    // A bullet — the same spelling of absence every other answer gives it,
-    // `Found`'s reading of the one derivation.
-    ...(named["status"] && status !== undefined ? { status } : {}),
-    // The rest of the record's own ROW CONTENT, verbatim — the marks
-    // included, so a row carrying `done` carries the settle INSTANT the record
-    // stores. ONE loop the way {@link stampsOf} loops the marks, and one
-    // closed table inside it: copied when the caller named the field AND the
-    // record carries it, the two questions as a pairing, so a name
-    // {@link PROJECTABLE} gains is copied without this row passing again.
+    // The named fields, in the vocabulary's own order rather than the
+    // request's — one ordering for every row the dial cuts, so two callers
+    // naming the same fields differently spell the same row. Each read is
+    // one entry in {@link FIELDS_READ}, and its `undefined` is the row's
+    // absent, exactly as the full row's.
     ...Object.fromEntries(
-      ([...MARKS, "started", "date", "repeat", "desc", "created", "changed"] as const)
-        .flatMap((name) => {
-          const value = node[name]
-          return named[name] && value !== undefined ? [[name, value]] as const : []
-        }),
+      PROJECTABLE.flatMap((name) => {
+        // WANTED: the name itself — or, for the one map a caller may open a
+        // narrow slot on, a key of it asked: `custom.<key>` is the map read
+        // narrow, not a new field, so it wants THIS entry too (which of the
+        // two reads it is, the entry itself decides, for the reason the ask
+        // is one).
+        if (!wants.named.has(name) && !(name === "custom" && wants.keys.size !== 0)) {
+          return []
+        }
+        const value = FIELDS_READ[name](parts)
+        return value === undefined ? [] : [[name, value]] as const
+      }),
     ),
-    ...(named["parent"] && !nothing(node.parent) ? { parent: node.parent } : {}),
-    ...(named["see"] && !nothing(node.see) ? { see: node.see } : {}),
-    ...(named["after"] && !nothing(node.after) ? { after: node.after } : {}),
-    ...(nothing(custom) ? {} : { custom }),
   }
 }
 

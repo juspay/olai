@@ -16,6 +16,7 @@
 import * as assert from "node:assert";
 
 import { Given, Then, When } from "@cucumber/cucumber";
+import { PROJECTABLE } from "@olai/format";
 
 import { callTool, connectTerminalAgent, tryTool } from "../support/mcp.ts";
 import { HYDRATION_TIMEOUT, type OlaiWorld } from "../support/world.ts";
@@ -448,28 +449,14 @@ Then(
   function (this: OlaiWorld) {
     const reason = String(structuredOf(this)["reason"] ?? "");
     // One place the vocabulary is learned: the refusal sentence names the
-    // whole legal set, so an agent correcting from prose can.
-    for (
-      const legal of [
-        "title",
-        "parent",
-        "status",
-        "done",
-        "cancelled",
-        "doing",
-        "todo",
-        "started",
-        "date",
-        "repeat",
-        "desc",
-        "created",
-        "changed",
-        "see",
-        "after",
-        "custom",
-      ]
-    ) {
-      assert.ok(reason.includes(`\`${legal}\``), `the refusal does not name \`${legal}\`: ${reason}`);
+    // whole legal set, so an agent correcting from prose can. The list is
+    // the format's own rather than retyped — a hand-spelled one here can
+    // only ever prove the two spellings once agreed.
+    for (const legal of PROJECTABLE) {
+      assert.ok(
+        reason.includes(`\`${legal}\``),
+        `the refusal does not name \`${legal}\`: ${reason}`,
+      );
     }
     assert.ok(
       reason.includes("`custom.<key>`"),

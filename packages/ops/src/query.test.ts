@@ -24,6 +24,8 @@ import {
   type OpFailure,
   type OutlineSet,
   type PageRequest,
+  Projected,
+  PROJECTABLE,
   type ProjectedRoots,
   type ProjectedSubtree,
   type Reading,
@@ -647,6 +649,17 @@ describe("the parent a node sits under", () => {
  * exists to close.
  */
 describe("the caller shapes the rows", () => {
+  test("the vocabulary and the row's schema are one list, neither way", () => {
+    // The one second spelling a `satisfies` cannot close: `Projected`'s keys
+    // (what a row may carry) against PROJECTABLE (what a request may name),
+    // `id` excepted — it rides. The other legs of the closure — the refusal's
+    // sentence, the copy's per-field table — read the list itself; this is
+    // where the schema's spread of STAMPED + the record fields is made to
+    // answer to it.
+    expect(Object.keys(Projected.fields).filter((key) => key !== "id").sort())
+      .toEqual([...PROJECTABLE].sort())
+  })
+
   /** A lane and its two steps: the FIRST is settled (its `done` is an
    *  instant, the field a timings walk asks for and the one today's child
    *  rows cannot say), the second under way, and one of them writes notes
@@ -806,27 +819,11 @@ describe("the caller shapes the rows", () => {
     const refusal = refusedWalk(timed(), { id: "lane", fields: ["florp"] })
     expect(refusal._tag).toBe("UsageFailure")
     expect(refusal.message).toContain("`florp` is not a field `fields` names")
-    // EVERY legal name is in the sentence, and the two prefix forms: the
-    // refusal is where one learns them.
-    for (
-      const legal of [
-        "title",
-        "status",
-        "done",
-        "cancelled",
-        "doing",
-        "todo",
-        "started",
-        "date",
-        "desc",
-        "created",
-        "changed",
-        "parent",
-        "see",
-        "after",
-        "custom",
-      ]
-    ) {
+    // EVERY legal name is in the sentence: the refusal is where one learns
+    // them, and the list it names is the vocabulary's own — derived HERE,
+    // since a retyped list (the first pass's) can only ever prove that two
+    // spellings once agreed.
+    for (const legal of PROJECTABLE) {
       expect(refusal.message).toContain(`\`${legal}\``)
     }
     expect(refusal.message).toContain("`custom.<key>`")
