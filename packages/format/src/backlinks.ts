@@ -268,17 +268,24 @@ export const referrersTo = (
   // WRITTEN and compared, because a canonical spelling is what the grammar
   // promises: two addresses that name one place print one string, so nothing
   // here has to know how the arms are shaped.
-  // NO STRING IS BUILT for a document or a heading, and that is what keeps the
-  // record walk below cheap on a file that holds a lot of them: a path IS the
-  // comparison for those two arms, and it is the arm a page asks about.
+  // NO STRING IS BUILT for the arms that name a file, and that is what keeps
+  // the record walk below cheap on a file that holds a lot of them: a path IS
+  // the comparison for those arms, and it is the arm a page asks about.
   const here = address.kind === "node" ? null : address.path
   const points = (link: Address): boolean => {
     if (address.kind === "node") return link.kind === "node" && link.id === address.id
     if (link.kind === "node" || link.path !== address.path) return false
     // A LINK ONTO A HEADING POINTS AT THE DOCUMENT (below); asking about the
-    // heading is asking about the heading.
-    return address.kind === "document" || link.kind === "heading" &&
-      link.slug === address.slug
+    // heading is asking about the heading, and asking about a row is asking
+    // about that row — a page of this app never asks the row's question today,
+    // and the arm is spelled so the day it does costs nothing.
+    if (address.kind === "heading") {
+      return link.kind === "heading" && link.slug === address.slug
+    }
+    if (address.kind === "row") {
+      return link.kind === "row" && link.id === address.id
+    }
+    return true
   }
   const found: Array<Referrer> = []
   for (const face of pointingAt(pointing, address)) {

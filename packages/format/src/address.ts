@@ -13,15 +13,29 @@
  * | `Tasks.olai` | an outline document |
  * | `README.md` | a markdown document |
  * | `#a1b2c3` | a node — the document half is optional |
+ * | `Tasks.olai#a1b2c3` | a ROW — the node, at the file that holds it |
  * | `README.md#install` | a heading — the document half is required |
  *
  * **The document half of a node address is optional, and the bare id is what
- * this prints.** Node ids are unique across the loaded set and survive renames
- * and moves between files, so a bare `#id` outlives every edit short of a
- * delete — the property the browser's node permalink argued for, kept.
- * The qualified spelling is READ (`Tasks.olai#a1b2c3` is what somebody writes
- * when they know where the node lives) and NORMALISED away, because the file
- * in it is a fact that can go stale and the id beside it cannot.
+ * the node arm prints.** Node ids are unique across the loaded set and survive
+ * renames and moves between files, so a bare `#id` outlives every edit short
+ * of a delete — the property the browser's node permalink argued for, kept.
+ *
+ * The qualified spelling — `Tasks.olai#a1b2c3`, which is what somebody writes
+ * when they know where the node lives — is read and KEPT, as the row arm. It
+ * used to be normalised away to the bare node, on the argument that the file
+ * in it is a fact that can go stale and the id beside it cannot. What that
+ * argument could not say is where a reader LANDS when they follow one, and a
+ * page answered that: `/#id` is the durable zoom permalink, so the qualified
+ * spelling was the one place left for *the outline, landed at that row* to
+ * mean — the same treatment `README.md#install` already has for a document.
+ * The staleness the normalisation was avoiding is still real, and it is paid
+ * the way the heading arm pays it: the file half can go stale, exactly as a
+ * reworded heading breaks the address that named it, and a landing that finds
+ * nothing does nothing. What does NOT go stale is the node's NAME, which the
+ * shelf resolves through the id half alone (`./shelf.ts`) — so a pin spelled
+ * the qualified way keeps saying the node's live title after a move, the
+ * promise `./shelf.test.ts` and `@olai/ops`' move differential pin.
  *
  * **A markdown element's identity is its heading slug**, derived from the
  * words in the heading. Rewording the heading breaks the address; that is
@@ -143,6 +157,16 @@ export const AtNode = Schema.Struct({
 })
 export type AtNode = typeof AtNode.Type
 
+/** One node inside the outline that holds it — the qualified half of the node
+ *  grammar, kept: both halves, because the file is where the row is LANDED
+ *  and the id is which one. */
+export const AtRow = Schema.Struct({
+  kind: Schema.Literal("row"),
+  path: DocumentPath,
+  id: NodeId,
+})
+export type AtRow = typeof AtRow.Type
+
 /** One heading inside a body, which takes both halves: a slug is derived from
  *  the words of a heading, so it is unique inside its own document and nowhere
  *  else. */
@@ -157,7 +181,7 @@ export type AtHeading = typeof AtHeading.Type
  *  optional halves, for `./node.ts`'s reason: `{path?, id?, slug?}` makes the
  *  illegal combinations representable — a slug with no document, an id beside
  *  a path — and pushes "which fields may co-occur" into every reader. */
-export const Address = Schema.Union([AtDocument, AtNode, AtHeading])
+export const Address = Schema.Union([AtDocument, AtNode, AtRow, AtHeading])
 export type Address = typeof Address.Type
 
 /**
@@ -179,14 +203,13 @@ const slug = (text: string): Slug => text as Slug
  * The address of a place, from the two halves somebody named — or `null` for a
  * pair that names none.
  *
- * ONE constructor for all three arms, because the arms are not a choice a
+ * ONE constructor for all four arms, because the arms are not a choice a
  * caller makes: which one a document-and-element pair lands on is this
- * grammar's rule (an element of an outline is a node, an element of a body is
- * a heading, an element with no document is a node), and a caller that picked
- * the arm itself would be a second copy of that rule free to disagree with
- * {@link parseAddress}. It is also where the NORMALISATION lives —
- * `Tasks.olai#a1b2c3` is an id in an outline, so it comes back as the bare
- * node it names.
+ * grammar's rule (an element of an outline is a node AND KEEPS ITS FILE,
+ * since the row is where a link to it lands; an element of a body is a
+ * heading; an element with no document is a bare node), and a caller that
+ * picked the arm itself would be a second copy of that rule free to disagree
+ * with {@link parseAddress}.
  *
  * `null` for both halves empty (nothing named), for a document half that is
  * not a served file's path, and for an element with neither a document nor a
@@ -216,7 +239,7 @@ export const addressOf = (
   // would be the grammar claiming a vault's pictures hold records.
   return holdsBody(kind)
     ? { kind: "heading", path, slug: slug(named) }
-    : { kind: "node", id: nodeId(named) }
+    : { kind: "row", path, id: nodeId(named) }
 }
 
 /**
@@ -242,9 +265,11 @@ export const writtenAddress = (
     return { path: "", element: encodeURIComponent(address.id) }
   }
   const path = spellPath(address.path)
-  return address.kind === "document"
-    ? { path, element: undefined }
-    : { path, element: encodeURIComponent(address.slug) }
+  if (address.kind === "document") return { path, element: undefined }
+  return {
+    path,
+    element: encodeURIComponent(address.kind === "row" ? address.id : address.slug),
+  }
 }
 
 /** The address, written whole — the two halves above with the grammar's own

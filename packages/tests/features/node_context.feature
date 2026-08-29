@@ -103,16 +103,29 @@ Feature: The outline and the chat point at each other
     And the composer is armed with "order"
 
   @scratch:chat
-  Scenario: A node that is not on the page opens its own page
-    # Focusing is about the page in front of the reader, so when the node is
-    # not drawn on it — another outline, a branch this reader has shut, a row
-    # done-hidden left out — the reference goes to the node's own address
-    # rather than doing nothing.
+  Scenario: A node that is not on the page is landed at its own row
+    # A reference press means SHOW THIS NODE, and a branch the reader has shut
+    # cannot stand in its way: the press lands the reader on the node's own
+    # file at the row — unfolded, selected, on screen — rather than zooming
+    # away from the page they had (`/#id` still means zoom; the reference row
+    # is not one).
     When I collapse the node "kitchen"
     And I ask the agent "done order"
     And I press the node "order" in the write
-    Then the address is "/#order"
-    And the zoomed node is "order"
+    Then the address is "/house.olai#order"
+    And the node "kitchen" is expanded
+    And the node "order" is focused
+
+  @scratch:chat
+  Scenario: A node in another outline lands the reader on that outline
+    # The other half of the same sentence: the address the reader lands on is
+    # spelled with the file the node LIVES IN, asked at press time — the id is
+    # durable and the file is not, so the transcript's hat on an old write
+    # still lands where the node IS.
+    When I ask the agent "done fence"
+    And I press the node "fence" in the write
+    Then the address is "/yard.olai#fence"
+    And the node "fence" is focused
 
   @scratch:chat @wire
   Scenario: Typing beside an armed chip does not ask again what the node is called

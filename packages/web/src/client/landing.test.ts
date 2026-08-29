@@ -44,6 +44,17 @@ describe("what an address is owed", () => {
     expect(landingOf(routeOf("/notes/beds.md"))).toBeUndefined()
   })
 
+  test("a ROW of an outline is the outline's landing; a bare node is none", () => {
+    expect(landingOf(routeOf("/house.olai#kitchen"))).toEqual({
+      file: "house.olai",
+      at: "kitchen",
+      spent: false,
+    })
+    // `/#id` is the zoom permalink — an arrival AT the node's page rather
+    // than inside one, so nothing performs an act over its rows.
+    expect(landingOf(routeOf("/#kitchen"))).toBeUndefined()
+  })
+
   test("every pane that named a section is owed one, not just the focused", () => {
     const owed = landingsOf(BOTH)
     expect(owed.get(0)).toEqual({ file: "notes/beds.md", at: "slats", spent: false })

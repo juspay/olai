@@ -38,11 +38,14 @@
  * it near an edge.
  */
 
+import { Result } from "effect"
 import { type Accessor, createSignal } from "solid-js"
 
+import { atElement, type Route } from "./routes.ts"
+import { runAsync } from "./run.ts"
 import { useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
-import { atNode } from "./routes.ts"
+import { olai } from "./wire.ts"
 
 const [focused, setFocused] = createSignal<string | null>(null)
 
@@ -57,6 +60,27 @@ export const focusedNode: Accessor<string | null> = focused
  *  wherever in the tree it turned out to be, and a mirror of the node wears it
  *  too. */
 const FOCUSED = "data-focused"
+
+/**
+ * SELECT the row an address asked for — the same "this is the row" a
+ * reference's press draws, because this module's standing rule is that there
+ * is one accent for it and a second vocabulary for an arrival would be a
+ * second thing for a reader to learn.
+ *
+ * Exported for the outline's landing act (`./OutlinePage.tsx`), which is the
+ * only other writer: where a press is a person pointing from the panel, an
+ * arrival is a URL asking once — same signal, same attribute, same accent.
+ */
+export const selectNode = (id: string): void => {
+  setFocused(id)
+}
+
+/** The row the last point or landing selected, within one pane's root — what
+ *  either writer's scroll aims at. It is found rather than computed, which is
+ *  why `focusNode` below looks after the frame that draws the attribute: a
+ *  mirror of the node wears it too, and either will do. */
+export const focusedRowIn = (root: ParentNode): Element | null =>
+  root.querySelector(`[data-testid="${TESTID.node}"][${FOCUSED}="true"]`)
 
 /**
  * Point at `id`: light the row up, and bring it onto the screen.
@@ -80,9 +104,7 @@ const focusNode = (id: string, elsewhere: () => void): void => {
     // own address. Panes now wear `data-pane-focused`. The selector
     // still names the row so that fact cannot sit in front of this one
     // again.
-    const row = document.querySelector(
-      `[data-testid="${TESTID.node}"][${FOCUSED}="true"]`,
-    )
+    const row = focusedRowIn(document)
     if (row === null) {
       elsewhere()
       return
@@ -91,6 +113,46 @@ const focusNode = (id: string, elsewhere: () => void): void => {
     // window has its children off the bottom of it, and what a person wants to
     // see about the node they were just told about is what hangs under it.
     row.scrollIntoView({ block: "center", behavior: "smooth" })
+  })
+}
+
+/** How many times the reader has pointed at a node. The press the page
+ *  follows is the LATEST one, and the elsewhere half of `useShowNode` is a
+ *  round trip: a reader who pressed a second reference while the first was
+ *  still asking where its node lives must not be walked back to the first. */
+let pointed = 0
+
+/**
+ * Where a reference goes when its node is NOT on the open page: the node's
+ * own file, landed at the row (`./landing.ts` takes it from there).
+ *
+ * One question on the way (`nodes.homes`), and that is the change this lane
+ * made legible: the button says `show this node`, and ZOOMING — `/#id`, where
+ * this used to go — showed the node by leaving every page, which is the one
+ * reading the chat panel's references were never about. The id is durable and
+ * the file is not, which is exactly why the file is asked at press time
+ * rather than carried: the transcript's hat on a node from an hour ago still
+ * lands where the node IS.
+ *
+ * ABSENT IS THE ANSWER, twice: an id the set has no record for is one the
+ * press said nothing about, so the page stays exactly where it was — the
+ * polite half of the ruled behaviour, and a blank zoom page's replacement.
+ * A wire that cannot answer is a console line, no louder: the connection pill
+ * is already saying so, which is `fold/refiling.ts`'s own ruling.
+ */
+const landOnRow = (go: (route: Route) => void, id: string, mine: number): void => {
+  void runAsync(olai.procedures.nodes.homes({ ids: [id], files: [] })).then((outcome) => {
+    if (mine !== pointed) return
+    if (Result.isFailure(outcome)) {
+      console.warn(
+        "olai: could not ask where the pressed node lives, so the reference went nowhere —",
+        outcome.failure.message,
+      )
+      return
+    }
+    const home = outcome.success.homes.find((one) => one.id === id)?.file
+    if (home === undefined) return
+    go(atElement(home, id))
   })
 }
 
@@ -103,8 +165,17 @@ const focusNode = (id: string, elsewhere: () => void): void => {
  * listener on the pane catches ({@link ./chat/Transcript.tsx}), and two places
  * writing the same "and if it is not on this page?" is one place for the two to
  * start disagreeing about what a press means.
+ *
+ * What it means, one sentence each arm: on the open page, the row is SELECTED
+ * — this file's whole fact — and off it, the reader is taken to the node's own
+ * file, LANDED at the row ({@link landOnRow}). The zoom page (`/#id`) is
+ * where it used to land, and that address still means zoom — it is the
+ * permalink a pin or an outside hand spells; a reference is not one.
  */
 export const useShowNode = (): ((id: string) => void) => {
   const router = useRouter()
-  return (id) => focusNode(id, () => router.go(atNode(id)))
+  return (id) => {
+    const mine = ++pointed
+    focusNode(id, () => landOnRow(router.go, id, mine))
+  }
 }

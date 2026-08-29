@@ -3,12 +3,14 @@
  * that can be stated without a browser.
  *
  * An address that names a place inside a page — `/notes/beds.md#slats`,
- * `/saved/report.html#totals` — asks to arrive THERE, and that ask is an ACT: it
+ * `/saved/report.html#totals`, `/house.olai#install` — asks to arrive THERE, and
+ * that ask is an ACT: it
  * happens once, on arrival, and never again. What performs one is a face (the
  * markdown body scrolls to a heading; the `.html` preview puts the fragment on
  * the frame's own URL and then follows the frame's report of where the anchor
- * ended up); what this module holds is the WORD — whose arrival it is, and
- * whether it has happened.
+ * ended up; the outline unfolds the chain to the row and selects it —
+ * `./OutlinePage.tsx`); what this module holds is the WORD — whose arrival it
+ * is, and whether it has happened.
  *
  * A MODULE OF ITS OWN rather than four helpers inside `./router.tsx`, and the
  * precedent is `./document/echo.ts`, which is here for the same reason: the
@@ -79,17 +81,26 @@ export const NOWHERE: Landings = new Map()
  *  verb makes and not a line it can forget to write. */
 export const asTheyWere = (all: Landings): Landings => all
 
-/** Where inside a page an arrival LANDS — the page's own file and a heading's
- *  own slug, and nothing for an address that names a whole place. It is read
- *  off the address, which is the only thing that says it: a `#` after a body
- *  is a heading, and after an outline it is a node (`@olai/format`'s
- *  `address.ts`), so the grammar has already decided which of the two this is
- *  — and a heading address carries the document it is a heading OF, so there
- *  is nothing to look the file up in. */
+/** Where inside a page an arrival LANDS — the page's own file and the
+ *  element's own name, and nothing for an address that names a whole place.
+ *  It is read off the address, which is the only thing that says it: a `#`
+ *  after a body is a heading, and after an outline it is a ROW
+ *  (`@olai/format`'s `address.ts`), so the grammar has already decided which
+ *  of the two this is — and either element address carries the document it is
+ *  an element OF, so there is nothing to look the file up in.
+ *
+ *  The BARE node is the one element address that is NOT a landing: `/#id` is
+ *  the zoom permalink, the page that IS the node, and navigating there is an
+ *  arrival at the page rather than inside one. */
 export const landingOf = (route: Route): Landing | undefined => {
   const address = route.kind === "at" ? route.address : undefined
-  if (address?.kind !== "heading") return undefined
-  return { file: address.path, at: address.slug, spent: false }
+  if (address?.kind === "heading") {
+    return { file: address.path, at: address.slug, spent: false }
+  }
+  if (address?.kind === "row") {
+    return { file: address.path, at: address.id, spent: false }
+  }
+  return undefined
 }
 
 /** What a WHOLE ADDRESS is owed — one landing per pane that named a section,

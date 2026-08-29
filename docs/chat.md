@@ -195,7 +195,7 @@ While the list is up the keys are the list's: ↑/↓ walk it — through both b
 
 ## Pointing back at a node
 
-Ids in the panel are pressable, and pressing one shows you that node: the row scrolls into view and says it is the one being talked about. If it is not on the page you are reading — another outline, a branch you have collapsed — you go to its own page instead.
+Ids in the panel are pressable, and pressing one shows you that node: the row scrolls into view and says it is the one being talked about. If it is not drawn on the page you are reading — another outline, a branch you have collapsed — you are landed on its own file's page instead, unfolded to the row and sat on it, because *show this node* promised the row and a collapse may not hide what an address asked for. The address in the bar is the row's own (`house.olai#order`), never the zoom (`/#id` stays the permalink it always was).
 
 Three things in the conversation are ids, and none of them is a syntax anybody had to invent:
 
