@@ -36,7 +36,6 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { watchFault } from "./fault.ts"
-import { frozenPolicy } from "./serve.testlib.ts"
 import { hostname } from "./hostname.ts"
 import { type Bound, bind, gitWiring, writerAt } from "./runtime.ts"
 
@@ -104,7 +103,7 @@ const withRuntime = <A>(
       kolu: null,
       git: gitWiring(
         ops,
-        frozenPolicy({ commit: "off", push: null }),
+        fixedPolicy({ commit: "off", push: null }),
         yield* SubscriptionRef.make(0),
       ),
     })

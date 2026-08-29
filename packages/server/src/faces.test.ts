@@ -370,6 +370,25 @@ const withBrowserSocket = (
     }
   })
 
+test("git.setPolicy is gone — not on the surface, a call cannot land", async () => {
+  expect(DECLARED()).not.toContain("git.setPolicy")
+  expect(Object.keys(BROWSER)).not.toContain("git.setPolicy")
+  expect(surface.group.requests.has("surface/git/setPolicy")).toBe(false)
+
+  await withBrowserSocket(async (dispatch) => {
+    const refused = await Effect.runPromise(
+      Effect.exit(dispatch.unary("surface/git/setPolicy", { commit: "auto" })),
+    )
+    expect(Exit.isFailure(refused)).toBe(true)
+    if (Exit.isFailure(refused)) {
+      const said = Cause.pretty(refused.cause)
+      // The typed client has no schema for it. That is not a usage refusal of
+      // a live procedure — those name the tag as not-exposed-on-this-face.
+      expect(said).not.toContain("is not exposed on this face")
+    }
+  })
+})
+
 test("a browser calling a write verb is refused, and the same socket keeps serving", async () => {
   await withBrowserSocket(async (dispatch) => {
     // The member EXISTS on this surface and is bound on this face — that is the

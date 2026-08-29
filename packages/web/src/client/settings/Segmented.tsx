@@ -35,7 +35,8 @@ export interface Choice<T extends string> {
 export function Segmented<T extends string>(props: {
   readonly choices: ReadonlyArray<Choice<T>>
   readonly value: T
-  readonly onPick: (value: T) => void
+  /** Absent on a frozen strip: there is nothing to pick. */
+  readonly onPick?: (value: T) => void
   /** Read-only: the value is somebody else's to set. Default is a live strip. */
   readonly frozen?: boolean
 }) {
@@ -79,7 +80,7 @@ export function Segmented<T extends string>(props: {
             // live strip.
             aria-disabled={frozen() ? true : undefined}
             onClick={() => {
-              if (!frozen()) props.onPick(choice.value)
+              if (!frozen()) props.onPick?.(choice.value)
             }}
           >
             {choice.label}

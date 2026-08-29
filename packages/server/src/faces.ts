@@ -310,13 +310,6 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   "vocabulary.tags": "tool",
   "git.commit": "tool",
   "git.push": "tool",
-  // The two preference rows' verbs. THE BROWSER'S ALONE, and that is the same
-  // kind of line `who.get` below is: an agent has no preferences panel, and
-  // what a directory's git policy is to be is a decision a person makes about
-  // their own deployment. An agent that could set it could turn a team's
-  // auto-push off between two tool calls, with nobody watching and no gesture
-  // anywhere on screen having caused it.
-  "git.setPolicy": "tool",
   "git.resume": "tool",
   "who.get": "tool",
   // `app.get` is on this face and no other for exactly `who.get`'s reason:

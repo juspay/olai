@@ -8,12 +8,12 @@
  * of the first two. That is pure, so it is asserted as values rather than by
  * starting a process.
  *
- * What it answers with is a PIN rather than a mode, and that distinction is the
- * whole of `vault-level-settings`: a flag NOBODY GAVE is `null`, which leaves
- * every browser's own preference alone, while `--commit=manual` typed out loud
- * freezes that row read-only in every browser. The two do the same thing on
- * this server and opposite things in front of a reader, so a table that folded
- * them together would be a table that cannot see the feature.
+ * What it answers with is a PIN rather than a mode: a flag NOBODY GAVE is
+ * `null`, which is the built-in default, while `--commit=manual` typed out loud
+ * is named under the row. The two do the same thing on this server and
+ * different things on the line that says who set it, so a table that folded
+ * them together would be a table that cannot see the feature. Both rows are
+ * always read-only.
  *
  * The FENCE is about the two faces, and it is the one this file exists for.
  * the agent face shipped without the flag at all — the tri-state was `olai web`'s
@@ -34,16 +34,13 @@ import * as path from "node:path"
 import {
   COMMIT_DEFAULT,
   COMMIT_MODES,
-  DEFAULT_POLICY,
   NO_PIN,
   policyOf,
-  PUSH_DEFAULT,
   PUSH_MODES,
 } from "@olai/format"
 import { COMMIT_BUTTON, commitDoors, COMMIT_TOOL } from "@olai/ops"
-import { Effect, Result } from "effect"
 import { BOOT_TIMEOUT, startWeb } from "./child.testlib.ts"
-import { commitsSaid, gitPin, openPolicy, pushesSaid } from "./gitPolicy.ts"
+import { commitsSaid, gitPin, pushesSaid } from "./gitPolicy.ts"
 import { served } from "./serve.testlib.ts"
 
 // ── what the flags come to between them ────────────────────────────────
@@ -51,10 +48,10 @@ import { served } from "./serve.testlib.ts"
 /**
  * THE DEFAULT IS AN ABSENCE, and that is the claim this whole feature rests on.
  *
- * A server nobody gave a git flag to pins nothing, so both preference rows stay
- * live in every browser exactly as they shipped. It still commits manually —
- * that is `policyOf` filling the defaults back in — and the two facts are
- * deliberately separate values here rather than one.
+ * A server nobody gave a git flag to pins nothing: both preference rows draw
+ * the built-in defaults, read-only. It still commits manually — that is
+ * `policyOf` filling the defaults back in — and the two facts are deliberately
+ * separate values here rather than one.
  */
 test("no flag at all pins nothing, and the server still commits manually", () => {
   expect(gitPin(null, false, null)).toEqual(NO_PIN)
@@ -65,9 +62,9 @@ test("no flag at all pins nothing, and the server still commits manually", () =>
  * ... and the same mode TYPED OUT LOUD is a pin.
  *
  * `--commit=manual` and saying nothing make this process behave identically and
- * every browser behave oppositely: one freezes the Git commit row read-only for
- * everyone, the other leaves it alone. Folding the two into one `CommitMode`
- * is exactly the bug this test exists to keep out.
+ * the row name them differently: one is `Set by --commit=manual`, the other is
+ * the built-in default. Folding the two into one `CommitMode` is exactly the
+ * bug this test exists to keep out.
  */
 test("a mode given out loud is a pin, even when it is the default one", () => {
   expect(gitPin("manual", false, null).commit).toBe("manual")
@@ -119,13 +116,14 @@ test("the push modes are exactly two", () => {
   expect([...PUSH_MODES]).toEqual(["off", "auto"])
 })
 
-/** Both flags say out loud that GIVING them is a decision about every browser,
+/** Both flags say out loud that the row is the instance's, always read-only,
  *  because that is the thing an operator most needs to know before typing one
  *  and the only place they will be told is `--help`. */
-test("both flags say that giving them pins the row in every browser", () => {
+test("both flags say the row is the instance's, read-only", () => {
   for (const said of [commitsSaid("web"), commitsSaid("mcp"), pushesSaid()]) {
-    expect(said).toContain("PINS")
+    expect(said).toContain("instance's policy")
     expect(said).toContain("read-only")
+    expect(said).toContain("built-in default")
   }
 })
 
@@ -205,167 +203,3 @@ test("olai web without --no-commit still boots", async () => {
     server.kill()
   }
 }, BOOT_TIMEOUT * 3)
-
-// ── what is remembered, and where ──────────────────────────────────────
-
-/**
- * The policy the preference rows now set, and the file it survives a restart
- * in.
- *
- * OUTSIDE THE VAULT is the ruling (#335, and again for
- * `git-policy-server-side`): a settings file under the served directory would
- * travel with `git pull`, so a personal clone of a team's outlines would
- * inherit the team's auto-push. So each of these points `XDG_STATE_HOME` at a
- * temp directory of its own, looks in it, and holds that the served directory
- * itself is untouched.
- */
-const withState = async <A>(use: (dirs: {
-  readonly root: string
-  readonly state: string
-}) => Promise<A>): Promise<A> => {
-  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-policy-root-")))
-  const state = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "olai-policy-state-")))
-  const before = process.env["XDG_STATE_HOME"]
-  process.env["XDG_STATE_HOME"] = state
-  try {
-    return await use({ root, state })
-  } finally {
-    if (before === undefined) delete process.env["XDG_STATE_HOME"]
-    else process.env["XDG_STATE_HOME"] = before
-    fs.rmSync(root, { recursive: true, force: true })
-    fs.rmSync(state, { recursive: true, force: true })
-  }
-}
-
-/** Every file under a directory, so a test can say what was written and,
- *  more to the point, what was NOT. */
-/** The republish sink, for a test that is not about it — `openPolicy` fires it
- *  and every one of these asserts on what it can read back instead. */
-const told = (): void => {}
-
-const filesUnder = (at: string): ReadonlyArray<string> =>
-  fs.existsSync(at)
-    ? fs.readdirSync(at, { recursive: true, withFileTypes: true })
-      .filter((entry) => entry.isFile())
-      .map((entry) => path.join(String(entry.parentPath ?? at), entry.name))
-    : []
-
-test("a directory nobody has chosen for runs on the flags and the defaults", () =>
-  withState(async ({ root }) => {
-    const policy = await Effect.runPromise(openPolicy(root, NO_PIN, told))
-    expect(policy.now()).toEqual(DEFAULT_POLICY)
-    expect(policy.pin).toEqual(NO_PIN)
-  }))
-
-test("a choice is remembered outside the vault, and a second server reads it back", () =>
-  withState(async ({ root, state }) => {
-    let published = 0
-    const first = await Effect.runPromise(
-      openPolicy(root, NO_PIN, () => {
-        published += 1
-      }),
-    )
-    await Effect.runPromise(first.set({ commit: "auto" }))
-    expect(first.now()).toEqual({ commit: "auto", push: PUSH_DEFAULT })
-    // ... and it SAID SO. The policy fires the republish itself rather than
-    // leaving it to whichever door asked, so a second door — a re-read, a CLI —
-    // cannot be the one that quietly publishes nothing.
-    expect(published).toBe(1)
-
-    // NOTHING IN THE VAULT. This is the whole ruling, as an assertion: a file
-    // here would be committed, and then pulled into somebody's personal clone.
-    expect(filesUnder(root)).toEqual([])
-    // ... and it IS somewhere, under the state home, saying which directory it
-    // is about so a person reading their own state directory can tell.
-    const written = filesUnder(path.join(state, "olai", "git"))
-    expect(written).toHaveLength(1)
-    expect(JSON.parse(fs.readFileSync(written[0] ?? "", "utf8"))).toMatchObject({
-      cwd: root,
-      commit: "auto",
-    })
-
-    // A RESTART: a fresh policy over the same directory, which is what the next
-    // boot of the server does.
-    const second = await Effect.runPromise(openPolicy(root, NO_PIN, told))
-    expect(second.now()).toEqual({ commit: "auto", push: PUSH_DEFAULT })
-  }))
-
-test("each half moves on its own, so setting one does not reset the other", () =>
-  withState(async ({ root }) => {
-    const policy = await Effect.runPromise(openPolicy(root, NO_PIN, told))
-    await Effect.runPromise(policy.set({ commit: "auto" }))
-    await Effect.runPromise(policy.set({ push: "auto" }))
-    expect(policy.now()).toEqual({ commit: "auto", push: "auto" })
-  }))
-
-/**
- * THE PIN WINS, and a browser that asks anyway is REFUSED.
- *
- * A read-only control that could be bypassed by the procedure behind it would
- * be `vault-level-settings` honoured in the drawing and not in the doing —
- * which is exactly the failure the pin exists to prevent, wearing a nicer
- * shirt.
- */
-test("a pinned half overrules what was remembered, and refuses to be set", () =>
-  withState(async ({ root }) => {
-    const chose = await Effect.runPromise(openPolicy(root, NO_PIN, told))
-    await Effect.runPromise(chose.set({ commit: "auto", push: "auto" }))
-
-    const pinned = await Effect.runPromise(
-      openPolicy(root, { commit: "manual", push: null }, told),
-    )
-    // The flag wins over the remembered choice for its own half, and leaves the
-    // other one exactly where the reader put it.
-    expect(pinned.now()).toEqual({ commit: "manual", push: "auto" })
-
-    const refused = await Effect.runPromise(
-      Effect.result(pinned.set({ commit: "auto" })),
-    )
-    expect(Result.isFailure(refused)).toBe(true)
-    if (Result.isFailure(refused)) {
-      expect(refused.failure.message).toContain("--commit=manual")
-    }
-    // ... and the unpinned half is still live on the same server.
-    await Effect.runPromise(pinned.set({ push: "off" }))
-    expect(pinned.now()).toEqual({ commit: "manual", push: "off" })
-  }))
-
-/** A file about some OTHER directory is not this one's memory. It is not damage
- *  either — a digest collision, or a state directory somebody copied — so the
- *  honest answer is that nothing here says. */
-test("a remembered file about another directory is ignored", () =>
-  withState(async ({ root, state }) => {
-    const policy = await Effect.runPromise(openPolicy(root, NO_PIN, told))
-    await Effect.runPromise(policy.set({ commit: "auto" }))
-    const written = filesUnder(path.join(state, "olai", "git"))[0] ?? ""
-    fs.writeFileSync(
-      written,
-      JSON.stringify({ cwd: "/somewhere/else", commit: "auto" }),
-    )
-    expect((await Effect.runPromise(openPolicy(root, NO_PIN, told))).now())
-      .toEqual(DEFAULT_POLICY)
-  }))
-
-/** Damage costs the setting and never the serve: a file that will not parse
- *  leaves this directory on the flags and the defaults, and says so in the log
- *  rather than refusing to serve a directory of notes. */
-test("a remembered file that will not parse leaves the defaults standing", () =>
-  withState(async ({ root, state }) => {
-    const policy = await Effect.runPromise(openPolicy(root, NO_PIN, told))
-    await Effect.runPromise(policy.set({ commit: "auto" }))
-    fs.writeFileSync(filesUnder(path.join(state, "olai", "git"))[0] ?? "", "{ not json")
-    expect((await Effect.runPromise(openPolicy(root, NO_PIN, told))).now())
-      .toEqual(DEFAULT_POLICY)
-  }))
-
-/** ... and a half that is not one of the modes is read as "nothing says",
- *  which costs that setting and not the other one. */
-test("a remembered half that is not a mode reads as unsaid", () =>
-  withState(async ({ root, state }) => {
-    const policy = await Effect.runPromise(openPolicy(root, NO_PIN, told))
-    await Effect.runPromise(policy.set({ commit: "auto", push: "auto" }))
-    const written = filesUnder(path.join(state, "olai", "git"))[0] ?? ""
-    fs.writeFileSync(written, JSON.stringify({ cwd: root, commit: "sideways", push: "auto" }))
-    expect((await Effect.runPromise(openPolicy(root, NO_PIN, told))).now())
-      .toEqual({ commit: COMMIT_DEFAULT, push: "auto" })
-  }))

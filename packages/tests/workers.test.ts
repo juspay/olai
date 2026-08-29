@@ -162,7 +162,6 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
     // The HOST's padi, as a developer running kolu really has it.
     process.env.PADI_SOCKET = "/run/user/1000/padi.sock";
     const env = isolateEnv(root, {
-      OLAI_PORT_FILE: "/tmp/olai-dev/url",
       GIT_DIR: "/home/someone/notes/.git",
       GIT_WORK_TREE: "/home/someone/notes",
       XDG_CACHE_HOME: "/tmp/host-cache",
@@ -179,7 +178,6 @@ test("PIN (env): a spawned server does not inherit the host's padi or cache", ()
     expect(
       isolateEnv(root, { PADI_SOCKET: "/tmp/scenario/padi.sock" }).PADI_SOCKET,
     ).toBe("/tmp/scenario/padi.sock");
-    expect(env.OLAI_PORT_FILE).toBeUndefined();
     expect(env.GIT_DIR).toBeUndefined();
     expect(env.GIT_WORK_TREE).toBeUndefined();
     expect(env.XDG_CACHE_HOME).toBe(path.join(root, "cache"));

@@ -91,7 +91,7 @@ import {
   shelfIn,
   type Verdict,
 } from "@olai/format"
-import { type Ops, type Request, type Status, type Store } from "@olai/ops"
+import { type Ops, type Policy, type Request, type Status, type Store } from "@olai/ops"
 import type {
   CommitRequest,
   Pending,
@@ -140,7 +140,6 @@ import { type Emit, emitter } from "@olai/log"
 import * as Bodies from "./bodies.ts"
 import { contextFor } from "./context.ts"
 import { inverseOf, reresolves, requestFor } from "./edit.ts"
-import type { LivePolicy } from "./gitPolicy.ts"
 import { runResolved } from "./resolving.ts"
 import {
   type Change as CollectionChange,
@@ -266,10 +265,9 @@ export interface Wiring {
      *  asked, so it is bound per face by {@link writing} rather than once
      *  here. */
     readonly push: Effect.Effect<PushResult>
-    /** WHAT THIS DIRECTORY'S GIT POLICY IS, and the one way to move it
-     *  (`../gitPolicy.ts`). The `git.setPolicy` procedure is the two
-     *  preference rows' door to it; `pin` is what makes a pinned row refuse. */
-    readonly policy: LivePolicy
+    /** WHAT THIS DIRECTORY'S GIT POLICY IS (`../gitPolicy.ts`). Flags plus
+     *  the built-in defaults, immutable after boot. There is no setter. */
+    readonly policy: Policy
     /** The quiet-window loop, and the two things around it (`@olai/ops`):
      *  `observe` is handed every survey so the window re-arms on what actually
      *  moved, `loop` is the effect this file forks, and `resume` is what the
@@ -306,7 +304,7 @@ export interface Wiring {
  */
 export const gitWiring = (
   ops: Pick<Ops, "status" | "push" | "observe" | "loop" | "catchUp" | "resume">,
-  policy: LivePolicy,
+  policy: Policy,
   settled: SubscriptionRef.SubscriptionRef<number>,
 ): Wiring["git"] => ({
   status: ops.status,
@@ -1478,15 +1476,9 @@ export const bind = (
           // through the same subscription for the same reason: pushing moves no
           // served file and changes what `pending` says.
           push: () => wiring.git.push,
-          // The two preference rows' door. What republishes afterwards is NOT
-          // here — the policy fires the same `settled` subscription the ops
-          // layer does (`../gitPolicy.ts`), which is what re-arms the quiet
-          // window when the policy it just moved turned the loop on, and what
-          // keeps a second door to the policy from publishing nothing.
-          setPolicy: ({ input }) => Effect.as(wiring.git.policy.set(input), {}),
-          // ... and the Resume button's. The ops layer republishes for itself
-          // here, because clearing a stop is exactly a moment nothing else in
-          // the process would mention.
+          // The Resume button's. The ops layer republishes for itself here,
+          // because clearing a stop is exactly a moment nothing else in the
+          // process would mention.
           resume: () => Effect.as(wiring.git.resume, {}),
         },
         /**
