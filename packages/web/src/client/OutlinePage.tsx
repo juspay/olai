@@ -24,7 +24,7 @@ import { Editable } from "./edit/Editable.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
 import { useNarrowed } from "./filter/narrowed.tsx"
 import { unfiltered } from "./filter/why.ts"
-import { bringFocusedOntoScreen, selectNode } from "./focus.ts"
+import { bringOntoScreen, selectNode } from "./focus.ts"
 import { useHere, useLanding } from "./router.tsx"
 import { doneHidden } from "./settings/done.ts"
 import { TESTID } from "./testids.ts"
@@ -92,7 +92,23 @@ export function OutlinePage(props: {
       const root = document.querySelector(
         `[data-testid="${TESTID.pane}"][data-pane="${String(here())}"]`,
       )
-      if (root !== null && bringFocusedOntoScreen(root)) landing.landed(at)
+      if (root === null) return
+      // Aim at the landing's OWN row — the chain's last placement, found by
+      // the record id its row wears — not at the accent: the accent is one
+      // signal for the whole app and a landing is a fact per pane, so two at
+      // once (a shared view naming a row in each of this file's columns)
+      // would scroll one pane to the other's row and say its own arrival
+      // paid — the wrong-row spend `./landing.ts`'s header was once and
+      // forever written against. Rows wear `data-node-id` for exactly this
+      // (`./Tree.tsx`), even mirrors — the placement stays put.
+      const placement = chain.at(-1)
+      if (placement === undefined) return
+      const row = root.querySelector(
+        `[data-testid="${TESTID.node}"][data-node-id="${placement.at.node.id}"]`,
+      )
+      if (row === null) return
+      bringOntoScreen(row)
+      landing.landed(at)
     })
     onCleanup(() => cancelAnimationFrame(frame))
   })

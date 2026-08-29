@@ -37,8 +37,7 @@
  * with a gesture that has run out of screen, moving for as long as a hand holds
  * it near an edge. The outline's landing act (`./OutlinePage.tsx`) is NOT a
  * fifth: it is the same "this is the row" one frame late, so its scroll is
- * this module's one statement, reached for directly
- * ({@link bringFocusedOntoScreen}).
+ * this module's one statement, reached for directly ({@link bringOntoScreen}).
  */
 
 import { Result } from "effect"
@@ -92,16 +91,28 @@ export const selectNode = (id: string): void => {
 const focusedRowIn = (root: ParentNode): Element | null =>
   root.querySelector(`[data-testid="${TESTID.node}"][${FOCUSED}="true"]`)
 
-/** Bring the selected row onto the screen. `true` when there was a row to
- *  bring, which is the whole of what its callers differ on: a press that
- *  found none answers `elsewhere`; a landing that found none keeps its mark. */
-export const bringFocusedOntoScreen = (root: ParentNode): boolean => {
+/** THE SCROLL this vocabulary owns — one statement, both callers: a press
+ *  aims it at the focused row of the whole DOM (through the helper below);
+ *  the outline's landing aims it at the row IT owes, found by its own
+ *  placement and never at the accent: one signal for the whole app, so it
+ *  may very well be answering the other pane's landing (`./OutlinePage.tsx`).
+ *  Exported rather than written twice, because it is ONE entry in the count
+ *  this module's header keeps.
+ *
+ *  `center` rather than the top: a row scrolled to the very top of the
+ *  window has its children off the bottom of it, and what a person wants to
+ *  see about the node they were just told about is what hangs under it. */
+export const bringOntoScreen = (row: Element): void => {
+  row.scrollIntoView({ block: "center", behavior: "smooth" })
+}
+
+/** What a press adds to THE SCROLL: WHICH row — the focused one, found
+ *  spent-once in a fresh frame — and whether there was one: `true` when a
+ *  row moved, `false` is what `elsewhere` answers. */
+const bringFocusedOntoScreen = (root: ParentNode): boolean => {
   const row = focusedRowIn(root)
   if (row === null) return false
-  // `center` rather than the top: a row scrolled to the very top of the
-  // window has its children off the bottom of it, and what a person wants to
-  // see about the node they were just told about is what hangs under it.
-  row.scrollIntoView({ block: "center", behavior: "smooth" })
+  bringOntoScreen(row)
   return true
 }
 
