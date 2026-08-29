@@ -37,7 +37,7 @@ import { GIT_OFF } from "@olai/surface"
 import { type Accessor, createSignal } from "solid-js"
 
 import { waitingIn } from "./said.ts"
-import { type Call, run } from "../run.ts"
+import { run } from "../run.ts"
 import { olai } from "../wire.ts"
 
 /**
@@ -155,18 +155,13 @@ export const createGitPolicy = (): GitPolicySeam => {
   const git = olai.cells.git.use()
   const [refused, setRefused] = createSignal<string | null>(null)
 
-  /** One shape for both verbs: clear what the last press said, ask, and put
-   *  whatever the server would not take where the person who pressed can read
-   *  it. Neither answers anything — what changed is the cell. */
-  const ask = (call: Call<unknown>) => (): void => {
-    setRefused(null)
-    run(call, (failure) => setRefused(failure.message))
-  }
-
   return {
     git: () => git.value() ?? GIT_OFF,
     refused,
-    resume: ask(olai.procedures.git.resume({})),
+    resume: () => {
+      setRefused(null)
+      run(olai.procedures.git.resume({}), (failure) => setRefused(failure.message))
+    },
   }
 }
 
