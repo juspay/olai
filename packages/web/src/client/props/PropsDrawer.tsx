@@ -330,10 +330,10 @@ export function PropsDrawer(props: {
   /**
    * THE ENTRIES, CUT INTO WHAT DRAWS INLINE AND WHAT OWNS A ROW.
    *
-   * `./blocks.ts` decides; this only draws what it is handed. The editor's own
-   * key goes in so that a property being TYPED draws as a chip even where it
-   * would otherwise be a block — one text box for every property in the vault,
-   * which is what stops each new block renderer from growing its own.
+   * `./live.ts` decides; this only draws what it is handed. The editor's own
+   * key goes in so that a property being TYPED draws PLAIN even where it would
+   * otherwise wear a face — one text box for every property in the vault,
+   * which is what stops each new dressing from growing its own.
    */
   const laid = createMemo(() => layOut(props.entries, editing()?.key))
 

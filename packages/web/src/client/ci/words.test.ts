@@ -68,8 +68,8 @@ describe("a live run", () => {
       }),
       230_000,
     )
-    expect(said?.text).toBe("ci · e2e 2:10 · 8/10 ok")
-    expect(said?.tone).toBe("going")
+    expect(said.text).toBe("ci · e2e 2:10 · 8/10 ok")
+    expect(said.tone).toBe("going")
   })
 
   it("names the FIRST running node in the run's own order, so the chip does not flicker", () => {
@@ -86,7 +86,7 @@ describe("a live run", () => {
     // That figure would read as a node stuck for a second, when what happened
     // is a frame that arrived between two writes.
     const said = wordsFor(run({ cells: [cell({ id: "e2e@p", status: "running" })] }), 500)
-    expect(said?.text).toBe("ci · e2e · 0/1 ok")
+    expect(said.text).toBe("ci · e2e · 0/1 ok")
   })
 
   it("says odu's own phase word while the run is still claiming a machine", () => {
@@ -94,8 +94,8 @@ describe("a live run", () => {
     // waiting for" is odu's question to answer.
     const said = wordsFor(run({ phase: "provisioning", cells: [] }), 0)
     // No count: `0/0 ok` is a sentence about nothing.
-    expect(said?.text).toBe("ci · provisioning")
-    expect(said?.tone).toBe("going")
+    expect(said.text).toBe("ci · provisioning")
+    expect(said.tone).toBe("going")
   })
 
   it("goes RED the moment a node is, before the run has finished deciding", () => {
@@ -111,16 +111,16 @@ describe("a live run", () => {
       }),
       61_000,
     )
-    expect(said?.tone).toBe("red")
-    expect(said?.text).toBe("ci · e2e 1:01 · 0/3 ok")
+    expect(said.tone).toBe("red")
+    expect(said.text).toBe("ci · e2e 1:01 · 0/3 ok")
   })
 })
 
 describe("a run whose socket is gone", () => {
   it("says the verdict, in the verdict's ink", () => {
     const said = wordsFor(run({ live: false, cells: many(10, "ok") }), 10_000)
-    expect(said?.text).toBe("ci · ok · 10/10 ok")
-    expect(said?.tone).toBe("ok")
+    expect(said.text).toBe("ci · ok · 10/10 ok")
+    expect(said.tone).toBe("ok")
   })
 
   it("says `ended` for a run that stopped without deciding, and recedes", () => {
@@ -133,21 +133,38 @@ describe("a run whose socket is gone", () => {
       }),
       10_000,
     )
-    expect(said?.text).toBe("ci · ended · 1/4 ok")
-    expect(said?.tone).toBe("quiet")
+    expect(said.text).toBe("ci · ended · 1/4 ok")
+    expect(said.tone).toBe("quiet")
   })
 
-  it("says NOTHING AT ALL for a run that went before a single node settled", () => {
-    // The plan's "or nothing": there is no verdict and no progress to report,
-    // so the honest drawing is no chip and the lane's line is what it was.
-    expect(wordsFor(run({ live: false, cells: many(4, "pending") }), 0)).toBeUndefined()
+  it("still says `ended` for a run killed with its first node RUNNING", () => {
+    // grok's SHOULD on #433: this used to draw NOTHING, so a chip on screen as
+    // `ci · e2e 2:10` vanished the moment the coordinator died. Running is
+    // progress — a node that got as far as starting is something to report.
+    const said = wordsFor(
+      run({
+        live: false,
+        cells: [cell({ id: "e2e@p", status: "running", startedAt: 0 }), ...many(3, "pending")],
+      }),
+      61_000,
+    )
+    expect(said.text).toBe("ci · ended · 0/4 ok")
+    expect(said.tone).toBe("quiet")
+  })
+
+  it("says `ended` for a run that never started a node either — a ROW is always a word", () => {
+    // "Or nothing" is answered one layer up and always was: no row, no chip
+    // (`./CiChip.tsx`, over `runOf`). A row that EXISTS is a run this server
+    // watched, and what it saw is worth saying even when it saw nothing happen.
+    expect(wordsFor(run({ live: false, cells: many(4, "pending") }), 0).text)
+      .toBe("ci · ended · 0/4 ok")
   })
 })
 
 describe("the hover", () => {
   it("names WHICH run and WHERE olai looked — the two facts the face has no room for", () => {
     const said = wordsFor(run({ dirty: true, cells: [cell({ id: "a@p", status: "ok" })] }), 0)
-    expect(said?.title).toBe(
+    expect(said.title).toBe(
       "ci 8f8fe56#2+dirty · x86_64-linux=kolu-ci-9 · the run is up · /home/x/code/odu/.worktrees/a",
     )
   })
@@ -157,6 +174,6 @@ describe("the hover", () => {
       run({ live: false, cells: [cell({ id: "a@p", status: "ok" })] }),
       0,
     )
-    expect(said?.title).toContain("the socket is gone; this is the last reading")
+    expect(said.title).toContain("the socket is gone; this is the last reading")
   })
 })

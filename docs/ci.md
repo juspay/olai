@@ -57,8 +57,8 @@ odu's socket belongs to a **run**, not to a daemon: it appears when the run star
 
 When a run you were watching settles, its chip stays and says what it came to: `ci · ok · 10/10 ok`, or `ci · red · 8/10 ok`, in the verdict's ink. What that verdict is made of is **the last reading olai took** — not a read of odu's own on-disk ledger, which is odu's file and odu's layout. Two consequences worth knowing:
 
-- a run that finished while olai was not running leaves no chip, because olai never saw it;
-- a run whose coordinator died mid-way says `ended` rather than `red`, because it did not decide anything and reporting an infrastructure death as a test failure is exactly the mistake odu keeps a separate status for.
+- a run that finished while olai was not running leaves no chip, because olai never saw it — **that** is the only silence, and it is the same silence a checkout with no run at all draws;
+- a run whose coordinator died mid-way says `ended` rather than `red`, because it did not decide anything and reporting an infrastructure death as a test failure is exactly the mistake odu keeps a separate status for. A run killed while its first node was still going says `ended` too, with the count it had reached: a chip that was on screen a second ago does not vanish because the thing it was watching stopped.
 
 ## What turns it on
 

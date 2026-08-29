@@ -124,13 +124,33 @@ const titleOf = (run: CiRun): string => {
   return `${which}${lanes} · ${state} · ${run.at}`
 }
 
-/** The chip's whole answer, or `undefined` for a row with nothing to say —
- *  a run that ended without deciding and never ran a node is a row whose
- *  honest drawing is no chip at all. */
-export const wordsFor = (run: CiRun, now: number): CiWords | undefined => {
+/**
+ * The chip's whole answer — and there is always one, because a ROW is what a
+ * reader is being told about.
+ *
+ * IT USED TO DECLINE, and the arm it declined on was wrong in the case grok's
+ * review found: a settled row with nothing SETTLED drew nothing, so a run
+ * killed while its first node was on screen as `ci · e2e 2:10` vanished
+ * without a word. Running is progress; a node that got as far as starting is
+ * something to report, and the chip's own header had already said so ("a run
+ * that ended without deciding and never RAN a node") while the code asked a
+ * narrower question.
+ *
+ * The fix is not a third arm but the loss of the branch. "Or nothing" — the
+ * plan's phrase for a settled run olai has no reading of — is answered ONE
+ * layer up and always was: no row, no chip (`./CiChip.tsx`, over
+ * `useRuns().runOf`), which is the ordinary state of every checkout on the
+ * machine. A row that EXISTS is a run this server watched, and what it saw is
+ * worth a word even when the word is `ended · 0/4 ok`.
+ *
+ * That also settles the edge the same review names one file over: the chip is
+ * the only thing that can close the matrix, and a chip that could stop drawing
+ * while its pane was open would strand it. Now the two answer one question —
+ * is there a row — and they cannot disagree.
+ */
+export const wordsFor = (run: CiRun, now: number): CiWords => {
   const tally = tallyOf(run.cells)
   const verdict = verdictOf(tally)
-  if (!run.live && verdict === null && tally.settled === 0) return undefined
   const count = countOf(tally)
   return {
     text: `ci · ${whatOf(run, verdict, now)}${count === undefined ? "" : ` · ${count}`}`,

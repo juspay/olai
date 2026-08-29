@@ -291,6 +291,37 @@ test("a frame arriving AFTER the board dropped a lane does not put its row back"
   )
 })
 
+test("one worktree string re-added under a DIFFERENT repository is re-dialled", () => {
+  // The key is the board's value, and that value alone does not decide a
+  // checkout: the same string under a lane whose `pr-url` names another
+  // repository resolves somewhere else. A hold keyed on the string alone would
+  // answer the new lane forever from the old socket, with the old `at` in the
+  // row (grok's review of #433).
+  const dialled: Array<string> = []
+  const it = bench(async (path = "") => {
+    dialled.push(path)
+    return coordinator(state(), header(), null)(path)
+  })
+  const watch = makeWatch(it.deps)
+  watch.reclaim([lane()])
+  return Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      yield* watch.sweep
+      yield* settle
+      expect(watch.rows()[0]?.at).toBe("/home/x/code/odu/.worktrees/a")
+      // Same `worktree`, different repository.
+      watch.reclaim([lane({ prUrl: "https://github.com/juspay/kolu/pull/1" })])
+      yield* watch.sweep
+      yield* settle
+      expect(watch.rows()[0]?.at).toBe("/home/x/code/kolu/.worktrees/a")
+      expect(dialled).toEqual([
+        "/home/x/code/odu/.worktrees/a/.ci/odu.sock",
+        "/home/x/code/kolu/.worktrees/a/.ci/odu.sock",
+      ])
+    })),
+  )
+})
+
 test("two lanes naming ONE checkout are one run — the second claim is the mistake", () => {
   let dials = 0
   const it = bench(async (path) => {

@@ -2,7 +2,8 @@
  * THE TERMINAL DOOR — kolu's own Dock row, drawn where the property is, and
  * the live pane it opens.
  *
- * The BLOCK SEAM's first consumer (`./blocks.ts`). A `terminal` property does
+ * The LIVE-PROPERTIES seam's first consumer, and the one that wears its
+ * `Block` face (`@olai/web`'s `props/live.ts`). A `terminal` property does
  * not draw as a chip: it draws as the row kolu's Dock draws, so what you see
  * beside a node is literally what you would see in the Dock — the pip and its
  * glyph, the annotation line, the status words, the recency, the repo stripe,

@@ -153,9 +153,20 @@ export const makeWatch = (deps: WatchDeps): Watch => {
    *  because every reader of it is a lookup by the board's own value, and the
    *  publish is one `[...values()]`. */
   const rows = new Map<string, CiRun>()
-  /** The lanes currently held open, and the fiber holding each. A key in here
-   *  is a key the sweep does not dial. */
-  const held = new Map<string, Fiber.Fiber<void, never>>()
+  /**
+   * The lanes currently held open — the fiber holding each, AND THE PLACE IT
+   * IS HOLDING.
+   *
+   * The key is the board's `worktree` value, and that value alone does not
+   * decide a checkout: the same string under a lane whose `pr-url` names a
+   * different repository resolves somewhere else (`./resolve.ts`). So a key in
+   * here is a key the sweep does not dial ONLY while the place still matches;
+   * a lane dropped and re-added with a different repository before the next
+   * tick would otherwise be answered forever by a hold on the old socket,
+   * writing the old `at` into the row (grok's review of #433, the case beside
+   * the one `e6d96e7b` fixed — same key, stale closure).
+   */
+  const held = new Map<string, { readonly at: string; readonly fiber: Fiber.Fiber<void, never> }>()
 
   const publish = (): void => deps.publish([...rows.values()])
 
@@ -222,9 +233,13 @@ export const makeWatch = (deps: WatchDeps): Watch => {
        *
        * So the drop is authoritative the moment the board says so, and the
        * interrupt below is cleanup rather than the enforcement.
+       *
+       * It compares the PLACE and not just the key, for the reason {@link held}
+       * gives: one `worktree` string can name two checkouts across a re-add,
+       * and a hold on the old one may not write a row about the new.
        */
       const settle = (): void => {
-        if (!wanted.has(lane.id)) return
+        if (wanted.get(lane.id)?.at !== lane.at) return
         rows.set(lane.id, runOf(lane, state, header))
         publish()
       }
@@ -276,7 +291,7 @@ export const makeWatch = (deps: WatchDeps): Watch => {
       // ...and the same authority on the way out: a lane the board dropped
       // while its run was still going has no row to stamp.
       const last = rows.get(lane.id)
-      if (last !== undefined && wanted.has(lane.id)) {
+      if (last !== undefined && wanted.get(lane.id)?.at === lane.at) {
         rows.set(lane.id, wentOf(last))
         publish()
       }
@@ -295,7 +310,12 @@ export const makeWatch = (deps: WatchDeps): Watch => {
           )
         })
       ),
-      Effect.ensuring(Effect.sync(() => held.delete(lane.id))),
+      // ...and it takes back only its OWN entry: a sweep that found this hold
+      // pointing at a place the board has moved off replaces it, and a
+      // finalizer that deleted by key alone would take the replacement out.
+      Effect.ensuring(Effect.sync(() => {
+        if (held.get(lane.id)?.at === lane.at) held.delete(lane.id)
+      })),
     )
 
   /** ONE TICK: dial every wanted lane that is not already held — and drop the
@@ -303,18 +323,30 @@ export const makeWatch = (deps: WatchDeps): Watch => {
    *  above, which is where the reason lives. */
   const sweep = Effect.gen(function*() {
     for (const lane of wanted.values()) {
-      if (held.has(lane.id)) continue
+      const holding = held.get(lane.id)
+      if (holding !== undefined) {
+        // Held, and still holding the place the board names — nothing to do:
+        // the coordinator pushes.
+        if (holding.at === lane.at) continue
+        // Held, but somewhere else. The key was re-used by a lane naming a
+        // different repository, so the hold is on a socket nobody is asking
+        // about. Interrupt it BEFORE forking, and await that: its finalizer
+        // runs on the interrupt, so the entry is clear by the time the
+        // replacement claims it.
+        held.delete(lane.id)
+        yield* Fiber.interrupt(holding.fiber)
+      }
       // Recorded BEFORE the fork, so two ticks cannot both claim one lane: the
       // fiber's own `ensuring` is what takes it back out.
       const fiber = yield* Effect.forkScoped(hold(lane))
-      held.set(lane.id, fiber)
+      held.set(lane.id, { at: lane.at, fiber })
     }
     // A lane the board dropped while its run was still going: the row is
     // already gone (`reclaim`), and this is the socket following it.
-    for (const [key, fiber] of [...held]) {
+    for (const [key, holding] of [...held]) {
       if (!wanted.has(key)) {
         held.delete(key)
-        yield* Fiber.interrupt(fiber)
+        yield* Fiber.interrupt(holding.fiber)
       }
     }
   })

@@ -29,9 +29,19 @@
  * a grid. What this component owns is the button; what is open is one answer
  * per run, held where the editor's own "which chip is open" is held, so
  * pressing a second chip closes the first.
+ *
+ * WHICH MAKES THIS CHIP THE PANE'S ONLY CLOSER, and that is a promise it has
+ * to keep without a press. A row can go while the matrix is open — the lane
+ * leaves the board, the server restarts, the property is edited — and the
+ * drawer cannot see it: what `paned` names is a KEY, and nothing tells the
+ * drawer that the face behind that key has stopped drawing. So the face says
+ * so ({@link closeWithTheRow}). Without it the matrix would sit there with
+ * nothing to shut it, and the next run in that checkout would open itself.
  */
 
-import { Show } from "solid-js"
+import { createEffect, Show } from "solid-js"
+
+import type { CiRun } from "@olai/surface"
 
 import { TESTID } from "../testids.ts"
 import { createNow } from "../took.ts"
@@ -77,13 +87,16 @@ export function CiChip(context: ChipContext) {
     return runningIn(held)?.startedAt ?? null
   }
   const now = createNow(started)
-  const words = () => {
-    const held = run()
-    return held === undefined ? undefined : wordsFor(held, now())
-  }
+  closeWithTheRow(run, context)
   return (
-    <Show when={words()}>
-      {(said) => (
+    <Show when={run()}>
+      {(held) => {
+        // ONE GATE, and it is the row. `wordsFor` always has something to say
+        // about a run this server watched (`./words.ts` argues why it stopped
+        // declining); "nothing to draw" is a checkout with no reading at all,
+        // which is the ordinary state and is this `Show`.
+        const said = () => wordsFor(held(), now())
+        return (
         <Show
           when={context.onToggle}
           fallback={
@@ -118,7 +131,30 @@ export function CiChip(context: ChipContext) {
             </button>
           )}
         </Show>
-      )}
+        )
+      }}
     </Show>
   )
+}
+
+/**
+ * SHUT THE MATRIX WHEN THE ROW IT IS ABOUT GOES.
+ *
+ * The pane outlives nothing else: it is mounted by the drawer while `paned`
+ * names this key, and the only press that clears `paned` is this chip's. So a
+ * row disappearing — which happens without anybody touching the page — has to
+ * reach the drawer through the one thing that can see both, which is here.
+ *
+ * An EFFECT rather than a guard inside the drawer, because the drawer holds a
+ * key and this holds the answer. It fires on the crossing alone: `opened` is
+ * false the rest of the time, so a page of twelve lanes with nothing open runs
+ * this and stops.
+ */
+const closeWithTheRow = (
+  run: () => CiRun | undefined,
+  context: ChipContext,
+): void => {
+  createEffect(() => {
+    if (run() === undefined && context.opened) context.onToggle?.()
+  })
 }
