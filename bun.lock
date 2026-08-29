@@ -152,6 +152,7 @@
         "@olai/kolu-client": "workspace:*",
         "@olai/log": "workspace:*",
         "@olai/ops": "workspace:*",
+        "@olai/sigterm": "workspace:*",
         "@olai/state": "workspace:*",
         "@olai/store": "workspace:*",
         "@olai/surface": "workspace:*",
@@ -161,6 +162,10 @@
         "@olai/child": "workspace:*",
         "@types/node": "^22.0.0",
       },
+    },
+    "packages/sigterm": {
+      "name": "@olai/sigterm",
+      "version": "0.1.0",
     },
     "packages/state": {
       "name": "@olai/state",
@@ -437,6 +442,8 @@
     "@olai/ops": ["@olai/ops@workspace:packages/ops"],
 
     "@olai/server": ["@olai/server@workspace:packages/server"],
+
+    "@olai/sigterm": ["@olai/sigterm@workspace:packages/sigterm"],
 
     "@olai/state": ["@olai/state@workspace:packages/state"],
 

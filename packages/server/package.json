@@ -22,6 +22,7 @@
     "@olai/kolu-client": "workspace:*",
     "@olai/log": "workspace:*",
     "@olai/ops": "workspace:*",
+    "@olai/sigterm": "workspace:*",
     "@olai/state": "workspace:*",
     "@olai/store": "workspace:*",
     "@olai/surface": "workspace:*",
