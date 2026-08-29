@@ -11,7 +11,8 @@
  *     row here. `⏱ 2h 34m`, the same muted register every other fact beside
  *     a title takes;
  *   - a DOING row ticks, pomodoro-style: bank plus live round — the
- *     settles banked `worked` into the record, the current round's instant
+ *     closed rounds banked `worked` into the record — settled, queued or
+ *     un-started, each where its `doing` came off — the current round's instant
  *     crossed the wire with the row, and the clock is the reader's own
  *     (`./took.ts` — the uptime chip's seam, worn by the second). The
  *     accented pill: work in flight is the one thing in a tree worth

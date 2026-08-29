@@ -21,7 +21,7 @@
  * off the row the way it reads the instant — nothing about "started minus
  * settled" is spelled at a frame rate, and the two readers cannot drift.
  * What IS here is the running figure's one addition ({@link liveOf}):
- * banked plus live, the sum the settles make possible.
+ * banked plus live, the sum the closed rounds make possible.
  */
 
 import type { Accessor } from "solid-js"

@@ -203,9 +203,13 @@ export const RegularNode = Schema.Struct({
    * two rounds is nobody's work. And it SURVIVES only while the bank can
    * still account for it: a settle keeps it when the round just closed was
    * live (`doing` said so), and buries it when none was — an undone settle
-   * re-settled with no `set_doing` between, a queued hop: the alternative
-   * is the same round countable twice (the stamp is dead weight a second
-   * settle would mistake for a fresh round's).
+   * re-settled with no `set_doing` between: the alternative is the same
+   * round countable twice (the stamp is dead weight a second settle would
+   * mistake for a fresh round's). And where the `doing` comes off WITHOUT
+   * a settle — `set_todo` queueing the work again, or the undo of the
+   * `set_doing` itself — the round banks THERE, at the peel, and the stamp
+   * goes with it: live minutes never sit on a record that cannot close
+   * them, and the settle that lands later is an ordinary one.
    *
    * STAMPED, never asked for: there is no verb for it and none may write
    * it, exactly as the two stamps below. And nothing DERIVES from its
@@ -222,19 +226,23 @@ export const RegularNode = Schema.Struct({
   started: Schema.optionalKey(Schema.String),
   /**
    * How much work is BANKED, in whole seconds: the rounds already CLOSED,
-   * summed. Every settle — `set_done` and `set_cancelled` alike — adds the
-   * round it closes (its instant minus `started`) into this field, so a
-   * task picked up, put down and picked up again counts the rounds and
-   * never the pauses between them.
+   * summed. A round closes where its `doing` comes off: every settle —
+   * `set_done` and `set_cancelled` alike — adds the round it closes (its
+   * instant minus `started`) into this field, and the two doors that take
+   * a `doing` off WITHOUT settling — the `set_todo` that queues the work
+   * again, the undo of the `set_doing` itself — bank the span at the peel,
+   * the stamp going with the `doing`. So a task picked up, put down and
+   * picked up again counts the rounds and never the pauses between them.
    *
    * It is what makes the stamp above re-stampable: a re-opened node's
    * earlier work is HERE, so the fresh `started` measures the fresh round
    * and nothing is lost — and an undo that is never re-started leaves the
    * bank alone, because the work did happen.
    *
-   * Written by the settles ONLY — and only from a live round, so a settle
-   * can never bank the same span twice: the `doing` that made the round
-   * closable is gone by the time a second settle could reach for it. There
+   * Written ONLY where a round closes, and only from a live one, so a
+   * settle can never bank the same span twice: the `doing` that made the
+   * round closable is gone by the time a second settle could reach for
+   * it — and a round put down early was already banked at its peel. There
    * is no verb for it, no request carries one, and `set_prop` turns the
    * key away toward them, exactly as `started` above. Never NEGATIVE and
    * never fractional: whole seconds, and the schema says so rather than
@@ -322,9 +330,9 @@ const DOORS = {
   doing: "`set_doing` writes it, and records the instant",
   todo: "`set_todo` writes it, and records the instant",
   started:
-    "`set_doing` stamps it on every start — a settle keeps it when the round banked, buries it when none could",
+    "`set_doing` stamps it on every start — a settle keeps it when the round banked, buries it when none could; a peel banks the round and takes the stamp with the `doing`",
   worked:
-    "the settles bank it — `set_done` / `set_cancelled` each add the round they closed, and only a live `doing` opens one",
+    "rounds bank where the `doing` comes off — `set_done` / `set_cancelled` add the round they closed, `set_todo` and an un-done start bank at the peel; only a live `doing` opens one",
   status:
     "the mark is `done`, `cancelled`, `doing` or `todo` — `set_done` / `set_cancelled` / `set_doing` / `set_todo` write it",
   date: "`set_date` writes it, and validates the day",

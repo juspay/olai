@@ -1117,8 +1117,10 @@ export const progressOf = (derived: Derived, id: string): Progress | undefined =
  *
  * THE ONE SUBTRACTION this format does, and the reason it is a function:
  * two readers answer with it — {@link tookOf}, for the node whose rounds
- * predate the bank, and `set_done` / `set_cancelled` themselves, at the
- * moment they BANK the round they close into `worked` (`@olai/ops`' plan).
+ * predate the bank, and the ops layer's own writes, at the moment a round
+ * CLOSES: a settle banking the one it closed into `worked`, or a peel —
+ * the queueing `set_todo`, the un-done start — doing the same where the
+ * `doing` came off (`@olai/ops`' plan).
  * Spelled twice, the rounding or the clamp would drift between what a
  * settle counts and what a read reports, and the bank and the answer must
  * be the same arithmetic.
@@ -1144,7 +1146,7 @@ export const spanOf = (started: string, settled: string): number | undefined => 
  * tell.
  *
  * THE BANK ANSWERS FIRST: a record carrying `worked` has had its rounds
- * closed for it already — every settle added the one it closed
+ * closed for it already — each banked where its `doing` came off
  * (`./node.ts`), so a settled node's answer is the bank ITSELF, rounds
  * summed and pauses never counted. The arithmetic below is the SLIMMER
  * case: a record with no bank asks the one-round question it always asked,

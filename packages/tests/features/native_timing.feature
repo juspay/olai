@@ -9,8 +9,9 @@ Feature: Native task timing — `started`, `took`, and the ticking row
   chores timed nothing at all.
 
   `started` is a field beside the marks, stamped by `set_doing` on EVERY
-  start, and `worked` is the bank beside it: every settle adds the round
-  it closed (whole seconds, on the record), so a re-open stamps a FRESH
+  start, and `worked` is the bank beside it: a round banks where its
+  `doing` comes off — settled, queued back to todo, or un-started (whole
+  seconds, on the record) — so a re-open stamps a FRESH
   instant and the pause between two rounds is never counted. `took` stays
   derived, never stored twice — the bank once settled, with no fallback
   to `created` for a jump that stored no start and closed no round. And
