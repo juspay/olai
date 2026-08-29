@@ -128,20 +128,68 @@ export type RunCell = typeof RunCell.Type
 
 // ── The run ───────────────────────────────────────────────────────────────
 
-/** How a run's nodes have come out so far — the `8/10 ok` half of the chip,
- *  counted where the nodes are so every face counts the same way. */
-export const RunTally = Schema.Struct({
+/**
+ * How a run's nodes have come out so far — the `8/10 ok` half of the chip.
+ *
+ * NOT A WIRE SHAPE, and it was one. It is a fold over {@link CiRun.cells},
+ * which travels whole, so shipping it too put an answer on the wire beside its
+ * own question and left "the tally agrees with the cells" as an invariant
+ * nothing enforced. The fold lives HERE — the module both sides already import
+ * — so there is one counting and whoever holds the cells does it.
+ */
+export interface RunTally {
   /** Every node the run holds. */
-  total: Schema.Int,
+  readonly total: number
   /** ...of which this many reached a terminal status of any colour. */
-  settled: Schema.Int,
+  readonly settled: number
   /** ...of which this many are `ok`. */
-  ok: Schema.Int,
+  readonly ok: number
   /** ...and this many are RED by odu's own table — `failed` or `errored`,
    *  never a deliberate cancel. */
-  red: Schema.Int,
-})
-export type RunTally = typeof RunTally.Type
+  readonly red: number
+}
+
+/** The tally, counted. */
+export const tallyOf = (cells: ReadonlyArray<RunCell>): RunTally => {
+  let settled = 0
+  let ok = 0
+  let red = 0
+  for (const cell of cells) {
+    // SETTLED is "not on its way there", which is every status but the two
+    // that are — the complement rather than a list of terminal words, so a
+    // status odu adds counts as settled by default and a chip does not stall
+    // at `9/10` forever on a word this build has not heard of.
+    if (cell.status !== "pending" && cell.status !== "running") settled += 1
+    if (cell.status === "ok") ok += 1
+    if (cell.red) red += 1
+  }
+  return { total: cells.length, settled, ok, red }
+}
+
+/**
+ * WHAT THE RUN CAME TO, or `null` while it has not — the second fold, over
+ * the first, and here for the first one's reason.
+ *
+ * RED WINS EARLY: a run with a red node is red before its remaining nodes
+ * finish, because that is what a reader needs to know and what odu's own
+ * verdict says. `ok` waits for every node, which is the asymmetry the words
+ * carry honestly — a green claim about work that has not run is the one thing
+ * a CI face must never make.
+ *
+ * A run with NO nodes has no verdict of any colour. A `provisioning` run that
+ * has published a roster and nothing else would otherwise read `ok`, which is
+ * the empty-set trap the counting form falls into and the reason this is a
+ * branch rather than `red === 0 && settled === total`.
+ *
+ * A WORD rather than a boolean, because the day a third outcome matters
+ * (odu's `cancelled` is already a distinct status) a boolean has no room for
+ * it.
+ */
+export const verdictOf = (tally: RunTally): string | null => {
+  if (tally.red > 0) return "red"
+  if (tally.total === 0) return null
+  return tally.settled === tally.total ? "ok" : null
+}
 
 /**
  * ONE LANE'S CI RUN, as olai holds it.
@@ -197,17 +245,6 @@ export const CiRun = Schema.Struct({
    *  would be the same sequence spelled twice with nothing holding the two
    *  spellings together. */
   cells: Schema.Array(RunCell),
-  tally: RunTally,
-  /**
-   * WHAT THE RUN CAME TO, or `null` for one that has not.
-   *
-   * `red` where any node is red by odu's table, `ok` where every node settled
-   * and none is, and `null` while nodes are still owed — including for a live
-   * run, whose chip is a progress readout rather than a verdict. It is a WORD
-   * rather than a boolean because the day a third outcome matters (odu's
-   * `cancelled` is already a distinct status) a boolean has no room for it.
-   */
-  verdict: Schema.NullOr(Schema.String),
 })
 export type CiRun = typeof CiRun.Type
 
@@ -239,10 +276,7 @@ export const sameCi = (a: CiRuns, b: CiRuns): boolean =>
 const sameRun = (a: CiRun, b: CiRun): boolean =>
   a.id === b.id && a.at === b.at && a.live === b.live && a.name === b.name &&
   a.sha7 === b.sha7 && a.dirty === b.dirty && a.seq === b.seq &&
-  a.phase === b.phase && a.verdict === b.verdict &&
-  a.tally.total === b.tally.total && a.tally.settled === b.tally.settled &&
-  a.tally.ok === b.tally.ok && a.tally.red === b.tally.red &&
-  sameWords(a.lanes, b.lanes) &&
+  a.phase === b.phase && sameWords(a.lanes, b.lanes) &&
   a.cells.length === b.cells.length &&
   a.cells.every((cell, at) => sameCell(cell, b.cells[at] as RunCell))
 

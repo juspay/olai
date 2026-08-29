@@ -12,6 +12,7 @@ import type { NodeState, PipelineState, RunHeader } from "@odu/run-client/surfac
 import { expect, test } from "bun:test"
 
 import { runOf, wentOf } from "./project.ts"
+import { tallyOf, verdictOf } from "./wire/index.ts"
 
 const SEED = { id: ".worktrees/a", at: "/home/x/code/odu/.worktrees/a" }
 
@@ -58,8 +59,8 @@ test("`cancelled` is not red, which is a distinction only odu's table holds", ()
   // forget it.
   const run = runOf(SEED, state([node("a@p", { status: "cancelled" })]), header())
   expect(run.cells[0]?.red).toBe(false)
-  expect(run.tally.red).toBe(0)
-  expect(run.tally.settled).toBe(1)
+  expect(tallyOf(run.cells).red).toBe(0)
+  expect(tallyOf(run.cells).settled).toBe(1)
 })
 
 test("an `errored` node keeps its own hue — infra death is not a red test", () => {
@@ -82,7 +83,7 @@ test("a status this build never heard of PASSES THROUGH rather than being folded
   // ...and it counts as SETTLED, because settled is the complement of the two
   // statuses that are on their way somewhere — so a chip does not stall at
   // `9/10` forever on a word nobody taught it.
-  expect(run.tally.settled).toBe(1)
+  expect(tallyOf(run.cells).settled).toBe(1)
 })
 
 test("the tally counts over the run's own order, and the verdict waits for every node", () => {
@@ -95,10 +96,10 @@ test("the tally counts over the run's own order, and the verdict waits for every
     ]),
     header(),
   )
-  expect(run.tally).toEqual({ total: 3, settled: 1, ok: 1, red: 0 })
+  expect(tallyOf(run.cells)).toEqual({ total: 3, settled: 1, ok: 1, red: 0 })
   // A green claim about work that has not run is the one thing a CI face must
   // never make.
-  expect(run.verdict).toBeNull()
+  expect(verdictOf(tallyOf(run.cells))).toBeNull()
 })
 
 test("RED WINS EARLY — a run with a red node is red before the rest finish", () => {
@@ -107,7 +108,7 @@ test("RED WINS EARLY — a run with a red node is red before the rest finish", (
     state([node("a@p", { status: "failed" }), node("b@p")]),
     header(),
   )
-  expect(run.verdict).toBe("red")
+  expect(verdictOf(tallyOf(run.cells))).toBe("red")
 })
 
 test("every node settled and none red is `ok`", () => {
@@ -116,14 +117,14 @@ test("every node settled and none red is `ok`", () => {
     state([node("a@p", { status: "ok" }), node("b@p", { status: "skipped" })]),
     header(),
   )
-  expect(run.verdict).toBe("ok")
+  expect(verdictOf(tallyOf(run.cells))).toBe("ok")
 })
 
 test("a run with NO nodes has no verdict of any colour", () => {
   // The empty-set trap: `red === 0 && settled === total` is true of nothing at
   // all, and a run still claiming a machine would have read `ok`.
   const run = runOf(SEED, state([]), header())
-  expect(run.verdict).toBeNull()
+  expect(verdictOf(tallyOf(run.cells))).toBeNull()
   expect(run.phase).toBe("no_lanes")
 })
 
@@ -154,7 +155,7 @@ test("a node named by `order` that the record does not carry is skipped, not dra
     header(),
   )
   expect(run.cells.map((cell) => cell.id)).toEqual(["a@p"])
-  expect(run.tally.total).toBe(1)
+  expect(tallyOf(run.cells).total).toBe(1)
 })
 
 test("a run GONE is the last reading kept — never a deletion and never a guess", () => {
@@ -168,6 +169,6 @@ test("a run GONE is the last reading kept — never a deletion and never a guess
   // A coordinator that died mid-run decided nothing. Inventing `red` for it
   // would report an infrastructure death as a test failure — the very
   // classification odu keeps a separate status for.
-  expect(gone.verdict).toBeNull()
+  expect(verdictOf(tallyOf(gone.cells))).toBeNull()
   expect(gone.cells).toEqual(live.cells)
 })

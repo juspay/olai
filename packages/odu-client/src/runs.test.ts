@@ -19,7 +19,7 @@ import { Effect, Stream } from "effect"
 import { expect, test } from "bun:test"
 
 import { type DialRun, type Lane, makeWatch, type WatchDeps } from "./runs.ts"
-import type { CiRun } from "./wire/index.ts"
+import { type CiRun, tallyOf, verdictOf } from "./wire/index.ts"
 
 const ROOT = "/home/x/code"
 
@@ -129,7 +129,7 @@ test("a live run publishes a row keyed by the BOARD'S OWN value, resolved beside
       expect(row?.id).toBe(".worktrees/a")
       expect(row?.at).toBe("/home/x/code/odu/.worktrees/a")
       expect(row?.live).toBe(true)
-      expect(row?.tally.ok).toBe(1)
+      expect(tallyOf(row?.cells ?? []).ok).toBe(1)
     })),
   )
 })
@@ -174,7 +174,7 @@ test("a run whose socket GOES leaves its last reading behind, no longer live", (
       // Never deleted: "there was a run and it came out green" is the thing a
       // settled lane most wants to say.
       expect(row?.live).toBe(false)
-      expect(row?.verdict).toBe("ok")
+      expect(verdictOf(tallyOf(row?.cells ?? []))).toBe("ok")
       // ...and the lane is free to be dialled again, for the NEXT run in that
       // checkout.
       expect(it.warned).toEqual([])

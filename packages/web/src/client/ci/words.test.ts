@@ -4,6 +4,13 @@
  *
  * `./words.ts` is pure and takes `now` as an argument for exactly this, which
  * is `../took.ts`'s own arrangement one readout over.
+ *
+ * EVERY CASE BUILDS ITS NODES, and the counts follow from them. The fixtures
+ * used to set a `tally` and a `verdict` beside the cells, which let a case
+ * state a count its own nodes contradicted — the invariant that stopped
+ * existing when those two left the wire and became folds over the cells
+ * (`@olai/odu-client`'s `wire`). A case that wants `8/10 ok` now has to have
+ * eight of them.
  */
 
 import type { CiRun, RunCell } from "@olai/surface"
@@ -28,6 +35,11 @@ const cell = (
   ...over,
 })
 
+/** `n` nodes of one status, for the cases whose subject is a COUNT rather than
+ *  any particular node. */
+const many = (n: number, status: string): ReadonlyArray<RunCell> =>
+  Array.from({ length: n }, (_, at) => cell({ id: `n${at}@p`, status }))
+
 const run = (over: Partial<CiRun> = {}): CiRun => ({
   id: ".worktrees/a",
   at: "/home/x/code/odu/.worktrees/a",
@@ -39,8 +51,6 @@ const run = (over: Partial<CiRun> = {}): CiRun => ({
   phase: "lanes",
   lanes: ["x86_64-linux=kolu-ci-9"],
   cells: [],
-  tally: { total: 0, settled: 0, ok: 0, red: 0 },
-  verdict: null,
   ...over,
 })
 
@@ -51,10 +61,10 @@ describe("a live run", () => {
     const said = wordsFor(
       run({
         cells: [
-          cell({ id: "typecheck@x86_64-linux", status: "ok" }),
+          ...many(8, "ok"),
           cell({ id: "e2e@x86_64-linux", status: "running", startedAt: 100_000 }),
+          cell({ id: "fmt@p", status: "pending" }),
         ],
-        tally: { total: 10, settled: 8, ok: 8, red: 0 },
       }),
       230_000,
     )
@@ -75,13 +85,7 @@ describe("a live run", () => {
   it("drops the duration on a running node with no start — a name is better than a `0:00`", () => {
     // That figure would read as a node stuck for a second, when what happened
     // is a frame that arrived between two writes.
-    const said = wordsFor(
-      run({
-        cells: [cell({ id: "e2e@p", status: "running" })],
-        tally: { total: 1, settled: 0, ok: 0, red: 0 },
-      }),
-      500,
-    )
+    const said = wordsFor(run({ cells: [cell({ id: "e2e@p", status: "running" })] }), 500)
     expect(said?.text).toBe("ci · e2e · 0/1 ok")
   })
 
@@ -96,15 +100,14 @@ describe("a live run", () => {
 
   it("goes RED the moment a node is, before the run has finished deciding", () => {
     // The ink and the verdict are different questions: a reader needs to know
-    // now, and the wire's verdict keeps the stricter rule.
+    // now, and the verdict keeps the stricter rule.
     const said = wordsFor(
       run({
         cells: [
           cell({ id: "e2e@p", status: "running", startedAt: 0 }),
           cell({ id: "unit@p", status: "failed", red: true }),
+          cell({ id: "fmt@p", status: "pending" }),
         ],
-        tally: { total: 3, settled: 1, ok: 0, red: 1 },
-        verdict: "red",
       }),
       61_000,
     )
@@ -115,15 +118,7 @@ describe("a live run", () => {
 
 describe("a run whose socket is gone", () => {
   it("says the verdict, in the verdict's ink", () => {
-    const said = wordsFor(
-      run({
-        live: false,
-        cells: [cell({ id: "a@p", status: "ok" })],
-        tally: { total: 10, settled: 10, ok: 10, red: 0 },
-        verdict: "ok",
-      }),
-      10_000,
-    )
+    const said = wordsFor(run({ live: false, cells: many(10, "ok") }), 10_000)
     expect(said?.text).toBe("ci · ok · 10/10 ok")
     expect(said?.tone).toBe("ok")
   })
@@ -134,8 +129,7 @@ describe("a run whose socket is gone", () => {
     const said = wordsFor(
       run({
         live: false,
-        cells: [cell({ id: "a@p", status: "ok" })],
-        tally: { total: 4, settled: 1, ok: 1, red: 0 },
+        cells: [cell({ id: "a@p", status: "ok" }), ...many(3, "pending")],
       }),
       10_000,
     )
@@ -146,9 +140,7 @@ describe("a run whose socket is gone", () => {
   it("says NOTHING AT ALL for a run that went before a single node settled", () => {
     // The plan's "or nothing": there is no verdict and no progress to report,
     // so the honest drawing is no chip and the lane's line is what it was.
-    expect(
-      wordsFor(run({ live: false, tally: { total: 4, settled: 0, ok: 0, red: 0 } }), 0),
-    ).toBeUndefined()
+    expect(wordsFor(run({ live: false, cells: many(4, "pending") }), 0)).toBeUndefined()
   })
 })
 
@@ -162,7 +154,7 @@ describe("the hover", () => {
 
   it("says the socket is gone rather than pretending the last reading is current", () => {
     const said = wordsFor(
-      run({ live: false, cells: [cell({ id: "a@p", status: "ok" })], verdict: "ok", tally: { total: 1, settled: 1, ok: 1, red: 0 } }),
+      run({ live: false, cells: [cell({ id: "a@p", status: "ok" })] }),
       0,
     )
     expect(said?.title).toContain("the socket is gone; this is the last reading")

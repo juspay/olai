@@ -1704,7 +1704,9 @@ export {
   NO_RUNS,
   PR_URL_KEY,
   RunCell,
-  RunTally,
+  type RunTally,
   sameCi,
+  tallyOf,
+  verdictOf,
   WORKTREE_KEY,
 } from "@olai/odu-client/wire"

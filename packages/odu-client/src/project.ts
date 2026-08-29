@@ -5,12 +5,18 @@
  * comes out as `./wire`'s shapes, which is the whole of `@olai/odu-client`'s
  * boundary claim: a change to odu's contract is a change HERE and stops.
  *
- * THE FOLDS RUN HERE, not in the browser. `STATUS_META` is odu's single home
+ * ODU'S FOLDS RUN HERE, and only odu's. `STATUS_META` is odu's single home
  * for what a status MEANS — glyph, semantic hue, whether it counts as red —
  * shared by its TUI, its GitHub poster and its `--progress json`, so olai
- * reads that answer rather than restating it. `runPhase` is the same kind of
- * thing one cell over: a fold over the lane roster that odu owns and every
- * face of a run performs identically or not at all.
+ * reads that answer rather than restating it, and the answer travels because
+ * the TABLE cannot. `runPhase` is the same kind of thing one cell over.
+ *
+ * OLAI'S OWN folds are not here, and the difference is where their input is.
+ * The tally and the verdict fold over the CELLS, which travel whole — so
+ * running them here and shipping the answers would put a question and its
+ * answer on one wire with nothing holding them together. They live in
+ * `./wire/index.ts`, the module both sides import, and whoever holds the
+ * cells does the counting.
  *
  * WHAT IS DELIBERATELY NOT PROJECTED. `posting` (GitHub status-posting health)
  * and `nodeLog` (a node's output) are both members of odu's surface that this
@@ -32,7 +38,7 @@ import type {
 import { runPhase, STATUS_META } from "@odu/run-client/surface"
 import { splitFanId } from "@odu/run-client/nodeId"
 
-import type { CiRun, RunCell, RunTally } from "./wire/index.ts"
+import type { CiRun, RunCell } from "./wire/index.ts"
 
 /**
  * ONE NODE, projected.
@@ -78,44 +84,6 @@ const cellsOf = (state: PipelineState): ReadonlyArray<RunCell> => {
   return cells
 }
 
-/** How the nodes have come out — counted over the projected cells, so the
- *  figure a chip shows and the colours a matrix draws are one reading. */
-const tallyOf = (cells: ReadonlyArray<RunCell>): RunTally => {
-  let settled = 0
-  let ok = 0
-  let red = 0
-  for (const cell of cells) {
-    // SETTLED is "not on its way there", which is every status but the two
-    // that are — the complement rather than a list of terminal words, so a
-    // status odu adds counts as settled by default and a chip does not stall
-    // at `9/10` forever on a word this build has not heard of.
-    if (cell.status !== "pending" && cell.status !== "running") settled += 1
-    if (cell.status === "ok") ok += 1
-    if (cell.red) red += 1
-  }
-  return { total: cells.length, settled, ok, red }
-}
-
-/**
- * WHAT THE RUN CAME TO, or `null` while it has not.
- *
- * RED WINS EARLY — a run with a red node is red before its remaining nodes
- * finish, because that is what a reader needs to know and what odu's own
- * verdict says. `ok` waits for every node, which is the asymmetry the words
- * carry honestly: a green claim about work that has not run is the one thing a
- * CI face must never make.
- *
- * A run with NO nodes has no verdict of any colour — a `provisioning` run that
- * has published a roster and nothing else would otherwise read `ok`, which is
- * the empty-set trap the counting form falls into and the reason this is a
- * branch rather than `red === 0 && settled === total`.
- */
-const verdictOf = (tally: RunTally): string | null => {
-  if (tally.red > 0) return "red"
-  if (tally.total === 0) return null
-  return tally.settled === tally.total ? "ok" : null
-}
-
 /** One lane of the roster as a face names a column: `platform=host` once the
  *  lease resolved, `platform=…` with the pool it is still claiming from
  *  otherwise. Two states of ONE concept, drawn as one word each — odu's own
@@ -139,24 +107,18 @@ export const runOf = (
   seed: { readonly id: string; readonly at: string },
   state: PipelineState,
   header: RunHeader,
-): CiRun => {
-  const cells = cellsOf(state)
-  const tally = tallyOf(cells)
-  return {
-    id: seed.id,
-    at: seed.at,
-    live: true,
-    name: state.name,
-    sha7: state.sha7,
-    dirty: state.dirty,
-    seq: state.seq ?? null,
-    phase: runPhase(header),
-    lanes: header.lanes.map(laneOf),
-    cells,
-    tally,
-    verdict: verdictOf(tally),
-  }
-}
+): CiRun => ({
+  id: seed.id,
+  at: seed.at,
+  live: true,
+  name: state.name,
+  sha7: state.sha7,
+  dirty: state.dirty,
+  seq: state.seq ?? null,
+  phase: runPhase(header),
+  lanes: header.lanes.map(laneOf),
+  cells: cellsOf(state),
+})
 
 /**
  * THE SAME ROW ONCE THE SOCKET IS GONE — the last verdict, kept.

@@ -32,13 +32,21 @@
  *
  * A live run with a red node in it is ALREADY red to a reader — that is what
  * they need to know, and waiting for the last node to finish before saying so
- * would be the chip withholding the one thing it exists for. The verdict on
- * the wire keeps the stricter rule (`@olai/odu-client`'s `project.ts`: `ok`
- * waits for every node); the INK does not, and the two are different
- * questions.
+ * would be the chip withholding the one thing it exists for. The VERDICT keeps
+ * the stricter rule (`verdictOf`: `ok` waits for every node); the INK does
+ * not, and the two are different questions.
+ *
+ * ## The counting happens HERE, over the cells the row already carries
+ *
+ * `tallyOf` and `verdictOf` are `@olai/odu-client`'s own folds, shared through
+ * the wire module both sides import — the same two functions the server would
+ * run, run where the cells are. Shipping their answers beside the cells would
+ * have put a question and its answer on one wire with an unenforced promise
+ * that they agree; folding ten nodes on a clock tick costs nothing worth
+ * buying that promise with.
  */
 
-import type { CiRun, RunCell } from "@olai/surface"
+import { type CiRun, type RunCell, type RunTally, tallyOf, verdictOf } from "@olai/surface"
 
 import { tickingOf } from "../took.ts"
 
@@ -64,12 +72,12 @@ export const runningIn = (run: CiRun): RunCell | undefined =>
   run.cells.find((cell) => cell.status === "running")
 
 /** The `<count>` half — dropped for a run with no nodes. */
-const countOf = (run: CiRun): string | undefined =>
-  run.tally.total === 0 ? undefined : `${run.tally.ok}/${run.tally.total} ok`
+const countOf = (tally: RunTally): string | undefined =>
+  tally.total === 0 ? undefined : `${tally.ok}/${tally.total} ok`
 
 /** What a run is DOING, in a word or two. */
-const whatOf = (run: CiRun, now: number): string => {
-  if (!run.live) return run.verdict ?? "ended"
+const whatOf = (run: CiRun, verdict: string | null, now: number): string => {
+  if (!run.live) return verdict ?? "ended"
   const running = runningIn(run)
   if (running !== undefined) {
     // A node marked running with no `startedAt` is a frame that arrived
@@ -85,13 +93,13 @@ const whatOf = (run: CiRun, now: number): string => {
   // odu's question to answer — or every node has settled and the socket has
   // simply not gone yet.
   if (run.phase !== "lanes") return run.phase
-  return run.verdict ?? "waiting"
+  return verdict ?? "waiting"
 }
 
 /** ...and the ink it is said in. */
-const toneOf = (run: CiRun): CiTone => {
-  if (run.tally.red > 0) return "red"
-  if (!run.live) return run.verdict === "ok" ? "ok" : "quiet"
+const toneOf = (run: CiRun, tally: RunTally, verdict: string | null): CiTone => {
+  if (tally.red > 0) return "red"
+  if (!run.live) return verdict === "ok" ? "ok" : "quiet"
   return "going"
 }
 
@@ -120,11 +128,13 @@ const titleOf = (run: CiRun): string => {
  *  a run that ended without deciding and never ran a node is a row whose
  *  honest drawing is no chip at all. */
 export const wordsFor = (run: CiRun, now: number): CiWords | undefined => {
-  if (!run.live && run.verdict === null && run.tally.settled === 0) return undefined
-  const count = countOf(run)
+  const tally = tallyOf(run.cells)
+  const verdict = verdictOf(tally)
+  if (!run.live && verdict === null && tally.settled === 0) return undefined
+  const count = countOf(tally)
   return {
-    text: `ci · ${whatOf(run, now)}${count === undefined ? "" : ` · ${count}`}`,
-    tone: toneOf(run),
+    text: `ci · ${whatOf(run, verdict, now)}${count === undefined ? "" : ` · ${count}`}`,
+    tone: toneOf(run, tally, verdict),
     title: titleOf(run),
   }
 }
