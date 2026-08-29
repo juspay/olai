@@ -880,13 +880,18 @@ describe("the caller shapes the rows", () => {
     // the walk itself adds (`date`, the live note, `children`, `truncated`),
     // and nothing FORWARD — the day a walk row carries a key that is
     // neither, the row definition here has drifted in someone's darkness.
-    for (const row of [lane, ...lane.children, ...lane.children[0].children]) {
+    const checkKeys = (row: object) => {
       for (const key of Object.keys(row)) {
         expect(
           key in Found.fields || key === "date" || key === "desc" ||
             key === "children" || key === "truncated",
         ).toEqual(true)
       }
+    }
+    checkKeys(lane)
+    for (const child of lane.children) {
+      checkKeys(child)
+      for (const grand of child.children) checkKeys(grand)
     }
     expect(read(timed().derived, "lane")?.children[0]).toMatchObject({
       id: "one",

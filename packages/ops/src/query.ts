@@ -189,7 +189,7 @@ export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
     // should not have to filter a status out of every answer.
     ...(status === undefined ? {} : { status }),
     path: ancestorTitles(derived, located.node.id),
-    ...carriedOf(located.node),
+    ...carriedOf(located.node, heldCustom(located.node.custom)),
   }
 }
 
@@ -226,17 +226,20 @@ export const foundOf = (derived: Derived, located: LocatedRegular): Found => {
  */
 const carriedOf = (
   node: LocatedRegular["node"],
-): Pick<Found, "parent" | "see" | "after" | "custom"> => {
+  /** The property map, PRUNED by the caller — `heldCustom`'s answer. Handed
+   *  IN rather than pruned here so a row that needs the map for its own
+   *  part of the answer ({@link shapedOf}'s `custom.<key>` selection) pays
+   *  heldCustom's one run per row, and every answer reads the same pruning. */
+  custom: ReturnType<typeof heldCustom>,
+): Pick<Found, "parent" | "see" | "after" | "custom"> =>
   // Pruned first, so what `nothing` is asked about is what the file would hold:
   // a map of keys that all hold nothing is `{}`, and `{}` is nothing.
-  const custom = heldCustom(node.custom)
-  return {
+  ({
     ...(nothing(node.parent) ? {} : { parent: node.parent }),
     ...(nothing(node.see) ? {} : { see: node.see }),
     ...(nothing(node.after) ? {} : { after: node.after }),
     ...(nothing(custom) ? {} : { custom }),
-  }
-}
+  })
 
 // ── search ─────────────────────────────────────────────────────────────
 
@@ -895,13 +898,15 @@ const shapedOf = (
   wants: Wants,
 ): Projected => {
   const node = located.node
+  // PRUNED ONCE, by the caller's arrangement with {@link carriedOf}: a key
+  // holding nothing is a key the file does not carry, and the answer pays
+  // `heldCustom`'s one run per row whichever of the two halves asks.
+  const held = heldCustom(node.custom)
   const parts: RowParts = {
     node,
     status: derived.status.get(node.id),
-    carried: carriedOf(node),
-    // PRUNED ONCE through `heldCustom`, for {@link carriedOf}'s reason word
-    // for word: a key holding nothing is a key the file does not carry.
-    held: heldCustom(node.custom),
+    carried: carriedOf(node, held),
+    held,
     wants,
   }
   return {
