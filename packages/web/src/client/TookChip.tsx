@@ -85,7 +85,7 @@ function GoingChip(props: { readonly started: string; readonly worked: number | 
         ? `${exactOf(banked())} already banked — under way again since ${props.started}`
         : `under way since ${props.started}`}
     >
-      ⏱ {tickingOf(liveOf(props.worked, instantOf(props.started) ?? now(), now()))}
+      ⏱ {tickingOf(liveOf(banked(), instantOf(props.started) ?? now(), now()))}
     </span>
   )
 }
