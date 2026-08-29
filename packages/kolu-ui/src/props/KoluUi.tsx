@@ -67,9 +67,9 @@ import type {
 import { FleetProvider, readingScreen, watchingTerminal } from "./fleet.tsx"
 
 /**
- * THE FIVE MEMBERS this appliance reads, structurally — the cell, the two
- * collections (`fleet` and the watcher's `events`), the screen read and
- * the live pane.
+ * THE MEMBERS this appliance reads, structurally — the three cells (the
+ * link, the pulse and the drawer's foot), the two collections (`fleet`
+ * and the watcher's `events`), the screen read and the live pane.
  *
  * Written as the shape rather than imported as the client's type for the reason
  * the header gives: a pin a suite can satisfy, and a name-change that stops

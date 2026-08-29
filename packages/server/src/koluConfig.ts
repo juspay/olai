@@ -9,9 +9,11 @@
  *
  * This is `@olai`'s own judgement ABOUT kolu, and the structure is
  * borrowed outright: one file by convention (`kolu.olai`, which is what
- * `_olai/Kolu.olai` reads as, found the way every convention file is
- * found — shallowest first, ties by path), two titled nodes under it,
- * and everything else left alone.
+ * `_olai/Kolu.olai` reads as), two titled nodes under it, and
+ * everything else left alone. FINDING the file is a question about the
+ * served outline paths rather than the nodes — `koluFileIn` below, so
+ * a config that parses to nothing still has the wrench that opens it
+ * — and the reading then walks the nodes that file contributes.
  *
  *   # Kolu
  *
@@ -30,12 +32,11 @@
  * text is authoritative-as-written rather than repaired: olai does not
  * edit the person's file.
  *
- * One file decides THE WHOLE reading, the way the convention decides a
- * file: the shallowest file holding EITHER node, ties by path, and both
- * halves are then read inside it — a `watch` in one file and a `mutes` in
- * another is not composed, any more than two `watch` nodes would be: the
- * SECOND of any of them is the owner's mistake, not a precedence
- * question.
+ * One file decides THE WHOLE reading: a `watch` in one file and a
+ * `mutes` in another would be two minds the way two `watch` nodes
+ * would, so the walk reads inside the one file it is handed and no
+ * other — and the SECOND of any of them is the owner's mistake, not a
+ * precedence question.
  *
  * The VALUES also answer padi's grammar, besides the vault's: `held-for`
  * accepts `0` the way padi's own `heldForMs` does — the instant report —
@@ -50,7 +51,7 @@
  * Values pass through verbatim.
  *
  * WHAT IS READ BESIDE THE VALUES, since the events drawer grew a foot
- * (2026-08-29): the mutes' TITLES, and which file the convention read.
+ * (2026-08-29): the mutes' TITLES, beside the file the caller named.
  * The watcher gates on ids and prefixes, which tell a reader nothing; the
  * drawer's last line names WHO is silenced, and the wrench beside the
  * line opens the file itself — which is also why the deciding file is
@@ -61,7 +62,7 @@
  * about what is muted.
  */
 
-import { customText, isRegular, type Located } from "@olai/format"
+import { byOrd, customText, isRegular, type Located } from "@olai/format"
 import { DEFAULT_WATCH, type WatchConfig } from "@olai/kolu-client"
 import { TERMINAL_KEY } from "@olai/surface"
 
@@ -109,39 +110,55 @@ export interface WatchReading {
   readonly mutes: MutesReading
 }
 
-/** The display half of one mute walk — structurally the wire's
- *  `KoluMutes`, re-said here so this module's answer is named for what it
- *  READS rather than for the cell it lands in. */
+/** One mute, as the vault wrote it — value verbatim (full id or
+ *  prefix; WHICH fleet ids it names is the watcher's verdict, not
+ *  this module's) and the title beside it. The drawer's filtering of
+ *  them, per resolved verdict, is the cell's;
+ *  `mutedVerdicts` in `@olai/kolu-client`'s watch is the fact it
+ *  filters by. */
+export interface MuteEntry {
+  readonly value: string
+  readonly title: string
+}
+
+/** The display half of one mute walk — derived into the wire's
+ *  `KoluMutes` by the cell, re-said here so this module's answer is
+ *  named for what it READS rather than for the cell it lands in. */
 export interface MutesReading {
-  /** The file whose `watch`/`mutes` nodes decided the config, or `null`
-   *  when no file holds either — the defaults' signature, and the foot's
-   *  absence. */
+  /** The file the vault carries as the convention under its name, or
+   *  `null` when no served file is named it — the foot's absence. A file
+   *  that exists but parses to nothing still names itself (the wrench is
+   *  how a broken config is opened to be fixed); it is the CALLER who
+   *  answers that (`koluFileIn`, below), this reading only walks the
+   *  nodes that survived the codec. */
   readonly file: string | null
-  /** The `mutes` node children's own titles — only the children carrying
-   *  a `terminal` value, the same set the watcher gates on. An untitled
-   *  child falls back to the value it mutes: a blank name on the foot
-   *  says less than the prefix does. */
-  readonly names: ReadonlyArray<string>
+  /** The `mutes` node children's own entries — only children carrying
+   *  a `terminal` value, the same set the watcher gates on, in outline
+   *  order (`byOrd`). An untitled child falls back to the value it
+   *  mutes: a blank name on the foot says less than the prefix does. */
+  readonly entries: ReadonlyArray<MuteEntry>
 }
 
 /**
- * Whether a node lives in a file the convention could be — basename
- * case-folded, like every convention file's check (`@olai/format`'s
- * `inOlaiDir` does that one fold for `_olai/`).
+ * THE WRENCH'S ANSWER — which served outline is `_olai/Kolu.olai`, asked
+ * of the outline PATHS, not the nodes: a config that exists but parses
+ * to nothing contributes no records, and the foot's only door onto it
+ * (the wrench) would fall away with the nodes if both answered the same
+ * question. The rider stays on the saddle-less parts of the horse
+ * because the horse says where it GOES; to say where it IS, ask the
+ * rider — served paths are `@olai/format`'s answer to the latter
+ * (`conventionServed` is the connector's).
+ *
+ * Case-folded by basename, like every convention file's check
+ * (`inOlaiDir` does the one fold for `_olai/`). Rank is the convention's
+ * own: shallowest first, ties by path.
  */
-const inKoluFile = (located: Located): boolean => {
-  const parts = located.file.split("/")
-  const base = parts[parts.length - 1]
-  return base !== undefined && base.toLowerCase() === FILE_BASENAME
-}
-
-/** Convention rank: shallowest first, ties by path — `@olai/format`'s
- *  argument for why depth is a convention's read. */
-const byConvention = (a: Located, b: Located): number => {
-  const da = a.file.split("/").length
-  const db = b.file.split("/").length
-  if (da !== db) return da - db
-  return a.file.localeCompare(b.file)
+export const koluFileIn = (paths: Iterable<string>): string | undefined => {
+  return [...paths]
+    .filter((path) => path.split("/").pop()?.toLowerCase() === FILE_BASENAME)
+    .sort(
+      (a, b) => a.split("/").length - b.split("/").length || a.localeCompare(b),
+    )[0]
 }
 
 /** One `mutes` node's children, as ENTRIES: the terminal value verbatim,
@@ -151,11 +168,16 @@ const byConvention = (a: Located, b: Located): number => {
 const mutesOf = (
   nodes: ReadonlyArray<Located>,
   parent: string,
-): ReadonlyArray<{ value: string; title: string }> => {
-  const entries: Array<{ value: string; title: string }> = []
-  for (const located of nodes) {
-    if (!isRegular(located)) continue
-    if (located.node.parent !== parent) continue
+): ReadonlyArray<MuteEntry> => {
+  const entries: Array<MuteEntry> = []
+  const held = nodes
+    .filter(isRegular)
+    .filter((located) => located.node.parent === parent)
+  // Outline order (`byOrd`, the derivation's own sibling order) and not
+  // the flat list's: where a mute sits in the file is where it sits on
+  // the line.
+  held.sort(byOrd)
+  for (const located of held) {
     const value = customText(located.node, TERMINAL_KEY)
     if (value === undefined || value.trim() === "") continue
     entries.push({
@@ -170,28 +192,27 @@ const mutesOf = (
 
 /**
  * What the vault says the watcher's knobs and mutes are, read off one
- * revision's nodes.
+ * revision's nodes, inside the file the convention named
+ * (`koluFileIn`, above — the caller computes it off the SERVED outlines
+ * and hands it in, so a file that parses to nothing still feeds the
+ * foot its wrench while handing this walk an empty inside).
  *
  * ABSENT means the defaults. `DEFAULT_WATCH` returns as itself, not a copy:
  * there is exactly one "the vault said nothing" answer, so there is exactly
  * one object for it, and the check that catches it is a `===`.
  *
- * TWO FILES are the convention's tie, and it is decided the way every
- * convention decides: the shallowest, then the lowest path, then within a
- * file the FIRST `watch` node. A file with neither node is not a candidate.
+ * Within the named file the FIRST `watch` node and the FIRST `mutes`
+ * node decide; a second of either is the owner's mistake, not a
+ * precedence question.
  */
-export const watchConfigIn = (nodes: ReadonlyArray<Located>): WatchReading => {
-  const regulars = nodes.filter(isRegular).filter(inKoluFile).sort(byConvention)
-  // THE ONE FILE that decides: the first by convention holding EITHER node;
-  // both halves are read inside it — a `watch` in one file and a `mutes`
-  // in another would be two minds the way two `watch` nodes would.
-  const theFile = regulars.find(({ node }) =>
-    node.title === WATCH_TITLE || node.title === MUTES_TITLE
-  )?.file
-  if (theFile === undefined) {
-    return { config: DEFAULT_WATCH, malformed: [], mutes: { file: null, names: [] } }
+export const watchConfigIn = (
+  nodes: ReadonlyArray<Located>,
+  file: string | null,
+): WatchReading => {
+  if (file === null) {
+    return { config: DEFAULT_WATCH, malformed: [], mutes: { file, entries: [] } }
   }
-  const inside = regulars.filter((located) => located.file === theFile)
+  const inside = nodes.filter(isRegular).filter((located) => located.file === file)
   const watch = inside.find(({ node }) => node.title === WATCH_TITLE)
   const mutes = inside.find(({ node }) => node.title === MUTES_TITLE)
   const entries = mutes === undefined ? [] : mutesOf(nodes, mutes.node.id)
@@ -235,9 +256,6 @@ export const watchConfigIn = (nodes: ReadonlyArray<Located>): WatchReading => {
       muted: entries.map((entry) => entry.value),
     },
     malformed,
-    mutes: {
-      file: theFile,
-      names: entries.map((entry) => entry.title),
-    },
+    mutes: { file, entries },
   }
 }

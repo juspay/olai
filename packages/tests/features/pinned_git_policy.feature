@@ -16,8 +16,8 @@ Feature: The server can pin the git policy, and the preferences say so
   policy a reader cannot see is one they cannot ask anybody about.
 
   What is NOT pinned is untouched, which is most of this panel: theme, font,
-  size, notes and done are personal view choices and there is no server
-  nothing about them for a server to have an opinion on.
+  size, notes and done are personal view choices, and there is nothing
+  about them for a server to have an opinion on.
 
   This feature's server is started `--commit=auto --push=off`. The unpinned
   case — every flag left alone, both rows live and both setting the server's

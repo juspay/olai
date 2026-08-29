@@ -128,6 +128,14 @@ export interface WatchSink {
    *  was stamped under) rides beside it, which is the pill's whole read. */
   readonly beat: (at: string, everyMs: number) => void
   readonly say: (line: string) => void
+  /** The fold's sayable half: the mute VALUES that resolve to one live id
+   *  each, told once per fold the watcher takes (observation, fleet-move,
+   *  reconfigure — the same places the hold gate reads it, so the tell and
+   *  the gate are one answer). The foot the events drawer draws names
+   *  exactly this set; a value that resolves to nobody or several says
+   *  nothing, and its silence is the console's sentence above, not a line
+   *  that would lie about the drawer's own events. */
+  readonly mutedVerdicts: (resolved: ReadonlySet<string>) => void
 }
 
 export interface Watch {
@@ -251,18 +259,29 @@ export const makeWatch = (
   interface MuteFold {
     /** The live ids the list silences. */
     readonly silenced: Set<string>
+    /** The config VALUES that resolve to exactly one live id each — who
+     *  the watcher can SAY it silenced. A value naming nobody or several
+     *  does not enter, for the same reason it silences nobody below: the
+     *  drawer's foot names this set and nothing else, so a line can never
+     *  claim a terminal is silenced while its events arrive above it. */
+    readonly resolved: Set<string>
     /** The values that name MORE than one live terminal — inert, and said. */
     readonly ambiguous: ReadonlyArray<{ readonly value: string; readonly count: number }>
   }
   const foldMutes = (): MuteFold => {
     const silenced = new Set<string>()
+    const resolved = new Set<string>()
     const ambiguous: Array<{ readonly value: string; readonly count: number }> = []
     for (const value of config.muted) {
-      const resolved = resolveTerminal(value, seen)
-      if (resolved.kind === "one") silenced.add(resolved.id)
-      else if (resolved.kind === "many") ambiguous.push({ value, count: resolved.count })
+      const verdict = resolveTerminal(value, seen)
+      if (verdict.kind === "one") {
+        silenced.add(verdict.id)
+        resolved.add(value)
+      } else if (verdict.kind === "many") {
+        ambiguous.push({ value, count: verdict.count })
+      }
     }
-    return { silenced, ambiguous }
+    return { silenced, resolved, ambiguous }
   }
 
   /** The ambiguous values of a mute fold, said ONCE per value rather than
@@ -279,6 +298,17 @@ export const makeWatch = (
         )
       }
     }
+  }
+
+  /** The fold's OTHER mouth — the same one answer, published for whoever
+   *  displays the mutes (the drawer's foot, through the cell). One touch
+   *  per fold rather than one consumer per face, for the fold's own case:
+   *  a value becoming resolvable or losing it re-publishes from THE fold
+   *  the hold gate just read, so the line and the gate can never disagree
+   *  about who is silenced this breath. */
+  const announce = (fold: MuteFold): void => {
+    sayAmbiguousMutes(fold)
+    sink.mutedVerdicts(fold.resolved)
   }
 
   /** One event onto the ring, evicting the oldest while the cap is full. */
@@ -413,7 +443,7 @@ export const makeWatch = (
       // read the one answer. `sayAmbiguousMutes` holds the once-per-VALUE
       // half itself.
       const fold = foldMutes()
-      sayAmbiguousMutes(fold)
+      announce(fold)
       const state = heldStateOf(row)
       // FIRST: an id whose fleet fell out from under it is a resume, not a
       // reopen — the daemon's own `since` does not move on a reconnect, and
@@ -478,7 +508,7 @@ export const makeWatch = (
       for (const singing of [...holds.values()]) {
         if (fold.silenced.has(singing.id)) releaseHold(singing)
       }
-      sayAmbiguousMutes(fold)
+      announce(fold)
     },
     suspend: (id) => {
       const hold = holds.get(id)
@@ -509,7 +539,7 @@ export const makeWatch = (
       for (const hold of [...holds.values(), ...suspended.values()]) {
         if (fold.silenced.has(hold.id)) releaseHold(hold)
       }
-      sayAmbiguousMutes(fold)
+      announce(fold)
       if (heartbeatMoved) rearmHeartbeat()
       if (!heldForMoved && !nagMoved) return
       // Re-pace, ONE pass, through the one re-arm fold: each hold asks the

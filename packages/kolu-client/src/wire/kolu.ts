@@ -180,26 +180,39 @@ export const KOLU_UNPULSED: WatchPulse | null = null
  * moves the line on the frame the revision publishes.
  *
  * `file` is the cell's other fact, and it is the wrench's: WHICH file the
- * convention read (`@olai/server`'s `koluConfig.ts` — shallowest, ties by
- * path), so the drawer's navigation is a plain open of a page that exists
- * rather than a second spelling of the convention in a browser that holds
- * only paths. `null` is the watcher on its DEFAULTS: no file decided
+ * convention named — read off the served OUTLINE PATHS rather than the
+ * nodes (`@olai/server`'s `koluFileIn` — shallowest, ties by path), so a
+ * config that parses to nothing keeps the door that opens it — so the
+ * drawer's navigation is a plain open of a page that exists rather than
+ * a second spelling of the convention in a browser that holds only
+ * paths. `null` is the watcher on its DEFAULTS: no file decided
  * anything, so there is no config page to open and the drawer draws no
  * foot at all.
  *
+ * NAMES NAME ONLY WHAT THE WATCHER CAN SAY, since the foot got its own
+ * truth (the review's, 2026-08-29): one title per mute whose value
+ * RESOLVED to exactly one live terminal at the watcher's last fold
+ * (`mutedVerdicts` in `@olai/kolu-client`'s watch sink). A mute naming nobody
+ * (a dead terminal's id) or several (an ambiguous prefix) is not named:
+ * its silence keeps its own console sentence, and the foot does not get
+ * to claim a quiet the drawer's own events would contradict. Before any
+ * fold has run — no padi, no fleet seen at all — the walk's whole list
+ * passes through: the fold's own fail-open rule, drawn.
+ *
  * EMPTY names are a state of their own and not the same state as `null`:
- * a file that decides but mutes nobody is a reader with nothing silenced
- * — the foot says so by saying only where the config is, and never draws
- * a "0 muted" (the drawer's own rule: the quiet row is noise about a
- * noise that is not there).
+ * a file that decides but mutes nobody anyone can say is a reader with
+ * nothing silenced — the foot says so by saying only where the config
+ * is, and never draws a "0 muted" (the drawer's own rule: the quiet row
+ * is noise about a noise that is not there).
  */
 export const KoluMutes = Schema.Struct({
   /** Which file decided the config — see above. */
   file: Schema.NullOr(Schema.String),
-  /** The mute entries' own titles, in the outline's order — the `mutes`
-   *  node's children that carry a `terminal` value. An untitled entry
-   *  falls back to the value it mutes, decided where the file is read so
-   *  the drawer never draws a blank. */
+  /** The say-as-of-now entries' own titles, in the outline's order — the
+   *  `mutes` node's children carrying a `terminal` value, narrowed to
+   *  those the watcher could say at its last fold (see above). An
+   *  untitled entry falls back to the value it mutes, decided where the
+   *  file is read so the drawer never draws a blank. */
   names: Schema.Array(Schema.String),
 })
 export type KoluMutes = typeof KoluMutes.Type

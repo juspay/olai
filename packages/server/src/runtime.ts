@@ -133,7 +133,7 @@ import { cadence } from "@olai/chat"
 import { type Dial, koluHalf, type KoluHalf, SEED } from "@olai/kolu-client"
 
 import { claimantsIn } from "./claimants.ts"
-import { watchConfigIn } from "./koluConfig.ts"
+import { koluFileIn, watchConfigIn } from "./koluConfig.ts"
 
 import type { Cadence, Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
@@ -664,6 +664,7 @@ export const bind = (
      */
     let shelfFile: Convention | undefined
     let inboxFile: Convention | undefined
+    let koluFile: Convention | undefined
 
     /**
      * THE KOLU HALF — the padi link, the fleet it keeps, and the one screen
@@ -938,7 +939,14 @@ export const bind = (
               wiring.store.reads,
               ({ snapshot }) =>
                 Effect.sync(() => {
-                  if (snapshot === null) return cell.set(null)
+                  if (snapshot === null) {
+                    // No published set at all: the vault's kolu verdict
+                    // goes out with the canvas — yesterday's mutes line
+                    // and the wrench's door beside it are superscript
+                    // claims the store can no longer vouch for.
+                    kolu.unloaded()
+                    return cell.set(null)
+                  }
                   // THE PROJECTION CONSUMES WHAT IT IS HANDED, so these two
                   // lines are one statement and the second may never be moved
                   // below the writes: `held` is what `readAll` reads, and after
@@ -983,7 +991,20 @@ export const bind = (
                   // keystroke that landed in a note costs one walk and zero
                   // frames. What it costs on the revision a `terminal` property
                   // is actually written is one frame for that terminal's row.
-                  kolu.revision(snapshot.value.derived.nodes)
+                  kolu.revision(
+                    snapshot.value.derived.nodes,
+                    // The read the findings are attributed to, asked of the
+                    // SERVED outlines the way the inbox asks (`served`, not
+                    // `recorded`: a file the codec tore apart still names
+                    // itself, and the foot's wrench over it must not fall
+                    // away WITH the nodes).
+                    (koluFile = conventionServed(
+                      koluFileIn,
+                      snapshot.value.set,
+                      snapshot,
+                      koluFile,
+                    )).file ?? null,
+                  )
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest

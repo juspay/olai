@@ -73,12 +73,21 @@ function FeedFoot(props: {
               {`${mutes().names.length} muted · ${mutes().names.join(", ")}`}
             </span>
           </Show>
-          {/* The press closes the drawer without handing the caret to the
-              trigger (the dismissal's day job): the page the wrench opens
-              is where the reader goes. `onLeave` wraps the link rather than
-              riding it because `../router.tsx`'s `Link` carries no press
-              slot, and the click bubbles. */}
-          <span onClick={() => props.onLeave()}>
+          {/* A plain press closes the drawer without handing the caret to
+              the trigger (the dismissal's day job): the page the wrench
+              opens is where the reader goes. A click held with a modifier
+              aims the page, not the drawer, so the leaving is conditional
+              on the aim being the place itself. `onLeave` wraps the link
+              rather than riding it because `../router.tsx`'s `Link` carries
+              no press slot, and the click bubbles. */}
+          <span
+            onClick={(event) => {
+              // A modifier press is another aim: new tab, new window — the
+              // reader asked for the page, kept the drawer.
+              if (event.metaKey || event.ctrlKey || event.shiftKey) return
+              props.onLeave()
+            }}
+          >
             <Link
               route={atFile(file())}
               class="ml-auto flex shrink-0 items-center rounded p-0.5 text-muted hover:bg-paper/10 hover:text-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
