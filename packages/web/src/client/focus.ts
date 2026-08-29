@@ -106,9 +106,9 @@ export const bringOntoScreen = (row: Element): void => {
   row.scrollIntoView({ block: "center", behavior: "smooth" })
 }
 
-/** What a press adds to THE SCROLL: WHICH row — the focused one, found
- *  spent-once in a fresh frame — and whether there was one: `true` when a
- *  row moved, `false` is what `elsewhere` answers. */
+/** What a press adds to THE SCROLL: WHICH row — the focused one, in the
+ *  frame after the attribute landed — and whether there was one at all,
+ *  since `false` is what a press's `elsewhere` walks out. */
 const bringFocusedOntoScreen = (root: ParentNode): boolean => {
   const row = focusedRowIn(root)
   if (row === null) return false
@@ -158,8 +158,15 @@ let pointed = 0
  * polite half of the ruled behaviour, and a blank zoom page's replacement.
  * A wire that cannot answer is a console line, no louder: the connection pill
  * is already saying so, which is `fold/refiling.ts`'s own ruling.
+ *
+ * "Exactly where it was" includes the ACCENT: `focusNode` writes it ahead
+ * of the frame, and let stand would be one answer against the other arm of
+ * the ruling — a row losing the ring to an id that is not anywhere drawn,
+ * which IS the page changing. `before` restores it on both quiet outcomes;
+ * a STALE press restores nothing, because by then everything on screen
+ * belongs to the newer one.
  */
-const landOnRow = (go: (route: Route) => void, id: string, mine: number): void => {
+const landOnRow = (go: (route: Route) => void, id: string, mine: number, before: string | null): void => {
   void runAsync(olai.procedures.nodes.homes({ ids: [id], files: [] })).then((outcome) => {
     if (mine !== pointed) return
     if (Result.isFailure(outcome)) {
@@ -167,10 +174,14 @@ const landOnRow = (go: (route: Route) => void, id: string, mine: number): void =
         "olai: could not ask where the pressed node lives, so the reference went nowhere —",
         outcome.failure.message,
       )
+      setFocused(before)
       return
     }
     const home = outcome.success.homes.find((one) => one.id === id)?.file
-    if (home === undefined) return
+    if (home === undefined) {
+      setFocused(before)
+      return
+    }
     go(atElement(home, id))
   })
 }
@@ -195,6 +206,7 @@ export const useShowNode = (): ((id: string) => void) => {
   const router = useRouter()
   return (id) => {
     const mine = ++pointed
-    focusNode(id, () => landOnRow(router.go, id, mine))
+    const before = focused()
+    focusNode(id, () => landOnRow(router.go, id, mine, before))
   }
 }
