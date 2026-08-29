@@ -672,6 +672,11 @@ export const Detail = Schema.Struct({
    * changes shape wholesale — every caller holding a row narrows it by which
    * fields it carries, and a full row answers the first arm exactly as it
    * always did.
+   *
+   * FOUND FIRST, and the order is load-bearing rather than a habit: the
+   * floor's encoder matches the first arm that succeeds, and a projected row
+   * (optional everything) sits inside the full arm's shape — the day those
+   * two trade places, every walk answer becomes the lean kind.
    */
   children: Schema.Array(Schema.Union([Found, Projected])),
   /** Everywhere else this node is drawn — the mirrors that show it, chains
@@ -980,7 +985,12 @@ export type OutlineRoots = typeof OutlineRoots.Type
  *  does not hold — each of the first two full or projected. A `file` that is
  *  not one is REFUSED rather than answered — a path is not an id, and the
  *  useful answer to a typo is the near miss, which is the split
- *  {@link DocumentBody} argues one read over. */
+ *  {@link DocumentBody} argues one read over.
+ *
+ *  THE FULL ARMS FIRST, for the same reason {@link Detail.children} puts
+ *  `Found` ahead of `Projected`: a projected row is a subset of the full
+ *  arm's shape, and the encoder takes the first arm that fits — the order
+ *  IS the reading, and it is not decoration. */
 export const SubtreeAnswer = Schema.Union([
   Subtree,
   OutlineRoots,
