@@ -410,10 +410,21 @@ export type DocumentBody = typeof DocumentBody.Type
  * instants the ops layer stamps rather than the record (`started`, `created`,
  * `changed`), and the derived `status` beside the marks it reads. The one
  * open name is the map: `custom` for all of it, and `custom.<key>` for one
- * property of it. `took` is NOT one: it is the read's own annotation derived
- * from `started` and the settling mark, and the two instants it is derived
- * from are already nameable, so asking for the span's walls is the way to
- * the span.
+ * property of it.
+ *
+ * `took` stands beside `status`, with the same standing as it — the one
+ * derived answer the membership rule admits beyond the mark (the human's
+ * exception, ruled 2026-08-29, closing olai#432's recorded deferral): how
+ * long the work TOOK, in WHOLE SECONDS, derived at read time and never
+ * stored, absent when there is no span to tell. The arithmetic is spelled
+ * once, at the derivation itself (`tookOf`'s header) — the sentences about
+ * the vocabulary name the fact and its owner rather than restating it. The
+ * ask it serves is the recurring one this dial was born for, and fetching
+ * the record's own instants per row to do the subtraction out loud is
+ * ceremony the one derivation already answers. It stays the ONLY admitted
+ * derivation beyond `status`: `progress` and the rest are a caller's own
+ * arithmetic over one row, which is the line a dial for imitations of them
+ * would erase.
  *
  * ONE list, because the refusal of an unknown name and the sentence the two
  * requests advertise are both written from it — the `MARKS` arrangement one
@@ -448,6 +459,7 @@ export const PROJECTABLE = [
   "title",
   "parent",
   "status",
+  "took",
   ...MARKS,
   "started",
   "worked",
@@ -531,6 +543,13 @@ export const Projected = Schema.Struct({
   id: Schema.String,
   title: Schema.optionalKey(RegularNode.fields.title),
   status: Schema.optionalKey(Status),
+  /** How long the work TOOK, in WHOLE SECONDS — derived at read time and
+   *  never stored, exactly as {@link Detail} carries it under the same name
+   *  and from the same `tookOf`: the two row shapes cannot disagree, in the
+   *  number nor in when there is one. Absent when there is no span to tell
+   *  — which cases those are is the derivation's to enumerate ({@link
+   *  Detail}'s `took` does), spelled there rather than kept in step here. */
+  took: Schema.optionalKey(Schema.Int),
   ...STAMPED,
   /** When the CURRENT round of work started — the record's own instant,
    *  verbatim, re-stamped by every `set_doing`, exactly as {@link Detail}
@@ -566,10 +585,12 @@ const FieldsRequest = Schema.optionalKey(
       "Name what each row carries: " +
       LEGAL_FIELDS +
       ". The two settles carry their instants; `started` is when the " +
-      "CURRENT round opened (re-stamped on every start), and `worked` is " +
-      "the rounds banked before it. The id rides regardless, and an " +
-      "unknown name is refused with this same list. Absent: the full row " +
-      "this read answers today.",
+      "CURRENT round opened (re-stamped on every start), `worked` is the " +
+      "rounds banked before it, and `took` is how long the work took — " +
+      "whole seconds, derived at read time by the format's `tookOf`, " +
+      "absent when there is no span to tell. The id rides regardless, and " +
+      "an unknown name is refused with this same list. Absent: the full " +
+      "row this read answers today.",
   }),
 )
 
@@ -583,9 +604,9 @@ const FieldsRequest = Schema.optionalKey(
  * node in full" (see {@link Detail}), and the lever on a full read's cost was
  * never its own row, it is the list. The child rows with no `fields` given
  * are the full situated rows of today; with one they are id + what was named
- * — which is how a timings walk answers each step's settle instant
- * (`fields: ["status", "done"]`) without carrying the situating or the
- * prose.
+ * — which is how a timings walk answers how long each step TOOK
+ * (`fields: ["title", "status", "took"]`) without carrying the situating
+ * or the prose.
  */
 export const NodeRequest = Schema.Struct({
   id: Schema.String.annotate({ description: "The node's `id`." }),

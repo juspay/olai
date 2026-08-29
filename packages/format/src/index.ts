@@ -477,18 +477,20 @@ export {
   siblingsOf,
   /** One ROUND's span in whole seconds — `settled` minus `started`,
    *  clamped at zero, `undefined` when either end will not read. The one
-   *  subtraction this format does: `set_done` / `set_cancelled` add it into
-   *  `worked` at the write, and `tookOf`'s slimmer arm answers with it at
-   *  the read, so the bank and the answer cannot drift. */
+   *  subtraction this format does: the round's close — a settle, or the
+   *  peel that queues or un-starts a `doing` — adds it into `worked` at
+   *  the write, and `tookOf`'s slimmer arm answers with it at the read,
+   *  so the bank and the answer cannot drift. */
   spanOf,
   /** How long the work TOOK, in whole seconds — the banked `worked` when the
    *  record carries it (rounds summed, pauses out), else the one-round span
    *  off `started` and the settling instant; never stored, and `undefined`
    *  when there is no span to tell (the todo→done jump has none; `created`
    *  is never the fallback; a running node is the tick's question, not
-   *  this one's). The browser's settled chip and `read_node`'s `took` are
-   *  the two readers; the doing half of the same story is bank plus a tick
-   *  the wire does not carry at all. */
+   *  this one's). The browser's settled chip and the reads' `took` —
+   *  `read_node`'s own row and a caller-shaped walk row alike — are the
+   *  readers; the doing half of the same story is bank plus a tick the
+   *  wire does not carry at all. */
   tookOf,
   /** What a node's `after` targets hold up, asked of a node that is not work
    *  yet. Exported for the reason `drawnFrom` above is: two rules read

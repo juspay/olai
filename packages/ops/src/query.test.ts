@@ -764,6 +764,51 @@ describe("the caller shapes the rows", () => {
     expect(absent).toEqual({ id: "one" })
   })
 
+  test("`took` projects the span — whole seconds on a settled row, absent when there is none", () => {
+    // The one derived name beside `status`, asked for DIRECTLY: a settled
+    // step answers the NUMBER, and `tookOf`'s three absences answer none —
+    // four rows for them: the todo→done jump (no `started`), the
+    // still-running step (no settle), the merely dated bullet (neither),
+    // and work finished before olai stamped instants (a settling mark
+    // holding the instant-less `true`).
+    const SPAN = (): OutlineSet =>
+      setOf({
+        "steps.olai": [
+          `{"id":"lane","ord":"a0","title":"the lane"}`,
+          `{"id":"done-one","parent":"lane","ord":"a0","title":"finished","started":"2026-08-29T09:12:00-04:00","done":"2026-08-29T09:16:00-04:00"}`,
+          `{"id":"jump","parent":"lane","ord":"a1","title":"jumped to done","done":"2026-08-29T09:12:00-04:00"}`,
+          `{"id":"running","parent":"lane","ord":"a2","title":"under way","doing":true,"started":"2026-08-29T09:14:00-04:00"}`,
+          `{"id":"dated","parent":"lane","ord":"a3","title":"only dated","date":"2026-08-29"}`,
+          `{"id":"stamped-free","parent":"lane","ord":"a4","title":"done before instants","started":"2026-08-29T09:18:00-04:00","done":true}`,
+        ].join("\n"),
+      })
+    const expected = [
+      { id: "done-one", title: "finished", status: "done", took: 240 },
+      { id: "jump", title: "jumped to done", status: "done" },
+      { id: "running", title: "under way", status: "doing" },
+      { id: "dated", title: "only dated" },
+      { id: "stamped-free", title: "done before instants", status: "done" },
+    ] as const
+    // The child list of a `read_node` …
+    expect(read(readingOf(SPAN()).derived, "lane", ["title", "status", "took"])?.children)
+      .toEqual(expected)
+    // …and every row of a `read_subtree`: one derivation, one vocabulary,
+    // two doors — the timings ask the parameter was born for. (The walk's
+    // rows carry their own `children`, the structure being the walk's own.)
+    const rows =
+      nodeOf(walked(readingOf(SPAN()), { id: "lane", depth: 1, fields: ["title", "status", "took"] })).children
+    for (const [index, row] of expected.entries()) {
+      expect(rows[index]?.id).toBe(row.id)
+      expect(rows[index]).toMatchObject({ ...row, children: [] })
+      expect(Object.keys(rows[index] ?? {}).sort()).toEqual(
+        ["children", "id", ...Object.keys(row).filter((key) => key !== "id")].sort(),
+      )
+    }
+    // And the row cannot disagree with the node's own FULL read: the one
+    // `tookOf` answers both shapes, the same number either way.
+    expect(read(readingOf(SPAN()).derived, "done-one")?.took).toBe(240)
+  })
+
   test("an asked-for field is dropped from the DESCS as well — the walk is shape, not prose", () => {
     // The note dials: `desc` named is the note whole, `withDesc` has nothing
     // left to say — and the two together are their own refusal below.

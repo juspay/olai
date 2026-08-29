@@ -810,13 +810,16 @@ interface RowParts {
  * the other end of the same clasp.
  *
  * The special cases are ENTRIES here like any other, not a second walk of
- * the names: `status` is the derivation's answer; `custom` is the whole
- * pruned map, or the caller's keys alone when that was the ask — walked over
- * the pruned map itself, so its keys answer in the FILE's canonical order,
- * the one a whole-map row answers in, rather than the request's. Everything
- * else is the record's own value, and `parent` / `see` / `after` / the whole
- * map come through one {@link carriedOf} pick, so a shaped row and a full
- * one cannot disagree about when a field is absent.
+ * the names: `status` is the derivation's answer; `took` is the format's
+ * ONE derivation of the span — `tookOf`, the very function {@link detail}
+ * reads, so a shaped row and the node's own full read cannot disagree about
+ * how long the work took; `custom` is the whole pruned map, or the caller's
+ * keys alone when that was the ask — walked over the pruned map itself, so
+ * its keys answer in the FILE's canonical order, the one a whole-map row
+ * answers in, rather than the request's. Everything else is the record's
+ * own value, and `parent` / `see` / `after` / the whole map come through
+ * one {@link carriedOf} pick, so a shaped row and a full one cannot
+ * disagree about when a field is absent.
  *
  * An entry's `undefined` IS the full row's absent — the day a value needs
  * deciding by a rule of its own is the day it stops being verbatim, and the
@@ -826,6 +829,7 @@ const FIELDS_READ = {
   title: ({ node }) => node.title,
   parent: ({ carried }) => carried.parent,
   status: ({ status }) => status,
+  took: ({ node }) => tookOf(node),
   done: ({ node }) => node.done,
   cancelled: ({ node }) => node.cancelled,
   doing: ({ node }) => node.doing,
@@ -887,11 +891,12 @@ const projectionOf = (
  * THE RECORD'S OWN VALUES, VERBATIM, exactly as {@link foundOf} hands back
  * its `custom` and {@link detail} its marks: a key asked for and absent is
  * absent, an empty map is no map at all (`nothing`), and `status` remains
- * the derivation's word — `Found`'s reading of the one map, kept so a
- * projected row cannot disagree with a full one. It is deliberately NOT a
- * re-derivation of `Found`'s whole situating — `file`, `line`, `path` are the
- * row's PLACE, and the caller shaping a lean read is shaping them away first;
- * that is the whole point of the dial.
+ * the derivation's word — with `took` the one span beside it, read from the
+ * same `tookOf` the full row reads — `Found`'s reading of the one map, kept
+ * so a projected row cannot disagree with a full one. It is deliberately NOT
+ * a re-derivation of `Found`'s whole situating — `file`, `line`, `path` are
+ * the row's PLACE, and the caller shaping a lean read is shaping them away
+ * first; that is the whole point of the dial.
  */
 const shapedOf = (
   derived: Derived,
