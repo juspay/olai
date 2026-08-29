@@ -415,7 +415,8 @@ Then(
 );
 
 /** The frozen face of the row: on a page the pick does not reach — a day, the
- *  agenda, a document — both segments are inert, and nothing is pressed. */
+ *  agenda, the trash, a document — both segments are inert, and nothing is
+ *  pressed. */
 Then("the Done row cannot be set", async function (this: OlaiWorld) {
   await showPreferences(this.page);
   const segments = row(this, "done").locator(PREFS_CHOICE);

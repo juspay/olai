@@ -483,8 +483,9 @@ const doneHint = (file: string | undefined): string => {
   if (file === undefined) {
     return "Finished work is shown or hidden per outline page, and this page " +
       "has no tree for the pick to read: a day records what happened, the " +
-      "agenda lists what is owed, a document has no marks. Open an outline — " +
-      "or zoom into one — and the pick is that page's own."
+      "agenda lists what is owed, the trash holds what was put away, a " +
+      "document has no marks. Open an outline — or zoom into one — and the " +
+      "pick is that page's own."
   }
   const state = doneHiddenOn(file)
     ? "hidden — a row not drawn, never a node marked or a file written."

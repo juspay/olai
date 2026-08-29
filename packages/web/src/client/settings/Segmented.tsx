@@ -22,8 +22,9 @@
  * ask anybody about.
  *
  * NOTHING IN FORCE is the third state, and it belongs to the same frozen case:
- * the Done row on a page the pick does not reach — a day, the agenda, a
- * document — has no value to draw, and pressing either segment there would be
+ * the Done row on a page the pick does not reach — a day, the agenda, the
+ * trash, a document — has no value to draw, and pressing either segment there
+ * would be
  * a claim about a reading that page does not make. Both segments announce
  * `aria-pressed="false"`, the hint below says why the strip is inert, and the
  * choice in force is simply absent.
