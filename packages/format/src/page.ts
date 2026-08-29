@@ -580,7 +580,12 @@ const trashOf = (derived: Derived, faces: ReadonlyArray<Face>): Shown => {
  *
  * The REQUESTED address joins them, and it is the one entry that is not about a
  * row: the palette's pin row names the page it is standing on, and a `/#id`
- * page is called whatever that node is called right now.
+ * page is called whatever that node is called right now — and a row page is
+ * called the node's own name too, the qualified spelling being exactly that:
+ * the same id, with where it landed drawn beside it. Without the row arm the
+ * palette would fall back to a printed address for a page whose node lives,
+ * which is the table's answer for the DEAD (`@olai/web`'s
+ * `address/address.ts`).
  */
 const namesFor = (
   derived: Derived,
@@ -589,7 +594,7 @@ const namesFor = (
   doors: ReadonlyArray<Door>,
 ): ReadonlyArray<Named> => {
   const wanted = new Set<string>()
-  if (address?.kind === "node") wanted.add(address.id)
+  if (address?.kind === "node" || address?.kind === "row") wanted.add(address.id)
   // EVERY DOOR ONTO A NODE, whatever the value looked like. The `ID_SHAPE`
   // filter below is a cheap test over prose nobody declared, and it is the
   // right test there; a value the consult RESOLVED is a node this page points
