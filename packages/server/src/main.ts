@@ -33,6 +33,12 @@
  * nothing. Our own listeners write `olai web: received SIGTERM` (or SIGINT)
  * to stderr first, so a journal can tell a signaled death from a deliberate
  * stop. Node allows more than one listener; `runMain` still does the unwind.
+ *
+ * Every SIGTERM additionally goes through the GUARD first (`./sigterm.ts`):
+ * a stranger's TERM is refused and named, an accepted one is handed back to
+ * the disposition these listeners armed — so an honored TERM reads exactly
+ * like today in a journal. The SIGTERM listener below now fires only when
+ * the guard itself was unavailable.
  */
 
 import { NodeHttpServer, NodeRuntime, NodeServices } from "@effect/platform-node"
@@ -53,6 +59,7 @@ import { MCP } from "./faces.ts"
 import { remoteFrom } from "./mcp/tools.ts"
 import { gitFlags, gitPin } from "./gitPolicy.ts"
 import { serve } from "./serve.ts"
+import { installSigtermGuard } from "./sigterm.ts"
 
 /** The directory of outlines the server operates on. */
 const directory = Argument.directory("directory", { mustExist: true }).pipe(
@@ -88,6 +95,14 @@ const web = Command.make("web", {
   ...webGit,
 }, ({ commits, directory, host, noCommit, port, pushes }) =>
   Effect.gen(function*() {
+    // FIRST: the SIGTERM guard (./sigterm.ts) — long before the first tab,
+    // and before the listener exists to keep: only `web` is a server worth
+    // refusing over (a finished `surface` call exits; its TERM is a stop).
+    // runMain's listeners armed Bun's disposition before this handler ran,
+    // which is what an honored TERM here gets handed back to, so the arm
+    // can happen at any point of this gen — first, so the armed line leads
+    // the boot's journal.
+    yield* Effect.promise(() => installSigtermGuard())
     const faulted = yield* serve({
       root: directory,
       port,
@@ -403,3 +418,4 @@ NodeRuntime.runMain(
   // stdout, in the middle of the data.
   { disableErrorReporting: true },
 )
+

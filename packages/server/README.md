@@ -54,6 +54,7 @@ Talking to the agent is not here. It was, and it was four modules of domain insi
 | `clientDist.ts` | `OLAI_DIST_DIR`, the one place the built bundle is named |
 | `allowedOrigins.ts` | `OLAI_ALLOWED_ORIGINS`, the one place the websocket's origin allowlist is named |
 | `main.ts` | argv, defaults, the log sink, the top-level run, and the one line a signal writes to stderr before `runMain` silently exits 130 |
+| `sigterm.ts` + `sigterm.c` | the SIGTERM guard: `sigaction(2)` with `SA_SIGINFO` names every TERM's sender; the supervisor's TERM is honored with today's shutdown, every other sender is refused and logged by pid/uid/cmdline — the stray-pkill ban from the 2026-08-29 RCA. The handler is five lines of C compiled at boot by Bun's embedded tinycc (async-signal-safety is only worth having in native code); policy, /proc resolution and the journal lines are the `.ts` |
 
 ## The listener is one call now
 
