@@ -170,11 +170,11 @@ export const pinTargetIn = (title: string): string | undefined => {
   // whether this names a node.
   const { pathname, fragment } = splitAddress(at.slice(1))
   const address = parseAddress(pathname + (fragment === undefined ? "" : `#${fragment}`))
-  // A ROW names a node too — `Tasks.olai#a1b2c3` is what a hand writes when it
-  // knows where the node lives — and what a pin draws is the node's NAME,
-  // which the id half answers alone: the file half can go stale across a move
-  // and the row is exactly the sentence that survives one (the grammar's
-  // `Address`; `@olai/ops`' plan differential pins a move of the very node).
+  // A ROW names a node too — `Tasks.olai#a1b2c3` is what a hand writes when
+  // it knows where the node lives — and what a pin draws is the node's NAME,
+  // which the id half answers alone: the file half can go stale across a
+  // move, and the id is exactly what survives one (the grammar's `Address`;
+  // `@olai/ops`' plan differential pins a move of the very node).
   return address?.kind === "node" || address?.kind === "row" ? address.id : undefined
 }
 

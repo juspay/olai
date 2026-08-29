@@ -55,14 +55,14 @@ export const requestFor = (
   switch (route.kind) {
     case "at": {
       const address = route.address
-      // A HEADING IS NOT A PAGE, and neither is a ROW — and dropping both here
-      // is the page model's own rule kept where it now matters: an arm holds
-      // what its screen needs, and what a `#section` decides is where the
-      // reader LANDS — an act, once, on
-      // arrival, answered by the router (`./router.tsx`'s `landing`). Sent, it
-      // would make two links to one document two different questions, and the
-      // subscription would re-open for the second: the pane blanks, the body
-      // unmounts, and the element being scrolled to goes with it.
+      // A HEADING IS NOT A PAGE, and neither is a ROW — and dropping both
+      // here is the page model's own rule kept where it now matters: an arm
+      // holds what its screen needs, and what a `#element` decides is where
+      // the reader LANDS — an act, once, on arrival, answered by the
+      // router (`./router.tsx`'s `landing`). Sent, it would make two links to
+      // one document two different questions, and the subscription would
+      // re-open for the second: the pane blanks, the body unmounts, and the
+      // element being scrolled to goes with it.
       //
       // A bare NODE keeps its element, because for a node the element IS the
       // page.
@@ -105,10 +105,11 @@ export const requestFor = (
  *
  * A FRAGMENT rides on both element arms, and that is the address grammar's
  * own answer rather than this function's: in a body it is a heading the
- * document face lands on, and after an outline it is a ROW — the outline's
- * own landing, which used to be the one spelling dropped here: it read as a
- * bare node and zoomed, which is how a fragment on an outline path used to
- * answer a page alone. `landingOf` is what the spelling is FOR.
+ * document face lands on, and after an outline it is a ROW, which is the
+ * outline's landing. It came back whole from the grammar since the outline
+ * arm gained its own (`./landing.ts`) — before, the qualified spelling was
+ * discarded into a bare node on the way in, and the only fragment an outline
+ * path could make was a zoom.
  */
 export const opensAt = (
   paths: ReadonlyArray<string>,
