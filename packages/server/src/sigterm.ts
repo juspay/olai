@@ -251,6 +251,102 @@ const compileHandler = (): {
 }
 
 let armed = false
+/** Where Bun's own disposition was saved at arm time — what an honored
+ *  TERM is handed back to. Shared with `apply`, the honor path below. */
+let oldAct: Uint8Array | undefined
+/** The honor path ran: no second restore+reraise may fire. */
+let shuttingDown = false
+
+/** Everything an installed catcher needs to serve and be undone. Nothing
+ *  in it is ever closed: closing the compiled shim's library would unmap
+ *  the page its machine code lives on, and the dlopen'd libc handle owns
+ *  the page the write-pointer points into. */
+interface Guard {
+  readonly libc: Libc
+  readonly handler: Handler
+  /** The self-pipe's read end. */
+  readonly readEnd: number
+  /** Hand the disposition BACK to whatever was installed before the arm. */
+  readonly disarm: () => void
+}
+
+/** The compiled shim's exported vocabulary (its names are deliberately
+ *  uninteresting — the module mocks no C). */
+interface Handler {
+  readonly addr: () => bigint | number
+  readonly arm: (writeAddr: bigint, fd: number) => void
+  readonly dropped: () => bigint | number
+}
+
+/** The arm: libc, the compiled handler, the self-pipe, and the sigaction
+ *  that hands SIGTERM's disposition to the catcher. Throws on the first
+ *  thing that fails; `disarm` unwinds the one irreversible step. */
+const arm = (): Guard => {
+  const libc = openLibc()
+  const handler: Handler = compileHandler()
+
+  const fds = new Int32Array(2)
+  if (libc.pipe2(ptr(fds), O_NONBLOCK | O_CLOEXEC) !== 0) throw new Error("pipe2 failed")
+  const [readEnd, writeEnd] = fds
+  if (readEnd === undefined || writeEnd === undefined) throw new Error("pipe2 gave no ends")
+  handler.arm(BigInt(libc.writePtr), writeEnd)
+
+  const newAct = new Uint8Array(SA_SIZE)
+  const view = new DataView(newAct.buffer)
+  view.setBigUint64(0, BigInt(handler.addr()), true)
+  view.setUint32(SA_FLAGS_OFF, SA_SIGINFO | SA_RESTART, true)
+  oldAct = new Uint8Array(SA_SIZE)
+  if (libc.sigaction(SIGTERM, ptr(newAct), ptr(oldAct)) !== 0) {
+    throw new Error("sigaction(SIGTERM) failed")
+  }
+  return { libc, handler, readEnd, disarm: () => libc.sigaction(SIGTERM, ptr(oldAct!), null) }
+}
+
+/** PROVE the pipeline before anything is called armed: a self-sent TERM
+ *  must come back with THIS pid and uid — which is what turns the layout
+ *  guesses (siginfo offsets, u32 widths, the write-pointer handoff) into
+ *  facts on every boot, on any kernel or libc this repo has never tried.
+ *  A real TERM that races the wait still gets the policy: this is exactly
+ *  when the disposition is live and the steady-state drain is not. */
+const verified = async ({ libc, readEnd }: Guard): Promise<boolean> => {
+  const deadline = Date.now() + 2000
+  process.kill(process.pid, "SIGTERM")
+  while (Date.now() < deadline) {
+    for (const record of drain(readEnd)) {
+      // The catcher covers only SIGTERM, so any record is one.
+      if (record.pid === process.pid && record.uid === getuid()) return true
+      apply(record, libc)
+      if (shuttingDown) return true
+    }
+    await Bun.sleep(5)
+  }
+  return false
+}
+
+/** The steady state: poll the pipe, apply the policy, meter the drops.
+ *  unref'd — the guard must never be what keeps a process alive: a
+ *  finished command exits despite the poll, and runMain's exit code path
+ *  ends it in the serving case. */
+const drainForever = ({ libc, handler, readEnd }: Guard): void => {
+  let droppedReported = 0
+  const timer = setInterval(() => {
+    for (const record of drain(readEnd)) {
+      apply(record, libc)
+      if (shuttingDown) {
+        clearInterval(timer)
+        return
+      }
+    }
+    const dropped = Number(handler.dropped())
+    if (dropped > droppedReported) {
+      droppedReported = dropped
+      process.stderr.write(
+        `olai web: SIGTERM guard dropped ${dropped} attribution record(s) — a signal flood outran the refusal pipe; some senders went unnamed\n`,
+      )
+    }
+  }, DRAIN_MS)
+  timer.unref?.()
+}
 
 /**
  * Replace SIGTERM's disposition with the attribution catcher and start the
@@ -264,86 +360,27 @@ let armed = false
 export const installSigtermGuard = async (): Promise<void> => {
   if (process.platform !== "linux") return
   if (armed) return // one disposition per process; serving two vaults from one process arms once
+  let guard: Guard | undefined
   try {
-    const libc = openLibc()
-    const handler = compileHandler()
-
-    const fds = new Int32Array(2)
-    if (libc.pipe2(ptr(fds), O_NONBLOCK | O_CLOEXEC) !== 0) {
-      throw new Error("pipe2 failed")
+    guard = arm()
+    if (!(await verified(guard))) {
+      throw new Error("self-sent SIGTERM never came back with this process's pid/uid")
     }
-    const [readEnd, writeEnd] = fds
-    if (readEnd === undefined || writeEnd === undefined) throw new Error("pipe2 gave no ends")
-    handler.arm(BigInt(libc.writePtr), writeEnd)
-
-    const newAct = new Uint8Array(SA_SIZE)
-    const view = new DataView(newAct.buffer)
-    view.setBigUint64(0, BigInt(handler.addr()), true)
-    view.setUint32(SA_FLAGS_OFF, SA_SIGINFO | SA_RESTART, true)
-    oldAct = new Uint8Array(SA_SIZE)
-    if (libc.sigaction(SIGTERM, ptr(newAct), ptr(oldAct)) !== 0) {
-      throw new Error("sigaction(SIGTERM) failed")
-    }
-
-    // PROVE the pipeline before calling it armed: a self-sent TERM must
-    // come back with THIS pid and uid. This is what turns layout guesses
-    // (siginfo offsets, u32 widths, the write-pointer handoff) into facts
-    // on every boot — on any kernel or libc this repo has not been tried
-    // on, the fallback engages rather than a guard that silently eats
-    // signals with no attribution.
-    const deadline = Date.now() + 2000
-    let proven = false
-    process.kill(process.pid, "SIGTERM")
-    while (Date.now() < deadline && !proven) {
-      for (const record of drain(readEnd)) {
-        // The catcher covers only SIGTERM, so any record IS one.
-        if (record.pid === process.pid && record.uid === getuid()) {
-          proven = true
-        } else {
-          // A real TERM that raced the self-test: it still deserves the policy.
-          apply(record, libc)
-          if (shuttingDown) return
-        }
-      }
-      if (!proven) await Bun.sleep(5)
-    }
-    if (!proven) throw new Error("self-signal never came back with this process's pid/uid")
-
+    if (shuttingDown) return // honored a REAL term mid-proof; the process is headed out
     armed = true
-    const timer = setInterval(() => {
-      for (const record of drain(readEnd)) {
-        apply(record, libc)
-        if (shuttingDown) return // the interval dies with the process's shutdown
-      }
-      const dropped = Number(handler.dropped())
-      if (dropped > droppedReported) {
-        droppedReported = dropped
-        process.stderr.write(
-          `olai web: SIGTERM guard dropped ${dropped} attribution record(s) — a signal flood outran the refusal pipe; some senders went unnamed\n`,
-        )
-      }
-    }, DRAIN_MS)
-    // The guard must never be what keeps a process alive: a finished
-    // `olai surface` call exits despite the poll; runMain's exit code path
-    // ends the loop in the serving case.
-    timer.unref?.()
-
+    drainForever(guard)
     process.stderr.write(
       `olai web: SIGTERM guard armed: only the supervisor (pid ${process.ppid}), the kernel, or this process's own pid can stop it; a TERM from any other sender is refused and named\n`,
     )
   } catch (cause) {
+    // Disarm FIRST: a catcher whose pipeline failed would otherwise eat
+    // TERMs with no attribution forever after.
+    guard?.disarm()
     process.stderr.write(
       `olai web: SIGTERM guard unavailable: ${reasonOf(cause)} — SIGTERM keeps its default handling, and any same-uid process on this machine can stop this server\n`,
     )
   }
 }
-
-/** Where Bun's own disposition was saved at install time — what an
- *  honored TERM is handed back to. */
-let oldAct: Uint8Array | undefined
-/** The honor path ran: no second restore+reraise may fire. */
-let shuttingDown = false
-let droppedReported = 0
 
 const getuid = (): number => (typeof process.getuid === "function" ? process.getuid() : -1)
 
