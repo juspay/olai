@@ -89,7 +89,7 @@ test("an event younger than one tick is `just now`, never a dash", () => {
   expect(eventLine(fresh, T0 - 50_000).age).toBe("just now")
 })
 
-test("a heartbeat has no row to lie about — the sentence and the wire's `null`", () => {
+test("a heartbeat is not a sentence — the drawer folds it out before this door", () => {
   const heartbeat: KoluEvent = {
     id: "ev-2",
     kind: "heartbeat",
@@ -99,5 +99,7 @@ test("a heartbeat has no row to lie about — the sentence and the wire's `null`
   const line = eventLine(heartbeat, T0)
   expect(line.about).toBeNull()
   expect(line.label).toBe("")
-  expect(line.words).toBe("the watcher is alive")
+  // And the fold's answer is SILENCE — never "the watcher is alive", which
+  // is the pill's register's to say.
+  expect(line.words).toBe("")
 })

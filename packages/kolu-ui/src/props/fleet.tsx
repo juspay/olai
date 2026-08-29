@@ -71,7 +71,14 @@ import type { CollectionDelta } from "@kolu/surface/define"
 import type { CollectionFold } from "@kolu/surface/solid"
 import { Effect, Result, type Stream } from "effect"
 
-import type { FleetTerminal, KoluEvent, KoluLink, Snapshot, TerminalFrame } from "@olai/surface"
+import type {
+  FleetTerminal,
+  KoluEvent,
+  KoluLink,
+  Snapshot,
+  TerminalFrame,
+  WatchPulse,
+} from "@olai/surface"
 import { after, type Held, seeded } from "./held.ts"
 import { KOLU_UNDIALED, SnapshotRefused } from "@olai/surface"
 
@@ -92,6 +99,10 @@ export type WatchTerminal = (
 /** What a chip asks: the link, the rows it resolves against, and the one verb. */
 export interface Fleet {
   readonly link: Accessor<KoluLink>
+  /** THE PILL'S LIVENESS READ — the beat, or `undefined` while the wire
+   *  has not arrived, or `null` until the watcher has stamped once (see
+   *  `@olai/surface`'s `pulse` cell). */
+  readonly pulse: Accessor<WatchPulse | null | undefined>
   /** THE ROWS, as a map keyed by padi's full id — handed over whole rather
    *  than as a lookup, because a chip does not look its value UP: it RESOLVES
    *  it (`@olai/surface`'s `resolveTerminal`), and a prefix needs the key set
@@ -138,6 +149,9 @@ const FleetContext = createContext<Fleet>()
  */
 export interface FleetSources {
   readonly link: Accessor<KoluLink | undefined>
+  /** The wire's `pulse` cell's value — the watcher's last stamp, so the
+   *  pill can read liveness on its own cadence. */
+  readonly pulse: Accessor<WatchPulse | null | undefined>
   readonly fold: CollectionFold<string, FleetTerminal>
   /** THE LOG the server is keeping — the events collection's fold, fed by the
    *  watcher (`@olai/kolu-client`'s `watch.ts`). It reads THROUGH the same
@@ -188,6 +202,7 @@ export function FleetProvider(props: {
     // hollow chip it would draw a moment later anyway, and a fourth state would
     // reach every renderer for the sake of it.
     link: createMemo(() => props.sources.link() ?? KOLU_UNDIALED),
+    pulse: props.sources.pulse,
     terminals: () => held()?.rows ?? NO_ROWS,
     events: () => ring()?.rows ?? NO_EVENTS,
     read: props.sources.read,
@@ -211,6 +226,7 @@ export function FleetProvider(props: {
 export const useFleet = (): Fleet =>
   useContext(FleetContext) ?? {
     link: () => KOLU_UNDIALED,
+    pulse: () => null,
     terminals: () => NO_ROWS,
     events: () => NO_EVENTS,
     // A HOLLOW STILL TICKS, because a row drawn outside a provider still draws

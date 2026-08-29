@@ -16,8 +16,10 @@
  *     own clock.
  *   - `nag` — "still waiting for input for 38m". A hold that fired last
  *     interval and has not resolved; the words say nothing else has changed.
- *   - `heartbeat` — no row, no state: "the watcher is alive". A feed with
- *     nothing on it and a dead watcher must not read alike.
+ *   - `heartbeat` — THE ARM IS GONE: the beat folds onto the pill
+ *     (`./said.ts`'s `beatOf`), and a row with no terminal is skipped by
+ *     the drawer's one hinge, `EventsFeed`'s filter. The kind survives
+ *     on the wire's spelling for the ring before it learned the rule.
  *
  * ## Where the folds live, which is NOT here
  *
@@ -74,13 +76,15 @@ export const eventLine = (event: KoluEvent, now: number): EventLine => {
   // the fold's `now` argument clamps to the event itself, so the youngest
   // row reads "just now" the way kolu's own phrase reads it.
   const age = recencyText("ago", atMs, Math.max(now, atMs))
-  // THE PULSE: no row, so no pip, and the only words are the heartbeat's own.
+  // A row WITH NO TERMINAL is the heartbeat the pill no longer reads —
+  // the drawer folds it out before it gets here; treat a leak as nothing
+  // to fold rather than as a lie to spell.
   if (row === null) {
     return {
       asking: false,
       label: "",
       labelColor: "",
-      words: "the watcher is alive",
+      words: "",
       age,
       about: null,
     }

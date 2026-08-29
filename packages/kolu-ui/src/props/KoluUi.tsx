@@ -60,6 +60,7 @@ import type {
   KoluLink,
   Snapshot,
   TerminalFrame,
+  WatchPulse,
 } from "@olai/surface"
 
 import { FleetProvider, readingScreen, watchingTerminal } from "./fleet.tsx"
@@ -77,6 +78,9 @@ import { FleetProvider, readingScreen, watchingTerminal } from "./fleet.tsx"
 export interface KoluClient {
   readonly cells: {
     readonly kolu: { use: () => { readonly value: Accessor<KoluLink | undefined> } }
+    /** The pill's liveness cell — the beat the watcher last stamped, or
+     *  `null` before the boot pulse is ever read. */
+    readonly pulse: { use: () => { readonly value: Accessor<WatchPulse | null | undefined> } }
   }
   readonly collections: {
     readonly fleet: { use: () => { readonly fold: unknown } }
@@ -118,6 +122,7 @@ export function KoluUi(props: {
       now={props.now}
       sources={{
         link: props.client.cells.kolu.use().value,
+        pulse: props.client.cells.pulse.use().value,
         fold: props.client.collections.fleet.use().fold as never,
         events: props.client.collections.events.use().fold as never,
         read: readingScreen(props.client.procedures.screen.text),

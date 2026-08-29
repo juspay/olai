@@ -19,6 +19,13 @@
  * server keeps is the one the tab is subscribed to, which is also why an
  * empty FEED on a live wire is a healthy false: the ring is the server's,
  * and a fresh olai watching a watched vault answers from the one it runs.
+ *
+ * ATTENTION ONLY: the beat left this drawer. Liveness and the boot pulse
+ * live on the pill (the wire's `pulse` cell — `@olai/kolu-client`'s
+ * `watch.ts`); the rows here name a TERMINAL or they are nothing. The
+ * single hinge that keeps it so is the one fold below the `useFleet()`
+ * — and a reader served from an older ring eats heartbeats as silently
+ * skipped rows, never as odd paint.
  */
 
 import { For, type JSX, Show } from "solid-js"
@@ -121,15 +128,16 @@ export function EventRow(props: {
  * DELIBERATELY a sentence and never a blank panel: the events the server
  * keeps are short-lived memory, and a fresh server over a machine whose
  * terminals are all happy answers the same whether the watch is a minute
- * or a day old. Two things are always true and worth saying: that the
+ * or a day old. One thing is always true and worth saying: that the
  * absence is an ABSENCE of memory rather than of machines (so the link's
- * own words say which, when a machine is there), and that the heartbeat
- * exists for the third case — the quiet-but-broken one. Both arrive as
- * the link cell's own sentence, which is `padiSaid`'s to write.
+ * own words say which, when a machine is there). The third case — the
+ * quiet-and-broken one — stopped being a thing this drawer diagnoses: the
+ * watcher itself answers on the pill's register.
  */
 export function EventsFeed(): JSX.Element {
   const fleet = useFleet()
-  const events = () => [...fleet.events().values()].reverse()
+  // ATTENTION ONLY — the one knockout this drawer keeps (see the header).
+  const events = () => [...fleet.events().values()].reverse().filter((e) => e.kind !== "heartbeat")
   return (
     <Show
       when={events().length !== 0}
