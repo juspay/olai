@@ -1163,6 +1163,20 @@ const placementsOf = (
  * written text — it is two typed fields, and what is decided below is which of
  * them was given.
  */
+/**
+ * WHICH of the two walks a `read_subtree` request asks for — the one node or
+ * the whole outline — spelled as one question answered once. `both` and
+ * `neither` are the two refused askings, and they are different mistakes,
+ * which is why {@link subtree} greets them with two sentences rather than
+ * one shape check.
+ */
+const armOf = (
+  request: SubtreeRequest,
+): { id: string } | { file: string } | "both" | "neither" =>
+  request.id !== undefined
+    ? request.file !== undefined ? "both" : { id: request.id }
+    : request.file !== undefined ? { file: request.file } : "neither"
+
 export const subtree = (
   /** BOTH HALVES of the reading, unlike the walk this used to be: the id arm
    *  reads the derivation alone, and the file arm asks the SET which paths are
@@ -1180,12 +1194,37 @@ export const subtree = (
   // flag `search` already has, the other way round on the default.
   const wantsNotes = request.withDesc !== false
 
-  // THE SHAPE, ASKED FOR — checked BEFORE the arms below on the same footing
-  // as they are checked before the set: a request that cannot be read gets a
-  // refusal, never a walk whose rows quietly miss what was asked. Two
-  // mistakes have their own sentence each, because they are different
-  // mistakes: a NAME outside the vocabulary is `unknownField`'s list; naming
-  // `fields` and `withDesc` together is two dials competing for the one row.
+  // WHICH WALK, before which rows: the arbitration settles the request's
+  // shape BEFORE its vocabulary pays any attention — a request naming
+  // neither `id` nor `file` has nowhere for `fields` to apply, and being
+  // told about a field first would be the coarser fiction. Settled ONCE,
+  // so no guard down the road narrows the same fact a second time.
+  const arm = armOf(request)
+  if (arm === "both") {
+    return Result.fail(
+      new UsageFailure({
+        reason: "`id` and `file` are two different reads — give one. `id` is a " +
+          "node and what hangs under it; `file` is a whole outline. " +
+          "`search_nodes` with `file` is how a query is narrowed to one outline.",
+      }),
+    )
+  }
+  if (arm === "neither") {
+    return Result.fail(
+      new UsageFailure({
+        reason: "give `id` (a node and what hangs under it) or `file` " +
+          "(a whole outline: every top-level node in it)",
+      }),
+    )
+  }
+
+  // THE SHAPE OF THE ROWS, ASKED FOR — checked AFTER the arbitration and
+  // BEFORE the set: one arm now applies, and a request whose rows cannot be
+  // read gets a refusal, never a walk whose rows quietly miss what was
+  // asked. Two mistakes have their own sentence each, because they are
+  // different mistakes: a NAME outside the vocabulary is `unknownField`'s
+  // list; naming `fields` and `withDesc` together is two dials competing for
+  // the one row.
   let wants: Wants | undefined
   if (request.fields !== undefined) {
     const checked = projectionOf(request.fields)
@@ -1231,51 +1270,34 @@ export const subtree = (
     }
   }
 
-  if (request.id !== undefined && request.file !== undefined) {
-    return Result.fail(
-      new UsageFailure({
-        reason: "`id` and `file` are two different reads — give one. `id` is a " +
-          "node and what hangs under it; `file` is a whole outline. " +
-          "`search_nodes` with `file` is how a query is narrowed to one outline.",
-      }),
-    )
-  }
-
-  if (request.id !== undefined) {
-    const located = at.derived.byId.get(request.id)
+  if ("id" in arm) {
+    const located = at.derived.byId.get(arm.id)
     if (located === undefined || !isRegular(located)) {
-      return Result.succeed({ missing: request.id })
+      return Result.succeed({ missing: arm.id })
     }
     return Result.succeed(
       wants === undefined ? walk(located, depth) : shapedWalk(wants, located, depth),
     )
   }
 
-  if (request.file !== undefined) {
-    // The GATE and its sentence together, one door over in the planner, because
-    // the write that places a node at a file's top level asks the identical
-    // question and owes the identical answer ({@link outlineAt}).
-    const outline = outlineAt(askedOf(at.set), request.file)
-    if (Result.isFailure(outline)) return Result.fail(outline.failure)
-    const broken = brokenIn(at.set, request.file)
-    if (broken !== undefined) return Result.fail(notLoaded(request.file, broken))
-    // The roots a READER sees: `@olai/format`'s own reading of an outline's
-    // top level, `ord`-sorted, placements dropped for the reason the walk
-    // never descends into one — a mirror is a second view of a node that
-    // lives elsewhere, and elsewhere is where this read answers it.
-    const roots = rootsOf(at.derived, request.file)
-    return Result.succeed(
-      wants === undefined
-        ? { file: request.file, roots: roots.map((root) => walk(root, depth)) }
-        : { file: request.file, roots: roots.map((root) => shapedWalk(wants, root, depth)) },
-    )
-  }
-
-  return Result.fail(
-    new UsageFailure({
-      reason: "give `id` (a node and what hangs under it) or `file` " +
-        "(a whole outline: every top-level node in it)",
-    }),
+  // The OTHER arm, the arbitration's exhaustiveness making `file` here a
+  // given and not a question. The GATE and its sentence together, one door
+  // over in the planner, because the write that places a node at a file's
+  // top level asks the identical question and owes the identical answer
+  // ({@link outlineAt}).
+  const outline = outlineAt(askedOf(at.set), arm.file)
+  if (Result.isFailure(outline)) return Result.fail(outline.failure)
+  const broken = brokenIn(at.set, arm.file)
+  if (broken !== undefined) return Result.fail(notLoaded(arm.file, broken))
+  // The roots a READER sees: `@olai/format`'s own reading of an outline's
+  // top level, `ord`-sorted, placements dropped for the reason the walk
+  // never descends into one — a mirror is a second view of a node that
+  // lives elsewhere, and elsewhere is where this read answers it.
+  const roots = rootsOf(at.derived, arm.file)
+  return Result.succeed(
+    wants === undefined
+      ? { file: arm.file, roots: roots.map((root) => walk(root, depth)) }
+      : { file: arm.file, roots: roots.map((root) => shapedWalk(wants, root, depth)) },
   )
 }
 
