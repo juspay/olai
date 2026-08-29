@@ -105,6 +105,9 @@ Feature: Dragging a row from one pane into the other
     # IS, not about the split being open.
     When I open the address "/s/house.olai/garden.olai"
     And I mark the page
+    # The pick this makes is the FOCUSED pane's — pane 0, which holds
+    # house.olai, where `demo` must be drawn for the drop below to land on it.
+    Then pane 0 is focused
     And I show the done nodes
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 0
     Then no drop is refused

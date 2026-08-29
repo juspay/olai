@@ -129,6 +129,27 @@ Feature: One place to set how this browser reads
     And this browser has stored that done nodes are "shown" on "house.olai"
     And this browser has stored that done nodes are "hidden" on "garden.olai"
 
+  Scenario: Two panes read their two picks at the same moment
+    # The one shape this design can break in, and the fence for both halves of
+    # it at once: pruning per FILE while two files are on the screen, and the
+    # row scoping to the FOCUSED pane. A sequential walk (the scenario above)
+    # passes even with one pick stored under two names; this cannot. And the
+    # same node answers differently by which page its row STANDS in: `basil`
+    # under house.olai's mirror is read with house.olai's pick.
+    Given I open the address "/s/house.olai/garden.olai"
+    Then the node "demo" is not shown in pane 0
+    And the node "basil" is not shown in pane 1
+    When I focus pane 0
+    And I show the done nodes
+    Then the Done row is about "house.olai"
+    And the node "demo" is shown in pane 0
+    And the node "basil" is shown in pane 0
+    And the node "basil" is not shown in pane 1
+    When I focus pane 1
+    And I show the done nodes
+    Then the Done row is about "garden.olai"
+    And the node "basil" is shown in pane 1
+
   Scenario: A zoom is the same page, and mints no second pick
     # `Hiding done nodes works on a zoomed page too` in zoom_and_navigate is
     # the tree filter on a page opened first; this one is where the pick

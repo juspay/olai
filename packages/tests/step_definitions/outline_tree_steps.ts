@@ -63,6 +63,37 @@ Then("the node {string} is shown", async function (this: OlaiWorld, id: string) 
 /** Not on screen at all — the world's own reading of a row that has GONE
  *  (`support/world.ts`), because hiding what is done and narrowing a page both
  *  re-render and reading the count once races the frame that drops it. */
+// The same two assertions, about ONE pane of a split workspace: `this.node`
+// cannot see pane boundaries at all, and the per-page done pick is exactly
+// what can put the same node on one pane and not the other
+// (`preferences.feature`'s split-pane fence).
+Then(
+  "the node {string} is shown in pane {int}",
+  async function (this: OlaiWorld, id: string, index: number) {
+    await this.pane(index)
+      .locator(nodeSelector(id))
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then(
+  "the node {string} is not shown in pane {int}",
+  async function (this: OlaiWorld, id: string, index: number) {
+    // `expectGone` is page-scoped; the argument against the row is the pane's.
+    await this.pane(index)
+      .locator(nodeSelector(id))
+      .first()
+      .waitFor({ state: "detached", timeout: POLL_TIMEOUT })
+      .catch(() => undefined);
+    assert.strictEqual(
+      await this.pane(index).locator(`${nodeSelector(id)}:visible`).count(),
+      0,
+      `"${id}" is on pane ${index}, and this step says it should not be`,
+    );
+  },
+);
+
 Then(
   "the node {string} is not shown",
   async function (this: OlaiWorld, id: string) {
