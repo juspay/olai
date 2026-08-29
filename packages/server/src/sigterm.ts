@@ -312,10 +312,10 @@ const verified = async ({ libc, readEnd }: Guard): Promise<boolean> => {
   const deadline = Date.now() + 2000
   process.kill(process.pid, "SIGTERM")
   while (Date.now() < deadline) {
-    for (const record of drain(readEnd)) {
+    for (const receipt of drain(readEnd)) {
       // The catcher covers only SIGTERM, so any record is one.
-      if (record.pid === process.pid && record.uid === getuid()) return true
-      apply(record, libc)
+      if (receipt.pid === process.pid && receipt.uid === getuid()) return true
+      apply(receipt, libc)
       if (shuttingDown) return true
     }
     await Bun.sleep(5)
@@ -330,8 +330,8 @@ const verified = async ({ libc, readEnd }: Guard): Promise<boolean> => {
 const drainForever = ({ libc, handler, readEnd }: Guard): void => {
   let droppedReported = 0
   const timer = setInterval(() => {
-    for (const record of drain(readEnd)) {
-      apply(record, libc)
+    for (const receipt of drain(readEnd)) {
+      apply(receipt, libc)
       if (shuttingDown) {
         clearInterval(timer)
         return
@@ -408,8 +408,8 @@ const drain = (fd: number): Array<Receipt> => {
 
 /** The drain loop's one decision point: name every TERM; stop for the
  *  supervisor, keep serving for everyone else. */
-const apply = (record: Receipt, libc: Libc): void => {
-  const sender: Sender = { pid: record.pid, uid: record.uid }
+const apply = (receipt: Receipt, libc: Libc): void => {
+  const sender: Sender = { pid: receipt.pid, uid: receipt.uid }
   const verdict = judge(sender, { self: process.pid, parent: process.ppid })
   if (verdict === "refuse") {
     process.stderr.write(journal("refused", sender))
