@@ -109,7 +109,7 @@ test("a new row after a node nothing declares is not found", () => {
 test("a capture into a directory with an inbox is an `add` into that file", () => {
   const set = setOf({ "house.olai": HOUSE, [INBOX]: "" })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
-    .toEqual({ op: "add", file: INBOX, title: "buy milk" })
+    .toEqual({ op: "add", file: INBOX, title: "buy milk", mark: "todo" })
 })
 
 test("a capture into a directory with NO inbox mints one under `_olai/`", () => {
@@ -124,10 +124,15 @@ test("a capture into a directory with NO inbox mints one under `_olai/`", () => 
     .toEqual({
       op: "create",
       file: mintedInto(INBOX),
-      seed: { title: "buy milk" },
+      seed: { title: "buy milk", mark: "todo" },
     })
   expect(mintedInto(INBOX)).toBe("_olai/Inbox.olai")
 })
+
+// …born `todo` under the one law the badge reads (the rows marked `todo` or
+// `doing` are what awaits you): every arm above ends in `mark: "todo"`, so a
+// capture is visible to the count from the moment it lands. Minted by
+// `captureInto`, so the `capture` tool mints it the same way.
 
 test("an inbox the directory already keeps somewhere else is the one used", () => {
   // The convention is the NAME, not the place: a directory that files its
@@ -135,7 +140,7 @@ test("an inbox the directory already keeps somewhere else is the one used", () =
   // second one at the root.
   const set = setOf({ "house.olai": HOUSE, "notes/inbox.olai": "" })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
-    .toEqual({ op: "add", file: "notes/inbox.olai", title: "buy milk" })
+    .toEqual({ op: "add", file: "notes/inbox.olai", title: "buy milk", mark: "todo" })
 })
 
 test("with two inboxes the shallower one wins, so the answer is stable", () => {
@@ -145,7 +150,7 @@ test("with two inboxes the shallower one wins, so the answer is stable", () => {
     "house.olai": HOUSE,
   })
   expect(asked({ verb: "capture", title: "buy milk" }, reading(set)))
-    .toEqual({ op: "add", file: INBOX, title: "buy milk" })
+    .toEqual({ op: "add", file: INBOX, title: "buy milk", mark: "todo" })
 })
 
 test("a file merely ENDING in the name is not an inbox", () => {
@@ -154,7 +159,7 @@ test("a file merely ENDING in the name is not an inbox", () => {
     .toEqual({
       op: "create",
       file: mintedInto(INBOX),
-      seed: { title: "buy milk" },
+      seed: { title: "buy milk", mark: "todo" },
     })
 })
 
@@ -165,7 +170,7 @@ test("a blank capture is left to the ops layer, which has the words for it", () 
     .toEqual({
       op: "create",
       file: mintedInto(INBOX),
-      seed: { title: "   " },
+      seed: { title: "   ", mark: "todo" },
     })
 })
 

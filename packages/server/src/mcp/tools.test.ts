@@ -2479,6 +2479,10 @@ test("a capture lands in a minted inbox, dated and attributed", async () => {
     // DATED, which is the half a capture made while nobody was looking needs:
     // it is on the day's journal page as well as in the inbox.
     expect(typeof node.date).toBe("string")
+    // MARKED, which is the other half: the badge counts the rows marked
+    // `todo` or `doing`, so a capture is born wearing one — it is visible to
+    // the door from the moment it lands.
+    expect(node.todo).toBe(true)
   })
 })
 

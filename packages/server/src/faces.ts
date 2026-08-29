@@ -187,9 +187,10 @@ export const MCP: ExposeMap<typeof surface.spec> = {
  * is called right now — which is a paint instruction for a column somebody is
  * looking at.
  *
- * `inbox` is that same kind of reading, one integer over: how many top-level
- * captures still await processing (`@olai/format`'s `inboxHeldOf`) — a
- * finished branch does not count. An
+ * `inbox` is that same kind of reading, one integer over: how many rows of
+ * the inbox are marked `todo` or `doing`, at any depth (`@olai/format`'s
+ * `inboxHeldOf`) — an unmarked row is furniture and a placement is not a
+ * node. An
  * agent asking what the inbox holds asks `list_outlines` and is answered with
  * the nodes. A badge is a paint instruction for a door somebody is looking at.
  *

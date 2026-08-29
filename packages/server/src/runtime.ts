@@ -888,8 +888,7 @@ export const bind = (
          * HOW FULL THE INBOX IS, re-read per published revision — the
          * shelf's twin, one integer over. The door that wears the number
          * already knows which file the inbox is (the paths); this is how
-         * many of those captures still await processing (a finished
-         * branch does not).
+         * many rows of it are marked `todo` or `doing`, at any depth.
          *
          * Its own carrier (`inboxFile`) and not the shelf's, over the
          * outlines the SET SERVES rather than the files the derivation holds

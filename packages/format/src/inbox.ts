@@ -11,20 +11,30 @@
  *
  * ## What a capture becomes ({@link captureInto})
  *
+ * One write request — and the row it writes is BORN MARKED `todo`, minted
+ * there rather than asked of whichever door composed the line, because the
+ * law below is what makes a capture findable: a capture that landed unmarked
+ * would be invisible to the badge the moment it landed. Marked = awaits you;
+ * unmarked = furniture.
+ *
  * ## How full the inbox is ({@link inboxHeldOf}) — the number the door wears.
  *
- * The count is what still awaits processing: a top-level todo or doing, a
- * leaf bullet, or a bare-bullet header that still holds unfinished work (a
- * todo, a doing, or a bullet leaf) in some descendant still in the open
- * part of the branch. A done root does not
- * count, and neither does a finished branch — a header whose every descendant
- * is done. Nested children do not inflate it (a capture with a note under it
- * is still one thing in the inbox), and a mirror does not (a placement is
- * not a capture). Empty, missing, unreadable, only placements, every capture
- * already done, or only finished branches: zero. A file that holds only
- * mirrors, or whose captures are all done or finished branches, is none of
- * empty, missing or unreadable — it still wears zero, because the badge
- * counts captures that await processing, not rows the page draws.
+ * THE LAW, one sentence: the badge counts the rows in the inbox marked
+ * `todo` or `doing` — any depth, full stop. There is no top-level clause, no
+ * leaf/header distinction and no walk: a mark is a row asking to be looked
+ * at, an unmarked row is furniture, and a `done` or `cancelled` row has been
+ * looked at. A placement is not a node, so a mirror never counts — the count
+ * excludes them without a clause of its own. Empty, missing, unreadable,
+ * only placements, nothing marked: zero.
+ *
+ * This replaced (ruled, human 2026-08-29) a top-level walk — the #348/#351
+ * "root that still awaits processing" filter and its cycle guard, which
+ * decided by branch what the file owed. Its failure was the failure of every
+ * walk that second-guesses the marks: an emptied section header ("Awaiting
+ * the human's word", a childless bare bullet) wore a badge of 1 over a page
+ * showing nothing open. Under the one sentence it wears 0, with no special
+ * clause. The accepted cost: an EXISTING bare-bullet capture stops counting —
+ * furniture now, until somebody marks it.
  *
  * A READING of the set, the way `./shelf.ts` is: the browser may not hold the
  * vault, so the server answers this per published revision and the sidebar
@@ -34,23 +44,16 @@
  * somewhere else.
  */
 
-import { Result, Schema } from "effect"
+import { Schema } from "effect"
 
-import { countedChildren, type Derived, rootsOf, unfinished } from "./derive.ts"
-import {
-  INBOX,
-  inboxIn,
-  mintedInto,
-  type LocatedRegular,
-  settles,
-  storedMarker,
-} from "./node.ts"
+import { type Derived, nodesOf, unfinishedWork } from "./derive.ts"
+import { INBOX, inboxIn, isRegular, mintedInto } from "./node.ts"
 import { type OutlineSet, outlinePaths } from "./set.ts"
 import { type OpFailure, UsageFailure } from "./failure.ts"
 import type { Capture, WriteRequest } from "./writing.ts"
 
 /**
- * How many captures still await processing, as the wire carries it.
+ * How many rows the inbox still owes a look at, as the wire carries it.
  *
  * ONE INTEGER, and nothing else: which file that is is a fact about the
  * PATHS (`inboxIn` over the directory's names), and the door already reads
@@ -58,20 +61,18 @@ import type { Capture, WriteRequest } from "./writing.ts"
  * is the inbox".
  */
 export const InboxHeld = Schema.Struct({
-  /** Top-level regular nodes of the directory's inbox that still await
-   *  processing. A todo or a doing counts; a leaf bullet counts; a
-   *  bare-bullet header counts only if some descendant still in the open
-   *  part of the branch is unfinished. A
-   *  done root, and a finished branch, do not. Zero when there is none,
-   *  when the file holds nothing, when it would not parse, when it holds
-   *  only placements, and when every capture is already processed. */
+  /** Regular nodes of the directory's inbox marked `todo` or `doing`, at
+   *  any depth — the whole law. A `done` or `cancelled` row does not count,
+   *  an unmarked row is furniture, and a placement is not a node. Zero when
+   *  there is none, when the file holds nothing, when it would not parse,
+   *  and when nothing in it is marked. */
   count: Schema.Int,
 })
 export type InboxHeld = typeof InboxHeld.Type
 
-/** No inbox, an empty one, a torn one, a placements-only one, an all-done
- *  one, a finished-branch one, and a server that has never loaded — one
- *  value, because all seven wear no chip. */
+/** No inbox, an empty one, a torn one, a placements-only one, one holding
+ *  nothing but unmarked rows, one whose every mark has settled, and a server
+ *  that has never loaded — one value, because all seven wear no chip. */
 export const NO_INBOX: InboxHeld = { count: 0 }
 
 /**
@@ -94,13 +95,10 @@ export const sameInboxHeld: (a: InboxHeld, b: InboxHeld) => boolean =
  * send the door and every future capture to the empty file and the count to
  * the deeper one. The set's paths are the list capture already walks.
  *
- * THE NUMBER is what still awaits processing on that file: `rootsOf`, kept
- * only when `awaiting` says the root still has work. A todo or a doing
- * counts; a leaf bullet counts; a bare-bullet header counts only if some
- * descendant still in the open part of the branch is unfinished (a todo, a
- * doing, or a bullet leaf). A nested
- * child does not inflate it, a placement does not, a done row does not, and
- * a finished branch does not.
+ * THE NUMBER is the one law over that file (`./inbox.ts`'s header): the
+ * regular records carrying an unfinished mark, at any depth. There is no
+ * walk to prune and nothing to count twice — a record answers for itself
+ * and its line says what it is.
  */
 export const inboxHeldOf = (set: OutlineSet, derived: Derived): InboxHeld =>
   inboxHeldIn(derived, inboxIn(outlinePaths(set)))
@@ -122,39 +120,14 @@ export const inboxHeldIn = (
   file: string | undefined,
 ): InboxHeld => {
   if (file === undefined) return NO_INBOX
-  const count = rootsOf(derived, file).filter((root) => awaiting(derived, root)).length
+  // `unfinishedWork` is the format's own spelling of "marked todo or doing":
+  // one composition (`./derive.ts`), asked of every record the file holds.
+  // `isRegular` first, so a placement is never asked the question — a mirror
+  // stands in the inbox but it is not a row somebody owes a look at.
+  const count = nodesOf(derived, file).filter(
+    (located) => isRegular(located) && unfinishedWork(located.node),
+  ).length
   return { count }
-}
-
-/**
- * Whether this capture still awaits processing — the one filter
- * {@link inboxHeldOf} applies.
- *
- * A SETTLED mark is out, and both of them are: a `done` is a claim about the
- * whole branch, and a `cancelled` is a claim that the branch is not happening —
- * either way there is nothing left in it to process, which is the one question
- * an inbox count asks. A `todo` or `doing` is unfinished work, so it is in. An
- * unmarked LEAF is an unprocessed line, so it is in. An unmarked node WITH
- * children is a header: it counts only if some descendant still in the open
- * part of the branch awaits, walked through {@link countedChildren} so a
- * placement is never work of this branch's — and a settled mark prunes the
- * walk, the way the page does.
- *
- * Cycle-safe the way every walk in `./derive.ts` is: a parent loop is a set
- * the validator rejects, and this still has to answer over one.
- */
-const awaiting = (derived: Derived, at: LocatedRegular): boolean => {
-  const seen = new Set<string>()
-  const walk = (node: LocatedRegular): boolean => {
-    if (seen.has(node.node.id)) return false
-    seen.add(node.node.id)
-    const mark = storedMarker(node.node)
-    if (mark !== undefined && settles(mark)) return false
-    if (unfinished(mark)) return true
-    const kids = countedChildren(derived, node.node.id)
-    return kids.length === 0 || kids.some(walk)
-  }
-  return walk(at)
 }
 
 /**
@@ -223,10 +196,17 @@ export const captureInto = (
   paths: ReadonlyArray<string>,
   capture: Capturing,
 ): WriteRequest => {
+  // THE MARK IS MINTED HERE, once, for every door and both arms (ruled,
+  // human 2026-08-29): a capture is born `todo`, because `inboxHeldOf`'s one
+  // law counts the marked rows and an unmarked capture would land invisible
+  // to it. No door can spell a mark of its own — a {@link CaptureRequest} is
+  // a title and a note, and the palette sends a title — so this is not an
+  // override of anything anybody said.
+  const minted = { ...capture, mark: "todo" as const }
   const inbox = inboxIn(paths)
   return inbox === undefined
-    ? { op: "create", file: mintedInto(INBOX), seed: capture }
-    : { op: "add", file: inbox, ...capture }
+    ? { op: "create", file: mintedInto(INBOX), seed: minted }
+    : { op: "add", file: inbox, ...minted }
 }
 
 // ── what a capture IS, at whichever door takes one ──────────────────────
