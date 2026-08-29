@@ -139,6 +139,9 @@ export const OPENCODE: Leg = {
   // ... and its `session/list` carries no `_meta` corner, so its rows say as
   // much about a conversation as the protocol alone says.
   listedIn: () => null,
+  // ... and its `session/new` says nothing it will repeat as a chunk: an
+  //  answer on this wire is a row and a field, never both.
+  prologueIn: () => null,
   // Refused (`-32602`): the modes are `build` and `plan`. Unattended
   // auto-approval for opencode lives in its own `opencode.json`, outside ACP —
   // olai answers what it is asked and never widens what it answers.

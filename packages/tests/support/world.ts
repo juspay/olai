@@ -1707,6 +1707,11 @@ export class OlaiWorld extends World {
    *  is two agents and the panel asks which one a conversation is with. Every
    *  other scenario's agent search path is empty — see `hooks.ts`. */
   hasOpencode = false;
+  /** `@pi`: this scenario's machine HAS pi — the stub the roster's probe
+   *  finds — and its server is pointed at the scripted adapter beside it.
+   *  Same reasoning as the row above: which agents a server finds decides
+   *  whether its panel asks, so it is a property of the scenario. */
+  hasPi = false;
   /** Which git situation this scenario's server was started into (`@git:…`),
    *  or `undefined` for the `--no-commit` every other scenario runs with.
    *  Carried for the same reason as the three above: a restart mid-scenario has

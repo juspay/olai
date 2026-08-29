@@ -52,6 +52,7 @@ export const spawnFingerprint = (opts: {
   readonly stored: boolean;
   readonly agent: boolean;
   readonly opencode: boolean;
+  readonly pi: boolean;
   readonly kolu: boolean;
   readonly git?: string;
   /** The git POLICY this server was started with — `--commit` / `--push`, and
@@ -83,7 +84,7 @@ export const spawnFingerprint = (opts: {
 }): string =>
   `stored=${opts.stored ? 1 : 0},agent=${opts.agent ? 1 : 0},opencode=${
     opts.opencode ? 1 : 0
-  },kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}` +
+  },pi=${opts.pi ? 1 : 0},kolu=${opts.kolu ? 1 : 0},git=${opts.git ?? "off"}` +
   `,commit=${opts.pin?.commit ?? "-"},push=${opts.pin?.push ?? "-"},avatar=${opts.avatar ?? "-"}` +
   `,padi=${opts.padiSocket ?? "-"}`;
 

@@ -1186,6 +1186,7 @@ export type Listed = typeof Listed.Type
 export const AGENTS = {
   claude: { name: "Claude Code" },
   opencode: { name: "opencode" },
+  pi: { name: "pi" },
 } as const
 
 /** One of them. Every table over agents is keyed by this. */

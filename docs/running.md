@@ -163,7 +163,7 @@ inputs.olai.url = "github:juspay/olai";
 
 The module fills `package` from the flake for the host platform. The packaged binary already bakes the browser bundle (`OLAI_DIST_DIR`), so the service needs no ambient environment.
 
-**The one thing a user service does NOT inherit is your PATH**, and that is where agents live. Olai looks for the ones it knows when it starts — the pinned Claude Code adapter it ships with, and an `opencode` on its own search path — and a unit started by systemd sees neither your login shell nor your profile. So an `opencode` you can run in a terminal is not necessarily one this process can find, and `OLAI_AGENT_PATH` is how you say where to look:
+**The one thing a user service does NOT inherit is your PATH**, and that is where agents live. Olai looks for the ones it knows when it starts — the pinned adapters it ships with (Claude Code's and pi-acp's), and the agents they drive on its own search path: an `opencode`, a `pi` — and a unit started by systemd sees neither your login shell nor your profile. So an `opencode` you can run in a terminal is not necessarily one this process can find, and `OLAI_AGENT_PATH` is how you say where to look:
 
 ```nix
   systemd.user.services.olai.Environment = [

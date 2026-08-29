@@ -147,6 +147,20 @@ const FAKE_KOLU_DIR = path.resolve(import.meta.dirname, "..", "agent", "kolu");
 const FAKE_OPENCODE_DIR = path.resolve(import.meta.dirname, "..", "agent", "opencode");
 
 /**
+ * The directory holding the fake `pi` and the scripted `pi-acp` beside it —
+ * the pair the roster's pi row is made of.
+ *
+ * THE ROW IS TWO HALVES, and the tag wires them differently: the search path
+ * gets the directory (so the probe finds `pi`), and `OLAI_ACP_PI` gets the
+ * adapter DIRECTLY — the variable is the adapter's whole door, exactly as it
+ * is on a documented start where the nix wrapper bakes the pin in. Untagged,
+ * `OLAI_ACP_PI` is the empty string and no pi is ever found: same argument as
+ * {@link FAKE_OPENCODE_DIR}, one floor down.
+ */
+const FAKE_PI_DIR = path.resolve(import.meta.dirname, "..", "agent", "pi");
+const FAKE_PI_ACP = path.join(FAKE_PI_DIR, "pi-acp");
+
+/**
  * A `git` that is found and cannot work, put FIRST on the PATH of a server a
  * `@git:broken` scenario spawns — same argument as the kolu above: whether git
  * works is a property of the scenario rather than of the machine the run is on,
@@ -176,6 +190,9 @@ const PADI_TAG = /^@padi:([\w-]+)$/;
  *  the agent search path is empty and the roster is the scripted Claude-shaped
  *  agent alone — see {@link FAKE_OPENCODE_DIR}. */
 const OPENCODE_TAG = "@opencode";
+
+/** `@pi`: this scenario's machine HAS pi — see {@link FAKE_PI_DIR}. */
+const PI_TAG = "@pi";
 
 /** `@wire`: this scenario asks what the SERVER SENT rather than what the page
  *  drew, so every websocket frame the tab is delivered is kept for it
@@ -536,6 +553,10 @@ interface Spawn {
    *  roster is two agents. Otherwise that path is EMPTY and the roster is the
    *  scripted agent alone — see {@link FAKE_OPENCODE_DIR}. */
   readonly opencode?: boolean;
+  /** `true` gives this server a pi: the stub on the agent search path AND the
+   *  scripted adapter named by `OLAI_ACP_PI` — the two halves of the row.
+   *  See {@link FAKE_PI_DIR}. */
+  readonly pi?: boolean;
   /** Absent is `--no-commit`, which is what every scenario but the git ones
    *  wants. Present drops the opt-out and says which of the three git
    *  situations this server is being started into. */
@@ -603,9 +624,19 @@ const startServerChild = async (
         // WHERE OLAI LOOKS FOR AGENTS, and by default nowhere: the empty
         // string is "look on no path at all", so a developer's own opencode
         // cannot decide a scenario. `@opencode` is what puts one there.
-        OLAI_AGENT_PATH: spawnOptions.opencode === true ? FAKE_OPENCODE_DIR : "",
+        OLAI_AGENT_PATH: [
+          ...(spawnOptions.opencode === true ? [FAKE_OPENCODE_DIR] : []),
+          ...(spawnOptions.pi === true ? [FAKE_PI_DIR] : []),
+        ].join(path.delimiter),
         ...(spawnOptions.opencode === true && spawnOptions.stored === true
           ? { OLAI_FAKE_OPENCODE_STORED: "yes" }
+          : {}),
+        // THE ADAPTER, named the way a wrapper bakes it — and the empty
+        // string when the scenario is not about pi, which is the row's off
+        // switch and keeps a developer's own bake from deciding a scenario.
+        OLAI_ACP_PI: spawnOptions.pi === true ? FAKE_PI_ACP : "",
+        ...(spawnOptions.pi === true && spawnOptions.stored === true
+          ? { OLAI_FAKE_PI_STORED: "yes" }
           : {}),
         // FIRST, so a real kolu on the developer's PATH does not decide a
         // scenario. Which one this is, is the tag's business — and the broken
@@ -796,6 +827,7 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       stored: world.storedSessions,
       agent: world.hasAgent,
       opencode: world.hasOpencode,
+      pi: world.hasPi,
       kolu: world.hasKolu,
       stateRoot: scratchState(world.scratch()),
       ...(world.gitMode === undefined ? {} : { git: world.gitMode }),
@@ -1141,6 +1173,7 @@ Before(
     this.hasOpencode = scenario.pickle.tags.some(
       (tag) => tag.name === OPENCODE_TAG,
     );
+    this.hasPi = scenario.pickle.tags.some((tag) => tag.name === PI_TAG);
     // On the world rather than in a local, because a restart mid-scenario has
     // to reproduce this boot (`startOwnServer`).
     this.avatarTemplate = scenario.pickle.tags.some(
@@ -1202,6 +1235,12 @@ Before(
           `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
       );
     }
+    if (this.hasPi && !writes) {
+      throw new Error(
+        `${PI_TAG} decides which agents its server finds, so the scenario must own ` +
+          `that server: tag it @scratch:${asked.corpus} rather than @corpus:${asked.corpus}.`,
+      );
+    }
     // …and the same rule for the avatar template, which is one more thing a
     // shared server would be deciding for every scenario that borrowed it.
     if (templated && !writes) {
@@ -1232,6 +1271,7 @@ Before(
         stored: this.storedSessions,
         agent: this.hasAgent,
         opencode: this.hasOpencode,
+        pi: this.hasPi,
         kolu: this.hasKolu,
         ...(this.padi === undefined ? {} : { padiSocket: this.padi.socket }),
         ...(this.avatarTemplate === undefined

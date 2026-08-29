@@ -318,6 +318,33 @@ export interface Leg {
    */
   readonly listedIn: (meta: Meta) => ListedFacts | null
 
+  /**
+   * The text a session's OPEN says will ALSO arrive as one ordinary
+   * `agent_message_chunk`, verbatim — or `null`.
+   *
+   * A reading of the open's RESPONSE (the `session/new` or `session/load`
+   * answer), not of a frame. One adapter targets an editor with a startup
+   * banner — a version number, an update nag — delivers it in the response's
+   * own `_meta` for clients that draw such things, and then emits it into the
+   * session as utterance so that clients that do not still show it. This panel
+   * is the second kind, and drawing the double is not harmless where it looks
+   * it: it is not conversation but arrives wearing conversation's clothes, and
+   * a first turn that produced NOTHING but that banner is a turn the silence
+   * notice may not be told was silent ({@link ../agent.ts}'s silence arm counts
+   * every chunk that reaches it).
+   *
+   * So the caller drops the FIRST agent chunk equal to this text, once, and
+   * arms the filter when the open is read rather than when the chunk lands —
+   * the answer is awaited before the notification it precedes can be pulled
+   * (one stream, responses first). Exact equality and nothing else: the string
+   * is the adapter's own publishing of the very chunk it is about to send, and
+   * a fuzzier match would be guessing at utterance. An agent whose open says
+   * nothing here answers `null` and nothing is ever dropped — the losing
+   * direction this can afford, which is also what a banner streamed in pieces
+   * rather than sent as the one chunk it is today would fall back to.
+   */
+  readonly prologueIn: (opened: unknown) => string | null
+
   /** The permission mode to ask a fresh session for, or `null` for an agent
    *  that has none. A refusal is not a boot failure either way:
    *  {@link Leg.allowedWithoutAsking} is the backstop, and what a refusal costs
