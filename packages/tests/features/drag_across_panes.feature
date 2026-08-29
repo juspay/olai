@@ -27,6 +27,9 @@ Feature: Dragging a row from one pane into the other
     # above is `kitchen` and the row below is its first child, so "one inside
     # the row above" and "level with the row below" are the same answer.
     When I open the address "/s/house.olai/house.olai"
+    # `demo` anchors half the drops here, and it is finished: the pick is one
+    # page-scoped fact, so two panes of the one file both redraw off it.
+    And I show the done nodes
     And I mark the page
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 1
     Then the drop line would put it under "kitchen"
@@ -55,6 +58,7 @@ Feature: Dragging a row from one pane into the other
     # DRAWN, which is why this scenario exists and why the one below asserts the
     # same thing from the other side (review, opencode + grok, 2026-08-18).
     When I open the address "/s/house.olai/house.olai"
+    And I show the done nodes
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 1
     Then the drop line is drawn over pane 1
     When I let go
@@ -67,6 +71,9 @@ Feature: Dragging a row from one pane into the other
     # the SAME keys. Measured across the document, pane 0's gesture would be
     # planned against pane 1's boxes and promise its landing over there.
     When I open the address "/s/house.olai/house.olai"
+    # `demo` anchors half the drops here, and it is finished: the pick is one
+    # page-scoped fact, so two panes of the one file both redraw off it.
+    And I show the done nodes
     And I mark the page
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 0
     Then the drop line is drawn over pane 0
@@ -98,6 +105,7 @@ Feature: Dragging a row from one pane into the other
     # IS, not about the split being open.
     When I open the address "/s/house.olai/garden.olai"
     And I mark the page
+    And I show the done nodes
     And I pick up the bullet of "knobs" in pane 0 and hold it above the title of "demo" in pane 0
     Then no drop is refused
     And the drop line would put it under "kitchen"

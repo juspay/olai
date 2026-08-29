@@ -19,6 +19,10 @@ Feature: An agent olai did not start
 
   Background:
     Given I open the app
+    # The pick the whole feature reads its tree at: the very first thing a
+    # terminal may do to a row is mark it done, and the row the page was
+    # about must still be there to be checked off.
+    And I show the done nodes
     And I mark the page
     And a terminal agent is connected to the served directory
 
@@ -93,6 +97,9 @@ Feature: An agent olai did not start
     # the whole thing in the next snapshot.
     When the terminal agent captures a pantry and everything in it, in one call
     Then the tree shows the whole captured subtree at once
+    # `paint` arrives done, and the page defaults those away: the marks are
+    # the claim here, so the page is asked for them.
+    And I show the done nodes
     And the node "shelves" is a child of "pantry"
     And the node "measure" is a child of "shelves"
     # The marks arrive with the nodes, written as the mark tools write them:

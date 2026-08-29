@@ -15,6 +15,9 @@ Feature: It stays live
 
   Background:
     Given I open the outline "garden.olai"
+    # The rewrite-and-watch scenarios count `basil` and `glazing` — finished
+    # — among the rows the page must go on drawing; the pick is said once.
+    And I show the done nodes
     And I mark the page
 
   Scenario: An edit on disk reaches the open page

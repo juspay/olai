@@ -37,12 +37,17 @@ Feature: One place to set how this browser reads
   and Compact — the default, because a fold whose default is the old behaviour
   is a feature nobody discovers — is the title alone.
 
-  The Done row is the one switch. The floating pill that sat above the outline
-  was a second door for the same preference — the same redundancy the theme
-  pill used to be, and the same one `one-git-indicator` closed for the two git
-  chips. Prefs is the home; there is no per-page override. A pick moves the
-  page you are on, follows you onto a page you have not opened, and reaches
-  every other tab of this browser.
+  The Done row is the one row that is about a PAGE rather than about this
+  browser's reader of it. What "done" means depends on the page — a roadmap
+  reads as "what is next" and finished rows are clutter; a board of the day's
+  lanes reads as "what happened" and they are the content — so each outline
+  keeps its own pick, flipped in the same row the reader-wide switch used to
+  sit in, scoped to the page in the focused pane. It moves the page you are
+  reading, follows you into its zooms (a zoomed view is the same page and
+  mints no pick of its own), and reaches every other tab of this browser. A
+  page nobody has spoken about HIDES: every default is the same default, and
+  a page flipped back to hidden is forgotten again — what is stored is the
+  list of pages that show.
 
   Scenario: The preferences open from the header, and say whose they are
     When I open the app
@@ -86,78 +91,92 @@ Feature: One place to set how this browser reads
     When I press Shift+Tab
     Then the last control in the preferences has the focus
 
-  Scenario: Done: Hidden takes the finished work off the page you are reading
-    # A default that only applied to the NEXT page would be a setting that does
-    # nothing when you press it, on a page that is showing exactly what it is
-    # about.
+  Scenario: A page hides its finished work until it is asked not to
+    # THE DEFAULT (ruled 2026-08-29): no stored pick, and the page behaves the
+    # way the reader-wide switch left it set to hidden — finished rows wait
+    # until somebody asks the page for them. `demo` is done; `order` is not.
     Given I open the outline "house.olai"
-    Then the node "demo" is shown
-    When I set Done to "hidden"
-    Then the Done row explains that finished work is "hidden"
-    And this browser has stored that done nodes are "hidden"
-    And the node "demo" is not shown
+    Then the node "demo" is not shown
     And the node "order" is shown
+    When I set Done to "visible"
+    Then the Done row explains that finished work is "shown"
+    And the Done row is about "house.olai"
+    And this browser has stored that done nodes are "shown" on "house.olai"
+    And the node "demo" is shown
 
   Scenario: The hint is read off the choice in force
     Given I open the outline "house.olai"
-    When I set Done to "hidden"
-    Then the Done row explains that finished work is "hidden"
     When I set Done to "visible"
     Then the Done row explains that finished work is "shown"
-
-  Scenario: There is one switch, and it moves the page you are on
-    # THE FENCE FOR A REINTRODUCED OVERRIDE. The pill used to leave a page
-    # somebody had already spoken about; this ends with demo SHOWN after Prefs
-    # says visible, which is the inverse of the old pin. Hide/show-and-come-back
-    # in zoom_and_navigate is the tree filter; this one is that Prefs is the
-    # only circuit.
-    Given I open the outline "house.olai"
-    When I hide the done nodes
-    Then the node "demo" is not shown
-    When I set Done to "visible"
-    Then the node "demo" is shown
-
-  Scenario: The preference follows you onto a page you have not opened
-    # A pick is the reading of every page, including one you zoom into next.
-    # `Hiding done nodes works on a zoomed page too` is the same filter on a
-    # page you opened first; this one is that zooming does not start a new
-    # reading.
-    Given I open the outline "house.olai"
     When I set Done to "hidden"
+    Then the Done row explains that finished work is "hidden"
+    And this browser has stored that done nodes are "hidden" on "house.olai"
+
+  Scenario: Each page keeps its own pick
+    # THE FEATURE, in two files: `house.olai` shows its finished work because
+    # it was asked to; `garden.olai` has never been asked and hides by
+    # default. And going back finds the first pick still where it was made —
+    # the failure this fences is the old reader-wide switch, which would have
+    # moved the roadmap's reading when the board was flipped.
+    Given I open the outline "house.olai"
+    When I set Done to "visible"
     And I press Escape on the preferences
-    Then the node "demo" is not shown
+    And I open the outline "garden.olai"
+    Then the node "basil" is not shown
+    And the Done row is about "garden.olai"
+    When I open the outline "house.olai"
+    Then the node "demo" is shown
+    And this browser has stored that done nodes are "shown" on "house.olai"
+    And this browser has stored that done nodes are "hidden" on "garden.olai"
+
+  Scenario: A zoom is the same page, and mints no second pick
+    # `Hiding done nodes works on a zoomed page too` in zoom_and_navigate is
+    # the tree filter on a page opened first; this one is where the pick
+    # comes FROM: the zoom reads the outline's, the row says so, and flipping
+    # it there writes the outline's entry and nothing else.
+    Given I open the outline "house.olai"
+    When I set Done to "visible"
+    And I press Escape on the preferences
+    Then the node "demo" is shown
     When I zoom into the node "kitchen"
+    Then the node "demo" is shown
+    And the Done row is about "house.olai"
+    When I set Done to "hidden"
     Then the node "demo" is not shown
+    And this browser has stored that done nodes are "hidden" on "house.olai"
 
   Scenario: It is remembered, and it is this browser's
-    # THE PIN FOR THE BOOT READ. Prefs writes olai.done.hidden on
-    # createPreference; the write itself is already fenced by
-    # "this browser has stored" on the hide scenario above (a line master
-    # shipped). This one is that the first read after a reload honours that
-    # key. Sabotage: apply the default at module load and leave the write
-    # and the follow alone (`pref.set(SHOWN, { persist: false })` after the
-    # factory). That reddens this scenario and nothing else.
+    # THE PIN FOR THE BOOT READ: the write is fenced by the stored-key steps
+    # above; this one is that the first read after a reload honours the entry.
     Given I open the outline "house.olai"
+    When I set Done to "visible"
+    And I press Escape on the preferences
     Then the node "demo" is shown
-    When I set Done to "hidden"
-    Then the node "demo" is not shown
     When I reload the page
-    Then this browser has stored that done nodes are "hidden"
-    And the Done row explains that finished work is "hidden"
-    And the node "demo" is not shown
+    Then this browser has stored that done nodes are "shown" on "house.olai"
+    And the Done row explains that finished work is "shown"
+    And the node "demo" is shown
 
   Scenario: A preference set in another tab lands in this one
     # A preference belongs to the BROWSER, and a browser is more than one tab —
-    # which is what `followDoneHidden` is for, and what a reload scenario
+    # which is what `followDonePages` is for, and what a reload scenario
     # cannot ask: deleting that line entirely would pass every other Done
     # scenario here. The theme has had this fence since it was written; this is
-    # the same one for the second preference, through the same `storage` event.
+    # the same one for this row, through the same `storage` event — on the SAME
+    # page, because that is what the pick is about now.
     Given I open the outline "house.olai"
-    Then the node "demo" is shown
-    When a second tab sets Done to "hidden"
     Then the node "demo" is not shown
-    And the Done row explains that finished work is "hidden"
+    When a second tab sets Done to "visible"
+    Then the node "demo" is shown
     And there should be no page errors
+
+  Scenario: On a page the pick does not reach, the row says so
+    # A day is a record of what happened — finished work is the content there,
+    # never something to hide — so the strip is inert and presses neither
+    # segment: there is no pick in force on a page with no tree, and drawing
+    # one would be a claim about a reading the page does not make.
+    Given I open the day "2026-08-03"
+    Then the Done row cannot be set
 
   # ── how much of a row is drawn ───────────────────────────────────────
 

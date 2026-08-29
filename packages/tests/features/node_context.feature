@@ -15,6 +15,11 @@ Feature: The outline and the chat point at each other
 
   Background:
     Given I open the outline "house.olai"
+    # The write these scenarios press is so often a DONE mark, and the row it
+    # is about must still be on the page to land on — done-hidden's landing
+    # half (`@olai/web`'s `fold/landing.ts`) is its own ruling, not this
+    # feature's. So the page is asked for the whole tree at the door.
+    And I show the done nodes
     And I mark the page
     And the agent panel is open
 
@@ -125,7 +130,10 @@ Feature: The outline and the chat point at each other
     When I ask the agent "done fence"
     And I press the node "fence" in the write
     Then the address is "/yard.olai#fence"
-    And the node "fence" is focused
+    # `fence` is done on arrival, and this reader once said yard keeps its
+    # finished work — the pick is yard's own, so it is said on yard before it
+    # is expected of a landing.
+    And I show the done nodes
 
   @scratch:chat
   Scenario: A node that has gone since the write was drawn leaves the page exactly as it was

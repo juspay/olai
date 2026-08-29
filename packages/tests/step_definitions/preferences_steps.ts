@@ -1,7 +1,10 @@
 /**
  * The preferences panel: the one door in the header, the rows behind it, and
  * the promise every one of them makes — that a pick is this browser's and
- * reaches no server.
+ * reaches no server. The Done row is the one row that is about a PAGE rather
+ * than about this browser's reader of it: it is scoped to the page in the
+ * focused pane, the hint NAMES that page, and what is stored is the list of
+ * outlines this browser shows finished work on (everything else hides).
  *
  * The KEYS a preference is stored under are imported from the client that owns
  * them, for the reason `theme_steps.ts` imports the theme's: renaming one is
@@ -21,7 +24,7 @@ import {
   ALERTS_KEY,
   DENSITY_KEY,
   type Density,
-  DONE_HIDDEN_KEY,
+  DONE_SHOWN_KEY,
   SIZE_STORAGE_KEY,
   TESTID,
 } from "@olai/web/testlib";
@@ -42,6 +45,7 @@ import {
   PREFS_SET_BY,
   PREFS_TRIGGER,
   SIDEBAR_BODY,
+  SIDEBAR_SCRIM,
   SIDEBAR_TOGGLE,
   WORDMARK,
 } from "../support/world.ts";
@@ -263,9 +267,9 @@ const pickChoice = async (
 
 // ── the Done preference ────────────────────────────────────────────────
 
-/** Press one Done segment on a page. Hide/show, the Prefs step and the
- *  second-tab step are one circuit — the outline pill that used to be a second
- *  door is gone. */
+/** Press one Done segment on a page. The row is scoped to the page in the
+ *  focused pane, so the scenario is on that page when this runs; hide/show,
+ *  the Prefs step and the second-tab step are one circuit. */
 const pickDone = async (
   page: Page,
   value: "hidden" | "visible",
@@ -290,17 +294,37 @@ When(
 /** Intent sentences the tree features already speak. They go through Prefs
  *  and then put the panel away, because the next step is about the TREE and a
  *  portalled panel would sit on top of it. */
+/** The panel AND whatever stood behind it back off the page. The trigger,
+ *  not Escape: hide/show is about the TREE, and a global Escape would
+ *  cancel an editor or a menu the next step is about. On a phone the
+ *  trigger lives in the directory drawer, so that tap shut the panel with
+ *  the drawer still standing over the page — the scrim is its own way out.
+ */
+const prefsAway = async (world: OlaiWorld): Promise<void> => {
+  await world.press(world.page.locator(PREFS_TRIGGER));
+  await world.page
+    .locator(PREFS_PANEL)
+    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  const scrim = world.page.locator(SIDEBAR_SCRIM);
+  if (await scrim.isVisible().catch(() => false)) {
+    // The burger rather than the scrim: the drawer is nearly the scrim's
+    // whole width on a phone, and the scrim click would have to thread the
+    // sliver beside it. The header is the one place the scrim deliberately
+    // does NOT cover (`#101`'s ruling, right above the scrim), so the
+    // toggle is the door that always works.
+    await world.press(world.page.locator(SIDEBAR_TOGGLE));
+    await world.page
+      .locator(SIDEBAR_BODY)
+      .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  }
+};
+
 const pickDoneAndLeave = async (
   world: OlaiWorld,
   value: "hidden" | "visible",
 ): Promise<void> => {
   await pickDone(world.page, value);
-  // The trigger, not Escape: hide/show is about the TREE, and a global
-  // Escape would cancel an editor or a menu the next step is about.
-  await world.press(world.page.locator(PREFS_TRIGGER));
-  await world.page
-    .locator(PREFS_PANEL)
-    .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  await prefsAway(world);
 };
 
 When("I hide the done nodes", async function (this: OlaiWorld) {
@@ -317,16 +341,19 @@ When("I show the done nodes", async function (this: OlaiWorld) {
  * and the `storage` event this app listens for is fired in every document of it
  * except the one that wrote.
  *
- * Driven through the panel rather than through `setItem`, so what crosses is a
- * preference somebody actually set. Left open on purpose, exactly as the
- * theme's twin is (`theme_steps.ts`): a preference that only crossed once the
- * other tab was gone would pass a scenario that closed it.
+ * Opened on the SAME address as this page, since Done is per page now: a pick
+ * pressed from anywhere else would be about a page the scenario is not looking
+ * at, and the `storage` event would land here with nothing to say. Driven
+ * through the panel rather than through `setItem`, so what crosses is a pick
+ * somebody actually made. Left open on purpose, exactly as the theme's twin is
+ * (`theme_steps.ts`): a preference that only crossed once the other tab was
+ * gone would pass a scenario that closed it.
  */
 When(
   "a second tab sets Done to {string}",
   async function (this: OlaiWorld, value: string) {
     const other = await this.context.newPage();
-    await other.goto("/");
+    await other.goto(this.page.url());
     await pickDone(other, asDone(value));
   },
 );
@@ -334,26 +361,77 @@ When(
 Then(
   "the Done row explains that finished work is {string}",
   async function (this: OlaiWorld, expected: string) {
+    if (expected !== "hidden" && expected !== "shown") {
+      throw new Error(`the hint says "hidden" or "shown", not "${expected}"`);
+    }
     const hint = await hintOf(this, "done");
     assert.ok(
-      hint.includes(`Finished work is ${expected}`),
+      hint.includes("Finished work on") && hint.includes(` is ${expected}`),
       `the Done row says "${hint}", which does not say finished work is ` +
         `${expected}`,
     );
   },
 );
 
+/** The scope made readable: with two panes side by side the reader knows which
+ *  of the two a press is about to move from this sentence, and this is the
+ *  fence that the file NAMED there is the file under test. */
 Then(
-  "this browser has stored that done nodes are {string}",
-  async function (this: OlaiWorld, state: string) {
-    const stored = await this.stored(DONE_HIDDEN_KEY);
-    assert.equal(
-      stored,
-      state === "hidden" ? "true" : "false",
-      `this browser keeps "${stored}" under ${DONE_HIDDEN_KEY}`,
+  "the Done row is about {string}",
+  async function (this: OlaiWorld, file: string) {
+    const hint = await hintOf(this, "done");
+    assert.ok(
+      hint.includes(`on ${file} is`),
+      `the Done row says "${hint}", which is not about ${file}`,
     );
   },
 );
+
+/**
+ * What the pick landed as, for ONE outline — the entry is the list of pages
+ * this browser shows finished work on, so "shown" is membership and "hidden"
+ * is absence: hiding is the DEFAULT, and the default is not stored
+ * (`client/settings/done.ts`).
+ */
+Then(
+  "this browser has stored that done nodes are {string} on {string}",
+  async function (this: OlaiWorld, state: string, file: string) {
+    if (state !== "shown" && state !== "hidden") {
+      throw new Error(`done nodes are "shown" or "hidden", not "${state}"`);
+    }
+    const stored = await this.stored(DONE_SHOWN_KEY);
+    const pages: unknown = stored === null ? [] : JSON.parse(stored);
+    assert.ok(
+      Array.isArray(pages),
+      `this browser keeps "${stored}" under ${DONE_SHOWN_KEY}, which is not a list`,
+    );
+    assert.equal(
+      pages.includes(file),
+      state === "shown",
+      `this browser keeps "${stored}" under ${DONE_SHOWN_KEY}, ` +
+        `which does not say done nodes are ${state} on ${file}`,
+    );
+  },
+);
+
+/** The frozen face of the row: on a page the pick does not reach — a day, the
+ *  agenda, a document — both segments are inert, and nothing is pressed. */
+Then("the Done row cannot be set", async function (this: OlaiWorld) {
+  await showPreferences(this.page);
+  const segments = row(this, "done").locator(PREFS_CHOICE);
+  await segments.first().waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  const said = await segments.evaluateAll((all) =>
+    all.map((one) => ({
+      pressed: one.getAttribute("aria-pressed"),
+      frozen: one.getAttribute("aria-disabled"),
+    }))
+  );
+  assert.ok(
+    said.length > 0 &&
+      said.every((one) => one.frozen === "true" && one.pressed === "false"),
+    `the Done row's segments say ${JSON.stringify(said)}`,
+  );
+});
 
 // ── the two Alert preferences ──────────────────────────────────────────
 //
@@ -462,10 +540,7 @@ When(
   "I read the outline with Notes on {string}",
   async function (this: OlaiWorld, value: string) {
     await pickChoice(this.page, "density", asDensity(value));
-    await this.press(this.page.locator(PREFS_TRIGGER));
-    await this.page
-      .locator(PREFS_PANEL)
-      .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+    await prefsAway(this);
   },
 );
 

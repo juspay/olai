@@ -36,7 +36,7 @@ import { OutlinePage } from "../OutlinePage.tsx"
 import { useFollow, useHere, useRouter } from "../router.tsx"
 import { filterOf, hrefOf, narrowable, narrowedTo, samePage } from "../routes.ts"
 import { panesOf } from "../workspace.ts"
-import { visibleIn } from "../settings/done.ts"
+import { pageFileOf, visibleIn } from "../settings/done.ts"
 import { TESTID } from "../testids.ts"
 import { TrashPage } from "../trash/TrashPage.tsx"
 
@@ -151,7 +151,10 @@ export function PageView() {
 
   const allDrawn = createMemo(() => drawnBy(page()))
 
-  const shownDrawn = createMemo(() => visibleIn(allDrawn()))
+  // Done-visibility is the PAGE's own pick, so the pruning needs to know which
+  // page these rows are — the outline's file; a zoom's canonical file, since a
+  // zoomed view is the same page (../settings/done.ts).
+  const shownDrawn = createMemo(() => visibleIn(allDrawn(), pageFileOf(page())))
 
   /**
    * ARE THE TWO READINGS ABOUT THE SAME PAGE?
@@ -263,7 +266,11 @@ export function PageView() {
               </Match>
               <Match when={only(open(), "outline")}>
                 {(outline) => (
-                  <OutlinePage file={outline().file} rows={rows()} />
+                  <OutlinePage
+                    file={outline().file}
+                    rows={rows()}
+                    holds={only(allDrawn(), "tree")?.rows.length ?? 0}
+                  />
                 )}
               </Match>
               <Match when={only(open(), "document")}>

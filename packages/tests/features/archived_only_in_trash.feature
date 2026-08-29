@@ -79,6 +79,9 @@ Feature: What is put away is on the Trash and nowhere else
     And the day lists "demo"
     And the day "2026-08-03" has something on it
     When I open the outline "house.olai"
+    # `demo` is the one finished row in this corpus, and the page has to see
+    # it to take its menu.
+    And I show the done nodes
     And I open the node menu of "demo"
     And I choose "Move to Trash" from the node menu
     And I choose "Move to Trash" from the node menu

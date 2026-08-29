@@ -29,6 +29,10 @@ Feature: A dead wire freezes the app, and a replaced server is recoverable
 
   Background:
     Given I open the outline "garden.olai"
+    # The fixtures these scenarios rewrite onto the wire carry a DONE row
+    # (`basil`), and the whole point of the comparison is that the page after
+    # is the page before — so the pick is said once, at the door.
+    And I show the done nodes
 
   Scenario: A server that goes away is reported, not hidden
     Given the connection is "live"

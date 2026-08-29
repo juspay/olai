@@ -38,7 +38,7 @@ import { NodeTitle } from "./NodeTitle.tsx"
 import { NotFound } from "./NotFound.tsx"
 import { ProgressBadge } from "./ProgressBadge.tsx"
 import { RepeatBadge } from "./RepeatBadge.tsx"
-import { doneHidden } from "./settings/done.ts"
+import { doneHiddenOn } from "./settings/done.ts"
 import { PAGE_TITLE } from "./look.ts"
 import { applying } from "./writes.ts"
 import { TESTID } from "./testids.ts"
@@ -225,12 +225,12 @@ function Zoom(props: {
 
 /** An empty page has two causes and they are not the same news: a leaf has
  *  nothing under it, a subtree that is entirely done has been hidden by this
- *  reading and is one pick in Prefs from coming back. (A third — a filter that
- *  matched nothing — never reaches here: the bar has already said so, and this
- *  line is about the node.) */
+ *  page's pick and is one pick in Prefs from coming back. (A third — a filter
+ *  that matched nothing — never reaches here: the bar has already said so, and
+ *  this line is about the node.) */
 const nothingUnder = (
   zoomed: Extract<Zoomed, { readonly kind: "node" }>,
 ): string =>
-  zoomed.children.length > 0 && doneHidden()
+  zoomed.children.length > 0 && doneHiddenOn(zoomed.shows.file)
     ? "Everything under this node is done, and Prefs is hiding finished work."
     : "Nothing under this node."

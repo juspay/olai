@@ -39,13 +39,13 @@ Feature: The server can pin the git policy, and the preferences say so
 
   Scenario: The personal rows are untouched, and still move
     # The fence for a pin that spread. Theme, font, size, notes and done
-    # are claims about the READER, and no server has anything
-    # to say about them — so they are live here exactly as they are on an
-    # unpinned serve.
+    # are personal view choices — the reader's or the page's — and no server
+    # has anything to say about them: they are live here exactly as they are
+    # on an unpinned serve.
     When I open the preferences
-    And I set Done to "hidden"
-    Then the Done row explains that finished work is "hidden"
-    And this browser has stored that done nodes are "hidden"
+    And I set Done to "visible"
+    Then the Done row explains that finished work is "shown"
+    And this browser has stored that done nodes are "shown" on "garden.olai"
     When I set Notes to "open"
     Then the Notes row explains that a row "already open"
     And there should be no page errors

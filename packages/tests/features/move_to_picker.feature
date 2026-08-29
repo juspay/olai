@@ -37,6 +37,9 @@ Feature: Moving a row to a parent you search for
 
   Background:
     Given I open the outline "house.olai"
+    # `demo` — finished — is the row half these scenarios pick up or land
+    # against, and the page defaults it away: the whole tree is asked for.
+    And I show the done nodes
     And I mark the page
 
   # ── the gesture, end to end ─────────────────────────────────────────
