@@ -52,6 +52,29 @@ export const wordsOf = (seconds: number): string => {
 }
 
 /**
+ * A SETTLED span on the HOVER: the exact figure in words, at second
+ * granularity — the chip's face says the coarse thing (`⏱ 2h 34m`), so the
+ * tip is the one place the exact span can be read without fetching the
+ * record: `took 2h 34m 44s`, silence dropped from every register that has
+ * nothing to say (`took 41m 0s` says `41m`).
+ */
+export const exactOf = (seconds: number): string => {
+  const s = Math.max(0, Math.round(seconds))
+  if (s < 60) return `${s}s`
+  // Parts, dropping the registers that say nothing: 41m is `41m` on a hover
+  // as on anything else, and a whole hour is `1h` — the exact figure, not
+  // the ladder.
+  const parts: Array<string> = []
+  const minutes = Math.floor(s / 60)
+  const hours = Math.floor(minutes / 60)
+  if (hours >= 24) parts.push(`${Math.floor(hours / 24)}d`)
+  if (hours % 24 !== 0 || (hours >= 1 && hours < 24)) parts.push(`${hours % 24}h`)
+  if (minutes % 60 !== 0 || hours === 0) parts.push(`${minutes % 60}m`)
+  if (s % 60 !== 0 || minutes === 0) parts.push(`${s % 60}s`)
+  return parts.join(" ")
+}
+
+/**
  * A RUNNING span in the pomodoro register the mock rules: under an hour the
  * tense `m:ss`, ticking by the second — the digit that tells a reader the
  * clock is alive; at an hour and past it the settled words, because by then

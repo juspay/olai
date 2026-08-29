@@ -17,8 +17,8 @@
 
 import { describe, expect, test } from "bun:test"
 
-import { HOUR, MINUTE, SECOND } from "./clock.ts"
-import { tickingOf, wordsOf } from "./took.ts"
+import { DAY, HOUR, MINUTE, SECOND } from "./clock.ts"
+import { exactOf, tickingOf, wordsOf } from "./took.ts"
 
 describe("the settled words", () => {
   test("coarse, and coarser as the span grows", () => {
@@ -38,6 +38,19 @@ describe("the settled words", () => {
 
   test("a negative span is 0s, never a negative word", () => {
     expect(wordsOf(-61)).toBe("0s")
+  })
+
+  test("the hover says the exact figure, registers saying zero dropped", () => {
+    expect(exactOf(0)).toBe("0s")
+    expect(exactOf(47)).toBe("47s")
+    expect(exactOf(60)).toBe("1m")
+    expect(exactOf(61)).toBe("1m 1s")
+    expect(exactOf(2460)).toBe("41m")
+    expect(exactOf(9284)).toBe("2h 34m 44s")
+    expect(exactOf(HOUR / SECOND)).toBe("1h")
+    expect(exactOf(DAY / SECOND)).toBe("1d")
+    expect(exactOf((2 * DAY + 5 * HOUR) / SECOND)).toBe("2d 5h")
+    expect(exactOf((2 * DAY + 5 * HOUR + 3 * MINUTE) / SECOND + 4)).toBe("2d 5h 3m 4s")
   })
 })
 

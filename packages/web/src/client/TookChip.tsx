@@ -48,7 +48,7 @@ import { Match, Switch } from "solid-js"
 
 import { instantOf } from "./clock.ts"
 import { TESTID } from "./testids.ts"
-import { createNow, tickingOf, wordsOf } from "./took.ts"
+import { createNow, exactOf, tickingOf, wordsOf } from "./took.ts"
 
 /** The quiet register both halves of the chip share — the ¶-counter's own:
  *  mono, reading-size, muted. */
@@ -107,20 +107,22 @@ export function TookChip(props: {
         {(started) => <GoingChip started={started()} />}
       </Match>
       <Match when={took()}>
-        {(chip) => {
-          const { seconds } = chip()
-          return (
-            <span
-              class={SETTLED}
-              data-testid={TESTID.took}
-              data-status={storedMarker(props.node)}
-              data-took={seconds}
-              title={`took ${seconds}s`}
-            >
-              ⏱ {wordsOf(seconds)}
-            </span>
-          )
-        }}
+        {/* Read off the accessor, NEVER destructured out of it: the arm fires
+            once per falsy→truthy crossing, and a hand edit or another agent
+            landing under this page moves the seconds UNDER the wrapper — a
+            destructured read would be this client's own promise (the page
+            follows the files without a reload) quietly dropped. */}
+        {(chip) => (
+          <span
+            class={SETTLED}
+            data-testid={TESTID.took}
+            data-status={storedMarker(props.node)}
+            data-took={chip().seconds}
+            title={`took ${exactOf(chip().seconds)}`}
+          >
+            ⏱ {wordsOf(chip().seconds)}
+          </span>
+        )}
       </Match>
     </Switch>
   )
