@@ -442,7 +442,17 @@ const drainForever = ({ libc, handler, readEnd, disarm }: Guard): void => {
  * they armed is what an honored TERM is handed BACK to — `oldAct` is the
  * whole of the honor path.
  */
-export const installSigtermGuard = async (): Promise<void> => {
+/** A concurrent second call must join the arm in progress, not race it —
+ *  two overlapping arms would each save the OTHER'S catcher into oldAct,
+ *  leaving no honest restore path at all. */
+let installing: Promise<void> | undefined
+
+export const installSigtermGuard = (): Promise<void> => {
+  installing ??= installSigtermGuardOnce()
+  return installing
+}
+
+const installSigtermGuardOnce = async (): Promise<void> => {
   if (process.platform !== "linux") return
   if (armed) return // one disposition per process; serving two vaults from one process arms once
   // "At arm time" is HERE, not after the proof: the parent can die during
