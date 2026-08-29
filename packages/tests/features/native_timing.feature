@@ -109,13 +109,22 @@ Feature: Native task timing — `started`, `took`, and the ticking row
     And I press "Control+Shift+Enter"
     And I press "Control+Shift+Enter"
     Then the node "handles" has status "doing"
-    When I press "Control+Enter"
+    When I click away from the editor
+    # The instant is on the row now; that is what "kept" is measured against
+    # below. (The chip's own attr — nothing a re-stamping planner could
+    # pass would reach it: the chip reads the wire, the wire reads the
+    # record.)
+    Then the node "handles" wears a start
+    # Back into the walk: settle, undo, start again.
+    When I click the title of "handles"
     And I press "Control+Enter"
-    # `todo → doing → done → undone → doing`: the started stamped on the
-    # first pass is the one the record still carries.
+    And I press "Control+Enter"
     When I press "Control+Shift+Enter"
     And I press "Control+Shift+Enter"
     Then the node "handles" has status "doing"
     When I click away from the editor
     Then the node "handles" is ticking
+    # `todo → doing → done → undone → doing`: the instant the chip wears is
+    # still the FIRST pass's — the stamp is once.
+    And the node "handles" still wears that start
     And there should be no page errors

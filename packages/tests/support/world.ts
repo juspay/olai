@@ -2286,6 +2286,15 @@ export class OlaiWorld extends World {
    *  to drag" an assertion rather than a stale point from the last scenario. */
   private held?: Point;
 
+  /** The `started` a running chip wore when a scenario noted it — memory for
+   *  the re-open story in `native_timing.feature`, whose second half asks
+   *  "still?" against the first pass, which is a question nothing can pose
+   *  without somewhere to keep the answer while the walk goes by. (The drag
+   *  case in {@link holdDown} rules the step-file-global out; a member of
+   *  this world is one per scenario, which is the shape the drag's comment
+   *  asks for.) `undefined` between asks, like every other transience here. */
+  clockedStart?: string;
+
   /**
    * A finger that lands on something and then SCROLLS the page with it.
    *

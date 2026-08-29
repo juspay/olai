@@ -294,6 +294,39 @@ Then(
 );
 
 Then(
+  "the node {string} wears a start",
+  async function (this: OlaiWorld, id: string) {
+    const chip = this.node(id).locator(NODE_GUTTER).locator(TOOK);
+    await this.waitUntil(
+      async () => (await chip.getAttribute("data-started")) !== null,
+      `the node "${id}"'s chip wears the instant it was stamped with`,
+    );
+    this.clockedStart = (await chip.getAttribute("data-started")) ?? undefined;
+  },
+);
+
+Then(
+  "the node {string} still wears that start",
+  async function (this: OlaiWorld, id: string) {
+    assert.ok(
+      this.clockedStart !== undefined,
+      `"still wears that start" has nothing to compare with — say "wears a start" first`,
+    );
+    // The rule it asserts is the planner's: `set_doing` stamps once and the
+    // first is KEPT — so this is the one assertion a re-stamping planner
+    // fails (the chip reads the wire, the wire reads the record).
+    const asked = this.clockedStart;
+    const chip = this.node(id).locator(NODE_GUTTER).locator(TOOK);
+    await this.waitUntil(
+      async () =>
+        (await chip.getAttribute("data-started")) === asked,
+      `the node "${id}" still wears its first start (${asked})`,
+    );
+    this.clockedStart = undefined;
+  },
+);
+
+Then(
   "the node {string} is ticking",
   async function (this: OlaiWorld, id: string) {
     const chip = this.node(id).locator(NODE_GUTTER).locator(TOOK);
