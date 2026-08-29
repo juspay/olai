@@ -1108,6 +1108,20 @@ const placementsOf = (
   })
 
 /**
+ * WHICH of the two walks a `read_subtree` request asks for — the one node or
+ * the whole outline — spelled as one question answered once. `both` and
+ * `neither` are the two refused askings, and they are different mistakes,
+ * which is why {@link subtree} greets them with two sentences rather than
+ * one shape check.
+ */
+const armOf = (
+  request: SubtreeRequest,
+): { id: string } | { file: string } | "both" | "neither" =>
+  request.id !== undefined
+    ? request.file !== undefined ? "both" : { id: request.id }
+    : request.file !== undefined ? { file: request.file } : "neither"
+
+/**
  * A NODE and what hangs under it, or a whole OUTLINE and everything in it —
  * `read_subtree`, both arms and every refusal.
  *
@@ -1163,20 +1177,6 @@ const placementsOf = (
  * written text — it is two typed fields, and what is decided below is which of
  * them was given.
  */
-/**
- * WHICH of the two walks a `read_subtree` request asks for — the one node or
- * the whole outline — spelled as one question answered once. `both` and
- * `neither` are the two refused askings, and they are different mistakes,
- * which is why {@link subtree} greets them with two sentences rather than
- * one shape check.
- */
-const armOf = (
-  request: SubtreeRequest,
-): { id: string } | { file: string } | "both" | "neither" =>
-  request.id !== undefined
-    ? request.file !== undefined ? "both" : { id: request.id }
-    : request.file !== undefined ? { file: request.file } : "neither"
-
 export const subtree = (
   /** BOTH HALVES of the reading, unlike the walk this used to be: the id arm
    *  reads the derivation alone, and the file arm asks the SET which paths are
