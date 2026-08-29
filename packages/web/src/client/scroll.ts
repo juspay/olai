@@ -57,13 +57,26 @@
  * So a restore that CAME UP SHORT keeps asking for the position back, frame by
  * frame, and the rule for stopping is stated three ways: the page can hold the
  * position, the READER has taken it over (a wheel, a touch, a key, a press), or
- * a second has gone by. The first attempt is still synchronous, before the
- * paint — deferring the whole thing would show a frame of the old position on
- * every back — and nothing at all is scheduled unless that attempt was clamped,
- * which is a page that is already somewhere nobody chose. It is not the
- * transcript's `ResizeObserver` (./chat/Transcript.tsx): that follows a height
- * for as long as it moves, and this stops the moment either the position or the
- * reader says it is done.
+ * the arriving page has laid out and then gone quiet. The first attempt is
+ * still synchronous, before the paint — deferring the whole thing would show a
+ * frame of the old position on every back — and nothing at all is scheduled
+ * unless that attempt was clamped, which is a page that is already somewhere
+ * nobody chose.
+ *
+ * The quiet is measured from the arriving page's LAYOUT, not from the restore.
+ * `popstate` runs against the page being LEFT: the last answer STANDS while
+ * the next one is on the wire (`./reading.tsx`), so the first attempt is a
+ * clamp to the zoomed page's height, and the outline the reader is coming
+ * BACK to has not been drawn yet. A clock started at that instant expires
+ * while the page stream is still in flight — Darwin CI at 1s left the reader
+ * at the clamp (77px of a 221px place) — which is waiting on time for a
+ * layout. A `ResizeObserver` on the document is that layout: the hang
+ * detector arms when the document first grows, and re-arms while it does,
+ * which is {@link SETTLE_MS}'s job rather than "a second from the Back". It
+ * is not the transcript's observer (./chat/Transcript.tsx): that follows a
+ * height for as long as it moves, and this still stops the moment the
+ * position or the reader says it is done. The observer is only what tells
+ * the hang detector that the page it is hanging FOR has started to arrive.
  *
  * That fence was put up for this bug: with the directory column pinned
  * (./Sidebar.tsx), the page is exactly as tall as the PAGE — the column used to
@@ -81,11 +94,13 @@
 
 import { onCleanup } from "solid-js"
 
-/** How long a CLAMPED restore keeps asking for the position back while the page
- *  is still arriving. Long enough for a value the store fetches per key to land
- *  and be laid out (the wire round trip that grew the row this was written for),
- *  short enough that it is over before a reader has read anything. */
-const SETTLE_MS = 1_000
+/** How long a CLAMPED restore keeps asking after the arriving page has laid
+ *  out and then gone quiet. Long enough for a value the store fetches per key
+ *  to land on that page and be measured (the wire round trip that grew the
+ *  row this was written for), short enough that it is over before a reader
+ *  has read anything. Armed on growth, not on the restore — a clock from the
+ *  Back is a wait for the page stream, and that is not a duration. */
+export const SETTLE_MS = 1_000
 
 /** The gestures that end that: a reader who has taken the page over owns where
  *  it is, and this stops asking mid-flight rather than fighting them for it. */
@@ -119,7 +134,21 @@ export const createScrollMemory = (keyHere: () => string | undefined): ScrollMem
   /** Entry key → how far down the page that entry was left. */
   const left = new Map<string, number>()
 
+  /** The `scrollY` we last assigned. Chromium dispatches `scroll` at a
+   *  rendering update, so a flag around the write is already false when the
+   *  handler runs (`./chat/Transcript.tsx`'s argument, same browser). An event
+   *  that still sits here is our restore, not the reader, and must not be
+   *  remembered — a clamped first attempt would otherwise overwrite the
+   *  place we are still asking for. */
+  let assignedTop = Number.NaN
+  /** Sync listeners (jsdom, a test, a browser that dispatches inside
+   *  `scrollTo`) run before {@link assignedTop} is the clamp. Those are ours
+   *  too. */
+  let assigning = false
+
   const record = (): void => {
+    if (assigning) return
+    if (Number.isFinite(assignedTop) && Math.abs(scrollY - assignedTop) < 1) return
     const key = keyHere()
     if (key !== undefined) left.set(key, scrollY)
   }
@@ -128,32 +157,61 @@ export const createScrollMemory = (keyHere: () => string | undefined): ScrollMem
   addEventListener("scroll", record, { passive: true })
   onCleanup(() => removeEventListener("scroll", record))
 
+  const go = (top: number): void => {
+    assigning = true
+    scrollTo({ top, behavior: "instant" })
+    assignedTop = scrollY
+    assigning = false
+  }
+
   /** The retry in flight, if a restore was clamped. One at a time: a second
    *  navigation's restore is about a different page and this one is over. */
   let giveUp: (() => void) | undefined
   onCleanup(() => giveUp?.())
 
   /** Ask for `top` until the page can hold it, the reader takes over, or the
-   *  deadline. Started ONLY from a clamped restore, so the normal path adds no
-   *  frame callback and no listener at all. */
+   *  arriving page has laid out and then gone quiet. Started ONLY from a
+   *  clamped restore, so the normal path adds no frame callback and no
+   *  listener at all. */
   const keepAsking = (top: number): void => {
     giveUp?.()
-    const deadline = performance.now() + SETTLE_MS
     let frame = 0
+    let hang: ReturnType<typeof setTimeout> | undefined
+    // GROWTH, not the first observation. `observe` delivers the size the
+    // document already is, and treating that as arrival would arm the hang
+    // from the restore again — the clock this is here to stop using.
+    let lastHeight = document.documentElement.scrollHeight
+    const growing = new ResizeObserver(() => {
+      const height = document.documentElement.scrollHeight
+      if (height <= lastHeight) {
+        lastHeight = height
+        return
+      }
+      lastHeight = height
+      // THE ARRIVING PAGE, which is the event a clock from the restore was
+      // standing in for. Until the document grows it is still the page
+      // being left; hanging from that instant is how a slow page stream
+      // left the reader at the clamp.
+      clearTimeout(hang)
+      hang = setTimeout(stop, SETTLE_MS)
+    })
     const stop = (): void => {
       cancelAnimationFrame(frame)
+      clearTimeout(hang)
+      growing.disconnect()
       for (const gesture of TAKEOVER) removeEventListener(gesture, stop)
       giveUp = undefined
     }
     const again = (): void => {
-      scrollTo({ top, behavior: "instant" })
-      if (scrollY >= top || performance.now() >= deadline) return stop()
+      go(top)
+      if (scrollY >= top) return stop()
       frame = requestAnimationFrame(again)
     }
     giveUp = stop
     for (const gesture of TAKEOVER) {
       addEventListener(gesture, stop, { passive: true })
     }
+    growing.observe(document.documentElement)
     frame = requestAnimationFrame(again)
   }
 
@@ -163,12 +221,12 @@ export const createScrollMemory = (keyHere: () => string | undefined): ScrollMem
   return {
     toTop: () => {
       giveUp?.()
-      scrollTo({ top: 0, behavior: "instant" })
+      go(0)
     },
     restore: (key) => {
       const top = left.get(key) ?? 0
       giveUp?.()
-      scrollTo({ top, behavior: "instant" })
+      go(top)
       // Short of where the reader was means the document was still arriving
       // under the restore and the browser clamped what it was asked for. The
       // page is already in a place nobody chose, so asking again costs nothing

@@ -510,6 +510,8 @@ Port/lock did not move: it is still zero, the way the 2026-08-16 wait-honesty ru
 
 The scroll-restore drop counted there is closed: it was the sixth waiting mistake above, and it is measured under `OLAI_TEST_SLOW=20` rather than by waiting for a loaded box to lose the race again.
 
+A later Darwin-only miss of the same scenario (221px asked, 77px held, retry green) was the product's clamped-restore hang waiting on a clock from Back rather than on the arriving page's layout — `client/scroll.ts` arms that hang when the document grows, and `scroll.test.ts` is the pin.
+
 ## The scripted agents
 
 There are TWO, and that is the point rather than an accident of history: one is
