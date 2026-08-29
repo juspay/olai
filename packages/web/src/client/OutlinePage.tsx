@@ -23,7 +23,7 @@ import { Editable } from "./edit/Editable.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
 import { useNarrowed } from "./filter/narrowed.tsx"
 import { unfiltered } from "./filter/why.ts"
-import { focusedRowIn, selectNode } from "./focus.ts"
+import { bringFocusedOntoScreen, selectNode } from "./focus.ts"
 import { useHere, useLanding } from "./router.tsx"
 import { doneHidden } from "./settings/done.ts"
 import { TESTID } from "./testids.ts"
@@ -53,18 +53,19 @@ export function OutlinePage(props: {
    *   - NOTHING FOUND IS NOTHING DONE, the document arm's own sentence: the
    *     file half of a row address can go stale exactly as a heading's slug
    *     can, and a landing that finds its row on no revision is quiet about
-   *     it — over a whole page, never a blank one. Kept UNspent, so the page
-   *     gaining the row later — a file that moves back, a fold the reader
-   *     shut — still pays the arrival they were owed;
+   *     it — over a whole page, never a blank one. Kept UNspent, so a page
+   *     that starts showing the row again — a filter let it back in, a done
+   *     it was about vanished — still pays the arrival it was owed;
    *   - spent ON THE SCROLL rather than on the attempt, for the markdown
    *     face's reason: giving up the first time the row was absent would give
    *     up on the frame before the rows had arrived at all.
    *
    * What changes is the ACT, and it is the emphasis of this page: folding is
-   * the reader's own memory — the Row is found in the DRAWN tree regardless
-   * (`./fold/landing.ts`), so a collapsed ancestor is unshut with the tree's
-   * own expand verb before the row is selected and brought on screen,
-   * instead of the reader being left pointing at somewhere they cannot see.
+   * the reader's own memory — the row is found in the READING regardless
+   * (`./fold/landing.ts`, which asks `props.rows`, not the memory-pruned
+   * draw), so a collapsed ancestor is unshut with the tree's own expand verb
+   * before the row is selected and brought on screen, instead of the reader
+   * being left pointing at somewhere they cannot see.
    */
   createEffect(() => {
     const at = landing.owed()
@@ -80,10 +81,7 @@ export function OutlinePage(props: {
       const root = document.querySelector(
         `[data-testid="${TESTID.pane}"][data-pane="${String(here())}"]`,
       )
-      const row = root === null ? null : focusedRowIn(root)
-      if (row === null) return
-      row.scrollIntoView({ block: "center", behavior: "smooth" })
-      landing.landed(at)
+      if (root !== null && bringFocusedOntoScreen(root)) landing.landed(at)
     })
     onCleanup(() => cancelAnimationFrame(frame))
   })
