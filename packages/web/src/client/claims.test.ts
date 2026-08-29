@@ -264,12 +264,13 @@ test("a row's line is marked in exactly the module that reads it and the tree th
 // pane list — and what READS it is every place that has to tell two panes of the
 // SAME FILE apart, which is a view this app can draw and therefore a place its
 // identifiers stop being unique. A `Row.key` is a chain from the roots of ITS
-// page (the two row gestures measure through one door, `drag/lines.ts`), and a
-// markdown heading's id is minted from the heading (`document/faces.tsx` scrolls
-// under its own pane's root). A fifth file spelling it is a new reader, which is
-// a new answer to "which page is this in".
+// page (the two row gestures measure through one door, `drag/lines.ts`), and the
+// two element landings scroll under their own pane's root (`document/faces.tsx`
+// for the heading, `OutlinePage.tsx` for the row). A sixth file spelling it is
+// a new reader, which is a new answer to "which page is this in".
 test("a pane's index is drawn by the workspace and read where two panes must be told apart", () => {
   expect(filesSpelling(/data-pane/)).toEqual([
+    "OutlinePage.tsx",
     path.join("document", "faces.tsx"),
     path.join("drag", "lines.ts"),
     path.join("pane", "PageView.tsx"),

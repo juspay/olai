@@ -59,6 +59,10 @@ export const ROUTES: ReadonlyArray<Route> = [
   // that lands at the top of the page the moment it is reloaded or shared.
   atElement("garden.md", "beds"),
   atElement("notes/report.html", "Q3 revenue"),
+  // …and an OUTLINE at one, the row arm: the qualified spelling of a node,
+  // kept rather than normalised, since the outline gained its landing.
+  atElement("house.olai", "kitchen"),
+  { ...atElement("house.olai", "install"), filter: "#home" },
   // One page per suffix the registry claims, and one at a place inside it:
   // the registry is the grammar's own census of what a path can mean, so a
   // kind it learns is a row here the day it is learned, not when somebody
