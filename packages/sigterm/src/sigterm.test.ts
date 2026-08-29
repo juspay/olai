@@ -1,8 +1,9 @@
 /**
  * The policy the guard applies, tested as the pure function it is —
- * the real-process halves of the same contract are ./shutdown.test.ts's
- * (a stray TERM refused live; the parent path honored live; the
- * parent-DEATH contract honored live, asserted on the journal line).
+ * the real-process halves of the same contract are
+ * packages/server/src/shutdown.test.ts's (a stray TERM refused live;
+ * the parent path honored live; the parent-DEATH contract honored
+ * live, asserted on the journal line).
  */
 
 import { expect, test } from "bun:test"

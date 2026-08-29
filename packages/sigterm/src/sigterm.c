@@ -5,9 +5,9 @@
  * a malloc lock may be held, the JS VM is unapproachable, and nothing
  * that allocates, takes a lock, or calls into libc userspace state may
  * run here. The POSIX list of allowed calls is short; write(2) is on it,
- * and that is all this handler does: copy the two numbers the kernel
- * already recorded (the record IS the attribution) into a self-pipe
- * TypeScript drains in ordinary context. No printf, no /proc reads, no
+ * and that is all this handler does: copy the three numbers the
+ * kernel already recorded (the record IS the attribution) into a
+ * self-pipe TypeScript drains in ordinary context. No printf, no /proc reads, no
  * logging — those happen across the pipe, where it is safe.
  *
  * FREESTANDING so that bun's embedded tinycc (`bun:ffi`'s `cc`, which
@@ -55,7 +55,7 @@ typedef int sig_atomic_t; /* freestanding: what <signal.h> calls it, on
                              glibc and musl alike */
 
 static volatile int outFd = -1;
-static volatile long (*x_write)(int, const void *, unsigned long);
+static long (*volatile x_write)(int, const void *, unsigned long);
 static volatile sig_atomic_t dropped = 0;
 
 static void olaiSigterm(int sig, void *info, void *uctx) {

@@ -444,7 +444,8 @@ const drainForever = ({ libc, handler, readEnd, disarm }: Guard): void => {
     }
     // Cadence: tight while the arm is young (boot-time stops are the
     // ones that race), relaxed from DRAIN_MS*5 once proven quiet —
-    // systemd's TimeoutStopSec gives 10s either way.
+    // TimeoutStopSec (the unit sets none: the 90s default) has a wide
+    // margin over either phase.
     timer = setTimeout(tick, Date.now() - started < 10_000 ? DRAIN_MS : DRAIN_MS * 5)
     timer.unref?.()
   }
