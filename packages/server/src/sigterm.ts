@@ -40,7 +40,12 @@
  * The handler appends {si_pid, si_uid, si_code} to a non-blocking
  * self-pipe; a poll loop drains it in ordinary context, where /proc
  * and stderr are safe. The kernel queue IS the flag/self-pipe the
- * classic constraint asks for.
+ * classic constraint asks for. Why a POLL and not a loop wake: asked
+ * of the target runtime on this machine, Bun 1.4's net.Socket({fd})
+ * wraps a pipe without complaint and NEVER emits 'data' — the evented
+ * variant is a dead end at this runtime, and the poll's failure case
+ * is simply readout latency that systemd's TimeoutStopSec gives
+ * generously. Revisit at each Bun bump.
  *
  * The POLICY is {@link judge}, honored at drain time: the supervisor —
  * a live `getppid()`, which is how `systemctl --user stop|restart olai`
@@ -399,7 +404,11 @@ const verified = async ({ libc, readEnd }: Guard): Promise<boolean> => {
  *  ends it in the serving case. */
 const drainForever = ({ libc, handler, readEnd, disarm }: Guard): void => {
   let droppedReported = 0
-  const timer = setInterval(() => {
+  let done = false
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const started = Date.now()
+  const tick = (): void => {
+    if (done) return
     let batch: Array<Receipt>
     try {
       batch = drain(readEnd)
@@ -408,7 +417,7 @@ const drainForever = ({ libc, handler, readEnd, disarm }: Guard): void => {
       // the fd, a dup2 sweep): the catcher would otherwise eat every TERM
       // silently forever. Loud line, hand the disposition back, and stop
       // polling — the bouncer exits rather than pretends to stand.
-      clearInterval(timer)
+      done = true
       process.stderr.write(
         `olai web: SIGTERM guard's refusal pipe failed (${reasonOf(cause)}) — disarming the catcher; SIGTERM keeps its default handling\n`,
       )
@@ -418,7 +427,7 @@ const drainForever = ({ libc, handler, readEnd, disarm }: Guard): void => {
     for (const receipt of batch) {
       apply(receipt, libc)
       if (shuttingDown) {
-        clearInterval(timer)
+        done = true
         return
       }
     }
@@ -426,11 +435,16 @@ const drainForever = ({ libc, handler, readEnd, disarm }: Guard): void => {
     if (dropped > droppedReported) {
       droppedReported = dropped
       process.stderr.write(
-        `olai web: SIGTERM guard dropped ${dropped} attribution record(s) — a signal flood outran the refusal pipe; some senders went unnamed\n`,
+        `olai web: SIGTERM guard dropped ${dropped} attribution record(s) — a signal flood outran the refusal pipe; some senders went unnamed, and the dropped record can be the supervisor's stop\n`,
       )
     }
-  }, DRAIN_MS)
-  timer.unref?.()
+    // Cadence: tight while the arm is young (boot-time stops are the
+    // ones that race), relaxed from DRAIN_MS*5 once proven quiet —
+    // systemd's TimeoutStopSec gives 10s either way.
+    timer = setTimeout(tick, Date.now() - started < 10_000 ? DRAIN_MS : DRAIN_MS * 5)
+    timer.unref?.()
+  }
+  tick()
 }
 
 /**
