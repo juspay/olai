@@ -51,7 +51,10 @@ const page = () => {
     setMax,
     scrollTo: (top: number) => {
       y = Math.max(0, Math.min(top, maxY))
-      fire("scroll")
+      // Chromium dispatches `scroll` at a rendering update, not inside
+      // `scrollTo`. The harness used to fire it synchronously, which
+      // exercised `assigning` and never `assignedTop`.
+      queueMicrotask(() => fire("scroll"))
     },
     addEventListener: (type: string, fn: Listener) => {
       const set = listeners.get(type) ?? new Set()
@@ -115,7 +118,9 @@ const install = (it: Page): void => {
   put(
     "ResizeObserver",
     class {
+      #cb: ResizeObserverCallback
       constructor(cb: ResizeObserverCallback) {
+        this.#cb = cb
         it.watch((node) => {
           cb(
             [{ target: node } as unknown as ResizeObserverEntry],
@@ -124,7 +129,13 @@ const install = (it: Page): void => {
         })
       }
       observe() {
-        /* the harness fires on setMax, including the size already there */
+        // Real `observe` delivers the size already there. Dropping that
+        // delivery is the `height <= lastHeight` filter; the first cut of
+        // this harness never called back here, so that guard was comment.
+        this.#cb(
+          [{ target: it.element } as unknown as ResizeObserverEntry],
+          this as unknown as ResizeObserver,
+        )
       }
       disconnect() {
         it.unwatch()
@@ -149,11 +160,12 @@ afterEach(restore)
 const memory = (
   it: Page,
   body: (scroll: ReturnType<typeof createScrollMemory>, key: { here: string }) => void,
+  ceilingMs?: number,
 ): void => {
   install(it)
   const here = { here: "outline" }
   disposeRoot = createRoot((dispose) => {
-    const scroll = createScrollMemory(() => here.here)
+    const scroll = createScrollMemory(() => here.here, ceilingMs)
     body(scroll, here)
     return dispose
   })
@@ -165,24 +177,31 @@ const pastHang = () => new Promise((go) => setTimeout(go, SETTLE_MS + 50))
 /** Reader at 221 on the outline, then a zoomed page that can only hold 77. */
 const clamped = (
   body: (scroll: ReturnType<typeof createScrollMemory>, it: Page) => Promise<void> | void,
+  ceilingMs?: number,
 ): Promise<void> => {
   const it = page()
   return new Promise((ok, no) => {
-    memory(it, (scroll, key) => {
-      void (async () => {
-        it.setMax(LEFT)
-        it.scrollTo(LEFT)
-        key.here = "zoomed"
-        scroll.toTop()
-        it.setMax(CLAMP)
-        key.here = "outline"
-        scroll.restore("outline")
-        expect(it.y).toBe(CLAMP)
-        await body(scroll, it)
-      })()
-        .then(ok)
-        .catch(no)
-    })
+    memory(
+      it,
+      (scroll, key) => {
+        void (async () => {
+          it.setMax(LEFT)
+          it.scrollTo(LEFT)
+          await Promise.resolve()
+          key.here = "zoomed"
+          scroll.toTop()
+          it.setMax(CLAMP)
+          key.here = "outline"
+          scroll.restore("outline")
+          expect(it.y).toBe(CLAMP)
+          await Promise.resolve()
+          await body(scroll, it)
+        })()
+          .then(ok)
+          .catch(no)
+      },
+      ceilingMs,
+    )
   })
 }
 
@@ -212,8 +231,22 @@ test("a clamped restore does not remember the clamp as the place the reader left
   })
 })
 
-test("growth that still cannot hold the place is allowed to hang, then stop", async () => {
+test("growth of the standing page does not hang the restore", async () => {
   await clamped(async (_scroll, it) => {
+    // A late picture on the page being LEFT, not the swap. Hang must not
+    // arm, or an outline landing after SETTLE_MS re-loses the stream race.
+    it.setMax(100)
+    await pastHang()
+    expect(it.y).toBe(100)
+    it.setMax(LEFT)
+    await tick()
+    expect(it.y).toBe(LEFT)
+  })
+})
+
+test("a shrink-then-grow that still cannot hold the place hangs, then stops", async () => {
+  await clamped(async (_scroll, it) => {
+    it.setMax(40)
     it.setMax(100)
     await pastHang()
     expect(it.y).toBe(100)
@@ -222,6 +255,34 @@ test("growth that still cannot hold the place is allowed to hang, then stop", as
     // The hang already ended: a later growth is a different page, not the
     // arrival this restore was waiting on.
     expect(it.y).toBe(100)
+  })
+})
+
+test("a page that never grows stops asking at the ceiling, not at one second", async () => {
+  const ceiling = 80
+  await clamped(async (_scroll, it) => {
+    await new Promise((go) => setTimeout(go, ceiling + 50))
+    it.setMax(LEFT)
+    await tick()
+    expect(it.y).toBe(CLAMP)
+  }, ceiling)
+})
+
+test("a reader scroll after the restore ends is remembered, even at the restored place", async () => {
+  await clamped(async (scroll, it) => {
+    it.setMax(LEFT)
+    await tick()
+    expect(it.y).toBe(LEFT)
+    it.scrollTo(100)
+    await Promise.resolve()
+    it.scrollTo(LEFT)
+    await Promise.resolve()
+    it.setMax(CLAMP)
+    scroll.restore("outline")
+    expect(it.y).toBe(CLAMP)
+    it.setMax(LEFT)
+    await tick()
+    expect(it.y).toBe(LEFT)
   })
 })
 
