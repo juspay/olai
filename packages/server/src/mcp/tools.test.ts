@@ -49,7 +49,6 @@ import * as path from "node:path"
 import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
-import { frozenPolicy } from "../serve.testlib.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { bespokeFrom } from "./tools.ts"
 
@@ -169,7 +168,7 @@ const withTools = <A>(
       kolu: null,
       git: gitWiring(
         ops,
-        frozenPolicy({ commit: "off", push: null }),
+        fixedPolicy({ commit: "off", push: null }),
         yield* SubscriptionRef.make(0),
       ),
     })
@@ -466,6 +465,13 @@ test("the read tools teach the fields the mirror and edge ops depend on", async 
     // …and that a subtree can be walked WITHOUT its notes. ON by default, so
     // an agent that is not told will haul every root's forensics for a TOC.
     expect(said("read_subtree")).toContain("`withDesc: false`")
+    // …and that EITHER read can be SHAPED — this is the vocabulary an agent
+    // otherwise gets wrong by joining the question's words: `fields` names
+    // the row's content, `custom.<key>` is the only way to one property.
+    expect(said("read_node")).toContain("`fields`")
+    expect(said("read_subtree")).toContain("`fields`")
+    expect(said("read_node")).toContain("`custom.<key>`")
+    expect(said("read_subtree")).toContain("`custom.<key>`")
   })
 })
 
@@ -641,6 +647,91 @@ test("search and subtree carry a node's properties, so a board is one query", as
     })
     // A node carrying no property does not answer an empty map.
     expect(children.find((child) => child["id"] === "install")).not.toHaveProperty("custom")
+  })
+})
+
+/**
+ * FIELDS SHAPE THE WALK, THROUGH THE ENCODER — the fence `custom` and the
+ * notes carry, ONCE MORE, and the reason is the drift this very suite was
+ * written against: the projected row is a NEW ARM of the answer's union, and
+ * a field produced by the walk and unknown to the schema is silently dropped
+ * on the way out. The claim is the whole row, so it is `withoutAge` + a
+ * `toEqual` of it.
+ */
+test("a `fields` walk answers the caller's exact rows, and only those", async () => {
+  const PROPPED = [
+    `{"id":"lane","ord":"a0","title":"the lane"}`,
+    `{"id":"first","parent":"lane","ord":"a0","title":"ship the parser",` +
+      `"done":"2026-08-29T09:12:00-04:00","custom":{"took":"4m","agent":"pi"}}`,
+    `{"id":"second","parent":"lane","ord":"a1","title":"tidy the docs","doing":true}`,
+    "",
+  ].join("\n")
+
+  await withTools({ "steps.olai": PROPPED }, async ({ client }) => {
+    // THE TIMINGS SHAPING — the case the parameter was opened for: the marks
+    // and the SETTLE INSTANTS, no notes, no situating.
+    const tree = withoutAge((
+      await call(client, "read_subtree", {
+        id: "lane",
+        depth: 1,
+        fields: ["title", "status", "done", "custom.took"],
+      })
+    ).structured)
+    expect(tree).toEqual({
+      id: "lane",
+      title: "the lane",
+      // The face signs every answer with WHERE it served it from, which is
+      // data rather than a field of the rows.
+      root: expect.any(String),
+      children: [
+        {
+          id: "first",
+          title: "ship the parser",
+          status: "done",
+          done: "2026-08-29T09:12:00-04:00",
+          custom: { took: "4m" },
+          children: [],
+        },
+        { id: "second", title: "tidy the docs", status: "doing", children: [] },
+      ],
+    })
+
+    // The other read, the other arm: the node is whole, the CHILD LIST is the
+    // shaped one — same vocabulary, one place narrower.
+    const named = withoutAge(
+      (await call(client, "read_node", { id: "lane", fields: ["status", "done"] })).structured,
+    )
+    const children = named["children"] as ReadonlyArray<Record<string, unknown>>
+    expect(children).toEqual([
+      { id: "first", status: "done", done: "2026-08-29T09:12:00-04:00" },
+      { id: "second", status: "doing" },
+    ])
+    expect(named).toMatchObject({ id: "lane", line: 1, file: "steps.olai", tags: [] })
+  })
+})
+
+/**
+ * An unknown `fields` name is REFUSED, naming the legal ones — and the
+ * refusal TRAVELS as a refusal, which is the class of this layer's taxonomy
+ * (usage: the request itself is wrong), not an empty walk.
+ */
+test("`fields` with an unknown name refuses, through the wire, saying `usage`", async () => {
+  const PROPPED = `{"id":"lane","ord":"a0","title":"the lane"}\n`
+  await withTools({ "steps.olai": PROPPED }, async ({ client }) => {
+    const refused = await call(client, "read_subtree", { id: "lane", fields: ["props"] })
+    expect(refused.isError).toBe(true)
+    expect(refused.structured).toMatchObject({ kind: "usage" })
+    expect(String(refused.structured["reason"])).toContain("`props` is not a field `fields` names")
+    expect(String(refused.structured["reason"])).toContain("`custom.<key>`")
+
+    // …and `fields` and `withDesc` is one dial spelled twice, said in words.
+    const both = await call(client, "read_subtree", {
+      id: "lane",
+      fields: ["desc"],
+      withDesc: false,
+    })
+    expect(both.isError).toBe(true)
+    expect(String(both.structured["reason"])).toContain("`withDesc`")
   })
 })
 

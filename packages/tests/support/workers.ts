@@ -185,11 +185,6 @@ export const isolateEnv = (
     // `.lock` files accumulated there.
     XDG_RUNTIME_DIR: runtime,
   };
-  // A worktree's `just run` writes OLAI_PORT_FILE; a spawned e2e server
-  // that inherited it would try to rebind that address, which is the
-  // other worktree's (or this one's) just-run — the defect this suite
-  // used to have through `/tmp/olai-dev`.
-  delete env.OLAI_PORT_FILE;
   for (const key of [
     "GIT_DIR",
     "GIT_WORK_TREE",

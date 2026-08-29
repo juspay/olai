@@ -12,6 +12,7 @@
 import {
   bytesOf,
   type Derived,
+  type Detail,
   DocumentPath,
   fileKind,
   Found,
@@ -23,6 +24,10 @@ import {
   type OpFailure,
   type OutlineSet,
   type PageRequest,
+  Projected,
+  PROJECTABLE,
+  type ProjectedRoots,
+  type ProjectedSubtree,
   type Reading,
   type SearchAnswer,
   type OutlineRoots,
@@ -107,6 +112,19 @@ const refusedWalk = (of: Reading, request: SubtreeRequest): OpFailure =>
   failed(subtree(of, request), "`read_subtree`")
 
 /**
+ * A node read that ANSWERED — `detail`'s pair, since it went the way of
+ * {@link subtree}: a field nobody may name is a refusal now, so the function
+ * says "or else" and the door lifts it. The UNWRAP and the diagnostic are the
+ * two lines above, which is where `walked`/`refusedWalk` already live for it.
+ */
+const read = (of: Derived, id: string, fields?: ReadonlyArray<string>): Detail | null =>
+  succeeded(detail(of, id, fields), "`read_node` to answer")
+
+/** The one that REFUSED — {@link read}'s other arm. */
+const refusedRead = (of: Derived, id: string, fields: ReadonlyArray<string>): OpFailure =>
+  failed(detail(of, id, fields), "`read_node`")
+
+/**
  * The two ARMS of an answer that is not the `{ missing }` one — a diagnostic
  * rather than a cast at each assertion.
  *
@@ -115,14 +133,14 @@ const refusedWalk = (of: Reading, request: SubtreeRequest): OpFailure =>
  * naming nothing. These say which arm was expected, once, and hand back the
  * narrowed value.
  */
-const nodeOf = (answer: SubtreeAnswer): Subtree => {
+const nodeOf = (answer: SubtreeAnswer): Subtree | ProjectedSubtree => {
   if (!("children" in answer)) {
     throw new Error(`expected one node's walk, and got ${JSON.stringify(answer)}`)
   }
   return answer
 }
 
-const outlineOf = (answer: SubtreeAnswer): OutlineRoots => {
+const outlineOf = (answer: SubtreeAnswer): OutlineRoots | ProjectedRoots => {
   if (!("roots" in answer)) {
     throw new Error(
       `expected the whole-outline answer, and got ${JSON.stringify(answer)}`,
@@ -157,7 +175,7 @@ test("a node carrying everything produces every field `Found` declares", () => {
   }))
   // A child in a node's list is a plain `Found` — no `matched`, which is the
   // query's fact rather than the record's.
-  const carrying = detail(at, "top")?.children[0]
+  const carrying = read(at, "top")?.children[0]
   expect(carrying?.id).toBe("all")
   expect(Object.keys(carrying ?? {}).sort()).toEqual(Object.keys(Found.fields).sort())
 })
@@ -181,30 +199,30 @@ test("a node's read carries `started`, `worked` and the derived `took` — and t
   }))
   // SETTLED: the instant, and the span it closes — 2h34m44s and 41m, in
   // whole seconds either way, because the two settling marks read the same.
-  expect(detail(at, "bake")).toMatchObject({ started: "2026-08-29T09:52:00-04:00", took: 9284 })
-  expect(detail(at, "hinge")).toMatchObject({ started: "2026-08-29T09:52:00-04:00", took: 2460 })
+  expect(read(at, "bake")).toMatchObject({ started: "2026-08-29T09:52:00-04:00", took: 9284 })
+  expect(read(at, "hinge")).toMatchObject({ started: "2026-08-29T09:52:00-04:00", took: 2460 })
   // …and NO BANK IS ANSWERED for them: `toMatchObject` ignores extra keys,
   // so a `worked: 0` default grown later would slip the span pins above —
   // the property's ABSENCE is the byte-identical rule, named on purpose.
-  expect(detail(at, "bake")).not.toHaveProperty("worked")
-  expect(detail(at, "hinge")).not.toHaveProperty("worked")
+  expect(read(at, "bake")).not.toHaveProperty("worked")
+  expect(read(at, "hinge")).not.toHaveProperty("worked")
   // STILL RUNNING: the instant is there for the tick, and there is no `took`
   // to say — a span needs both ends, and the wire carries no durations.
-  expect(detail(at, "water")).toHaveProperty("started")
-  expect(detail(at, "water")).not.toHaveProperty("took")
+  expect(read(at, "water")).toHaveProperty("started")
+  expect(read(at, "water")).not.toHaveProperty("took")
   // THE JUMP: a todo→done has no span, and `created` is never the fallback —
   // none of the three is invented at read time.
-  expect(detail(at, "plumber")).not.toHaveProperty("started")
-  expect(detail(at, "plumber")).not.toHaveProperty("worked")
-  expect(detail(at, "plumber")).not.toHaveProperty("took")
+  expect(read(at, "plumber")).not.toHaveProperty("started")
+  expect(read(at, "plumber")).not.toHaveProperty("worked")
+  expect(read(at, "plumber")).not.toHaveProperty("took")
   // THE SETTLED MULTI-ROUND node: the bank IS the answer — `took` is the
   // 1080 the settles counted, not the 480 a subtraction against the fresh
   // `started` would misread as the whole of it.
-  expect(detail(at, "proof")).toMatchObject({ worked: 1080, took: 1080 })
+  expect(read(at, "proof")).toMatchObject({ worked: 1080, took: 1080 })
   // …and a LIVE one carries the two things the tick is a sum of — bank and
   // instant, durations never: the arithmetic stays where the clock is.
-  expect(detail(at, "knead")).toMatchObject({ worked: 600, started: "2026-08-29T09:50:00-04:00" })
-  expect(detail(at, "knead")).not.toHaveProperty("took")
+  expect(read(at, "knead")).toMatchObject({ worked: 600, started: "2026-08-29T09:50:00-04:00" })
+  expect(read(at, "knead")).not.toHaveProperty("took")
 })
 
 describe("the edges a node carries", () => {
@@ -220,10 +238,10 @@ describe("the edges a node carries", () => {
   })
 
   test("a node read carries them too, and so does a child in its list", () => {
-    const bugs = detail(at(), "bugs")
+    const bugs = read(at(), "bugs")
     expect(bugs?.children.find((child) => child.id === "sticky"))
       .toMatchObject({ after: ["git"] })
-    expect(detail(at(), "sticky")).toMatchObject({ after: ["git"], see: ["git"] })
+    expect(read(at(), "sticky")).toMatchObject({ after: ["git"], see: ["git"] })
   })
 
   /**
@@ -288,7 +306,7 @@ describe("what a node is waiting on", () => {
     // In the order the format promises: the node's own `after` first, then the
     // `blocks` pointing back at it from elsewhere. And each blocker is a whole
     // situated answer, so "has this moved" needs no second read.
-    expect(detail(waiting(), "frame")?.blockedBy).toEqual([
+    expect(read(waiting(), "frame")?.blockedBy).toEqual([
       { id: "pour", title: "pour the slab", file: "build.olai", line: 1, status: "todo", path: [] },
       { id: "cure", title: "let it cure", file: "build.olai", line: 2, status: "doing", path: [] },
     ])
@@ -297,14 +315,14 @@ describe("what a node is waiting on", () => {
   test("a node with nothing in its way does not say so with an empty list", () => {
     // `pour` is the blocker itself — unfinished work, and nothing before it.
     // Absence is how the format spells nothing, and an answer follows it.
-    expect(detail(waiting(), "pour")).not.toHaveProperty("blockedBy")
+    expect(read(waiting(), "pour")).not.toHaveProperty("blockedBy")
   })
 
   test("a bullet is waiting on nothing, whatever `after` it carries", () => {
     // The one case that separates this field from the record's: `chips` names
     // `pour`, which IS unfinished — but a bullet is not work, so nothing is
     // telling it it cannot start. The record's own field still answers.
-    const chips = detail(waiting(), "chips")
+    const chips = read(waiting(), "chips")
     expect(chips).toMatchObject({ after: ["pour"] })
     expect(chips).not.toHaveProperty("blockedBy")
   })
@@ -320,16 +338,16 @@ describe("what a node is waiting on", () => {
  */
 describe("the properties a node carries", () => {
   test("a node read answers the map, verbatim", () => {
-    expect(detail(at(), "git")?.custom).toEqual({
+    expect(read(at(), "git")?.custom).toEqual({
       pr: "https://github.com/juspay/olai/pull/176",
       agent: "claude-opus",
     })
     // Beside the fields, not instead of them: the mark is still `todo`.
-    expect(detail(at(), "git")).toMatchObject({ todo: true, status: "todo" })
+    expect(read(at(), "git")).toMatchObject({ todo: true, status: "todo" })
   })
 
   test("a node with no properties carries no map, rather than an empty one", () => {
-    expect(detail(at(), "bugs")).not.toHaveProperty("custom")
+    expect(read(at(), "bugs")).not.toHaveProperty("custom")
   })
 
   /** THE HIT, which is the point of the field being on `Found` at all: a board
@@ -385,7 +403,7 @@ describe("the properties a node carries", () => {
     // Every situated answer is built out of one `foundOf`, so this follows from
     // the hit rather than being a second decision — the same shape the edge
     // test above pins for `see` and `after`.
-    expect(detail(at(), "bugs")?.children.find((child) => child.id === "git"))
+    expect(read(at(), "bugs")?.children.find((child) => child.id === "git"))
       .toMatchObject({ custom: { agent: "claude-opus" } })
     const bugs = nodeOf(walked(reading(), { id: "bugs", depth: 1 }))
     expect(bugs.children.find((child) => child.id === "git"))
@@ -418,7 +436,7 @@ describe("the properties a node carries", () => {
       "roadmap.olai": `{"id":"bare","ord":"a0","title":"a bare lane","custom":{"pr":""}}`,
     }))
     expect(search(bare, { text: "lane" }, TODAY).hits[0]).not.toHaveProperty("custom")
-    expect(detail(bare.derived, "bare")).not.toHaveProperty("custom")
+    expect(read(bare.derived, "bare")).not.toHaveProperty("custom")
   })
 
   /** A long value travels WHOLE. The wire-cost decision, pinned rather than
@@ -491,7 +509,7 @@ describe("what refers to a node", () => {
    * answered one describe up as `mirrors`.
    */
   test("a `see` is a reference and an ordering edge is not", () => {
-    expect(detail(at(), "git")?.referencedBy).toEqual([
+    expect(read(at(), "git")?.referencedBy).toEqual([
       {
         id: "sticky",
         title: "the header scrolls away",
@@ -515,12 +533,12 @@ describe("what refers to a node", () => {
         `{"id":"both","ord":"a2","title":"see @git","see":["git"]}`,
       ].join("\n"),
     }))
-    expect(detail(at, "git")?.referencedBy?.map((one) => `${one.id} ${one.ways.join("+")}`))
+    expect(read(at, "git")?.referencedBy?.map((one) => `${one.id} ${one.ways.join("+")}`))
       .toEqual(["said mention", "both see+mention"])
   })
 
   test("a node nobody has written about says nothing rather than an empty list", () => {
-    expect(detail(at(), "sticky")).not.toHaveProperty("referencedBy")
+    expect(read(at(), "sticky")).not.toHaveProperty("referencedBy")
   })
 })
 describe("placements", () => {
@@ -529,17 +547,17 @@ describe("placements", () => {
   test("`mirrors` names every placement of a node, chains followed", () => {
     // `git` is placed twice: directly by `focus-git`, and through it by
     // `now-git`, which mirrors the mirror. Both are places `git` is drawn.
-    expect(detail(at(), "git")?.mirrors).toEqual([
+    expect(read(at(), "git")?.mirrors).toEqual([
       { id: "focus-git", file: "focus.olai", line: 2, parent: "focus" },
       { id: "now-git", file: "roadmap.olai", line: 3, parent: "now" },
     ])
-    expect(detail(at(), "sticky")?.mirrors).toEqual([
+    expect(read(at(), "sticky")?.mirrors).toEqual([
       { id: "now-sticky", file: "roadmap.olai", line: 2, parent: "now" },
     ])
   })
 
   test("a node nothing shows says nothing rather than an empty list", () => {
-    expect(detail(at(), "bugs")).not.toHaveProperty("mirrors")
+    expect(read(at(), "bugs")).not.toHaveProperty("mirrors")
   })
 
   /**
@@ -564,7 +582,7 @@ describe("placements", () => {
       ].join("\n"),
       "b.olai": `{"id":"dupe","ord":"a0","mirror":"node"}`,
     }))
-    expect(detail(condemned, "node")?.mirrors).toEqual([
+    expect(read(condemned, "node")?.mirrors).toEqual([
       { id: "dupe", file: "a.olai", line: 2 },
     ])
   })
@@ -572,7 +590,7 @@ describe("placements", () => {
   /** WHAT IS ON THE LIST — the question the ledger is read with, and the one
    *  the ops layer could not answer at all before the 2026-08-11 review. */
   test("`placed` lists what a curated list holds, in sibling order", () => {
-    const now = detail(at(), "now")
+    const now = read(at(), "now")
     expect(now?.placed?.map((entry) => entry.id)).toEqual(["now-sticky", "now-git"])
     // Each entry carries the NODE it shows — situated, so the reader has the
     // item's mark and where it is defined, not just an id.
@@ -595,8 +613,8 @@ describe("placements", () => {
   test("the placements are not the node's own children", () => {
     // `children` is what hangs off it; `placed` is what it points at. A Now
     // section has no children at all.
-    expect(detail(at(), "now")?.children).toEqual([])
-    expect(detail(at(), "bugs")).not.toHaveProperty("placed")
+    expect(read(at(), "now")?.children).toEqual([])
+    expect(read(at(), "bugs")).not.toHaveProperty("placed")
   })
 
   test("a search never answers with a placement", () => {
@@ -617,9 +635,9 @@ describe("placements", () => {
  */
 describe("the parent a node sits under", () => {
   test("a child carries `parent`; a root does not", () => {
-    expect(detail(at(), "git")).toMatchObject({ parent: "bugs" })
-    expect(detail(at(), "bugs")).not.toHaveProperty("parent")
-    expect(detail(at(), "bugs")?.children.find((child) => child.id === "git"))
+    expect(read(at(), "git")).toMatchObject({ parent: "bugs" })
+    expect(read(at(), "bugs")).not.toHaveProperty("parent")
+    expect(read(at(), "bugs")?.children.find((child) => child.id === "git"))
       .toMatchObject({ parent: "bugs" })
   })
 
@@ -635,6 +653,272 @@ describe("the parent a node sits under", () => {
     expect(bugs).not.toHaveProperty("parent")
     expect(bugs.children.find((child) => child.id === "git"))
       .toMatchObject({ parent: "bugs" })
+  })
+})
+
+/**
+ * THE CALLER SHAPES THE ROWS — `fields`, on both reads.
+ *
+ * What this describe pins and what it does not: WHICH of the record an answer
+ * hands back when the caller names it, the refusal of a name outside the
+ * vocabulary, and the one thing `fields` never touches — the walk's own
+ * structure. The DESIGNS are in `@olai/format`'s `reading.ts` and this
+ * layer's `Wants`; what is pinned here row-for-row is the answer an agent is
+ * handed, because a field quietly dropped is exactly the case the request
+ * exists to close.
+ */
+describe("the caller shapes the rows", () => {
+  test("the vocabulary and the row's schema are one list, neither way", () => {
+    // The one second spelling a `satisfies` cannot close: `Projected`'s keys
+    // (what a row may carry) against PROJECTABLE (what a request may name),
+    // `id` excepted — it rides. The other legs of the closure — the refusal's
+    // sentence, the copy's per-field table — read the list itself; this is
+    // where the schema's spread of STAMPED + the record fields is made to
+    // answer to it.
+    expect(Object.keys(Projected.fields).filter((key) => key !== "id").sort())
+      .toEqual([...PROJECTABLE].sort())
+  })
+
+  /** A lane and its two steps: the FIRST is settled (its `done` is an
+   *  instant, the field a timings walk asks for and the one today's child
+   *  rows cannot say), the second under way, and one of them writes notes
+   *  and a property — every kind `fields` carries, in two rows. */
+  const TIMED = (): OutlineSet =>
+    setOf({
+      "steps.olai": [
+        `{"id":"lane","ord":"a0","title":"the lane"}`,
+        `{"id":"one","parent":"lane","ord":"a0","title":"first","done":"2026-08-29T09:12:00-04:00","desc":"the forensics","custom":{"took":"4m","agent":"claude-opus"}}`,
+        `{"id":"one-a","parent":"one","ord":"a0","title":"the wrinkle","todo":true}`,
+        `{"id":"two","parent":"lane","ord":"a1","title":"second","doing":true,"started":"2026-08-29T09:14:00-04:00"}`,
+      ].join("\n"),
+    })
+
+  const timed = () => readingOf(TIMED())
+
+  test("a child row carries EXACTLY what was named — each kind, nothing else", () => {
+    const lane = read(timed().derived, "lane", [
+      "title",
+      "status",
+      "done",
+      "custom.took",
+      "desc",
+      "started",
+    ])
+    // A MARK INSTANT (`done`) — the field this request was born for; the
+    // custom key asked alone comes back AS a map of one; the note rides
+    // whole. `status` is the derivative's word, beside it.
+    expect(lane?.children[0]).toEqual({
+      id: "one",
+      title: "first",
+      status: "done",
+      done: "2026-08-29T09:12:00-04:00",
+      desc: "the forensics",
+      custom: { took: "4m" },
+    })
+    // …and the row HOW the dial reads, which is the whole point: the
+    // situating — `file`, `line`, `path`, `parent` — is not named, so it is
+    // not there. `toEqual` rather than `toMatchObject`: the ABSENCE is the
+    // answer.
+    expect(Object.keys(lane?.children[0] ?? {}).sort()).toEqual([
+      "custom",
+      "desc",
+      "done",
+      "id",
+      "status",
+      "title",
+    ])
+    // The SECOND row carries this lane's OWN clock: `started`, the stamp
+    // `set_doing` wrote — and the asked-for names it does not hold stay
+    // ABSENT, exactly as they are on a full row.
+    expect(lane?.children[1]).toEqual({
+      id: "two",
+      title: "second",
+      status: "doing",
+      started: "2026-08-29T09:14:00-04:00",
+    })
+  })
+
+  test("its own node is answered in full — `fields` shapes the list, not the node", () => {
+    // The read is "one node in full": the lever on a full read's cost was
+    // never its own row. Pinning it as a fact: the note, the place, the
+    // stamps are all still there.
+    const lane = read(timed().derived, "lane", ["status"])
+    expect(lane).toMatchObject({ file: "steps.olai", line: 1, path: [], tags: [] })
+    expect(lane?.children[0]).toEqual({ id: "one", status: "done" })
+  })
+
+  test("the whole map, and one key of it, are two different asks", () => {
+    // `custom` is the whole held map — through `heldCustom` either way, so a
+    // key holding nothing is absent exactly as it is on the line on disk.
+    const whole = read(timed().derived, "lane", ["custom"])?.children[0]
+    expect(whole).toEqual({ id: "one", custom: { agent: "claude-opus", took: "4m" } })
+    const one = read(timed().derived, "lane", ["custom.agent"])?.children[0]
+    expect(one).toEqual({ id: "one", custom: { agent: "claude-opus" } })
+    // Asked for a key the node does not carry: absent, never an empty map —
+    // the same spelling of nothing the full rows use.
+    const absent = read(timed().derived, "lane", ["custom.pr"])?.children[0]
+    expect(absent).toEqual({ id: "one" })
+  })
+
+  test("an asked-for field is dropped from the DESCS as well — the walk is shape, not prose", () => {
+    // The note dials: `desc` named is the note whole, `withDesc` has nothing
+    // left to say — and the two together are their own refusal below.
+    const lane = read(timed().derived, "lane", ["desc"])
+    expect(lane?.children[0]).toEqual({ id: "one", desc: "the forensics" })
+  })
+
+  test("a walk's EVERY row is shaped — root too; the structure is the walk's own", () => {
+    const lane = nodeOf(
+      walked(timed(), { id: "lane", fields: ["title", "status", "done"] }),
+    )
+    expect(lane).toEqual({
+      id: "lane",
+      title: "the lane",
+      children: [
+        {
+          id: "one",
+          title: "first",
+          status: "done",
+          done: "2026-08-29T09:12:00-04:00",
+          children: [{ id: "one-a", title: "the wrinkle", status: "todo", children: [] }],
+        },
+        { id: "two", title: "second", status: "doing", children: [] },
+      ],
+    })
+  })
+
+  test("`depth` cuts the SHAPED rows where it claims to", () => {
+    // One level: the children answer, `one-a` under them does not — and the
+    // cut is SAID, on the very row that carries the caller's fields. The
+    // default is the floor's number's own; the claim is that `depth` on a
+    // shaped walk is the same dial.
+    const one = nodeOf(
+      walked(timed(), { id: "lane", depth: 1, fields: ["title"] }),
+    )
+    expect(one.children).toEqual([
+      { id: "one", title: "first", children: [], truncated: true },
+      { id: "two", title: "second", children: [] },
+    ])
+    // One more level down, and the wrinkle arrives — named and shaped, at
+    // whichever distance the caller pays for.
+    const two = nodeOf(
+      walked(timed(), { id: "lane", depth: 2, fields: ["title", "status"] }),
+    )
+    expect(two.children[0]?.children).toEqual([
+      { id: "one-a", title: "the wrinkle", status: "todo", children: [] },
+    ])
+  })
+
+  test("a whole OUTLINE is shaped too, one call per ask", () => {
+    const walkedOutline = outlineOf(
+      walked(timed(), { file: "steps.olai", fields: ["status"] }),
+    )
+    expect(walkedOutline.roots).toEqual([
+      {
+        id: "lane",
+        children: [
+          {
+            id: "one",
+            status: "done",
+            children: [{ id: "one-a", status: "todo", children: [] }],
+          },
+          { id: "two", status: "doing", children: [] },
+        ],
+      },
+    ])
+  })
+
+  test("an id alone is a legal ask — the answer is then the ids", () => {
+    // Naming NOTHING is not an error: the row is the id, and only that.
+    expect(nodeOf(walked(timed(), { id: "lane", depth: 1, fields: [] })).children)
+      .toEqual([{ id: "one", children: [], truncated: true }, { id: "two", children: [] }])
+    // …and asking for the id ITSELF is no-op rather than refused: it rides
+    // every row already, and a request listing only it is a request for the
+    // ids.
+    expect(nodeOf(walked(timed(), { id: "lane", depth: 1, fields: ["id"] })).children)
+      .toEqual([{ id: "one", children: [], truncated: true }, { id: "two", children: [] }])
+    expect(nodeOf(walked(timed(), { id: "lane", depth: 1, fields: ["title", "id"] })).children)
+      .toEqual([{ id: "one", title: "first", children: [], truncated: true }, { id: "two", title: "second", children: [] }])
+  })
+
+  test("an unknown name is REFUSED, naming the legal ones — never silently dropped", () => {
+    const refusal = refusedWalk(timed(), { id: "lane", fields: ["florp"] })
+    expect(refusal._tag).toBe("UsageFailure")
+    expect(refusal.message).toContain("`florp` is not a field `fields` names")
+    // EVERY legal name is in the sentence: the refusal is where one learns
+    // them, and the list it names is the vocabulary's own — derived HERE,
+    // since a retyped list (the first pass's) can only ever prove that two
+    // spellings once agreed.
+    for (const legal of PROJECTABLE) {
+      expect(refusal.message).toContain(`\`${legal}\``)
+    }
+    expect(refusal.message).toContain("`custom.<key>`")
+    // The same words at the OTHER read, since the question is one.
+    const refused = refusedRead(timed().derived, "lane", ["florp"])
+    expect(refused._tag).toBe("UsageFailure")
+    expect(refused.message).toBe(refusal.message)
+    // The id beside it is never REACHED: the request is refused before the
+    // set is consulted — a missing id with a bad field is refused, not
+    // answered {missing}.
+    expect(refusedRead(timed().derived, "gone", ["florp"])._tag).toBe("UsageFailure")
+  })
+
+  test("`fields` + `withDesc` is one dial spelled twice — refused, saying which", () => {
+    for (const [fields, withDesc] of [
+      [["desc"], false],
+      [["title"], true],
+    ] as const) {
+      const refusal = refusedWalk(timed(), { id: "lane", fields, withDesc })
+      expect(refusal._tag).toBe("UsageFailure")
+      expect(refusal.message).toContain("`withDesc`")
+      expect(refusal.message).toContain("`desc`")
+    }
+    // …and without `fields`, the lean read is untouched: the dial is the
+    // projection's own.
+    expect(nodeOf(walked(timed(), { id: "lane", depth: 1, withDesc: false })).children[0])
+      .not.toHaveProperty("desc")
+  })
+
+  test("absent, the dial answers today's rows — the situating and all", () => {
+    // THE NO-CHANGE RULE, pinned as a case of its own rather than left to
+    // every other test in the file: name nothing, and the full situated
+    // shape of today is what comes back, place, ancestry, edges and all.
+    const lane = nodeOf(walked(timed(), { id: "lane", depth: 1 }))
+    expect(lane.children[0]).toMatchObject({
+      id: "one",
+      file: "steps.olai",
+      line: 2,
+      path: ["the lane"],
+      parent: "lane",
+      status: "done",
+      custom: { agent: "claude-opus", took: "4m" },
+      desc: "the forensics",
+    })
+    // …and the KEY SET is pinned against the schemas, not against a third
+    // hand-typed list: a default walk row is a {@link Found} plus the four
+    // the walk itself adds (`date`, the live note, `children`, `truncated`),
+    // and nothing FORWARD — the day a walk row carries a key that is
+    // neither, the row definition here has drifted in someone's darkness.
+    const checkKeys = (row: object) => {
+      for (const key of Object.keys(row)) {
+        expect(
+          key in Found.fields || key === "date" || key === "desc" ||
+            key === "children" || key === "truncated",
+        ).toEqual(true)
+      }
+    }
+    checkKeys(lane)
+    for (const child of lane.children) {
+      checkKeys(child)
+      for (const grand of child.children) checkKeys(grand)
+    }
+    expect(read(timed().derived, "lane")?.children[0]).toMatchObject({
+      id: "one",
+      file: "steps.olai",
+      line: 2,
+      path: ["the lane"],
+      parent: "lane",
+    })
   })
 })
 
@@ -901,14 +1185,14 @@ describe("the tags a node carries", () => {
   // of them a node carries — and this is the shape an agent reads off
   // `read_node`, which nothing on the wire side would notice losing.
   test("a node read reports its tags as they are written", () => {
-    expect(detail(derivedOf(TAGGED()), "call")?.tags).toEqual([
+    expect(read(derivedOf(TAGGED()), "call")?.tags).toEqual([
       "@alice",
       "#alice/onboarding",
     ])
   })
 
   test("a node with none reports an empty list rather than nothing", () => {
-    expect(detail(derivedOf(TAGGED()), "plain")?.tags).toEqual([])
+    expect(read(derivedOf(TAGGED()), "plain")?.tags).toEqual([])
   })
 
   // The index's own half of the same contract: a tag is searchable BARE and as

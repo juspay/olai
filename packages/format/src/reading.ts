@@ -76,7 +76,7 @@ import { Schema } from "effect"
 import { Way } from "./backlinks.ts"
 import { Custom } from "./custom.ts"
 import { Progress } from "./derive.ts"
-import { RegularNode, Site, STAMPED, Status } from "./node.ts"
+import { MARKS, RegularNode, Site, STAMPED, Status } from "./node.ts"
 
 /**
  * One node, SITUATED — the shape every read of the set answers with.
@@ -399,12 +399,156 @@ export const DocumentBody = Schema.Struct({
 })
 export type DocumentBody = typeof DocumentBody.Type
 
+// ── the row a caller shapes ────────────────────────────────────────────
+
+/**
+ * WHAT `fields` MAY NAME — the vocabulary of the caller-shaped row.
+ *
+ * Every name a ROW of any full answer can carry the record's own way: its
+ * `title`, its parent (`parent`), the edges it writes (`see`, `after`), its
+ * schedule (`date`, `repeat`), its note (`desc`), the four marks, the three
+ * instants the ops layer stamps rather than the record (`started`, `created`,
+ * `changed`), and the derived `status` beside the marks it reads. The one
+ * open name is the map: `custom` for all of it, and `custom.<key>` for one
+ * property of it. `took` is NOT one: it is the read's own annotation derived
+ * from `started` and the settling mark, and the two instants it is derived
+ * from are already nameable, so asking for the span's walls is the way to
+ * the span.
+ *
+ * ONE list, because the refusal of an unknown name and the sentence the two
+ * requests advertise are both written from it — the `MARKS` arrangement one
+ * file over: a vocabulary spelled in two places drifts, and this one is what
+ * an agent is TOLD. `MARKS` is spread, not re-spelled: the day a fifth mark
+ * lands, the answer's rows can already carry it, which is the closure
+ * `STAMPED`'s `satisfies` buys on disk.
+ *
+ * THAT CLOSURE, the whole way round, since the second review made it the
+ * ask: the refusal sentence and the descriptions read this list THROUGH
+ * {@link LEGAL_FIELDS}; membership is {@link isProjectable} and no `as`
+ * speaks for it; the layer that copies the fields onto a row holds a
+ * {@code Record<Projectable, …>} the compiler asks one entry per name of, so
+ * a field added HERE is a missing key THERE the moment it exists; and the
+ * row schema below, the list's one remaining second spelling, is pinned by a
+ * test in `@olai/ops` that fails the day the two spellings disagree.
+ *
+ * What is NOT nameable, and why. `id` rides every row already; `children`,
+ * `truncated` and `path` are the walk's or the derivation's, not the record's;
+ * `doc` and `blocks` are record fields the read vocabulary has never answered
+ * — `blocks` is sugar that `after` answers for, and a capture-time document
+ * attachment is `read_document`'s subject. And `file`/`line` were always a
+ * row's PLACE rather than one of its facts: a caller shaping a lean read drops
+ * the place first, which is the whole point of the dial.
+ */
+export const PROJECTABLE = [
+  "title",
+  "parent",
+  "status",
+  ...MARKS,
+  "started",
+  "date",
+  "repeat",
+  "desc",
+  "created",
+  "changed",
+  "see",
+  "after",
+  "custom",
+] as const
+export type Projectable = (typeof PROJECTABLE)[number]
+
+/** THE one membership answer — the {@link PROJECTABLE} list read as a
+ *  narrowing, so a caller learns a string is nameable and the compiler
+ *  learns it too in the same breath, and neither `as` nor a second list
+ *  ever speaks for it. */
+export const isProjectable = (name: string): name is Projectable =>
+  (PROJECTABLE as ReadonlyArray<string>).includes(name)
+
+/**
+ * The VOCABULARY AS ONE SENTENCE — the backticked enumeration with the one
+ * phrasing for the property half, composed exactly here and read everywhere
+ * the vocabulary is TOLD: the refusal of a name outside it, the {@link
+ * FieldsRequest} parameter's own description, and the two MCP descriptions
+ * that teach it. The `"title", …, "cancelled"` spelling of the same list in
+ * four voices — refusal, schema prose, two tool descriptions — is the drift
+ * the second review of `read-rows-shaped` caught mid-PR, and this is the
+ * spelling those four now read; the enumeration is {@link PROJECTABLE}'s own
+ * order, so a name added to the list joins every sentence about it.
+ */
+export const LEGAL_FIELDS =
+  PROJECTABLE.map((name) => `\`${name}\``).join(", ") +
+  ", and one property spelled as `custom.<key>`"
+
+/**
+ * The row itself: `id`, and NOTHING ELSE guaranteed — the rest is what was
+ * named, or nothing.
+ *
+ * `Found`'s rim with every required field made optional, which is exactly the
+ * claim: a caller that names three fields is handed id + the three, and a
+ * caller that names none is handed the ids. The record's own fields are spread
+ * or referenced rather than re-spelled, for {@link Detail}'s reason: what
+ * these carry is the file's value handed back verbatim, so a second spelling
+ * here would be free to stop meaning what the file means.
+ *
+ * NOT a narrowing of {@link Found} by Pick — the full row's `file`, `line`
+ * and `path` have no business on a row poised to drop them, and a Pick would
+ * have to throw those away key by key.
+ */
+export const Projected = Schema.Struct({
+  id: Schema.String,
+  title: Schema.optionalKey(RegularNode.fields.title),
+  status: Schema.optionalKey(Status),
+  ...STAMPED,
+  /** When the work was first STARTED — the record's own instant, verbatim,
+   *  exactly as {@link Detail} carries it: the span a `doing` row's live
+   *  tick runs from and the field `tookOf` closes. */
+  started: RegularNode.fields.started,
+  date: RegularNode.fields.date,
+  repeat: RegularNode.fields.repeat,
+  desc: RegularNode.fields.desc,
+  created: RegularNode.fields.created,
+  changed: RegularNode.fields.changed,
+  parent: RegularNode.fields.parent,
+  see: RegularNode.fields.see,
+  after: RegularNode.fields.after,
+  custom: RegularNode.fields.custom,
+})
+export type Projected = typeof Projected.Type
+
+/**
+ * The `fields` request field itself, in the one description both verbs
+ * advertise — the vocabulary above, said as the row says it, with the two
+ * rules about it that are not a field: `id` rides regardless, and absent the
+ * list is today's full row.
+ */
+const FieldsRequest = Schema.optionalKey(
+  Schema.Array(Schema.String).annotate({
+    description:
+      "Name what each row carries: " +
+      LEGAL_FIELDS +
+      ". The two settles carry their instants, and `started` is when the work " +
+      "first went doing. The id rides regardless, and an unknown name is " +
+      "refused with this same list. Absent: the full row this read answers " +
+      "today.",
+  }),
+)
+
 // ── one node ───────────────────────────────────────────────────────────
 
-/** Asking for one node. The whole request: a read names an id, and everything
- *  else about the answer is the set's to decide. */
+/**
+ * Asking for one node: an id, and — with `fields` — the shape of its
+ * children.
+ *
+ * THE CHILD ROWS are what `fields` shapes, not the node: a `read_node` is "one
+ * node in full" (see {@link Detail}), and the lever on a full read's cost was
+ * never its own row, it is the list. The child rows with no `fields` given
+ * are the full situated rows of today; with one they are id + what was named
+ * — which is how a timings walk answers each step's settle instant
+ * (`fields: ["status", "done"]`) without carrying the situating or the
+ * prose.
+ */
 export const NodeRequest = Schema.Struct({
   id: Schema.String.annotate({ description: "The node's `id`." }),
+  fields: FieldsRequest,
 })
 export type NodeRequest = typeof NodeRequest.Type
 
@@ -529,7 +673,22 @@ export const Detail = Schema.Struct({
    *  settling mark holding the instants-less `true` of work finished
    *  before olai stamped anything. */
   took: Schema.optionalKey(Schema.Int),
-  children: Schema.Array(Found),
+  /**
+   * The node's own children, in sibling order — {@link Found} rows of today,
+   * or {@link Projected} ones when the request named `fields`.
+   *
+   * A UNION and not two request arms, for {@link SubtreeAnswer}'s reason made
+   * per-row: it is the WALK that is asked to shape rows, not the answer that
+   * changes shape wholesale — every caller holding a row narrows it by which
+   * fields it carries, and a full row answers the first arm exactly as it
+   * always did.
+   *
+   * FOUND FIRST, and the order is load-bearing rather than a habit: the
+   * floor's encoder matches the first arm that succeeds, and a projected row
+   * (optional everything) sits inside the full arm's shape — the day those
+   * two trade places, every walk answer becomes the lean kind.
+   */
+  children: Schema.Array(Schema.Union([Found, Projected])),
   /** Everywhere else this node is drawn — the mirrors that show it, chains
    *  included. Absent when nothing does, which is nearly every node.
    *
@@ -698,9 +857,16 @@ export const SubtreeRequest = Schema.Struct({
   withDesc: Schema.optionalKey(
     Schema.Boolean.annotate({
       description:
-        "Carry each row's `desc` — its note, whole. ON by default: a targeted read usually wants the note. `false` is the lean read for a table of contents — ids, titles, marks, props, structure only. Depth bounds levels, not notes; notes dominate the cost of a walk. Per-node `truncated` is unchanged.",
+        "Carry each row's `desc` — its note, whole. ON by default: a targeted read usually wants the note. `false` is the lean read for a table of contents — ids, titles, marks, props, structure only. Depth bounds levels, not notes; notes dominate the cost of a walk. Per-node `truncated` is unchanged. It is the DEFAULT projection's note dial: with `fields` given the rows are exactly what was named and there is nothing left for it to turn — naming both is refused.",
     }),
   ),
+  /**
+   * The same `fields` as a node read's, but here every row is the read:
+   * there is no "one node in full" beside a walk, so the root is shaped like
+   * any other row. `children` and `truncated` are the walk's own structure,
+   * not fields — they ride regardless.
+   */
+  fields: FieldsRequest,
 })
 export type SubtreeRequest = typeof SubtreeRequest.Type
 
@@ -733,6 +899,42 @@ export const Subtree = Schema.Struct({
   children: Schema.Array(Schema.suspend((): Schema.Codec<Subtree> => Subtree)),
   truncated: Schema.optionalKey(Schema.Literal(true)),
 })
+
+/**
+ * The walk's rows when the request named `fields` — {@link Projected}, with
+ * the walk's own structure carried verbatim.
+ *
+ * The interface-and-suspend spelling is {@link Subtree}'s, for its reason:
+ * this is an answer, advertised to nobody, so the recursion is honest.
+ */
+export interface ProjectedSubtree extends Projected {
+  readonly children: ReadonlyArray<ProjectedSubtree>
+  /** True when the walk stopped at the depth it was given and this node has
+   *  children it did not descend into — the full walk's own flag, carried
+   *  unchanged: it is shape, not a record field, so `fields` has nothing to
+   *  say about it. */
+  readonly truncated?: true
+}
+
+export const ProjectedSubtree = Schema.Struct({
+  ...Projected.fields,
+  children: Schema.Array(
+    Schema.suspend((): Schema.Codec<ProjectedSubtree> => ProjectedSubtree),
+  ),
+  truncated: Schema.optionalKey(Schema.Literal(true)),
+})
+
+/**
+ * A whole OUTLINE, walked the caller's way — {@link OutlineRoots}' second
+ * arm, with each row {@link Projected}: one request `fields` shapes every
+ * root's walk the same, so the roots are not a per-row union the way a node
+ * read's `children` is.
+ */
+export const ProjectedRoots = Schema.Struct({
+  file: Schema.String,
+  roots: Schema.Array(ProjectedSubtree),
+})
+export type ProjectedRoots = typeof ProjectedRoots.Type
 
 // ── an id that is not there ────────────────────────────────────────────
 
@@ -790,10 +992,22 @@ export const OutlineRoots = Schema.Struct({
 export type OutlineRoots = typeof OutlineRoots.Type
 
 /** What `read_subtree` says: the node, the whole outline, or the id the set
- *  does not hold. A `file` that is not one is REFUSED rather than answered —
- *  a path is not an id, and the useful answer to a typo is the near miss, which
- *  is the split {@link DocumentBody} argues one read over. */
-export const SubtreeAnswer = Schema.Union([Subtree, OutlineRoots, Missing])
+ *  does not hold — each of the first two full or projected. A `file` that is
+ *  not one is REFUSED rather than answered — a path is not an id, and the
+ *  useful answer to a typo is the near miss, which is the split
+ *  {@link DocumentBody} argues one read over.
+ *
+ *  THE FULL ARMS FIRST, for the same reason {@link Detail.children} puts
+ *  `Found` ahead of `Projected`: a projected row is a subset of the full
+ *  arm's shape, and the encoder takes the first arm that fits — the order
+ *  IS the reading, and it is not decoration. */
+export const SubtreeAnswer = Schema.Union([
+  Subtree,
+  OutlineRoots,
+  ProjectedSubtree,
+  ProjectedRoots,
+  Missing,
+])
 export type SubtreeAnswer = typeof SubtreeAnswer.Type
 
 // ── which ids the set declares ─────────────────────────────────────────

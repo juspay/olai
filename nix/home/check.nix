@@ -101,11 +101,10 @@ let
     assert lib.hasInfix "/home/alice/outlines" execPlain;
     assert lib.hasInfix "--port 7714" execPlain;
     assert lib.hasInfix "--host 127.0.0.1" execPlain;
-    # NO GIT FLAG when neither option is set, and that is the whole default of
-    # `vault-level-settings` rather than a saving: giving `--commit` at all pins
-    # that preference row read-only in every browser, so a module that helpfully
-    # passed the mode olai would have defaulted to anyway would freeze a control
-    # on every single-user deployment.
+    # NO GIT FLAG when neither option is set, and that is the whole default
+    # rather than a saving: giving `--commit` at all names that flag under the
+    # row, so a module that helpfully passed the mode olai would have defaulted
+    # to anyway would claim a flag nobody typed.
     assert !(lib.hasInfix "--commit" execPlain);
     assert !(lib.hasInfix "--push" execPlain);
     assert linux.config.home.packages == [ fakeOlai ];

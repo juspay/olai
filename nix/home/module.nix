@@ -7,13 +7,11 @@ let
 
   # `--commit=X` / `--push=X` only where a value was actually chosen. `null` is
   # the default on both, and it is not the same as passing the mode olai would
-  # have defaulted to: giving the flag PINS that preference row read-only in
-  # every browser looking at this instance, and saying nothing leaves the rows
-  # live — they set this same server's policy either way, and what a reader
-  # chose is remembered outside the vault (docs/running.md,
-  # `git-policy-server-side`). A module that helpfully passed `--commit=manual`
-  # because that is the default would freeze a control on every single-user
-  # deployment.
+  # have defaulted to: giving the flag names it under the row, and saying
+  # nothing applies the built-in default. Both rows are always read-only — the
+  # instance's policy, the same in every browser. A module that helpfully
+  # passed `--commit=manual` because that is the default would claim a flag
+  # nobody typed.
   gitArgs = lib.optionals (cfg.commit != null) [ "--commit" cfg.commit ]
     ++ lib.optionals (cfg.push != null) [ "--push" cfg.push ];
 
@@ -64,16 +62,13 @@ in
         When olai git-commits writes, as this instance's POLICY.
 
         Committing is a fact about the DIRECTORY, so the server holds it and
-        every browser draws the same answer. null (the default) passes no flag:
-        the server commits manually until somebody moves the "Git commit" row
-        in the preferences panel, and what they chose is remembered outside the
-        vault (under $XDG_STATE_HOME) — which is what a single-user deployment
-        wants.
+        every browser draws the same answer, always read-only. null (the
+        default) passes no flag: the built-in default applies (`manual` — a
+        write waits for the Commit button or the agent's commit tool).
 
-        Setting it PINS the row. The server tells every browser which flag it
-        was started with, and they draw that row read-only, naming it, so no
-        reader can change this instance's policy from a preferences panel.
-        Never hidden and never overridable from a browser.
+        Setting it names the flag under the row. The server tells every browser
+        which flag it was started with. Never hidden and never overridable from
+        a browser. There is no runtime door.
 
         manual — a write lands on disk and waits for the Commit button or the
         agent's commit tool. auto — everything waiting records itself once
@@ -89,9 +84,9 @@ in
       example = "off";
       description = ''
         Whether a settled commit is pushed to the branch's upstream, as this
-        instance's policy — null (the default) leaves the "Git push" row live
-        for whoever is looking, and a value pins it read-only, exactly as
-        `commit` above does.
+        instance's policy — null (the default) applies the built-in default
+        (`off`), and a value names the flag under the row, exactly as `commit`
+        above does. The row is always read-only.
 
         auto follows EVERY commit olai makes in this directory: the Commit
         button's, an agent's commit tool's, and the quiet window's own. So

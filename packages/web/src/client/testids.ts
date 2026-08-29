@@ -596,22 +596,20 @@ export const TESTID = {
    *  in is worse than no hint at all. */
   prefsHint: "prefs-hint",
   /** One segment of a two-or-three-way choice. `data-value` is what it picks,
-   *  `aria-pressed` whether it is the one in force, `aria-disabled` whether the
-   *  row it is in was pinned by the server. */
+   *  `aria-pressed` whether it is the one in force, `aria-disabled` whether
+   *  the strip is frozen. The git rows always are. */
   prefsChoice: "prefs-choice",
-  /** WHO set a row, on the rows the server pinned — the flag named, and that a
-   *  browser cannot change it. Absent on every row this browser owns, which is
-   *  every row on an unpinned server. */
+  /** WHO set a row, on the rows that are the instance's — a given flag, or the
+   *  built-in default, and that a browser cannot change it. Absent on every
+   *  row this browser owns. */
   prefsSetBy: "prefs-set-by",
-  /** Start Auto-commit again after git refused something, on a Git commit row
-   *  the server has frozen. The off-and-on-again gesture is the same thing on a
-   *  row that is still this browser's; a pinned row has no toggle to flip, and
-   *  a loop that stopped for good in silence is the one failure Auto-commit may
-   *  not have. */
+  /** Start Auto-commit again after git refused something, on the Git commit
+   *  row. Drawn only while the loop is actually stopped — Resume is the one
+   *  remaining git gesture on this panel. */
   prefsResume: "prefs-resume",
-  /** What the server would not take from one of the two git rows — a pinned
-   *  half refusing by name, or a call the wire dropped. Absent while nothing
-   *  has been refused, which is what makes its PRESENCE the fact. */
+  /** What the server would not take from Resume — a dropped socket or a usage
+   *  refusal. Absent while nothing has been refused, which is what makes its
+   *  PRESENCE the fact. */
   prefsGitRefused: "prefs-git-refused",
   /** Ask this browser for permission to draw system notifications, on the
    *  Alerts row. Drawn only while alerts are on and the browser has not
@@ -1032,8 +1030,8 @@ export const TESTID = {
    *  the git cell, so it is the same words in every tab and after a reload. */
   commitRefused: "commit-refused",
   /** ... and what the SERVER would not take from this tab: a call the wire
-   *  dropped, or a usage refusal — which is what a pinned policy row answers a
-   *  `setPolicy` with. About this press rather than about the directory. */
+   *  dropped, or a usage refusal. About this press rather than about the
+   *  directory. */
   commitCallRefused: "commit-call-refused",
   /** Why the quiet-window loop stopped, when it has — and the one gesture that
    *  resumes it. Absent while the loop is running, and absent for a directory

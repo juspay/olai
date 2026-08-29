@@ -40,4 +40,9 @@ serve:
     export OLAI_ACP_AGENT="${AGENT:-}"
     export OLAI_ACP_PI="${PI_AGENT:-}"
     export OLAI_AGENT_PATH="${OLAI_AGENT_PATH:-}"
-    exec {{ nix_shell }} bun packages/server/src/main.ts web "$DATA" --port "$PORT"
+    extra=()
+    # HOME is .saatchi/home. Seed flags there so a flags instance and a
+    # bare instance are two runs, not a recipe that decides.
+    [[ -f "$HOME/olai-commit" ]] && extra+=(--commit "$(cat "$HOME/olai-commit")")
+    [[ -f "$HOME/olai-push" ]] && extra+=(--push "$(cat "$HOME/olai-push")")
+    exec {{ nix_shell }} bun packages/server/src/main.ts web "$DATA" --port "$PORT" "${extra[@]}"
