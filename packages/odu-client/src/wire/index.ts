@@ -191,18 +191,11 @@ export const CiRun = Schema.Struct({
   /** The lane roster as `platform=host` (or `platform=…pool` while a lease is
    *  still claiming) — what the matrix names its columns with. */
   lanes: Schema.Array(Schema.String),
-  /** `Date.now()` the run published as its start; `null` before it publishes
-   *  a header. The elapsed figure every face shows counts from this ONE value
-   *  rather than each deriving its own. */
-  startedAt: Schema.NullOr(Schema.Number),
-  /** When olai saw the socket go, `Date.now()` — `null` while the run is
-   *  live. What lets a face say how stale a settled verdict is without olai
-   *  claiming to know when the coordinator itself finished. */
-  wentAt: Schema.NullOr(Schema.Number),
-  /** Node ids in the run's own scheduling order — the row order a matrix
-   *  paints, so olai never invents one. */
-  order: Schema.Array(Schema.String),
-  /** The nodes themselves, IN `order`. */
+  /** The nodes, in the run's OWN scheduling order — so olai never invents
+   *  one. The order is the ARRAY's and not a second list beside it: the
+   *  projection walks odu's `order` to build this, so shipping that list too
+   *  would be the same sequence spelled twice with nothing holding the two
+   *  spellings together. */
   cells: Schema.Array(RunCell),
   tally: RunTally,
   /**
@@ -246,11 +239,10 @@ export const sameCi = (a: CiRuns, b: CiRuns): boolean =>
 const sameRun = (a: CiRun, b: CiRun): boolean =>
   a.id === b.id && a.at === b.at && a.live === b.live && a.name === b.name &&
   a.sha7 === b.sha7 && a.dirty === b.dirty && a.seq === b.seq &&
-  a.phase === b.phase && a.startedAt === b.startedAt && a.wentAt === b.wentAt &&
-  a.verdict === b.verdict &&
+  a.phase === b.phase && a.verdict === b.verdict &&
   a.tally.total === b.tally.total && a.tally.settled === b.tally.settled &&
   a.tally.ok === b.tally.ok && a.tally.red === b.tally.red &&
-  sameWords(a.lanes, b.lanes) && sameWords(a.order, b.order) &&
+  sameWords(a.lanes, b.lanes) &&
   a.cells.length === b.cells.length &&
   a.cells.every((cell, at) => sameCell(cell, b.cells[at] as RunCell))
 

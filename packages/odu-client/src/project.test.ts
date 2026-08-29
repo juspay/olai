@@ -142,11 +142,9 @@ test("the phase and the lane roster are odu's folds, and a claiming lane says so
   expect(run.lanes).toEqual(["x86_64-linux=kolu-ci-9", "aarch64-darwin=…petit/grand"])
 })
 
-test("a header nobody published is `unstarted`, and its `0` is not a time", () => {
-  // Carrying odu's zero as an instant would make a chip tick from the epoch.
+test("a header nobody published is `unstarted`", () => {
   const run = runOf(SEED, state([]), EMPTY_HEADER)
   expect(run.phase).toBe("unstarted")
-  expect(run.startedAt).toBeNull()
 })
 
 test("a node named by `order` that the record does not carry is skipped, not drawn hollow", () => {
@@ -159,15 +157,14 @@ test("a node named by `order` that the record does not carry is skipped, not dra
   expect(run.tally.total).toBe(1)
 })
 
-test("a run GONE is the last reading kept, stamped — never a deletion and never a guess", () => {
+test("a run GONE is the last reading kept — never a deletion and never a guess", () => {
   const live = runOf(
     SEED,
     state([node("a@p", { status: "ok" }), node("b@p", { status: "running", startedAt: 5 })]),
     header(),
   )
-  const gone = wentOf(live, 9_999)
+  const gone = wentOf(live)
   expect(gone.live).toBe(false)
-  expect(gone.wentAt).toBe(9_999)
   // A coordinator that died mid-run decided nothing. Inventing `red` for it
   // would report an infrastructure death as a test failure — the very
   // classification odu keeps a separate status for.

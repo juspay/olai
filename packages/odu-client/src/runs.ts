@@ -105,9 +105,6 @@ export interface WatchDeps {
    *  checkout left behind). Rare by construction, and the one thing here that
    *  a person can act on. */
   readonly warn: (line: string) => void
-  /** The wall clock, in ms — a parameter for `link.ts`'s reason: a test that
-   *  asserts when a run went needs a clock it owns. */
-  readonly now: () => number
   /** Where checkouts live (`./resolve.ts`'s `reposRootIn`, answered once at
    *  the composition root). */
   readonly reposRoot: string
@@ -259,12 +256,11 @@ export const makeWatch = (deps: WatchDeps): Watch => {
         Effect.promise(() => dialed.close()),
       )
       // THE ROW SURVIVES THE SOCKET. Whatever the last frame supported is what
-      // a reader sees now, with the instant olai noticed stamped on it — never
-      // deleted, because "there was a run and it came out green" is the thing
-      // a settled lane most wants to say.
+      // a reader sees now — never deleted, because "there was a run and it
+      // came out green" is the thing a settled lane most wants to say.
       const last = rows.get(lane.id)
       if (last !== undefined) {
-        rows.set(lane.id, wentOf(last, deps.now()))
+        rows.set(lane.id, wentOf(last))
         publish()
       }
     }).pipe(

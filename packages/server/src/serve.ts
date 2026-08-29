@@ -217,7 +217,7 @@ export const serve = (options: ServeOptions) =>
       // machine's checkouts do not sit beside its vault. Both are read HERE,
       // once, because a composition root is where a process reaches for the
       // real environment (`@olai/odu-client`'s `resolve.ts` argues the rule).
-      odu: { env: process.env, served: root, now: () => Date.now() },
+      odu: { env: process.env, served: root },
     })
     publish = wired.publish
 

@@ -99,15 +99,14 @@ export interface OduDeps<N> {
    * have one (see the header).
    *
    * `env` and `served` are what the repos root is decided from
-   * (`./resolve.ts`'s `reposRootIn`) and `now` is the clock a settled run is
-   * stamped with — a test that asserts either needs to own it, and a
-   * composition root is where a process reaches for the real one.
+   * (`./resolve.ts`'s `reposRootIn`) — a test that asserts the resolution
+   * needs to own them, and a composition root is where a process reaches for
+   * the real environment.
    */
   readonly options: {
     readonly env: Record<string, string | undefined>
     /** The directory this server SERVES — the vault. */
     readonly served: string
-    readonly now: () => number
     readonly dial?: WatchDeps["dial"]
   } | null
   /** THE VAULT WALK, injected. See above. */
@@ -201,12 +200,11 @@ export const oduHalf = <N,>(deps: OduDeps<N>): OduHalf<N> => {
     }
   }
 
-  const { env, served, now, dial } = deps.options
+  const { env, served, dial } = deps.options
   const watch: Watch = makeWatch({
     publish: (runs) => cell?.set({ runs }),
     say: deps.say,
     warn: deps.warn,
-    now,
     reposRoot: reposRootIn(env, served),
     dial,
   })

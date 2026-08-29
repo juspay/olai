@@ -38,9 +38,6 @@ const run = (over: Partial<CiRun> = {}): CiRun => ({
   seq: 2,
   phase: "lanes",
   lanes: ["x86_64-linux=kolu-ci-9"],
-  startedAt: 1_000,
-  wentAt: null,
-  order: [],
   cells: [],
   tally: { total: 0, settled: 0, ok: 0, red: 0 },
   verdict: null,
@@ -121,7 +118,6 @@ describe("a run whose socket is gone", () => {
     const said = wordsFor(
       run({
         live: false,
-        wentAt: 9_000,
         cells: [cell({ id: "a@p", status: "ok" })],
         tally: { total: 10, settled: 10, ok: 10, red: 0 },
         verdict: "ok",
@@ -138,7 +134,6 @@ describe("a run whose socket is gone", () => {
     const said = wordsFor(
       run({
         live: false,
-        wentAt: 9_000,
         cells: [cell({ id: "a@p", status: "ok" })],
         tally: { total: 4, settled: 1, ok: 1, red: 0 },
       }),
@@ -152,7 +147,7 @@ describe("a run whose socket is gone", () => {
     // The plan's "or nothing": there is no verdict and no progress to report,
     // so the honest drawing is no chip and the lane's line is what it was.
     expect(
-      wordsFor(run({ live: false, wentAt: 9_000, tally: { total: 4, settled: 0, ok: 0, red: 0 } }), 0),
+      wordsFor(run({ live: false, tally: { total: 4, settled: 0, ok: 0, red: 0 } }), 0),
     ).toBeUndefined()
   })
 })

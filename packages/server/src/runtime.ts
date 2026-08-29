@@ -243,7 +243,6 @@ export interface Wiring {
   readonly odu: {
     readonly env: Record<string, string | undefined>
     readonly served: string
-    readonly now: () => number
     /** The dial, injectable for `Dial`'s reason one field up: a fake
      *  coordinator on a real unix socket is how the watch is exercised
      *  without a CI run on the machine running the suite. */

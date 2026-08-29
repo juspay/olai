@@ -152,11 +152,6 @@ export const runOf = (
     seq: state.seq ?? null,
     phase: runPhase(header),
     lanes: header.lanes.map(laneOf),
-    // `0` is odu's "no header published yet" and is not a time — carrying it
-    // as one would make a chip tick from the epoch.
-    startedAt: header.startedAt === 0 ? null : header.startedAt,
-    wentAt: null,
-    order: [...state.order],
     cells,
     tally,
     verdict: verdictOf(tally),
@@ -166,15 +161,20 @@ export const runOf = (
 /**
  * THE SAME ROW ONCE THE SOCKET IS GONE — the last verdict, kept.
  *
- * Not a re-read of anything: it is the final projection with `live` turned off
- * and the instant olai noticed stamped on. A run whose last frame still had
- * nodes owed keeps a `null` verdict, and that is the honest answer — a
- * coordinator that died mid-run did not decide anything, and inventing `red`
- * for it would report an infrastructure death as a test failure, which is
- * precisely the classification odu keeps a separate status for.
+ * Not a re-read of anything: it is the final projection with `live` turned
+ * off. A run whose last frame still had nodes owed keeps a `null` verdict, and
+ * that is the honest answer — a coordinator that died mid-run did not decide
+ * anything, and inventing `red` for it would report an infrastructure death as
+ * a test failure, which is precisely the classification odu keeps a separate
+ * status for.
+ *
+ * IT TAKES NO CLOCK, and it used to. The row carried the instant olai noticed
+ * the socket go, and no face ever drew it — the chip and the matrix both say
+ * "the socket is gone" in words. A stamp nothing reads is a wire field with no
+ * reader (this module's own rule about `posting` and `nodeLog`, one paragraph
+ * up), and it was also the joint-distribution lie a flat product hides: the
+ * stamp was meaningful exactly when `live` was false, with arm-order the only
+ * thing saying so. Deleting it retired a clock threaded through three layers to
+ * feed it.
  */
-export const wentOf = (run: CiRun, at: number): CiRun => ({
-  ...run,
-  live: false,
-  wentAt: at,
-})
+export const wentOf = (run: CiRun): CiRun => ({ ...run, live: false })

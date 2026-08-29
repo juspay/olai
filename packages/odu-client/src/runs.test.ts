@@ -64,7 +64,7 @@ interface Bench {
   readonly deps: WatchDeps
 }
 
-const bench = (dial: DialRun, now = () => 9_000): Bench => {
+const bench = (dial: DialRun): Bench => {
   const published: Array<ReadonlyArray<CiRun>> = []
   const warned: Array<string> = []
   return {
@@ -74,7 +74,6 @@ const bench = (dial: DialRun, now = () => 9_000): Bench => {
       publish: (runs) => published.push(runs),
       say: () => {},
       warn: (line) => warned.push(line),
-      now,
       reposRoot: ROOT,
       dial,
     },
@@ -156,7 +155,7 @@ test("a held run is NOT re-dialled — the coordinator pushes, the sweep does no
   )
 })
 
-test("a run whose socket GOES leaves its last reading behind, stamped and no longer live", () => {
+test("a run whose socket GOES leaves its last reading behind, no longer live", () => {
   let settled = (): void => {}
   const ends = new Promise<void>((resolve) => {
     settled = () => resolve()
@@ -175,7 +174,6 @@ test("a run whose socket GOES leaves its last reading behind, stamped and no lon
       // Never deleted: "there was a run and it came out green" is the thing a
       // settled lane most wants to say.
       expect(row?.live).toBe(false)
-      expect(row?.wentAt).toBe(9_000)
       expect(row?.verdict).toBe("ok")
       // ...and the lane is free to be dialled again, for the NEXT run in that
       // checkout.
