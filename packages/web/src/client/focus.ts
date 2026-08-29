@@ -35,7 +35,10 @@
  * is a page staying exactly where it is except for the row somebody asked to
  * see. The fourth is `./autoscroll.ts`'s, which is neither: a page keeping up
  * with a gesture that has run out of screen, moving for as long as a hand holds
- * it near an edge.
+ * it near an edge. The outline's landing act (`./OutlinePage.tsx`) is NOT a
+ * fifth: it is the same "this is the row" one frame late, so its scroll is
+ * this module's one statement, reached for directly
+ * ({@link bringFocusedOntoScreen}).
  */
 
 import { Result } from "effect"
@@ -75,12 +78,32 @@ export const selectNode = (id: string): void => {
   setFocused(id)
 }
 
-/** The row the last point or landing selected, within one pane's root — what
- *  either writer's scroll aims at. It is found rather than computed, which is
- *  why `focusNode` below looks after the frame that draws the attribute: a
- *  mirror of the node wears it too, and either will do. */
-export const focusedRowIn = (root: ParentNode): Element | null =>
+/** The row the last point or landing selected, WITHIN one root — the whole
+ *  DOM for a press, one pane for a landing, so a file opened in two columns
+ *  scrolls the one the landing belongs to. It is found rather than computed,
+ *  which is why `focusNode` below looks after the frame that draws the
+ *  attribute: a mirror of the node wears it too, and either will do.
+ *
+ *  The ROW, named as such: a focused pane used to wear this same attribute
+ *  and sat above every row, so a bare `[data-focused]` always found the pane
+ *  and never walked a collapsed node to its own address. Panes now wear
+ *  `data-pane-focused`. The selector still names the row so that fact cannot
+ *  sit in front of this one again. */
+const focusedRowIn = (root: ParentNode): Element | null =>
   root.querySelector(`[data-testid="${TESTID.node}"][${FOCUSED}="true"]`)
+
+/** Bring the selected row onto the screen. `true` when there was a row to
+ *  bring, which is the whole of what its callers differ on: a press that
+ *  found none answers `elsewhere`; a landing that found none keeps its mark. */
+export const bringFocusedOntoScreen = (root: ParentNode): boolean => {
+  const row = focusedRowIn(root)
+  if (row === null) return false
+  // `center` rather than the top: a row scrolled to the very top of the
+  // window has its children off the bottom of it, and what a person wants to
+  // see about the node they were just told about is what hangs under it.
+  row.scrollIntoView({ block: "center", behavior: "smooth" })
+  return true
+}
 
 /**
  * Point at `id`: light the row up, and bring it onto the screen.
@@ -98,21 +121,7 @@ export const focusedRowIn = (root: ParentNode): Element | null =>
 const focusNode = (id: string, elsewhere: () => void): void => {
   setFocused(id)
   requestAnimationFrame(() => {
-    // The ROW, named as such. A focused pane used to wear this same
-    // attribute and sat above every row, so a bare `[data-focused]`
-    // always found the pane and never walked a collapsed node to its
-    // own address. Panes now wear `data-pane-focused`. The selector
-    // still names the row so that fact cannot sit in front of this one
-    // again.
-    const row = focusedRowIn(document)
-    if (row === null) {
-      elsewhere()
-      return
-    }
-    // `center` rather than the top: a row scrolled to the very top of the
-    // window has its children off the bottom of it, and what a person wants to
-    // see about the node they were just told about is what hangs under it.
-    row.scrollIntoView({ block: "center", behavior: "smooth" })
+    if (!bringFocusedOntoScreen(document)) elsewhere()
   })
 }
 
@@ -126,13 +135,12 @@ let pointed = 0
  * Where a reference goes when its node is NOT on the open page: the node's
  * own file, landed at the row (`./landing.ts` takes it from there).
  *
- * One question on the way (`nodes.homes`), and that is the change this lane
- * made legible: the button says `show this node`, and ZOOMING — `/#id`, where
- * this used to go — showed the node by leaving every page, which is the one
- * reading the chat panel's references were never about. The id is durable and
- * the file is not, which is exactly why the file is asked at press time
- * rather than carried: the transcript's hat on a node from an hour ago still
- * lands where the node IS.
+ * One question on the way (`nodes.homes`). The button says `show this
+ * node`, and ZOOMING — `/#id`, where this used to go — showed the node by
+ * leaving every page, which is the one reading the chat panel's references
+ * were never about. The id is durable and the file is not, which is exactly
+ * why the file is asked at press time rather than carried: the transcript's
+ * hat on a node from an hour ago still lands where the node IS.
  *
  * ABSENT IS THE ANSWER, twice: an id the set has no record for is one the
  * press said nothing about, so the page stays exactly where it was — the
