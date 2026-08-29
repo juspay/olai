@@ -155,10 +155,11 @@ export const titleFace = (
  *
  * Exactly ONE arm of this switch is a question about the directory rather than
  * about the address: a bare `#id` is called whatever that node is called right
- * now, and everything else names itself — a file by its own filename, a day by
- * its date, the pages that spell a word by the word. So the node's title is
- * handed IN, and who asked it is the caller's business, which is what let the
- * two callers end up on opposite sides of the wire:
+ * now — the row arm asks it too when the set can be, and is its file
+ * otherwise. Everything else names itself — a file by its own filename, a day
+ * by its date, the pages that spell a word by the word. So the node's title
+ * is handed IN, and who asked it is the caller's business, which is what let
+ * the two callers end up on opposite sides of the wire:
  *
  *   - the pinned SHELF takes it off the server's answer (`../pins/pins.ts`,
  *     the `pins` cell), because a shelf is a reading of the whole vault and
@@ -184,12 +185,21 @@ export const nameOf = (
       // has no filename to draw, so it takes the word a reader would use for
       // it.
       if (address === null) return "Home"
-      // A NODE — or the ROW one, which is the same node read with the file
-      // beside it — is the one address that does not name itself: what it is
-      // called is a fact about the set, so what is drawn is what somebody
-      // answered — and its own address when nothing did, which is the honest
-      // dead row (docs/format.md's Pins).
-      if (address.kind === "node" || address.kind === "row") return shows ?? hrefOf(route)
+      // A NODE is the one address that does not name itself: what it is called
+      // is a fact about the set, so what is drawn is what somebody answered —
+      // and its own address when nothing did, which is the honest dead row
+      // (docs/format.md's Pins).
+      if (address.kind === "node") return shows ?? hrefOf(route)
+      // A ROW is at once the node and a heading: where the set was asked, it
+      // is the node — an in-tree title or a pin names the live id — and
+      // where nobody could have asked, it is its file: the page model strips
+      // a row to its document before the wire (`../page.ts`'s `requestFor`),
+      // so the ONE table the page's own name can be read from never saw the
+      // id. A landed row page is a pin to that outline as far as this width
+      // is concerned, which is the heading arm's own answer — and a downright
+      // better one than the printed href it fell through to, which is the
+      // dead row's sentence that this arm never owed.
+      if (address.kind === "row") return shows ?? basenameOf(address.path)
       // A FILE is its own name, through the format's own spelling of "the last
       // segment of a path" rather than a second slice — and a heading is
       // named by the file it is in, because a pin to a section of a document is
