@@ -814,6 +814,14 @@ export const APP_CHROME_CONTROLS: ReadonlyArray<string> = [
   // list exists to stop, and this is the first kind.
   TESTID.padi,
   TESTID.commitPill,
+  // How long THIS process has been the one answering — furniture, beside
+  // the committed pill, the same register. Added as the deliberate edit
+  // this list demands: it does not answer for git (the fence below still
+  // holds that the Commit pill is the only control in the row that does),
+  // it draws from `app.get`'s start instant and from nothing else, and a
+  // second process-start chip would be the redundancy this list exists to
+  // stop.
+  TESTID.uptime,
   TESTID.chatToggle,
   TESTID.prefsTrigger,
   // Who is looking, last — an icon about the request, not about git.
@@ -866,6 +874,9 @@ export const FONT_SELECT = selector(TESTID.fontSelect);
  *  retired into it), and that is what a scenario asserts on. What git SAID is
  *  its `aria-label` and its tip, never a colour. */
 export const COMMIT_PILL = selector(TESTID.commitPill);
+/** How long the server process has been up. Desktop furniture, beside the
+ *  committed pill; absent on a phone, which is the health-silent rule. */
+export const UPTIME = selector(TESTID.uptime);
 export const GIT_NEWS = selector(TESTID.gitNews);
 export const COMMIT_PANEL = selector(TESTID.commitPanel);
 /** What olai last recorded here, in the panel — or the words that say it never

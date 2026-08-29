@@ -3,7 +3,8 @@
  *
  * Principle (settled with the layout rethink): the header carries what is about
  * the APP — the wordmark, the connection, git (ONE pill: the Commit pill, which
- * absorbed the readout that used to sit beside it), the agent toggle, and the
+ * absorbed the readout that used to sit beside it), how long this process has
+ * been up (furniture, beside that pill), the agent toggle, and the
  * PREFERENCES (which absorbed the theme pill for the same reason: a preference
  * with a door of its own, next to the door to the preferences) — and the
  * sidebar carries what is about the DIRECTORY — the calendar and the file tree.
@@ -17,7 +18,7 @@
  * rule: identity and search in the header; connection and git as banners under it, and only when
  * there is news (the same Indicator and Commit, news-only faces); the agent as the thumb strip it already was;
  * preferences in the directory drawer. A healthy phone does not advertise
- * health — `live` and `✓ committed` stay off screen. A dead wire is the freeze
+ * health — `live` and `✓ committed` and `up 2h` stay off screen. A dead wire is the freeze
  * overlay, which was already the stronger form of that banner. Desktop keeps
  * the pills, because a bar of chips cannot be trusted if the healthy ones
  * disappear. Direct access draws anonymous, not a missing chip.
@@ -102,6 +103,7 @@ import { Leaf } from "./Leaf.tsx"
 import { WORDMARK } from "./look.ts"
 import { calledApp } from "./named.ts"
 import { Commit } from "./commit/Commit.tsx"
+import { Uptime } from "./Uptime.tsx"
 import { Indicator } from "./connection/Indicator.tsx"
 import { Padi } from "./padi/Padi.tsx"
 import { useFleet } from "@olai/kolu-ui"
@@ -220,6 +222,14 @@ export function AppHeader(props: {
               consume; nothing new on the wire. */}
           <Padi link={fleet.link()} pulse={fleet.pulse()} now={fleet.now} />
           <Commit />
+          {/* Furniture, last of the standing cluster: how long THIS process
+              has been the one answering. Beside the committed pill because
+              it is the same register — a quiet chip about the app, not a
+              door — and after it because a reader scans "is it live, is it
+              kept" before "how long has this one been up". A just-started
+              process reads `up 12s`; a restart is a reload, not a second
+              tick on this page. A healthy phone does not wear it. */}
+          <Uptime />
           <ChatToggle />
           <Preferences />
         </Show>

@@ -195,6 +195,11 @@ export interface Wiring {
    *  install manifest was made of it at listen, so a hostname that moved
    *  under a running server drifts neither. */
   readonly hostname: string
+  /** WHEN this process started, as ISO-8601, minted with the hostname at
+   *  the composition root so a later `app.get` cannot drift from the first.
+   *  The client's uptime chip ticks from this; the wire never sends a
+   *  duration. */
+  readonly startedAt: string
   readonly store: Store
   /**
    * THE PADI LINK, or `null` for a runtime that is not to have one.
@@ -1492,17 +1497,23 @@ export const bind = (
             >,
         },
         /**
-         * What this deployment is CALLED — the machine's name, minted by
-         * whoever composed this runtime (`Wiring.hostname` says why it is
-         * a mint and not a re-read: the manifest was made of the same word
-         * at listen, and the two doors must not drift).
+         * What this deployment is CALLED, and WHEN this process started —
+         * both minted by whoever composed this runtime (`Wiring.hostname`
+         * and `Wiring.startedAt` say why they are a mint and not a re-read:
+         * the manifest was made of the same word at listen, the uptime
+         * chip ticks from the same instant every tab is told, and neither
+         * door may drift).
          *
          * Unlike its `who` twin there is nothing per-connection about it and
-         * no service to require: the box's name is the same for everything
-         * that asks.
+         * no service to require: the box's name and the start instant are
+         * the same for everything that asks.
          */
         app: {
-          get: () => Effect.succeed({ hostname: wiring.hostname }),
+          get: () =>
+            Effect.succeed({
+              hostname: wiring.hostname,
+              startedAt: wiring.startedAt,
+            }),
         },
       },
     }

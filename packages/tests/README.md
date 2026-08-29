@@ -415,6 +415,7 @@ The names are not written down twice. `support/world.ts` imports the client's ow
 | `[data-testid="offline"][data-connection]` | THE FREEZE: over everything, with everything under it inert — the wire cannot carry a question, so the app takes no gesture at all. `data-connection` is the state that froze it |
 | `[data-testid="reload"]` | the button in that surface — the whole of the recovery |
 | `[data-testid="commit-pill"][data-state][data-uncommitted][data-repo][data-auto][data-push-refused]` | the Commit pill, ALWAYS drawn, and the header's ONE indicator for git; `data-state` is the face — `off`, `no-repo`, `error`, `never`, `committed`, `waiting`, `blocked`, or `unknown` before the first frame. Two facts ride BESIDE the face because they are different questions about the same directory: `data-auto` is what the server's quiet window is doing (`off`, `armed`, `paused`) and `data-push-refused` is present when the last push was refused, which is what takes the ✓ off a healthy face. What git SAID is its `aria-label` and its tip, never a colour; the inert faces carry `aria-disabled` and stay focusable |
+| `[data-testid="uptime"]` | how long the olai SERVER has been up — process start, not this tab's. Desktop furniture, beside the Commit pill. The wrapper is always in the chrome row (the inventory counts testids); `data-started` is the ISO instant once `app.get` has answered, absent before, and no scenario currently reads it |
 | `[data-testid="commit-last"]` | what olai last recorded here, or the words saying it never has |
 | `[data-testid="commit-panel"]` | the panel it opens |
 | `[data-testid="commit-change"][data-node-id][data-sort]` | one node that changed, and WHAT changed about it — never the phrase it is rendered as |
@@ -509,6 +510,8 @@ The seventeen port drops went to zero, and so did the four faces of the disk-as-
 Port/lock did not move: it is still zero, the way the 2026-08-16 wait-honesty run left it. The remaining drops are other classes (a scroll-restore that missed 267px, a CSP-picture assertion, 15s waits); they are counted, not fixed, here. Taken on `399cf308`, before `#296` restored overlapping writers onto a shared scratch.
 
 The scroll-restore drop counted there is closed: it was the sixth waiting mistake above, and it is measured under `OLAI_TEST_SLOW=20` rather than by waiting for a loaded box to lose the race again.
+
+A later Darwin-only miss of the same scenario (221px asked, 77px held, retry green) was the product's clamped-restore hang waiting on a clock from Back rather than on the arriving page — `client/scroll.ts` keeps asking until the page can hold the place, arms the quiet hang only after a shrink (the swap), and bounds a page that never swaps with a 30s ceiling, and `scroll.test.ts` is the pin.
 
 ## The scripted agents
 

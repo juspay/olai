@@ -185,14 +185,20 @@ export const serve = (options: ServeOptions) =>
     // read HERE and read ONCE — `app.get` answers it, the install manifest
     // was made of it at listen, and a box renamed under a running process
     // must not drift the two (`./hostname.ts` argues the mint being the
-    // root's).
+    // root's). The start instant is the other half of that same ask.
     const theMachine = hostname()
+    // Process start, not serve() return: the chip in the header is how
+    // long THIS process has been the one answering, and `process.uptime`
+    // is that number. Minted here, once, so every `app.get` of this serve
+    // answers the same instant.
+    const startedAt = new Date(Date.now() - process.uptime() * 1000).toISOString()
     const wired = yield* bind({
       store,
       chat,
       ops,
       writer: "web",
       hostname: theMachine,
+      startedAt,
       git: gitWiring(ops, policy, settled),
       // THE PADI LINK, and this is the one place a process reaches for the
       // real environment and the real clock. `olai web` is the face the
