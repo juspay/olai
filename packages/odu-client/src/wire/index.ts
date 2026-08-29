@@ -260,32 +260,26 @@ export type CiRuns = typeof CiRuns.Type
  *  half at all. Minted once, the way `KOLU_UNDIALED` is. */
 export const NO_RUNS: CiRuns = { runs: [] }
 
-/** Two readings that say the same thing about the CI runs — the cell's
- *  `equals`, so a coordinator re-publishing a frame that moved nothing
- *  publishes nothing here.
+/**
+ * Two readings that say the same thing about the CI runs — the cell's
+ * `equals`, so a coordinator re-publishing a frame that moved nothing
+ * publishes nothing here.
  *
- *  Written out rather than derived, for `sameKolu`'s reason: it is a small
- *  fixed shape and a structural walk over an encoded frame would be a second,
- *  slower answer to a question four `===` chains settle. The nodes compare by
- *  the fields a face DRAWS — a `startedAt` that moved is a real change, and a
- *  `ms` that arrived is the one that ends a tick. */
-export const sameCi = (a: CiRuns, b: CiRuns): boolean =>
-  a.runs.length === b.runs.length &&
-  a.runs.every((run, at) => sameRun(run, b.runs[at] as CiRun))
-
-const sameRun = (a: CiRun, b: CiRun): boolean =>
-  a.id === b.id && a.at === b.at && a.live === b.live && a.name === b.name &&
-  a.sha7 === b.sha7 && a.dirty === b.dirty && a.seq === b.seq &&
-  a.phase === b.phase && sameWords(a.lanes, b.lanes) &&
-  a.cells.length === b.cells.length &&
-  a.cells.every((cell, at) => sameCell(cell, b.cells[at] as RunCell))
-
-const sameCell = (a: RunCell, b: RunCell): boolean =>
-  a.id === b.id && a.status === b.status && a.startedAt === b.startedAt &&
-  a.ms === b.ms
-
-const sameWords = (a: ReadonlyArray<string>, b: ReadonlyArray<string>): boolean =>
-  a.length === b.length && a.every((word, at) => word === b[at])
+ * DERIVED FROM THE SCHEMA, which is what this repo already does wherever it
+ * can (`@olai/format`'s `sameOwed`, `sameDated`, `samePageReading`). It was
+ * twenty-five lines of hand-written `===` chains, and the argument in its
+ * header — "`sameKolu`'s reason" — did not transfer: `sameKolu` is written out
+ * because it deliberately EXCLUDES a field (`since` is what that predicate
+ * decides, so comparing it would make every reading differ from every other),
+ * and an exclusion is a thing a schema equivalence cannot express. This one
+ * excludes nothing. It compared a subset of `RunCell` — id, status, startedAt,
+ * ms — which is the same answer for every value this wire can hold, since the
+ * five fields it skipped are functions of those two (`name` and `platform` off
+ * the id, `hue`/`glyph`/`red` off the status, all in `../project.ts`). So the
+ * hand-roll bought nothing and owned a copy of the shape it compares, free to
+ * drift the next time a field lands.
+ */
+export const sameCi: (a: CiRuns, b: CiRuns) => boolean = Schema.toEquivalence(CiRuns)
 
 // ── The member ────────────────────────────────────────────────────────────
 
