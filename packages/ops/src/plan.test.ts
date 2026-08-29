@@ -589,12 +589,13 @@ describe("done and doing", () => {
     const unmarked = after(settled, { op: "done", id: "order", undo: true })
     expect(read(unmarked)).toMatchObject({ started: STAMP, worked: 0 })
     expect(read(unmarked).done).toBeUndefined()
-    // …and un-doing the START itself mints no bank and moves no start: the
-    // round it opened was never settled, and the next `doing` re-stamps
-    // over it either way.
+    // …and un-doing the START itself CLOSES THE ROUND AT THE PEEL: the
+    // bank says the round was measured (an honest zero at the fixture's
+    // one instant), and the stamp goes with the `doing` — minutes live
+    // only on a record that can still close them.
     const notDoing = after(doing, { op: "doing", id: "order", undo: true })
-    expect(read(notDoing).started).toBe(STAMP)
-    expect(read(notDoing).worked).toBeUndefined()
+    expect(read(notDoing).started).toBeUndefined()
+    expect(read(notDoing).worked).toBe(0)
     // Re-opened after the settle, the record says what the rule reads as:
     // the bank kept, the start re-stamped — here to a value identical
     // BECAUSE the clock says one instant, which is exactly why the
@@ -691,6 +692,55 @@ describe("done and doing", () => {
     set = at(set, "2026-08-29T10:30:00-04:00", { op: "cancelled", id: "order" })
     expect(read(set)).toMatchObject({ cancelled: "2026-08-29T10:30:00-04:00", worked: 600 })
     expect(read(set).started).toBeUndefined()
+  })
+
+  // THE PEEL'S SEALS (the third probe's walks): the doing comes off
+  // WITHOUT a settle and the round still closes — ten banked minutes for
+  // the undo-of-doing walk, thirty for the queue — so the LATER settle is
+  // an ordinary jump, and nothing was ever buried live.
+  test("undo of a `doing` banks the round at the peel — the later settle is a jump", () => {
+    const read = (set: OutlineSet): RegularNode =>
+      nodesOf(derive(recordsOf(set)), "house.olai")
+        .map((located) => located.node)
+        .find((node) => node.id === "order") as RegularNode
+    let set = at(house(), "2026-08-29T10:00:00-04:00", { op: "doing", id: "order" })
+    set = at(set, "2026-08-29T10:10:00-04:00", { op: "doing", id: "order", undo: true })
+    expect(read(set)).toMatchObject({ worked: 600 })
+    expect(read(set).started).toBeUndefined()
+    set = at(set, "2026-08-29T10:40:00-04:00", { op: "done", id: "order" })
+    expect(read(set)).toMatchObject({ done: "2026-08-29T10:40:00-04:00", worked: 600 })
+    expect(read(set).started).toBeUndefined()
+  })
+
+  test("queueing mid-round banks at the peel — and re-queuing's gap is nobody's work", () => {
+    const read = (set: OutlineSet): RegularNode =>
+      nodesOf(derive(recordsOf(set)), "house.olai")
+        .map((located) => located.node)
+        .find((node) => node.id === "order") as RegularNode
+    let set = at(house(), "2026-08-29T10:00:00-04:00", { op: "doing", id: "order" })
+    set = at(set, "2026-08-29T10:30:00-04:00", { op: "todo", id: "order" })
+    expect(read(set)).toMatchObject({ todo: true, worked: 1800 })
+    expect(read(set).started).toBeUndefined()
+    // …and the queue-closes straight to done: 1800 stands, no fresh round.
+    set = at(set, "2026-08-29T10:45:00-04:00", { op: "done", id: "order" })
+    expect(read(set)).toMatchObject({ done: "2026-08-29T10:45:00-04:00", worked: 1800 })
+    expect(read(set).started).toBeUndefined()
+  })
+
+  // …and queue → re-open → settle: the re-stamp is the gap's whole
+  // confession — the queue's thirty banked, the round's five banked, the
+  // queue-gap never.
+  test("queued, re-opened, settled: the bank says 1800 + 300 and nothing of the queue's wait", () => {
+    const read = (set: OutlineSet): RegularNode =>
+      nodesOf(derive(recordsOf(set)), "house.olai")
+        .map((located) => located.node)
+        .find((node) => node.id === "order") as RegularNode
+    let set = at(house(), "2026-08-29T10:00:00-04:00", { op: "doing", id: "order" })
+    set = at(set, "2026-08-29T10:30:00-04:00", { op: "todo", id: "order" })
+    set = at(set, "2026-08-29T11:00:00-04:00", { op: "doing", id: "order" })
+    expect(read(set)).toMatchObject({ doing: true, started: "2026-08-29T11:00:00-04:00", worked: 1800 })
+    set = at(set, "2026-08-29T11:05:00-04:00", { op: "done", id: "order" })
+    expect(read(set).worked).toBe(1800 + 300)
   })
 
   // A call-off is a settle: it banks the round it closed exactly as a finish
