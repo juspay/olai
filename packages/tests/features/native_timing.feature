@@ -90,6 +90,20 @@ Feature: Native task timing — `started`, `took`, and the ticking row
     And the node "install" shows no took chip
     And there should be no page errors
 
+  # A title that COLLIDES with the chip's words: a title is a string, and
+  # "⏱ 2h 34m" is somebody's chore — the renderer must read it as the
+  # string it is, not as the chip's markup echoing into a second fixture.
+  Scenario: The chip's own words are a title like any other
+    When I click the title of "handles"
+    And I select all and type "⏱ 2h 34m"
+    And I press "Enter"
+    Then the node "handles" has the title "⏱ 2h 34m"
+    And "house.olai" holds a node titled "⏱ 2h 34m"
+    When I click away from the editor
+    # Nothing echoes: the row carries no chip, and the words stayed a title.
+    Then the node "handles" shows no took chip
+    And there should be no page errors
+
   Scenario: A re-open is one span, first start to final settle
     When I click the title of "handles"
     And I press "Control+Shift+Enter"
