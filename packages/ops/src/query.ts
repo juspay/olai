@@ -749,10 +749,12 @@ export const detail = (derived: Derived, id: string): Detail | null => {
   if (located === undefined || !isRegular(located)) return null
   const node = located.node
   const progress = progressOf(derived, id)
-  // When the work first started, and — once it has SETTLED — how long that
-  // took: the record's own `started` handed back verbatim for the tick a
-  // reader runs from it, and the derived span for the one that wants the
-  // answer. Both absent on the todo→done jump, which has no span to tell.
+  // The current round's start, the banked rounds, and — once the node has
+  // SETTLED — how long the work took: the record's own `started` and
+  // `worked` handed back verbatim (the tick a doing row runs is bank plus
+  // now-minus-start, computed where the clock is), and the derived span for
+  // the reader that wants the answer. All absent on the todo→done jump,
+  // which has no span to tell.
   const took = tookOf(node)
   const placements = placementsOf(derived, id)
   const placed = placedUnder(derived, id)
@@ -770,6 +772,7 @@ export const detail = (derived: Derived, id: string): Detail | null => {
     ...(node.created === undefined ? {} : { created: node.created }),
     ...(node.changed === undefined ? {} : { changed: node.changed }),
     ...(node.started === undefined ? {} : { started: node.started }),
+    ...(node.worked === undefined ? {} : { worked: node.worked }),
     ...stampsOf(node),
     // AS WRITTEN, sigil and all: `#alice` and `@alice` are two tags, so a list
     // that dropped the character that started them could not tell a reader

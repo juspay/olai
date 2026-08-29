@@ -286,5 +286,33 @@
   {
     "what": "add born doing — the start rides the capture",
     "sha": "9f01367d3ecde4bc"
+  },
+  {
+    "what": "a node to run rounds on",
+    "sha": "2965a1e9633d3186"
+  },
+  {
+    "what": "doing — the first round opens",
+    "sha": "17f49ae221a8f591"
+  },
+  {
+    "what": "done — the round is banked",
+    "sha": "750bf26f21350492"
+  },
+  {
+    "what": "undone — the bank stands",
+    "sha": "78bda3ec38382c19"
+  },
+  {
+    "what": "doing again — a fresh round stamped over the bank",
+    "sha": "121f83770d17e92c"
+  },
+  {
+    "what": "done again — the second round adds in",
+    "sha": "750bf26f21350492"
+  },
+  {
+    "what": "a bare undo leaves the work banked",
+    "sha": "78bda3ec38382c19"
   }
 ]

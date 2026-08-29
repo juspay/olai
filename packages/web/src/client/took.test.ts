@@ -11,14 +11,14 @@
  *
  * What is NOT here: whether there is a span to say at all. That is derived
  * with the set (@olai/format's `tookOf`, whose cases — the jump, the running
- * row, the instant-free settle — are its own test), and this file's ladders
- * are handed a number.
+ * row, the instant-free settle, the bank — are its own test), and this
+ * file's ladders are handed a number.
  */
 
 import { describe, expect, test } from "bun:test"
 
 import { DAY, HOUR, MINUTE, SECOND } from "./clock.ts"
-import { exactOf, tickingOf, wordsOf } from "./took.ts"
+import { exactOf, liveOf, tickingOf, wordsOf } from "./took.ts"
 
 describe("the settled words", () => {
   test("coarse, and coarser as the span grows", () => {
@@ -73,5 +73,31 @@ describe("the running register", () => {
 
   test("a start in the future is 0:00, never a negative counter", () => {
     expect(tickingOf(-30 * SECOND)).toBe("0:00")
+  })
+})
+
+describe("the banked sum", () => {
+  const AT = Date.parse("2026-08-29T09:50:00-04:00")
+
+  test("bank plus live round — a re-started row reads the work, never the pause", () => {
+    // Ten banked minutes from the first round, four minutes into the second:
+    // the chip says 14m, and the 36-minute pause between the rounds is not
+    // an operand.
+    expect(liveOf(600, AT, AT + 4 * MINUTE)).toBe(600 * SECOND + 4 * MINUTE)
+    // …and the sum is what the ticking register turns to words.
+    expect(tickingOf(liveOf(600, AT, AT + 4 * MINUTE + 12 * SECOND))).toBe("14:12")
+    expect(tickingOf(liveOf(2 * HOUR / SECOND + 12 * 60, AT, AT + 34 * MINUTE)))
+      .toBe("2h 46m")
+  })
+
+  test("no bank is the single-round arithmetic, unchanged", () => {
+    expect(liveOf(undefined, AT, AT + 47 * SECOND)).toBe(47 * SECOND)
+    expect(liveOf(undefined, AT, AT)).toBe(0)
+  })
+
+  test("a start ahead of this clock spends none of the bank", () => {
+    // The wire's instant out-running the browser is a skew to clamp, not a
+    // debt the counted rounds should repay.
+    expect(liveOf(600, AT, AT - 30 * SECOND)).toBe(600 * SECOND)
   })
 })

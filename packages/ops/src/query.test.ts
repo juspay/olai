@@ -162,16 +162,21 @@ test("a node carrying everything produces every field `Found` declares", () => {
   expect(Object.keys(carrying ?? {}).sort()).toEqual(Object.keys(Found.fields).sort())
 })
 
-// The work's own instants: the record's `started` handed back verbatim, and
-// `took` derived off it and the settling one — an annotation beside
-// `progress`, with the same absences doing the saying.
-test("a node's read carries `started` and the derived `took` — and the jump carries neither", () => {
+// The work's own facts of time: the record's `started` and `worked` handed
+// back verbatim, and `took` derived — the bank when there is one, else the
+// settling instant minus the start. An annotation beside `progress`, with
+// the same absences doing the saying.
+test("a node's read carries `started`, `worked` and the derived `took` — and the jump carries none", () => {
   const at = derivedOf(setOf({
     "house.olai": [
       `{"id":"bake","ord":"a0","title":"bake the bread","done":"2026-08-29T12:26:44-04:00","started":"2026-08-29T09:52:00-04:00"}`,
       `{"id":"plumber","ord":"a1","title":"call the plumber","done":"2026-08-29T12:26:44-04:00"}`,
       `{"id":"hinge","ord":"a2","title":"fix the hinge on the door","cancelled":"2026-08-29T10:33:00-04:00","started":"2026-08-29T09:52:00-04:00"}`,
       `{"id":"water","ord":"a3","title":"water the plants","doing":true,"started":"2026-08-29T09:52:00-04:00"}`,
+      // The MULTI-ROUND record — the shapes above with a bank beside them:
+      // two rounds in, a third live.
+      `{"id":"knead","ord":"a4","title":"knead the dough","doing":true,"started":"2026-08-29T09:50:00-04:00","worked":600}`,
+      `{"id":"proof","ord":"a5","title":"proof it","done":"2026-08-29T09:58:00-04:00","started":"2026-08-29T09:50:00-04:00","worked":1080}`,
     ].join("\n"),
   }))
   // SETTLED: the instant, and the span it closes — 2h34m44s and 41m, in
@@ -183,9 +188,18 @@ test("a node's read carries `started` and the derived `took` — and the jump ca
   expect(detail(at, "water")).toHaveProperty("started")
   expect(detail(at, "water")).not.toHaveProperty("took")
   // THE JUMP: a todo→done has no span, and `created` is never the fallback —
-  // neither field is invented at read time.
+  // none of the three is invented at read time.
   expect(detail(at, "plumber")).not.toHaveProperty("started")
+  expect(detail(at, "plumber")).not.toHaveProperty("worked")
   expect(detail(at, "plumber")).not.toHaveProperty("took")
+  // THE SETTLED MULTI-ROUND node: the bank IS the answer — `took` is the
+  // 1080 the settles counted, not the 480 a subtraction against the fresh
+  // `started` would misread as the whole of it.
+  expect(detail(at, "proof")).toMatchObject({ worked: 1080, took: 1080 })
+  // …and a LIVE one carries the two things the tick is a sum of — bank and
+  // instant, durations never: the arithmetic stays where the clock is.
+  expect(detail(at, "knead")).toMatchObject({ worked: 600, started: "2026-08-29T09:50:00-04:00" })
+  expect(detail(at, "knead")).not.toHaveProperty("took")
 })
 
 describe("the edges a node carries", () => {

@@ -371,4 +371,20 @@ export const SCRIPT: ReadonlyArray<Step> = [
       children: [{ title: "watch it", mark: "doing" }],
     },
   },
+  // ROUNDS BANKED (worked-rounds, appended): a settle adds the round it
+  // closed into `worked`, an undo leaves the bank standing, and every start
+  // re-stamps `started`. The one `steady()` clock makes every span ZERO, so
+  // what these rows pin is the FIELD moving through the batch-path plans —
+  // the arithmetic itself is `./plan.test.ts`'s, at a clock driven minutes
+  // apart.
+  {
+    what: "a node to run rounds on",
+    op: { op: "add", parent: "kitchen", title: "season the pan", id: "season" },
+  },
+  { what: "doing — the first round opens", op: { op: "doing", id: "season" } },
+  { what: "done — the round is banked", op: { op: "done", id: "season" } },
+  { what: "undone — the bank stands", op: { op: "done", id: "season", undo: true } },
+  { what: "doing again — a fresh round stamped over the bank", op: { op: "doing", id: "season" } },
+  { what: "done again — the second round adds in", op: { op: "done", id: "season" } },
+  { what: "a bare undo leaves the work banked", op: { op: "done", id: "season", undo: true } },
 ]

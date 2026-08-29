@@ -484,11 +484,17 @@ export type Reference = typeof Reference.Type
 export const Detail = Schema.Struct({
   ...Found.fields,
   ...STAMPED,
-  /** When the work was first STARTED — the record's own `started`, verbatim.
-   *  It is what `took` below is derived from and what a `doing` row's live
-   *  tick runs from: the instant crosses the wire once, and the clock the
-   *  chip ticks against is the reader's. */
+  /** When the CURRENT round of work started — the record's own `started`,
+   *  verbatim, re-stamped by every `set_doing`. It is what a `doing` row's
+   *  live tick runs from: the instant crosses the wire once, and the clock
+   *  the chip ticks against is the reader's. */
   started: RegularNode.fields.started,
+  /** The work already BANKED, in whole seconds — the record's own `worked`,
+   *  verbatim: every settle added the round it closed, so the running
+   *  readout is this plus the tick off `started` above, and the settled
+   *  one is this alone. Absent when no round has closed — nothing invents
+   *  a past. */
+  worked: RegularNode.fields.worked,
   date: RegularNode.fields.date,
   /** The repeat rule, as the record spells it — the node's own text, handed
    *  back for the writer that is about to change it. Present only on the
@@ -511,13 +517,17 @@ export const Detail = Schema.Struct({
    *  ANNOTATION: it decides nothing, and in particular the node's own status is
    *  `status` above whatever this says. */
   progress: Schema.optionalKey(Progress),
-  /** How long the work TOOK, in WHOLE SECONDS — `done` or `cancelled` minus
-   *  `started`, derived at read time and never stored (`@olai/format`'s
-   *  `tookOf`). An annotation exactly as `progress` is. Absent when there is
-   *  no span to tell: no `started` (a todo→done jump has none, and `created`
-   *  is never the fallback — that measures the node's age, not the work), no
-   *  settling mark yet, or a settling mark holding the instants-less `true`
-   *  of work finished before olai stamped anything. */
+  /** How long the work TOOK, in WHOLE SECONDS — the banked `worked` when
+   *  the record carries it (rounds summed, pauses never counted), else
+   *  `done` or `cancelled` minus `started`, derived at read time and never
+   *  stored (`@olai/format`'s `tookOf`). An annotation exactly as
+   *  `progress` is. Absent when there is no span to tell: no bank and no
+   *  `started` (a todo→done jump has neither, and `created` is never the
+   *  fallback — that measures the node's age, not the work), no settling
+   *  mark yet (a running node's live figure is the tick's own sum of
+   *  `worked` and now-minus-`started`, not a stored duration), or a
+   *  settling mark holding the instants-less `true` of work finished
+   *  before olai stamped anything. */
   took: Schema.optionalKey(Schema.Int),
   children: Schema.Array(Found),
   /** Everywhere else this node is drawn — the mirrors that show it, chains

@@ -35,13 +35,15 @@ import {
   fileOf,
   planned,
   planning,
+  readingOf,
   record,
   refused,
   setOf,
   STAMP,
   steady,
+  succeeded,
 } from "./fixtures.testlib.ts"
-import type { Plan } from "./plan.ts"
+import { plan, type Plan, scoping } from "./plan.ts"
 
 const KITCHEN = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,
@@ -77,6 +79,29 @@ const after = (set: OutlineSet, request: Request): OutlineSet => {
   // would report every such path as missing — and a test about retargeting one
   // would pass because nothing was served rather than because the path is
   // right (found while pinning the typed-`doc` boundary below).
+  return setOf(texts, markdownIn(set).map((one) => [one.path, one.body] as const))
+}
+
+/** `after` with the one degree of freedom it pins, handed back: the
+ *  INSTANT. The shared helper drives every write with the fixture's one
+ *  stamp — exactly the equality a test about WHICH instant a write used
+ *  cannot see past — so the rounds below are driven minutes apart, each op
+ *  at its own `now`. `mint` is never asked (these sequences mark, they do
+ *  not capture), and it answers one id, so a capture accidentally asked in
+ *  one of these chains names the same thing twice and trips its own
+ *  refusal. */
+const at = (set: OutlineSet, now: string, request: Request): OutlineSet => {
+  const texts = Object.fromEntries(
+    outlinePaths(set).map((file) => [
+      file,
+      serializeOutline(nodesOf(derive(recordsOf(set)), file).map((located) => located.node)),
+    ]),
+  )
+  const made = succeeded(
+    plan(scoping(readingOf(set), { mint: () => "n1", now: () => now }), request),
+    `\`${request.op}\` to plan`,
+  )
+  for (const file of made.files) texts[file.file] = serializeOutline(file.nodes)
   return setOf(texts, markdownIn(set).map((one) => [one.path, one.body] as const))
 }
 
@@ -523,62 +548,114 @@ describe("done and doing", () => {
     expect(doing.doing).toBe(true)
     // The field is the marks' neighbour, and the only one of these verbs that
     // mints it is the one that starts: a settle, a filing and an un-doing
-    // write the node without inventing a start it never had.
+    // write the node without inventing a start it never had — and a settle
+    // with no round to close mints no BANK either.
     for (const op of ["done", "cancelled", "todo"] as const) {
-      expect(record(fileOf(planned(house(), { op, id: "order" }), "house.olai"), "order").started)
-        .toBeUndefined()
+      const node = record(fileOf(planned(house(), { op, id: "order" }), "house.olai"), "order")
+      expect(node.started).toBeUndefined()
+      expect(node.worked).toBeUndefined()
     }
   })
 
-  // Rule two of the stamp — PRESENT IS UNTOUCHED: a plan over a record that
-  // already carries one writes the field back exactly as it found it, and
-  // nothing is re-stamped. The fixture's `now` always says the same instant,
-  // so the one that proves a carry rather than a re-stamp is a `started` NO
-  // op here could have minted.
-  test("a `started` already on the record is never rewritten", () => {
+  // Rule two of the stamp — EVERY START IS A FRESH ROUND: a plan over a
+  // record that already carries one writes the instant of THIS start. The
+  // fixture's hand-written `started` is one no op here could have minted,
+  // so a re-stamp is what a carry could never be told apart from — and
+  // what the earlier round was worth is in the bank the settle wrote (the
+  // moving-clock tests below), never in this field.
+  test("a `started` already on the record is re-stamped — the round just settled is banked", () => {
     const set = setOf({
       "a.olai": `{"id":"x","ord":"a0","title":"x","todo":true,"started":"2026-08-01T07:00:00-04:00"}`,
     })
     const node = record(fileOf(planned(set, { op: "doing", id: "x" }), "a.olai"), "x")
     expect(node.doing).toBe(true)
-    expect(node.started).toBe("2026-08-01T07:00:00-04:00")
+    expect(node.started).toBe(STAMP)
   })
 
-  // The carried start is what makes re-opening one span rather than a new one:
-  // a settle keeps it (nothing settles a clock), an UNDO keeps it (the span-
-  // by-span story is the log's), and the second `doing` is one byte move short
-  // of a no-op — `changed` alone moves. So the answer settles report later is
-  // first start → final settle, the whole time under way.
-  test("settling and un-marking keep the `started` they found", () => {
+  // The pieces of the rule itself leave the record's other fields alone: a
+  // settle keeps the `started` it found AND BANKS THE ROUND IT CLOSED — at
+  // the fixture's one instant the round is an honest zero, and the field is
+  // minted either way, because the round did close — and an UNDO keeps
+  // both: the mark comes off, the bank stands, because the work did happen.
+  test("settling banks the round it closed, and un-marking keeps the `started` and the bank", () => {
     const read = (set: OutlineSet): RegularNode =>
       nodesOf(derive(recordsOf(set)), "house.olai")
         .map((located) => located.node)
         .find((node) => node.id === "order") as RegularNode
     const doing = after(house(), { op: "doing", id: "order" })
-    expect(read(after(doing, { op: "done", id: "order" })).started).toBe(STAMP)
-    expect(read(after(doing, { op: "doing", id: "order", undo: true })).started).toBe(STAMP)
-    // And a full RE-OPEN after the settle — undo the `done`, start again, and
-    // the second start IS the first: nothing re-stamped, so the span the next
-    // settle closes is the whole time under way rather than the last leg of
-    // it. The undo is the gate, not the rule: a settled node refuses a new
-    // mark until it is walked back (the refusal a few tests up has the words).
     const settled = after(doing, { op: "done", id: "order" })
+    expect(read(settled).started).toBe(STAMP)
+    expect(read(settled).worked).toBe(0)
     const unmarked = after(settled, { op: "done", id: "order", undo: true })
+    expect(read(unmarked)).toMatchObject({ started: STAMP, worked: 0 })
+    expect(read(unmarked).done).toBeUndefined()
+    // …and un-doing the START itself mints no bank and moves no start: the
+    // round it opened was never settled, and the next `doing` re-stamps
+    // over it either way.
+    const notDoing = after(doing, { op: "doing", id: "order", undo: true })
+    expect(read(notDoing).started).toBe(STAMP)
+    expect(read(notDoing).worked).toBeUndefined()
+    // Re-opened after the settle, the record says what the rule reads as:
+    // the bank kept, the start re-stamped — here to a value identical
+    // BECAUSE the clock says one instant, which is exactly why the
+    // distinguishable halves of the rule live in the two adjacent tests.
     const reopened = after(unmarked, { op: "doing", id: "order" })
-    expect(read(reopened).started).toBe(STAMP)
-    expect(read(reopened).doing).toBe(true)
+    expect(read(reopened)).toMatchObject({ doing: true, started: STAMP, worked: 0 })
   })
 
   // …and the jump has NO span: a todo→done stores no `started`, so no `took`
-  // can be derived. Falling back to `created` would measure the node's age
-  // rather than the work — the one rule the chip and the answer share.
-  test("a todo→done jump stores no `started`", () => {
+  // can be derived — and it BANKS NOTHING, because it closed no round.
+  // Falling back to `created` would measure the node's age rather than the
+  // work — the one rule the chip and the answer share.
+  test("a todo→done jump stores no `started`, and banks none", () => {
     const once = after(house(), { op: "done", id: "order" })
     const node = nodesOf(derive(recordsOf(once)), "house.olai")
       .map((located) => located.node)
       .find((one) => one.id === "order") as RegularNode
     expect(node.started).toBeUndefined()
+    expect(node.worked).toBeUndefined()
     expect(node.done).toBe(STAMP)
+  })
+
+  // THE WHOLE RULE, told at a moving clock: instants picked per write, so
+  // the banked seconds and the fresh start are NUMBERS and not the one stamp
+  // landing everywhere. Ten minutes of first round, 36 minutes of pause a
+  // chip must not count, eight minutes of second round.
+  test("every settle banks its round, a re-start stamps fresh, and the pause is nobody's", () => {
+    const read = (set: OutlineSet): RegularNode =>
+      nodesOf(derive(recordsOf(set)), "house.olai")
+        .map((located) => located.node)
+        .find((node) => node.id === "order") as RegularNode
+    // The first round: 09:00 to 09:10 is 600 banked seconds.
+    let set = at(house(), "2026-08-29T09:00:00-04:00", { op: "doing", id: "order" })
+    expect(read(set).started).toBe("2026-08-29T09:00:00-04:00")
+    set = at(set, "2026-08-29T09:10:00-04:00", { op: "done", id: "order" })
+    expect(read(set)).toMatchObject({ done: "2026-08-29T09:10:00-04:00", worked: 600 })
+    // Undone 36 minutes later: the BARE UNDO leaves the bank alone — and
+    // leaves the start alone, because re-stamping is the next start's job.
+    set = at(set, "2026-08-29T09:46:00-04:00", { op: "done", id: "order", undo: true })
+    expect(read(set)).toMatchObject({ started: "2026-08-29T09:00:00-04:00", worked: 600 })
+    expect(read(set).done).toBeUndefined()
+    // The work resumes at 09:50: a FRESH `started` — the pause between the
+    // rounds (09:10 → 09:50) is held by neither field, which is the whole
+    // point of the bank.
+    set = at(set, "2026-08-29T09:50:00-04:00", { op: "doing", id: "order" })
+    expect(read(set)).toMatchObject({ doing: true, started: "2026-08-29T09:50:00-04:00", worked: 600 })
+    // …and the second settle banks BOTH rounds — 600 + 480 — and nothing of
+    // the 36 minutes between them.
+    set = at(set, "2026-08-29T09:58:00-04:00", { op: "done", id: "order" })
+    expect(read(set).worked).toBe(600 + 480)
+  })
+
+  // A call-off is a settle: it banks the round it closed exactly as a finish
+  // does — the time sunk is the whole of what there is to keep.
+  test("calling it off banks the round too", () => {
+    let set = at(house(), "2026-08-29T09:00:00-04:00", { op: "doing", id: "order" })
+    set = at(set, "2026-08-29T09:41:00-04:00", { op: "cancelled", id: "order" })
+    const ended = nodesOf(derive(recordsOf(set)), "house.olai")
+      .map((located) => located.node)
+      .find((node) => node.id === "order") as RegularNode
+    expect(ended).toMatchObject({ cancelled: "2026-08-29T09:41:00-04:00", worked: 2460 })
   })
 
   test("undo takes the mark off", () => {
@@ -2140,6 +2217,17 @@ describe("prop", () => {
     // not read case.
     expect(refused(house(), { op: "prop", id: "order", key: "Done", value: "x" })._tag)
       .toBe("UsageFailure")
+  })
+
+  /** `worked`'s door is the settles themselves: the bank is counted by
+   *  `set_done` / `set_cancelled` and written by nothing else, so the
+   *  refusal names them and not a verb that does not exist. */
+  test("the bank is fenced off toward the settles that count it", () => {
+    const failure = refused(house(), { op: "prop", id: "order", key: "worked", value: "600" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("`worked`")
+    expect(failure.message).toContain("`set_done`")
+    expect(failure.message).toContain("`set_cancelled`")
   })
 
   /** `status` is the one shadowed word that is NOT a field — three fields

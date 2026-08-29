@@ -67,6 +67,7 @@ import {
   settles,
   shadowFor,
   siblingsOf,
+  spanOf,
   standingBefore,
   type Status,
   storedMarker,
@@ -1432,17 +1433,35 @@ const planMark = (
   // elsewhere stays the text it was.
   if (!undo) next[mark] = marker(scope, mark)
 
-  // …and STARTING stamps the work's own instant once, beside the marks the
-  // way `created` rides the record: what went under way, and when. The span is
-  // DERIVED from it later (`took` = the settling instant − this), never
-  // stored — and the one rule of the stamp is that PRESENT IS UNTOUCHED: a
-  // re-opened node keeps its FIRST start, so what a later settle reports is
-  // first start → final settle, and the span-by-span story stays `git log`'s.
-  // Every other path through here — settling, un-marking — leaves the field
-  // exactly as it found it, and a settle with no `started` invents none: a
-  // todo→done jump has no span, and `created` is never the fallback.
-  if (!undo && mark === "doing" && next.started === undefined) {
+  // …and STARTING stamps the work's own instant, beside the marks the way
+  // `created` rides the record: what went under way, and when. The span is
+  // DERIVED from it later, never stored. The one rule of the stamp is that
+  // EVERY START IS A FRESH ROUND: a re-opened node's earlier work is already
+  // banked below, so the new `doing` RE-STAMPS rather than keeping the first
+  // start — the clock the chip reads counts this round alone, and the pause
+  // between two rounds is never work. An UNDO of the `doing` itself leaves
+  // the field where it is: the round it opened may yet be picked up at that
+  // instant, and the next start re-stamps over it either way.
+  if (!undo && mark === "doing") {
     next.started = scope.context.now()
+  }
+
+  // …and SETTLING BANKS THE ROUND IT CLOSES: `worked` gains the span just
+  // written over it (`spanOf` — the one subtraction, shared with the read,
+  // so the bank and the answer cannot disagree), and the pause that came
+  // before this round is gone from every later reading. A settle with no
+  // `started` mints NOTHING — a todo→done jump closed no round, `created`
+  // is never the fallback, and an absent bank reads as the zero it is. undo
+  // is never here: walking a settle back leaves the bank standing, because
+  // the work did happen — the field survives the mark coming off, and the
+  // fresh `started` above is what makes adding the same seconds twice
+  // impossible.
+  if (!undo && settles(mark)) {
+    const closed = next[mark]
+    if (node.started !== undefined && typeof closed === "string") {
+      const round = spanOf(node.started, closed)
+      if (round !== undefined) next.worked = (node.worked ?? 0) + round
+    }
   }
 
   // WHAT COMES BACK ({@link recurring}): a `done` on a node that repeats hands

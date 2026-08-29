@@ -245,8 +245,9 @@ test("the cancelled mark round-trips, and is exclusive with the other three", ()
  * the ops layer keeps the other half of: the field EXISTS (a key the schema
  * does not declare would be a `bad-record`), it round-trips in canonical
  * order beside the marks, and its value answers the same ISO rule the marks
- * and the two stamps answer. What it is WORTH — stamped once, kept on a
- * re-open, subtracted at read time — is not grammar, so it is not asked here.
+ * and the two stamps answer. What it is WORTH — stamped on EVERY start,
+ * the round it opens banked by the next settle — is not grammar, so it is
+ * not asked here.
  */
 test("started round-trips, and is held to the same ISO rule as the marks", () => {
   const line = `{"id":"a","ord":"a","title":"t","doing":true,"started":"2026-08-29T09:52:00-04:00"}`
@@ -292,6 +293,46 @@ test("started round-trips, and is held to the same ISO rule as the marks", () =>
     .toEqual(["bad-date"])
   expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","started":"2026-13-01T10:00:00Z"}`)))
     .toEqual(["bad-date"])
+})
+
+/**
+ * `worked` — the banked rounds, in whole seconds. The field EXISTS (a key
+ * the schema does not declare would be a `bad-record`), it round-trips in
+ * canonical order beside `started`, and its one rule is INT-shaped: the
+ * settles write it and the read sums it, so a fraction or a word is the
+ * schema's to turn away. What it is WORTH — banked per settle, summed with
+ * the live round — is not grammar, so it is not asked here.
+ */
+test("worked round-trips, and is held to whole seconds", () => {
+  const line = `{"id":"a","ord":"a","title":"t","done":"2026-08-29T12:26:44-04:00","started":"2026-08-29T09:52:00-04:00","worked":9284}`
+  const parsed = outlineOf(line)
+  expect(parsed.nodes[0]?.node).toEqual({
+    id: "a",
+    ord: "a",
+    title: "t",
+    done: "2026-08-29T12:26:44-04:00",
+    started: "2026-08-29T09:52:00-04:00",
+    worked: 9284,
+  })
+  // Byte for byte — the writer's canonical order places it beside `started`,
+  // before `date`: it never reaches disk otherwise (`write.test.ts`'s rule).
+  expect(serializeOutline(parsed.nodes.map((one) => one.node))).toBe(`${line}\n`)
+
+  // HONESTLY ZERO IS A VALUE: a round closed inside one second banks `0`,
+  // and the bank says so rather than pretending no round closed.
+  expect(
+    outlineOf(`{"id":"a","ord":"a","title":"t","doing":true,"started":"2026-08-29T09:52:00-04:00","worked":0}`)
+      .nodes[0]?.node,
+  ).toMatchObject({ worked: 0 })
+
+  // Whole seconds, as a SHAPE — the schema's own fence, so the formats
+  // nobody may write never reach the validator's arithmetic at all.
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","worked":true}`)))
+    .toEqual(["bad-record"])
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","worked":12.5}`)))
+    .toEqual(["bad-record"])
+  expect(codes(errorsOf(`{"id":"a","ord":"a","title":"t","worked":"9284"}`)))
+    .toEqual(["bad-record"])
 })
 
 // Shape is not enough: `2026-02-30` matches the pattern and is still not a
