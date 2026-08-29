@@ -2,8 +2,10 @@
  * @olai/surface's KOLU HALF — what a reader is told about the padi link and
  * the fleet behind it.
  *
- * Three members, declared here because they are one subject and `./index.ts`
- * is already long: the LINK (a cell), the FLEET (a collection), and the
+ * Four members held here, in one file, because they are ONE subject and
+ * `./index.ts` is already long: the LINK (a cell), the FLEET (a collection),
+ * the EVENTS (a second collection — the watcher's ring: not a snap of any
+ * fleet row, a line-keeping of the MOMENTS that demanded one), and the
  * SNAPSHOT (a procedure). They are the wire half of
  * `https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/orchestrator.md`'s first row — padi mirrored into olai —
  * and phase 1a's whole visible payoff is one property chip drawing them.
@@ -139,6 +141,33 @@ export const KOLU_UNDIALED: KoluLink = {
   since: "",
 }
 
+/**
+ * WHERE THE WATCHER'S HEART IS, at last count — the pill's only liveness
+ * fact.
+ *
+ * The AT is the beat's own timestamp — ISO, like every `KoluEvent` row's.
+ * The `everyMs` is the CADENCE: the vault's `heartbeat:` knob, in
+ * milliseconds, as the watcher is currently configured. The pill doesn't
+ * know the knob, so the cadence rides beside the stamp: the fold's answer
+ * to "has the pulse gone quiet" is arithmetic the header can do itself
+ * without a second reader (the fold — `padiSaid`'s — eats
+ * `age > everyMs * 2`).
+ */
+export const WatchPulse = Schema.Struct({
+  /** The beat — and the entry's only wall-clock truth about liveness. */
+  at: Schema.String,
+  /** The vault's `heartbeat:` knob at this beat's reading, in
+   *  milliseconds — the cadence the stamp answers to. */
+  everyMs: Schema.Number,
+})
+
+export type WatchPulse = typeof WatchPulse.Type
+
+/** No beat has been read yet — the pill before the watcher exposed its
+ *  cadence. The door answers `kolu` on its own, the quiet face of the
+ *  fold: no recency value answers, so the header can't compute an age. */
+export const KOLU_UNPULSED: WatchPulse | null = null
+
 /** Two readings that say the same thing about the link — the member's `equals`,
  *  so a re-dial that found exactly what it found last time publishes nothing
  *  and `since` does not creep. Everything but `since` is compared; `since` is
@@ -244,6 +273,29 @@ export const UNOWNED: FleetOwner = { kind: "unowned" }
  * would be a second spelling of a shape designed to travel, which is the drift
  * the paragraph above exists to prevent, reached from the other side.
  */
+/**
+ * THE BOUND PIP, as the wire carries it — `bindStatePip`'s answer, whole.
+ *
+ * Factored out of {@link FleetTerminal} because a SECOND carrier wants the same
+ * bag: a watcher's frozen event row ({@link KoluEvent}) holds the pip exactly
+ * as it was the moment the event fired, spelled the same way it is spelled when
+ * live. Two spellings of the bag would be two answers to what a pip is, free to
+ * drift — the rule the bag's own block below argues is why the audit did not
+ * tolerate two `FleetTerminal`s.
+ */
+export const FleetPip = Schema.Struct({
+  variant: Schema.String,
+  glyph: Schema.String,
+  active: Schema.Boolean,
+  asking: Schema.Boolean,
+  bytesLive: Schema.Boolean,
+  hasAgent: Schema.Boolean,
+  sleeping: Schema.Boolean,
+  alert: Schema.Boolean,
+  alertLabel: Schema.String,
+})
+export type FleetPip = typeof FleetPip.Type
+
 export const FleetTerminal = Schema.Struct({
   /** padi's terminal id — the same string a `terminal` property holds, which is
    *  what makes the chip a resolution rather than a search. */
@@ -286,17 +338,7 @@ export const FleetTerminal = Schema.Struct({
    * olai had been transporting a field nothing read, which `fleet.ts`'s own law
    * already forbade.
    */
-  pip: Schema.Struct({
-    variant: Schema.String,
-    glyph: Schema.String,
-    active: Schema.Boolean,
-    asking: Schema.Boolean,
-    bytesLive: Schema.Boolean,
-    hasAgent: Schema.Boolean,
-    sleeping: Schema.Boolean,
-    alert: Schema.Boolean,
-    alertLabel: Schema.String,
-  }),
+  pip: FleetPip,
   /** The row's ORDER/paint bucket, verbatim — narrowed browser-side by
    *  `isDockRowBucket`. */
   bucket: Schema.String,
@@ -402,6 +444,100 @@ export class SnapshotRefused extends Schema.TaggedError<SnapshotRefused>(
     return this.says
   }
 }
+
+// ── The events feed ───────────────────────────────────────────────────────
+
+/**
+ * THE THREE THINGS THE WATCHER CAN SAY — the kinds a `KoluEvent` carries.
+ *
+ * The first two spell the same word padi's own state watch does
+ * (`@kolu/padi-client`'s `PadiStateEvent`), and that is deliberate rather than
+ * theft: olai's watcher computes over the mirror it already holds the events
+ * the orchestrator today gets from a hand-armed `kolu watch`, and the soak
+ * that proves the ladder runs the two in parallel — one jargon, two channels,
+ * and nothing for a reader to translate.
+ *
+ *   - `transition` — a terminal entered `awaiting` or `waiting` and HELD it
+ *     for `held-for`. The debounce says this: a turn that ends and is handed
+ *     more work inside the window was never said at all.
+ *   - `nag` — it is STILL holding, one `nag` interval after it was last said.
+ *     The level-trigger: an ignored terminal comes back instead of vanishing
+ *     after one line.
+ *   - `heartbeat` — the watcher is alive and watching. It names NO terminal:
+ *     a reader who has seen nothing for half an hour needs to be able to tell
+ *     "nothing matched" from "nothing is running". The kind survives as the
+ *     spelling; the RING eats attention events only — boot and liveness sit
+ *     on the `pulse` cell instead ({ ./index.ts}'s `pulse` member).
+ */
+export const KOLU_EVENT_KINDS = ["transition", "nag", "heartbeat"] as const
+
+/**
+ * ONE WATCHER EVENT — what the recent-events feed is made of.
+ *
+ * The kinds are padi's spellings (see {@link KOLU_EVENT_KINDS}); the shape is
+ * olai's own, and deliberately NOT padi's event: where padi hands the watcher
+ * a terminal id and lets the recipient read the screen for itself, THIS event
+ * freezes enough of the FleetTerminal row at the instant it fired to be drawn
+ * on its own. A log row is a fact at a time: the event that said a terminal
+ * held `awaiting` for three hours still says it after the terminal is back at
+ * work, and its row does not repaint to the way the fleet now sees it. That is
+ * also what frees the UI from the fleet a dead terminal has left.
+ *
+ * `row` is `null` on `heartbeat` and ONLY then: a heartbeat names no terminal
+ * because nobody is blocked and nothing is held.
+ */
+export const KoluEvent = Schema.Struct({
+  /** ONE EMISSION's own id. `ev-<seq>` on a per-server monotonic counter, which
+   *  is also the collection's key: a fresh subscriber is snapshotted from the
+   *  ring with it, and nags and transitions on one terminal are _rows_ not
+   *  patches. */
+  id: Schema.String,
+  kind: Schema.Literals(KOLU_EVENT_KINDS),
+  /** WHEN it fired, ISO. */
+  at: Schema.String,
+  /** WHOSE event it is — the row frozen as it was the moment it fired, so that
+   *  a feed drawn on a fleet the terminal has since left (or after a link flap
+   *  that emptied the fleet) still shows what the watcher saw. `null` on
+   *  `heartbeat`. */
+  row: Schema.NullOr(Schema.Struct({
+    terminal: Schema.String,
+    /** The held bucket, as kolu spells it — `awaiting` or `waiting`
+     *  (`@kolu/terminal-vocab`'s `agentBucket`). What the watcher matched on and
+     *  what the feed's wording keys off. */
+    state: Schema.String,
+    /** The agent state VERBATIM as the row spelled it at the time
+     *  (`awaiting_user`, `waiting`). The subline's words come from this. */
+    agentState: Schema.String,
+    /** The bound pip, frozen, with one edit: `active` and `bytesLive` are
+     *  stamped `false`, because they are LIVE facts and a log row must not
+     *  flash motion for something that might have been quiet for hours. The
+     *  rest is verbatim from the same `FleetPip` bag the fleet carries — one
+     *  spelling, two carriers. */
+    pip: FleetPip,
+    /** The order/paint bucket, frozen. */
+    bucket: Schema.String,
+    /** The annotation line (intent, else branch) and its ink, frozen. */
+    label: Schema.String,
+    labelColor: Schema.String,
+    /** THE REPOSITORY, frozen — the row's only DISAMBIGUATOR: three
+     *  terminals' labels can all read `master` (the human's drawer
+     *  screenshot, on the first real free-for-all watch). The fold that
+     *  names it is `repo·label` — kolu's own `repo·branch` spelling the
+     *  Dock's grouping answers — and a terminal with no repo carries a
+     *  `null`, so the row shows what the Dock's own group shows in that
+     *  case: the label alone. */
+    repo: Schema.NullOr(Schema.String),
+    /** WHEN this server first saw the terminal holding this state, ISO. It is
+     *  an OBSERVATION-lifetime clock: olai's restart re-dates every standing
+     *  hold — the difference is an ordinary restart, not a lie. A LINK flap
+     *  does not: the hold's clock is the watcher's own, not the record's —
+     *  padi's daemon keeps `since` through a client reconnect, and this
+     *  clock follows that (`@olai/kolu-client`'s `A link drop is not a
+     *  closing fleet`). */
+    since: Schema.String,
+  })),
+})
+export type KoluEvent = typeof KoluEvent.Type
 
 // ── The live pane ─────────────────────────────────────────────────────────
 

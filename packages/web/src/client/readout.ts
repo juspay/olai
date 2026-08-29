@@ -56,6 +56,25 @@ export const PILL =
 export const DOT = "inline-block size-2 shrink-0 rounded-full"
 
 /**
+ * THE INFRASTRUCTURE-WARNING REGISTER — the pill's one non-status face.
+ *
+ * The bar's loud colours already have a ruling: violet (`styles.css`'s
+ * `--color-alarm` and `--color-doing`'s siblings) is what an AGENT's ask
+ * for a human wears — the board's `blocked` column, the skew chip's
+ * "upgrade me". The PILL's new face (the watcher gone silent) is the
+ * other kind of wrong: something of this machine's OWN is broken, rather
+ * than a human is owed, and it gets AMBER as a third, smaller family so
+ * the two are never one glance's confusion. The inks are the prototype's
+ * own (`projects/olai/prototypes/pill-mock.png`): a hollow dot, a warm
+ * coat on the chip, and a warm word beside it.
+ */
+export const PILL_WARN_COAT = "!border-[#e0a83c] shadow-[0_0_0_1px_#e0a83c66]"
+/** The dot's HOLLOW face — the same round, emptied. */
+export const DOT_HOLLOW_WARN = "!bg-transparent border-2 !border-[#e0a83c]"
+/** The quiet sentence's ink, beside the dot's. */
+export const TEXT_WARN = "text-[#f0c46a]"
+
+/**
  * The other shape in the bar: a BUTTON with a glyph on it — the agent toggle
  * and the preferences trigger.
  *

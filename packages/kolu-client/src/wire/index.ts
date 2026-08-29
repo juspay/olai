@@ -1,5 +1,5 @@
 /**
- * KOLU'S SLICE OF OLAI'S WIRE — the vocabulary and the four members, here
+ * KOLU'S SLICE OF OLAI'S WIRE — the vocabulary and the members, here
  * rather than in `@olai/surface`.
  *
  * ## Why the spec moved
@@ -47,6 +47,8 @@ import { Schema } from "effect"
 import {
   FleetTerminal,
   KOLU_UNDIALED,
+  KOLU_UNPULSED,
+  KoluEvent,
   KoluLink,
   sameKolu,
   Snapshot,
@@ -54,6 +56,7 @@ import {
   SnapshotRequest,
   TerminalAttach,
   TerminalFrame,
+  WatchPulse,
 } from "./kolu.ts"
 
 /**
@@ -88,6 +91,22 @@ export const koluMembers = {
       verbs: ["get"],
       equals: sameKolu,
     },
+    /**
+     * THE PULSE — the watcher's liveness, as a timestamp (see
+     * { ./kolu.ts}'s `WatchPulse`): WHEN the heart last beat, and HOW LONG
+     * the cadence is allowed to run once it is overdue. The door reads
+     * `at` off this one stamp; the pill's answer to "has it gone quiet" is
+     * arithmetic it can do itself (`everyMs` is carried beside the stamp,
+     * so the browser never guesses the vault's cadence name). Two values,
+     * one stamp per beat.
+     *
+     * Wire-read-only: what is beating is not something a browser could set.
+     */
+    pulse: {
+      schema: Schema.NullOr(WatchPulse),
+      default: KOLU_UNPULSED,
+      verbs: ["get"],
+    },
   },
   collections: {
     /**
@@ -118,6 +137,35 @@ export const koluMembers = {
        *  holds, which is what makes the chip a lookup and not a search. */
       keySchema: Schema.String,
       schema: FleetTerminal,
+      verbs: ["keys", "get", "deltas"],
+    },
+    /**
+     * THE RECENT EVENTS — what the server-side watcher computed, as a ring of
+     * the last ~200.
+     *
+     * The knob set these events came from is `_olai/Kolu.olai` in the served
+     * directory (the vault owner's, read live); what olai owns is the reading
+     * and the math — the mirror's rows folded into transition/hold/nag. The
+     * ring is ATTENTION ONLY — liveness is the `pulse` cell above, not a row
+     * here. See `@olai/kolu-client`'s `watch.ts` for the semantics and
+     * {@link ./kolu.ts}'s `KoluEvent` for the shape.
+     *
+     * A COLLECTION rather than a stream: the ring is a standing thing every
+     * subscriber wants at once — a snapshot of however much of it survives,
+     * then deltas — where a stream would ask each tab to assemble its own
+     * copy. `deltas`, for `fleet`'s reason one name over: an entry is a dozen
+     * short fields, the set is a couple of hundred on a busy day, and a page
+     * draws the whole recent ring at once.
+     *
+     * Read-only on the wire, twice over: a browser neither mints an event nor
+     * takes one back. Muting a terminal is an EDIT to the vault's config
+     * outline, which reaches this collection through the watcher and no other
+     * way.
+     */
+    events: {
+      /** `ev-<seq>` — see {@link KoluEvent}. */
+      keySchema: Schema.String,
+      schema: KoluEvent,
       verbs: ["keys", "get", "deltas"],
     },
   },

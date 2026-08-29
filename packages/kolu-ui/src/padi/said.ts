@@ -35,7 +35,52 @@
  * ever say it.
  */
 
-import type { KoluLink } from "@olai/surface"
+import { recencyText } from "@kolu/solid-dockrow/rowValues"
+import type { KoluLink, WatchPulse } from "@olai/surface"
+
+/**
+ * THE BEAT'S REGISTER, in one word — the fold the pill paints itself with,
+ * so the palette below (`../readout`'s own constants) is chosen ship-side,
+ * not arbitrarily at the door.
+ *
+ * `none` is the face before the first stamp: not healthy and not loud, it
+ * is merely EMPTY, and it must wear neither green's good conscience nor
+ * amber's warning. Violet = an agent needs you; amber = something of this
+ * machine's OWN is broken (the watcher's one register, alongside
+ * `skulk`'s — NO other member's). The diamond answer on the door fold
+ * is `kind`, not a second link-state: the link is the link.
+ */
+export interface Beat {
+  readonly kind: "none" | "fresh" | "quiet"
+  /** What the chip's inspection face says: `watcher pulse 2m ago` — or its
+   *  long form, `watcher quiet 47m`, when the pulse HAS gone quiet. */
+  readonly said: string | null
+}
+
+/**
+ * The fold from a pulse stamp to the beat's register.
+ *
+ * The threshold is ARITHMETIC, and one line of it: the pulse is "quiet"
+ * once the last beat is older than twice its cadence. The multiple is the
+ * pill's margin — one window for the timer's own drift and one for the
+ * wire between them, so a beat one window late does not paint amber on a
+ * normal burn — and "from the config" is the `everyMs` the stamp rides
+ * beside (`@olai/kolu-client`'s `KoluConfig`), so the pill need never guess
+ * the vault's knobs.
+ */
+export const beatOf = (pulse: WatchPulse | null | undefined, now: number): Beat => {
+  if (pulse === undefined || pulse === null) return { kind: "none", said: null }
+  const at = new Date(pulse.at).getTime()
+  const quiet = now - at > pulse.everyMs * 2
+  // `age` folds differently the two ways: a fresh beat is a recency
+  // ("watcher pulse 2m ago"); a quiet beat is A DEBT — the capsule, with
+  // no `ago`, because what the register owes is an answer ("watcher quiet
+  // 47m", the pill's loud words) and the longer phrase would blur it.
+  const said = quiet
+    ? `watcher quiet ${recencyText("wait-chip", at, now)}`
+    : `watcher pulse ${recencyText("ago", at, now)}`
+  return { kind: quiet ? "quiet" : "fresh", said }
+}
 
 /**
  * WHAT THE READOUT SAYS, as its own shape.
@@ -63,6 +108,10 @@ export interface Said {
    *  tip or the `title`, and the `aria-label` that keeps it from being
    *  hover-only. */
   readonly detail: string
+  /** The pulse's register, or `null` on the `skew`/`absent` faces: the
+   *  link's own fault is what those fold-safe talk about, and the beat
+   *  behind it is a dead horse nobody should beat. */
+  readonly beat: Beat | null
 }
 
 /** One sentence about where olai looked, shared by the two arms that have
@@ -75,30 +124,39 @@ const lookedAt = (link: KoluLink): string =>
     ? `${link.socket}, which is where $PADI_SOCKET points.`
     : `${link.socket}, the default rendezvous path.`
 
-export const padiSaid = (link: KoluLink): Said => {
+export const padiSaid = (link: KoluLink, pulse?: WatchPulse | null, now?: number): Said => {
   switch (link.status) {
-    case "connected":
+    case "connected": {
+      // Either side absent — the wire unfed or the clock unpassed — is the
+      // pre-beat face rather than a quiet beat read: never a lie by
+      // arithmetic on a clock nobody asked for.
+      const beat = pulse === undefined || now === undefined ? { kind: "none" as const, said: null } : beatOf(pulse, now)
       return {
         // The DONE green, the same one a finished task wears: this is the
         // quiet face, and the outline's own vocabulary is what keeps a second
         // green from meaning a second thing.
         dot: "bg-done",
         label: "kolu",
-        detail:
-          `connected to padi at ${link.socket} — the terminal rows on this page are live.`,
+        detail: beat.said === null
+          ? `connected to padi at ${link.socket} — the terminal rows on this page are live.`
+          : `mirror connected · ${beat.said}`,
+        beat: beat.kind === "none" ? null : beat,
       }
+    }
     case "skew":
       return {
         dot: "bg-alarm",
         label: "kolu skew",
         detail:
           `padi at ${link.socket} speaks ${link.surfaceVersion ?? "?"} and this olai speaks ${link.speaks} — one of the two needs an upgrade, and until then no terminal can be read.`,
+        beat: null,
       }
     case "absent":
       return {
         dot: "bg-muted",
         label: "no kolu",
         detail: `no padi is answering at ${lookedAt(link)}`,
+        beat: null,
       }
   }
 }

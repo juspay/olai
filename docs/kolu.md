@@ -47,6 +47,30 @@ Attaching is a write on a shared pty, and kolu's semantic is that every client s
 
 Closing drops the attach. Twelve lanes on a page are twelve rows and **zero** attached terminals until somebody presses one.
 
+## The events feed
+
+Press the `● kolu` readout and a panel opens: **what recently wanted attention**, as a log. olai watches the fleet it already holds and says when a terminal has been sitting in a state only a person can carry — `awaiting` your answer, or `waiting` on input — past the moment it is worth saying so. While a pressed Terminal waits on a machine's other half somewhere, the watch itself stays the same economy as the fleet drawer it sits on: the one daemon, the one subscriber, the map the server already held.
+
+Every row is a **frozen draw of the moment the event fired** — which pip it wore, which label it had, how long it had already held. The row is a fact about the past, not a current affairs teller: a terminal that found its answer ten minutes ago still shows the ask it was, and the headline age runs off the same clock as the pips.
+
+The watch is the SERVER's — one watcher, one ring of the last roughly two hundred events, and every browser is a reader of it. The ring itself is **attention only** — heartbeats are nowhere on it; a feed of migrated rows would be the same distraction the usernames they fold back to would be.
+
+The liveness lives on the PILL instead, which is where the feed's own bar already was: `watcher pulse 2m ago` in the hover while it is healthy (the fold's first register, `fresh`), and — crossed past **2 × the vault's `heartbeat` knob** — the pill's loud amber face: the chip's dot hollow, its border and ring warming, and its words naming it as `watcher quiet 47m` until the next beat. That double-cadence is the pill's own margin: the fold counts the beat's stamp against `everyMs` right beside the pulse's record, so a tab answering on its own clock need never guess the vault's cadence. A padi link flapping under olai fires nothing: a fleet emptied because the socket went is a fleet PAUSED, not a closing one — the holds keep their own clocks through it, and a `since` survives a reconnect the way padi's own daemon runs it.
+
+Where a terminal asks is the only thing a held state cannot tell: you WANT it to ask somewhere. **Mute the fleet one at a time** in `_olai/Kolu.olai`, the same file the watch reads its cadence from:
+
+```
+{"id":"watch","ord":"a0","title":"watch","custom":{"held-for":"60s"}}
+{"id":"mutes","ord":"a1","title":"mutes"}
+{"id":"one","parent":"mutes","ord":"a0","title":"a side shell nobody watches","custom":{"terminal":"5c5824d5"}}
+```
+
+The file is normal outline records. The watch node carries the knobs — `held-for` (the pause that holds a terminal's state out of the feed), `nag` (how often an unanswered one is said again) and `heartbeat` — written as `<n>s`, `<n>m` or `<n>h`; an absent value defaults, and a malformed one defaults **and is said on the server's console at warning level**, so a typing mistake is never silent. The grammar is padi's own: `held-for` may be `0` — the report the INSTANT a state lands, which padi's watch flags also allow — but the other two never are, because a nag every 0 ms is the spin padi's own schema refuses, and both cap at the ~24.8-day timer bound. The mutes are children of a `mutes` node holding one `terminal` property each — full id or a unique prefix of one. Edits land live: the watch reads its knobs on every vault revision, so the file a person is *editing* is the file a person is **already being watched by**.
+
+An ambiguous prefix — one that names two open terminals — silences neither, and says so: write more of the id.
+
+The file is yours, not installed: without it the watch runs its defaults (sixty seconds, ten minutes, half an hour).
+
 ## When there is nothing to see
 
 A machine not running kolu is the ordinary case, not a fault. There is no row, and in its place a **sentence** — never a grey row, which would claim the terminal is sitting there doing nothing, and that is a different and wrong fact:
