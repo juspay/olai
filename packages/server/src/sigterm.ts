@@ -158,16 +158,24 @@ export const judge = (
  *  what `/proc/<pid>/cmdline` says — read at DRAIN time, the earliest
  *  point it is safe to touch the filesystem, and still often too late:
  *  a `pkill` has exited by then, in which case the pid and uid
- *  (kernel-recorded at send time, unforgeable) are the attribution and
- *  the line says the cmdline was already gone. */
+ *  (kernel-recorded at send time) are the attribution and the line says
+ *  the cmdline was already gone. Two honesty notes: the read is
+ *  synchronous and takes the sender's mmap_lock — a sender wedged in
+ *  D-state would stall the drain for as long as procfs does (accepted:
+ *  it is one read per TERM, and the alternative is no cmdline at all);
+ *  and "gone" is only what ENOENT/ESRCH say — every other error is named
+ *  as itself rather than reported as a death. */
 export const who = (pid: number, self: number): string => {
   if (pid === 0) return "(the kernel)"
   if (pid === self) return "(this process)"
   try {
     const words = fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").split("\0").filter(Boolean)
     return words.length === 0 ? "(empty cmdline)" : `(${words.join(" ")})`
-  } catch {
-    return "(already gone — pid and uid above were recorded at send time)"
+  } catch (cause) {
+    const code = (cause as { readonly code?: string }).code ?? "unknown"
+    return code === "ENOENT" || code === "ESRCH"
+      ? "(already gone — pid and uid above were recorded at send time)"
+      : `(cmdline unreadable: ${code})`
   }
 }
 
