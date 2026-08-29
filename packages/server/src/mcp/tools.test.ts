@@ -662,19 +662,22 @@ test("a `fields` walk answers the caller's exact rows, and only those", async ()
   const PROPPED = [
     `{"id":"lane","ord":"a0","title":"the lane"}`,
     `{"id":"first","parent":"lane","ord":"a0","title":"ship the parser",` +
-      `"done":"2026-08-29T09:12:00-04:00","custom":{"took":"4m","agent":"pi"}}`,
+      `"started":"2026-08-29T09:08:00-04:00","done":"2026-08-29T09:12:00-04:00","custom":{"took":"4m","agent":"pi"}}`,
     `{"id":"second","parent":"lane","ord":"a1","title":"tidy the docs","doing":true}`,
     "",
   ].join("\n")
 
   await withTools({ "steps.olai": PROPPED }, async ({ client }) => {
     // THE TIMINGS SHAPING — the case the parameter was opened for: the marks
-    // and the SETTLE INSTANTS, no notes, no situating.
+    // and the SETTLE INSTANTS, no notes, no situating — and now the SPAN
+    // itself: `took` the vocabulary name (240 whole seconds, derived) beside
+    // `custom.took` the property ("4m", the file's own text). Two spellings,
+    // two facts, one row — neither shadows the other.
     const tree = withoutAge((
       await call(client, "read_subtree", {
         id: "lane",
         depth: 1,
-        fields: ["title", "status", "done", "custom.took"],
+        fields: ["title", "status", "done", "custom.took", "took"],
       })
     ).structured)
     expect(tree).toEqual({
@@ -689,6 +692,7 @@ test("a `fields` walk answers the caller's exact rows, and only those", async ()
           title: "ship the parser",
           status: "done",
           done: "2026-08-29T09:12:00-04:00",
+          took: 240,
           custom: { took: "4m" },
           children: [],
         },
