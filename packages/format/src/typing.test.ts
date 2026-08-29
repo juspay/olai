@@ -359,6 +359,32 @@ test("the bootstrap table is the words a declaration says about itself", () => {
   expect(PATH_BASES).toEqual(["root", "file"])
 })
 
+test("a bad type is refused naming the legal kinds and each one's shape", () => {
+  const bent = derive(nodesOfFiles({
+    "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"took","custom":{"type":"took"}}`,
+  }))
+  const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set())
+  expect(said).toContain("`type` is `took`, which is not a property type")
+  expect(said).toContain("`text` (anything)")
+  expect(said).toContain("`date` (an ISO day or instant)")
+  expect(said).toContain("`int` (a digit run)")
+  expect(said).toContain("`path` (no whitespace; optional `base`)")
+  expect(said).toContain("`doc` (a served `.md`; optional `base`)")
+  expect(said).toContain("`ref` (a child's id; `under` names the parent)")
+  expect(said).toContain("`node` (any node id)")
+})
+
+test("a declaration missing its type is refused naming the same vocabulary", () => {
+  const bent = derive(nodesOfFiles({
+    "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"musts"}`,
+  }))
+  const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set())
+  expect(said).toContain("does not say its `type`")
+  expect(said).toContain("`text` (anything)")
+  expect(said).toContain("`ref` (a child's id; `under` names the parent)")
+  expect(said).toContain("`int` (a digit run)")
+})
+
 test("a vault cannot declare `type`, `under` or `base` — the recursion stops in the table", () => {
   const claiming = derive(nodesOfFiles({
     ...FILES,

@@ -174,6 +174,27 @@ export const PROP_KINDS = [
 ] as const satisfies ReadonlyArray<PropType["kind"]>
 
 /**
+ * What each kind TAKES, as the clause a refusal names it with — the legal
+ * word and the shape it requires, in one phrase per kind.
+ *
+ * Read by {@link BOOTSTRAP} so a kind added to the union above and forgotten
+ * here is a type error rather than a word the declarations file quietly stops
+ * explaining. The order is {@link PROP_KINDS}' so the sentence a bad `type` is
+ * refused with cannot drift from the list the table accepts.
+ */
+export const PROP_KIND_TAKES = {
+  text: "`text` (anything)",
+  date: "`date` (an ISO day or instant)",
+  int: "`int` (a digit run)",
+  path: "`path` (no whitespace; optional `base`)",
+  doc: "`doc` (a served `.md`; optional `base`)",
+  ref: "`ref` (a child's id; `under` names the parent)",
+  node: "`node` (any node id)",
+} as const satisfies Record<PropType["kind"], string>
+
+const kindsTaken = (): string => PROP_KINDS.map((kind) => PROP_KIND_TAKES[kind]).join(", ")
+
+/**
  * WHERE A RELATIVE `doc` OR `path` VALUE RESOLVES FROM — the key's own answer,
  * declared beside its type.
  *
@@ -383,10 +404,10 @@ interface Grounded {
  */
 export const BOOTSTRAP: ReadonlyMap<string, Grounded> = new Map<string, Grounded>([
   [TYPE_KEY, {
-    takes: `one of ${PROP_KINDS.map((kind) => `\`${kind}\``).join(", ")}`,
+    takes: kindsTaken(),
     wrong: (value) =>
-      isPropKind(value) ? undefined : `is not a property type — write one of ${
-        PROP_KINDS.map((kind) => `\`${kind}\``).join(", ")
+      isPropKind(value) ? undefined : `is not a property type — write ${
+        kindsTaken()
       }${didYouMean(value, PROP_KINDS)}`,
   }],
   [UNDER_KEY, {
@@ -1146,7 +1167,7 @@ export const wrongDeclaration = (
   }
   const said = customText(located, TYPE_KEY)
   if (said === undefined) {
-    return `\`${written}\` declares a property key but does not say its \`${TYPE_KEY}\` — ` +
+    return `\`${written}\` declares a property key but does not say its \`${TYPE_KEY}\` — write ` +
       `${BOOTSTRAP.get(TYPE_KEY)?.takes ?? ""}.`
   }
   // The one rule about the PAIR, which no per-word table can hold: `under` says

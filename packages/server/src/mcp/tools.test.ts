@@ -1172,6 +1172,51 @@ test("move_node with a `file` lands the subtree at that outline's top level", as
  * file is written — which is the law working, and is why this is a refusal with
  * nothing on disk rather than a hole.
  */
+/**
+ * A bad `type` in a Properties declaration used to meet the generic write
+ * gate — `add_node was refused (validation): \`capture: took\` would leave
+ * \`_olai/Properties.olai\` invalid` — which named nothing. The planner now
+ * refuses as `usage`, naming the legal kinds, which is the sentence an agent
+ * actually reads.
+ */
+test("add_node of a bad type in Properties.olai names the legal vocabulary", async () => {
+  await withTools(
+    {
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}\n`,
+    },
+    async ({ client }) => {
+      const unknown = await call(client, "add_node", {
+        file: "_olai/Properties.olai",
+        title: "took",
+        props: { type: "took" },
+      })
+      expect(unknown.isError).toBe(true)
+      expect(unknown.structured).toMatchObject({ kind: "usage" })
+      expect(String(unknown.structured["reason"])).toContain(
+        "`type` is `took`, which is not a property type",
+      )
+      expect(String(unknown.structured["reason"])).toContain("`int` (a digit run)")
+      expect(String(unknown.structured["reason"])).toContain(
+        "`ref` (a child's id; `under` names the parent)",
+      )
+      expect(String(unknown.structured["reason"])).not.toContain("would leave")
+
+      const missing = await call(client, "add_node", {
+        file: "_olai/Properties.olai",
+        title: "musts",
+      })
+      expect(missing.isError).toBe(true)
+      expect(missing.structured).toMatchObject({ kind: "usage" })
+      expect(String(missing.structured["reason"])).toContain("does not say its `type`")
+      expect(String(missing.structured["reason"])).toContain("`text` (anything)")
+      expect(String(missing.structured["reason"])).toContain(
+        "`ref` (a child's id; `under` names the parent)",
+      )
+    },
+  )
+})
+
 test("move_node is refused when it would take a `ref` variant out of its root", async () => {
   await withTools(
     {

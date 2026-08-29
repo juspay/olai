@@ -5185,6 +5185,75 @@ describe("typed properties", () => {
 
   // ── the births ───────────────────────────────────────────────────────
 
+  test("a bad type in a Properties declaration is refused naming the legal vocabulary", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+    })
+    const failure = refused(held, {
+      op: "add",
+      file: "_olai/Properties.olai",
+      title: "took",
+      props: { type: "took" },
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("`type` is `took`, which is not a property type")
+    expect(failure.message).toContain("`text` (anything)")
+    expect(failure.message).toContain("`date` (an ISO day or instant)")
+    expect(failure.message).toContain("`int` (a digit run)")
+    expect(failure.message).toContain("`path` (no whitespace; optional `base`)")
+    expect(failure.message).toContain("`doc` (a served `.md`; optional `base`)")
+    expect(failure.message).toContain("`ref` (a child's id; `under` names the parent)")
+    expect(failure.message).toContain("`node` (any node id)")
+  })
+
+  test("a Properties declaration missing its type is refused naming the same vocabulary", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+    })
+    const failure = refused(held, {
+      op: "add",
+      file: "_olai/Properties.olai",
+      title: "musts",
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("does not say its `type`")
+    expect(failure.message).toContain("`text` (anything)")
+    expect(failure.message).toContain("`ref` (a child's id; `under` names the parent)")
+    expect(failure.message).toContain("`int` (a digit run)")
+  })
+
+  test("set_prop of a bad type on a declaration is the same refusal", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+    })
+    const failure = refused(held, {
+      op: "prop",
+      id: "prop-pr",
+      key: "type",
+      value: "colour",
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("`type` is `colour`, which is not a property type")
+    expect(failure.message).toContain("`ref` (a child's id; `under` names the parent)")
+  })
+
+  test("a ref declaration without `under` is still legal — variants hang under it", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+    })
+    const plan = planned(held, {
+      op: "add",
+      file: "_olai/Properties.olai",
+      title: "merge",
+      props: { type: "ref" },
+    })
+    expect(record(fileOf(plan, "_olai/Properties.olai"), "n1").custom).toEqual({ type: "ref" })
+  })
+
   test("add_node refuses a bad value on the node being born", () => {
     expect(
       refused(board(), {
