@@ -693,6 +693,9 @@ export const CLAUDE: Leg = {
   spawned: spawnedIn,
   backgroundTask: backgroundTaskIn,
   listedIn,
+  // No doubling on this wire: the adapter's `session/new` answers with a
+  // session id and `configOptions` and never announces a chunk in advance.
+  prologueIn: () => null,
   bypassMode: BYPASS_MODE,
   steering: {
     method: STEER_METHOD,

@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# The `pi` the roster's probe finds. Never RUN: the scripted adapter beside it
+# is handed this path as `PI_ACP_PI_COMMAND` and spawns nothing — the probe's
+# answer is what the row is made of, and this file is that answer.
+echo "pi stub: this file is probed, never executed" >&2
+exit 1

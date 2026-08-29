@@ -54,6 +54,12 @@ const WHERE_FROM: { readonly [K in AgentId]: { readonly how: string; readonly wh
     how: "put `opencode` on this server's PATH",
     where: "https://opencode.ai",
   },
+  pi: {
+    // The ADAPTER comes with olai like the claude one's does; the AGENT it
+    // wraps is the thing a machine must have. Both halves are the row's.
+    how: "put `pi` on this server's PATH — the adapter for it comes with olai",
+    where: "https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent",
+  },
 }
 
 /** ... and the rows to draw, in the table's own order. */

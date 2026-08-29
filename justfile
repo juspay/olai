@@ -52,6 +52,11 @@ default:
 check: typecheck test e2e kolu-deps fmt-check nix bun-nix-fresh hm-module
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
+# The `npm ci` in the acp/ pin is the adapter tree's half: the MCP bridge's
+# tests (acp/mcp-bridge) resolve the SDK from ITS lockfile, not the root's
+# bun one — and `bun test` discovers them with everything else, so a fresh
+# machine's first `just test` needs both trees standing. It is the same
+# lockfile the FOD builds from; nothing here drifts.
 # Every bun leg depends on this one recipe, so concurrent legs share a single
 # install rather than racing on node_modules.
 #
@@ -61,6 +66,7 @@ check: typecheck test e2e kolu-deps fmt-check nix bun-nix-fresh hm-module
 # — so the expansion is deliberately unquoted.
 install:
     {{ nix_shell }} sh -c 'bun install --frozen-lockfile \
+      && (cd acp && npm ci --ignore-scripts) \
       && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_KOLU_HYDRATE'
 
 # TypeScript type checking — every workspace member, from the glob bun
@@ -164,6 +170,10 @@ serve dir="docs" *args: build-client
     # packaged binary does — scripts/acp-agent.sh is the one place that is
     # decided, and `OLAI_ACP_AGENT` overrides it (empty disables).
     export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
+    # The pi row's adapter, the other half of the same pin — a machine with a
+    # `pi` on the search path gets the row, every other machine gets nothing
+    # new (scripts/acp-pi.sh says why the roster probes for the agent).
+    export OLAI_ACP_PI="$(sh scripts/acp-pi.sh)"
     # `kill 0` takes the whole process group down together: a stray bundler
     # watching a tree nobody is serving is a confusing thing to leave behind.
     trap 'kill 0' EXIT INT TERM
@@ -183,6 +193,7 @@ run dir="docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
     export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
+    export OLAI_ACP_PI="$(sh scripts/acp-pi.sh)"
     OLAI_DIST_DIR={{ dist }} OLAI_PORT_FILE={{ dev_url }} \
       {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} {{ args }}
 
@@ -222,6 +233,21 @@ nix:
       exit 1
     fi
     echo "packaged default agent: $agent"
+    # THE OTHER SHIPPED ADAPTER, checked the same way: the pi row is a no-op
+    # on a machine without `pi`, but on one that has it the row spawns
+    # whatever this names, so it has to be there and be runnable.
+    pi=$(sed -n "s|.*OLAI_ACP_PI=\${OLAI_ACP_PI-'\(.*\)'}.*|\1|p" "$out/bin/olai")
+    if [ -z "$pi" ]; then
+      echo "the packaged binary does not bake OLAI_ACP_PI into its wrapper," >&2
+      echo "so the pi row would never be offered. Wrapper:" >&2
+      cat "$out/bin/olai" >&2
+      exit 1
+    fi
+    if [ ! -x "$pi" ]; then
+      echo "the wrapper's baked OLAI_ACP_PI is not executable: $pi" >&2
+      exit 1
+    fi
+    echo "packaged pi adapter: $pi"
 
 # The home-manager module evaluates under a sample config (systemd argv on
 # Linux, launchd argv on Darwin). Cheap, no home-manager pin, no activation —

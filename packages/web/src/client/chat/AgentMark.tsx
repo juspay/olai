@@ -61,6 +61,16 @@ const OpencodeMark = (): JSX.Element => (
   </g>
 )
 
+/** pi: the letter the agent is named for, drawn as its three strokes rather
+ *  than set in a typeface — the same few-shapes bargain the other two are, and
+ *  nobody else's sign on this picker. */
+const PiMark = (): JSX.Element => (
+  <g stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none">
+    <path d="M 4.4 3.5 h 8 a 2.3 3.4 0 0 0 -2.3 3.4 v 5.6" />
+    <line x1="7.2" y1="3.5" x2="7.2" y2="12.5" />
+  </g>
+)
+
 /** An agent olai has no shape for: a ring with a dot in it — present, distinct
  *  from both marks above, and claiming nothing about whose it is. */
 const GenericMark = (): JSX.Element => (
@@ -75,6 +85,7 @@ const GenericMark = (): JSX.Element => (
 const MARKS: { readonly [id: string]: () => JSX.Element } = {
   claude: ClaudeMark,
   opencode: OpencodeMark,
+  pi: PiMark,
 }
 
 /**

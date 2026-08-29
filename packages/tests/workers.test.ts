@@ -105,7 +105,7 @@ test("PIN (profile): cucumber.js asks workerCount(); it does not hardcode 1", ()
 });
 
 test("PIN (spawn shape): fingerprints differ when the server would start differently", () => {
-  const base = { stored: false, agent: true, opencode: false, kolu: false };
+  const base = { stored: false, agent: true, opencode: false, pi: false, kolu: false };
   expect(spawnFingerprint(base)).toBe(spawnFingerprint({ ...base }));
   expect(spawnFingerprint(base)).not.toBe(
     spawnFingerprint({ ...base, kolu: true }),
@@ -123,6 +123,9 @@ test("PIN (spawn shape): fingerprints differ when the server would start differe
   // conversation is with, so two servers that differ in it are two servers.
   expect(spawnFingerprint(base)).not.toBe(
     spawnFingerprint({ ...base, opencode: true }),
+  );
+  expect(spawnFingerprint(base)).not.toBe(
+    spawnFingerprint({ ...base, pi: true }),
   );
 });
 
