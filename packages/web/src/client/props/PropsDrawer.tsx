@@ -157,9 +157,11 @@ import { createMemo, createSignal, For, Index, Show } from "solid-js"
 import type { Entry } from "./drawer.ts"
 import { type Door, doorFor } from "./door.ts"
 
-import { type BlockChrome, layOut, registerBlock, TERMINAL_KEY } from "./blocks.ts"
+import { type BlockChrome, layOut, registerLive, TERMINAL_KEY, WORKTREE_KEY } from "./live.ts"
 import { Handle } from "./handle.tsx"
 import { TerminalBlock } from "@olai/kolu-ui"
+import { CiChip } from "../ci/CiChip.tsx"
+import { RunMatrix } from "../ci/RunMatrix.tsx"
 import { type ClosedBy, type Editing, leavingCommits, openedOn, sending, writes } from "./editor.ts"
 import { Link } from "../router.tsx"
 import { useDoors, useNames } from "../reading.tsx"
@@ -171,21 +173,22 @@ import { TARGET } from "../touch.ts"
 
 // THE APP OWNS THE TABLE, and this is the whole of that ownership.
 //
-// It was a side-effect import: `./blocks.ts` was a table a renderer put ITSELF
+// It was a side-effect import: the seam was a table a renderer put ITSELF
 // into, and the drawer loaded the module so the key would be in the map. That
 // reads fine while everything is one package and stops being true the moment
 // the renderer is behind a wall — a self-registrant would put the appliance in
 // charge of the app's table, and the import direction would be a lie told by
 // an `import "…"` with no binding.
 //
-// So the renderer is a component and nothing else, and the registration is a
-// call the app makes. Against `TERMINAL_KEY` — `@olai/surface`'s exported
-// constant — never the string `"terminal"`: the key is the wire's, one
-// spelling, and a literal here would be a second one waiting to drift.
+// So a face is a component and nothing else, and the registration is a call
+// the app makes. Against the KEY CONSTANTS — `@olai/surface`'s, composed out
+// of the appliance slice that owns each one — never the strings `"terminal"`
+// and `"worktree"`: the key is the wire's, one spelling, and a literal here
+// would be a second one waiting to drift from the one the server probes by.
 
-/** THE DRAWER'S FURNITURE, minted once — every block gets the same object.
+/** THE DRAWER'S FURNITURE, minted once — every face gets the same object.
  *
- *  It lives HERE and not in `./blocks.ts` because that module is the seam and
+ *  It lives HERE and not in `./live.ts` because that module is the seam and
  *  is deliberately JSX-free: its own unit test imports it directly, and pulling
  *  a `.tsx` in through it broke that test the moment the chrome was added
  *  there. A type crosses a seam; a component belongs with the drawer. */
@@ -195,7 +198,14 @@ const BLOCK_CHROME: BlockChrome = {
   valueId: TESTID.propValue,
 }
 
-registerBlock(TERMINAL_KEY, TerminalBlock)
+// THE TWO DRESSINGS, and the shape of each is the argument for the seam having
+// two. A `terminal` owns a row, because a terminal somebody named is worth one
+// whether or not anything is happening in it. A `worktree` does not: it is a
+// path on a lane row, quiet by default, and its live face is a chip BESIDE the
+// value that appears only while there is a run — plus the matrix that chip's
+// press opens, drawn under the run because a grid does not fit in a chip.
+registerLive(TERMINAL_KEY, { Block: TerminalBlock })
+registerLive(WORKTREE_KEY, { Chip: CiChip, Pane: RunMatrix })
 
 /**
  * HOW LONG A VALUE MAY BE before it is drawn folded.
@@ -297,6 +307,17 @@ export function PropsDrawer(props: {
    * the panel it opened was the row's — and the panel is gone.
    */
   const [editing, setEditing] = createSignal<Editing | null | undefined>(undefined)
+  /**
+   * WHICH LIVE PANE IS OPEN, by the property's key — one per RUN, exactly as
+   * the editor above is one per run and for the same reason: opening a second
+   * closes the first, which is what a person means by clicking somewhere else.
+   *
+   * Held HERE rather than by the face that opens it, because a face cannot
+   * know about its siblings — the same argument `./live.ts`'s `ChipContext`
+   * makes about why `opened` is handed in rather than owned. `undefined` is
+   * closed.
+   */
+  const [paned, setPaned] = createSignal<string | undefined>(undefined)
   /** Is the ADD chip open — this run's own answer, or the caller asking for one
    *  ({@link PropsDrawer.adding}). One reading, so the two doors cannot end up
    *  drawing two boxes. */
@@ -351,23 +372,44 @@ export function PropsDrawer(props: {
             of the page. Keyed by {@link keyOf}, which is where the one thing
             that could collide is answered. */}
         <Key each={laid().run} by={keyOf}>
-          {(entry) => (
-            <Chip
-              entry={entry()}
-              doorOf={doorOf}
-              // A chip is open when the editor is open ON IT — asked by the
-              // chip's own identity ({@link keyOf}) rather than by its bare
-              // key, which is the collision that identity exists to prevent
-              // (`./editor.ts`'s `openedOn`).
-              open={openedOn(editing(), entry())}
-              onOpen={props.onSet === undefined
-                ? undefined
-                : () => setEditing({ key: entry().key, value: entry().value })}
-              // WHAT IT WAS is the SNAPSHOT the editor opened on, handed back by
-              // the chip — never the live entry. See {@link Chip.onCommit}.
-              onCommit={(was, value) => void commit(was, "", value)}
-              onCancel={close}
-            />
+          {(laid) => (
+            <>
+              <Chip
+                entry={laid().entry}
+                doorOf={doorOf}
+                // A chip is open when the editor is open ON IT — asked by the
+                // chip's own identity ({@link keyOf}) rather than by its bare
+                // key, which is the collision that identity exists to prevent
+                // (`./editor.ts`'s `openedOn`).
+                open={openedOn(editing(), laid().entry)}
+                onOpen={props.onSet === undefined
+                  ? undefined
+                  : () => setEditing({ key: laid().entry.key, value: laid().entry.value })}
+                // WHAT IT WAS is the SNAPSHOT the editor opened on, handed back by
+                // the chip — never the live entry. See {@link Chip.onCommit}.
+                onCommit={(was, value) => void commit(was, "", value)}
+                onCancel={close}
+              />
+              {/* THE LIVE FACE, beside the fact it is about and drawing
+                  NOTHING whenever the thing it names is not alive — which is
+                  most of the time, and is why this costs a quiet board no
+                  line at all (`./live.ts`). It gets the `opened` answer and
+                  the toggle rather than holding either, so pressing a second
+                  one closes the first; the toggle is withheld from a dressing
+                  that registered no pane, and then the face is a readout. */}
+              {laid().chip?.({
+                entry: laid().entry,
+                onOpen: props.onSet === undefined
+                  ? undefined
+                  : () => setEditing({ key: laid().entry.key, value: laid().entry.value }),
+                chrome: BLOCK_CHROME,
+                opened: paned() === laid().entry.key,
+                onToggle: laid().pane === undefined ? undefined : () => {
+                  const key = laid().entry.key
+                  setPaned((was) => (was === key ? undefined : key))
+                },
+              })}
+            </>
           )}
         </Key>
         <Show when={naming()}>
@@ -398,17 +440,36 @@ export function PropsDrawer(props: {
         </div>
       </Show>
       {/* THE BLOCKS, under the run and in the file's own key order.
-          A property whose renderer OWNS ITS ROW draws here rather than in the
-          line above — `./blocks.ts` decides which, and this knows nothing about
+          A property whose face OWNS ITS ROW draws here rather than in the
+          line above — `./live.ts` decides which, and this knows nothing about
           any of them, which is the point: the drawer stopped asking "is this
           the terminal key?" and started asking "does this property have a
-          block?". A block's own state (a pane it opens, a thing it expands)
+          dressing?". A block's own state (a pane it opens, a thing it expands)
           belongs to the block, because a block already owns the width a chip
           never had. Outside the run's `<Show>` for the said line's reason
           below: a run can be empty of chips and still have blocks in it. */}
       <For each={laid().blocks}>
         {(laid) =>
           laid.block({
+            entry: laid.entry,
+            onOpen: props.onSet === undefined
+              ? undefined
+              : () => setEditing({ key: laid.entry.key, value: laid.entry.value }),
+            chrome: BLOCK_CHROME,
+          })}
+      </For>
+      {/* THE OPEN LIVE PANE — what a chip's press opened, drawn HERE rather
+          than beside the chip for the reason a block is a block: a chip is an
+          inline box in a wrapping line and cannot carry a grid, so the pane
+          hangs off the drawer under the run, which is where the snapshot pane
+          and the said line have always hung. One at a time, because `paned` is
+          one answer per run; mounted only while open, which is what makes the
+          matrix's own clock cost a person looking at it (`../ci/RunMatrix.tsx`).
+          Placed after the blocks so a node with both keeps the door-and-row
+          reading order the file's own key order gives it. */}
+      <For each={laid().run.filter((one) => one.pane !== undefined && paned() === one.entry.key)}>
+        {(laid) =>
+          laid.pane?.({
             entry: laid.entry,
             onOpen: props.onSet === undefined
               ? undefined
@@ -1033,5 +1094,5 @@ const shortened = (value: string): string => {
  * than a wrong draw (`../edges/named.ts` argues it where it first bit). Within
  * each half the keys are a map's own and unique by construction.
  */
-const keyOf = (entry: Entry): string =>
-  `${entry.system ? "system" : "custom"}:${entry.key}`
+const keyOf = (laid: { readonly entry: Entry }): string =>
+  `${laid.entry.system ? "system" : "custom"}:${laid.entry.key}`

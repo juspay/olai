@@ -320,6 +320,7 @@ test("every declaration names a field its own schema carries, and no other membe
   // `inbox` and `moving` carry no array of objects at all.
   expect(declaring.map((one) => `${one.name} → ${one.arrayKey}`).sort()).toEqual([
     "cells.chat → name",
+    "cells.ci → id",
     "cells.pending → path",
     "cells.pins → id",
     "streams.page → key",
@@ -401,6 +402,23 @@ test("the pending cell is keyed by the one name its two row lists share", () => 
   // identity by collision, exactly as `file` would on `errors`.
   const pending = MEMBERS.find((one) => one.name === "cells.pending")!
   expect(keyings(pending.value, "file").get("changes")).toBe("keyed")
+})
+
+test("the ci cell's key reaches BOTH its arrays — the runs, and the nodes inside each", () => {
+  expect(surface.spec.cells.ci.arrayKey).toBe("id")
+  const found = keyingsOf("cells.ci")
+  // One field name, every array at every depth: a run is identified by the
+  // board's own `worktree` value and a node by odu's `<namepath>@<platform>`,
+  // and both are spelled `id` precisely so one declaration governs both. A
+  // coordinator republishes its whole pipeline on every node transition, and
+  // an unkeyed inner array would wake every row of a lanes outline for each.
+  expect(found.get("runs")).toBe("keyed")
+  expect(found.get("runs[].cells")).toBe("keyed")
+  // The two string lists are not in this walk at all — it reads arrays of
+  // OBJECTS, which is where identity is a question. A lane roster and a
+  // scheduling order are sequences of words, and merging them by position is
+  // the only thing they could mean.
+  expect([...found.keys()].sort()).toEqual(["runs", "runs[].cells"])
 })
 
 test("the chat cell is keyed by the field both of its lists carry", () => {

@@ -227,6 +227,7 @@ import { MovingAnswer, MovingRequest, PageReading, PageRequest } from "./page.ts
  *  are re-exported at the tail, so a consumer still reads them off the composed
  *  spec and no import outside this package changed. */
 import { koluMembers } from "@olai/kolu-client/wire"
+import { oduMembers } from "@olai/odu-client/wire"
 import { App } from "./app.ts"
 import { NarrowingAnswer, NarrowingRequest } from "./narrowing.ts"
 import { SearchAnswer, SearchRequest } from "./search.ts"
@@ -558,6 +559,7 @@ const sameSet = (a: Manifest, b: Manifest): boolean => (a === null) === (b === n
 export const surface = defineSurface({
   cells: {
     ...koluMembers.cells,
+    ...oduMembers.cells,
     // Wire-read-only: the server is the only writer, and a write verb it never
     // serves would crash surface's boot walk.
     errors: {
@@ -1687,3 +1689,22 @@ export {
   UNOWNED,
   type WatchPulse,
 } from "@olai/kolu-client/wire"
+
+/** THE ODU HALF — the CI runs a board's lanes are living through.
+ *
+ *  RE-EXPORTED FROM `@olai/odu-client/wire` for the kolu slice's reason,
+ *  word for word: nothing appliance-named lives in the package every browser
+ *  bundles, and the composed spec still answers for its own members so no
+ *  consumer rewrites an import. It is the live-properties seam's second
+ *  tenant, and the fact that this block is a copy of the one above with two
+ *  words changed is the phase's whole claim. */
+export {
+  CiRun,
+  CiRuns,
+  NO_RUNS,
+  PR_URL_KEY,
+  RunCell,
+  RunTally,
+  sameCi,
+  WORKTREE_KEY,
+} from "@olai/odu-client/wire"
