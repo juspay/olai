@@ -5,12 +5,11 @@
  *
  * **Nothing olai keeps for itself goes in the vault.** A vault is somebody's git
  * repository or notes app: the store probes every file in it, the sidebar lists
- * them, and a commit sweeps them — so a lockfile, a remembered git policy or a
- * panel's last conversation would each be a file olai left behind, offered up
- * for committing, and carried to every clone by `git pull`. That last one is
- * the ruling this repository keeps being handed (#335, and again for
- * `git-policy-server-side`): a personal clone of a team's outlines must not
- * inherit the team's auto-push. A vault on a read-only mount still serves.
+ * them, and a commit sweeps them — so a lockfile or a panel's last conversation
+ * would each be a file olai left behind, offered up for committing, and
+ * carried to every clone by `git pull`. A personal clone of a team's outlines
+ * must not inherit the team's last chat, and a vault on a read-only mount
+ * still serves.
  *
  * TWO HOMES, because they answer two different questions:
  *
@@ -19,8 +18,8 @@
  *     clears it.
  *   - the STATE home is for something that SHOULD survive a restart and means
  *     nothing to anybody else — which conversation the chat panel was in
- *     (`@olai/chat`'s `memory.ts`), and what somebody chose about a directory's
- *     git policy (`@olai/server`'s `gitPolicy.ts`).
+ *     (`@olai/chat`'s `memory.ts`). After git left this package, chat is the
+ *     remaining tenant.
  *
  * ONE FILE PER SERVED DIRECTORY under either, named by a DIGEST of the path
  * rather than by the path itself: an encoded path is a filename that can
@@ -34,8 +33,8 @@
  * types `olai web ~/notes` in one terminal and `olai web .` from inside a
  * symlink to it in another; `resolve` answers those two differently and
  * `realpath` answers them the same. Two brains over one vault is what the
- * difference would buy the lock; two remembered policies over one vault is what
- * it would buy the other.
+ * difference would buy the lock; two remembered conversations over one vault
+ * is what it would buy the other.
  *
  * Both homes are read AT CALL TIME rather than at import, so a test can point a
  * process somewhere of its own — which is exactly what the e2e harness does
@@ -43,9 +42,10 @@
  *
  * ## Why this is a package
  *
- * It was written three times before it was one, which is the bar: the lock's
- * runtime home and digest, the chat panel's state home and digest, and the git
- * policy's. `@olai/chat`'s `memory.ts` named this module before it existed
+ * It was written more than once before it was one, which is the bar: the lock's
+ * runtime home and digest, and the chat panel's state home and digest. A git
+ * policy used to live here too and no longer does — chat is the remaining
+ * tenant. `@olai/chat`'s `memory.ts` named this module before it existed
  * ("not a receptacle for where this machine keeps olai's state, though that is
  * what it would be at population two") and it is a LEAF for the same reason
  * `@olai/git` is: it knows about a filesystem and nothing about outlines, git,
@@ -57,8 +57,7 @@
  * Nothing kept here is load-bearing enough to stop a boot, and none of it is
  * quiet either (HACKING.md: never silently ignore an error). Both verbs FAIL
  * with a reason and the caller decides — a memory that cannot be read means the
- * panel opens the newest conversation and says why; a policy that cannot be
- * read means the server runs on its flags and logs it.
+ * panel opens the newest conversation and says why.
  *
  * A MISSING FILE IS NOT A FAILURE. It is the answer on the first serve of a
  * directory, and the answer after the state directory has been cleaned out.
@@ -146,7 +145,7 @@ export class StateFailure extends Data.TaggedError("StateFailure")<{
  * told it could not reach, and nothing but a type can say so. It also makes
  * "what does olai keep about a directory" answerable by reading one line.
  */
-export type Kind = "chat" | "git"
+export type Kind = "chat"
 
 /** Where one kind of remembered thing lives for one served directory — a
  *  subdirectory of the state home, and the digest under it. Takes the

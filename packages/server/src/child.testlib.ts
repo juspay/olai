@@ -113,10 +113,6 @@ export const startWeb = (options: {
     XDG_RUNTIME_DIR: fs.mkdtempSync(path.join(os.tmpdir(), "olai-child-run-")),
     ...options.env,
   }
-  // A worktree's `just run` writes OLAI_PORT_FILE; a child that inherited
-  // it would try to rebind that address. An explicit `env.OLAI_PORT_FILE`
-  // still wins, because that is a test of the file itself.
-  if (options.env?.OLAI_PORT_FILE === undefined) delete env.OLAI_PORT_FILE
   const child: Child = start(
     process.execPath,
     [MAIN, "web", options.root, ...extra],

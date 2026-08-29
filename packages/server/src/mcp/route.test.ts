@@ -36,7 +36,7 @@ import * as path from "node:path"
 
 import { watchFault } from "../fault.ts"
 import { listen } from "../listener.ts"
-import { frozenPolicy, SERVER_LAYERS } from "../serve.testlib.ts"
+import { SERVER_LAYERS } from "../serve.testlib.ts"
 import { hostname } from "../hostname.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
@@ -90,7 +90,7 @@ const withRoute = <A>(
       odu: null,
       git: gitWiring(
         ops,
-        frozenPolicy({ commit: "off", push: null }),
+        fixedPolicy({ commit: "off", push: null }),
         yield* SubscriptionRef.make(0),
       ),
     })

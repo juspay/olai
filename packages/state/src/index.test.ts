@@ -2,12 +2,11 @@
  * The two claims this leaf makes, and neither is testable through a consumer.
  *
  * WHICH FILE a directory gets is what two processes have to agree on — a lock
- * and a remembered policy over one vault — and the interesting half of it is
- * the realpath: a person types `olai web ~/notes` in one terminal and
- * `olai web .` from inside a symlink to it in another. `@olai/server`'s
- * `gitPolicy.test.ts` and `@olai/chat`'s exercise the read/write pair as their
- * own records; what is here is the naming, and the guard that keeps one
- * directory's file from being read as another's.
+ * and a remembered conversation over one vault — and the interesting half of
+ * it is the realpath: a person types `olai web ~/notes` in one terminal and
+ * `olai web .` from inside a symlink to it in another. `@olai/chat`'s memory
+ * exercises the read/write pair as its own record; what is here is the naming,
+ * and the guard that keeps one directory's file from being read as another's.
  */
 
 import { expect, test } from "bun:test"
@@ -70,7 +69,7 @@ test("both homes are read at call time, so a process can be pointed anywhere", (
  * THE REALPATH, which is the load-bearing half.
  *
  * Two spellings of one directory must be one file, or a vault reached through a
- * symlink is a second brain and a second remembered policy.
+ * symlink is a second brain and a second remembered conversation.
  */
 test("one directory is one name, however it was spelled", () =>
   withState(async ({ root }) => {
@@ -99,24 +98,22 @@ test("a directory that is not there still has a name", () => {
 
 test("a kind is a subdirectory of the state home, and the digest names the file", () =>
   withState(async ({ root, home }) => {
-    expect(fileFor("git", root)).toBe(
-      path.join(home, "olai", "git", `${digestOf(root)}.json`),
+    expect(fileFor("chat", root)).toBe(
+      path.join(home, "olai", "chat", `${digestOf(root)}.json`),
     )
-    // A second kind is a sibling directory rather than a second naming scheme.
-    expect(path.dirname(fileFor("chat", root))).toBe(path.join(home, "olai", "chat"))
   }))
 
 test("nothing written down is `null` rather than a failure", () =>
   withState(async ({ root }) => {
-    expect(await Effect.runPromise(readHeld(fileFor("git", root), root))).toBeNull()
+    expect(await Effect.runPromise(readHeld(fileFor("chat", root), root))).toBeNull()
   }))
 
 test("what is written comes back, under a home that did not exist", () =>
   withState(async ({ root }) => {
-    const at = fileFor("git", root)
-    await Effect.runPromise(writeHeld(at, { cwd: root, commit: "auto" }))
+    const at = fileFor("chat", root)
+    await Effect.runPromise(writeHeld(at, { cwd: root, session: "abc" }))
     expect(await Effect.runPromise(readHeld(at, root)))
-      .toMatchObject({ cwd: root, commit: "auto" })
+      .toMatchObject({ cwd: root, session: "abc" })
     // Owner-only, both the home and the file: this is somebody's state
     // directory, not a shared one.
     expect(fs.statSync(at).mode & 0o777).toBe(0o600)
@@ -130,8 +127,8 @@ test("what is written comes back, under a home that did not exist", () =>
  *  that nothing here says. */
 test("a record about another directory is answered as nothing", () =>
   withState(async ({ root }) => {
-    const at = fileFor("git", root)
-    await Effect.runPromise(writeHeld(at, { cwd: "/somewhere/else", commit: "auto" }))
+    const at = fileFor("chat", root)
+    await Effect.runPromise(writeHeld(at, { cwd: "/somewhere/else", session: "abc" }))
     expect(await Effect.runPromise(readHeld(at, root))).toBeNull()
   }))
 
@@ -139,7 +136,7 @@ test("a record about another directory is answered as nothing", () =>
  *  path on them — a caller renders it and carries on. */
 test("a record that will not parse is news", () =>
   withState(async ({ root }) => {
-    const at = fileFor("git", root)
+    const at = fileFor("chat", root)
     await Effect.runPromise(writeHeld(at, { cwd: root }))
     fs.writeFileSync(at, "{ not json")
     const outcome = await Effect.runPromise(Effect.result(readHeld(at, root)))

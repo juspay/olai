@@ -563,7 +563,7 @@ interface Spawn {
   readonly git?: GitMode;
   /** The git POLICY, when the scenario pinned one — see {@link PIN_TAG}. Each
    *  half is absent when that flag was not asked for, because "nobody gave the
-   *  flag" is exactly what leaves the preference row live in a browser. */
+   *  flag" is the built-in default. The row is read-only either way. */
   readonly pin?: { readonly commit?: string; readonly push?: string };
   /** The avatar URL template this server pictures people with, when the
    *  scenario asked for one — see {@link AVATAR_TAG}. Absent is no template,
@@ -601,7 +601,7 @@ const startServerChild = async (
       ...(spawnOptions.git === undefined ? ["--no-commit"] : []),
       // The git POLICY, when the scenario asked for one — see `PIN_TAG`. Each
       // flag is passed only where a value was given, because giving it at all
-      // is what freezes that row in every browser.
+      // is what names that flag under the row.
       ...(spawnOptions.pin?.commit === undefined
         ? []
         : ["--commit", spawnOptions.pin.commit]),

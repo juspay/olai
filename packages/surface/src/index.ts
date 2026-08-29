@@ -185,7 +185,6 @@ import {
   NOTHING_PENDING,
   NOTHING_WRONG,
   Pending,
-  PolicyRequest,
   PushResult,
 
   sameGit,
@@ -536,8 +535,8 @@ export const LOADED: Manifest = {}
  * rather than a cell of its own because the preferences panel that draws it is
  * drawing the same server's answer about the same directory, and `off` above is
  * already exactly that answer wearing the repository's clothes. What a browser
- * does with it — freeze the two git preference rows, read-only, naming the flag
- * — is `web/src/client/settings/`.
+ * does with it — draw the two git preference rows read-only, naming a given
+ * flag or the built-in default — is `web/src/client/settings/`.
  *
  * A CELL, and read-only on the wire, for the reason the manifest is: one value
  * the server owns, about the directory rather than about any file in it. It
@@ -549,7 +548,7 @@ export const LOADED: Manifest = {}
  * the ops layer both stand on, so there is no second spelling to drift. Its
  * before-first-frame default `GIT_OFF` travels with it.
  */
-export { GIT_OFF, GitPin, GitPolicy, GitState, PolicyRequest }
+export { GIT_OFF, GitPin, GitPolicy, GitState }
 
 /** When two answers are the same answer, so the cell can stay quiet. There is
  *  exactly one thing this value can say, so there is exactly one thing that can
@@ -1392,36 +1391,6 @@ export const surface = defineSurface({
       push: {
         input: Schema.Struct({}),
         output: PushResult,
-        error: OpFailure,
-      },
-      /**
-       * WHAT THIS DIRECTORY'S GIT POLICY IS TO BE — the two preference rows'
-       * door, and the whole of `git-policy-server-side` on the write side.
-       *
-       * The rows used to be preferences of one BROWSER, stored there and sent
-       * nowhere, so two people looking at one directory could each believe
-       * something different about it and only one of them could be right.
-       * Whether a branch is pushed is not a claim about a reader. So the rows
-       * set the SERVER's policy, it is remembered outside the vault, and every
-       * tab draws the same answer off the `git` cell.
-       *
-       * Each half is optional, because the rows move one at a time. A half the
-       * operator PINNED refuses rather than quietly doing nothing: a
-       * read-only control that could be bypassed by a procedure would be the
-       * pin honoured in the drawing and not in the doing.
-       *
-       * What it changes is the `git` cell, which the server republishes the
-       * moment it is done — including to the tab that asked, so nothing here
-       * has to echo the new value into a signal of its own.
-       */
-      setPolicy: {
-        input: PolicyRequest,
-        // NOTHING COMES BACK, and that is the feature rather than an omission:
-        // what changed is the cell, and a returned policy is exactly the second
-        // opinion this move exists to retire — the next client to echo it into
-        // a signal of its own would have per-tab divergence again, and it would
-        // look like it was designed for.
-        output: Schema.Struct({}),
         error: OpFailure,
       },
       /**
