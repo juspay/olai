@@ -270,7 +270,6 @@ export function Panel(props: {
         <Segmented
           choices={COMMIT_CHOICES}
           value={commitOn(git()) ? "on" : "off"}
-          onPick={() => {}}
           frozen
         />
       </Row>
@@ -284,7 +283,6 @@ export function Panel(props: {
         <Segmented
           choices={PUSH_CHOICES}
           value={pushOn(git()) ? "on" : "off"}
-          onPick={() => {}}
           frozen
         />
       </Row>

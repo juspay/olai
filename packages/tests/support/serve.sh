@@ -81,7 +81,14 @@ olai_serve() {
   # second call on, still holding the previous call's). The URL is on the
   # serving line; port 0 asks the OS every boot, nothing is written.
   for _ in $(seq 1 60); do
-    OLAI_URL=$(grep -oE 'https?://(127\.0\.0\.1|\[::1\]):[0-9]+' "$log" 2>/dev/null | head -n1 || true)
+    # The URL is a field of the serving line (`message=serving`), not any
+    # loopback address that happens to appear in the log. The busy-port
+    # fallback carries a `url=` of its own; matching the message keeps the
+    # two apart the way the suite's findLogfmt does.
+    OLAI_URL=$(grep 'message=serving' "$log" 2>/dev/null \
+      | grep -oE 'url=https?://(127\.0\.0\.1|\[::1\]):[0-9]+' \
+      | head -n1 \
+      | sed 's/^url=//' || true)
     if [ -n "${OLAI_URL:-}" ]; then
       return 0
     fi
@@ -90,5 +97,6 @@ olai_serve() {
   echo "the olai server never said where it was serving." >&2
   echo "server log ($log):" >&2
   cat "$log" >&2 || true
+  unset OLAI_URL
   return 1
 }

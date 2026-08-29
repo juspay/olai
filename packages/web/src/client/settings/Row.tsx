@@ -36,10 +36,11 @@ export function Row(props: {
   readonly hint: string
   /** Which preference this is, for a scenario that has to find one row. */
   readonly pref: string
-  /** WHO set this row, when it was not this browser — `null` for the ordinary
-   *  case. Its presence is what makes the row read-only, so a row that says it
-   *  is pinned and a row that behaves as if it is cannot come apart. */
-  readonly setBy?: string | null
+  /** WHO set this row, when it was not this browser. Absent on every row this
+   *  browser owns. Presence draws the sentence under the hint (and
+   *  `data-pinned` for the suite); the control's read-only is `frozen` on the
+   *  strip, passed separately. */
+  readonly setBy?: string
   /**
    * Anything this row needs UNDER its sentences — today the one thing: Resume,
    * which starts a stopped Auto-commit again on a row the server has frozen.
