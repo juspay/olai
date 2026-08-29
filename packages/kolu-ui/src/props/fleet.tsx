@@ -75,12 +75,13 @@ import type {
   FleetTerminal,
   KoluEvent,
   KoluLink,
+  KoluMutes,
   Snapshot,
   TerminalFrame,
   WatchPulse,
 } from "@olai/surface"
 import { after, type Held, seeded } from "./held.ts"
-import { KOLU_UNDIALED, SnapshotRefused } from "@olai/surface"
+import { KOLU_UNDIALED, NO_MUTES, SnapshotRefused } from "@olai/surface"
 
 /** Take a snapshot of one terminal. The answer is the text or the refusal —
  *  never a throw, because both are things the pane draws. */
@@ -103,6 +104,11 @@ export interface Fleet {
    *  has not arrived, or `null` until the watcher has stamped once (see
    *  `@olai/surface`'s `pulse` cell). */
   readonly pulse: Accessor<WatchPulse | null | undefined>
+  /** THE DRAWER'S FOOT — who is silenced, and which file says so
+   *  (`@olai/surface`'s `mutes` cell). Wire-truth: the vault walk's
+   *  display half, live as the file is edited. The empty reading is the
+   *  defaults': no file, nobody named. */
+  readonly mutes: Accessor<KoluMutes>
   /** THE ROWS, as a map keyed by padi's full id — handed over whole rather
    *  than as a lookup, because a chip does not look its value UP: it RESOLVES
    *  it (`@olai/surface`'s `resolveTerminal`), and a prefix needs the key set
@@ -152,6 +158,9 @@ export interface FleetSources {
   /** The wire's `pulse` cell's value — the watcher's last stamp, so the
    *  pill can read liveness on its own cadence. */
   readonly pulse: Accessor<WatchPulse | null | undefined>
+  /** The wire's `mutes` cell's value — the vault walk's display half,
+   *  re-answered on every revision. */
+  readonly mutes: Accessor<KoluMutes | undefined>
   readonly fold: CollectionFold<string, FleetTerminal>
   /** THE LOG the server is keeping — the events collection's fold, fed by the
    *  watcher (`@olai/kolu-client`'s `watch.ts`). It reads THROUGH the same
@@ -203,6 +212,12 @@ export function FleetProvider(props: {
     // reach every renderer for the sake of it.
     link: createMemo(() => props.sources.link() ?? KOLU_UNDIALED),
     pulse: props.sources.pulse,
+    // The seed is the DEFAULTS' reading and not `undefined`, for `link`'s
+    // reason one member up: a reader draws the foot off this in the same
+    // breath it draws the pill, and a first frame that found the cell
+    // quiet and one that said nothing yet read the same — nobody silenced
+    // that the drawer could name.
+    mutes: createMemo(() => props.sources.mutes() ?? NO_MUTES),
     terminals: () => held()?.rows ?? NO_ROWS,
     events: () => ring()?.rows ?? NO_EVENTS,
     read: props.sources.read,
@@ -227,6 +242,7 @@ export const useFleet = (): Fleet =>
   useContext(FleetContext) ?? {
     link: () => KOLU_UNDIALED,
     pulse: () => null,
+    mutes: () => NO_MUTES,
     terminals: () => NO_ROWS,
     events: () => NO_EVENTS,
     // A HOLLOW STILL TICKS, because a row drawn outside a provider still draws

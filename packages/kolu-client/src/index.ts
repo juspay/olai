@@ -98,6 +98,8 @@ import {
   KOLU_UNDIALED,
   type KoluEvent,
   type KoluLink,
+  type KoluMutes,
+  NO_MUTES,
   type Snapshot,
   type TerminalFrame,
   SnapshotRefused,
@@ -144,10 +146,14 @@ export interface KoluDeps<N> {
    *  `_olai/Kolu.olai`'s watch knobs and mutes say is read off the same
    *  nodes by `@olai/server`'s `koluConfig.ts`; what crosses is the derived
    *  intervals and the MUTE VALUES, plus the malformed lines this package
-   *  then says. See `koluConfig.ts` for what a malformed value means. */
+   *  then says — and, since the drawer's foot joined the readers, the mute
+   *  TITLES beside the file the convention read: the display half of the
+   *  same walk, so the watcher and the drawer can never disagree about the
+   *  one mute list. See `koluConfig.ts` for what a malformed value means. */
   readonly config: (nodes: ReadonlyArray<N>) => {
     readonly config: WatchConfig
     readonly malformed: ReadonlyArray<string>
+    readonly mutes: KoluMutes
   }
   /** Routine narration, at debug: on a machine with no kolu this is a line
    *  every few seconds and it is not news. */
@@ -217,8 +223,9 @@ export interface KoluHalf<N> {
    * half is the watcher's CONFIG, re-derived on the same revision — the way
    * `held-for`, `nag`, `heartbeat` and the mutes move under a live watcher's
    * hands. Both walks are the SERVER's (`@olai/server`'s `claimants.ts` and
-   * `koluConfig.ts`); what crosses is four strings per claim and one
-   * `WatchConfig` per revision — the boundary the header draws, grown one
+   * `koluConfig.ts`); what crosses is four strings per claim and one reading
+   * per revision — a `WatchConfig` for the timers, the mutes' titles and
+   * file for the drawer's foot — the boundary the header draws, grown one
    * sibling rather than relaxed one jot.
    */
   readonly revision: (nodes: ReadonlyArray<N>) => void
@@ -250,6 +257,15 @@ export interface KoluHandlers {
      *  never asks for a browser's opinion. */
     readonly pulse: {
       readonly store: CellStore<WatchPulse | null>
+    }
+    /** Who is silenced, and which file says so — the drawer's foot, the
+     *  vault walk's display half. Read-only on the wire: a mute is an
+     *  EDIT to the config outline, never a browser's write. The
+     *  `connect` is the publish's household door — the `kolu` cell's
+     *  own reasons one member up. */
+    readonly mutes: {
+      readonly store: CellStore<KoluMutes>
+      readonly connect: (cell: { set: (value: KoluMutes) => void }) => Effect.Effect<void>
     }
   }
   readonly collections: {
@@ -309,6 +325,49 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
    *  store answers a fresh one — the events collection's two paths, one
    *  member over. */
   let pulse: WatchPulse | null = null
+  /** The mutes' LAST reading, for the cell's snapshot — the beat's
+   *  arrangement one layer up, with ONE difference that decides whether
+   *  the cell can move at all. The pulse's store reads a hoisted `let`
+   *  this half writes BEFORE it publishes; the mutes' may not, because
+   *  the mutes cell DECLARES `equals` and the framework gates a publish
+   *  on `equals(store.get(), next)`: a store reading the value the same
+   *  walk just wrote compares the new against the new and EVERY publish
+   *  is eaten as a no-op. So the standing value lives IN the store, and
+   *  the framework's own write-through (equals → publish → store.set) is
+   *  the only writer: the snapshot is answered off the standing value,
+   *  never a re-walk of a vault this package cannot see — and the publish
+   *  is judged against the reading BEFORE this one.
+   *
+   * The seed is the defaults' own: before any revision lands, no file
+   * has decided anything yet. */
+  const mutesStore = inMemoryStore<KoluMutes>(NO_MUTES)
+  /** The cell's own HANDLE, which may not ride `deps` onto the whole
+   *  surface's ctx: a cell's first reading lands INSIDE `implementSurface`,
+   *  while that ctx is still being minted — a publish into it there is
+   *  silently DROPPED, leaving a config that started the vault mutes to
+   *  no subscriber at all. The `git` cell across the surface answers the
+   *  same riddle the same way: the cell arrives AT this handler's
+   *  `connect`, and capturing that handle is the whole of the plumbing.
+   *  The pulse's cell remains by its closure for the rule's exceptions:
+   *  a beat re-answers on the watcher's own cadence, so the pledge the
+   *  first-boot edge asks for is not a publish-that-once-fired one. */
+  let mutesCell: { set: (value: KoluMutes) => void } | undefined
+  /** The walk's last READING, kept apart from the store for the
+   *  connector's own settle: the manifest's connector and this cell's
+   *  bind run in no promised order, so a revision may land before the
+   *  capture above runs — the publish had nowhere to go and the store
+   *  holds only the seed. Settling through the FRAMEWORK's `set` is the
+   *  point anyway: the `equals` gate turns a no-op settle back into
+   *  silence, so the walk is never answered twice. */
+  let read: KoluMutes = NO_MUTES
+  /** The BIND hook named in the verbs map: capture the handle, then settle
+   *  with the walk's last reading — the framework's gate is what lets this
+   *  settle run unconditionally: a boot on defaults publishes nothing. */
+  const mutesConnect = (cell: { set: (value: KoluMutes) => void }): Effect.Effect<void> =>
+    Effect.sync(() => {
+      mutesCell = cell
+      cell.set(read)
+    })
   const watch: Watch = makeWatch(
     {
       emit: (event) => deps.events()?.upsert(event.id, event),
@@ -334,6 +393,15 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
     mirror?.reclaim(deps.claimants(nodes))
     const next = deps.config(nodes)
     watch.reconfigure(next.config)
+    // THE DRAWER'S FOOT, off the SAME reading: one walk, two mouths — the
+    // watcher's values reconfigure the timers here, and the display half
+    // publishes beside, so the line a reader sees can never name a
+    // different mute list from the one gating the timers. The publish rides
+    // the cell's OWN handle — the manifest connector and this cell's bind
+    // run in no promised order, so `read` keeps the answer and the
+    // cell's `connect` settles it as its first act.
+    read = next.mutes
+    mutesCell?.set(read)
     const lines = next.malformed.join("\n")
     if (lines !== saidMalformed) {
       saidMalformed = lines
@@ -355,7 +423,7 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
       attach: () =>
         Stream.make({ kind: "refused", says: NO_LINK.says } as TerminalFrame),
       revision,
-      handlers: linklessHandlers(watch, () => pulse),
+      handlers: linklessHandlers(watch, () => pulse, mutesStore, mutesConnect),
     }
   }
   const { now } = deps.options
@@ -410,6 +478,8 @@ export const koluHalf = <N,>(deps: KoluDeps<N>): KoluHalf<N> => {
       rows: mirror.rows,
       events: watch.events,
       pulse: () => pulse,
+      mutes: mutesStore,
+      mutesConnect,
       screen,
       attach: mirror.attach,
     }),
@@ -441,6 +511,19 @@ const handlersOf = (verbs: {
    *  dep fold reads as the standing value, beside the broadcast the
    *  setter walks. */
   readonly pulse: () => WatchPulse | null
+  /** The mutes' store — NOT the pulse's closure arrangement: the cell
+   *  declares `equals`, and the framework's publish gate reads
+   *  `store.get()`, so the half may not also hold the value. The
+   *  standing reading, the publish gate and a fresh subscriber's
+   *  snapshot are therefore all answered off this one store, written
+   *  only by the framework's own write-through. */
+  readonly mutes: CellStore<KoluMutes>
+  /** The mutes' BIND hook — the `kolu` cell's `connect` arrangement:
+   *  where the cell's own handle arrives. The publish may not cross the
+   *  surface-wide ctx for the manifest cell's reason spelled the other
+   *  way round: the first reading lands while that ctx is still in mint,
+   *  and the settle at bind is the cell's own. */
+  readonly mutesConnect: (cell: { set: (value: KoluMutes) => void }) => Effect.Effect<void>
   readonly screen: (
     terminal: string,
     lines: number | undefined,
@@ -462,6 +545,15 @@ const handlersOf = (verbs: {
       // records, never a value a tab could set. The store's getter is the
       // LAST stamped beat; the setter walks a hollow arm on purpose.
       store: { get: verbs.pulse, set: () => {} },
+    },
+    mutes: {
+      // Wire-read-only, the pulse's own argument one cell over: a mute
+      // is an EDIT to the vault's config outline, which reaches this
+      // cell through the revision walk and no other way. The store is
+      // the half's own — the `equals` gate lives OFF it, so it may not
+      // be a closure over anything the walk can move first.
+      store: verbs.mutes,
+      connect: verbs.mutesConnect,
     },
   },
   collections: {
@@ -497,12 +589,15 @@ const handlersOf = (verbs: {
 
 /** What a face with no link answers on the whole surface — the same refusal
  *  the verbs above give, in the shape the surface takes. The events
- *  collection and the pulse cell are the one arm that is ALIVE here: no
- *  fleet, no screen, no pane — but the watcher pulses, which is the
- *  fresh-install preview its header argues for. */
+ *  collection, the pulse cell and the mutes cell are the one arm that is
+ *  ALIVE here: no fleet, no screen, no pane — but the watcher pulses and
+ *  its config reads, which is the fresh-install preview its header
+ *  argues for. */
 const linklessHandlers = (
   watch: Watch,
   beat: () => WatchPulse | null,
+  mutes: CellStore<KoluMutes>,
+  mutesConnect: (cell: { set: (value: KoluMutes) => void }) => Effect.Effect<void>,
 ): KoluHandlers =>
   handlersOf({
     // The connector beholds forever, and the RUNTIME's interrupt of it is
@@ -513,6 +608,8 @@ const linklessHandlers = (
     rows: () => NO_ROWS,
     events: watch.events,
     pulse: beat,
+    mutes,
+    mutesConnect,
     screen: () => Effect.fail(NO_LINK),
     attach: () => Stream.make({ kind: "refused", says: NO_LINK.says } as TerminalFrame),
   })

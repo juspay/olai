@@ -6,7 +6,10 @@
  *   - an absent file, and a present one shaped every way a vault can shape it;
  *   - the grammar of a duration, and the malformed line saying which;
  *   - the mutes, verbatim, and what the word FIRST pins (one watch, one mutes,
- *     and no precedence that is not spelled).
+ *     and no precedence that is not spelled);
+ *   - the drawer's foot: the mutes' TITLES and the deciding file — the
+ *     display half of the one walk, so the line a reader sees and the
+ *     watcher's gate can never read two lists.
  *
  * The fixtures are REAL outline records — JSONL, the format's own — parsed by
  * the format package's own testlib (`@olai/format`'s `fixtures.testlib.ts`).
@@ -120,6 +123,75 @@ test("one malformed value earns one line — the default stands, and it is SAID"
   expect(reading.malformed.length).toBe(1)
   expect(reading.malformed[0]).toContain("_olai/kolu.olai")
   expect(reading.malformed[0]).toContain("held-for")
+})
+
+// ── The drawer's foot: the file, and who is silenced ────────────────────
+
+test("the foot of an absent file is absent: no file, nobody named — the defaults' signature", () => {
+  const reading = watchConfigIn(
+    setOf({ "house.olai": `{"id":"h","ord":"a0","title":"the house"}` }),
+  )
+  expect(reading.mutes).toEqual({ file: null, names: [] })
+})
+
+test("the foot names the deciding file even when it mutes nobody", () => {
+  const reading = watchConfigIn(
+    setOf({ "_olai/Kolu.olai": rec("watch", { "held-for": "20s" }) }),
+  )
+  expect(reading.mutes).toEqual({ file: "_olai/Kolu.olai", names: [] })
+})
+
+test("the foot's names are the mutes' own titles, in the outline's order", () => {
+  const reading = watchConfigIn(
+    nodesOf(
+      `{"id":"w","ord":"a0","title":"watch","custom":{"held-for":"10s"}}\n` +
+        `{"id":"m","ord":"a1","title":"mutes"}\n` +
+        `{"id":"c1","parent":"m","ord":"a0","title":"nixos-config grok","custom":{"terminal":"11111111"}}\n` +
+        `{"id":"c2","parent":"m","ord":"a1","title":"nixos-config pi","custom":{"terminal":"22222222"}}\n`,
+      "_olai/Kolu.olai",
+    ),
+  )
+  expect(reading.mutes).toEqual({
+    file: "_olai/Kolu.olai",
+    names: ["nixos-config grok", "nixos-config pi"],
+  })
+  // ONE WALK, both mouths: the gate holds the very children the line names.
+  expect(reading.config.muted).toEqual(["11111111", "22222222"])
+})
+
+test("a child with no terminal value is nobody's mute, so the foot does not name it", () => {
+  const reading = watchConfigIn(
+    nodesOf(
+      `{"id":"m","ord":"a0","title":"mutes"}\n` +
+        `{"id":"c1","parent":"m","ord":"a0","title":"just a note, never a value"}\n` +
+        `{"id":"c2","parent":"m","ord":"a1","title":"the side shell","custom":{"terminal":"5c5824d5"}}\n`,
+      "_olai/Kolu.olai",
+    ),
+  )
+  expect(reading.mutes.names).toEqual(["the side shell"])
+})
+
+test("an untitled mute is named by what it mutes — never a blank on the line", () => {
+  const reading = watchConfigIn(
+    nodesOf(
+      `{"id":"m","ord":"a0","title":"mutes"}\n` +
+        `{"id":"c1","parent":"m","ord":"a0","title":"","custom":{"terminal":"5c5824d5"}}\n`,
+      "_olai/Kolu.olai",
+    ),
+  )
+  expect(reading.mutes.names).toEqual(["5c5824d5"])
+})
+
+test("the foot, too, honours the ONE FILE: the torn file's mutes are not named either", () => {
+  const reading = watchConfigIn(
+    setOf({
+      "_olai/kolu.olai": rec("watch", { "held-for": "20s" }),
+      "_olai/torn/kolu.olai":
+        `{"id":"m2","ord":"a0","title":"mutes"}\n` +
+        `{"id":"c9","parent":"m2","ord":"a1","title":"elsewhere's wilful","custom":{"terminal":"d3adbeef"}}`,
+    }),
+  )
+  expect(reading.mutes).toEqual({ file: "_olai/kolu.olai", names: [] })
 })
 
 // ── The mutes ─────────────────────────────────────────────────────────────

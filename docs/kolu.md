@@ -71,6 +71,8 @@ An ambiguous prefix — one that names two open terminals — silences neither, 
 
 The file is yours, not installed: without it the watch runs its defaults (sixty seconds, ten minutes, half an hour).
 
+**The drawer says who it silences.** Under the events, the drawer's foot is two things: a muted line read off the same walk the timers are — `2 muted · nixos-config grok, nixos-config pi`, the mutes' own titles rather than prefixes a reader has to resolve — and a wrench that lands on `_olai/Kolu.olai` as an ordinary outline page. Nobody muted is the wrench alone, never a "0 muted"; no file at all is no foot at all, because the defaults have no page to open, and the line is live to the edit, answerable the moment the outline is, rather than at the next inspection.
+
 ## When there is nothing to see
 
 A machine not running kolu is the ordinary case, not a fault. There is no row, and in its place a **sentence** — never a grey row, which would claim the terminal is sitting there doing nothing, and that is a different and wrong fact:

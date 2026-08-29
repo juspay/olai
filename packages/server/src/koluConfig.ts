@@ -48,6 +48,17 @@
  * be a full id or a prefix of one, and which fleet ids it names is a
  * question only the watcher can answer (the roster lives in the mirror).
  * Values pass through verbatim.
+ *
+ * WHAT IS READ BESIDE THE VALUES, since the events drawer grew a foot
+ * (2026-08-29): the mutes' TITLES, and which file the convention read.
+ * The watcher gates on ids and prefixes, which tell a reader nothing; the
+ * drawer's last line names WHO is silenced, and the wrench beside the
+ * line opens the file itself — which is also why the deciding file is
+ * part of the answer: a second spelling of the convention where the
+ * footer lives is a second answer about one directory. ONE WALK FEEDS
+ * BOTH MOUTHS: the values and the names come off the same children of
+ * the same `mutes` node, so the timers and the line can never disagree
+ * about what is muted.
  */
 
 import { customText, isRegular, type Located } from "@olai/format"
@@ -90,6 +101,27 @@ type WatchProp = "held-for" | "nag" | "heartbeat"
 export interface WatchReading {
   readonly config: WatchConfig
   readonly malformed: ReadonlyArray<string>
+  /** THE DRAWER'S FOOT, as the wire carries it (`@olai/kolu-client`'s
+   *  `KoluMutes`): the file the convention decided, and the mutes' own
+   *  titles in the outline's order. `file: null` and no names is the
+   *  defaults' reading — nothing decided anything, and the drawer draws
+   *  no foot. */
+  readonly mutes: MutesReading
+}
+
+/** The display half of one mute walk — structurally the wire's
+ *  `KoluMutes`, re-said here so this module's answer is named for what it
+ *  READS rather than for the cell it lands in. */
+export interface MutesReading {
+  /** The file whose `watch`/`mutes` nodes decided the config, or `null`
+   *  when no file holds either — the defaults' signature, and the foot's
+   *  absence. */
+  readonly file: string | null
+  /** The `mutes` node children's own titles — only the children carrying
+   *  a `terminal` value, the same set the watcher gates on. An untitled
+   *  child falls back to the value it mutes: a blank name on the foot
+   *  says less than the prefix does. */
+  readonly names: ReadonlyArray<string>
 }
 
 /**
@@ -112,17 +144,28 @@ const byConvention = (a: Located, b: Located): number => {
   return a.file.localeCompare(b.file)
 }
 
-/** One node's children, as lines' terminal values, verbatim. */
-const mutesOf = (nodes: ReadonlyArray<Located>, parent: string): ReadonlyArray<string> => {
-  const values: Array<string> = []
+/** One `mutes` node's children, as ENTRIES: the terminal value verbatim,
+ *  and the title the drawer's foot reads beside it — one walk, the two
+ *  mouths fed from the same list, so the watcher's gate and the reader's
+ *  line can never be two answers to "who is muted". */
+const mutesOf = (
+  nodes: ReadonlyArray<Located>,
+  parent: string,
+): ReadonlyArray<{ value: string; title: string }> => {
+  const entries: Array<{ value: string; title: string }> = []
   for (const located of nodes) {
     if (!isRegular(located)) continue
     if (located.node.parent !== parent) continue
     const value = customText(located.node, TERMINAL_KEY)
     if (value === undefined || value.trim() === "") continue
-    values.push(value)
+    entries.push({
+      value,
+      // An untitled mute is named by what it mutes — the one name it
+      // certainly has, and better on the foot than a gap.
+      title: located.node.title.trim() === "" ? value : located.node.title,
+    })
   }
-  return values
+  return entries
 }
 
 /**
@@ -145,10 +188,13 @@ export const watchConfigIn = (nodes: ReadonlyArray<Located>): WatchReading => {
   const theFile = regulars.find(({ node }) =>
     node.title === WATCH_TITLE || node.title === MUTES_TITLE
   )?.file
-  if (theFile === undefined) return { config: DEFAULT_WATCH, malformed: [] }
+  if (theFile === undefined) {
+    return { config: DEFAULT_WATCH, malformed: [], mutes: { file: null, names: [] } }
+  }
   const inside = regulars.filter((located) => located.file === theFile)
   const watch = inside.find(({ node }) => node.title === WATCH_TITLE)
   const mutes = inside.find(({ node }) => node.title === MUTES_TITLE)
+  const entries = mutes === undefined ? [] : mutesOf(nodes, mutes.node.id)
   const malformed: Array<string> = []
   /** One prop, defensively: the default stands, and a line names the file,
    *  the node, the value and the grammar it violated. The vault is left
@@ -186,8 +232,12 @@ export const watchConfigIn = (nodes: ReadonlyArray<Located>): WatchReading => {
       heldForMs: readDuration("held-for", DEFAULT_WATCH.heldForMs),
       nagMs: readDuration("nag", DEFAULT_WATCH.nagMs),
       heartbeatMs: readDuration("heartbeat", DEFAULT_WATCH.heartbeatMs),
-      muted: mutes === undefined ? [] : mutesOf(nodes, mutes.node.id),
+      muted: entries.map((entry) => entry.value),
     },
     malformed,
+    mutes: {
+      file: theFile,
+      names: entries.map((entry) => entry.title),
+    },
   }
 }

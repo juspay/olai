@@ -213,6 +213,18 @@ export const TESTID = {
    *  `EventsFeed`. THE PANEL'S OWN HANDLE only: the rows are the appliance's
    *  and are asserted through `./kolu-ui`'s `./testids`. */
   padiFeed: "padi-feed",
+  /** THE FEED'S FOOT — the drawer's last line: the mutes' count and names
+   *  and the wrench onto the config (`client/padi/Feed.tsx`). Present only
+   *  when there is a config to read: a vault no file decides anything for
+   *  has no foot, not an empty one. */
+  padiFeedFoot: "padi-feed-foot",
+  /** The LINE inside it: `2 muted · nixos-config grok, nixos-config pi`.
+   *  Absent when nobody is muted — never a "0 muted". */
+  padiFeedMutes: "padi-feed-mutes",
+  /** THE WRENCH — the door onto the `_olai/Kolu.olai` the convention read,
+   *  so the whole config (thresholds and mutes) is one press away as an
+   *  ordinary outline page. */
+  padiFeedWrench: "padi-feed-wrench",
 
   /** THE TERMINAL DOOR's row — kolu's own Dock row, drawn where the `terminal`
    *  property is (`client/props/TerminalDoor.tsx`). The row's own attribute
@@ -838,6 +850,12 @@ export const TESTID = {
    *  count is drawn" is a promise a scenario can hold. Absent entirely when
    *  the inbox is empty: an empty inbox wears no chip, not a zero. */
   inboxCount: "inbox-count",
+  /** THE VAULT'S OWN FILES — the `_olai/` outlines' home at the foot of the
+   *  directory column, below the reader's own files, in Trash's quiet
+   *  register (`client/Sidebar.tsx`). Drawn only when the directory has
+   *  one. `data-file` carries the path it opens, so a scenario names the
+   *  row rather than the words on it. */
+  vaultLink: "vault-link",
   /** The trash, as a page. Every archive the directory holds, read-only. */
   trashPage: "trash-page",
   /** One archive's worth of rows on it; `data-file` is which `_olai/Trash.olai`.

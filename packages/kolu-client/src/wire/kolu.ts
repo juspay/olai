@@ -168,6 +168,54 @@ export type WatchPulse = typeof WatchPulse.Type
  *  fold: no recency value answers, so the header can't compute an age. */
 export const KOLU_UNPULSED: WatchPulse | null = null
 
+/**
+ * THE DRAWER'S FOOT — who is silenced, and which file says so.
+ *
+ * The events drawer's last line answers one question without leaving it:
+ * WHICH terminals the watcher's mutes keep quiet, named as the mute
+ * entries name themselves. The watcher's own reading is the VALUES
+ * (`WatchConfig.muted` — ids and prefixes, the match input); this cell is
+ * the display half of the same vault walk — the TITLES, which id prefixes
+ * cannot tell — so one walk feeds both, and an edit to `_olai/Kolu.olai`
+ * moves the line on the frame the revision publishes.
+ *
+ * `file` is the cell's other fact, and it is the wrench's: WHICH file the
+ * convention read (`@olai/server`'s `koluConfig.ts` — shallowest, ties by
+ * path), so the drawer's navigation is a plain open of a page that exists
+ * rather than a second spelling of the convention in a browser that holds
+ * only paths. `null` is the watcher on its DEFAULTS: no file decided
+ * anything, so there is no config page to open and the drawer draws no
+ * foot at all.
+ *
+ * EMPTY names are a state of their own and not the same state as `null`:
+ * a file that decides but mutes nobody is a reader with nothing silenced
+ * — the foot says so by saying only where the config is, and never draws
+ * a "0 muted" (the drawer's own rule: the quiet row is noise about a
+ * noise that is not there).
+ */
+export const KoluMutes = Schema.Struct({
+  /** Which file decided the config — see above. */
+  file: Schema.NullOr(Schema.String),
+  /** The mute entries' own titles, in the outline's order — the `mutes`
+   *  node's children that carry a `terminal` value. An untitled entry
+   *  falls back to the value it mutes, decided where the file is read so
+   *  the drawer never draws a blank. */
+  names: Schema.Array(Schema.String),
+})
+export type KoluMutes = typeof KoluMutes.Type
+
+/** The watcher-on-defaults reading: no file, nobody named. Minted once, the
+ *  way `KOLU_UNDIALED` is: before any revision lands, and on every face
+ *  whose vault walk is not wired. */
+export const NO_MUTES: KoluMutes = { file: null, names: [] }
+
+/** Two readings that say the same thing about the mutes — the cell's
+ *  `equals`: the vault walk re-derives on every keystroke, and a revision
+ *  that moved no mute must publish nothing. */
+export const sameMutes = (a: KoluMutes, b: KoluMutes): boolean =>
+  a.file === b.file && a.names.length === b.names.length &&
+  a.names.every((name, at) => name === b.names[at])
+
 /** Two readings that say the same thing about the link — the member's `equals`,
  *  so a re-dial that found exactly what it found last time publishes nothing
  *  and `since` does not creep. Everything but `since` is compared; `since` is

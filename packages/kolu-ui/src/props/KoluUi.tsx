@@ -58,6 +58,7 @@ import type {
   FleetTerminal,
   KoluEvent,
   KoluLink,
+  KoluMutes,
   Snapshot,
   TerminalFrame,
   WatchPulse,
@@ -81,6 +82,8 @@ export interface KoluClient {
     /** The pill's liveness cell — the beat the watcher last stamped, or
      *  `null` before the boot pulse is ever read. */
     readonly pulse: { use: () => { readonly value: Accessor<WatchPulse | null | undefined> } }
+    /** The drawer's foot — who is muted, and which file says so. */
+    readonly mutes: { use: () => { readonly value: Accessor<KoluMutes | undefined> } }
   }
   readonly collections: {
     readonly fleet: { use: () => { readonly fold: unknown } }
@@ -123,6 +126,7 @@ export function KoluUi(props: {
       sources={{
         link: props.client.cells.kolu.use().value,
         pulse: props.client.cells.pulse.use().value,
+        mutes: props.client.cells.mutes.use().value,
         fold: props.client.collections.fleet.use().fold as never,
         events: props.client.collections.events.use().fold as never,
         read: readingScreen(props.client.procedures.screen.text),

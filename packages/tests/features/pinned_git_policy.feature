@@ -16,7 +16,7 @@ Feature: The server can pin the git policy, and the preferences say so
   policy a reader cannot see is one they cannot ask anybody about.
 
   What is NOT pinned is untouched, which is most of this panel: theme, font,
-  size, notes, done and hidden outlines are personal view choices and there is
+  size, notes and done are personal view choices and there is no server
   nothing about them for a server to have an opinion on.
 
   This feature's server is started `--commit=auto --push=off`. The unpinned
@@ -38,8 +38,8 @@ Feature: The server can pin the git policy, and the preferences say so
     And there should be no page errors
 
   Scenario: The personal rows are untouched, and still move
-    # The fence for a pin that spread. Theme, font, size, notes, done and
-    # hidden outlines are claims about the READER, and no server has anything
+    # The fence for a pin that spread. Theme, font, size, notes and done
+    # are claims about the READER, and no server has anything
     # to say about them — so they are live here exactly as they are on an
     # unpinned serve.
     When I open the preferences

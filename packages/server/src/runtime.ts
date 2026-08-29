@@ -723,7 +723,8 @@ export const bind = (
       // the package that dials padi must not learn; what crosses is four
       // strings per claim. `koluConfig.ts` is the second of the kind, for
       // the watcher's knobs: what crosses is the derived intervals, the
-      // mute VALUES verbatim, and the malformed lines to say.
+      // mute VALUES verbatim, the malformed lines to say, and — the events
+      // drawer's foot — the mutes' TITLES beside the file that was read.
       claimants: claimantsIn,
       config: watchConfigIn,
       // Chatter, at debug: on a machine with no kolu this is a line every few

@@ -701,6 +701,12 @@ export const AGENDA_QUIET = selector(TESTID.agendaQuiet);
 export const AGENDA_EMPTY = selector(TESTID.agendaEmpty);
 /** The way to it from the directory column, above the month. */
 export const AGENDA_LINK = selector(TESTID.agendaLink);
+/** The Padi readout's drawer: what recently wanted attention, and under it
+ *  the foot — the mutes' line and the wrench onto the config. */
+export const PADI_FEED = selector(TESTID.padiFeed);
+export const PADI_FEED_FOOT = selector(TESTID.padiFeedFoot);
+export const PADI_FEED_MUTES = selector(TESTID.padiFeedMutes);
+export const PADI_FEED_WRENCH = selector(TESTID.padiFeedWrench);
 /** What that entry REPORTS, wrapped round the link: `data-owed` is the face it
  *  wears (`overdue` / `today` / `quiet`) and `data-overdue` / `data-today` are
  *  the two counts, whichever of them is on screen. */
@@ -731,6 +737,9 @@ export const TRASH_EMPTY_CANCEL = selector(TESTID.trashEmptyCancel);
 export const TRASH_PAGE_SAID = selector(TESTID.trashPageSaid);
 /** The way to it, at the foot of the directory column. */
 export const TRASH_LINK = selector(TESTID.trashLink);
+/** THE VAULT'S OWN FILES — the `_olai/` outlines' rows in the quiet group
+ *  at the foot of the directory column; `data-file` is which. */
+export const VAULT_LINK = selector(TESTID.vaultLink);
 /** And the way to the INBOX, beside Agenda — drawn only when the directory
  *  has one, which is what the scenarios about a never-captured vault read. */
 export const INBOX_LINK = selector(TESTID.inboxLink);
