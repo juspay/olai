@@ -319,6 +319,12 @@ describe("add with children", () => {
     // mark ops read, so a captured mark and a marked capture agree.
     expect(record(nodes, "n2").done).toBe(STAMP)
     expect(record(nodes, "n3").doing).toBe(true)
+    // …and that agreement includes the STAMP, or "exactly as set_doing would"
+    // is the sentence the door would be lying with: a node BORN `doing` is
+    // work born under way, so it carries its `started` from birth — the only
+    // door it has, since `set_doing` refuses a node already doing. This is
+    // the orchestrator's shape: a lane is captured with its mark in one call.
+    expect(record(nodes, "n3").started).toBe(STAMP)
     expect(record(nodes, "n4")).toMatchObject({
       todo: true,
       date: "2026-09-02",

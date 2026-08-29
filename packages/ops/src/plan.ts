@@ -891,8 +891,9 @@ interface At {
  * mints, and that was a sentence holding two copies of the same lines together.
  *
  * A mark the capture asks for is written exactly as the op that marks an
- * existing node writes it ({@link marker}). Canonical field order is the
- * writer's business, not this object's.
+ * existing node writes it ({@link marker}) — and that includes the stamp
+ * the mark's op mints. Canonical field order is the writer's business,
+ * not this object's.
  */
 const capturedNode = (
   scope: Scope,
@@ -908,7 +909,16 @@ const capturedNode = (
     ord: at.ord,
     title: capture.title,
   }
-  if (capture.mark !== undefined) node[capture.mark] = marker(scope, capture.mark)
+  if (capture.mark !== undefined) {
+    node[capture.mark] = marker(scope, capture.mark)
+    // BORN UNDER WAY is born STARTED — the same stamp, the same moment, for
+    // the reason {@link planMark} mints it: a lane is captured `doing` by
+    // its orchestrator in one breath, and without this line the span that
+    // one began with could never be measured. And there is no later door
+    // for it: `set_doing` refuses a node that is already doing, so a start
+    // missed at the capture is missed for the node's whole working life.
+    if (capture.mark === "doing") node.started = scope.context.now()
+  }
   if (capture.date !== undefined) node.date = capture.date
   if (capture.desc !== undefined) node.desc = capture.desc
   // The properties, through the SAME writer one `set_prop` per key would reach

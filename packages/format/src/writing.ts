@@ -101,7 +101,7 @@ const CAPTURE = {
   mark: Schema.optionalKey(
     Status.annotate({
       description:
-        "The mark this node is born with, written exactly as `set_done` / `set_doing` / `set_todo` would: `done` records the instant, so it lands on today's page; the other two store `true` and place it on no day. Absent leaves a bullet, which is not an unstarted task.",
+        "The mark this node is born with, written exactly as `set_done` / `set_doing` / `set_todo` would: `done` records the instant, so it lands on today's page; the other two store `true` and place it on no day — and a `doing` birth also stamps `started`, exactly as `set_doing` stamps it, since work born under way has no later door for a start. Absent leaves a bullet, which is not an unstarted task.",
     }),
   ),
   /** A chosen slug. Absent mints one — which is the usual case; supply one
