@@ -281,6 +281,15 @@ Then(
       async () => /^\d+$/.test((await chip.getAttribute("data-took")) ?? ""),
       `the node "${id}" wears a settled took chip (data-took of whole seconds)`,
     );
+    // And the hover says the exact figure, in words, off the same attr —
+    // whole seconds while it is under a minute, which every scenario here
+    // keeps its span, so `took 7s` is the shape the tooltip is held to.
+    const seconds = parseInt((await chip.getAttribute("data-took")) ?? "-1", 10);
+    assert.ok(seconds >= 0 && seconds < 60, `"${id}"'s took attr is ${seconds}s`);
+    await this.waitUntil(
+      async () => (await chip.getAttribute("title")) === `took ${seconds}s`,
+      `the node "${id}"'s chip hovers the exact figure ("took ${seconds}s")`,
+    );
   },
 );
 
