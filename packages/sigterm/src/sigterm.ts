@@ -473,9 +473,14 @@ export const installSigtermGuard = (): Promise<void> => {
 const installSigtermGuardOnce = async (): Promise<void> => {
   if (process.platform !== "linux") return
   if (armed) return // one disposition per process; serving two vaults from one process arms once
-  // "At arm time" is HERE, not after the proof: the parent can die during
-  // the arm itself, and its pid is what the death signal will carry.
-  const parentAtEntry = process.ppid
+  // "At arm time" is HERE — and so is the MODULE slot: apply() is live
+  // throughout verified(), judging with whatever armedParent holds, and a
+  // parent dying inside that proof window is precisely the MUST's case —
+  // judged against the -1 initial it would be REFUSED, orphaning the
+  // server the contract was armed to protect. Set the value the first
+  // judged record can trust, before a single one exists. If the arm then
+  // throws, the catcher is disarmed and nothing reads the value again.
+  armedParent = process.ppid
   let guard: Guard | undefined
   try {
     guard = arm()
@@ -484,7 +489,6 @@ const installSigtermGuardOnce = async (): Promise<void> => {
     }
     if (shuttingDown) return // honored a REAL term mid-proof; the process is headed out
     armed = true
-    armedParent = parentAtEntry
     drainForever(guard)
     process.stderr.write(
       `olai web: SIGTERM guard armed: only the supervisor (pid ${process.ppid}), the kernel, or this process's own pid can stop it; a TERM from any other sender is refused and named\n`,
