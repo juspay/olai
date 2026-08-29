@@ -5,7 +5,7 @@
 ## PR workflow
 
 - Keep docs up to date: README.md, docs/*.md — the engineering docs that change in the same PR as the code. Development docs — brainstorms, RCAs, roadmap, the board — live in https://github.com/juspay/oss.olai; file roadmap items via the olai MCP.
-- CI, reviews, and merging are NOT the author's to run or commission — the dispatch brief that opened your session governs the process. Authors run LOCAL suites only: typecheck, unit, the touched features. CI = [odu SKILL.md](https://github.com/juspay/odu/blob/master/.apm/skills/odu/SKILL.md) (read in FULL) is the reference for whoever runs it: Linux; skip macOS unless the PR impacts macOS (this rule applies to all repos). Merge latest master into the PR only when the PR has conflicts (or CI needs code from master).
+- CI, reviews, and merging are NOT the author's to run or commission — the dispatch brief that opened your session governs the process. Authors run LOCAL suites only: typecheck, unit, the touched features.
 
 ## PR evidence uploads
 
