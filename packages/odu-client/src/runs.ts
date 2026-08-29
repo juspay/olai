@@ -209,7 +209,22 @@ export const makeWatch = (deps: WatchDeps): Watch => {
        *  question with the other's cadence. */
       let state: PipelineState = EMPTY_STATE
       let header: RunHeader = EMPTY_HEADER
+      /**
+       * THE BOARD IS THE AUTHORITY, checked on every write and not only on the
+       * sweep's clock.
+       *
+       * Two things write `rows`: this fiber, per frame the coordinator pushes,
+       * and {@link reclaim}, per vault revision — and they run on separate
+       * stacks with no order between them. Without this guard a frame landing
+       * in the window between a lane being deleted and the next sweep
+       * interrupting its hold would put the row back, and the face would keep
+       * reporting on work nobody is tracking for up to a sweep.
+       *
+       * So the drop is authoritative the moment the board says so, and the
+       * interrupt below is cleanup rather than the enforcement.
+       */
       const settle = (): void => {
+        if (!wanted.has(lane.id)) return
         rows.set(lane.id, runOf(lane, state, header))
         publish()
       }
@@ -258,8 +273,10 @@ export const makeWatch = (deps: WatchDeps): Watch => {
       // THE ROW SURVIVES THE SOCKET. Whatever the last frame supported is what
       // a reader sees now — never deleted, because "there was a run and it
       // came out green" is the thing a settled lane most wants to say.
+      // ...and the same authority on the way out: a lane the board dropped
+      // while its run was still going has no row to stamp.
       const last = rows.get(lane.id)
-      if (last !== undefined) {
+      if (last !== undefined && wanted.has(lane.id)) {
         rows.set(lane.id, wentOf(last))
         publish()
       }

@@ -245,6 +245,52 @@ test("a lane the board DROPS takes its row with it, settled verdict and all", ()
   )
 })
 
+test("a frame arriving AFTER the board dropped a lane does not put its row back", () => {
+  // Two writers, two stacks, no order between them: the sweep interrupts a
+  // dropped lane's hold, but a frame the coordinator already pushed can land
+  // first. Without the board being asked on every write, the row would come
+  // back and the face would report on work nobody is tracking until the next
+  // tick.
+  let push = (): void => {}
+  const frames = new Promise<void>((resolve) => {
+    push = () => resolve()
+  })
+  const it = bench(async () => ({
+    client: {
+      surface: {
+        // The first frame settles the row; the second arrives only when the
+        // test says so — after the lane is gone.
+        nodes: {
+          get: () =>
+            Stream.concat(
+              Stream.make(state()),
+              Stream.concat(
+                Stream.fromEffect(Effect.promise(() => frames)).pipe(Stream.drain),
+                Stream.concat(Stream.make(state()), Stream.never),
+              ),
+            ),
+        },
+        header: { get: () => Stream.concat(Stream.make(header()), Stream.never) },
+      },
+    },
+    close: async () => {},
+  }) as never)
+  const watch = makeWatch(it.deps)
+  watch.reclaim([lane()])
+  return Effect.runPromise(
+    Effect.scoped(Effect.gen(function*() {
+      yield* watch.sweep
+      yield* settle
+      expect(watch.rows()).toHaveLength(1)
+      watch.reclaim([])
+      expect(watch.rows()).toEqual([])
+      push()
+      yield* settle
+      expect(watch.rows()).toEqual([])
+    })),
+  )
+})
+
 test("two lanes naming ONE checkout are one run — the second claim is the mistake", () => {
   let dials = 0
   const it = bench(async (path) => {
