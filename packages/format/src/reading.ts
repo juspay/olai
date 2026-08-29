@@ -410,10 +410,19 @@ export type DocumentBody = typeof DocumentBody.Type
  * instants the ops layer stamps rather than the record (`started`, `created`,
  * `changed`), and the derived `status` beside the marks it reads. The one
  * open name is the map: `custom` for all of it, and `custom.<key>` for one
- * property of it. `took` is NOT one: it is the read's own annotation derived
- * from `started` and the settling mark, and the two instants it is derived
- * from are already nameable, so asking for the span's walls is the way to
- * the span.
+ * property of it.
+ *
+ * `took` stands beside `status`, with the same standing as it — the one
+ * derived answer the membership rule admits beyond the mark (the human's
+ * exception, ruled 2026-08-29, closing olai#432's recorded deferral): the
+ * span `started` opens and a settling mark closes, in WHOLE SECONDS, derived
+ * rather than stored and absent when there is no span to tell. The ask it
+ * serves — how long each step of a lane TOOK — is the recurring one this
+ * dial was born for, and fetching both walls per row to subtract them is
+ * ceremony the one derivation already answers. It stays the ONLY admitted
+ * derivation beyond `status`: `progress` and the rest are a caller's own
+ * arithmetic over one row, which is the line a dial for imitations of them
+ * would erase.
  *
  * ONE list, because the refusal of an unknown name and the sentence the two
  * requests advertise are both written from it — the `MARKS` arrangement one
@@ -443,6 +452,7 @@ export const PROJECTABLE = [
   "title",
   "parent",
   "status",
+  "took",
   ...MARKS,
   "started",
   "date",
@@ -497,6 +507,13 @@ export const Projected = Schema.Struct({
   id: Schema.String,
   title: Schema.optionalKey(RegularNode.fields.title),
   status: Schema.optionalKey(Status),
+  /** How long the work TOOK, in WHOLE SECONDS — the settling instant minus
+   *  `started`, derived at read time and never stored, exactly as {@link
+   *  Detail} carries it under the same name and from the same `tookOf` —
+   *  the two row shapes cannot disagree. Absent when there is no span to
+   *  tell: no `started` (a todo→done jump has none — `created` measures the
+   *  node's age, never the work), or no settling mark yet. */
+  took: Schema.optionalKey(Schema.Int),
   ...STAMPED,
   /** When the work was first STARTED — the record's own instant, verbatim,
    *  exactly as {@link Detail} carries it: the span a `doing` row's live
@@ -525,8 +542,10 @@ const FieldsRequest = Schema.optionalKey(
     description:
       "Name what each row carries: " +
       LEGAL_FIELDS +
-      ". The two settles carry their instants, and `started` is when the work " +
-      "first went doing. The id rides regardless, and an unknown name is " +
+      ". The two settles carry their instants, `started` is when the work " +
+      "first went doing, and `took` is the span that closes — derived, in " +
+      "whole seconds, and absent when there is no span to tell. The id " +
+      "rides regardless, and an unknown name is " +
       "refused with this same list. Absent: the full row this read answers " +
       "today.",
   }),
