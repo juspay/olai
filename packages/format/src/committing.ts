@@ -92,7 +92,6 @@ export const PUSH_DEFAULT: PushMode = "off"
  * The instance's policy is always read-only in every browser. A flag given on
  * the command line (or through the home-manager module, which passes the same
  * flags) is named under the row; an omitted flag is the built-in default.
- * There is no runtime door and no remembered file.
  *
  * `null` is nobody having typed that flag, which is the built-in default
  * ({@link COMMIT_DEFAULT} / {@link PUSH_DEFAULT}) — not a live row.

@@ -189,7 +189,7 @@ On Linux the unit is `Restart=always` / `RestartSec=1s` / `SuccessExitStatus=130
 
 Whether what is waiting records itself, and whether a commit is pushed, are facts about the DIRECTORY ([git.md](git.md)) — the instance's, the same in every browser, always read-only. There is no runtime door.
 
-They used to be preferences of one BROWSER, stored there and sent nowhere, then a remembered file the readers could set through a procedure. Both of those are retired. The policy comes from exactly two sources: the CLI flags (`--commit` / `--push`, surfaced through the nix home-manager module) and the built-in defaults (`manual` / `off`). Stale files under `$XDG_STATE_HOME/olai/git/` from an older olai are inert.
+The policy comes from exactly two sources: the CLI flags (`--commit` / `--push`, surfaced through the nix home-manager module) and the built-in defaults (`manual` / `off`). Stale files under `$XDG_STATE_HOME/olai/git/` from an older olai are inert.
 
 ```
 olai web ~/outlines --commit=auto --push=off

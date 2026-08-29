@@ -284,8 +284,7 @@ export const serve = (options: ServeOptions) =>
       transport,
     })
 
-    // Port 0 asks the OS every boot. A leftover `.olai-dev/url` from an
-    // older olai is not consulted; nothing is written back.
+    // Port 0 asks the OS every boot.
     const url = yield* Effect.onError(
       listen({
         ...options,
