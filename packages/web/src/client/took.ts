@@ -22,9 +22,9 @@
  * spelled at a frame rate, and the two readers cannot drift.
  */
 
-import { type Accessor, createEffect, createSignal, onCleanup } from "solid-js"
+import type { Accessor } from "solid-js"
 
-import { createTicking, HOUR, instantOf, MINUTE, SECOND } from "./clock.ts"
+import { createTwoSpeed, HOUR, SECOND } from "./clock.ts"
 
 /**
  * A SETTLED span in the chip's own words — the coarsest that still tell the
@@ -69,43 +69,14 @@ export const tickingOf = (elapsedMs: number): string => {
 
 /**
  * The clock a doing row's chip is drawn against — a second while the second
- * digit is the register, a minute once the words are the settled ones'.
- *
- * The same shape {@link ./uptime.ts}'s `createNow` keeps for the same reason:
- * {@link createTicking} takes a fixed interval, so the handoff is a signal —
- * `paced` flips an hour in, the seconds clock's gate closes and the minute
- * clock's opens. A row whose `started` is not a time — a hand-written value
- * the parse refuses — keeps NEITHER: there is no chip to redraw. And the
- * whole thing exists only for the doing arm of the chip: a settled row's
- * words never move, so no settled row keeps a clock at all.
+ * digit is the register, a minute once the words are the settled ones'. The
+ * machinery is the uptime chip's own seam, `clock.ts`'s
+ * ({@link createTwoSpeed} — which is WHERE it lives: two readouts asking the
+ * same two-speed question is where a handoff stops being incidental); the
+ * only thing this chip adds is its BAND, an hour. The whole thing exists for
+ * the doing arm alone: a settled row's words never move, so a settled row
+ * keeps no clock at all.
  */
 export const createNow = (
   started: Accessor<string | undefined>,
-): Accessor<number> => {
-  const [paced, setPaced] = createSignal(false)
-  /** A parseable start — the same refusal {@link tickingOf} makes. An
-   *  unparseable stamp must not keep either clock. */
-  const armed = (): boolean => {
-    const at = started()
-    return at !== undefined && instantOf(at) !== null
-  }
-  createEffect(() => {
-    const at = started()
-    const then = at === undefined ? null : instantOf(at)
-    if (then === null) {
-      setPaced(false)
-      return
-    }
-    const wait = HOUR - Math.max(0, Date.now() - then)
-    if (wait <= 0) {
-      setPaced(true)
-      return
-    }
-    setPaced(false)
-    const handoff = setTimeout(() => setPaced(true), wait)
-    onCleanup(() => clearTimeout(handoff))
-  })
-  const fast = createTicking(SECOND, () => armed() && !paced())
-  const slow = createTicking(MINUTE, () => armed() && paced())
-  return () => (paced() ? slow() : fast())
-}
+): Accessor<number> => createTwoSpeed(started, HOUR)

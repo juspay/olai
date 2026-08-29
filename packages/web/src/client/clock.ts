@@ -12,7 +12,8 @@
  * readouts in this client that are a reading of the wall clock — how long
  * ago the last commit was ({@link ./commit/ago.ts}), how long the running
  * tool call has been going ({@link ./chat/elapsed.ts}), how long the server
- * has been up ({@link ./uptime.ts}) — go stale on their own, and each would
+ * has been up ({@link ./uptime.ts}), how long a row's work has been going
+ * ({@link ./TookChip.tsx}) — go stale on their own, and each would
  * otherwise arrive with a `setInterval`, a signal and an `onCleanup` of its
  * own. Two copies is where a shape stops being incidental: what they have
  * in common is not the number but the LIFETIME, and a timer whose disposal
@@ -163,6 +164,48 @@ export const createTicking = (
     })
   })
   return now
+}
+
+/**
+ * The TWO-SPEED clock two readouts wear, owned here for the reason above:
+ * the second the uptime chip and the took chip grew one each, the
+ * seconds-clock-until-a-border-then-a-minutes-one machinery existed twice —
+ * one constant between them, twenty-five lines around it. What those lines
+ * are is a LIFETIME again: a `setTimeout` aimed at the band's edge, aimed
+ * and torn down with the component owning it.
+ *
+ * The shape both readouts need: a stamp that crossed the wire once
+ * (`started`), a fine register under `coarsenAfter` of elapsed time and a
+ * coarse one past it — `createTicking` takes a fixed interval, so the border
+ * is a signal: when the span crosses it the seconds clock's gate closes and
+ * the minute clock's opens. A stamp that is missing or not a time keeps
+ * NEITHER — the same refusal {@link instantOf} hands every readout, which is
+ * the half of the machinery that is not about pace at all.
+ */
+export const createTwoSpeed = (
+  started: Accessor<string | undefined>,
+  coarsenAfter: number,
+): Accessor<number> => {
+  const [coarse, setCoarse] = createSignal(false)
+  const armed = (): boolean => instantOf(started()) !== null
+  createEffect(() => {
+    const then = instantOf(started())
+    if (then === null) {
+      setCoarse(false)
+      return
+    }
+    const wait = coarsenAfter - Math.max(0, Date.now() - then)
+    if (wait <= 0) {
+      setCoarse(true)
+      return
+    }
+    setCoarse(false)
+    const handoff = setTimeout(() => setCoarse(true), wait)
+    onCleanup(() => clearTimeout(handoff))
+  })
+  const fast = createTicking(SECOND, () => armed() && !coarse())
+  const slow = createTicking(MINUTE, () => armed() && coarse())
+  return () => (coarse() ? slow() : fast())
 }
 
 /**
