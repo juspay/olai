@@ -37,10 +37,10 @@
  *      sigaction itself, the pipe, the policy, /proc resolution, the log
  *      lines — is TypeScript right here.
  *
- * The handler appends {si_pid, si_uid} to a non-blocking self-pipe; a
- * poll loop drains it in ordinary context, where /proc and stderr are
- * safe. The kernel queue IS the flag/self-pipe the classic constraint
- * asks for.
+ * The handler appends {si_pid, si_uid, si_code} to a non-blocking
+ * self-pipe; a poll loop drains it in ordinary context, where /proc
+ * and stderr are safe. The kernel queue IS the flag/self-pipe the
+ * classic constraint asks for.
  *
  * The POLICY is {@link judge}, honored at drain time: the supervisor —
  * a live `getppid()`, which is how `systemctl --user stop|restart olai`
@@ -355,6 +355,13 @@ const arm = (): Guard => {
  *  when the disposition is live and the steady-state drain is not. */
 const verified = async ({ libc, readEnd }: Guard): Promise<boolean> => {
   const deadline = Date.now() + 2000
+  // The FIRST self-record is the probe; a second one is a genuine
+  // self-kill and gets the policy like anything else — the proof must
+  // not be able to eat a real stop. And a self-match never ends the
+  // BATCH: every other receipt read in the same pull is applied before
+  // returning, so a supervisor's stop can never be read out and
+  // dropped on the floor in this window.
+  let probePending = true
   process.kill(process.pid, "SIGTERM")
   while (Date.now() < deadline) {
     for (const receipt of drain(readEnd)) {
@@ -363,17 +370,19 @@ const verified = async ({ libc, readEnd }: Guard): Promise<boolean> => {
       // (a runtime whose process.kill comes in with any other si_code
       // would prove a different thing than the policy upholds).
       if (
-        receipt.pid === process.pid && receipt.uid === getuid() &&
+        probePending && receipt.pid === process.pid && receipt.uid === getuid() &&
         (receipt.code === SI.USER || receipt.code === SI.TKILL)
       ) {
-        return true
+        probePending = false
+        continue
       }
       apply(receipt, libc)
       if (shuttingDown) return true
     }
+    if (!probePending) return true
     await Bun.sleep(5)
   }
-  return false
+  return !probePending
 }
 
 /** The steady state: poll the pipe, apply the policy, meter the drops.
