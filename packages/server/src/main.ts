@@ -34,7 +34,8 @@
  * to stderr first, so a journal can tell a signaled death from a deliberate
  * stop. Node allows more than one listener; `runMain` still does the unwind.
  *
- * Every SIGTERM additionally goes through the GUARD first (`./sigterm.ts`):
+ * Every SIGTERM additionally goes through the GUARD first (`@olai/sigterm` —
+ * a package of its own: one file of TS and a few lines of C):
  * a stranger's TERM is refused and named, an accepted one is handed back to
  * the disposition these listeners armed and re-raised — so the listener
  * below fires on the guard's own reraise, which is by construction: an
@@ -59,7 +60,7 @@ import { MCP } from "./faces.ts"
 import { remoteFrom } from "./mcp/tools.ts"
 import { gitFlags, gitPin } from "./gitPolicy.ts"
 import { serve } from "./serve.ts"
-import { installSigtermGuard } from "./sigterm.ts"
+import { installSigtermGuard } from "@olai/sigterm"
 
 /** The directory of outlines the server operates on. */
 const directory = Argument.directory("directory", { mustExist: true }).pipe(
@@ -95,7 +96,7 @@ const web = Command.make("web", {
   ...webGit,
 }, ({ commits, directory, host, noCommit, port, pushes }) =>
   Effect.gen(function*() {
-    // The SIGTERM guard (./sigterm.ts): `web` is the server a stray pkill
+    // The SIGTERM guard (@olai/sigterm): `web` is the server a stray pkill
     // wants — `surface` is a client and its TERM is an ordinary stop —
     // and first, so the armed line leads the boot's journal. Everything
     // the arm asks for (Bun's listener-armed disposition, a settled

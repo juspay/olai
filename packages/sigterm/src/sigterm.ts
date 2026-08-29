@@ -50,9 +50,9 @@
  * The POLICY is {@link judge}, honored at drain time: the supervisor —
  * a live `getppid()`, which is how `systemctl --user stop|restart olai`
  * delivers (the user manager is the service's parent and signals its
- * children) — the process itself (main.ts's parent-death race branch),
+ * children) — the process itself (the composition root's parent-death race branch),
  * the parent it had AT ARM TIME when that parent is gone (the measured
- * shape of the `PR_SET_PDEATHSIG` contract main.ts arms: it arrives as
+ * shape of the `PR_SET_PDEATHSIG` contract the composition root arms: it arrives as
  * SI_USER with the DYING parent's pid, and `getppid()` has usually
  * already moved to 1 by drain time — the review's must-fix), and the
  * belt of pid 0. Honored senders must also carry a kill-family si_code:
@@ -62,7 +62,7 @@
  * already owns the uncatchable one below.
  *
  * HONORING is "today's orderly shutdown" byte-for-byte: the guard restores
- * the disposition it found on install (Bun's, armed when main.ts's
+ * the disposition it found on install (Bun's, armed when the composition root's
  * listeners attached) and re-raises SIGTERM to itself, so the ordinary
  * listeners run — `olai web: received SIGTERM` is written and runMain
  * interrupts the fiber — because that path is the tested, known-good one.
@@ -82,13 +82,17 @@
  * this policy recognizes is systemd's user manager).
  */
 
-import { reasonOf } from "@olai/log"
 import { cc, dlopen, FFIType, ptr, type Pointer } from "bun:ffi"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
 export const SIGTERM = 15
+
+/** failure → the shape its sentence takes. Local on purpose: this
+ *  package imports nothing, so its one carcass-prettier lives here. */
+const reasonOf = (cause: unknown): string =>
+  cause instanceof Error ? cause.message : String(cause)
 
 /** The delivery codes trusted for HONORS, from sigaction(2)'s table.
  *  Cross-process siginfo SUPPLIES are policed by the kernel
@@ -121,7 +125,7 @@ export type Verdict = "honor" | "refuse"
  *  to be anybody's pid — its si_code gives it away, so honors require a
  *  kill-family code (see SI above). Everything after that trusts the pid.
  *
- *  - SELF: `main.ts`'s dieWithParent race branch kills itself by
+ *  - SELF: the composition root's dieWithParent race branch kills itself by
  *    process.kill — kill(2), a genuine SI_USER.
  *  - PARENT, read live: the supervisor — `systemctl --user stop|restart`
  *    is the user manager signaling its child. getppid() at RECEIPT time,
@@ -451,7 +455,7 @@ const drainForever = ({ libc, handler, readEnd, disarm }: Guard): void => {
  * Replace SIGTERM's disposition with the attribution catcher and start the
  * drain loop — or say loudly why not and leave today's handling untouched.
  *
- * Must run AFTER this process's own SIGTERM listeners exist (main.ts:
+ * * Must run AFTER this process's own SIGTERM listeners exist (the composition root:
  * the console-line listener, and runMain's interruption): the disposition
  * they armed is what an honored TERM is handed BACK to — `oldAct` is the
  * whole of the honor path.
@@ -539,7 +543,8 @@ const apply = (receipt: Receipt, libc: Libc): void => {
   shuttingDown = true
   process.stderr.write(journal("honoring", sender))
   // Hand the signal back to whatever disposition was installed before the
-  // guard — Bun's, which is what main.ts's listeners and runMain are on —
+  // guard — Bun's, which is what the composition root's listeners and
+  // runMain are on —
   // and re-raise. From here this is EXACTLY today's orderly shutdown: the
   // `received SIGTERM` line, runMain's interrupt, exit 130. (A SECOND
   // term after the restore re-runs that same interrupt — the bouncer's
