@@ -371,7 +371,8 @@ test("a bad type is refused naming the legal kinds and each one's shape", () => 
   expect(said).toContain("`path` (no whitespace; optional `base`)")
   expect(said).toContain("`doc` (a served `.md`; optional `base`)")
   expect(said).toContain("`ref` (a child's id; `under` names the parent)")
-  expect(said).toContain("`node` (any node id)")
+  expect(said).toContain("`node` (any node id).")
+  expect(said?.endsWith(".")).toBe(true)
 })
 
 test("a declaration missing its type is refused naming the same vocabulary", () => {

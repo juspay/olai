@@ -156,7 +156,7 @@ add_node {file: "_olai/Properties.olai", title: "took", props: {type: "took"}}
 → `type` is `took`, which is not a property type — write `text` (anything),
   `date` (an ISO day or instant), `int` (a digit run), `path` (no whitespace;
   optional `base`), `doc` (a served `.md`; optional `base`), `ref` (a child's
-  id; `under` names the parent), `node` (any node id)
+  id; `under` names the parent), `node` (any node id).
 ```
 
 A hand edit that lands a bad value makes the file **broken, naming the key** (`bad-prop`), exactly how every other validation rule reports. Every door that writes a property is covered, because the check sits at the plan/validate seam: `set_prop`, `add_node`'s `props` (children included), `apply`, `update`, `capture`. `duplicate_node` needs no rule of its own — a copy is isomorphic to a subtree the validator has already approved.

@@ -408,7 +408,7 @@ export const BOOTSTRAP: ReadonlyMap<string, Grounded> = new Map<string, Grounded
     wrong: (value) =>
       isPropKind(value) ? undefined : `is not a property type — write ${
         kindsTaken()
-      }${didYouMean(value, PROP_KINDS)}`,
+      }${didYouMean(value, PROP_KINDS)}.`,
   }],
   [UNDER_KEY, {
     takes: "the id of a node in the set — where a `ref`'s variants live",
