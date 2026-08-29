@@ -127,6 +127,34 @@ Feature: The outline and the chat point at each other
     Then the address is "/yard.olai#fence"
     And the node "fence" is focused
 
+  @scratch:chat
+  Scenario: A node that has gone since the write was drawn leaves the page exactly as it was
+    # The polite half of Show This Node: the id that named the write no longer
+    # names anything — and the answer is the page the reader had, kept: no
+    # navigation, and the accent back on the row that was wearing it. The hat
+    # on the write stays a hat, because the mark is the set's own answer at
+    # the time the message was drawn — it is history, and history may be
+    # about what is gone.
+    When I ask the agent "done install"
+    And I press the node "install" in the write
+    Then the node "install" is focused
+    When I ask the agent "done order"
+    Then the agent's answer names the node "order"
+    When I rewrite "house.olai" as:
+      """
+      {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
+      {"id":"demo","parent":"kitchen","ord":"a0","title":"take out the old counters","done":"2026-08-03"}
+      {"id":"install","parent":"kitchen","ord":"a2","title":"install the cabinets","doing":"2026-08-02"}
+      """
+    Then the node "order" is not shown
+    # The write rows are recomputed from the live ops trail, so it is the
+    # ANSWER's own mark that survives the rewrite: the id in its backticks
+    # keeps saying "the set declared it once", and pressing it is the act
+    # that must now say nothing.
+    When I press the node "order" in the answer
+    Then the address is "/house.olai"
+    And the node "install" is focused
+
   @scratch:chat @wire
   Scenario: Typing beside an armed chip does not ask again what the node is called
     # WHAT THE CHIP COSTS, which nothing on screen can say. The title is a fact
