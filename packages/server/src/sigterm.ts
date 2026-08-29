@@ -389,10 +389,25 @@ const verified = async ({ libc, readEnd }: Guard): Promise<boolean> => {
  *  unref'd — the guard must never be what keeps a process alive: a
  *  finished command exits despite the poll, and runMain's exit code path
  *  ends it in the serving case. */
-const drainForever = ({ libc, handler, readEnd }: Guard): void => {
+const drainForever = ({ libc, handler, readEnd, disarm }: Guard): void => {
   let droppedReported = 0
   const timer = setInterval(() => {
-    for (const receipt of drain(readEnd)) {
+    let batch: Array<Receipt>
+    try {
+      batch = drain(readEnd)
+    } catch (cause) {
+      // The read end can die out from under the poll (a runtime replacing
+      // the fd, a dup2 sweep): the catcher would otherwise eat every TERM
+      // silently forever. Loud line, hand the disposition back, and stop
+      // polling — the bouncer exits rather than pretends to stand.
+      clearInterval(timer)
+      process.stderr.write(
+        `olai web: SIGTERM guard's refusal pipe failed (${reasonOf(cause)}) — disarming the catcher; SIGTERM keeps its default handling\n`,
+      )
+      disarm()
+      return
+    }
+    for (const receipt of batch) {
       apply(receipt, libc)
       if (shuttingDown) {
         clearInterval(timer)
@@ -450,16 +465,22 @@ export const installSigtermGuard = async (): Promise<void> => {
 
 const getuid = (): number => (typeof process.getuid === "function" ? process.getuid() : -1)
 
-/** Everything readable from the pipe right now, as receipts. */
+/** Everything readable from the pipe right now, as receipts. EAGAIN is
+ *  the ordinary idle answer and indistinguishable from an empty batch to
+ *  a caller; ANYTHING ELSE is thrown, not absorbed: a dead read end with
+ *  the catcher still installed would make the server silent AND
+ *  unstoppable — the inverse of how this file fails (loud, then disarm —
+ *  the two callers handle it). */
 const drain = (fd: number): Array<Receipt> => {
   if (fd < 0) return []
   const buf = new Uint8Array(64 * RECORD_BYTES)
   let n = 0
   try {
     n = fs.readSync(fd, buf, 0, buf.length, null)
-  } catch {
-    // EAGAIN with nothing pending; anything worse means the fd is gone.
-    return []
+  } catch (cause) {
+    if ((cause as { readonly code?: string }).code !== "EAGAIN") {
+      throw cause
+    } // else: nothing pending — the ordinary shape of the poll
   }
   const view = new DataView(buf.buffer)
   const out: Array<Receipt> = []
