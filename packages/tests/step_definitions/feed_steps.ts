@@ -14,6 +14,7 @@
  */
 import { Then, When } from "@cucumber/cucumber"
 import { strict as assert } from "assert"
+import { attr } from "../support/selectors.ts"
 import {
   OUTLINE_LIST,
   OUTLINE_TREE,
@@ -29,6 +30,11 @@ import {
 /** The pill, spelled once: the readout's stepping stone is the same link
  *  `terminal_door_steps.ts` asserts its faces on. */
 const PADI_PILL = '[data-testid="padi"]'
+
+/** One row of the vault group, by file: the attribute is built the module's
+ *  one way (`../support/selectors.ts`) — a file's name carries whatever a
+ *  reader typed, the `it_stays_live` scenario's quotes included. */
+const vaultFile = (file: string): string => `${VAULT_LINK}${attr("data-file", file)}`
 
 /** Absence proofs settle on the EVENTS panel: the mutes cell rides the same
  *  subscription the feed does, so when the feed has answered the cell's
@@ -94,7 +100,7 @@ Then("the drawer is closed", async function(this: OlaiWorld) {
 
 Then("the vault group links to {string}", async function(this: OlaiWorld, file: string) {
   await this.waitUntil(
-    async () => (await this.page.locator(`${VAULT_LINK}[data-file="${file}"]`).count()) > 0,
+    async () => (await this.page.locator(vaultFile(file)).count()) > 0,
     `the vault group to link to ${file}`,
   )
 })
@@ -102,22 +108,22 @@ Then("the vault group links to {string}", async function(this: OlaiWorld, file: 
 Then("the vault group does not link to {string}", async function(this: OlaiWorld, file: string) {
   await visible(this, OUTLINE_LIST)
   assert.equal(
-    await this.page.locator(`${VAULT_LINK}[data-file="${file}"]`).count(),
+    await this.page.locator(vaultFile(file)).count(),
     0,
     `the vault group linked to ${file}`,
   )
 })
 
 When("I open {string} from the vault group", async function(this: OlaiWorld, file: string) {
-  await this.press(this.page.locator(`${VAULT_LINK}[data-file="${file}"]`).first())
+  await this.press(this.page.locator(vaultFile(file)).first())
   await visible(this, OUTLINE_TREE)
 })
 
 Then(
   "the vault group's {string} row is marked unreadable",
   async function(this: OlaiWorld, file: string) {
-    const row = this.page.locator(`${VAULT_LINK}[data-file="${file}"]`).first()
-    await visible(this, `${VAULT_LINK}[data-file="${file}"]`)
+    const row = this.page.locator(vaultFile(file)).first()
+    await visible(this, vaultFile(file))
     await this.waitUntil(
       async () => (await row.getAttribute("data-broken")) === "true",
       `the vault group's ${file} row to wear the unreadable mark`,
@@ -126,8 +132,8 @@ Then(
 )
 
 Then("the vault group's {string} row marks the current page", async function(this: OlaiWorld, file: string) {
-  const row = this.page.locator(`${VAULT_LINK}[data-file="${file}"]`).first()
-  await visible(this, `${VAULT_LINK}[data-file="${file}"]`)
+  const row = this.page.locator(vaultFile(file)).first()
+  await visible(this, vaultFile(file))
   assert.equal(await row.getAttribute("aria-current"), "page")
 })
 
