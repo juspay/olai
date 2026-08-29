@@ -23,28 +23,35 @@
  * si_uid@20 for kill(2) senders. This is kernel ABI and cannot move;
  * even so, ./sigterm.ts proves it on every boot with a self-sent
  * signal before declaring the guard armed, and falls back loudly if
- * the round trip does not come back. Kernel-sent signals (the
- * PR_SET_PDEATHSIG contract is the only one we expect) arrive with
- * si_pid == 0 and si_uid == 0 — not a possible sender pid, so they can
- * never be confused for a user-space process's send.
+ * the round trip does not come back.
  *
- * The record is 8 bytes — { si_pid, si_uid }, two little-endian i32s, so
- * a batch read can slice it without a length word. signo is not in it
- * (this handler is only ever SIGTERM's disposition) and neither is
- * si_code (the kill/tgkill/kernel split would color a log line, which no
- * reader today asks for — a fact to revisit the day one does, not a field
- * to carry meanwhile). Pipe floods drop records (counted, reported from
- * the drain side) rather than blocking a signal sender on us. */
+ * The record is 12 bytes — { si_pid, si_uid, si_code }, three
+ * little-endian i32s under PIPE_BUF, so a batch read can slice it
+ * without a length word and one write(2) can never interleave with
+ * another. si_code is HERE and read by the policy: cross-process
+ * siginfo supplies (rt_sigqueueinfo) may only arrive tagged SI_QUEUE
+ * and friends — the kill family's own codes (SI_USER, SI_TKILL,
+ * SI_KERNEL) are the kernel's to write, which is the line between a
+ * genuine sender's pid and a supplied one. And MEASURED on this
+ * machine (kernel 7.1.5, bun 1.4.0, the review's probe re-run): the
+ * PR_SET_PDEATHSIG death signal arrives with si_code == SI_USER and
+ * si_pid == the DYING PARENT's pid — never the si_pid 0 of the man
+ * pages' examples. Pipe floods drop records (counted, reported from
+ * the drain side) rather than blocking a signal sender on us — and a
+ * dropped record can be the supervisor's STOP, not only an unnamed
+ * stranger: that is the one way this guard's failure is worse than no
+ * guard, and the drain side's message says so. */
 static int outFd = -1;
 static long (*x_write)(int, const void *, unsigned long);
 static volatile long dropped = 0;
 
 static void olaiSigterm(int sig, void *info, void *uctx) {
-  int rec[2];
+  int rec[3];
   char *p = (char *)info;
-  rec[0] = *(int *)(p + 16);                /* si_pid */
-  rec[1] = (int)*(unsigned int *)(p + 20);  /* si_uid */
-  if (outFd < 0 || x_write(outFd, rec, 8) != 8) {
+  rec[0] = *(int *)(p + 16);                /* si_pid  */
+  rec[1] = (int)*(unsigned int *)(p + 20);  /* si_uid  */
+  rec[2] = *(int *)(p + 8);                 /* si_code */
+  if (outFd < 0 || x_write(outFd, rec, 12) != 12) {
     dropped = dropped + 1;
   }
 }

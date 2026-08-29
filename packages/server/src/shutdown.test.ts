@@ -159,23 +159,33 @@ test("a SIGTERM from anyone but the supervisor is refused and named; the server 
   }
 }, BOUND_MS * 4)
 
-test("olai web dies when its parent dies", async () => {
+test("olai web dies when its parent dies — BY THE GUARD'S HONOR, not by any side effect", async () => {
   // `prctl(PR_SET_PDEATHSIG)`: SIGKILL of cucumber used to reparent every
   // detached server to init. A wrapper process is the parent here; killing
-  // it must take the server with it.
+  // it must take the server with it. Under the guard that death is a
+  // POLICY decision: the kernel's signal arrives with the dying parent's
+  // pid (measured: SI_USER from the parent itself, never si_pid 0), and
+  // this test asserts the child's journal HONORS it — the line is the
+  // contract, the corpse alone is not: a refusal line written into a pipe
+  // whose reader just died would also kill the child (EPIPE), and did
+  // precisely that while the first draft's premise was wrong, fake-green
+  // here. So the child logs to a FILE the wrapper cannot take with it,
+  // and the assertion names both the honoring and the death.
   if (process.platform !== "linux") return
   const root = served()
-  const wrapper = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "olai-parent-")), "parent.mjs")
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "olai-parent-"))
+  const wrapper = path.join(tmp, "parent.mjs")
+  const childLog = path.join(tmp, "child.log")
   fs.writeFileSync(
     wrapper,
     `import { spawn } from "node:child_process";
+import * as fs from "node:fs";
+const logFd = fs.openSync(process.env.CHILD_LOG, "w");
 const child = spawn(process.execPath, process.argv.slice(2), {
-  stdio: ["ignore", "pipe", "pipe"],
+  stdio: ["ignore", logFd, logFd],
   env: process.env,
 });
 process.stdout.write("child=" + child.pid + "\\n");
-child.stdout?.pipe(process.stdout);
-child.stderr?.pipe(process.stderr);
 setInterval(() => {}, 1 << 30);
 `,
   )
@@ -188,6 +198,7 @@ setInterval(() => {}, 1 << 30);
     {
       env: {
         ...process.env,
+        CHILD_LOG: childLog,
         OLAI_DIST_DIR: dist,
         OLAI_ACP_AGENT: "",
         OLAI_LOG: "logfmt",
@@ -207,15 +218,36 @@ setInterval(() => {}, 1 << 30);
   })
   try {
     const started = Date.now()
-    while (!said.includes("message=serving") && Date.now() - started < BOUND_MS) {
+    while (!said.includes("child=") && Date.now() - started < BOUND_MS) {
       await Bun.sleep(25)
     }
-    expect(said).toContain("message=serving")
     const childPid = Number(/^child=(\d+)$/m.exec(said)?.[1])
     expect(childPid).toBeGreaterThan(0)
+    const wrapperPid = parent.pid
+    expect(wrapperPid).toBeGreaterThan(0)
+
+    await until(BOUND_MS, "the child's guard to arm", () =>
+      fs.existsSync(childLog) && fs.readFileSync(childLog, "utf8").includes("SIGTERM guard armed"))
+
     parent.kill("SIGKILL")
-    await Bun.sleep(500)
-    expect(() => process.kill(childPid, 0)).toThrow()
+    await until(
+      BOUND_MS,
+      "the kernel's parent-death signal to be honored",
+      () => fs.readFileSync(childLog, "utf8").includes(`honoring SIGTERM from pid ${wrapperPid}`),
+    )
+    await until(BOUND_MS, "the child to exit", () => {
+      try {
+        process.kill(childPid, 0)
+        return false
+      } catch {
+        return true
+      }
+    })
+    const journal = fs.readFileSync(childLog, "utf8")
+    // (the wrapper reaped before the drain read its cmdline is the
+    // ordinary case — pid and uid, recorded at send time, must carry it)
+    expect(journal).toContain(`honoring SIGTERM from pid ${wrapperPid} uid ${process.getuid?.()}`)
+    expect(journal).toContain("olai web: received SIGTERM")
   } finally {
     parent.kill("SIGKILL")
   }

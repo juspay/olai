@@ -43,13 +43,18 @@
  * asks for.
  *
  * The POLICY is {@link judge}, honored at drain time: the supervisor —
- * `getppid()`, which is how `systemctl --user stop|restart olai` delivers
- * (the user manager is the service's parent and signals its children when
- * managing their lifecycle) — plus the two senders that cannot be forged:
- * the kernel (si_pid 0 — the `PR_SET_PDEATHSIG` contract main.ts arms) and
- * this process itself (main.ts's parent-death race branch). Everyone else
- * is refused, root included: honoring by uid would only give root's TERM a
- * quieter path, and root already owns the uncatchable one below.
+ * a live `getppid()`, which is how `systemctl --user stop|restart olai`
+ * delivers (the user manager is the service's parent and signals its
+ * children) — the process itself (main.ts's parent-death race branch),
+ * the parent it had AT ARM TIME when that parent is gone (the measured
+ * shape of the `PR_SET_PDEATHSIG` contract main.ts arms: it arrives as
+ * SI_USER with the DYING parent's pid, and `getppid()` has usually
+ * already moved to 1 by drain time — the review's must-fix), and the
+ * belt of pid 0. Honored senders must also carry a kill-family si_code:
+ * a supplied siginfo (rt_sigqueueinfo) can claim anybody's pid, and its
+ * si_code gives it away. Everyone else is refused, root included:
+ * honoring by uid would only give root's TERM a quieter path, and root
+ * already owns the uncatchable one below.
  *
  * HONORING is "today's orderly shutdown" byte-for-byte: the guard restores
  * the disposition it found on install (Bun's, armed when main.ts's
@@ -80,39 +85,73 @@ import * as path from "node:path"
 
 export const SIGTERM = 15
 
-/** Whoever a SIGTERM record names — the kernel (pid 0), this process, its
- *  supervisor, or a stranger. `uid` is recorded for attribution and is
- *  deliberately NOT part of the rule: nothing legitimate here sends root
- *  TERMs, so root is refused and named like any other non-supervisor. */
+/** The delivery codes trusted for HONORS, from sigaction(2)'s table.
+ *  Cross-process siginfo SUPPLIES are policed by the kernel
+ *  (rt_sigqueueinfo(2): si_code ≥ 0 — which is SI_USER — and SI_TKILL
+ *  are both refused to the caller), so only the kill family's own sends
+ *  ever carry these codes: every siginfo a user-space process hands the
+ *  kernel wholesale arrives tagged SI_QUEUE or another of its own — to
+ *  the kernel's exact words, "not even root can pretend to send signals
+ *  from the kernel". Requiring one of these three is what makes a pid
+ *  in a receipt mean the pid that sent it, at least in the kill family
+ *  this guard watches. */
+export const SI = { USER: 0, TKILL: -6, KERNEL: 128 } as const
+
+/** Whoever a SIGTERM record names — this process, its supervisor, its
+ *  (dead or alive) arming parent, or a stranger. `uid` is recorded for
+ *  attribution and is deliberately NOT part of the rule: nothing
+ *  legitimate here sends root TERMs, so root is refused and named like
+ *  any other non-supervisor. */
 export interface Sender {
   readonly pid: number
   readonly uid: number
+  readonly code: number
 }
 
 export type Verdict = "honor" | "refuse"
 
 /** The one question this guard exists to answer, as a pure function.
  *
- *  - pid 0 is the KERNEL, and a kernel TERM here is the `PR_SET_PDEATHSIG`
- *    contract this process itself armed (`./main.ts`'s `dieWithParent`):
- *    user space cannot forge si_pid 0, so honoring it risks nothing, and
- *    refusing it would orphan harness-spawned servers again.
- *  - SELF is honored for the same reason: that path is the getppid race
- *    branch of the same feature, and no other process can put our pid in.
- *  - PARENT is the supervisor: `systemctl --user stop|restart` is the
- *    user manager signaling its child. Compared against getppid() at
- *    receipt time, not boot: reparenting moves it, and this file must not
- *    keep honoring a managerPid a corpse left behind (a reparented server
- *    inherited by pid 1 honors pid 1, which is exactly as strong as init
- *    is).
+ *  THE FORGE GATE first: a supplied siginfo (rt_sigqueueinfo) can claim
+ *  to be anybody's pid — its si_code gives it away, so honors require a
+ *  kill-family code (see SI above). Everything after that trusts the pid.
+ *
+ *  - SELF: `main.ts`'s dieWithParent race branch kills itself by
+ *    process.kill — kill(2), a genuine SI_USER.
+ *  - PARENT, read live: the supervisor — `systemctl --user stop|restart`
+ *    is the user manager signaling its child. getppid() at RECEIPT time,
+ *    not boot: a reparented server honors its NEW parent (a stray
+ *    `systemd --user` re-adopting us can still stop us, which is right),
+ *    and the reviewers probed Bun 1.4's process.ppid to be a live call.
+ *  - ARMED PARENT (the pdeath contract, as MEASURED — this is the arm
+ *    the 2026-08-29 review found its first draft wrong about):
+ *    `PR_SET_PDEATHSIG`'s death signal arrives with si_code == SI_USER
+ *    and si_pid == THE DYING PARENT's own pid — and `forget_original_parent()`
+ *    reparents us in the same tick, so by the time the record is drained
+ *    `process.ppid` is already 1 and the PARENT arm alone would refuse
+ *    it. Hence the pid at ARM time is kept: honored when the current
+ *    parent has moved. The price: a stranger inheriting that pid number
+ *    within the same tick is honored too — accepted, because a deliberate
+ *    actor has SIGKILL anyway, and the un-honored alternative is the
+ *    contract dying, which is how the e2e harness used to leak a server
+ *    per cancelled run.
+ *  - pid 0: the belt. The man pages' example for kernel-sourced signals
+ *    — and with the forge gate closed, something genuine: no current
+ *    kernel path is KNOWN to send a TERM this way, so it costs nothing
+ *    and stands if one is ever found.
  *
  *  Everything else — every agent lane's cleanup, every curious shell —
  *  is refused, whatever its uid. */
 export const judge = (
   sender: Sender,
-  here: { readonly self: number; readonly parent: number },
-): Verdict =>
-  sender.pid === 0 || sender.pid === here.self || sender.pid === here.parent ? "honor" : "refuse"
+  here: { readonly self: number; readonly parent: number; readonly armedParent: number },
+): Verdict => {
+  if (sender.code < 0 && sender.code !== SI.TKILL) return "refuse"
+  if (sender.pid === 0) return "honor"
+  if (sender.pid === here.self || sender.pid === here.parent) return "honor"
+  if (sender.pid === here.armedParent && here.parent !== here.armedParent) return "honor"
+  return "refuse"
+}
 
 /** Rendered attribution for one sender, as the parenthetical both
  *  journal lines carry: the kernel and ourselves by name, a process by
@@ -151,14 +190,15 @@ const SA_RESTART = 0x10000000
 const O_NONBLOCK = 0o4000
 const O_CLOEXEC = 0o2000000
 
-/** Bytes per record the C handler writes — {si_pid, si_uid} as two
- *  little-endian u32s. */
-const RECORD_BYTES = 8
+/** Bytes per record the C handler writes — {si_pid, si_uid, si_code} as
+ *  three little-endian u32s. */
+const RECORD_BYTES = 12
 
 /** One caught SIGTERM, as the kernel described the sender at send time. */
 interface Receipt {
   readonly pid: number
   readonly uid: number
+  readonly code: number
 }
 
 /** How often the pipe is drained. Signals are rare, so this is nearly
@@ -256,6 +296,11 @@ let armed = false
 let oldAct: Uint8Array | undefined
 /** The honor path ran: no second restore+reraise may fire. */
 let shuttingDown = false
+/** The parent this process had AT ARM TIME: the kernel's parent-death
+ *  signal carries THAT pid (drain-time getppid has usually reparented by
+ *  then), so it is captured once, here — see `judge`'s armed-parent arm.
+ *  -1 until the guard arms: matches no real sender. */
+let armedParent = -1
 
 /** Everything an installed catcher needs to serve and be undone. Nothing
  *  in it is ever closed: closing the compiled shim's library would unmap
@@ -313,8 +358,16 @@ const verified = async ({ libc, readEnd }: Guard): Promise<boolean> => {
   process.kill(process.pid, "SIGTERM")
   while (Date.now() < deadline) {
     for (const receipt of drain(readEnd)) {
-      // The catcher covers only SIGTERM, so any record is one.
-      if (receipt.pid === process.pid && receipt.uid === getuid()) return true
+      // The catcher covers only SIGTERM, so any record is one; the proof
+      // also demands the kill-family code the honor policy will ask of it
+      // (a runtime whose process.kill comes in with any other si_code
+      // would prove a different thing than the policy upholds).
+      if (
+        receipt.pid === process.pid && receipt.uid === getuid() &&
+        (receipt.code === SI.USER || receipt.code === SI.TKILL)
+      ) {
+        return true
+      }
       apply(receipt, libc)
       if (shuttingDown) return true
     }
@@ -360,6 +413,9 @@ const drainForever = ({ libc, handler, readEnd }: Guard): void => {
 export const installSigtermGuard = async (): Promise<void> => {
   if (process.platform !== "linux") return
   if (armed) return // one disposition per process; serving two vaults from one process arms once
+  // "At arm time" is HERE, not after the proof: the parent can die during
+  // the arm itself, and its pid is what the death signal will carry.
+  const parentAtEntry = process.ppid
   let guard: Guard | undefined
   try {
     guard = arm()
@@ -368,6 +424,7 @@ export const installSigtermGuard = async (): Promise<void> => {
     }
     if (shuttingDown) return // honored a REAL term mid-proof; the process is headed out
     armed = true
+    armedParent = parentAtEntry
     drainForever(guard)
     process.stderr.write(
       `olai web: SIGTERM guard armed: only the supervisor (pid ${process.ppid}), the kernel, or this process's own pid can stop it; a TERM from any other sender is refused and named\n`,
@@ -401,6 +458,7 @@ const drain = (fd: number): Array<Receipt> => {
     out.push({
       pid: view.getInt32(off, true),
       uid: view.getUint32(off + 4, true),
+      code: view.getInt32(off + 8, true),
     })
   }
   return out
@@ -409,8 +467,8 @@ const drain = (fd: number): Array<Receipt> => {
 /** The drain loop's one decision point: name every TERM; stop for the
  *  supervisor, keep serving for everyone else. */
 const apply = (receipt: Receipt, libc: Libc): void => {
-  const sender: Sender = { pid: receipt.pid, uid: receipt.uid }
-  const verdict = judge(sender, { self: process.pid, parent: process.ppid })
+  const sender: Sender = { pid: receipt.pid, uid: receipt.uid, code: receipt.code }
+  const verdict = judge(sender, { self: process.pid, parent: process.ppid, armedParent })
   if (verdict === "refuse") {
     process.stderr.write(journal("refused", sender))
     return
