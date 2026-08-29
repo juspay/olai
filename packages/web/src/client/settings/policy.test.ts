@@ -1,41 +1,19 @@
 /**
  * What the SERVER's git policy does to the two preference rows that read it.
  *
- * The rules are tiny and the reason they are a module at all is that four
- * places ask them — the two rows' values, the panel that draws them read-only
- * under a pin, and the Resume button that appears when the loop has stopped.
- * Asked separately, a browser could be drawn a read-only control whose value
- * came from somewhere else, which is a policy quietly not applying.
+ * The rules are tiny and the reason they are a module at all is that the two
+ * rows' values and the instance line under them are asked of the same cell.
+ * Asked separately, a browser could be drawn a default whose line named a flag
+ * nobody gave, which is a policy quietly not applying.
  *
- * These used to be tests about a PIN over a stored preference, with
- * `./autocommit.test.ts` and `./autopush.test.ts` beside them holding that a
- * pin overruled the browser's own value without overwriting it. There is no
- * browser value any more: committing and pushing are facts about the directory,
- * so the row draws the server's policy and the pin decides only whether a
- * reader may change it. Those two files are gone with the storage they were
- * about — and so is the signal these readings used to be asked through, which
- * is why every one of them takes the cell as an argument.
+ * There is no write half: the rows are always the instance's, always read-only.
+ * A unit test asks these with a `GitState` built by hand.
  */
 
-import {
-  DEFAULT_POLICY,
-  GIT_OFF,
-  type GitState,
-  type PolicyRequest,
-} from "@olai/format"
+import { DEFAULT_POLICY, GIT_OFF, type GitState } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import {
-  commitFrozen,
-  commitOn,
-  commitSetBy,
-  commitsOff,
-  commitPick,
-  pushFrozen,
-  pushOn,
-  pushPick,
-  pushSetBy,
-} from "./policy.ts"
+import { commitOn, commitSetBy, commitsOff, pushOn, pushSetBy } from "./policy.ts"
 
 /** What the server said, with the one field a case is about over a healthy
  *  repository. */
@@ -45,12 +23,12 @@ const said = (over: Partial<GitState> = {}): GitState => ({
   ...over,
 })
 
-test("a page that has heard nothing draws the defaults, live", () => {
+test("a page that has heard nothing draws the defaults, as the instance's", () => {
   expect(GIT_OFF.policy).toEqual(DEFAULT_POLICY)
   expect(commitOn(GIT_OFF)).toBe(false)
   expect(pushOn(GIT_OFF)).toBe(false)
-  expect(commitFrozen(GIT_OFF)).toBe(false)
-  expect(pushFrozen(GIT_OFF)).toBe(false)
+  expect(commitSetBy(GIT_OFF)).toContain("built-in default")
+  expect(pushSetBy(GIT_OFF)).toContain("built-in default")
   expect(GIT_OFF.paused).toBeNull()
 })
 
@@ -72,23 +50,22 @@ test("the Git push row is on for auto and off for off", () => {
   expect(pushOn(said({ policy: { commit: "manual", push: "off" } }))).toBe(false)
 })
 
-/** WHETHER A ROW IS FROZEN and WHAT IT SAYS are read off the one pin, so they
- *  cannot come apart — a row drawn frozen whose line named a flag nobody gave
- *  is the failure this pairing exists to make unspellable. */
-test("a row is frozen exactly when it has something to say about who set it", () => {
+/** WHETHER A ROW NAMES A FLAG and WHAT IT SAYS are read off the one pin, so
+ *  they cannot come apart — a row whose line named a flag nobody gave is the
+ *  failure this pairing exists to make unspellable. */
+test("a given flag is named, and an omitted flag is the built-in default", () => {
   const live = said()
-  expect(commitFrozen(live)).toBe(false)
-  expect(commitSetBy(live)).toBeNull()
-  expect(pushFrozen(live)).toBe(false)
-  expect(pushSetBy(live)).toBeNull()
+  expect(commitSetBy(live)).toContain("built-in default")
+  expect(commitSetBy(live)).not.toContain("--commit=")
+  expect(pushSetBy(live)).toContain("built-in default")
+  expect(pushSetBy(live)).not.toContain("--push=")
 
   const pinned = said({ pinned: { commit: "auto", push: null } })
-  expect(commitFrozen(pinned)).toBe(true)
-  expect(commitSetBy(pinned)).not.toBeNull()
+  expect(commitSetBy(pinned)).toContain("--commit=auto")
   // ... and the other row is untouched by it, so an operator who ruled on
   // committing has not silently ruled on pushing.
-  expect(pushFrozen(pinned)).toBe(false)
-  expect(pushSetBy(pinned)).toBeNull()
+  expect(pushSetBy(pinned)).toContain("built-in default")
+  expect(pushSetBy(pinned)).not.toContain("--push=")
 })
 
 /**
@@ -116,37 +93,12 @@ test("the line names the flag that set the row, and says a browser cannot", () =
  * having nothing to be about, and the hint has to say so.
  *
  * The row's Off sentence sends a reader to the Commit button, which is true for
- * a live row and for `manual`. Under this one the pill is inert and olai never
- * writes a commit in this directory at all, so that sentence would be the row's
- * permanent, reader-can-do-nothing statement pointing at a door that will not
- * open.
+ * `manual`. Under this one the pill is inert and olai never writes a commit in
+ * this directory at all, so that sentence would be the row's permanent,
+ * reader-can-do-nothing statement pointing at a door that will not open.
  */
 test("--commit=off is told apart from the other way the row reads Off", () => {
   expect(commitsOff(said({ policy: { commit: "off", push: "off" } }))).toBe(true)
   expect(commitsOff(said({ policy: { commit: "manual", push: "off" } }))).toBe(false)
   expect(commitsOff(said({ policy: { commit: "auto", push: "off" } }))).toBe(false)
-})
-
-/**
- * THE WRITE HALF, and it is the read half's inverse — a two-value control whose
- * two directions used to be in two places.
- *
- * The load-bearing half is the Off: a browser must not be able to arrive at
- * `--commit=off` by pressing the control that says "wait for me instead", and
- * the reading has to agree that what it wrote is off.
- */
-test("what a pick writes is what the row then reads", () => {
-  /** The server having applied a pick — what the next `git` frame says. */
-  const after = (want: PolicyRequest): GitState =>
-    said({ policy: { commit: "manual", push: "off", ...want } })
-
-  for (const on of [true, false]) {
-    expect(commitOn(after(commitPick(on)))).toBe(on)
-    expect(pushOn(after(pushPick(on)))).toBe(on)
-  }
-  // Off is `manual` and never `off`, which is the one thing the mapping
-  // decides: `off` is olai never touching git here, a pinned-only state a
-  // browser must not reach by pressing the control that says "wait instead".
-  expect(commitPick(false)).toEqual({ commit: "manual" })
-  expect(commitsOff(after(commitPick(false)))).toBe(false)
 })

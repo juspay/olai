@@ -393,27 +393,25 @@ export interface Options {
  *
  * Two members rather than one, because they answer different questions and both
  * travel: `now()` is what the loop and the two verbs obey, `pin` is what a
- * browser is told so it can draw the rows read-only. It is a live ACCESSOR
- * rather than a value, because the policy moves while the server runs — the
- * preferences panel sets it through `git.setPolicy` — and a value read once at
- * boot would be a loop that never noticed being turned on.
+ * browser is told so it can name a given flag (or the built-in default). The
+ * policy is immutable after boot — flags plus defaults — so `now()` is a
+ * function because that is the shape the loop already asks, not because it
+ * moves.
  *
  * WHERE IT IS KEPT is deliberately not here. This layer is handed the answer;
- * `@olai/server`'s `gitPolicy.ts` composes the flags with whatever was
- * remembered for this directory, outside the vault.
+ * `@olai/server`'s `gitPolicy.ts` composes the flags with the defaults.
  */
 export interface Policy {
   /** What the operator pinned — the flags as given, `null` for each one nobody
    *  gave (`@olai/format`'s {@link GitPin}). */
   readonly pin: GitPin
-  /** What the server does right now, with the pin, the remembered choice and
-   *  the defaults already folded in (`@olai/format`'s `policyOf`). */
+  /** What the server does, with the pin and the built-in defaults already
+   *  folded in (`@olai/format`'s `policyOf`). */
   readonly now: () => GitPolicy
 }
 
-/** A policy that cannot move: the flags, the defaults, and nowhere to remember
- *  anything else. What a caller with no state directory behind it hands in —
- *  every test here, and any composition that has not opened one. */
+/** A policy that cannot move: the flags and the defaults. What every
+ *  composition hands in — the server itself, and every test here. */
 export const fixedPolicy = (pin: GitPin): Policy => ({
   pin,
   now: () => policyOf(pin),
@@ -627,9 +625,9 @@ export const make = (options: Options): Committing => {
    *  {@link Committing}, so what it holds goes when the directory does. */
   const committedSide = options.committed ?? remembering()
 
-  /** What this server DOES about commits, ASKED EVERY TIME rather than derived
-   *  once: the policy moves while the server runs (`git.setPolicy`), and a mode
-   *  read at boot would be a loop that never noticed being turned on. */
+  /** What this server DOES about commits, asked of the policy rather than
+   *  derived once into a closed-over mode: the same accessor the loop already
+   *  uses, so a third reader cannot come to a different answer. */
   const mode = (): CommitMode => options.policy.now().commit
 
   /** Ops per writer since the last commit. A counter rather than the list of

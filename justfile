@@ -24,14 +24,6 @@ nix_files := "$(git ls-files '*.nix')"
 # writes its own copy inside its sandbox.
 dist := justfile_directory() + "/packages/web/dist"
 
-# Where this worktree's `just run` / `just serve` write the URL they actually
-# bound. Per-worktree on purpose: `/tmp/olai-dev` is a path every checkout
-# shares, and two e2e lanes used to dial one tree through it. The server
-# reads the same file back when the next process asks for port 0 (a
-# `bun --watch` restart, or a later `just run`); `.mcp.json` names
-# production (7714), not this.
-dev_url := justfile_directory() + "/.olai-dev/url"
-
 # The e2e shell is the dev shell plus Playwright's browsers, which cost ~600ms
 # of cold `nix develop` that every other leg would pay for nothing. Keyed on
 # PLAYWRIGHT_BROWSERS_PATH rather than IN_NIX_SHELL: the default shell sets
@@ -178,7 +170,7 @@ serve dir="docs" *args: build-client
     # watching a tree nobody is serving is a confusing thing to leave behind.
     trap 'kill 0' EXIT INT TERM
     {{ nix_shell }} bun --watch packages/web/src/build.ts {{ dist }} &
-    OLAI_DIST_DIR={{ dist }} OLAI_PORT_FILE={{ dev_url }} \
+    OLAI_DIST_DIR={{ dist }} \
       {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} {{ args }}
 
 # The one brain: `olai web` on this repo's docs, on an OS-assigned port.
@@ -187,14 +179,15 @@ serve dir="docs" *args: build-client
 # the directory reach the binary (`--commit=manual`, `--host`, …). Defaults
 # to the same pinned agent `just serve` and the packaged binary do: no
 # documented way of starting olai may land in the no-agent state by accident.
-# The bound URL is written to `.olai-dev/url` (see `dev_url`); a fixed
-# `--port` is a deploy's word, not this recipe's.
+# A fixed `--port` is a deploy's word, not this recipe's. `--port 0` (the
+# default) asks the OS every boot — a `bun --watch` restart may land on a
+# new port.
 run dir="docs" *args: build-client
     #!/usr/bin/env bash
     set -euo pipefail
     export OLAI_ACP_AGENT="$(sh scripts/acp-agent.sh)"
     export OLAI_ACP_PI="$(sh scripts/acp-pi.sh)"
-    OLAI_DIST_DIR={{ dist }} OLAI_PORT_FILE={{ dev_url }} \
+    OLAI_DIST_DIR={{ dist }} \
       {{ nix_shell }} bun --watch packages/server/src/main.ts web {{ dir }} {{ args }}
 
 # Build the binary with nix, then run it. Both halves earn their place: the

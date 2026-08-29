@@ -49,7 +49,6 @@ import * as path from "node:path"
 import { watchFault } from "../fault.ts"
 import { hostname } from "../hostname.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
-import { frozenPolicy } from "../serve.testlib.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { bespokeFrom } from "./tools.ts"
 
@@ -169,7 +168,7 @@ const withTools = <A>(
       kolu: null,
       git: gitWiring(
         ops,
-        frozenPolicy({ commit: "off", push: null }),
+        fixedPolicy({ commit: "off", push: null }),
         yield* SubscriptionRef.make(0),
       ),
     })

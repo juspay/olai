@@ -599,9 +599,9 @@ export const TESTID = {
    *  `aria-pressed` whether it is the one in force, `aria-disabled` whether the
    *  row it is in was pinned by the server. */
   prefsChoice: "prefs-choice",
-  /** WHO set a row, on the rows the server pinned — the flag named, and that a
-   *  browser cannot change it. Absent on every row this browser owns, which is
-   *  every row on an unpinned server. */
+  /** WHO set a row, on the rows that are the instance's — a given flag, or the
+   *  built-in default, and that a browser cannot change it. Absent on every
+   *  row this browser owns. */
   prefsSetBy: "prefs-set-by",
   /** Start Auto-commit again after git refused something, on a Git commit row
    *  the server has frozen. The off-and-on-again gesture is the same thing on a
@@ -1032,8 +1032,8 @@ export const TESTID = {
    *  the git cell, so it is the same words in every tab and after a reload. */
   commitRefused: "commit-refused",
   /** ... and what the SERVER would not take from this tab: a call the wire
-   *  dropped, or a usage refusal — which is what a pinned policy row answers a
-   *  `setPolicy` with. About this press rather than about the directory. */
+   *  dropped, or a usage refusal. About this press rather than about the
+   *  directory. */
   commitCallRefused: "commit-call-refused",
   /** Why the quiet-window loop stopped, when it has — and the one gesture that
    *  resumes it. Absent while the loop is running, and absent for a directory

@@ -20,8 +20,8 @@
 # Port 0 by default. A fixed PORT= used to be how two worktrees photographed
 # or measured one tree: the second spawn failed, the readiness curl succeeded
 # against the stranger, and every number or screenshot was of the other
-# branch. The bound address is written to a private file and read back —
-# the same seam `just run` uses — so two worktrees cannot collide.
+# branch. The bound address is read off the serving line, so two worktrees
+# cannot collide.
 
 # Refuse a port something else is already serving. Only for an explicit
 # PORT=: port 0 is the default and cannot collide this way. `what` names
@@ -67,32 +67,28 @@ olai_serve() {
   local vault=$2
   local log=$3
   local port=${PORT:-0}
-  local port_file
-  port_file=$(mktemp)
   # Drop a previous call's URL so a failed boot cannot silently reuse it.
   # Unset rather than empty: callers run `set -u` and should die naming the
   # miss if we return without setting.
   unset OLAI_URL
   OLAI_DIST_DIR="$root/packages/web/dist" OLAI_ACP_AGENT="${AGENT:-}" \
     OLAI_AGENT_PATH= \
-    OLAI_PORT_FILE="$port_file" \
     bun "$root/packages/server/src/main.ts" web "$vault" --port "$port" \
     > "$log" 2>&1 &
   OLAI_SERVER=$!
   # Fifteen seconds of quarter-seconds. A boot that never answers used to
   # fall through with status 0 and leave OLAI_URL unset (or, from the
-  # second call on, still holding the previous call's).
+  # second call on, still holding the previous call's). The URL is on the
+  # serving line; port 0 asks the OS every boot, nothing is written.
   for _ in $(seq 1 60); do
-    if [ -s "$port_file" ]; then
-      OLAI_URL=$(head -n1 "$port_file")
-      rm -f "$port_file"
+    OLAI_URL=$(grep -oE 'https?://(127\.0\.0\.1|\[::1\]):[0-9]+' "$log" 2>/dev/null | head -n1 || true)
+    if [ -n "${OLAI_URL:-}" ]; then
       return 0
     fi
     sleep 0.25
   done
-  echo "the olai server never wrote its bound url." >&2
+  echo "the olai server never said where it was serving." >&2
   echo "server log ($log):" >&2
   cat "$log" >&2 || true
-  rm -f "$port_file"
   return 1
 }

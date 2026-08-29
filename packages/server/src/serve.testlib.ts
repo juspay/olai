@@ -21,24 +21,15 @@
  * the sentence explaining each of them is.
  */
 
-import { type GitPin, UsageFailure } from "@olai/format"
 import { collector, findSaid, type Logged } from "@olai/log/testlib"
-import { fixedPolicy } from "@olai/ops"
 import { NodeHttpServer, NodeServices } from "@effect/platform-node"
 import { Effect, Layer } from "effect"
 import * as fs from "node:fs"
 import * as os from "node:os"
 import * as path from "node:path"
 
-import type { LivePolicy } from "./gitPolicy.ts"
-
 import { DEFAULT_IDENTITY_CONFIG, type IdentityConfig } from "@olai/identity"
 import { serve } from "./serve.ts"
-
-// child.testlib strips OLAI_PORT_FILE from CLI children. This is the
-// in-process twin: a developer who exported just run's file would have
-// every withServe / encoding.test serve() rewrite it.
-delete process.env.OLAI_PORT_FILE
 // Twin of startWeb's OLAI_ACP_AGENT: "". None of these in-process boots
 // is about the chat panel, and a real `opencode` on PATH would spawn one
 // per serve() — the load that blows a listen wait. Empty is the documented
@@ -160,28 +151,3 @@ export const withServing = <A>(
     }
     return body(url, said)
   })
-
-/**
- * A git policy that cannot be moved — the flags, the defaults, and a `set` that
- * says why not.
- *
- * What a test that is not about the policy hands `gitWiring`: four of them wire
- * a runtime up to prove something else entirely (the MCP face, the route, the
- * tool table, the cell connectors), and every one of them serves a directory
- * with `--commit=off`. The real one reads and writes a file under the state
- * directory (`./gitPolicy.ts`'s `openPolicy`), which is a thing to clean up
- * afterwards for an answer none of those four look at.
- *
- * `set` REFUSES rather than doing nothing, because a test that started moving
- * the policy through this should fail loudly rather than quietly assert against
- * a value nothing wrote.
- */
-export const frozenPolicy = (pin: GitPin): LivePolicy => ({
-  ...fixedPolicy(pin),
-  set: () =>
-    Effect.fail(
-      new UsageFailure({
-        reason: "this fixture's git policy is fixed; `openPolicy` is the real one",
-      }),
-    ),
-})

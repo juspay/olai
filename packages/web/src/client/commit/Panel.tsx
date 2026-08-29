@@ -257,8 +257,7 @@ export function Panel(props: {
       </Show>
 
       {/* ... and what the SERVER would not take from this tab: a call the wire
-          dropped, or a usage refusal — which is what a pinned policy row
-          answers a `setPolicy` with. Its own line because it is about this
+          dropped, or a usage refusal. Its own line because it is about this
           press rather than about the directory, and a control that silently
           did nothing is the failure this whole feature is about. */}
       <Show when={props.commit.refused()}>

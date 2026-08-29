@@ -758,7 +758,6 @@ export {
   Other,
   Pending,
   policyOf,
-  PolicyRequest,
   PUSH_DEFAULT,
   PUSH_MODES,
   type PushMode,

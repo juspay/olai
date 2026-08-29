@@ -51,8 +51,8 @@ export function Row(props: {
    * It is rendered BARE, and the caller owns its own spacing. A wrapper here
    * would be a box this row draws whenever the prop is passed — and the prop is
    * passed unconditionally, since what decides whether Resume is on screen is a
-   * `Show` INSIDE it. So every unpinned Git commit row grew an empty div its
-   * neighbour did not have. Nothing renders nothing.
+   * `Show` INSIDE it. So every Git commit row whose Resume is not showing grew
+   * an empty div its neighbour did not have. Nothing renders nothing.
    */
   readonly under?: JSX.Element
   readonly children: JSX.Element

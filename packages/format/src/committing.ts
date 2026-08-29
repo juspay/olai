@@ -89,24 +89,13 @@ export const PUSH_DEFAULT: PushMode = "off"
 /**
  * WHAT THE OPERATOR PINNED, and `null` for each half nobody pinned.
  *
- * The whole of `vault-level-settings` on the wire. In a team deployment,
- * committing and pushing are the SERVER's decision and the same for everyone —
- * not whichever browser's preference happens to be set — so a flag given on the
- * command line (or through the home-manager module, which passes the same
- * flags) freezes the two git rows in every browser's preferences: drawn in the
- * pinned state, read-only, with the flag that set them named on screen.
+ * The instance's policy is always read-only in every browser. A flag given on
+ * the command line (or through the home-manager module, which passes the same
+ * flags) is named under the row; an omitted flag is the built-in default.
+ * There is no runtime door and no remembered file.
  *
- * `null` is the DEFAULT and it is the arm that matters: a flag nobody gave
- * leaves the two rows LIVE — they set the server's own policy for this
- * directory, which every browser then draws alike. Single-user, nothing about
- * this feature is visible at all.
- *
- * There is deliberately no settings file IN THE VAULT behind this. Where a
- * choice is remembered at all it is remembered outside it (`@olai/server`'s
- * `gitPolicy.ts`, under the XDG state directory, keyed by the served path): a
- * file in the vault would travel with `git pull`, so a personal clone of a
- * team's outlines would inherit the team's auto-push, which is exactly wrong
- * (the ruling, 2026-08-21).
+ * `null` is nobody having typed that flag, which is the built-in default
+ * ({@link COMMIT_DEFAULT} / {@link PUSH_DEFAULT}) — not a live row.
  */
 export const GitPin = Schema.Struct({
   /** The mode `--commit` was GIVEN, or `null` when it was not given at all. */
@@ -117,30 +106,21 @@ export const GitPin = Schema.Struct({
 export type GitPin = typeof GitPin.Type
 
 /** Nothing pinned: what a server started with neither flag publishes, and what
- *  a page holds before it has heard anything. It is also the shape a REMEMBERED
- *  choice has — either half unsaid — which is what lets {@link policyOf} take
- *  the two in one expression. */
+ *  a page holds before it has heard anything. Both halves unsaid, which is
+ *  what lets {@link policyOf} fill the built-in defaults. */
 export const NO_PIN: GitPin = { commit: null, push: null }
 
 /**
  * WHAT THIS SERVER ACTUALLY DOES about the two verbs — both halves, together,
  * because they are one policy about one directory.
  *
- * Three sources, in the one order that can be honoured: the FLAG wins, because
- * an operator who typed it stated a policy for everybody; then what somebody
- * CHOSE here (remembered outside the vault, and `null` for a directory nobody
- * has chosen for); then the defaults, which are spelled in exactly one place
- * each ({@link COMMIT_DEFAULT}, {@link PUSH_DEFAULT}).
- *
- * It replaces a `commitModeOf` that answered only the first half, on the
- * argument that this server had no push of its own to govern. That stopped
- * being true: `--push=auto` now follows a settled commit the server itself
- * made, so a push mode is a thing this process DOES rather than a message it
- * relays to browsers.
+ * Two sources: the FLAG, because an operator who typed it stated a policy for
+ * everybody; then the defaults, which are spelled in exactly one place each
+ * ({@link COMMIT_DEFAULT}, {@link PUSH_DEFAULT}). There is no third source.
  */
-export const policyOf = (pin: GitPin, chosen: GitPin = NO_PIN): GitPolicy => ({
-  commit: pin.commit ?? chosen.commit ?? COMMIT_DEFAULT,
-  push: pin.push ?? chosen.push ?? PUSH_DEFAULT,
+export const policyOf = (pin: GitPin): GitPolicy => ({
+  commit: pin.commit ?? COMMIT_DEFAULT,
+  push: pin.push ?? PUSH_DEFAULT,
 })
 
 /**
@@ -164,27 +144,6 @@ export const DEFAULT_POLICY: GitPolicy = {
   commit: COMMIT_DEFAULT,
   push: PUSH_DEFAULT,
 }
-
-/** Asking the server to change it — each half optional, because the two rows
- *  move one at a time and a request that had to carry both would make a browser
- *  re-state a policy it was only reading. */
-export const PolicyRequest = Schema.Struct({
-  commit: Schema.optionalKey(
-    Schema.Literals(COMMIT_MODES).annotate({
-      description:
-        "how writes reach git in this directory: off, manual, or auto (the " +
-        "quiet-window loop). Omitted leaves it as it is.",
-    }),
-  ),
-  push: Schema.optionalKey(
-    Schema.Literals(PUSH_MODES).annotate({
-      description:
-        "whether a settled commit is pushed to the branch's upstream. " +
-        "Omitted leaves it as it is.",
-    }),
-  ),
-})
-export type PolicyRequest = typeof PolicyRequest.Type
 
 /**
  * What git is doing for the served directory, for the git indicator in the app
@@ -226,19 +185,15 @@ export const GitState = Schema.Struct({
    */
   pinned: GitPin,
   /**
-   * WHAT THIS SERVER DOES about the two verbs, with the defaults filled in and
-   * whatever anybody chose already folded in ({@link policyOf}).
+   * WHAT THIS SERVER DOES about the two verbs, with the flags and the
+   * built-in defaults already folded in ({@link policyOf}).
    *
-   * The whole of `git-policy-server-side` on the wire, and the reason the two
-   * preference rows can be drawn at all now: they used to draw a value stored
-   * in that browser, so two tabs of two browsers could each believe something
-   * different about one directory and only one of them could be right. This is
-   * the directory's own answer, so every tab draws the same one and a reload
-   * changes nothing.
+   * The directory's own answer, so every tab draws the same one and a reload
+   * changes nothing. There is no runtime door.
    *
    * Beside {@link GitState.pinned} rather than instead of it, because the two
    * are different questions: this says what happens, the pin says whether a
-   * reader may change it.
+   * flag named it or the built-in default did.
    */
   policy: GitPolicy,
   /**
