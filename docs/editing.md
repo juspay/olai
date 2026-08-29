@@ -439,6 +439,8 @@ The same inbox has a door that is not a page: `olai surface capture`, one line f
 
 Either way the row is **born `todo`**: the badge reads marks and nothing else, so a capture minted unmarked would be invisible to the door the moment it landed. (Rows captured before this ruling were plain bullets and stay uncounted — mark the ones you still owe.)
 
+**And the two stamps of an away capture date compose into due work, which the date alone was not.** A capture sent from away carries a `date` AND the born mark, which is exactly [format.md](format.md#days)'s definition of *work owed to a day* — so it ticks that day's **Agenda** count the moment it lands, and from the next morning it shows **overdue** until somebody gets to it. Ruled that way (2026-08-29): a capture you owe is owed. The palette's `⌘K` `+` is untouched by this — it mints no date, so its rows are the badge's alone.
+
 ⌘Z does not reach one, which is the honest answer rather than an omission: an undo stack is a browser's account of what *this tab* did, and nothing was pressed here.
 
 ## Starting an outline

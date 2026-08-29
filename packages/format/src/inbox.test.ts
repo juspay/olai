@@ -118,12 +118,22 @@ test("a bare bullet is furniture — a childless one wears 0, and so does a whol
   })).toEqual(NO_INBOX)
 })
 
-test("a placement never counts — not even a mirror of a todo", () => {
+test("a placement never counts — not even a mirror of a todo, at any depth", () => {
   // A placement is not a node: the marked row lives in `garden.olai`, and the
   // mirror standing in the inbox is a view of it, so the count excludes it
   // without a clause of its own.
   expect(heldOf({
     "Inbox.olai": `{"id":"m","ord":"a0","mirror":"herbs"}`,
+    "garden.olai": `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`,
+  })).toEqual(NO_INBOX)
+
+  // …and placed under a real row: the clause is depth-blind the way the
+  // count is, so this pins it at depth too.
+  expect(heldOf({
+    "Inbox.olai": [
+      `{"id":"h","ord":"a0","title":"Awaiting the human's word"}`,
+      `{"id":"m","parent":"h","ord":"a0","mirror":"herbs"}`,
+    ].join("\n"),
     "garden.olai": `{"id":"herbs","ord":"a0","title":"the herb bed","todo":true}`,
   })).toEqual(NO_INBOX)
 })
@@ -196,6 +206,14 @@ test("a capture lands already counted — the row it mints is the row the badge 
   // is ONE case rather than two: the mark above is what the file holds after
   // the write planner stores it (`todo` stores `true`, the way `set_todo`
   // writes it), and a file holding that record counts it.
+  //
+  // The literal is hand-written and the case says so, because the join — a
+  // `captureInto` request THROUGH the planner, stored, and counted by this
+  // same function — is held end to end one package over, where the planner
+  // lives: `@olai/server`'s `mcp/tools.test.ts` ("a capture lands in a minted
+  // inbox, dated and attributed") runs the real tool door and then asserts
+  // `inboxHeldOf` over the set it left. A drift between the plan's spelling
+  // of a born mark and this literal would fail THERE, loudly.
   const landed = `{"id":"c1","ord":"a0","title":"the thread about cabinets","todo":true,"date":"2026-08-21T09:15:00-04:00"}`
   expect(heldOf({ "_olai/Inbox.olai": landed })).toEqual({ count: 1 })
 })

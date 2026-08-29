@@ -132,7 +132,7 @@ export const inboxHeldIn = (
 
 /**
  * A capture as one of OLAI'S OWN DOORS composes it: {@link Capture} without the
- * one field that exists only to be refused.
+ * two fields a door may not say.
  *
  * `after` is declared on a capture so that an agent writing the edge list under
  * the name `set_after` gives it is turned away BY NAME rather than having its
@@ -141,8 +141,15 @@ export const inboxHeldIn = (
  * spellings genuinely collide, and a door of ours spreading a whole capture
  * into an `add` is where the collision shows up. It is not a problem to solve:
  * nothing composing a capture writes the bent word, so the type says so.
+ *
+ * `mark` is the second omission, and it is the same sentence read about the
+ * law: a capture is BORN `todo` ({@link captureInto} mints it), so a door that
+ * could spell a mark would be a door that could spell away the one thing the
+ * badge reads. Both omissions are TYPES and not guards, for {@link
+ * CaptureRequest}'s own reason, said below it: a rule that cannot be broken
+ * needs no paragraph to stand watch over it.
  */
-export type Capturing = Omit<Capture, "after">
+export type Capturing = Omit<Capture, "after" | "mark">
 
 /**
  * THE ONE OP A CAPTURE IS — an `add` into the inbox the directory has, or the
@@ -199,9 +206,8 @@ export const captureInto = (
   // THE MARK IS MINTED HERE, once, for every door and both arms (ruled,
   // human 2026-08-29): a capture is born `todo`, because `inboxHeldOf`'s one
   // law counts the marked rows and an unmarked capture would land invisible
-  // to it. No door can spell a mark of its own — a {@link CaptureRequest} is
-  // a title and a note, and the palette sends a title — so this is not an
-  // override of anything anybody said.
+  // to it. It can override nothing — {@link Capturing} cannot spell a mark at
+  // all.
   const minted = { ...capture, mark: "todo" as const }
   const inbox = inboxIn(paths)
   return inbox === undefined
