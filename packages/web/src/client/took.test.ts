@@ -27,7 +27,7 @@ describe("the settled words", () => {
     expect(wordsOf(47)).toBe("47s")
     expect(wordsOf(59)).toBe("59s")
     expect(wordsOf(60)).toBe("1m")
-    expect(wordsOf(41 * MINUTE / SECOND)).toBe("41m")
+    expect(wordsOf(41 * 60)).toBe("41m")
     expect(wordsOf(59 * 60)).toBe("59m")
     // An hour keeps its minutes — the mock's `2h 34m`, counted and rounded.
     expect(wordsOf(HOUR / SECOND)).toBe("1h 0m")

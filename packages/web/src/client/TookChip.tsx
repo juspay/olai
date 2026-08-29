@@ -113,7 +113,7 @@ export function TookChip(props: {
               class={SETTLED}
               data-testid={TESTID.took}
               data-status={props.status}
-              data-took={String(seconds)}
+              data-took={seconds}
               title={`took ${seconds}s`}
             >
               ⏱ {wordsOf(seconds)}

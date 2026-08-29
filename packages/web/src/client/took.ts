@@ -38,8 +38,8 @@ import { createTwoSpeed, HOUR, SECOND } from "./clock.ts"
  * A NEGATIVE arrives AS `0s` and not as a negative: a `started` after the
  * settle is a browser clock behind the server's or a record a hand wrote, and
  * @olai/format's `tookOf` already clamps the value it derived — a word like
- * `-3m` would only be a worse spelling of zero. Asked at the boundary, so an
- * honest input floats nothing up.
+ * `-3m` would only be a worse spelling of zero, so the boundary is clamped
+ * here too and no caller of either can draw one.
  */
 export const wordsOf = (seconds: number): string => {
   const s = Math.max(0, Math.round(seconds))
