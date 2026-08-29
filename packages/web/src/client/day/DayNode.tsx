@@ -156,7 +156,7 @@ export function DayNode(props: {
           // The span the work took, or is taking — the same chip the tree
           // wears: a day page and the agenda are the same row drawn
           // read-only, and the figure is no verb either way.
-          took={<TookChip node={node()} status={props.dated.status} />}
+          took={<TookChip node={node()} />}
         />
       </div>
 

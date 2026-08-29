@@ -20,10 +20,13 @@
  * neither mark nor span; a `done` with NO `started` — the todo→done jump, and
  * every node settled before olai stamped anything — has no span to tell, and
  * drawing nothing is how the chip says so (falling back to `created` would
- * measure the node's age, never the work). The mark is the caller's to say
- * rather than this file's to re-derive: the row already read it — a mirror's
- * row says what its target says, and the chip follows it, like every other
- * fact on this line.
+ * measure the node's age, never the work).
+ *
+ * THE RECORD IS THE ONLY TELLING THE CHIP TAKES. The mark is read off it with
+ * the format's own `storedMarker` — exactly as the row's glyph and its
+ * `data-status` read it (`@olai/format`'s `Derived.status` is
+ * `storedMarker` of the shown record, so a caller-passed status would be one
+ * fact spelled twice, and a mirror's target is already followed either way).
  *
  * ONE TRUTHINESS PIT, pin-sharp: a row set doing and settled inside the same
  * second has a span of `0` — a real one, and the prototype says the chip
@@ -40,7 +43,7 @@
  * a chip that opened a box would be a verb, and the span is a readout.
  */
 
-import { type RegularNode, settles, type Status, tookOf } from "@olai/format"
+import { type RegularNode, storedMarker, tookOf } from "@olai/format"
 import { Match, Switch } from "solid-js"
 
 import { instantOf } from "./clock.ts"
@@ -80,24 +83,22 @@ function GoingChip(props: { readonly started: string }) {
 }
 
 export function TookChip(props: {
-  /** The mark the row carries — the caller's read, never re-derived here:
-   *  a mirror's row wears its target's span and its target's tick. */
-  readonly status: Status | undefined
-  /** The record the row SHOWS. */
+  /** The record the row SHOWS — a placement is already followed: a mirror's
+   *  row wears its target's span and its target's tick, like every other
+   *  fact on this line. */
   readonly node: RegularNode
 }) {
   /** The settled span, when there is one: whole seconds, already derived —
    *  `undefined` for the jump-to-done, for a bullet, and for work still
    *  running, and WRAPPED, because the answer can honestly be 0 (header). */
   const took = () => {
-    if (props.status === undefined || !settles(props.status)) return undefined
     const seconds = tookOf(props.node)
     return seconds === undefined ? undefined : { seconds }
   }
   return (
     <Switch>
       <Match
-        when={props.status === "doing" &&
+        when={storedMarker(props.node) === "doing" &&
             props.node.started !== undefined &&
             instantOf(props.node.started) !== null
           ? props.node.started
@@ -112,7 +113,7 @@ export function TookChip(props: {
             <span
               class={SETTLED}
               data-testid={TESTID.took}
-              data-status={props.status}
+              data-status={storedMarker(props.node)}
               data-took={seconds}
               title={`took ${seconds}s`}
             >

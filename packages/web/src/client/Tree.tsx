@@ -686,7 +686,7 @@ function Branch(props: {
                 // The span this row's work took, or is taking — read off the
                 // record it SHOWS, so a mirror's row ticks and settles with
                 // its target exactly as its glyph does.
-                took={<TookChip node={shows().node} status={props.row.status} />}
+                took={<TookChip node={shows().node} />}
                 onEdit={clickTitle}
                 onPickDate={openPicker}
                 onPickRepeat={openRepeat}
