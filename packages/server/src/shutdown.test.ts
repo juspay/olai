@@ -75,23 +75,117 @@ test("SIGTERM names itself on stderr and exits 130", async () => {
   expect(said).toContain("olai web: received SIGTERM")
 }, BOUND_MS * 3)
 
-test("olai web dies when its parent dies", async () => {
+/** Poll until `predicate` holds or `ms` runs out — the failure names what
+ *  never happened rather than what the runner clocked. */
+const until = async (ms: number, what: string, predicate: () => boolean): Promise<void> => {
+  const deadline = Date.now() + ms
+  while (!predicate()) {
+    if (Date.now() > deadline) throw new Error(`${what} never happened within ${ms}ms`)
+    await Bun.sleep(20)
+  }
+}
+
+/** The first line a helper process writes, or a throw naming what it said
+ *  instead (stdout is drained from spawn, so no wait can miss the line). */
+const firstLineOf = (proc: ReturnType<typeof spawn>): Promise<string> =>
+  new Promise((resolve, reject) => {
+    let box = ""
+    proc.stdout?.setEncoding("utf8")
+    proc.stdout?.on("data", (chunk: string) => {
+      box += chunk
+      const breakAt = box.indexOf("\n")
+      if (breakAt >= 0) resolve(box.slice(0, breakAt).trim())
+    })
+    proc.on("exit", (code) => reject(new Error(`helper exited (${code}) without a pid line; it said: ${box}`)))
+  })
+
+test("a SIGTERM from anyone but the supervisor is refused and named; the server keeps serving", async () => {
+  // The guard is Linux-only (the supervisor it recognizes is systemd's
+  // user manager); everywhere else keeps the default disposition.
+  if (process.platform !== "linux") return
+  const server = startWeb({ root: served() })
+  try {
+    const url = await server.address()
+    const pid = server.pid
+    expect(pid).toBeGreaterThan(0)
+
+    await until(BOUND_MS, "the guard arming", () => server.said().includes("SIGTERM guard armed"))
+
+    // THE INCIDENT'S SHAPE, replayed small: a short-lived helper that is
+    // NOT the child's supervisor sends TERM — the kill the 2026-08-29
+    // pkills would have become under this guard. Explicit pid, per the
+    // interim law. The `sleep 1 & wait` keeps the helper's
+    // /proc/<pid>/cmdline readable across the guard's drain, which is the
+    // cmdline half of "named"; the pid and uid halves are recorded at
+    // send time and survive even the fastest exit. (A plain trailing
+    // `sleep 1` would make bash tail-exec it and the cmdline would read
+    // "sleep 1".)
+    const stranger = spawn("bash", ["-c", `echo $$; kill -TERM ${pid}; sleep 1 & wait`], {
+      stdio: ["ignore", "pipe", "inherit"],
+    })
+    const strangerPid = Number(await firstLineOf(stranger))
+    expect(strangerPid).toBeGreaterThan(0)
+    expect(strangerPid).not.toBe(pid)
+
+    await until(
+      BOUND_MS,
+      `the refusal of the stranger's TERM (said so far:\n${server.said()})`,
+      () => server.said().includes(`refused SIGTERM from pid ${strangerPid} uid ${process.getuid?.()}`),
+    )
+    expect(server.said()).toContain("(bash -c")
+
+    // KEEPING SERVING is the half a log line alone cannot prove: answer
+    // a real HTTP request after the refused signal.
+    const page = await fetch(url)
+    expect(page.status).toBe(200)
+    expect(process.kill(pid as number, 0)).toBe(true)
+
+    // And the supervisor's path still stops it — this runner IS the
+    // child's parent, which is also what the pre-existing SIGTERM test
+    // above drives: the guard must not turn `systemctl stop` into a stop
+    // nobody delivers.
+    server.kill("SIGTERM")
+    const code = await Promise.race([
+      server.exited(),
+      Bun.sleep(BOUND_MS).then(() => {
+        throw new Error(`the supervisor's TERM did not stop the child within ${BOUND_MS}ms`)
+      }),
+    ])
+    expect(code).toBe(130)
+    expect(server.said()).toContain("honoring SIGTERM")
+    expect(server.said()).toContain("olai web: received SIGTERM")
+  } finally {
+    server.kill()
+  }
+}, BOUND_MS * 4)
+
+test("olai web dies when its parent dies — BY THE GUARD'S HONOR, not by any side effect", async () => {
   // `prctl(PR_SET_PDEATHSIG)`: SIGKILL of cucumber used to reparent every
   // detached server to init. A wrapper process is the parent here; killing
-  // it must take the server with it.
+  // it must take the server with it. Under the guard that death is a
+  // POLICY decision: the kernel's signal arrives with the dying parent's
+  // pid (measured: SI_USER from the parent itself, never si_pid 0), and
+  // this test asserts the child's journal HONORS it — the line is the
+  // contract, the corpse alone is not: a refusal line written into a pipe
+  // whose reader just died would also kill the child (EPIPE), and did
+  // precisely that while the first draft's premise was wrong, fake-green
+  // here. So the child logs to a FILE the wrapper cannot take with it,
+  // and the assertion names both the honoring and the death.
   if (process.platform !== "linux") return
   const root = served()
-  const wrapper = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "olai-parent-")), "parent.mjs")
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "olai-parent-"))
+  const wrapper = path.join(tmp, "parent.mjs")
+  const childLog = path.join(tmp, "child.log")
   fs.writeFileSync(
     wrapper,
     `import { spawn } from "node:child_process";
+import * as fs from "node:fs";
+const logFd = fs.openSync(process.env.CHILD_LOG, "w");
 const child = spawn(process.execPath, process.argv.slice(2), {
-  stdio: ["ignore", "pipe", "pipe"],
+  stdio: ["ignore", logFd, logFd],
   env: process.env,
 });
 process.stdout.write("child=" + child.pid + "\\n");
-child.stdout?.pipe(process.stdout);
-child.stderr?.pipe(process.stderr);
 setInterval(() => {}, 1 << 30);
 `,
   )
@@ -104,6 +198,7 @@ setInterval(() => {}, 1 << 30);
     {
       env: {
         ...process.env,
+        CHILD_LOG: childLog,
         OLAI_DIST_DIR: dist,
         OLAI_ACP_AGENT: "",
         OLAI_LOG: "logfmt",
@@ -123,15 +218,36 @@ setInterval(() => {}, 1 << 30);
   })
   try {
     const started = Date.now()
-    while (!said.includes("message=serving") && Date.now() - started < BOUND_MS) {
+    while (!said.includes("child=") && Date.now() - started < BOUND_MS) {
       await Bun.sleep(25)
     }
-    expect(said).toContain("message=serving")
     const childPid = Number(/^child=(\d+)$/m.exec(said)?.[1])
     expect(childPid).toBeGreaterThan(0)
+    const wrapperPid = parent.pid
+    expect(wrapperPid).toBeGreaterThan(0)
+
+    await until(BOUND_MS, "the child's guard to arm", () =>
+      fs.existsSync(childLog) && fs.readFileSync(childLog, "utf8").includes("SIGTERM guard armed"))
+
     parent.kill("SIGKILL")
-    await Bun.sleep(500)
-    expect(() => process.kill(childPid, 0)).toThrow()
+    await until(
+      BOUND_MS,
+      "the kernel's parent-death signal to be honored",
+      () => fs.readFileSync(childLog, "utf8").includes(`honoring SIGTERM from pid ${wrapperPid}`),
+    )
+    await until(BOUND_MS, "the child to exit", () => {
+      try {
+        process.kill(childPid, 0)
+        return false
+      } catch {
+        return true
+      }
+    })
+    const journal = fs.readFileSync(childLog, "utf8")
+    // (the wrapper reaped before the drain read its cmdline is the
+    // ordinary case — pid and uid, recorded at send time, must carry it)
+    expect(journal).toContain(`honoring SIGTERM from pid ${wrapperPid} uid ${process.getuid?.()}`)
+    expect(journal).toContain("olai web: received SIGTERM")
   } finally {
     parent.kill("SIGKILL")
   }

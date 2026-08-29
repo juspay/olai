@@ -159,9 +159,9 @@ test("the trash and the inbox are minted under _olai/, under their own names", (
 })
 
 // WHICH FILES OLAI NAMED FOR ITSELF, as one predicate — the question the
-// sidebar asks of every path before it draws a row (`@olai/web`'s
-// `settings/hiddenOutlines.ts`). It is the mint read backwards rather than a
-// second spelling of `_olai/`, which is why it is here beside it.
+// sidebar asks of every path (`@olai/web`'s `Sidebar.tsx`: tree or vault
+// group). It is the mint read backwards rather than a second spelling of
+// `_olai/`, which is why it is here beside it.
 test("a file olai named for itself is one under _olai/, exactly", () => {
   expect(inOlaiDir(mintedInto(PINS))).toBe(true)
   expect(inOlaiDir(mintedInto(INBOX))).toBe(true)

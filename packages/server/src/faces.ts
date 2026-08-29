@@ -276,6 +276,11 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   // The watcher pulse — the pill's only liveness read. Same standing as
   // `kolu`: a browser wants the answer, not a handle.
   pulse: "resource",
+  // WHO IS MUTED, and which file says so — the events drawer's foot. The
+  // vault's own config, already an outline any of these readers may open,
+  // so nothing is being re-published here that the vault didn't already
+  // hand this face.
+  mutes: "resource",
   fleet: "resource",
   // THE EVENTS FEED, same door and the same reasoning: an agent asking what
   // recently wanted attention has kolu's own MCP face, and olai's log rows

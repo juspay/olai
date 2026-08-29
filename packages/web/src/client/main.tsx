@@ -19,7 +19,6 @@ import { runAsync } from "./run.ts"
 import { followAlerts } from "./settings/alerts.ts"
 import { followDensity } from "./settings/density.ts"
 import { followDoneHidden } from "./settings/done.ts"
-import { followOutlinesHidden } from "./settings/hiddenOutlines.ts"
 import { followStoredFont } from "./theme/fontState.ts"
 import { followStoredSize } from "./theme/sizeState.ts"
 import { followStoredTheme } from "./theme/state.ts"
@@ -85,7 +84,6 @@ followLayout()
 followAlerts()
 followDensity()
 followDoneHidden()
-followOutlinesHidden()
 followFolds()
 followFolders()
 trackCamera()

@@ -18,17 +18,16 @@
  * one they cannot ask anybody about. Nothing is SENT even then; the pin arrives
  * on the git cell, which this panel READS and never writes, and what this
  * browser had stored is left exactly as it was for the day the flag goes away.
- * Theme, font, size, notes, done and hidden outlines are untouched by any of
- * it — those are personal view choices and there is nothing about them for a
- * server to have an opinion on.
+ * Theme, font, size, notes and done are untouched by any of it — those are
+ * personal view choices and there is nothing about them for a server to have
+ * an opinion on.
  *
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
  * theme, the typeface, how much of a row is drawn by default, what this
  * browser does with finished work, whether the agent stopping on a question is
- * announced and whether that makes a sound, which files the directory column
- * draws, and the two git rows — whether what is waiting records itself, and
- * whether a commit from here is pushed.
+ * announced and whether that makes a sound, and the two git rows — whether
+ * what is waiting records itself, and whether a commit from here is pushed.
  * The two ALERT rows meet the test the same way Done does: "tell me when the
  * agent needs me" is a claim about the reader, and the surface it is about is
  * a drawer that is SHUT in exactly the case the setting is for — so a switch
@@ -42,10 +41,7 @@
  * so they are rows here rather than switches on the Commit panel. TWO rows and
  * not one strip of three, because they are two independent facts: pushing a
  * commit you made by hand is the shipped case, and folding them into a single
- * Off / Auto-commit / both would take it away. HIDDEN OUTLINES is the one row
- * whose subject is the sidebar rather than a page, and it is here for the same test: "I want to
- * see the files olai made for itself" is a claim about the reader, and the
- * column it moves has no control of its own to hang it off. The layout values
+ * Off / Auto-commit / both would take it away. The layout values
  * in `../layout/prefs.ts` are
  * stored the same way and are deliberately NOT here — a sidebar width is set
  * by dragging the sidebar, and a panel being open is set by the control that
@@ -74,7 +70,6 @@ import { askToNotify, notifyConsent } from "../notify.ts"
 import { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } from "./alerts.ts"
 import { density, type Density, setDensity } from "./density.ts"
 import { doneHidden, setDoneHidden } from "./done.ts"
-import { outlinesHidden, setOutlinesHidden } from "./hiddenOutlines.ts"
 import {
   commitFrozen,
   commitPick,
@@ -125,14 +120,6 @@ const DENSITY_CHOICES: ReadonlyArray<{ value: Density; label: string }> = [
 const ALERT_CHOICES = [
   { value: "off", label: "Off" },
   { value: "on", label: "On" },
-] as const
-
-/** Hidden outlines: Hidden / Shown — the Done row's pair one subject over,
- *  and the same two words, because it is the same kind of claim: a list of
- *  rows, and whether some of them are on it. */
-const HIDDEN_CHOICES = [
-  { value: "hidden", label: "Hidden" },
-  { value: "shown", label: "Shown" },
 ] as const
 
 /** Git commit: Off / Auto-commit — a write waits for a press, or what is
@@ -246,18 +233,6 @@ export function Panel(props: {
           value={alertSoundOn() ? "on" : "off"}
           onPick={(value) => setAlertSoundOn(value === "on")}
           frozen={!alertsOn()}
-        />
-      </Row>
-
-      {/* Under Done, because it is the other "which rows are on the page"
-          row — and the only row here whose subject is the DIRECTORY column
-          rather than the outline, which is why its label says out loud which
-          files it is about. */}
-      <Row label="Hidden outlines" pref="hidden-outlines" hint={hiddenHint()}>
-        <Segmented
-          choices={HIDDEN_CHOICES}
-          value={outlinesHidden() ? "hidden" : "shown"}
-          onPick={(value) => setOutlinesHidden(value === "hidden")}
         />
       </Row>
 
@@ -487,20 +462,6 @@ const doneHint = (): string =>
     ? "Finished work is hidden — a row not drawn, never a node marked or a " +
       "file written."
     : "Finished work is shown."
-
-/** What the choice in force means for the column — and, either way, the half
- *  that does NOT move: these files are in the set whichever way this row is
- *  set, so nobody is told a switch took something away from search or from an
- *  agent. The trash is named in both sentences because it is the one file
- *  under `_olai/` this row does not reach. */
-const hiddenHint = (): string =>
-  outlinesHidden()
-    ? "Outlines olai names for itself — under _olai/ — are left out of the " +
-      "file tree; the shelf, the Inbox beside Agenda, and the Trash below " +
-      "are their doors. They stay in the directory: search and agents read " +
-      "them unchanged."
-    : "The file tree draws _olai/ too, so the shelf and the Inbox open as " +
-      "outlines like any other file. The trash keeps its own page."
 
 /** What Auto-commit in force MEANS, and the three things a reader has to be
  *  told: WHEN it records, that a burst is ONE commit, and that it sweeps every

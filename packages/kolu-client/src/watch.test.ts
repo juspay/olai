@@ -91,11 +91,15 @@ const collected = () => {
   /** Every beat as it landed on the sink: the pill's recency, which LIVES
    *  here since the beat came out of the ring (see `./watch.ts`'s header). */
   const beats: Array<{ at: string; everyMs: number }> = []
+  /** Every verdict the fold pronounced — who the watcher could SAY its
+   *  mutes silenced, each time the question was retaken. */
+  const verdicts: Array<ReadonlySet<string>> = []
   return {
     sets,
     said,
     events: sets_full,
     beats,
+    verdicts,
     ring: () => new Map(ring),
     sink: {
       emit: (event: KoluEvent) => {
@@ -110,6 +114,9 @@ const collected = () => {
       },
       beat: (at: string, everyMs: number) => {
         beats.push({ at, everyMs })
+      },
+      mutedVerdicts: (resolved: ReadonlySet<string>) => {
+        verdicts.push(resolved)
       },
     },
   }
@@ -223,6 +230,9 @@ describe("the attention watcher", () => {
     const fired = seen.events.filter((e) => e.kind === "transition")
     expect(fired.length).toBe(1)
     expect(fired[0]?.row?.terminal).toBe("t2")
+    // …and the fold told the SAME answer to its display reader: t1, and
+    // not t2.
+    expect([...(seen.verdicts.at(-1) ?? [])]).toEqual(["t1"])
 
     // UNMUTE, mid-life: `reconfigure` is the file's own watcher's door. The
     // same t1 enters again under a lightened list, and it is told.
@@ -232,6 +242,7 @@ describe("the attention watcher", () => {
     await sleep(80)
     expect(seen.events.filter((e) => e.kind === "transition").map((e) => e.row?.terminal))
       .toEqual(["t2", "t1"])
+    expect([...(seen.verdicts.at(-1) ?? [])]).toEqual([])
     watch.stop()
   })
 
@@ -264,6 +275,9 @@ describe("the attention watcher", () => {
     expect(
       seen.said.filter((line) => line.includes("names 2 terminals")).length,
     ).toBe(1)
+    // …and the display reader is told NOBODY is silenced — the foot above
+    // the events must not claim a quiet the events contradict.
+    expect([...(seen.verdicts.at(-1) ?? [])]).toEqual([])
     watch.stop()
   })
 

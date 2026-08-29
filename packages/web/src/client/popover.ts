@@ -69,6 +69,10 @@ export interface Popover {
    *  been measured, which is to say until it has been opened once. */
   readonly at: Accessor<Anchor | null>
   readonly toggle: () => void
+  /** Put it away and only that — for a LINK INSIDE THE PANEL that is about
+   *  to navigate (the feed's wrench): the caret is the new page's then,
+   *  so the dismissal path's return-to-trigger is exactly wrong for it. */
+  readonly close: () => void
   /** `ref` on the control that opens it. */
   readonly setTrigger: (el: HTMLElement | undefined) => void
   /** `ref` on the panel itself — see the two roots above. It must carry a
@@ -187,6 +191,7 @@ export const createPopover = (): Popover => {
   return {
     open,
     at,
+    close,
     // A press of the trigger while it is up is a keyboard-reachable dismissal
     // like Escape, so the focus goes back the same way.
     toggle: () => {

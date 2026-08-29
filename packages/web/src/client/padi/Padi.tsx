@@ -88,7 +88,10 @@ export function Padi(props: {
       <Show when={popover.open() ? popover.at() : null}>
         {(at) => (
           <Portal>
-            <Feed at={at()} inside={popover.setPanel} />
+            {/* The wrench's press navigates out of the drawer, so the panel
+                closes WITHOUT the dismissal's walk back to the trigger —
+                the page it lands on is where the reader's caret goes. */}
+            <Feed at={at()} inside={popover.setPanel} onLeave={popover.close} />
           </Portal>
         )}
       </Show>

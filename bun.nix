@@ -361,6 +361,7 @@
   "@olai/log" = copyPathToStore ./packages/log;
   "@olai/ops" = copyPathToStore ./packages/ops;
   "@olai/server" = copyPathToStore ./packages/server;
+  "@olai/sigterm" = copyPathToStore ./packages/sigterm;
   "@olai/state" = copyPathToStore ./packages/state;
   "@olai/store" = copyPathToStore ./packages/store;
   "@olai/surface" = copyPathToStore ./packages/surface;
