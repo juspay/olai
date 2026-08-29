@@ -95,13 +95,11 @@ const web = Command.make("web", {
   ...webGit,
 }, ({ commits, directory, host, noCommit, port, pushes }) =>
   Effect.gen(function*() {
-    // FIRST: the SIGTERM guard (./sigterm.ts) — long before the first tab,
-    // and before the listener exists to keep: only `web` is a server worth
-    // refusing over (a finished `surface` call exits; its TERM is a stop).
-    // runMain's listeners armed Bun's disposition before this handler ran,
-    // which is what an honored TERM here gets handed back to, so the arm
-    // can happen at any point of this gen — first, so the armed line leads
-    // the boot's journal.
+    // The SIGTERM guard (./sigterm.ts): `web` is the server a stray pkill
+    // wants — `surface` is a client and its TERM is an ordinary stop —
+    // and first, so the armed line leads the boot's journal. Everything
+    // the arm asks for (Bun's listener-armed disposition, a settled
+    // parent) is true by the time ANY command handler runs.
     yield* Effect.promise(() => installSigtermGuard())
     const faulted = yield* serve({
       root: directory,
@@ -418,4 +416,3 @@ NodeRuntime.runMain(
   // stdout, in the middle of the data.
   { disableErrorReporting: true },
 )
-
