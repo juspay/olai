@@ -36,34 +36,54 @@ import { Portal } from "solid-js/web"
 import type { KoluLink } from "@olai/surface"
 
 import { desktop } from "../layout/media.ts"
-import { DOT, PILL } from "../readout.ts"
+import { DOT, DOT_HOLLOW_WARN, PILL, PILL_WARN_COAT, TEXT_WARN } from "../readout.ts"
 import { TESTID } from "../testids.ts"
 import { createPopover } from "../popover.ts"
 import { Feed } from "./Feed.tsx"
 import { padiSaid } from "@olai/kolu-ui"
+import type { WatchPulse } from "@olai/surface"
+import type { Accessor } from "solid-js"
 
-export function Padi(props: { readonly link: KoluLink }) {
-  const said = () => padiSaid(props.link)
+export function Padi(props: {
+  readonly link: KoluLink
+  /** The watcher's pulse stamp (`@olai/surface`'s `pulse` cell) — the
+   *  `watcher pulse … ago` the pill's inspection face can spell, or the
+   *  quiet the register on it is warning about. */
+  readonly pulse: WatchPulse | null | undefined
+  /** The clock the pill's folds run on — `useFleet`'s now, which ticks
+   *  `age → quiet` over without waiting for a beat to tell it so. */
+  readonly now: Accessor<number>
+}) {
+  const said = () => padiSaid(props.link, props.pulse, props.now())
+  const quiet = () => said().beat?.kind === "quiet"
   const popover = createPopover()
   return (
     <Show when={desktop()}>
       <button
         type="button"
         ref={popover.setTrigger}
-        class={`${PILL} max-w-[9.5rem] shrink-0 cursor-pointer sm:max-w-none`}
+        class={`${PILL} max-w-[9.5rem] shrink-0 cursor-pointer sm:max-w-none ${
+          quiet() ? PILL_WARN_COAT : ""
+        }`}
         data-testid={TESTID.padi}
         // The STATUS as an attribute as well as a paint, so a scenario asserts
         // the state rather than a colour — the same contract the terminal dot
-        // keeps with `data-face`.
+        // keeps with `data-face`. `data-padibeat` is the REGISTER, a second
+        // axis: the link can be `connected` while the beat is quiet, which is
+        // exactly the state this register was named to paint.
         data-padi={props.link.status}
+        data-padibeat={said().beat?.kind ?? "none"}
         title={said().detail}
         aria-label={`kolu: ${said().detail}`}
         aria-expanded={popover.open()}
         aria-haspopup="true"
         onClick={() => popover.toggle()}
       >
-        <span class={`${DOT} ${said().dot}`} aria-hidden="true" />
+        <span class={`${DOT} ${quiet() ? DOT_HOLLOW_WARN : said().dot}`} aria-hidden="true" />
         <span class="min-w-0 truncate">{said().label}</span>
+        <Show when={quiet() ? said().beat?.said : null}>
+          {(beat) => <span class={`shrink-0 ${TEXT_WARN}`}>· {beat()}</span>}
+        </Show>
       </button>
       <Show when={popover.open() ? popover.at() : null}>
         {(at) => (
