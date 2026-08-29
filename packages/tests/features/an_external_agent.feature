@@ -188,6 +188,41 @@ Feature: An agent olai did not start
     Then the terminal agent was handed the roots "kitchen remodel #home, sort the bills"
     And there should be no page errors
 
+  Scenario: A terminal shapes the walk to its question, and a bad name is refused
+    # The parameter this was filed for: a walk of a big lane came back at 51KB
+    # because every row carried the full situated projection, and the agent
+    # that asked two fields of it split the call and sed'd the JSON for the
+    # marks and their settle instants. `fields` names what each row CARRIES:
+    # here the walk descends the whole fixture subtree and every row is id +
+    # `title`, the derived `status`, and the `done` instant where the record
+    # has one — the place, the ancestry and the notes never leave the vault,
+    # because they are what a structure question was done reading.
+    When the terminal agent walks "kitchen" with only the fields "title, status, done"
+    Then every row of the walk carries exactly title, status, done
+    And the walk's structure is the tree's own
+    # …and depth is the same dial on a shaped walk, since the row's shape was
+    # never the walk's business: `truncated` is still said where a parent has
+    # more child rows than came back.
+    When the terminal agent walks "kitchen" one level deep with only the fields "status"
+    Then every row of the shallow walk carries exactly status
+    And the row "install" in the shallow walk is said truncated
+    # The NODE ITSELF is always whole — projection shapes a LIST, never the
+    # thing a caller named — so `read_node`'s own row keeps its place and its
+    # marks while its children are the caller's one field.
+    When the terminal agent reads "kitchen" with the children shaped as "status"
+    Then the node arrived whole and its children carry exactly status
+    # A name outside the vocabulary is REFUSED, naming the legal ones: a
+    # silently dropped field was the failure shaping exists to close, so the
+    # refusal is where the vocabulary is learned.
+    When the terminal agent walks "kitchen" with only the fields "status, props"
+    Then the terminal agent was refused with the kind "usage"
+    And the refusal lists every legal field name
+    # …and both dials at once is the REFUSAL, not a tie-break: `desc` is a
+    # field now, so `withDesc` beside a projection is one dial spelled twice.
+    When the terminal agent walks "kitchen" with the fields "desc" and the notes turned off
+    Then the terminal agent was refused with the kind "usage"
+    And there should be no page errors
+
   Scenario: A mistyped outline path is refused with the closest one
     # Refused, never answered empty: an outline that holds nothing and an
     # outline that is not there look identical to a caller, and only one of

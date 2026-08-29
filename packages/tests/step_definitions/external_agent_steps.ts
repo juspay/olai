@@ -16,6 +16,7 @@
 import * as assert from "node:assert";
 
 import { Given, Then, When } from "@cucumber/cucumber";
+import { PROJECTABLE } from "@olai/format";
 
 import { callTool, connectTerminalAgent, tryTool } from "../support/mcp.ts";
 import { HYDRATION_TIMEOUT, type OlaiWorld } from "../support/world.ts";
@@ -268,6 +269,199 @@ When(
   "the terminal agent reads the node {string}",
   async function (this: OlaiWorld, id: string) {
     this.toolAnswer = await callTool(agentOf(this), "read_node", { id });
+  },
+);
+
+/**
+ * A shaped walk: `read_subtree` with `fields`, the projection a caller
+ * names. Through {@link tryTool} — both outcomes are pinned below: a
+ * vocabulary the caller can name is answered, and one it cannot is refused
+ * naming the legal one.
+ */
+When(
+  "the terminal agent walks {string} with only the fields {string}",
+  async function (this: OlaiWorld, id: string, fields: string) {
+    this.toolAnswer = await tryTool(agentOf(this), "read_subtree", {
+      id,
+      fields: fields.split(",").map((one) => one.trim()),
+    });
+  },
+);
+
+When(
+  "the terminal agent walks {string} one level deep with only the fields {string}",
+  async function (this: OlaiWorld, id: string, fields: string) {
+    this.toolAnswer = await tryTool(agentOf(this), "read_subtree", {
+      id,
+      depth: 1,
+      fields: fields.split(",").map((one) => one.trim()),
+    });
+  },
+);
+
+When(
+  "the terminal agent walks {string} with the fields {string} and the notes turned off",
+  async function (this: OlaiWorld, id: string, fields: string) {
+    this.toolAnswer = await tryTool(agentOf(this), "read_subtree", {
+      id,
+      fields: fields.split(",").map((one) => one.trim()),
+      withDesc: false,
+    });
+  },
+);
+
+When(
+  "the terminal agent reads {string} with the children shaped as {string}",
+  async function (this: OlaiWorld, id: string, fields: string) {
+    this.toolAnswer = await tryTool(agentOf(this), "read_node", {
+      id,
+      fields: fields.split(",").map((one) => one.trim()),
+    });
+  },
+);
+
+/**
+ * EVERY ROW OF A SHAPED WALK — root and all — proved to be id + the shape +
+ * the walk's own structure, and nothing else. The assertion is the
+ * subtraction: the rows know the fixture carries notes and situating, so a
+ * walk that quietly carried them anyway would pass every "has the field"
+ * check and is caught only here.
+ */
+const shapedRowsOf = (
+  answer: Record<string, unknown>,
+): ReadonlyArray<Record<string, unknown>> => {
+  const rows: Array<Record<string, unknown>> = [];
+  // The face signs the TOP of every answer with its `root` and a `vintage`;
+  // the projection is the rows, so the envelope is lifted before the shape
+  // is judged.
+  const { root: _root, vintage: _vintage, ...first } = answer;
+  const dig = (row: Record<string, unknown>) => {
+    rows.push(row);
+    for (const child of (row["children"] ?? []) as ReadonlyArray<Record<string, unknown>>) {
+      dig(child);
+    }
+  };
+  dig(first);
+  return rows;
+};
+
+const claimShape = (
+  rows: ReadonlyArray<Record<string, unknown>>,
+  fields: ReadonlyArray<string>,
+  // `read_node`'s child rows are REFERENCES — no `children` — where a walk's
+  // rows carry the structure, so which rows owe the walk's own keys is said
+  // by the caller.
+  structure: "walk" | "references",
+): void => {
+  // The row's allowed keys: the structure the WALK owns (id / children /
+  // truncated) plus exactly the named fields. The union across rows must be
+  // the whole projection — a walk that SHAPED but forgot a field is a
+  // subtler silence than one that never shaped at all.
+  const allowed = new Set(["id", "children", "truncated", ...fields]);
+  const seen = new Set<string>();
+  for (const row of rows) {
+    for (const key of Object.keys(row)) {
+      assert.ok(
+        allowed.has(key),
+        `a shaped row carried "${key}", which was not named: ${JSON.stringify(row)}`,
+      );
+      if (key !== "id" && key !== "children" && key !== "truncated") seen.add(key);
+    }
+    assert.strictEqual(typeof row["id"], "string", "every row is still an id first");
+    if (structure === "walk") {
+      assert.ok(
+        Array.isArray(row["children"]),
+        "the walk's structure was never a field: children rides as a key of the walk",
+      );
+    }
+  }
+  assert.deepStrictEqual(
+    [...seen].sort(),
+    [...fields].sort(),
+    "the rows, together, carry the whole projection the caller named",
+  );
+};
+
+Then(
+  "every row of the walk carries exactly {word}, {word}, {word}",
+  function (this: OlaiWorld, one: string, two: string, three: string) {
+    claimShape(shapedRowsOf(structuredOf(this)), [one, two, three], "walk");
+  },
+);
+
+Then(
+  "every row of the shallow walk carries exactly {word}",
+  function (this: OlaiWorld, field: string) {
+    claimShape(shapedRowsOf(structuredOf(this)), [field], "walk");
+  },
+);
+
+Then(
+  "the walk's structure is the tree's own",
+  function (this: OlaiWorld) {
+    // The structure is the claim `fields` never touches: the shape is STILL
+    // nested, the children are still the tree's children, and a shaped row
+    // is the same row the full walk of this fixture answers with its
+    // situating included.
+    const tree = structuredOf(this);
+    const of = (
+      row: Record<string, unknown>,
+    ): ReadonlyArray<string> =>
+      ((row["children"] ?? []) as ReadonlyArray<Record<string, unknown>>).map(
+        (child) => child["id"] as string,
+      );
+    assert.deepStrictEqual(of(tree), ["demo", "order", "install", "chase-tiler"]);
+    const install = ((tree["children"] ?? []) as ReadonlyArray<Record<string, unknown>>)
+      .find((row) => row["id"] === "install");
+    assert.ok(install, "the walk reached install");
+    assert.deepStrictEqual(of(install), ["hinges", "chase-supplier"]);
+  },
+);
+
+Then(
+  "the row {string} in the shallow walk is said truncated",
+  function (this: OlaiWorld, id: string) {
+    const row = shapedRowsOf(structuredOf(this)).find((one) => one["id"] === id);
+    assert.ok(row, `the walk did not reach ${id}`);
+    assert.strictEqual(row["truncated"], true, "the cut is said on the caller's row too");
+  },
+);
+
+Then(
+  "the node arrived whole and its children carry exactly {word}",
+  function (this: OlaiWorld, field: string) {
+    const answer = structuredOf(this);
+    // "Whole" as facts the shape cannot name back: the place, the ancestry,
+    // and the answer's own id.
+    assert.strictEqual(answer["id"], "kitchen");
+    assert.strictEqual(answer["file"], "house.olai");
+    assert.strictEqual(typeof answer["line"], "number", "a whole node is situated");
+    claimShape(
+      (answer["children"] ?? []) as ReadonlyArray<Record<string, unknown>>,
+      [field],
+      "references",
+    );
+  },
+);
+
+Then(
+  "the refusal lists every legal field name",
+  function (this: OlaiWorld) {
+    const reason = String(structuredOf(this)["reason"] ?? "");
+    // One place the vocabulary is learned: the refusal sentence names the
+    // whole legal set, so an agent correcting from prose can. The list is
+    // the format's own rather than retyped — a hand-spelled one here can
+    // only ever prove the two spellings once agreed.
+    for (const legal of PROJECTABLE) {
+      assert.ok(
+        reason.includes(`\`${legal}\``),
+        `the refusal does not name \`${legal}\`: ${reason}`,
+      );
+    }
+    assert.ok(
+      reason.includes("`custom.<key>`"),
+      `the one key form must be named too: ${reason}`,
+    );
   },
 );
 When(
