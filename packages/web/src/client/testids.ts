@@ -29,11 +29,11 @@ export const TESTID = {
    *  found no picture for wears the silhouette and is still `yes`. */
   identity: "identity",
   /** The row of controls inside it that are about the APP. On desktop: the
-   *  connection, the Commit pill, the agent toggle, the preferences trigger.
-   *  On a phone: search alone. Its own name because the CONTENTS of that row
-   *  are a claim: `one-git-indicator` was two chips answering one question,
-   *  and the only way to hold that shut is to count what is in the row rather
-   *  than to look for the chip that was removed. */
+   *  connection, the Commit pill, the uptime chip, the agent toggle, the
+   *  preferences trigger. On a phone: search alone. Its own name because the
+   *  CONTENTS of that row are a claim: `one-git-indicator` was two chips
+   *  answering one question, and the only way to hold that shut is to count
+   *  what is in the row rather than to look for the chip that was removed. */
   appChrome: "app-chrome",
   /** The sidebar itself. Always drawn when the set loaded — which is what
    *  makes it, rather than anything inside it, the sign that the app has
@@ -968,6 +968,12 @@ export const TESTID = {
    *  `data-repo` the repository's own state. What git SAID rides the tip and
    *  the `aria-label`, never a colour. */
   commitPill: "commit-pill",
+  /** How long the olai SERVER has been up — process start, not this tab's.
+   *  Desktop only, furniture: `up 2h`, the exact start instant in a
+   *  visually-hidden span (and on the tip). `data-started` is the ISO
+   *  the wire sent, so a scenario asserts the instant rather than the
+   *  ticking phrase. */
+  uptime: "uptime",
   /** The panel it opens. One row per node, never a text diff. */
   commitPanel: "commit-panel",
   /** Phone git banner — only while there is news (uncommitted, blocked, a

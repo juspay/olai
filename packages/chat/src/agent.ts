@@ -225,6 +225,10 @@ export interface Options {
    *  `OLAI_ACP_AGENT` or the adapter nix baked in. */
   readonly command: string
   readonly args: ReadonlyArray<string>
+  /** Extra environment the ROSTER ROW asked for ({@link ../adapter.ts}'s
+   *  `Adapter.env`), merged over this process's own at the spawn — pi-acp's
+   *  `PI_ACP_PI_COMMAND` is the one row that uses it today. */
+  readonly env?: Readonly<Record<string, string>>
   /** The directory the agent works in — the served directory, absolute. It is
    *  what makes stored sessions findable: an agent keys its conversations by
    *  the directory it was started in. */
@@ -452,6 +456,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  said, not something being said. */
     let replaying = false
 
+    /** The prologue this conversation's OPEN announced it would double as one
+     *  ordinary chunk ({@link ./agents/leg.ts}'s `prologueIn`), or `null`.
+     *  Armed at the open and CONSUMED by the first chunk equal to it: one
+     *  banner, once, and the comparison is the string the adapter itself
+     *  published — never a shape of prose. */
+    let prologue: string | null = null
+
     /** The questions on the wire right now ({@link ./questions.ts}), told to
      *  report every ending down the same channel everything else uses. */
     const questions = Questions.make((id, outcome) => {
@@ -508,6 +519,16 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       questions.withdrawAll()
       calls.forget()
       forgetModel()
+      // ... and the doubled-prologue arm along with the rest: it names a chunk
+      // the session BEING LEFT announced. Spared this line, an arm whose
+      // banner never landed (an adapter that reordered it behind something
+      // else) would outlive its open and spend the life of the process
+      // waiting to consume the first chunk of ANY later conversation that
+      // happens to equal it — the load below replays its history BEFORE the
+      // answer that would disarm this, with `fromElsewhere` passing the
+      // frames, and "the banner showed" (the safe direction) and "a replayed
+      // message was eaten" are the same mis-set bit apart.
+      prologue = null
       // The servers were HANDED to a conversation that is over, and the next
       // one is probed fresh before it opens. Emptied rather than left standing
       // so a forwarded `init` still in flight from the finished session has
@@ -622,6 +643,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
       switch (update.sessionUpdate) {
         case "agent_message_chunk": {
           const text = textOf(update.content)
+          // The doubled prologue is dropped HERE rather than anywhere narrower:
+          // the chunk is otherwise speech, and every counter a chunk feeds —
+          // the transcript, the silence arm's count of what the agent said —
+          // is downstream of this one door.
+          if (text !== "" && prologue !== null && text === prologue) {
+            prologue = null
+            return
+          }
           if (text !== "") emit({ _tag: "said", text })
           return
         }
@@ -956,6 +985,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           try: () =>
             startChild(options.command, [...options.args], {
               cwd: options.cwd,
+              // The row's extra env OVER olai's own: the child wants
+              // everything this process has PLUS what its adapter was told
+              // (a `pi` the probe found on a search path this process's PATH
+              // may not share), and `undefined` is exactly the shape the spawn
+              // already had — no key rewritten, no key dropped.
+              env: options.env === undefined
+                ? undefined
+                : { ...process.env, ...options.env },
               stdio: ["pipe", "pipe", "pipe"],
               // stdout is the ACP protocol; stealing it would be the
               // transport this file still owns. stderr is drained by the
@@ -1183,7 +1220,15 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      *  about every agent working under it — a worktree, an orchestrator in the
      *  root. Adopting the newest of what came back would make somebody else's
      *  coding session this panel's conversation, so the list is narrowed to the
-     *  exact directory here, once, and everything downstream draws from it. */
+     *  exact directory here, once, and everything downstream draws from it.
+     *
+     *  NO LIMIT IS SENT and no `nextCursor` is followed: the protocol
+     *  defaults apply, which on pi-acp is a page of fifty (its own
+     *  `PAGE_SIZE`) — a directory with more stored pi conversations than one
+     *  page draws the newest and loses the rest. The posture is agreed, not
+     *  parked: the list answers which-conversation-recently rather than
+     *  indexing an agent's database, and `docs/chat.md` says the size
+     *  `pi`'s adapter pages at. */
     const storedFor = (at: Live): Effect.Effect<ReadonlyArray<Stored>, AgentGone> =>
       at.canList
         ? Effect.map(
@@ -1412,6 +1457,14 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
           mcpServers: [...(yield* servers)],
           ...openMeta,
         })) as NewSessionResponse
+        // ARMED HERE, immediately on the answer being read: the doubled chunk
+        // is written after the response on the one stream (pi-acp emits it
+        // from a `setTimeout` behind its own `session/new` return), and a
+        // response's continuation runs before the next notification can be
+        // pulled — see the microtask argument at `Leg.prologueIn`. An adapter
+        // that reorders ships the banner to the transcript instead, which is
+        // the safe direction.
+        prologue = options.leg.prologueIn(made)
         yield* entered(made.sessionId, null, "new")
         readModel(made.configOptions)
         yield* askForBypass(at, made.sessionId)
@@ -1457,6 +1510,13 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
               emit({ _tag: "replayEnded" })
             }),
         )) as LoadSessionResponse | undefined
+        // A REARM, not the disarm: that already happened in {@link leaving},
+        // before a single frame of the replay above could arrive — which is
+        // the ordering that matters, because the replay lands DURING the ask
+        // and this line of it after. A `session/load` that announces a
+        // prologue of its own arms it here; this adapter's answers `null`,
+        // and null is "drop nothing", the whole of the claim.
+        prologue = options.leg.prologueIn(loaded ?? null)
         // AFTER THE ANSWER, and that ordering is the whole of one bug. Entering
         // a conversation is what this module records being IN one — it sets the
         // session every later verb acts on, and it writes the note the next boot

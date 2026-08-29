@@ -416,6 +416,7 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
         leg: row.leg,
         command: row.adapter.command,
         args: row.adapter.args,
+        env: row.adapter.env,
         cwd: options.cwd,
         tools: options.tools,
         memory,

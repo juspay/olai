@@ -77,13 +77,17 @@
  * reading is `@olai/identity`'s `identityOf`; which headers the upgrade
  * named is the serve's.
  *
- * Beside it is WHAT THIS DEPLOYMENT IS CALLED: one fact about the process
- * rather than about a connection, `app.get` (`./app.ts`). The box's name
- * cannot cross any other way — a browser cannot know its server's
- * `os.hostname()`, and a static shell ships before the server exists — so it
- * arrives the way every other server-side fact in this spec arrives, over
- * this socket. The tab's title, the header's wordmark and the install
- * manifest's `name` all draw the one spelling it answers with.
+ * Beside it is WHAT THIS DEPLOYMENT IS CALLED, and WHEN THIS PROCESS
+ * STARTED: two facts about the process rather than about a connection,
+ * `app.get` (`./app.ts`). The box's name cannot cross any other way — a
+ * browser cannot know its server's `os.hostname()`, and a static shell
+ * ships before the server exists — so it arrives the way every other
+ * server-side fact in this spec arrives, over this socket. The start
+ * instant is the same kind of crossing: a tab that timed from its own
+ * open would lie even with perfect clocks, and a duration on the wire
+ * would have to be polled. The tab's title, the header's wordmark and the
+ * install manifest's `name` all draw the one spelling the name answers
+ * with; the header's quiet uptime chip ticks from the instant.
  *
  * One more is GIT, and it is a cell with two verbs beside it rather than a
  * member: a `pending` cell — what is waiting to be committed, and what is
@@ -1556,8 +1560,9 @@ export { MEDIA_PREFIX, mediaHref, mediaTarget } from "./media.ts"
  *  `who.get` procedure carries. See {@link ./who.ts}. */
 export { WHO_PATH, Who } from "./who.ts"
 
-/** What this deployment is called — the fact `app.get` carries, and the one
- *  spelling every face of the app names itself with. See {@link ./app.ts}. */
+/** What this deployment is called, and when this process started — the two
+ *  facts `app.get` carries, and the one spelling every face of the app names
+ *  itself with. See {@link ./app.ts}. */
 export { App, appName } from "./app.ts"
 
 /** Where the hashed browser bundle lives, and what the bundler names a split

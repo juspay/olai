@@ -31,6 +31,17 @@
  *   - **`opencode`** is looked for on PATH, because that is where it installs
  *     itself, and started as `opencode acp --cwd <dir>` — plain ACP over stdio
  *     (verified against 1.17.9).
+ *   - **`pi`** is BOTH halves at once. Its adapter — svkozak/pi-acp, the ACP
+ *     bridge that spawns `pi --mode rpc` — is olai's to pin, so olai ships it
+ *     exactly the way the Claude Code adapter is shipped: `OLAI_ACP_PI` names
+ *     it, every documented start bakes the pin in, and a floating `npx -y
+ *     pi-acp` is never run. But pi-acp is not an agent — it wraps one: a
+ *     machine HAS pi only when the `pi` executable is found on the agent
+ *     search path, so the row is the pair: adapter from the variable, agent
+ *     from the probe, and the found `pi` handed to the adapter as
+ *     `PI_ACP_PI_COMMAND` so the one the roster found is the one the session
+ *     runs (olai's PATH is not your shell's — `OLAI_AGENT_PATH` would
+ *     otherwise be where the adapter's own lookup gave up).
  *
  * ## The two variables
  *
@@ -63,10 +74,11 @@
 
 import { AGENTS, type AgentId } from "@olai/surface"
 
-import { type Adapter, adapterFrom, AGENT_ENV, AGENT_PATH_ENV } from "../adapter.ts"
+import { type Adapter, adapterFrom, AGENT_ENV, AGENT_PATH_ENV, PI_AGENT_ENV } from "../adapter.ts"
 import { CLAUDE } from "./claude.ts"
 import type { Leg } from "./leg.ts"
 import { OPENCODE } from "./opencode.ts"
+import { PI } from "./pi.ts"
 
 /** An agent that is installed: who it is, what to spawn, and how to read what
  *  comes back. The whole of what the rest of the package needs. */
@@ -126,6 +138,25 @@ const KINDS = [
       return bin === null ? null : { command: bin, args: ["acp", "--cwd", where.cwd] }
     },
   },
+  {
+    id: "pi",
+    leg: PI,
+    at: (where) => {
+      // The ADAPTER first: like the claude row, it is shipped not found, so
+      // the variable is the whole of its door. The PROBE is of the agent the
+      // adapter wraps — a pi-acp with no `pi` behind it would be a row that
+      // fails at every `session/new`, and the picker's promise is that a row
+      // it draws is an agent this machine has.
+      const adapter = adapterFrom(where.env[PI_AGENT_ENV])
+      if (adapter === null) return null
+      const bin = where.found("pi")
+      if (bin === null) return null
+      // The found one is the wrapped one: pi-acp spawns `pi` itself, and its
+      // own lookup would read its child's PATH — which is olai's, the trap
+      // `OLAI_AGENT_PATH` exists to be the answer to.
+      return { ...adapter, env: { PI_ACP_PI_COMMAND: bin } }
+    },
+  },
 ] as const satisfies ReadonlyArray<Kind>
 
 /**
@@ -135,7 +166,7 @@ const KINDS = [
  * (`@olai/surface`'s `AGENTS` says why), and this is the half a record cannot
  * enforce on its own: the ORDER of these rows is the order the picker draws, so
  * they are an array rather than a record keyed by id. This line buys the
- * coverage back — a third agent named on the wire and not started here stops
+ * coverage back — a fourth agent named on the wire and not started here stops
  * compiling, in the file that would otherwise silently not offer it.
  */
 const _everyAgentIsStartable: AgentId extends (typeof KINDS)[number]["id"] ? true : never = true
