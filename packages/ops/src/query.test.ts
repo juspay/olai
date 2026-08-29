@@ -813,6 +813,13 @@ describe("the caller shapes the rows", () => {
     // Naming NOTHING is not an error: the row is the id, and only that.
     expect(nodeOf(walked(timed(), { id: "lane", depth: 1, fields: [] })).children)
       .toEqual([{ id: "one", children: [], truncated: true }, { id: "two", children: [] }])
+    // …and asking for the id ITSELF is no-op rather than refused: it rides
+    // every row already, and a request listing only it is a request for the
+    // ids.
+    expect(nodeOf(walked(timed(), { id: "lane", depth: 1, fields: ["id"] })).children)
+      .toEqual([{ id: "one", children: [], truncated: true }, { id: "two", children: [] }])
+    expect(nodeOf(walked(timed(), { id: "lane", depth: 1, fields: ["title", "id"] })).children)
+      .toEqual([{ id: "one", title: "first", children: [], truncated: true }, { id: "two", title: "second", children: [] }])
   })
 
   test("an unknown name is REFUSED, naming the legal ones — never silently dropped", () => {

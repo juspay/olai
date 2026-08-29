@@ -860,6 +860,10 @@ const projectionOf = (
   const named = new Set<Projectable>()
   const keys = new Set<string>()
   for (const field of fields) {
+    // ASKING FOR THE EVERY-ROW FIELD IS A NO-OP, not refused: `id` rides
+    // whatever was named, and the ask nobody had to make should not be the
+    // ask that gets two sentences back.
+    if (field === "id") continue
     if (field.startsWith(CUSTOM_PREFIX)) {
       const key = field.slice(CUSTOM_PREFIX.length)
       if (key === "") return Result.fail(unknownField(field))
