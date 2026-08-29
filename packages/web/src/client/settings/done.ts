@@ -128,8 +128,11 @@ export const setDoneHidden = (file: string, hidden: boolean): void => {
  *  handed back the very array it was given, THE SAME VALUE: that identity is
  *  what `../filter/narrowing.ts`'s count of held-back matches reads as its
  *  zero, and a fresh wrapper per frame would make it walk the page twice to
- *  prove the answer was nothing. */
-export const visible = (
+ *  prove the answer was nothing. Module-private — the ONE door to the pick is
+ *  {@link visibleIn}, which also answers which pages it reaches; a page that
+ *  prunes rows without that second answer would be a second way to make the
+ *  same reading, and there is none. */
+const visible = (
   rows: ReadonlyArray<Row>,
   file: string,
 ): ReadonlyArray<Row> => (doneHiddenOn(file) ? withoutDone(rows) : rows)
