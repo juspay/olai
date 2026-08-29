@@ -8,17 +8,18 @@
  * and the month in the sidebar. Two of them asking a `Date` separately is two
  * answers that can differ by a day at exactly the wrong moment.
  *
- * THAT CLAIM GREW A SECOND HALF when a second thing started ticking. Two
- * readouts in this client are a reading of the wall clock and therefore go
- * stale on their own — how long ago the last commit was
- * ({@link ./commit/ago.ts}) and how long the running tool call has been going
- * ({@link ./chat/elapsed.ts}) — and each had arrived with a `setInterval`, a
- * signal and an `onCleanup` of its own. Two copies is where a shape stops being
- * incidental: what they have in common is not the number but the LIFETIME, and
- * a timer whose disposal is written out per feature is a timer one feature will
- * eventually forget to stop. So {@link createTicking} is here, with the day, and
- * `claims.test.ts` holds the client to it — a third readout reaches for this
- * rather than typing the fourth `setInterval`.
+ * THAT CLAIM GREW A SECOND HALF when a second thing started ticking. The
+ * readouts in this client that are a reading of the wall clock — how long
+ * ago the last commit was ({@link ./commit/ago.ts}), how long the running
+ * tool call has been going ({@link ./chat/elapsed.ts}), how long the server
+ * has been up ({@link ./uptime.ts}) — go stale on their own, and each would
+ * otherwise arrive with a `setInterval`, a signal and an `onCleanup` of its
+ * own. Two copies is where a shape stops being incidental: what they have
+ * in common is not the number but the LIFETIME, and a timer whose disposal
+ * is written out per feature is a timer one feature will eventually forget
+ * to stop. So {@link createTicking} is here, with the day, and
+ * `claims.test.ts` holds the client to it — a further readout reaches for
+ * this rather than typing the next `setInterval`.
  *
  * LOCAL, deliberately. The dates in the files are what a person wrote down, so
  * the day they mean is the day where they are — `new Date().toISOString()`

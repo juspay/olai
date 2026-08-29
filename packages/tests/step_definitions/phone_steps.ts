@@ -30,6 +30,7 @@ import {
   SIDEBAR_BODY,
   SIDEBAR_TOGGLE,
   TOGGLE,
+  UPTIME,
   ZOOM,
 } from "../support/world.ts";
 import { HYDRATION_TIMEOUT, POLL_TIMEOUT } from "../support/world.ts";
@@ -206,7 +207,7 @@ Then("the app chrome is inside the header", async function (this: OlaiWorld) {
 
 /**
  * WhatsApp's rule: the bar is ☰, olai, search. The pills that used to
- * crowd it — connection, commit, agent, prefs — are not in it.
+ * crowd it — connection, commit, uptime, agent, prefs — are not in it.
  *
  * Absence is the assertion, not geometry: a healthy phone does not
  * advertise health, and the squeeze this used to measure is gone with the
@@ -222,6 +223,7 @@ Then("the phone header is identity and search", async function (this: OlaiWorld)
   const pills = [
     { name: "connection", sel: CONNECTION },
     { name: "commit pill", sel: COMMIT_PILL },
+    { name: "uptime", sel: UPTIME },
     { name: "agent toggle", sel: CHAT_TOGGLE },
     { name: "preferences trigger", sel: PREFS_TRIGGER },
   ];
