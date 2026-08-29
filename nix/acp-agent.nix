@@ -20,11 +20,17 @@
 # about the bun-compiled `claude` binary are the load-bearing part: both the
 # stripper and an RPATH rewrite move offsets the bun runtime reads back out of
 # its own file, and it segfaults. Only the interpreter may be touched.
-{ lib, stdenv, buildNpmPackage, makeWrapper, nodejs, patchelf, ripgrep, procps }:
+{ lib, stdenv, buildNpmPackage, makeWrapper, nodejs, esbuild, patchelf, ripgrep, procps }:
 
 buildNpmPackage {
   pname = "olai-acp-agent";
-  version = "0.66.0"; # tracks @agentclientprotocol/claude-agent-acp
+  # One lockfile, TWO adapters. The version names both pins rather than
+  # claiming the build is the claude one alone: a bump of either line of
+  # acp/package.json moves the store path's NAME, not only its hash — a
+  # pi-acp bump that left the path stamped "0.66.0" would be the old claim
+  # living on after its evidence.
+  # tracks acp/package.json: @agentclientprotocol/claude-agent-acp + pi-acp
+  version = "0.66.0+pi-0.0.33";
 
   # ../acp would also pull in whatever else lands in that directory; keep the
   # src (and its hash) to just the two files the build actually reads.
@@ -34,10 +40,10 @@ buildNpmPackage {
     filter = path: _type:
       baseNameOf path == "package.json" || baseNameOf path == "package-lock.json";
   };
-  npmDepsHash = "sha256-773leTH1zrV0X/VuCzU6ZRiIPzplzeh40BqIfTFauM0=";
+  npmDepsHash = "sha256-1iYPtmU9idX4KTzCHgiw7KILW31xWAPMrPjSDC1JaBA=";
 
-  # acp/ is a shim around one dependency: nothing to compile, and no package in
-  # the tree has an install script to run.
+  # acp/ is a shim around its two pinned dependencies: nothing to compile,
+  # and no package in the tree has an install script to run.
   dontNpmBuild = true;
   npmFlags = [ "--ignore-scripts" ];
 
@@ -46,7 +52,7 @@ buildNpmPackage {
   dontStrip = true;
   dontPatchELF = true;
 
-  nativeBuildInputs = [ makeWrapper ]
+  nativeBuildInputs = [ makeWrapper esbuild ]
     ++ lib.optional stdenv.hostPlatform.isLinux patchelf;
 
   postInstall =
@@ -64,6 +70,14 @@ buildNpmPackage {
       # path it has no input for.
       backgroundTasksPatch = ../acp/patches/background-tasks-visible.patch;
       sessionListPatch = ../acp/patches/session-list-info.patch;
+      piMcpServersPatch = ../acp/patches/pi-mcp-servers.patch;
+      # THE OTHER HALF OF THAT PATCH: the extension pi loads and the
+      # vocabulary module it shares with the pin's test rig. Installed one
+      # directory up from the SDK and typebox inside the shim's tree so the
+      # extension's relative-URL import rule answers — see its header —
+      # rather than a bare specifier being left to whichever module
+      # resolution pi's engine happens to run with.
+      mcpBridgeDir = "${mods}/olai-pi-mcp-bridge";
     in
     ''
       adapter="${mods}/@agentclientprotocol/claude-agent-acp"
@@ -81,6 +95,27 @@ buildNpmPackage {
       # it right and the other had it stated as a promise it was not yet.
       patch -p1 -F0 -d "$adapter" < ${backgroundTasksPatch}
       patch -p1 -F0 -d "$adapter" < ${sessionListPatch}
+      # pi-acp's half of the carrying: the spawn hands each session's pi the
+      # servers the ACP wire handed the session — acp/patches/README.md.
+      # Same -F0 as the other two: each adapter's bump answers for the
+      # drift its OWN hunks name.
+      patch -p1 -F0 -d "${mods}/pi-acp" < ${piMcpServersPatch}
+      mkdir -p "${mcpBridgeDir}"
+      # Named WITHOUT the store's hash prefix: the extension and the
+      # vocabulary import each other by name, and the -e arg's name later is
+      # one a person can TYPE at an override layer. The SOURCE files stand
+      # next to the bundle for the reviewer; what pi LOADS is the bundle:
+      # pi loads extensions through jiti from inside a bun-compiled binary
+      # whose package-resolution drops the knot of relative-URL discipline
+      # (the bundled-embedded loader can't trace node_modules trees — a
+      # pi-acp-spawned COPILOT village issue applies the multiplication),
+      # so the bridge answers with ONE self-contained file.
+      cp ${../acp/mcp-bridge/extension.mjs} "${mcpBridgeDir}/extension.mjs"
+      cp ${../acp/mcp-bridge/naming.js} "${mcpBridgeDir}/naming.js"
+      cp ${../acp/mcp-bridge/wire.mjs} "${mcpBridgeDir}/wire.mjs"
+      ${esbuild}/bin/esbuild "${mcpBridgeDir}/extension.mjs" \
+        --bundle --platform=node --format=esm --log-level=warning \
+        --outfile="${mcpBridgeDir}/extension.bundle.mjs"
       claude="${mods}/@anthropic-ai/claude-agent-sdk-${nodeArch}/claude"
       test -x "$claude"
     '' + lib.optionalString stdenv.hostPlatform.isLinux ''
@@ -99,6 +134,23 @@ buildNpmPackage {
         --set DISABLE_INSTALLATION_CHECKS 1 \
         --set USE_BUILTIN_RIPGREP 0 \
         --prefix PATH : "${lib.makeBinPath [ ripgrep procps ]}"
+      # THE SECOND SHIPPED ADAPTER: pi-acp, the bridge that spawns `pi --mode
+      # rpc` for the pi leg. Pinned at the shim's revision like everything in
+      # here — a floating `npx -y pi-acp` would be a different build every
+      # day and the leg's facts are one revision's. No wrapper env of its
+      # own: the `pi` IT drives is a per-machine find, so the roster names it
+      # at spawn time (`PI_ACP_PI_COMMAND`) rather than it being baked.
+      pi_entry="${mods}/pi-acp/dist/index.js"
+      test -f "$pi_entry"
+      # PI_ACP_MCP_EXTENSION is the ONE arming knob the patched adapter
+      # reads: this wrapper sets it, so every documented way of starting
+      # olai gets adapters whose `mcpCapabilities` answer http/sse TRUE in
+      # fact, not the pin's README's say-so. An OLAI_ACP_PI override lane
+      # that isn't this build answers its own flags — that is why the
+      # capability read lives in the adapter's env, not in olai's roster.
+      makeWrapper ${nodejs}/bin/node "$out/bin/pi-acp" \
+        --add-flags "$pi_entry" \
+        --set PI_ACP_MCP_EXTENSION "${mcpBridgeDir}/extension.bundle.mjs"
     '';
 
   # No meta.license on purpose: the adapter is Apache-2.0 but the `claude`
@@ -106,7 +158,7 @@ buildNpmPackage {
   # that unfree would make `nix build` demand allowUnfree from every consumer of
   # this flake.
   meta = {
-    description = "Claude Code ACP adapter, pinned for olai";
+    description = "The ACP adapters olai ships: claude-code-acp and pi-acp, pinned together";
     homepage = "https://github.com/zed-industries/claude-code-acp";
     mainProgram = "claude-agent-acp";
     platforms = lib.platforms.unix;

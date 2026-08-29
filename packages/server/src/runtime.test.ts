@@ -25,7 +25,7 @@ import {
   type Ops,
   type Store as OutlineStore,
 } from "@olai/ops"
-import type { DocumentEntry, Head, Manifest, Shelf } from "@olai/surface"
+import type { App, DocumentEntry, Head, Manifest, Shelf } from "@olai/surface"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
@@ -39,6 +39,10 @@ import { watchFault } from "./fault.ts"
 import { frozenPolicy } from "./serve.testlib.ts"
 import { hostname } from "./hostname.ts"
 import { type Bound, bind, gitWiring, writerAt } from "./runtime.ts"
+
+/** A known start instant, so `app.get` is asserted against a mint rather
+ *  than against whatever clock the suite happened to read. */
+const STARTED = "2026-08-29T09:31:00.000Z"
 
 /** One bound runtime over a directory of `files`, torn down with the scope —
  *  the boot every test here needs and neither one is about. `watchFault` is
@@ -91,6 +95,7 @@ const withRuntime = <A>(
       ops,
       writer: "web",
       hostname: hostname(),
+      startedAt: STARTED,
       // NO PADI. Every runtime in this file is a reader — a bound face, an MCP
       // route — and none of them is about the terminal door; dialing whatever
       // daemon happens to be on the machine running the suite would make these
@@ -166,6 +171,16 @@ const opening = (
     if (get === undefined) throw new Error("the documents collection has no `get`")
     return yield* watching(get({ key }) as Stream.Stream<DocumentEntry>)
   })
+
+test("app.get answers the box and the start this runtime was minted with", () =>
+  withRuntime({ "a.olai": OUTLINE }, ({ wired }) =>
+    Effect.gen(function*() {
+      const get = wired.bound.handlers["surface/app/get"]
+      if (get === undefined) throw new Error("app.get is missing")
+      const said = yield* (get({}) as Effect.Effect<App>)
+      expect(said.hostname).toBe(hostname())
+      expect(said.startedAt).toBe(STARTED)
+    })))
 
 test("a face served under another writer differs by exactly the members that record one", () =>
   withRuntime({ "a.olai": OUTLINE }, ({ wired, ops }) =>

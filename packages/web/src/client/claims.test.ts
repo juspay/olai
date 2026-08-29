@@ -94,9 +94,10 @@ test("createNames is called only beside the reading", () => {
 // sixth state lands everywhere status.ts is not. The test files are the
 // legitimate spellers: their fixtures must utter the states to hold the tables
 // to them — `status.test.ts` over the look table, `reaching.test.ts` over
-// WHICH states cannot carry a question, and `chat/declared.browsertest.ts`
+// WHICH states cannot carry a question, `named.test.ts` over whether those
+// same states may send `app.get`, and `chat/declared.browsertest.ts`
 // because a module that asks nothing into a dead socket has to be handed a
-// live one to be asked at all. None of the three branches on a state in the
+// live one to be asked at all. None of them branches on a state in the
 // app; they assert about, or stand in for, the tables that do.
 test("nothing outside connection/status.ts reads the readout's raw states", () => {
   const states = /["'`](connecting|live|degraded|reconnecting|retired)["'`]/
@@ -105,6 +106,7 @@ test("nothing outside connection/status.ts reads the readout's raw states", () =
     path.join("connection", "reaching.test.ts"),
     path.join("connection", "status.test.ts"),
     path.join("connection", "status.ts"),
+    "named.test.ts",
   ])
 })
 
@@ -334,16 +336,17 @@ test("the open preview is put away for a reason of the panel's, never as a dismi
 })
 
 // clock.ts's claim — "the one clock in the client", which for a while was a
-// claim about the DAY and silently untrue about the wall clock. Two readouts
-// here are a reading of it and therefore go stale where they stand — the commit
-// pill's "12m ago" and the chat panel's "47s" — and each arrived with its own
-// `setInterval`, signal and `onCleanup`. What the two had in common was never
-// the number but the LIFETIME, and a disposal written out per feature is one a
-// feature will eventually forget: the timer that outlives the component it drew
-// for is invisible until a panel that has been opened and closed forty times is
-// ticking forty times. So the repeating timer is `createTicking`, once, and a
-// third readout has to reach for it. `clock.ts` itself is the definition, and
-// the pattern is the CALL — which is why its own name is the only one here.
+// claim about the DAY and silently untrue about the wall clock. The readouts
+// here that are a reading of it — the commit pill's "12m ago", the chat
+// panel's "47s", the header's "up 2h" — go stale where they stand, and each
+// would otherwise arrive with its own `setInterval`, signal and `onCleanup`.
+// What they have in common was never the number but the LIFETIME, and a
+// disposal written out per feature is one a feature will eventually forget:
+// the timer that outlives the component it drew for is invisible until a
+// panel that has been opened and closed forty times is ticking forty times.
+// So the repeating timer is `createTicking`, once, and a further readout has
+// to reach for it. `clock.ts` itself is the definition, and the pattern is
+// the CALL — which is why its own name is the only one here.
 test("only clock.ts starts a repeating timer", () => {
   expect(filesSpelling(/setInterval\s*\(/)).toEqual(["clock.ts"])
 })

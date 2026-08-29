@@ -20,7 +20,7 @@ import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:f
 import { tmpdir } from "node:os"
 import { delimiter, join } from "node:path"
 
-import { AGENT_ENV, AGENT_PATH_ENV } from "../adapter.ts"
+import { AGENT_ENV, AGENT_PATH_ENV, PI_AGENT_ENV } from "../adapter.ts"
 import { BEFORE_THE_ROSTER, onPath, rosterOf } from "./roster.ts"
 
 const CWD = "/vault"
@@ -69,6 +69,47 @@ describe("who is offered", () => {
     expect(found.map((row) => row.id)).toEqual(["opencode"])
   })
 
+  test("pi is the pinned adapter PLUS a found `pi` — either one missing is no row", () => {
+    // Adapter without agent: a row that failed at every `session/new` would
+    // be offered, which is the one promise the picker may not make.
+    expect(
+      rosterOf({ env: { [PI_AGENT_ENV]: "/store/bin/pi-acp" }, cwd: CWD, found: nowhere })
+        .map((row) => row.id),
+    ).toEqual([])
+    // Agent without adapter: the variable is the adapter's whole door, the
+    // way `OLAI_ACP_AGENT` is the claude row's.
+    expect(
+      rosterOf({ env: {}, cwd: CWD, found: (name) => name === "pi" ? "/usr/bin/pi" : null })
+        .map((row) => row.id),
+    ).toEqual([])
+  })
+
+  test("a pi on the search path with the adapter named is a row, wrapping the pi the probe found", () => {
+    const found = rosterOf({
+      env: { [PI_AGENT_ENV]: "/store/bin/pi-acp --flag" },
+      cwd: CWD,
+      found: (name) => name === "pi" ? "/home/u/.npm-global/bin/pi" : null,
+    })
+    expect(found.map((row) => row.id)).toEqual(["pi"])
+    expect(found[0]?.adapter).toEqual({
+      command: "/store/bin/pi-acp",
+      args: ["--flag"],
+      // The EXACT executable the probe found — otherwise pi-acp resolves the
+      // word `pi` against its child's PATH, which is olai's and no other.
+      env: { PI_ACP_PI_COMMAND: "/home/u/.npm-global/bin/pi" },
+    })
+  })
+
+  test("the empty pi variable is as much 'no pi row' as an absent one", () => {
+    expect(
+      rosterOf({
+        env: { [PI_AGENT_ENV]: "" },
+        cwd: CWD,
+        found: (name) => name === "pi" ? "/usr/bin/pi" : null,
+      }).map((row) => row.id),
+    ).toEqual([])
+  })
+
   test("nothing installed is nothing offered", () => {
     expect(rosterOf({ env: {}, cwd: CWD, found: nowhere })).toEqual([])
   })
@@ -92,11 +133,11 @@ describe("who is offered", () => {
 
   test("the order is the table's, so the picker draws the same list every time", () => {
     const found = rosterOf({
-      env: { [AGENT_ENV]: "/adapter" },
+      env: { [AGENT_ENV]: "/adapter", [PI_AGENT_ENV]: "/store/bin/pi-acp" },
       cwd: CWD,
       found: () => "/usr/bin/opencode",
     })
-    expect(found.map((row) => row.name)).toEqual(["Claude Code", "opencode"])
+    expect(found.map((row) => row.name)).toEqual(["Claude Code", "opencode", "pi"])
   })
 
   test("a memory that names no agent is about the row that used to be the only one", () => {
@@ -122,6 +163,12 @@ describe("finding an executable on a search path", () => {
     runnable(first, "opencode")
     runnable(second, "opencode")
     expect(onPath("opencode", [first, second].join(delimiter))).toBe(join(first, "opencode"))
+  })
+
+  test("the pi probe asks the same question of the same path", () => {
+    expect(onPath("pi", [first, second].join(delimiter))).toBeNull()
+    runnable(first, "pi")
+    expect(onPath("pi", [first, second].join(delimiter))).toBe(join(first, "pi"))
   })
 
   test("a file that cannot be executed is not an installed agent", () => {

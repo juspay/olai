@@ -8,10 +8,14 @@ Feature: Choosing an agent
 
   The scenarios tagged `@opencode` are the ones whose server FINDS an opencode:
   a scripted one shaped the way the real one is on the wire
-  (`agent/opencode/opencode`, captured against 1.17.9). Everything else in this
-  suite runs with an empty agent search path and a roster of one, which is what
-  every olai in the world is running today — and which is why the picker does
-  not turn up in front of scenarios that are not about it.
+  (`agent/opencode/opencode`, captured against 1.17.9). The `@pi` ones are the
+  same arrangement for pi: a scripted `pi-acp` beside a stub `pi`
+  (`agent/pi/pi-acp`, captured against pi-acp 0.0.33), and the row is the PAIR
+  the production roster makes — adapter from the variable, agent from the
+  probe. Everything else in this suite runs with an empty agent search path
+  and a roster of one, which is what every olai in the world is running
+  today — and which is why the picker does not turn up in front of scenarios
+  that are not about it.
 
   Background:
     Given I open the app
@@ -455,3 +459,113 @@ Feature: Choosing an agent
     # ... and the other agent's are still there, which is the half a refusal
     # about the whole call would have taken away.
     And the chats list shows "an opencode conversation" under the agent "opencode"
+
+  @pi @scratch:chat
+  Scenario: pi on the machine is something the picker offers
+    # The row is the PAIR: the pinned adapter (baked the way the claude one
+    # is, never a floating install) AND a `pi` the probe found. With both, pi
+    # is a choice beside claude; the scripted adapter is what the choice spawns.
+    Then the panel asks which agent
+    And the picker offers the agent "claude"
+    And the picker offers the agent "pi"
+
+  @pi @scratch:chat
+  Scenario: A turn with pi, from the box to the answer — and the banner left out
+    # pi-acp 0.0.33 opens a session by DOUBLING its editor-targeted startup
+    # banner as an ordinary agent chunk (the `session/new` answer's
+    # `_meta.piAcp.startupInfo` carries the exact string). Olai drops the
+    # double, matched on the answer's own text: a transcript is a
+    # conversation, this is not one, and the banner is also the one chunk
+    # that could make a genuinely silent first turn look said.
+    When I choose the agent "pi"
+    Then the header names the agent "pi"
+    And the header draws that agent's own mark
+    When I ask the agent "hello"
+    Then the chat eventually shows "pi says: hello"
+    And the chat does not yet show "pi v0.84.2"
+    And the page has not reloaded
+
+  @pi @scratch:chat
+  Scenario: A silent turn behind the banner is still named
+    # The failure the banner-drop has to NOT make: pi-acp maps a model error
+    # to a plain `end_turn` and sends nothing — no prose, no tool, not even
+    # usage — so olai's silence arm is the whole of what a person gets. The
+    # banner chunk, drawn as speech, would have counted as something said and
+    # the arm would never fire on a conversation's FIRST turn, which is when
+    # an unconfigured provider fails.
+    When I choose the agent "pi"
+    And I ask the agent "silent"
+    Then the chat eventually shows "ended the turn without saying anything"
+    And the chat does not yet show "pi v0.84.2"
+    And the agent is idle
+
+  @pi @scratch:chat
+  Scenario: pi works a tool olai handed its conversation
+    # THE PIN'S BRIDGE, answered: pi-acp (0.0.33) stores the session's
+    # handed mcpServers and wires them nowhere — the pin patches its
+    # `session/new` spawn into `-e <bridge>` + the servers in the process
+    # env (acp/patches/README.md's pi-mcp-servers section), and the bridge
+    # registers them on pi's own extension API under the SAME names this
+    # surface already reads. The scenario mirrors the wire the patch mints:
+    # an `olai_read_node:0` call — pending, in_progress, completed, with
+    # the tool's answer riding its card. The round trip that is protocol-
+    # true lives down in acp/mcp-bridge/roundtrip.test.js, one SDK pair
+    # away from the real servers.
+    When I choose the agent "pi"
+    And I ask the agent "mcp read title install"
+    Then the chat shows a completed tool call
+    And the chat eventually shows "the node's title is install"
+
+  @pi @scratch:chat
+  Scenario: A message sent mid-turn to pi queues, with no interruption to offer
+    # The one YES pi-acp earns not by advertisement but by the wire (the
+    # spike): a prompt sent while a turn runs is held in the adapter's own
+    # queue and answered in order. There is no steering extension —
+    # `_session/steering` is -32601, and `/steering` in this adapter is a
+    # slash command about pi's own delivery mode — so the gesture the claude
+    # agent has is simply not drawn.
+    When I choose the agent "pi"
+    And I ask the agent "slow"
+    Then the chat shows a running tool call
+    And the composer says a message would queue
+    And the composer offers no interruption
+    When I type "hello" into the chat
+    And I send the chat message
+    Then the chat shows my message "hello"
+    # ... and the wire's own answer to the queued message is what the panel
+    # shows: the adapter's queue-announce chunk, spoken as speech where a
+    # client shows speech. The composer claim above is the leg's word; this
+    # line is the frames the word was the reading of.
+    And the chat eventually shows "Queued message (position 1)."
+    When the agent is released
+    Then the chat eventually shows "done dawdling"
+    And the chat eventually shows "pi says: hello"
+    And the agent is idle
+
+  @pi @agent-stored @scratch:chat
+  Scenario: The chats list groups pi conversations under pi, carrying no counts
+    # What the spike found: pi-acp's `session/list` honours the request's cwd
+    # exactly and answers the protocol's four fields and nothing more — the
+    # `_meta` of the answer is an empty OBJECT at response level, never a
+    # corner on a row — so a pi row says nothing a claude row does: no count,
+    # no "superseded by". Nothing drawn is not a zero.
+    When I choose the agent "pi"
+    And I open the session picker
+    Then the chats list shows "a pi conversation" under the agent "pi"
+    And the chats list shows "an older conversation" under the agent "claude"
+    And the chats row for "a pi conversation" shows no message count
+
+  @pi @agent-stored @scratch:chat
+  Scenario: Reopening a stored pi conversation talks to pi
+    # `session/load` is the adapter's own session map reattaching a fresh pi
+    # to the stored file; the replays are the conversation, and the note is
+    # how the boot comes back without asking.
+    When I choose the agent "pi"
+    Then the chat eventually shows "pi remembers this conversation"
+    When the server stops
+    And the server starts again on the same port
+    And I open the app
+    And the agent panel is open
+    Then the panel does not ask which agent
+    And the header names the agent "pi"
+    And the chat eventually shows "pi remembers this conversation"
