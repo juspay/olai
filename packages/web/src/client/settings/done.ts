@@ -39,9 +39,12 @@
  * zoom — the stamp `../stamped.ts` retired). The subsumption is deliberate
  * rather than an accident of evolution: kept as a fallback, the global pick
  * would move every page nobody had spoken about — the exact flip-everything
- * gesture this design exists to retire — so the old key is simply orphaned:
- * nothing reads it, nothing chases it down, and `preference.ts`'s standing
- * tolerance for entries this app did not write covers it.
+ * gesture this design exists to retire — so the old key is simply abandoned:
+ * nothing reads it, nothing parses it, and nothing chases it down either —
+ * spending a `removeItem` on it would be exactly the chasing, and the price
+ * of leaving it is the bytes it already was. It sits in existing readers'
+ * storage until their browser forgets everything else, which is what
+ * "remember nothing" always means in the end.
  */
 
 import type { Row, Shown } from "@olai/format"
@@ -111,9 +114,13 @@ export const doneHiddenOn = (file: string): boolean => !pref.value().has(file)
  * discipline `setFolded` keeps (../fold/memory.ts), because the race is the
  * same one: two tabs flipping different pages are adding INDEPENDENT facts,
  * and a replace from a stale copy throws one of them away. The change goes on
- * LAST, so an un-flip (hidden again, a removal) cannot be undone by the union
- * either. A pick for a page already at the default writes the same value it
- * read, which `writePreference` is content to settle idempotently.
+ * LAST, so the WRITER'S OWN un-flip (hidden again, a removal) is not
+ * resurrected by its union. A SIBLING's removal can still ride the window the
+ * folds have: its `storage` event lands a beat late, and this tab's `value()`
+ * briefly remembers the flip it made — one event loop wide, and additions
+ * dominate, which is the fold's trade word for word. A pick for a page
+ * already at the default writes the same value it read, which
+ * `writePreference` is content to settle idempotently.
  */
 export const setDoneHidden = (file: string, hidden: boolean): void => {
   const standing = new Set([...pref.stored(), ...pref.value()])
