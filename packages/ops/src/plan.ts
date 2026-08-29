@@ -58,6 +58,7 @@ import {
   type OpFailure,
   ordBetween,
   OUTLINE_EXT,
+  propertiesIn,
   type Reading,
   type RegularNode,
   REPEAT_GRAMMAR,
@@ -79,6 +80,7 @@ import {
   ValidationFailure,
   verdictOf,
   withCustom,
+  wrongDeclaration,
   type WriteRequest as Request,
 } from "@olai/format"
 import { Result } from "effect"
@@ -1010,7 +1012,15 @@ const emit = (
   // here (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/typed-properties.md: births are gated too).
   const stored = typedProps(scope, file, capture.props)
   if (Result.isFailure(stored)) return locus(capture, stored.failure)
-  into.records.push(capturedNode(scope, capture, at, stored.success))
+  const born = capturedNode(scope, capture, at, stored.success)
+  // A record of `_olai/Properties.olai` is a DECLARATION, and a bad `type` on
+  // it used to pass this seam and meet the generic write gate — "`capture: x`
+  // would leave the file invalid" — which named nothing. The sentence is the
+  // format's ({@link wrongDeclaration}); this is {@link typedProps}' twin for
+  // the bootstrap rather than for a value.
+  const bent = declaredWrong(scope, file, born)
+  if (bent !== undefined) return bent
+  into.records.push(born)
   if ((capture.see?.length ?? 0) > 0 || (capture.waitsOn?.length ?? 0) > 0) {
     into.wires.push({ id: at.id, see: capture.see, after: capture.waitsOn })
   }
@@ -2289,6 +2299,35 @@ const typedProps = (
 }
 
 /**
+ * What is wrong with a record landing in `_olai/Properties.olai` — the
+ * bootstrap, raised as a usage refusal one moment before the validator would
+ * raise it as a finding about bytes.
+ *
+ * THE SENTENCE IS THE FORMAT'S (`@olai/format`'s {@link wrongDeclaration}).
+ * Nothing is worded here: a person moving between a refused `add_node` and a
+ * broken declarations file has to read one wording, and this layer's job is to
+ * raise it as a `usage` refusal the way {@link typedProps} raises a value's.
+ *
+ * SCOPED TO THE DECLARATIONS FILE: a write that would leave `lanes.olai`
+ * invalid still meets the generic gate, because that file is not a vocabulary.
+ * A node already in the map is taken out of `claimed` so editing its own type
+ * is not reported as declaring the key twice.
+ */
+const declaredWrong = (
+  scope: Scope,
+  file: string,
+  node: RegularNode,
+): OpFailure | undefined => {
+  if (propertiesIn([...scope.derived.byFile.keys(), file]) !== file) return undefined
+  const claimed = new Set(scope.typed.declarations.keys())
+  for (const [key, declared] of scope.typed.declarations) {
+    if (declared.at === node.id) claimed.delete(key)
+  }
+  const wrong = wrongDeclaration(scope.derived, { file, line: 0, node }, claimed)
+  return wrong === undefined ? undefined : new UsageFailure({ reason: wrong })
+}
+
+/**
  * The CONDITION a prop write may carry — the text verbs' `was`, one map in.
  *
  * `undefined` is not conditional at all, and anything else must match what the
@@ -2423,6 +2462,15 @@ const planProp = (
     if (Result.isFailure(said)) return Result.fail(said.failure)
     value = said.success[key] ?? value
   }
+  // THE DECLARATION, after the map is the map this write would leave — so a
+  // `type` of `took` on a Properties root is refused HERE, naming the legal
+  // kinds, rather than at the generic gate after the plan has already said yes.
+  const next: RegularNode = {
+    ...located.success.node,
+    custom: withCustom(located.success.node.custom, key, value ?? undefined),
+  }
+  const bent = declaredWrong(scope, located.success.file, next)
+  if (bent !== undefined) return Result.fail(bent)
   return planEdit(
     scope,
     request.id,

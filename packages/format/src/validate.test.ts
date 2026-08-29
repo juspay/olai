@@ -758,7 +758,9 @@ test("a declaration the built-in table does not know is a broken declarations fi
   })
   expect(codes(errors)).toEqual(["bad-prop"])
   expect(errors[0]?.file).toBe("_olai/Properties.olai")
-  expect(errors[0]?.message).toContain("which is not a property type — write one of `text`, `date`, `int`")
+  expect(errors[0]?.message).toContain("which is not a property type — write `text` (anything)")
+  expect(errors[0]?.message).toContain("`ref` (a child's id; `under` names the parent)")
+  expect(errors[0]?.message).toContain("`int` (a digit run)")
 })
 
 test("a declaration with no type at all says so", () => {
@@ -767,6 +769,8 @@ test("a declaration with no type at all says so", () => {
   })
   expect(codes(errors)).toEqual(["bad-prop"])
   expect(errors[0]?.message).toContain("does not say its `type`")
+  expect(errors[0]?.message).toContain("`text` (anything)")
+  expect(errors[0]?.message).toContain("`ref` (a child's id; `under` names the parent)")
 })
 
 test("`under` on something that is not a ref, and `under` naming nothing", () => {

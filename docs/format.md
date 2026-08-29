@@ -151,6 +151,12 @@ set_prop {"id":"lane","key":"merge","value":"AUTO: grok review folded + CI green
 set_prop {"id":"lane","key":"agent","value":"clade"}
 → `agent` names a node under `agents-roster` — those are `claude`, `grok`, `pi` —
   got "clade" — did you mean `claude`?
+
+add_node {file: "_olai/Properties.olai", title: "took", props: {type: "took"}}
+→ `type` is `took`, which is not a property type — write `text` (anything),
+  `date` (an ISO day or instant), `int` (a digit run), `path` (no whitespace;
+  optional `base`), `doc` (a served `.md`; optional `base`), `ref` (a child's
+  id; `under` names the parent), `node` (any node id).
 ```
 
 A hand edit that lands a bad value makes the file **broken, naming the key** (`bad-prop`), exactly how every other validation rule reports. Every door that writes a property is covered, because the check sits at the plan/validate seam: `set_prop`, `add_node`'s `props` (children included), `apply`, `update`, `capture`. `duplicate_node` needs no rule of its own — a copy is isomorphic to a subtree the validator has already approved.
@@ -449,7 +455,7 @@ The rules:
 - Dates (the marks and `date`) are valid ISO; the four marks are mutually exclusive, and a record carrying two is refused whichever two they are. Validated as text, because a writer must reproduce what it read: a date-only `2026-08-10` round-tripped through an instant would come back a datetime.
 - `repeat` is a rule the grammar holds, and the node carries a `date` for it to repeat from. Both are `bad-repeat`, and both are per-line for the reason the mark exclusion is: the whole question is on one line, and two branches that broke it between them would conflict in git rather than merging into a set nothing loads ([Repeating](#repeating)).
 - `doc` resolves, against the naming outline's own directory, to an `.md` file that is actually served.
-- Every property value fits what its key DECLARES, and every declaration in `_olai/Properties.olai` says a type the built-in table knows ([Typed properties](#typed-properties)). Both are `bad-prop`, and both name the key. A ref or a `node` value resolves a bare id across files, so the code is withheld while any file is unreadable — the same staging rule an unknown target gets, and a withheld finding still refuses the set.
+- Every property value fits what its key DECLARES, and every declaration in `_olai/Properties.olai` says a type the built-in table knows ([Typed properties](#typed-properties)). Both are `bad-prop`, and both name the key. A declaration whose `type` the table does not know names the legal kinds and each one's required shape in the same sentence. A ref or a `node` value resolves a bare id across files, so the code is withheld while any file is unreadable — the same staging rule an unknown target gets, and a withheld finding still refuses the set.
 
 There is deliberately **no rule about a mark and the children under it**, and the fourth mark added none: `set_cancelled` is not gated on the branch at all ([Status](#status)), so the format grew a word without growing a cross-line invariant. There was one — no stored derived state, which refused any mark on a node with children — and it existed only to keep a computed status and a written one from contradicting each other. Nothing computes one now, so it has nothing to defend: it dissolved with derivation rather than needing an exception ([Status](#status)). What replaced it is a pair of write-time gates and a nudge ([Status](#status)), which are the ops layer's policy and never a reason a set fails to load: a merge can write a mark in one branch and a task under it in another and both land cleanly, so this file has to read that set, and the next write through the ops layer is what fixes it.
 

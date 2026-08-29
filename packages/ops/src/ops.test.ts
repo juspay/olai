@@ -1133,3 +1133,50 @@ describe("a broken file beside a healthy one", () => {
         }),
     ))
 })
+
+/**
+ * A bad `type` in a Properties declaration used to pass the planner and meet
+ * the generic write gate — "`capture: took` would leave `_olai/Properties.olai`
+ * invalid" — which named nothing. The planner now refuses as `usage`, naming
+ * the legal kinds, so this layer never reaches that sentence.
+ */
+test("a bad type in a Properties declaration is refused naming the legal vocabulary", () =>
+  withOps(
+    {
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}\n`,
+    },
+    (fixture) =>
+      Effect.gen(function*() {
+        const unknown = yield* Effect.orDie(
+          Effect.flip(
+            fixture.ops.run({
+              op: "add",
+              file: "_olai/Properties.olai",
+              title: "took",
+              props: { type: "took" },
+            }, "mcp"),
+          ),
+        )
+        expect(unknown._tag).toBe("UsageFailure")
+        expect(unknown.message).toContain("`type` is `took`, which is not a property type")
+        expect(unknown.message).toContain("`int` (a digit run)")
+        expect(unknown.message).toContain("`ref` (a child's id; `under` names the parent)")
+        expect(unknown.message).not.toContain("would leave")
+
+        const missing = yield* Effect.orDie(
+          Effect.flip(
+            fixture.ops.run({
+              op: "add",
+              file: "_olai/Properties.olai",
+              title: "musts",
+            }, "mcp"),
+          ),
+        )
+        expect(missing._tag).toBe("UsageFailure")
+        expect(missing.message).toContain("does not say its `type`")
+        expect(missing.message).toContain("`text` (anything)")
+        expect(missing.message).toContain("`ref` (a child's id; `under` names the parent)")
+        expect(missing.message).not.toContain("would leave")
+      }),
+  ))

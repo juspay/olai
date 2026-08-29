@@ -385,7 +385,8 @@ export type { HasCustom } from "./custom.ts"
  * ONE key by declaring it in `_olai/Properties.olai`, and everything in it is
  * public because the rule is worn at two doors: the validator refuses a file
  * (in this package) and the write planner refuses a call (`@olai/ops`), in one
- * sentence, which is what `wrongValue` and `storedValue` are.
+ * sentence, which is what `wrongValue`, `storedValue` and `wrongDeclaration`
+ * are.
  *
  * `PROP_KINDS` and `PROPERTIES` are on the surface because they are the
  * VOCABULARY a tool description and a doc page teach; `declarationsOf` and
@@ -403,9 +404,11 @@ export {
   NO_TYPING,
   offsetIn,
   PATH_BASES,
+  PROP_KIND_TAKES,
   PROP_KINDS,
   storedValue,
   variantsOf,
+  wrongDeclaration,
   wrongValue,
 } from "./typing.ts"
 export type { Declared, PathBase, PropDeclarations, PropType, Typed } from "./typing.ts"
