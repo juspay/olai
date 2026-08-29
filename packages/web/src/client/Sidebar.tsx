@@ -146,7 +146,7 @@ import { Shelf } from "./pins/Shelf.tsx"
 import { Link, useRouter } from "./router.tsx"
 import { TESTID } from "./testids.ts"
 import { CONTROL, TARGET_BOX } from "./touch.ts"
-import { atFile } from "./routes.ts"
+import { atFile, type Route } from "./routes.ts"
 
 /** One file entry. Workflowy-quiet: soft hover, a wash when current.
  *
@@ -408,38 +408,31 @@ export function Sidebar(props: {
           </section>
 
           {/* THE COLUMN'S FOOT — the vault's own furniture, then the way
-              OUT of the directory.
-
-              The `_olai/` outlines sit between the reader's files and the
-              Trash, and in the Trash's own register (the quiet ink of a
-              door rather than the list's): they are not this reader's
-              corpus, but they are pages this reader may well open — the
-              watch's config is the one the drawer's wrench lands on. Drawn
-              only when the directory holds one, the shelf's own rule: an
-              empty group is nothing at all, not an empty box. */}
-          <Show when={vault().length > 0}>
-            <section class={REGION}>
-              <ul class="m-0 list-none p-0">
-                <Key each={vault()} by={(file) => file}>
-                  {(file) => (
-                    <VaultFile
-                      file={file()}
-                      isActive={isActive}
-                      broken={props.broken}
-                    />
-                  )}
-                </Key>
-              </ul>
-            </section>
-          </Show>
-
-          {/* And below all of it, the way OUT of the directory. Its own
-              region, because it is not about the files listed above. Inbox
-              used to sit here; it moved up beside Agenda (human, 2026-08-20).
-              Trash stays: that is where a trash sits. */}
-          <div class={REGION}>
-            <Trash />
-          </div>
+              OUT of the directory: one list, one mechanism (`DoorRow`),
+              because the group and the Trash are the same thing — doors
+              onto pages the tree does not draw, differing only in who is
+              named. The `_olai/` outlines sit above the Trash and in its
+              own register (the quiet ink of a door rather than the list's):
+              not this reader's corpus, but pages this reader may well open
+              — the watch's config is the one the drawer's wrench lands on.
+              An empty group is simply no rows (the shelf's own rule: never
+              an empty box); the Trash is always there, always was. Inbox
+              used to sit here; it moved up beside Agenda (human,
+              2026-08-20). */}
+          <section class={REGION}>
+            <ul class="m-0 list-none p-0">
+              <Key each={vault()} by={(file) => file}>
+                {(file) => (
+                  <VaultFile
+                    file={file()}
+                    isActive={isActive}
+                    broken={props.broken}
+                  />
+                )}
+              </Key>
+              <Trash />
+            </ul>
+          </section>
         </div>
         <Show when={props.foot}>
           {(foot) => (
@@ -520,21 +513,56 @@ function Agenda(props: { readonly owed: Owed | undefined }) {
 }
 
 /**
- * ONE OF THE VAULT'S OWN FILES — a row of the quiet group at the column's
- * foot.
+ * THE FOOT'S ONE MECHANISM — a door in the quiet register, its `li` and its
+ * `Link` spoken once: every seat below the tree is this row, a vault file's
+ * or the Trash's. What differs between them is only who is named — and which
+ * of the two CURRENT-page answers each keeps (a file's open page, the route's
+ * for a page that belongs to no outline).
  *
- * It is a FILE PAGE, not a door onto a page of its own the way Trash is:
- * `Kolu.olai` opens like any outline, so the row lights the current-page
- * wash off the open page's file exactly as a tree row does, and wears the
- * same ⚠ when the file will not read — an unreadable `_olai/Pins.olai`
- * used to be the one exception the hiding switch kept a row for, precisely
- * because swallowing the mark would be the silent failure the corpus's own
- * rules refuse.
+ * It exists because the group above it used to be hand-drawn beside the
+ * Trash's own shell, two skeletons for one register (the hickey/lowy bar:
+ * the special section gets no special mechanics).
+ */
+function DoorRow(props: {
+  readonly route: Route
+  readonly testid: string
+  readonly current: boolean
+  readonly title?: string
+  readonly broken?: boolean
+  readonly children: JSX.Element
+}) {
+  return (
+    <li class="mb-0.5">
+      <Link
+        route={props.route}
+        class={DOOR}
+        testid={props.testid}
+        current={props.current}
+        title={props.title}
+        broken={props.broken}
+      >
+        {props.children}
+      </Link>
+    </li>
+  )
+}
+
+/**
+ * ONE OF THE VAULT'S OWN FILES — a seat of the quiet group at the column's
+ * foot, the `DoorRow` dressed as a file page.
  *
- * QUIET INK, deliberately: the register is the Trash door's (`DOOR`), and
- * it is how the group reads as the house's furniture rather than as a few
- * more of the reader's own outlines parked lower — the 2026-08-29 design's
- * one treatment for what there used to be a switch about.
+ * It is a FILE PAGE, not a page of its own the way Trash is: `Kolu.olai`
+ * opens like any outline, so the seat lights the current-page wash off the
+ * open page's file exactly as a tree row does, and wears the same ⚠ when
+ * the file will not read — an unreadable `_olai/Pins.olai` used to be the
+ * one exception the hiding switch kept a row for, precisely because
+ * swallowing the mark would be the silent failure the corpus's own rules
+ * refuse.
+ *
+ * QUIET INK, deliberately: the register is the Trash door's (`DOOR`), and it
+ * is how the group reads as the house's furniture rather than as a few more
+ * of the reader's own outlines parked lower — the 2026-08-29 design's one
+ * treatment for what there used to be a switch about.
  */
 function VaultFile(props: {
   readonly file: string
@@ -542,29 +570,27 @@ function VaultFile(props: {
   readonly broken: ReadonlyMap<string, BrokenFile>
 }) {
   const of = fileKind(props.file)
+  const unreadable = () => of === "outline" && props.broken.has(props.file)
   return (
-    <li class="mb-0.5">
-      <Link
-        route={atFile(props.file)}
-        class={DOOR}
-        testid={TESTID.vaultLink}
-        current={props.isActive(props.file)}
-        broken={of === "outline" && props.broken.has(props.file)}
-        title={props.file}
-      >
-        {/* The tree rows' own seat for a fold control, held here too, so the
-            glyph lands in the same column as the tree's — one column of
-            names, the quiet ink said why these ones are quiet. */}
-        <span class={CONTROL} aria-hidden="true" />
-        <Show when={of}>{(kind) => <Glyph of={kind()} />}</Show>
-        <span class="min-w-0 truncate">{stemOf(props.file)}</span>
-        <Show when={of === "outline" && props.broken.has(props.file)}>
-          <span class="text-alarm" title="this file could not be read">
-            ⚠
-          </span>
-        </Show>
-      </Link>
-    </li>
+    <DoorRow
+      route={atFile(props.file)}
+      testid={TESTID.vaultLink}
+      current={props.isActive(props.file)}
+      broken={unreadable()}
+      title={props.file}
+    >
+      {/* The tree rows' own seat for a fold control, held here too, so the
+          glyph lands in the same column as the tree's — one column of
+          names, the quiet ink said why these ones are quiet. */}
+      <span class={CONTROL} aria-hidden="true" />
+      <Show when={of}>{(kind) => <Glyph of={kind()} />}</Show>
+      <span class="min-w-0 truncate">{stemOf(props.file)}</span>
+      <Show when={unreadable()}>
+        <span class="text-alarm" title="this file could not be read">
+          ⚠
+        </span>
+      </Show>
+    </DoorRow>
   )
 }
 
@@ -581,14 +607,13 @@ function Trash() {
   const router = useRouter()
 
   return (
-    <Link
+    <DoorRow
       route={{ kind: "trash" }}
-      class={DOOR}
       testid={TESTID.trashLink}
       current={router.route().kind === "trash"}
     >
       Trash
-    </Link>
+    </DoorRow>
   )
 }
 
