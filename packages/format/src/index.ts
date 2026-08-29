@@ -798,9 +798,9 @@ export {
  *  and this exists so that asking for the names does not cost the records
  *  ({@link PathsAnswer} argues it).
  *
- *  {@link Projected} is the counter-atom to {@link Found}: the row a read
- *  hands back when the caller SHAPED it with `fields` — the id and only what
- *  was named, the full rows' other arm. */
+ *  {@link Projected} is {@link Found}'s lean twin, asked for with `fields`:
+ *  the row a read hands back when the caller shaped it — the id, and only
+ *  what was named. */
 
 export {
   DEFAULT_SUBTREE_DEPTH,

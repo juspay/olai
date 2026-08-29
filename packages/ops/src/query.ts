@@ -1154,9 +1154,9 @@ export const subtree = (
   // `walk`'s other shape: the caller named the rows. The ROWS change and the
   // WALK does not — same depth dial, same counted children, same `truncated`
   // — because those are the walk's own structure, and `fields` has nothing to
-  // say about structure. `wants` is handed IN rather than closed over: the
-  // outer binding also carries the unasked case, and an assertion at this one
-  // function would be the walk's own way to stop checking it.
+  // say about structure. `wants` rides as an argument rather than closed
+  // over: the outer binding is `Wants | undefined` for the unasked case, and
+  // a closure over it would reask the question the fork below has answered.
   const shapedWalk = (wants: Wants, located: LocatedRegular, left: number): ProjectedSubtree => {
     const children = countedChildren(at.derived, located.node.id)
     return {

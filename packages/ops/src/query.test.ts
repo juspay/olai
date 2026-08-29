@@ -778,10 +778,10 @@ describe("the caller shapes the rows", () => {
   })
 
   test("a whole OUTLINE is shaped too, one call per ask", () => {
-    const walked_outline = outlineOf(
+    const walkedOutline = outlineOf(
       walked(timed(), { file: "steps.olai", fields: ["status"] }),
     )
-    expect(walked_outline.roots).toEqual([
+    expect(walkedOutline.roots).toEqual([
       {
         id: "lane",
         children: [
