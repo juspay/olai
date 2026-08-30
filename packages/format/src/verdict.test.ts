@@ -1,13 +1,20 @@
 /**
- * THE VERDICT'S OWN SUITE — and the differential that says it changed nothing.
+ * THE VERDICT'S OWN SUITE — and the differential that says what a load does
+ * with a finding.
  *
- * Two halves, and the second is the one that mattered while this landed. The
- * first asks the shape the questions it exists to answer (`./verdict.ts`): what
- * a finding implicates, whether a write is admissible, what a bounded face says.
- * The second holds the new shape to the OLD ANSWER over generated broken sets —
- * because a socket that quietly re-rules what a load does is a socket that
- * shipped a policy nobody approved, and which classes brick a boot is the
- * human's ruling and not this PR's (roadmap `verdict-boot-policy`, `#human`).
+ * Two halves. The first asks the shape the questions it exists to answer
+ * (`./verdict.ts`): what a finding implicates, how a refusal is read, what a
+ * bounded face says. The second is where the human's ruling of 2026-08-29
+ * lives, over generated broken sets: a finding breaks the FILES IT IS ABOUT and
+ * nothing else, so a set with one bad outline in it is served with that outline
+ * withheld and every other file live, readable and writable.
+ *
+ * IT USED TO PIN THE OPPOSITE, and the same corpora prove it: this arm was
+ * written to say that the tier shelf shipped UNTURNED — every `set` class
+ * refusing the whole vault, every `line` class carried — with a note that it
+ * was expected to fail the day the human ruled, so that the ruling came through
+ * a test saying what changed rather than through a value somebody edited. This
+ * is that day, and this is that test.
  *
  * The corpora are grown here rather than taken from `./corpora.testlib.ts`,
  * and that is the one place this file goes its own way: those corpora are
@@ -20,19 +27,20 @@
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { ErrorCode, implicatedBy, type OutlineError, stageOf } from "./errors.ts"
+import { type Document, outlineDocument } from "./document.ts"
+import { type ErrorCode, implicatedBy, type OutlineError } from "./errors.ts"
 import { seeded, setOf } from "./fixtures.testlib.ts"
+import { brokenIn, documentAt, findingsIn, nodesIn, stopping } from "./set.ts"
 import { validate } from "./validate.ts"
 import {
   admits,
+  blamed,
   implicatedIn,
   implicating,
   isClean,
   NOTHING_WRONG,
-  refusesLoad,
   summary,
-  type Tier,
-  tierOf,
+  summaryOf,
   type Verdict,
   verdictOf,
 } from "./verdict.ts"
@@ -182,83 +190,22 @@ test("a file's state is the worst thing said about it", () => {
   expect(invalid.files[0]?.state).toBe("invalid")
 })
 
-// A cross-file finding is ONE finding and TWO faces, which is the one place
-// the counts deliberately do not partition the total.
-test("a cross-file finding is counted under both files and once in the total", () => {
+// A cross-file finding is ONE finding and TWO ROWS somebody has to go and look
+// at, which is what the total is a size of.
+test("a cross-file finding is counted under both files, and counted twice", () => {
   const face = summary(verdictOf([rowOf("a.olai", "mirror-cycle", [["b.olai", 3]])]), 5)
   expect(face.files.map((one) => one.count)).toEqual([1, 1])
-  expect(face.total).toBe(1)
+  expect(face.total).toBe(2)
 })
 
-// ── the shelf ──────────────────────────────────────────────────────────
-
-/**
- * THE DIFFERENTIAL, said as one line over the closed catalogue.
- *
- * The validator used to hold two sentences and neither was a tier: "any error
- * at all refuses the set", which is every rule this file's siblings run and
- * therefore every `set` code; and the 2026-08-09 error scope, "a file whose
- * lines do not parse is a hole the rest is rendered around", which is every
- * `line` code. The table is those two sentences, one row at a time — so this is
- * the assertion that the shelf shipped UNTURNED.
- *
- * It is expected to fail the day the human rules (`verdict-boot-policy`), and
- * that is the whole of its job: the ruling has to come through a test that says
- * what changed, rather than through a value somebody edited.
- */
-test("every class is at the tier the validator already gave it", () => {
-  // THE WHOLE CATALOGUE, walked — the drift guard next door already spells this
-  // shape ({@link ./errors.test.ts}'s "every published code has a stage"), and
-  // for the same reason: a claim about "every class" made over four samples is
-  // a claim three quarters of the table can break silently. Turning ANY code to
-  // `carried` fails here, which is what the boot-policy child is gated on.
-  const tiers = ErrorCode.literals.map((code) => [code, tierOf(code)] as const)
-  expect(tiers.length).toBe(new Set(ErrorCode.literals).size)
-  for (const [code, tier] of tiers) {
-    expect({ code, tier }).toEqual({
-      code,
-      tier: stageOf(code) === "set" ? "refuses" : "carried",
-    })
-  }
-})
-
-// …and the same table read the other way, so a new code cannot arrive at a tier
-// by inheriting a stage nobody looked at: the two halves are named in full, and
-// they are exactly the catalogue.
-test("the refuses/carried split is the set/line split, named in full", () => {
-  const at = (tier: Tier): ReadonlyArray<string> =>
-    ErrorCode.literals.filter((code) => tierOf(code) === tier)
-  expect(at("carried")).toEqual([
-    "not-json",
-    "not-an-object",
-    "bad-record",
-    "bad-id",
-    "several-marks",
-    "bad-date",
-    "bad-repeat",
-    "unreadable-file",
+// The face off the SET's own entries, which is where the banner reads it from:
+// nothing is re-partitioned on the way, so the two constructors are one answer.
+test("the face of a set's broken files is the face of the verdict that broke them", () => {
+  const verdict = verdictOf([
+    rowOf("a.olai", "mirror-cycle", [["b.olai", 3]]),
+    rowOf("c.olai", "duplicate-id"),
   ])
-  expect(at("refuses")).toEqual([
-    "duplicate-id",
-    "unknown-parent",
-    "foreign-parent",
-    "parent-not-a-node",
-    "parent-cycle",
-    "unknown-target",
-    "after-cycle",
-    "mirror-cycle",
-    "missing-doc",
-    "bad-prop",
-    "unreadable-directory",
-  ])
-  expect(at("carried").length + at("refuses").length).toBe(ErrorCode.literals.length)
-})
-
-test("a report of parse errors alone refuses nothing; one set finding refuses", () => {
-  expect(refusesLoad([rowOf("a.olai", "not-json")])).toBe(false)
-  expect(refusesLoad([rowOf("a.olai", "not-json"), rowOf("b.olai", "duplicate-id")]))
-    .toBe(true)
-  expect(refusesLoad([])).toBe(false)
+  expect(summaryOf(blamed(verdict.findings), 5)).toEqual(summary(verdict, 5))
 })
 
 // ── the reference arm, over generated broken sets ──────────────────────
@@ -346,15 +293,20 @@ const adopted = (
 })
 
 /**
- * THE OLD ANSWER, over three kinds of broken set.
+ * THE PER-FILE ANSWER, over three kinds of broken set.
  *
- * `parse holes only` is the arm the error scope decided on 2026-08-09 and the
- * one a tier table could most easily have re-ruled by accident: the set is
- * ACCEPTED, with the hole carried in it. `set rules` and `mixed` are the old
- * blanket. Nothing here reads the tier table — it asks `validate` what it
- * decided, which is the only thing a consumer ever saw.
+ * The ruling as a differential rather than as a table. `parse holes only` is
+ * the arm the error scope decided on 2026-08-09 — the set is ACCEPTED with the
+ * hole carried in it — and the other two are what the ruling of 2026-08-29 did
+ * to the old blanket: they used to be REFUSED, whole vault and all, and they
+ * are now the same acceptance with a different file withheld.
+ *
+ * Nothing here reads a policy value; there is none left to read. It asks
+ * `validate` what it decided, which is the only thing a consumer ever saw, and
+ * then asks the SET the two questions a reader and a writer ask of it — whose
+ * records are gone, and what a write to each file is told.
  */
-test("the tier default answers what the validator answered, over generated broken sets", () => {
+test("a set degrades per file, over generated broken sets", () => {
   const random = seeded(20260825)
   for (let round = 0; round < 200; round++) {
     const base = healthy(random)
@@ -364,79 +316,107 @@ test("the tier default answers what the validator answered, over generated broke
 
     // The base itself must be servable, or the round says nothing about what
     // the breakage below cost.
-    expect([round, Result.isSuccess(validate(setOf(base)))]).toEqual([round, true])
+    const clean = validate(setOf(base))
+    expect([round, Result.isSuccess(clean)]).toEqual([round, true])
+    if (Result.isSuccess(clean)) {
+      // A HEALTHY SET COMES BACK AS ITSELF, identity and all — the withholding
+      // is not a rebuild every load pays for.
+      expect([round, clean.success.set.broken.length]).toEqual([round, 0])
+      for (const file of paths) {
+        expect([round, file, stopping(clean.success.set, [file])])
+          .toEqual([round, file, null])
+      }
+    }
 
     // PARSE HOLES ONLY — accepted, and the hole rides in the set.
     const holed = setOf(rest, [], { [hole]: HOLE })
     expect([round, Result.isSuccess(validate(holed))]).toEqual([round, true])
     expect([round, holed.broken.map((one) => one.file)]).toEqual([round, [hole]])
 
-    // A SET RULE — refused, exactly as the blanket refused it.
+    // A SET RULE — accepted too, now, with the one file it is about withheld.
     const broke = paths[round % paths.length] as string
     const dangling = validate(setOf(dangled(base, broke, round)))
-    expect([round, Result.isFailure(dangling)]).toEqual([round, true])
-    if (Result.isFailure(dangling)) {
-      // THE OLD BOOLEAN: the whole-set verdict IS the new shape asked about
-      // every file. That equivalence is what makes `admits` a NARROWING of the
-      // old answer rather than a different answer.
-      expect([round, admits(dangling.failure, paths)._tag]).toEqual([round, "implicated"])
-      // …AND THE NEW ANSWER, which is the freeze dying: every file the rules
-      // did NOT find anything about admits a write. Asked of a verdict the
-      // validator produced over a generated corpus rather than of a row this
-      // file wrote by hand — the whole-set arm above would go on passing if
-      // `admits` had quietly stayed a boolean about the set.
+    expect([round, Result.isSuccess(dangling)]).toEqual([round, true])
+    if (Result.isSuccess(dangling)) {
+      const set = dangling.success.set
+      // THE BROKEN FILE, AND ONLY IT: the set holds a place for it and no
+      // content, and its rows are the ones the rules found about it.
+      expect([round, set.broken.map((one) => one.file)]).toEqual([round, [broke]])
+      expect([round, brokenIn(set, broke)?.length ?? 0]).toEqual([round, 1])
+      expect([round, documentAt(set, broke)]).toEqual([round, outlineDocument(broke, [])])
+      // EVERY OTHER FILE IS LIVE — its records are in the set, its page draws a
+      // tree, and a write to it is admitted. This is the whole ruling in four
+      // lines: the freeze is not narrowed, it is gone.
       for (const survivor of paths.filter((file) => file !== broke)) {
-        expect([round, survivor, admits(dangling.failure, [survivor])._tag])
-          .toEqual([round, survivor, "admitted"])
+        expect([round, survivor, brokenIn(set, survivor)]).toEqual([round, survivor, undefined])
+        expect([round, survivor, nodesIn(Result.succeed(documentAt(set, survivor) as Document)).length > 0])
+          .toEqual([round, survivor, true])
+        expect([round, survivor, stopping(set, [survivor])]).toEqual([round, survivor, null])
       }
-      // …and the file it IS about is refused, naming itself.
-      expect([round, admits(dangling.failure, [broke])])
-        .toEqual([round, {
-          _tag: "implicated",
-          file: broke,
-          rows: implicating(dangling.failure, broke),
-        }])
+      // …and a write to the file it IS about is stopped, carrying that file's
+      // own rows.
+      expect([round, stopping(set, [broke])])
+        .toEqual([round, verdictOf(brokenIn(set, broke) as ReadonlyArray<OutlineError>)])
       // Nothing invented and nothing lost between the rows and the face.
-      const face = summary(dangling.failure, 100)
-      expect([round, face.total]).toEqual([round, dangling.failure.findings.length])
-      for (const one of face.files) {
-        expect([round, one.count])
-          .toEqual([round, implicating(dangling.failure, one.file).length])
-      }
+      const face = summaryOf(set.broken, 100)
+      expect([round, face.files.map((one) => one.file)]).toEqual([round, [broke]])
+      expect([round, face.total]).toEqual([round, brokenIn(set, broke)?.length ?? 0])
     }
 
     // A FINDING THAT REALLY NAMES TWO FILES — `foreign-parent`, whose
-    // `related` site is the parent's, in the parent's file. Both ends are
-    // implicated and everything else is admitted, which is the same narrowing
-    // asked of the shape that has no single answer to "which file is broken".
+    // `related` site is the parent's, in the parent's file. BOTH ENDS go dark
+    // and everything else stays live, which is the one shape that has no single
+    // answer to "which file is broken" and is therefore the one where blaming
+    // one end would put a page on screen the validator has just refused.
     const away = paths[0] as string
     const home = paths.find((file) => file !== away) as string
     const across = validate(setOf(adopted(base, home, round)))
-    expect([round, Result.isFailure(across)]).toEqual([round, true])
-    if (Result.isFailure(across)) {
-      const found = across.failure.findings.filter((one) => one.code === "foreign-parent")
+    expect([round, Result.isSuccess(across)]).toEqual([round, true])
+    if (Result.isSuccess(across)) {
+      const set = across.success.set
+      const found = findingsIn(set).filter((one) => one.code === "foreign-parent")
       expect([round, found.length]).toEqual([round, 1])
       // The two files come off the FINDING, so this is the rules' own
       // implication rather than this file's opinion of it.
       expect([round, implicatedBy(found[0] as OutlineError).slice().sort()])
         .toEqual([round, [away, home].slice().sort()])
+      expect([round, set.broken.map((one) => one.file).slice().sort()])
+        .toEqual([round, [away, home].slice().sort()])
       for (const end of [home, away]) {
-        expect([round, end, admits(across.failure, [end])._tag])
-          .toEqual([round, end, "implicated"])
+        expect([round, end, stopping(set, [end]) === null]).toEqual([round, end, false])
       }
       for (const survivor of paths.filter((file) => file !== home && file !== away)) {
-        expect([round, survivor, admits(across.failure, [survivor])._tag])
-          .toEqual([round, survivor, "admitted"])
+        expect([round, survivor, stopping(set, [survivor])]).toEqual([round, survivor, null])
       }
     }
 
-    // MIXED — a hole AND a set rule. Refused, and a hole alone would not have
-    // been: the two arms above are what makes this one say something.
+    // MIXED — a hole AND a dangling edge, in two different files. ONE file goes
+    // dark, and it is the hole: while some file's lines will not parse, "no
+    // node declares `nobody-declares-this`" is a GUESS about ids that may be on
+    // exactly those lines, so the rule withholds it and a withheld finding
+    // breaks nothing.
+    //
+    // THIS IS THE 2026-08-25 COLD BOOT, in three lines. Two dangling `see`
+    // edges into a file somebody was in the middle of editing served an empty
+    // vault for thirty minutes: the guesses were withheld from the report and
+    // then counted anyway, because the old blanket asked the RAW findings
+    // whether the set loaded. What the reader gets instead is the file that is
+    // really broken, and an honest dangling face where the edge points.
+    const other = paths.find((file) => file !== hole) as string
     const mixed = validate(
-      setOf(dangled(rest, paths.find((file) => file !== hole) as string, round), [], {
-        [hole]: HOLE,
-      }),
+      setOf(dangled(rest, other, round), [], { [hole]: HOLE }),
     )
-    expect([round, Result.isFailure(mixed)]).toEqual([round, true])
+    expect([round, Result.isSuccess(mixed)]).toEqual([round, true])
+    if (Result.isSuccess(mixed)) {
+      const set = mixed.success.set
+      expect([round, set.broken.map((one) => one.file)]).toEqual([round, [hole]])
+      expect([round, other, stopping(set, [other])]).toEqual([round, other, null])
+      // The edge is still THERE and still dangles — the record is in the set,
+      // and nothing resolves the id.
+      expect([round, mixed.success.derived.byId.has("nobody-declares-this")])
+        .toEqual([round, false])
+      expect([round, mixed.success.derived.namedBy.has("nobody-declares-this")])
+        .toEqual([round, true])
+    }
   }
 })

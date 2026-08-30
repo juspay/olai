@@ -1,13 +1,17 @@
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
+import { rowsOf } from "./derive.ts"
 import { bodiedDocument, type Document } from "./document.ts"
 import { isCrossFile, type OutlineError } from "./errors.ts"
 import { type Verdict, verdictOf } from "./verdict.ts"
 import { decodedOf, outlineOf, recordsOf, setOf } from "./fixtures.testlib.ts"
 import {
   assemble,
+  brokenBy,
+  brokenIn,
   documentAt,
+  findingsIn,
   type OutlineSet,
   outlinePaths,
   outlinesIn,
@@ -15,16 +19,45 @@ import {
 } from "./set.ts"
 import { following, type Previous, type Reading, reading, validate } from "./validate.ts"
 
+/**
+ * THE REPORT a set produces — the rows a reader is shown, in presentation
+ * order.
+ *
+ * A validation no longer REFUSES over any of these: since the per-file ruling
+ * it answers with the directory, published with the broken files' content
+ * withheld, and the rows ride on those files ({@link findingsIn} reads them
+ * back). So the assertions below are unchanged — they were always about the
+ * report — and what changed is the door they come through. The DEGRADATION
+ * itself is asserted separately, below, where the sets are small enough to name
+ * which file went dark.
+ */
 const errorsOf = (
   files: Record<string, string>,
   documents: ReadonlyArray<string> = [],
   broken: Record<string, string> = {},
 ): ReadonlyArray<OutlineError> => {
   const result = validate(setOf(files, documents, broken))
-  if (Result.isSuccess(result)) throw new Error("expected this set to be rejected")
-  // THE FINDINGS out of the verdict: every assertion below is about the rows a
-  // reader is shown, and the verdict's own questions are `./verdict.test.ts`'s.
-  return result.failure.findings
+  if (Result.isFailure(result)) {
+    throw new Error("a validation answers with a set, whatever it finds")
+  }
+  return findingsIn(result.success.set)
+}
+
+/** The same, and WHICH FILES the set was left holding nothing for — in path
+ *  order, which is the order `blamed` files them in. */
+const degradedBy = (
+  files: Record<string, string>,
+  documents: ReadonlyArray<string> = [],
+  broken: Record<string, string> = {},
+): { readonly set: OutlineSet; readonly dark: ReadonlyArray<string> } => {
+  const result = validate(setOf(files, documents, broken))
+  if (Result.isFailure(result)) {
+    throw new Error("a validation answers with a set, whatever it finds")
+  }
+  return {
+    set: result.success.set,
+    dark: result.success.set.broken.map((entry) => entry.file),
+  }
 }
 
 const expectValid = (
@@ -1058,4 +1091,108 @@ test("...and where that path HELD records, it is a write the door declines", () 
   expect(isAbout(alsoAfter)).toBe(true)
   expect(alsoAfter.derived.byFile.has("b.olai")).toBe(false)
   expect(alsoAfter.derived.byId.has("q")).toBe(false)
+})
+
+// ── one broken file degrades alone ─────────────────────────────────────
+//
+// The human's ruling of 2026-08-29, at the door it is decided behind. A finding
+// breaks the FILES IT IS ABOUT: those are published with their content
+// withheld, and every other file of the directory is served exactly as it would
+// be in a vault with nothing wrong with it. The cases below are the four shapes
+// that has — one file, two files, a healthy neighbour pointing INTO a withheld
+// one, and a vault where nothing is wrong at all.
+
+test("a broken file is withheld and its neighbours are untouched", () => {
+  const { set, dark } = degradedBy({
+    "attic.olai": `{"id":"attic","ord":"a","title":"the attic"}\n` +
+      `{"id":"lamps","ord":"b","title":"the lamps","see":["nobody-declares-this"]}`,
+    "cellar.olai": `{"id":"cellar","ord":"a","title":"the cellar"}\n` +
+      `{"id":"crates","parent":"cellar","ord":"b","title":"the crates"}`,
+  })
+
+  // ONE FILE DARK, and it is the one the finding is about.
+  expect(dark).toEqual(["attic.olai"])
+  expect(brokenBy(set).get("attic.olai")?.map((one) => one.code)).toEqual(["unknown-target"])
+  // It KEEPS ITS PLACE, as an outline with nothing in it — which is what makes
+  // the sidebar go on listing a file somebody is in the middle of fixing, and
+  // what makes its own page draw rows where its tree was.
+  expect(outlinePaths(set)).toEqual(["attic.olai", "cellar.olai"])
+  expect(documentAt(set, "attic.olai")).toEqual(outlineOf("", "attic.olai"))
+
+  // AND THE NEIGHBOUR IS WHOLE — its records are in the set and its tree draws.
+  expect(brokenIn(set, "cellar.olai")).toBeUndefined()
+})
+
+test("a finding that names two files takes both, and only both", () => {
+  const { set, dark } = degradedBy({
+    "attic.olai": `{"id":"attic","ord":"a","title":"the attic"}\n` +
+      `{"id":"boxes","parent":"attic","ord":"b","title":"the boxes"}`,
+    "cellar.olai": `{"id":"boxes","ord":"a","title":"the crates"}`,
+    "shed.olai": `{"id":"shed","ord":"a","title":"the shed"}`,
+  })
+
+  // `boxes` is claimed twice, in two files, and there is no answer to "which
+  // one is broken" — the error view has said so since it was written. So both
+  // ends go dark, both carry the same row, and the third file is untouched.
+  expect(dark).toEqual(["attic.olai", "cellar.olai"])
+  expect(brokenBy(set).get("attic.olai")?.map((one) => one.code)).toEqual(["duplicate-id"])
+  expect(brokenBy(set).get("cellar.olai")?.map((one) => one.code)).toEqual(["duplicate-id"])
+  expect(brokenIn(set, "shed.olai")).toBeUndefined()
+  // ONE finding, two entries — the very same row object, which is what makes
+  // the whole report readable back off the set without a duplicate in it.
+  expect(brokenBy(set).get("attic.olai")?.[0]).toBe(
+    brokenBy(set).get("cellar.olai")?.[0] as OutlineError,
+  )
+  expect(findingsIn(set)).toHaveLength(1)
+})
+
+/**
+ * A HEALTHY FILE POINTING INTO A BROKEN ONE — the design question the ruling
+ * left open, answered by not inventing a finding.
+ *
+ * `plan.olai` mirrors a node that lives in `attic.olai`, and `attic.olai` is
+ * withheld for a duplicate id of its own. The rules ran over the WHOLE set, so
+ * the mirror resolved when it was judged and `plan.olai` is not implicated by
+ * anything. What the reader gets is the dangling face the derivation already
+ * draws — `a mirror of X, which no node declares` — in a page that is otherwise
+ * completely live.
+ *
+ * The alternative was to re-run the rules over the degraded set, which would
+ * have made one bad file eat its neighbours one revision at a time.
+ */
+test("a mirror into a withheld file dangles, and does not break the file holding it", () => {
+  const { set, dark } = degradedBy({
+    "attic.olai": `{"id":"attic","ord":"a","title":"the attic"}\n` +
+      `{"id":"lamps","parent":"attic","ord":"b","title":"the lamps"}\n` +
+      `{"id":"attic","ord":"c","title":"claimed twice"}`,
+    "plan.olai": `{"id":"plan","ord":"a","title":"the plan"}\n` +
+      `{"id":"m","parent":"plan","ord":"b","mirror":"lamps"}`,
+  })
+
+  expect(dark).toEqual(["attic.olai"])
+  expect(brokenIn(set, "plan.olai")).toBeUndefined()
+
+  const view = reading(set).derived
+  // The target is NAMED and not DECLARED, which is exactly what a dangling
+  // edge is — the derivation has had a word for it all along.
+  expect(view.byId.has("lamps")).toBe(false)
+  expect(view.namedBy.has("lamps")).toBe(true)
+  const rows = rowsOf(view, "plan.olai")
+  const mirror = rows[0]?.children[0]
+  expect(mirror?.kind).toBe("dangling")
+  expect(mirror?.kind === "dangling" ? mirror.missing : "").toBe("lamps")
+})
+
+test("a directory with nothing wrong comes back as the very set it was handed", () => {
+  const set = setOf({
+    "attic.olai": `{"id":"attic","ord":"a","title":"the attic"}`,
+    "cellar.olai": `{"id":"cellar","ord":"a","title":"the cellar"}`,
+  })
+  const answer = validate(set)
+  if (Result.isFailure(answer)) throw new Error("expected a valid set")
+  // IDENTITY, and it is the byte-compatibility claim: a healthy vault pays the
+  // withholding nothing at all — not a rebuilt document list, not a second
+  // derivation, not a new value for a surface that compares frames by identity.
+  expect(answer.success.set).toBe(set)
+  expect(answer.success.set.broken).toEqual([])
 })

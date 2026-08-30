@@ -15,33 +15,46 @@
  * rather than against the markup, because a row that never reaches the reading
  * is a row no rendering can put on screen.
  *
+ * IT READS THE BROKEN FILES NOW, not a verdict, and that is the per-file ruling
+ * of 2026-08-29 arriving here: a broken outline does not stop the set loading,
+ * so what is wrong with a served directory rides on the FILES and the errors
+ * cell is left saying the one thing it is really about — a directory nobody
+ * could read. Both sources are below, because the banner has both voices.
+ *
  * The SWEEP at the end is the other half of the same promise: the surfaces
- * entitled to enumerate are the two whose whole job is enumerating, and this
+ * entitled to enumerate are the ones whose whole job is enumerating, and this
  * file is not one of them.
  */
 
-import { type OutlineError, type Summary, verdictOf } from "@olai/format"
+import { type BrokenFile, type OutlineError, type Summary, verdictOf } from "@olai/format"
 import { expect, test } from "bun:test"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
-import { BANNER_FILES, bannerFace, SAID, wentAway } from "./banner.ts"
+import { BANNER_FILES, brokenFace, goneFace, SAID, wentAway } from "./banner.ts"
 
 /** The afternoon, as a fixture: one file, `many` rows, every one of them real
- *  (`bad-prop` is what a `roster` declaration refuses). */
-const flood = (file: string, many: number) =>
-  verdictOf(
-    Array.from({ length: many }, (_, at): OutlineError => ({
+ *  (`bad-prop` is what a `roster` declaration refuses) — as the set carries it,
+ *  which is one `broken` entry per file. */
+const flood = (file: string, many: number): ReadonlyMap<string, BrokenFile> =>
+  broken([{
+    file,
+    errors: Array.from({ length: many }, (_, at): OutlineError => ({
       file,
       line: at + 1,
       code: "bad-prop",
       message:
         `\`agent\` holds "claude-opus", which \`roster\` does not declare (row ${at})`,
     })),
-  )
+  }])
+
+/** The map a tab holds — keyed by path, in whatever order the heads arrived,
+ *  which is exactly what the banner has to sort for itself. */
+const broken = (files: ReadonlyArray<BrokenFile>): ReadonlyMap<string, BrokenFile> =>
+  new Map(files.map((one) => [one.file, one]))
 
 test("135 rows in one file draw one line, and the line is a count", () => {
-  const face = bannerFace(flood("orchestrator/lanes.olai", 135))
+  const face = brokenFace(flood("orchestrator/lanes.olai", 135))
   expect(face.files).toEqual([
     { file: "orchestrator/lanes.olai", state: "invalid", count: 135 },
   ])
@@ -65,8 +78,8 @@ test("the banner's payload is bounded regardless of the row count", () => {
     total: 0,
     files: face.files.map((one) => ({ ...one, count: 0 })),
   })
-  const few = bannerFace(flood("lanes.olai", 5))
-  const many = bannerFace(flood("lanes.olai", 135))
+  const few = brokenFace(flood("lanes.olai", 5))
+  const many = brokenFace(flood("lanes.olai", 135))
   expect(countless(many)).toEqual(countless(few))
   expect(JSON.stringify(many)).not.toContain("claude-opus")
   expect(JSON.stringify(many)).not.toContain("message")
@@ -74,18 +87,33 @@ test("the banner's payload is bounded regardless of the row count", () => {
 
 test("more broken files than the clamp are counted, not listed", () => {
   const files = Array.from({ length: BANNER_FILES + 3 }, (_, at) => `f${at}.olai`)
-  const face = bannerFace(
-    verdictOf(
-      files.map((file): OutlineError => ({
+  const face = brokenFace(
+    broken(files.map((file): BrokenFile => ({
+      file,
+      errors: [{
         file,
         line: 1,
         code: "duplicate-id",
         message: "already the id of another node",
-      })),
-    ),
+      }],
+    }))),
   )
   expect(face.files).toHaveLength(BANNER_FILES)
   expect(face.more).toBe(3)
+})
+
+// IN PATH ORDER, whatever order the heads arrived in — the banner reads down
+// the directory the way the sidebar beside it does, and the map it is handed is
+// a fold of delta frames rather than a listing.
+test("the files are named in path order, not in arrival order", () => {
+  const face = brokenFace(
+    broken(["notes/zed.olai", "attic.olai", "notes/alpha.olai"].map((file) => ({
+      file,
+      errors: [{ file, line: 1, code: "duplicate-id" as const, message: "twice" }],
+    }))),
+  )
+  expect(face.files.map((one) => one.file))
+    .toEqual(["attic.olai", "notes/alpha.olai", "notes/zed.olai"])
 })
 
 // The lede's OTHER mood, and the reason it is read off the verdict rather than
@@ -93,7 +121,7 @@ test("more broken files than the clamp are counted, not listed", () => {
 // its files, and telling somebody whose mount went away to fix their outlines
 // is worse than the silence this banner replaced.
 test("a directory that could not be read is the banner's other sentence", () => {
-  const gone = bannerFace(
+  const gone = goneFace(
     verdictOf([{
       file: ".",
       line: 0,
@@ -103,7 +131,10 @@ test("a directory that could not be read is the banner's other sentence", () => 
   )
   expect(wentAway(gone)).toBe(true)
   expect(SAID[gone.files[0]!.state]).toBe("could not be read")
-  expect(wentAway(bannerFace(flood("lanes.olai", 3)))).toBe(false)
+  // …and a directory full of broken files is NOT that sentence: those pages are
+  // live, and telling their reader they are looking at an old copy would be the
+  // one thing this banner must never say.
+  expect(wentAway(brokenFace(flood("lanes.olai", 3)))).toBe(false)
 })
 
 /**

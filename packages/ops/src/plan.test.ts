@@ -12,6 +12,7 @@ import {
   blockersOf,
   datedOn,
   derive,
+  findingsIn,
   type Node,
   markdownIn,
   nodesOf,
@@ -23,6 +24,7 @@ import {
   serializeOutline,
   shelfOf,
   standingBefore,
+  stopping,
   validate,
   AddRequest,
   type WriteRequest as Request,
@@ -65,6 +67,15 @@ const house = (): OutlineSet => setOf({ "house.olai": KITCHEN })
  *  can legally mint a contradiction inside the archive. */
 const after = (set: OutlineSet, request: Request): OutlineSet =>
   performed(set, planned(set, request))
+
+/** The set a validation ANSWERS with — the same directory with whatever it
+ *  found withheld, which is where a finding lives now that none of them refuses
+ *  a load (`@olai/format`'s `validate`, and the per-file ruling). */
+const judged = (set: OutlineSet): OutlineSet => {
+  const verdict = validate(set)
+  if (Result.isFailure(verdict)) throw new Error("a validation answers with a set")
+  return verdict.success.set
+}
 
 /** The set a plan's FILES make of a set: every file re-serialized through
  *  the format's own writer and re-parsed, which is the path a real write
@@ -3120,11 +3131,13 @@ describe("move across outlines", () => {
       "notes/garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}`,
     }, ["finishes.md"])
 
-    const refusalOf = (request: Request): ReadonlyArray<string> => {
-      const verdict = validate(after(set, request))
-      if (Result.isSuccess(verdict)) return []
-      return verdict.failure.findings.map((one) => `${one.code} ${one.message}`)
-    }
+    /** What the validator finds in the tree this request leaves behind. Off the
+     *  SET the validation answers with, since a finding no longer refuses one:
+     *  the rows ride on the files they break, and this is the directory's whole
+     *  report read back (`@olai/format`'s `findingsIn`). */
+    const refusalOf = (request: Request): ReadonlyArray<string> =>
+      findingsIn(judged(after(set, request)))
+        .map((one) => `${one.code} ${one.message}`)
 
     // The move: `finishes.md` beside `house.olai` is `notes/finishes.md` beside
     // `notes/garden.olai`, and nothing serves that.
@@ -3201,20 +3214,25 @@ describe("move across outlines", () => {
     expect(derived.byId.get("claude")?.node.parent).toBe("roster")
   })
 
-  test("a `ref` VARIANT moved OUT of its root is refused, naming the key", () => {
+  test("a `ref` VARIANT moved OUT of its root breaks the file that names it", () => {
     // `claude` leaves `roster`, so `lane`'s `agent` names something that is no
     // longer a variant — the value did not move, the ANCESTRY did. The planner
-    // builds it (nothing about one record says this) and the gate refuses the
-    // set, which is the whole point of validating both files before writing
-    // either: the outline it left is not rewritten, and neither is the one it
-    // was going to.
-    const verdict = validate(after(ROSTERED(), { op: "move", id: "claude", parent: "elsewhere" }))
-    expect(Result.isFailure(verdict)).toBe(true)
-    if (Result.isSuccess(verdict)) return
-    expect(verdict.failure.findings.map((one) => one.code)).toEqual(["bad-prop"])
-    expect(verdict.failure.findings[0]?.message).toContain("`agent`")
-    expect(verdict.failure.findings[0]?.message).toContain("`roster`")
-    expect(verdict.failure.findings[0]?.message).toContain(`"claude"`)
+    // builds it (nothing about one record says this) and the write gate is what
+    // turns it back, which is the whole point of validating both files before
+    // writing either: the outline it left is not rewritten, and neither is the
+    // one it was going to.
+    //
+    // WHICH FILE the gate names is what this pins, and since the per-file
+    // ruling it is a fact the set carries rather than a whole-vault refusal:
+    // the file holding the bad value goes dark and everything else stays live,
+    // so `stopping` on that file is what the commit hears.
+    const set = judged(after(ROSTERED(), { op: "move", id: "claude", parent: "elsewhere" }))
+    const rows = findingsIn(set)
+    expect(rows.map((one) => one.code)).toEqual(["bad-prop"])
+    expect(rows[0]?.message).toContain("`agent`")
+    expect(rows[0]?.message).toContain("`roster`")
+    expect(rows[0]?.message).toContain(`"claude"`)
+    expect(stopping(set, [rows[0]?.file as string])).not.toBeNull()
   })
 
   // ── the refusals ─────────────────────────────────────────────────────

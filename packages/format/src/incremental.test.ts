@@ -67,7 +67,10 @@ import { pinnedVault, vaultAt } from "./scope.testlib.ts"
 const holds = (report: Report, floors: {
   readonly narrowed: number
   readonly whole: number
-  readonly accepted: number
+  /** Revisions published with a file WITHHELD. Omitted where a corpus is
+   *  healthy and there are none — the real vault, which is the one replay here
+   *  whose whole point is that nothing is wrong with it. */
+  readonly degraded?: number
   /** Which DOORS the whole-corpus arm was reached through, and how many times
    *  each at least. A count of them is a sum over six different things
    *  ({@link ./validate.ts}'s `Cold`), and a run that met the sum by booting
@@ -77,7 +80,9 @@ const holds = (report: Report, floors: {
   expect(report.divergences).toEqual([])
   expect(report.narrowed).toBeGreaterThan(floors.narrowed)
   expect(report.whole).toBeGreaterThan(floors.whole)
-  expect(report.accepted).toBeGreaterThan(floors.accepted)
+  if (floors.degraded !== undefined) {
+    expect(report.degraded).toBeGreaterThan(floors.degraded)
+  }
   for (const [why, many] of Object.entries(floors.declined)) {
     // Named rather than counted, so a failure says WHICH door the corpus
     // stopped reaching rather than that a total moved.
@@ -219,11 +224,23 @@ interface Corner {
    *  corner whose subject is a directory with nothing left standing, where
    *  "it narrowed" would be the failure. */
   readonly narrows?: boolean
-  /** Whether some revision of this corner has to DECLINE — the first one always
-   *  does, having nothing to follow, so this asks for a second. It is how the
-   *  duplicate-id corner says what it is about: the patcher hands a corpus with
-   *  two claims on one id back to `derive`, and the narrowing has to go with
-   *  it rather than answer over a view whose `byId` kept one of the two. */
+  /**
+   * Whether some revision of this corner has to DECLINE — the first one always
+   * does, having nothing to follow, so this asks for a second. It is how the
+   * duplicate-id corner says what it is about: the patcher hands a corpus with
+   * two claims on one id back to `derive`, and the narrowing has to go with it
+   * rather than answer over a view whose `byId` kept one of the two.
+   *
+   * IT IS TRUE OF EVERY CORNER WHERE A FINDING STANDS, since the per-file
+   * ruling, and the reason is one sentence for all of them: a validation that
+   * finds something publishes a reading with the broken file WITHHELD, so the
+   * next revision either cannot patch onto that view (`rebuilt` — the withheld
+   * records are back) or finds the ledger under it dirty (`refused` — the
+   * narrowing's second fact). Both are the corpus walked, and both were the
+   * corpus walked before the ruling too: such a set was refused outright, so
+   * nothing was published for the next validation to follow at all. What moved
+   * is which door it goes through, not what it costs.
+   */
   readonly declines?: boolean
 }
 
@@ -296,6 +313,8 @@ const CORNERS: ReadonlyArray<Corner> = [
   {
     why:
       "an edge target ARRIVES, so a finding that stood has to go away",
+    // The finding stood on the revision before — see `declines` above.
+    declines: true,
     steps: [
       at({ "a.olai": `{"id":"one","ord":"a","title":"one"}` }),
       at({ "a.olai": `{"id":"one","ord":"a","title":"one","see":["two"]}` }),
@@ -406,6 +425,13 @@ const CORNERS: ReadonlyArray<Corner> = [
     why:
       "two records SWAP LINES, which moves every site without moving the graph " +
       "— so two findings have to change places and nothing else may",
+    // The findings STAND across the swap, so the reading each revision follows
+    // is a degraded one whose ledger has errors in it — and a dirty ledger is
+    // the narrowing's own second fact, not a new rule. It walked the corpus
+    // here before the per-file ruling too; what changed is the door, from a set
+    // that was refused and published nothing to one published with `a.olai`
+    // withheld.
+    declines: true,
     steps: [
       at({
         "a.olai": `{"id":"one","ord":"a","title":"one","after":["keel"]}\n` +
@@ -441,6 +467,8 @@ const CORNERS: ReadonlyArray<Corner> = [
     why:
       "the `.md` ARRIVES, so a `missing-doc` that stood goes away without its " +
       "record being edited",
+    // The finding stood on the revision before — see `declines` above.
+    declines: true,
     steps: [
       at({ "a.olai": `{"id":"one","ord":"a","title":"one"}` }),
       at({ "a.olai": `{"id":"one","ord":"a","title":"one","doc":"notes.md"}` }),
@@ -484,7 +512,13 @@ const CORNERS: ReadonlyArray<Corner> = [
   {
     why:
       "a file stops parsing and starts again — the error scope, where a finding " +
-      "is withheld and the next reading to follow is several revisions back",
+      "is withheld and the file's own page is what degrades",
+    // Every revision but the last has something wrong with it, so every one of
+    // them publishes a degraded reading and the next validation follows a
+    // ledger with errors — see the swap corner above. "Several revisions back"
+    // is what this used to be and is not any more: the snapshot moves on every
+    // revision now, so a delta never spans more than one probe.
+    declines: true,
     steps: [
       at({
         "a.olai": `{"id":"one","ord":"a","title":"one","after":["two"]}`,
@@ -511,6 +545,12 @@ const CORNERS: ReadonlyArray<Corner> = [
       "a DUPLICATE id arrives and then leaves — the corner the patcher declines " +
       "on, so the narrowing must decline with it rather than answer over a view " +
       "whose `byId` kept one of two claims",
+    // NEITHER ARM narrows here, which is stronger than it used to be and is the
+    // same decline said twice: the patcher refuses a view whose `byId` kept one
+    // of two claims, so the view is rebuilt, and the reading the next revision
+    // follows is the degraded one this left — `a.olai` withheld, its ledger
+    // dirty. There is no revision in this corner the narrowing may answer.
+    narrows: false,
     declines: true,
     steps: [
       at({
@@ -531,6 +571,8 @@ const CORNERS: ReadonlyArray<Corner> = [
     why:
       "a DECLARATION changes type, so every value of that key in the directory " +
       "is back in question and no index says which records carry it",
+    // The finding stood on the revision before — see `declines` above.
+    declines: true,
     steps: [
       at({
         "_olai/Properties.olai": `{"id":"p","ord":"a","title":"pr","custom":{"type":"text"}}`,
@@ -550,6 +592,8 @@ const CORNERS: ReadonlyArray<Corner> = [
     why:
       "a VARIANT leaves the roster a `ref` points at, so an untouched record's " +
       "value goes stale the way a dangling edge does",
+    // The finding stood on the revision before — see `declines` above.
+    declines: true,
     steps: [
       at({
         "_olai/Properties.olai":
@@ -646,28 +690,33 @@ test("the narrowed verdict is the full verdict, over generated edit sequences", 
   holds(report, {
     narrowed: ROUNDS * 4,
     whole: ROUNDS,
-    accepted: ROUNDS * 4,
-    declined: { first: ROUNDS, rebuilt: ROUNDS * 3 },
+    degraded: ROUNDS * 4,
+    declined: { first: ROUNDS, refused: ROUNDS, rebuilt: ROUNDS },
   })
-  // THE OTHER THREE DOORS STAY SHUT when the caller drives this the way the
-  // store does, and that is a claim rather than an absence. `refused` is the
-  // dirty-ledger door and cannot fire: `Previous` is the last PUBLISHED reading,
-  // so the ledger a validation follows is always clean. `duplicates` cannot
-  // either: a corpus with two claims on one id is declined one step earlier, by
-  // the patcher, and arrives here as `rebuilt`. `documents` is the delta's own
+  // THE OTHER TWO DOORS STAY SHUT when the caller drives this the way the store
+  // does, and that is a claim rather than an absence. `duplicates` cannot fire:
+  // a corpus with two claims on one id is declined one step earlier, by the
+  // patcher, and arrives here as `rebuilt`. `documents` is the delta's own
   // honesty about `.md` membership, and this harness computes its deltas from
-  // the revisions it wrote. Any of them appearing is news — either the store's
-  // discipline changed or the harness stopped reproducing it.
-  expect(Object.keys(report.declined).sort()).toEqual(["first", "rebuilt"])
-  // The corpora really did reach the shapes the arms are about: sets that were
-  // REFUSED (so the next validation follows a reading several edits back, with
-  // a delta spanning every one of them), and sets holding a file that would not
-  // parse (so a finding was withheld rather than reported). 822 and 497 as this
-  // is written — and both were ZERO for the first hour this file existed,
-  // because a generator written for the patcher writes sets the validator
-  // condemns and a stream that is always refused never publishes a reading for
-  // anything to follow. A silent arm is an arm this file says nothing about.
-  expect(report.refused).toBeGreaterThan(ROUNDS)
+  // the revisions it wrote. `unledgered` cannot either — every reading this
+  // follows came from a validation, which is what files the ledger. Any of them
+  // appearing is news, either about the store's discipline or about the
+  // harness.
+  //
+  // `refused` IS THE PER-FILE RULING ARRIVING, and it is where the old
+  // `accepted`/`refused` counters went. A validation that finds something now
+  // publishes a DEGRADED reading and files its ledger under it, so the very
+  // next validation follows a ledger with errors in it and the narrowing turns
+  // back at its own second fact — where before, the whole set was refused and
+  // nothing was published at all. Same walk, said by the door it belongs to.
+  expect(Object.keys(report.declined).sort()).toEqual(["first", "rebuilt", "refused"])
+  // The corpora really did reach the shape the ruling is about: sets published
+  // with a file WITHHELD, and sets holding a file that would not parse (so a
+  // finding was withheld rather than reported). Both were ZERO for the first
+  // hour this file existed, because a generator written for the patcher writes
+  // sets the validator condemns and — before the ruling — a stream that is
+  // always refused never published a reading for anything to follow. A silent
+  // arm is an arm this file says nothing about.
   expect(report.unreadable).toBeGreaterThan(ROUNDS / 4)
 })
 
@@ -682,8 +731,7 @@ const summed = (found: ReadonlyArray<Report>): Report => ({
     return held
   }, {}),
   walked: found.reduce((held, one) => held + one.walked, 0),
-  accepted: found.reduce((held, one) => held + one.accepted, 0),
-  refused: found.reduce((held, one) => held + one.refused, 0),
+  degraded: found.reduce((held, one) => held + one.degraded, 0),
   unreadable: found.reduce((held, one) => held + one.unreadable, 0),
   revisions: found.reduce((held, one) => held + one.revisions, 0),
 })
@@ -702,5 +750,5 @@ test("the narrowed verdict is the full verdict, over the real vault", () => {
   // 120 narrowed, 1 whole (the load, which has nothing to follow), 11 of them
   // walking the corpus anyway — this vault is a directory that VALIDATES, so
   // nearly every revision here is one the narrowing was really asked about.
-  holds(report, { narrowed: 60, whole: 0, accepted: 60, declined: { first: 1 } })
+  holds(report, { narrowed: 60, whole: 0, declined: { first: 1 } })
 })

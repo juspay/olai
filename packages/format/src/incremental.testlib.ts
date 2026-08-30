@@ -87,7 +87,7 @@ import { type Corpus, corpusOf, editOf, FILES, pick } from "./corpora.testlib.ts
 import { fileKind } from "./kinds.ts"
 import { byPath } from "./paths.ts"
 import { decodedVault } from "./scope.testlib.ts"
-import { assemble, nodesIn } from "./set.ts"
+import { assemble, findingsIn, nodesIn } from "./set.ts"
 import { baseOf, type PropDeclarations } from "./typing.ts"
 
 import type { Cold, Reached, Reading } from "./validate.ts"
@@ -191,14 +191,21 @@ export interface Report {
    *  a floor AND a ceiling here: all of them means the narrowing narrows
    *  nothing, none of them means the corpora never reparented anything. */
   readonly walked: number
-  /** Revisions the validator accepted, and revisions it refused. Both are
-   *  floors: a corpus nothing ever refuses never tests the ledger's own gate,
-   *  and one that is never accepted never gives the narrowing a reading to
-   *  follow. */
-  readonly accepted: number
-  readonly refused: number
-  /** Revisions whose set held a file that would not parse — the error scope,
-   *  where a finding is withheld rather than reported. */
+  /**
+   * Revisions the validator found something in — the ones whose published set
+   * WITHHELD at least one file.
+   *
+   * A floor, and it is the floor `accepted` / `refused` used to be. Those two
+   * counted a distinction that no longer exists: since the per-file ruling a
+   * validation answers with a directory whatever it finds, so every revision is
+   * accepted and none is refused. What is worth counting is whether the corpora
+   * reach the DEGRADED shape at all — a stream this never fires on is a stream
+   * that only ever tested a healthy vault.
+   */
+  readonly degraded: number
+  /** Revisions whose set held a file that would not PARSE — where a finding is
+   *  withheld rather than reported, which is the one case a broken file's rows
+   *  come from the decoder rather than from the rules. */
   readonly unreadable: number
   readonly revisions: number
 }
@@ -228,8 +235,7 @@ export const replay = (revisions: Iterable<Revision>): Report => {
   // one whole-corpus run per revision into the floors below and make the
   // `first` door a number about this harness.
   const account: Array<Reached> = []
-  let accepted = 0
-  let refused = 0
+  let degraded = 0
   let unreadable = 0
   let many = 0
   watching((one) => {
@@ -310,11 +316,14 @@ export const replay = (revisions: Iterable<Revision>): Report => {
       account.length = 0
       const found = parting(many, touched, whole, verdict)
       if (found !== null) divergences.push(found)
-      if (Result.isFailure(verdict)) {
-        refused++
-        continue
-      }
-      accepted++
+      // A VALIDATION CANNOT REFUSE, so this arm cannot be taken and the
+      // accumulation above always clears — which is the store's own discipline
+      // read forwards: the snapshot moves on every revision now, so the delta a
+      // validation follows never spans more than one probe. The failure arm is
+      // still written because the type has one, and because a codec that DID
+      // refuse would have to keep the two sets exactly this way.
+      if (Result.isFailure(verdict)) continue
+      if (verdict.success.set.broken.length > 0) degraded++
       published = verdict.success
       changed.clear()
       removed.clear()
@@ -332,8 +341,7 @@ export const replay = (revisions: Iterable<Revision>): Report => {
       return { ...held, [why]: (held[why] ?? 0) + 1 }
     }, {}),
     walked: reached.filter((one) => one.walked === true).length,
-    accepted,
-    refused,
+    degraded,
     unreadable,
     revisions: many,
   }
@@ -363,12 +371,20 @@ const parting = (
   return found === null ? null : raise(revision, touched, { ...found, accepted, counts })
 }
 
-/** One verdict as the lines a reader reads down — the report itself when the
- *  set was refused, and nothing at all when it was accepted, since an accepted
- *  set's findings are the ones the error scope carried and both arms embed the
- *  same parse errors in the same set. */
+/**
+ * One verdict as the lines a reader reads down.
+ *
+ * OFF THE SET, since the per-file ruling, and that is a comparison this file
+ * gained rather than lost. A validation answers with a directory whatever it
+ * finds, and the report rides on the files it broke — so `findingsIn` reads it
+ * back, and the two arms are now held to the same report on EVERY revision
+ * instead of only on the ones a set was refused on. The failure arm is kept
+ * because the type has one; nothing this harness drives can reach it.
+ */
 const linesOf = (verdict: Result.Result<Reading, Verdict>): ReadonlyArray<string> =>
-  Result.isFailure(verdict) ? verdict.failure.findings.map(errorLine) : []
+  Result.isFailure(verdict)
+    ? verdict.failure.findings.map(errorLine)
+    : findingsIn(verdict.success.set).map(errorLine)
 
 /** What a comparison decided, before {@link raise} stamps the revision and the
  *  place on it. */

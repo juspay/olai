@@ -121,6 +121,7 @@ export {
   bodiedIn,
   brokenIn,
   documentAt,
+  findingsIn,
   markdownAt,
   markdownIn,
   nodesIn,
@@ -128,7 +129,9 @@ export {
   outlineNames,
   outlinePaths,
   outlinesIn,
+  stopping,
   withDocuments,
+  withheld,
 } from "./set.ts"
 /** WHICH FILE COMES FIRST — the order a directory is read in, and the one
  *  spelling of it: the set is assembled in it, the patcher places an arriving
@@ -973,30 +976,31 @@ export type { ErrorCode, Stage } from "./errors.ts"
  * and what the store publishes on its errors channel (`./verdict.ts`, which
  * argues the shape and names the three bugs the flat list caused).
  *
- * The four questions are the whole of the surface. `admits` is the WRITE GATE's
- * and it is per file: its answer has no whole-set member, so one broken file
- * can never again freeze a write to a healthy one, and a refusal names its
- * blocker. `summary` is a BOUNDED per-file face for a surface drawn over
- * something still live — the banner draws it, and the row enumeration stays on
- * the page a reader asked for it on. `implicating` is which findings are about
- * one file. `tierOf` is what a class costs a load, consultable rather than
- * blanket — the shelf, with the ruling about what sits on it left to the human
- * (roadmap `verdict-boot-policy`).
+ * The four questions are the whole of the surface. `admits` is what a REFUSED
+ * WRITE is read with, and it is per file: its answer has no whole-set member,
+ * so one broken file can never again freeze a write to a healthy one, and a
+ * refusal names its blocker. `summary` / `summaryOf` are a BOUNDED per-file
+ * face for a surface drawn over something still live — the banner draws it, and
+ * the row enumeration stays on the page a reader asked for it on.
+ * `implicating` is which findings are about one file. `blamed` is which FILES a
+ * report breaks, which is what a load does with a finding since the per-file
+ * ruling; it is what took the tier shelf's place, and `./verdict.ts`'s header
+ * says why a table with one row is not a policy.
  */
 export {
   ADMITTED,
   admits,
+  blamed,
   implicatedIn,
   implicating,
   isClean,
   NOTHING_WRONG,
-  refusesLoad,
   summary,
-  tierOf,
+  summaryOf,
   Verdict,
   verdictOf,
 } from "./verdict.ts"
-export type { Admission, FileFace, FileState, Summary, Tier } from "./verdict.ts"
+export type { Admission, FileFace, FileState, Summary } from "./verdict.ts"
 
 /**
  * THE PINNED SHELF, as a reading of the set rather than of a browser's copy of

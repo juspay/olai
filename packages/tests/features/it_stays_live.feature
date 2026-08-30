@@ -55,9 +55,9 @@ Feature: It stays live
     And there should be no page errors
 
   Scenario: One file that will not parse costs that one outline
-    # The hybrid error scope: house.olai loses its tree and nothing else does.
-    # Note what stays true — the sidebar still lists it, garden.olai is still
-    # drawn, and there is no banner, because nothing is being held back.
+    # The error scope: house.olai loses its tree and nothing else does. Note
+    # what stays true — the sidebar still lists it, garden.olai is still drawn,
+    # and the summary over both names exactly one file.
     When I rewrite "house.olai" as:
       """
       {"id":"kitchen","ord":"a0","title":"kitchen remodel #home"}
@@ -65,17 +65,21 @@ Feature: It stays live
       {"id":"order","parent":"kitchen","ord":"a1",title:"order the new cabinets"}
       """
     Then the outline "house.olai" is marked unreadable
-    And no stale banner is shown
+    And the stale banner names 1 file
+    And the stale banner names "house.olai" as "unparsed"
     And the node "herbs" is shown
     When I open the unreadable outline "house.olai"
     Then the outline failure shows an error at "house.olai:3"
     And the outline failure shows an error with code "not-json"
     And the page has not reloaded
 
-  Scenario: A reference that dangles holds the last good tree under a banner
-    # `nowhere` is nobody's id, and no single file owns that fact — so the whole
-    # set is held, the tree on screen is the one from before, and the banner
-    # says so. Fixing the file is the whole of the recovery.
+  Scenario: A reference that dangles costs that one outline, and nothing else
+    # `nowhere` is nobody's id. That used to hold the WHOLE set — every page in
+    # the app frozen at the last good revision behind a banner — and since the
+    # human's ruling of 2026-08-29 it costs exactly the file that says it:
+    # garden.olai draws its rows where its tree was, house.olai is live, and the
+    # banner over both is a signpost naming the one broken file rather than a
+    # warning about the page you are reading.
     When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
@@ -89,7 +93,21 @@ Feature: It stays live
     # what it may draw is a count and never the rows (`last-good-banner-flood`,
     # sighted with 135 of them above every open document).
     And the stale banner enumerates nothing
-    And the node "mint" is shown
+    # …and the line is a DOOR: every broken file has a page of its own now, so
+    # the banner sends the reader to it rather than naming a destination with
+    # nothing to show.
+    And the stale banner links to "garden.olai"
+    And the stale banner names 1 file
+    And the outline "garden.olai" is marked unreadable
+    # THE BROKEN FILE'S OWN PAGE: its rows, where its tree was.
+    When I open the unreadable outline "garden.olai"
+    Then the outline failure shows an error with code "unknown-target"
+    And the outline failure shows an error at "garden.olai:4"
+    # …AND THE NEIGHBOUR IS LIVE, drawn exactly as it always was. This is the
+    # half that used to be impossible: every page in the app was the last good
+    # copy behind that banner.
+    When I click the outline "house.olai"
+    Then the node "demo" is shown
     When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}

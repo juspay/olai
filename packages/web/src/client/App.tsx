@@ -448,7 +448,7 @@ export default function App() {
                         <Calendar today={today()} open={openDay()} />
                       </Sidebar>
                     </Show>
-                    <Panes problems={problems()} />
+                    <Panes broken={directory.broken()} problems={problems()} />
                   </div>
                 </DocumentsProvider>
             </Match>

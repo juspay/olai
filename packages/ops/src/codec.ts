@@ -15,7 +15,6 @@
  */
 
 import {
-  admits,
   assemble,
   bodiedDocument,
   bodyKind,
@@ -24,6 +23,7 @@ import {
   nodesIn,
   parseOutline,
   type Reading,
+  stopping,
   unkept,
   validate,
   type Verdict,
@@ -68,10 +68,11 @@ export const codec: Codec<Document, Reading, Verdict> = {
       // spoke. `verdictOf` is the format's one constructor for it.
       : Result.mapError(parseOutline(path, contents), verdictOf),
 
-  /** Failures included: whether an unreadable file is a hole the rest of the
-   *  set renders around or a reason to hold the last good snapshot is a
+  /** Failures included: what an unreadable file costs the rest of the set is a
    *  question about the FORMAT, so `assemble` carries them in and `validate`
-   *  answers it.
+   *  answers it. Since the per-file ruling the answer is always the same — a
+   *  hole the rest of the set is rendered around — and this arm is therefore
+   *  the only one a served directory ever comes back on.
    *
    *  What a valid set publishes as is the validator's own {@link Reading} — the
    *  set AND the derivation the rules were run over — because the store's `S`
@@ -147,8 +148,9 @@ export const codec: Codec<Document, Reading, Verdict> = {
     }])),
 
   /**
-   * IS THE REFUSAL ABOUT THESE FILES? — the write gate's question, asked of the
-   * verdict `validate` above just handed back ({@link @olai/format}'s `admits`).
+   * WHAT STOPS A WRITE TO THESE FILES? — the write gate's question, asked of
+   * what `validate` above just answered with ({@link @olai/format}'s
+   * `stopping`).
    *
    * This is the whole of `broken-file-blocks-healthy-writes`. The store judged
    * the set, because a set is what a codec judges; whether the judgement has
@@ -158,11 +160,27 @@ export const codec: Codec<Document, Reading, Verdict> = {
    * perfectly healthy file three directories away, and refused it with a
    * sentence that named nothing.
    *
-   * NO RULE IS SPELLED HERE, which is this file's standing promise: `admits` is
-   * the format's, the paths are the store's, and this line is the two of them
-   * meeting. The refusal still stands — the set is still invalid, the last good
-   * snapshot still stands, the banner still says so — and the bytes land beside
-   * it, which is exactly what a READ of the same directory already gets.
+   * IT IS ASKED OF THE SUCCESS ARM, because since the per-file ruling that is
+   * the arm a broken directory comes back on: the set is published with the
+   * broken files' content withheld, and `stopping` reads the very `broken` list
+   * a reader's page is drawn from. So the two guarantees a write needs are one
+   * sentence — a write to a healthy file lands however broken its neighbours
+   * are, and a write that would BREAK its own file is turned back with that
+   * file's rows, rather than landing and taking the file off every page.
+   *
+   * THE MENDING WRITE NEEDS NO CASE HERE. A commit is judged on the set it
+   * would MAKE, so one that repairs a broken file wholly leaves nothing to say
+   * about it and lands like any other. (Whether an OP can be planned against a
+   * withheld file is a question one layer up and the answer is no — the set
+   * holds no records to name; `@olai/ops`' `writable` is where that refusal
+   * lives, and the repair is a whole-file write.)
+   *
+   * The failure arm is the directory itself being unreadable, which implicates
+   * every path there is; it travels back exactly as it arrived. NO RULE IS
+   * SPELLED HERE, which is this file's standing promise: `stopping` is the
+   * format's, the paths are the store's, and this line is the two of them
+   * meeting.
    */
-  admits: (refusal, paths) => admits(refusal, paths)._tag === "admitted",
+  stopping: (outcome, paths) =>
+    Result.isFailure(outcome) ? outcome.failure : stopping(outcome.success.set, paths),
 }

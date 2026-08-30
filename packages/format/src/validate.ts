@@ -10,17 +10,40 @@
  * turn "fix this file" into a loop of load-fix-load, which is the workflow the
  * format exists to remove.
  *
- * A set may arrive with files that did not parse (`set.broken`), and what this
- * function decides about them is the ERROR SCOPE (resolved 2026-08-09):
+ * ## THE ERROR SCOPE IS PER FILE, and there is no other arm
  *
- *   - if the files that DID parse are clean, the set is accepted with those
- *     failures embedded in it. The broken outline renders its own errors, in
- *     its own place, and every other outline stays live — a typo in one file is
- *     not a reason to blank the other nine;
- *   - if anything else is wrong, or a rule had to withhold a finding because
- *     the missing nodes made it a guess, the set is rejected and the report
- *     carries the parse errors alongside whatever else was found. The store
- *     then keeps its last good snapshot and the browser shows a banner.
+ * A validation ANSWERS WITH A SET. Whatever it finds, the directory loads: the
+ * files a finding is about are published with their content withheld — keeping
+ * their place, carrying their rows, drawing them on their own page — and every
+ * other file is live, readable and writable. That is the human's ruling of
+ * 2026-08-29, and it holds at a cold boot exactly as it holds at runtime,
+ * because there is no boot arm here to hold anything different.
+ *
+ * It is the 2026-08-09 error scope finished. That resolution made a file whose
+ * LINES did not parse a hole the rest of the set was rendered around, and left
+ * every whole-set rule under one blanket: a duplicate id, a stale `see`, a
+ * property that did not fit its declaration — each of them took the entire
+ * vault off the screen, froze every write to every healthy file, and served
+ * nothing at all at a cold boot (`cold-boot-all-or-nothing`,
+ * `broken-file-blocks-healthy-writes`, `last-good-banner-flood`, and the trap
+ * `bug-lastgood-locked` sat in). The scope is one rule now and it is the one
+ * that was already right.
+ *
+ * TWO THINGS FOLLOW, and both are load-bearing further down.
+ *
+ * The rules are run over the WHOLE decoded set, always — the withholding is
+ * applied to the answer and never to the input. So a file being withheld cannot
+ * invent a finding against a healthy neighbour, and a `mirror` or a `see` from a
+ * healthy file into a withheld one resolves to the dangling face the derivation
+ * already draws ({@link ./derive.ts}'s `follow`) rather than to a fresh
+ * `unknown-target` that would darken the file holding the edge.
+ *
+ * And a finding a rule WITHHELD because some file did not parse breaks nothing
+ * at all ({@link ./verdict.ts}'s `blamed` reads the report, not the raw
+ * findings). "`kitchen` is not a known id" is a guess while the line declaring
+ * `kitchen` is the one that failed, and a guess may not take a page down. That
+ * is the whole of the 2026-08-25 cold-boot incident: two dangling `see` edges,
+ * both guesses, and an empty vault for thirty minutes.
  *
  * ## TWO WAYS TO REACH ONE VERDICT, and the narrowed one is the answer
  *
@@ -64,10 +87,10 @@ import { Result } from "effect"
 
 import { derive, type Derived } from "./derive.ts"
 import { type Document, isOutline } from "./document.ts"
-import type { OutlineError } from "./errors.ts"
+import type { BrokenFile, OutlineError } from "./errors.ts"
 import { type Decline, incrementally, type Ledger } from "./incremental.ts"
 import type { Located } from "./node.ts"
-import { type FileNodes, patched, type SetDelta } from "./patch.ts"
+import { type FileNodes, patch, patched, type SetDelta } from "./patch.ts"
 import { type Pointing, pointingOf, repointed } from "./pointing.ts"
 import {
   danglingIn,
@@ -83,9 +106,9 @@ import {
   reportPropValues,
   reportUnknownTargets,
 } from "./rules.ts"
-import { type OutlineSet, outlinesIn, withDocuments } from "./set.ts"
+import { type OutlineSet, outlinesIn, withDocuments, withheld } from "./set.ts"
 import { declarationsOf, type Typed } from "./typing.ts"
-import { refusesLoad, type Verdict, verdictOf } from "./verdict.ts"
+import { blamed, type Verdict } from "./verdict.ts"
 
 /**
  * A set, and the view it was JUDGED against.
@@ -172,41 +195,87 @@ export const validate = (
   const said = narrowly(set, previous, view)
   const ledger = typeof said === "string" ? wholly(set, derived, said) : said
 
-  // WHAT THIS VALIDATION LEAVES FOR THE NEXT ONE, filed under the view it was
-  // reached over. It is the same table the shadow kept and it is kept here for
-  // the same two reasons: a `WeakMap` so a view nobody held takes its ledger
-  // with it, and BESIDE the reading rather than inside it so that a `Reading`
-  // minted by {@link reading} or {@link following} — speculative, judged by
-  // nothing — carries no verdict for a later validation to narrow from. Such a
-  // reading is `unledgered` at the door above, which is a rebuild and never a
-  // guess.
+  // WHAT A READER IS SHOWN: the parse errors first, which are the cause, the
+  // guesses taken out, the whole thing in presentation order ({@link
+  // ./rules.ts}'s `reportOf` assembles both halves).
   //
-  // FILED WHATEVER THE VERDICT WAS, including a refusal, and read back only
-  // through {@link Previous} — which the store fills from the last reading it
-  // PUBLISHED. So the entry a refused validation leaves is one nothing follows,
-  // and the narrowing's second fact ({@link ./incremental.ts}) is still the
-  // store's discipline rather than this line's promise.
-  LEDGERS.set(derived, ledger)
+  // AND WHAT THE SET DOES WITH IT — which since the per-file ruling
+  // (2026-08-29) is the only question left here. This used to consult a tier
+  // table for whether the findings REFUSED the load, and every `set` class sat
+  // at `refuses`: one dangling `see` and the store held its last good snapshot,
+  // every page in the app went stale behind a banner, and a cold boot served
+  // nothing at all (`cold-boot-all-or-nothing`). The ruling has no such member
+  // in it. A finding breaks the FILES IT IS ABOUT and nothing else, so the set
+  // is published with exactly those files withheld ({@link ./set.ts}'s
+  // `withheld`, off {@link ./verdict.ts}'s `blamed`) — each one keeping its
+  // place, carrying its rows, drawing them on its own page — and every healthy
+  // neighbour stays live and stays writable.
+  //
+  // THE RULES RAN OVER THE WHOLE SET, always, and only the ANSWER is degraded.
+  // That is what makes withholding stable rather than a cascade: a `see` from a
+  // healthy file into a withheld one resolved when it was judged and dangles
+  // when it is drawn, and the next validation starts from the full decoded set
+  // again and reaches the same verdict.
+  const report = reportOf(set, ledger.errors)
+  const answer: Reading = report.length === 0
+    ? { set, derived, pointing: view.pointing }
+    : degraded(set, view, blamed(report))
 
-  // WHAT EACH FINDING COSTS A LOAD, one class at a time ({@link ./verdict.ts}'s
-  // tier table) — where this used to read `errors.length > 0` and mean "any
-  // error at all refuses the set". It still means exactly that, and that is the
-  // point: every `set` class is at `refuses` and every `line` class at
-  // `carried`, so the old blanket is the table's DEFAULT rather than the only
-  // sentence this function can say. WHICH classes brick a boot is the human's
-  // ruling (roadmap `verdict-boot-policy`, `#human`), and this is the line it
-  // will be made at.
+  // WHAT THIS VALIDATION LEAVES FOR THE NEXT ONE, filed under the view it
+  // ANSWERED WITH — which is the degraded one when there was something to
+  // withhold, and is the point of filing it here rather than beside the
+  // judgement. `Previous` is the last reading the store PUBLISHED, so the entry
+  // a following validation looks up is this one, and it has to be found: an
+  // entry it cannot find is `unledgered`, which says the reading came from
+  // somewhere other than a validation and is not true of this one.
   //
-  // ASKED OF THE RAW FINDINGS, INCLUDING one that was withheld: the withheld
-  // ones are unresolved references, and a snapshot whose nodes point at ids
-  // nobody can resolve is not a set anything could draw. What a READER is shown
-  // is the report — the parse errors, which are the cause, the guesses taken
-  // out, the whole thing in order ({@link ./rules.ts}'s `reportOf` assembles
-  // both halves) — and the last good snapshot stays on screen underneath it.
-  return refusesLoad(ledger.errors)
-    ? Result.fail(verdictOf(reportOf(set, ledger.errors)))
-    : Result.succeed({ set, derived, pointing: view.pointing })
+  // A DIRTY LEDGER DECLINES ON ITS OWN, which is what makes filing it here
+  // sound rather than merely tidy. A degraded reading is by definition one this
+  // validation found something in, so the ledger under it has errors, and the
+  // narrowing's second fact turns it back at the door ({@link
+  // ./incremental.ts}'s `refused`): there is no claim that the untouched
+  // records were ever found clean, so the corpus is walked. Which is exactly
+  // right for a view with a file's records taken out of it.
+  LEDGERS.set(answer.derived, ledger)
+  return Result.succeed(answer)
 }
+
+/**
+ * The reading a validation that found something publishes: the same set with
+ * the broken files' content withdrawn, and a view and a pointing of THAT.
+ *
+ * The two derivations are patched rather than rebuilt where they can be. A
+ * withheld file is a `removes` entry in the delta vocabulary the patcher
+ * already takes ({@link ./patch.ts}), so the view of the degraded set is the
+ * judged view with those files dropped out of it — and `patch` falls back to a
+ * rebuild on its own terms for the cases it cannot answer, of which a duplicate
+ * id is the commonest and is exactly the case that most often gets here.
+ * `repointed` is the same story for what points where: it reads the two SETS
+ * and walks only the documents that differ.
+ */
+const degraded = (
+  set: OutlineSet,
+  view: Taken,
+  broken: ReadonlyArray<BrokenFile>,
+): Reading => {
+  const withdrawn = withheld(set, broken)
+  // Nothing moved — a directory whose only trouble is a file that would not
+  // parse, which `assemble` had already withheld. The judged view is a view of
+  // this set, so there is nothing to patch and nothing to re-point.
+  if (withdrawn === set) return { set, derived: view.derived, pointing: view.pointing }
+  return {
+    set: withdrawn,
+    derived: patch(view.derived, {
+      upserts: NO_UPSERTS,
+      removes: broken.map((entry) => entry.file),
+    }),
+    pointing: repointed(view.pointing, set.documents, withdrawn.documents),
+  }
+}
+
+/** A delta that only takes files away. One value, since every withholding is
+ *  shaped exactly this way. */
+const NO_UPSERTS: ReadonlyArray<readonly [file: string, entry: FileNodes]> = []
 
 /**
  * WHY A VALIDATION HAD TO WALK THE CORPUS — one word per door, and the six of
@@ -312,9 +381,16 @@ const wholly = (set: OutlineSet, derived: Derived, why: Cold): Ledger => {
   return { errors, known, typing: declarations }
 }
 
-/** The verdict one validation reached about the view it built — read back by
- *  the next validation that follows this one ({@link validate} says why the
- *  table is here and not on the {@link Reading}). */
+/**
+ * The verdict one validation reached, filed under the view it ANSWERED with —
+ * read back by the next validation that follows this one.
+ *
+ * A `WeakMap`, so a view nobody holds takes its ledger with it; and BESIDE the
+ * reading rather than inside it, so that a `Reading` minted by {@link reading}
+ * or {@link following} — speculative, judged by nothing — carries no verdict
+ * for a later validation to narrow from. Such a reading is `unledgered` at
+ * {@link narrowly}'s third door, which is a rebuild and never a guess.
+ */
 const LEDGERS = new WeakMap<Derived, Ledger>()
 
 /** What this file holds about a view, read back. Nothing in the product asks —

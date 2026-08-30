@@ -209,6 +209,25 @@ export const OutlineError = Schema.Struct({
 export type OutlineError = typeof OutlineError.Type
 
 /**
+ * ONE FILE'S ERRORS — everything the validator found that this file is the
+ * thing to edit for.
+ *
+ * It is declared beside {@link OutlineError} rather than beside the set that
+ * carries it because it is a fact about ERRORS and not about a directory. The
+ * same shape is four things: the set's `broken` entry ({@link ./set.ts}), the
+ * per-file `broken` on the wire (`@olai/surface`), the bounded face a banner
+ * counts off ({@link ./verdict.ts}'s `summaryOf`), and the rows a broken file's
+ * own page draws. It used to live in `./set.ts`, which left the one module that
+ * decides WHICH files a finding breaks ({@link ./verdict.ts}'s `blamed`) unable
+ * to name what it produces without importing the set it is upstream of.
+ */
+export const BrokenFile = Schema.Struct({
+  file: Schema.String,
+  errors: Schema.Array(OutlineError),
+})
+export type BrokenFile = typeof BrokenFile.Type
+
+/**
  * The files this error IMPLICATES: where it was found, and every place it names
  * as related, deduped and in that order.
  *
