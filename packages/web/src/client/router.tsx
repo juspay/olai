@@ -81,8 +81,10 @@ export interface Router {
    * workspace could only ever pay the focused one.
    *
    * `at` is a FACT about where the reader is on that pane; landing is an
-   * ACT, and it happens once, on arrival. Cleared on `popstate`. A first
-   * paint counts as an arrival.
+   * ACT, and it happens once, on arrival. Cleared by a `popstate` that
+   * TRAVERSED; a first paint counts as an arrival, and so does the address
+   * bar asking again inside the same document (a fresh fragment reached
+   * without a reload is still an address somebody was handed).
    *
    * Once, and {@link Router.landed} is where that word is kept — here,
    * beside the minting, rather than in each surface that performs one.
@@ -148,7 +150,15 @@ export const createRouter = (): Router => {
   const [workspace, setWorkspace] = createSignal<Workspace>(first)
   const [landings, setLandings] = createSignal<Landings>(landingsOf(first))
 
-  nameHere()
+  // THE NAME OF THE ENTRY UNDER THE READER, kept turn and turn about — the
+  // one question a popstate cannot answer from its payload alone: did the
+  // event TRAVERSE to another entry (whose key the router knows, every entry
+  // it ever wrote being keyed once — a push mints, a replace keeps THE SAME
+  // entry's name — and every one it traversed to below), or did the BROWSER
+  // move inside this document? A same-document navigation births an entry
+  // with no name of ours on it: that popstate is the address bar SPEAKING,
+  // not the reader going back.
+  let currentKey = nameHere()
   const scroll = createScrollMemory(() => keyIn(history.state))
 
   /**
@@ -184,7 +194,8 @@ export const createRouter = (): Router => {
   ): void => {
     const href = hrefOfWorkspace(next)
     if (how === "push") {
-      history.pushState({ key: mintKey() } as Entry, "", href)
+      currentKey = mintKey()
+      history.pushState({ key: currentKey } as Entry, "", href)
     } else {
       history.replaceState({ key: nameHere() } as Entry, "", href)
     }
@@ -208,6 +219,25 @@ export const createRouter = (): Router => {
   }
 
   const onPopState = () => {
+    const target = keyIn(history.state)
+    if (target === undefined || target === currentKey) {
+      // THE ADDRESS BAR, MOVING INSIDE THIS DOCUMENT — a fragment arrived
+      // hand-carried, or the very address on screen was asked for again.
+      // That is an ARRIVAL the way the first paint is one (the browser's
+      // own hashjump answers nothing here: a row is a place in a tree, not
+      // an element id), so the address gets its landing minted the way the
+      // first paint mints it, and where it lands is the act's to spend — a
+      // reload of this URL would owe exactly that. The scroll memory's "the
+      // position you left" belongs to entries, and none was traversed to.
+      const next = workspaceOf(here())
+      currentKey = nameHere()
+      batch(() => {
+        setLandings(landingsOf(next))
+        setWorkspace(next)
+      })
+      return
+    }
+    currentKey = target
     // NOBODY IS OWED AN ARRIVAL ON THE WAY BACK, in any pane: a browser applies
     // a hash when you follow a link and does not re-apply it when you come back
     // to that entry — what it owes you then is the position you left, which is
