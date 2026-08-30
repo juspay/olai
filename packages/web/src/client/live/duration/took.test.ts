@@ -17,7 +17,7 @@
 
 import { describe, expect, test } from "bun:test"
 
-import { DAY, HOUR, MINUTE, SECOND } from "./clock.ts"
+import { DAY, HOUR, MINUTE, SECOND } from "../../clock.ts"
 import { exactOf, liveOf, tickingOf, wordsOf } from "./took.ts"
 
 describe("the settled words", () => {

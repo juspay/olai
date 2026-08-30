@@ -102,7 +102,7 @@ dispatched  2026-08-25 10:06 (sweep queue #5; the slot freed by #387's merge)
 | `text` | anything. The default, and a DECLARED `text` is the durable blessing for a key whose values are deliberately prose (`from`). |
 | `date` | an ISO day (`2026-08-25`) or an instant written as a mark records one (`2026-08-25T10:06:00-04:00`). Nothing else. |
 | `int` | a digit run: no sign, no leading zeros, no separators, nothing after them. |
-| `path` | one run of characters with no whitespace in it. May point anywhere. |
+| `path` | one run of characters with no whitespace in it. May point anywhere. A DECLARATION IS ALSO A LICENCE: it is what lets olai treat a `worktree` value as a directory to look for a CI run in ([ci.md](ci.md)), which an undeclared key never gets, because the promise that these values are paths is the vault's to make. |
 | `doc` | a path that resolves to an `.md` this directory serves. WHERE it resolves from is the key's own `base` (below). |
 | `ref` | the **id** of one of a parent's children. `under` names the parent; absent, it is the declaration's own children. |
 | `node` | the id of any node in the set. A mirror is not one. |

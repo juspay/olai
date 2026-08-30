@@ -101,6 +101,7 @@ const withRuntime = <A>(
       // tests depend on it. `null` is the OFF setting, and what it produces is
       // the same `absent` cell a laptop without kolu has.
       kolu: null,
+      odu: null,
       git: gitWiring(
         ops,
         fixedPolicy({ commit: "off", push: null }),

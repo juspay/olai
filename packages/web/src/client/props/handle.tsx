@@ -2,7 +2,7 @@
  * THE KEY HALF OF A FACT — the one thing every property renderer draws the
  * same way, wherever it draws it.
  *
- * Its own module since the BLOCK SEAM (`./blocks.ts`): a chip draws it inline
+ * Its own module since the live-properties seam (`./live.ts`): a chip draws it inline
  * and a block draws it above a row it owns, and both must be the same
  * affordance — same face, same testid, same sentence, same promise. The promise
  * is `./PropsDrawer.tsx`'s and is worth repeating where the code is: THE KEY IS

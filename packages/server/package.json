@@ -21,6 +21,7 @@
     "@olai/identity": "workspace:*",
     "@olai/kolu-client": "workspace:*",
     "@olai/log": "workspace:*",
+    "@olai/odu-client": "workspace:*",
     "@olai/ops": "workspace:*",
     "@olai/sigterm": "workspace:*",
     "@olai/state": "workspace:*",

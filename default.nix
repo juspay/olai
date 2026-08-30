@@ -6,6 +6,7 @@
 { pkgs ? import ./nix/nixpkgs.nix { }, b2n, rev ? "dev" }:
 let
   kolu = import ./nix/kolu.nix { inherit pkgs; };
+  odu = import ./nix/odu.nix { inherit pkgs; };
   version = (pkgs.lib.importJSON ./package.json).version;
 
   # @kolu/surface-app's own helper for stamping a build's commit into the
@@ -67,8 +68,12 @@ let
     # dropped in *after* bun install populates node_modules. Both the SCRIPT
     # and the argv come off the pin (nix/kolu.nix), so this derivation and the
     # dev shell run the same copier over the same list.
+    # ...and `@odu/run-client` beside them, through the SAME script: the copier
+    # takes (src, dest) pairs and knows nothing about which repo a source came
+    # from, which is why odu needs no second one (nix/odu.nix).
     postBunNodeModulesInstallPhase = ''
       sh ${kolu.hydrateScript} ${kolu.hydrateArgs}
+      sh ${kolu.hydrateScript} ${odu.hydrateArgs}
     '';
 
     buildPhase = ''

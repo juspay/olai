@@ -12,11 +12,12 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "@olai/format for the domain's wire vocabulary, and @olai/acp's `./wire` subpath for the protocol's — the surface is a declaration, and every olai type on the wire is owned by the package that speaks it and re-exported here (RepoState through format, the ask shapes through acp). @kolu/surface is absent on purpose: it is hydrated from the Nix store rather than installed from bun.lock, so it is declared once for the whole tree in the root package.json (see bunfig.toml).",
+  "//dependencies": "@olai/format for the domain's wire vocabulary, and @olai/acp's `./wire` subpath for the protocol's — the surface is a declaration, and every olai type on the wire is owned by the package that speaks it and re-exported here (RepoState through format, the ask shapes through acp). The two APPLIANCE slices are named the same way and for the same ruling — @olai/kolu-client and @olai/odu-client each hold their own wire vocabulary and their own member declarations, which this spec SPREADS (`koluMembers`, `oduMembers`) and re-exports, so nothing kolu- or odu-named lives in the package every browser bundles. @kolu/surface is absent on purpose: it is hydrated from the Nix store rather than installed from bun.lock, so it is declared once for the whole tree in the root package.json (see bunfig.toml).",
   "dependencies": {
     "@olai/acp": "workspace:*",
     "@olai/format": "workspace:*",
     "effect": "4.0.0-rc.112",
-    "@olai/kolu-client": "workspace:*"
+    "@olai/kolu-client": "workspace:*",
+    "@olai/odu-client": "workspace:*"
   }
 }

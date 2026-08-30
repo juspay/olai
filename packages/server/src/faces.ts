@@ -291,6 +291,20 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   // `screen.text` and its own kolu MCP besides, so a byte stream that only
   // exists while somebody is LOOKING has no reader on that face.
   terminal: "resource",
+  // THE CI RUNS — the live-properties seam's second face, and the browser's
+  // alone for the reason the four above it are. This cell is a READING of
+  // somebody else's coordinator, and an agent that wants a run's state has
+  // odu's own MCP face and `odu status` besides; re-serving them through olai
+  // would be a second door onto another tool's socket with olai's credentials
+  // on it, which is exactly the line `kolu` and `fleet` are held to.
+  //
+  // The line is easier here than there, in fact: this member carries no bytes
+  // anybody typed — no screen, no log (`@olai/odu-client`'s `project.ts` says
+  // why the log is not on the wire at all) — so what is being withheld is a
+  // convenience rather than a secret. It is withheld anyway, because "which
+  // face gets what" is a decision somebody makes per member rather than a
+  // default the next member inherits.
+  ci: "resource",
   "screen.text": "tool",
   "chat.send": "tool",
   "chat.attach": "tool",

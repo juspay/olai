@@ -200,6 +200,17 @@ export const serve = (options: ServeOptions) =>
       // which is the true answer for a process that has no business holding a
       // socket to somebody's daemon open.
       kolu: { env: process.env, now: () => new Date().toISOString() },
+      // ...AND THE CI PROBE, on the same terms and for the same reason. `olai
+      // web` is the face the live-properties seam is drawn on, so it is the
+      // face that sweeps; the headless and one-shot faces below pass `null`
+      // and their `ci` cell stays empty.
+      //
+      // `root` is the served directory, and it is half of where a relative
+      // `worktree` resolves to — the other half is `$OLAI_REPOS_DIR` when a
+      // machine's checkouts do not sit beside its vault. Both are read HERE,
+      // once, because a composition root is where a process reaches for the
+      // real environment (`@olai/odu-client`'s `resolve.ts` argues the rule).
+      odu: { env: process.env, served: root },
     })
     publish = wired.publish
 

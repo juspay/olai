@@ -20,6 +20,8 @@ The third is why the readout is not a boolean. *Start kolu* and *these two build
 
 ## The `terminal` property is a door
 
+This is one of olai's **live properties** — a property whose value is a name the board decided on, and whose face goes and finds out what that name currently is. It was the first, and [ci.md](ci.md) describes the seam and its second tenant (a `worktree` that has a CI run going in it). Nothing below is special to kolu except the clothes.
+
 Give a node a `terminal` property whose value is a kolu terminal's id — the whole uuid, or the eight-character prefix a board usually writes — and the property draws **kolu's own Dock row**:
 
 ```
