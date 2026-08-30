@@ -484,7 +484,7 @@ test("a declaration the reading cannot make is skipped rather than guessed at", 
   // `unknown` IS IN THE MAP and the other five are not, which is the eighth
   // arm arriving rather than a hole: a word the seven do not claim reads as a
   // CONTRIBUTED kind carrying that word, because the reading takes no
-  // vocabulary and could not tell `colour` from `terminal` if it wanted to.
+  // vocabulary and could not tell `colour` from `sprocket` if it wanted to.
   // What that buys is the word itself, which is what `sameTyping` compares;
   // what it costs is nothing, since the three claims below are exactly the
   // ones the skip used to make.
@@ -518,14 +518,14 @@ test("a contributed kind nobody answers for judges no value, and is still report
 test("a kind this build knows is a legal declaration, and holds its values to the plugin's word", () => {
   const KINDS = {
     built: new Map([[
-      "terminal",
-      { kind: "terminal", takes: "`terminal` (a padi terminal id)", admits: (v: string) => /^[0-9a-f-]+$/.test(v) },
+      "sprocket",
+      { kind: "sprocket", takes: "`sprocket` (a sprocket id)", admits: (v: string) => /^[0-9a-f-]+$/.test(v) },
     ]]),
     enabled: new Map<string, ContributedKind>(),
   }
   const bent = derive(nodesOfFiles({
     "_olai/Properties.olai":
-      `{"id":"p","ord":"a0","title":"pty","custom":{"type":"terminal"}}`,
+      `{"id":"p","ord":"a0","title":"pty","custom":{"type":"sprocket"}}`,
     "a.olai": `{"id":"one","ord":"a0","title":"one","custom":{"pty":"a uuid, and a remark"}}`,
   }))
   // THE DECLARATION IS ACCEPTED off the BUILT half, whether or not this serve
@@ -541,7 +541,7 @@ test("a kind this build knows is a legal declaration, and holds its values to th
   // DISABLED: plain text, nothing refused. ENABLED: the plugin's own sentence.
   expect(held(KINDS)).toBeUndefined()
   expect(held({ built: KINDS.built, enabled: KINDS.built }))
-    .toContain("`pty` is `terminal` (a padi terminal id) — got \"a uuid, and a remark\".")
+    .toContain("`pty` is `sprocket` (a sprocket id) — got \"a uuid, and a remark\".")
 })
 
 test("sameTyping tells one contributed word from another, so a retype re-asks every value", () => {
@@ -550,11 +550,11 @@ test("sameTyping tells one contributed word from another, so a retype re-asks ev
       "_olai/Properties.olai":
         `{"id":"p","ord":"a0","title":"pty","custom":{"type":"${word}"}}`,
     })))
-  expect(sameTyping(of("terminal"), of("terminal"))).toBe(true)
+  expect(sameTyping(of("sprocket"), of("sprocket"))).toBe(true)
   // The QUIETEST breakage this file has: both read `contributed`, and a
   // comparison that stopped at the arm would keep approving values against a
   // premise the vault has retired.
-  expect(sameTyping(of("terminal"), of("worktree"))).toBe(false)
+  expect(sameTyping(of("sprocket"), of("worktree"))).toBe(false)
 })
 
 // ── the review's corners ───────────────────────────────────────────────

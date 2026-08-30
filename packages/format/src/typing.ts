@@ -268,7 +268,9 @@ export const PROP_KIND_TAKES = {
  * subject over.
  */
 export interface ContributedKind {
-  /** The word a declaration writes: `{"type":"terminal"}`. */
+  /** The word a declaration writes: `{"type":"sprocket"}` — an example, and a
+   *  made-up one on purpose: this package has no opinion about which words a
+   *  plugin contributes and could not name a real one without acquiring one. */
   readonly kind: string
   /** What a refusal calls it — the plugin's own clause. */
   readonly takes: string

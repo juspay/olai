@@ -389,7 +389,7 @@ test("a contributed kind draws no door of the app's own, and reads as text where
   // the machine.
   const read = readingOfVault(
     new Map<string, string>([
-      ["_olai/Properties.olai", `{"id":"p","ord":"a0","title":"pty","custom":{"type":"terminal"}}`],
+      ["_olai/Properties.olai", `{"id":"p","ord":"a0","title":"pty","custom":{"type":"sprocket"}}`],
       ["a.olai", `{"id":"one","ord":"a0","title":"one","custom":{"pty":"https://example.com/x"}}`],
     ]),
   )
@@ -399,8 +399,8 @@ test("a contributed kind draws no door of the app's own, and reads as text where
     serves: () => false,
     documents: () => false,
     kinds: {
-      built: new Map([["terminal", TERMINAL]]),
-      enabled: enabled ? new Map([["terminal", TERMINAL]]) : new Map(),
+      built: new Map([["sprocket", SPROCKET]]),
+      enabled: enabled ? new Map([["sprocket", SPROCKET]]) : new Map(),
     },
   })
   expect(meaningOf(asking(true), "a.olai", "pty", "https://example.com/x")).toBeNull()
@@ -409,9 +409,9 @@ test("a contributed kind draws no door of the app's own, and reads as text where
 })
 
 /** One plugin's entry, as the composition root assembles one. */
-const TERMINAL: ContributedKind = {
-  kind: "terminal",
-  takes: "`terminal` (a padi terminal id)",
+const SPROCKET: ContributedKind = {
+  kind: "sprocket",
+  takes: "`sprocket` (a sprocket id)",
   admits: (value) => /^[0-9a-f-]+$/.test(value),
 }
 
