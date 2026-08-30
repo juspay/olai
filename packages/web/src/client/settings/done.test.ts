@@ -124,6 +124,7 @@ test("a write keeps the pick of a page this tab never saw", () => {
 
 test("on a contested key the STORED one wins — a sibling's fresh flip is never reverted by a stale copy", () => {
   remembering((store) => {
+    quiet()
     // A started tab and a later sibling share house shown — the only case
     // both maps ever hold one key.
     setDoneFor("house.olai", "shown")

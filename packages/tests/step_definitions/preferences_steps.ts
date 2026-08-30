@@ -292,11 +292,13 @@ const flipDone = async (
     .locator(`${PREFS_CHOICE}${attr("data-value", word)}`);
   await pick.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await pick.click();
-  // The press is not said until the strip carries it: effective value moves,
-  // or the own-mark appears — either way the paint is the promise's worth.
+  // Scored to THE SEGMENT PRESSED: either the press landed (the segment
+  // that was not in force now is) or the ask was a deliberate no-op (the
+  // in-force side already carries it — at pace the same selector, at no
+  // cost — a no-op IS the read a press makes of this strip now.
   await page
     .locator(
-      `${FOCUSED_PANE} ${DONE_FLIP} ${PREFS_CHOICE}[aria-pressed="true"]`,
+      `${FOCUSED_PANE} ${DONE_FLIP} ${PREFS_CHOICE}${attr("data-value", word)}[aria-pressed="true"]`,
     )
     .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 };

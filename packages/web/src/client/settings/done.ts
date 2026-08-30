@@ -25,11 +25,14 @@
  *     nowhere (no entry is "follow"). Two tabs flipping DIFFERENT pages are
  *     not rival picks but independent answers to one question; a replace would
  *     lose one, so the write starts from the ENTRY unioned with what this tab
- *     holds, and the change goes on LAST — the sibling race is one event loop
- *     wide and additions dominate, inherited words from the folds. An explicit
- *     RELEASE (the flip pressed the way it already stands) removes the entry
- *     the same way, ranked after everything it was unioned with, so a page
- *     goes back to following the panel.
+ *     holds, and the change goes on LAST. On a key ONE tab has ever spelled
+ *     the additions win; on a key BOTH know, the sibling's spelled entry
+ *     carries over this tab's stale one — the window is one event loop wide,
+ *     and what a union cannot see (a sibling's delete of a key this tab still
+ *     holds) is the folds' own trade, taken face-on. An explicit RELEASE —
+ *     the mark beside the strip, `../filter/DoneFlip.tsx`'s own gesture —
+ *     removes the entry the same way, ranked after everything it was unioned
+ *     with, so a page goes back to following the panel.
  *
  * The talk page is the archive's `done-over-open-work.md` and the design
  * revision that made this two facts: the panel is still global; the page
