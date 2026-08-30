@@ -1,8 +1,10 @@
 import { expect, test } from "bun:test"
 
 import {
+  blamedOn,
   compareErrors,
   ErrorCode,
+  implicatedBy,
   isCrossFile,
   type OutlineError,
   reportStage,
@@ -79,6 +81,40 @@ test("an error is cross-file when a related site lives in another file", () => {
     ),
   ).toBe(false)
   expect(isCrossFile({ code: "bad-id", file: "a.olai", line: 1, message: "x" })).toBe(false)
+})
+
+// THE TWO PLANES, and one reading of the field that separates them. A site
+// marked `broken: false` is NAMED and not blamed — the ground a judgement
+// stands on, or the thing a broken record reached at — so the about axis
+// reaches it (a reader draws it; the drift check at a refusal has to be able
+// to ask about a stale judge) and the blame does not. `isCrossFile` is the
+// second counted rather than a third reading of `Related.broken`, which is the
+// drift this pair exists to make impossible.
+test("a site the finding NAMES but does not break is on one plane and not the other", () => {
+  const named = error("lanes.olai", 3, "bad-prop", [
+    { file: "_olai/Properties.olai", line: 1, note: "declared here", broken: false },
+  ])
+  expect(implicatedBy(named)).toEqual(["lanes.olai", "_olai/Properties.olai"])
+  expect(blamedOn(named)).toEqual(["lanes.olai"])
+  expect(isCrossFile(named)).toBe(false)
+
+  // …and an unmarked site is on both, which is the safe default: a rule that
+  // forgets over-darkens rather than drawing a page out of records the
+  // validator has just refused.
+  const shared = error("b.olai", 1, "duplicate-id", [
+    { file: "a.olai", line: 1, note: "first declared here" },
+  ])
+  expect(implicatedBy(shared)).toEqual(blamedOn(shared))
+  expect(blamedOn(shared)).toEqual(["b.olai", "a.olai"])
+
+  // One file named TWICE — once as ground, once as broken — is broken,
+  // whichever order the sites came in, and appears once on each plane.
+  const both = error("lanes.olai", 3, "bad-prop", [
+    { file: "a.olai", line: 1, note: "declared here", broken: false },
+    { file: "a.olai", line: 9, note: "first declared here" },
+  ])
+  expect(blamedOn(both)).toEqual(["lanes.olai", "a.olai"])
+  expect(implicatedBy(both)).toEqual(["lanes.olai", "a.olai"])
 })
 
 // The stage is a pure function of the code rather than a stored field: two

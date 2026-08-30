@@ -332,14 +332,44 @@ export type BrokenFile = typeof BrokenFile.Type
  * afterwards ({@link ./verdict.ts} asks it of a whole verdict).
  *
  * It is here rather than there because it is a fact about ONE error, which is
- * this module's subject, and because {@link isCrossFile} is the same question
- * asked for a different purpose: a finding about two files has no single answer
- * to "which file is broken", so the error view groups it on its own.
+ * this module's subject, and because {@link blamedOn} is the other plane of the
+ * same question: which files the finding is ABOUT is not which files it BREAKS.
  */
-export const implicatedBy = (error: OutlineError): ReadonlyArray<string> => {
+export const implicatedBy = (error: OutlineError): ReadonlyArray<string> =>
+  filesOf(error, () => true)
+
+/**
+ * The files this error BREAKS: where it was found, and every related site that
+ * did not say otherwise, deduped and in that order.
+ *
+ * THE OTHER PLANE, and the whole of the difference from {@link implicatedBy} is
+ * `Related.broken`. A site a finding NAMES without blaming is either the ground
+ * it was judged on (`bad-prop`'s declaration) or the thing it reached at
+ * (`foreign-parent`'s parent): named so a reader can see it, and left lit and
+ * writable because it is nobody's fault. Every other named site shares the
+ * fault and breaks — a duplicate's other claim, a cycle's steps.
+ *
+ * ONE READING OF THAT FIELD, which is why this exists rather than the `.some`
+ * it replaces. It had three spellings — the loader's filing
+ * ({@link ./verdict.ts}'s `blamed`), the error view's grouping
+ * ({@link isCrossFile} below) and the sentence in `Related`'s own doc — and two
+ * codes ride the field now, so a fourth reader would be the one that finally
+ * disagreed about whether a `foreign-parent` darkens the parent's page.
+ */
+export const blamedOn = (error: OutlineError): ReadonlyArray<string> =>
+  filesOf(error, (related) => related.broken !== false)
+
+/** Both planes, over one walk: the error's own site always, and the related
+ *  sites this plane keeps. Deduped by file, in the order the finding names
+ *  them — `.includes` over a handful rather than a `Set` per error, which is
+ *  the trade every reader of a finding's sites makes. */
+const filesOf = (
+  error: OutlineError,
+  keeps: (related: Related) => boolean,
+): ReadonlyArray<string> => {
   const files = [error.file]
   for (const related of error.related ?? []) {
-    if (!files.includes(related.file)) files.push(related.file)
+    if (keeps(related) && !files.includes(related.file)) files.push(related.file)
   }
   return files
 }
@@ -347,15 +377,12 @@ export const implicatedBy = (error: OutlineError): ReadonlyArray<string> => {
 /** True when the error BREAKS more than one file — the browser groups those
  *  on their own, because "which file is broken" has no single answer.
  *
- *  BREAKS, not IMPLICATES, and the difference is `Related.broken`: a
- *  `bad-prop` names the declaration that judged it as its ground, so the
- *  about-axis above reaches two files for every one of them — but the
- *  judge's page stays lit and "which file is broken" keeps its one
- *  answer. Only a site that BREAKS counts, the same rule
- *  {@link ./verdict.ts}'s `blamed` files by: the error's own file, and any
- *  related site that did not say otherwise. */
-export const isCrossFile = (error: OutlineError): boolean =>
-  (error.related ?? []).some((one) => one.file !== error.file && one.broken !== false)
+ *  BREAKS, not IMPLICATES, which is {@link blamedOn}'s whole subject: the
+ *  about-axis reaches two files for every `bad-prop` and every
+ *  `foreign-parent`, and neither of them has two files to fix. So this is
+ *  that plane counted, rather than a second reading of `Related.broken` free
+ *  to drift from the one the loader files by. */
+export const isCrossFile = (error: OutlineError): boolean => blamedOn(error).length > 1
 
 /** A `line` of 0 means there is no record to point at — the site is the path
  *  itself. Two codes have that (`unreadable-directory`, about a DIRECTORY,

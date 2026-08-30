@@ -14,11 +14,10 @@
  * The findings are the same findings. What is new is that the questions are
  * asked HERE, once, and answered off one value:
  *
- *   - {@link blamed} — which files a finding is ABOUT, filed under them.
- *     `Reach` in `./errors.ts` already named this axis for the staging rule
- *     (`set-across-files` is the code an unreadable file can invent) and
- *     `implicatedBy` reads it per finding; this is that answer for a whole
- *     report, and it is the one partition of a verdict there is.
+ *   - {@link blamed} — which files a finding BREAKS, filed under them. The
+ *     per-finding answer is `./errors.ts`'s (`blamedOn`, the plane
+ *     `implicatedBy` is the other of); this is that answer for a whole report,
+ *     and it is the one partition of a verdict there is.
  *   - {@link admits} — how a REFUSAL is read, and it is per file. Its
  *     answer has no whole-set member: there is no way to spell "the set is
  *     invalid, so no" at a write, only "`lanes.olai` is what stops this", which
@@ -75,7 +74,7 @@
 
 import { Schema } from "effect"
 
-import { type BrokenFile, implicatedBy, OutlineError, stageOf } from "./errors.ts"
+import { blamedOn, type BrokenFile, OutlineError, stageOf } from "./errors.ts"
 import { byPath } from "./paths.ts"
 
 /**
@@ -390,23 +389,12 @@ export const blamed = (
 ): ReadonlyArray<BrokenFile> => {
   const files = new Map<string, Array<OutlineError>>()
   for (const finding of report) {
-    // The site it was FILED ON, always. The related sites, USUALLY — the
-    // exception is the one the two-plane ruling draws: a site the finding
-    // NAMES but does not break, which is the ground it was judged on
-    // (`bad-prop`'s declaration) or the thing it reached at
-    // (`foreign-parent`'s parent). Pulling THOSE files' pages dark would be
-    // the broken-file-blocks-healthy-writes sentence said through the
-    // loader's mouth instead of the gate's. A duplicate's other claim and a
-    // cycle's steps say nothing and are the common case: every named site
-    // breaks.
-    //
-    // `.some` and not `.find`'s first answer: one file named twice — once as
-    // ground, once as broken — is dark, whichever order the rows came in.
-    const darkened = implicatedBy(finding).filter((file) =>
-      file === finding.file ||
-      (finding.related ?? []).some((one) => one.file === file && one.broken !== false)
-    )
-    for (const file of darkened) {
+    // WHICH FILES THIS ONE BREAKS is `./errors.ts`'s own answer
+    // ({@link blamedOn}) and not a reading spelled here: the field it turns
+    // on is declared there, two codes ride it, and the error view groups by
+    // the same plane — a filing that read `Related.broken` itself would be
+    // the copy free to disagree.
+    for (const file of blamedOn(finding)) {
       const rows = files.get(file)
       if (rows === undefined) files.set(file, [finding])
       else rows.push(finding)

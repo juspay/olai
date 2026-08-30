@@ -960,9 +960,13 @@ export {
   compareErrors,
   errorLine,
   hasLine,
-  /** WHICH FILES one finding is about — where it was found and every place it
-   *  names as related. `isCrossFile` is the same question asked for the error
-   *  view's grouping; the verdict asks it of every finding it holds. */
+  /** WHICH FILES one finding is ABOUT — where it was found and every place it
+   *  names as related, unfiltered. A reader draws it and the drift check at a
+   *  refusal rides it, because both have to be able to reach a site the finding
+   *  merely NAMED (a stale judge). Which files it BREAKS is the other plane and
+   *  is `blamedOn`, held back here because nothing outside the package asks it
+   *  per finding: the verdict asks it of a whole report (`blamed`) and
+   *  `isCrossFile` counts it for the error view's grouping. */
   implicatedBy,
   isCrossFile,
   OutlineError,
