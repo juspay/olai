@@ -110,7 +110,10 @@ Feature: It stays live
     # half that used to be impossible: every page in the app was the last good
     # copy behind that banner.
     When I click the outline "house.olai"
-    Then the node "demo" is shown
+    # An UNMARKED row, deliberately: a done one is drawn per the page's own Done
+    # pick (#437), and what this step is about is that the neighbour's tree is
+    # there at all.
+    Then the node "install" is shown
     When I rewrite "garden.olai" as:
       """
       {"id":"garden","ord":"a0","title":"garden #outdoors"}
