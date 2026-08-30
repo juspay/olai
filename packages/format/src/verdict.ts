@@ -324,9 +324,12 @@ export const blamed = (
     // would be the broken-file-blocks-healthy-writes sentence said through
     // the loader's mouth instead of the gate's. A cycle's steps say nothing
     // and are the common case: every named site breaks.
+    //
+    // `.some` and not `.find`'s first answer: one file named twice — once as
+    // ground, once as broken — is dark, whichever order the rows came in.
     const darkened = implicatedBy(finding).filter((file) =>
       file === finding.file ||
-      (finding.related ?? []).find((one) => one.file === file)?.broken !== false
+      (finding.related ?? []).some((one) => one.file === file && one.broken !== false)
     )
     for (const file of darkened) {
       const rows = files.get(file)

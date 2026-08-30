@@ -566,13 +566,26 @@ export const make = (options: Options): Ops => {
            * on disk is the proof the refusal stands on a judgement that
            * is no longer there.
            *
-           * A plan refusal off a set that holds NOTHING broken keeps this
-           * door shut: there is no judgement in reach for staleness to
-           * have spoken through, so an unknown id stays unknown — the
-           * ruled trigger never fires where no refusal names files.
+           * TWO REFUSAL SHAPES ONLY can be this symptom: `NotFoundFailure`
+           * (the id is gone because its file withheld its records) and
+           * `ValidationFailure` ({@link ./plan.ts}'s `writable` — the file
+           * answered, and the answer was rows from the broken list). Every
+           * other refusal the planner makes is a `UsageFailure` about the
+           * REQUEST — a typo, a misuse, a fence the write ran into — and
+           * those are words about what was ASKED, never about bytes the
+           * set holds: a stale copy cannot invent a usage fault, so the
+           * hottest refusal path pays no byte check for it.
+           *
+           * And a plan refusal off a set that holds NOTHING broken keeps
+           * this door shut either way: there is no judgement in reach for
+           * staleness to have spoken through, so an unknown id stays
+           * unknown — the ruled trigger never fires where no refusal
+           * names files.
            */
           const held = snapshot.value.set.broken
+          const tag = planned.failure._tag
           if (
+            (tag === "NotFoundFailure" || tag === "ValidationFailure") &&
             held.length > 0 &&
             (yield* repair(aboutFiles(held.flatMap((entry) => entry.errors))))
           ) {

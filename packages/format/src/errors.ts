@@ -317,10 +317,18 @@ export const implicatedBy = (error: OutlineError): ReadonlyArray<string> => {
   return files
 }
 
-/** True when the error implicates more than one file — the browser groups
- *  these on their own, because "which file is broken" has no single answer. */
+/** True when the error BREAKS more than one file — the browser groups those
+ *  on their own, because "which file is broken" has no single answer.
+ *
+ *  BREAKS, not IMPLICATES, and the difference is `Related.broken`: a
+ *  `bad-prop` names the declaration that judged it as its ground, so the
+ *  about-axis above reaches two files for every one of them — but the
+ *  judge's page stays lit and "which file is broken" keeps its one
+ *  answer. Only a site that BREAKS counts, the same rule
+ *  {@link ./verdict.ts}'s `blamed` files by: the error's own file, and any
+ *  related site that did not say otherwise. */
 export const isCrossFile = (error: OutlineError): boolean =>
-  implicatedBy(error).length > 1
+  (error.related ?? []).some((one) => one.file !== error.file && one.broken !== false)
 
 /** A `line` of 0 means there is no record to point at — the site is the path
  *  itself. Two codes have that (`unreadable-directory`, about a DIRECTORY,
