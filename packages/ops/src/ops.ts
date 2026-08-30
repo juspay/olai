@@ -51,6 +51,7 @@ import {
   type TagsAnswer,
   type TagsRequest,
   ValidationFailure,
+  type Verdict,
   type Writer,
   type WriteRequest as Request,
   type WriteResult as Applied,
@@ -355,6 +356,26 @@ export interface Ops extends Asking {
  *  losing a race, it is contending with a writer that never stops. */
 const ROUNDS = 5
 
+/**
+ * WHICH FILE STOPS THIS WRITE — the sentence `run` says when the store
+ * handed back a verdict.
+ *
+ * Three ways to be here, one function: the verdict implicates a file this
+ * write touched; it does not, and this write caused invalidity in files
+ * it did not write (the directory was loading); or the write is standing
+ * on a base the disk has moved past while the set would not load, and
+ * there is no file of ours to name.
+ */
+const blockerOf = (
+  verdict: Verdict,
+  paths: ReadonlyArray<string>,
+  alreadyBroken: boolean,
+): string | undefined => {
+  const admission = admits(verdict, paths)
+  if (admission._tag === "implicated") return admission.file
+  return alreadyBroken ? undefined : implicatedIn(verdict)[0]
+}
+
 export const make = (options: Options): Ops => {
   const context: Context = options.context ?? {
     mint: () => Math.random().toString(36).slice(2, 10),
@@ -480,32 +501,16 @@ export const make = (options: Options): Ops => {
            * had no way to say which file made it so
            * (`broken-file-blocks-healthy-writes`).
            *
-           * ASKED OF THE VERDICT rather than re-derived from its rows: this is
-           * the same `admits` the store's gate spent to decide whether the
-           * bytes could land at all (`./codec.ts`), asked here for the sentence.
-           * A refusal that reaches this line has been through it, so there are
-           * three ways to be here — the verdict implicates one of these files;
-           * it does not, and this write caused invalidity in files it did not
-           * write (a declaration, a `ref` variant moved into a third file);
-           * or the write is standing on a base the disk has moved past while
-           * the set would not load ({@link ../../store/src/store.ts}'s
-           * `commit` owns that check, and the file it is about is one of the
-           * ones named right here). The errors channel tells those last two
-           * apart: still null means the directory was loading, so this write
-           * caused the findings; already carrying a verdict means the freeze.
+           * {@link blockerOf} is the three ways, asked of the verdict and of
+           * whether the directory was already not loading. The paths are the
+           * ones this commit carried — a second reading of "which files is
+           * this write about" is how the gate and the sentence come to
+           * disagree about one write.
            */
-          // THE PATHS THE COMMIT CARRIED, off the very list it carried them in
-          // — a second reading of "which files is this write about" is how the
-          // gate and the sentence come to disagree about one write.
           const paths = changes.map((change) => change.path)
-          const admission = admits(written.failure, paths)
-          const caused = admission._tag !== "implicated" &&
-            (yield* SubscriptionRef.get(options.store.errors)) === null
-          const blocker = admission._tag === "implicated"
-            ? admission.file
-            : caused
-            ? implicatedIn(written.failure)[0]
-            : undefined
+          const alreadyBroken =
+            (yield* SubscriptionRef.get(options.store.errors)) !== null
+          const blocker = blockerOf(written.failure, paths, alreadyBroken)
           return yield* new ValidationFailure({
             reason: blocker !== undefined
               ? `\`${about.summary}\` would leave \`${blocker}\` invalid, so ` +
