@@ -110,7 +110,7 @@
 
 import { Result } from "effect"
 
-import { type CustomValue, customOrder } from "./custom.ts"
+import { type CustomValue, customOrder, type HasCustom } from "./custom.ts"
 import type { Derived } from "./derive.ts"
 import { resolveRelative } from "./documents.ts"
 import {
@@ -523,7 +523,7 @@ export const declarationsIn = (
   for (const located of declaringIn0(derived, file)) {
     const key = keyOf(located.node.title)
     if (key === undefined || declarations.has(key)) continue
-    const type = typeIn(derived, located)
+    const type = typeIn(derived, located.node)
     if (type === undefined) continue
     declarations.set(key, { type, at: located.node.id })
   }
@@ -589,10 +589,10 @@ export const keyOf = (title: string): string | undefined => {
  * declarations — a key the reading skipped and the rule accepted would be a key
  * that is silently untyped and reported clean.
  */
-const typeIn = (derived: Derived, located: LocatedRegular): PropType | undefined => {
-  const said = customText(located, TYPE_KEY)
-  const under = customText(located, UNDER_KEY)
-  const base = customText(located, BASE_KEY)
+const typeIn = (derived: Derived, node: RegularNode): PropType | undefined => {
+  const said = customText(node, TYPE_KEY)
+  const under = customText(node, UNDER_KEY)
+  const base = customText(node, BASE_KEY)
   if (said === undefined || !isPropKind(said)) return undefined
   // THE TWO PATH KINDS take the second word, and only they: `base` on anything
   // else is the same mistake `under` on anything else is, refused the same way
@@ -619,8 +619,8 @@ const typeIn = (derived: Derived, located: LocatedRegular): PropType | undefined
 /** One of the declaration node's own two properties, as text — `undefined` for
  *  a key it does not carry AND for one holding a list, which is a shape neither
  *  of them has an answer for. */
-const customText = (located: LocatedRegular, key: string): string | undefined => {
-  const held = located.node.custom?.[key]
+const customText = (node: HasCustom, key: string): string | undefined => {
+  const held = node.custom?.[key]
   return typeof held === "string" && held !== "" ? held : undefined
 }
 
@@ -1120,7 +1120,7 @@ export const wrongDeclaration = (
   if (!isRegular(located)) return undefined
   const node = located.node
   if (node.parent !== undefined) {
-    const said = [...BOOTSTRAP.keys()].find((word) => customText(located, word) !== undefined)
+    const said = [...BOOTSTRAP.keys()].find((word) => customText(node, word) !== undefined)
     return said === undefined ? undefined : `\`${said}\` declares a property key, and ` +
       `only a TOP-LEVEL node of this file declares one — what hangs under a ` +
       `declaration is its variants, named by their ids.`
@@ -1160,13 +1160,13 @@ export const wrongDeclaration = (
   // it too, which is what lets `under` say the one thing a generic sentence
   // would get wrong ({@link Grounded}).
   for (const [word, grounded] of BOOTSTRAP) {
-    const value = customText(located, word)
+    const value = customText(node, word)
     if (value === undefined) continue
     const wrong = grounded.wrong(value, derived)
     if (wrong === undefined) continue
     return `\`${word}\` is \`${value}\`, which ${wrong}`
   }
-  const said = customText(located, TYPE_KEY)
+  const said = customText(node, TYPE_KEY)
   if (said === undefined) {
     return `\`${written}\` declares a property key but does not say its \`${TYPE_KEY}\` — write ` +
       `${BOOTSTRAP.get(TYPE_KEY)?.takes ?? ""}.`
@@ -1174,7 +1174,7 @@ export const wrongDeclaration = (
   // The one rule about the PAIR, which no per-word table can hold: `under` says
   // where a `ref` finds its variants, and every other kind takes its values
   // from nowhere in particular.
-  if (said !== "ref" && customText(located, UNDER_KEY) !== undefined) {
+  if (said !== "ref" && customText(node, UNDER_KEY) !== undefined) {
     return `\`${UNDER_KEY}\` says where a \`ref\`'s variants live, and \`${written}\` is a ` +
       `\`${said}\` — which takes its values from nowhere in particular.`
   }
@@ -1183,7 +1183,7 @@ export const wrongDeclaration = (
   // resolve. Reported rather than ignored for the reason the line above is —
   // the reading SKIPS such a declaration ({@link typeIn}), so a key that looks
   // typed and is silently untyped is exactly what this rule exists to name.
-  if (said !== "doc" && said !== "path" && customText(located, BASE_KEY) !== undefined) {
+  if (said !== "doc" && said !== "path" && customText(node, BASE_KEY) !== undefined) {
     return `\`${BASE_KEY}\` says where a \`doc\` or \`path\` value resolves from, and ` +
       `\`${written}\` is a \`${said}\` — which names no path to resolve.`
   }
@@ -1199,8 +1199,9 @@ export const wrongDeclaration = (
  * Shared by the write planner so a `type` of `doc` on a new row and a
  * `set_prop` of `type` on an existing one ask the same question about the
  * values the vault already holds ({@link unfitHeld}). The reading
- * ({@link typeIn}) is the same one the validator uses, so a declaration this
- * accepts and the rule reports cannot happen, and neither can the inverse.
+ * ({@link typeIn}) is the same one the validator uses, asked of the record
+ * rather than of a fabricated site, so a declaration this accepts and the
+ * rule reports cannot happen, and neither can the inverse.
  */
 export const declaringOf = (
   derived: Derived,
@@ -1209,7 +1210,7 @@ export const declaringOf = (
   if (node.parent !== undefined) return undefined
   const key = keyOf(node.title)
   if (key === undefined) return undefined
-  const type = typeIn(derived, { file: "", line: 0, node })
+  const type = typeIn(derived, node)
   if (type === undefined) return undefined
   return { key, declared: { type, at: node.id } }
 }
