@@ -616,7 +616,9 @@ test("a repair that still refuses answers the FRESH refusal, once", () =>
       const failure = yield* Effect.orDie(
         Effect.flip(fixture.ops.run({ op: "done", id: "the-plan" }, "mcp")),
       )
-      expect(failure._tag).toBe("ValidationFailure")
+      if (failure._tag !== "ValidationFailure") {
+        throw new Error(`expected a ValidationFailure, got ${failure._tag}`)
+      }
       expect(failure.message).toContain("plan.olai")
       // THE CALLER'S "NO" IS ABOUT ITS OWN BYTES — and correctly so: the
       // write was planned against the set as published, so the content it
