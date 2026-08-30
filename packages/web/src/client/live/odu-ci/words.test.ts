@@ -3,7 +3,7 @@
  * to read one.
  *
  * `./words.ts` is pure and takes `now` as an argument for exactly this, which
- * is `../took.ts`'s own arrangement one readout over.
+ * is `../duration/took.ts`'s own arrangement one readout over.
  *
  * EVERY CASE BUILDS ITS NODES, and the counts follow from them. The fixtures
  * used to set a `tally` and a `verdict` beside the cells, which let a case

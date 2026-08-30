@@ -59,7 +59,7 @@ import { Schema } from "effect"
 /**
  * THE PROPERTY KEY THE CI FACE HANGS OFF.
  *
- * One constant: the server reads it to find which lanes to probe, and the
+ * One constant: the server reads it to find which nodes to probe, and the
  * browser reads it to decide which property wears the dressing. Here rather
  * than in either of them because it is the one fact both must agree on, and a
  * string typed in two places is a door that opens at one end only —
@@ -72,7 +72,7 @@ import { Schema } from "effect"
  * a question no tab can settle from a declared type. What the DECLARATION does
  * here is licence the probe rather than select the face — the server, which
  * holds the declarations, probes a `worktree` only where the vault has
- * declared that key a `path` (`@olai/server`'s `lanes.ts`).
+ * declared that key a `path` (`@olai/server`'s `worktrees.ts`).
  */
 export const WORKTREE_KEY = "worktree"
 
@@ -289,7 +289,7 @@ export const sameCi: (a: CiRuns, b: CiRuns) => boolean = Schema.toEquivalence(Ci
  * A CELL and not a collection, which is where this slice deliberately differs
  * from the kolu one beside it. `fleet` is a collection because a busy machine
  * holds tens of terminals and a tab wants deltas over them; the set of LIVE CI
- * RUNS is bounded by the lanes a board is running at once — a handful — and
+ * RUNS is bounded by the worktrees a vault names at once — a handful — and
  * every frame of it is small. What a cell buys for that population is the
  * thing a collection has nowhere to put: a `connect`, which is where the
  * watcher is forked ONCE when the surface binds, rather than when the first
@@ -309,7 +309,7 @@ export const oduMembers = {
      * second tenant.
      *
      * Board-driven discovery (ruled, 2026-08-29): the set of runs is the
-     * lanes' own `worktree` properties, probed for `.ci/odu.sock`. There is no
+     * nodes' own `worktree` properties, probed for `.ci/odu.sock`. There is no
      * odu registry and odu changed nothing to make this work — which is the
      * property the whole arrangement was chosen for.
      *
@@ -318,7 +318,7 @@ export const oduMembers = {
      * frame that merely repeats what a tab holds then notifies nothing
      * (juspay/kolu#2190), which matters here more than on most members: a
      * coordinator republishes its whole pipeline on every node transition, and
-     * a ten-node run would otherwise wake every row of a lanes outline ten
+     * a ten-node run would otherwise wake every row of such an outline ten
      * times a minute.
      */
     ci: {

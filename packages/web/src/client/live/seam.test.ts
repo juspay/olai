@@ -12,8 +12,8 @@
 
 import { describe, expect, it } from "bun:test"
 
-import { dressingFor, layOut, registerLive } from "./live.ts"
-import type { Entry } from "./drawer.ts"
+import { dressingFor, layOut, registerLive } from "./seam.ts"
+import type { Entry } from "../props/drawer.ts"
 
 const entry = (over: Partial<Entry> = {}): Entry => ({
   key: "k",

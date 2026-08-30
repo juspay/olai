@@ -5,7 +5,7 @@
  * This is `@olai/kolu-client`'s `link.ts` pointed at the other appliance, and
  * the shape is deliberately the same: started ONCE by the runtime on the
  * runtime's own scope (the `ci` cell's `connect`, forked when the surface
- * BINDS rather than when a browser subscribes), so ten tabs on a lanes outline
+ * BINDS rather than when a browser subscribes), so ten tabs on one outline
  * are ten subscriptions to one cell and zero extra sockets. There is no
  * refcount here and no per-reader anything.
  *
@@ -26,9 +26,9 @@
  * Nothing tells olai that a run has started. `.ci/odu.sock` appears in a
  * worktree the server may not even be serving, so there is no revision, no
  * inotify, and no event: the only way to learn is to ask. So the loop asks —
- * cheaply, on a fixed spacing, and only for worktrees the BOARD named. A tick
- * costs one `connect(2)` per un-held lane against a path that usually does not
- * exist; a lane whose run is live costs nothing at all, because it is held and
+ * cheaply, on a fixed spacing, and only for the worktrees the VAULT named. A tick
+ * costs one `connect(2)` per un-held worktree against a path that usually does
+ * not exist; one whose run is live costs nothing at all, because it is held and
  * the coordinator PUSHES.
  *
  * A fixed spacing rather than a backoff, for `link.ts`'s reason: what is being
@@ -61,13 +61,13 @@ import {
 import { Cause, Duration, Effect, Fiber, Schedule, type Scope, Stream } from "effect"
 
 import { runOf, wentOf } from "./project.ts"
-import { type LanePath, worktreeAt } from "./resolve.ts"
+import { type Worktree, worktreeAt } from "./resolve.ts"
 import type { CiRun } from "./wire/index.ts"
 
 /**
  * How long between sweeps.
  *
- * Long enough that a laptop with a dozen lanes is not opening a dozen sockets
+ * Long enough that a laptop with a dozen worktrees is not opening a dozen sockets
  * a second; short enough that starting `odu run` lights the chip up while you
  * are still looking at the window. The same trade `link.ts`'s `REDIAL` makes,
  * and the same answer — five seconds is the wrong side of "did it notice?" for
@@ -75,15 +75,26 @@ import type { CiRun } from "./wire/index.ts"
  */
 const SWEEP = Duration.seconds(3)
 
-/** One lane, as the vault walk hands it over — {@link LanePath} plus the two
- *  strings a log line names it with. What crosses is FOUR STRINGS per lane and
- *  no record: the walk over the vault belongs to whoever holds the vault
- *  (`@olai/server`'s `lanes.ts`), which is the boundary this package's header
- *  draws and `@olai/kolu-client`'s `Claimant` draws one appliance over. */
-export interface Lane extends LanePath {
+/**
+ * ONE NODE THAT NAMES A WORKTREE, as the vault walk hands it over —
+ * {@link Worktree} plus the two strings a log line names it with.
+ *
+ * What crosses is FOUR STRINGS and no record: the walk over the vault belongs
+ * to whoever holds the vault (`@olai/server`'s `worktrees.ts`), which is the
+ * boundary this package's header draws and `@olai/kolu-client`'s `Claimant`
+ * draws one appliance over.
+ *
+ * NAMED FOR WHAT IT IS rather than for what a board calls it. These records
+ * are lanes on the orchestrator's board, and "lane" is that board's PROCESS
+ * vocabulary — a dispatched piece of work — where olai's own vocabulary has
+ * nodes, properties and declared types and no opinion about why somebody wrote
+ * one down (the human's review of #433). A vault that keeps no lanes at all and
+ * writes `worktree` on a bookmark gets exactly this face.
+ */
+export interface WorktreeNode extends Worktree {
   /** The node that carries the property — so a log line names something a
    *  reader can find, rather than a path. */
-  readonly id: string
+  readonly node: string
   readonly title: string
 }
 
@@ -113,10 +124,10 @@ export interface WatchDeps {
 
 /** The watcher, as the half above it drives it. */
 export interface Watch {
-  /** A vault revision landed: these are the lanes now. Cheap and idempotent —
-   *  it stores the set and lets the next sweep act on it, rather than dialing
-   *  on a keystroke. */
-  readonly reclaim: (lanes: Iterable<Lane>) => void
+  /** A vault revision landed: these are the worktrees now. Cheap and
+   *  idempotent — it stores the set and lets the next sweep act on it, rather
+   *  than dialing on a keystroke. */
+  readonly reclaim: (worktrees: Iterable<WorktreeNode>) => void
   /** Run forever, on the caller's scope. */
   readonly run: Effect.Effect<never>
   /**
@@ -136,7 +147,7 @@ export interface Watch {
   readonly rows: () => ReadonlyArray<CiRun>
 }
 
-/** One lane that resolved to a place worth asking about. */
+/** One worktree value that resolved to a place worth asking about. */
 interface Watched {
   readonly id: string
   readonly at: string
@@ -146,22 +157,22 @@ interface Watched {
 export const makeWatch = (deps: WatchDeps): Watch => {
   const dial = deps.dial ?? dialRun
   /** What the board says, keyed by the `worktree` value verbatim. Replaced
-   *  wholesale per revision: the board is the authority on which lanes exist,
-   *  and a merge would keep a lane somebody deleted. */
+   *  wholesale per revision: the vault is the authority on which worktrees are
+   *  named, and a merge would keep one somebody deleted. */
   let wanted = new Map<string, Watched>()
   /** The rows, in the order they were first seen. A `Map` rather than an array
    *  because every reader of it is a lookup by the board's own value, and the
    *  publish is one `[...values()]`. */
   const rows = new Map<string, CiRun>()
   /**
-   * The lanes currently held open — the fiber holding each, AND THE PLACE IT
+   * The worktrees currently held open — the fiber holding each, AND THE PLACE IT
    * IS HOLDING.
    *
    * The key is the board's `worktree` value, and that value alone does not
-   * decide a checkout: the same string under a lane whose `pr-url` names a
+   * decide a checkout: the same string under a node whose `pr-url` names a
    * different repository resolves somewhere else (`./resolve.ts`). So a key in
    * here is a key the sweep does not dial ONLY while the place still matches;
-   * a lane dropped and re-added with a different repository before the next
+   * a value dropped and re-added with a different repository before the next
    * tick would otherwise be answered forever by a hold on the old socket,
    * writing the old `at` into the row (grok's review of #433, the case beside
    * the one `e6d96e7b` fixed — same key, stale closure).
@@ -170,23 +181,23 @@ export const makeWatch = (deps: WatchDeps): Watch => {
 
   const publish = (): void => deps.publish([...rows.values()])
 
-  const reclaim = (lanes: Iterable<Lane>): void => {
+  const reclaim = (worktrees: Iterable<WorktreeNode>): void => {
     const next = new Map<string, Watched>()
-    for (const lane of lanes) {
-      const at = worktreeAt(lane, deps.reposRoot)
-      // A lane this rule cannot place is not a lane with a face. See
+    for (const named of worktrees) {
+      const at = worktreeAt(named, deps.reposRoot)
+      // A value this rule cannot place is not a value with a face. See
       // `./resolve.ts` on why that is a refusal rather than a guess.
       if (at === undefined) continue
-      // FIRST WRITER WINS among lanes naming one worktree, which is the same
-      // rule the vault keeps for a duplicate id: two lanes on one checkout is
+      // FIRST WRITER WINS among nodes naming one worktree, which is the same
+      // rule the vault keeps for a duplicate id: two nodes on one checkout is
       // one run, and the second claim is the mistake.
-      if (!next.has(lane.worktree)) {
-        next.set(lane.worktree, { id: lane.worktree, at, title: lane.title })
+      if (!next.has(named.value)) {
+        next.set(named.value, { id: named.value, at, title: named.title })
       }
     }
     wanted = next
-    // A row whose lane is gone goes with it — including a settled one. The
-    // verdict was ABOUT that lane, and keeping it after the row that named it
+    // A row the vault no longer names goes with it — including a settled one.
+    // The verdict was ABOUT that node, and keeping it after the row that named it
     // was deleted would be a face reporting on work nobody is tracking.
     let dropped = false
     for (const key of [...rows.keys()]) {
@@ -205,15 +216,15 @@ export const makeWatch = (deps: WatchDeps): Watch => {
    * the row stops being live and the key leaves `held`, so the next sweep is
    * free to find the NEXT run in that worktree.
    */
-  const hold = (lane: Watched): Effect.Effect<void> =>
+  const hold = (watched: Watched): Effect.Effect<void> =>
     Effect.gen(function*() {
-      const socket = runSocketPath(lane.at)
+      const socket = runSocketPath(watched.at)
       const dialed: DialedRun | null = yield* Effect.promise(() => dial(socket))
       // NOTHING IS SERVING, which is the ordinary answer and is not news. The
       // key leaves `held` in the finalizer below and the next sweep asks
       // again.
       if (dialed === null) return
-      deps.say(`olai: odu run live at ${socket} (${lane.title})`)
+      deps.say(`olai: odu run live at ${socket} (${watched.title})`)
       /** The two cells' last frames, held apart and joined per publish — the
        *  header moves twice per run on its own clock and the pipeline moves on
        *  every node transition, so merging them on arrival would re-answer one
@@ -227,7 +238,7 @@ export const makeWatch = (deps: WatchDeps): Watch => {
        * Two things write `rows`: this fiber, per frame the coordinator pushes,
        * and {@link reclaim}, per vault revision — and they run on separate
        * stacks with no order between them. Without this guard a frame landing
-       * in the window between a lane being deleted and the next sweep
+       * in the window between a worktree being deleted and the next sweep
        * interrupting its hold would put the row back, and the face would keep
        * reporting on work nobody is tracking for up to a sweep.
        *
@@ -239,8 +250,8 @@ export const makeWatch = (deps: WatchDeps): Watch => {
        * and a hold on the old one may not write a row about the new.
        */
       const settle = (): void => {
-        if (wanted.get(lane.id)?.at !== lane.at) return
-        rows.set(lane.id, runOf(lane, state, header))
+        if (wanted.get(watched.id)?.at !== watched.at) return
+        rows.set(watched.id, runOf(watched, state, header))
         publish()
       }
       // Published BEFORE the first frame: a coordinator that is up but has not
@@ -287,12 +298,12 @@ export const makeWatch = (deps: WatchDeps): Watch => {
       )
       // THE ROW SURVIVES THE SOCKET. Whatever the last frame supported is what
       // a reader sees now — never deleted, because "there was a run and it
-      // came out green" is the thing a settled lane most wants to say.
-      // ...and the same authority on the way out: a lane the board dropped
+      // came out green" is the thing a settled row most wants to say.
+      // ...and the same authority on the way out: a worktree the vault dropped
       // while its run was still going has no row to stamp.
-      const last = rows.get(lane.id)
-      if (last !== undefined && wanted.get(lane.id)?.at === lane.at) {
-        rows.set(lane.id, wentOf(last))
+      const last = rows.get(watched.id)
+      if (last !== undefined && wanted.get(watched.id)?.at === watched.at) {
+        rows.set(watched.id, wentOf(last))
         publish()
       }
     }).pipe(
@@ -304,7 +315,7 @@ export const makeWatch = (deps: WatchDeps): Watch => {
       Effect.catchCause((cause) =>
         Effect.sync(() => {
           deps.warn(
-            `olai: odu dial failed at ${runSocketPath(lane.at)}: ${
+            `olai: odu dial failed at ${runSocketPath(watched.at)}: ${
               String(Cause.squash(cause))
             } — treating it as no run`,
           )
@@ -314,34 +325,34 @@ export const makeWatch = (deps: WatchDeps): Watch => {
       // pointing at a place the board has moved off replaces it, and a
       // finalizer that deleted by key alone would take the replacement out.
       Effect.ensuring(Effect.sync(() => {
-        if (held.get(lane.id)?.at === lane.at) held.delete(lane.id)
+        if (held.get(watched.id)?.at === watched.at) held.delete(watched.id)
       })),
     )
 
-  /** ONE TICK: dial every wanted lane that is not already held — and drop the
-   *  hold on any lane the board no longer names. Exposed on the interface
+  /** ONE TICK: dial every wanted worktree that is not already held — and drop
+   *  the hold on any the vault no longer names. Exposed on the interface
    *  above, which is where the reason lives. */
   const sweep = Effect.gen(function*() {
-    for (const lane of wanted.values()) {
-      const holding = held.get(lane.id)
+    for (const watched of wanted.values()) {
+      const holding = held.get(watched.id)
       if (holding !== undefined) {
         // Held, and still holding the place the board names — nothing to do:
         // the coordinator pushes.
-        if (holding.at === lane.at) continue
-        // Held, but somewhere else. The key was re-used by a lane naming a
+        if (holding.at === watched.at) continue
+        // Held, but somewhere else. The key was re-used by a node naming a
         // different repository, so the hold is on a socket nobody is asking
         // about. Interrupt it BEFORE forking, and await that: its finalizer
         // runs on the interrupt, so the entry is clear by the time the
         // replacement claims it.
-        held.delete(lane.id)
+        held.delete(watched.id)
         yield* Fiber.interrupt(holding.fiber)
       }
-      // Recorded BEFORE the fork, so two ticks cannot both claim one lane: the
+      // Recorded BEFORE the fork, so two ticks cannot both claim one worktree: the
       // fiber's own `ensuring` is what takes it back out.
-      const fiber = yield* Effect.forkScoped(hold(lane))
-      held.set(lane.id, { at: lane.at, fiber })
+      const fiber = yield* Effect.forkScoped(hold(watched))
+      held.set(watched.id, { at: watched.at, fiber })
     }
-    // A lane the board dropped while its run was still going: the row is
+    // A worktree the vault dropped while its run was still going: the row is
     // already gone (`reclaim`), and this is the socket following it.
     for (const [key, holding] of [...held]) {
       if (!wanted.has(key)) {

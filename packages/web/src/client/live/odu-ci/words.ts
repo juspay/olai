@@ -2,7 +2,7 @@
  * WHAT THE CI CHIP SAYS, and in which ink — the whole of the chip's judgement,
  * as a pure function of the row and a clock.
  *
- * The arithmetic is pure and takes `now` as an argument, for `../took.ts`'s
+ * The arithmetic is pure and takes `now` as an argument, for `../duration/took.ts`'s
  * reason: the cases are a table in `./words.test.ts` rather than something you
  * have to start a CI run to see. Only the component touches a clock.
  *
@@ -21,7 +21,7 @@
  *     there are — dropped entirely for a run with no nodes yet, because
  *     `0/0 ok` is a sentence about nothing.
  *
- * THE DURATION IS `../took.ts`'S REGISTER, not a third spelling of one. A
+ * THE DURATION IS `../duration/took.ts`'S REGISTER, not a third spelling of one. A
  * running node under an hour reads `m:ss` and past it reads `2h 34m`, exactly
  * as the pomodoro pill beside a doing row does — a reader who has learnt what
  * a ticking number looks like in this app should not have to learn it again
@@ -48,7 +48,7 @@
 
 import { type CiRun, type RunCell, type RunTally, tallyOf, verdictOf } from "@olai/surface"
 
-import { tickingOf } from "../took.ts"
+import { tickingOf } from "../duration/took.ts"
 
 /** The ink a chip takes — olai's own register names, not odu's hues. `going`
  *  is the app's attention ink (work in flight is the one thing worth finding

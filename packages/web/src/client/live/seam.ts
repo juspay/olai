@@ -16,8 +16,8 @@
  *
  * ## The three faces, and each keeps its honest name
  *
- * This module was `blocks.ts` and had ONE face, because the one consumer owned
- * a row. The second tenant does not, and the difference is what the seam
+ * This module was `props/blocks.ts` and had ONE face, because the one consumer
+ * owned a row. The second tenant does not, and the difference is what the seam
  * actually was:
  *
  *   - a **CHIP** draws IN the run, immediately after the property's own chip.
@@ -29,7 +29,7 @@
  *     alive. A `worktree` with no run draws `null` here and the line is
  *     exactly what it was; a `worktree` whose checkout is mid-run gains
  *     `ci · e2e 2m10s · 8/10 ok`. The pomodoro `⏱` beside a doing row is the
- *     same idea pointed inward (`../TookChip.tsx`) — a readout that ticks off
+ *     same idea pointed inward (`./duration/`) — a readout that ticks off
  *     an instant that crossed the wire, drawn beside the thing it is about.
  *   - a **PANE** draws BELOW the run, when the chip's press opens it. A chip
  *     is an inline box in a wrapping line and cannot carry a screenful of
@@ -43,7 +43,33 @@
  *
  * Nothing here is named for one dressing, which is the property the whole
  * design was chosen for: a third living thing later — a deploy, a saatchi
- * session — is a registration and a component, and zero new mechanism.
+ * session — is a folder beside this file and a line in `./dressings.ts`, and
+ * zero new mechanism.
+ *
+ * ## THE SEAM IMPORTS NO DRESSING, and the directory says which are which
+ *
+ * This file is a table, a lay-out and three interfaces. Beside it is one
+ * FOLDER PER DRESSING, each named for what it IS and each registering itself
+ * (the human's ruling on #433):
+ *
+ *   - `./kolu-terminal/` — the terminal door. One line, because the component
+ *     is `@olai/kolu-ui`'s: that one stays behind a package wall since it
+ *     renders kolu's own row and mounts kolu's emulator.
+ *   - `./odu-ci/` — the CI chip and the run matrix, with their words, their
+ *     per-node ink and the one subscription a tab holds. A folder rather than
+ *     a package because it imports nothing of odu: a wall there would confine
+ *     nothing.
+ *   - `./duration/` — the ⏱ chip, and the one that registers NOTHING. It is a
+ *     live face by every other measure (an instant that crossed the wire once,
+ *     ticked by the reader's own clock) and it has no property key to hang
+ *     off: a span is DERIVED from a record's own fields, so there is no entry
+ *     for `dressingFor` to look up and the row draws it instead. Its own
+ *     header argues that, and what moving it onto this table would take.
+ *
+ * So the directory has three folders and the table has two tenants, and that
+ * is the honest shape rather than a table stretched to make three. What keeps
+ * the direction clean is that nothing here imports any of them — `./dressings.ts`
+ * is the one module that names them, imported for its effect by the drawer.
  *
  * ## Keyed on the KEY, and this is now an ANSWER rather than a promise
  *
@@ -64,7 +90,7 @@
  *
  * So the seam is split along the line the architecture already draws. THE KEY
  * SELECTS the face, here, in the browser. THE DECLARED TYPE LICENCES it, on
- * the server, where the declarations are: `@olai/server`'s `lanes.ts` probes a
+ * the server, where the declarations are: `@olai/server`'s `worktrees.ts` probes a
  * `worktree` only in a vault that has declared that key a `path`, so the
  * promise a dressing rests on is one the vault made rather than one a
  * component assumed. A vault that declares nothing gets no CI cell, the chip
@@ -78,7 +104,7 @@
  *     they are excluded everywhere else for that reason.
  *   - **one value.** A key holding three values is three facts, and a face
  *     that reports on one of them cannot report on three; the run of text it
- *     always was is the honest drawing (`./door.ts`'s wrong-door rule, one
+ *     always was is the honest drawing (`../props/door.ts`'s wrong-door rule, one
  *     module over).
  *   - **not being EDITED.** A dressing is the READ face of a property and the
  *     chip is the WRITE face: while a value is open in an editor it draws as
@@ -100,7 +126,7 @@ import type { JSX } from "solid-js"
 
 import { TERMINAL_KEY, WORKTREE_KEY } from "@olai/surface"
 
-import type { Entry } from "./drawer.ts"
+import type { Entry } from "../props/drawer.ts"
 
 /**
  * What a face is handed.
@@ -109,7 +135,7 @@ import type { Entry } from "./drawer.ts"
  * or the wire would be a face the drawer has to know something about, and the
  * point of the seam is that it does not. Everything else a face needs it reads
  * from a context of its own — which is what `@olai/kolu-ui`'s `fleet.tsx` and
- * `../ci/runs.tsx` already are.
+ * `./odu-ci/runs.tsx` already are.
  */
 export interface BlockContext {
   readonly entry: Entry

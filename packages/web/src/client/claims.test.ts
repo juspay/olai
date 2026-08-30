@@ -300,11 +300,13 @@ test("a row's handle is marked in the gesture that owns it and the cell that wea
 //
 // ONE ENTRY IS A DIFFERENT VOCABULARY sharing a word, and it is listed rather
 // than worked around: odu names a CI node that has not begun `pending` too, so
-// `ci/words.test.ts` spells it as the fixture of the thing under test. What
+// `live/odu-ci/words.test.ts` spells it as the fixture of the thing under
+// test. What
 // this sweep claims is about PRODUCTION faces and ACP's closed set; a bench
 // naming its own subject's vocabulary is what a bench does. The two production
 // files that DID reach for a neighbouring vocabulary's word were reworded
-// instead — `ci/words.ts` says "the run is up" where the connection readout
+// instead — `live/odu-ci/words.ts` says "the run is up" where the connection
+// readout
 // owns the one-word spelling, and the CI chip's attribute is `data-state`
 // where `SaidLine.tsx` owns `data-tone`.
 test("a tool call's status is spelled where it is meant and where it is drawn", () => {
@@ -319,7 +321,7 @@ test("a tool call's status is spelled where it is meant and where it is drawn", 
     path.join("chat", "rail.test.ts"),
     path.join("chat", "rows.testlib.ts"),
     path.join("chat", "spawn.test.ts"),
-    path.join("ci", "words.test.ts"),
+    path.join("live", "odu-ci", "words.test.ts"),
   ])
 })
 

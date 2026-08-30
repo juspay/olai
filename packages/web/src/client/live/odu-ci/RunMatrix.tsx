@@ -4,7 +4,7 @@
  * What the chip's press opens: every node of the run in the run's OWN
  * scheduling order, with its glyph, its status word, which lane ran it, and
  * how long it took or has been taking. The pane hangs under the property run
- * rather than inside the chip, for the reason `../props/live.ts` gives — a
+ * rather than inside the chip, for the reason `../seam.ts` gives — a
  * chip is an inline box in a wrapping line and a matrix is a grid.
  *
  * ## Why olai draws it rather than borrowing one
@@ -33,16 +33,16 @@ import { For, Show } from "solid-js"
 
 import type { CiRun, RunCell } from "@olai/surface"
 
-import { createTicking, SECOND } from "../clock.ts"
-import type { BlockContext } from "../props/live.ts"
-import { TESTID } from "../testids.ts"
-import { exactOf, tickingOf, wordsOf } from "../took.ts"
+import { createTicking, SECOND } from "../../clock.ts"
+import type { BlockContext } from "../seam.ts"
+import { TESTID } from "../../testids.ts"
+import { exactOf, tickingOf, wordsOf } from "../duration/took.ts"
 import { inkOf } from "./hue.ts"
 import { useRuns } from "./runs.tsx"
 
 /** How long this node ran, in the app's own register: the settled span in
  *  words, the running one ticking, and a dash for a node that has not begun.
- *  `../took.ts` owns both spellings, so a duration in a matrix and a duration
+ *  `../duration/took.ts` owns both spellings, so a duration in a matrix and a duration
  *  beside a title are one vocabulary. */
 const spanOf = (cell: RunCell, now: number): string => {
   if (cell.ms !== null) return wordsOf(cell.ms / 1000)

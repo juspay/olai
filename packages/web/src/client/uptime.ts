@@ -65,7 +65,7 @@ export const sinceOf = (startedAt: string): string => {
  * question, a minute once they are not. The pacing machinery is `clock.ts`'s
  * ({@link createTwoSpeed}); the only thing this chip adds to it is its
  * BAND — a minute — since the row's took chip asks the same question with a
- * different border (`./took.ts`, an hour), and that question now has one
+ * different border (`./live/duration/took.ts`, an hour), and that question now has one
  * answer rather than two.
  */
 export const createNow = (

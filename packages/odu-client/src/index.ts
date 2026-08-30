@@ -71,25 +71,27 @@ import { inMemoryStore } from "@kolu/surface/server"
 import { Effect } from "effect"
 
 import { reposRootIn } from "./resolve.ts"
-import { type Lane, makeWatch, type Watch, type WatchDeps } from "./runs.ts"
+import { makeWatch, type Watch, type WatchDeps, type WorktreeNode } from "./runs.ts"
 import { type CiRuns, NO_RUNS } from "./wire/index.ts"
 
 /** TWO NAMES leave this package, and they are the two the server actually
- *  holds: what one lane looks like on the way in ({@link Lane}), and the dial
+ *  holds: what one worktree-naming node looks like on the way in ({@link
+ *  WorktreeNode}), and the dial
  *  a test substitutes ({@link DialRun}). The resolution rule's own symbols
  *  are NOT re-exported — `./resolve.ts` is where they are argued and where
  *  its bench imports them from, and a door onto a module nothing outside
  *  opens is a public API with no caller. */
-export { type DialRun, type Lane } from "./runs.ts"
+export { type DialRun, type WorktreeNode } from "./runs.ts"
 
 /**
  * What this half is handed.
  *
- * `lanes` is THE VAULT WALK, injected — the `claimants` arrangement one
+ * `worktrees` is THE VAULT WALK, injected — the `claimants` arrangement one
  * appliance over, and the same boundary for the same reason. Which nodes carry
  * a `worktree` is a reading of outline records, so it belongs to whoever holds
- * the vault (`@olai/server`'s `lanes.ts`), and what crosses is four strings per
- * lane ({@link Lane}). The interfaces here are PARAMETRIC in the node type,
+ * the vault (`@olai/server`'s `worktrees.ts`), and what crosses is four strings
+ * per node ({@link WorktreeNode}). The interfaces here are PARAMETRIC in the
+ * node type,
  * which is the same claim the compiler can check: a package generic in `N`
  * cannot read an `N`.
  */
@@ -110,7 +112,7 @@ export interface OduDeps<N> {
     readonly dial?: WatchDeps["dial"]
   } | null
   /** THE VAULT WALK, injected. See above. */
-  readonly lanes: (vault: N) => Iterable<Lane>
+  readonly worktrees: (vault: N) => Iterable<WorktreeNode>
   /** Routine narration, at debug. */
   readonly say: (line: string) => void
   /** The sentences the OWNER must read — a dial that failed for a reason that
@@ -136,17 +138,17 @@ export interface OduHalf<N> {
    *
    * One value rather than the node LIST `@olai/kolu-client` takes, because the
    * walk it feeds reads two things off one reading — the records, and what the
-   * vault DECLARES about the key (`@olai/server`'s `lanes.ts` argues why the
+   * vault DECLARES about the key (`@olai/server`'s `worktrees.ts` argues why the
    * second one gates the probe). Both are the server's to hold and neither is
    * this package's to look at, which the type says: `N` is never read here.
    *
-   * Cheap and idempotent — it stores the lane set, and the next sweep acts on
+   * Cheap and idempotent — it stores the worktree set, and the next sweep acts on
    * it, so a keystroke in an outline never dials anything.
    */
   readonly revision: (vault: N) => void
   /** The store has NEVER published — the directory's read failed outright. A
    *  set of runs derived from a vault the server can no longer see would be
-   *  yesterday's reading, so the lanes reset to none; the sockets follow on
+   *  yesterday's reading, so the worktrees reset to none; the sockets follow on
    *  the next sweep. */
   readonly unloaded: () => void
 }
@@ -210,7 +212,7 @@ export const oduHalf = <N,>(deps: OduDeps<N>): OduHalf<N> => {
   })
 
   return {
-    revision: (vault) => watch.reclaim(deps.lanes(vault)),
+    revision: (vault) => watch.reclaim(deps.worktrees(vault)),
     unloaded: () => watch.reclaim([]),
     handlers: {
       cells: {

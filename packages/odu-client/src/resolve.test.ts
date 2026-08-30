@@ -1,10 +1,10 @@
 /**
  * THE NAMED GAP, at its bench.
  *
- * A lane writes `worktree .worktrees/live-properties` and does not say which
+ * A node writes `worktree .worktrees/live-properties` and does not say which
  * repository that is under. `./resolve.ts` argues the rule that closes it;
  * these are the cases, including the two a reader would ask about first —
- * what happens to a lane the rule cannot place, and what a value carrying
+ * what happens to a value the rule cannot place, and what a value carrying
  * `..` does.
  */
 
@@ -67,7 +67,7 @@ const ROOT = "/home/x/code"
 test("a relative worktree joins onto the checkout its PR URL names", () => {
   expect(
     worktreeAt(
-      { worktree: ".worktrees/thin-client", prUrl: "https://github.com/juspay/odu/pull/94" },
+      { value: ".worktrees/thin-client", prUrl: "https://github.com/juspay/odu/pull/94" },
       ROOT,
     ),
   ).toBe("/home/x/code/odu/.worktrees/thin-client")
@@ -76,22 +76,22 @@ test("a relative worktree joins onto the checkout its PR URL names", () => {
 test("an ABSOLUTE worktree is used as written — the board's way out of the guessing", () => {
   // The line that makes "declare it absolutely" a real option rather than a
   // suggestion: no repo is consulted and no root is joined.
-  expect(worktreeAt({ worktree: "/srv/checkout/odu" }, ROOT)).toBe("/srv/checkout/odu")
+  expect(worktreeAt({ value: "/srv/checkout/odu" }, ROOT)).toBe("/srv/checkout/odu")
   expect(
-    worktreeAt({ worktree: "/srv/checkout/odu", prUrl: "https://github.com/j/olai/pull/1" }, ROOT),
+    worktreeAt({ value: "/srv/checkout/odu", prUrl: "https://github.com/j/olai/pull/1" }, ROOT),
   ).toBe("/srv/checkout/odu")
 })
 
 test("a relative worktree with no repository resolves to NOTHING, and is not probed", () => {
-  // Not a fallback: the two facts a lane must carry for a face are a path and
+  // Not a fallback: the two facts a node must carry for a face are a path and
   // which tree it is in, and inventing the second is exactly the wrong door
   // this repo's display rules refuse everywhere else.
-  expect(worktreeAt({ worktree: ".worktrees/a" }, ROOT)).toBeUndefined()
-  expect(worktreeAt({ worktree: ".worktrees/a", prUrl: "not a url" }, ROOT)).toBeUndefined()
+  expect(worktreeAt({ value: ".worktrees/a" }, ROOT)).toBeUndefined()
+  expect(worktreeAt({ value: ".worktrees/a", prUrl: "not a url" }, ROOT)).toBeUndefined()
 })
 
 test("an empty worktree names nothing", () => {
-  expect(worktreeAt({ worktree: "   " }, ROOT)).toBeUndefined()
+  expect(worktreeAt({ value: "   " }, ROOT)).toBeUndefined()
 })
 
 test("a worktree cannot climb out of the repos root", () => {
@@ -99,7 +99,7 @@ test("a worktree cannot climb out of the repos root", () => {
   // resolution that left the root is a path this rule never claimed to place.
   expect(
     worktreeAt(
-      { worktree: "../../../etc", prUrl: "https://github.com/juspay/odu/pull/94" },
+      { value: "../../../etc", prUrl: "https://github.com/juspay/odu/pull/94" },
       ROOT,
     ),
   ).toBeUndefined()
@@ -107,7 +107,7 @@ test("a worktree cannot climb out of the repos root", () => {
   // the root, so it resolves — the fence is the root, not the checkout.
   expect(
     worktreeAt(
-      { worktree: "../kolu/.worktrees/a", prUrl: "https://github.com/juspay/odu/pull/94" },
+      { value: "../kolu/.worktrees/a", prUrl: "https://github.com/juspay/odu/pull/94" },
       ROOT,
     ),
   ).toBe("/home/x/code/kolu/.worktrees/a")

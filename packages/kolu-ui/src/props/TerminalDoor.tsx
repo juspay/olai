@@ -3,7 +3,7 @@
  * the live pane it opens.
  *
  * The LIVE-PROPERTIES seam's first consumer, and the one that wears its
- * `Block` face (`@olai/web`'s `props/live.ts`). A `terminal` property does
+ * `Block` face (`@olai/web`'s `live/seam.ts`, registered by its `live/kolu-terminal/`). A `terminal` property does
  * not draw as a chip: it draws as the row kolu's Dock draws, so what you see
  * beside a node is literally what you would see in the Dock — the pip and its
  * glyph, the annotation line, the status words, the recency, the repo stripe,

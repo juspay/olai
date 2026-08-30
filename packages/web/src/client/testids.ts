@@ -252,7 +252,7 @@ export const TESTID = {
 
   /** THE CI CHIP — the live-properties seam's second face, drawn BESIDE a
    *  `worktree` property whose checkout has a run in it
-   *  (`client/ci/CiChip.tsx`). Its presence is the assertion that a run is
+   *  (`client/live/odu-ci/CiChip.tsx`). Its presence is the assertion that a run is
    *  live or was: a checkout with no run and no reading draws nothing here,
    *  which is the ordinary state of every checkout. `data-state` is
    *  `going` / `ok` / `red` / `quiet` — a closed set — and it is spelled
@@ -263,7 +263,7 @@ export const TESTID = {
    *  the board's own value, which is what the chip joined on. */
   ciChip: "ci-chip",
   /** THE RUN MATRIX the chip opens — nodes, durations, ok/red/errored, in the
-   *  run's own scheduling order (`client/ci/RunMatrix.tsx`). Present only
+   *  run's own scheduling order (`client/live/odu-ci/RunMatrix.tsx`). Present only
    *  while open; one per run, because the drawer holds one open pane per run
    *  the way it holds one open editor. */
   ciMatrix: "ci-matrix",

@@ -25,8 +25,8 @@
  * `@olai/kolu-client`'s `fleet.ts` keeps about padi's record. The log in
  * particular is the interesting deferral: a matrix cell somebody presses could
  * open it, and the day it does the member is a per-node STREAM (a subscription
- * costing a person LOOKING at something), not a field on a cell every lanes
- * outline already holds.
+ * costing a person LOOKING at something), not a field on a cell every outline
+ * of these nodes already holds.
  */
 
 import type {

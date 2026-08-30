@@ -18,6 +18,30 @@
 # deliberately that script's, line for line, because they are the same two
 # questions.
 #
+# ## AND WHY IT IS NOT UPSTREAM, which is a fair thing to ask of a second copy
+#
+# It is: this is kolu's dep-fence pattern, adapted, and the COPIER beside it
+# already graduated — `hydrate-kolu-packages.sh` lives in kolu and both pins
+# ride it, because its own header made the argument (two consumers kept a
+# byte-identical copy in step by a comment, which is not a mechanism). The
+# CHECKER is the same shape one step behind: what it needs to be generic is
+# three arguments — the pinned manifest as JSON, the one package directory the
+# hydrated specifier is allowed in, and the entry that must stay
+# schemas-and-types — and every line below is already written against exactly
+# those three.
+#
+# So the honest status is a NAMED CANDIDATE and not a defence. What it wants is
+# a `check-hydrated-deps.sh` in kolu taking those arguments, with this file and
+# `check-kolu-deps.sh` becoming two `just` legs that call it — and the third and
+# fourth assertions of the kolu one (the overrides block, the product-tier
+# fence) staying kolu's own, since they are about kolu's tiering rather than
+# about hydration. Two consumers is the bar that pattern's own header sets, and
+# a second one now exists.
+#
+# It is NOT opened here, because where a shared script lives is the shape of
+# somebody else's repository and that is the human's to rule (the review of
+# juspay/olai#433, where this question was asked).
+#
 # WHAT THIS DOES NOT DO, and the omission is structural rather than lazy: there
 # is no sibling-closure walk, because there is no closure. `@odu/run-client`
 # names one dependency and nothing of odu's, which is the whole point of the

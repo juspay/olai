@@ -157,11 +157,12 @@ import { createMemo, createSignal, For, Index, Show } from "solid-js"
 import type { Entry } from "./drawer.ts"
 import { type Door, doorFor } from "./door.ts"
 
-import { type BlockChrome, layOut, registerLive, TERMINAL_KEY, WORKTREE_KEY } from "./live.ts"
+import { type BlockChrome, layOut } from "../live/seam.ts"
+// ...and the app's dressings, installed. A side-effect import, which is what
+// "these are the faces this app has" looks like when each folder registers
+// itself (`../live/dressings.ts` argues the whole arrangement).
+import "../live/dressings.ts"
 import { Handle } from "./handle.tsx"
-import { TerminalBlock } from "@olai/kolu-ui"
-import { CiChip } from "../ci/CiChip.tsx"
-import { RunMatrix } from "../ci/RunMatrix.tsx"
 import { type ClosedBy, type Editing, leavingCommits, openedOn, sending, writes } from "./editor.ts"
 import { Link } from "../router.tsx"
 import { useDoors, useNames } from "../reading.tsx"
@@ -171,41 +172,28 @@ import { SaidLine } from "../SaidLine.tsx"
 import { TESTID } from "../testids.ts"
 import { TARGET } from "../touch.ts"
 
-// THE APP OWNS THE TABLE, and this is the whole of that ownership.
+// WHERE THE TABLE IS FILLED, which is no longer here.
 //
-// It was a side-effect import: the seam was a table a renderer put ITSELF
-// into, and the drawer loaded the module so the key would be in the map. That
-// reads fine while everything is one package and stops being true the moment
-// the renderer is behind a wall — a self-registrant would put the appliance in
-// charge of the app's table, and the import direction would be a lie told by
-// an `import "…"` with no binding.
-//
-// So a face is a component and nothing else, and the registration is a call
-// the app makes. Against the KEY CONSTANTS — `@olai/surface`'s, composed out
-// of the appliance slice that owns each one — never the strings `"terminal"`
-// and `"worktree"`: the key is the wire's, one spelling, and a literal here
-// would be a second one waiting to drift from the one the server probes by.
+// The two registrations used to be two calls in this file, and the reason
+// written down was that a self-registrant would put an APPLIANCE in charge of
+// the app's table. That held while a dressing was a component behind a package
+// wall; it stopped holding when each one became a folder of the app's own
+// (`../live/`, the human's ruling on #433). What a reader gets back is that
+// everything about one dressing is in one directory, and what the drawer keeps
+// is what it always had: the lay-out, the furniture, and no knowledge of any
+// face.
 
 /** THE DRAWER'S FURNITURE, minted once — every face gets the same object.
  *
- *  It lives HERE and not in `./live.ts` because that module is the seam and
- *  is deliberately JSX-free: its own unit test imports it directly, and pulling
- *  a `.tsx` in through it broke that test the moment the chrome was added
- *  there. A type crosses a seam; a component belongs with the drawer. */
+ *  It lives HERE and not in `../live/seam.ts` because that module is the seam
+ *  and is deliberately JSX-free: its own unit test imports it directly, and
+ *  pulling a `.tsx` in through it broke that test the moment the chrome was
+ *  added there. A type crosses a seam; a component belongs with the drawer. */
 const BLOCK_CHROME: BlockChrome = {
   Handle,
   factId: TESTID.prop,
   valueId: TESTID.propValue,
 }
-
-// THE TWO DRESSINGS, and the shape of each is the argument for the seam having
-// two. A `terminal` owns a row, because a terminal somebody named is worth one
-// whether or not anything is happening in it. A `worktree` does not: it is a
-// path on a lane row, quiet by default, and its live face is a chip BESIDE the
-// value that appears only while there is a run — plus the matrix that chip's
-// press opens, drawn under the run because a grid does not fit in a chip.
-registerLive(TERMINAL_KEY, { Block: TerminalBlock })
-registerLive(WORKTREE_KEY, { Chip: CiChip, Pane: RunMatrix })
 
 /**
  * HOW LONG A VALUE MAY BE before it is drawn folded.

@@ -134,7 +134,7 @@ import { type Dial, koluHalf, type KoluHalf, SEED } from "@olai/kolu-client"
 import { type DialRun, oduHalf } from "@olai/odu-client"
 
 import { claimantsIn } from "./claimants.ts"
-import { lanesIn } from "./lanes.ts"
+import { worktreesIn } from "./worktrees.ts"
 import { koluFileIn, watchConfigIn } from "./koluConfig.ts"
 
 import type { Cadence, Change, Chat } from "@olai/chat"
@@ -780,10 +780,10 @@ export const bind = (
      * that loads mid-sweep reads the rows the watcher already has.
      *
      * THE VAULT WALK is passed in, the way `claimants` and `watchConfig` are
-     * and by the same ruling: which lanes name a worktree, and whether the
+     * and by the same ruling: which nodes name a worktree, and whether the
      * vault typed that key a path at all, are readings of outline records —
-     * things the package that dials odu must not learn. `./lanes.ts` stays
-     * here whole and what crosses is four strings per lane.
+     * things the package that dials odu must not learn. `./worktrees.ts` stays
+     * here whole and what crosses is four strings per node.
      *
      * That this block is the kolu block above with the nouns changed is the
      * phase's own claim, so it is worth not dressing it up: a second living
@@ -793,7 +793,7 @@ export const bind = (
      */
     const odu = oduHalf({
       options: wiring.odu,
-      lanes: lanesIn,
+      worktrees: worktreesIn,
       // Chatter, at debug: on a machine with no CI running this is a line
       // every few seconds and it is not news — which on this appliance is
       // even more true than on kolu's, because a checkout with no live run
@@ -1021,7 +1021,7 @@ export const bind = (
                     // and the wrench's door beside it are superscript
                     // claims the store can no longer vouch for.
                     kolu.unloaded()
-                    // ...and the lanes with it: a set of CI runs derived from a
+                    // ...and the worktrees with it: a set of CI runs derived from a
                     // vault the server can no longer see is yesterday's
                     // reading, and the sockets follow on the next sweep.
                     odu.unloaded()
@@ -1085,12 +1085,13 @@ export const bind = (
                       koluFile,
                     )).file ?? null,
                   )
-                  // ...and WHICH LANES NAME A WORKTREE, off the same statement
+                  // ...and WHICH NODES NAME A WORKTREE, off the same statement
                   // and for the same reason. It is handed the whole derivation
                   // rather than the node list above it, because the walk asks
                   // TWO things of one reading — the records, and whether this
-                  // vault declares `worktree` a `path` at all (`./lanes.ts`
-                  // argues why the declaration is what LICENCES a probe).
+                  // vault declares `worktree` a `path` at all
+                  // (`./worktrees.ts` argues why the declaration is what
+                  // LICENCES a probe).
                   // Storing the answer is all it does: dialing is the sweep's,
                   // on its own clock, so a keystroke costs one walk and no
                   // sockets.

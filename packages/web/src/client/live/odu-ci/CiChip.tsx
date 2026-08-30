@@ -2,17 +2,17 @@
  * THE CI CHIP — a `worktree` property's living face, drawn beside the path it
  * is about.
  *
- * The live-properties seam's SECOND tenant (`../props/live.ts`), and
+ * The live-properties seam's SECOND tenant (`../seam.ts`), and
  * deliberately the quieter shape of the two. The terminal door takes a row,
  * because a terminal somebody named is worth one; a `worktree` is a path on a
- * lane row and is worth exactly nothing until something is happening in it —
+ * row and is worth exactly nothing until something is happening in it —
  * so this draws NOTHING most of the time and one chip when there is a run,
  * and the line a reader sees is otherwise the line they have always seen.
  *
  * ## It ticks, and the tick is local
  *
  * The running node's start instant crosses the wire once with the row and the
- * clock is the reader's own — `../took.ts`'s two-speed seam, the same one the
+ * clock is the reader's own — `../duration/took.ts`'s two-speed seam, the same one the
  * pomodoro pill and the header's uptime chip wear. No polling, and no duration
  * the server would have to keep re-sending: a figure computed at the write is
  * stale the moment it is encoded, which is the lesson `TookChip` states one
@@ -20,19 +20,19 @@
  *
  * ONE CLOCK PER OPEN CHIP, and only while something is running. A settled
  * verdict never moves, so a settled chip keeps no clock at all — and a page of
- * twelve lanes with one live run has one ticking chip on it.
+ * twelve such rows with one live run has one ticking chip on it.
  *
  * ## Pressing it opens the matrix
  *
- * ...but the pane is drawn by the DRAWER, under the run (`../props/live.ts`'s
+ * ...but the pane is drawn by the DRAWER, under the run (`../seam.ts`'s
  * `Pane`), because a chip is an inline box in a wrapping line and cannot carry
  * a grid. What this component owns is the button; what is open is one answer
  * per run, held where the editor's own "which chip is open" is held, so
  * pressing a second chip closes the first.
  *
  * WHICH MAKES THIS CHIP THE PANE'S ONLY CLOSER, and that is a promise it has
- * to keep without a press. A row can go while the matrix is open — the lane
- * leaves the board, the server restarts, the property is edited — and the
+ * to keep without a press. A row can go while the matrix is open — the node
+ * loses the property, the vault drops it, the server restarts — and the
  * drawer cannot see it: what `paned` names is a KEY, and nothing tells the
  * drawer that the face behind that key has stopped drawing. So the face says
  * so ({@link closeWithTheRow}). Without it the matrix would sit there with
@@ -43,9 +43,9 @@ import { createEffect, Show } from "solid-js"
 
 import type { CiRun } from "@olai/surface"
 
-import { TESTID } from "../testids.ts"
-import { createNow } from "../took.ts"
-import type { ChipContext } from "../props/live.ts"
+import { TESTID } from "../../testids.ts"
+import { createNow } from "../duration/took.ts"
+import type { ChipContext } from "../seam.ts"
 import { useRuns } from "./runs.tsx"
 import { runningIn, type CiTone, wordsFor } from "./words.ts"
 
@@ -147,7 +147,7 @@ export function CiChip(context: ChipContext) {
  *
  * An EFFECT rather than a guard inside the drawer, because the drawer holds a
  * key and this holds the answer. It fires on the crossing alone: `opened` is
- * false the rest of the time, so a page of twelve lanes with nothing open runs
+ * false the rest of the time, so a page of twelve rows with nothing open runs
  * this and stops.
  */
 const closeWithTheRow = (

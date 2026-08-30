@@ -1,10 +1,10 @@
 /**
- * WHERE A LANE'S `worktree` ACTUALLY IS — the named gap, and the rule that
+ * WHERE A `worktree` VALUE ACTUALLY IS — the named gap, and the rule that
  * closes it.
  *
  * ## The gap, stated
  *
- * A lane on the board carries `worktree .worktrees/live-properties`. That
+ * A node carries `worktree .worktrees/live-properties`. That
  * value is RELATIVE and it does not name its repository: the same six
  * characters are a directory under juspay/olai, under juspay/odu and under
  * juspay/kolu, and the board writes them the same way in all three. A socket
@@ -18,12 +18,12 @@
  *      arithmetic — a board that grows tired of the guessing can end it one
  *      value at a time, and this line is what makes that a real option rather
  *      than a suggestion.
- *   2. **A relative value is joined onto its lane's CHECKOUT**, which is
- *      `<repos root>/<repo>`. The repo comes from the lane's own `pr-url`
+ *   2. **A relative value is joined onto its node's CHECKOUT**, which is
+ *      `<repos root>/<repo>`. The repo comes from the node's own `pr-url`
  *      (`https://github.com/juspay/odu/pull/94` → `odu`) — the human's own
  *      suggestion, and the right source for it: a PR URL is a VALUE somebody
- *      wrote on the lane, where the alternative (reading `projects/<repo>/`
- *      out of the file the lane happens to live in) is a fact about the
+ *      wrote on the node, where the alternative (reading `projects/<repo>/`
+ *      out of the file the node happens to live in) is a fact about the
  *      vault's LAYOUT, and a rule that depends on layout breaks silently when
  *      somebody reorganises a directory.
  *   3. **The repos root is the served directory's own parent**, unless
@@ -32,10 +32,10 @@
  *      `~/code/odu` — and that adjacency is not a coincidence this rule is
  *      exploiting: it is the same premise the board's own relative values
  *      already rest on. A machine laid out otherwise says so once, in a
- *      variable, rather than by editing a hundred lane rows.
+ *      variable, rather than by editing a hundred rows.
  *
- * A lane with a relative `worktree` and no `pr-url` resolves to NOTHING and is
- * not probed. Not a fallback: the two facts a lane must carry for a face are a
+ * A node with a relative `worktree` and no `pr-url` resolves to NOTHING and is
+ * not probed. Not a fallback: the two facts a node must carry for a face are a
  * path and which tree it is in, and inventing the second from thin air is
  * exactly the wrong door this repo's display rules refuse everywhere else.
  *
@@ -61,17 +61,17 @@ import { isAbsolute, join, resolve as resolvePath } from "node:path"
  *  Named once. */
 export const REPOS_DIR = "OLAI_REPOS_DIR"
 
-/** What a lane must carry for this to answer: the path it wrote, and the URL
+/** What a node must carry for this to answer: the path it wrote, and the URL
  *  that says which repository it is in. Both are strings off the record —
- *  `@olai/server`'s vault walk hands them over ({@link ./lanes.ts}), so this
- *  module never learns what an outline node is. */
-export interface LanePath {
+ *  `@olai/server`'s vault walk hands them over ({@link ./worktrees.ts}), so
+ *  this module never learns what an outline node is. */
+export interface Worktree {
   /** The `worktree` property's value, verbatim. */
-  readonly worktree: string
-  /** The `pr-url` property's value, or `undefined` for a lane that has not
-   *  opened one yet. A lane may carry SEVERAL (a fact can be a list) and the
+  readonly value: string
+  /** The `pr-url` property's value, or `undefined` for a node that has not
+   *  opened one yet. A node may carry SEVERAL (a fact can be a list) and the
    *  walk hands over the first — every one of them names the same repository
-   *  in the case that matters, and a lane whose PRs are in two repositories
+   *  in the case that matters, and a node whose PRs are in two repositories
    *  has a `worktree` that can only be in one of them anyway. */
   readonly prUrl?: string
 }
@@ -135,20 +135,20 @@ export const repoIn = (prUrl: string | undefined): string | undefined => {
 }
 
 /**
- * The absolute checkout root a lane's `worktree` names, or `undefined` for a
- * lane this rule cannot place.
+ * The absolute checkout root a `worktree` value names, or `undefined` for one
+ * this rule cannot place.
  *
  * `reposRoot` is {@link reposRootIn}'s answer, computed once per server rather
- * than per lane per sweep.
+ * than per node per sweep.
  */
 export const worktreeAt = (
-  lane: LanePath,
+  worktree: Worktree,
   reposRoot: string,
 ): string | undefined => {
-  const written = lane.worktree.trim()
+  const written = worktree.value.trim()
   if (written === "") return undefined
   if (isAbsolute(written)) return resolvePath(written)
-  const repo = repoIn(lane.prUrl)
+  const repo = repoIn(worktree.prUrl)
   if (repo === undefined) return undefined
   // `resolve` rather than a bare `join`, so a value carrying `..` cannot
   // climb out of the checkout it was written under — the same fence

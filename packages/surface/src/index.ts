@@ -1659,7 +1659,8 @@ export {
   type WatchPulse,
 } from "@olai/kolu-client/wire"
 
-/** THE ODU HALF — the CI runs a board's lanes are living through.
+/** THE ODU HALF — the CI runs the vault's worktree-naming nodes are living
+ *  through.
  *
  *  RE-EXPORTED FROM `@olai/odu-client/wire` for the kolu slice's reason,
  *  word for word: nothing appliance-named lives in the package every browser

@@ -10,11 +10,26 @@
  * one manifest. It is `./claimants.ts`'s arrangement, one property over, and
  * deliberately the same shape.
  *
+ * ## Why it is not called `lanes.ts`, which it was
+ *
+ * Because a LANE is not olai's word. It is the orchestrator's board's — a
+ * dispatched piece of work, with an agent on it and a PR at the end — and that
+ * is process vocabulary belonging to one vault that happens to be this app's
+ * heaviest user (the human's review of #433). olai's own vocabulary has nodes,
+ * properties and declared types, and no opinion about why somebody wrote a
+ * fact down.
+ *
+ * What this module actually asks is a question in that vocabulary and reads
+ * the same either way: WHICH NODES CARRY A `worktree`, in a vault that has
+ * declared that key a `path`. A directory of recipes with a `worktree` on one
+ * of them gets the same probe and the same chip, and nothing in the code has
+ * to be re-read as a metaphor for it.
+ *
  * ## THE DECLARATION LICENCES THE PROBE
  *
  * This is where typed properties do work in the live-properties seam, and it
  * is worth stating plainly because it is not where a reader would first look
- * for it. A lane's `worktree` is a decision-shaped name; what turns it into a
+ * for it. A `worktree` value is a decision-shaped name; what turns it into a
  * path olai will join `.ci/odu.sock` onto is the vault's own declaration —
  * `{"title":"worktree","custom":{"type":"path"}}`. A vault that declares the
  * key something else, or a vault that declares nothing at all, gets NO PROBE:
@@ -36,9 +51,9 @@
  * path to a socket dial in a directory nobody asked about, so the bar is
  * higher: somebody has to have said, in the vault, that this key holds paths.
  *
- * What crosses is four strings per lane (`@olai/odu-client`'s `Lane`). The
- * probe is odu's, the walk is olai's, and that shape is the only place they
- * meet.
+ * What crosses is four strings per node (`@olai/odu-client`'s
+ * `WorktreeNode`). The probe is odu's, the walk is olai's, and that shape is
+ * the only place they meet.
  */
 
 import {
@@ -48,7 +63,7 @@ import {
   type Derived,
   isRegular,
 } from "@olai/format"
-import type { Lane } from "@olai/odu-client"
+import type { WorktreeNode } from "@olai/odu-client"
 import { PR_URL_KEY, WORKTREE_KEY } from "@olai/surface"
 
 /**
@@ -63,7 +78,7 @@ import { PR_URL_KEY, WORKTREE_KEY } from "@olai/surface"
  * file here or a `boolean` computed by the caller — one wasteful, the other a
  * question asked in a place that cannot see why.
  *
- * A GENERATOR, for `claimantsIn`'s reason: a revision that names no lane —
+ * A GENERATOR, for `claimantsIn`'s reason: a revision that names no worktree —
  * which is almost every revision in almost every vault — allocates nothing,
  * because the caller walks this once and keeps only what it found. And the
  * declaration is asked BEFORE the loop, so a vault that types nothing pays one
@@ -78,20 +93,20 @@ import { PR_URL_KEY, WORKTREE_KEY } from "@olai/surface"
  * `pr-url` rides along UNCHECKED against its own declaration, and that is an
  * asymmetry rather than an oversight: the `worktree` value is what becomes a
  * path, and the PR URL only ever narrows where that path is looked for. A
- * value that is not a URL resolves to no repository and the lane is dropped
+ * value that is not a URL resolves to no repository and the node is dropped
  * (`@olai/odu-client`'s `repoIn`), which is the same outcome a wrong
  * declaration would have bought, reached without a second gate.
  */
-export function* lanesIn(derived: Derived): Generator<Lane> {
+export function* worktreesIn(derived: Derived): Generator<WorktreeNode> {
   if (declaredFor(declarationsOf(derived), WORKTREE_KEY)?.type.kind !== "path") return
   for (const located of derived.nodes) {
     if (!isRegular(located)) continue
-    const worktree = customText(located.node, WORKTREE_KEY)
-    if (worktree === undefined) continue
+    const value = customText(located.node, WORKTREE_KEY)
+    if (value === undefined) continue
     yield {
-      id: located.node.id,
+      node: located.node.id,
       title: located.node.title,
-      worktree,
+      value,
       prUrl: customText(located.node, PR_URL_KEY),
     }
   }

@@ -18,15 +18,15 @@ import type { PipelineState, RunHeader } from "@odu/run-client/surface"
 import { Effect, Stream } from "effect"
 import { expect, test } from "bun:test"
 
-import { type DialRun, type Lane, makeWatch, type WatchDeps } from "./runs.ts"
+import { type DialRun, makeWatch, type WatchDeps, type WorktreeNode } from "./runs.ts"
 import { type CiRun, tallyOf, verdictOf } from "./wire/index.ts"
 
 const ROOT = "/home/x/code"
 
-const lane = (over: Partial<Lane> = {}): Lane => ({
-  id: "lane-a",
+const named = (over: Partial<WorktreeNode> = {}): WorktreeNode => ({
+  node: "node-a",
   title: "the seam",
-  worktree: ".worktrees/a",
+  value: ".worktrees/a",
   prUrl: "https://github.com/juspay/odu/pull/94",
   ...over,
 })
@@ -100,7 +100,7 @@ test("a checkout with no run publishes NOTHING, and that is not an error", () =>
   // `null` for it, and the whole of the watcher's response is silence.
   const it = bench(async () => null)
   const watch = makeWatch(it.deps)
-  watch.reclaim([lane()])
+  watch.reclaim([named()])
   return Effect.runPromise(
     Effect.scoped(Effect.gen(function*() {
       yield* watch.sweep
@@ -120,7 +120,7 @@ test("a checkout with no run publishes NOTHING, and that is not an error", () =>
 test("a live run publishes a row keyed by the BOARD'S OWN value, resolved beside it", () => {
   const it = bench(coordinator(state(), header(), null))
   const watch = makeWatch(it.deps)
-  watch.reclaim([lane()])
+  watch.reclaim([named()])
   return Effect.runPromise(
     Effect.scoped(Effect.gen(function*() {
       yield* watch.sweep
@@ -142,7 +142,7 @@ test("a held run is NOT re-dialled — the coordinator pushes, the sweep does no
   }
   const it = bench(dial)
   const watch = makeWatch(it.deps)
-  watch.reclaim([lane()])
+  watch.reclaim([named()])
   return Effect.runPromise(
     Effect.scoped(Effect.gen(function*() {
       yield* watch.sweep
@@ -162,7 +162,7 @@ test("a run whose socket GOES leaves its last reading behind, no longer live", (
   })
   const it = bench(coordinator(state(), header(), ends))
   const watch = makeWatch(it.deps)
-  watch.reclaim([lane()])
+  watch.reclaim([named()])
   return Effect.runPromise(
     Effect.scoped(Effect.gen(function*() {
       yield* watch.sweep
@@ -190,7 +190,7 @@ test("a dial that RAISES is one warning and then silence — it may never kill t
     throw new Error("EACCES")
   })
   const watch = makeWatch(it.deps)
-  watch.reclaim([lane()])
+  watch.reclaim([named()])
   return Effect.runPromise(
     Effect.scoped(Effect.gen(function*() {
       yield* watch.sweep
@@ -213,7 +213,7 @@ test("a lane this rule cannot place is never dialled at all", () => {
     return null
   })
   const watch = makeWatch(it.deps)
-  watch.reclaim([lane({ prUrl: undefined })])
+  watch.reclaim([named({ prUrl: undefined })])
   return Effect.runPromise(
     Effect.scoped(Effect.gen(function*() {
       yield* watch.sweep
@@ -228,7 +228,7 @@ test("a lane the board DROPS takes its row with it, settled verdict and all", ()
   // was deleted would be a face reporting on work nobody is tracking.
   const it = bench(coordinator(state(), header(), null))
   const watch = makeWatch(it.deps)
-  watch.reclaim([lane()])
+  watch.reclaim([named()])
   return Effect.runPromise(
     Effect.scoped(Effect.gen(function*() {
       yield* watch.sweep
@@ -276,7 +276,7 @@ test("a frame arriving AFTER the board dropped a lane does not put its row back"
     close: async () => {},
   }) as never)
   const watch = makeWatch(it.deps)
-  watch.reclaim([lane()])
+  watch.reclaim([named()])
   return Effect.runPromise(
     Effect.scoped(Effect.gen(function*() {
       yield* watch.sweep
@@ -303,14 +303,14 @@ test("one worktree string re-added under a DIFFERENT repository is re-dialled", 
     return coordinator(state(), header(), null)(path)
   })
   const watch = makeWatch(it.deps)
-  watch.reclaim([lane()])
+  watch.reclaim([named()])
   return Effect.runPromise(
     Effect.scoped(Effect.gen(function*() {
       yield* watch.sweep
       yield* settle
       expect(watch.rows()[0]?.at).toBe("/home/x/code/odu/.worktrees/a")
       // Same `worktree`, different repository.
-      watch.reclaim([lane({ prUrl: "https://github.com/juspay/kolu/pull/1" })])
+      watch.reclaim([named({ prUrl: "https://github.com/juspay/kolu/pull/1" })])
       yield* watch.sweep
       yield* settle
       expect(watch.rows()[0]?.at).toBe("/home/x/code/kolu/.worktrees/a")
@@ -329,7 +329,7 @@ test("two lanes naming ONE checkout are one run — the second claim is the mist
     return coordinator(state(), header(), null)(path)
   })
   const watch = makeWatch(it.deps)
-  watch.reclaim([lane(), lane({ id: "lane-b", title: "a second row" })])
+  watch.reclaim([named(), named({ node: "node-b", title: "a second row" })])
   return Effect.runPromise(
     Effect.scoped(Effect.gen(function*() {
       yield* watch.sweep
