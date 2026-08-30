@@ -382,6 +382,19 @@ interface Grounded {
   /** What is wrong with this value — or `undefined`, which is nearly every
    *  value. The clause completes "`under` is `x`, which …". */
   readonly wrong: (value: string, derived: Derived) => string | undefined
+  /**
+   * Does the check above RESOLVE A BARE ID in the set — so a file that did not
+   * parse could have made it fail?
+   *
+   * Exactly one of the three words does (`under`), and it decides whether the
+   * finding it produces is withheld while any file is unreadable
+   * (`./errors.ts`'s `isGuessWhileUnreadable`, asked of the finding). It is a
+   * field on the word rather than a list of words somewhere else for this
+   * table's own reason: `type`, `under` and `base` are grounded HERE, and a
+   * fourth word added without answering this would inherit the wrong answer
+   * silently.
+   */
+  readonly resolves: boolean
 }
 
 /**
@@ -411,6 +424,7 @@ interface Grounded {
 export const BOOTSTRAP: ReadonlyMap<string, Grounded> = new Map<string, Grounded>([
   [TYPE_KEY, {
     takes: kindsTaken(),
+    resolves: false,
     wrong: (value) =>
       isPropKind(value) ? undefined : `is not a property type — write ${
         kindsTaken()
@@ -418,6 +432,9 @@ export const BOOTSTRAP: ReadonlyMap<string, Grounded> = new Map<string, Grounded
   }],
   [UNDER_KEY, {
     takes: "the id of a node in the set — where a `ref`'s variants live",
+    // THE ONE WORD THAT READS THE SET, which is why a finding about it is a
+    // guess while any file is unreadable and the other two never are.
+    resolves: true,
     // A MIRROR IS NOT A PLACE VARIANTS LIVE, and it is the one wrong value here
     // that would otherwise pass. A placement has no children of its own
     // ({@link ./node.ts}: children hang off the node a mirror points at), so a
@@ -437,6 +454,7 @@ export const BOOTSTRAP: ReadonlyMap<string, Grounded> = new Map<string, Grounded
   }],
   [BASE_KEY, {
     takes: `\`root\` or \`file\` — where a \`doc\` or \`path\` value resolves from`,
+    resolves: false,
     // NO SET READING at all, which is what makes this the cheapest of the
     // three: the two bases are words this format knows, not nodes a vault
     // supplies, so the answer is the same in every directory.
@@ -1094,6 +1112,53 @@ export const storedValue = (
 // ── the declarations file's own records ────────────────────────────────
 
 /**
+ * WHAT A DECLARATION GOT WRONG, and whether reaching that answer RESOLVED A
+ * BARE ID.
+ *
+ * The pair, because only the caller that FILES the finding can spend the second
+ * half and only this function knows it: the sentence a reader acts on is the
+ * first arm the checks below take, and exactly one of those arms reads the set
+ * (`under`, through `Grounded.resolves`). Answering with the sentence alone
+ * left the caller to re-derive which arm it came from, and re-deriving it means
+ * re-running the checks in the same order — a second copy of this function's
+ * own precedence.
+ *
+ * WHY IT MATTERS AT ALL is the per-file ruling: a finding an unreadable file
+ * could have INVENTED is withheld, and a withheld finding now breaks nothing,
+ * so classifying the whole `bad-prop` code as guessable washed a declaration
+ * that says no `type` at all out of the report the moment any file in the
+ * directory failed to parse (`./errors.ts`'s `Reach`).
+ */
+export interface Wrong {
+  /** The sentence, written to teach — what `set_prop` refuses with and what
+   *  the validator's row says. */
+  readonly said: string
+  /** Whether reaching it resolved a bare id that may live in any file. */
+  readonly across: boolean
+}
+
+/** A fault decided by the record and this format's own tables — which is every
+ *  one of them but the `under` arm. */
+const decided = (said: string): Wrong => ({ said, across: false })
+
+/**
+ * Does a value of this key's declared kind RESOLVE A BARE ID that may live in
+ * any file? Two of the seven kinds do.
+ *
+ * The value-side twin of `Grounded.resolves`, and the reason it is a reading of
+ * the KIND rather than of the finding: a value's fault is about the kind its key
+ * declares, whatever the sentence says, so there is no arm order to re-derive
+ * and the rule that files the finding can ask this directly.
+ */
+export const resolvesId = (
+  declarations: PropDeclarations,
+  key: string,
+): boolean => {
+  const kind = declaredFor(declarations, key)?.type.kind
+  return kind === "ref" || kind === "node"
+}
+
+/**
  * WHAT IS WRONG WITH A RECORD OF `_olai/Properties.olai` — the bootstrap, said
  * as a finding.
  *
@@ -1118,7 +1183,7 @@ export const wrongDeclaration = (
   derived: Derived,
   located: Located,
   declared: ReadonlySet<string>,
-): string | undefined => {
+): Wrong | undefined => {
   // A placement declares nothing: it carries no title to name a key with and
   // no props to say a type in, which is the format's own shape rather than a
   // rule this file adds.
@@ -1126,27 +1191,33 @@ export const wrongDeclaration = (
   const node = located.node
   if (node.parent !== undefined) {
     const said = [...BOOTSTRAP.keys()].find((word) => customText(node, word) !== undefined)
-    return said === undefined ? undefined : `\`${said}\` declares a property key, and ` +
-      `only a TOP-LEVEL node of this file declares one — what hangs under a ` +
-      `declaration is its variants, named by their ids.`
+    return said === undefined ? undefined : decided(
+      `\`${said}\` declares a property key, and ` +
+        `only a TOP-LEVEL node of this file declares one — what hangs under a ` +
+        `declaration is its variants, named by their ids.`,
+    )
   }
   const written = node.title.trim()
   if (written === "") {
-    return "a declaration's title IS the property key, and this one has none."
+    return decided("a declaration's title IS the property key, and this one has none.")
   }
   const shadow = shadowFor(written)
   if (shadow !== undefined) {
-    return `\`${written}\` is what a node's own fields already answer, so no property ` +
-      `may be called that — ${shadow.door}.`
+    return decided(
+      `\`${written}\` is what a node's own fields already answer, so no property ` +
+        `may be called that — ${shadow.door}.`,
+    )
   }
   // The two bootstrap words are RESERVED, and this is where that is said. A
   // vault that declared `type` would be declaring the word a declaration says
   // its own type in — two answers about one key, in the one file where the
   // recursion is supposed to stop ({@link BOOTSTRAP}).
   if (BOOTSTRAP.has(written.toLowerCase())) {
-    return `\`${written}\` is what a declaration in this file says about ITSELF, so it ` +
-      `cannot also be a key this vault declares — the built-in table is where the ` +
-      `types of these two stop being read out of a file.`
+    return decided(
+      `\`${written}\` is what a declaration in this file says about ITSELF, so it ` +
+        `cannot also be a key this vault declares — the built-in table is where the ` +
+        `types of these two stop being read out of a file.`,
+    )
   }
   // FOLDED, and asked through the same {@link keyOf} the reading uses: `merge`
   // and `Merge` are one key to `prop:` and to the fence, so declaring both is
@@ -1155,10 +1226,12 @@ export const wrongDeclaration = (
   // is not on the screen is a sentence nobody can act on.
   const key = keyOf(written)
   if (key !== undefined && declared.has(key)) {
-    return `\`${written}\` is already declared by an earlier node in this file${
-      key === written ? "" : ` (as \`${key}\`, and a property key is folded for case)`
-    }; a key has one type across the vault, or its meaning depends on where the ` +
-      `reader is standing.`
+    return decided(
+      `\`${written}\` is already declared by an earlier node in this file${
+        key === written ? "" : ` (as \`${key}\`, and a property key is folded for case)`
+      }; a key has one type across the vault, or its meaning depends on where the ` +
+        `reader is standing.`,
+    )
   }
   // THE BOOTSTRAP, applied: each of the two words the table knows, checked
   // against the table rather than against a rule spelled here — and worded by
@@ -1169,19 +1242,27 @@ export const wrongDeclaration = (
     if (value === undefined) continue
     const wrong = grounded.wrong(value, derived)
     if (wrong === undefined) continue
-    return `\`${word}\` is \`${value}\`, which ${wrong}`
+    // THE ONE ARM THAT MAY BE A GUESS, and the word itself says which of the
+    // three it is (`Grounded.resolves`): `under` reads the SET, so a file that
+    // did not parse could have taken the id it names away with it; `type` and
+    // `base` read this format's own tables and are true whatever is missing.
+    return { said: `\`${word}\` is \`${value}\`, which ${wrong}`, across: grounded.resolves }
   }
   const said = customText(node, TYPE_KEY)
   if (said === undefined) {
-    return `\`${written}\` declares a property key but does not say its \`${TYPE_KEY}\` — write ` +
-      `${BOOTSTRAP.get(TYPE_KEY)?.takes ?? ""}.`
+    return decided(
+      `\`${written}\` declares a property key but does not say its \`${TYPE_KEY}\` — write ` +
+        `${BOOTSTRAP.get(TYPE_KEY)?.takes ?? ""}.`,
+    )
   }
   // The one rule about the PAIR, which no per-word table can hold: `under` says
   // where a `ref` finds its variants, and every other kind takes its values
   // from nowhere in particular.
   if (said !== "ref" && customText(node, UNDER_KEY) !== undefined) {
-    return `\`${UNDER_KEY}\` says where a \`ref\`'s variants live, and \`${written}\` is a ` +
-      `\`${said}\` — which takes its values from nowhere in particular.`
+    return decided(
+      `\`${UNDER_KEY}\` says where a \`ref\`'s variants live, and \`${written}\` is a ` +
+        `\`${said}\` — which takes its values from nowhere in particular.`,
+    )
   }
   // The same rule for the second word of the pair: `base` says where a PATH
   // resolves from, and the five kinds that name no path have nothing to
@@ -1189,8 +1270,10 @@ export const wrongDeclaration = (
   // the reading SKIPS such a declaration ({@link typeIn}), so a key that looks
   // typed and is silently untyped is exactly what this rule exists to name.
   if (said !== "doc" && said !== "path" && customText(node, BASE_KEY) !== undefined) {
-    return `\`${BASE_KEY}\` says where a \`doc\` or \`path\` value resolves from, and ` +
-      `\`${written}\` is a \`${said}\` — which names no path to resolve.`
+    return decided(
+      `\`${BASE_KEY}\` says where a \`doc\` or \`path\` value resolves from, and ` +
+        `\`${written}\` is a \`${said}\` — which names no path to resolve.`,
+    )
   }
   return undefined
 }

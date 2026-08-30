@@ -313,6 +313,73 @@ const adopted = (
 })
 
 /**
+ * THE PROBE grok's review named, and the hole it found.
+ *
+ * `pantry.olai` is `not-json`. `lanes.olai` reads perfectly and holds prose
+ * against an `int` declaration. Before this test the `bad-prop` was WASHED OUT
+ * — `reportOf` strips every `isGuessWhileUnreadable` code the moment any file
+ * fails to decode, `bad-prop` was classified `set-across-files` for all seven
+ * kinds it judges, and a withheld finding breaks nothing since the ruling — so
+ * `lanes.olai` was published live and WRITABLE carrying a value the format had
+ * just refused to mean. That is the safety net the per-file rule retired, and
+ * the opposite of what #439 promises.
+ *
+ * The classification is per FINDING now (`./errors.ts`'s `Reach`): an `int`
+ * holding prose resolves no bare id, so it is no guess and it breaks its file.
+ * The two `bad-prop` kinds that DO resolve one still behave as before, which is
+ * the second half below — the wash-out is narrowed, not removed.
+ */
+test("a value that fits no declaration is not washed out by an unparsed file", () => {
+  const files = {
+    "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"records","custom":{"type":"int"}}`,
+    "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"records":"prose"}}`,
+  }
+  // ALONE, it is a finding and nobody argues.
+  const clean = validate(setOf(files))
+  if (Result.isFailure(clean)) throw new Error("a validation answers with a set")
+  expect(clean.success.set.broken.map((one) => one.file)).toEqual(["lanes.olai"])
+
+  // …AND BESIDE A FILE THAT WOULD NOT PARSE, which is the probe. The parse
+  // failure is its own file's; the value is still refused; `lanes.olai` is
+  // still withheld, and a write to it is still stopped.
+  const beside = validate(setOf(files, [], { "pantry.olai": `{"id":"pantry"` }))
+  if (Result.isFailure(beside)) throw new Error("a validation answers with a set")
+  const set = beside.success.set
+  expect(set.broken.map((one) => one.file).slice().sort())
+    .toEqual(["lanes.olai", "pantry.olai"])
+  expect(brokenIn(set, "lanes.olai")?.map((one) => one.code)).toEqual(["bad-prop"])
+  expect(stopping(set, ["lanes.olai"])).not.toBeNull()
+})
+
+/**
+ * …AND THE NARROWING KEEPS THE GUESS WHERE IT IS ONE.
+ *
+ * A `ref` value names a BARE ID, so "nothing under `roster` is called that" is
+ * exactly the sentence an unparsed file can invent — the id may be on one of
+ * its lines. That finding is still withheld while any file will not parse, and
+ * the file holding the value is still live. Same code, opposite answer, decided
+ * by the kind the key declares rather than by the code.
+ */
+test("a ref value IS still a guess while a file will not parse", () => {
+  const files = {
+    "_olai/Properties.olai":
+      `{"id":"p","ord":"a0","title":"agent","custom":{"type":"ref","under":"roster"}}`,
+    "agents.olai": `{"id":"roster","ord":"a0","title":"the roster"}\n` +
+      `{"id":"claude","parent":"roster","ord":"a1","title":"Claude"}`,
+    "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent":"nobody"}}`,
+  }
+  const alone = validate(setOf(files))
+  if (Result.isFailure(alone)) throw new Error("a validation answers with a set")
+  expect(alone.success.set.broken.map((one) => one.file)).toEqual(["lanes.olai"])
+
+  const beside = validate(setOf(files, [], { "pantry.olai": `{"id":"pantry"` }))
+  if (Result.isFailure(beside)) throw new Error("a validation answers with a set")
+  const set = beside.success.set
+  expect(set.broken.map((one) => one.file)).toEqual(["pantry.olai"])
+  expect(stopping(set, ["lanes.olai"])).toBeNull()
+})
+
+/**
  * THE PER-FILE ANSWER, over three kinds of broken set.
  *
  * The ruling as a differential rather than as a table. `parse holes only` is

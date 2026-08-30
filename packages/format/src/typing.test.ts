@@ -365,7 +365,7 @@ test("a bad type is refused naming the legal kinds and each one's shape", () => 
   const bent = derive(nodesOfFiles({
     "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"took","custom":{"type":"took"}}`,
   }))
-  const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set())
+  const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set())?.said
   expect(said).toContain("`type` is `took`, which is not a property type")
   expect(said).toContain("`text` (anything)")
   expect(said).toContain("`date` (an ISO day or instant)")
@@ -434,7 +434,7 @@ test("a declaration missing its type is refused naming the same vocabulary", () 
   const bent = derive(nodesOfFiles({
     "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"musts"}`,
   }))
-  const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set())
+  const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set())?.said
   expect(said).toContain("does not say its `type`")
   expect(said).toContain("`text` (anything)")
   expect(said).toContain("`ref` (a child's id; `under` names the parent)")
@@ -490,7 +490,7 @@ test("a MIRROR cannot be where a ref's variants live", () => {
   // The key is NOT declared, so no value of it is refused for the wrong reason.
   expect(declarationsOf(bent).has("agent")).toBe(false)
   // ...and the declarations file itself is what says so.
-  expect(wrongDeclaration(bent, bent.byId.get("p")!, new Set()))
+  expect(wrongDeclaration(bent, bent.byId.get("p")!, new Set())?.said)
     .toContain("is a mirror — a second placement rather than a node of its own")
 })
 
@@ -551,6 +551,6 @@ test("a key declared twice differing only in case is one key declared twice", ()
     ].join("\n"),
   }))
   expect([...declarationsOf(twice).keys()]).toEqual(["merge"])
-  expect(wrongDeclaration(twice, twice.byId.get("p2")!, new Set(["merge"])))
+  expect(wrongDeclaration(twice, twice.byId.get("p2")!, new Set(["merge"]))?.said)
     .toContain("a property key is folded for case")
 })
