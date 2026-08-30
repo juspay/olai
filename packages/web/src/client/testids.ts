@@ -1129,6 +1129,15 @@ export const TESTID = {
    *  same fact. */
   filterBar: "filter-bar",
   filterInput: "filter-input",
+  /** The page's own out-vote on done-visibility, beside the filter: a
+   *  (filter/) two-segment strip, `data-own` while the page holds an entry
+   *  against the panel's default. Outline pages only — a day, the agenda,
+   *  the trash get the bar without it (settings/done.ts). */
+  doneFlip: "done-flip",
+  /** The release door of the flip — the `·` mark, a button while the page
+   *  owns its say: the flip's two segments ask, the mark hands the pick
+   *  back to the panel. */
+  doneRelease: "done-release",
   /** "3 of 41", plus what the done-preference is holding back. */
   filterCount: "filter-count",
   filterClear: "filter-clear",

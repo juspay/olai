@@ -59,14 +59,14 @@ Then(
 );
 
 Then(
-  "the page says Prefs is hiding finished work",
+  "the page names that finished work is hidden",
   async function (this: OlaiWorld) {
     const said = this.page.locator(EMPTY_UNDER);
     await said.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     assert.ok(
-      /prefs/i.test(await said.innerText()),
-      "the empty page names the state and not Prefs, so a reader whose " +
-        "finished work is hidden has no door back",
+      /Done flip/i.test(await said.innerText()),
+      "the empty page names the pick that swept it, not a panel that may " +
+        "say otherwise (the page can own the word itself)",
     );
   },
 );

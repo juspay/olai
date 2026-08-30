@@ -32,6 +32,9 @@ Feature: The `terminal` property is a DOOR
     # Three lanes, three states, one page — and the reader never went anywhere
     # special to see them.
     Given I open the outline "lanes.olai"
+    # A lane that finished IS content here — the sleeping row is the third
+    # state being read off the page — so the board is asked to keep it drawn.
+    And I show the done nodes
     Then the terminal row on "door-implement" is working
     And the terminal row on "door-review" is awaiting
     And the terminal row on "door-review" is asking for you
@@ -45,6 +48,9 @@ Feature: The `terminal` property is a DOOR
     # live row would claim the terminal is sitting there doing nothing, which is a
     # different and wrong fact.
     Given I open the outline "lanes.olai"
+    # `old-implement` is finished: the sentence that says the fleet lost it
+    # hangs on its row, so that row has to be on the page.
+    And I show the done nodes
     Then the terminal on "old-implement" has no row
     And the terminal on "old-implement" says "no longer in the fleet"
     And there should be no page errors
@@ -99,6 +105,8 @@ Feature: The `terminal` property is a DOOR
     # A sentence IN PLACE OF the terminal — not a fault, not an empty box, and
     # not a frozen screen under a tag still claiming to be live.
     Given I open the outline "lanes.olai"
+    # Watching is a press on the row, and `quiet-implement` is finished.
+    And I show the done nodes
     When I watch the terminal on "quiet-implement"
     Then a snapshot pane opens on "quiet-implement"
     And the pane refuses with "it may have closed"

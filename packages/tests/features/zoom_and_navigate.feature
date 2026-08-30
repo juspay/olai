@@ -55,11 +55,18 @@ Feature: Zoom and navigate
     When I zoom into the node "kitchen-herbs"
     Then the zoomed node is "herbs"
     And the breadcrumbs are "garden.olai, garden #outdoors"
-    And the node "basil" is shown
+    # `mint` rather than `basil` for the identity row: the finished child is
+    # hidden until this page is asked for it, which no press of a placard
+    # does, and what this scenario claims is WHICH page the press landed on.
+    And the node "mint" is shown
     And there should be no page errors
 
   Scenario: Done nodes can be hidden, and come back
+    # Hidden is where every page starts now (the per-page pick's default), so
+    # this walks the pick both ways from there.
     Given I open the outline "house.olai"
+    Then the node "demo" is not shown
+    When I show the done nodes
     Then the node "demo" is shown
     When I hide the done nodes
     Then the node "demo" is not shown
@@ -75,9 +82,9 @@ Feature: Zoom and navigate
     # hid exactly what was left.
     #
     # Done-hidden now means what it says: the two DONE rows go, and the branch
-    # nobody marked stays, with its note.
+    # nobody marked stays, with its note. (Hidden IS the default now, so the
+    # walk there is the page's own starting state and this hides it by asking.)
     Given I open the outline "garden.olai"
-    Then the node "glazing" is shown
     When I hide the done nodes
     Then the node "glazing" is not shown
     And the node "sowing" is not shown
@@ -89,26 +96,33 @@ Feature: Zoom and navigate
     # so it stays — but a node whose own mark is `done` is somebody's claim
     # about the whole branch, and the toggle honours it.
     Given I open the outline "garden.olai"
-    Then the node "herbs" is shown
+    When I show the done nodes
+    Then the node "basil" is shown
     When I hide the done nodes
     Then the node "herbs" is shown
     And the node "basil" is not shown
 
   Scenario: Hiding done nodes works on a zoomed page too
     Given I open the node "herbs"
+    Then the node "basil" is not shown
+    When I show the done nodes
     Then the node "basil" is shown
     When I hide the done nodes
     Then the node "basil" is not shown
     And the node "mint" is shown
 
-  Scenario: A zoomed page whose children are all done names Prefs
-    # THE ONLY ON-SCREEN SENTENCE ABOUT THE SETTING, now the pill is gone.
-    # `compost` has two done children and nothing unmarked, so hiding finished
-    # work empties the page — and the copy says where the switch lives.
+  Scenario: A zoomed page whose children are all done names the flip
+    # THE ONLY ON-SCREEN SENTENCE ABOUT THE SETTING: `compost` has two done
+    # children and nothing unmarked, so the pick this page answers to empties
+    # it — and the copy names the door: the flip beside the page's own
+    # filter. It IS there from the first frame now, and the walk out and
+    # back proves the pick both ways.
     Given I open the node "compost"
+    Then the page names that finished work is hidden
+    When I show the done nodes
     Then the node "turned" is shown
     When I hide the done nodes
-    Then the page says Prefs is hiding finished work
+    Then the page names that finished work is hidden
 
   Scenario: A page you go to starts at the top, and the one you come back to does not
     # Two halves of one decision, and neither happens by itself: a route change

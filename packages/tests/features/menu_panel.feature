@@ -14,6 +14,10 @@ Feature: The ••• menu opens and shuts
 
   Background:
     Given I open the outline "house.olai"
+    # `demo` is the row the refused-mark scenarios open the menu OF —
+    # finished, so the page is asked to keep it drawn (the menu under a row
+    # that is not there is nobody's case).
+    And I show the done nodes
 
   Scenario: Escape hands the caret back to the •••
     # A menu opened with the keyboard HOLDS the caret, so the dismissal has to

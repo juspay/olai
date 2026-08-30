@@ -14,6 +14,9 @@ Feature: Keyboard editing
 
   Background:
     Given I open the outline "house.olai"
+    # These scenarios tick rows off and keep reading them, so finished work
+    # must stay drawn: the per-page default is hidden now (preferences.feature).
+    And I show the done nodes
     And I mark the page
 
   Scenario: Typing a title writes it, and the page follows the file
@@ -259,6 +262,9 @@ Feature: Keyboard editing
     # `mint` is the last unfinished task under `herbs` — which is the moment
     # somebody might want to tick the parent too, and now can.
     Given I open the outline "garden.olai"
+    # `mint` is TICKED OFF below and the row has to stay on the page to be
+    # read: each page hides its finished work by default now.
+    And I show the done nodes
     When I click the title of "mint"
     # Marked BEFORE the key, because the claim is about a line that does not
     # exist yet: the nudge is added to a live region under this row, and ONCE

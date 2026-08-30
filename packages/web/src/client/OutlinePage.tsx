@@ -29,7 +29,6 @@ import { bringOntoScreen, selectNode } from "./focus.ts"
 import { useHere, useLanding } from "./router.tsx"
 import { SaidLine } from "./SaidLine.tsx"
 import { createSaying } from "./saying.ts"
-import { doneHidden } from "./settings/done.ts"
 import { TESTID } from "./testids.ts"
 import { Tree } from "./Tree.tsx"
 
@@ -39,6 +38,12 @@ export function OutlinePage(props: {
    *  put a first one after. */
   readonly file: string
   readonly rows: ReadonlyArray<Row>
+  /** How many rows the outline HOLDS before this page's pick — and any
+   *  filter — prunes any: what "the file really is empty" is asked of.
+   *  {@link props.rows} cannot answer it, since hidden finished work and a
+   *  filter both take rows out, and `hidden` is the DEFAULT now, so an empty
+   *  file and a fully-hidden one were about to be indistinguishable. */
+  readonly holds: number
 }) {
   const narrowed = useNarrowed()
   const folds = createFoldReading()
@@ -264,15 +269,13 @@ export function OutlinePage(props: {
       <Editable rows={() => props.rows} file={props.file} within={[]}>
         <Tree rows={props.rows} />
         {/* An outline that holds nothing still has to be startable, and a
-            tree of no rows offers nowhere to press a key. Only when the file
-            really is empty: rows can also be missing because this reading is
-            hiding what is done — or because a FILTER matched nothing — and
-            "write its first line" would be a lie over a tree that is one
-            click from coming back. The filter bar says what happened in that
-            case. */}
-        <Show
-          when={unfiltered(narrowed) && props.rows.length === 0 && !doneHidden()}
-        >
+            tree of no rows offers nowhere to press a key. Asked of the FILE
+            rather than of the reading (`holds`, above): rows can also be
+            missing because this page is hiding what is done — or because a
+            FILTER matched nothing — and "write its first line" would be a
+            lie over a tree that is one pick from coming back. The filter bar
+            says what happened in that case. */}
+        <Show when={unfiltered(narrowed) && props.holds === 0}>
           <StartLine
             at={{ kind: "first", file: props.file }}
             label="This outline is empty — write its first line."
