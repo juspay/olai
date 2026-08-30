@@ -720,12 +720,22 @@ export const make = <F, S, E>(
            * either way — this package knows what a path is and nothing about
            * what is wrong with one. Absent, the answer is the sentence that
            * stood before any of this: a refusal refuses, a success admits.
+           *
+           * AND WHAT WAS STANDING goes across with it, which is the third
+           * argument. The candidate alone cannot say whether a file is broken
+           * BECAUSE of this write or was broken before it was asked for, and
+           * that difference is the difference between "this write took a file
+           * off the screen" and "one broken file freezes the directory". The
+           * store is what holds the last published value; only the codec can
+           * read it. It travels as it stands — nothing here looks inside — and
+           * `current` is non-null by the staleness check at the top of this
+           * gate.
            */
           const paths = write.changes.map((change) => change.path)
           const refused = Result.isFailure(judged.outcome) ? judged.outcome.failure : null
           const stopped = options.codec.stopping === undefined
             ? refused
-            : options.codec.stopping(judged.outcome, paths)
+            : options.codec.stopping(judged.outcome, paths, current.value)
           if (stopped !== null) return Result.fail(stopped)
           /**
            * AND THE SECOND THING that has to be true for bytes to land over a

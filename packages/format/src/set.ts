@@ -44,7 +44,7 @@ import { BrokenFile, type OutlineError } from "./errors.ts"
 import { bodyKind } from "./kinds.ts"
 import { Located } from "./node.ts"
 import { byPath } from "./paths.ts"
-import { admits, type Verdict, verdictOf } from "./verdict.ts"
+import { admits, struck, type Verdict, verdictOf } from "./verdict.ts"
 
 /**
  * A file of the set that is BROKEN, and why — {@link ./errors.ts}'s shape,
@@ -248,10 +248,27 @@ export const brokenBy = (
  * and lands, and one that half-fixes it is stopped by what is left. There is no
  * repair case and no exception for it — there is one rule, asked of the tree
  * the write would leave behind.
+ *
+ * AND THE BYSTANDER, which is the second question and the one that needs a
+ * second set. "The files this write puts down" is not the same list as "the
+ * files this write BREAKS": moving a `ref` variant out of the root its
+ * declaration names strands every value that says its id, and those values are
+ * in a file the write never opened. The first question above is blind to that
+ * by construction — it is asked about `paths` — so the gate asks
+ * {@link ./verdict.ts}'s `struck` beside it, over the DIFFERENCE from what was
+ * standing. #439 held this line at the store, over a candidate the codec
+ * refused; per-file publishing means the codec no longer refuses one, so the
+ * line is held here, where the two sets are.
+ *
+ * WITH NO STANDING SET there is no difference to take, and the answer is the
+ * first question alone. That is a first load — nothing has been published for
+ * this write to have darkened — and it is what a caller asking about a set
+ * rather than about a WRITE means.
  */
 export const stopping = (
   set: OutlineSet,
   paths: ReadonlyArray<string>,
+  standing?: OutlineSet,
 ): Verdict | null => {
   // ONE QUESTION, ONE ANSWER SHAPE ({@link ./verdict.ts}'s `admits`): which of
   // these files something is wrong with, and its rows. This is that answer
@@ -260,7 +277,15 @@ export const stopping = (
   // every row in it names the file, which is how the sentence downstream
   // recovers it.
   const admission = admits(set.broken, paths)
-  return admission._tag === "admitted" ? null : verdictOf(admission.rows)
+  if (admission._tag === "implicated") return verdictOf(admission.rows)
+  if (standing === undefined) return null
+  // The same shape, asked of the other half: a file this write darkened that
+  // it did not write. `verdictOf` again, so a refusal reads the same whichever
+  // question produced it — and the rows are the bystander's own, so the
+  // sentence downstream names the file the write broke rather than the file
+  // the write touched.
+  const bystander = struck(standing.broken, set.broken, paths)
+  return bystander._tag === "admitted" ? null : verdictOf(bystander.rows)
 }
 
 /**

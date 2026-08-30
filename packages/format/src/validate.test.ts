@@ -3,8 +3,8 @@ import { Result } from "effect"
 
 import { rowsOf } from "./derive.ts"
 import { bodiedDocument, type Document } from "./document.ts"
-import { isCrossFile, type OutlineError } from "./errors.ts"
-import { type Verdict, verdictOf } from "./verdict.ts"
+import { implicatedBy, isCrossFile, type OutlineError } from "./errors.ts"
+import { blamed, type Verdict, verdictOf } from "./verdict.ts"
 import { decodedOf, findingsIn, outlineOf, recordsOf, setOf } from "./fixtures.testlib.ts"
 import {
   assemble,
@@ -323,9 +323,17 @@ test("a parent in another file is a foreign-parent, not an unknown one", () => {
   expect(error.code).toBe("foreign-parent")
   expect([error.file, error.line]).toEqual(["b.olai", 1])
   expect(error.message).toContain("`mirror`")
+  // NAMED, NOT BLAMED. The parent's site is where the `parent` went, so a
+  // reader can see it; `broken: false` is the rule saying `a.olai` is nobody's
+  // fault here — the edit is the `parent` on this line, in `b.olai`.
   expect(error.related).toEqual([
-    { file: "a.olai", line: 1, note: "the parent lives here" },
+    { file: "a.olai", line: 1, note: "the parent lives here", broken: false },
   ])
+  // …and the two planes say different things about it, which is the point:
+  // the finding is ABOUT both files, and it BREAKS one.
+  expect(implicatedBy(error)).toEqual(["b.olai", "a.olai"])
+  expect(isCrossFile(error)).toBe(false)
+  expect(blamed([error]).map((one) => one.file)).toEqual(["b.olai"])
 })
 
 // A mirror is a placement, not a container: children hang off the node the

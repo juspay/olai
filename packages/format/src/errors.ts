@@ -107,7 +107,13 @@ const CATALOGUE = {
   /** `parent` names an id no record in the set declares. */
   "unknown-parent": "set",
   /** `parent` resolves, but in another file. Every `.olai` is an independent
-   *  tree; cross-file relations are mirrors and edges. */
+   *  tree; cross-file relations are mirrors and edges.
+   *
+   *  It names the parent's site as a POINTER and not as a second fault
+   *  ({@link Related}'s `broken`): the file that declares the parent did
+   *  nothing but be pointed at, and the edit that fixes this is in the file
+   *  holding the `parent`. Said on the SITE the rule emits rather than as a
+   *  row of this table — see {@link Related}. */
   "foreign-parent": "set",
   /** `parent` resolves to a mirror record. A mirror is a placement, not a
    *  container — children hang off the target. */
@@ -243,6 +249,27 @@ export const reportStage = (
  *  fixer knows who said no, but a judge's own page stays lit and its own
  *  writes stay admitted). Omitting is broken: every site the error names
  *  darkens until the finding does.
+ *
+ *  THE SECOND KIND OF NAMED-NOT-BLAMED SITE is a POINTER, and
+ *  `foreign-parent`'s is the one there is: the file the parent lives in did
+ *  nothing but be pointed at. It rides this field rather than a per-CODE row
+ *  of the catalogue above, and the argument is that the two kinds of related
+ *  site are not two kinds of CODE. A `duplicate-id` and a cycle name sites
+ *  that share the fault; a `bad-prop` names its judge; a `foreign-parent`
+ *  names what it reached at — and a code that one day names both a fault and
+ *  a ground has one row on a per-code table and two sites here. The rule that
+ *  MAKES the finding is the only thing that knows which it just named, and it
+ *  is where {@link OutlineError.across} already says the other per-instance
+ *  fact for the same reason. A per-code table would be a second axis over the
+ *  same rows, and the rows are what every reader draws.
+ *
+ *  ABSENT IS BROKEN, and that is the safe direction here for the opposite
+ *  reason `across` is: a site wrongly darkened is a page a reader can still
+ *  read and a write they can still make elsewhere, while a site wrongly LIT
+ *  is a page drawn out of records the validator has just refused — a
+ *  duplicate id's other claim, drawn as though `byId`'s coin toss were an
+ *  answer. So a rule that forgets to say `false` over-darkens, and a rule
+ *  that would have to say `true` never has to remember.
  */
 export const Related = Schema.Struct({
   ...Site.fields,

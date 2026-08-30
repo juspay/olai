@@ -139,8 +139,25 @@ export interface Codec<F, S, E> {
    *
    * So the store asks the per-file question here, and only the codec can
    * answer: `outcome` is exactly what {@link validate} just handed back — EITHER
-   * ARM — `paths` are the files THIS write puts down, and the answer is the `E`
-   * to refuse with, or `null` to let the bytes land.
+   * ARM — `paths` are the files THIS write puts down, `standing` is the value
+   * this store last published, and the answer is the `E` to refuse with, or
+   * `null` to let the bytes land.
+   *
+   * `standing` IS WHAT MAKES "THIS WRITE BROKE IT" ANSWERABLE, and it is the
+   * third argument for exactly one reason: the files a write puts down are not
+   * the files it can break. A commit is judged on the set it WOULD make, and
+   * that set can hold a file the write never opened and just took off every
+   * page — a codec whose sets have cross-file meaning has such a shape (olai's
+   * is a `ref` value in a third file, stranded by a move two files away). A
+   * codec handed only the candidate cannot tell that file from one that was
+   * already broken before the write was asked for, and the difference is the
+   * whole of the answer: the first must refuse, and the second must NOT, or
+   * one broken file freezes the directory again. So the store hands over what
+   * it last published — it has it, the codec cannot get it, and the store
+   * still looks inside neither.
+   *
+   * A codec with no such shape ignores the argument, which is what every one
+   * written before this did.
    *
    * BOTH ARMS, and that is what this member gained when it stopped being
    * `admits(refusal, paths) => boolean`. A codec that degrades PER FILE answers
@@ -166,6 +183,7 @@ export interface Codec<F, S, E> {
   readonly stopping?: (
     outcome: Result.Result<S, E>,
     paths: ReadonlyArray<string>,
+    standing: S,
   ) => E | null
   /**
    * One FILE could not be read — EACCES on a `.md`, not the directory itself.

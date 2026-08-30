@@ -24,6 +24,7 @@ import * as path from "node:path"
 import { NodeServices } from "@effect/platform-node"
 import {
   bodyOf,
+  implicatedBy,
   isMirror,
   type OutlineError,
   type OutlineSet,
@@ -1716,29 +1717,32 @@ describe("a declaration over unfit values", () => {
 })
 
 /**
- * MOVING A `ref` VARIANT INTO A THIRD FILE — and what the per-file ruling did
- * to #439's answer for it.
+ * MOVING A `ref` VARIANT INTO A THIRD FILE — refused, naming the file it would
+ * have broken.
  *
- * The planner builds the move (nothing about one record says the value in a
- * third file goes stale). #439 caught it at the STORE: the candidate would not
- * validate, and a write from a loading directory that produces a refused set is
- * that write's whatever files the findings name, so the bytes never landed.
+ * THE PIN THAT USED TO BE HERE said the move LANDED and the third file went
+ * dark, and said out loud that it was pinned rather than endorsed. This is that
+ * pin flipped. The behaviour it recorded was the one place per-file degradation
+ * let a write break a file it did not write: the planner builds the move
+ * (nothing about one record says a value in a third file goes stale), #439
+ * caught it at the STORE over a candidate the codec REFUSED, and per-file
+ * publishing left no refusal there to read — the candidate is published with
+ * `lanes.olai` withheld, and `stopping` was asked only about the files the
+ * write put down.
  *
- * That clause has no trigger here. A candidate the codec would once have
- * refused is now one it PUBLISHES, with `lanes.olai` withheld — so the store's
- * refusal path is not taken, and `stopping` answers about the files this write
- * puts down, which are the two it moved between. The move lands and the third
- * file goes dark.
+ * IT IS ASKED ABOUT BOTH NOW. `Codec.stopping` is handed the STANDING value as
+ * well as the candidate ({@link @olai/store}'s `Codec`), so the format can take
+ * the difference: `lanes.olai` was lit before this write and would be dark
+ * after it, and no write of this shape has ever been anything but the cause of
+ * that. #439's law — an ops write must never mint a state the next load
+ * refuses, even when the findings sit on files it did not write — is back, and
+ * per file rather than whole-set, which is what makes it live beside #441's.
  *
- * THIS IS PINNED AS THE BEHAVIOUR RATHER THAN ENDORSED AS THE DESIGN. It is the
- * one place per-file degradation lets a write break a file it did not write,
- * and it is in the PR's Deferrals with the two candidate fixes named (widen
- * `Codec.stopping` with the standing value so a codec can refuse a write that
- * NEWLY breaks a bystander; or fence this door at the planner the way #439
- * fenced the declaration doors). What is not in question is that it must not
- * stay silent, which is what this test is for.
+ * The other candidate fix was a fence at the planner, the way #439 fenced the
+ * declaration doors. The PR body argues why the gate got it: a fence is
+ * per-verb and this door is not the only one.
  */
-test("moving a ref variant lands, and the third file it strands goes dark", () =>
+test("moving a ref variant is refused, naming the third file it would strand", () =>
   withOps(
     {
       "_olai/Properties.olai":
@@ -1753,18 +1757,131 @@ test("moving a ref variant lands, and the third file it strands goes dark", () =
     },
     (fixture) =>
       Effect.gen(function*() {
-        const lanes = fixture.read("lanes.olai")
+        const agents = fixture.read("agents.olai")
+        const garden = fixture.read("garden.olai")
+
+        const failure = yield* Effect.orDie(
+          Effect.flip(
+            fixture.ops.run({ op: "move", id: "claude", parent: "garden" }, "mcp"),
+          ),
+        )
+        // THE REFUSAL NAMES THE BYSTANDER — not `garden.olai`, which is the
+        // file the write was putting down and has nothing wrong with it.
+        expect(failure._tag).toBe("ValidationFailure")
+        expect(failure.message).toContain("`lanes.olai`")
+        if (failure._tag !== "ValidationFailure") throw new Error("a validation refusal")
+        // …and it shows its work: the bystander's own rows, so the reader is
+        // told what the move would have meant rather than only that it stopped.
+        expect(failure.verdict.findings.map((one) => [one.file, one.code]))
+          .toEqual([["lanes.olai", "bad-prop"]])
+
+        // NOTHING WAS WRITTEN. Not the file the variant left, not the one it
+        // was going to, not the one that names it.
+        expect(fixture.read("agents.olai")).toBe(agents)
+        expect(fixture.read("garden.olai")).toBe(garden)
+        const set = yield* fixture.set()
+        expect(set.broken).toEqual([])
+
+        // …AND IT LANDS THE MOMENT NOTHING NAMES THE VARIANT. The value is
+        // cleared first — one write to `lanes.olai`, which is legal because
+        // clearing it breaks nothing — and then the same move goes through.
+        yield* run(fixture, { op: "prop", id: "lane", key: "agent", value: null })
         yield* run(fixture, { op: "move", id: "claude", parent: "garden" })
-
-        // The two files the write put down moved; the one it stranded did not.
         expect(fixture.read("garden.olai")).toContain(`"id":"claude"`)
-        expect(fixture.read("lanes.olai")).toBe(lanes)
+        expect((yield* fixture.set()).broken).toEqual([])
+      }),
+  ))
 
-        // …and it is what the reader sees: `lanes.olai` withheld, carrying the
-        // row about the value the move stranded, with every other file live.
+/**
+ * THE BYSTANDER RULE IS A DIFFERENCE, NOT A STATE — which is what keeps
+ * `broken-file-blocks-healthy-writes` closed while the refusal above stands.
+ *
+ * `lanes.olai` is ALREADY broken here, by a hand edit nobody's write made: it
+ * holds a second value naming a variant that was never declared. It is off
+ * every page and refusing its own writes before the move is asked for. So the
+ * move that would strand its OTHER value is not what took it off the screen,
+ * and the write lands — the file it darkens was dark.
+ *
+ * The alternative — comparing ROWS rather than files — would refuse this, and
+ * that is the freeze re-entering one row at a time: every already-broken file
+ * becomes a wall for writes three directories away, which is the bug the
+ * per-file ruling closed.
+ */
+test("a file that was already dark is not a bystander this write struck", () =>
+  withOps(
+    {
+      "_olai/Properties.olai":
+        `{"id":"prop-agent","ord":"a0","title":"agent","custom":{"type":"ref","under":"roster"}}\n`,
+      "agents.olai": [
+        `{"id":"roster","ord":"a0","title":"the agents"}`,
+        `{"id":"claude","parent":"roster","ord":"a0","title":"Claude"}`,
+        "",
+      ].join("\n"),
+      "lanes.olai": [
+        `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent":"claude"}}`,
+        `{"id":"other","ord":"a1","title":"another lane","custom":{"agent":"nobody-declared-this"}}`,
+        "",
+      ].join("\n"),
+      "garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}\n`,
+    },
+    (fixture) =>
+      Effect.gen(function*() {
+        // It is dark before anybody writes anything.
+        const before = yield* fixture.set()
+        expect(before.broken.map((one) => one.file)).toEqual(["lanes.olai"])
+
+        yield* run(fixture, { op: "move", id: "claude", parent: "garden" })
+        expect(fixture.read("garden.olai")).toContain(`"id":"claude"`)
+
+        // Still exactly one dark file, now carrying both rows — and every
+        // other file still live and writable.
         const set = yield* fixture.set()
         expect(set.broken.map((one) => one.file)).toEqual(["lanes.olai"])
-        expect(set.broken[0]?.errors.map((one) => one.code)).toEqual(["bad-prop"])
+        expect(set.broken[0]?.errors.length).toBe(2)
         expect(stopping(set, ["garden.olai"])).toBeNull()
+      }),
+  ))
+
+/**
+ * THE FOREIGN PARENT'S FILE KEEPS ITS WRITES — the other half of this lane,
+ * at the door it is about.
+ *
+ * `child.olai` places a record under a parent declared in `parent.olai`. The
+ * finding is `foreign-parent`, and it NAMES both files: the record that reached
+ * across, and the parent it reached at. Only the first is at fault — the edit
+ * that fixes it is the `parent` field, in `child.olai` — so `parent.olai` stays
+ * lit, keeps its records in the set, and accepts writes. It used to go
+ * errors-only and refuse every write in it, which is
+ * `broken-file-blocks-healthy-writes` re-entering through one code's blame.
+ */
+test("a foreign parent darkens the child's file, and the parent's stays writable", () =>
+  withOps(
+    {
+      "parent.olai": `{"id":"kitchen","ord":"a0","title":"the kitchen"}\n`,
+      "child.olai": `{"id":"sink","parent":"kitchen","ord":"a0","title":"the sink"}\n`,
+    },
+    (fixture) =>
+      Effect.gen(function*() {
+        const set = yield* fixture.set()
+        // ONE dark file, and it is the one holding the `parent`.
+        expect(set.broken.map((one) => one.file)).toEqual(["child.olai"])
+        expect(set.broken[0]?.errors.map((one) => one.code)).toEqual(["foreign-parent"])
+        // The finding still NAMES the parent's file — the about axis is
+        // unfiltered, and the drift check rides it.
+        expect(implicatedBy(set.broken[0]?.errors[0] as OutlineError))
+          .toEqual(["child.olai", "parent.olai"])
+        expect(stopping(set, ["parent.olai"])).toBeNull()
+
+        // …and the write lands: a retitle inside the file that was merely
+        // pointed at, with the bytes on disk.
+        yield* run(fixture, { op: "title", id: "kitchen", title: "the kitchen, tidied" })
+        expect(fixture.read("parent.olai")).toContain("the kitchen, tidied")
+
+        // A write INTO the broken file is still refused, naming it — the
+        // pointed-at file being innocent does not make the pointing one so.
+        const refused = yield* Effect.orDie(
+          Effect.flip(fixture.ops.run({ op: "title", id: "sink", title: "no" }, "mcp")),
+        )
+        expect(refused._tag).toBe("NotFoundFailure")
       }),
   ))
