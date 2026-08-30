@@ -166,21 +166,31 @@ export function OutlinePage(props: {
     readonly id: string | undefined
     said: undefined | "failure" | "miss"
   } = { file: undefined, id: undefined, said: undefined }
-  /** THE REVEAL this page's landing minted and that still stands, by THE VERY
-   *  SET the pick was asked to spare — the release is keyed on it
-   *  (`./settings/done.ts`'s `concealDone`), so a sibling pane's fresher one
-   *  on the same file is never this one's to take down. OUTSIDE the stretch
-   *  record on purpose: a PAID landing's reveal belongs to the page the
-   *  reader is READING, not to the arrival that put it there — it outlives
-   *  `owed` and dies with the page. */
-  let minted: { readonly file: string; readonly keys: ReadonlySet<string> } | undefined
+  /** THE REVEAL this page's landing minted and that still stands: the SCOPE
+   *  is the answer `revealDone` answered with — the pane, the file and THE
+   *  VERY SET the table was asked to spare — keyed so the release reaches
+   *  exactly the entry the table still holds (`./settings/done.ts`). OUTSIDE
+   *  the stretch record on purpose: a PAID landing's reveal belongs to the
+   *  page the reader is READING, not to the arrival that put it there — it
+   *  outlives `owed` and dies with the page. */
+  let minted:
+    | { readonly file: string; readonly pane: number; readonly keys: ReadonlySet<string> }
+    | undefined
   const conceal = (): void => {
     if (minted !== undefined) {
-      concealDone(minted.file, minted.keys)
+      concealDone(minted.file, minted.pane, minted.keys)
       minted = undefined
     }
   }
   onCleanup(conceal)
+  // The reveal's GATES are its law while it stands, not only when it mints:
+  // `aim` asks for the whole page only where BOTH hold, so neither a filter
+  // typed after the landing nor the reader's own flip of the pick may leave
+  // the courtesy running against the reader's words — the answer is taken
+  // down the moment the answer would have stopped existing.
+  createEffect(() => {
+    if (!(unfiltered(narrowed) && doneHiddenOn(props.file))) conceal()
+  })
   createEffect(() => {
     const at = landing.owed()
     if (at !== owing.id || props.file !== owing.file) {
@@ -237,10 +247,15 @@ export function OutlinePage(props: {
       // it — so the places on the way to it are kept out of the sweep, and
       // the pick's two standing answers never hear about it. Said NOTHING:
       // the row coming back IS the sentence — and the next pass of this
-      // effect finds the chain the ordinary way and pays the landing.
+      // effect finds the chain the ordinary way and pays the landing. And
+      // the token the release asks for is THE SET THE TABLE NOW HOLDS, so it
+      // is the write's answer that `minted` remembers, never the local copy.
       const keys = new Set(aimAt.chain.map((row) => row.key))
-      revealDone(props.file, keys)
-      minted = { file: props.file, keys }
+      minted = {
+        file: props.file,
+        pane: here(),
+        keys: revealDone(props.file, here(), keys),
+      }
       return
     }
     saying.say(null)

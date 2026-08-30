@@ -189,7 +189,7 @@ test("the rows a page draws: done out when hiding, the same array when showing",
   remembering(() => {
     quiet()
     const drawn = { kind: "tree" as const, rows: house.rows }
-    const hiding = visibleIn(drawn, "house.olai")
+    const hiding = visibleIn(drawn, "house.olai", 0)
     expect(hiding).not.toBe(drawn)
     // `demo` is done: the one root stays, its done child is the row that goes.
     expect(hiding.kind === "tree" && hiding.rows[0]?.children.length).toBe(0)
@@ -198,7 +198,7 @@ test("the rows a page draws: done out when hiding, the same array when showing",
     // THE IDENTITY CONTRACT: the count of held-back matches reads this as its
     // zero (../filter/narrowing.ts), so showing must hand the value back
     // rather than rewrap it.
-    expect(visibleIn(drawn, "house.olai")).toBe(drawn)
+    expect(visibleIn(drawn, "house.olai", 0)).toBe(drawn)
   })
 })
 
@@ -210,8 +210,8 @@ test("a reveal spares the owed places and leaves the pick's word untouched", () 
     const drawn = { kind: "tree" as const, rows: house.rows }
     const demo = house.rows[0]!.children[0]!
     const owed = new Set([demo.key])
-    revealDone("house.olai", owed)
-    const shown = visibleIn(drawn, "house.olai")
+    revealDone("house.olai", 0, owed)
+    const shown = visibleIn(drawn, "house.olai", 0)
     // `demo` is the landing's row: back — and storing NOTHING about it: the
     // reveal is a visiting answer and the answers to the two questions the
     // flip asks are exactly as they were.
@@ -219,7 +219,7 @@ test("a reveal spares the owed places and leaves the pick's word untouched", () 
     expect(shown.kind === "tree" && shown.rows[0]?.children.length).toBe(1)
     expect(doneOverride("house.olai")).toBeUndefined()
     expect(store.has(DONE_OVERRIDES_KEY)).toBe(false)
-    concealDone("house.olai", owed)
+    concealDone("house.olai", 0, owed)
   })
 })
 
@@ -229,12 +229,46 @@ test("the reveal spares nothing the pick does not take: a showing page draws ide
     setDoneFor("house.olai", "shown")
     const drawn = { kind: "tree" as const, rows: house.rows }
     const owed = new Set([house.rows[0]!.children[0]!.key])
-    revealDone("house.olai", owed)
+    revealDone("house.olai", 0, owed)
     // THE IDENTITY CONTRACT, held for the reveal too: the sweep only ever
     // runs where the pick prunes, and extra keep under a showing pick is
     // dead weight the answer must not take the shape of.
-    expect(visibleIn(drawn, "house.olai")).toBe(drawn)
-    concealDone("house.olai", owed)
+    expect(visibleIn(drawn, "house.olai", 0)).toBe(drawn)
+    concealDone("house.olai", 0, owed)
+  })
+})
+
+test("the reveal is the PANE's — the same file's other pane keeps its own answer", () => {
+  remembering(() => {
+    quiet()
+    const drawn = { kind: "tree" as const, rows: house.rows }
+    // Pane 0 lands on the done child; pane 1 never heard the address. The
+    // courtesy is the arrival's: one sweep spares and one does not.
+    const owed = new Set([house.rows[0]!.children[0]!.key])
+    revealDone("house.olai", 0, owed)
+    for (const pane of [0, 1]) {
+      const answer = visibleIn(drawn, "house.olai", pane)
+      expect(answer.kind === "tree" && answer.rows[0]?.children.length)
+        .toBe(pane === 0 ? 1 : 0)
+    }
+    concealDone("house.olai", 0, owed)
+  })
+})
+
+test("the write hands back THE SET THE TABLE HOLDS — the skipped write's staleness is the release's key", () => {
+  remembering(() => {
+    quiet()
+    const demoKey = house.rows[0]!.children[0]!.key
+    const drawn = { kind: "tree" as const, rows: house.rows }
+    // The skip path: the table already holds what this asks — the write is
+    // spent, so the answer is the STANDING set, never the caller's own:
+    // concealing with WHAT THE CALLER BUILT would compare `!==` and leak.
+    const first = revealDone("house.olai", 0, new Set([demoKey]))
+    const answered = revealDone("house.olai", 0, new Set([demoKey]))
+    expect(answered).toBe(first)
+    concealDone("house.olai", 0, answered)
+    const after = visibleIn(drawn, "house.olai", 0)
+    expect(after.kind === "tree" && after.rows[0]?.children.length).toBe(0)
   })
 })
 
@@ -245,21 +279,21 @@ test("the file's next landing replaces the reveal; the release asks for THE VERY
     // Read the reveal's bookkeeping THE WAY THE PAGE READS IT: through the
     // sweep whose word the flip is about — the raw table is nobody's door.
     const drawnChildren = (): number => {
-      const answer = visibleIn(drawn, "house.olai")
+      const answer = visibleIn(drawn, "house.olai", 0)
       return answer.kind === "tree" ? (answer.rows[0]?.children.length ?? -1) : -1
     }
     const stale = new Set(["an arrival already answered"])
-    revealDone("house.olai", stale)
+    revealDone("house.olai", 0, stale)
     const standing = new Set([house.rows[0]!.children[0]!.key])
-    revealDone("house.olai", standing)
-    // ONE OUTSTANDING ARRIVAL PER FILE: the second landing's place is the
-    // one the sweep spares.
+    revealDone("house.olai", 0, standing)
+    // ONE OUTSTANDING ARRIVAL PER PAGE PER PANE: the second landing's place
+    // is the one the sweep spares.
     expect(drawnChildren()).toBe(1)
     // THE KEYED ANSWER: concealing with the OLD set is not the release — a
-    // sibling pane's fresher reveal is not this one's to take down.
-    concealDone("house.olai", stale)
+    // fresher reveal is not this one's to take down.
+    concealDone("house.olai", 0, stale)
     expect(drawnChildren()).toBe(1)
-    concealDone("house.olai", standing)
+    concealDone("house.olai", 0, standing)
     expect(drawnChildren()).toBe(0)
   })
 })
@@ -271,12 +305,12 @@ test("the pick reaches a tree and nothing else", () => {
     // Even on a page that SHOWS: a day is a record of what happened, and this
     // preference was never asked about it (the file argument is the tree's).
     setDoneFor("house.olai", "shown")
-    expect(visibleIn(day, "house.olai")).toBe(day)
+    expect(visibleIn(day, "house.olai", 0)).toBe(day)
     // A tree with NO page to be about is not pruned either: with hidden the
     // default, this is the one arm that does the opposite — there is no file
     // for a pick to be read off, so the unpruned value stands (unreachable
     // in practice: the no-file tree is the empty zoom, which holds no rows).
-    expect(visibleIn({ kind: "tree", rows: house.rows }, undefined)).toEqual({
+    expect(visibleIn({ kind: "tree", rows: house.rows }, undefined, 0)).toEqual({
       kind: "tree",
       rows: house.rows,
     })

@@ -38,13 +38,18 @@
  * LANDING'S REVEAL. A landing whose row EXISTS on the page but is hidden by
  * the pick is owed it anyway (`../fold/landing.ts`'s reveal arm — the same
  * courtesy the act pays a collapsed ancestor), so the places on the way to
- * it are kept out of the sweep FOR THE VISIT: one entry per file, in this
- * tab, NEVER STORED. The default and the out-vote are the reader's two
- * standing claims and a landing mints neither — the flip's strip and its `·`
- * stand exactly as the reader left them. A file's reveal is replaced by its
- * next landing and taken down when the page it was owed on leaves its pane —
- * and deliberately NOT on a timer: the row it draws back is the row somebody
- * was SENT, and a marker that expires while the reader is looking at it is
+ * it are kept out of the sweep FOR THE VISIT: one entry per FILE per PANE,
+ * in this tab, NEVER STORED — per pane because the landing is itself the
+ * pane's (the scroll, the accent, `../OutlinePage.tsx`'s own keying), and a
+ * courtesy owed one arrival cannot flow to a neighbor's reading. The default
+ * and the out-vote are the reader's two standing claims and a landing mints
+ * neither — the flip's strip and its `·` stand exactly as the reader left
+ * them. A pane's reveal is replaced by its own next landing, taken down when
+ * the page it was owed on leaves, and — the two gates it was MINTED under
+ * are its law while it stands — taken down the moment either stops holding:
+ * a filter typed over the page, or the reader's own hand on the flip. Never
+ * on a timer, though: the row it draws back is the row somebody was SENT,
+ * and a marker that expires while the reader is looking at it is
  * `../focus.ts`'s refused place-marker, one abstraction up.
  *
  * The talk page is the archive's `done-over-open-work.md` and the design
@@ -156,47 +161,78 @@ export const letDoneFollow = (file: string): void => {
  * per file — `visibleIn` reads it the way it reads the pick, so the one door
  * the page composition asks stays one door.
  */
+/**
+ * THE REVEAL's table, OUTER-KEYED per pane: the places a landing asked THIS
+ * pane's copy of THIS page to keep drawn.
+ */
 const [revealed, setRevealed] = createSignal<
-  ReadonlyMap<string, ReadonlySet<string>>
+  ReadonlyMap<number, ReadonlyMap<string, ReadonlySet<string>>>
 >(new Map())
 
-/** The places the pick's sweep spares on `file`, or nothing — DELIBERATELY
- *  not exported: what spares a row is a question the sweep answers by
- *  sweeping, and a second door onto the raw table is a second way for the
- *  page and somebody else to disagree about the same row. */
-const landingReveal = (file: string): ReadonlySet<string> | undefined =>
-  revealed().get(file)
+/** The places the pick's sweep spares for pane `pane` on `file`, or nothing
+ *  — DELIBERATELY not exported: what spares a row is a question the sweep
+ *  answers by sweeping, and a second door onto the raw table is a second way
+ *  for the page and somebody else to disagree about the same row. */
+const landingReveal = (
+  file: string,
+  pane: number,
+): ReadonlySet<string> | undefined => revealed().get(pane)?.get(file)
 
 /**
- * The landing's write: keep these places drawn on `file` for the visit —
- * REPLACING the file's last reveal, one outstanding arrival per page the way
- * `../focus.ts` holds one pointed row per app. Nothing is stored: both
- * halves of the pick answer to the reader alone, so this says nothing to
- * them. Same keys, no write: a published revision re-asks the landing, and
- * the answer it already spent must not spend the page's memos again.
+ * The landing's write: keep these places drawn for `pane` on `file` for the
+ * visit — REPLACING the pane's last reveal for the file, one outstanding
+ * arrival per page the way `../focus.ts` holds one pointed row per app.
+ * Nothing is stored: both halves of the pick answer to the reader alone, so
+ * this says nothing to them. Same keys, no write: a published revision
+ * re-asks the landing, and the answer it already spent must not spend the
+ * page's memos again.
+ *
+ * The answer handed back is THE SET THE TABLE NOW HOLDS — on a skipped write
+ * that is the STANDING set, never the one the caller built: the release
+ * below is keyed on the very set, so "the minted token IS the table's entry"
+ * is a property of the write, never a convention the caller must remember.
  */
-export const revealDone = (file: string, keys: ReadonlySet<string>): void => {
-  const standing = revealed().get(file)
+export const revealDone = (
+  file: string,
+  pane: number,
+  keys: ReadonlySet<string>,
+): ReadonlySet<string> => {
+  const standing = revealed().get(pane)?.get(file)
   if (
     standing !== undefined && standing.size === keys.size &&
     [...keys].every((key) => standing.has(key))
   ) {
-    return
+    return standing
   }
-  setRevealed((before) => new Map(before).set(file, keys))
+  setRevealed((before) => {
+    const next = new Map(before)
+    const box = new Map(before.get(pane))
+    box.set(file, keys)
+    next.set(pane, box)
+    return next
+  })
+  return keys
 }
 
 /**
  * The reveal's release — the page it was owed on leaving its pane, or the
- * file's next landing re-asking. KEYED ON THE VERY SET handed in: a sibling
- * pane that revealed this file after we did keeps its answer, the way the
- * folds' own map keeps a fresher sibling's word.
+ * same pane's next landing re-asking, or the gate that minted it no longer
+ * holding. KEYED ON THE VERY SET handed in: a fresher reveal by the same
+ * pane for the same page is not this token's to take down (the folds' own
+ * map keeps a fresher sibling's word).
  */
-export const concealDone = (file: string, keys: ReadonlySet<string>): void => {
-  if (revealed().get(file) !== keys) return
+export const concealDone = (
+  file: string,
+  pane: number,
+  keys: ReadonlySet<string>,
+): void => {
+  if (revealed().get(pane)?.get(file) !== keys) return
   setRevealed((before) => {
     const next = new Map(before)
-    next.delete(file)
+    const box = new Map(before.get(pane))
+    box.delete(file)
+    if (box.size === 0) next.delete(pane)
+    else next.set(pane, box)
     return next
   })
 }
@@ -236,9 +272,9 @@ export const pageFileOf = (page: Shown | undefined): string | undefined => {
  * default the row holds is not the thing such a page says.
  *
  * The LANDING's reveal rides the same sweep as `keep` — places spared rather
- * than rows forgiven: the pick still SAYS what the reader left it saying,
- * and the kept chain is the one spelling of "except this, for the visit"
- * the page knows.
+ * than rows forgiven, and scoped to the ONE PANE the arrival was owed:
+ * the pick still SAYS what the reader left it saying, and the kept chain is
+ * the one spelling of "except this, for the visit" the page knows.
  *
  * THE EDGE IS WHERE THE PAGE SAYS WHAT THE PAGE IS (../filter/narrowing.ts's
  * split of what a page holds from what it draws): here, "which pages is the
@@ -248,10 +284,11 @@ export const pageFileOf = (page: Shown | undefined): string | undefined => {
 export const visibleIn = (
   drawn: Drawn,
   file: string | undefined,
+  pane: number,
 ): Drawn => {
   if (file === undefined || drawn.kind !== "tree") return drawn
   if (doneHiddenOn(file))
-    return { ...drawn, rows: withoutDone(drawn.rows, landingReveal(file)) }
+    return { ...drawn, rows: withoutDone(drawn.rows, landingReveal(file, pane)) }
   return drawn
 }
 
