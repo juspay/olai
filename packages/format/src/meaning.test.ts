@@ -17,7 +17,14 @@ import { readingOfVault } from "./scope.testlib.ts"
 import { Door, type Meaning, meaningOf, type Vault } from "./meaning.ts"
 import { pageOf } from "./page.ts"
 import { nodeNamed } from "./derive.ts"
-import { BOOTSTRAP, declarationsOf, type Typed, wrongValue } from "./typing.ts"
+import {
+  BOOTSTRAP,
+  type ContributedKind,
+  declarationsOf,
+  NO_KINDS,
+  type Typed,
+  wrongValue,
+} from "./typing.ts"
 import { markdownPaths } from "./rules.ts"
 import type { Reading } from "./validate.ts"
 
@@ -75,6 +82,7 @@ const vault: Vault = {
   declares: (id) => nodeNamed(READ.derived, id) !== undefined,
   serves: (file) => READ.set.documents.some((face) => face.path === file),
   documents: (file) => markdownPaths(READ.set).has(file),
+  kinds: NO_KINDS,
 }
 
 /** ...and the four the GATE is asked of, over the same reading. Two values
@@ -84,6 +92,7 @@ const typed: Typed = {
   declarations: vault.declarations,
   derived: READ.derived,
   documents: markdownPaths(READ.set),
+  kinds: NO_KINDS,
 }
 
 const IN_SUB = "roadmap/lanes.olai"
@@ -369,6 +378,42 @@ test("no declaration shape rides the page — the tab receives answers, not the 
   // than a test of an empty array.
   expect(page.doors.length).toBeGreaterThan(0)
 })
+
+test("a contributed kind draws no door of the app's own, and reads as text where nobody answers for it", () => {
+  // ONE REGISTRY ENTRY, TWO QUESTIONS OF IT. The gate asks whether the value
+  // fits; this asks whether anybody is answering for the word at all — and a
+  // kind this serve IS running has claimed the value, so no `Meaning` is
+  // invented out of its shape. A kind nobody is running reads exactly as an
+  // undeclared key does, which is what keeps a URL somebody wrote under a
+  // retired kind a link: a door may not appear and disappear with a flag on
+  // the machine.
+  const read = readingOfVault(
+    new Map<string, string>([
+      ["_olai/Properties.olai", `{"id":"p","ord":"a0","title":"pty","custom":{"type":"terminal"}}`],
+      ["a.olai", `{"id":"one","ord":"a0","title":"one","custom":{"pty":"https://example.com/x"}}`],
+    ]),
+  )
+  const asking = (enabled: boolean): Vault => ({
+    declarations: declarationsOf(read.derived),
+    declares: () => false,
+    serves: () => false,
+    documents: () => false,
+    kinds: {
+      built: new Map([["terminal", TERMINAL]]),
+      enabled: enabled ? new Map([["terminal", TERMINAL]]) : new Map(),
+    },
+  })
+  expect(meaningOf(asking(true), "a.olai", "pty", "https://example.com/x")).toBeNull()
+  expect(meaningOf(asking(false), "a.olai", "pty", "https://example.com/x"))
+    .toEqual({ kind: "away", href: "https://example.com/x" })
+})
+
+/** One plugin's entry, as the composition root assembles one. */
+const TERMINAL: ContributedKind = {
+  kind: "terminal",
+  takes: "`terminal` (a padi terminal id)",
+  admits: (value) => /^[0-9a-f-]+$/.test(value),
+}
 
 /** EVERY FIELD NAME IN A PAYLOAD, however deep — the walk the fence above is
  *  written over, because "no declaration rides the wire" is a claim about the

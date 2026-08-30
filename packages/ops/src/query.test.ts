@@ -25,6 +25,7 @@ import {
   type OutlineSet,
   type PageRequest,
   Projected,
+  NO_KINDS,
   PROJECTABLE,
   type ProjectedRoots,
   type ProjectedSubtree,
@@ -1501,7 +1502,7 @@ describe("a document listing's sizes are a recompute from the body", () => {
     agree(set)
     const made = planned(set, { op: "doc", file: "note.md", text: next })
     const folded = succeeded(
-      folding(scoping(readingOf(set), steady()))(made),
+      folding(scoping(readingOf(set), steady(), NO_KINDS))(made),
       "`write_document` to apply",
     )
     agree(folded.set)

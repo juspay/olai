@@ -28,10 +28,17 @@
 
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js"
-import { type FailureKind, inboxHeldOf, type OutlineSet, outlinePaths, verdictOf } from "@olai/format"
+import {
+  type FailureKind,
+  inboxHeldOf,
+  NO_KINDS,
+  type OutlineSet,
+  outlinePaths,
+  verdictOf,
+} from "@olai/format"
 import { readingOf, recordsOf } from "@olai/format/testlib"
 import {
-  codec,
+  codecFor,
   fixedPolicy,
   make as makeOps,
   type Store as OutlineStore,
@@ -51,6 +58,11 @@ import { hostname } from "../hostname.ts"
 import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { bespokeFrom } from "./tools.ts"
+
+/** The codec this suite validates through — the vocabulary of a build that
+ *  composed no plugin, which is what these fixtures declare nothing about
+ *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
+const codec = codecFor(NO_KINDS)
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,

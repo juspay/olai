@@ -89,6 +89,7 @@ import {
   basedAt,
   type Declared,
   declaredFor,
+  type KindVocabulary,
   type PropDeclarations,
   resolvedDoc,
 } from "./typing.ts"
@@ -188,6 +189,18 @@ export interface Vault {
   /** What this vault declares about its property keys — {@link ./typing.ts}'s
    *  reading, which is `NO_TYPING` for a directory that declares nothing. */
   readonly declarations: PropDeclarations
+  /**
+   * ...and which words beyond the format's seven mean anything on this serve
+   * ({@link ./typing.ts}'s {@link KindVocabulary}).
+   *
+   * THE SAME VALUE THE GATE HOLDS, and that is the point rather than a
+   * convenience. The three defects in the header were all one shape — two
+   * modules with two opinions about one value — so a contributed kind gets ONE
+   * registry entry and both arms of the consult ask it: the gate asks whether
+   * the value fits, and this asks whether anybody is answering for the word at
+   * all. There is no second table here for the first to drift from.
+   */
+  readonly kinds: KindVocabulary
   /** Is this id a node this set declares. `nodeNamed` at the call site, so a
    *  value naming a MIRROR answers for the node standing at that placement —
    *  the same lookup a `see` link's text has always come from. */
@@ -251,9 +264,11 @@ export const meaningOf = (
 /**
  * THE DECLARED ARM: the vault said what this key holds, so nothing is guessed.
  *
- * A switch over the six kinds that say something, so a kind added to
- * {@link ./typing.ts}'s union is a type error here rather than a value that
- * quietly stops being a door.
+ * A switch over the seven kinds that say something plus the one that carries a
+ * word, so a kind added to {@link ./typing.ts}'s union is a type error here
+ * rather than a value that quietly stops being a door — and a CONTRIBUTED kind
+ * cannot stop being handled either, because it is an arm the compiler counts
+ * and not a `default` it does not.
  */
 const declaredly = (
   vault: Vault,
@@ -317,6 +332,24 @@ const declaredly = (
       // the arm above is the argued call: two arms of one consult may differ
       // about what they PROMISE, and may not differ about the same promise.
       return servedFrom(vault, declared, from, value)
+    case "contributed":
+      // A WORD A PLUGIN TAUGHT THIS VAULT, and the one registry entry decides
+      // both halves of it. A kind this serve IS running has claimed the value:
+      // what it names is a terminal in somebody's fleet or a checkout on
+      // somebody's disk, which is none of the four places {@link Meaning} can
+      // send anybody, and the plugin's own face is what draws it — so there is
+      // no door, and inventing one out of the value's SHAPE is the guess this
+      // module's declared arm exists to refuse.
+      //
+      // A kind NOBODY is answering for reads exactly as an undeclared key
+      // does, which is the sharper half: a `--plugins` that left the plugin out
+      // must leave the vault in the state it was in before it ever heard of it
+      // — the value is still a name, and a URL somebody wrote under a retired
+      // kind still opens. Answering `null` here instead would make a door
+      // appear and disappear with a flag on the machine.
+      return vault.kinds.enabled.has(declared.type.word)
+        ? null
+        : guessed(vault, from, value)
   }
 }
 

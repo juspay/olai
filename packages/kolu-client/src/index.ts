@@ -80,14 +80,18 @@
  *     crosses.
  *
  * What is left outside them is not kolu implementation but olai's own
- * judgement ABOUT kolu, and it is worth naming so the distinction survives:
- * `@olai/server`'s `claimants.ts` walks the vault for who OWNS a terminal
- * (outline records, injected into the dial rather than known by it);
- * `@olai/chat`'s `kolu.ts` decides what an absent kolu MEANS, in five English
- * sentences only chat can write, over the probe it reaches through
- * `@olai/kolu-client/detect`; `@olai/web` owns the pill, the block table and
- * the cadence. None of those import kolu, and `scripts/check-kolu-deps.sh`'s
- * fourth assertion is what makes that a fact rather than a habit.
+ * judgement ABOUT kolu, and it has a package of its own now:
+ * `@olai/plugin-kolu`. It walks the vault for who OWNS a terminal
+ * (`claimants.ts` — outline records, injected into the dial rather than known
+ * by it) and for what `_olai/Kolu.olai` says (`config.ts`); it decides what an
+ * absent kolu MEANS, in five English sentences, over the probe it reaches
+ * through `@olai/kolu-client/detect` (`probe.ts`, which was `@olai/chat`'s
+ * until the plugin wall went up); and it owns the padi pill and the feed its
+ * press opens. Every one of those used to sit in a general package under a
+ * kolu-shaped filename, and none of them names a `@kolu/*` package —
+ * everything reaches kolu through this one and `@olai/kolu-ui`, which is what
+ * `scripts/check-kolu-deps.sh`'s fourth assertion holds as a fact rather than
+ * a habit.
  */
 
 import { type CellStore, inMemoryStore } from "@kolu/surface/server"

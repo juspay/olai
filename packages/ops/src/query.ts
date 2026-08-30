@@ -55,6 +55,7 @@ import {
   type HomesRequest,
   isMirror,
   isProjectable,
+  type KindVocabulary,
   isRegular,
   LEGAL_FIELDS,
   type LocatedRegular,
@@ -688,8 +689,11 @@ export const owed = (derived: Derived, request: OwedRequest): Owed =>
  * revision's set with another's view — which is the reason those three travel
  * together at all.
  */
-export const page = (at: Reading, request: PageRequest): PageReading =>
-  pageOf(at, request)
+export const page = (
+  at: Reading,
+  request: PageRequest,
+  kinds: KindVocabulary,
+): PageReading => pageOf(at, request, kinds)
 
 /**
  * WHETHER A ROW CAN GO WHERE SOMEBODY IS POINTING — the move picker's preview

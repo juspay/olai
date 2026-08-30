@@ -1,13 +1,18 @@
 /**
  * Leftovers from a conversation that just closed must not land on the next
  * one. The e2e flake was two sightings of that one leak: a new-conversation
- * transcript that did not empty, and kolu still `connected` on a conversation
- * nobody had spoken in.
+ * transcript that did not empty, and a server still `connected` on a
+ * conversation nobody had spoken in.
  *
  * The fixture emits both leftovers on the second `session/new` BEFORE it
  * answers — which is the window olai is in after announcing the next roster
  * as `handed` and before `entered` records the new id. Pre-fix both leftovers
  * apply; post-fix neither does.
+ *
+ * THE AGENT IS BUILT WITH NO PROBES, by omission ({@link ./agent.ts}'s
+ * `Options.probes`), so the window this file is about is the one the fixture
+ * makes and not one this machine happens to add. It used to be said by
+ * emptying `PATH` and unsetting a daemon's socket variable in a `beforeEach`.
  */
 
 import { afterEach, beforeEach, describe, expect, test } from "bun:test"
@@ -36,26 +41,15 @@ const TOOLS = {
 
 let cwd = ""
 const wasState = process.env["XDG_STATE_HOME"]
-const wasPath = process.env["PATH"]
-const wasPadi = process.env["PADI_SOCKET"]
 
 beforeEach(() => {
   cwd = mkdtempSync(join(tmpdir(), "olai-stale-"))
   process.env["XDG_STATE_HOME"] = cwd
-  // A live kolu on PATH makes session/new wait on a probe; this pin is the
-  // leftover, not terminals. process.execPath is absolute, so the fixture
-  // still starts.
-  process.env["PATH"] = ""
-  delete process.env["PADI_SOCKET"]
 })
 
 afterEach(() => {
   if (wasState === undefined) delete process.env["XDG_STATE_HOME"]
   else process.env["XDG_STATE_HOME"] = wasState
-  if (wasPath === undefined) delete process.env["PATH"]
-  else process.env["PATH"] = wasPath
-  if (wasPadi === undefined) delete process.env["PADI_SOCKET"]
-  else process.env["PADI_SOCKET"] = wasPadi
   rmSync(cwd, { recursive: true, force: true })
 })
 

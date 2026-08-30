@@ -83,17 +83,23 @@
  * set is). Keying this table on a type would mean shipping the declarations to
  * every tab, which is the one decision that design made and did not want back.
  *
- * And keying on the type would be the wrong question anyway. `brief` and
- * `worktree` are both declared `path`, and only one of them names a checkout
- * to probe for a run — a face selected by type alone would dress both.
- *
  * So the seam is split along the line the architecture already draws. THE KEY
- * SELECTS the face, here, in the browser. THE DECLARED TYPE LICENCES it, on
+ * SELECTS the face, here, in the browser. THE DECLARED KIND LICENCES it, on
  * the server, where the declarations are: `@olai/plugin-odu`'s `worktrees.ts`
- * probes a `worktree` only in a vault that has declared that key a `path`, so the
- * promise a dressing rests on is one the vault made rather than one a
- * component assumed. A vault that declares nothing gets no CI cell, the chip
- * has nothing to say, and it draws as the path it always was.
+ * probes only the keys a vault has declared its own `worktree` KIND — a word
+ * that plugin contributes, where the licence used to settle for the format's
+ * `path` and could therefore not tell `brief` from a checkout. So the promise a
+ * dressing rests on is one the vault made rather than one a component assumed.
+ * A vault that declares nothing gets no CI cell, the chip has nothing to say,
+ * and it draws as the path it always was.
+ *
+ * THE TWO HALVES CAN NOW MISS EACH OTHER, in one direction and knowably: a
+ * vault that declares the KIND on a key called something else is probed on the
+ * server and finds no dressing here, because this table has only the key to go
+ * on. That is the residue of the same #395 decision rather than a second
+ * defect, and what closes it is a wire member carrying the licence per drawn
+ * value — at which point this table keys on the kind and the plugins' own
+ * `Dressing.kind` stops being a property key.
  *
  * ## Three rules a dressing must satisfy, and they are the chip's own
  *
@@ -214,8 +220,13 @@ const DRESSINGS = new Map<string, Dressing>()
  *  app's table, and the import direction would be a lie told by an `import "…"`
  *  with no binding.
  *
- *  THE KEY IS THE PLUGIN'S OWN CONSTANT, arriving on its manifest — the same
- *  one that plugin's server probes by. It used to be re-exported from here, as
+ *  THE KEY IS THE PLUGIN'S OWN CONSTANT, arriving on its manifest — the
+ *  property KEY, which is not what that plugin's SERVER follows any more: the
+ *  vault walks and the value gate follow a declared KIND, and a tab cannot,
+ *  because declarations do not travel to one (juspay/olai#395). A vault that
+ *  declares the kind on a key called something else is probed and draws
+ *  nothing here, which is the knowable gap a wire member carrying the licence
+ *  would close. It used to be re-exported from here, as
  *  `TERMINAL_KEY` and `WORKTREE_KEY` off `@olai/surface`, so a registration
  *  could read in one line; that re-export is gone with the registrations, and
  *  the reason is the direction rather than tidiness. Those constants belong to

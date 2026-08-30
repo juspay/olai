@@ -22,7 +22,15 @@ The third is why the readout is not a boolean. *Start kolu* and *these two build
 
 This is one of olai's **live properties** — a property whose value is a name the board decided on, and whose face goes and finds out what that name currently is. It was the first, and [ci.md](ci.md) describes the seam and its second tenant (a `worktree` that has a CI run going in it). Nothing below is special to kolu except the clothes.
 
-Give a node a `terminal` property whose value is a kolu terminal's id — the whole uuid, or the eight-character prefix a board usually writes — and the property draws **kolu's own Dock row**:
+Give a node a `terminal` property whose value is a kolu terminal's id — the whole uuid, or the eight-character prefix a board usually writes — and **declare that key a `terminal`**, which is one row in `_olai/Properties.olai`:
+
+```jsonl
+{"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"terminal"}}
+```
+
+**That row is what turns the door on**, and a vault without it draws nothing. `terminal` is a kind `@olai/plugin-kolu` contributes ([format.md](format.md)), and the walk that decides who owns which fleet row finds its keys by that DECLARATION rather than by the key's name — so a column called `pty` gets the door the day its row says the kind, and a property somebody happened to call `terminal` in a vault that says nothing does not. It used to be enough to name the key; that was name-matching, and it could not tell two path-shaped keys apart when somebody needed it to.
+
+With the row in place, the property draws **kolu's own Dock row**:
 
 ```
 ┌─ terminal  1a2b3c4d ─────────────────────────┐

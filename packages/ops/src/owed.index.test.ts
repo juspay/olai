@@ -42,18 +42,23 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
-import { type Owed, owedOf, type WriteRequest } from "@olai/format"
+import { NO_KINDS, type Owed, owedOf, type WriteRequest } from "@olai/format"
 import { walkedAgenda, walkedDays } from "@olai/format/testlib"
 import * as StoreModule from "@olai/store"
 import { expect, test } from "bun:test"
 import { Effect, SubscriptionRef } from "effect"
 
-import { codec } from "./codec.ts"
+import { codecFor } from "./codec.ts"
 import type { Store } from "./deps.ts"
 import { fixedPolicy } from "./pending.ts"
 import { steady } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
 import * as Query from "./query.ts"
+
+/** The codec this suite validates through — the vocabulary of a build that
+ *  composed no plugin, which is what every test in this package runs under
+ *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
+const codec = codecFor(NO_KINDS)
 
 /** Work spread over days either side of the todays below, in two outlines so a
  *  count of NODES cannot be satisfied by a count of files — plus the shapes

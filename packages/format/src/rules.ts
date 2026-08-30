@@ -50,6 +50,7 @@ import {
   declaredFor,
   heldCustoms,
   keyOf,
+  type KindVocabulary,
   resolvesId,
   type Typed,
   wrongDeclaration,
@@ -380,9 +381,18 @@ export const reportDocs = (
  * cannot give.
  *
  * A directory with no such file reports nothing, because it declares nothing.
+ *
+ * `kinds` IS THE ONE THING THIS RULE ASKS THAT IS NOT A READING OF THE SET, and
+ * it is the BUILT half of it that decides here ({@link ../typing.ts}'s
+ * `KindVocabulary`): a `type` naming a kind this binary knows how to mean is a
+ * legal declaration whether or not `--plugins` left that plugin out, where
+ * `type: banana` is refused with every legal word named. The value side of the
+ * same vocabulary is the ENABLED half and is asked one rule down — which is the
+ * whole of what "a disabled plugin's kind validates as plain text" comes to.
  */
 export const reportDeclarations = (
   derived: Derived,
+  kinds: KindVocabulary,
   errors: Array<OutlineError>,
 ): void => {
   const file = propertiesIn(derived.byFile.keys())
@@ -394,7 +404,7 @@ export const reportDeclarations = (
   // "the first declaration wins" and "the second claim is reported" are two
   // sentences about one record rather than two answers about two.
   for (const located of derived.byFile.get(file) ?? []) {
-    const wrong = wrongDeclaration(derived, located, declared)
+    const wrong = wrongDeclaration(derived, located, declared, kinds)
     if (wrong === undefined) {
       if (isRegular(located) && located.node.parent === undefined) {
         const key = keyOf(located.node.title)

@@ -45,10 +45,17 @@ export const plugin = {
    * implementation. What is decided HERE is the one thing that is olai's: that
    * this key wears that face.
    *
-   * Against `TERMINAL_KEY` — `@olai/kolu-client`'s own exported constant, the
-   * same one this plugin's server reads by — never the string `"terminal"`: a
-   * literal would be a second spelling waiting to drift from the one the walk
-   * uses.
+   * Against `TERMINAL_KEY` — `@olai/kolu-client`'s own exported constant —
+   * never the string `"terminal"`: a literal would be a second spelling free to
+   * drift from the one the browser's own components read.
+   *
+   * IT IS THE PROPERTY KEY AND NOT THIS PLUGIN'S KIND ({@link ./kinds.ts}),
+   * and the two are no longer the same question. The server's walk follows the
+   * declared KIND; a tab cannot, because a vault's declarations do not travel
+   * to one. So a vault that declares `terminal` on a key called something else
+   * is walked and probed and draws no row — named here rather than papered
+   * over, and closed by a wire member that carries the licence per drawn
+   * value.
    *
    * IT USED TO REGISTER ITSELF, from a `client/live/kolu-terminal/index.ts`
    * inside `@olai/web` that called the seam's `registerLive` at module load,

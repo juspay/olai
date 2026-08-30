@@ -104,9 +104,14 @@ export interface StdioServer {
  * `where` is `null` for the ways of failing that never reached a file. A path
  * is what a reader most wants and is not always a thing that exists.
  *
- * The shape is `@olai/chat`'s `NotHere`, declared here for
- * {@link StdioServer}'s reason and re-exported there, so the roster still
- * spells one word.
+ * `@olai/chat` and each plugin spell this shape THEMSELVES, and the three
+ * declarations are the arrangement rather than a duplication to tidy away. A
+ * plugin may not import this package ({@link OlaiPlugin}'s header: the registry
+ * imports every plugin), and `@olai/chat` is a general package one floor down
+ * that the composition root hands a list to — so the agreement is proved where
+ * the two ends meet, at `@olai/plugins/server`'s `probesOf` and the registry's
+ * `satisfies`, and nothing below this floor learns that a plugin system exists.
+ * It is the same trade {@link AppFurniture} makes in the other direction.
  */
 export interface NotHere {
   readonly name: string
@@ -133,20 +138,47 @@ export interface Probed {
  * A PROPERTY KIND this plugin contributes to the vault's vocabulary.
  *
  * `@olai/format` owns seven kinds — `text`, `date`, `int`, `path`, `doc`,
- * `ref`, `node` — and none of them is a terminal. Today a property NAMED
- * `terminal` gets the terminal door, which is name-matching, and the way it
- * goes wrong is not hypothetical: `brief` and `worktree` are both `path` and
- * only one of them names a checkout to probe.
+ * `ref`, `node` — and none of them is a terminal. A plugin's vault walk USED TO
+ * READ ONE HARDCODED KEY, which is name-matching, and the way that went wrong
+ * was not hypothetical: `brief` and `worktree` are both `path` and only one of
+ * them names a checkout to probe, so nothing could tell them apart.
  *
  * So a plugin contributes a KIND, the vault declares it in
  * `_olai/Properties.olai` like any other, and the face follows the kind
  * whatever the property is called. `@olai/format` imports no plugin — its kind
- * vocabulary becomes a parameter and the server hands it this table as data,
- * which is the same move `KoluDeps` makes with the vault walks.
+ * vocabulary is a PARAMETER and the server hands it this table as data, which
+ * is the same move `KoluDeps` makes with the vault walks.
+ *
+ * WHAT THAT COSTS A VAULT is stated rather than softened: a directory that
+ * declares nothing gets no terminal door and no CI chip, where a property
+ * happening to be called `terminal` used to be enough. The key is one row in
+ * `_olai/Properties.olai`, and a name-matching fallback beside the declaration
+ * would be the very defect this replaces, kept alive under a second name.
  *
  * A kind whose plugin is DISABLED validates as plain text. The value is still
  * a name, nothing breaks, and it wears no face — which is exactly the state a
  * vault that declared nothing is already in.
+ *
+ * ## Two vocabularies, and which question reads which
+ *
+ * The table core assembles out of these has two halves, and the distance
+ * between them is what `--plugins` means one more time ({@link ./server.ts}'s
+ * `kindsOf`). A DECLARATION is refused against every kind this BINARY was built
+ * with, so `{"type":"terminal"}` is a legal row on a serve running only odu and
+ * `{"type":"banana"}` is refused naming every legal word; a VALUE is held to
+ * the kinds this serve is RUNNING, because {@link PropKind.admits} is a promise
+ * only a plugin that is here can make. A file's verdict may not depend on a
+ * flag on the machine, and that split is the whole of how it does not.
+ *
+ * ## It is reached on the SERVER door
+ *
+ * Declared here, because a kind is part of what a plugin IS. Reached through
+ * {@link ./server.ts}, for {@link OlaiPlugin.probe}'s reason: the vocabulary is
+ * spent by the validator and the write planner, which is a process that renders
+ * nothing, and a manifest carries this plugin's SolidJS faces. The browser
+ * needs none of it — a vault's declarations deliberately do not travel
+ * (`@olai/format`'s `meaning.ts`), which is exactly why the dressing table one
+ * floor up is still keyed by the property KEY and says so ({@link Dressing}).
  */
 export interface PropKind {
   /** The word a declaration writes, and the word a dressing is licensed by. */
@@ -391,20 +423,22 @@ export type PropBlock = (context: BlockContext) => JSX.Element
  *
  * ## What the word IS today, said plainly rather than aspirationally
  *
- * {@link PropKind} is what this field is FOR: a plugin contributes a KIND, the
- * vault declares a property of that kind, and the face follows the kind whatever
- * the property is called — which is what would make `brief` and `worktree`, both
- * declared `path`, dressable apart. That reversal needs one thing this build
- * does not have. A vault's declarations deliberately do not travel (the tab
+ * {@link PropKind} IS NOW THE SERVER'S ANSWER and is still not this field's.
+ * The vault walks and the value gate follow a DECLARED KIND ({@link
+ * PropKind}) — that half landed — and the browser cannot, for the reason it
+ * never could: a vault's declarations deliberately do not travel (the tab
  * receives ANSWERS — `@olai/format`'s `meaning.ts` argues why the question is
- * settled where the set is), so the LICENCE has to cross instead, and no member
- * carries it yet.
+ * settled where the set is), and no member on the wire carries the licence
+ * yet. Shipping one would put a declaration on the page stream, which is the
+ * decision that survives untouched.
  *
- * So TODAY the word a plugin writes here is the property KEY and the seam looks
- * a property up by it. That is recorded rather than papered over: it is the
- * arrangement `@olai/web`'s seam has always had, it is the one the server's own
- * probes already agree with, and the day the licence crosses, this field's
- * meaning changes in ONE place — here — rather than at every registration.
+ * So the word a plugin writes HERE is still the property KEY and the seam still
+ * looks a property up by it. That is recorded rather than papered over, and it
+ * is now a knowable gap rather than a pending one: a vault whose `terminal`
+ * KIND is declared on a key called something else is walked and probed, and
+ * draws no chip. Closing it is a member that carries the licence per drawn
+ * value, and the day it lands this field's meaning changes in ONE place — here
+ * — rather than at every registration.
  */
 export interface Dressing {
   /** The word this dressing is looked up by — see the header for what it is
@@ -626,8 +660,9 @@ export interface PluginDocs {
  *
  * The interface is deliberately roomier than its two tenants need, and the
  * room is not speculation: a chat AGENT — today a second hardcoded roster in
- * `@olai/chat`'s `agents/` — is probe plus failure sentences plus a
- * per-conversation attach, which is this shape with three of the fields empty.
+ * `@olai/chat`'s `agents/` — is a probe whose answer carries its own failure
+ * sentence, plus a per-conversation attach, which is this shape with most of
+ * the fields empty.
  * Ruled: design for it, migrate later. The roster is untouched here.
  *
  * The shapes are deliberately `unknown` where core never inspects them: a
@@ -656,22 +691,43 @@ export interface OlaiPlugin {
    *  DENIED IN FULL, which is what `exposeFaces` does with an absent map and
    *  is what a plugin declining a face means. */
   readonly faces: Readonly<Record<string, Readonly<Record<string, unknown>>>>
-  /** The property kinds it teaches the vault's vocabulary. */
-  readonly kinds?: ReadonlyArray<PropKind>
-  /** Find the tool. Absence is a STATE, not an error — see {@link Probed}. */
-  readonly probe?: unknown
+  /** The property kinds it teaches the vault's vocabulary — declared as
+   *  {@link PropKind} and REACHED on the server door, where the validator and
+   *  the write planner are ({@link PluginServerHalf}'s `kinds`). `unknown`
+   *  here for {@link OlaiPlugin.probe}'s reason exactly: the value lives on the
+   *  door whose graph spends it, and the manifest names the hook. */
+  readonly kinds?: unknown
   /** The subscription machinery the server forks, deps injected — reached
    *  through the plugin's `./server` door rather than through this manifest,
    *  so a composition root that wants a runtime does not pull the plugin's
    *  browser faces onto its graph ({@link PluginServer}, and
    *  {@link ./server.ts}, which is this package's own third door). */
   readonly runtimeHalf?: unknown
-  /** Handed to chat sessions when the probe says yes. */
-  readonly mcpServer?: unknown
+  /**
+   * FIND THE TOOL, and say what a session is owed when it is not here — on the
+   * `./server` door for {@link OlaiPlugin.runtimeHalf}'s reason and one that is
+   * sharper: a probe STARTS A SUBPROCESS, and this manifest is the door the
+   * browser opens ({@link ./server.ts} argues the split). It is declared on
+   * `PluginServerHalf.probe` and reached there.
+   *
+   * ONE field where there were three. It replaces a `probe` beside an
+   * `mcpServer` beside a `failures` table, and each of the two it absorbed was
+   * wrong in its own way rather than merely redundant. A server BESIDE a probe
+   * is two readings of one moment, which is the invariant {@link Probed} exists
+   * to hold: a caller that asked once for the entry to hand over and again for
+   * the sentence would start somebody's daemon twice per conversation and could
+   * answer the two questions about two different instants. And a
+   * `Record<tag, string>` of failure sentences cannot hold the sentences that
+   * exist: three of kolu's five carry a deadline, a cause or the daemon's own
+   * refusal, none of which is knowable before the failing, so a table core
+   * looked a tag up in would leave core composing what it may not compose.
+   *
+   * Absence is a STATE, not an error, and a plugin with no probe at all is a
+   * whole plugin — odu is one.
+   */
+  readonly probe?: unknown
   /** The vault file this plugin owns by convention. */
   readonly ownedFile?: OwnedFile<never, unknown>
-  /** WHOLE SENTENCES, one per way of failing. Core displays; never composes. */
-  readonly failures?: Readonly<Record<string, string>>
   /** What its kinds wear in the browser. Typed, unlike the fields above, and
    *  that is the difference between a value core CARRIES and one core DRAWS:
    *  the app mounts these faces, so the shape it mounts them against is a

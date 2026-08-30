@@ -16,13 +16,19 @@
 import type { Document, OutlineError, Reading } from "@olai/format"
 import {
   markdownIn,
+  NO_KINDS,
   outlinePaths,
   type Verdict,
 } from "@olai/format"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
-import { codec } from "./codec.ts"
+import { codecFor } from "./codec.ts"
+
+/** The codec this suite validates through — the vocabulary of a build that
+ *  composed no plugin, which is what every test in this package runs under
+ *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
+const codec = codecFor(NO_KINDS)
 
 type Files = Record<string, string>
 

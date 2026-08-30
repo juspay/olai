@@ -27,31 +27,25 @@ const REMEMBERS_NOTHING: Memory = {
 
 let cwd = ""
 const wasState = process.env["XDG_STATE_HOME"]
-const wasPath = process.env["PATH"]
-const wasPadi = process.env["PADI_SOCKET"]
 
 beforeEach(() => {
   cwd = mkdtempSync(join(tmpdir(), "olai-lifecycle-"))
   process.env["XDG_STATE_HOME"] = cwd
-  // A live kolu on PATH makes session/new wait on a probe; these tests are
-  // about the journal, not terminals. process.execPath is absolute, so the
-  // fixture still starts.
-  process.env["PATH"] = ""
-  delete process.env["PADI_SOCKET"]
 })
 
 afterEach(() => {
   if (wasState === undefined) delete process.env["XDG_STATE_HOME"]
   else process.env["XDG_STATE_HOME"] = wasState
-  if (wasPath === undefined) delete process.env["PATH"]
-  else process.env["PATH"] = wasPath
-  if (wasPadi === undefined) delete process.env["PADI_SOCKET"]
-  else process.env["PADI_SOCKET"] = wasPadi
   rmSync(cwd, { recursive: true, force: true })
 })
 
 type Run = <A, E>(effect: Effect.Effect<A, E>) => Promise<A>
 
+/** NO PROBES, said by omitting them ({@link ./agent.ts}'s `Options.probes`).
+ *  These tests are about the journal, and an agent with an empty list asks this
+ *  machine nothing on the way into a session. It used to be said by emptying
+ *  `PATH` and unsetting a daemon's socket variable in a `beforeEach` — a test
+ *  reaching into the process to silence a dependency it could not name. */
 const options = () => ({
   id: "opencode" as const,
   leg: OPENCODE,

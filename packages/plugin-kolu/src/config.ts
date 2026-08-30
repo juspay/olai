@@ -72,6 +72,11 @@
 
 import { byOrd, customText, isRegular, type Located } from "@olai/format"
 import { DEFAULT_WATCH, type WatchConfig } from "@olai/kolu-client"
+// THE OWNED FILE'S OWN WORD, not the vault's typed vocabulary: a mute names a
+// terminal by writing it under this key inside `_olai/Kolu.olai`, which is a
+// convention this plugin owns end to end and a directory nobody declares types
+// for. The declared KIND licences the DOOR on ordinary records
+// ({@link ./claimants.ts}); it has no business inside this file.
 import { TERMINAL_KEY } from "@olai/kolu-client/wire"
 
 /** The basename the convention answers to, case-folded at the caller's end. */

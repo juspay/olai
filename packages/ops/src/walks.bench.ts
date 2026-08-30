@@ -52,6 +52,7 @@ import {
   following,
   type OutlineSet,
   outlinePaths,
+  NO_KINDS,
   type Reading,
   reading as formatReading,
   withDocuments,
@@ -122,7 +123,7 @@ const batched = (
   ops: ReadonlyArray<{ readonly op: "desc"; readonly id: string; readonly desc: string }>,
   fold: (from: Scope) => (made: never) => Result.Result<Scope, never>,
 ): Scope => {
-  let at = scoping(reading, steady())
+  let at = scoping(reading, steady(), NO_KINDS)
   const folding = fold(at)
   for (const op of ops) {
     const made = plan(at, op)

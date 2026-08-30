@@ -20,9 +20,12 @@ import { describe, expect, test } from "bun:test"
 
 import { allowedWithoutAsking, OPENCODE, toolNameOf } from "./opencode.ts"
 
-/** The servers a session is handed: olai's own, and kolu's when the host has
- *  one. `given` in `agent.ts` is exactly this list of names. */
-const GIVEN = ["olai", "kolu"]
+/** The servers a session is handed: olai's own, and an optional one when a
+ *  probe answered — called `alpha`, because this package may not spell an
+ *  appliance even in a fixture. What is being exercised is the auto-allow
+ *  spelling `<server>_`, and any server name does that.
+ *  `given` in `agent.ts` is exactly this list of names. */
+const GIVEN = ["olai", "alpha"]
 
 /** Opencode's own option list for a tool call, in its own order — ALLOW
  *  FIRST, which is the opposite of the other agent's and the reason nothing
@@ -68,7 +71,7 @@ describe("which tool a call is", () => {
 describe("which permissions are answered without asking", () => {
   test("a tool of a server we handed this session is allowed", () => {
     expect(allowedWithoutAsking("olai_set_done", GIVEN, ASKED)).toBe("allow_once")
-    expect(allowedWithoutAsking("kolu_terminal_open", GIVEN, ASKED)).toBe("allow_once")
+    expect(allowedWithoutAsking("alpha_terminal_open", GIVEN, ASKED)).toBe("allow_once")
   })
 
   test("and NOTHING else is — this is the line that must never widen", () => {

@@ -23,7 +23,7 @@
  * Declaring the two keys is what makes that a refusal instead of a convention
  * somebody remembers (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/typed-properties.md).
  *
- * ## The seven kinds, and the one that is missing
+ * ## The seven kinds this format owns, and the ones it does not
  *
  * `text`, `date`, `int`, `path`, `doc`, `ref`, `node` ({@link PropType}). There
  * is deliberately no `sum`: AN ENUM IS A REF. `merge`'s declaration has
@@ -41,6 +41,36 @@
  * variant's title, resolved where the set is and shipped to the tab as an answer
  * ({@link ./meaning.ts}) — so a variant may be renamed without a single value
  * moving, which is the whole of what "names rename, ids don't" buys.
+ *
+ * ## AN EIGHTH ARM, AND THE VOCABULARY BEHIND IT IS A PARAMETER
+ *
+ * A `terminal` is not one of the seven and neither is a `worktree`, and this
+ * package may not learn either word: `@olai/format` imports no plugin, because
+ * the registry that knows the plugins imports this. So the eighth arm carries
+ * a WORD rather than being one — `{kind: "contributed", word}` — and what that
+ * word may be is handed IN, as {@link KindVocabulary}, by the composition root
+ * that already holds the enabled manifests. It is the same move the vault
+ * walks make in the other direction: the judgement is the plugin's, the walk
+ * is olai's, and what crosses is data.
+ *
+ * ONE ARM AND NOT AN OPEN STRING, which is the whole reason this is cheap. The
+ * kind vocabulary is closed in five type-coupled places — the union, its two
+ * tables ({@link PROP_KINDS}, {@link PROP_KIND_TAKES}), the switch that refuses
+ * a value ({@link wrongOne}) and the switch that draws one
+ * ({@link ./meaning.ts}'s `declaredly`) — and every one of them stays
+ * exhaustive, because a contributed kind is ONE arm the compiler counts rather
+ * than a `default` it does not. The two tables are keyed by
+ * {@link BuiltInKind}, so an eighth BUILT-IN kind is still a type error in
+ * four other places, and a contributed kind cannot silently stop being handled
+ * anywhere.
+ *
+ * THE READING TAKES NO TABLE, which is what keeps {@link declarationsOf}'s memo
+ * keyed by the view alone: a word the seven do not claim reads as
+ * `contributed` whatever any plugin says, and only the two places a REFUSAL is
+ * worded consult the vocabulary. Which of them consults WHICH vocabulary is
+ * the one asymmetry worth carrying in the head, and {@link KindVocabulary}
+ * argues it: a declaration is refused against what this BINARY was built with,
+ * and a value is held to what this SERVE is running.
  *
  * ## Where the declarations are
  *
@@ -160,8 +190,26 @@ export type PropType =
   | { readonly kind: "ref"; readonly under?: string }
   /** Any node in the set — `item`, `superseded-by`. */
   | { readonly kind: "node" }
+  /**
+   * A WORD A PLUGIN TAUGHT THIS VAULT — `terminal`, `worktree` — carried as
+   * data rather than spelled as an arm, because this package names no plugin
+   * (the module header argues the direction).
+   *
+   * The word is the DECLARED one, verbatim, and is kept whether or not
+   * anything answers to it: a kind whose plugin this serve is not running is
+   * still a declaration somebody wrote, and reading it as `text` instead would
+   * lose the fact that {@link sameTyping} has to compare.
+   */
+  | { readonly kind: "contributed"; readonly word: string }
 
-/** Every kind's word, in the order this module documents them. Read by
+/** The seven this FORMAT owns — every arm but the eighth, which owns no word
+ *  of its own. The two tables below are keyed by this rather than by
+ *  `PropType["kind"]`, which is what keeps them honest in both directions: an
+ *  eighth built-in kind is a type error in both, and neither has a row for
+ *  `contributed`, which has nothing to say without a vocabulary. */
+export type BuiltInKind = Exclude<PropType["kind"], "contributed">
+
+/** Every built-in kind's word, in the order this module documents them. Read by
  *  {@link BOOTSTRAP} and by the sentence a bad `type` is refused with, so a
  *  kind added to the union above and forgotten here is a type error rather than
  *  a word the declarations file quietly stops accepting. */
@@ -173,7 +221,7 @@ export const PROP_KINDS = [
   "doc",
   "ref",
   "node",
-] as const satisfies ReadonlyArray<PropType["kind"]>
+] as const satisfies ReadonlyArray<BuiltInKind>
 
 /**
  * What each kind TAKES, as the clause a refusal names it with — the legal
@@ -192,9 +240,92 @@ export const PROP_KIND_TAKES = {
   doc: "`doc` (a served `.md`; optional `base`)",
   ref: "`ref` (a child's id; `under` names the parent)",
   node: "`node` (any node id)",
-} as const satisfies Record<PropType["kind"], string>
+} as const satisfies Record<BuiltInKind, string>
 
-const kindsTaken = (): string => PROP_KINDS.map((kind) => PROP_KIND_TAKES[kind]).join(", ")
+/**
+ * ONE KIND A PLUGIN TEACHES THIS VAULT — the word, the clause a refusal names
+ * it with, and whether a value fits.
+ *
+ * THREE FIELDS AND ONE ENTRY, which is the invariant rather than the shape: the
+ * gate that refuses a value and the reading that decides whether the value
+ * wears the plugin's own face ({@link ./meaning.ts}) ask THIS entry, so there
+ * is no second table for either of them to disagree with. That is the bug
+ * family `./meaning.ts`'s header names, met before it can start — two opinions
+ * about one value is how every one of those three defects was born.
+ *
+ * `takes` is the clause, in {@link PROP_KIND_TAKES}' own shape (`` `terminal`
+ * (a padi terminal id)``), and it is spent at three doors: the list of legal
+ * words a bad `type` is refused with, the live write's refusal of a bad value,
+ * and the broken file's error about the same one. The plugin's words, because
+ * only the plugin knows what its kind means — core composing a sentence about
+ * somebody else's vocabulary is the thing this whole interface exists to stop.
+ *
+ * DECLARED HERE STRUCTURALLY and again in `@olai/plugins`' `PropKind`, and the
+ * two spellings are the arrangement rather than a duplication to tidy away:
+ * this package sits a floor BELOW the plugin system and a plugin may not import
+ * the registry at all, so the agreement is proved where the two ends meet — at
+ * the composition root that assembles the table. It is `NotHere`'s trade, one
+ * subject over.
+ */
+export interface ContributedKind {
+  /** The word a declaration writes: `{"type":"terminal"}`. */
+  readonly kind: string
+  /** What a refusal calls it — the plugin's own clause. */
+  readonly takes: string
+  /** Does this value fit. `false` is refused at the plan and reported by the
+   *  validator, in one sentence, {@link ContributedKind.takes}'. */
+  readonly admits: (value: string) => boolean
+}
+
+/**
+ * WHAT WORDS A DECLARATION MAY NAME BEYOND THE SEVEN — handed in, because this
+ * package imports no plugin.
+ *
+ * TWO MAPS, AND THE DISTANCE BETWEEN THEM IS WHAT `--plugins` MEANS. It is not
+ * a redundancy: the two are asked by two questions that must answer
+ * differently, and collapsing them breaks one or the other.
+ *
+ *   - {@link built} is what this BINARY knows how to mean, and it is what a
+ *     DECLARATION is refused against. A vault that names `terminal` while this
+ *     serve runs `--plugins=odu` wrote a legal word; refusing it would make one
+ *     directory's `Properties.olai` broken on one machine and clean on the
+ *     next, which is the one thing a file's verdict may not depend on.
+ *   - {@link enabled} is what this SERVE actually runs, and it is what a VALUE
+ *     is held to. A kind nobody is answering for cannot say whether a value
+ *     fits — so it does not, and the value is plain text: still a name, still
+ *     stored, wearing no face. That is the state every vault that never heard
+ *     of the plugin is already in, which is why it costs no mechanism.
+ *
+ * `enabled` is a subset of `built` by construction (both are assembled from
+ * one registry, the second filtered), and nothing here asserts it because
+ * nothing here could: the assembly is the composition root's.
+ */
+export interface KindVocabulary {
+  /** Every kind this binary was BUILT with — the legal words. */
+  readonly built: ReadonlyMap<string, ContributedKind>
+  /** ...and the ones this serve RUNS — the words that judge a value. */
+  readonly enabled: ReadonlyMap<string, ContributedKind>
+}
+
+/** A build that composed no plugin — which is not a fallback but a serve
+ *  somebody can ask for (`--plugins=`), and is what every reader below one
+ *  answers with when nobody hands it a vocabulary. One value rather than a
+ *  fresh pair of empty maps per call, for {@link NO_TYPING}'s reason. */
+export const NO_KINDS: KindVocabulary = { built: new Map(), enabled: new Map() }
+
+/** Every legal `type` word, as the clause each is named with — the seven this
+ *  format owns and then whatever the build taught it. Read by
+ *  {@link BOOTSTRAP}, so the sentence a bad `type` is refused with and the
+ *  words the reading accepts cannot drift. */
+const kindsTaken = (kinds: KindVocabulary): string =>
+  [
+    ...PROP_KINDS.map((kind) => PROP_KIND_TAKES[kind]),
+    ...[...kinds.built.values()].map((kind) => kind.takes),
+  ].join(", ")
+
+/** ...and the same list as bare words, for the did-you-mean. */
+const kindWords = (kinds: KindVocabulary): ReadonlyArray<string> =>
+  [...PROP_KINDS, ...kinds.built.keys()]
 
 /**
  * WHERE A RELATIVE `doc` OR `path` VALUE RESOLVES FROM — the key's own answer,
@@ -378,10 +509,19 @@ export const baseOf = (declared: Declared | undefined): PathBase => {
  * would be the drift this shape exists to prevent.
  */
 interface Grounded {
-  readonly takes: string
+  /** What this word takes, as the clause that teaches it — a FUNCTION of the
+   *  vocabulary, because exactly one of the three words has an answer that
+   *  grew: `type` takes the seven kinds this format owns plus whatever the
+   *  build taught it ({@link KindVocabulary}), where `under` and `base` say the
+   *  same thing on every machine and ignore the argument. */
+  readonly takes: (kinds: KindVocabulary) => string
   /** What is wrong with this value — or `undefined`, which is nearly every
    *  value. The clause completes "`under` is `x`, which …". */
-  readonly wrong: (value: string, derived: Derived) => string | undefined
+  readonly wrong: (
+    value: string,
+    derived: Derived,
+    kinds: KindVocabulary,
+  ) => string | undefined
   /**
    * Does the check above RESOLVE A BARE ID in the set — so a file that did not
    * parse could have made it fail?
@@ -423,15 +563,23 @@ interface Grounded {
  */
 export const BOOTSTRAP: ReadonlyMap<string, Grounded> = new Map<string, Grounded>([
   [TYPE_KEY, {
-    takes: kindsTaken(),
+    takes: kindsTaken,
     resolves: false,
-    wrong: (value) =>
-      isPropKind(value) ? undefined : `is not a property type — write ${
-        kindsTaken()
-      }${didYouMean(value, PROP_KINDS)}.`,
+    // THE BUILT VOCABULARY AND NOT THE ENABLED ONE, which is the asymmetry
+    // {@link KindVocabulary} argues: a declaration is a fact about the vault
+    // and a serve's `--plugins` is a fact about the machine, so a word this
+    // binary knows how to mean is a legal word whether or not this process is
+    // answering for it. The alternative — refusing here — makes one file
+    // broken on one host and clean on the next, off a flag the file cannot see.
+    wrong: (value, _derived, kinds) =>
+      isBuiltInKind(value) || kinds.built.has(value)
+        ? undefined
+        : `is not a property type — write ${kindsTaken(kinds)}${
+          didYouMean(value, kindWords(kinds))
+        }.`,
   }],
   [UNDER_KEY, {
-    takes: "the id of a node in the set — where a `ref`'s variants live",
+    takes: () => "the id of a node in the set — where a `ref`'s variants live",
     // THE ONE WORD THAT READS THE SET, which is why a finding about it is a
     // guess while any file is unreadable and the other two never are.
     resolves: true,
@@ -453,7 +601,7 @@ export const BOOTSTRAP: ReadonlyMap<string, Grounded> = new Map<string, Grounded
     },
   }],
   [BASE_KEY, {
-    takes: `\`root\` or \`file\` — where a \`doc\` or \`path\` value resolves from`,
+    takes: () => `\`root\` or \`file\` — where a \`doc\` or \`path\` value resolves from`,
     resolves: false,
     // NO SET READING at all, which is what makes this the cheapest of the
     // three: the two bases are words this format knows, not nodes a vault
@@ -607,16 +755,33 @@ export const keyOf = (title: string): string | undefined => {
  * What one declaration node SAYS, or `undefined` for one that says nothing this
  * module can read.
  *
- * Shared by the reading above and the rule that reports a declaration
- * ({@link wrongDeclaration}) so the two cannot disagree about which records are
- * declarations — a key the reading skipped and the rule accepted would be a key
- * that is silently untyped and reported clean.
+ * NO VOCABULARY REACHES HERE, and that is the load-bearing shape rather than a
+ * convenience. {@link declarationsOf} memoises this walk under a `WeakMap`
+ * keyed by the VIEW, and a reading that varied with a table handed in per call
+ * would make that key insufficient — one revision, two answers, filed under
+ * one entry. So an unknown word reads as `contributed` whatever any plugin
+ * says, and every question that needs the table is asked where a REFUSAL is
+ * worded ({@link wrongOne}, {@link wrongDeclaration}).
+ *
+ * WHICH MAKES THIS READING WIDER THAN THE RULE, deliberately, and the pair is
+ * the SAME arrangement an unknown word already had rather than a new
+ * divergence: `type: banana` used to be skipped here and reported by
+ * {@link wrongDeclaration}, leaving the key untyped and its values plain text
+ * with ONE finding in the file somebody actually got wrong. It is read as a
+ * contributed kind nobody answers for now, which is that same untyped-and-
+ * reported state reached by the other road — and it carries the word, which is
+ * the one thing the old reading threw away and {@link sameTyping} needs.
+ *
+ * Shared by the reading above and the rule that reports a declaration so the
+ * two cannot disagree about which records are DECLARATIONS — a key the reading
+ * skipped and the rule accepted would be a key that is silently untyped and
+ * reported clean.
  */
 const typeIn = (derived: Derived, node: RegularNode): PropType | undefined => {
   const said = customText(node, TYPE_KEY)
   const under = customText(node, UNDER_KEY)
   const base = customText(node, BASE_KEY)
-  if (said === undefined || !isPropKind(said)) return undefined
+  if (said === undefined) return undefined
   // THE TWO PATH KINDS take the second word, and only they: `base` on anything
   // else is the same mistake `under` on anything else is, refused the same way
   // and reported by the same rule ({@link wrongDeclaration}'s pair rules).
@@ -626,7 +791,14 @@ const typeIn = (derived: Derived, node: RegularNode): PropType | undefined => {
     return isPathBase(base) ? { kind: said, base } : undefined
   }
   if (base !== undefined) return undefined
-  if (said !== "ref") return under === undefined ? { kind: said } : undefined
+  if (said !== "ref") {
+    if (under !== undefined) return undefined
+    // A CONTRIBUTED KIND TAKES NEITHER SECOND WORD, which is `int`'s and
+    // `node`'s rule and not a new one: `under` names where a `ref` finds its
+    // variants and `base` names where a path resolves from, and a word this
+    // format does not own promises neither.
+    return isBuiltInKind(said) ? { kind: said } : { kind: "contributed", word: said }
+  }
   if (under === undefined) return { kind: "ref" }
   // THE TABLE DECIDES, not a second test spelled here — which is the whole of
   // what {@link Grounded} is for: a declaration this reading ACCEPTED and the
@@ -634,7 +806,11 @@ const typeIn = (derived: Derived, node: RegularNode): PropType | undefined => {
   // and a declaration the reading accepted and the rule did not would be worse
   // still (a mirror as `under`, an empty variant list, and every value of the
   // key refused for a reason nobody could act on).
-  return BOOTSTRAP.get(UNDER_KEY)?.wrong(under, derived) === undefined
+  //
+  // {@link NO_KINDS} because the `under` word reads the SET and nothing else
+  // — the vocabulary is `type`'s question, and handing this one a table would
+  // be the per-call fact the header above says may not reach this walk.
+  return BOOTSTRAP.get(UNDER_KEY)?.wrong(under, derived, NO_KINDS) === undefined
     ? { kind: "ref", under }
     : undefined
 }
@@ -647,9 +823,11 @@ const customText = (node: HasCustom, key: string): string | undefined => {
   return typeof held === "string" && held !== "" ? held : undefined
 }
 
-/** Is this word one of the seven? A type guard, so the branch above is one the
- *  compiler checks rather than a cast. */
-const isPropKind = (word: string): word is PropType["kind"] =>
+/** Is this word one of the seven this FORMAT owns? A type guard, so the branch
+ *  above is one the compiler checks rather than a cast — and it says nothing
+ *  about a contributed word, which is a fact about the BUILD and is asked of
+ *  {@link KindVocabulary} instead. */
+const isBuiltInKind = (word: string): word is BuiltInKind =>
   (PROP_KINDS as ReadonlyArray<string>).includes(word)
 
 /** ...and is this one of the two bases. Its sibling above's shape, for its
@@ -683,6 +861,17 @@ export const sameTyping = (one: PropDeclarations, other: PropDeclarations): bool
     const here = declared.type.kind === "ref" ? declared.type.under : undefined
     const there = against.type.kind === "ref" ? against.type.under : undefined
     if (here !== there) return false
+    // ...and WHICH CONTRIBUTED WORD, which is the same argument as `under`
+    // one arm over and is the quietest thing in this file to get wrong. The
+    // eighth arm is the only kind whose identity is not its `kind` field: two
+    // declarations both reading `contributed` may name two different plugins'
+    // vocabularies, so a key retyped from `terminal` to `worktree` moves every
+    // value of it — and a narrowed validator that compared only the arm would
+    // go on approving those values against a premise the vault has retired,
+    // with nothing on any screen to say so.
+    const said = declared.type.kind === "contributed" ? declared.type.word : undefined
+    const meant = against.type.kind === "contributed" ? against.type.word : undefined
+    if (said !== meant) return false
     // ...and WHERE ITS PATHS RESOLVE FROM, for `under`'s reason one kind over: a
     // `doc` key that moved from `file` to `root` is every value of that key back
     // in question, and a narrowed validator that missed it would keep on
@@ -711,6 +900,75 @@ export const variantsOf = (
   return (derived.children.get(under) ?? [])
     .filter(isRegular)
     .map((child) => child.node.id)
+}
+
+// ── what a contributed kind licences ───────────────────────────────────
+
+/**
+ * DOES THIS VAULT DECLARE ANY KEY OF THIS KIND — the licence, asked once per
+ * revision rather than once per record.
+ *
+ * The cheap half of the pair below, and the reason it is its own function: a
+ * plugin's walk over the set is `O(records)` and almost every vault names no
+ * `terminal` at all, so the walk asks this first and allocates nothing.
+ *
+ * A WORD RATHER THAN A `PropType`, because the callers are plugins and a plugin
+ * knows its own kind's word and nothing about this union.
+ */
+export const declaresKind = (
+  declarations: PropDeclarations,
+  word: string,
+): boolean => {
+  for (const declared of declarations.values()) {
+    if (declared.type.kind === "contributed" && declared.type.word === word) return true
+  }
+  return false
+}
+
+/**
+ * WHAT THIS RECORD SAYS UNDER A KEY OF THIS KIND — the value, found by the
+ * DECLARATION rather than by the key's name.
+ *
+ * THIS IS THE REVERSAL, and it is worth saying what it replaces: a plugin's
+ * walk used to read one hardcoded key (`terminal`, `worktree`), so a vault got
+ * a terminal door because somebody happened to name a property `terminal` and
+ * a checkout was probed because somebody named one `worktree` — while `brief`
+ * and `worktree`, both declared `path`, were indistinguishable to anything that
+ * wanted to tell them apart. The vault now says which key means what, in the
+ * one place it says everything else about its keys, and a key called anything
+ * at all wears the face its DECLARATION names.
+ *
+ * IT WALKS THE RECORD'S OWN KEYS rather than looking one up, which is what
+ * makes the folding right: a declaration's key is trimmed and folded
+ * ({@link keyOf}), a record may have written `Terminal`, and those are one key
+ * to `prop:` and to the fence — so the reconciliation is {@link declaredFor}'s,
+ * asked of each key the record actually holds. A custom map is a handful of
+ * entries, so this is cheaper than it looks and is only reached at all on a
+ * vault {@link declaresKind} said yes about.
+ *
+ * THE FIRST IN THE RECORD'S OWN ORDER WINS where a record carries two keys of
+ * one kind, which is `byId`'s rule for a duplicate claim and is the same
+ * argument: a node naming two terminals has named neither, and picking by any
+ * other rule would make two tabs draw two different rows off one record.
+ *
+ * A LIST IS NOT ONE VALUE. `custom` holds text or a list of it, and a kind
+ * whose face is a door onto one thing has no reading of several — so a list is
+ * stepped over here exactly as it is at every other single-value reader.
+ */
+export const textDeclaredAs = (
+  declarations: PropDeclarations,
+  node: HasCustom,
+  word: string,
+): string | undefined => {
+  const custom = node.custom
+  if (custom === undefined) return undefined
+  for (const key of customOrder(custom)) {
+    const type = declaredFor(declarations, key)?.type
+    if (type?.kind !== "contributed" || type.word !== word) continue
+    const held = customText(node, key)
+    if (held !== undefined) return held
+  }
+  return undefined
 }
 
 // ── the canonical spellings ────────────────────────────────────────────
@@ -862,6 +1120,12 @@ export const isPathShaped = (value: string): boolean =>
 export interface Typed {
   readonly declarations: PropDeclarations
   readonly derived: Derived
+  /** WHAT WORDS BEYOND THE SEVEN MEAN ANYTHING HERE — the fifth fact, and the
+   *  one that is not a reading of the set at all ({@link KindVocabulary}). It
+   *  travels with the other four because it is asked of the same value at the
+   *  same moment, and a caller holding a reading without it would be a caller
+   *  deciding for itself what a `terminal` is. */
+  readonly kinds: KindVocabulary
   /** The `.md` paths a `doc` may point at — {@link ./rules.ts}'s
    *  `markdownPaths`, the same set the `doc` FIELD's rule is asked about, so a
    *  property and a field cannot disagree about what is served. */
@@ -916,7 +1180,7 @@ export const wrongValue = (
 }
 
 /** One value of one declared key — {@link wrongValue} with the list arm and the
- *  lookup taken off, so the seven kinds are one switch the compiler checks. */
+ *  lookup taken off, so the eight kinds are one switch the compiler checks. */
 const wrongOne = (
   typed: Typed,
   declared: Declared,
@@ -951,7 +1215,41 @@ const wrongOne = (
       return wrongRef(typed, declared, named, value)
     case "node":
       return wrongNode(typed, named, value)
+    case "contributed":
+      return wrongContributed(typed, declared.type.word, named, value)
   }
+}
+
+/**
+ * A KIND A PLUGIN TAUGHT THIS VAULT: the plugin's own question, asked of the
+ * plugin's own entry.
+ *
+ * `undefined` FOR A WORD NOBODY IS ANSWERING FOR, and that is the whole of what
+ * a disabled plugin costs a vault: the value is still a name, it is still
+ * stored, and nothing here has an opinion about it. Refusing instead would make
+ * a directory that serves fine under `--plugins=kolu,odu` come up broken under
+ * `--plugins=odu` — a verdict on a file decided by a flag on the machine, which
+ * is what {@link KindVocabulary} exists to keep from happening.
+ *
+ * THE ENABLED MAP AND NOT THE BUILT ONE, for the same reason from the other
+ * end: a kind whose plugin is not running has no `admits` anybody is standing
+ * behind. It has a `takes` — the binary knows the word — and that is exactly
+ * what the DECLARATION is refused against and nothing more.
+ *
+ * THE SENTENCE IS THE PLUGIN'S ({@link ContributedKind.takes}), because core
+ * has nothing true to say about a terminal id. What this adds is the frame the
+ * other seven arms wear — the key, and the value quoted at both ends so the
+ * commentary that made it wrong is visible.
+ */
+const wrongContributed = (
+  typed: Typed,
+  word: string,
+  named: string,
+  value: string,
+): string | undefined => {
+  const kind = typed.kinds.enabled.get(word)
+  if (kind === undefined || kind.admits(value)) return undefined
+  return `${named} is ${kind.takes} — got ${quoted(value)}.`
 }
 
 /**
@@ -1102,6 +1400,11 @@ export const storedValue = (
   // and somebody DECLARED the second to be prose. Trimming either would be this
   // function editing somebody's sentence.
   if (declared === undefined || declared.type.kind === "text") return Result.succeed(value)
+  // A CONTRIBUTED KIND IS TRIMMED WHETHER OR NOT ITS PLUGIN IS RUNNING, which
+  // is deliberate: the DECLARATION is what says this value is a name rather
+  // than prose, and that sentence is the vault's. Trimming on one `--plugins`
+  // and not on another would put a flag on the machine in charge of what gets
+  // written to a file.
   const stored = declared.type.kind === "date"
     ? canonicalDate(value, offsetIn(now) ?? null) ?? value.trim()
     : value.trim()
@@ -1183,6 +1486,7 @@ export const wrongDeclaration = (
   derived: Derived,
   located: Located,
   declared: ReadonlySet<string>,
+  kinds: KindVocabulary,
 ): Wrong | undefined => {
   // A placement declares nothing: it carries no title to name a key with and
   // no props to say a type in, which is the format's own shape rather than a
@@ -1240,7 +1544,7 @@ export const wrongDeclaration = (
   for (const [word, grounded] of BOOTSTRAP) {
     const value = customText(node, word)
     if (value === undefined) continue
-    const wrong = grounded.wrong(value, derived)
+    const wrong = grounded.wrong(value, derived, kinds)
     if (wrong === undefined) continue
     // THE ONE ARM THAT MAY BE A GUESS, and the word itself says which of the
     // three it is (`Grounded.resolves`): `under` reads the SET, so a file that
@@ -1252,7 +1556,7 @@ export const wrongDeclaration = (
   if (said === undefined) {
     return decided(
       `\`${written}\` declares a property key but does not say its \`${TYPE_KEY}\` — write ` +
-        `${BOOTSTRAP.get(TYPE_KEY)?.takes ?? ""}.`,
+        `${BOOTSTRAP.get(TYPE_KEY)?.takes(kinds) ?? ""}.`,
     )
   }
   // The one rule about the PAIR, which no per-word table can hold: `under` says

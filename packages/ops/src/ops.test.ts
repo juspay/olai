@@ -27,6 +27,7 @@ import {
   isMirror,
   type OutlineError,
   type OutlineSet,
+  NO_KINDS,
   outlinePaths,
   stopping,
   parseOutline,
@@ -39,11 +40,16 @@ import * as Store from "@olai/store"
 import { describe, expect, test } from "bun:test"
 import { Deferred, Effect, Fiber, Result, SubscriptionRef } from "effect"
 
-import { codec } from "./codec.ts"
+import { codecFor } from "./codec.ts"
 import type { Store as OutlineStore } from "./deps.ts"
 import { repoAt, STAMP, STAMP_SHAPE, steady } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
 import { fixedPolicy } from "./pending.ts"
+
+/** The codec this suite validates through — the vocabulary of a build that
+ *  composed no plugin, which is what every test in this package runs under
+ *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
+const codec = codecFor(NO_KINDS)
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,

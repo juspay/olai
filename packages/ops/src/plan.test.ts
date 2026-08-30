@@ -18,6 +18,7 @@ import {
   type OpFailure,
   type OutlineSet,
   type RegularNode,
+  NO_KINDS,
   outlinePaths,
   pinTargetIn,
   serializeOutline,
@@ -110,7 +111,7 @@ const at = (set: OutlineSet, now: string, request: Request): OutlineSet =>
   performed(
     set,
     succeeded(
-      plan(scoping(readingOf(set), { mint: () => "n1", now: () => now }), request),
+      plan(scoping(readingOf(set), { mint: () => "n1", now: () => now }, NO_KINDS), request),
       `\`${request.op}\` to plan`,
     ),
   )

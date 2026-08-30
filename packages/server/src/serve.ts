@@ -28,11 +28,13 @@ import { AGENT_ENV, roster, whyNoAgent } from "@olai/chat"
 import type { GitPin } from "@olai/format"
 import type { IdentityConfig } from "@olai/identity"
 import { fixedPolicy, make as makeOps, TOOLS } from "@olai/ops"
+import { enabled, probesOf, SERVERS } from "@olai/plugins/server"
 import { Effect, SubscriptionRef } from "effect"
 import { randomBytes } from "node:crypto"
 
 import * as Chat from "@olai/chat"
 import { openDirectory } from "./directory.ts"
+import { propKinds } from "./propKinds.ts"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
 import { listen } from "./listener.ts"
@@ -80,7 +82,18 @@ export interface ServeOptions {
  */
 export const serve = (options: ServeOptions) =>
   Effect.gen(function*() {
-    const { root, store } = yield* openDirectory(options.root)
+    /**
+     * WHAT THE PLUGINS TEACH THIS VAULT'S VOCABULARY, before anything reads a
+     * file — because the store validates through it and the write planner
+     * refuses through it ({@link ./propKinds.ts}).
+     *
+     * FIRST, and that ordering is the one thing worth noticing here: a codec
+     * built without it would judge the boot's own load against a vocabulary
+     * that has never heard of a terminal, and every value under a contributed
+     * kind would be text until something re-validated.
+     */
+    const kinds = propKinds(options.plugins)
+    const { root, store } = yield* openDirectory(options.root, kinds)
 
     // The chat publishes through the surface, and the surface is seeded from
     // the chat. One mutable slot resolves that, and it is safe because nothing
@@ -133,6 +146,11 @@ export const serve = (options: ServeOptions) =>
       store,
       root,
       policy,
+      // THE SAME TABLE THE STORE VALIDATES WITH, so a value a page draws, a
+      // value the validator reports and a value `set_prop` refuses are one
+      // question asked three times. Two tables here would be the bug family
+      // `@olai/format`'s `meaning.ts` is a list of, rebuilt at the root.
+      kinds,
       onSettled: () => {
         Effect.runSync(SubscriptionRef.update(settled, (count) => count + 1))
       },
@@ -164,6 +182,26 @@ export const serve = (options: ServeOptions) =>
       roster: installed,
       cwd: root,
       tools: () => tools,
+      /**
+       * ...AND WHATEVER ELSE THIS HOST IS RUNNING, asked once per conversation.
+       *
+       * The one place the two halves meet: `@olai/chat` declares the SHAPE of
+       * the question — is your tool here, and what am I owed if it is not — and
+       * each plugin answers it in its own package, in its own words. This line
+       * is where a drift between the two spellings is a type error, which is
+       * why neither of them imports the other.
+       *
+       * FILTERED BY THE PIN, so a plugin left out of `--plugins` never probes,
+       * exactly as the registry says an absent plugin means. `process.env` is
+       * read HERE for the reason everything else on this page is: a composition
+       * root is where a process reaches for the real environment, and a probe
+       * has to see what a session's own spawn will resolve against.
+       *
+       * Through `@olai/plugins/server` and not the root, for `./pluginPolicy.ts`'s
+       * reason: the manifests carry SolidJS faces, and the first `.tsx` this
+       * process evaluates kills the boot.
+       */
+      probes: probesOf(enabled(SERVERS, options.plugins), process.env),
       onState: (state) => publishing().state(state),
       onTranscript: (change) => publishing().transcript(change),
     })

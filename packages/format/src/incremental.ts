@@ -116,7 +116,12 @@ import {
   reportUnknownTargets,
 } from "./rules.ts"
 import type { OutlineSet } from "./set.ts"
-import { declarationsOf, type PropDeclarations, sameTyping } from "./typing.ts"
+import {
+  declarationsOf,
+  type KindVocabulary,
+  type PropDeclarations,
+  sameTyping,
+} from "./typing.ts"
 
 /**
  * WHAT ONE VALIDATION LEAVES FOR THE NEXT — the whole of the state this
@@ -205,6 +210,7 @@ export const incrementally = (
   ledger: Ledger,
   delta: SetDelta,
   derived: Derived,
+  kinds: KindVocabulary,
 ): Narrowed | Decline => {
   // Fact 2: a verdict with anything in it belongs to a set that was refused,
   // and a refused set is not one anybody published — so there is nothing here
@@ -303,7 +309,7 @@ export const incrementally = (
   // The DECLARATIONS themselves, whole and every time — one node per key a
   // vault actually types ({@link ./rules.ts}'s `reportDeclarations` argues why
   // that rule is not narrowed at all).
-  reportDeclarations(derived, errors)
+  reportDeclarations(derived, kinds, errors)
   const typing = declarationsOf(derived)
   // ...and the VALUES, which are the touched records unless something a value
   // could be pointing AT stopped being legal. Two ways that happens, and fact 2
@@ -317,6 +323,7 @@ export const incrementally = (
     declarations: typing,
     derived,
     documents: known,
+    kinds,
   }, errors)
 
   return { ledger: { errors, known, typing }, walked: moving || walking || walkingProps }

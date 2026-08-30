@@ -98,7 +98,7 @@ import {
   reportUnknownTargets,
 } from "./rules.ts"
 import { assemble, type OutlineSet } from "./set.ts"
-import { declarationsOf, type Typed } from "./typing.ts"
+import { declarationsOf, NO_KINDS, type Typed } from "./typing.ts"
 import { Result } from "effect"
 
 const FILES = Number(process.env["OLAI_BENCH_FILES"] ?? 1000)
@@ -226,7 +226,7 @@ const whole = (set: OutlineSet, view: Derived): ReadonlyArray<OutlineError> => {
   const all = view.nodes
   const known = markdownPaths(set)
   const declarations = declarationsOf(view)
-  const typed: Typed = { declarations, derived: view, documents: known }
+  const typed: Typed = { declarations, derived: view, documents: known, kinds: NO_KINDS }
   reportDuplicateIds(all, view, errors)
   reportParents(all, view, errors)
   reportParentCycles(all, view, errors)
@@ -234,7 +234,7 @@ const whole = (set: OutlineSet, view: Derived): ReadonlyArray<OutlineError> => {
   reportAfterCycles(all, view, errors)
   reportMirrorCycles(all, view, errors)
   reportDocs(all, known, errors)
-  reportDeclarations(view, errors)
+  reportDeclarations(view, NO_KINDS, errors)
   reportPropValues(all, typed, errors)
   return errors
 }
@@ -289,18 +289,18 @@ const row = (what: string, edits: ReadonlyArray<Edit>): void => {
       whole(set, view)
     })
     narrow += runs(() => {
-      incrementally(set, before, held, edit.delta, view)
+      incrementally(set, before, held, edit.delta, view, NO_KINDS)
     })
     both += runs(() => {
       whole(set, view)
-      incrementally(set, before, held, edit.delta, view)
+      incrementally(set, before, held, edit.delta, view, NO_KINDS)
     })
     // THE TWO ARMS ANSWERED THE SAME THING, or the milliseconds above are about
     // nothing. A decline is the same failure wearing a different face — it
     // would report the narrowing as free by having it do nothing at all, and it
     // says which door it turned back at.
     const said = whole(set, view)
-    const narrowed = incrementally(set, before, held, edit.delta, view)
+    const narrowed = incrementally(set, before, held, edit.delta, view, NO_KINDS)
     if (typeof narrowed === "string") {
       throw new Error(
         `${what}: the narrowing declined (${narrowed}) — the row above it is ` +

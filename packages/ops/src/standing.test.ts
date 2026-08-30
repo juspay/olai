@@ -26,7 +26,7 @@ import {
   vaultFor,
 } from "./standing.testlib.ts"
 import { standing } from "./standing.ts"
-import { addressOf, type PageRequest, type Reading } from "@olai/format"
+import { addressOf, NO_KINDS, type PageRequest, type Reading } from "@olai/format"
 
 /** A directory, its publisher, and the handful of things every case below
  *  addresses: the first outline, a record in it, and a day something is on. */
@@ -75,7 +75,7 @@ const pageAt = (path: string): PageRequest => ({ kind: "at", address: addressOf(
 
 test("two tabs on one question at one revision are handed the same object", () => {
   const { first, path } = directory()
-  const views = standing(() => FIXED)
+  const views = standing(() => FIXED, NO_KINDS)
   const one = views.page(first, pageAt(path))
   const two = views.page(first, pageAt(path))
   // NOT `toEqual`: the claim is that the answer was computed once, and only
@@ -86,7 +86,7 @@ test("two tabs on one question at one revision are handed the same object", () =
 test("two tabs on DIFFERENT questions of one member share nothing", () => {
   const { vault, first } = directory()
   const [one, two] = [...vault.outlines.keys()]
-  const views = standing(() => FIXED)
+  const views = standing(() => FIXED, NO_KINDS)
   expect(views.page(first, pageAt(one as string)))
     .not.toBe(views.page(first, pageAt(two as string)))
 })
@@ -100,7 +100,7 @@ test("the clock is sampled once per question per revision", () => {
   const views = standing(() => {
     ticks++
     return FIXED
-  })
+  }, NO_KINDS)
   const request = { page: pageAt(path), text: "created:1h" }
   const one = views.narrowing(first, request)
   const two = views.narrowing(first, request)
@@ -121,7 +121,7 @@ test("a file RE-READ is conservatively rebuilt, and its neighbours are not", () 
   // would spend it the day it arrives without a line moving here.
   const { vault, first, path, publish } = directory()
   const elsewhere = [...vault.outlines.keys()].find((one) => one !== path) as string
-  const views = standing(() => FIXED)
+  const views = standing(() => FIXED, NO_KINDS)
   const own = views.page(first, pageAt(path))
   const other = views.page(first, pageAt(elsewhere))
   const next = publish(`re-read ${path}`, [path])
@@ -136,7 +136,7 @@ test("a file RE-READ is conservatively rebuilt, and its neighbours are not", () 
 test("an edit in another file leaves this page's answer alone", () => {
   const { vault, first, path, publish } = directory()
   const elsewhere = [...vault.outlines.keys()].find((one) => one !== path) as string
-  const views = standing(() => FIXED)
+  const views = standing(() => FIXED, NO_KINDS)
   const before = views.page(first, pageAt(path))
   const record = (vault.outlines.get(elsewhere) as Array<Modelled>).find((one) =>
     one.parent !== null
@@ -156,7 +156,7 @@ const noticed = <A>(
   ask: (views: ReturnType<typeof standing>, at: Reading, one: Subject) => A,
 ): { readonly before: A; readonly after: A } => {
   const { vault, first, path, record, leaf, day, publish } = directory()
-  const views = standing(() => FIXED)
+  const views = standing(() => FIXED, NO_KINDS)
   const subject: Subject = { path, day, record, leaf }
   const before = ask(views, first, subject)
   edit(vault, subject)
@@ -239,7 +239,7 @@ test("a question nobody asks any more is not kept", () => {
   // asserted by identity with the value asserted equal beside it.
   const { vault, first, path, publish } = directory()
   const elsewhere = [...vault.outlines.keys()].find((one) => one !== path) as string
-  const views = standing(() => FIXED)
+  const views = standing(() => FIXED, NO_KINDS)
   const before = views.page(first, pageAt(path))
   // Two revisions somebody else's question was asked about, and this one was
   // not. What rolls the generations is a reading being ASKED about, not a

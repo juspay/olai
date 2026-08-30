@@ -23,16 +23,21 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
-import { Writer } from "@olai/format"
+import { NO_KINDS, Writer } from "@olai/format"
 import * as Store from "@olai/store"
 import { describe, expect, test } from "bun:test"
 import { Effect, type Scope } from "effect"
 
-import { codec } from "./codec.ts"
+import { codecFor } from "./codec.ts"
 import type { Store as OutlineStore } from "./deps.ts"
 import { GIT_IDENT, GIT_IDENT_KEYS, gitIn, repoAt, writerOf } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
 import { COMMIT_TOOL, fixedPolicy, whyOf } from "./pending.ts"
+
+/** The codec this suite validates through — the vocabulary of a build that
+ *  composed no plugin, which is what every test in this package runs under
+ *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
+const codec = codecFor(NO_KINDS)
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}`,

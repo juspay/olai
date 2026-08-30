@@ -61,7 +61,8 @@ export const BYPASS_MODE = "bypassPermissions"
  * `null` when it is a person's to answer.
  *
  * Bypass mode is the design (resolved 2026-08-09), so a call to one of the MCP
- * servers WE handed this session — olai's mediated ops, kolu's terminals — is
+ * servers WE handed this session — olai's mediated ops, plus whatever optional
+ * server answered this session's probe — is
  * allowed immediately: those tools are already mediated and already validated,
  * and a click per write is not a permission model. The adapter usually never
  * asks about them at all, having been asked for `bypassPermissions`; this is

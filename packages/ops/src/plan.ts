@@ -38,6 +38,7 @@ import {
   declarationsOf,
   declaredFor,
   declaringOf,
+  type KindVocabulary,
   derive,
   type Derived,
   DOCUMENT_EXT,
@@ -319,11 +320,17 @@ export interface Scope extends Reading {
  * changed. A batch whose first op declares a key must be judged by its second
  * op against that declaration.
  */
-export const typedIn = (at: Reading): Typed => {
+export const typedIn = (at: Reading, kinds: KindVocabulary): Typed => {
   let documents: ReadonlySet<string> | undefined
   return {
     declarations: declarationsOf(at.derived),
     derived: at.derived,
+    // CARRIED, NEVER READ HERE. Which words a plugin taught this vault is the
+    // composition root's fact and not a reading of the set at all, so it comes
+    // down the same way the walks do — as data. The scope is where the two
+    // meet, which is what makes the plan's refusal and the validator's the
+    // same sentence about the same word.
+    kinds,
     get documents(): ReadonlySet<string> {
       return documents ??= new Set(markdownIn(at.set).map((entry) => entry.path))
     },
@@ -383,11 +390,15 @@ const NO_PROPS: Readonly<Record<string, string>> = {}
  * rather than once per op, and the sequencer is what knows when a write moved
  * something the answers depend on.
  */
-export const scoping = (at: Reading, context: Context): Scope => ({
+export const scoping = (
+  at: Reading,
+  context: Context,
+  kinds: KindVocabulary,
+): Scope => ({
   ...at,
   context,
   asked: askedOf(at.set),
-  typed: typedIn(at),
+  typed: typedIn(at, kinds),
 })
 
 /** A field set to a value, or removed when the value is `null`. `undefined` is
@@ -2424,7 +2435,17 @@ const declaredWrong = (
 ): OpFailure | undefined => {
   if (!isPropertiesFile(scope, file)) return undefined
   const claimed = new Set(declarationsExcept(scope.typed.declarations, node.id).keys())
-  const wrong = wrongDeclaration(scope.derived, { file, line: 0, node }, claimed)
+  // THE BUILT VOCABULARY reaches this through the scope's own typing, which
+  // is where a plan and the validator read one value: a `type` naming a kind
+  // this binary knows is accepted here whether or not `--plugins` is running
+  // its plugin, and `type: banana` is refused naming every legal word
+  // (`@olai/format`'s `KindVocabulary`).
+  const wrong = wrongDeclaration(
+    scope.derived,
+    { file, line: 0, node },
+    claimed,
+    scope.typed.kinds,
+  )
   // THE SENTENCE, which is this door's half of the pair. Whether reaching it
   // resolved a bare id is the LOAD's question — a finding an unreadable file
   // could have invented is withheld from a report — and a live write is judged
@@ -2470,6 +2491,7 @@ const governedUnfit = (
     get documents() {
       return scope.typed.documents
     },
+    kinds: scope.typed.kinds,
   }
   // `extra` is VARIANT IDS, so it only excuses a `ref`. A `doc` capture
   // that happens to mint a child whose id equals a held path is not a

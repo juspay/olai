@@ -38,6 +38,11 @@ import { type DialRun, oduHalf } from "@olai/odu-client"
 import { surface } from "./wire.ts"
 import { worktreesIn } from "./worktrees.ts"
 
+/** The kinds this plugin teaches a vault, reached on this door — see
+ *  {@link ./kinds.ts} for the word, and `@olai/plugins`' `server.ts` for why
+ *  the table is assembled here rather than off the manifest. */
+export { kinds } from "./kinds.ts"
+
 /** The wire half, re-exported for the reason `@olai/plugin-kolu`'s server door
  *  re-exports it: one entry per plugin, and one spelling of the key. */
 export { faces, name, surface } from "./wire.ts"
@@ -116,9 +121,9 @@ export const serve = (services: Services): {
       dial: services.dial as DialRun | undefined,
     },
     // THE VAULT WALK, passed in, and this package is now where both sides of it
-    // live: which nodes name a worktree, and whether the vault typed that key a
-    // path at all, are readings of outline records — things the package that
-    // dials odu must not learn. What crosses is four strings per node.
+    // live: which keys this vault DECLARES a `worktree`, and which nodes carry
+    // one, are readings of outline records — things the package that dials odu
+    // must not learn. What crosses is four strings per node.
     worktrees: worktreesIn,
     // Chatter, at debug: on a machine with no CI running this is a line every
     // few seconds and it is not news — which on this appliance is even more true

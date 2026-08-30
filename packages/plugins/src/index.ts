@@ -32,10 +32,11 @@
  * FUSED rather than merged into one spec ({@link ./compose.ts}).
  *
  * Beside those, a plugin contributes property KINDS the format takes as data
- * and never imports, WHOLE SENTENCES for its own failures that core displays
- * and never composes, DRESSINGS licensed by declared kind, a CHROME slot or
- * two, an OWNED FILE in the vault, a RUNTIME HALF it assembles itself, an MCP
- * SERVER a chat session is handed, and a DOCS page the index assembles.
+ * and never imports, DRESSINGS licensed by declared kind, a CHROME slot or
+ * two, an OWNED FILE in the vault, a RUNTIME HALF it assembles itself, a PROBE
+ * — which answers with the MCP server a chat session is handed AND the WHOLE
+ * SENTENCE about the one it did not get, both off one reading, core displaying
+ * and never composing either — and a DOCS page the index assembles.
  *
  * ## What a DISABLED plugin is
  *

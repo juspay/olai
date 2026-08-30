@@ -390,7 +390,12 @@ export type { HasCustom } from "./custom.ts"
  * `unfitHeld` are.
  *
  * `PROP_KINDS` and `PROPERTIES` are on the surface because they are the
- * VOCABULARY a tool description and a doc page teach; `declarationsOf` and
+ * VOCABULARY a tool description and a doc page teach — and `KindVocabulary`
+ * beside them because that vocabulary is no longer wholly this package's: a
+ * plugin teaches the vault a kind, and the composition root hands the table
+ * down as data ({@link ./typing.ts}'s header argues the direction). Every door
+ * that words a refusal takes it, and `NO_KINDS` is what a build with no
+ * plugin composed; `declarationsOf` and
  * `variantsOf` because a reader above resolves a value the way the checker
  * does; `canonicalDate` because the one stored spelling of a date has to be one
  * function, wherever it is asked.
@@ -402,19 +407,33 @@ export {
   canonicalDate,
   declarationsOf,
   declaredFor,
+  declaresKind,
   declaringOf,
+  isPathShaped,
+  NO_KINDS,
   NO_TYPING,
   offsetIn,
   PATH_BASES,
   PROP_KIND_TAKES,
   PROP_KINDS,
   storedValue,
+  textDeclaredAs,
   unfitHeld,
   variantsOf,
   wrongDeclaration,
   wrongValue,
 } from "./typing.ts"
-export type { Declared, PathBase, PropDeclarations, PropType, Typed, UnfitHeld } from "./typing.ts"
+export type {
+  BuiltInKind,
+  ContributedKind,
+  Declared,
+  KindVocabulary,
+  PathBase,
+  PropDeclarations,
+  PropType,
+  Typed,
+  UnfitHeld,
+} from "./typing.ts"
 
 /**
  * ...AND WHAT A DECLARED VALUE NAMES (./meaning.ts).

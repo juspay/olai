@@ -3,9 +3,11 @@
  *
  * Every case here is `worktreesIn` over a whole vault built out of JSONL the real
  * parser accepts, because the claim under test is about what a vault SAYS: a
- * `worktree` becomes a path olai will dial a socket under only where the
- * declarations file says that key holds paths. The resolution of the value it
- * yields is a different subject with a bench of its own
+ * value becomes a path olai will dial a socket under only where the
+ * declarations file declares its key a `worktree` — the KIND this plugin
+ * contributes ({@link ./kinds.ts}), not the key's NAME and not the `path` the
+ * licence used to settle for. The resolution of the value it yields is a
+ * different subject with a bench of its own
  * (`@olai/odu-client`'s `resolve.test.ts`); what these ask is which records
  * cross at all.
  */
@@ -26,9 +28,10 @@ const rec = (
     custom === undefined ? "" : `,"custom":${JSON.stringify(custom)}`
   }}`
 
-/** The declarations file, saying what `worktree` is. */
-const declaring = (type: string): string =>
-  rec("prop-worktree", "worktree", { type })
+/** The declarations file, saying what a key is — the key NAMED here is
+ *  incidental and two cases below name a different one on purpose. */
+const declaring = (type: string, key = "worktree"): string =>
+  rec(`prop-${key}`, key, { type })
 
 const worktreesOf = (files: Record<string, string>) => [
   ...worktreesIn(readingOf(setOf(files)).derived),
@@ -37,7 +40,7 @@ const worktreesOf = (files: Record<string, string>) => [
 test("a vault that declares `worktree` a path yields the nodes that carry it, with the PR beside them", () => {
   expect(
     worktreesOf({
-      "_olai/Properties.olai": declaring("path"),
+      "_olai/Properties.olai": declaring("worktree"),
       "board.olai": rec("node-a", "the seam", {
         worktree: ".worktrees/live-properties",
         "pr-url": "https://github.com/juspay/olai/pull/433",
@@ -57,7 +60,7 @@ test("a node with no `pr-url` still crosses — where it RESOLVES is not this wa
   // dropped here for want of a URL would be a resolution rule spelled twice.
   expect(
     worktreesOf({
-      "_olai/Properties.olai": declaring("path"),
+      "_olai/Properties.olai": declaring("worktree"),
       "board.olai": rec("node-a", "the seam", { worktree: "/srv/checkout" }),
     }),
   ).toEqual([{
@@ -87,10 +90,35 @@ test("...and neither does one that declares the key something else", () => {
   ).toEqual([])
 })
 
-test("a record with no `worktree` is not one, declaration or not", () => {
+test("a key declared `path` is NOT a worktree, which is the whole reason this kind exists", () => {
+  // `brief` is a `path` too, on the very same rows. The licence used to be
+  // "declared `path`" joined to the hardcoded key name `worktree`, which could
+  // not tell a checkout from a document and could not have been asked about a
+  // key called anything else.
   expect(
     worktreesOf({
       "_olai/Properties.olai": declaring("path"),
+      "board.olai": rec("node-a", "the seam", { worktree: ".worktrees/a" }),
+    }),
+  ).toEqual([])
+})
+
+test("a key called anything at all is a worktree if the vault declares it one", () => {
+  // THE REVERSAL, said as a case: the face follows the DECLARED KIND, so a
+  // board whose column is `checkout` is probed and a board that declares
+  // nothing is not — however many properties it happens to call `worktree`.
+  expect(
+    worktreesOf({
+      "_olai/Properties.olai": declaring("worktree", "checkout"),
+      "board.olai": rec("node-a", "the seam", { checkout: "/srv/x", worktree: "/srv/decoy" }),
+    }),
+  ).toEqual([{ node: "node-a", title: "the seam", value: "/srv/x", prUrl: undefined }])
+})
+
+test("a record with no `worktree` is not one, declaration or not", () => {
+  expect(
+    worktreesOf({
+      "_olai/Properties.olai": declaring("worktree"),
       "board.olai": rec("plain", "an ordinary bullet", { agent: "claude-opus" }),
     }),
   ).toEqual([])
@@ -101,7 +129,7 @@ test("a MIRROR is skipped — its target carries the property and is in the same
   // the wrong record; two rows probing one checkout would also be two dials of
   // one socket.
   const named = worktreesOf({
-    "_olai/Properties.olai": declaring("path"),
+    "_olai/Properties.olai": declaring("worktree"),
     "board.olai": [
       rec("node-a", "the seam", { worktree: ".worktrees/a" }),
       `{"id":"m","ord":"a1","mirror":"node-a"}`,

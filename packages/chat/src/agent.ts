@@ -29,8 +29,9 @@
  *     closure has to get right at the same time as a subprocess.
  *   - **which permission requests are answered without asking.** Bypass mode is
  *     the design (resolved 2026-08-09), so a call to one of the MCP servers WE
- *     handed this session — olai's mediated ops, kolu's terminals — is allowed
- *     immediately, and everything else is a person's to answer. What is HERE is
+ *     handed this session — olai's mediated ops, plus whatever optional server
+ *     this host answered a probe with — is allowed immediately, and everything
+ *     else is a person's to answer. What is HERE is
  *     that the two paths exist and which one a request took; the rule that
  *     tells them apart is this agent's LEG ({@link ./agents/leg.ts}), where it is a pure function
  *     with unit tests rather than a branch inside a subprocess's callback.
@@ -42,9 +43,13 @@
  *     here is what those readings are REMEMBERED as, which is a session's job.
  *
  * The MCP servers a session is given are olai's own internal one — the standard
- * ACP shape, and the only channel the agent has to the ops layer — plus, when
- * this host is running kolu, kolu's terminals ({@link ./kolu.ts}), detected per
- * session rather than at boot. The whole list travels as an event like any
+ * ACP shape, and the only channel the agent has to the ops layer — plus
+ * whatever OPTIONAL ones this host turns out to be running, probed per session
+ * rather than at boot. This file names none of the second kind and could not:
+ * the list is handed in ({@link Options.probes}) and what is on it is the
+ * composition root's business, so the whole of what is here is that they are
+ * asked once per conversation and what becomes of the answer
+ * ({@link ./probes.ts}). The whole list travels as an event like any
  * other (`servers`), with a standing per row ({@link ./servers.ts}), so which
  * servers a conversation HAS is something the panel can say rather than
  * something the model gets asked and answers out of a context that never
@@ -113,9 +118,9 @@ import {
 import { Calls } from "./calls.ts"
 import { sameDirectory } from "./directory.ts"
 import type { AgentEvent, Command, Stored } from "./events.ts"
-import * as Kolu from "./kolu.ts"
 import type { Held, Memory, MemoryFailure } from "./memory.ts"
 import { streamOver } from "./pipes.ts"
+import { handedIn, missingIn, type Probe, probed, type StdioServer } from "./probes.ts"
 import * as Questions from "./questions.ts"
 import { movedBy, rosterOf } from "./servers.ts"
 import { wroteIn } from "./wrote.ts"
@@ -244,6 +249,25 @@ export interface Options {
    *  know what an `McpServer` looks like on the wire, and a composition root
    *  that hand-built one would be a second place that knows. */
   readonly tools: () => ToolServer | null
+  /**
+   * The OPTIONAL servers to look for, once per conversation — whatever else
+   * this host turns out to be running ({@link ./probes.ts}).
+   *
+   * A LIST HANDED IN, and this file names nothing that is on it. What might be
+   * here is the composition root's business, because it is the root that knows
+   * which integrations this build has and which of them this serve was told to
+   * run; what is here is that they are ASKED per session rather than at boot, so
+   * a daemon started after olai is picked up by the next conversation instead of
+   * at the next restart.
+   *
+   * OMITTED IS EMPTY, and that is the useful default rather than a convenience.
+   * Every test in this package opens sessions against a fixture agent and has no
+   * business waiting on a probe of this machine — before this was a parameter,
+   * two suites emptied `PATH` and unset a daemon's socket variable in a
+   * `beforeEach` to stop one, which is a test reaching into the process to
+   * silence a dependency it could not name.
+   */
+  readonly probes?: ReadonlyArray<Probe>
   /** Where "which conversation is the panel's" is kept between one serve of
    *  this directory and the next ({@link ./memory.ts}). Handed in rather than
    *  built here for the reason the tool server is: this module is the one that
@@ -372,10 +396,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * next `entered` the source of truth — also turned the fence off for the
      * whole open. A forwarded `init` still in flight from the conversation
      * that just closed, or a `session/update` chunk of it, then landed on the
-     * next roster and the next transcript. The kolu probe sits in that
-     * window (asked fresh per conversation) and is what made the race load-
-     * shaped: a slow probe is a long gap with `session === null` after
-     * `sessionOver` has already emptied the panel.
+     * next roster and the next transcript. The optional-server probes sit in
+     * that window (asked fresh per conversation) and are what made the race
+     * load-shaped: a slow probe is a long gap with `session === null` after
+     * `sessionOver` has already emptied the panel — which is why they overlap
+     * rather than run one after another ({@link ./probes.ts}'s `AT_ONCE`).
      *
      * A SET rather than the last id, because two opens in a row can still
      * have the first conversation's leftovers on the wire after the second
@@ -473,10 +498,11 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
      * The MCP servers this conversation was handed, by name.
      *
      * Read by the permission handler and by nothing else: a call to one of
-     * these is a call to a tool olai chose to expose — the mediated ops, kolu's
-     * terminals — and those are the ones bypass mode is for. Refilled whenever
-     * a session is opened, because the set is decided per conversation (a padi
-     * started after olai shows up in the next one).
+     * these is a call to a tool olai chose to expose — the mediated ops, and
+     * whatever optional server answered this session's probe — and those are
+     * the ones bypass mode is for. Refilled whenever a session is opened,
+     * because the set is decided per conversation (a daemon started after olai
+     * shows up in the next one).
      */
     let given: ReadonlyArray<string> = []
 
@@ -1413,20 +1439,21 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
     }
 
     /** The MCP servers this conversation gets: olai's own tool server, and
-     *  kolu's terminals if this host is running kolu. Asked FRESH every time a
-     *  session is opened rather than once at boot, so a padi started after olai
-     *  is picked up by the next conversation instead of the next restart. */
+     *  whatever optional ones this host turns out to be running
+     *  ({@link Options.probes}). Asked FRESH every time a session is opened
+     *  rather than once at boot, so a daemon started after olai is picked up by
+     *  the next conversation instead of the next restart. */
     const servers = Effect.map(
-      Kolu.detect,
-      // ONE probe answers both halves. `serverOf` takes what a session is
-      // handed, and `missingFrom` takes what a person is owed about the one it
-      // was not — which used to be dropped here on the grounds that nothing
-      // drew it. Something does now (`mcp-fail-visible`), and it reads the same
-      // `Detected` rather than probing a second time: two probes could
-      // disagree, and the one a session was opened on is the one that is true
-      // about it.
+      probed(options.probes ?? []),
+      // ONE probing answers both halves, and both are read off the ONE array
+      // this callback is handed. `handedIn` takes what a session is given, and
+      // `missingIn` takes what a person is owed about the ones it was not —
+      // which used to be dropped here on the grounds that nothing drew it.
+      // Something does now (`mcp-fail-visible`), and it reads the same answers
+      // rather than probing a second time: two probings could disagree, and the
+      // one a session was opened on is the one that is true about it.
       (found) => {
-        const handing = mcpServersOf(options.tools(), Kolu.serverOf(found))
+        const handing = mcpServersOf(options.tools(), handedIn(found))
         // Remembered as they are handed over, because "the tools we gave this
         // conversation" is exactly the set the permission handler allows
         // without asking — and it is decided per conversation.
@@ -1445,7 +1472,7 @@ export const make = (options: Options): Effect.Effect<Agent, never, never> =>
         // session as much as a failed one — and a panel told only about
         // failures leaves the other answer to the model, which is the incident
         // this comes from (`mcp-roster-visible`).
-        announce(rosterOf(handing, Kolu.missingFrom(found)))
+        announce(rosterOf(handing, missingIn(found)))
         return handing
       },
     )
@@ -2314,11 +2341,16 @@ export const adopt = (
 
 /** What a session is handed, as ACP's `mcpServers`. The one place the
  *  protocol's shape for either transport is spelled: olai's own tool server is
- *  http because it is a route on the listener this process already has, and
- *  kolu's is stdio because it is somebody else's program on this host. */
+ *  http because it is a route on the listener this process already has, and an
+ *  optional one is stdio because it is somebody else's program on this host.
+ *
+ *  A LIST for the second argument, in the order they were probed
+ *  ({@link ./probes.ts} keeps it), and olai's own first because olai's own is
+ *  handed first. It is the order the roster is read off, so it is the order a
+ *  person sees. */
 export const mcpServersOf = (
   server: ToolServer | null,
-  kolu: Kolu.Server | null,
+  stdio: ReadonlyArray<StdioServer>,
 ): ReadonlyArray<McpServer> => [
   ...server === null ? [] : [{
     type: "http" as const,
@@ -2326,11 +2358,11 @@ export const mcpServersOf = (
     url: server.url,
     headers: [{ name: "Authorization", value: `Bearer ${server.token}` }],
   }],
-  ...kolu === null ? [] : [{
-    name: kolu.name,
-    command: kolu.command,
-    args: [...kolu.args],
-    env: Object.entries(kolu.env).map(([name, value]) => ({ name, value })),
-  }],
+  ...stdio.map((one) => ({
+    name: one.name,
+    command: one.command,
+    args: [...one.args],
+    env: Object.entries(one.env).map(([name, value]) => ({ name, value })),
+  })),
 ]
 

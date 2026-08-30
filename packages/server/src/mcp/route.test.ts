@@ -20,12 +20,13 @@
 
 import { DEFAULT_IDENTITY_CONFIG, DEFAULT_IDENTITY_HEADERS } from "@olai/identity"
 import {
-  codec,
+  codecFor,
   fixedPolicy,
   make as makeOps,
   type Store as OutlineStore,
   TOOLS,
 } from "@olai/ops"
+import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
 import { expect, test } from "bun:test"
 import { Effect, Option, SubscriptionRef } from "effect"
@@ -42,6 +43,11 @@ import { bind, gitWiring, writerAt } from "../runtime.ts"
 import { clientOver, serveFace } from "./face.ts"
 import { currentLogin, fromLoopback, MCP_PATH, mcpAllowed, mcpTransport } from "./route.ts"
 import { bespokeFrom } from "./tools.ts"
+
+/** The codec this suite validates through — the vocabulary of a build that
+ *  composed no plugin, which is what these fixtures declare nothing about
+ *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
+const codec = codecFor(NO_KINDS)
 
 const HOUSE = `{"id":"kitchen","ord":"a0","title":"Kitchen remodel"}\n`
 

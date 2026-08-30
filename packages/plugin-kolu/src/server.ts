@@ -48,18 +48,47 @@
  */
 
 import type { ImplementSurfaceDeps, SurfaceCtx } from "@kolu/surface/server"
-import { type Convention, conventionServed, type Derived, type Located, type OutlineSet } from "@olai/format"
+import {
+  type Convention,
+  conventionServed,
+  declarationsOf,
+  type Derived,
+  type Located,
+  NO_TYPING,
+  type OutlineSet,
+  type PropDeclarations,
+} from "@olai/format"
 import { type Dial, koluHalf } from "@olai/kolu-client"
 
 import { claimantsIn } from "./claimants.ts"
 import { koluFileIn, watchConfigIn } from "./config.ts"
 import { surface } from "./wire.ts"
 
+/** The kinds this plugin teaches a vault, reached on this door — see
+ *  {@link ./kinds.ts} for the word, and `@olai/plugins`' `server.ts` for why
+ *  the table is assembled here rather than off the manifest. */
+export { kinds } from "./kinds.ts"
+
 /** The wire half, re-exported so a composition root reads ONE entry per plugin
  *  — and so the sibling key the surface is composed under and the key its deps
  *  are filed under are the same word by construction rather than by two lists
  *  agreeing ({@link ./wire.ts} is where it is spelled). */
 export { faces, name, surface } from "./wire.ts"
+
+/**
+ * WHETHER THIS HOST IS RUNNING KOLU, on the same door and for the same graph
+ * reason ({@link ./probe.ts}).
+ *
+ * It is not part of {@link serve}, and the two are asked at different moments by
+ * different callers: the runtime half is made ONCE when the surface binds and
+ * keeps a socket for the life of the process, while this is asked FRESH per
+ * conversation, on the session-open path, so a padi started after olai is picked
+ * up by the next session instead of the next restart. Folding the probe into
+ * `serve`'s return would tie a per-session question to a per-process value and
+ * would make the answer a session was opened on the answer some earlier session
+ * got.
+ */
+export { probe } from "./probe.ts"
 
 /**
  * WHAT THIS HALF ASKS CORE FOR — a subset of what core offers every plugin, and
@@ -177,7 +206,13 @@ export const serve = (services: Services): {
     // watcher's knobs: what crosses is the derived intervals, the mute VALUES
     // verbatim, the malformed lines to say, and — the events drawer's foot —
     // the mutes' TITLES beside the file that was read.
-    claimants: claimantsIn,
+    // ...LICENSED BY WHAT THE VAULT DECLARED, which is why the reading is
+    // handed over rather than looked up: this walk finds its key by declared
+    // KIND now, and `KoluDeps` takes `(nodes) => …` because that package must
+    // not learn what a `Derived` is. So the plugin holds the reading beside
+    // the convention below — the same `let`, set on the same revision, and read
+    // synchronously inside the very call that set it.
+    claimants: (nodes) => claimantsIn(declaring, nodes),
     config: watchConfigIn,
     // Chatter, at debug: on a machine with no kolu this is a line every few
     // seconds and it is not news. What IS news — a connect, a skew, a link that
@@ -198,6 +233,13 @@ export const serve = (services: Services): {
    *  the plugin's `let` now: core used to hold it beside the inbox's and the
    *  shelf's, which meant a general package holding one plugin's convention. */
   let file: Convention | undefined
+
+  /** ...AND WHAT THAT REVISION DECLARES, for {@link ./claimants.ts}'s licence.
+   *  `declarationsOf` is memoised per view one package down, so this is a
+   *  pointer read on every revision the declarations file did not move on.
+   *  `NO_TYPING` before the first revision is the truth about it: nothing has
+   *  been read, so nothing is declared, so nothing claims a terminal. */
+  let declaring: PropDeclarations = NO_TYPING
 
   return {
     /**
@@ -233,6 +275,7 @@ export const serve = (services: Services): {
      */
     revision: (revision) => {
       file = conventionServed(koluFileIn, revision.value.set, revision, file)
+      declaring = declarationsOf(revision.value.derived)
       half.revision(revision.value.derived.nodes, file.file ?? null)
     },
     /** The store has NEVER published — the vault's kolu verdict goes out with

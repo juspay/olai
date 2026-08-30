@@ -24,10 +24,17 @@
  *
  * `agent.ts` is deliberately NOT exported. Nothing above this line should be
  * able to spell `session/update`.
+ *
+ * `Probe` and what it answers are TYPES only, and they are here because the
+ * composition root is what fills that list: an optional MCP server this host
+ * might be running is something only the root knows about, so this package
+ * declares the SHAPE of the question and never an answer to it
+ * ({@link ./probes.ts}).
  */
 
 export { type Adapter, AGENT_ENV, whyNoAgent } from "./adapter.ts"
 export { type Installed, roster } from "./agents/roster.ts"
 export { type Chat, make, type Options, type ToolServer } from "./chat.ts"
+export type { Probe, Probed, StdioServer } from "./probes.ts"
 export type { Change } from "./transcript.ts"
 export { type Cadence, cadence, type Frame, type Pieces } from "./cadence.ts"

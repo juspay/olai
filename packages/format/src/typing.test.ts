@@ -16,11 +16,13 @@ import { derive } from "./derive.ts"
 import { nodesOfFiles } from "./fixtures.testlib.ts"
 import {
   BOOTSTRAP,
+  type ContributedKind,
   canonicalDate,
   declarationsOf,
   declaringOf,
   isDigitRun,
   isPathShaped,
+  NO_KINDS,
   NO_TYPING,
   offsetIn,
   PATH_BASES,
@@ -76,7 +78,12 @@ const derived = derive(nodesOfFiles(FILES))
  *  would be proving something about the assembly. */
 const DOCUMENTS: ReadonlySet<string> = new Set(["briefs/pdb.md", "docs/format.md"])
 
-const typed: Typed = { declarations: declarationsOf(derived), derived, documents: DOCUMENTS }
+const typed: Typed = {
+  declarations: declarationsOf(derived),
+  derived,
+  documents: DOCUMENTS,
+  kinds: NO_KINDS,
+}
 
 /** What is wrong with a value on a record of `orchestrator/lanes.olai` — the
  *  file the live board's lanes are in, so a relative `doc` is resolved from one
@@ -102,7 +109,7 @@ test("a directory with no Properties.olai declares nothing, and every key is tex
   expect(declarationsOf(bare)).toEqual(NO_TYPING)
   expect(
     wrongValue(
-      { declarations: declarationsOf(bare), derived: bare, documents: new Set() },
+      { declarations: declarationsOf(bare), derived: bare, documents: new Set(), kinds: NO_KINDS },
       "a.olai",
       "dispatched",
       "2026-08-25 10:06 (sweep queue #5)",
@@ -238,6 +245,7 @@ test("a DANGLING ref value is flagged the way a dangling edge is — with a did-
     declarations: declarationsOf(without),
     derived: without,
     documents: DOCUMENTS,
+    kinds: NO_KINDS,
   }
   expect(wrongValue(after, "orchestrator/lanes.olai", "agent", "grok")).toContain(
     "names a node under `agents-roster`",
@@ -365,7 +373,7 @@ test("a bad type is refused naming the legal kinds and each one's shape", () => 
   const bent = derive(nodesOfFiles({
     "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"took","custom":{"type":"took"}}`,
   }))
-  const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set())?.said
+  const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set(), NO_KINDS)?.said
   expect(said).toContain("`type` is `took`, which is not a property type")
   expect(said).toContain("`text` (anything)")
   expect(said).toContain("`date` (an ISO day or instant)")
@@ -391,6 +399,7 @@ test("unfitHeld names every existing value that would not fit a newly declared k
     declarations: declarationsOf(derived),
     derived,
     documents: new Set(["briefs/pdb.md"]),
+    kinds: NO_KINDS,
   }
   const unfit = unfitHeld(typed, "brainstorm")
   expect(unfit.map((one) => one.id)).toEqual(["a", "b"])
@@ -421,6 +430,7 @@ test("unfitHeld keeps a list's members beside the joined display string", () => 
     declarations: declarationsOf(derived),
     derived,
     documents: new Set(),
+    kinds: NO_KINDS,
   }
   const unfit = unfitHeld(typed, "merge")
   expect(unfit).toHaveLength(1)
@@ -434,7 +444,7 @@ test("a declaration missing its type is refused naming the same vocabulary", () 
   const bent = derive(nodesOfFiles({
     "_olai/Properties.olai": `{"id":"p","ord":"a0","title":"musts"}`,
   }))
-  const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set())?.said
+  const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set(), NO_KINDS)?.said
   expect(said).toContain("does not say its `type`")
   expect(said).toContain("`text` (anything)")
   expect(said).toContain("`ref` (a child's id; `under` names the parent)")
@@ -470,8 +480,81 @@ test("a declaration the reading cannot make is skipped rather than guessed at", 
   }))
   // FIRST DECLARATION WINS among duplicates, which is `byId`'s rule for a
   // duplicate id and the same argument: the second claim is the mistake.
-  expect([...declarationsOf(bent).keys()]).toEqual(["twice"])
+  //
+  // `unknown` IS IN THE MAP and the other five are not, which is the eighth
+  // arm arriving rather than a hole: a word the seven do not claim reads as a
+  // CONTRIBUTED kind carrying that word, because the reading takes no
+  // vocabulary and could not tell `colour` from `terminal` if it wanted to.
+  // What that buys is the word itself, which is what `sameTyping` compares;
+  // what it costs is nothing, since the three claims below are exactly the
+  // ones the skip used to make.
+  expect([...declarationsOf(bent).keys()]).toEqual(["unknown", "twice"])
   expect(declarationsOf(bent).get("twice")?.type).toEqual({ kind: "int" })
+  expect(declarationsOf(bent).get("unknown")?.type)
+    .toEqual({ kind: "contributed", word: "colour" })
+})
+
+test("a contributed kind nobody answers for judges no value, and is still reported", () => {
+  const bent = derive(nodesOfFiles({
+    "_olai/Properties.olai":
+      `{"id":"p","ord":"a0","title":"unknown","custom":{"type":"colour"}}`,
+    "a.olai": `{"id":"one","ord":"a0","title":"one","custom":{"unknown":"anything at all"}}`,
+  }))
+  const typed: Typed = {
+    declarations: declarationsOf(bent),
+    derived: bent,
+    documents: new Set(),
+    kinds: NO_KINDS,
+  }
+  // PLAIN TEXT, which is the whole of what a kind nobody is answering for
+  // costs a vault: the value is still a name and nothing breaks.
+  expect(wrongValue(typed, "a.olai", "unknown", "anything at all")).toBeUndefined()
+  // ...and the ONE finding is on the declarations file, naming the legal words
+  // — the same sentence a build that HAS the plugin would not say at all.
+  const said = wrongDeclaration(bent, bent.byId.get("p")!, new Set(), NO_KINDS)?.said
+  expect(said).toContain("`type` is `colour`, which is not a property type")
+})
+
+test("a kind this build knows is a legal declaration, and holds its values to the plugin's word", () => {
+  const KINDS = {
+    built: new Map([[
+      "terminal",
+      { kind: "terminal", takes: "`terminal` (a padi terminal id)", admits: (v: string) => /^[0-9a-f-]+$/.test(v) },
+    ]]),
+    enabled: new Map<string, ContributedKind>(),
+  }
+  const bent = derive(nodesOfFiles({
+    "_olai/Properties.olai":
+      `{"id":"p","ord":"a0","title":"pty","custom":{"type":"terminal"}}`,
+    "a.olai": `{"id":"one","ord":"a0","title":"one","custom":{"pty":"a uuid, and a remark"}}`,
+  }))
+  // THE DECLARATION IS ACCEPTED off the BUILT half, whether or not this serve
+  // runs the plugin — a file's verdict may not depend on a flag it cannot see.
+  expect(wrongDeclaration(bent, bent.byId.get("p")!, new Set(), KINDS)).toBeUndefined()
+  const held = (kinds: typeof KINDS): string | undefined =>
+    wrongValue(
+      { declarations: declarationsOf(bent), derived: bent, documents: new Set(), kinds },
+      "a.olai",
+      "pty",
+      "a uuid, and a remark",
+    )
+  // DISABLED: plain text, nothing refused. ENABLED: the plugin's own sentence.
+  expect(held(KINDS)).toBeUndefined()
+  expect(held({ built: KINDS.built, enabled: KINDS.built }))
+    .toContain("`pty` is `terminal` (a padi terminal id) — got \"a uuid, and a remark\".")
+})
+
+test("sameTyping tells one contributed word from another, so a retype re-asks every value", () => {
+  const of = (word: string) =>
+    declarationsOf(derive(nodesOfFiles({
+      "_olai/Properties.olai":
+        `{"id":"p","ord":"a0","title":"pty","custom":{"type":"${word}"}}`,
+    })))
+  expect(sameTyping(of("terminal"), of("terminal"))).toBe(true)
+  // The QUIETEST breakage this file has: both read `contributed`, and a
+  // comparison that stopped at the arm would keep approving values against a
+  // premise the vault has retired.
+  expect(sameTyping(of("terminal"), of("worktree"))).toBe(false)
 })
 
 // ── the review's corners ───────────────────────────────────────────────
@@ -490,7 +573,7 @@ test("a MIRROR cannot be where a ref's variants live", () => {
   // The key is NOT declared, so no value of it is refused for the wrong reason.
   expect(declarationsOf(bent).has("agent")).toBe(false)
   // ...and the declarations file itself is what says so.
-  expect(wrongDeclaration(bent, bent.byId.get("p")!, new Set())?.said)
+  expect(wrongDeclaration(bent, bent.byId.get("p")!, new Set(), NO_KINDS)?.said)
     .toContain("is a mirror — a second placement rather than a node of its own")
 })
 
@@ -509,7 +592,7 @@ test("a ref's variants are capped in the sentence, and the did-you-mean is not",
     "r.olai": [`{"id":"roster","ord":"a0","title":"the agents"}`, ...many].join("\n"),
   }))
   const said = wrongValue(
-    { declarations: declarationsOf(big), derived: big, documents: new Set() },
+    { declarations: declarationsOf(big), derived: big, documents: new Set(), kinds: NO_KINDS },
     "a.olai",
     "agent",
     "agent-29x",
@@ -551,6 +634,6 @@ test("a key declared twice differing only in case is one key declared twice", ()
     ].join("\n"),
   }))
   expect([...declarationsOf(twice).keys()]).toEqual(["merge"])
-  expect(wrongDeclaration(twice, twice.byId.get("p2")!, new Set(["merge"]))?.said)
+  expect(wrongDeclaration(twice, twice.byId.get("p2")!, new Set(["merge"]), NO_KINDS)?.said)
     .toContain("a property key is folded for case")
 })

@@ -26,17 +26,29 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
-import { bytesOf, markdownIn, type SearchAnswer, type SearchRequest, type WriteRequest } from "@olai/format"
+import {
+  bytesOf,
+  markdownIn,
+  NO_KINDS,
+  type SearchAnswer,
+  type SearchRequest,
+  type WriteRequest,
+} from "@olai/format"
 import * as StoreModule from "@olai/store"
 import { expect, test } from "bun:test"
 import { Effect, SubscriptionRef } from "effect"
 
-import { codec } from "./codec.ts"
+import { codecFor } from "./codec.ts"
 import type { Store } from "./deps.ts"
 import { fixedPolicy } from "./pending.ts"
 import { STAMP, steady } from "./fixtures.testlib.ts"
 import * as Ops from "./ops.ts"
 import * as Query from "./query.ts"
+
+/** The codec this suite validates through — the vocabulary of a build that
+ *  composed no plugin, which is what every test in this package runs under
+ *  ({@link ./codec.ts}'s `codecFor`, and `@olai/format`'s `NO_KINDS`). */
+const codec = codecFor(NO_KINDS)
 
 const HOUSE = [
   `{"id":"kitchen","ord":"a0","title":"Kitchen remodel #home"}`,

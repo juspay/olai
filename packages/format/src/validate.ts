@@ -107,7 +107,7 @@ import {
   reportUnknownTargets,
 } from "./rules.ts"
 import { type OutlineSet, outlinesIn, withDocuments, withheld } from "./set.ts"
-import { declarationsOf, type Typed } from "./typing.ts"
+import { declarationsOf, type KindVocabulary, NO_KINDS, type Typed } from "./typing.ts"
 import { blamed, type Verdict } from "./verdict.ts"
 
 /**
@@ -174,9 +174,29 @@ export interface Previous {
   readonly delta: SetDelta
 }
 
+/**
+ * WHICH WORDS BEYOND THE FORMAT'S SEVEN A DECLARATION MAY NAME, and which of
+ * them judge a value — the plugin-contributed vocabulary, handed in as data
+ * ({@link ./typing.ts}'s `KindVocabulary`).
+ *
+ * A PARAMETER RATHER THAN AN IMPORT, because this package names no plugin: the
+ * registry that knows them imports this one, so the table is assembled at the
+ * composition root and travels down. It reaches exactly two rules — the
+ * declarations rule, which refuses a `type` naming no word this BINARY was
+ * built with, and the values rule, which holds a value to what this SERVE is
+ * running.
+ *
+ * {@link NO_KINDS} BY DEFAULT, and that is a STATE rather than a fallback: it
+ * is what `--plugins=` composes, and it is what every caller that has no
+ * plugins to speak of — the browser's own derivation, a bench, a fixture — is
+ * actually in. A vault declaring `terminal` under it is a vault whose key is
+ * untyped and whose declaration is reported, which is precisely what a build
+ * with no kolu should say about the word.
+ */
 export const validate = (
   set: OutlineSet,
   previous?: Previous,
+  kinds: KindVocabulary = NO_KINDS,
 ): Result.Result<Reading, Verdict> => {
   // One set of indexes, built once and shared by every rule below, so no two
   // of them can disagree about which record an id names or what hangs under it
@@ -192,8 +212,8 @@ export const validate = (
   // files' records rather than the directory. {@link wholly} is the same six
   // rules the validator always ran, and it runs when — and only when — there
   // is nothing to narrow from ({@link Cold} names the six doors).
-  const said = narrowly(set, previous, view)
-  const ledger = typeof said === "string" ? wholly(set, derived, said) : said
+  const said = narrowly(set, previous, view, kinds)
+  const ledger = typeof said === "string" ? wholly(set, derived, kinds, said) : said
 
   // WHAT A READER IS SHOWN: the parse errors first, which are the cause, the
   // guesses taken out, the whole thing in presentation order ({@link
@@ -310,6 +330,7 @@ const narrowly = (
   set: OutlineSet,
   previous: Previous | undefined,
   view: Taken,
+  kinds: KindVocabulary,
 ): Ledger | Cold => {
   if (previous === undefined) return "first"
   if (!view.patched) return "rebuilt"
@@ -321,6 +342,7 @@ const narrowly = (
     followed,
     previous.delta,
     view.derived,
+    kinds,
   )
   if (typeof narrowed === "string") return narrowed
   reached({ kind: "narrowed", walked: narrowed.walked })
@@ -342,7 +364,12 @@ const narrowly = (
  * this verdict was reached against, and the vocabulary the vault declared
  * ({@link ./incremental.ts}'s `Ledger` argues each of the three).
  */
-const wholly = (set: OutlineSet, derived: Derived, why: Cold): Ledger => {
+const wholly = (
+  set: OutlineSet,
+  derived: Derived,
+  kinds: KindVocabulary,
+  why: Cold,
+): Ledger => {
   reached({ kind: "whole", why })
   const errors: Array<OutlineError> = []
   // THE RECORDS ARE THE VIEW'S, which is the same records the set holds one
@@ -368,7 +395,7 @@ const wholly = (set: OutlineSet, derived: Derived, why: Cold): Ledger => {
   // would build it per record, and it LEAVES in the ledger so the next
   // validation can tell a vocabulary that moved from one that did not.
   const declarations = declarationsOf(derived)
-  const typed: Typed = { declarations, derived, documents: known }
+  const typed: Typed = { declarations, derived, documents: known, kinds }
   reportDuplicateIds(all, derived, errors)
   reportParents(all, derived, errors)
   reportParentCycles(all, derived, errors)
@@ -376,7 +403,7 @@ const wholly = (set: OutlineSet, derived: Derived, why: Cold): Ledger => {
   reportAfterCycles(all, derived, errors)
   reportMirrorCycles(all, derived, errors)
   reportDocs(all, known, errors)
-  reportDeclarations(derived, errors)
+  reportDeclarations(derived, kinds, errors)
   reportPropValues(all, typed, errors)
   return { errors, known, typing: declarations }
 }

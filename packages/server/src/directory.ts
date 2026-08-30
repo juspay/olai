@@ -26,7 +26,8 @@
  * the shape of a thing that wants to be structural instead.
  */
 
-import { codec, type Store as OutlineStore } from "@olai/ops"
+import type { KindVocabulary } from "@olai/format"
+import { codecFor, type Store as OutlineStore } from "@olai/ops"
 import * as Store from "@olai/store"
 import { Effect } from "effect"
 import { resolve } from "node:path"
@@ -44,15 +45,22 @@ export interface Directory {
  *  store and its callers will go on to say, and the directory held against a
  *  second olai for as long as this one has it. Scoped, like the store it opens:
  *  closing the scope releases the claim, and so does the process ending by any
- *  route at all (`./lock.ts`). */
-export const openDirectory = (root: string) =>
+ *  route at all (`./lock.ts`).
+ *
+ *  `kinds` IS WHAT THE STORE VALIDATES WITH: which property kinds the enabled
+ *  plugins taught this vault's vocabulary, assembled at the composition root
+ *  and handed down as data (`./propKinds.ts`). It is a parameter and not a
+ *  module-level default for the reason `@olai/ops`' `codecFor` takes one — a
+ *  root that forgot it would validate every vault as though this binary had
+ *  never heard of a terminal, silently. */
+export const openDirectory = (root: string, kinds: KindVocabulary) =>
   Effect.gen(function*() {
     const resolved = resolve(root)
     yield* Effect.annotateLogsScoped({ root: resolved })
     yield* holdVault(resolved)
     const directory: Directory = {
       root: resolved,
-      store: yield* Store.make({ root: resolved, codec }),
+      store: yield* Store.make({ root: resolved, codec: codecFor(kinds) }),
     }
     return directory
   })

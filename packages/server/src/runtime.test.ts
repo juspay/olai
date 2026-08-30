@@ -19,7 +19,7 @@
  */
 
 import {
-  codec,
+  codecFor,
   fixedPolicy,
   make as makeOps,
   type Ops,
@@ -27,6 +27,7 @@ import {
 } from "@olai/ops"
 import type { App, DocumentEntry, Head, Manifest, Shelf } from "@olai/surface"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
+import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
 import { NodeServices } from "@effect/platform-node"
 import { expect, test } from "bun:test"
@@ -38,6 +39,11 @@ import * as path from "node:path"
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
 import { type Bound, bind, gitWiring, writerAt } from "./runtime.ts"
+
+/** The codec this suite validates through — the vocabulary of a build that
+ *  composed no plugin, which is what these fixtures declare nothing about
+ *  (`@olai/ops`' `codecFor`, and `@olai/format`'s `NO_KINDS`). */
+const codec = codecFor(NO_KINDS)
 
 /** A known start instant, so `app.get` is asserted against a mint rather
  *  than against whatever clock the suite happened to read. */

@@ -35,7 +35,7 @@
  */
 
 import { expect, test } from "bun:test"
-import { outlinesIn } from "@olai/format"
+import { NO_KINDS, outlinesIn } from "@olai/format"
 import { Result } from "effect"
 
 import { readingOf, setOf, steady } from "./fixtures.testlib.ts"
@@ -58,6 +58,7 @@ const start = (): Scope =>
       ),
     ),
     steady(),
+    NO_KINDS,
   )
 
 /** A set as DATA, for comparison: the documents in path order and the broken

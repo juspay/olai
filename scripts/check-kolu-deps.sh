@@ -141,8 +141,11 @@ fi
 # allowlist row for `packages/chat/src/kolu.ts` until the human chose Option B;
 # the seat that proposed the row retracted it first, as "a file-grained
 # exception in a package-grained fence — discipline dressed as physics." A path
-# a reviewer has to remember is weaker than a wall, so chat reaches
+# a reviewer has to remember is weaker than a wall, so the probe reaches
 # `@kolu/detect` through `@olai/kolu-client/detect` and this list is empty.
+# That probe is `packages/plugin-kolu/src/probe.ts` now rather than chat's:
+# the plugin wall took the whole file, so the package that would have needed
+# the exception no longer names kolu at all.
 #
 # THE FRAMEWORK TIER IS OUT OF SCOPE and deliberately unlisted: `@kolu/surface*`
 # is olai's foundation, imported anywhere, like `effect`. What is confined is

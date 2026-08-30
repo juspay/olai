@@ -41,10 +41,15 @@ export const plugin = {
    * a wrapping line, so what the press opens hangs under the run as the seam's
    * `Pane` rather than inside the chip.
    *
-   * Against `WORKTREE_KEY` — `@olai/odu-client`'s own constant, the same one
-   * this plugin's server probes by — and never the string `"worktree"`: a
-   * literal here would be a second spelling waiting to drift from the one the
-   * walk reads.
+   * Against `WORKTREE_KEY` — `@olai/odu-client`'s own constant — and never the
+   * string `"worktree"`: a literal here would be a second spelling free to
+   * drift from the one the browser's own components read.
+   *
+   * IT IS THE PROPERTY KEY AND NOT THIS PLUGIN'S KIND ({@link ./kinds.ts}).
+   * The walk that licences the probe follows the declared KIND; a tab cannot,
+   * because declarations do not travel to one — so a vault declaring
+   * `worktree` on a key called something else is probed and draws no chip,
+   * which is stated here rather than papered over.
    *
    * IT USED TO REGISTER ITSELF, from a `client/live/odu-ci/index.ts` inside
    * `@olai/web` that called the seam's `registerLive` at module load, and the

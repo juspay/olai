@@ -6,12 +6,14 @@
 
 ## Live properties
 
-A property whose value is a decision-shaped name — a terminal id, a worktree path — can be given a face that **updates on its own**. The board goes on storing the name; the display goes and finds out what that name currently is. There are two such properties today:
+A property whose value is a decision-shaped name — a terminal id, a worktree path — can be given a face that **updates on its own**. The board goes on storing the name; the display goes and finds out what that name currently is. A plugin contributes a KIND, the vault declares a key that kind, and the face follows the DECLARATION rather than the key's name. There are two such kinds today:
 
 | the property | what it wears |
 | --- | --- |
 | `terminal` | kolu's own Dock row, and the live pane it opens — [kolu.md](kolu.md) |
 | `worktree` | a CI chip while a run is going, and the run matrix it opens — this page |
+
+The rows name the KINDS, and the key a vault hangs each on is the vault's own — a column called `checkout` declared `worktree` is probed, and a column called `worktree` in a vault that declares nothing is not.
 
 They are the same mechanism wearing different clothes, and a third kind of living thing later is a third set of clothes rather than a third mechanism.
 
@@ -19,7 +21,7 @@ The two are shaped differently on purpose. A `terminal` OWNS ITS ROW, because a 
 
 ## The chip
 
-Give a lane a `worktree` property, and declare that key a `path` (see [below](#what-turns-it-on)). While a run is going in that checkout, the property's line gains a chip:
+Give a lane a `worktree` property, and declare that key a `worktree` (see [below](#what-turns-it-on)). While a run is going in that checkout, the property's line gains a chip:
 
 ```
 agent  claude-opus    brief  briefs/live-properties.md    worktree  .worktrees/live-properties    ci · e2e 2:10 · 8/10 ok
@@ -64,13 +66,15 @@ When a run you were watching settles, its chip stays and says what it came to: `
 
 Two facts, both on the board:
 
-1. **the key is declared a `path`** — one row in `_olai/Properties.olai`:
+1. **the key is declared a `worktree`** — one row in `_olai/Properties.olai`:
 
    ```jsonl
-   {"id":"prop-worktree","ord":"aC","title":"worktree","custom":{"type":"path"}}
+   {"id":"prop-worktree","ord":"aC","title":"worktree","custom":{"type":"worktree"}}
    ```
 
-   A vault that declares nothing is not probed at all, and that is the rule rather than an accident. This is the one place typed properties do load-bearing work here: the promise that these values are paths is the vault's to make ([format.md](format.md)), and a page that assumed it would be guessing at exactly what typing exists to fence.
+   A vault that declares nothing is not probed at all, and that is the rule rather than an accident: this hands a path to a socket dial in somebody's checkout, and only the vault can say which of its keys is one.
+
+   **It used to be `path`, and `path` was not enough.** `brief` is a `path` too, on the very same rows, so the licence had to be joined to the key NAME `worktree` to mean anything — which gave a door to any vault that happened to use the word and none to a board whose column is called `checkout`. `worktree` is a kind `@olai/plugin-odu` contributes ([format.md](format.md)), and the walk finds its keys by that declaration. A board that declared `path` gets no chip now; the repair is the word in that one row.
 
 2. **the lane says which repository it is in.** A `worktree` value like `.worktrees/live-properties` is relative and does not name its repo — the same six characters are a directory under three of them. So the repository comes from the lane's own `pr-url` (`https://github.com/juspay/odu/pull/94` → `odu`), and the checkout is `<repos root>/<repo>`, where the repos root is **the directory your served vault sits in** — your board and the repositories it boards are checkouts side by side. A machine laid out otherwise says so once, in `OLAI_REPOS_DIR`.
 

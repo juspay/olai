@@ -39,7 +39,7 @@
  * other vault.
  */
 
-import { addressOf, type PageRequest, type Reading } from "@olai/format"
+import { addressOf, NO_KINDS, type PageRequest, type Reading } from "@olai/format"
 import { median, timed } from "@olai/format/testlib"
 
 import {
@@ -159,8 +159,8 @@ for (const [where, into] of [["inside", subject], ["elsewhere", elsewhere]] as c
   console.log(`the write lands ${where.toUpperCase()} the question's own file`)
   for (const [name, question] of QUESTIONS) {
     for (const tabs of TABS) {
-      const before = timing(rebuilding(() => FIXED), question, tabs, into)
-      const after = timing(standing(() => FIXED), question, tabs, into)
+      const before = timing(rebuilding(() => FIXED, NO_KINDS), question, tabs, into)
+      const after = timing(standing(() => FIXED, NO_KINDS), question, tabs, into)
       // THE TWO ARMS MUST ANSWER THE SAME THING. They are timed over different
       // revisions (each row makes its own writes), so this is not an equality
       // between two readings of one moment — it is the weaker and still
@@ -218,8 +218,8 @@ for (const [where, into] of [["inside", subject], ["elsewhere", elsewhere]] as c
       }
       return median(times)
     }
-    const before = room(rebuilding(() => FIXED))
-    const after = room(standing(() => FIXED))
+    const before = room(rebuilding(() => FIXED, NO_KINDS))
+    const after = room(standing(() => FIXED, NO_KINDS))
     console.log(
       `  ${where.padEnd(10)} ${String(tabs).padStart(2)} tab${tabs === 1 ? " " : "s"}  ` +
         `${before.toFixed(3).padStart(8)} ms → ${after.toFixed(3).padStart(8)} ms  ` +
@@ -238,8 +238,8 @@ for (const [where, into] of [["inside", subject], ["elsewhere", elsewhere]] as c
  * quoted without it would be a ratio between an answer and something else.
  */
 {
-  const rebuilt = rebuilding(() => FIXED)
-  const shared = standing(() => FIXED)
+  const rebuilt = rebuilding(() => FIXED, NO_KINDS)
+  const shared = standing(() => FIXED, NO_KINDS)
   let asks = 0
   for (let round = 0; round < 20; round++) {
     const into = round % 2 === 0 ? subject : elsewhere

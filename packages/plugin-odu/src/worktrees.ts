@@ -28,10 +28,10 @@
  * fact down.
  *
  * What this module actually asks is a question in that vocabulary and reads
- * the same either way: WHICH NODES CARRY A `worktree`, in a vault that has
- * declared that key a `path`. A directory of recipes with a `worktree` on one
- * of them gets the same probe and the same chip, and nothing in the code has
- * to be re-read as a metaphor for it.
+ * the same either way: WHICH NODES CARRY A KEY THIS VAULT DECLARES A
+ * `worktree`. A directory of recipes with such a key on one of its rows gets
+ * the same probe and the same chip, and nothing in the code has to be re-read
+ * as a metaphor for it.
  *
  * ## THE DECLARATION LICENCES THE PROBE
  *
@@ -39,25 +39,30 @@
  * is worth stating plainly because it is not where a reader would first look
  * for it. A `worktree` value is a decision-shaped name; what turns it into a
  * path olai will join `.ci/odu.sock` onto is the vault's own declaration —
- * `{"title":"worktree","custom":{"type":"path"}}`. A vault that declares the
- * key something else, or a vault that declares nothing at all, gets NO PROBE:
- * the promise that this key's values are paths is the vault's to make
- * (`@olai/format`'s `typing.ts` — a `path` is fenced against whitespace and
- * against the commentary a bare `text` key invites), and a face that assumed
- * it would be guessing at exactly the fact typing exists to fence.
+ * `{"title":"worktree","custom":{"type":"worktree"}}`. A vault that declares
+ * the key something else, or a vault that declares nothing at all, gets NO
+ * PROBE.
  *
- * That the SELECTION of a face is by key while the LICENCE is by declared type
- * is the seam's own division and is argued where the table is
- * (`@olai/web`'s `props/live.ts`): declarations do not travel to a browser
+ * IT USED TO ASK FOR `path`, AND THAT WAS NOT ENOUGH. `brief` is a `path` too,
+ * on the very same rows, and a shape cannot tell a checkout from a document —
+ * so the licence had to be joined to a hardcoded KEY NAME to mean anything, and
+ * a key called `checkout` could not have it at all. This plugin contributes the
+ * kind `worktree` now ({@link ./kinds.ts}) and the walk finds its keys by that
+ * DECLARATION, so the vault names which of its path-shaped keys is a checkout
+ * — which is the fact, said once, where it says everything else about its keys.
+ *
+ * That the SELECTION of a browser face is still by key while the LICENCE is by
+ * declared kind is the seam's own division and is argued where the table is
+ * (`@olai/web`'s `live/seam.ts`): declarations do not travel to a browser
  * (juspay/olai#395), so the tab cannot key on one — but the server holds them,
  * and this is the one question that has to be asked where they are.
  *
- * An UNDECLARED key is not probed either, and that is the sharper half of the
- * same rule rather than an inconsistency with the terminal door beside it. The
- * door reads a value and looks it up in a fleet somebody else is keeping — a
- * wrong value finds nothing and the block says so in words. This walk hands a
- * path to a socket dial in a directory nobody asked about, so the bar is
- * higher: somebody has to have said, in the vault, that this key holds paths.
+ * An UNDECLARED key is not probed, and it is the same rule the terminal door
+ * beside it now keeps (`@olai/plugin-kolu`'s `claimants.ts`, which used to
+ * keep a lower one). What still differs is the RISK rather than the bar: that
+ * walk looks a value up in a fleet, where a wrong one finds nothing and the
+ * block says so in words, and this one hands a path to a socket dial in
+ * somebody's checkout.
  *
  * What crosses is four strings per node (`@olai/odu-client`'s
  * `WorktreeNode`). The probe is odu's, the walk is olai's, and that shape is
@@ -67,16 +72,18 @@
 import {
   customText,
   declarationsOf,
-  declaredFor,
+  declaresKind,
   type Derived,
   isRegular,
+  textDeclaredAs,
 } from "@olai/format"
 import type { WorktreeNode } from "@olai/odu-client"
-import { PR_URL_KEY, WORKTREE_KEY } from "@olai/odu-client/wire"
+import { PR_URL_KEY } from "@olai/odu-client/wire"
+
+import { WORKTREE_KIND } from "./kinds.ts"
 
 /**
- * Every node carrying a `worktree` property, in a vault that declares that key
- * a `path`.
+ * Every node carrying a key this vault declares a `worktree`.
  *
  * IT TAKES THE WHOLE DERIVATION rather than the node list `claimantsIn` takes,
  * and the one extra thing it reads is the reason: what the vault DECLARES is a
@@ -98,18 +105,21 @@ import { PR_URL_KEY, WORKTREE_KEY } from "@olai/odu-client/wire"
  * checkout would also be two dials of one socket, which is the thing the
  * watcher's first-writer-wins rule then has to clean up.
  *
- * `pr-url` rides along UNCHECKED against its own declaration, and that is an
- * asymmetry rather than an oversight: the `worktree` value is what becomes a
- * path, and the PR URL only ever narrows where that path is looked for. A
- * value that is not a URL resolves to no repository and the node is dropped
- * (`@olai/odu-client`'s `repoIn`), which is the same outcome a wrong
- * declaration would have bought, reached without a second gate.
+ * `pr-url` IS STILL READ BY NAME, and that is the one key here that is, which
+ * is worth naming rather than leaving as an inconsistency. It names no kind —
+ * this plugin contributes exactly one word — and it licences nothing: the
+ * `worktree` value is what becomes a path, and the PR URL only ever narrows
+ * where that path is looked for. A value that is not a URL resolves to no
+ * repository and the node is dropped (`@olai/odu-client`'s `repoIn`), which is
+ * the same outcome a wrong declaration would have bought, reached without a
+ * second gate.
  */
 export function* worktreesIn(derived: Derived): Generator<WorktreeNode> {
-  if (declaredFor(declarationsOf(derived), WORKTREE_KEY)?.type.kind !== "path") return
+  const declarations = declarationsOf(derived)
+  if (!declaresKind(declarations, WORKTREE_KIND)) return
   for (const located of derived.nodes) {
     if (!isRegular(located)) continue
-    const value = customText(located.node, WORKTREE_KEY)
+    const value = textDeclaredAs(declarations, located.node, WORKTREE_KIND)
     if (value === undefined) continue
     yield {
       node: located.node.id,

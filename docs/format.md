@@ -95,17 +95,28 @@ dispatched  2026-08-25 10:06 (sweep queue #5; the slot freed by #387's merge)
 
 **Data, not config.** Editing the vocabulary is editing an outline: adding a variant is adding a child row, the file opens in olai like any other, and nothing restarts. Per-outline declarations were considered and rejected — props are ONE namespace across the vault, so `merge` on a lane and `merge` anywhere else mean one thing or a key's meaning depends on where the reader is standing.
 
-**The seven kinds:**
+**The seven kinds this format owns:**
 
 | kind | what a value is |
 | --- | --- |
 | `text` | anything. The default, and a DECLARED `text` is the durable blessing for a key whose values are deliberately prose (`from`). |
 | `date` | an ISO day (`2026-08-25`) or an instant written as a mark records one (`2026-08-25T10:06:00-04:00`). Nothing else. |
 | `int` | a digit run: no sign, no leading zeros, no separators, nothing after them. |
-| `path` | one run of characters with no whitespace in it. May point anywhere. A DECLARATION IS ALSO A LICENCE: it is what lets olai treat a `worktree` value as a directory to look for a CI run in ([ci.md](ci.md)), which an undeclared key never gets, because the promise that these values are paths is the vault's to make. |
+| `path` | one run of characters with no whitespace in it. May point anywhere, and promises nothing but the shape. |
 | `doc` | a path that resolves to an `.md` this directory serves. WHERE it resolves from is the key's own `base` (below). |
 | `ref` | the **id** of one of a parent's children. `under` names the parent; absent, it is the declaration's own children. |
 | `node` | the id of any node in the set. A mirror is not one. |
+
+**...and an eighth arm, for the kinds a PLUGIN contributes.** `terminal` is not one of the seven and neither is `worktree`, and `@olai/format` may not learn either word. So a plugin declares its own kind, the composition root hands the format the table as data, and a vault declares it in `_olai/Properties.olai` like anything else:
+
+```jsonl
+{"id":"prop-terminal","ord":"a6","title":"terminal","custom":{"type":"terminal"}}
+{"id":"prop-worktree","ord":"a7","title":"worktree","custom":{"type":"worktree"}}
+```
+
+**THE DECLARATION IS THE LICENCE, and it is the only one.** A key declared `terminal` gets the Dock row and the live pane ([kolu.md](kolu.md)); a key declared `worktree` is a directory olai will look for a CI run in ([ci.md](ci.md)). Neither is licensed by the key's NAME any more, and there is deliberately no fallback to it: `brief` and `worktree` are both path-shaped, and a shape cannot tell a document from a checkout — which is why declaring `path` no longer buys either face. **A vault that declares nothing gets neither**, where a property happening to be called `terminal` used to be enough; the repair is one row. And a key called `checkout` or `pty` gets the face the day its row says the kind, which is the other half of the same change.
+
+**A kind whose plugin this serve is not running validates as plain text** — the value is still a name, nothing breaks, and it wears no face, which is the state every vault that never heard of the plugin is already in. The DECLARATION is still legal, though: a `type` is refused against every kind this BINARY was built with, so `{"type":"terminal"}` is a clean row on a machine running `--plugins=odu` and `{"type":"banana"}` is a broken file either way. A file's verdict may not depend on a flag it cannot see.
 
 **There is deliberately no `sum` — an enum IS a ref.** The variants are nodes, so adding one is adding a child rather than editing a pipe-separated string inside a property, which is exactly the sloppiness this refuses. A roster that happens to live elsewhere (`{"type":"ref","under":"agents-roster"}`) is the same mechanism pointed at a different place, and it stays data: add a node under the roster and the sum grows, with no declaration to edit.
 
@@ -126,14 +137,15 @@ A `doc` or `path` declaration may say `base`, and it is `root` or `file`:
 
 **The markdown `doc` FIELD is untouched** and keeps beside-the-writer as its only premise. A note has no key to declare on, so there is nothing there to say a second thing.
 
-`base` on any other kind is refused where it is written (`bad-prop`): the five kinds that name no path have nothing to resolve.
+`base` on any other kind is refused where it is written (`bad-prop`): every kind that names no path has nothing to resolve, a contributed one included.
 
 ### What a declared value names
 
 A declaration is a fence around a value, and it is also the strongest thing anyone knows about what that value POINTS AT. **One place answers both** — the write gate asks "is this allowed" and the display asks "what does it name", of the same declaration, and they cannot disagree:
 
 - A **`doc`** value opens the `.md` it resolves to — the same resolution over the same list the write gate is held to, so a value the validator refuses is never drawn as a live door and one it accepts is never drawn as dead text. A `doc` naming a served `.olai` is refused by both: this kind promises a *document*, and an outline is not one.
-- A **`path`** value opens whatever this directory happens to serve at the path it resolves to — any kind, an outline included. It promised only a SHAPE, so the gate never claimed it names anything and the display asks the wider question. `worktree`, pointing at a directory on somebody's machine, is served by nothing here and is not a door; `brief` — declared `path` on the orchestrator's own vault, because a brief is working material the served set does not always hold — opens exactly when the file is there.
+- A **`path`** value opens whatever this directory happens to serve at the path it resolves to — any kind, an outline included. It promised only a SHAPE, so the gate never claimed it names anything and the display asks the wider question. `brief` — declared `path` on the orchestrator's own vault, because a brief is working material the served set does not always hold — opens exactly when the file is there.
+- A **plugin-contributed** value opens nothing of the app's own: a terminal in somebody's fleet and a checkout on somebody's disk are not among the four places this app can send anybody, and the plugin's own face is what draws them. Where the plugin is NOT running the value reads exactly as an undeclared key does, so a URL somebody wrote under a retired kind is still a link — a door may not appear and disappear with a flag on the machine.
 - A `ref` or `node` value opens the record it names, and the chip draws that record's **title**.
 - A `date` value opens its day; an `int` names nothing.
 
@@ -158,7 +170,9 @@ add_node {file: "_olai/Properties.olai", title: "took", props: {type: "took"}}
 → `type` is `took`, which is not a property type — write `text` (anything),
   `date` (an ISO day or instant), `int` (a digit run), `path` (no whitespace;
   optional `base`), `doc` (a served `.md`; optional `base`), `ref` (a child's
-  id; `under` names the parent), `node` (any node id).
+  id; `under` names the parent), `node` (any node id), `terminal` (a padi
+  terminal id, or a prefix of one), `worktree` (a path to a checkout, no
+  whitespace).
 
 add_node {file: "_olai/Properties.olai", title: "brainstorm", props: {type: "doc"}}
 → `brainstorm` cannot be declared `doc` while 3 existing values do not fit:

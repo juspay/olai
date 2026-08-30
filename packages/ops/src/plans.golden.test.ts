@@ -59,7 +59,7 @@ import { createHash } from "node:crypto"
 import * as fs from "node:fs"
 import * as path from "node:path"
 
-import { serializeOutline } from "@olai/format"
+import { NO_KINDS, serializeOutline } from "@olai/format"
 import { expect, test } from "bun:test"
 import { Result } from "effect"
 
@@ -140,7 +140,7 @@ const run = (): ReadonlyArray<{ readonly what: string; readonly said: unknown }>
   // is scoped against the reading it is really judged against rather than
   // against a carried context this file is not the test of
   // (`./following.equivalence.test.ts` is).
-  let at = scoping(reading(), context)
+  let at = scoping(reading(), context, NO_KINDS)
   const said: Array<{ readonly what: string; readonly said: unknown }> = []
   for (const step of SCRIPT) {
     const made = plan(at, step.op)
@@ -148,7 +148,7 @@ const run = (): ReadonlyArray<{ readonly what: string; readonly said: unknown }>
     if (Result.isFailure(made)) continue
     for (const file of made.success.files) texts[file.file] = serializeOutline(file.nodes)
     for (const document of made.success.documents ?? []) bodies.set(document.file, document.text)
-    at = scoping(reading(), context)
+    at = scoping(reading(), context, NO_KINDS)
   }
   return said
 }

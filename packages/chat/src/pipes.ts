@@ -3,7 +3,8 @@
  *
  * This package starts two kinds of subprocess and both speak line-delimited
  * JSON-RPC on stdio — the ACP agent ({@link ./agent.ts}) and, for the length of
- * one question, kolu's MCP server ({@link ./kolu.ts}). What they say to each
+ * one question, an optional MCP server this host might be running
+ * ({@link ./probes.ts}). What they say to each
  * other is nothing alike; how a message gets on and off a pipe is identical, so
  * it is written once, here, and neither of them owns it.
  *

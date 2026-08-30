@@ -47,12 +47,17 @@ import type { Reported } from "./agents/leg.ts"
  * that found out puts it: what it is called, the file it asked, and why that
  * was a no.
  *
- * Declared here rather than in {@link ./kolu.ts} because it is this module's
- * INPUT, and because all four standings are minted below: the detection module
- * answers what it found, and what a roster makes of that — which arm, which
- * sentence, and the rule that nothing an agent says may overwrite it — is one
- * vocabulary in one file. `where` is `null` for the one way of failing that
- * never reached a file.
+ * Declared here rather than in {@link ./probes.ts} because it is this module's
+ * INPUT, and because all four standings are minted below: a probe answers what
+ * it found, and what a roster makes of that — which arm, which sentence, and
+ * the rule that nothing an agent says may overwrite it — is one vocabulary in
+ * one file. `where` is `null` for the ways of failing that never reached a
+ * file.
+ *
+ * `why` IS THE PROBE'S OWN WHOLE SENTENCE and this file does not touch it. The
+ * words belong to whoever found out — kolu's five ways of failing are
+ * `@olai/plugin-kolu`'s to word — and everything here is about the STANDING
+ * they are carried under.
  */
 export interface NotHere {
   readonly name: string
@@ -78,18 +83,26 @@ export interface NotHere {
  * know says `null` rather than guessing — and a `null` there is drawn as
  * nothing at all rather than as a blank line.
  *
- * ORDER IS THE ORDER THEY WERE HANDED, with the missing one last. It is the
- * only order that is a fact rather than a preference, and it puts olai's own
- * server first because olai's own server is handed first.
+ * ORDER IS THE ORDER THEY WERE HANDED, with the missing ones after them. It is
+ * the only order that is a fact rather than a preference, and it puts olai's
+ * own server first because olai's own server is handed first; the misses keep
+ * the order they were probed in, which is the order the build declares its
+ * plugins in.
+ *
+ * A LIST rather than one miss, and it became one the same day the probe did
+ * ({@link ./probes.ts}). Any number of optional servers can fail to be here at
+ * once, and the two halves have to agree about arity or a second plugin's
+ * finding is silently the first one's: what a session was handed is a list, and
+ * what it was not is the same list's other half.
  *
  * @param handing the `mcpServers` this session is being opened with
- * @param missing what a person is owed about the server it was not given, or
- *   `null` when there was nothing to miss ({@link ./kolu.ts}'s `missingFrom` —
- *   a host with no kolu on it had nothing go wrong)
+ * @param missing what a person is owed about the servers it was not given —
+ *   empty when there was nothing to miss ({@link ./probes.ts}'s `missingIn`; a
+ *   host that is not running the tool had nothing go wrong)
  */
 export const rosterOf = (
   handing: ReadonlyArray<McpServer>,
-  missing: NotHere | null,
+  missing: ReadonlyArray<NotHere>,
 ): ReadonlyArray<ChatServer> => [
   ...handing.map((server): ChatServer => ({
     name: server.name,
@@ -99,15 +112,15 @@ export const rosterOf = (
     // it. Only an agent's own word moves a row past here ({@link movedBy}).
     standing: { kind: "handed" },
   })),
-  // ... and the one it did not get, as the fourth standing. `missing` is the
+  // ... and the ones it did not get, as the fourth standing. `missing` is the
   // arm for a server olai could not hand over AT ALL, which is exactly what a
   // probe's no is: the other three all describe a server that WAS handed over
   // and differ only in what the agent then said about it.
-  ...missing === null ? [] : [{
-    name: missing.name,
-    where: missing.where,
-    standing: { kind: "missing", why: missing.why } as const,
-  }],
+  ...missing.map((one): ChatServer => ({
+    name: one.name,
+    where: one.where,
+    standing: { kind: "missing", why: one.why },
+  })),
 ]
 
 /** Where one handed server is, out of the entry the session was given. The two

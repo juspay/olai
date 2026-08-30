@@ -59,20 +59,18 @@ import { Schema } from "effect"
 /**
  * THE PROPERTY KEY THE CI FACE HANGS OFF.
  *
- * One constant: the server reads it to find which nodes to probe, and the
- * browser reads it to decide which property wears the dressing. Here rather
- * than in either of them because it is the one fact both must agree on, and a
- * string typed in two places is a door that opens at one end only —
- * `TERMINAL_KEY`'s own argument, one appliance over.
+ * THE BROWSER'S HALF ALONE, which is the correction: the server follows a
+ * declared KIND now (`@olai/plugin-odu`'s `worktree`, read off
+ * `_olai/Properties.olai`), so which nodes are probed is decided by what the
+ * vault DECLARED and not by this word at all. What is left here is what a TAB
+ * keys its dressing table on — `TERMINAL_KEY`'s own situation, one appliance
+ * over, and for its reason: a vault's declarations deliberately do not travel
+ * (juspay/olai#395), so "which dressing does this property wear" is a question
+ * no browser can settle from a declared type.
  *
- * KEYED ON THE KEY, and the seam it registers into now says WHY rather than
- * promising to move (`@olai/web`'s `props/live.ts`). What a browser is told
- * about a property is a page's ANSWERS; a vault's declarations deliberately do
- * not travel (juspay/olai#395), so "which dressing does this property wear" is
- * a question no tab can settle from a declared type. What the DECLARATION does
- * here is licence the probe rather than select the face — the server, which
- * holds the declarations, probes a `worktree` only where the vault has
- * declared that key a `path` (`@olai/server`'s `worktrees.ts`).
+ * The two may therefore disagree in one knowable way: a vault that declares the
+ * KIND on a key called something else is probed and draws no chip. That is the
+ * gap, named where somebody grepping this constant will meet it.
  */
 export const WORKTREE_KEY = "worktree"
 

@@ -26,7 +26,7 @@
 
 import { expect, test } from "bun:test"
 
-import { meaningOf, type MeaningVault, NO_TYPING } from "@olai/format"
+import { meaningOf, type MeaningVault, NO_KINDS, NO_TYPING } from "@olai/format"
 
 import { type Door, doorFor } from "./door.ts"
 import type { Names } from "../names.ts"
@@ -50,6 +50,7 @@ const DECLARED: Record<string, { id: string; title: string; file: string }> = {
  *  declares no property key at all, which is the arm this file is about. */
 const vault: MeaningVault = {
   declarations: NO_TYPING,
+  kinds: NO_KINDS,
   declares: (id) => DECLARED[id] !== undefined,
   serves: (file) => SERVED.includes(file),
   // The narrow question a `doc` gets, and no case here asks it: this file is

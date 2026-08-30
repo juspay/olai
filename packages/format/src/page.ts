@@ -86,7 +86,7 @@ import { ID_SHAPE, isPutAway, isTrashed, type LocatedRegular, propertiesIn } fro
 import { markdownPaths } from "./rules.ts"
 import { BrokenFile } from "./set.ts"
 import { pinTargetIn } from "./shelf.ts"
-import { declarationsIn } from "./typing.ts"
+import { declarationsIn, type KindVocabulary, NO_KINDS } from "./typing.ts"
 import type { Reading } from "./validate.ts"
 import { Zoomed, zoom } from "./zoom.ts"
 
@@ -330,7 +330,11 @@ export const samePageRequest: (a: PageRequest, b: PageRequest) => boolean = Sche
  * projection per page per revision, and no second list to keep in step with the
  * one the directory was assembled from.
  */
-export const pageOf = (at: Reading, request: PageRequest): PageReading => {
+export const pageOf = (
+  at: Reading,
+  request: PageRequest,
+  kinds: KindVocabulary = NO_KINDS,
+): PageReading => {
   const shows = shownOf(at, request)
   // THE DOORS FIRST, because the names table spends them: a value that turned
   // out to name a node is an id this page points at, and the chip drawing it
@@ -338,7 +342,7 @@ export const pageOf = (at: Reading, request: PageRequest): PageReading => {
   // second walk deciding which ids to resolve could disagree with the one that
   // decided which values are doors, and the disagreement would read as a ref
   // chip that fell back to its id for no reason a reader could see.
-  const doors = doorsFor(at, shows)
+  const doors = doorsFor(at, shows, kinds)
   return {
     shows,
     names: namesFor(
@@ -383,7 +387,11 @@ export const pageOf = (at: Reading, request: PageRequest): PageReading => {
  * convention is found in, which is what lets the declarations be read off ONE
  * file's records rather than off a walk of every file's.
  */
-const doorsFor = (at: Reading, shows: Shown): ReadonlyArray<Door> => {
+const doorsFor = (
+  at: Reading,
+  shows: Shown,
+  kinds: KindVocabulary,
+): ReadonlyArray<Door> => {
   const served = new Set<string>(at.set.documents.map((face) => face.path))
   // ...AND THE `.md` HALF OF IT, which is a second set and has to be: a `doc`
   // value promises to name a served DOCUMENT, and the gate holds it to exactly
@@ -402,6 +410,13 @@ const doorsFor = (at: Reading, shows: Shown): ReadonlyArray<Door> => {
     // ({@link ./tape.ts}). What this page then depends on is the declarations
     // file's own records, which is exactly what its answers depend on.
     declarations: declarationsIn(at.derived, propertiesIn(served)),
+    // ...AND WHAT THE WORDS IN IT MEAN, which is the one fact in this value
+    // that is not a reading of the set at all: which kinds a plugin taught
+    // this vault is the composition root's to say, and it is handed the whole
+    // way down rather than reached for ({@link ./typing.ts}'s
+    // `KindVocabulary`). The GATE reads the same value, so a contributed kind
+    // has one entry and not two opinions.
+    kinds,
     // `nodeNamed` and not the index, for {@link namesFor}'s reason: an id may
     // address a MIRROR, and what a reader can be shown is the node standing at
     // that placement.
