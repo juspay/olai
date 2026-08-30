@@ -44,12 +44,14 @@
  * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-rides-the-page.md).
  *
  * The ORDER of the two prunings is the decision worth naming: done-hidden goes
- * FIRST. It is a standing claim about the reader ("I do not want to look at
- * finished work"); the filter is a question about the page. So the filter reads
- * what the preference left, and `is:done` under a done-hiding preference draws
- * nothing — which is said out loud ({@link Counts.hiddenAsDone}) rather than
- * special-cased away. Letting an explicit `is:done` override the preference
- * would make the preference mean two things depending on what else was typed.
+ * FIRST. It is a standing part of how this page reads — the panel's
+ * default, or this page's own word against it (`../settings/done.ts`), not
+ * a question typed now; the filter is the question. So the filter reads
+ * what the preference left, and `is:done` under
+ * a page that hides finished work draws nothing — which is said out loud
+ * ({@link Counts.hiddenAsDone}) rather than special-cased away. Letting an
+ * explicit `is:done` override the pick would make the pick mean two things
+ * depending on what else was typed.
  */
 
 import type { Filter, Refusal } from "@olai/format"
@@ -269,10 +271,10 @@ export const createNarrowing = (source: {
      * about what is not on this screen.
      *
      * The identity check is exact rather than an optimisation that hopes: the
-     * preference hands back THE SAME VALUE when this reader is not hiding
+     * preference hands back THE SAME VALUE when this page is not hiding
      * anything at all, and for every page it does not reach
      * (`../settings/done.ts` is exact about which case that is), so two
-     * identical readings cannot differ by a match. A reader who IS hiding
+     * identical readings cannot differ by a match. A page that IS hiding
      * finished work gets a fresh value whether or not anything was hidden, and
      * then this does the subtraction it exists to do.
      *

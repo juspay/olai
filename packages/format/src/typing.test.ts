@@ -18,6 +18,7 @@ import {
   BOOTSTRAP,
   canonicalDate,
   declarationsOf,
+  declaringOf,
   isDigitRun,
   isPathShaped,
   NO_TYPING,
@@ -27,6 +28,7 @@ import {
   sameTyping,
   storedValue,
   type Typed,
+  unfitHeld,
   variantsOf,
   wrongDeclaration,
   wrongValue,
@@ -373,6 +375,59 @@ test("a bad type is refused naming the legal kinds and each one's shape", () => 
   expect(said).toContain("`ref` (a child's id; `under` names the parent)")
   expect(said).toContain("`node` (any node id).")
   expect(said?.endsWith(".")).toBe(true)
+})
+
+test("unfitHeld names every existing value that would not fit a newly declared key", () => {
+  const derived = derive(nodesOfFiles({
+    "_olai/Properties.olai":
+      `{"id":"prop-brief","ord":"a0","title":"brainstorm","custom":{"type":"doc"}}`,
+    "lanes.olai": [
+      `{"id":"a","ord":"a0","title":"first","custom":{"brainstorm":"not a path"}}`,
+      `{"id":"b","ord":"a1","title":"second","custom":{"brainstorm":"also prose"}}`,
+      `{"id":"c","ord":"a2","title":"third","custom":{"brainstorm":"briefs/pdb.md"}}`,
+    ].join("\n"),
+  }))
+  const typed: Typed = {
+    declarations: declarationsOf(derived),
+    derived,
+    documents: new Set(["briefs/pdb.md"]),
+  }
+  const unfit = unfitHeld(typed, "brainstorm")
+  expect(unfit.map((one) => one.id)).toEqual(["a", "b"])
+  expect(unfit[0]).toMatchObject({
+    file: "lanes.olai",
+    id: "a",
+    title: "first",
+    value: "not a path",
+    members: ["not a path"],
+  })
+  expect(unfit[0]?.wrong).toContain("names a document")
+  const at = derived.byId.get("prop-brief")
+  expect(at !== undefined && !("mirror" in at.node)
+    ? declaringOf(derived, at.node)?.key
+    : undefined).toBe("brainstorm")
+})
+
+test("unfitHeld keeps a list's members beside the joined display string", () => {
+  const derived = derive(nodesOfFiles({
+    "_olai/Properties.olai": [
+      `{"id":"prop-merge","ord":"a0","title":"merge","custom":{"type":"ref"}}`,
+      `{"id":"auto","parent":"prop-merge","ord":"a0","title":"automatic"}`,
+    ].join("\n"),
+    "lanes.olai":
+      `{"id":"lane","ord":"a0","title":"a lane","custom":{"merge":["auto","nope"]}}`,
+  }))
+  const typed: Typed = {
+    declarations: declarationsOf(derived),
+    derived,
+    documents: new Set(),
+  }
+  const unfit = unfitHeld(typed, "merge")
+  expect(unfit).toHaveLength(1)
+  expect(unfit[0]).toMatchObject({
+    value: "auto, nope",
+    members: ["auto", "nope"],
+  })
 })
 
 test("a declaration missing its type is refused naming the same vocabulary", () => {

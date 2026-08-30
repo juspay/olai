@@ -32,7 +32,7 @@
  * hold the two arms to one answer.
  */
 
-import { customOrder } from "./custom.ts"
+
 import { type Derived, drawnFrom } from "./derive.ts"
 import { resolveRelative } from "./documents.ts"
 import {
@@ -46,7 +46,14 @@ import { isMirror, isRegular, type Located, propertiesIn, type Site } from "./no
 import { byPath } from "./paths.ts"
 import { markdownIn, type OutlineSet } from "./set.ts"
 import { didYouMeanDeclared } from "./suggest.ts"
-import { declaredFor, keyOf, type Typed, wrongDeclaration, wrongValue } from "./typing.ts"
+import {
+  declaredFor,
+  heldCustoms,
+  keyOf,
+  type Typed,
+  wrongDeclaration,
+  wrongValue,
+} from "./typing.ts"
 
 // ── the verdict ────────────────────────────────────────────────────────
 
@@ -396,11 +403,13 @@ export const reportDeclarations = (
  * Every property VALUE these records carry, against what its key declares.
  *
  * ONE FINDING PER KEY PER RECORD, in the order the record's own map holds them
- * ({@link ../custom.ts}'s `customOrder` — the order the bytes have them), which
- * is what {@link reportUnknownTargets} promises one rule over for the same
- * reason: the report is sorted by file, then line, then code, so the only
- * findings this can order are two at ONE site with this code, and both
- * validators have to put them in the same one.
+ * (`heldCustoms` — {@link ../custom.ts}'s `customOrder`, the order the bytes
+ * have them), which is what {@link reportUnknownTargets} promises one rule
+ * over for the same reason: the report is sorted by file, then line, then
+ * code, so the only findings this can order are two at ONE site with this
+ * code, and both validators have to put them in the same one. The declaration
+ * door walks the same iterator, so a value this reports and a declaration
+ * does not refuse cannot happen.
  *
  * A MIRROR CARRIES NO PROPERTIES — the format's own shape — so a placement is
  * stepped over rather than asked, exactly as `reportDocs` steps over one.
@@ -428,22 +437,15 @@ export const reportPropValues = (
   // that is nearly every vault: the map is read once here rather than per
   // record, so an undeclared directory pays one test for the whole rule.
   if (typed.declarations.size === 0) return
-  for (const located of records) {
-    if (isMirror(located.node)) continue
-    const custom = located.node.custom
-    if (custom === undefined) continue
-    for (const key of customOrder(custom)) {
-      const value = custom[key]
-      if (value === undefined) continue
-      const wrong = wrongValue(typed, located.file, key, value)
-      if (wrong === undefined) continue
-      errors.push({
-        code: "bad-prop",
-        ...siteOf(located),
-        message: wrong,
-        related: judgedFrom(typed, key),
-      })
-    }
+  for (const { located, key, value } of heldCustoms(records)) {
+    const wrong = wrongValue(typed, located.file, key, value)
+    if (wrong === undefined) continue
+    errors.push({
+      code: "bad-prop",
+      ...siteOf(located),
+      message: wrong,
+      related: judgedFrom(typed, key),
+    })
   }
 }
 

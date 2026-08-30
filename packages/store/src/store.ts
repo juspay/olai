@@ -72,8 +72,11 @@
  * ({@link Codec.admits}). A codec that answers it lets a write to healthy files
  * land beside a file that will not validate — the same per-file degradation
  * reads have had since 2026-08-09, which writes never got — with the last good
- * snapshot still standing and the refusal still on the errors channel. A codec
- * that does not answer it refuses exactly as before.
+ * snapshot still standing and the refusal still on the errors channel. ONLY
+ * while the directory was already not loading: a write from a loading
+ * directory that produces an invalid set caused that invalidity, and is
+ * refused regardless of which files the findings name. A codec that does not
+ * answer `admits` refuses exactly as before.
  *
  * Validation before any rename is what makes a refused write cost nothing: the
  * bytes are on disk under names nothing reads, or they are not there at all.
@@ -700,11 +703,18 @@ export const make = <F, S, E>(
            * one file failing to validate froze every write to the directory,
            * including the write that would have reported the problem.
            *
-           * TWO THINGS HAVE TO BE TRUE for the bytes to land over a refusal.
-           * The codec has to say the refusal is not about these files
-           * ({@link Codec.admits}, the only half it can answer), and the base
-           * this write was planned against has to still be the truth for them
-           * — which is this package's own bookkeeping and is checked first.
+           * THREE THINGS HAVE TO BE TRUE for the bytes to land over a refusal.
+           * The directory has to ALREADY not be loading — the errors channel
+           * carries a verdict from a probe, not from this candidate — because
+           * a write from a loading directory that produces an invalid set
+           * caused that invalidity (a declaration that newly fences values
+           * in files it does not write; a move of a `ref` variant that
+           * strands values in a third file). `Codec.admits` then says the
+           * refusal is not about these files, which is the half that lets a
+           * write to a healthy file land beside one that was already broken
+           * (`broken-file-blocks-healthy-writes`). And the base this write
+           * was planned against has to still be the truth for them — which
+           * is this package's own bookkeeping and is checked first.
            *
            * `moved` is what that check reads. It holds every path re-decoded or
            * removed since the last PUBLISHED revision, which is empty whenever
@@ -722,7 +732,11 @@ export const make = <F, S, E>(
             const settled = paths.every(
               (path) => !outstanding.changed.has(path) && !outstanding.removed.has(path),
             )
-            if (!settled || options.codec.admits?.(refused, paths) !== true) {
+            const alreadyBroken = (yield* SubscriptionRef.get(errors)) !== null
+            if (
+              !settled || !alreadyBroken ||
+              options.codec.admits?.(refused, paths) !== true
+            ) {
               return Result.fail(refused)
             }
           }

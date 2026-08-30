@@ -18,7 +18,7 @@ import { followKeys } from "./quiescence.ts"
 import { runAsync } from "./run.ts"
 import { followAlerts } from "./settings/alerts.ts"
 import { followDensity } from "./settings/density.ts"
-import { followDoneHidden } from "./settings/done.ts"
+import { followDonePrefs } from "./settings/done.ts"
 import { followStoredFont } from "./theme/fontState.ts"
 import { followStoredSize } from "./theme/sizeState.ts"
 import { followStoredTheme } from "./theme/state.ts"
@@ -76,14 +76,14 @@ followName({
 
 // Layout preferences (sidebar open/width, chat open/width/snap), whether the
 // agent's questions are announced and whether that makes a sound, how much of a
-// row is drawn by default, what a page does with finished work, whether the
-// file tree draws the outlines olai named for itself, what this browser has
-// folded — of the outline and of the directory — and the phone/desktop media
-// query — document-lifetime, like the theme.
+// row is drawn by default, which pages draw their finished work (each outline
+// keeps its own pick), whether the file tree draws the outlines olai named for
+// itself, what this browser has folded — of the outline and of the directory —
+// and the phone/desktop media query — document-lifetime, like the theme.
 followLayout()
 followAlerts()
 followDensity()
-followDoneHidden()
+followDonePrefs()
 followFolds()
 followFolders()
 trackCamera()

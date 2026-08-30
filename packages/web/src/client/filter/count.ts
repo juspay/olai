@@ -39,15 +39,17 @@ export interface Counts {
    *  it. The denominator, and the set the other two are counted inside. */
   readonly held: number
   /**
-   * Matched, and NOT drawn, because this reader hides finished work. The one
+   * Matched, and NOT drawn, because this page hides finished work. The one
    * hider there is; a second one would be a second field and a second clause,
    * never a lump sum, since the sentence's job is to say which.
    *
    * WHAT THE PREFERENCE TOOK OFF, which is a shade wider than "rows that store
    * `done`": hiding a finished row takes its subtree with it
    * (`../settings/done.ts`), so a match beneath one is counted here — hidden,
-   * and hidden BY this switch, which is what the clause names and where a
-   * reader who wants it back would go.
+   * and hidden BY the pick this page answers to — the panel's default or
+   * this page's own out-vote, the sentence does not distinguish them
+   * because the reader need not either: the clause says hidden AS DONE, and
+   * the flip beside this bar is where the argument goes.
    */
   readonly hiddenAsDone: number
 }
@@ -91,7 +93,7 @@ export const countLine = ({ shown, held, hiddenAsDone }: Counts): string => {
   if (hiddenAsDone === 0) return found
   const more = shown === 0 ? "" : "more "
   const matches = hiddenAsDone === 1 ? "match" : "matches"
-  return `${found} — ${hiddenAsDone} ${more}${matches} hidden as done (Prefs)`
+  return `${found} — ${hiddenAsDone} ${more}${matches} hidden as done`
 }
 
 /**

@@ -87,10 +87,11 @@
  * read one sentence, so the sentence is written once, here
  * ({@link wrongValue}), and both callers wrap it.
  *
- * `duplicate_node` is the one door with no refusal of its own, and that is a
- * fact about the op rather than a hole: a copy is isomorphic to a subtree the
- * validator has already approved, so it can carry no value the set did not
- * already hold. The gate re-validates either way.
+ * `duplicate_node` of an ordinary subtree has no value-refusal of its own: a
+ * copy is isomorphic to something the validator has already approved, so it
+ * can carry no value the set did not already hold. A copy of a Properties
+ * ROOT is a declaration, and is the same existing-values fence every other
+ * write that mints one is. The gate re-validates either way.
  *
  * ## What it costs
  *
@@ -110,7 +111,7 @@
 
 import { Result } from "effect"
 
-import type { CustomValue } from "./custom.ts"
+import { type CustomValue, customOrder, type HasCustom } from "./custom.ts"
 import type { Derived } from "./derive.ts"
 import { resolveRelative } from "./documents.ts"
 import {
@@ -118,6 +119,7 @@ import {
   type Located,
   type LocatedRegular,
   propertiesIn,
+  type RegularNode,
   shadowFor,
 } from "./node.ts"
 import { didYouMean, didYouMeanDeclared } from "./suggest.ts"
@@ -276,11 +278,15 @@ export const NO_TYPING: PropDeclarations = new Map()
  * `pr`, exactly as `prop:PR` is. A `get` on the raw key would have made those
  * two words one thing to a search and two things to the gate.
  */
+/** Trimmed and folded — the reconciliation {@link keyOf}, {@link declaredFor}
+ *  and {@link unfitHeld} all have to make, and one spelling of it. */
+const foldedKey = (word: string): string => word.trim().toLowerCase()
+
 export const declaredFor = (
   declarations: PropDeclarations,
   key: string,
 ): Declared | undefined => {
-  const folded = key.trim().toLowerCase()
+  const folded = foldedKey(key)
   return folded === "" ? undefined : declarations.get(folded)
 }
 
@@ -522,7 +528,7 @@ export const declarationsIn = (
   for (const located of declaringIn0(derived, file)) {
     const key = keyOf(located.node.title)
     if (key === undefined || declarations.has(key)) continue
-    const type = typeIn(derived, located)
+    const type = typeIn(derived, located.node)
     if (type === undefined) continue
     declarations.set(key, { type, at: located.node.id })
   }
@@ -574,7 +580,7 @@ const declaringIn0 = (
  * places for one of them to stop.
  */
 export const keyOf = (title: string): string | undefined => {
-  const key = title.trim().toLowerCase()
+  const key = foldedKey(title)
   if (key === "" || shadowFor(key) !== undefined || BOOTSTRAP.has(key)) return undefined
   return key
 }
@@ -588,10 +594,10 @@ export const keyOf = (title: string): string | undefined => {
  * declarations — a key the reading skipped and the rule accepted would be a key
  * that is silently untyped and reported clean.
  */
-const typeIn = (derived: Derived, located: LocatedRegular): PropType | undefined => {
-  const said = customText(located, TYPE_KEY)
-  const under = customText(located, UNDER_KEY)
-  const base = customText(located, BASE_KEY)
+const typeIn = (derived: Derived, node: RegularNode): PropType | undefined => {
+  const said = customText(node, TYPE_KEY)
+  const under = customText(node, UNDER_KEY)
+  const base = customText(node, BASE_KEY)
   if (said === undefined || !isPropKind(said)) return undefined
   // THE TWO PATH KINDS take the second word, and only they: `base` on anything
   // else is the same mistake `under` on anything else is, refused the same way
@@ -618,8 +624,8 @@ const typeIn = (derived: Derived, located: LocatedRegular): PropType | undefined
 /** One of the declaration node's own two properties, as text — `undefined` for
  *  a key it does not carry AND for one holding a list, which is a shape neither
  *  of them has an answer for. */
-const customText = (located: LocatedRegular, key: string): string | undefined => {
-  const held = located.node.custom?.[key]
+const customText = (node: HasCustom, key: string): string | undefined => {
+  const held = node.custom?.[key]
   return typeof held === "string" && held !== "" ? held : undefined
 }
 
@@ -1119,7 +1125,7 @@ export const wrongDeclaration = (
   if (!isRegular(located)) return undefined
   const node = located.node
   if (node.parent !== undefined) {
-    const said = [...BOOTSTRAP.keys()].find((word) => customText(located, word) !== undefined)
+    const said = [...BOOTSTRAP.keys()].find((word) => customText(node, word) !== undefined)
     return said === undefined ? undefined : `\`${said}\` declares a property key, and ` +
       `only a TOP-LEVEL node of this file declares one — what hangs under a ` +
       `declaration is its variants, named by their ids.`
@@ -1159,13 +1165,13 @@ export const wrongDeclaration = (
   // it too, which is what lets `under` say the one thing a generic sentence
   // would get wrong ({@link Grounded}).
   for (const [word, grounded] of BOOTSTRAP) {
-    const value = customText(located, word)
+    const value = customText(node, word)
     if (value === undefined) continue
     const wrong = grounded.wrong(value, derived)
     if (wrong === undefined) continue
     return `\`${word}\` is \`${value}\`, which ${wrong}`
   }
-  const said = customText(located, TYPE_KEY)
+  const said = customText(node, TYPE_KEY)
   if (said === undefined) {
     return `\`${written}\` declares a property key but does not say its \`${TYPE_KEY}\` — write ` +
       `${BOOTSTRAP.get(TYPE_KEY)?.takes ?? ""}.`
@@ -1173,7 +1179,7 @@ export const wrongDeclaration = (
   // The one rule about the PAIR, which no per-word table can hold: `under` says
   // where a `ref` finds its variants, and every other kind takes its values
   // from nowhere in particular.
-  if (said !== "ref" && customText(located, UNDER_KEY) !== undefined) {
+  if (said !== "ref" && customText(node, UNDER_KEY) !== undefined) {
     return `\`${UNDER_KEY}\` says where a \`ref\`'s variants live, and \`${written}\` is a ` +
       `\`${said}\` — which takes its values from nowhere in particular.`
   }
@@ -1182,9 +1188,125 @@ export const wrongDeclaration = (
   // resolve. Reported rather than ignored for the reason the line above is —
   // the reading SKIPS such a declaration ({@link typeIn}), so a key that looks
   // typed and is silently untyped is exactly what this rule exists to name.
-  if (said !== "doc" && said !== "path" && customText(located, BASE_KEY) !== undefined) {
+  if (said !== "doc" && said !== "path" && customText(node, BASE_KEY) !== undefined) {
     return `\`${BASE_KEY}\` says where a \`doc\` or \`path\` value resolves from, and ` +
       `\`${written}\` is a \`${said}\` — which names no path to resolve.`
   }
   return undefined
+}
+
+// ── a declaration over values the set already holds ────────────────────
+
+/**
+ * WHAT THIS PROPERTIES ROOT WOULD DECLARE — the key and the type, or
+ * `undefined` for a record {@link wrongDeclaration} would already refuse.
+ *
+ * Shared by the write planner so a `type` of `doc` on a new row and a
+ * `set_prop` of `type` on an existing one ask the same question about the
+ * values the vault already holds ({@link unfitHeld}). The reading
+ * ({@link typeIn}) is the same one the validator uses, asked of the record
+ * rather than of a fabricated site, so a declaration this accepts and the
+ * rule reports cannot happen, and neither can the inverse.
+ */
+export const declaringOf = (
+  derived: Derived,
+  node: RegularNode,
+): { readonly key: string; readonly declared: Declared } | undefined => {
+  if (node.parent !== undefined) return undefined
+  const key = keyOf(node.title)
+  if (key === undefined) return undefined
+  const type = typeIn(derived, node)
+  if (type === undefined) return undefined
+  return { key, declared: { type, at: node.id } }
+}
+
+/**
+ * ONE EXISTING VALUE that would not fit a key, once that key is declared.
+ *
+ * `file`, the node's title and id, and the value as a reader was shown —
+ * the three the declaration door names, and the sentence {@link wrongValue}
+ * would say about the same value if `set_prop` had tried to write it.
+ */
+export interface UnfitHeld {
+  readonly file: string
+  readonly id: string
+  readonly title: string
+  /** The value as a reader was shown — a list joined, a string as stored. */
+  readonly value: string
+  /** The members the load walks. A string is one member; a list is the array,
+   *  so a declaration door that excuses minted variants can ask per member
+   *  rather than against the joined spelling. */
+  readonly members: ReadonlyArray<string>
+  readonly wrong: string
+}
+
+/**
+ * EVERY VALUE THE SET ALREADY HOLDS under this key that would not fit what
+ * `typed` now declares it as — the walk the declaration door asks, through
+ * the same {@link wrongValue} `set_prop` and the validator already share.
+ *
+ * A MIRROR CARRIES NO PROPERTIES, so a placement is stepped over exactly as
+ * {@link reportPropValues} steps over one. The trash is NOT skipped: a
+ * trashed record is still in the set, and a declaration that ignored it
+ * would take the next load into last-good over a value nobody can see from
+ * the live tree. A list is one offender, shown the way the chip is seeded
+ * (members joined); {@link UnfitHeld.members} keeps the array the load
+ * walks, beside that display string.
+ *
+ * THE KEY IS FOLDED, because a record that wrote `Brainstorm` is asking
+ * about the key a vault is declaring as `brainstorm` — {@link foldedKey}'s
+ * own reconciliation, asked here of the map's keys rather than of a
+ * title.
+ *
+ * THE WALK IS {@link heldCustoms}, the same one the validator's
+ * property-value rule uses: a second walk that skipped a mirror, or a
+ * list, or the trash, would be a declaration door that disagrees with
+ * the next load.
+ */
+export const unfitHeld = (typed: Typed, key: string): ReadonlyArray<UnfitHeld> => {
+  if (declaredFor(typed.declarations, key) === undefined) return []
+  const folded = foldedKey(key)
+  const found: Array<UnfitHeld> = []
+  for (const { located, key: held, value } of heldCustoms(typed.derived.nodes)) {
+    if (foldedKey(held) !== folded) continue
+    const wrong = wrongValue(typed, located.file, key, value)
+    if (wrong === undefined) continue
+    const members = typeof value === "string" ? [value] : value
+    found.push({
+      file: located.file,
+      id: located.node.id,
+      title: located.node.title,
+      value: members.join(", "),
+      members,
+      wrong,
+    })
+  }
+  return found
+}
+
+/**
+ * Every custom key a regular record holds, in the order the map holds
+ * them. Mirrors are stepped over (they carry no properties); a list is
+ * one value of that key.
+ *
+ * THE VALIDATOR AND THE DECLARATION DOOR both walk this, so a value
+ * one reports and the other does not cannot happen.
+ */
+export function* heldCustoms(
+  records: Iterable<Located>,
+): Generator<{
+  readonly located: LocatedRegular
+  readonly key: string
+  readonly value: CustomValue
+}> {
+  for (const located of records) {
+    if (!isRegular(located)) continue
+    const custom = located.node.custom
+    if (custom === undefined) continue
+    for (const key of customOrder(custom)) {
+      const value = custom[key]
+      if (value === undefined) continue
+      yield { located, key, value }
+    }
+  }
 }

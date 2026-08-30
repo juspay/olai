@@ -13,6 +13,10 @@ Feature: Talking to the agent
 
   Background:
     Given I open the app
+    # Nearly every turn these scenarios run ends by watching a row TAKE the
+    # mark — so this page keeps its finished rows drawn for them, or the row
+    # would go at exactly the moment the tree-follow is the claim.
+    And I show the done nodes
     And I mark the page
     And the agent panel is open
 

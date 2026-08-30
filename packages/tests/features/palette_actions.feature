@@ -22,6 +22,9 @@ Feature: The ⌘K palette writes
 
   Background:
     Given I open the outline "house.olai"
+    # These scenarios tick rows off and keep reading them, so finished work
+    # must stay drawn: the per-page default is hidden now (preferences.feature).
+    And I show the done nodes
     And I mark the page
 
   Scenario: On an outline there is nothing to write about, so nothing is offered
