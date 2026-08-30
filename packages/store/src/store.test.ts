@@ -963,8 +963,10 @@ test("a file the disk still agrees with has not drifted", () =>
   withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store }) =>
     Effect.gen(function*() {
       expect(yield* store.drifted(["a.txt", "b.txt"])).toEqual([])
-      // Nor has anything drifted before the first probe — the door answers
-      // from the cache, and an empty cache has nothing to be wrong about.
+      // The door answers from the cache and nothing else, so whichever side
+      // of the boot probe this runs on, the answer is the same: an
+      // agreeing cache names nothing, and a cache not yet READ IN has
+      // nothing to be wrong about.
     })))
 
 test("a member that was rewritten to the same length IN THE STAMP'S OWN TRADE is drift", () =>
