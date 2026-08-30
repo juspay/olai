@@ -245,3 +245,14 @@ Feature: Zoom and navigate
     And the landing says "glazing — what it names is not drawn on this page"
     And the landing's sentence has gone
     And there should be no page errors
+
+  Scenario: The sentence belongs to its page -- a navigation takes it down
+    # The notice and its page used to be keyable apart: the line minted for
+    # one file could ride its six seconds over the next page's tree, the
+    # wrong-attribution half of the same ruling. A stretch of owing ends at
+    # the boundary — and the answer it had just said goes with it.
+    When I open the address "/house.olai#no-such-row"
+    Then the landing says "no-such-row — nothing by that name is drawn on this page"
+    When I open the address "/garden.olai"
+    Then the landing's sentence has gone
+    And there should be no page errors
