@@ -718,6 +718,24 @@ test("a hand edit that lands a bad value is a broken file naming the key", () =>
   expect(errors[0]?.message).toContain("`merge` is `auto` | `human`")
 })
 
+test("a bad value's finding names the declaration that judged it", () => {
+  const errors = errorsOf({
+    ...DECLARING,
+    "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"not-a-number"}}`,
+  })
+  expect(codes(errors)).toEqual(["bad-prop"])
+  // Both halves of the judgement, so whatever asks which FILES the verdict
+  // implicates gets the whole of it (`set-across-files` — the value is only
+  // wrong relative to a declaration, and that declaration sits in another
+  // vault file). `broken: false` is the merge plane the whole shape leans
+  // on: NAMED but NOT darkened — the judge's page stays lit, its writes
+  // stay admitted, and the ask can still reach it.
+  expect(errors[0]?.file).toBe("lanes.olai")
+  expect(errors[0]?.related).toEqual([
+    { file: "_olai/Properties.olai", line: 5, note: "declared here", broken: false },
+  ])
+})
+
 test("one finding per KEY, in the order the record's own bytes hold them", () => {
   const errors = errorsOf({
     ...DECLARING,

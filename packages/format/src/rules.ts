@@ -40,12 +40,14 @@ import {
   compareErrors,
   isGuessWhileUnreadable,
   type OutlineError,
+  type Related,
 } from "./errors.ts"
 import { isMirror, isRegular, type Located, propertiesIn, type Site } from "./node.ts"
 import { byPath } from "./paths.ts"
 import { markdownIn, type OutlineSet } from "./set.ts"
 import { didYouMeanDeclared } from "./suggest.ts"
 import {
+  declaredFor,
   heldCustoms,
   keyOf,
   resolvesId,
@@ -428,10 +430,19 @@ export const reportDeclarations = (
  * A MIRROR CARRIES NO PROPERTIES — the format's own shape — so a placement is
  * stepped over rather than asked, exactly as `reportDocs` steps over one.
  *
+ * The finding is about TWO places, and says so: the record that holds the
+ * value and the declaration that judged it ({@link judgedFrom}). The second
+ * is not decoration — every reader of `implicatedBy` (the error view, the
+ * banner, the write gate one layer up, and the drift check the refusal arm
+ * asks) can name only the files a finding names, and a stale-set refusal
+ * whose stale half is the declarations file is one a bare `bad-prop` would
+ * answer with the wrong file.
+ *
  * NOTHING WALKS. The declarations are one small map built once per validation,
- * `ref` and `node` read `byId` and `children`, and `doc` reads the `.md` set
- * the `doc` field's own rule already carries — which is what lets this rule
- * ride every write rather than joining the whole-corpus sweep.
+ * `ref` and `node` read `byId` and `children`, the declaring site is one
+ * `byId` lookup through the id `Declared.at` pins, and `doc` reads the `.md`
+ * set the `doc` field's own rule already carries — which is what lets this
+ * rule ride every write rather than joining the whole-corpus sweep.
  */
 export const reportPropValues = (
   records: Iterable<Located>,
@@ -453,9 +464,35 @@ export const reportPropValues = (
       code: "bad-prop",
       ...siteOf(located),
       message: wrong,
+      related: judgedFrom(typed, key),
       ...(resolvesId(typed.declarations, key) ? { across: true } : {}),
     })
   }
+}
+
+/**
+ * THE OTHER PLACE a `bad-prop` is about: the declaration that judged the
+ * value, as one `related` site.
+ *
+ * `Declared.at` is the declaring NODE's id, and `byId` reads it back —
+ * first-declared-wins, the same reader the declaration itself was. The one
+ * thing the id may not have is a node: the set `typed` is over can have lost
+ * it between readings (a ledger re-judged past the declaration's own removal
+ * is `./incremental.ts`'s case), and then the sentence is the whole of the
+ * finding, exactly as before.
+ *
+ * An EMPTY ARRAY and not an `undefined` field, for the reason the four
+ * emitting sites give one another: both orders land the finding, and the
+ * rule the catalogue pays for is that one finding's shape is one shape.
+ */
+const judgedFrom = (typed: Typed, key: string): ReadonlyArray<Related> => {
+  const declared = declaredFor(typed.declarations, key)
+  const declaring = declared === undefined ? undefined : typed.derived.byId.get(declared.at)
+  // `broken: false` — the declaration is the judge, not a broken file: named
+  // but never darkened ({@link ./errors.ts}'s `Related`).
+  return declaring === undefined
+    ? []
+    : [{ ...siteOf(declaring), note: "declared here", broken: false }]
 }
 
 // ── cycles ─────────────────────────────────────────────────────────────

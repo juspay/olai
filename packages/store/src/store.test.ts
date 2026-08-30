@@ -977,6 +977,87 @@ test("PIN (what Confirmed is worth): the read's look is a stamp check, and says 
       expect((yield* snapshotOf(store))?.value.text["a.txt"]).toBe("ALPHA")
     })))
 
+// ── `drifted`: the refusal door's byte check ───────────────────────────
+//
+// The stamp table's trade, seen from the other side: the look the loop takes
+// is coarse and is right to be, so the one caller with a reason to pay for a
+// stronger look — a write the codec refused — gets it here. These say what
+// "the disk no longer says what the set was decoded from" means to that door:
+// bytes, compared per asked path, over exactly the files it was asked about.
+
+test("a file the disk still agrees with has not drifted", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store }) =>
+    Effect.gen(function*() {
+      expect(yield* store.drifted(["a.txt", "b.txt"])).toEqual([])
+      // The door answers from the cache and nothing else, so whichever side
+      // of the boot probe this runs on, the answer is the same: an
+      // agreeing cache names nothing, and a cache not yet READ IN has
+      // nothing to be wrong about.
+    })))
+
+test("a member that was rewritten to the same length IN THE STAMP'S OWN TRADE is drift", () =>
+  withStore({ "a.txt": "alpha" }, ({ store, write, root }) =>
+    Effect.gen(function*() {
+      const file = path.join(root, "a.txt")
+      const stamp = fs.statSync(file)
+      write("a.txt", "ALPHA")
+      fs.utimesSync(file, stamp.atime, stamp.mtime)
+
+      expect(yield* store.drifted(["a.txt"])).toEqual(["a.txt"])
+      // A resync re-reads, and then the SAME check agrees again — the answer
+      // a repair builds on.
+      yield* store.refresh("verified")
+      expect(yield* store.drifted(["a.txt"])).toEqual([])
+    })))
+
+// The READ side of the same door: the probe's own moves re-fingerprint what
+// they cache, so a file the gate itself just wrote is not drift — the check
+// must agree with the set the commit published, not with whatever it asked
+// to replace.
+test("a file the gate itself just wrote has not drifted", () =>
+  withStore({ "a.txt": "alpha" }, ({ store }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "a.txt", contents: "alpha, committed" }],
+      })
+      expect(yield* store.drifted(["a.txt"])).toEqual([])
+    })))
+
+// Membership first, exactly as {@link Store.body} holds it: a path the probe
+// does not hold is not answered on bytes. That covers a file the codec does
+// not claim, a `.txt` that was never listed, and a name spelled at it from
+// outside.
+test("a path the set does not hold is skipped, not answered", () =>
+  withStore({ "a.txt": "alpha" }, ({ store }) =>
+    Effect.gen(function*() {
+      expect(yield* store.drifted(["b.txt", "notes.md"])).toEqual([])
+    })))
+
+// The file the set never read is never checked: a `.blob`'s answer is its
+// path, and bytes nobody decoded are bytes nothing can call drifted —
+// whatever they become.
+test("a file the codec answers by NAME is skipped — even when its bytes move", () =>
+  withStore({ "a.blob": "one-" }, ({ store, write, root }) =>
+    Effect.gen(function*() {
+      const file = path.join(root, "a.blob")
+      const stamp = fs.statSync(file)
+      write("a.blob", "TWO!")
+      fs.utimesSync(file, stamp.atime, stamp.mtime)
+
+      expect(yield* store.drifted(["a.blob"])).toEqual([])
+    })))
+
+// And one member leaving the disk behind its own stamps is drift, said the
+// same way: the cached bytes no longer exist.
+test("a member that vanished has drifted", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store, remove }) =>
+    Effect.gen(function*() {
+      remove("a.txt")
+      expect(yield* store.drifted(["a.txt", "b.txt"])).toEqual(["a.txt"])
+    })))
+
 // ── one write, one verdict ─────────────────────────────────────────────
 //
 // The gate judges the set it is ABOUT to write, and then publishes what it

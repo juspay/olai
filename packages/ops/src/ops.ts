@@ -25,6 +25,8 @@ import {
   admits,
   blamed,
   BusyFailure,
+  byPath,
+  implicatedBy,
   type CommitRequest,
   type CommitResult,
   type DatedAnswer,
@@ -39,6 +41,7 @@ import {
   type NarrowingRequest,
   NOTHING_WRONG,
   type OpFailure,
+  type OutlineError,
   type Owed,
   type OwedRequest,
   type PageReading,
@@ -269,6 +272,16 @@ export interface Ops extends Asking {
    *  translated, because a caller of this interface is a tool call or a
    *  procedure and both need an answer they can render.
    *
+   *  ONE refusal repairs itself before it is answered: a write refused by a
+   *  set the disk has moved past (stale-set reads, refusing writes —
+   *  `stale-set-reads-clean-writes-refuse`), wherever the refusal showed —
+   *  the gate's verdict, or the planner's answer against a set withholding
+   *  a file it judged from bytes. The repair is asked and bounded where the
+   *  refusal sits below; what is said HERE is the caller's half: a repair
+   *  that works is invisible (the write lands on the current set), and one
+   *  that does not changes nothing the caller can observe — the answer is
+   *  the refusal reached against the resynced set.
+   *
    *  `writer` is INTENT, not identity: git records the repository's own name
    *  and email whoever asked, so this is the only thing that can tell an
    *  agent's edits from a person's. It is required rather than defaulted —
@@ -356,6 +369,10 @@ export interface Ops extends Asking {
  *  losing a race, it is contending with a writer that never stops. */
 const ROUNDS = 5
 
+/** How many TIMES one write may heal the set it was refused against ({@link
+ *  run}'s refusal arms say why the number and why it is this small): one. */
+const REPAIRS = 1
+
 /**
  * WHICH FILE STOPS THIS WRITE — the sentence `run` says when the store
  * handed back a verdict.
@@ -380,8 +397,22 @@ const blockerOf = (
   const entries = blamed(verdict.findings)
   const admission = admits(entries, paths)
   if (admission._tag === "implicated") return admission.file
+  // `blamed` has already filed the judges out (`Related.broken`) — the first
+  // entry is a BROKEN file, never one the finding merely looked at.
   return alreadyBroken ? undefined : entries[0]?.file
 }
+
+/** Every file these findings were judged FROM — the ABOUT axis the drift
+ *  ask rides ({@link @olai/format}'s `implicatedBy`, deduplicated and
+ *  path-ordered so one refusal always asks the same question the same way).
+ *  The blame's axis would leave the judges home, and the judges are what
+ *  stale reaches through. */
+const aboutFiles = (findings: ReadonlyArray<OutlineError>): ReadonlyArray<string> =>
+  [
+    ...new Set(
+      findings.flatMap((finding) => implicatedBy(finding)),
+    ),
+  ].sort(byPath)
 
 export const make = (options: Options): Ops => {
   const context: Context = options.context ?? {
@@ -454,6 +485,55 @@ export const make = (options: Options): Ops => {
     writer: Writer,
   ): Effect.Effect<Applied, OpFailure> =>
     Effect.gen(function*() {
+      let repairs = REPAIRS
+      /**
+       * THE ONE ALTERNATIVE EXPLANATION, ruled out before either refusal arm
+       * below answers: THE SET WAS STALE WHERE THE REFUSAL LOOKS.
+       *
+       * `stale-set-reads-clean-writes-refuse` (roadmap bugs.olai) is the
+       * shape this repairs: a git operation replaced a file in a way the
+       * watcher's stamps cannot see, so reads went on serving the old set
+       * with no error and every write refused — the stale copy of that file
+       * no longer satisfies the declarations the SAME operation landed. The
+       * check asks about FILES, because a name is all a byte comparison
+       * needs: every file the refusal could be looking AT, re-read from disk
+       * and answered from bytes rather than stamps ({@link @olai/store}'s
+       * `drifted`). One drifted file is proof the judgement was reached
+       * against a tree that is no longer there, so the write is not refused
+       * after all — the resync door a person would knock on is opened FOR
+       * them (`refresh("verified")`, the look the store reserves for
+       * "something outside this process rewrote the tree") and the round
+       * begins again, planned off the set the disk actually holds.
+       *
+       * ONCE, per write ({@link REPAIRS}) — one budget behind BOTH doors,
+       * so the two arms cannot spend it apart. A retry that HEALS and still
+       * refuses answers the refusal it was just handed — the fresh one,
+       * reached against the resynced set — rather than paying for another
+       * look. The failure of the LOOK says the same thing: a disk that
+       * cannot be re-read, or one that agrees with the set after all, is
+       * not a write problem, and the refusal already in hand is the honest
+       * sentence for both.
+       *
+       * THE CHECK BEFORE THE DOOR is the ordering the costs argue: a resync
+       * on every refusal would re-read the directory for every typo an
+       * agent talks to itself, so the cheap per-file byte check is what
+       * stands in front of it. Detection is where the refusal shows; the
+       * resync is whole-tree, which is what the one look verb offers, and
+       * one re-read of a served directory costs less than keeping a second
+       * look verb honest.
+       */
+      const repair = (files: ReadonlyArray<string>): Effect.Effect<boolean> =>
+        Effect.gen(function*() {
+          if (repairs === 0 || files.length === 0) return false
+          const drift = yield* Effect.result(options.store.drifted(files))
+          if (!Result.isSuccess(drift) || drift.success.length === 0) return false
+          // Drift is proof, so the budget is spent before the look is taken:
+          // the LOOK failing answers the refusal with the repair accounted
+          // for, and no second resync is owed however the round goes on.
+          repairs -= 1
+          const resynced = yield* Effect.result(options.store.refresh("verified"))
+          return Result.isSuccess(resynced)
+        })
       for (let round = 0; round < ROUNDS; round++) {
         // The CHEAP class, and the write gate is why it is enough: a plan is
         // derived from this revision and then judged against `baseRev` inside
@@ -471,7 +551,52 @@ export const make = (options: Options): Ops => {
         }
 
         const planned = plan(scoping(snapshot.value, context), request)
-        if (Result.isFailure(planned)) return yield* planned.failure
+        if (Result.isFailure(planned)) {
+          /**
+           * THE SAME REFUSAL, ONE DOOR EARLIER. Since brokenness is per
+           * file (the 2026-08-29 ruling), a file judged FROM STALE BYTES
+           * is withheld from the very set the planner reads — so the plan
+           * refuses before the gate is ever asked: the node it was shown
+           * names no records because its file's stale copy failed a
+           * declaration the disk has already moved past. The planner's
+           * sentence names an ID and no files, but the SET carries the
+           * names: its `broken` list is the files it withheld, each
+           * holding the rows it was judged by, and those rows name every
+           * file they were judged FROM. One of them reading differently
+           * on disk is the proof the refusal stands on a judgement that
+           * is no longer there.
+           *
+           * TWO REFUSAL SHAPES ONLY can be this symptom: `NotFoundFailure`
+           * (the id is gone because its file withheld its records) and
+           * `ValidationFailure` ({@link ./plan.ts}'s `writable` — the file
+           * answered, and the answer was rows from the broken list). Every
+           * other refusal the planner makes is a `UsageFailure` about the
+           * REQUEST — a typo, a misuse, a fence the write ran into — and
+           * those are words about what was ASKED, never about bytes the
+           * set holds: a stale copy cannot invent a usage fault, so the
+           * hottest refusal path pays no byte check for it.
+           *
+           * And a plan refusal off a set that holds NOTHING broken keeps
+           * this door shut either way: there is no judgement in reach for
+           * staleness to have spoken through, so an unknown id stays
+           * unknown — the ruled trigger never fires where no refusal
+           * names files.
+           */
+          const held = snapshot.value.set.broken
+          const tag = planned.failure._tag
+          if (
+            (tag === "NotFoundFailure" || tag === "ValidationFailure") &&
+            held.length > 0 &&
+            (yield* repair(aboutFiles(held.flatMap((entry) => entry.errors))))
+          ) {
+            // The retry OWNS the round it interrupts: `ROUNDS` prices lost
+            // races, and a repair is not one — the refund is the counter
+            // saying so.
+            round--
+            continue
+          }
+          return yield* planned.failure
+        }
         const { files, documents = [], ...about } = planned.success
 
         // Outlines go through the format's writer; a document IS its text, so
@@ -515,6 +640,25 @@ export const make = (options: Options): Ops => {
            * disagree about one write.
            */
           const paths = changes.map((change) => change.path)
+          /**
+           * THE GATE'S REFUSAL is the second door the check above stands
+           * behind. The verdict names every file it was judged FROM ({@link
+           * aboutFiles} — the judge's site included: a stale declaration is
+           * exactly the shape this ask must reach), and the write's own
+           * files are asked first, in the order it put them down.
+           *
+           * The retry OWNS the round it interrupts rather than spending one:
+           * `ROUNDS` is the budget for LOST RACES between two writers, and a
+           * repair is neither of those — nothing was writing continuously,
+           * the set was stale. Letting the `continue` walk off the loop's
+           * end would answer the caller with `BusyFailure` about a flood
+           * that never happened, and the resync already PAID for one more
+           * attempt: the refund below is the loop counter saying so.
+           */
+          if (yield* repair([...paths, ...aboutFiles(written.failure.findings)])) {
+            round--
+            continue
+          }
           const alreadyBroken =
             (yield* SubscriptionRef.get(options.store.errors)) !== null
           const blocker = blockerOf(written.failure, paths, alreadyBroken)

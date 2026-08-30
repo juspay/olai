@@ -233,10 +233,21 @@ export const reportStage = (
  *  the other record that claimed the id, the rest of the cycle, the file the
  *  parent lives in. This is the "structured detail, not prose" rule — the error
  *  view renders these as their own rows, and a cross-file error is recognised
- *  by having a related site in another file. */
+ *  by having a related site in another file.
+ *
+ *  `broken` is the one field of the two-plane ruling that is not one of the
+ *  three axis birds: ABOUT is {@link implicatedBy} and it reaches every site
+ *  unfiltered; FILED-ON is the broken set's own axis, and a related site
+ *  marked `false` is named but NOT one of the ship's broken — the judgement's
+ *  ground (`bad-prop`'s declaration is the shape: the judge is named so the
+ *  fixer knows who said no, but a judge's own page stays lit and its own
+ *  writes stay admitted). Omitting is broken: every site the error names
+ *  darkens until the finding does.
+ */
 export const Related = Schema.Struct({
   ...Site.fields,
   note: Schema.String,
+  broken: Schema.optionalKey(Schema.Boolean),
 })
 export type Related = typeof Related.Type
 
@@ -306,10 +317,18 @@ export const implicatedBy = (error: OutlineError): ReadonlyArray<string> => {
   return files
 }
 
-/** True when the error implicates more than one file — the browser groups
- *  these on their own, because "which file is broken" has no single answer. */
+/** True when the error BREAKS more than one file — the browser groups those
+ *  on their own, because "which file is broken" has no single answer.
+ *
+ *  BREAKS, not IMPLICATES, and the difference is `Related.broken`: a
+ *  `bad-prop` names the declaration that judged it as its ground, so the
+ *  about-axis above reaches two files for every one of them — but the
+ *  judge's page stays lit and "which file is broken" keeps its one
+ *  answer. Only a site that BREAKS counts, the same rule
+ *  {@link ./verdict.ts}'s `blamed` files by: the error's own file, and any
+ *  related site that did not say otherwise. */
 export const isCrossFile = (error: OutlineError): boolean =>
-  implicatedBy(error).length > 1
+  (error.related ?? []).some((one) => one.file !== error.file && one.broken !== false)
 
 /** A `line` of 0 means there is no record to point at — the site is the path
  *  itself. Two codes have that (`unreadable-directory`, about a DIRECTORY,

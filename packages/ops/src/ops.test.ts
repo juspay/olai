@@ -30,6 +30,7 @@ import {
   outlinePaths,
   stopping,
   parseOutline,
+  verdictOf,
   type WriteRequest as Request,
   type WriteResult as Applied,
 } from "@olai/format"
@@ -76,7 +77,12 @@ interface Fixture {
 
 const withOps = <A>(
   files: Readonly<Record<string, string>>,
-  use: (fixture: Fixture) => Effect.Effect<A, never>,
+  // `unknown`, because a test yields whatever it needs to: the direct store
+  // calls some of these make fail with `PlatformFailure` on a tired disk, and
+  // a test that fails is a failing test whichever channel it came out of —
+  // enumerating them here would be a list to maintain. Matches
+  // `@olai/store`'s own fixture.
+  use: (fixture: Fixture) => Effect.Effect<A, unknown>,
   options: {
     readonly git?: boolean
     readonly realClock?: boolean
@@ -531,6 +537,332 @@ test("a refusal writes nothing and comes back with its structured detail", () =>
       // a second caller — the web UI's own procedures, when they arrive — is
       // not a second place to remember to report from.
       expect(fixture.refusals).toEqual(["done: UsageFailure"])
+    })))
+
+// ── self-heal on refusal: the stale-set repair ──────────────────────────
+//
+// `stale-set-reads-clean-writes-refuse`: a git operation replaces a file
+// inside the stamp's own resolution, so the loop never sees it — reads serve
+// the old set with no error, and writes REFUSE, because the same operation's
+// declarations now judge the old bytes wrong. The repair is asked where the
+// refusal shows, and since brokenness went per file that is one of TWO
+// doors: the gate's verdict names its files, and the PLANNER'S refusal
+// stands behind a set withholding a file it judged from bytes — if the
+// disk's bytes there are not the set's, the set — not the write — was the
+// problem, so the resync door opens for the writer and the write runs once
+// more.
+
+/** A record whose `pr` is free text at boot (no vault declares it) and a
+ *  wrong `date` once the declaration below lands — the two halves of a
+ *  refusal the SET owes, not the write. The three spellings are ONE LENGTH,
+ *  which is the whole of the blind spot they swap inside. */
+const PLAN_BEFORE =
+  `{"id":"the-plan","ord":"a0","title":"The plan","custom":{"pr":"not-a-date"}}\n`
+const PLAN_AFTER =
+  `{"id":"the-plan","ord":"a0","title":"The plan","custom":{"pr":"2026-09-01"}}\n`
+/** The same length again, and STILL not a date: the repair that lands and
+ *  still refuses answers THIS file's refusal — the fresh one. */
+const PLAN_STILL_BAD =
+  `{"id":"the-plan","ord":"a0","title":"The plan","custom":{"pr":"2026-99-99"}}\n`
+/** The migration's other half: declaring `pr` a date, and nothing else. */
+const DECLARE_PR_DATE =
+  `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"date"}}\n`
+
+/**
+ * The store's byte check, wrapped so a test can name EXACTLY what a refusal
+ * asked it. The drift question's whole correctness is its set of paths —
+ * one the verdict forgot is a refusal that never heals — and the shape of
+ * the set cannot be read back out of what lands on disk.
+ */
+const watchingDrift = (fixture: Fixture): ReadonlyArray<ReadonlyArray<string>> => {
+  const asked: Array<ReadonlyArray<string>> = []
+  const original = fixture.store.drifted
+  ;(fixture.store as { drifted: typeof original }).drifted = (paths) => {
+    asked.push([...paths])
+    return original(paths)
+  }
+  return asked
+}
+
+/** The resync door, wrapped so a test can say whether the repair ever
+ *  knocked on it: the byte check standing in front is only a guarantee if a
+ *  NO from it keeps THIS latched. */
+const watchingRefresh = (fixture: Fixture): ReadonlyArray<string> => {
+  const opened: Array<string> = []
+  const original = fixture.store.refresh
+  ;(fixture.store as { refresh: typeof original }).refresh = (freshness) => {
+    opened.push(freshness)
+    return original(freshness)
+  }
+  return opened
+}
+
+/**
+ * Put the file down the way `git rebase` leaves it: different bytes at the
+ * same length and the SAME stamp the loaded set was read at, so no probe
+ * anything the store runs on its way into a write can see it.
+ */
+const replaceBehindTheStamps = (root: string, file: string, contents: string): void => {
+  const at = path.join(root, file)
+  const stamp = fs.statSync(at)
+  fs.writeFileSync(at, contents)
+  fs.utimesSync(at, stamp.atime, stamp.mtime)
+}
+
+test("the rebase shape: a write refused over a stale set heals, and lands", () =>
+  withOps({ "plan.olai": PLAN_BEFORE }, (fixture) =>
+    Effect.gen(function*() {
+      // The migration: the declaration lands visibly (a NEW file — any
+      // listing sees it), the content lands INVISIBLY. Reads go on serving
+      // the set that was valid at boot…
+      fixture.write("_olai/Properties.olai", DECLARE_PR_DATE)
+      replaceBehindTheStamps(fixture.root, "plan.olai", PLAN_AFTER)
+      const served = yield* fixture.set()
+      expect(
+        recordsOf(served).find((located) => located.node.id === "the-plan")?.node,
+      ).toMatchObject({ custom: { pr: "not-a-date" } })
+
+      // …and the write REFUSES — the gate's cycle meets the migration's
+      // visible half and answers StaleWrite, and the next round's PLAN
+      // refuses: the served set withholds the very node it names, its file
+      // judged broken from bytes the disk has already moved past. The byte
+      // check behind THAT refusal finds the drift, the set heals, and the
+      // write lands — all inside the one call.
+      const asked = watchingDrift(fixture)
+      const applied = yield* run(fixture, { op: "done", id: "the-plan" })
+      expect(applied).toMatchObject({ id: "the-plan", file: "plan.olai" })
+      // THE EXACT SHAPE the check is asked with: every file the withheld
+      // rows were judged FROM, in `byPath` order — `reportPropValues`'s
+      // related site (`broken: false`) is what tells the ask about the
+      // declarations file, and the drifted member is the judgement's own
+      // ground.
+      expect(asked).toEqual([["_olai/Properties.olai", "plan.olai"]])
+
+      // The caller was never told there was anything to heal.
+      expect(fixture.refusals).toEqual([])
+      // The write did not trample the rebase's file: its NEW `pr` survived,
+      // and the mark was planned against it.
+      const text = fixture.read("plan.olai") ?? ""
+      expect(text).toContain(`"pr":"2026-09-01"`)
+      expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
+      // And the reads catch up with the write: the served set says what the
+      // disk said from the moment the refusal showed.
+      const healed = yield* fixture.set()
+      expect(
+        recordsOf(healed).find((located) => located.node.id === "the-plan")?.node,
+      ).toMatchObject({ custom: { pr: "2026-09-01" }, done: STAMP })
+    })))
+
+test("a repair that still refuses answers the FRESH refusal, once", () =>
+  withOps({ "plan.olai": PLAN_BEFORE }, (fixture) =>
+    Effect.gen(function*() {
+      // The same shape, except the migration's plan.olai is wrong under its
+      // own declaration: the repair resyncs, the disk's truth STILL refuses
+      // the declaration, and the same write is refused again — at the same
+      // door, against the resynced set.
+      fixture.write("_olai/Properties.olai", DECLARE_PR_DATE)
+      replaceBehindTheStamps(fixture.root, "plan.olai", PLAN_STILL_BAD)
+
+      const failure = yield* Effect.orDie(
+        Effect.flip(fixture.ops.run({ op: "done", id: "the-plan" }, "mcp")),
+      )
+      // THE CALLER'S "NO" IS THE FRESH ONE: reached against the resynced
+      // set, where the node is withheld because the DISK'S OWN bytes refuse
+      // the declaration — the planner's sentence names nothing stale
+      // because nothing stale is in it.
+      if (failure._tag !== "NotFoundFailure") {
+        throw new Error(`expected a NotFoundFailure, got ${failure._tag}`)
+      }
+      expect(failure.message).toContain("the-plan")
+      // What the repair CHANGED is the story the SERVER tells: the served
+      // set's broken rows were re-judged against the resynced tree, so they
+      // quote the bytes ON DISK — before it, the same rows quoted the stale
+      // copy, and a reader of them would go hunting for `not-a-date` in a
+      // file that says `2026-99-99`. (The errors channel stays EMPTY: one
+      // broken file is the set's own sentence now, not the channel's.)
+      expect(yield* SubscriptionRef.get(fixture.store.errors)).toBeNull()
+      const said = (yield* fixture.set()).broken.flatMap((entry) =>
+        entry.errors.map((finding) => finding.message)
+      ).join("\n")
+      expect(said).toContain("2026-99-99")
+      expect(said).not.toContain("not-a-date")
+      // One refusal reached the caller — the retry's, not the stale one's —
+      // and nothing was written by any round.
+      expect(fixture.refusals).toEqual(["done: NotFoundFailure"])
+      expect(fixture.read("plan.olai")).toBe(PLAN_STILL_BAD)
+    })))
+
+test("a refusal the disk AGREES with heals nothing and changes nothing", () =>
+  withOps({ "plan.olai": PLAN_STILL_BAD }, (fixture) =>
+    Effect.gen(function*() {
+      // The same brokenness, honestly earned: the declaration arrives and
+      // the file IS what the set holds, so the byte check agrees with the
+      // refusal and the door stays shut — no resync, the refusal answered
+      // exactly as it was.
+      fixture.write("_olai/Properties.olai", DECLARE_PR_DATE)
+      const refreshes = watchingRefresh(fixture)
+
+      const failure = yield* Effect.orDie(
+        Effect.flip(fixture.ops.run({ op: "done", id: "the-plan" }, "mcp")),
+      )
+      expect(failure._tag).toBe("NotFoundFailure")
+      expect(fixture.refusals).toEqual(["done: NotFoundFailure"])
+      // The check was asked and answered NO, so the one look the repair
+      // would spend was never spent — the degraded set the gate's cycle
+      // published is the served one, and nothing re-read the tree.
+      expect(refreshes).toEqual([])
+      expect(fixture.read("plan.olai")).toBe(PLAN_STILL_BAD)
+    })))
+
+// THE GATE'S OWN ASK, pinned. The four repairs above and below all show at
+// the planner's door now — per-file brokenness withholds the stale-judged
+// file from the set before the gate is ever reached, and every class of
+// write a `plan` can emit is fenced at the plan by the same tables the
+// validator re-judges with (`typedProps`, `declaredWrong`), so an ordinary
+// write's plan and gate cannot come to different answers about its bytes.
+// The gate arm below is the door left for the case they CAN diverge — a
+// stale judge against a healthy target — and its contract is the asked set.
+// The verdict is therefore FAKED the way the refund test fakes `StaleWrite`:
+// the pin is the arm's own behaviour, not the codec's means of producing the
+// answer.
+test("the gate arm's ask is the write's own files, then every file the verdict was judged FROM", () =>
+  withOps({ "plan.olai": PLAN_BEFORE }, (fixture) =>
+    Effect.gen(function*() {
+      // plan.olai replaced invisibly — the drift the heal stands on — and
+      // one commit answered with a stale judge's verdict: `bad-prop` filed
+      // on the write's own file, the judging declaration NAMED-but-not-broken.
+      replaceBehindTheStamps(fixture.root, "plan.olai", PLAN_AFTER)
+      const committed = fixture.store.commit
+      let faking = 1
+      ;(fixture.store as { commit: typeof committed }).commit = (write) =>
+        faking-- > 0
+          ? Effect.succeed(
+            Result.fail(verdictOf([{
+              file: "plan.olai",
+              line: 1,
+              code: "bad-prop",
+              message: "`pr` must be a day — `not-a-date` is not one",
+              related: [{
+                file: "_olai/Properties.olai",
+                line: 1,
+                note: "declared here",
+                broken: false,
+              }],
+            }])),
+          )
+          : committed(write)
+
+      const asked = watchingDrift(fixture)
+      const applied = yield* run(fixture, { op: "done", id: "the-plan" })
+      expect(applied).toMatchObject({ id: "the-plan", file: "plan.olai" })
+      // THE PIN: the write's paths in the order it put them down, then the
+      // verdict's ABOUT axis in `byPath` order — the `broken: false` judge
+      // is ASKED (a stale declaration is exactly the drift this arm exists
+      // for) even though the blame would never file it.
+      expect(asked).toEqual([["plan.olai", "_olai/Properties.olai", "plan.olai"]])
+      // The refusal the verdict carried was never delivered — the heal
+      // answered it — and the write landed on the current set.
+      expect(fixture.refusals).toEqual([])
+      expect(fixture.read("plan.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
+    })))
+
+// THE NARROWING, pinned: a `UsageFailure` is words about the REQUEST — a
+// typo, a misuse — and a stale copy cannot invent one, so the hottest refusal
+// path pays no byte check: not even when a broken file sits in the set AND
+// the disk under it has drifted.
+test("a usage refusal never reaches the byte check — drift or no drift, the door stays shut", () =>
+  withOps({
+    "plan.olai":
+      `{"id":"the-plan","ord":"a0","title":"The plan","done":"2026-08-01"}\n`,
+    "garden.olai":
+      `{"id":"garden","ord":"a0","title":"the garden","see":["nobody-declares-this"]}\n`,
+  }, (fixture) =>
+    Effect.gen(function*() {
+      // garden.olai is broken (its `see` dangles) AND its on-disk bytes have
+      // drifted from the set's — everything the check could spend itself on,
+      // present at once.
+      yield* fixture.store.refresh("cheap")
+      replaceBehindTheStamps(
+        fixture.root,
+        "garden.olai",
+        `{"id":"garden","ord":"a0","title":"the gardens","see":["nobody-declares-this"]}\n`,
+      )
+      const asked = watchingDrift(fixture)
+      // The write's refusal is a USAGE one: the node is already done.
+      const failure = yield* Effect.orDie(
+        Effect.flip(fixture.ops.run({ op: "done", id: "the-plan" }, "mcp")),
+      )
+      expect(failure._tag).toBe("UsageFailure")
+      expect(fixture.refusals).toEqual(["done: UsageFailure"])
+      expect(asked).toEqual([])
+    })))
+
+// THE REVIEWER'S PROBE, pinned. The declaraxis-fix's `related` asks the
+// DECLARATION where an ordinary value went wrong — and without the
+// `implicating` split, that ask leaks into the write gate's answer: one bad
+// value in lanes.olai refuses every write to `_olai/Properties.olai`, the
+// one door every declaration lives behind (`broken-file-blocks-healthy-writes`,
+// redeployed at the one site the whole vault shares). With it, the gate is
+// asked the finding's FILED file, and the laned writing of a DIFFERENT key
+// lands.
+test("a bad value in one file does NOT block declaring another key — the ask stays the ask", () =>
+  withOps({
+    "_olai/Properties.olai":
+      `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"date"}}\n` +
+      `{"id":"prop-owner","ord":"a1","title":"owner","custom":{"type":"text"}}\n`,
+    "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"2026-09-01"}}\n`,
+  }, (fixture) =>
+    Effect.gen(function*() {
+      yield* fixture.set()
+      // The hand edit that makes one ordinary value bad — the loop sees it,
+      // so the verdict the gate will ask about CARRIES the finding.
+      fixture.write(
+        "lanes.olai",
+        `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"not-a-date"}}\n`,
+      )
+      yield* fixture.store.refresh("cheap")
+      // The write is to the DECLARATIONS file, about a key lanes.olai has
+      // never heard of: pre-fix, the shared axis refused this outright.
+      const applied = yield* run(fixture, {
+        op: "title",
+        id: "prop-owner",
+        title: "the lane's owner",
+      })
+      expect(applied).toMatchObject({ id: "prop-owner" })
+      expect(fixture.refusals).toEqual([])
+    })))
+
+// The refund: a repair consumes its ONE repair, not one of the five rounds
+// — without it, the lost races before this write would leave the round the
+// arm `continue`s out of the loop entirely, and the caller would hear
+// `BusyFailure` about a flood that never happened. The pin: the writes the
+// refund protects LAND rather than running out of rounds.
+test("a repair refunds its round — the lost races before it are not the repair's spending", () =>
+  withOps({ "plan.olai": PLAN_BEFORE }, (fixture) =>
+    Effect.gen(function*() {
+      // The rebase shape: declarations visible, content invisible — the
+      // verdict's stale half and the write's plan-file are the same file.
+      fixture.write("_olai/Properties.olai", DECLARE_PR_DATE)
+      replaceBehindTheStamps(fixture.root, "plan.olai", PLAN_AFTER)
+
+      // THREE lost races first, and the migration's own visible half is
+      // the fourth: the gate's cycle publishes the declaration and answers
+      // the write `StaleWrite` once, honestly. Four rounds spent without a
+      // refusal in sight — the FIFTH is the plan's stale-set refusal, whose
+      // repair must not spend a sixth.
+      const committed = fixture.store.commit
+      let faking = 3
+      ;(fixture.store as { commit: typeof committed }).commit = (write) =>
+        faking-- > 0
+          ? Effect.fail(
+            new Store.StaleWrite({ baseRev: write.baseRev, currentRev: write.baseRev + 1 }),
+          )
+          : committed(write)
+
+      const applied = yield* run(fixture, { op: "done", id: "the-plan" })
+      expect(applied).toMatchObject({ id: "the-plan" })
+      expect(fixture.refusals).toEqual([])
+      expect(fixture.read("plan.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
     })))
 
 /**

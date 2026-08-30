@@ -152,6 +152,40 @@ test("a cross-file finding implicates both ends, so a write to either is refused
   expect(admits(entriesOf(verdict), ["c.olai"])._tag).toBe("admitted")
 })
 
+// The exception the two-plane merger hinges on: a bad value NAMES the
+// declaration that judged it (`./rules.ts`'s `judgedFrom`, marked
+// `broken: false`), and the judge is not another broken file. Both lanes at
+// once: the error view and the drift ask READ it (implicatedBy reaches it);
+// the reconcile does not BLAME it (the blamed set leaves it off) — or one
+// bad value in one ordinary file would freeze the one file the whole vault
+// declares through, which is `broken-file-blocks-healthy-writes` re-signed
+// at a judge site instead of a related one.
+test("a declaration a bad value names is related, not broken — the blame and the gate say so", () => {
+  const verdict = verdictOf([{
+    file: "lanes.olai",
+    line: 3,
+    code: "bad-prop",
+    message: "pr must be a day",
+    related: [{
+      file: "_olai/Properties.olai",
+      line: 1,
+      note: "declared here",
+      broken: false,
+    }],
+  } as OutlineError])
+  const entries = entriesOf(verdict)
+  expect(implicatedBy(verdict.findings[0] as OutlineError))
+    .toEqual(["lanes.olai", "_olai/Properties.olai"])
+  expect(entries.map((one) => one.file)).toEqual(["lanes.olai"])
+  expect(admits(entries, ["_olai/Properties.olai"])._tag).toBe("admitted")
+  expect(admits(entries, ["lanes.olai"])._tag).toBe("implicated")
+})
+
+test("an unmarked related is broken by DEFAULT — a cycle's steps darken both files", () => {
+  const verdict = verdictOf([rowOf("a.olai", "mirror-cycle", [["b.olai", 3]])])
+  expect(entriesOf(verdict).map((one) => one.file)).toEqual(["a.olai", "b.olai"])
+})
+
 // A directory nothing could LIST is the one finding that is about the whole
 // load rather than about a file, so no file's health can be asserted under it.
 test("a directory that could not be read implicates every write", () => {
