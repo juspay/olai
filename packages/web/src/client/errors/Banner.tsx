@@ -1,12 +1,12 @@
 /**
- * WHICH FILES ARE BROKEN — over pages that are not.
+ * WHAT IS WRONG WITH THE DIRECTORY — over pages that are not.
  *
  * Since the per-file ruling (2026-08-29) a broken outline costs the reader that
  * outline and nothing else: the tree under this banner is not old, it is LIVE,
- * and so is every other page in the app. So this is a signpost rather than a
- * warning about the thing you are looking at — one line per broken file, naming
- * it, saying what is the matter and how many rows are waiting there, and
- * LINKING to the page that shows them.
+ * and so is every other page in the app. So the ordinary sentence here is a
+ * signpost rather than a warning about the thing you are looking at — one line
+ * per broken file, naming it, saying what is the matter and how many rows are
+ * waiting there, and LINKING to the page that shows them.
  *
  * IT LINKS NOW, and that is the ruling arriving rather than a change of taste.
  * The sentence this replaces refused to send anybody anywhere, and said why:
@@ -16,6 +16,13 @@
  * to nowhere. Every broken file has a page now (./Broken.tsx, drawn from the
  * set's `broken`, which is every kind of broken), so the door goes somewhere and
  * not offering it would be the sin the old comment was avoiding.
+ *
+ * THE OTHER SENTENCE is the one thing that is still about staleness, and it is
+ * not about anybody's outlines: the served directory could not be READ, so what
+ * is on screen is from before it went away. WHICH of the two this is, is not
+ * decided here — it arrives decided (./banner.ts's `Trouble`), so there is no
+ * arm order in this file for the precedence between them to depend on and no
+ * way to draw a list of files over a directory nobody can currently see.
  *
  * IT DRAWS THE BOUNDED FACE and never the rows (`@olai/format`'s `summaryOf`).
  * This banner is over SOMEBODY ELSE'S PAGE — every page in the app — and it
@@ -27,34 +34,22 @@
  * THE CLAMP AND THE BOUND ARE DIFFERENT THINGS and they live apart: the bound
  * is the format's — `summaryOf(n)` has no way to hand back a row, so no surface
  * drawing it can flood — and the clamp is a knob about THIS banner, which is
- * why it and the readings around it are one module over where a test can ask
+ * why it and the reading around it are one module over where a test can ask
  * them (./banner.ts, and the debate's finding 5 on why a knob is not a
  * receptacle).
- *
- * THE OTHER VOICE is the one thing that is still about staleness, and it is not
- * about anybody's outlines: the served directory could not be READ, so what is
- * on screen is from before it went away. That arrives on the errors cell rather
- * than on any file, because there is no listing to hang it off.
  */
 
-import type { BrokenFile, Verdict } from "@olai/format"
-import { createMemo, For, Show } from "solid-js"
+import { For, Show } from "solid-js"
 
 import { Link } from "../router.tsx"
 import { atFile } from "../routes.ts"
 import { TESTID } from "../testids.ts"
-import { brokenFace, goneFace, SAID, wentAway } from "./banner.ts"
+import { SAID, type Trouble } from "./banner.ts"
 import { Lede } from "./Lede.tsx"
 
-export function Banner(props: {
-  /** The files this tab holds that the set has no content for. */
-  readonly broken: ReadonlyMap<string, BrokenFile>
-  /** What is wrong with the DIRECTORY, which is a different fact and is
-   *  usually nothing. */
-  readonly verdict: Verdict
-}) {
-  const gone = createMemo(() => wentAway(goneFace(props.verdict)))
-  const face = createMemo(() => (gone() ? goneFace(props.verdict) : brokenFace(props.broken)))
+export function Banner(props: { readonly trouble: Trouble }) {
+  const face = () => props.trouble.face
+  const named = () => face().files.length + face().more
 
   return (
     <aside
@@ -62,30 +57,28 @@ export function Banner(props: {
       data-testid={TESTID.staleBanner}
     >
       <Show
-        when={gone()}
+        when={props.trouble.kind === "files"}
         fallback={
           <>
             <h2 class="m-0 mb-1 text-base font-bold text-alarm">
-              {face().files.length + face().more === 1
-                ? "One file is broken"
-                : `${face().files.length + face().more} files are broken`}
+              Showing the last good version
             </h2>
             <Lede>
-              Everything else here is live and can be edited — a broken file
-              costs you that file and nothing else. Open one to see what it
-              says; fix it and it comes back on its own, with nothing to reload.
+              The served directory cannot be read right now, so the outline below
+              is the one from before it went away. Nothing here is wrong with
+              your files, and nothing needs reloading — it catches up on its own
+              once the directory can be read again.
             </Lede>
           </>
         }
       >
         <h2 class="m-0 mb-1 text-base font-bold text-alarm">
-          Showing the last good version
+          {named() === 1 ? "One file is broken" : `${named()} files are broken`}
         </h2>
         <Lede>
-          The served directory cannot be read right now, so the outline below is
-          the one from before it went away. Nothing here is wrong with your
-          files, and nothing needs reloading — it catches up on its own once the
-          directory can be read again.
+          Everything else here is live and can be edited — a broken file costs
+          you that file and nothing else. Open one to see what it says; fix it
+          and it comes back on its own, with nothing to reload.
         </Lede>
       </Show>
       <ul class="m-0 mt-2 list-none p-0">
@@ -104,7 +97,7 @@ export function Banner(props: {
                   they work on every other address this app draws
                   (../router.tsx). */}
               <Show
-                when={!gone()}
+                when={props.trouble.kind === "files"}
                 fallback={
                   <code class="mr-2 font-mono text-[0.8125rem] text-muted">{one.file}</code>
                 }

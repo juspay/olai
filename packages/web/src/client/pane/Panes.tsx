@@ -12,11 +12,11 @@
  * second-to-last returns to that.
  */
 
-import { type BrokenFile, isClean, type Verdict } from "@olai/format"
 import { createSignal, For, Index, Show } from "solid-js"
 import { onCleanup } from "solid-js"
 
 import { Banner } from "../errors/Banner.tsx"
+import type { Trouble } from "../errors/banner.ts"
 import { WITHIN } from "../layer.ts"
 import { desktop } from "../layout/media.ts"
 import { drag as pointerDrag } from "../pointer.ts"
@@ -38,12 +38,11 @@ import { SHELL_LONE, SHELL_SPLIT } from "../layout/sheet.ts"
 export { PANE_MIN_PX, PANE_RAIL_PX } from "./geometry.ts"
 
 export function Panes(props: {
-  /** The files this directory has no content for — the ordinary way something
-   *  is wrong, and it is per file. */
-  readonly broken: ReadonlyMap<string, BrokenFile>
-  /** What is wrong with the DIRECTORY itself, which is nothing at all unless
-   *  it could not be read. */
-  readonly problems: Verdict
+  /** What is wrong with the served directory, already decided — `null` when
+   *  nothing is (`../errors/banner.ts`). It arrives as one value rather than as
+   *  the two facts it is read from, so this file has no condition of its own to
+   *  keep in step with the banner's. */
+  readonly trouble: Trouble | null
 }) {
   const router = useRouter()
   const split = () => !isLone(router.workspace())
@@ -60,14 +59,12 @@ export function Panes(props: {
         [SHELL_LONE]: !split(),
       }}
     >
-      {/* EITHER FACT is worth a banner and they are different facts: files
-          this directory holds nothing for, and a directory nothing could read.
-          The component tells them apart; this is the one gate that says there
-          is anything to draw at all. */}
-      <Show when={props.broken.size > 0 || !isClean(props.problems)}>
-        <div class="px-4 pt-4 md:px-12 lg:pl-16">
-          <Banner broken={props.broken} verdict={props.problems} />
-        </div>
+      <Show when={props.trouble}>
+        {(trouble) => (
+          <div class="px-4 pt-4 md:px-12 lg:pl-16">
+            <Banner trouble={trouble()} />
+          </div>
+        )}
       </Show>
       <Show when={split() && !desktop()}>
         <TabStrip />
