@@ -780,8 +780,9 @@ test("a refusal the disk AGREES with heals nothing and changes nothing", () =>
 // the pin is the arm's own behaviour, not the codec's means of producing the
 // answer. The write's own file is honest here for the same reason as the
 // planner arm above: the ask in front of the gate would otherwise spend the
-// budget before the gate ever answered.
-test("the gate arm's ask is the write's own files, then every file the verdict was judged FROM", () =>
+// budget before the gate ever answered — which is also why the gate asks
+// about the VERDICT alone and re-asks nothing this write already put down.
+test("the gate arm's ask is every file the verdict was judged FROM", () =>
   withOps({
     "plan.olai": PLAN_AFTER,
     "_olai/Properties.olai": DECLARE_PR_TEXT,
@@ -818,15 +819,15 @@ test("the gate arm's ask is the write's own files, then every file the verdict w
       const asked = watchingDrift(fixture)
       const applied = yield* run(fixture, { op: "done", id: "the-plan" })
       expect(applied).toMatchObject({ id: "the-plan", file: "plan.olai" })
-      // THE PIN, two asks: the write's own files before its bytes go down —
-      // clean, so the door stayed shut and the commit was made — and then
-      // the gate's, which is the write's paths in the order it put them down
-      // followed by the verdict's ABOUT axis in `byPath` order. The
-      // `broken: false` judge is ASKED (a stale declaration is exactly the
-      // drift this arm exists for) even though the blame would never file it.
+      // THE PIN, two asks and two subjects: the write's own files before
+      // its bytes go down — clean, so the door stayed shut and the commit
+      // was made — and then the verdict's ABOUT axis in `byPath` order,
+      // which is the gate arm's whole question. The `broken: false` judge is
+      // ASKED (a stale declaration is exactly the drift this arm exists for)
+      // even though the blame would never file it.
       expect(asked).toEqual([
         ["plan.olai"],
-        ["plan.olai", "_olai/Properties.olai", "plan.olai"],
+        ["_olai/Properties.olai", "plan.olai"],
       ])
       // The refusal the verdict carried was never delivered — the heal
       // answered it — and the write landed on the current set.

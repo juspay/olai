@@ -690,6 +690,23 @@ export const make = (options: Options): Ops => {
         const written = outcome.success
         if (Result.isFailure(written)) {
           /**
+           * THE GATE'S REFUSAL, and its subject is the VERDICT: every file
+           * this refusal was judged FROM ({@link aboutFiles} — the judge's
+           * site included, since a stale declaration is exactly the shape
+           * this ask exists to reach). One question at one door.
+           *
+           * The write's own files are NOT re-asked here, because the arm
+           * above already asked them THIS ROUND, over the bytes that were
+           * then never written: reaching this line means either they were
+           * clean, or the budget is spent and `repair` answers without
+           * opening anything. What `...paths` used to add was the files the
+           * verdict does NOT name — a question about this write's own
+           * ground, asked at the door that is about somebody else's.
+           */
+          if (yield* repair(aboutFiles(written.failure.findings))) {
+            continue
+          }
+          /**
            * THE REFUSAL NAMES ITS BLOCKER, which the sentence this replaces
            * could not: "`x` would leave the outlines invalid" read as an
            * indictment of the write, and the write was usually innocent — the
@@ -703,17 +720,6 @@ export const make = (options: Options): Ops => {
            * this write about" is how the gate and the sentence come to
            * disagree about one write.
            */
-          /**
-           * THE GATE'S REFUSAL is the second door the check above stands
-           * behind. The verdict names every file it was judged FROM ({@link
-           * aboutFiles} — the judge's site included: a stale declaration is
-           * exactly the shape this ask must reach), and the write's own
-           * files are asked first, in the order it put them down.
-           *
-           */
-          if (yield* repair([...paths, ...aboutFiles(written.failure.findings)])) {
-            continue
-          }
           const alreadyBroken =
             (yield* SubscriptionRef.get(options.store.errors)) !== null
           const blocker = blockerOf(written.failure, paths, alreadyBroken)
