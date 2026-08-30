@@ -1247,32 +1247,57 @@ export interface UnfitHeld {
  * (members joined).
  *
  * THE KEY IS FOLDED, because a record that wrote `Brainstorm` is asking
- * about the key a vault is declaring as `brainstorm` — {@link keyOf}'s
+ * about the key a vault is declaring as `brainstorm` — {@link foldedKey}'s
  * own reconciliation, asked here of the map's keys rather than of a
  * title.
+ *
+ * THE WALK IS {@link heldCustoms}, the same one the validator's
+ * property-value rule uses: a second walk that skipped a mirror, or a
+ * list, or the trash, would be a declaration door that disagrees with
+ * the next load.
  */
 export const unfitHeld = (typed: Typed, key: string): ReadonlyArray<UnfitHeld> => {
   if (declaredFor(typed.declarations, key) === undefined) return []
   const folded = foldedKey(key)
   const found: Array<UnfitHeld> = []
-  for (const located of typed.derived.nodes) {
+  for (const { located, key: held, value } of heldCustoms(typed.derived.nodes)) {
+    if (foldedKey(held) !== folded) continue
+    const wrong = wrongValue(typed, located.file, key, value)
+    if (wrong === undefined) continue
+    found.push({
+      file: located.file,
+      id: located.node.id,
+      title: located.node.title,
+      value: typeof value === "string" ? value : value.join(", "),
+      wrong,
+    })
+  }
+  return found
+}
+
+/**
+ * Every custom key a regular record holds, in the order the map holds
+ * them. Mirrors are stepped over (they carry no properties); a list is
+ * one value of that key.
+ *
+ * THE VALIDATOR AND THE DECLARATION DOOR both walk this, so a value
+ * one reports and the other does not cannot happen.
+ */
+export function* heldCustoms(
+  records: Iterable<Located>,
+): Generator<{
+  readonly located: LocatedRegular
+  readonly key: string
+  readonly value: CustomValue
+}> {
+  for (const located of records) {
     if (!isRegular(located)) continue
     const custom = located.node.custom
     if (custom === undefined) continue
-    for (const held of customOrder(custom)) {
-      if (foldedKey(held) !== folded) continue
-      const value = custom[held]
+    for (const key of customOrder(custom)) {
+      const value = custom[key]
       if (value === undefined) continue
-      const wrong = wrongValue(typed, located.file, key, value)
-      if (wrong === undefined) continue
-      found.push({
-        file: located.file,
-        id: located.node.id,
-        title: located.node.title,
-        value: typeof value === "string" ? value : value.join(", "),
-        wrong,
-      })
+      yield { located, key, value }
     }
   }
-  return found
 }
