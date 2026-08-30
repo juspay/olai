@@ -86,6 +86,15 @@
  * reference that quietly never appears is the silent failure HACKING.md
  * forbids. Those ids stay unknown rather than being remembered as absent, so
  * the next frame of a streaming message, or the wire coming back, asks again.
+ *
+ * A message is the first SCOPE the batches answer, not the only one: the
+ * outline's landing ({@link ../OutlinePage.tsx}) is a scope too — one page,
+ * one id at a time — and the volatility is the same word for word, so it
+ * asks through the same door rather than holding a duller copy of this
+ * file's rules. What that second scope keeps is the THIRD state ("no answer
+ * yet") that `./refs.ts` rightly says a span has no use for: a landing must
+ * not conclude its miss while the set is still being asked, so {@link
+ * Declared.told} keeps the map's own three answers beside `named`'s two.
  */
 
 import { Result } from "effect"
@@ -237,6 +246,10 @@ export interface Declared {
    * are the same span on screen (`./refs.ts` argues why there is no third
    * state).
    *
+   * A SCOPE THAT HAS A THIRD STATE — the outline's landing, which owes a
+   * sentence exactly once the set has answered — reads {@link told} over
+   * the same map.
+   *
    * The rule's own `resolve` shape, so it is handed straight to
    * `markNodeRefs` rather than unwrapped at the call site. Reading it is what
    * SUBSCRIBES the caller: the marking pass runs inside an effect, so the pass
@@ -247,10 +260,28 @@ export interface Declared {
    *  not an addition, since a message's spans are re-read from its rendered
    *  answer on every frame. Asking twice about one id costs nothing. */
   readonly want: (ids: ReadonlyArray<string>) => void
+  /**
+   * THE SET'S ANSWER to this id, all three ways: the node it names, `null`
+   * when the set declares nothing by it, `undefined` while the question has
+   * not come back — {@link named}'s own map, uncollapsed. A span merges the
+   * third state into the second and `./refs.ts` says why that is right FOR A
+   * SPAN; a reader that CAN tell them apart — the outline's landing, which
+   * must not say a miss while its answer is still in the air — reads this.
+   */
+  readonly told: (id: string) => string | null | undefined
 }
 
-/** One message's asker. */
-export const createDeclared = (): Declared => {
+/**
+ * One scope's asker — a message's spans, or one outline page's landings.
+ *
+ * `failure` is an optional second ear for a call that did not arrive: the
+ * transcript's slot hears every batch's bad news either way ({@link said}),
+ * and a scope that owes a READER an answer may want its own word of it too —
+ * the outline's landing says it to the console, because the connection pill
+ * already tells the socket's own story and a dead link's silence is the bug
+ * that scope exists against.
+ */
+export const createDeclared = (failure?: (message: string) => void): Declared => {
   /**
    * WHAT THIS MESSAGE HAS BEEN TOLD, whole: asked id → the node it names, or
    * `null` for an id the set does not declare.
@@ -300,6 +331,7 @@ export const createDeclared = (): Declared => {
           // about these ids, so they are asked again by the next frame of a
           // streaming answer or by the wire coming back.
           said(seq, outcome.failure.message)
+          failure?.(outcome.failure.message)
           return
         }
         said(seq, null)
@@ -326,6 +358,7 @@ export const createDeclared = (): Declared => {
     want: (ids) => {
       setWanted(ids)
     },
+    told: (id) => known().get(id),
   }
 }
 

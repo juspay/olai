@@ -15,9 +15,9 @@
  */
 
 import { type Row, shownRecord } from "@olai/format"
-import { Result } from "effect"
-import { createEffect, createSignal, onCleanup, Show } from "solid-js"
+import { createEffect, onCleanup, Show } from "solid-js"
 
+import { createDeclared } from "./chat/declared.ts"
 import { setFolded } from "./fold/memory.ts"
 import { createFoldReading } from "./fold/reading.ts"
 import { aim, missedSays, shutAlong } from "./fold/landing.ts"
@@ -27,13 +27,11 @@ import { useNarrowed } from "./filter/narrowed.tsx"
 import { unfiltered } from "./filter/why.ts"
 import { bringOntoScreen, selectNode } from "./focus.ts"
 import { useHere, useLanding } from "./router.tsx"
-import { runAsync } from "./run.ts"
 import { SaidLine } from "./SaidLine.tsx"
 import { createSaying } from "./saying.ts"
 import { doneHidden } from "./settings/done.ts"
 import { TESTID } from "./testids.ts"
 import { Tree } from "./Tree.tsx"
-import { olai } from "./wire.ts"
 
 export function OutlinePage(props: {
   /** Which file this is — needed by exactly one thing, and it is the one
@@ -84,15 +82,19 @@ export function OutlinePage(props: {
    * reports in `mirrors` and an agent citing a row naturally spells
    * (`./fold/landing.ts`'s `answer`). A placement the page draws is found
    * with no wire crossed; one it does not keeps its target in a row of some
-   * other file, so the act asks the set `nodes.named` — the chat press's own
-   * door for the same question, answered once per landing and remembered —
-   * and ONLY THEN concludes: the answer re-runs this effect through the
-   * `named` signal, and a miss is said once the answer confirms the page
-   * really draws nothing by that name, never while the set is still being
-   * asked. An id the answer says nothing about, or whose target this page
-   * also does not draw, is the certain half: said in the alarm mood, ONCE
-   * per owed landing, cleared the way every transient line in this client
-   * clears (`./saying.ts`) or the moment the arrival pays after all.
+   * other file, so the act asks the set what the id names — through
+   * `./chat/declared.ts`, the tab's one door for the question (`nodes.named`
+   * itself is queried by NOBODY but that module): asked once per landing
+   * and remembered, never asked into a dead socket and asked again when it
+   * returns. And ONLY THEN concludes: the answer re-runs this effect through
+   * the door's known-map, and a miss is said once the answer confirms the
+   * page really draws nothing by that name, never while the set is still
+   * being asked — the third state `./chat/declared.ts`'s `told` keeps for
+   * exactly this scope. An id the answer says nothing about, or whose target
+   * this page also does not draw, is the certain half: said in the alarm
+   * mood, ONCE per owed landing, cleared the way every transient line in
+   * this client clears (`./saying.ts`) or the moment the arrival pays after
+   * all.
    *
    * The fold half is asked of the READING, not of the memory —
    * `createFoldReading`, the same door the tree, the editor, the selection
@@ -104,15 +106,20 @@ export function OutlinePage(props: {
    * `./fold/reading.ts`'s header is for.
    */
   const saying = createSaying()
-  /** What the set has said about the ids landings here have spelled — the
-   *  asked id to the node it names, `null` when it names nothing. Remembered
-   *  per answer, never per frame: a message's ids are answered once
-   *  (`./chat/declared.ts`'s rule), and a landing's id is one message's
-   *  worth. */
-  const [named, setNamed] = createSignal<ReadonlyMap<string, string | null>>(new Map())
-  /** The ids with an answer OUTSTANDING — asked and not yet answered, so a
-   *  revision landing mid-question does not ask again. */
-  const asking = new Set<string>()
+  /** ONE SCOPE of the set's door for "what does this id name" —
+   *  `./chat/declared.ts`, the module that asks it for the chat panel's
+   *  spans and, as of the landing, for a page's missed row too: the
+   *  batching, the ask-once-and-remember, the dead-socket ruling and the
+   *  ask-again-when-it-returns are THEIRS, kept whole rather than copied
+   *  here, and this page is just one more scope the same batches answer.
+   *  The failure hook keeps the landing's own word of a call that did not
+   *  arrive: the arrival is owed still, and the console hears why. */
+  const declared = createDeclared((message) =>
+    console.warn(
+      "olai: could not ask the set what the landing names, so the arrival is still owed —",
+      message,
+    ),
+  )
   /** Which owed landing the alarm has already been drawn for — said ONCE per
    *  landing rather than per revision that goes on not drawing the row. */
   let missSaidFor: string | undefined
@@ -126,26 +133,12 @@ export function OutlinePage(props: {
       missSaidFor = undefined
     }
     if (at === undefined) return
-    const aimAt = aim(props.rows, at, (asked) => named().get(asked))
+    const aimAt = aim(props.rows, at, declared.told)
     if (aimAt.kind === "ask") {
-      if (!asking.has(at)) {
-        asking.add(at)
-        void runAsync(olai.procedures.nodes.named({ ids: [at] })).then((outcome) => {
-          if (Result.isFailure(outcome)) {
-            // NOT WRITTEN DOWN AS A NO — a wire that could not answer said
-            // nothing about this id (the connection pill is already saying
-            // so, `./chat/declared.ts`'s ruling for the same door): the next
-            // revision re-asks.
-            console.warn(
-              "olai: could not ask the set what the landing names, so the arrival is still owed —",
-              outcome.failure.message,
-            )
-            return
-          }
-          const target = outcome.success.named.find((one) => one.asked === at)?.id ?? null
-          setNamed((answered) => new Map(answered).set(at, target))
-        }).finally(() => asking.delete(at))
-      }
+      // ASK, and only then: a page that answers the id by itself never has
+      // the `told` read — `aim` short-circuits on the chain before the set
+      // is spoken to at all.
+      declared.want([at])
       return
     }
     if (aimAt.kind === "miss") {
