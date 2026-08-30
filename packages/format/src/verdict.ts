@@ -23,9 +23,9 @@
  *     invalid, so no" at a write, only "`lanes.olai` is what stops this", which
  *     is what makes the freeze unspellable through this socket rather than
  *     merely fixed at one call site.
- *   - {@link summary} / {@link summaryOf} — a BOUNDED per-file face any surface
- *     may draw. The banner draws this; the enumeration stays where a reader
- *     asked for it.
+ *   - {@link summaryOf} — a BOUNDED per-file face any surface may draw, off
+ *     the per-file entries {@link blamed} files. The banner draws this; the
+ *     enumeration stays where a reader asked for it.
  *   - {@link blamed} — which FILES a report breaks, as the per-file entries the
  *     set carries. This is what a load does with a finding now, and it replaced
  *     a table.
@@ -124,7 +124,7 @@ export const implicating = (
   verdict.findings.filter((finding) => implicatedBy(finding).includes(file))
 
 /** Every file any finding implicates, in path order — the set the banner names
- *  and the set {@link summary} is a bounded face of. */
+ *  and the set {@link summaryOf} is a bounded face of. */
 export const implicatedIn = (verdict: Verdict): ReadonlyArray<string> => {
   const files = new Set<string>()
   for (const finding of verdict.findings) {
@@ -236,23 +236,25 @@ export interface Summary {
   readonly total: number
 }
 
-export const summary = (verdict: Verdict, n: number): Summary =>
-  summaryOf(blamed(verdict.findings), n)
-
 /**
- * The same bounded face, off the per-file entries a SET already carries.
+ * THE ONE FACE CONSTRUCTOR, off the per-file entries a SET carries.
  *
- * The banner's real source since the per-file ruling: a directory with a broken
- * outline in it is a directory that LOADED, so what is wrong with it rides in
- * the set's `broken` and not on the errors channel. Nothing is re-partitioned
- * here — the entries are what {@link blamed} filed and what each broken file's
- * own page draws — so the sentence over somebody else's page and the rows on
- * the page it names cannot come to disagree about a count.
+ * Nothing is re-partitioned here — the entries are what {@link blamed} filed and
+ * what each broken file's own page draws — so the sentence over somebody else's
+ * page and the rows on the page it names cannot come to disagree about a count.
  *
- * `total` is the sum of the entries' rows and NOT the findings of a verdict,
- * which is the one place the two constructors differ and is right in both: a
- * cross-file finding breaks two files, so it is one finding to a verdict and
- * two rows to the directory a reader has to go and fix.
+ * IT TAKES ENTRIES AND NOT A VERDICT, and there is deliberately no second
+ * constructor that takes one. There was: `summary(verdict, n)` was
+ * `summaryOf(blamed(verdict.findings), n)` spelled as an export, which is two
+ * ways to build one shape and hides the step that matters — a verdict becomes
+ * per-file ENTRIES first, and everything downstream of that is per file. The
+ * one caller that starts from a verdict (a directory that could not be read,
+ * which arrives on the errors channel with no set to carry it) composes the two
+ * at its own call site, where the composition reads as the sentence it is.
+ *
+ * `total` is the sum of the entries' rows rather than a count of findings, and
+ * the difference is a cross-file finding: it breaks two files, so it is one
+ * finding and two rows to the directory a reader has to go and fix.
  */
 export const summaryOf = (broken: ReadonlyArray<BrokenFile>, n: number): Summary => {
   const faces = broken.map((entry): FileFace => ({

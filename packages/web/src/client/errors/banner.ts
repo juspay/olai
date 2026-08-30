@@ -48,8 +48,8 @@ import {
   byPath,
   type FileState,
   isClean,
+  blamed,
   type Summary,
-  summary,
   summaryOf,
   type Verdict,
 } from "@olai/format"
@@ -95,7 +95,10 @@ export const troubleIn = (
   verdict: Verdict,
 ): Trouble | null => {
   if (!isClean(verdict)) {
-    const face = summary(verdict, BANNER_FILES)
+    // A verdict becomes per-file ENTRIES first, like everything else since
+    // the ruling — even here, where the one entry is the served root rather
+    // than a file anybody can open.
+    const face = summaryOf(blamed(verdict.findings), BANNER_FILES)
     if (face.files.some((one) => one.state === "unreadable")) return { kind: "gone", face }
   }
   if (broken.size === 0) return null

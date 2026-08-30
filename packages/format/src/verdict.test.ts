@@ -39,11 +39,24 @@ import {
   implicating,
   isClean,
   NOTHING_WRONG,
-  summary,
+  type Summary,
   summaryOf,
   type Verdict,
   verdictOf,
 } from "./verdict.ts"
+
+/**
+ * A verdict's bounded face — the composition the one production caller that
+ * starts from a verdict spells for itself (`@olai/web`'s `banner.ts`).
+ *
+ * There is no `summary(verdict, n)` export any more, and this is why it is a
+ * two-line helper here rather than one back on the module: the step it makes
+ * visible — a verdict becomes per-file ENTRIES, and every face is a face of
+ * those — is the whole shape of the ruling, and an export that hid it was a
+ * second way to build one thing.
+ */
+const faceOf = (verdict: Verdict, n: number): Summary =>
+  summaryOf(blamed(verdict.findings), n)
 
 // ── fixtures ───────────────────────────────────────────────────────────
 
@@ -152,7 +165,7 @@ test("a clean verdict admits everything, and says it is clean", () => {
 // because the rows were all it had. What `summary` hands back cannot carry one
 // — the bound is the SHAPE, and the surface's clamp is on top of it.
 test("a summary carries counts and never a row, whatever the row count", () => {
-  const face = summary(flood("lanes.olai", 135), 5)
+  const face = faceOf(flood("lanes.olai", 135), 5)
   expect(face.files).toEqual([{ file: "lanes.olai", state: "invalid", count: 135 }])
   expect(face.total).toBe(135)
   expect(face.more).toBe(0)
@@ -162,8 +175,8 @@ test("a summary carries counts and never a row, whatever the row count", () => {
 })
 
 test("the face of a 135-row file is the face of a 5-row file, but for the count", () => {
-  const many = summary(flood("lanes.olai", 135), 5)
-  const few = summary(flood("lanes.olai", 5), 5)
+  const many = faceOf(flood("lanes.olai", 135), 5)
+  const few = faceOf(flood("lanes.olai", 5), 5)
   expect({ ...many, files: many.files.map((one) => ({ ...one, count: 0 })), total: 0 })
     .toEqual({ ...few, files: few.files.map((one) => ({ ...one, count: 0 })), total: 0 })
 })
@@ -172,28 +185,28 @@ test("more implicated files than the clamp are counted, not drawn", () => {
   const verdict = verdictOf(
     ["a.olai", "b.olai", "c.olai", "d.olai"].map((file) => rowOf(file, "duplicate-id")),
   )
-  const face = summary(verdict, 2)
+  const face = faceOf(verdict, 2)
   expect(face.files.map((one) => one.file)).toEqual(["a.olai", "b.olai"])
   expect(face.more).toBe(2)
   expect(face.total).toBe(4)
 })
 
 test("a file's state is the worst thing said about it", () => {
-  const unreadable = summary(verdictOf([rowOf("a.olai", "unreadable-file")]), 5)
+  const unreadable = faceOf(verdictOf([rowOf("a.olai", "unreadable-file")]), 5)
   expect(unreadable.files[0]?.state).toBe("unreadable")
-  const unparsed = summary(
+  const unparsed = faceOf(
     verdictOf([rowOf("a.olai", "not-json"), rowOf("a.olai", "duplicate-id")]),
     5,
   )
   expect(unparsed.files[0]?.state).toBe("unparsed")
-  const invalid = summary(verdictOf([rowOf("a.olai", "duplicate-id")]), 5)
+  const invalid = faceOf(verdictOf([rowOf("a.olai", "duplicate-id")]), 5)
   expect(invalid.files[0]?.state).toBe("invalid")
 })
 
 // A cross-file finding is ONE finding and TWO ROWS somebody has to go and look
 // at, which is what the total is a size of.
 test("a cross-file finding is counted under both files, and counted twice", () => {
-  const face = summary(verdictOf([rowOf("a.olai", "mirror-cycle", [["b.olai", 3]])]), 5)
+  const face = faceOf(verdictOf([rowOf("a.olai", "mirror-cycle", [["b.olai", 3]])]), 5)
   expect(face.files.map((one) => one.count)).toEqual([1, 1])
   expect(face.total).toBe(2)
 })
@@ -205,7 +218,7 @@ test("the face of a set's broken files is the face of the verdict that broke the
     rowOf("a.olai", "mirror-cycle", [["b.olai", 3]]),
     rowOf("c.olai", "duplicate-id"),
   ])
-  expect(summaryOf(blamed(verdict.findings), 5)).toEqual(summary(verdict, 5))
+  expect(faceOf(verdict, 5)).toEqual(faceOf(verdict, 5))
 })
 
 // ── the reference arm, over generated broken sets ──────────────────────

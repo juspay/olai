@@ -979,9 +979,12 @@ export type { ErrorCode, Stage } from "./errors.ts"
  * The four questions are the whole of the surface. `admits` is what a REFUSED
  * WRITE is read with, and it is per file: its answer has no whole-set member,
  * so one broken file can never again freeze a write to a healthy one, and a
- * refusal names its blocker. `summary` / `summaryOf` are a BOUNDED per-file
- * face for a surface drawn over something still live — the banner draws it, and
- * the row enumeration stays on the page a reader asked for it on.
+ * refusal names its blocker. `summaryOf` is a BOUNDED per-file face for a
+ * surface drawn over something still live — the banner draws it, and the row
+ * enumeration stays on the page a reader asked for it on. It takes the per-file
+ * entries `blamed` files, and there is no second constructor over a verdict:
+ * the caller that starts from one composes the two, where the step from a
+ * verdict to per-file entries is visible.
  * `implicating` is which findings are about one file. `blamed` is which FILES a
  * report breaks, which is what a load does with a finding since the per-file
  * ruling; it is what took the tier shelf's place, and `./verdict.ts`'s header
@@ -995,7 +998,6 @@ export {
   implicating,
   isClean,
   NOTHING_WRONG,
-  summary,
   summaryOf,
   Verdict,
   verdictOf,
