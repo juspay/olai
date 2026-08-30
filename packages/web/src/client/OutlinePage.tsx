@@ -120,18 +120,19 @@ export function OutlinePage(props: {
       message,
     ),
   )
-  /** Which owed landing the alarm has already been drawn for — said ONCE per
-   *  landing rather than per revision that goes on not drawing the row. */
-  let missSaidFor: string | undefined
-  let watching: string | undefined
+  /** THE STRETCH OF OWING this page is in, and whether the alarm for it has
+   *  been drawn — ONE place, because the two halves are one fact: an alarm
+   *  belongs to a stretch of contiguous owing of the same id, the stretch
+   *  ends whenever what is owed changes (paying the landing is one of those
+   *  changes), and nothing else about one may be remembered across the
+   *  other. Said once per stretch, never once per revision going on not
+   *  drawing the row: navigate away and back to the same dead address and
+   *  the miss is news again, and a busy page does not spend the six seconds
+   *  twice. */
+  let owing: { readonly id: string | undefined; said: boolean } = { id: undefined, said: false }
   createEffect(() => {
     const at = landing.owed()
-    // A NEW owed landing resets the once-per memory: navigate away and back
-    // to the same dead address and the miss is news again.
-    if (at !== watching) {
-      watching = at
-      missSaidFor = undefined
-    }
+    if (at !== owing.id) owing = { id: at, said: false }
     if (at === undefined) return
     const aimAt = aim(props.rows, at, declared.told)
     if (aimAt.kind === "ask") {
@@ -142,8 +143,8 @@ export function OutlinePage(props: {
       return
     }
     if (aimAt.kind === "miss") {
-      if (missSaidFor !== at) {
-        missSaidFor = at
+      if (!owing.said) {
+        owing.said = true
         saying.say({ tone: "alarm", text: missedSays(at) })
       }
       return
