@@ -30,13 +30,19 @@
  * nothing — which is how a store over a directory of megabyte files costs the
  * size of what it validates rather than the size of what it serves.
  *
- * A SECOND DOOR asks the loop's question by bytes rather than stamps, and it
- * is ask-only too: {@link Store.drifted} names the files (if any) whose disk
- * content has moved past the loaded set. Nothing in the loop consults it —
- * the stamp trade is the loop's to keep — so the one caller is the refusal
- * door of the write path, where a stale set is exactly the alternative
- * explanation for a codec's "no", and paying one file read per asked path is
- * already paid for by the refusal it answers.
+ * A SECOND DOOR asks the loop's question by bytes rather than stamps: which
+ * of these files (if any) has disk content the loaded set was not decoded
+ * from. Nothing in the loop consults it — the stamp trade is the loop's to
+ * keep — and only WRITES pay for it, on paths they name, so reads pay nothing
+ * here and neither does the probe.
+ *
+ * TWO CALLERS, one inside this package and one above it. {@link commit} asks
+ * it of the paths it is about to write over, before it judges anything: a
+ * replacement that landed in the stamps' blind spot would otherwise be
+ * planned against, overwritten, and never mentioned. And {@link
+ * Store.drifted} is the same question offered OUT, for the caller that can
+ * name files this package cannot — the ones a codec's own refusal was
+ * reached from ({@link ../../ops/src/ops.ts}'s `run`, the only one).
  *
  * Last-good data and what-is-wrong-now are two independent facts, kept on two
  * independent refs and mapping onto surface's stream and cell.
@@ -283,17 +289,24 @@ export interface Store<S, E> {
    *
    * The stamp table is the loop's cheap answer, and coarse on purpose — a
    * same-length rewrite landing inside the stamp's own resolution is what
-   * the loop is entitled to miss ({@link ./disk.ts}). A caller holding a
-   * REFUSAL is the one with a reason the loop never has to pay for a
-   * stronger look, and this is the stronger look: re-open exactly the paths
-   * it names and compare BYTES, not stamps. It is how the ops layer tells a
-   * write the codec judged against an out-of-date set from one it genuinely
-   * has no room for ({@link ../../ops/src/ops.ts}'s `run`, the only caller).
+   * the loop is entitled to miss ({@link ./disk.ts}). A WRITE is the one with
+   * a reason the loop never has to pay for a stronger look, and this is the
+   * stronger look: re-open exactly the paths it names and compare BYTES, not
+   * stamps. It is how the ops layer tells a set the disk has moved past from
+   * a write that genuinely has no room in it — asked of the files a write is
+   * about to land on, and again of the files a refusal is about
+   * ({@link ../../ops/src/ops.ts}'s `run`, the only caller).
    *
    * What comes back is the list a resync would re-answer. A path the probe
    * does not hold is skipped ({@link Store.body}'s membership rule), and so
    * is a file the set never read the bytes of: both are stated where the
    * check lives ({@link ./probe.ts}'s `drifted`).
+   *
+   * THE WRITE'S OWN PATHS ARE NOT WHAT THIS IS FOR — {@link commit} asks
+   * about those itself, on the way in, and answers `StaleWrite` rather than
+   * a verdict when they have moved. What is left for a caller out here is
+   * the file a REFUSAL was reached through, which only a reader of the
+   * codec's errors can name.
    */
   readonly drifted: (
     paths: Iterable<string>,
@@ -622,14 +635,60 @@ export const make = <F, S, E>(
     const commit = (write: Write) =>
       gate.withPermit(
         Effect.gen(function*() {
+          const paths = write.changes.map((change) => change.path)
+
           // FIRST, and before anything is compared: a change that arrived out
           // of band — a `git pull`, an editor — has to be part of the revision
           // this write is judged against, or the write would be judged against
           // a tree that is no longer there.
           yield* cycle
 
+          /**
+           * AND THE SAME DISTRUST OF STAMPS THIS GATE ALREADY HAS, moved to
+           * the side of the rename where it can still save something.
+           *
+           * Below, after the bytes land, this gate forgets its own paths'
+           * stamps and re-reads them "because we say so, not because a stat
+           * noticed" — our own write can land in the same second at the same
+           * length, and mtime+size cannot see that. The identical hole is
+           * open on the way IN, and it is worse there: a file replaced
+           * behind the store's back inside that same blind spot leaves the
+           * cycle above with nothing to report, so this write is judged —
+           * and PLANNED, one layer up — against bytes that are gone, and
+           * lands straight over the replacement. Nothing refuses, nothing is
+           * logged, and the other process's write is simply not there any
+           * more (`stale-set-reads-clean-writes-refuse`, the arm no refusal
+           * reaches).
+           *
+           * So the paths this write is about are compared by BYTES ({@link
+           * Probe.drifted}) before anything is judged. It is the write's own
+           * files and never the tree — one read and one fingerprint each,
+           * paid by writers, so no reader and no probe pays anything for it
+           * — and it is the ONE question a write can afford that a read
+           * cannot ({@link Store.drifted}).
+           *
+           * A drifted path is a stamp this gate now knows is a lie, so it is
+           * dropped and the look is taken again: the same forget-then-cycle
+           * the rename does, over the files the disk has just been shown to
+           * disagree about. What comes back is `StaleWrite` — which is not a
+           * new sentence but the one this gate already says for "you are
+           * standing on a base I have moved past", and the caller's cue to
+           * re-derive and ask again. That re-derivation is the repair: the
+           * next round plans against the bytes that are really there, and a
+           * write those bytes have nothing left to do comes back as its own
+           * honest refusal rather than as a landing.
+           */
+          const drifted = yield* probe.drifted(paths)
+          if (drifted.length > 0) {
+            yield* probe.forget(drifted)
+            yield* cycle
+          }
+
           const current = yield* SubscriptionRef.get(snapshot)
-          if (current === null || current.rev !== write.baseRev) {
+          // THREE WAYS to be standing on the wrong base, one sentence: the
+          // directory has never loaded, the stamps moved under this write, or
+          // the stamps did not move and the bytes did.
+          if (current === null || drifted.length > 0 || current.rev !== write.baseRev) {
             return yield* new StaleWrite({
               baseRev: write.baseRev,
               currentRev: current?.rev ?? 0,
@@ -731,7 +790,6 @@ export const make = <F, S, E>(
            * `current` is non-null by the staleness check at the top of this
            * gate.
            */
-          const paths = write.changes.map((change) => change.path)
           const refused = Result.isFailure(judged.outcome) ? judged.outcome.failure : null
           const stopped = options.codec.stopping === undefined
             ? refused
@@ -810,7 +868,7 @@ export const make = <F, S, E>(
           // the ones they replaced, which is precisely what mtime+size stamps
           // cannot see — so the changed files are re-read because we say so,
           // not because a stat noticed.
-          yield* probe.forget(write.changes.map((change) => change.path))
+          yield* probe.forget(paths)
           // Handed the promises this write made, so what it reads back is the
           // set already judged rather than an equal one. The verdict rides
           // along too, still carrying that set — and if something else moved
