@@ -37,7 +37,7 @@
  * purpose ({@link ./disk.ts}'s trade), so a caller already holding a reason to
  * ask harder — a write the codec just refused — may ask for the bytes to be
  * compared rather than the stamps ({@link Probe.drifted}). That check costs one
- * file read per asked path and is spent NOWHERE else: it is one sixteen
+ * file read per asked path and is spent NOWHERE else: it is sixteen
  * characters of hex per cached file forever, in exchange for which the
  * refusal door can tell "the set does not fit the disk" from "the write does
  * not fit the set" without re-reading the directory.

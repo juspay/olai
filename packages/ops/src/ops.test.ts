@@ -728,7 +728,7 @@ test("a bad value in one file does NOT block declaring another key — the ask s
 // arm `continue`s out of the loop entirely, and the caller would hear
 // `BusyFailure` about a flood that never happened. The pin: the writes the
 // refund protects LAND rather than running out of rounds.
-test("a repair refunds its round — the five lost races before it are not the repair's spending", () =>
+test("a repair refunds its round — the FOUR lost races before it are not the repair's spending", () =>
   withOps({ "plan.olai": PLAN_BEFORE }, (fixture) =>
     Effect.gen(function*() {
       // The rebase shape: declarations visible, content invisible — the
