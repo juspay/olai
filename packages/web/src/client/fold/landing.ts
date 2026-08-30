@@ -176,11 +176,12 @@ const answer = (row: Row, id: string): boolean =>
  *     pays exactly as if the address had spelled the target;
  *   - 'reveal': the drawn rows said nothing but the WHOLE page answers — the
  *     row EXISTS here and the done pick is what hides it. The chain is the
- *     reading's own shape of it, root-down as ever (first match, placement
- *     half included, asked of the set's answer the same way): what the act
- *     owes the view is the chain's PLACES kept out of the pick's sweep
- *     (`../settings/done.ts` spends that), after which the next pass of the
- *     act answers 'chain' the ordinary way;
+ *     reading's own shape of it, root-down as ever (the id as spelled asked
+ *     first, the set's resolution after — `settled`, the one probe both
+ *     remaining scopes ask): what the act owes the view is the chain's
+ *     PLACES kept out of the pick's sweep (`../settings/done.ts` spends
+ *     that), after which the next pass of the act answers 'chain' the
+ *     ordinary way;
  *   - 'miss': the set answered and it changes nothing this page can draw — a
  *     CERTAIN miss, in two honestly-different degrees, and the act owes
  *     each its own sentence ({@link missedSays}): `null` when the set
@@ -198,17 +199,17 @@ export const aim = (
   if (chain !== undefined) return { kind: "chain", chain }
   const target = named(id)
   if (target === undefined) return { kind: "ask" }
-  if (target !== null) {
-    const resolved = chainTo(rows, target)
-    if (resolved !== undefined) return { kind: "chain", chain: resolved }
-  }
+  // THE SET HAS SPOKEN — and from here one probe asks both remaining scopes
+  // the same question: where the settled node's chain lies. The drawn pool's
+  // answer pays the landing; the whole page's owes the reveal, of the same
+  // shape.
+  const settled = (pool: ReadonlyArray<Row>): ReadonlyArray<Row> | undefined =>
+    target === null ? undefined : chainTo(pool, target)
+  const resolved = settled(rows)
+  if (resolved !== undefined) return { kind: "chain", chain: resolved }
   if (whole !== undefined) {
-    const hidden = chainTo(whole, id)
+    const hidden = chainTo(whole, id) ?? settled(whole)
     if (hidden !== undefined) return { kind: "reveal", chain: hidden }
-    if (target !== null) {
-      const resolved = chainTo(whole, target)
-      if (resolved !== undefined) return { kind: "reveal", chain: resolved }
-    }
   }
   return { kind: "miss", target }
 }
