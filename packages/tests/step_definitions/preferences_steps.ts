@@ -378,6 +378,16 @@ When("I show the done nodes", async function (this: OlaiWorld) {
   await flipDone(this.page, "shown");
 });
 
+/** The release door is the MARK — not a second press. The strip's gestures
+ *  are idempotent asks (press what you mean); only the `·` hands the pick
+ *  back to the panel, and that is deliberately a door one CLUTTER-free
+ *  second near a strip cannot miss (client/filter/DoneFlip.tsx). */
+When("I hand the page's Done pick back to the panel", async function (this: OlaiWorld) {
+  await this.page
+    .locator(`${FOCUSED_PANE} ${DONE_FLIP} ${attr("data-testid", TESTID.doneRelease)}`)
+    .click();
+});
+
 /**
  * A SECOND page in the same context, which is what makes it a second tab of the
  * same browser rather than a second browser: one origin, one `localStorage`,

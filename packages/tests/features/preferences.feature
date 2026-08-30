@@ -37,17 +37,16 @@ Feature: One place to set how this browser reads
   and Compact — the default, because a fold whose default is the old behaviour
   is a feature nobody discovers — is the title alone.
 
-  The Done row is the one row that is about a PAGE rather than about this
-  browser's reader of it. What "done" means depends on the page — a roadmap
-  reads as "what is next" and finished rows are clutter; a board of the day's
-  lanes reads as "what happened" and they are the content — so each outline
-  keeps its own pick, flipped in the same row the reader-wide switch used to
-  sit in, scoped to the page in the focused pane. It moves the page you are
-  reading, follows you into its zooms (a zoomed view is the same page and
-  mints no pick of its own), and reaches every other tab of this browser. A
-  page nobody has spoken about HIDES: every default is the same default, and
-  a page flipped back to hidden is forgotten again — what is stored is the
-  list of pages that show.
+  Done is TWO homes of one pick: the row here is the reader's default —
+  hidden, for a browser that never said — and the FLIP beside an outline's
+  filter is that page's out-vote, one stored word a file in either direction
+  (even matching the default, which is what lets it outlive a panel flip),
+  gone when the page hands it back. What "done" means depends on the page —
+  a roadmap reads as "what is next" and finished rows are clutter; a board
+  of the day's lanes reads as "what happened" and they are the content —
+  which is why the page-side door exists. A zoomed view is the same page and
+  mints no pick of its own, and a page the pick was never about — a day, the
+  agenda, the trash — has no flip to show at all.
 
   Scenario: The preferences open from the header, and say whose they are
     When I open the app
@@ -191,15 +190,31 @@ Feature: One place to set how this browser reads
     Then the node "demo" is not shown
     And this browser has stored that done nodes are "hidden" on "house.olai"
 
-  Scenario: A flip pressed the way it already stands hands the page back
-    # RELEASE: pressing the in-force side while the page holds the say-to is
-    # "follow the panel again" — the entry goes, and the default speaks.
+  Scenario: The page's mark hands the pick back to the panel
+    # The release door is the `·` — not a second press of either side (the
+    # strip's asks are idempotent: pressing what the pick already is means
+    # what it says, and it means it twice the same way). After the hand back,
+    # the word the page answers to is the panel's own, and the ask survives
+    # no further — the map keeps no entry for what follow already IS.
     Given I open the outline "house.olai"
     When I show the done nodes
     Then the Done flip is this page's own
-    When I show the done nodes
+    When I hand the page's Done pick back to the panel
     Then the Done flip is the panel's answer
     And the node "demo" is not shown
+    And this browser has stored no Done word on "house.olai"
+
+  Scenario: A flip pressed the way the page ALREADY STANDS while the page follows says nothing
+    # The pin case, in the negative: `demo` is done, `house.olai` follows the
+    # default and the strip already stands at Hidden — pressing it is not a
+    # way to pin the page at the word the panel already says: storage stays
+    # silent, and the mark stays off.
+    Given I open the outline "house.olai"
+    Then the Done flip is the panel's answer
+    When I hide the done nodes
+    Then the node "demo" is not shown
+    And this page's Done flip says "hidden"
+    And the Done flip is the panel's answer
     And this browser has stored no Done word on "house.olai"
 
   Scenario: It is remembered, and it is this browser's

@@ -48,8 +48,8 @@ export interface Counts {
    * (`../settings/done.ts`), so a match beneath one is counted here — hidden,
    * and hidden BY the pick this page answers to — the panel's default or
    * this page's own out-vote, the sentence does not distinguish them
-   * because the reader need not either: the clause names the pickup point,
-   * the flip beside this bar is where they'd go to argue.
+   * because the reader need not either: the clause says hidden AS DONE, and
+   * the flip beside this bar is where the argument goes.
    */
   readonly hiddenAsDone: number
 }

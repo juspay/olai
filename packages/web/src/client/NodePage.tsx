@@ -224,13 +224,14 @@ function Zoom(props: {
 }
 
 /** An empty page has two causes and they are not the same news: a leaf has
- *  nothing under it, a subtree that is entirely done has been hidden by this
- *  page's pick and is one pick in Prefs from coming back. (A third — a filter
- *  that matched nothing — never reaches here: the bar has already said so, and
- *  this line is about the node.) */
+ *  nothing under it, a subtree that is entirely done has been hidden by the
+ *  done-pick this page answers to (the panel's default, or this page's own
+ *  out-vote — the flip beside the bar says which) — and it is one flip from
+ *  coming back. (A third — a filter that matched nothing — never reaches
+ *  here: the bar has already said so, and this line is about the node.) */
 const nothingUnder = (
   zoomed: Extract<Zoomed, { readonly kind: "node" }>,
 ): string =>
   zoomed.children.length > 0 && doneHiddenOn(zoomed.shows.file)
-    ? "Everything under this node is done, and Prefs is hiding finished work."
+    ? "Everything under this node is done, and the Done flip is hiding finished work."
     : "Nothing under this node."

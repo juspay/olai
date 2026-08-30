@@ -1107,6 +1107,10 @@ export const TESTID = {
    *  against the panel's default. Outline pages only — a day, the agenda,
    *  the trash get the bar without it (settings/done.ts). */
   doneFlip: "done-flip",
+  /** The release door of the flip — the `·` mark, a button while the page
+   *  owns its say: the flip's two segments ask, the mark hands the pick
+   *  back to the panel. */
+  doneRelease: "done-release",
   /** "3 of 41", plus what the done-preference is holding back. */
   filterCount: "filter-count",
   filterClear: "filter-clear",

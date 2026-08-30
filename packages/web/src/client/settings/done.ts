@@ -7,10 +7,12 @@
  *   - THE DEFAULT is the reader's claim — "I do not want to look at finished
  *     work" — kept with the other preferences as `olai.done.hidden`, THE KEY
  *     IT ALWAYS HAD (two bumps ago this file retired it for a show-list; the
- *     design revision put the global row back over it, and readers who set it
- *     then lose nothing now). It starts HIDDEN, and that ruling predates this
- *     arrangement: a page nobody has spoken about does not lead with what is
- *     over.
+ *     design revision put the global row back over it, and readers who set
+ *     it then lose nothing now). It starts HIDDEN — CHANGED from master's
+ *     visible (the 2026-08-29 ruling, and the one user visible move here
+ *     nobody upgrading asked for: a reader who never opened the row finds
+ *     finished work gone from every outline until they flip one place
+ *     either way).
  *   - THE OUT-VOTE is a page's claim — "house.olai is a story: show me how it
  *     ended; the board owes me nothing" — kept as a per-file OVERRIDE,
  *     `olai.done.overrides`. What is an OVERRIDE rather than a fact the panel
@@ -116,7 +118,10 @@ export const doneHiddenOn = (file: string): boolean =>
  * and the ask outlives where the default stands today.
  */
 export const setDoneFor = (file: string, word: DoneWord): void => {
-  const combined = new Map([...overrides.stored(), ...overrides.value()])
+  // stored() LAST: a key in both places is the SIBLING's fresher answer, and
+  // spreads do not delete, so this tab's never-written entries survive
+  // either way (the pick trace is in done.test.ts).
+  const combined = new Map([...overrides.value(), ...overrides.stored()])
   combined.set(file, word)
   overrides.set(combined)
 }
@@ -125,7 +130,7 @@ export const setDoneFor = (file: string, word: DoneWord): void => {
  *  discipline ranked after everything it was unioned with — the removal is
  *  this tab's own say-so, the way `fold/memory.ts`'s clear is. */
 export const letDoneFollow = (file: string): void => {
-  const combined = new Map([...overrides.stored(), ...overrides.value()])
+  const combined = new Map([...overrides.value(), ...overrides.stored()])
   combined.delete(file)
   overrides.set(combined)
 }

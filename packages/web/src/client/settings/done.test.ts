@@ -122,6 +122,30 @@ test("a write keeps the pick of a page this tab never saw", () => {
   })
 })
 
+test("on a contested key the STORED one wins — a sibling's fresh flip is never reverted by a stale copy", () => {
+  remembering((store) => {
+    // A started tab and a later sibling share house shown — the only case
+    // both maps ever hold one key.
+    setDoneFor("house.olai", "shown")
+    // The sibling flips the SAME door; this tab's `storage` event hasn't
+    // landed (the shipped event order lets a same-process write sit in
+    // `value()` for a beat after the entry already says otherwise).
+    store.set(DONE_OVERRIDES_KEY, '{"house.olai":"hidden"}')
+    expect(doneOverride("house.olai")).toBe("shown")
+    // Then THE SAME tab picks another page — the event loop the folds trade
+    // on: the fresh stored spelling rides over this tab's stale one in
+    // either direction, and the stale copy, which would have otherwise
+    // clambered back over a sibling's fresh write, never could.
+    setDoneFor("garden.olai", "hidden")
+    expect(doneOverride("house.olai")).toBe("hidden")
+    expect(store.get(DONE_OVERRIDES_KEY))
+      .toBe('{"garden.olai":"hidden","house.olai":"hidden"}')
+    // What the union CANNOT see remains the folds' window: a sibling's
+    // delete of a key this tab still holds would come back — the one-event-
+    // loop addition-dominating trade, named in done.ts's write half.
+  })
+})
+
 // ── which page a pick is about ─────────────────────────────────────────
 
 const derived = derive(
