@@ -331,8 +331,13 @@ Feature: Zoom and navigate
     And the node "basil" is not shown
     When I clear the filter
     Then the node "basil" is not shown
-    # ...and the reader's own two-word round trip: whatever the landing had
-    # said dies at the flip — the pick answers with its own words all over.
+    # ...and the reader's own two-word round trip: WITHOUT a fresh arrival
+    # here the flip half would pin nothing — the reveal is dead from the
+    # query already — so this lands once more, standing the courtesy back
+    # up before the flip, and what EVERY step below says now hangs from the
+    # landing's gates, never from the trip already past.
+    When I open the address "/garden.olai#basil"
+    Then the node "basil" is shown
     When I show the done nodes
     Then the node "basil" is shown
     When I hide the done nodes
