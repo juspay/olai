@@ -103,7 +103,6 @@ import {
 } from "@olai/surface"
 import { BusyFailure, UsageFailure } from "@olai/format"
 import { Effect, Fiber, Semaphore } from "effect"
-import { appendFileSync } from "node:fs"
 
 import * as AcpAgent from "./agent.ts"
 import type { Installed } from "./agents/roster.ts"
@@ -354,28 +353,6 @@ const EVIDENCE: { readonly [K in AgentEvent["_tag"]]: "shown" | "arrived" | "nei
   gone: "neither",
   trouble: "neither",
 }
-
-/**
- * DIAGNOSTIC, for the chat-interrupt flake lane only — REMOVED before the
- * final head. One ndjson line per mark, appended to the file the harness
- * named in `OLAI_TRACE_FILE` (only e2e servers get one; unset everywhere
- * else, which makes every call below a no-op). Synchronous so the mark
- * survives a crash in the same tick, and silent about a path it cannot
- * write: a broken harness path is not a product failure.
- */
-const traceFile = process.env["OLAI_TRACE_FILE"]
-const trace: (mark: string, fields?: Record<string, unknown>) => void = traceFile === undefined
-  ? () => {}
-  : (mark, fields = {}) => {
-    try {
-      appendFileSync(
-        traceFile,
-        JSON.stringify({ t: Date.now(), pid: process.pid, m: mark, ...fields }) + "\n",
-      )
-    } catch {
-      // See the header: not a product failure.
-    }
-  }
 
 /**
  * What a turn that produced nothing is told to a person.
@@ -658,19 +635,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     const move = (next: Partial<ChatState>) => {
       state = { ...state, ...next }
       options.onState(state)
-      // DIAGNOSTIC (removable): the two members the interrupt control is
-      // drawn out of, with the moment each moved.
-      if (next.status !== undefined) trace("move", { status: next.status })
-      if (next.talking !== undefined) {
-        const at = next.talking
-        trace("move", {
-          talking: at === null
-            ? null
-            : at.kind === "asking"
-            ? { kind: "asking" }
-            : { kind: "agent", id: at.id, steers: at.steers, queues: at.queues },
-        })
-      }
     }
 
     /**
@@ -722,14 +686,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       const evidence = EVIDENCE[event._tag]
       if (evidence !== "neither") heard++
       if (evidence === "shown") shown++
-      // DIAGNOSTIC (removable): the agent's frames, arrived — `advertised`
-      // above all, which is when the interrupt capability becomes known here.
-      trace("recv", {
-        tag: event._tag,
-        ...(event._tag === "advertised"
-          ? { steers: event.steers, queues: event.queues }
-          : {}),
-      })
       switch (event._tag) {
         case "said":
           publish(transcript.say(event.text))
@@ -1199,8 +1155,6 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
     ): Effect.Effect<void, OpFailure> =>
       Effect.gen(function*() {
         const said = text.trim()
-        // DIAGNOSTIC (removable): a send reached the server, and which gesture.
-        trace("send", { steer })
         // A picture on its own IS a message — "what is this" with a
         // screenshot under it is the usual way of asking — and so is a node on
         // its own, for the same reason and by the same rule: a box is only

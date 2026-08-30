@@ -51,7 +51,6 @@ import type {
   Route,
 } from "playwright";
 
-import type { TraceFrame } from "./interrupt_trace.ts";
 import type { TerminalAgent } from "./mcp.ts";
 import type { ScratchShare } from "./scratch.ts";
 import { attr } from "./selectors.ts";
@@ -1545,17 +1544,6 @@ export class OlaiWorld extends World {
    * too, and the questions worth counting are the ones a gesture caused.
    */
   socketAsks?: string[];
-
-  /** DIAGNOSTIC (interrupt-trace lane, removable): the wire's clock for a
-   *  tagged scenario — every ws frame mentioning chat, both ways, each with
-   *  the harness-side millisecond it crossed. See `./interrupt_trace.ts`. */
-  traceFrames?: TraceFrame[];
-
-  /** DIAGNOSTIC (interrupt-trace lane, removable): the SERVER's clock for a
-   *  tagged scenario — the ndjson file its chat-tracer appends to.
-   *  `undefined` for a corpus server, which is why the dump quotes it only
-   *  when set. */
-  traceFile?: string;
 
   /**
    * Whether anything the socket delivered carried this text — see {@link

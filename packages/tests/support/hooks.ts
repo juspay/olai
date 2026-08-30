@@ -56,16 +56,6 @@ import type { Browser } from "playwright";
 import { ALERTS, recordAlerts } from "./alerts.ts";
 import { BROWSER_ARGS } from "./browser.ts";
 import { type LivePadi, startPadi } from "@olai/kolu-client/testlib";
-import {
-  carriesChat,
-  noteFrame,
-  recordInterruptTrace,
-  TRACE_INTERRUPT,
-  TRACE_KEY,
-  TRACE_PANEL,
-  TRACE_TAG,
-  type TraceFrame,
-} from "./interrupt_trace.ts";
 import { ILLEGIBLE_PX, PAINTS, recordPaints, WAITING } from "./paints.ts";
 import {
   alreadyShared,
@@ -253,23 +243,6 @@ const ALERTS_DENIED_TAG = "@alerts-denied";
  */
 const PAINTS_TAG = "@markdown-paints";
 
-/** DIAGNOSTIC (interrupt-trace lane, removable): where ONE scenario's
- *  server writes its marks — under the same gitignored reports/ the failure
- *  screenshots land in, named the way those are (worker + the scenario's
- *  own slug). */
-const traceFileFor = (name: string): string => {
-  const slug =
-    name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "") || "scenario";
-  return path.join(
-    REPORTS,
-    "traces",
-    `${process.env.CUCUMBER_WORKER_ID ?? "0"}-${slug}.ndjson`,
-  );
-};
-
 /** `@agent-stored`: the fake agent answers `session/list` with two stored
  *  conversations, so the server's boot loads one of them and replays it. Unset,
  *  nothing is stored and boot opens a fresh session — the two boot paths, chosen
@@ -381,9 +354,6 @@ interface RunningServer {
    *  A box rather than a string so the restart assertion can watch the
    *  same buffer the boot wait already filled — no gap, no second listener. */
   readonly said: { text: string };
-  /** DIAGNOSTIC (removable): the chat-trace file this server was given,
-   *  if the scenario that spawned it asked for one (`Spawn.trace`). */
-  readonly trace?: string;
 }
 
 /** corpus → its server, from the moment the start BEGINS.
@@ -560,12 +530,6 @@ interface Spawn {
   /** The one caller that cannot take whatever port is free: a scenario
    *  restarting the server under an open page needs the SAME address. */
   readonly port?: number;
-  /** DIAGNOSTIC (interrupt-trace lane, removable): where this server's
-   *  chat-tracer ndjson goes (`$OLAI_TRACE_FILE`). Set only for scenarios
-   *  tagged `./interrupt_trace.ts`'s tag. NOT in `spawnFingerprint`: two
-   *  scenarios sharing a slot are the same server whether or not this one
-   *  asked for the trail. */
-  readonly trace?: string;
   readonly stored?: boolean;
   /** `false` starts the server with no agent at all. */
   readonly agent?: boolean;
@@ -620,17 +584,6 @@ const startServerChild = async (
   const fixedPort = spawnOptions.port;
   let lastFailure = "";
   const attempts = fixedPort === undefined ? MAX_SPAWN_ATTEMPTS : 1;
-  // DIAGNOSTIC (interrupt-trace lane, removable): the tracer's file is owed
-  // its directory BEFORE the child opens an append to it — the tracer itself
-  // is silent about a path it cannot write, by design, so the harness being
-  // loud here is what keeps "no marks" meaning "nothing happened". And the
-  // file starts EMPTY per boot: appends would otherwise mix this boot's marks
-  // with whatever an earlier run of the same scenario left behind (the name
-  // is per scenario, not per attempt), and a stale mark is worse than none.
-  if (spawnOptions.trace !== undefined) {
-    fs.mkdirSync(path.dirname(spawnOptions.trace), { recursive: true });
-    fs.writeFileSync(spawnOptions.trace, "");
-  }
 
   for (let attempt = 1; attempt <= attempts; attempt++) {
     if (stopped) throw new Error(shuttingDown(label));
@@ -663,11 +616,6 @@ const startServerChild = async (
       // with the servers.
       detached: true,
       env: isolateEnv(spawnOptions.stateRoot, {
-        // DIAGNOSTIC (removable): the chat-tracer's file, for a scenario
-        // that asked (`Spawn.trace`).
-        ...(spawnOptions.trace === undefined
-          ? {}
-          : { OLAI_TRACE_FILE: spawnOptions.trace }),
         // The EMPTY string is the explicit off switch, and it is what a person
         // turning chat off would set — so the no-agent scenario reaches that
         // state the same way rather than through a hole in the harness.
@@ -781,12 +729,7 @@ const startServerChild = async (
         throw new Error(shuttingDown(label));
       }
       spawned += 1;
-      return {
-        baseUrl: listening,
-        child,
-        said,
-        ...(spawnOptions.trace === undefined ? {} : { trace: spawnOptions.trace }),
-      };
+      return { baseUrl: listening, child, said };
     }
 
     killChild(child);
@@ -1217,10 +1160,6 @@ Before(
     this.browser = browser;
     const asked = requestOf(scenario.pickle.tags);
     this.corpus = asked.corpus;
-    // DIAGNOSTIC (interrupt-trace lane, removable with the tag): whether
-    // this scenario's interrupt waits get the three clocks — and the
-    // suite's other seven hundred scenarios pay nothing for them.
-    const traced = scenario.pickle.tags.some((tag) => tag.name === TRACE_TAG);
     this.storedSessions = scenario.pickle.tags.some(
       (tag) => tag.name === STORED_TAG,
     );
@@ -1340,18 +1279,12 @@ Before(
           : { avatar: this.avatarTemplate }),
         ...(this.gitMode === undefined ? {} : { git: this.gitMode }),
         ...(pinned ? { pin: this.gitPin } : {}),
-        // DIAGNOSTIC (interrupt-trace lane): the server's clock. One file
-        // per scenario attempt, under the same gitignored reports/ the
-        // failure screenshots land in — it outlives the scratch it traces,
-        // which is the point of reading it on the failure path.
-        ...(traced ? { trace: traceFileFor(scenario.pickle.name) } : {}),
       };
       const ownCopy = async (): Promise<void> => {
         const own = await scratchServerFor(asked.corpus, spawnOptions);
         this.baseUrl = own.baseUrl;
         this.served = own.root;
         this.ownServer = own.child;
-        this.traceFile = own.trace;
       };
       if (asked.mode === "share") {
         const featureKey = `${scenario.pickle.uri}::${asked.corpus}::${spawnFingerprint(spawnOptions)}`;
@@ -1367,7 +1300,6 @@ Before(
           this.served = slot.server.root;
           this.ownServer = slot.server.child;
           this.scratchShare = { key: featureKey };
-          this.traceFile = slot.server.trace;
         }
       } else {
         await ownCopy();
@@ -1407,19 +1339,6 @@ Before(
         key: PAINTS,
         illegiblePx: ILLEGIBLE_PX,
         waiting: WAITING,
-      });
-    }
-
-    // DIAGNOSTIC (interrupt-trace lane, removable with the tag): the PAGE's
-    // clock — the panel's status, the interrupt control's comings and goings,
-    // what the renderer did meanwhile. Installed where the alerts/paints
-    // recorders are, for their reason: before any document exists.
-    if (traced) {
-      await this.context.addInitScript(recordInterruptTrace, {
-        key: TRACE_KEY,
-        panel: TRACE_PANEL,
-        interrupt: TRACE_INTERRUPT,
-        gapMs: 150,
       });
     }
 
@@ -1480,26 +1399,6 @@ Before(
         });
         socket.on("framesent", (frame) => {
           asks.push(text(frame.payload));
-        });
-      });
-    }
-    // DIAGNOSTIC (interrupt-trace lane, removable with the tag): the WIRE's
-    // clock, on the harness's — the frames that mention chat, both ways,
-    // each with the millisecond it went through the browser process. A page
-    // that has stalled can stop its own recorder; it cannot stop this one.
-    if (traced) {
-      const witnessed: Array<TraceFrame> = [];
-      this.traceFrames = witnessed;
-      const text = (payload: string | Buffer): string =>
-        typeof payload === "string" ? payload : payload.toString("utf8");
-      this.page.on("websocket", (socket) => {
-        socket.on("framereceived", (frame) => {
-          const payload = text(frame.payload);
-          if (carriesChat(payload)) noteFrame(witnessed, "in", payload);
-        });
-        socket.on("framesent", (frame) => {
-          const payload = text(frame.payload);
-          if (carriesChat(payload)) noteFrame(witnessed, "out", payload);
         });
       });
     }

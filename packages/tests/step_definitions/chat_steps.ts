@@ -27,7 +27,6 @@ import {
 } from "@olai/web/testlib";
 
 import { retypedAndTaken } from "../support/atonce.ts";
-import { dumpInterruptTrace, noteInterruptWait } from "../support/interrupt_trace.ts";
 import { MARKER } from "../support/scripted.ts";
 import { keysSettled } from "../support/settling.ts";
 import { saysThat } from "../support/said.ts";
@@ -211,22 +210,7 @@ When("I ask the agent {string}", async function (this: OlaiWorld, text: string) 
  */
 When("I interrupt the agent with {string}", async function (this: OlaiWorld, text: string) {
   await typeInto(this, text);
-  // DIAGNOSTIC (interrupt-trace lane): the press is the sighting's exact
-  // wait — every pass leaves a one-line timing on the three clocks, and a
-  // failed or near-starved one leaves the whole trace.
-  // `../support/interrupt_trace.ts`.
-  const started = Date.now();
-  try {
-    await this.press(this.page.locator(CHAT_INTERRUPT));
-  } catch (cause) {
-    await dumpInterruptTrace(this, "the interrupt press never landed", Date.now() - started);
-    throw cause;
-  }
-  const ended = Date.now();
-  await noteInterruptWait(this, "press", started, ended);
-  if (ended - started > 2000) {
-    await dumpInterruptTrace(this, "the interrupt press nearly starved", ended - started);
-  }
+  await this.press(this.page.locator(CHAT_INTERRUPT));
 });
 
 /** The same gesture through the keyboard. Alt+Enter and not a second control:
@@ -256,22 +240,9 @@ Then("the composer offers no interruption", async function (this: OlaiWorld) {
 /** ... and that it DOES, which is what an agent advertising steering buys a
  *  person while a turn is running. */
 Then("the composer offers an interruption", async function (this: OlaiWorld) {
-  // DIAGNOSTIC (interrupt-trace lane): the same control's other wait, same
-  // treatment.
-  const started = Date.now();
-  try {
-    await this.page
-      .locator(CHAT_INTERRUPT)
-      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
-  } catch (cause) {
-    await dumpInterruptTrace(this, "the interruption offer never drew", Date.now() - started);
-    throw cause;
-  }
-  const ended = Date.now();
-  await noteInterruptWait(this, "offer", started, ended);
-  if (ended - started > 2000) {
-    await dumpInterruptTrace(this, "the interruption offer nearly starved", ended - started);
-  }
+  await this.page
+    .locator(CHAT_INTERRUPT)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
 });
 
 /** The window `../support/atonce.ts` opens, at this door. */

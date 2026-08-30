@@ -1040,7 +1040,7 @@ Feature: Talking to the agent
     And node "order" is done
     And the agent is idle
 
-  @scratch:chat @interrupt-trace
+  @scratch:chat
   Scenario: The interrupting gesture puts a message INTO the running turn
     # The other half, and the whole reason steering still exists: a person who
     # can see the agent is halfway through the wrong thing wants it to hear them
@@ -1067,7 +1067,7 @@ Feature: Talking to the agent
     When the agent is released
     Then the agent is idle
 
-  @scratch:chat @interrupt-trace
+  @scratch:chat
   Scenario: Once this conversation has queued, the interruption is withdrawn
     # A GUARD AROUND SOMEBODY ELSE'S DEFECT, and the one thing in this feature
     # that is not a rule of olai's own. The pinned adapter (0.66.0) leaves a
@@ -1113,7 +1113,7 @@ Feature: Talking to the agent
     When the agent is released
     Then the agent is idle
 
-  @scratch:chat @interrupt-trace
+  @scratch:chat
   Scenario: Alt+Enter is the same gesture as the button
     # A chord nobody can see is a feature only its author knows about; a button
     # that did something the keyboard could not is the same complaint from the
@@ -1242,7 +1242,7 @@ Feature: Talking to the agent
     # ... and nothing is marked undelivered: nothing failed to be delivered.
     And no message is marked undelivered
 
-  @scratch:chat @interrupt-trace
+  @scratch:chat
   Scenario: A message the agent REFUSED stays on screen, and can be sent again
     # The one way a send can still fail against a live agent: it was an
     # INTERRUPTION, and the agent that advertised one refuses it. The
@@ -1282,7 +1282,7 @@ Feature: Talking to the agent
     And my message "done order" is no longer waiting
     And the agent is idle
 
-  @scratch:chat @interrupt-trace
+  @scratch:chat
   Scenario: A message the agent never ANSWERED says so, and offers no retry
     # THE SECOND FACE, and the whole reason the two are told apart. `swallow
     # steering` takes the message and never answers: the agent is alive,
@@ -1370,7 +1370,7 @@ Feature: Talking to the agent
     And the agent is idle
     And the chat says nothing went wrong
 
-  @scratch:chat @interrupt-trace
+  @scratch:chat
   Scenario: Cancelling under a message in flight does not start the turn back up
     # Both buttons are on screen at once, which is what this feature sells — so
     # saying the next thing and then deciding the whole turn was wrong is a
