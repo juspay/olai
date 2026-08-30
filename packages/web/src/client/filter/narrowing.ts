@@ -44,9 +44,10 @@
  * (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/filter-rides-the-page.md).
  *
  * The ORDER of the two prunings is the decision worth naming: done-hidden goes
- * FIRST. It is a standing part of how this page reads — the page's own pick
- * (`../settings/done.ts`), not a question typed now; the filter is the
- * question. So the filter reads what the preference left, and `is:done` under
+ * FIRST. It is a standing part of how this page reads — the panel's
+ * default, or this page's own word against it (`../settings/done.ts`), not
+ * a question typed now; the filter is the question. So the filter reads
+ * what the preference left, and `is:done` under
  * a page that hides finished work draws nothing — which is said out loud
  * ({@link Counts.hiddenAsDone}) rather than special-cased away. Letting an
  * explicit `is:done` override the pick would make the pick mean two things

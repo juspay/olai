@@ -20,14 +20,6 @@
  * `aria-disabled` on each segment, and the reason a line below it
  * (`./Row.tsx`). Never HIDDEN: a policy a reader cannot see is one they cannot
  * ask anybody about.
- *
- * NOTHING IN FORCE is the third state, and it belongs to the same frozen case:
- * the Done row on a page the pick does not reach — a day, the agenda, the
- * trash, a document — has no value to draw, and pressing either segment there
- * would be
- * a claim about a reading that page does not make. Both segments announce
- * `aria-pressed="false"`, the hint below says why the strip is inert, and the
- * choice in force is simply absent.
  */
 
 import { For } from "solid-js"
@@ -42,9 +34,7 @@ export interface Choice<T extends string> {
 
 export function Segmented<T extends string>(props: {
   readonly choices: ReadonlyArray<Choice<T>>
-  /** The pick in force — or none, on a frozen strip over a page the choice
-   *  does not reach (the header's third state). */
-  readonly value: T | undefined
+  readonly value: T
   /** Absent on a frozen strip: there is nothing to pick. */
   readonly onPick?: (value: T) => void
   /** Read-only: the value is somebody else's to set. Default is a live strip. */

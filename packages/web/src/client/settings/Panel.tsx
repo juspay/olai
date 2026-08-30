@@ -33,12 +33,10 @@
  * the reader ("I read a tree as a list of titles") rather than about any one
  * outline, so a switch bolted to the outline page would be a per-page control
  * for a per-person fact — and would have to be drawn on the zoomed page and
- * the day page too. The DONE row is the one row that is a claim about a PAGE
- * rather than the reader — done-visibility follows the page's reading intent
- * (./done.ts), a roadmap hiding what a day board wants drawn — and it is on
- * the panel anyway, because a pick needs exactly one home: it is scoped to
- * the page in the focused pane for as long as the panel is open, and its hint
- * names that page. The two GIT rows are the same kind of claim
+ * the day page too. The DONE row here says the Default: a page with its own
+ * say-so draws its flip beside its filter (../filter/DoneFlip.tsx), and the
+ * row a reader comes to change the DEFAULT on is the one door that always
+ * holds still. The two GIT rows are the same kind of claim
  * — "I do not want to press Commit", "I want a commit I make here to be sent" —
  * so they are rows here rather than switches on the Commit panel. TWO rows and
  * not one strip of three, because they are two independent facts: pushing a
@@ -61,7 +59,7 @@
  * worse than two words for one. This is the surface; that is the mechanism.
  */
 
-import { createMemo, Show } from "solid-js"
+import { Show } from "solid-js"
 
 import { type Anchor, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
@@ -71,9 +69,7 @@ import { createGitPolicy } from "../commit/state.ts"
 import { askToNotify, notifyConsent } from "../notify.ts"
 import { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } from "./alerts.ts"
 import { density, type Density, setDensity } from "./density.ts"
-import { doneHiddenOn, pageFileOf, setDoneHidden } from "./done.ts"
-import { useReadings } from "../reading.tsx"
-import { useRouter } from "../router.tsx"
+import { doneHidden, setDoneHidden } from "./done.ts"
 import {
   commitOn,
   commitSetBy,
@@ -158,18 +154,6 @@ export function Panel(props: {
    *  back, so there is no signal here either. */
   const policy = createGitPolicy()
   const git = policy.git
-  const router = useRouter()
-  const readings = useReadings()
-  /**
-   * The outline the Done row is about: the page in the FOCUSED pane, when it
-   * is a page the pick reaches (./done.ts). The panel is one door over the
-   * whole window, so "which page" is the reader's own last answer — the pane
-   * they were in; with two panes side by side the hint names the file, which
-   * is what makes the scope visible rather than a rule to be remembered.
-   */
-  const donePage = createMemo(() =>
-    pageFileOf(readings.at(router.workspace().focus)?.shows)
-  )
   return (
     <section
       ref={props.inside}
@@ -215,20 +199,11 @@ export function Panel(props: {
         />
       </Row>
 
-      {/* THE ONE ROW THAT IS ABOUT A PAGE rather than about the reader. On a
-          page the pick does not reach — a day, the agenda, a document — the
-          strip is frozen with NOTHING pressed (./Segmented.tsx's third
-          state): there is no pick in force there, and drawing one would be a
-          claim about a reading that page does not make. */}
-      <Row label="Done" pref="done" hint={doneHint(donePage())}>
+      <Row label="Done" pref="done" hint={doneHint()}>
         <Segmented
           choices={DONE_CHOICES}
-          value={doneSegment(donePage())}
-          onPick={(value) => {
-            const file = donePage()
-            if (file !== undefined) setDoneHidden(file, value === "hidden")
-          }}
-          frozen={donePage() === undefined}
+          value={doneHidden() ? "hidden" : "visible"}
+          onPick={(value) => setDoneHidden(value === "hidden")}
         />
       </Row>
 
@@ -462,36 +437,14 @@ const soundHint = (): string => {
     : "The notification and the icon mark, without a sound."
 }
 
-/** Which segment the Done row presses for the page it is scoped to — neither
- *  when the page has no tree for the pick to read. */
-const doneSegment = (
-  file: string | undefined,
-): "hidden" | "visible" | undefined => {
-  if (file === undefined) return undefined
-  return doneHiddenOn(file) ? "hidden" : "visible"
-}
+/** What Done in force MEANS: the default, and the one way a page out-votes
+ *  it — the flip beside its filter, not another row here. */
+const doneHint = (): string =>
+  doneHidden()
+    ? "Finished work is hidden — a row not drawn, never a node marked or a " +
+      "file written. A page can say otherwise beside its own filter."
+    : "Finished work is shown, the page's flip beside its filter excepted."
 
-/**
- * What the Done pick in force MEANS, NAMING the page the row is scoped to —
- * with two panes side by side, the file in the sentence is what tells the
- * reader which of the two they are about to move. On a page the pick does
- * not reach, the sentence says instead why the strip is inert, for the
- * alert-sound row's own reason: a choice a reader cannot move is one they
- * still get told about.
- */
-const doneHint = (file: string | undefined): string => {
-  if (file === undefined) {
-    return "Finished work is shown or hidden per outline page, and this page " +
-      "has no tree for the pick to read: a day records what happened, the " +
-      "agenda lists what is owed, the trash holds what was put away, a " +
-      "document has no marks. Open an outline — or zoom into one — and the " +
-      "pick is that page's own."
-  }
-  const state = doneHiddenOn(file)
-    ? "hidden — a row not drawn, never a node marked or a file written."
-    : "shown."
-  return `Finished work on ${file} is ${state} Every outline keeps its own pick.`
-}
 
 /** What Auto-commit in force MEANS, and the three things a reader has to be
  *  told: WHEN it records, that a burst is ONE commit, and that it sweeps every

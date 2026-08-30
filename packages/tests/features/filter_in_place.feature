@@ -141,14 +141,14 @@ Feature: Filtering the outline in place
     And I filter the page by "hinges OR is:done"
     Then the node "hinges" is a match
     And the node "demo" is not shown
-    And the filter found "1 of 10 — 2 more matches hidden as done (Prefs)"
+    And the filter found "1 of 10 — 2 more matches hidden as done"
     # ...and with nothing drawn at all, the same three truths minus the word
     # `more`, which would be more than the nothing on screen. This is `is:done`
     # typed by somebody who hides finished work — the page that must never look
     # like an empty directory.
     When I filter the page by "is:done"
     Then the outline has 0 rows
-    And the filter found "no matches of 10 — 2 matches hidden as done (Prefs)"
+    And the filter found "no matches of 10 — 2 matches hidden as done"
 
   Scenario: The header's box refuses the same operator, in the same words
     # One grammar, four doors. The filter parses for itself; the header box,

@@ -379,7 +379,7 @@ export const refiled = (homes: Homes): void => {
 }
 
 /** Follow it for as long as this document lives — the same shape as
- *  `followDonePages` and `followLayout`, started once from `main.tsx`,
+ *  `followDonePrefs` and `followLayout`, started once from `main.tsx`,
  *  because a preference belongs to the browser and a browser is more than one
  *  tab. A fold made in another tab lands here without a reload. */
 export const followFolds = (): void => {

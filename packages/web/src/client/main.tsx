@@ -18,7 +18,7 @@ import { followKeys } from "./quiescence.ts"
 import { runAsync } from "./run.ts"
 import { followAlerts } from "./settings/alerts.ts"
 import { followDensity } from "./settings/density.ts"
-import { followDonePages } from "./settings/done.ts"
+import { followDonePrefs } from "./settings/done.ts"
 import { followStoredFont } from "./theme/fontState.ts"
 import { followStoredSize } from "./theme/sizeState.ts"
 import { followStoredTheme } from "./theme/state.ts"
@@ -83,7 +83,7 @@ followName({
 followLayout()
 followAlerts()
 followDensity()
-followDonePages()
+followDonePrefs()
 followFolds()
 followFolders()
 trackCamera()

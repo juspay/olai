@@ -91,113 +91,148 @@ Feature: One place to set how this browser reads
     When I press Shift+Tab
     Then the last control in the preferences has the focus
 
-  Scenario: A page hides its finished work until it is asked not to
-    # THE DEFAULT (ruled 2026-08-29): no stored pick, and the page behaves the
-    # way the reader-wide switch left it set to hidden — finished rows wait
-    # until somebody asks the page for them. `demo` is done; `order` is not.
+  Scenario: Every page hides until one is asked not to, and the ask is the page's own
+    # THE DEFAULT (ruled 2026-08-29), and ITS OVERRIDE: finished work waits
+    # until somebody says so — and the somebody is the PAGE, speaking beside
+    # its own filter (client/filter/DoneFlip.tsx). `demo` is done; `order` is
+    # not.
     Given I open the outline "house.olai"
     Then the node "demo" is not shown
     And the node "order" is shown
-    When I set Done to "visible"
-    Then the Done row explains that finished work is "shown"
-    And the Done row is about "house.olai"
+    When I show the done nodes
+    Then this page's Done flip says "shown"
+    And the Done flip is this page's own
     And this browser has stored that done nodes are "shown" on "house.olai"
     And the node "demo" is shown
 
-  Scenario: The hint is read off the choice in force
+  Scenario: The panel's row is still the door, for the default every page starts from
+    # The revision that put the flip on the page kept the row: what a page
+    # that never said its own thing answers to. And the page that follows the
+    # default marks nothing — "follow" is not a word it stores.
     Given I open the outline "house.olai"
     When I set Done to "visible"
     Then the Done row explains that finished work is "shown"
+    And this browser has stored done nodes "shown" by default
+    And the node "demo" is shown
+    And the Done flip is the panel's answer
+    And this browser has stored no Done word on "house.olai"
     When I set Done to "hidden"
     Then the Done row explains that finished work is "hidden"
+    And this browser has stored done nodes "hidden" by default
+
+  Scenario: A page can also out-vote a shown default
+    # The override word runs BOTH WAYS — shown-under-hidden is why the flip
+    # exists, but a map that can only hold one direction is a flag with heirs.
+    Given I open the outline "house.olai"
+    When I set Done to "visible"
+    And I press Escape on the preferences
+    Then the node "demo" is shown
+    When I hide the done nodes
+    Then the node "demo" is not shown
+    And this page's Done flip says "hidden"
+    And the Done flip is this page's own
     And this browser has stored that done nodes are "hidden" on "house.olai"
+    And this browser has stored done nodes "shown" by default
 
   Scenario: Each page keeps its own pick
     # THE FEATURE, in two files: `house.olai` shows its finished work because
     # it was asked to; `garden.olai` has never been asked and hides by
     # default. And going back finds the first pick still where it was made —
-    # the failure this fences is the old reader-wide switch, which would have
-    # moved the roadmap's reading when the board was flipped.
+    # the failure this fences is the reader-wide switch of old, which would
+    # have moved the roadmap's reading when the board was flipped.
     Given I open the outline "house.olai"
-    When I set Done to "visible"
-    And I press Escape on the preferences
+    When I show the done nodes
     And I open the outline "garden.olai"
     Then the node "basil" is not shown
-    And the Done row is about "garden.olai"
+    And the Done flip is the panel's answer
     When I open the outline "house.olai"
     Then the node "demo" is shown
     And this browser has stored that done nodes are "shown" on "house.olai"
-    And this browser has stored that done nodes are "hidden" on "garden.olai"
+    And this browser has stored no Done word on "garden.olai"
 
   Scenario: Two panes read their two picks at the same moment
-    # The one shape this design can break in, and the fence for both halves of
-    # it at once: pruning per FILE while two files are on the screen, and the
-    # row scoping to the FOCUSED pane. A sequential walk (the scenario above)
-    # passes even with one pick stored under two names; this cannot. And the
-    # same node answers differently by which page its row STANDS in: `basil`
-    # under house.olai's mirror is read with house.olai's pick.
+    # The one shape this design can break in, on one screen: pruning per FILE
+    # while two files are drawn, and the flip answering to the FOCUSED pane.
+    # A sequential walk (the scenario above) passes even with one pick stored
+    # under two names; this cannot. The opening shows rows that MUST be there
+    # (each pane has settled its tree) before it claims absences — a pane
+    # still landing would make the same claims vacuously.
     Given I open the address "/s/house.olai/garden.olai"
-    Then the node "demo" is not shown in pane 0
+    Then the node "kitchen" is shown in pane 0
+    And the node "mint" is shown in pane 1
+    And the node "demo" is not shown in pane 0
     And the node "basil" is not shown in pane 1
     When I focus pane 0
     And I show the done nodes
-    Then the Done row is about "house.olai"
+    Then this page's Done flip says "shown"
     And the node "demo" is shown in pane 0
+    # THE SAME NODE, TWO ANSWERS, ONE MOMENT: `basil` under house.olai's
+    # mirror is read with house.olai's pick — which page its row STANDS in is
+    # the whole clause.
     And the node "basil" is shown in pane 0
     And the node "basil" is not shown in pane 1
     When I focus pane 1
     And I show the done nodes
-    Then the Done row is about "garden.olai"
+    Then this page's Done flip says "shown"
     And the node "basil" is shown in pane 1
 
   Scenario: A zoom is the same page, and mints no second pick
     # `Hiding done nodes works on a zoomed page too` in zoom_and_navigate is
     # the tree filter on a page opened first; this one is where the pick
-    # comes FROM: the zoom reads the outline's, the row says so, and flipping
-    # it there writes the outline's entry and nothing else.
+    # comes FROM: the zoom reads the outline's word, the flip says so, and
+    # pressing it there writes the outline's entry and nothing else.
     Given I open the outline "house.olai"
-    When I set Done to "visible"
-    And I press Escape on the preferences
+    When I show the done nodes
     Then the node "demo" is shown
     When I zoom into the node "kitchen"
     Then the node "demo" is shown
-    And the Done row is about "house.olai"
-    When I set Done to "hidden"
+    And this page's Done flip says "shown"
+    When I hide the done nodes
     Then the node "demo" is not shown
     And this browser has stored that done nodes are "hidden" on "house.olai"
+
+  Scenario: A flip pressed the way it already stands hands the page back
+    # RELEASE: pressing the in-force side while the page holds the say-to is
+    # "follow the panel again" — the entry goes, and the default speaks.
+    Given I open the outline "house.olai"
+    When I show the done nodes
+    Then the Done flip is this page's own
+    When I show the done nodes
+    Then the Done flip is the panel's answer
+    And the node "demo" is not shown
+    And this browser has stored no Done word on "house.olai"
 
   Scenario: It is remembered, and it is this browser's
     # THE PIN FOR THE BOOT READ: the write is fenced by the stored-key steps
     # above; this one is that the first read after a reload honours the entry.
     Given I open the outline "house.olai"
-    When I set Done to "visible"
-    And I press Escape on the preferences
+    When I show the done nodes
     Then the node "demo" is shown
     When I reload the page
     Then this browser has stored that done nodes are "shown" on "house.olai"
-    And the Done row explains that finished work is "shown"
+    And this page's Done flip says "shown"
     And the node "demo" is shown
 
   Scenario: A preference set in another tab lands in this one
     # A preference belongs to the BROWSER, and a browser is more than one tab —
-    # which is what `followDonePages` is for, and what a reload scenario
+    # which is what `followDonePrefs` is for, and what a reload scenario
     # cannot ask: deleting that line entirely would pass every other Done
     # scenario here. The theme has had this fence since it was written; this is
-    # the same one for this row, through the same `storage` event — on the SAME
-    # page, because that is what the pick is about now.
+    # the same one for this pick, through the same `storage` event — on the
+    # SAME page, because that is what a page's word is about.
     Given I open the outline "house.olai"
     Then the node "demo" is not shown
-    When a second tab sets Done to "visible"
+    When a second tab shows the done on this page
     Then the node "demo" is shown
     And there should be no page errors
 
-  Scenario: On a page the pick does not reach, the row says so
+  Scenario: A page the pick does not reach offers no flip
     # A day is a record of what happened — finished work is the content there,
-    # never something to hide — so the strip is inert and presses neither
-    # segment: there is no pick in force on a page with no tree, and drawing
-    # one would be a claim about a reading the page does not make.
+    # never something to hide — so the question the flip answers is not one
+    # this page holds. "There is no pick in force" is drawn as NO CONTROL,
+    # not a frozen one: the filter bar keeps the rest of its say.
     Given I open the day "2026-08-03"
-    Then the Done row cannot be set
+    Then this page offers no Done flip
 
   # ── how much of a row is drawn ───────────────────────────────────────
 

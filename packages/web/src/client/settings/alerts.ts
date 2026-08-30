@@ -57,7 +57,7 @@ export const alertSoundOn: Accessor<boolean> = sound.value
 export const setAlertSoundOn = (value: boolean): void => sound.set(value)
 
 /** Follow both for as long as this document lives — the same shape as
- *  `followDonePages`, started once from `main.tsx`, because a preference
+ *  `followDonePrefs`, started once from `main.tsx`, because a preference
  *  belongs to the browser and a browser is more than one tab. */
 export const followAlerts = (): void => {
   alerts.follow()

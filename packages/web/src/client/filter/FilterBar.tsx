@@ -48,6 +48,7 @@
 import { Show } from "solid-js"
 
 import type { Asked } from "./asking.ts"
+import { DoneFlip } from "./DoneFlip.tsx"
 import { SaidLine } from "../SaidLine.tsx"
 import { listKey } from "../keys.ts"
 import { Refusals } from "../refusals.tsx"
@@ -73,6 +74,11 @@ export function FilterBar(props: {
    *  value carried through a module that does not read it is a field two files
    *  have to keep in step for nothing (`./asking.ts`). */
   readonly asked: Pick<Asked, "failure">
+  /** The file the done-preference's PAGE half answers for — this file's
+   *  outline's, or undefined on the pages with no tree for the pick to
+   *  read (settings/done.ts's pageFileOf): those get the bar without the
+   *  flip, because there the pick was never asked. */
+  readonly doneAt: string | undefined
   readonly onType: (text: string) => void
 }) {
   /** What the one line under the box says, or nothing — the three states a
@@ -140,6 +146,10 @@ export function FilterBar(props: {
             <span aria-hidden="true" class="text-base leading-none">×</span>
           </button>
         </Show>
+        {/* The page's own done-pick, when the page is one that has one
+            (settings/done.ts): "what about here?" is a filter-bar question,
+            not a settings one. */}
+        <Show when={props.doneAt}>{(file) => <DoneFlip file={file()} />}</Show>
       </div>
 
       {/* The three numbers, the word that says they are not about what is typed

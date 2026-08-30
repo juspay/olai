@@ -236,7 +236,15 @@ export function PageView() {
             on every click (https://github.com/juspay/oss.olai/blob/main/projects/olai/brainstorming/reactivity-after-the-flip.md
             §3.1's 1.4). */}
         <Show when={narrowable(route())}>
-          <FilterBar narrowing={narrowing} asked={asked} onType={narrow} />
+          {/* The flip gets this page's file, if the page is one the pick
+              reaches — the bar knows nothing of routes, so the file
+              question is asked here, once (../settings/done.ts). */}
+          <FilterBar
+            narrowing={narrowing}
+            asked={asked}
+            onType={narrow}
+            doneAt={pageFileOf(page())}
+          />
         </Show>
         {/* NOTHING YET, AND ONLY EVER ONCE PER PANE: navigation asks the server
             (the design's §5a ruling — round-tripping is acceptable and nothing

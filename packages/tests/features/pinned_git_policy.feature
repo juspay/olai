@@ -45,7 +45,7 @@ Feature: The git rows are the instance's policy, always read-only
     When I open the preferences
     And I set Done to "visible"
     Then the Done row explains that finished work is "shown"
-    And this browser has stored that done nodes are "shown" on "garden.olai"
+    And this browser has stored done nodes "shown" by default
     When I set Notes to "open"
     Then the Notes row explains that a row "already open"
     And there should be no page errors
