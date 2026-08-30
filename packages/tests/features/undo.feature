@@ -14,6 +14,9 @@ Feature: Undo
 
   Background:
     Given I open the outline "house.olai"
+    # These scenarios tick rows off and keep reading them, so finished work
+    # must stay drawn: the per-page default is hidden now (preferences.feature).
+    And I show the done nodes
     And I mark the page
 
   Scenario: Tab, and ⌘Z puts the row back where it was

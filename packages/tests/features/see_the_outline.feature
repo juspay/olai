@@ -8,6 +8,10 @@ Feature: See the outline
 
   Background:
     Given I open the outline "house.olai"
+    # These scenarios read the WHOLE tree — where a row sits, what its subtree
+    # derives, a mirror's children — so they ask the page to show its
+    # finished rows rather than leave the pick at its per-page default.
+    And I show the done nodes
 
   Scenario: The tree shows the outline's nodes
     Then the tree is shown

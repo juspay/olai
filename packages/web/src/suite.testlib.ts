@@ -81,7 +81,7 @@ export { NEAR } from "./client/chat/near.ts"
 
 export { ALERT_SOUND_KEY, ALERTS_KEY } from "./client/settings/alerts.ts"
 export { DENSITY_KEY, type Density } from "./client/settings/density.ts"
-export { DONE_HIDDEN_KEY } from "./client/settings/done.ts"
+export { DONE_HIDDEN_KEY, DONE_OVERRIDES_KEY } from "./client/settings/done.ts"
 export { SIDEBAR_WIDTH_KEY } from "./client/layout/prefs.ts"
 export { DEFAULT_THEME, THEME_ATTRIBUTE, THEME_STORAGE_KEY } from "./client/theme/palettes.ts"
 export { SIZE_STORAGE_KEY } from "./client/theme/sizes.ts"

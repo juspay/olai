@@ -16,6 +16,9 @@ Feature: Filtering the outline in place
     # `kitchen`: all three stay, everything else goes, and the count says how
     # many of the rows on screen are actually matches.
     Given I open the outline "house.olai"
+    # The page hides its finished rows by default now; the counts here are the
+    # WHOLE page's, so it is first asked to show them.
+    And I show the done nodes
     Then the outline has 10 rows
     When I filter the page by "hinges"
     Then the outline has 3 rows
@@ -85,6 +88,7 @@ Feature: Filtering the outline in place
     # An unfiltered page has ONE spelling — no `?q=`, no empty query — so one
     # page is one string in the bar.
     Given I open the outline "house.olai"
+    And I show the done nodes
     When I filter the page by "hinges"
     And I clear the filter
     Then the address is exactly "/house.olai"
@@ -116,9 +120,12 @@ Feature: Filtering the outline in place
     # clause about matches nothing is holding back (review of #248, both
     # reviewers). One element, one sentence, one comparison.
     Given I open the outline "house.olai"
+    # `demo` and `basil` are finished, and the tree is two rows shorter for it —
+    # the per-page default is hidden, so the walk starts where the pick ends up.
+    Then the outline has 8 rows
+    When I show the done nodes
     Then the outline has 10 rows
     When I hide the done nodes
-    # `demo` and `basil` are finished, and the tree is two rows shorter for it.
     Then the outline has 8 rows
     When I filter the page by "hinges"
     Then the filter found "1 of 10"
@@ -134,14 +141,14 @@ Feature: Filtering the outline in place
     And I filter the page by "hinges OR is:done"
     Then the node "hinges" is a match
     And the node "demo" is not shown
-    And the filter found "1 of 10 — 2 more matches hidden as done (Prefs)"
+    And the filter found "1 of 10 — 2 more matches hidden as done"
     # ...and with nothing drawn at all, the same three truths minus the word
     # `more`, which would be more than the nothing on screen. This is `is:done`
     # typed by somebody who hides finished work — the page that must never look
     # like an empty directory.
     When I filter the page by "is:done"
     Then the outline has 0 rows
-    And the filter found "no matches of 10 — 2 matches hidden as done (Prefs)"
+    And the filter found "no matches of 10 — 2 matches hidden as done"
 
   Scenario: The header's box refuses the same operator, in the same words
     # One grammar, four doors. The filter parses for itself; the header box,
@@ -224,6 +231,10 @@ Feature: Filtering the outline in place
     # session's answer is spent on the second, it goes away and comes back
     # (`@olai/web`'s `filter/asking.ts`, where the hold is a session).
     Given I open the outline "house.olai"
+    # Shown rather than left at the per-page default: this one is about the
+    # answer across a CLEAR, and a page that is hiding two rows counts eight
+    # where it is about to count them again.
+    And I show the done nodes
     When I filter the page by "hinges"
     Then the outline has 3 rows
     And the node "handles" is not shown

@@ -23,6 +23,9 @@ Feature: The fourth mark — "not happening" is a stored fact
 
   Background:
     Given I open the outline "house.olai"
+    # These scenarios tick rows off and keep reading them, so finished work
+    # must stay drawn: the per-page default is hidden now (preferences.feature).
+    And I show the done nodes
     And I mark the page
 
   # ── the mark itself ────────────────────────────────────────────────

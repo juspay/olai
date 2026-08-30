@@ -30,12 +30,12 @@ test("a query that found nothing still says how much there was to find it in", (
 // — with the reason, and with where to change it.
 test("matches held back are counted, named as matches, and blamed on the switch", () => {
   expect(countLine({ shown: 8, held: 57, hiddenAsDone: 17 }))
-    .toBe("8 of 57 — 17 more matches hidden as done (Prefs)")
+    .toBe("8 of 57 — 17 more matches hidden as done")
 })
 
 test("one held-back match is a match, not 1 matches", () => {
   expect(countLine({ shown: 8, held: 57, hiddenAsDone: 1 }))
-    .toBe("8 of 57 — 1 more match hidden as done (Prefs)")
+    .toBe("8 of 57 — 1 more match hidden as done")
 })
 
 // `is:done` typed by a reader who hides finished work: the query found things,
@@ -43,9 +43,9 @@ test("one held-back match is a match, not 1 matches", () => {
 // MORE matches" than the nothing on screen.
 test("nothing drawn and something hidden drops the word `more`", () => {
   expect(countLine({ shown: 0, held: 57, hiddenAsDone: 3 }))
-    .toBe("no matches of 57 — 3 matches hidden as done (Prefs)")
+    .toBe("no matches of 57 — 3 matches hidden as done")
   expect(countLine({ shown: 0, held: 57, hiddenAsDone: 1 }))
-    .toBe("no matches of 57 — 1 match hidden as done (Prefs)")
+    .toBe("no matches of 57 — 1 match hidden as done")
 })
 
 

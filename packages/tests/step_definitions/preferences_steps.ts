@@ -1,7 +1,9 @@
 /**
  * The preferences panel: the one door in the header, the rows behind it, and
  * the promise every one of them makes — that a pick is this browser's and
- * reaches no server.
+ * reaches no server. DONE is the one setting with two homes, and this file
+ * is both doors: the row says the panel's default; the flip beside a page's
+ * filter out-votes it for that page and remembers what it said.
  *
  * The KEYS a preference is stored under are imported from the client that owns
  * them, for the reason `theme_steps.ts` imports the theme's: renaming one is
@@ -22,6 +24,7 @@ import {
   DENSITY_KEY,
   type Density,
   DONE_HIDDEN_KEY,
+  DONE_OVERRIDES_KEY,
   SIZE_STORAGE_KEY,
   TESTID,
 } from "@olai/web/testlib";
@@ -42,6 +45,7 @@ import {
   PREFS_SET_BY,
   PREFS_TRIGGER,
   SIDEBAR_BODY,
+  SIDEBAR_SCRIM,
   SIDEBAR_TOGGLE,
   WORDMARK,
 } from "../support/world.ts";
@@ -263,15 +267,68 @@ const pickChoice = async (
 
 // ── the Done preference ────────────────────────────────────────────────
 
-/** Press one Done segment on a page. Hide/show, the Prefs step and the
- *  second-tab step are one circuit — the outline pill that used to be a second
- *  door is gone. */
+/** Press one Done segment of THE PANEL — the reader's default for every page
+ *  that has not said otherwise. */
 const pickDone = async (
   page: Page,
   value: "hidden" | "visible",
 ): Promise<void> => {
   await pickChoice(page, "done", value);
 };
+
+const DONE_FLIP = attr("data-testid", TESTID.doneFlip);
+const FOCUSED_PANE = attr("data-pane-focused", "true");
+
+/** One segment of the flip beside the FOCUSED pane's filter: this page's own
+ *  say. Its value-space is the override map's — `shown` / `hidden` — where
+ *  the panel's segments answer in the row's own `visible` / `hidden`
+ *  (client/settings/done.ts keeps the two vocabularies apart on purpose). */
+const flipDone = async (
+  page: Page,
+  word: "shown" | "hidden",
+): Promise<void> => {
+  const pick = page
+    .locator(`${FOCUSED_PANE} ${DONE_FLIP}`)
+    .locator(`${PREFS_CHOICE}${attr("data-value", word)}`);
+  await pick.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  await pick.click();
+  // Scored to THE SEGMENT PRESSED: either the press landed (the segment
+  // that was not in force now is) or the ask was a deliberate no-op (the
+  // in-force side already carries it — at pace the same selector, at no
+  // cost — a no-op IS the read a press makes of this strip now.
+  await page
+    .locator(
+      `${FOCUSED_PANE} ${DONE_FLIP} ${PREFS_CHOICE}${attr("data-value", word)}[aria-pressed="true"]`,
+    )
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+};
+
+Then(
+  "this page's Done flip says {string}",
+  async function (this: OlaiWorld, word: string) {
+    if (word !== "shown" && word !== "hidden") {
+      throw new Error(`Done is "shown" or "hidden", not "${word}"`);
+    }
+    await this.page
+      .locator(
+        `${FOCUSED_PANE} ${DONE_FLIP} ` +
+          `${PREFS_CHOICE}${attr("data-value", word)}[aria-pressed="true"]`,
+      )
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+  },
+);
+
+Then("the Done flip is this page's own", async function (this: OlaiWorld) {
+  await this.page
+    .locator(`${FOCUSED_PANE} ${DONE_FLIP}${attr("data-own", "true")}`)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
+
+Then("the Done flip is the panel's answer", async function (this: OlaiWorld) {
+  await this.page
+    .locator(`${FOCUSED_PANE} ${DONE_FLIP}:not(${attr("data-own", "true")})`)
+    .waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+});
 
 const asDone = (value: string): "hidden" | "visible" => {
   if (value !== "hidden" && value !== "visible") {
@@ -290,25 +347,47 @@ When(
 /** Intent sentences the tree features already speak. They go through Prefs
  *  and then put the panel away, because the next step is about the TREE and a
  *  portalled panel would sit on top of it. */
-const pickDoneAndLeave = async (
-  world: OlaiWorld,
-  value: "hidden" | "visible",
-): Promise<void> => {
-  await pickDone(world.page, value);
-  // The trigger, not Escape: hide/show is about the TREE, and a global
-  // Escape would cancel an editor or a menu the next step is about.
+/** The panel AND whatever stood behind it back off the page. The trigger,
+ *  not Escape: hide/show is about the TREE, and a global Escape would
+ *  cancel an editor or a menu the next step is about. On a phone the
+ *  trigger lives in the directory drawer, so that tap shut the panel with
+ *  the drawer still standing over the page — the scrim is its own way out.
+ */
+const prefsAway = async (world: OlaiWorld): Promise<void> => {
   await world.press(world.page.locator(PREFS_TRIGGER));
   await world.page
     .locator(PREFS_PANEL)
     .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  const scrim = world.page.locator(SIDEBAR_SCRIM);
+  if (await scrim.isVisible().catch(() => false)) {
+    // The burger rather than the scrim: the drawer is nearly the scrim's
+    // whole width on a phone, and the scrim click would have to thread the
+    // sliver beside it. The header is the one place the scrim deliberately
+    // does NOT cover (`#101`'s ruling, right above the scrim), so the
+    // toggle is the door that always works.
+    await world.press(world.page.locator(SIDEBAR_TOGGLE));
+    await world.page
+      .locator(SIDEBAR_BODY)
+      .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+  }
 };
 
 When("I hide the done nodes", async function (this: OlaiWorld) {
-  await pickDoneAndLeave(this, "hidden");
+  await flipDone(this.page, "hidden");
 });
 
 When("I show the done nodes", async function (this: OlaiWorld) {
-  await pickDoneAndLeave(this, "visible");
+  await flipDone(this.page, "shown");
+});
+
+/** The release door is the MARK — not a second press. The strip's gestures
+ *  are idempotent asks (press what you mean); only the `·` hands the pick
+ *  back to the panel, and that is deliberately a door one CLUTTER-free
+ *  second near a strip cannot miss (client/filter/DoneFlip.tsx). */
+When("I hand the page's Done pick back to the panel", async function (this: OlaiWorld) {
+  await this.page
+    .locator(`${FOCUSED_PANE} ${DONE_FLIP} ${attr("data-testid", TESTID.doneRelease)}`)
+    .click();
 });
 
 /**
@@ -317,23 +396,25 @@ When("I show the done nodes", async function (this: OlaiWorld) {
  * and the `storage` event this app listens for is fired in every document of it
  * except the one that wrote.
  *
- * Driven through the panel rather than through `setItem`, so what crosses is a
- * preference somebody actually set. Left open on purpose, exactly as the
- * theme's twin is (`theme_steps.ts`): a preference that only crossed once the
- * other tab was gone would pass a scenario that closed it.
+ * Opened on the SAME address as this page: the scenario is on the page the
+ * other tab is about to speak for. Driven through the flip rather than
+ * through `setItem`, so what crosses is a pick somebody actually made. Left
+ * open on purpose, exactly as the theme's twin is (`theme_steps.ts`): a
+ * preference that only crossed once the other tab was gone would pass a
+ * scenario that closed it.
  */
-When(
-  "a second tab sets Done to {string}",
-  async function (this: OlaiWorld, value: string) {
-    const other = await this.context.newPage();
-    await other.goto("/");
-    await pickDone(other, asDone(value));
-  },
-);
+When("a second tab shows the done on this page", async function (this: OlaiWorld) {
+  const other = await this.context.newPage();
+  await other.goto(this.page.url());
+  await flipDone(other, "shown");
+});
 
 Then(
   "the Done row explains that finished work is {string}",
   async function (this: OlaiWorld, expected: string) {
+    if (expected !== "hidden" && expected !== "shown") {
+      throw new Error(`the hint says "hidden" or "shown", not "${expected}"`);
+    }
     const hint = await hintOf(this, "done");
     assert.ok(
       hint.includes(`Finished work is ${expected}`),
@@ -343,17 +424,84 @@ Then(
   },
 );
 
+/**
+ * The OVERRIDE map's say for ONE outline — the entry the flip left. Absence
+ * is a stored fact too: a page that was never asked holds no entry, which
+ * the `no Done word` twin is the fence for.
+ */
 Then(
-  "this browser has stored that done nodes are {string}",
-  async function (this: OlaiWorld, state: string) {
-    const stored = await this.stored(DONE_HIDDEN_KEY);
+  "this browser has stored that done nodes are {string} on {string}",
+  async function (this: OlaiWorld, state: string, file: string) {
+    if (state !== "shown" && state !== "hidden") {
+      throw new Error(`done nodes are "shown" or "hidden", not "${state}"`);
+    }
+    const stored = await this.stored(DONE_OVERRIDES_KEY);
+    const words: unknown = stored === null ? {} : JSON.parse(stored);
+    assert.ok(
+      typeof words === "object" && words !== null && !Array.isArray(words),
+      `this browser keeps "${stored}" under ${DONE_OVERRIDES_KEY}, ` +
+        "which is not a map of words",
+    );
     assert.equal(
-      stored,
-      state === "hidden" ? "true" : "false",
-      `this browser keeps "${stored}" under ${DONE_HIDDEN_KEY}`,
+      (words as Record<string, string>)[file],
+      state,
+      `this browser keeps "${stored}" under ${DONE_OVERRIDES_KEY}, ` +
+        `which does not say done nodes are ${state} on ${file}`,
     );
   },
 );
+
+Then(
+  "this browser has stored no Done word on {string}",
+  async function (this: OlaiWorld, file: string) {
+    const stored = await this.stored(DONE_OVERRIDES_KEY);
+    const words =
+      stored === null
+        ? {}
+        : (JSON.parse(stored) as Record<string, string>);
+    assert.ok(
+      !(file in words),
+      `this browser keeps "${stored}" under ${DONE_OVERRIDES_KEY}, ` +
+        `which says something about ${file} nobody asked it to`,
+    );
+  },
+);
+
+/** The default's own fact under ITS own key — an absent entry means what
+ *  `boolCodec(true)` means, so "stored" here includes the browser that has
+ *  never written it. */
+Then(
+  "this browser has stored done nodes {string} by default",
+  async function (this: OlaiWorld, state: string) {
+    if (state !== "shown" && state !== "hidden") {
+      throw new Error(`done nodes are "shown" or "hidden", not "${state}"`);
+    }
+    const stored = await this.stored(DONE_HIDDEN_KEY);
+    const hidden: unknown = stored === null ? true : JSON.parse(stored);
+    assert.equal(
+      hidden,
+      state === "hidden",
+      `this browser keeps "${stored}" under ${DONE_HIDDEN_KEY}, ` +
+        `which does not mean done nodes are ${state} by default`,
+    );
+  },
+);
+
+/** On a page the pick does not reach — a day, the agenda, the trash, a
+ *  document — there is no flip to press: the question it answers was never
+ *  there (client/filter/DoneFlip.tsx's reaching argument). */
+Then("this page offers no Done flip", async function (this: OlaiWorld) {
+  const flips = this.page.locator(`${FOCUSED_PANE} ${DONE_FLIP}`);
+  await flips
+    .first()
+    .waitFor({ state: "detached", timeout: POLL_TIMEOUT })
+    .catch(() => undefined);
+  assert.equal(
+    await flips.count(),
+    0,
+    "this page keeps a Done flip, and this step says it should offer none",
+  );
+});
 
 // ── the two Alert preferences ──────────────────────────────────────────
 //
@@ -462,10 +610,7 @@ When(
   "I read the outline with Notes on {string}",
   async function (this: OlaiWorld, value: string) {
     await pickChoice(this.page, "density", asDensity(value));
-    await this.press(this.page.locator(PREFS_TRIGGER));
-    await this.page
-      .locator(PREFS_PANEL)
-      .waitFor({ state: "hidden", timeout: POLL_TIMEOUT });
+    await prefsAway(this);
   },
 );
 

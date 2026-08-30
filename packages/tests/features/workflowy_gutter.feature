@@ -16,6 +16,10 @@ Feature: Workflowy gutter
 
   Background:
     Given I open the outline "house.olai"
+    # The fold's receipt COUNTS drawn rows, and each page hides its finished
+    # ones by default now: showing them is what gives the folds something
+    # finished to hold back.
+    And I show the done nodes
 
   Scenario: The mark and the way into the node are one cell
     # `order` carries `doing`, so its glyph is the half-filled box — and that
@@ -120,6 +124,7 @@ Feature: Workflowy gutter
     # `compost` is two done children and nothing else: its rollup reads 2/2 and
     # the fold would report the same two.
     Given I open the outline "garden.olai"
+    And I show the done nodes
     And the node "compost" is expanded
     When I collapse the node "compost"
     Then the node "compost" is collapsed
@@ -134,6 +139,7 @@ Feature: Workflowy gutter
     # blind to exactly this, and the count is the only thing left saying that a
     # branch reading 0/1 is not empty of finished work.
     Given I open the outline "garden.olai"
+    And I show the done nodes
     And the node "garden" is expanded
     When I collapse the node "garden"
     Then the node "garden" is collapsed

@@ -16,6 +16,9 @@ Feature: Splitting and merging a row
 
   Background:
     Given I open the outline "house.olai"
+    # The exact-outline assertions count `demo` — finished — among the rows,
+    # so the page is asked to keep its finished rows drawn.
+    And I show the done nodes
     And I mark the page
 
   Scenario: Enter in the middle of a line cuts it in two
@@ -100,6 +103,9 @@ Feature: Splitting and merging a row
     # Nothing may be orphaned by a keystroke — and archiving them with their
     # parent would take a branch away that nobody asked about.
     Given I open the outline "garden.olai"
+    # `glazing` and `sowing` arrive under `herbs` still wearing their done
+    # marks, and the assertions count them — so this page is asked too.
+    And I show the done nodes
     When I click the title of "frames"
     And I put the caret at the start of the line
     And I press "Backspace"
@@ -154,6 +160,7 @@ Feature: Splitting and merging a row
     # of the trash, back into its place, its children back under it, and the
     # survivor's title put back guarded by what the merge made it.
     Given I open the outline "garden.olai"
+    And I show the done nodes
     When I click the title of "frames"
     And I put the caret at the start of the line
     And I press "Backspace"

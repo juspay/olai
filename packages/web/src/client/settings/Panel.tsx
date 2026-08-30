@@ -21,19 +21,22 @@
  *
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
- * theme, the typeface, how much of a row is drawn by default, what this
- * browser does with finished work, whether the agent stopping on a question is
- * announced and whether that makes a sound, and the two git rows — whether
- * what is waiting records itself, and whether a commit from here is pushed.
- * The two ALERT rows meet the test the same way Done does: "tell me when the
- * agent needs me" is a claim about the reader, and the surface it is about is
- * a drawer that is SHUT in exactly the case the setting is for — so a switch
- * on the panel would be a control you can only reach when you do not need it.
- * The DENSITY belongs here for exactly the reason the done preference does: it
- * is a claim about the reader ("I read a tree as a list of titles") rather than
- * about any one outline, so a switch bolted to the outline page would be a
- * per-page control for a per-person fact — and would have to be drawn on the
- * zoomed page and the day page too. The two GIT rows are the same kind of claim
+ * theme, the typeface, how much of a row is drawn by default, what the page in
+ * front of you does with finished work, whether the agent stopping on a
+ * question is announced and whether that makes a sound, and the two git rows —
+ * whether what is waiting records itself, and whether a commit from here is
+ * pushed. The two ALERT rows meet the test the same way the reader's rows do:
+ * "tell me when the agent needs me" is a claim about the reader, and the
+ * surface it is about is a drawer that is SHUT in exactly the case the setting
+ * is for — so a switch on the panel would be a control you can only reach when
+ * you do not need it. The DENSITY belongs here because it is a claim about
+ * the reader ("I read a tree as a list of titles") rather than about any one
+ * outline, so a switch bolted to the outline page would be a per-page control
+ * for a per-person fact — and would have to be drawn on the zoomed page and
+ * the day page too. The DONE row here says the Default: a page with its own
+ * say-so draws its flip beside its filter (../filter/DoneFlip.tsx), and the
+ * row a reader comes to change the DEFAULT on is the one door that always
+ * holds still. The two GIT rows are the same kind of claim
  * — "I do not want to press Commit", "I want a commit I make here to be sent" —
  * so they are rows here rather than switches on the Commit panel. TWO rows and
  * not one strip of three, because they are two independent facts: pushing a
@@ -86,8 +89,9 @@ import { SIZES, type SizeName, sizeNamed } from "../theme/sizes.ts"
 import { ThemeChips } from "../theme/Chips.tsx"
 import { currentTheme } from "../theme/state.ts"
 
-/** Done: Visible / Hidden — the two words the retired outline pill said, kept
- *  because they are the same setting in the one home it now has. */
+/** Done: Visible / Hidden — the words the setting has always said, from the
+ *  outline pill through the reader-wide row to this one. What changed with
+ *  scoping is where the words point: at the page the hint names. */
 const DONE_CHOICES = [
   { value: "visible", label: "Visible" },
   { value: "hidden", label: "Hidden" },
@@ -203,10 +207,11 @@ export function Panel(props: {
         />
       </Row>
 
-      {/* THE AGENT'S TWO ROWS, and they are here for the same test as Done:
-          "tell me when the agent stops on me" is a claim about the reader, and
-          the panel it is about has nowhere to hang a switch — it is a drawer
-          that is shut in exactly the case this setting is for. Two rows and
+      {/* THE AGENT'S TWO ROWS, and they are here for the same test the
+          reader's rows meet: "tell me when the agent stops on me" is a claim
+          about the reader, and the panel it is about has nowhere to hang a
+          switch — it is a drawer that is shut in exactly the case this
+          setting is for. Two rows and
           not one strip of three, because they are two independent facts:
           being told and being told AUDIBLY, and folding them together would
           make turning the chime off cost the banner too. Sound is drawn under
@@ -432,11 +437,14 @@ const soundHint = (): string => {
     : "The notification and the icon mark, without a sound."
 }
 
+/** What Done in force MEANS: the default, and the one way a page out-votes
+ *  it — the flip beside its filter, not another row here. */
 const doneHint = (): string =>
   doneHidden()
     ? "Finished work is hidden — a row not drawn, never a node marked or a " +
-      "file written."
-    : "Finished work is shown."
+      "file written. A page can say otherwise beside its own filter."
+    : "Finished work is shown, the page's flip beside its filter excepted."
+
 
 /** What Auto-commit in force MEANS, and the three things a reader has to be
  *  told: WHEN it records, that a burst is ONE commit, and that it sweeps every
