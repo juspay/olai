@@ -110,7 +110,7 @@
 
 import { Result } from "effect"
 
-import type { CustomValue } from "./custom.ts"
+import { type CustomValue, customOrder } from "./custom.ts"
 import type { Derived } from "./derive.ts"
 import { resolveRelative } from "./documents.ts"
 import {
@@ -118,6 +118,7 @@ import {
   type Located,
   type LocatedRegular,
   propertiesIn,
+  type RegularNode,
   shadowFor,
 } from "./node.ts"
 import { didYouMean, didYouMeanDeclared } from "./suggest.ts"
@@ -1187,4 +1188,86 @@ export const wrongDeclaration = (
       `\`${written}\` is a \`${said}\` — which names no path to resolve.`
   }
   return undefined
+}
+
+// ── a declaration over values the set already holds ────────────────────
+
+/**
+ * WHAT THIS PROPERTIES ROOT WOULD DECLARE — the key and the type, or
+ * `undefined` for a record {@link wrongDeclaration} would already refuse.
+ *
+ * Shared by the write planner so a `type` of `doc` on a new row and a
+ * `set_prop` of `type` on an existing one ask the same question about the
+ * values the vault already holds ({@link unfitHeld}). The reading
+ * ({@link typeIn}) is the same one the validator uses, so a declaration this
+ * accepts and the rule reports cannot happen, and neither can the inverse.
+ */
+export const declaringOf = (
+  derived: Derived,
+  node: RegularNode,
+): { readonly key: string; readonly declared: Declared } | undefined => {
+  if (node.parent !== undefined) return undefined
+  const key = keyOf(node.title)
+  if (key === undefined) return undefined
+  const type = typeIn(derived, { file: "", line: 0, node })
+  if (type === undefined) return undefined
+  return { key, declared: { type, at: node.id } }
+}
+
+/**
+ * ONE EXISTING VALUE that would not fit a key, once that key is declared.
+ *
+ * `file`, the node's title and id, and the value as a reader was shown —
+ * the three the declaration door names, and the sentence {@link wrongValue}
+ * would say about the same value if `set_prop` had tried to write it.
+ */
+export interface UnfitHeld {
+  readonly file: string
+  readonly id: string
+  readonly title: string
+  readonly value: string
+  readonly wrong: string
+}
+
+/**
+ * EVERY VALUE THE SET ALREADY HOLDS under this key that would not fit what
+ * `typed` now declares it as — the walk the declaration door asks, through
+ * the same {@link wrongValue} `set_prop` and the validator already share.
+ *
+ * A MIRROR CARRIES NO PROPERTIES, so a placement is stepped over exactly as
+ * {@link reportPropValues} steps over one. The trash is NOT skipped: a
+ * trashed record is still in the set, and a declaration that ignored it
+ * would take the next load into last-good over a value nobody can see from
+ * the live tree. A list is one offender, shown the way the chip is seeded
+ * (members joined).
+ *
+ * THE KEY IS FOLDED, because a record that wrote `Brainstorm` is asking
+ * about the key a vault is declaring as `brainstorm` — {@link keyOf}'s
+ * own reconciliation, asked here of the map's keys rather than of a
+ * title.
+ */
+export const unfitHeld = (typed: Typed, key: string): ReadonlyArray<UnfitHeld> => {
+  if (declaredFor(typed.declarations, key) === undefined) return []
+  const folded = key.trim().toLowerCase()
+  const found: Array<UnfitHeld> = []
+  for (const located of typed.derived.nodes) {
+    if (!isRegular(located)) continue
+    const custom = located.node.custom
+    if (custom === undefined) continue
+    for (const held of customOrder(custom)) {
+      if (held.trim().toLowerCase() !== folded) continue
+      const value = custom[held]
+      if (value === undefined) continue
+      const wrong = wrongValue(typed, located.file, key, value)
+      if (wrong === undefined) continue
+      found.push({
+        file: located.file,
+        id: located.node.id,
+        title: located.node.title,
+        value: typeof value === "string" ? value : value.join(", "),
+        wrong,
+      })
+    }
+  }
+  return found
 }

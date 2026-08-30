@@ -1180,3 +1180,175 @@ test("a bad type in a Properties declaration is refused naming the legal vocabul
         expect(missing.message).not.toContain("would leave")
       }),
   ))
+
+/**
+ * THE INCIDENT, replayed: declaring a key over unfit values used to land
+ * (`admits` ignored `bad-prop` findings on other files) and took the vault
+ * into last-good. The declaration now refuses at the planner, naming the
+ * offenders; one `apply` cleans them; the declaration then accepts.
+ */
+describe("a declaration over unfit values", () => {
+  const LANES = [
+    `{"id":"a","ord":"a0","title":"first","custom":{"brainstorm":"not a path"}}`,
+    `{"id":"b","ord":"a1","title":"second","custom":{"brainstorm":"also prose"}}`,
+    `{"id":"c","ord":"a2","title":"third","custom":{"brainstorm":"still not"}}`,
+    "",
+  ].join("\n")
+
+  const FILES = {
+    "_olai/Properties.olai":
+      `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}\n`,
+    "lanes.olai": LANES,
+    "briefs/one.md": "one\n",
+    "briefs/two.md": "two\n",
+    "briefs/three.md": "three\n",
+  }
+
+  test("add_node of the declaration refuses, naming file + node + value", () =>
+    withOps(FILES, (fixture) =>
+      Effect.gen(function*() {
+        const failure = yield* Effect.orDie(
+          Effect.flip(
+            fixture.ops.run({
+              op: "add",
+              file: "_olai/Properties.olai",
+              title: "brainstorm",
+              props: { type: "doc" },
+            }, "mcp"),
+          ),
+        )
+        expect(failure._tag).toBe("UsageFailure")
+        expect(failure.message).toContain("`brainstorm` cannot be declared `doc`")
+        expect(failure.message).toContain("`lanes.olai` `first` (`a`) holds \"not a path\"")
+        expect(failure.message).toContain("`lanes.olai` `second` (`b`) holds \"also prose\"")
+        expect(failure.message).toContain("`lanes.olai` `third` (`c`) holds \"still not\"")
+        expect(fixture.read("_olai/Properties.olai")).not.toContain("brainstorm")
+      })))
+
+  test("one apply cleans every value, then the declaration is accepted", () =>
+    withOps(FILES, (fixture) =>
+      Effect.gen(function*() {
+        yield* run(fixture, {
+          op: "apply",
+          ops: [
+            { op: "prop", id: "a", key: "brainstorm", value: "briefs/one.md" },
+            { op: "prop", id: "b", key: "brainstorm", value: "briefs/two.md" },
+            { op: "prop", id: "c", key: "brainstorm", value: "briefs/three.md" },
+          ],
+        })
+        yield* run(fixture, {
+          op: "add",
+          file: "_olai/Properties.olai",
+          title: "brainstorm",
+          props: { type: "doc" },
+        })
+        expect(fixture.read("_olai/Properties.olai")).toContain(`"title":"brainstorm"`)
+        expect(yield* SubscriptionRef.get(fixture.store.errors)).toBeNull()
+        const set = yield* fixture.set()
+        expect(set.broken).toEqual([])
+      })))
+
+  /**
+   * Declare-blocked cleanup of the last-good trap: a hand-edited declaration
+   * is already on disk, the snapshot is frozen, and a single `set_prop` of
+   * one of several bad values in one file is refused (the file still has
+   * the others). One `apply` that fixes them all lands.
+   */
+  test("a hand-edited declaration: one apply repairs the file, a single write does not", () =>
+    withOps(FILES, (fixture) =>
+      Effect.gen(function*() {
+        fixture.write(
+          "_olai/Properties.olai",
+          `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}\n` +
+            `{"id":"prop-brief","ord":"a1","title":"brainstorm","custom":{"type":"doc"}}\n`,
+        )
+        yield* Effect.orDie(fixture.store.refresh("cheap"))
+        const errors = yield* SubscriptionRef.get(fixture.store.errors)
+        expect(errors?.findings.map((one) => one.code)).toEqual([
+          "bad-prop",
+          "bad-prop",
+          "bad-prop",
+        ])
+
+        const one = yield* Effect.orDie(
+          Effect.flip(
+            fixture.ops.run({
+              op: "prop",
+              id: "a",
+              key: "brainstorm",
+              value: "briefs/one.md",
+            }, "mcp"),
+          ),
+        )
+        expect(one._tag).toBe("ValidationFailure")
+        expect(one.message).toContain("lanes.olai")
+
+        yield* run(fixture, {
+          op: "apply",
+          ops: [
+            { op: "prop", id: "a", key: "brainstorm", value: "briefs/one.md" },
+            { op: "prop", id: "b", key: "brainstorm", value: "briefs/two.md" },
+            { op: "prop", id: "c", key: "brainstorm", value: "briefs/three.md" },
+          ],
+        })
+        expect(yield* SubscriptionRef.get(fixture.store.errors)).toBeNull()
+        expect(fixture.read("lanes.olai")).toContain("briefs/one.md")
+        expect(fixture.read("lanes.olai")).toContain("briefs/two.md")
+        expect(fixture.read("lanes.olai")).toContain("briefs/three.md")
+      })))
+
+  test("apply can reach a value on a trashed node", () =>
+    withOps(
+      {
+        "house.olai": `{"id":"live","ord":"a0","title":"still here"}\n`,
+        "_olai/Trash.olai":
+          `{"id":"filed","ord":"a0","title":"put away","custom":{"brainstorm":"old prose"}}\n`,
+      },
+      (fixture) =>
+        Effect.gen(function*() {
+          yield* run(fixture, {
+            op: "apply",
+            ops: [{ op: "prop", id: "filed", key: "brainstorm", value: "new prose" }],
+          })
+          expect(fixture.read("_olai/Trash.olai")).toContain("new prose")
+          expect(fixture.read("_olai/Trash.olai")).not.toContain("old prose")
+        }),
+    ))
+})
+
+/**
+ * A write-door the load would refuse: moving a `ref` VARIANT into a file
+ * that does not hold the values pointing at it. The planner builds it; the
+ * gate used to admit it (`admits` saw findings only on the unwritten file).
+ * From a loading directory that write is this write's, and is refused.
+ */
+test("moving a ref variant into a third file is refused, and nothing lands", () =>
+  withOps(
+    {
+      "_olai/Properties.olai":
+        `{"id":"prop-agent","ord":"a0","title":"agent","custom":{"type":"ref","under":"roster"}}\n`,
+      "agents.olai": [
+        `{"id":"roster","ord":"a0","title":"the agents"}`,
+        `{"id":"claude","parent":"roster","ord":"a0","title":"Claude"}`,
+        "",
+      ].join("\n"),
+      "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent":"claude"}}\n`,
+      "garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}\n`,
+    },
+    (fixture) =>
+      Effect.gen(function*() {
+        const agents = fixture.read("agents.olai")
+        const lanes = fixture.read("lanes.olai")
+        const garden = fixture.read("garden.olai")
+        const failure = yield* Effect.orDie(
+          Effect.flip(
+            fixture.ops.run({ op: "move", id: "claude", parent: "garden" }, "mcp"),
+          ),
+        )
+        expect(failure._tag).toBe("ValidationFailure")
+        expect(failure.message).toContain("lanes.olai")
+        expect(fixture.read("agents.olai")).toBe(agents)
+        expect(fixture.read("lanes.olai")).toBe(lanes)
+        expect(fixture.read("garden.olai")).toBe(garden)
+      }),
+  ))

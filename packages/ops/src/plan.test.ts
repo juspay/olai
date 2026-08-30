@@ -5511,6 +5511,169 @@ describe("typed properties", () => {
     expect(record(fileOf(plan, "_olai/Properties.olai"), "n1").custom).toEqual({ type: "ref" })
   })
 
+  test("a type declaration refuses while existing values do not fit, naming the offenders", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+      "lanes.olai": [
+        `{"id":"a","ord":"a0","title":"first","custom":{"brainstorm":"not a path"}}`,
+        `{"id":"b","ord":"a1","title":"second","custom":{"brainstorm":"also prose"}}`,
+        `{"id":"c","ord":"a2","title":"third","custom":{"brainstorm":"still not"}}`,
+      ].join("\n"),
+    }, ["briefs/one.md", "briefs/two.md", "briefs/three.md"])
+    const failure = refused(held, {
+      op: "add",
+      file: "_olai/Properties.olai",
+      title: "brainstorm",
+      props: { type: "doc" },
+    })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("`brainstorm` cannot be declared `doc`")
+    expect(failure.message).toContain("3 existing values do not fit")
+    expect(failure.message).toContain("`lanes.olai` `first` (`a`) holds \"not a path\"")
+    expect(failure.message).toContain("`lanes.olai` `second` (`b`) holds \"also prose\"")
+    expect(failure.message).toContain("`lanes.olai` `third` (`c`) holds \"still not\"")
+    expect(failure.message).toContain("one `apply` can write them all")
+    expect(failure.message).toContain("Nothing was written")
+  })
+
+  test("...and passes once those values fit", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+      "lanes.olai": [
+        `{"id":"a","ord":"a0","title":"first","custom":{"brainstorm":"briefs/one.md"}}`,
+        `{"id":"b","ord":"a1","title":"second","custom":{"brainstorm":"briefs/two.md"}}`,
+        `{"id":"c","ord":"a2","title":"third","custom":{"brainstorm":"briefs/three.md"}}`,
+      ].join("\n"),
+    }, ["briefs/one.md", "briefs/two.md", "briefs/three.md"])
+    const plan = planned(held, {
+      op: "add",
+      file: "_olai/Properties.olai",
+      title: "brainstorm",
+      props: { type: "doc" },
+    })
+    expect(record(fileOf(plan, "_olai/Properties.olai"), "n1").custom).toEqual({ type: "doc" })
+    expect(Result.isSuccess(validate(after(held, {
+      op: "add",
+      file: "_olai/Properties.olai",
+      title: "brainstorm",
+      props: { type: "doc" },
+    })))).toBe(true)
+  })
+
+  test("set_prop of type on a declaration is the same existing-values fence", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+      "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"193"}}`,
+    }, ["briefs/one.md"])
+    const failure = refused(held, { op: "prop", id: "prop-pr", key: "type", value: "doc" })
+    expect(failure.message).toContain("`pr` cannot be declared `doc`")
+    expect(failure.message).toContain("`lanes.olai` `a lane` (`lane`) holds \"193\"")
+  })
+
+  test("renaming a declaration onto a key that has unfit values is the same fence", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"doc"}}`,
+      "lanes.olai":
+        `{"id":"lane","ord":"a0","title":"a lane","custom":{"brainstorm":"not a path"}}`,
+    }, ["briefs/one.md"])
+    const failure = refused(held, { op: "title", id: "prop-pr", title: "brainstorm" })
+    expect(failure.message).toContain("`brainstorm` cannot be declared `doc`")
+    expect(failure.message).toContain("`lanes.olai` `a lane` (`lane`) holds \"not a path\"")
+  })
+
+  test("a new ref may land over values that name variants minted in the same capture", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+      "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"merge":"auto"}}`,
+    })
+    const plan = planned(held, {
+      op: "add",
+      file: "_olai/Properties.olai",
+      title: "merge",
+      props: { type: "ref" },
+      children: [
+        { id: "auto", title: "automatic" },
+        { id: "human", title: "the human merges" },
+      ],
+    })
+    expect(record(fileOf(plan, "_olai/Properties.olai"), "n1").custom).toEqual({ type: "ref" })
+  })
+
+  test("create_outline of Properties.olai is the same fence over the rest of the set", () => {
+    const held = setOf({
+      "lanes.olai":
+        `{"id":"lane","ord":"a0","title":"a lane","custom":{"brainstorm":"not a path"}}`,
+    }, ["briefs/one.md"])
+    const failure = refused(held, {
+      op: "create",
+      file: "_olai/Properties.olai",
+      seed: { title: "brainstorm", props: { type: "doc" } },
+    })
+    expect(failure.message).toContain("`brainstorm` cannot be declared `doc`")
+    expect(failure.message).toContain("`lanes.olai` `a lane` (`lane`) holds \"not a path\"")
+  })
+
+  test("one apply fixing every bad value in a file succeeds where a single write would leave the set invalid", () => {
+    const broken = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-brief","ord":"a0","title":"brainstorm","custom":{"type":"doc"}}`,
+      "lanes.olai": [
+        `{"id":"a","ord":"a0","title":"first","custom":{"brainstorm":"not a path"}}`,
+        `{"id":"b","ord":"a1","title":"second","custom":{"brainstorm":"also prose"}}`,
+        `{"id":"c","ord":"a2","title":"third","custom":{"brainstorm":"still not"}}`,
+      ].join("\n"),
+    }, ["briefs/one.md", "briefs/two.md", "briefs/three.md"])
+    expect(Result.isFailure(validate(broken))).toBe(true)
+
+    const one = after(broken, {
+      op: "prop",
+      id: "a",
+      key: "brainstorm",
+      value: "briefs/one.md",
+    })
+    const stillBroken = validate(one)
+    expect(Result.isFailure(stillBroken)).toBe(true)
+    if (Result.isFailure(stillBroken)) {
+      expect(stillBroken.failure.findings.map((row) => row.code)).toEqual([
+        "bad-prop",
+        "bad-prop",
+      ])
+    }
+
+    const all = after(broken, {
+      op: "apply",
+      ops: [
+        { op: "prop", id: "a", key: "brainstorm", value: "briefs/one.md" },
+        { op: "prop", id: "b", key: "brainstorm", value: "briefs/two.md" },
+        { op: "prop", id: "c", key: "brainstorm", value: "briefs/three.md" },
+      ],
+    })
+    expect(Result.isSuccess(validate(all))).toBe(true)
+    expect(customOf(all, "a")).toEqual({ brainstorm: "briefs/one.md" })
+    expect(customOf(all, "b")).toEqual({ brainstorm: "briefs/two.md" })
+    expect(customOf(all, "c")).toEqual({ brainstorm: "briefs/three.md" })
+  })
+
+  test("apply can reach a value on a trashed node", () => {
+    const held = setOf({
+      "house.olai": `{"id":"live","ord":"a0","title":"still here"}`,
+      "_olai/Trash.olai":
+        `{"id":"filed","ord":"a0","title":"put away","custom":{"brainstorm":"old prose"}}`,
+    })
+    const plan = planned(held, {
+      op: "apply",
+      ops: [{ op: "prop", id: "filed", key: "brainstorm", value: "new prose" }],
+    })
+    expect(record(fileOf(plan, "_olai/Trash.olai"), "filed").custom).toEqual({
+      brainstorm: "new prose",
+    })
+  })
+
   test("add_node refuses a bad value on the node being born", () => {
     expect(
       refused(board(), {

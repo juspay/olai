@@ -159,7 +159,15 @@ add_node {file: "_olai/Properties.olai", title: "took", props: {type: "took"}}
   `date` (an ISO day or instant), `int` (a digit run), `path` (no whitespace;
   optional `base`), `doc` (a served `.md`; optional `base`), `ref` (a child's
   id; `under` names the parent), `node` (any node id).
+
+add_node {file: "_olai/Properties.olai", title: "brainstorm", props: {type: "doc"}}
+→ `brainstorm` cannot be declared `doc` while 3 existing values do not fit:
+  `lanes.olai` `first` (`a`) holds "not a path"; … The same fence `set_prop`
+  already is — fix those values first (one `apply` can write them all), then
+  declare.
 ```
+
+**A type declaration REFUSES while any existing governed value does not fit**, naming the offenders (file, node, value) — `set_prop` of `type` on a declaration, a rename of a declaration onto another key, and a seed of `_olai/Properties.olai` are the same fence. The write that used to land (the findings sat on other files, and `admits` ignored them) took the whole vault into last-good; this is that door closed. One `apply` that rewrites every bad value in a file is the atomic repair: a single write still leaves the others, and the gate refuses the file; the batch is one validated write and succeeds.
 
 A hand edit that lands a bad value makes the file **broken, naming the key** (`bad-prop`), exactly how every other validation rule reports. Every door that writes a property is covered, because the check sits at the plan/validate seam: `set_prop`, `add_node`'s `props` (children included), `apply`, `update`, `capture`. `duplicate_node` needs no rule of its own — a copy is isomorphic to a subtree the validator has already approved.
 

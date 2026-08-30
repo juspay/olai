@@ -36,6 +36,7 @@ import {
   type Custom,
   declarationsOf,
   declaredFor,
+  declaringOf,
   derive,
   type Derived,
   DOCUMENT_EXT,
@@ -75,6 +76,7 @@ import {
   targetsOf,
   TRASH_FILE,
   type Typed,
+  unfitHeld,
   unfinished,
   unfinishedWithin,
   UsageFailure,
@@ -172,8 +174,19 @@ type Draft<N> = { -readonly [K in keyof N]: N[K] }
 // the old switch that carried their rules inline; they are functions now for the
 // table's sake, and the prose came with them unchanged.
 
-const planTitle = (scope: Scope, request: Extract<Request, { op: "title" }>): Planned =>
-  planEdit(
+const planTitle = (scope: Scope, request: Extract<Request, { op: "title" }>): Planned => {
+  // A Properties ROOT's title IS the key, so a rename is a declaration of a
+  // (possibly different) key — the same two checks {@link planProp} runs
+  // after the map is the map this write would leave. Asked here rather than
+  // inside {@link planEdit} because a note or a date is not a vocabulary.
+  const located = regularAt(scope, request.id)
+  if (Result.isFailure(located)) return Result.fail(located.failure)
+  const next: RegularNode = { ...located.success.node, title: request.title }
+  const bent = declaredWrong(scope, located.success.file, next)
+  if (bent !== undefined) return Result.fail(bent)
+  const unfit = governedUnfit(scope, located.success.file, next)
+  if (unfit !== undefined) return Result.fail(unfit)
+  return planEdit(
     scope,
     request.id,
     (node) => ({ ...node, title: request.title }),
@@ -186,6 +199,7 @@ const planTitle = (scope: Scope, request: Extract<Request, { op: "title" }>): Pl
           `(\`${request.was}\`) — it has been retitled since, so nothing was written`,
       ),
   )
+}
 
 const planDesc = (scope: Scope, request: Extract<Request, { op: "desc" }>): Planned =>
   planEdit(
@@ -712,6 +726,17 @@ const planAdd = (
   const built = captured(scope, into, request, file, { id, parent, ord, below: NESTING }, true)
   if (Result.isFailure(built)) return Result.fail(built.failure)
   const minted = built.success
+
+  // A new Properties ROOT is a declaration, and the variants this capture
+  // is minting under it have to be in hand BEFORE the existing-values
+  // walk — {@link emit} asks {@link declaredWrong} per node, but cannot
+  // see children it has not minted yet. The walk is therefore here, once
+  // the tree exists, with those ids as `extra`.
+  const born = minted[0]
+  if (born !== undefined && born.parent === undefined) {
+    const unfit = governedUnfit(scope, file, born, mintedVariants(minted, born))
+    if (unfit !== undefined) return Result.fail(unfit)
+  }
 
   // DOOR ONE, spelled in a capture: a tree that arrives already saying `done`
   // over a task it is bringing with it.
@@ -2390,6 +2415,80 @@ const declaredWrong = (
 }
 
 /**
+ * A TYPE DECLARATION REFUSES while any existing governed value does not fit —
+ * the same fence {@link typedProps} already gives a new write, asked of the
+ * values the vault already holds.
+ *
+ * THE INCIDENT: declaring `brainstorm` `doc` over eight unfit values was
+ * accepted, because {@link declaredWrong} checks the declaration node and
+ * the write gate's `admits` then ignored the `bad-prop` findings (they sat
+ * on other files). The next load took the whole vault into last-good. This
+ * names the offenders (file, node, value) and writes nothing.
+ *
+ * `extra` is the ids THIS WRITE is minting as the declaration's own
+ * children — a new `ref` whose variants arrive in the same capture, so a
+ * value that already names one of those ids is legal the moment the write
+ * lands. {@link unfitHeld} cannot see them yet: they are not in the
+ * derived view this plan started from.
+ */
+const governedUnfit = (
+  scope: Scope,
+  file: string,
+  node: RegularNode,
+  extra: ReadonlySet<string> = NO_EXTRA,
+): OpFailure | undefined => {
+  if (propertiesIn([...scope.derived.byFile.keys(), file]) !== file) return undefined
+  const reading = declaringOf(scope.derived, node)
+  if (reading === undefined) return undefined
+  const { key, declared } = reading
+  const declarations = new Map(scope.typed.declarations)
+  for (const [held, one] of declarations) {
+    if (one.at === node.id) declarations.delete(held)
+  }
+  declarations.set(key, declared)
+  const typed: Typed = {
+    declarations,
+    derived: scope.typed.derived,
+    get documents() {
+      return scope.typed.documents
+    },
+  }
+  const unfit = extra.size === 0
+    ? unfitHeld(typed, key)
+    : unfitHeld(typed, key).filter((one) => !extra.has(one.value))
+  if (unfit.length === 0) return undefined
+  const n = unfit.length
+  const named = capped(unfit, (one) =>
+    `\`${one.file}\` \`${one.title}\` (\`${one.id}\`) holds "${one.value}"`)
+  return new UsageFailure({
+    reason: `\`${key}\` cannot be declared \`${declared.type.kind}\` while ` +
+      `${n} existing ${n === 1 ? "value does" : "values do"} not fit: ${named}. ` +
+      `The same fence \`set_prop\` already is — fix ` +
+      `${n === 1 ? "that value" : "those values"} first (one \`apply\` can ` +
+      `write them all), then declare. Nothing was written.`,
+  })
+}
+
+/** What {@link governedUnfit} passes when this write mints no variants. */
+const NO_EXTRA: ReadonlySet<string> = new Set()
+
+/**
+ * The ids this capture is minting as the ROOT's own children — the extra
+ * {@link governedUnfit} needs so a new `ref` may land over values that
+ * already name those ids.
+ */
+const mintedVariants = (
+  minted: ReadonlyArray<RegularNode>,
+  root: RegularNode,
+): ReadonlySet<string> => {
+  const extra = new Set<string>()
+  for (const one of minted) {
+    if (one.parent === root.id) extra.add(one.id)
+  }
+  return extra
+}
+
+/**
  * The CONDITION a prop write may carry — the text verbs' `was`, one map in.
  *
  * `undefined` is not conditional at all, and anything else must match what the
@@ -2533,6 +2632,8 @@ const planProp = (
   }
   const bent = declaredWrong(scope, located.success.file, next)
   if (bent !== undefined) return Result.fail(bent)
+  const unfit = governedUnfit(scope, located.success.file, next)
+  if (unfit !== undefined) return Result.fail(unfit)
   return planEdit(
     scope,
     request.id,
@@ -3303,6 +3404,15 @@ const planCreate = (
   }, false)
   if (Result.isFailure(built)) return Result.fail(built.failure)
   const minted = built.success
+
+  // THE SAME EXISTING-VALUES WALK {@link planAdd} runs, for its reason:
+  // a seed of `_olai/Properties.olai` is a declaration over whatever the
+  // rest of the set already holds.
+  const root = minted[0]
+  if (root !== undefined && root.parent === undefined) {
+    const unfit = governedUnfit(scope, file, root, mintedVariants(minted, root))
+    if (unfit !== undefined) return Result.fail(unfit)
+  }
 
   // ...and the same DOOR ONE, in the same place in the sequence and for the
   // same reason ({@link planAdd}): a seed is a capture, so a node born done

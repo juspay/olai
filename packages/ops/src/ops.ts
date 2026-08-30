@@ -24,6 +24,7 @@
 import {
   admits,
   BusyFailure,
+  implicatedIn,
   type CommitRequest,
   type CommitResult,
   type DatedAnswer,
@@ -483,20 +484,31 @@ export const make = (options: Options): Ops => {
            * the same `admits` the store's gate spent to decide whether the
            * bytes could land at all (`./codec.ts`), asked here for the sentence.
            * A refusal that reaches this line has been through it, so there are
-           * exactly two ways to be here — the verdict implicates one of these
-           * files, or it does not and the write is standing on a base the disk
-           * has moved past while the set would not load ({@link
-           * ../../store/src/store.ts}'s `commit` owns that check, and the file
-           * it is about is one of the ones named right here).
+           * three ways to be here — the verdict implicates one of these files;
+           * it does not, and this write caused invalidity in files it did not
+           * write (a declaration, a `ref` variant moved into a third file);
+           * or the write is standing on a base the disk has moved past while
+           * the set would not load ({@link ../../store/src/store.ts}'s
+           * `commit` owns that check, and the file it is about is one of the
+           * ones named right here). The errors channel tells those last two
+           * apart: still null means the directory was loading, so this write
+           * caused the findings; already carrying a verdict means the freeze.
            */
           // THE PATHS THE COMMIT CARRIED, off the very list it carried them in
           // — a second reading of "which files is this write about" is how the
           // gate and the sentence come to disagree about one write.
           const paths = changes.map((change) => change.path)
           const admission = admits(written.failure, paths)
+          const caused = admission._tag !== "implicated" &&
+            (yield* SubscriptionRef.get(options.store.errors)) === null
+          const blocker = admission._tag === "implicated"
+            ? admission.file
+            : caused
+            ? implicatedIn(written.failure)[0]
+            : undefined
           return yield* new ValidationFailure({
-            reason: admission._tag === "implicated"
-              ? `\`${about.summary}\` would leave \`${admission.file}\` invalid, so ` +
+            reason: blocker !== undefined
+              ? `\`${about.summary}\` would leave \`${blocker}\` invalid, so ` +
                 `nothing was written`
               : `\`${about.summary}\` was not written: ${
                 paths.map((path) => `\`${path}\``).join(", ")
