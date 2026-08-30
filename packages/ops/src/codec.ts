@@ -172,11 +172,13 @@ export const codec: Codec<Document, Reading, Verdict> = {
    * for a codec whose sets have cross-file meaning and olai's is one. The set a
    * write would make can hold a file the write never opened and just took off
    * every page — a `ref` value in a third file, stranded by a move of the
-   * variant it names — and told only the candidate, `stopping` cannot tell that
-   * file from one that was already broken before the write was asked for. The
-   * store hands over what it last published; the format takes the difference.
-   * Both halves of the ruling ride one line: a bystander this write darkened
-   * refuses it, and a file that was already dark refuses nothing.
+   * variant it names — so the files this write is ANSWERABLE for are more than
+   * the files it puts down. Told only the candidate, `stopping` cannot tell
+   * such a file from one that was already broken before the write was asked
+   * for. The store hands over what it last published; the format widens its ask
+   * by the difference. Both halves of the ruling ride one line: a bystander
+   * this write darkened refuses it, and a file that was already dark refuses
+   * nothing.
    *
    * THE MENDING WRITE NEEDS NO CASE HERE. A commit is judged on the set it
    * would MAKE, so one that repairs a broken file wholly leaves nothing to say

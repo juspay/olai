@@ -1249,7 +1249,7 @@ test("a commit is offered the published verdict and its own files", () =>
  * refuse, and the second must not, or one broken file freezes the directory
  * again. Only the store holds the standing value; only the codec can read it.
  * So what is pinned here is the HANDOVER, identity and all, and not any rule a
- * codec builds on it (`@olai/format`'s `struck` is olai's, and it is tested
+ * codec builds on it (`@olai/format`'s `darkened` is olai's, and it is tested
  * where the sets it compares are).
  */
 test("a commit's gate is asked over its own files and what was last published", () =>

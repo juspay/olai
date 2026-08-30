@@ -23,11 +23,10 @@
  *     invalid, so no" at a write, only "`lanes.olai` is what stops this", which
  *     is what makes the freeze unspellable through this socket rather than
  *     merely fixed at one call site.
- *   - {@link struck} — the write gate's other half, and the same answer shape:
- *     which file this write took off the screen that was ON it. Asked as a
- *     DIFFERENCE against what was already published, so a file that was
- *     already dark stops nothing and a bystander this write darkened stops
- *     everything.
+ *   - {@link darkened} — which files a write took off the screen that were ON
+ *     it. Not a second gate question: it is the rest of the LIST the one above
+ *     is asked over, since a write is answerable for the files it puts down
+ *     and for the ones it just put out.
  *   - {@link summaryOf} — a BOUNDED per-file face any surface may draw, off
  *     the per-file entries {@link blamed} files. The banner draws this; the
  *     enumeration stays where a reader asked for it.
@@ -194,56 +193,46 @@ export const admits = (
 }
 
 /**
- * WHICH FILE THIS WRITE PUT OUT — a file that is broken now, was not broken
- * before, and is not one of the files the write put down.
+ * WHICH FILES A WRITE PUT OUT — the files this set holds no content for that
+ * the standing one held.
  *
- * {@link admits} is the question "is this write's own ground clear"; this is
- * the other half of the same gate, and it is the one #441's per-file publishing
- * left unasked. A write is judged on the set it WOULD make, and that set can
- * hold a file the write never touched and just took off every page: moving a
- * `ref` variant out of the root its declaration names strands every value that
- * says its id, in whatever third file holds them. #439's law is that an ops
- * write must never mint a state the next load refuses even when the findings
- * sit on files it did not write — it enforced that at the store, over a
- * REFUSAL, and per-file publishing means there is no refusal left to read.
+ * NOT A SECOND GATE QUESTION, which is the whole of why this answers with paths
+ * rather than with an {@link Admission}. "Is anything wrong with these files"
+ * has one asker and one answer shape above; what #441's per-file publishing
+ * left unasked is not a different question but a longer LIST — a write is
+ * answerable for the files it puts down AND for the files it just took off the
+ * screen, and moving a `ref` variant out of the root its declaration names
+ * takes a third file the write never opened. So the gate widens its ask by
+ * this ({@link ./set.ts}'s `stopping`), and #439's law — an ops write must
+ * never mint a state the next load refuses, even where the findings sit on
+ * files it did not write — is back without a second scan to keep in step.
  *
- * THE BASELINE IS WHAT WAS ALREADY PUBLISHED, which is the whole of how this
- * keeps `broken-file-blocks-healthy-writes` closed. A file that was dark before
- * this write is not this write's, however dark it is afterwards: it is already
- * off every page, it already refuses its own writes, and refusing an unrelated
- * write over it is exactly the freeze the per-file ruling took down. So the
- * question is a DIFFERENCE and not a state, and only a file that crossed from
- * lit to dark can stop anything.
+ * IT IS A DIFFERENCE AND NOT A STATE, which is how it keeps
+ * `broken-file-blocks-healthy-writes` closed. A file that was dark before this
+ * write is not this write's, however dark it is afterwards: it is already off
+ * every page and already refusing its own writes, and turning back an
+ * unrelated write over it is exactly the freeze the per-file ruling took down.
  *
  * PER FILE AND NOT PER ROW, for the same reason: a write that adds a seventh
  * finding to a file already carrying six changes nothing a reader can see, and
- * comparing rows would make every already-broken file a wall again — the
- * freeze re-entering one row at a time. What a person can see is a file leaving
- * the screen, and that is what this refuses.
+ * comparing rows would make every already-broken file a wall again, one row at
+ * a time. What a person can see is a file LEAVING THE SCREEN.
  *
- * THE WRITE'S OWN FILES ARE NOT BYSTANDERS. They are {@link admits}' question,
- * asked over the same set, and a write that breaks the file it is writing is
- * refused there with that file's rows. Spelled here rather than assumed from
- * the call order, so this answers correctly whoever asks it.
+ * WHAT "BROKEN" MEANS is not decided here — an entry is a file the set holds a
+ * place for and no content ({@link ./set.ts}'s `brokenIn`), and the one place
+ * that reads rows off an entry is {@link admits}, which this list is handed to.
+ * A second guard here would be a second reading of the same fact.
  *
- * IN PATH ORDER, first only — `broken` arrives from {@link blamed} sorted, and
- * a refusal is a sentence somebody reads.
+ * IN PATH ORDER, the order `blamed` filed them in and the order the sidebar
+ * reads down.
  */
-export const struck = (
+export const darkened = (
   standing: ReadonlyArray<BrokenFile>,
   broken: ReadonlyArray<BrokenFile>,
-  files: ReadonlyArray<string>,
-): Admission => {
-  if (broken.length === 0) return ADMITTED
-  const before = new Set(standing.map((entry) => entry.file))
-  const written = new Set(files)
-  for (const entry of broken) {
-    if (entry.errors.length === 0) continue
-    if (before.has(entry.file) || written.has(entry.file)) continue
-    return { _tag: "implicated", file: entry.file, rows: entry.errors }
-  }
-  return ADMITTED
-}
+): ReadonlyArray<string> =>
+  broken
+    .filter((entry) => !standing.some((was) => was.file === entry.file))
+    .map((entry) => entry.file)
 
 // ── the bounded face ────────────────────────────────────────────────────
 

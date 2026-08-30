@@ -23,13 +23,13 @@ import * as path from "node:path"
 
 import { NodeServices } from "@effect/platform-node"
 import {
+  admits,
   bodyOf,
   implicatedBy,
   isMirror,
   type OutlineError,
   type OutlineSet,
   outlinePaths,
-  stopping,
   parseOutline,
   verdictOf,
   type WriteRequest as Request,
@@ -1730,13 +1730,14 @@ describe("a declaration over unfit values", () => {
  * `lanes.olai` withheld, and `stopping` was asked only about the files the
  * write put down.
  *
- * IT IS ASKED ABOUT BOTH NOW. `Codec.stopping` is handed the STANDING value as
- * well as the candidate ({@link @olai/store}'s `Codec`), so the format can take
- * the difference: `lanes.olai` was lit before this write and would be dark
- * after it, and no write of this shape has ever been anything but the cause of
- * that. #439's law — an ops write must never mint a state the next load
- * refuses, even when the findings sit on files it did not write — is back, and
- * per file rather than whole-set, which is what makes it live beside #441's.
+ * IT IS ASKED ABOUT MORE FILES NOW. `Codec.stopping` is handed the STANDING
+ * value as well as the candidate ({@link @olai/store}'s `Codec`), so the write
+ * gate's ask is the files it puts down PLUS the ones it darkened
+ * (`@olai/format`'s `darkened`): `lanes.olai` was lit before this write and
+ * would be dark after it, and no write of this shape has ever been anything but
+ * the cause of that. #439's law — an ops write must never mint a state the next
+ * load refuses, even when the findings sit on files it did not write — is back,
+ * and per file rather than whole-set, which is what makes it live beside #441's.
  *
  * The other candidate fix was a fence at the planner, the way #439 fenced the
  * declaration doors. The PR body argues why the gate got it: a fence is
@@ -1838,7 +1839,7 @@ test("a file that was already dark is not a bystander this write struck", () =>
         const set = yield* fixture.set()
         expect(set.broken.map((one) => one.file)).toEqual(["lanes.olai"])
         expect(set.broken[0]?.errors.length).toBe(2)
-        expect(stopping(set, ["garden.olai"])).toBeNull()
+        expect(admits(set.broken, ["garden.olai"])._tag).toBe("admitted")
       }),
   ))
 
@@ -1870,7 +1871,7 @@ test("a foreign parent darkens the child's file, and the parent's stays writable
         // unfiltered, and the drift check rides it.
         expect(implicatedBy(set.broken[0]?.errors[0] as OutlineError))
           .toEqual(["child.olai", "parent.olai"])
-        expect(stopping(set, ["parent.olai"])).toBeNull()
+        expect(admits(set.broken, ["parent.olai"])._tag).toBe("admitted")
 
         // …and the write lands: a retitle inside the file that was merely
         // pointed at, with the bytes on disk.

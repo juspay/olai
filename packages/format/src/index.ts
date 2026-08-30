@@ -987,23 +987,20 @@ export type { ErrorCode, Stage } from "./errors.ts"
  * policy). A set carries that partition already; a caller holding a verdict
  * takes the step itself, and there is deliberately no export that hides it.
  *
- * Then: `admits` is what a REFUSED WRITE is read with, and it is per file — its
- * answer has no whole-set member, so one broken file can never again freeze a
- * write to a healthy one and a refusal names its blocker. `struck` is the same
- * answer shape for the write gate's other half — which file this write took
- * off the screen that was ON it, asked as a difference from what was already
- * published, so the two halves of the ruling are one sentence: a bystander a
- * write darkened refuses it, and a file that was already dark refuses nothing.
- * `summaryOf` is a BOUNDED per-file face for a surface drawn over something
- * still live: the banner draws it, and the row enumeration stays on the page a
- * reader asked for it on.
+ * Then: `admits` is the question BOTH write doors are asked — is anything wrong
+ * with these files, and what — and it is per file, with no whole-set member, so
+ * one broken file can never again freeze a write to a healthy one and a refusal
+ * names its blocker. It is the one under `set.ts`'s `stopping`, which is the
+ * write GATE's verb and asks it over a longer list; a caller that wants the
+ * question rather than the gate asks this. `summaryOf` is a BOUNDED per-file
+ * face for a surface drawn over something still live: the banner draws it, and
+ * the row enumeration stays on the page a reader asked for it on.
  */
 export {
   admits,
   blamed,
   isClean,
   NOTHING_WRONG,
-  struck,
   summaryOf,
   Verdict,
   verdictOf,

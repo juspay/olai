@@ -44,7 +44,7 @@ import { BrokenFile, type OutlineError } from "./errors.ts"
 import { bodyKind } from "./kinds.ts"
 import { Located } from "./node.ts"
 import { byPath } from "./paths.ts"
-import { admits, struck, type Verdict, verdictOf } from "./verdict.ts"
+import { admits, darkened, type Verdict, verdictOf } from "./verdict.ts"
 
 /**
  * A file of the set that is BROKEN, and why — {@link ./errors.ts}'s shape,
@@ -249,26 +249,34 @@ export const brokenBy = (
  * repair case and no exception for it — there is one rule, asked of the tree
  * the write would leave behind.
  *
- * AND THE BYSTANDER, which is the second question and the one that needs a
- * second set. "The files this write puts down" is not the same list as "the
- * files this write BREAKS": moving a `ref` variant out of the root its
- * declaration names strands every value that says its id, and those values are
- * in a file the write never opened. The first question above is blind to that
- * by construction — it is asked about `paths` — so the gate asks
- * {@link ./verdict.ts}'s `struck` beside it, over the DIFFERENCE from what was
- * standing. #439 held this line at the store, over a candidate the codec
- * refused; per-file publishing means the codec no longer refuses one, so the
- * line is held here, where the two sets are.
+ * WHICH FILES THE WRITE IS ANSWERABLE FOR is the whole of what `standing` adds,
+ * and it is a longer ASK rather than a second question. "The files this write
+ * puts down" is not "the files this write breaks": moving a `ref` variant out
+ * of the root its declaration names strands every value that says its id, in a
+ * file the write never opened. So the ask is `paths` PLUS whatever this write
+ * darkened ({@link ./verdict.ts}'s `darkened`) — the write's own files first,
+ * in the order it put them down, so the blocker a multi-file write is named is
+ * unchanged. #439 held this line at the store over a candidate the codec
+ * refused; per-file publishing means there is no refusal there to read, so it
+ * is held here, where both sets are.
  *
- * WITH NO STANDING SET there is no difference to take, and the answer is the
- * first question alone. That is a first load — nothing has been published for
- * this write to have darkened — and it is what a caller asking about a set
- * rather than about a WRITE means.
+ * A FILE THAT WAS ALREADY DARK IS IN NEITHER HALF of that ask, which is the
+ * per-file ruling still standing: it is off every page and refusing its own
+ * writes already, and a write three directories away is not what is wrong with
+ * it.
+ *
+ * `standing` IS REQUIRED, and there is deliberately no arity that asks the
+ * first half alone. This is the WRITE GATE's verb — one production caller,
+ * `@olai/ops`' codec — and a set always has a predecessor by the time a commit
+ * is judged against it (`@olai/store`'s `commit` proves it non-null before the
+ * codec is asked). A caller who wants "is anything wrong with these files in
+ * this set" is asking {@link ./verdict.ts}'s `admits`, which is the question
+ * under this one and is exported for it.
  */
 export const stopping = (
   set: OutlineSet,
   paths: ReadonlyArray<string>,
-  standing?: OutlineSet,
+  standing: OutlineSet,
 ): Verdict | null => {
   // ONE QUESTION, ONE ANSWER SHAPE ({@link ./verdict.ts}'s `admits`): which of
   // these files something is wrong with, and its rows. This is that answer
@@ -276,16 +284,8 @@ export const stopping = (
   // carries — and the blocker's identity is not thrown away by the spelling:
   // every row in it names the file, which is how the sentence downstream
   // recovers it.
-  const admission = admits(set.broken, paths)
-  if (admission._tag === "implicated") return verdictOf(admission.rows)
-  if (standing === undefined) return null
-  // The same shape, asked of the other half: a file this write darkened that
-  // it did not write. `verdictOf` again, so a refusal reads the same whichever
-  // question produced it — and the rows are the bystander's own, so the
-  // sentence downstream names the file the write broke rather than the file
-  // the write touched.
-  const bystander = struck(standing.broken, set.broken, paths)
-  return bystander._tag === "admitted" ? null : verdictOf(bystander.rows)
+  const admission = admits(set.broken, [...paths, ...darkened(standing.broken, set.broken)])
+  return admission._tag === "admitted" ? null : verdictOf(admission.rows)
 }
 
 /**

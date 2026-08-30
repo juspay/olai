@@ -35,9 +35,9 @@ import { validate } from "./validate.ts"
 import {
   admits,
   blamed,
+  darkened,
   isClean,
   NOTHING_WRONG,
-  struck,
   type Summary,
   summaryOf,
   type Verdict,
@@ -216,51 +216,48 @@ test("a parent a foreign placement names is related, not broken", () => {
 
 // ── the write gate's other question ────────────────────────────────────
 //
-// `admits` asks about the write's own ground; `struck` asks what the write did
-// to everybody else's. The two together are the gate: a write may not land and
-// take its own file off every page, and it may not land and take somebody
-// else's off either — while a file that was ALREADY off stops nothing, which is
-// the difference between this rule and the freeze the per-file ruling took
-// down.
+// `admits` is the whole question and it does not change; what the gate adds is
+// the rest of the LIST it is asked over. A write is answerable for the files it
+// puts down AND for the files it just took off the screen, and `darkened` is
+// that second half — a DIFFERENCE, so a file that was already off stops
+// nothing, which is what separates this rule from the freeze the per-file
+// ruling took down.
 
 const dark = (file: string): BrokenFile => ({
   file,
   errors: [rowOf(file, "bad-prop")],
 })
 
-test("a file this write darkened that it did not write stops it, and is named", () => {
-  const struckBy = struck([], [dark("lanes.olai")], ["agents.olai", "garden.olai"])
-  expect(struckBy._tag === "implicated" && struckBy.file).toBe("lanes.olai")
-  expect(struckBy._tag === "implicated" && struckBy.rows.length).toBe(1)
-})
-
-test("a file that was ALREADY dark stops nothing, however dark it stays", () => {
-  expect(struck([dark("lanes.olai")], [dark("lanes.olai")], ["garden.olai"])._tag)
-    .toBe("admitted")
+test("a file this write put out is named, and one that was already out is not", () => {
+  expect(darkened([], [dark("lanes.olai")])).toEqual(["lanes.olai"])
+  expect(darkened([dark("lanes.olai")], [dark("lanes.olai")])).toEqual([])
   // …and per FILE, not per row: a write that adds a second finding to a file
-  // already carrying one still lands. Comparing rows would make every broken
-  // file a wall again, one row at a time.
+  // already carrying one adds nothing a reader can see. Comparing rows would
+  // make every broken file a wall again, one row at a time.
   const worse: BrokenFile = {
     file: "lanes.olai",
     errors: [rowOf("lanes.olai", "bad-prop"), rowOf("lanes.olai", "unknown-target")],
   }
-  expect(struck([dark("lanes.olai")], [worse], ["garden.olai"])._tag).toBe("admitted")
+  expect(darkened([dark("lanes.olai")], [worse])).toEqual([])
 })
 
-test("the write's OWN files are not bystanders — that is the other question", () => {
-  expect(struck([], [dark("garden.olai")], ["garden.olai"])._tag).toBe("admitted")
-  // …and `admits` is where it is answered, over the same entries.
+test("a write that breaks nothing new darkens nothing, and a mend even less", () => {
+  expect(darkened([], [])).toEqual([])
+  expect(darkened([dark("lanes.olai")], [])).toEqual([])
+})
+
+test("the darkened files come out in the order the report filed them", () => {
+  expect(darkened([dark("b.olai")], [dark("a.olai"), dark("b.olai"), dark("c.olai")]))
+    .toEqual(["a.olai", "c.olai"])
+})
+
+// THE WRITE'S OWN FILES need no exception in it: they are the first half of the
+// ask, they are checked first, and a write that breaks the file it is WRITING
+// is refused by the very same `admits` — which is what makes this one question
+// asked over a longer list rather than two questions with two answers.
+test("the write's own files are the first half of the ask, answered by admits", () => {
   expect(admits([dark("garden.olai")], ["garden.olai"])._tag).toBe("implicated")
-})
-
-test("a write that breaks nothing new is admitted, and a mend even more so", () => {
-  expect(struck([], [], ["garden.olai"])._tag).toBe("admitted")
-  expect(struck([dark("lanes.olai")], [], ["garden.olai"])._tag).toBe("admitted")
-})
-
-test("the bystander named is the first in path order", () => {
-  const struckBy = struck([], [dark("a.olai"), dark("b.olai")], ["c.olai"])
-  expect(struckBy._tag === "implicated" && struckBy.file).toBe("a.olai")
+  expect(darkened([], [dark("garden.olai")])).toEqual(["garden.olai"])
 })
 
 /**
@@ -269,9 +266,9 @@ test("the bystander named is the first in path order", () => {
  *
  * The shape is the one the ruling is about — a `ref` variant moved out of the
  * root its declaration names, stranding the value that says its id in a third
- * file. The move's own files are clean in the candidate, so the first question
- * says nothing; the answer is the third argument, and WITHOUT it the same call
- * admits the write, which is what this pins.
+ * file. The move's own files are clean in the candidate, so an ask over THOSE
+ * says nothing; the answer is the rest of the ask, and this pins the two halves
+ * against each other on one pair of real sets.
  */
 const AGENTS = {
   "_olai/Properties.olai":
@@ -302,10 +299,10 @@ test("a write that strands a value in a third file is stopped, naming that file"
   })
   const paths = ["agents.olai", "garden.olai"]
   // The candidate breaks a file, and it is neither of the two the write puts
-  // down — so the first question admits it.
+  // down — so an ask over `paths` alone admits it.
   expect(moved.broken.map((one) => one.file)).toEqual(["lanes.olai"])
-  expect(stopping(moved, paths)).toBeNull()
-  // With what was STANDING, the same call refuses, carrying the bystander's
+  expect(admits(moved.broken, paths)._tag).toBe("admitted")
+  // The gate asks over the longer list, and refuses carrying the bystander's
   // own rows — every one of which names the file the write would have broken.
   const stopped = stopping(moved, paths, standing)
   expect(stopped?.findings.map((one) => [one.file, one.code]))
@@ -522,7 +519,7 @@ test("a value that fits no declaration is not washed out by an unparsed file", (
   expect(set.broken.map((one) => one.file).slice().sort())
     .toEqual(["lanes.olai", "pantry.olai"])
   expect(brokenIn(set, "lanes.olai")?.map((one) => one.code)).toEqual(["bad-prop"])
-  expect(stopping(set, ["lanes.olai"])).not.toBeNull()
+  expect(admits(set.broken, ["lanes.olai"])._tag).toBe("implicated")
 })
 
 /**
@@ -550,7 +547,7 @@ test("a ref value IS still a guess while a file will not parse", () => {
   if (Result.isFailure(beside)) throw new Error("a validation answers with a set")
   const set = beside.success.set
   expect(set.broken.map((one) => one.file)).toEqual(["pantry.olai"])
-  expect(stopping(set, ["lanes.olai"])).toBeNull()
+  expect(admits(set.broken, ["lanes.olai"])._tag).toBe("admitted")
 })
 
 /**
@@ -584,8 +581,8 @@ test("a set degrades per file, over generated broken sets", () => {
       // is not a rebuild every load pays for.
       expect([round, clean.success.set.broken.length]).toEqual([round, 0])
       for (const file of paths) {
-        expect([round, file, stopping(clean.success.set, [file])])
-          .toEqual([round, file, null])
+        expect([round, file, admits(clean.success.set.broken, [file])._tag])
+          .toEqual([round, file, "admitted"])
       }
     }
 
@@ -612,12 +609,16 @@ test("a set degrades per file, over generated broken sets", () => {
         expect([round, survivor, brokenIn(set, survivor)]).toEqual([round, survivor, undefined])
         expect([round, survivor, nodesIn(Result.succeed(documentAt(set, survivor) as Document)).length > 0])
           .toEqual([round, survivor, true])
-        expect([round, survivor, stopping(set, [survivor])]).toEqual([round, survivor, null])
+        expect([round, survivor, admits(set.broken, [survivor])._tag]).toEqual([round, survivor, "admitted"])
       }
       // …and a write to the file it IS about is stopped, carrying that file's
       // own rows.
-      expect([round, stopping(set, [broke])])
-        .toEqual([round, verdictOf(brokenIn(set, broke) as ReadonlyArray<OutlineError>)])
+      expect([round, admits(set.broken, [broke])])
+        .toEqual([round, {
+          _tag: "implicated",
+          file: broke,
+          rows: brokenIn(set, broke) as ReadonlyArray<OutlineError>,
+        }])
       // Nothing invented and nothing lost between the rows and the face.
       const face = summaryOf(set.broken, 100)
       expect([round, face.files.map((one) => one.file)]).toEqual([round, [broke]])
@@ -645,13 +646,13 @@ test("a set degrades per file, over generated broken sets", () => {
         .toEqual([round, [away, home].slice().sort()])
       // BROKEN: the child's file, alone.
       expect([round, set.broken.map((one) => one.file)]).toEqual([round, [home]])
-      expect([round, home, stopping(set, [home]) === null]).toEqual([round, home, false])
+      expect([round, home, admits(set.broken, [home])._tag]).toEqual([round, home, "implicated"])
       // …and the parent's file is a survivor like any other: records in the
       // set, and a write to it admitted. That is the pointed-at file staying
       // lit — `broken-file-blocks-healthy-writes` refused at the blame axis.
       for (const survivor of paths.filter((file) => file !== home)) {
         expect([round, survivor, brokenIn(set, survivor)]).toEqual([round, survivor, undefined])
-        expect([round, survivor, stopping(set, [survivor])]).toEqual([round, survivor, null])
+        expect([round, survivor, admits(set.broken, [survivor])._tag]).toEqual([round, survivor, "admitted"])
       }
     }
 
@@ -675,7 +676,7 @@ test("a set degrades per file, over generated broken sets", () => {
     if (Result.isSuccess(mixed)) {
       const set = mixed.success.set
       expect([round, set.broken.map((one) => one.file)]).toEqual([round, [hole]])
-      expect([round, other, stopping(set, [other])]).toEqual([round, other, null])
+      expect([round, other, admits(set.broken, [other])._tag]).toEqual([round, other, "admitted"])
       // The edge is still THERE and still dangles — the record is in the set,
       // and nothing resolves the id.
       expect([round, mixed.success.derived.byId.has("nobody-declares-this")])
