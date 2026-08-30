@@ -148,6 +148,13 @@ export const sameDecoded = <F, E>(
   return true
 }
 
+/** How many of this probe's files may be open at once — the bound both
+ *  places that read many files hold themselves to ({@link Probe.run}'s stale
+ *  set, {@link Probe.drifted}'s asked paths). One number, because it is one
+ *  fact about this process's file descriptors and two spellings of it would be
+ *  two answers to what a busy probe is allowed to cost. */
+const READERS = 16
+
 export interface Probe<F, E> {
   /**
    * Look, and say what moved — or `null` for a listing identical to the last.
@@ -337,19 +344,31 @@ export const make = <F, S, E>(
         Effect.gen(function*() {
           const cached = yield* Ref.get(cache)
           if (cached === null) return []
-          const drifted: Array<string> = []
+          // The skips are taken BEFORE the reads, for {@link run}'s reason one
+          // door over: a path with nothing to compare needs no file opened, so
+          // it should not be holding one of the permits below. Skipped, not
+          // answered — a path that is not a file of this store, and one the
+          // store never read the bytes of ({@link Cached}).
+          const opening: Array<readonly [string, string]> = []
           for (const path of new Set(paths)) {
             const entry = cached.get(path)
-            // Skipped, not answered: a path that is not a file of this store,
-            // and one the store never read the bytes of ({@link Cached}).
             if (entry === undefined || entry.fingerprint === null) continue
-            const text = yield* disk.read(path)
-            // Gone IS an answer: the cached bytes no longer exist.
-            if (text === null || fingerprintOf(text) !== entry.fingerprint) {
-              drifted.push(path)
-            }
+            opening.push([path, entry.fingerprint])
           }
-          return drifted
+          // Bounded the same way and for the same reason as the probe's own
+          // reads: the paths are independent by construction — nothing here
+          // decides anything about another — and a verdict about a
+          // declarations file can name a dozen of them, which is a dozen
+          // round-trips end to end if they are taken one at a time.
+          const looked = yield* Effect.forEach(
+            opening,
+            ([path, fingerprint]) =>
+              Effect.map(disk.read(path), (text) =>
+                // Gone IS an answer: the cached bytes no longer exist.
+                text === null || fingerprintOf(text) !== fingerprint ? path : null),
+            { concurrency: READERS },
+          )
+          return looked.filter((path) => path !== null)
         }),
 
       forget: (paths: Iterable<string>) =>
@@ -406,7 +425,7 @@ export const make = <F, S, E>(
                   onFailure: (failure) => [path, failure] as const,
                   onSuccess: (text) => [path, text] as const,
                 }),
-              { concurrency: 16 },
+              { concurrency: READERS },
             )
           ) {
             if (contents === null) {
