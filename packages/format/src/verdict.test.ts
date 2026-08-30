@@ -28,7 +28,7 @@ import { expect, test } from "bun:test"
 import { Result } from "effect"
 
 import { type Document, outlineDocument } from "./document.ts"
-import { type ErrorCode, implicatedBy, type OutlineError } from "./errors.ts"
+import { type BrokenFile, type ErrorCode, implicatedBy, type OutlineError } from "./errors.ts"
 import { seeded, setOf } from "./fixtures.testlib.ts"
 import { brokenIn, documentAt, findingsIn, nodesIn, stopping } from "./set.ts"
 import { validate } from "./validate.ts"
@@ -46,17 +46,21 @@ import {
 } from "./verdict.ts"
 
 /**
- * A verdict's bounded face — the composition the one production caller that
- * starts from a verdict spells for itself (`@olai/web`'s `banner.ts`).
+ * THE ONE STEP every reader of a verdict makes: it becomes per-file ENTRIES,
+ * and every question below is asked of those.
  *
- * There is no `summary(verdict, n)` export any more, and this is why it is a
- * two-line helper here rather than one back on the module: the step it makes
- * visible — a verdict becomes per-file ENTRIES, and every face is a face of
- * those — is the whole shape of the ruling, and an export that hid it was a
- * second way to build one thing.
+ * Both production callers that start from a verdict spell exactly this — the
+ * banner before it draws a face (`@olai/web`'s `banner.ts`), the ops layer
+ * before it names a refusal's blocker (`@olai/ops`' `ops.ts`) — and neither has
+ * an export that hides it, deliberately. `summary(verdict, n)` was that export
+ * and it was one composition; `admits(entriesOf(verdict), files)` was the other and it
+ * re-partitioned the verdict per file to reach the entries a set already had.
+ * The step is the shape of the ruling, so it is written where it happens.
  */
-const faceOf = (verdict: Verdict, n: number): Summary =>
-  summaryOf(blamed(verdict.findings), n)
+const entriesOf = (verdict: Verdict): ReadonlyArray<BrokenFile> => blamed(verdict.findings)
+
+/** …and a verdict's bounded face, through it. */
+const faceOf = (verdict: Verdict, n: number): Summary => summaryOf(entriesOf(verdict), n)
 
 // ── fixtures ───────────────────────────────────────────────────────────
 
@@ -120,13 +124,13 @@ test("the implicated files come out in path order, whatever order the rows are i
 // and a write to files nothing is wrong with is admitted.
 test("a write to files no finding is about is admitted", () => {
   const verdict = verdictOf([rowOf("lanes.olai", "bad-prop")])
-  expect(admits(verdict, ["roadmap/bugs.olai"])).toEqual({ _tag: "admitted" })
-  expect(admits(verdict, ["roadmap/bugs.olai", "house.olai"])._tag).toBe("admitted")
+  expect(admits(entriesOf(verdict), ["roadmap/bugs.olai"])).toEqual({ _tag: "admitted" })
+  expect(admits(entriesOf(verdict), ["roadmap/bugs.olai", "house.olai"])._tag).toBe("admitted")
 })
 
 test("a write to an implicated file is refused, and the refusal NAMES it", () => {
   const rows = [rowOf("lanes.olai", "bad-prop"), rowOf("lanes.olai", "duplicate-id")]
-  const admission = admits(verdictOf(rows), ["lanes.olai"])
+  const admission = admits(entriesOf(verdictOf(rows)), ["lanes.olai"])
   expect(admission).toEqual({ _tag: "implicated", file: "lanes.olai", rows })
 })
 
@@ -134,28 +138,28 @@ test("a write to an implicated file is refused, and the refusal NAMES it", () =>
 // reads and the second blocker is one fix away from being the first.
 test("the blocker named is the first of the write's own files that is implicated", () => {
   const verdict = verdictOf([rowOf("b.olai", "bad-prop"), rowOf("c.olai", "bad-prop")])
-  const admission = admits(verdict, ["a.olai", "c.olai", "b.olai"])
+  const admission = admits(entriesOf(verdict), ["a.olai", "c.olai", "b.olai"])
   expect(admission._tag === "implicated" && admission.file).toBe("c.olai")
 })
 
 test("a cross-file finding implicates both ends, so a write to either is refused", () => {
   const verdict = verdictOf([rowOf("a.olai", "mirror-cycle", [["b.olai", 3]])])
-  expect(admits(verdict, ["a.olai"])._tag).toBe("implicated")
-  expect(admits(verdict, ["b.olai"])._tag).toBe("implicated")
-  expect(admits(verdict, ["c.olai"])._tag).toBe("admitted")
+  expect(admits(entriesOf(verdict), ["a.olai"])._tag).toBe("implicated")
+  expect(admits(entriesOf(verdict), ["b.olai"])._tag).toBe("implicated")
+  expect(admits(entriesOf(verdict), ["c.olai"])._tag).toBe("admitted")
 })
 
 // A directory nothing could LIST is the one finding that is about the whole
 // load rather than about a file, so no file's health can be asserted under it.
 test("a directory that could not be read implicates every write", () => {
   const verdict = verdictOf([rowOf(".", "unreadable-directory")])
-  const admission = admits(verdict, ["anything.olai"])
+  const admission = admits(entriesOf(verdict), ["anything.olai"])
   expect(admission._tag === "implicated" && admission.file).toBe(".")
 })
 
 test("a clean verdict admits everything, and says it is clean", () => {
   expect(isClean(NOTHING_WRONG)).toBe(true)
-  expect(admits(NOTHING_WRONG, ["a.olai"])._tag).toBe("admitted")
+  expect(admits(entriesOf(NOTHING_WRONG), ["a.olai"])._tag).toBe("admitted")
   expect(verdictOf([])).toBe(NOTHING_WRONG)
 })
 

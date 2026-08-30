@@ -23,6 +23,7 @@
 
 import {
   admits,
+  blamed,
   BusyFailure,
   type CommitRequest,
   type CommitResult,
@@ -479,12 +480,14 @@ export const make = (options: Options): Ops => {
            * had no way to say which file made it so
            * (`broken-file-blocks-healthy-writes`).
            *
-           * ASKED OF THE VERDICT rather than re-derived from its rows: this is
-           * the same `admits` the store's gate spent to decide whether the
-           * bytes could land at all (`./codec.ts`), asked here for the sentence.
+           * ASKED THROUGH THE SAME STEP EVERY READER OF A VERDICT MAKES — it
+           * becomes per-file ENTRIES (`blamed`), and `admits` is asked of those.
+           * That is the one `admits` there is, and it is the same one the gate
+           * spent to decide whether the bytes could land at all (`./codec.ts`,
+           * which reaches it through a set that carries the entries already).
            * A refusal that reaches this line has been through it, so there are
-           * exactly two ways to be here — the verdict implicates one of these
-           * files, or it does not and the write is standing on a base the disk
+           * exactly two ways to be here — the entries implicate one of these
+           * files, or they do not and the write is standing on a base the disk
            * has moved past while the set would not load ({@link
            * ../../store/src/store.ts}'s `commit` owns that check, and the file
            * it is about is one of the ones named right here).
@@ -493,7 +496,7 @@ export const make = (options: Options): Ops => {
           // — a second reading of "which files is this write about" is how the
           // gate and the sentence come to disagree about one write.
           const paths = changes.map((change) => change.path)
-          const admission = admits(written.failure, paths)
+          const admission = admits(blamed(written.failure.findings), paths)
           return yield* new ValidationFailure({
             reason: admission._tag === "implicated"
               ? `\`${about.summary}\` would leave \`${admission.file}\` invalid, so ` +

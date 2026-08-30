@@ -44,7 +44,7 @@ import { BrokenFile, type OutlineError } from "./errors.ts"
 import { bodyKind } from "./kinds.ts"
 import { Located } from "./node.ts"
 import { byPath } from "./paths.ts"
-import { type Verdict, verdictOf } from "./verdict.ts"
+import { admits, type Verdict, verdictOf } from "./verdict.ts"
 
 /**
  * A file of the set that is BROKEN, and why — {@link ./errors.ts}'s shape,
@@ -283,12 +283,14 @@ export const stopping = (
   set: OutlineSet,
   paths: ReadonlyArray<string>,
 ): Verdict | null => {
-  const broken = brokenBy(set)
-  for (const path of paths) {
-    const rows = broken.get(path)
-    if (rows !== undefined) return verdictOf(rows)
-  }
-  return null
+  // ONE QUESTION, ONE ANSWER SHAPE ({@link ./verdict.ts}'s `admits`): which of
+  // these files something is wrong with, and its rows. This is that answer
+  // spelled as the store's `E` — a verdict, because that is what the seam
+  // carries — and the blocker's identity is not thrown away by the spelling:
+  // every row in it names the file, which is how the sentence downstream
+  // recovers it.
+  const admission = admits(set.broken, paths)
+  return admission._tag === "admitted" ? null : verdictOf(admission.rows)
 }
 
 /**

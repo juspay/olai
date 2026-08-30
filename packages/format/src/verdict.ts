@@ -18,7 +18,7 @@
  *     ABOUT. `Reach` in `./errors.ts` already named this axis for the staging
  *     rule (`set-across-files` is the code an unreadable file can invent); this
  *     is the same axis read per finding rather than per code.
- *   - {@link admits} — the WRITE GATE's question, and it is per file. Its
+ *   - {@link admits} — how a REFUSAL is read, and it is per file. Its
  *     answer has no whole-set member: there is no way to spell "the set is
  *     invalid, so no" at a write, only "`lanes.olai` is what stops this", which
  *     is what makes the freeze unspellable through this socket rather than
@@ -147,7 +147,7 @@ export const implicatedIn = (verdict: Verdict): ReadonlyArray<string> => {
 export type Admission =
   | { readonly _tag: "admitted" }
   /** The blocker, named — and its rows, so the refusal can show its work
-   *  without the caller going back to the verdict for them. */
+   *  without the caller going looking for them. */
   | {
     readonly _tag: "implicated"
     readonly file: string
@@ -157,36 +157,56 @@ export type Admission =
 export const ADMITTED: Admission = { _tag: "admitted" }
 
 /**
- * Is a write to exactly these files admissible against this verdict?
+ * Is a write to exactly these files admissible, given what is broken?
  *
- * ADMITTED means no finding in hand is about any of them: whatever is wrong
- * with the served directory, this write is not it and never was. The store's
- * gate spends that answer to let the write land while the broken file goes on
- * being broken beside it — reads have degraded per file since 2026-08-09 and
- * writes did not, and the asymmetry was the bug.
+ * ADMITTED means no entry in hand is about any of them: whatever is wrong with
+ * the served directory, this write is not it and never was. The store's gate
+ * spends that answer to let the write land while the broken file goes on being
+ * broken beside it — reads have degraded per file since 2026-08-09 and writes
+ * did not, and the asymmetry was the bug.
  *
  * IMPLICATED names the FIRST file, in the order the caller asked about them,
  * that something is wrong with. First rather than all of them because a refusal
  * is a sentence somebody reads, and the second blocker is one fix away from
  * being the first.
  *
+ * IT TAKES THE PER-FILE ENTRIES, which is the axis the whole system reads now,
+ * and that is what makes it ONE question rather than two. It used to take a
+ * `Verdict` and re-partition it per file — so the write gate's own path asked
+ * it of a SET (`./set.ts`'s `stopping`, which had the entries already) while
+ * the refusal's sentence asked it of the verdict that gate had just built out
+ * of one entry's rows, deriving the blocker's identity a second time from a
+ * value that was made by knowing it. Both callers reach the entries now: a set
+ * carries them, and a caller holding a verdict gets them from {@link blamed},
+ * which is the same step every other reader of a verdict makes.
+ *
  * A directory that could not be READ implicates everything: there is no file
  * whose health could be asserted when the listing itself failed, so the answer
- * is that finding's own site, whichever files were asked about. (In practice a
- * write never reaches here in that state — the store's probe fails first — and
- * a socket whose safety rests on that is not one.)
+ * is that entry, whichever files were asked about. (In practice a write never
+ * reaches here in that state — the store's probe fails first — and a socket
+ * whose safety rests on that is not one.)
+ *
+ * TWO SMALL SCANS AND NO INDEX, deliberately: a directory has a handful of
+ * broken files at most and a commit puts down one or two, so a map built to
+ * answer one question would cost more than the question. The caller that asks
+ * per file across a whole listing has `./set.ts`'s `brokenBy`, which is held
+ * with the set.
  */
 export const admits = (
-  verdict: Verdict,
+  broken: ReadonlyArray<BrokenFile>,
   files: ReadonlyArray<string>,
 ): Admission => {
-  const whole = verdict.findings.find((finding) => finding.code === "unreadable-directory")
+  const whole = broken.find((entry) =>
+    entry.errors.some((row) => row.code === "unreadable-directory")
+  )
   if (whole !== undefined) {
-    return { _tag: "implicated", file: whole.file, rows: implicating(verdict, whole.file) }
+    return { _tag: "implicated", file: whole.file, rows: whole.errors }
   }
   for (const file of files) {
-    const rows = implicating(verdict, file)
-    if (rows.length > 0) return { _tag: "implicated", file, rows }
+    const entry = broken.find((one) => one.file === file)
+    if (entry !== undefined && entry.errors.length > 0) {
+      return { _tag: "implicated", file, rows: entry.errors }
+    }
   }
   return ADMITTED
 }
