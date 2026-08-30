@@ -34,6 +34,7 @@ import {
   chainOf,
   countedChildren,
   type Custom,
+  type Declared,
   declarationsOf,
   declaredFor,
   declaringOf,
@@ -2395,16 +2396,34 @@ const typedProps = (
  * A node already in the map is taken out of `claimed` so editing its own type
  * is not reported as declaring the key twice.
  */
+/** Is this write into the vault's declarations file? Both halves of the
+ *  declaration door ask, and a second spelling of the convention would be
+ *  a second answer about which file types the vocabulary. */
+const isPropertiesFile = (scope: Scope, file: string): boolean =>
+  propertiesIn([...scope.derived.byFile.keys(), file]) === file
+
+/** This node's current claim, taken out so editing its own type or
+ *  renaming its key is not reported as declaring the key twice, and so
+ *  the existing-values walk is asked of the vocabulary this write would
+ *  leave rather than the one it is replacing. */
+const declarationsExcept = (
+  declarations: Typed["declarations"],
+  id: string,
+): Map<string, Declared> => {
+  const next = new Map(declarations)
+  for (const [key, one] of next) {
+    if (one.at === id) next.delete(key)
+  }
+  return next
+}
+
 const declaredWrong = (
   scope: Scope,
   file: string,
   node: RegularNode,
 ): OpFailure | undefined => {
-  if (propertiesIn([...scope.derived.byFile.keys(), file]) !== file) return undefined
-  const claimed = new Set(scope.typed.declarations.keys())
-  for (const [key, declared] of scope.typed.declarations) {
-    if (declared.at === node.id) claimed.delete(key)
-  }
+  if (!isPropertiesFile(scope, file)) return undefined
+  const claimed = new Set(declarationsExcept(scope.typed.declarations, node.id).keys())
   const wrong = wrongDeclaration(scope.derived, { file, line: 0, node }, claimed)
   return wrong === undefined ? undefined : new UsageFailure({ reason: wrong })
 }
@@ -2432,14 +2451,11 @@ const governedUnfit = (
   node: RegularNode,
   extra: ReadonlySet<string> = NO_EXTRA,
 ): OpFailure | undefined => {
-  if (propertiesIn([...scope.derived.byFile.keys(), file]) !== file) return undefined
+  if (!isPropertiesFile(scope, file)) return undefined
   const reading = declaringOf(scope.derived, node)
   if (reading === undefined) return undefined
   const { key, declared } = reading
-  const declarations = new Map(scope.typed.declarations)
-  for (const [held, one] of declarations) {
-    if (one.at === node.id) declarations.delete(held)
-  }
+  const declarations = declarationsExcept(scope.typed.declarations, node.id)
   declarations.set(key, declared)
   const typed: Typed = {
     declarations,
