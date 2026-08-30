@@ -767,19 +767,25 @@ export const DAY_NOTE_LINK = selector(TESTID.dayNoteLink);
 export const NOTHING = selector(TESTID.nothing);
 /** Shown in the main pane when `/#<id>` names no node. The sidebar stays. */
 export const NOT_FOUND = selector(TESTID.notFound);
-/** Shown INSTEAD of the sidebar and the tree when a set has never validated. */
+/** Shown INSTEAD of the sidebar and the tree when the store never published a
+ *  set at all. A broken FILE does not reach it — that degrades in place
+ *  ({@link OUTLINE_FAILURE}) — so nothing here provokes it and it is kept for
+ *  the readiness selector below, which must not wait forever on a shell that
+ *  was replaced. */
 export const ERROR_VIEW = selector(TESTID.errorView);
-export const ERROR_FILE_GROUP = selector(TESTID.errorFileGroup);
 export const ERROR_ROW = selector(TESTID.error);
-export const CROSS_FILE_ERRORS = selector(TESTID.crossFileErrors);
-/** Shown OVER a last-good tree: the files on disk stopped validating. */
+/** Shown OVER pages that are LIVE: which files of the directory are broken. It
+ *  keeps the name it had when it meant "showing the last good version", which
+ *  is now only what it says for a directory that could not be READ at all. */
 export const STALE_BANNER = selector(TESTID.staleBanner);
 /** ONE broken file's line inside that banner — its path, its state and a row
  *  COUNT, and never the rows themselves: the banner is drawn over somebody
- *  else's page (`last-good-banner-flood`, and `@olai/format`'s `summary`,
+ *  else's page (`last-good-banner-flood`, and `@olai/format`'s `summaryOf`,
  *  which has no way to hand a surface a row). */
 export const BROKEN_FILE_LINE = selector(TESTID.brokenFileLine);
-/** Shown IN ONE outline's place: that file could not be read, the rest are live. */
+/** …and the door on that line, to the broken file's own page. */
+export const BROKEN_FILE_LINK = selector(TESTID.brokenFileLink);
+/** Shown IN ONE outline's place: that file is broken, the rest are live. */
 export const OUTLINE_FAILURE = selector(TESTID.outlineFailure);
 /** The connection dot, on screen in every shape of the app. The state it is
  *  reporting is its `data-connection`, never its colour. */

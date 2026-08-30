@@ -66,17 +66,26 @@
  *   RENAME them all → re-probe and publish THAT VERDICT → the caller's
  *   post-publish hook.
  *
- * A REFUSAL THERE IS NOT AUTOMATICALLY THIS WRITE'S. The codec judges the whole
- * set, because that is what a set means; whether the judgement is ABOUT the
- * files this commit puts down is a second question, and it is the codec's too
- * ({@link Codec.admits}). A codec that answers it lets a write to healthy files
- * land beside a file that will not validate — the same per-file degradation
- * reads have had since 2026-08-09, which writes never got — with the last good
- * snapshot still standing and the refusal still on the errors channel. ONLY
- * while the directory was already not loading: a write from a loading
- * directory that produces an invalid set caused that invalidity, and is
- * refused regardless of which files the findings name. A codec that does not
- * answer `admits` refuses exactly as before.
+ * WHAT THAT VERDICT SAYS ABOUT THIS WRITE is a second question and it is the
+ * codec's ({@link Codec.stopping}). The codec judges the whole set, because
+ * that is what a set means; whether the judgement is ABOUT the files this
+ * commit puts down is not something a set-shaped answer says on its own. A
+ * codec that answers the second question lets a write to healthy files land
+ * beside a file that will not validate — the same per-file degradation reads
+ * have had since 2026-08-09, which writes never got — and, for a codec that
+ * degrades per file rather than refusing, it is also the only place a write
+ * that broke ITS OWN file can be turned back. A codec that does not answer it
+ * refuses on a refusal and admits on a success, exactly as before.
+ *
+ * OVER A REFUSAL there is a second condition and it is this package's, not the
+ * codec's: the directory has to have ALREADY not been loading — the errors
+ * channel carrying a verdict from a PROBE rather than from this candidate —
+ * because a write from a loading directory that produces a refused set caused
+ * that refusal, whichever files the findings name (#439: a declaration that
+ * newly fences values in files it does not write; a move of a `ref` variant
+ * that strands values in a third file). A codec that degrades per file reaches
+ * that clause only when the directory itself cannot be read, which is the one
+ * refusal it has left.
  *
  * Validation before any rename is what makes a refused write cost nothing: the
  * bytes are on disk under names nothing reads, or they are not there at all.
@@ -695,7 +704,7 @@ export const make = <F, S, E>(
             ),
           }
           /**
-           * THE REFUSAL, IF THERE IS ONE — and whether it is about THIS write.
+           * WHAT STOPS THIS WRITE — asked of the verdict, per file.
            *
            * It used to be one line: a set the codec would not publish refused
            * the write, whatever the write touched. That is a whole-set answer
@@ -703,42 +712,59 @@ export const make = <F, S, E>(
            * one file failing to validate froze every write to the directory,
            * including the write that would have reported the problem.
            *
-           * THREE THINGS HAVE TO BE TRUE for the bytes to land over a refusal.
-           * The directory has to ALREADY not be loading — the errors channel
-           * carries a verdict from a probe, not from this candidate — because
-           * a write from a loading directory that produces an invalid set
-           * caused that invalidity (a declaration that newly fences values
-           * in files it does not write; a move of a `ref` variant that
-           * strands values in a third file). `Codec.admits` then says the
-           * refusal is not about these files, which is the half that lets a
-           * write to a healthy file land beside one that was already broken
-           * (`broken-file-blocks-healthy-writes`). And the base this write
-           * was planned against has to still be the truth for them — which
-           * is this package's own bookkeeping and is checked first.
+           * SO THE CODEC IS ASKED ({@link Codec.stopping}), over the OUTCOME
+           * whichever arm it took. A codec that refuses the set is asked whether
+           * the refusal is about these files; a codec that degrades per file
+           * answers with a set and is asked whether these files are among the
+           * ones it degraded. Both are the same question and it is the codec's
+           * either way — this package knows what a path is and nothing about
+           * what is wrong with one. Absent, the answer is the sentence that
+           * stood before any of this: a refusal refuses, a success admits.
+           */
+          const paths = write.changes.map((change) => change.path)
+          const refused = Result.isFailure(judged.outcome) ? judged.outcome.failure : null
+          const stopped = options.codec.stopping === undefined
+            ? refused
+            : options.codec.stopping(judged.outcome, paths)
+          if (stopped !== null) return Result.fail(stopped)
+          /**
+           * AND THE SECOND THING that has to be true for bytes to land over a
+           * REFUSAL: the base this write was planned against has to still be the
+           * truth for these files. That is this package's own bookkeeping, and
+           * it is asked only here — a codec that ADMITTED the write has said
+           * nothing about it.
            *
-           * `moved` is what that check reads. It holds every path re-decoded or
+           * TWO THINGS, and the first is #439's: the directory has to ALREADY
+           * not be loading. The errors channel has to be carrying a verdict
+           * from a PROBE rather than from this candidate, because a write from
+           * a loading directory that produces a refused set caused that refusal
+           * — a declaration that newly fences values in files it does not
+           * write, a move of a `ref` variant that strands values in a third
+           * file — and `stopping` cannot see that, since it is handed the
+           * candidate and not the history. It is this package's own
+           * bookkeeping, like the second.
+           *
+           * `moved` is what the check reads. It holds every path re-decoded or
            * removed since the last PUBLISHED revision, which is empty whenever
            * the directory is healthy and is exactly the drift a caller planning
            * against the last good snapshot cannot see while it is not. Without
            * it, admitting writes over a frozen snapshot would lose one: op two
            * is planned off a snapshot op one never reached, and writes the file
            * back without op one's record in it. So a file that has moved since
-           * the standing revision is refused exactly as before — the freeze
-           * narrows to the files it is really about rather than lifting.
+           * the standing revision is refused — the freeze narrows to the files
+           * it is really about rather than lifting.
+           *
+           * A SNAPSHOT THAT KEEPS MOVING never reaches this: the drift it
+           * defends against is drift a FROZEN publication hides, and a codec
+           * that degrades per file freezes only when the directory itself
+           * cannot be read.
            */
-          const refused = Result.isFailure(judged.outcome) ? judged.outcome.failure : null
           if (refused !== null) {
-            const paths = write.changes.map((change) => change.path)
             const settled = paths.every(
               (path) => !outstanding.changed.has(path) && !outstanding.removed.has(path),
             )
             const alreadyBroken = (yield* SubscriptionRef.get(errors)) !== null
-            if (
-              !settled || !alreadyBroken ||
-              options.codec.admits?.(refused, paths) !== true
-            ) {
-              return Result.fail(refused)
-            }
+            if (!settled || !alreadyBroken) return Result.fail(refused)
           }
 
           // Every file staged before any is renamed: a write that cannot be

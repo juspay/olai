@@ -54,8 +54,22 @@ export type Stage = "line" | "set"
  * argument this file's header makes: a code declared in one place and
  * classified in another is a pair that can drift, and a new code must answer
  * the question rather than default to the wrong answer.
+ *
+ * `set-per-finding` is the third value and the newest: a code whose INSTANCES
+ * differ. `bad-prop` is one finding read from two ends of one arrangement, and
+ * only two of the seven kinds it judges resolve a bare id (`ref` and `node`,
+ * and a declaration's own `under`); an `int` holding prose is decided by the
+ * record and the declarations file and nothing else. The code carried
+ * `set-across-files` for all of them, and the catalogue said the width cost
+ * nothing "because a withheld finding still refuses the set". THAT INVARIANT IS
+ * GONE (the per-file ruling, 2026-08-29): a withheld finding now breaks nothing
+ * at all, so the width stopped being generous and started being a hole — one
+ * file failing to parse anywhere in the directory washed out every `bad-prop`
+ * in it, and a file carrying a value the format had just refused was published
+ * live and writable. So the code says "ask the finding", and the finding
+ * answers ({@link OutlineError.across}, set by the rule that made it).
  */
-type Reach = Stage | "set-across-files"
+type Reach = Stage | "set-across-files" | "set-per-finding"
 
 /** Every way a loaded set can be wrong. Closed on purpose: the browser's error
  *  view switches on it, and a new member should be a type error there rather
@@ -127,23 +141,36 @@ const CATALOGUE = {
    * may live in any file (`ref` and `node`, and a declaration's own `under`),
    * so an unreadable file can INVENT "no node declares it" rather than merely
    * hide it — which is the guess the staging rule forbids. The other five are
-   * decided by the record and the declarations file, so the reach is wider
-   * than they need; that costs nothing, because a withheld finding still
-   * refuses the set ({@link ./validate.ts} counts the raw findings and
-   * {@link ./rules.ts}'s `reportOf` only decides what is SHOWN).
+   * decided by the record and the declarations file and cannot be invented by
+   * anything.
+   *
+   * `set-per-finding`, because those two facts are about different INSTANCES
+   * of one code and the difference is now load-bearing: a withheld finding
+   * breaks nothing since the per-file ruling, so classifying all seven kinds as
+   * guessable washed a real fault — an `int` holding prose — out of the report
+   * the moment any file in the directory failed to parse, and published the
+   * file carrying it. The rule that makes the finding knows which kind it
+   * judged and says so ({@link OutlineError.across}).
    */
-  "bad-prop": "set-across-files",
+  "bad-prop": "set-per-finding",
   /**
    * The DIRECTORY could not be read — not a record in it. EACCES on a folder,
    * a mount that went away, a disk with no room to answer a stat.
    *
    * The one code that is not about the format at all, and it is here because
    * of where it has to arrive rather than where it comes from: a reader whose
-   * outline has quietly stopped tracking the disk needs to be told, and the
-   * banner over the last good snapshot is the surface that already says
-   * exactly that. It used to be a log line and nothing else — the page froze
-   * at the last good revision and went on looking live (`@olai/store`'s
-   * `PlatformFailure`, translated by the codec's `unreadable`).
+   * outline has quietly stopped tracking the disk needs to be told. It used to
+   * be a log line and nothing else — the page froze at the last good revision
+   * and went on looking live (`@olai/store`'s `PlatformFailure`, translated by
+   * the codec's `unreadable`).
+   *
+   * WHICH SURFACE SAYS IT is a narrower answer than it was. The banner over a
+   * still-live tree used to be drawn for any finding at all, so this one landed
+   * where every other one did; since the per-file ruling that banner is a
+   * signpost naming BROKEN FILES over pages that are live, and this code is the
+   * only thing left that means "what is on screen is from before". They are two
+   * sentences on one surface now, and the second is the one drawn here
+   * (`@olai/web`'s `errors/banner.ts`, whose `Trouble` tells them apart).
    *
    * `set`, because it is a fact about the whole load and not about one line.
    * The site names the path that could not be read, with a `line` of 0 — there
@@ -168,15 +195,29 @@ export const ErrorCode = Schema.Literals(
 
 export const stageOf = (code: ErrorCode): Stage => CATALOGUE[code] === "line" ? "line" : "set"
 
-/** Can an unreadable file have INVENTED this error rather than merely hidden
- *  one? True for exactly the codes that resolve a bare id across files.
+/**
+ * Can an unreadable file have INVENTED this finding rather than merely hidden
+ * one? True for the codes that always resolve a bare id across files, and for
+ * the instances of a `set-per-finding` code that did.
  *
- *  Everything else is a finding whatever the missing file held: `parent` may
- *  not cross files, so an unresolved one is refused either way (unknown if
- *  nothing declares it, foreign if the unreadable file did), and a duplicate,
- *  a cycle or a stored marker needs the very records that are missing. */
-export const isGuessWhileUnreadable = (code: ErrorCode): boolean =>
-  CATALOGUE[code] === "set-across-files"
+ * Everything else is a finding whatever the missing file held: `parent` may not
+ * cross files, so an unresolved one is a finding either way (unknown if nothing
+ * declares it, foreign if the unreadable file did), and a duplicate, a cycle or
+ * a stored marker needs the very records that are missing.
+ *
+ * ASKED OF THE FINDING and not of the code, since the per-file ruling made the
+ * answer load-bearing rather than merely tidy: a withheld finding used to be
+ * withheld from the REPORT and counted all the same, so a code classified more
+ * widely than its instances needed cost nothing. It now breaks nothing at all,
+ * so the width is a hole — see {@link Reach}. An instance of a per-finding code
+ * that does not say `across` is NOT a guess, which is the safe direction: a
+ * rule that forgets to mark one reports a finding rather than washing one out.
+ */
+export const isGuessWhileUnreadable = (
+  error: Pick<OutlineError, "code" | "across">,
+): boolean =>
+  CATALOGUE[error.code] === "set-across-files" ||
+  (CATALOGUE[error.code] === "set-per-finding" && error.across === true)
 
 /** The stage a whole REPORT has reached: `line` while anything in it is a
  *  line-stage error, because a file that did not parse takes its ids with it
@@ -192,10 +233,21 @@ export const reportStage = (
  *  the other record that claimed the id, the rest of the cycle, the file the
  *  parent lives in. This is the "structured detail, not prose" rule — the error
  *  view renders these as their own rows, and a cross-file error is recognised
- *  by having a related site in another file. */
+ *  by having a related site in another file.
+ *
+ *  `broken` is the one field of the two-plane ruling that is not one of the
+ *  three axis birds: ABOUT is {@link implicatedBy} and it reaches every site
+ *  unfiltered; FILED-ON is the broken set's own axis, and a related site
+ *  marked `false` is named but NOT one of the ship's broken — the judgement's
+ *  ground (`bad-prop`'s declaration is the shape: the judge is named so the
+ *  fixer knows who said no, but a judge's own page stays lit and its own
+ *  writes stay admitted). Omitting is broken: every site the error names
+ *  darkens until the finding does.
+ */
 export const Related = Schema.Struct({
   ...Site.fields,
   note: Schema.String,
+  broken: Schema.optionalKey(Schema.Boolean),
 })
 export type Related = typeof Related.Type
 
@@ -205,8 +257,42 @@ export const OutlineError = Schema.Struct({
   /** One sentence, written to teach: what is wrong, and what would be right. */
   message: Schema.String,
   related: Schema.optionalKey(Schema.Array(Related)),
+  /**
+   * DID THIS FINDING RESOLVE A BARE ID to reach its conclusion — so an
+   * unreadable file could have invented it?
+   *
+   * Only on the codes whose reach is `set-per-finding` ({@link Reach}), where
+   * the answer is the instance's rather than the code's: `bad-prop` judges
+   * seven kinds and two of them resolve an id that may live in any file. The
+   * rule that makes the finding knows which kind it judged, so it says so here
+   * rather than leaving a reader of the code to assume the widest case.
+   *
+   * ABSENT MEANS NO, which is the safe direction: a rule that forgets to mark
+   * one reports a real finding where it might have withheld a guess, and the
+   * opposite mistake publishes a file carrying a value the format refused.
+   */
+  across: Schema.optionalKey(Schema.Boolean),
 })
 export type OutlineError = typeof OutlineError.Type
+
+/**
+ * ONE FILE'S ERRORS — everything the validator found that this file is the
+ * thing to edit for.
+ *
+ * It is declared beside {@link OutlineError} rather than beside the set that
+ * carries it because it is a fact about ERRORS and not about a directory. The
+ * same shape is four things: the set's `broken` entry ({@link ./set.ts}), the
+ * per-file `broken` on the wire (`@olai/surface`), the bounded face a banner
+ * counts off ({@link ./verdict.ts}'s `summaryOf`), and the rows a broken file's
+ * own page draws. It used to live in `./set.ts`, which left the one module that
+ * decides WHICH files a finding breaks ({@link ./verdict.ts}'s `blamed`) unable
+ * to name what it produces without importing the set it is upstream of.
+ */
+export const BrokenFile = Schema.Struct({
+  file: Schema.String,
+  errors: Schema.Array(OutlineError),
+})
+export type BrokenFile = typeof BrokenFile.Type
 
 /**
  * The files this error IMPLICATES: where it was found, and every place it names

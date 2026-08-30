@@ -1730,11 +1730,16 @@ const PINNED: Record<FailureKind, Provocation | Unreachable> = {
     args: { id: "order", add: ["order"] },
   },
   validation: {
-    // A set-wide break: nothing loaded, so there is nothing to write against.
+    // ONE BROKEN FILE, walked. Nothing whole-set is left to provoke — a file
+    // the validator finds something in is served with that file withheld and
+    // the rest of the directory live (the per-file ruling of 2026-08-29) — so
+    // this is the kind's real shape now: the set holds a PLACE for
+    // `orphan.olai` and no records, and answering it as an outline holding
+    // nothing would be indistinguishable from an outline somebody emptied.
     // The rows this comes back with are the subject of the test below.
     files: { "house.olai": HOUSE, "orphan.olai": ORPHAN },
-    tool: "set_done",
-    args: { id: "order" },
+    tool: "read_subtree",
+    args: { file: "orphan.olai" },
   },
   busy: {
     unreachable:
@@ -1758,54 +1763,83 @@ test("every refusal kind the format declares comes back as an isError result nam
 })
 
 /**
- * A `validation` refusal, which is the kind whose payload is the whole point.
+ * A `validation` refusal, which is the kind whose payload is the whole point —
+ * and the per-file ruling, said at the surface an agent actually calls.
  *
- * The other three carry a sentence and at most an id. This one carries the
- * VALIDATOR'S OWN ROWS — `file`, `line`, `code`, `message` per finding — which
- * is what lets an agent fix the one line that is wrong instead of re-reading a
- * directory it cannot parse. It is also the only kind whose detail is an array
- * of objects, so it is the only one the schema bridge and `structuredContent`
- * could plausibly flatten on the way out.
+ * The other three kinds carry a sentence and at most an id. This one carries
+ * the VALIDATOR'S OWN ROWS — `file`, `line`, `code`, `message` per finding —
+ * which is what lets an agent fix the one line that is wrong instead of
+ * re-reading a directory it cannot parse. It is also the only kind whose detail
+ * is an array of objects, so it is the only one the schema bridge and
+ * `structuredContent` could plausibly flatten on the way out.
  *
- * AND THE SAME ROWS ARRIVE THE OTHER WAY. A refused call is one door onto
- * "what is wrong here"; `surface://cells/errors` is the other, and it is the
- * one the browser draws its banner from. Asserting they are the same rows is
- * the whole of "one surface for browser and agents" at the point where it would
- * actually be felt: an agent and a person looking at a broken directory are
- * looking at one report.
+ * IT USED TO BE THE WHOLE DIRECTORY. `orphan.olai` names a parent nothing
+ * declares, and until 2026-08-29 that refused every read and every write in the
+ * vault: `search_nodes` for a word in a file three directories away came back
+ * an error, and so did marking a node in it done. The human's ruling took that
+ * out — a broken `.olai` degrades ALONE — so what this asks now is both halves
+ * at once: the healthy file answers reads AND accepts writes, and the broken
+ * one refuses with its own rows.
+ *
+ * AND THE ROWS ARRIVE ON THE FILE. `surface://cells/errors` used to be the
+ * other door onto "what is wrong here" and is now EMPTY over a directory like
+ * this one, correctly: that cell says the directory could not be read, and this
+ * directory was read perfectly. What carries the same rows is
+ * `surface://collections/outlines/orphan.olai` — the entry an agent can watch,
+ * beside the entry for the file that is fine. One report, filed where the
+ * trouble is.
  */
-test("a directory that will not load refuses with the validator's own rows", async () => {
-  await withTools({ "house.olai": HOUSE, "orphan.olai": ORPHAN }, async ({ client }) => {
-    const read = await call(client, "search_nodes", { text: "kitchen" })
-    expect(read.isError).toBe(true)
-    expect(read.structured["kind"]).toBe("validation")
+test("a broken outline refuses with its own rows while its neighbours answer", async () => {
+  await withTools({ "house.olai": HOUSE, "orphan.olai": ORPHAN }, async ({ client, read }) => {
+    // THE HEALTHY FILE IS LIVE — a read of it answers, where every read in this
+    // directory used to be an error.
+    const found = await call(client, "search_nodes", { text: "kitchen" })
+    expect(found.isError).toBeFalsy()
 
-    // A WRITE refuses the same way, and that is the point of the kind: a
-    // refused write and a broken file on disk are explained by one report.
-    const write = await call(client, "set_done", { id: "order" })
-    expect(write.isError).toBe(true)
-    expect(write.structured["kind"]).toBe("validation")
+    // …AND ACCEPTS WRITES, which is the half `broken-file-blocks-healthy-writes`
+    // was filed about and could not itself be filed because of.
+    const wrote = await call(client, "set_done", { id: "order" })
+    expect(wrote.isError).toBeFalsy()
+    expect(read("house.olai")).toContain(`"done"`)
 
-    // The rows themselves, as DATA — situated, not a sentence to parse.
-    const rows = findingsOf(read.structured)
+    // THE BROKEN FILE refuses, and the refusal is data rather than a sentence
+    // to parse: the rows themselves, situated.
+    const refused = await call(client, "read_subtree", { file: "orphan.olai" })
+    expect(refused.isError).toBe(true)
+    expect(refused.structured["kind"]).toBe("validation")
+    const rows = findingsOf(refused.structured)
     expect(Array.isArray(rows)).toBe(true)
     expect(rows.length).toBeGreaterThan(0)
-    expect(rows[0]).toMatchObject({ file: "orphan.olai" })
+    expect(rows[0]).toMatchObject({ file: "orphan.olai", code: "unknown-parent" })
     for (const row of rows) {
       expect(typeof row["code"]).toBe("string")
       expect(typeof row["message"]).toBe("string")
       expect(typeof row["line"]).toBe("number")
     }
-    expect(findingsOf(write.structured)).toEqual(rows)
 
-    // And the resource an agent can WATCH says the same thing, in the same
-    // vocabulary, at the same instant — which is what one surface means.
-    const answer = await client.readResource({ uri: "surface://cells/errors" })
-    const part = answer.contents[0]
-    if (part === undefined || !("text" in part)) {
+    // The errors CELL is empty: nothing is wrong with the directory, one thing
+    // is wrong with a file in it.
+    const cell = await client.readResource({ uri: "surface://cells/errors" })
+    const said = cell.contents[0]
+    if (said === undefined || !("text" in said)) {
       throw new Error("surface://cells/errors: expected one text part")
     }
-    expect(JSON.parse(part.text as string)).toEqual({ findings: rows })
+    expect(JSON.parse(said.text as string)).toEqual({ findings: [] })
+
+    // …and the same rows are on the file's own entry, which is what an agent
+    // watches.
+    const entry = await client.readResource({
+      uri: "surface://collections/outlines/orphan.olai",
+    })
+    const part = entry.contents[0]
+    if (part === undefined || !("text" in part)) {
+      throw new Error("surface://collections/outlines/orphan.olai: expected one text part")
+    }
+    const published = JSON.parse(part.text as string) as Record<string, unknown>
+    expect((published["broken"] as { errors: ReadonlyArray<unknown> }).errors).toEqual(rows)
+    // The file keeps its place and loses its content, which is what makes its
+    // own page draw rows where its tree was.
+    expect(published["nodes"]).toEqual([])
   })
 })
 

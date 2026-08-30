@@ -40,28 +40,34 @@ import {
   outlineDocument,
   type Unkept,
 } from "./document.ts"
-import { OutlineError } from "./errors.ts"
+import { BrokenFile, type OutlineError } from "./errors.ts"
 import { bodyKind } from "./kinds.ts"
 import { Located } from "./node.ts"
 import { byPath } from "./paths.ts"
-import { type Verdict, verdictOf } from "./verdict.ts"
+import { admits, type Verdict, verdictOf } from "./verdict.ts"
 
 /**
- * A file of the set that could not be read, and why.
+ * A file of the set that is BROKEN, and why — {@link ./errors.ts}'s shape,
+ * re-exported here because this is the collection that carries it.
  *
  * It rides in the SET rather than only in the error report because the two
  * answer different questions. The report is "what must be fixed"; this is
- * "what does `pantry.olai` show" — and the answer, for a file whose lines do
- * not parse, is its own errors, in place, while every other outline stays live
- * (the hybrid error scope, resolved 2026-08-09). A view that had only the
- * report would have to guess which outline a `file:line` belonged to and hope
- * the two lists agreed.
+ * "what does `pantry.olai` show" — and the answer is its own errors, in place,
+ * while every other outline stays live. A view that had only the report would
+ * have to guess which outline a `file:line` belonged to and hope the two lists
+ * agreed.
+ *
+ * IT IS EVERY KIND OF BROKEN NOW, which is the whole of the per-file ruling
+ * (2026-08-29). It used to mean "would not parse" — the hybrid error scope of
+ * 2026-08-09, where one file's unreadable LINES cost the reader that file and
+ * nothing else, while a file that read perfectly and said something the set
+ * could not hold took the whole vault off the screen instead. Both are one
+ * thing here: a file the set holds a PLACE for and no content, listed in the
+ * sidebar, drawing its own errors on its own page, with every healthy neighbour
+ * live and writable beside it. {@link ./verdict.ts}'s `blamed` is what decides
+ * which files a finding puts in here.
  */
-export const BrokenFile = Schema.Struct({
-  file: Schema.String,
-  errors: Schema.Array(OutlineError),
-})
-export type BrokenFile = typeof BrokenFile.Type
+export { BrokenFile }
 
 export const OutlineSet = Schema.Struct({
   /**
@@ -213,6 +219,117 @@ export const brokenBy = (
   const held = heldFor(set)
   return held.broken ??= new Map(set.broken.map((entry) => [entry.file, entry.errors]))
 }
+
+/**
+ * WHAT, IN THIS SET, STOPS A WRITE TO THESE FILES — or `null` when nothing
+ * does.
+ *
+ * The write gate's question, and it is per file. A served directory with a
+ * broken outline in it is a directory that goes on ACCEPTING WRITES to every
+ * healthy file (the per-file ruling, 2026-08-29): the set is published, the
+ * broken file draws its own errors, and a write three directories away is not
+ * what is wrong with anything. So the gate asks about the files THIS write puts
+ * down and about nothing else, and the answer is the rows of the first of them
+ * the set holds no content for — first rather than all, because a refusal is a
+ * sentence somebody reads and the second blocker is one fix away from being the
+ * first.
+ *
+ * IT IS ASKED OF THE SET AND NOT OF A REFUSAL, which is where this differs from
+ * {@link ./verdict.ts}'s `admits` and is the whole of what the ruling moved. A
+ * validation no longer refuses a directory over one file — it publishes the
+ * directory with that file withheld ({@link withheld}) — so "is anything wrong
+ * with these files" is a question about the value the validator ANSWERED with,
+ * not about a value it declined to answer at all. `@olai/store`'s `Codec`
+ * carries it as `stopping`, over either arm.
+ *
+ * THE WRITE THAT MENDS is admitted by the same line, and nothing here has to
+ * know it is one: a commit is judged on the set it WOULD make, so a write that
+ * fixes `lanes.olai` wholly leaves a set with nothing to say about `lanes.olai`
+ * and lands, and one that half-fixes it is stopped by what is left. There is no
+ * repair case and no exception for it — there is one rule, asked of the tree
+ * the write would leave behind.
+ */
+export const stopping = (
+  set: OutlineSet,
+  paths: ReadonlyArray<string>,
+): Verdict | null => {
+  // ONE QUESTION, ONE ANSWER SHAPE ({@link ./verdict.ts}'s `admits`): which of
+  // these files something is wrong with, and its rows. This is that answer
+  // spelled as the store's `E` — a verdict, because that is what the seam
+  // carries — and the blocker's identity is not thrown away by the spelling:
+  // every row in it names the file, which is how the sentence downstream
+  // recovers it.
+  const admission = admits(set.broken, paths)
+  return admission._tag === "admitted" ? null : verdictOf(admission.rows)
+}
+
+/**
+ * THE SET WITH THESE FILES' CONTENT WITHDRAWN — each one keeping its place and
+ * carrying its errors, exactly as a file that would not parse always has.
+ *
+ * This is the carry half of the per-file ruling, and it is the half a tier
+ * table alone could never have been ({@link ./verdict.ts} said so while the
+ * ruling was still owed: "a class moved to `carried` must also be CARRIED
+ * somewhere a reader can see it"). {@link assemble} already does this for a
+ * file the DECODER refused; this does it for a file the whole-set rules found
+ * something about, off the same `broken` list, so there is one meaning of
+ * broken in the system and one place a reader looks for it.
+ *
+ * THE CONTENT GOES, and that is deliberate rather than incidental: the broken
+ * file's page shows its errors and NOT a stale tree (the ruling's second half),
+ * and a mirror or a `see` from a healthy file into a withheld one resolves to
+ * the honest dangling face the derivation already has a word for
+ * ({@link ./derive.ts}'s `follow`) rather than to a record the validator has
+ * just said the set cannot hold. A duplicate id is the case that makes this
+ * unarguable: while it stands, `byId` keeps one of the two claims, and drawing
+ * anybody's `see` at it is drawing a coin toss.
+ *
+ * IT IS NOT A NEW JUDGEMENT. The rules run over the WHOLE decoded set, always;
+ * this is applied to what gets PUBLISHED. So withholding a file can never
+ * invent a finding against a healthy neighbour — the edges into it dangle in
+ * the published view and were resolved in the judged one — and the next
+ * validation starts from the full set again, which is what makes the answer
+ * stable rather than a cascade that eats the directory one file per revision.
+ *
+ * THE SET ITSELF COMES BACK when there is nothing to withhold that `assemble`
+ * has not already withheld, identity and all: a healthy directory pays one
+ * comparison of two empty lists, and a directory whose only trouble is a file
+ * that would not parse is the value it always was.
+ */
+export const withheld = (
+  set: OutlineSet,
+  broken: ReadonlyArray<BrokenFile>,
+): OutlineSet => {
+  if (sameBroken(set.broken, broken)) return set
+  // The files `assemble` already emptied keep the very documents it put there:
+  // this is the same withdrawal said twice, and minting a second empty outline
+  // for a path that already holds one would move a value nothing changed.
+  const held = new Set(set.broken.map((entry) => entry.file))
+  const withdrawn = new Set(broken.map((entry) => entry.file))
+  return {
+    documents: set.documents.map((document) =>
+      withdrawn.has(document.path) && !held.has(document.path)
+        ? emptyDocument(document.path)
+        : document
+    ),
+    broken,
+  }
+}
+
+/** Whether these are the files the set already holds no content for, and for
+ *  the same reasons — rows compared by IDENTITY, since both lists are cut from
+ *  one validation's findings and a row that is a different object is a row
+ *  something else made. */
+const sameBroken = (
+  held: ReadonlyArray<BrokenFile>,
+  next: ReadonlyArray<BrokenFile>,
+): boolean =>
+  held.length === next.length &&
+  held.every((entry, at) => {
+    const other = next[at] as BrokenFile
+    return entry.file === other.file && entry.errors.length === other.errors.length &&
+      entry.errors.every((row, index) => row === other.errors[index])
+  })
 
 /**
  * The readings of a set that every caller was building for itself, held against

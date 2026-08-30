@@ -50,6 +50,7 @@ import {
   declaredFor,
   heldCustoms,
   keyOf,
+  resolvesId,
   type Typed,
   wrongDeclaration,
   wrongValue,
@@ -58,14 +59,20 @@ import {
 // ── the verdict ────────────────────────────────────────────────────────
 
 /**
- * The findings, as the caller of a refused validation SEES them: the parse
- * errors first, whatever the rules withheld taken out, and the whole thing in
- * presentation order.
+ * THE REPORT: the parse errors first, whatever the rules withheld taken out,
+ * and the whole thing in presentation order.
  *
- * It is `./validate.ts`'s closing paragraphs, moved here so that the shadow can
- * ask it of the incremental arm's findings too. Comparing two lists of raw
- * findings would be comparing something no reader ever sees; comparing two
- * reports is comparing the product.
+ * NOTHING REFUSES ANY MORE, which is what this sentence used to say and what
+ * the per-file ruling took away. It read "the findings, as the caller of a
+ * REFUSED validation sees them"; a validation answers with a set whatever it
+ * finds, so this is what a PUBLISHED set's `broken` is cut from — filed under
+ * the files each finding breaks (`./verdict.ts`'s `blamed`) and drawn on those
+ * files' own pages.
+ *
+ * It is `./validate.ts`'s closing paragraphs, moved here so that both arms of
+ * the validator reach it. Comparing two lists of raw findings would be
+ * comparing something no reader ever sees; comparing two reports is comparing
+ * the product.
  */
 export const reportOf = (
   set: OutlineSet,
@@ -80,7 +87,7 @@ export const reportOf = (
   // parse.
   const found = set.broken.length === 0
     ? errors
-    : errors.filter((error) => !isGuessWhileUnreadable(error.code))
+    : errors.filter((error) => !isGuessWhileUnreadable(error))
   return [...unreadable, ...found].sort(compareErrors)
 }
 
@@ -395,7 +402,16 @@ export const reportDeclarations = (
       }
       continue
     }
-    errors.push({ code: "bad-prop", ...siteOf(located), message: wrong })
+    // ACROSS-FILES IS THE FINDING'S, not the code's: only the `under` arm
+    // reads the set, so only it could have been invented by a file that did not
+    // parse (`./typing.ts`'s `Wrong`, and `./errors.ts`'s `Reach`). A
+    // declaration that says no `type` at all is true whatever is missing.
+    errors.push({
+      code: "bad-prop",
+      ...siteOf(located),
+      message: wrong.said,
+      ...(wrong.across ? { across: true } : {}),
+    })
   }
 }
 
@@ -440,11 +456,16 @@ export const reportPropValues = (
   for (const { located, key, value } of heldCustoms(records)) {
     const wrong = wrongValue(typed, located.file, key, value)
     if (wrong === undefined) continue
+    // …and the same question on the value side, asked of the KIND the key
+    // declares: a `ref` or a `node` resolves a bare id, and the other five are
+    // decided by the record and the declarations file (`./typing.ts`'s
+    // `resolvesId`).
     errors.push({
       code: "bad-prop",
       ...siteOf(located),
       message: wrong,
       related: judgedFrom(typed, key),
+      ...(resolvesId(typed.declarations, key) ? { across: true } : {}),
     })
   }
 }
@@ -467,7 +488,11 @@ export const reportPropValues = (
 const judgedFrom = (typed: Typed, key: string): ReadonlyArray<Related> => {
   const declared = declaredFor(typed.declarations, key)
   const declaring = declared === undefined ? undefined : typed.derived.byId.get(declared.at)
-  return declaring === undefined ? [] : [{ ...siteOf(declaring), note: "declared here" }]
+  // `broken: false` — the declaration is the judge, not a broken file: named
+  // but never darkened ({@link ./errors.ts}'s `Related`).
+  return declaring === undefined
+    ? []
+    : [{ ...siteOf(declaring), note: "declared here", broken: false }]
 }
 
 // ── cycles ─────────────────────────────────────────────────────────────

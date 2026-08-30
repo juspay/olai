@@ -14,19 +14,47 @@
  * The findings are the same findings. What is new is that the questions are
  * asked HERE, once, and answered off one value:
  *
- *   - {@link implicating} / {@link implicatedBy} — which files a finding is
- *     ABOUT. `Reach` in `./errors.ts` already named this axis for the staging
- *     rule (`set-across-files` is the code an unreadable file can invent); this
- *     is the same axis read per finding rather than per code.
- *   - {@link admits} — the WRITE GATE's question, and it is per file. Its
+ *   - {@link blamed} — which files a finding is ABOUT, filed under them.
+ *     `Reach` in `./errors.ts` already named this axis for the staging rule
+ *     (`set-across-files` is the code an unreadable file can invent) and
+ *     `implicatedBy` reads it per finding; this is that answer for a whole
+ *     report, and it is the one partition of a verdict there is.
+ *   - {@link admits} — how a REFUSAL is read, and it is per file. Its
  *     answer has no whole-set member: there is no way to spell "the set is
  *     invalid, so no" at a write, only "`lanes.olai` is what stops this", which
  *     is what makes the freeze unspellable through this socket rather than
  *     merely fixed at one call site.
- *   - {@link summary} — a BOUNDED per-file face any surface may draw. The
- *     banner draws this; the enumeration stays where a reader asked for it.
- *   - {@link tierOf} — what a finding DOES to a load, as a consultable
- *     classification rather than as a blanket buried in the validator.
+ *   - {@link summaryOf} — a BOUNDED per-file face any surface may draw, off
+ *     the per-file entries {@link blamed} files. The banner draws this; the
+ *     enumeration stays where a reader asked for it.
+ *   - {@link admits} / {@link summaryOf} — the two questions asked OF that
+ *     partition: what stops a write to these files, and a bounded face any
+ *     surface may draw.
+ *
+ * ## THE TIER SHELF IS GONE, and the ruling is why
+ *
+ * This module used to publish `tierOf` — a `Record<ErrorCode, Tier>` saying
+ * which classes `refuse` a load and which are `carried` past it — set to
+ * exactly what the validator did before the table existed, with the question of
+ * what should sit on it left open as `#human` (roadmap `verdict-boot-policy`).
+ * The human answered on 2026-08-29 and the answer has no second value in it:
+ * **every finding is per file**. A broken `.olai` degrades ALONE, at a cold
+ * boot and at runtime alike; nothing a file can say takes another file off the
+ * screen or refuses a write to it.
+ *
+ * So the shelf is a table with one row, and a table with one row is a fact
+ * spelled as a mechanism. What replaced it is {@link blamed}, which does the
+ * OTHER half the shelf's own prose said was owed — "a class moved to `carried`
+ * must also be CARRIED somewhere a reader can see it" — by filing every finding
+ * under the files it breaks, in the shape the set already carries a file that
+ * would not parse (`./errors.ts`'s `BrokenFile`). The tier was the decision;
+ * the carry is what makes it true, and there is no longer a way to write down
+ * the decision without it.
+ *
+ * WHAT STILL REFUSES A LOAD is one thing and it is not a class of finding: a
+ * DIRECTORY nobody could read has no set to degrade per file, and that arrives
+ * on the store's errors channel rather than through a validation at all
+ * (`@olai/ops`' `codec.ts`, `unreadable`).
  *
  * IT IS A STRUCT AND NOT A BRANDED ARRAY, and that is the whole of the shape
  * argument: `.length > 0` on a list is exactly the reduction this module exists
@@ -42,7 +70,7 @@
 
 import { Schema } from "effect"
 
-import { type ErrorCode, implicatedBy, OutlineError, stageOf } from "./errors.ts"
+import { type BrokenFile, implicatedBy, OutlineError, stageOf } from "./errors.ts"
 import { byPath } from "./paths.ts"
 
 /**
@@ -50,9 +78,13 @@ import { byPath } from "./paths.ts"
  *
  * ONE FIELD TODAY, and the reason it is a struct all the same is above: what
  * this type publishes is the QUESTIONS below, and a list publishes `length`.
- * A second field would go here the day a finding carries something no row does
- * — which is exactly where the boot policy's carried findings will land
- * ({@link Tier}).
+ * A second field would go here the day a finding carries something no row does.
+ *
+ * WHAT IT NO LONGER MEANS is "the set could not be loaded". Since the per-file
+ * ruling a validation answers with a set whatever it found, and this value is
+ * what a REFUSED WRITE carries and what the store's errors channel says about a
+ * directory it could not read at all — never a reason a reader's outlines are
+ * off the screen.
  */
 export const Verdict = Schema.Struct({
   /** Every finding, in presentation order — the parse errors first, the
@@ -77,48 +109,6 @@ export const verdictOf = (findings: ReadonlyArray<OutlineError>): Verdict =>
  *  decide whether to draw ITSELF. */
 export const isClean = (verdict: Verdict): boolean => verdict.findings.length === 0
 
-// ── which files a finding is about ──────────────────────────────────────
-
-/** The findings FILED ON one file, in the order the verdict holds them.
- *
- *  Two questions live here and they used to SHARE ONE AXIS — the breakage
- *  `5dfef3ed` landed made them visibly two. WHICH FILES ONE FINDING IS
- *  *ABOUT* is `./errors.ts`'s ({@link implicatedBy}) — site plus every row it
- *  names related, because the error view renders both halves of one
- *  judgement and the byte-check at the write door can name only files the
- *  verdict names. WHICH FILE THE FINDING IS *FILED ON* is the finding's own
- *  `file`: a `bad-prop` site's record is wrong; the declaration that judged
- *  it is not — a write gate asking "which file is broken" needs the one the
- *  write could fix. The shared axis bred the old sentence again — one bad
- *  value in one ordinary file freezing every write to the declarations file
- *  is exactly the shape `broken-file-blocks-healthy-writes` exists to make
- *  unspellable.
- *
- *  File-first rather than related-including, and the consumers follow: the
- *  write gate's `admits` and the banner's per-file faces both ask the
- *  broken-file question; the about-one is for the error view and the drift
- *  check, whose doors are the finding, not the file.
- */
-export const implicating = (
-  verdict: Verdict,
-  file: string,
-): ReadonlyArray<OutlineError> =>
-  verdict.findings.filter((finding) => finding.file === file)
-
-/** Every file any finding NAMES, in path order — the rows' whole reach,
- *  the set the error view draws cross-file colour from and the set the drift
- *  check's ask names. `summary` asks one level DOWN: per file the finding is
- *  FILED ON, not every file it looked at — the two share `byPath`'s order
- *  and nothing else ({@link implicating} is that split).
- */
-export const implicatedIn = (verdict: Verdict): ReadonlyArray<string> => {
-  const files = new Set<string>()
-  for (const finding of verdict.findings) {
-    for (const file of implicatedBy(finding)) files.add(file)
-  }
-  return [...files].sort(byPath)
-}
-
 // ── the write gate's question ───────────────────────────────────────────
 
 /**
@@ -133,47 +123,68 @@ export const implicatedIn = (verdict: Verdict): ReadonlyArray<string> => {
 export type Admission =
   | { readonly _tag: "admitted" }
   /** The blocker, named — and its rows, so the refusal can show its work
-   *  without the caller going back to the verdict for them. */
+   *  without the caller going looking for them. */
   | {
     readonly _tag: "implicated"
     readonly file: string
     readonly rows: ReadonlyArray<OutlineError>
   }
 
-export const ADMITTED: Admission = { _tag: "admitted" }
+/** Nothing stops this write. One value rather than a fresh struct per ask —
+ *  it is the answer almost every write gets. */
+const ADMITTED: Admission = { _tag: "admitted" }
 
 /**
- * Is a write to exactly these files admissible against this verdict?
+ * Is a write to exactly these files admissible, given what is broken?
  *
- * ADMITTED means no finding in hand is FILED ON any of them ({@link
- * implicating}'s raw split is the gate's own question now): whatever is wrong
- * with the served directory, this write is not it and never was. The store's
- * gate spends that answer to let the write land while the broken file goes on
- * being broken beside it — reads have degraded per file since 2026-08-09 and
- * writes did not, and the asymmetry was the bug.
+ * ADMITTED means no entry in hand is about any of them: whatever is wrong with
+ * the served directory, this write is not it and never was. The store's gate
+ * spends that answer to let the write land while the broken file goes on being
+ * broken beside it — reads have degraded per file since 2026-08-09 and writes
+ * did not, and the asymmetry was the bug.
  *
  * IMPLICATED names the FIRST file, in the order the caller asked about them,
  * that something is wrong with. First rather than all of them because a refusal
  * is a sentence somebody reads, and the second blocker is one fix away from
  * being the first.
  *
+ * IT TAKES THE PER-FILE ENTRIES, which is the axis the whole system reads now,
+ * and that is what makes it ONE question rather than two. It used to take a
+ * `Verdict` and re-partition it per file — so the write gate's own path asked
+ * it of a SET (`./set.ts`'s `stopping`, which had the entries already) while
+ * the refusal's sentence asked it of the verdict that gate had just built out
+ * of one entry's rows, deriving the blocker's identity a second time from a
+ * value that was made by knowing it. Both callers reach the entries now: a set
+ * carries them, and a caller holding a verdict gets them from {@link blamed},
+ * which is the same step every other reader of a verdict makes.
+ *
  * A directory that could not be READ implicates everything: there is no file
  * whose health could be asserted when the listing itself failed, so the answer
- * is that finding's own site, whichever files were asked about. (In practice a
- * write never reaches here in that state — the store's probe fails first — and
- * a socket whose safety rests on that is not one.)
+ * is that entry, whichever files were asked about. (In practice a write never
+ * reaches here in that state — the store's probe fails first — and a socket
+ * whose safety rests on that is not one.)
+ *
+ * TWO SMALL SCANS AND NO INDEX, deliberately: a directory has a handful of
+ * broken files at most and a commit puts down one or two, so a map built to
+ * answer one question would cost more than the question. The caller that asks
+ * per file across a whole listing has `./set.ts`'s `brokenBy`, which is held
+ * with the set.
  */
 export const admits = (
-  verdict: Verdict,
+  broken: ReadonlyArray<BrokenFile>,
   files: ReadonlyArray<string>,
 ): Admission => {
-  const whole = verdict.findings.find((finding) => finding.code === "unreadable-directory")
+  const whole = broken.find((entry) =>
+    entry.errors.some((row) => row.code === "unreadable-directory")
+  )
   if (whole !== undefined) {
-    return { _tag: "implicated", file: whole.file, rows: implicating(verdict, whole.file) }
+    return { _tag: "implicated", file: whole.file, rows: whole.errors }
   }
   for (const file of files) {
-    const rows = implicating(verdict, file)
-    if (rows.length > 0) return { _tag: "implicated", file, rows }
+    const entry = broken.find((one) => one.file === file)
+    if (entry !== undefined && entry.errors.length > 0) {
+      return { _tag: "implicated", file, rows: entry.errors }
+    }
   }
   return ADMITTED
 }
@@ -187,14 +198,14 @@ export const admits = (
 export type FileState = "unreadable" | "unparsed" | "invalid"
 
 /** One file's face: what is wrong with it, and how much. NO ROWS — that is the
- *  whole of the bound, and the rows are one `implicating` away for the surface
- *  whose job is to show them. */
+ *  whole of the bound, and the rows are on the entry {@link blamed} filed, for
+ *  the surface whose job is to show them. */
 export interface FileFace {
   readonly file: string
   readonly state: FileState
-  /** Findings FILED ON this file. One finding, one face's count — the file
-   *  the fix lives in is the one the face is for, so a cross-file finding is
-   *  not double-counted across every file it looked at. */
+  /** Findings implicating this file. A cross-file finding counts in each file
+   *  it names, which is what makes these counts a per-FILE fact rather than a
+   *  partition of the total. */
   readonly count: number
 }
 
@@ -214,30 +225,46 @@ export interface FileFace {
 export interface Summary {
   /** At most `n`, in path order — the order the sidebar reads down. */
   readonly files: ReadonlyArray<FileFace>
-  /** Filed-on files this face does not list. */
+  /** Implicated files this face does not list. */
   readonly more: number
-  /** Findings in the whole verdict. The counts above DO sum to this: one
-   *  finding, one file's face — a cross-file finding is counted on the file
-   *  it was filed on, not every file it looked at. */
+  /** Rows across every implicated file, listed or not — the sum of the counts
+   *  above, including the tail this face does not name. A cross-file finding is
+   *  ONE finding and TWO rows here, because it is two files somebody has to
+   *  open, which is what this number is a size of. */
   readonly total: number
 }
 
-export const summary = (verdict: Verdict, n: number): Summary => {
-  // ONE face per file a finding is FILED ON, not per file any finding names
-  // — the draught of `5dfef3ed` again: a cycle's steps or a bad value's
-  // declaration are the row's OTHER sites, and the face the banner draws is
-  // the file that reads broken, not the one the judgement reached through.
-  // `implicatedIn`'s door stays open for the error view's whole row — the
-  // two are now distinct axes by design rather than by coincidence.
-  const filed = [...new Set(verdict.findings.map((finding) => finding.file))].sort(byPath)
-  const faces = filed.map((file): FileFace => {
-    const rows = implicating(verdict, file)
-    return { file, state: stateOf(rows), count: rows.length }
-  })
+/**
+ * THE ONE FACE CONSTRUCTOR, off the per-file entries a SET carries.
+ *
+ * Nothing is re-partitioned here — the entries are what {@link blamed} filed and
+ * what each broken file's own page draws — so the sentence over somebody else's
+ * page and the rows on the page it names cannot come to disagree about a count.
+ *
+ * IT TAKES ENTRIES AND NOT A VERDICT, and there is deliberately no second
+ * constructor that takes one. There was: `summary(verdict, n)` was
+ * `summaryOf(blamed(verdict.findings), n)` spelled as an export, which is two
+ * ways to build one shape and hides the step that matters — a verdict becomes
+ * per-file ENTRIES first, and everything downstream of that is per file. The
+ * one caller that starts from a verdict (a directory that could not be read,
+ * which arrives on the errors channel with no set to carry it) composes the two
+ * at its own call site, where the composition reads as the sentence it is.
+ *
+ * `total` is the sum of the entries' rows rather than a count of findings, and
+ * the difference is a cross-file finding: it breaks two files, so it is one
+ * finding and two rows to the directory a reader has to go and fix.
+ */
+export const summaryOf = (broken: ReadonlyArray<BrokenFile>, n: number): Summary => {
+  const faces = broken.map((entry): FileFace => ({
+    file: entry.file,
+    state: stateOf(entry.errors),
+    count: entry.errors.length,
+  }))
+  const clamp = Math.max(0, n)
   return {
-    files: faces.slice(0, Math.max(0, n)),
-    more: Math.max(0, faces.length - Math.max(0, n)),
-    total: verdict.findings.length,
+    files: faces.slice(0, clamp),
+    more: Math.max(0, faces.length - clamp),
+    total: faces.reduce((sum, face) => sum + face.count, 0),
   }
 }
 
@@ -250,92 +277,65 @@ const stateOf = (rows: ReadonlyArray<OutlineError>): FileState => {
   }
   return rows.some((row) => stageOf(row.code) === "line") ? "unparsed" : "invalid"
 }
-
-// ── the severity shelf ──────────────────────────────────────────────────
-
-/**
- * What a finding DOES to a load.
- *
- * `refuses` holds the last good snapshot and serves nothing at a cold boot;
- * `carried` is a hole the rest of the set is rendered around — the file keeps
- * its place, its own page says so, and nobody else's page moves.
- *
- * HALF OF THIS ALREADY EXISTED and was never written down as a tier: a file
- * whose LINES do not parse has degraded in place since 2026-08-09
- * (`./validate.ts`'s error scope), while every set-level rule shared one
- * blanket. The table below is that arrangement said out loud, with the set half
- * finally spellable.
- */
-export type Tier = "refuses" | "carried"
+// ── what a load does with a finding ─────────────────────────────────────
 
 /**
- * THE ONE LINE OF POLICY, and it is deliberately not architecture.
+ * THE REPORT, FILED UNDER THE FILES IT BREAKS — in path order, each entry
+ * carrying its own rows in the order the report holds them.
  *
- * Which classes brick a boot is a RULING and the human's to make (roadmap
- * `verdict-boot-policy`, `#human`): a dangling `see` is arguably the same class
- * as a stale ref-prop — a flag with a did-you-mean, not a brick — and two of
- * them served an empty vault on 2026-08-25, chat included. The debate that
- * produced this module refused to smuggle that call into the shape, so what
- * ships here is the SHELF: every class named, consultable, and set to exactly
- * what the validator did before this table existed.
+ * This is what a load does with a finding, and it replaced a table (see this
+ * module's header for the shelf that stood here and the ruling that took it
+ * down). Every finding is per file now, so what a validation OWES its caller is
+ * not "does this refuse" but "which files does this take off the screen" — and
+ * that is a partition of the report rather than a policy over it.
  *
- * SO IT IS BEHAVIOUR-PRESERVING BY CONSTRUCTION: every `set` code refuses (the
- * old blanket), every `line` code is carried (the old error scope), and
- * `./verdict.test.ts` pins that equivalence against `stageOf` for the whole
- * catalogue rather than against this file's own opinion of it.
+ * WHICH FILES ONE FINDING BREAKS is {@link implicatedBy} — the file it was
+ * found in, plus every place it names as related — and that is deliberately the
+ * SAME axis the write gate and the summary read, rather than a second, narrower
+ * one written for loading. A finding that names two files is a finding about
+ * the RELATIONSHIP between them, and the error view has said since it was
+ * written that "which file is broken" then has no single answer
+ * (`./errors.ts`'s `isCrossFile`). Two files that both claim `boxes` are two
+ * files nobody can draw the second of; a cycle that closes through three is
+ * three. Blaming one end would put a page on screen whose records the validator
+ * has just refused, and picking WHICH end is the guess the report itself
+ * declines to make. So both ends go dark, both ends carry the same row, and
+ * the reader reaches the fix from wherever they were standing.
  *
- * TURNING ONE IS NOT A ONE-LINE EDIT, and whoever holds the ruling should know
- * it before they make it: a class moved to `carried` must also be CARRIED
- * somewhere a reader can see it, the way a parse failure rides in the set's
- * `broken` entry and draws on its own file's page (`./set.ts`'s `BrokenFile`).
- * Flipping a value here without that would make the finding true, consultable
- * and invisible — which is the silent-staleness shape the same sitting spent
- * its third finding on. The tier is the decision; the carry is its other half.
- *
- * It lives beside the verdict rather than in `./errors.ts`'s catalogue for the
- * same reason: the catalogue is what the format KNOWS about a code — its
- * spelling, its prose, the phase that catches it, and the reach the staging
- * rule reads. What a class costs a boot is what this vault has DECIDED about
- * it. `satisfies Record<ErrorCode, Tier>` is what keeps the two from drifting
- * anyway: a new code is a type error here until somebody answers for it.
+ * A WITHHELD FINDING BREAKS NOTHING, and it is what closes the cold-boot
+ * incident. This is asked of the REPORT (`./rules.ts`'s `reportOf`) and not of
+ * the raw findings, so a rule that could not decide because some file did not
+ * parse has already been taken out of it: two `see` edges into a file whose
+ * lines are mid-edit are a GUESS about ids that may well be in there, and a
+ * guess may not darken the healthy page that holds the edge. What the reader
+ * gets instead is the dangling face the derivation already draws — which is the
+ * ruling's own answer to what an edge into a broken file resolves to, arrived
+ * at by not inventing a finding rather than by teaching the renderer a case.
  */
-const TIERS = {
-  // ── one line, on its own: a hole the rest of the set renders around ──
-  "not-json": "carried",
-  "not-an-object": "carried",
-  "bad-record": "carried",
-  "bad-id": "carried",
-  "several-marks": "carried",
-  "bad-date": "carried",
-  "bad-repeat": "carried",
-  "unreadable-file": "carried",
-
-  // ── the whole set: today's blanket, one row at a time ────────────────
-  "duplicate-id": "refuses",
-  "unknown-parent": "refuses",
-  "foreign-parent": "refuses",
-  "parent-not-a-node": "refuses",
-  "parent-cycle": "refuses",
-  "unknown-target": "refuses",
-  "after-cycle": "refuses",
-  "mirror-cycle": "refuses",
-  "missing-doc": "refuses",
-  "bad-prop": "refuses",
-  "unreadable-directory": "refuses",
-} as const satisfies Record<ErrorCode, Tier>
-
-export const tierOf = (code: ErrorCode): Tier => TIERS[code]
-
-/**
- * Does anything here stop the set loading?
- *
- * Asked of the RAW findings rather than of a report, and the difference is the
- * withheld ones: a rule that could not decide because some file did not parse
- * has still found something, and a snapshot whose nodes point at ids nobody can
- * resolve is not a set anything could draw (`./validate.ts` has said so since
- * the error scope was written). They are taken out of what a READER is shown
- * and they still refuse.
- */
-export const refusesLoad = (
-  findings: ReadonlyArray<{ readonly code: ErrorCode }>,
-): boolean => findings.some((finding) => tierOf(finding.code) === "refuses")
+export const blamed = (
+  report: ReadonlyArray<OutlineError>,
+): ReadonlyArray<BrokenFile> => {
+  const files = new Map<string, Array<OutlineError>>()
+  for (const finding of report) {
+    // The site it was FILED ON, always. The related sites, USUALLY — the one
+    // the two-plane ruling already draws the exception for: a site the
+    // finding NAMES but does not break is the judging ground it stands on
+    // (`./errors.ts`'s `Related.broken`), and pulling THAT file's page dark
+    // would be the broken-file-blocks-healthy-writes sentence said through
+    // the loader's mouth instead of the gate's. A cycle's steps say nothing
+    // and are the common case: every named site breaks.
+    const darkened = implicatedBy(finding).filter((file) =>
+      file === finding.file ||
+      (finding.related ?? []).find((one) => one.file === file)?.broken !== false
+    )
+    for (const file of darkened) {
+      const rows = files.get(file)
+      if (rows === undefined) files.set(file, [finding])
+      else rows.push(finding)
+    }
+  }
+  return [...files.keys()].sort(byPath).map((file) => ({
+    file,
+    errors: files.get(file) as ReadonlyArray<OutlineError>,
+  }))
+}

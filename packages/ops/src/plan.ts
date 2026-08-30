@@ -2425,7 +2425,11 @@ const declaredWrong = (
   if (!isPropertiesFile(scope, file)) return undefined
   const claimed = new Set(declarationsExcept(scope.typed.declarations, node.id).keys())
   const wrong = wrongDeclaration(scope.derived, { file, line: 0, node }, claimed)
-  return wrong === undefined ? undefined : new UsageFailure({ reason: wrong })
+  // THE SENTENCE, which is this door's half of the pair. Whether reaching it
+  // resolved a bare id is the LOAD's question — a finding an unreadable file
+  // could have invented is withheld from a report — and a live write is judged
+  // against a directory that is loading, so there is nothing here to withhold.
+  return wrong === undefined ? undefined : new UsageFailure({ reason: wrong.said })
 }
 
 /**

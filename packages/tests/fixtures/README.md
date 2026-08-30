@@ -225,28 +225,35 @@ dated between `permit` and `posts` (work.olai), so the two orders — path order
 across the groups, oldest first inside one — cannot both be satisfied by
 accident.
 
-## `broken/` — a set that does not parse
+## `broken/` — two broken files and a healthy one
 
 - `pantry.olai:3` — an unquoted key, so the line is not JSON (`not-json`).
+  The whole file contributes no nodes.
 - `shed.olai:2` — `parent` is `shhed`, which no node declares
   (`unknown-parent`, with `shed` as the did-you-mean).
+- `larder.olai` — nothing wrong with it, and `larder.olai:2` has
+  `see: ["flour"]`.
 
-A file with an unreadable line contributes no nodes, and the set-wide rules run
-over what is left. `shed.olai` is what makes this corpus a whole-set failure
-rather than a degrade: `parent` may not cross files, so `shhed` is refused
-whichever file it was going to be in, and an error the missing file cannot
-explain rejects the set. The parse error is reported alongside it — one pass
-should be enough to fix a directory.
+The two ways a file can be broken, side by side, and a third file that is not.
+`pantry.olai` is *unparsed* — its lines could not be read — and `shed.olai` is
+*invalid*: it reads perfectly and says something the set cannot hold. Since the
+human's ruling of 2026-08-29 those cost exactly the same thing, which is
+themselves: each keeps its place in the sidebar, each draws its own rows where
+its tree would be, and `larder.olai` is live, drawn and editable beside them.
 
-Compare `features/it_stays_live.feature`, where the *only* thing wrong is a file
-that will not parse: there the set is published with that one outline degraded
-in place, and everything else stays live.
+`larder.olai`'s `see` is the third claim and the reason it points where it does.
+`flour` is declared on a line of `pantry.olai` that did not parse, so "no node
+declares `flour`" is a **guess** while that file is mid-edit — the validator
+withholds it rather than reporting it, and a withheld finding may not take a
+healthy page down. Two `see` edges of exactly this shape served an empty vault
+for thirty minutes on 2026-08-25 (`cold-boot-all-or-nothing`). What a reader
+gets instead is the dangling face the derivation already draws.
 
-## `tangled/` — a set that parses and does not mean anything
+## `tangled/` — findings that name two files at once
 
 Every line here is valid JSON and a well-formed record, so the whole-set
-validator definitely runs. That is the point: this is where the error view's
-*grouping* is exercised, and grouping needs errors in more than one file.
+validator definitely runs. That is the point: this is where a finding that
+names TWO files is exercised, which needs errors that reach across one.
 
 - `attic.olai:3` — `after` names `donate`, which nothing declares
   (`unknown-target`) → belongs to `attic.olai` alone.
@@ -256,10 +263,16 @@ validator definitely runs. That is the point: this is where the error view's
   (`duplicate-id`) → **cross-file**.
 - `cellar.olai:4` — `parent` is `nowhere` (`unknown-parent`) → belongs to
   `cellar.olai` alone.
+- `porch.olai` — nothing wrong with it at all.
 
-An error is cross-file when it implicates a second file — `isCrossFile` in
-`packages/format/src/errors.ts` — which is what the `cross-file-errors` section
-of the error view collects.
+A finding implicates a second file when it names a site in one — `isCrossFile`
+in `packages/format/src/errors.ts`. Both ends of such a finding go dark and both
+carry the row, because "which file is broken" has no single answer for a
+duplicate id or a cross-file placement, and filing it under one of the two would
+put a page on screen the validator has just refused. So `attic.olai` and
+`cellar.olai` are both broken here and `porch.olai` is untouched — which is what
+makes this corpus say something rather than simply being a vault where
+everything is wrong.
 
 ## `typed/` — a vault that declares its property types
 
