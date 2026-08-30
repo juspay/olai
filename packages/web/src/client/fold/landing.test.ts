@@ -11,7 +11,7 @@
 import { type Row, shownRecord } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { aim, missedSays, shutAlong } from "./landing.ts"
+import { aim, failedSays, missedSays, shutAlong } from "./landing.ts"
 
 /** The landing's LOCAL half, put back together for the tests that pin it:
  *  `chainTo` is the arithmetic's own business now — nothing calls it but
@@ -149,20 +149,32 @@ test("no answer from the set is no answer yet — nothing concluded", () => {
   expect(aim([line("kitchen", "the kitchen")], "repair", () => undefined)).toEqual({ kind: "ask" })
 })
 
-test("the set's answer changing nothing is the certain miss", () => {
+test("the set's answer changing nothing is the certain miss, carrying WHICH half", () => {
   const rows = [line("kitchen", "the kitchen")]
-  // Declared by the set — a node in a file this page is not, a stale file
-  // half — and the page draws none of it.
-  expect(aim(rows, "m9", () => "repair")).toEqual({ kind: "miss" })
+  // Declared by the set — a node in a file this page is not, or the row of
+  // a DONE node this reading hides: the miss answers WHICH page it is.
+  expect(aim(rows, "m9", () => "repair")).toEqual({ kind: "miss", target: "repair" })
   // Declared by nothing.
-  expect(aim(rows, "repair", () => null)).toEqual({ kind: "miss" })
+  expect(aim(rows, "repair", () => null)).toEqual({ kind: "miss", target: null })
 })
 
 // ── what the miss SAYS ────────────────────────────────────────────────
 
-test("a certain miss says what was asked and that the page draws none of it", () => {
-  expect(missedSays("day29-thirteenth")).toBe(
+test("a certain miss says what was asked — and which half of certain it is", () => {
+  expect(missedSays("day29-thirteenth", null)).toBe(
     "day29-thirteenth — nothing by that name is drawn on this page",
+  )
+  // What the SET declares but this page draws no row of — the id of a DONE
+  // row, a filtered branch, another file — is NOT "nothing by that name":
+  // a hidden live row must not answer in the dead link's words.
+  expect(missedSays("day29-thirteenth", "day29-anchor")).toBe(
+    "day29-thirteenth — what it names is not drawn on this page",
+  )
+})
+
+test("the failed ask says just that — nothing of whether the name names", () => {
+  expect(failedSays("day29-thirteenth")).toBe(
+    "day29-thirteenth — the set could not be asked what it names",
   )
 })
 

@@ -91,10 +91,13 @@ export function OutlinePage(props: {
    * page really draws nothing by that name, never while the set is still
    * being asked — the third state `./chat/declared.ts`'s `told` keeps for
    * exactly this scope. An id the answer says nothing about, or whose target
-   * this page also does not draw, is the certain half: said in the alarm
-   * mood, ONCE per owed landing, cleared the way every transient line in
-   * this client clears (`./saying.ts`) or the moment the arrival pays after
-   * all.
+   * this page also does not draw, is the certain half — in two honestly
+   * different degrees of it, the name nothing declares and the name this
+   * page only does not draw ({@link ./fold/landing.ts}'s `missedSays` says
+   * which, because a hidden live row is not a dead link either). Said in
+   * the alarm mood, ONCE per owed landing, cleared the way every transient
+   * line in this client clears (`./saying.ts`) or the moment the arrival
+   * pays after all.
    *
    * The fold half is asked of the READING, not of the memory —
    * `createFoldReading`, the same door the tree, the editor, the selection
@@ -181,7 +184,7 @@ export function OutlinePage(props: {
     if (aimAt.kind === "miss") {
       if (owing.said !== "miss") {
         owing.said = "miss"
-        saying.say({ tone: "alarm", text: missedSays(at) })
+        saying.say({ tone: "alarm", text: missedSays(at, aimAt.target) })
       }
       return
     }

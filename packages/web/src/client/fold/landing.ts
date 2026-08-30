@@ -152,7 +152,12 @@ const answer = (row: Row, id: string): boolean =>
  *     chain, by `chainTo`'s own first-match rule — the landing one file over
  *     pays exactly as if the address had spelled the target;
  *   - 'miss': the set answered and it changes nothing this page draws — a
- *     CERTAIN miss, and the act owes its one sentence ({@link missedSays}).
+ *     CERTAIN miss, in two honestly-different degrees, and the act owes
+ *     each its own sentence ({@link missedSays}): `null` when the set
+ *     itself declares nothing by the name, the target when the set declares
+ *     it and this page draws no row of it — the id of a DONE row on a reading
+ *     that hides done, a filtered branch away, or in some other file
+ *     altogether.
  */
 export const aim = (
   rows: ReadonlyArray<Row>,
@@ -167,7 +172,7 @@ export const aim = (
     const resolved = chainTo(rows, target)
     if (resolved !== undefined) return { kind: "chain", chain: resolved }
   }
-  return { kind: "miss" }
+  return { kind: "miss", target }
 }
 
 /** The landing's three answers, in {@link aim}'s own words. */
@@ -176,8 +181,13 @@ export type Aim =
   | { readonly kind: "chain"; readonly chain: ReadonlyArray<Row> }
   /** Nothing to do yet: the set has not answered the id. */
   | { readonly kind: "ask" }
-  /** Nothing this page can answer: the miss, to be said. */
-  | { readonly kind: "miss" }
+  /** Nothing this page can answer: the miss, to be said. The SET's own
+   *  answer for the id rides as `target` — `null` for a name nothing
+   *  declares, the very node for an id the set knows and this page merely
+   *  does not draw — which is the half of certain it is, and the sentence
+   *  ({@link missedSays}) is one of two: the set's answer is what a more
+   *  honest wording answers. */
+  | { readonly kind: "miss"; readonly target: string | null }
 
 /**
  * What a CERTAIN miss SAYS — the id as it was asked, em-dashed to the one
@@ -186,14 +196,25 @@ export type Aim =
  * mood `../SaidLine.tsx` draws it in, for that file's reason: a miss IS why
  * nothing happened, and a reader not told it believes the link worked.
  *
+ * One ACT, TWO words, by which half of certain it is
+ * ({@link aim}'s resolution): the id the set knows nothing of says so —
+ * "nothing by that name is drawn on this page" — and the id the set DOES
+ * declare, which this page merely draws no row for (a DONE row on a reading
+ * that hides done, a filtered branch, another file), answers "what it names
+ * is not drawn on this page": a hidden live row must not be indistinguishable
+ * from a dead link, in EITHER direction — which is the review's ruling on
+ * the symmetric half of the silence this contract closed.
+ *
  * The id IS quoted — unlike `../document/Hypertext.tsx`'s dropped click,
  * which may not echo a string grown inside somebody else's frame: a fragment
  * is text the reader's own address bar is already showing, in the same
  * register `../NotFound.tsx` quotes the id of a dead permalink in, and a said
  * line is a text node — nothing lands in markup.
  */
-export const missedSays = (id: string): string =>
-  `${id} — nothing by that name is drawn on this page`
+export const missedSays = (id: string, target: string | null): string =>
+  target === null
+    ? `${id} — nothing by that name is drawn on this page`
+    : `${id} — what it names is not drawn on this page`
 
 /**
  * What a FAILED ASK says — {@link missedSays}'s sibling, for the landing

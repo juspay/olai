@@ -231,3 +231,17 @@ Feature: Zoom and navigate
     # this client goes.
     And the landing's sentence has gone
     And there should be no page errors
+
+  Scenario: A row address naming a node this file does not draw says WHICH half of dead it isn't
+    # `glazing` is a real node — in `garden.olai`, nobody here: the set DOES
+    # declare the id, and this page draws no row of it — the other degree of
+    # certain miss (`fold/landing.ts`'s `missedSays`): not "nothing by that
+    # name" — that would make a working link indistinguishable from a dead
+    # one, the symmetric half of the silence the miss sentence closed (the
+    # review ruling, and the same could be said of a DONE row whose reader
+    # hides done). Then said then gone, the way any transient line goes.
+    When I open the address "/house.olai#glazing"
+    Then the tree is shown
+    And the landing says "glazing — what it names is not drawn on this page"
+    And the landing's sentence has gone
+    And there should be no page errors
