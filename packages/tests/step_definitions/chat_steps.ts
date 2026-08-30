@@ -209,8 +209,15 @@ When("I ask the agent {string}", async function (this: OlaiWorld, text: string) 
  * either — and one scenario pins that they do the same thing.
  */
 When("I interrupt the agent with {string}", async function (this: OlaiWorld, text: string) {
+  // THE CONTROL, not the panel's `thinking` attribute. Thinking can land
+  // before `talking.steers` does (the handshake's advertised frame is a later
+  // assignment on the same cell), and filling the box first burns the wait
+  // on the wrong thing — the button is what this gesture presses. The
+  // sibling `I cancel the turn` already waits on its control first.
+  const interrupt = this.page.locator(CHAT_INTERRUPT);
+  await interrupt.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
   await typeInto(this, text);
-  await this.press(this.page.locator(CHAT_INTERRUPT));
+  await this.press(interrupt);
 });
 
 /** The same gesture through the keyboard. Alt+Enter and not a second control:
