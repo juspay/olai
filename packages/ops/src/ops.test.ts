@@ -1794,6 +1794,70 @@ test("moving a ref variant is refused, naming the third file it would strand", (
   ))
 
 /**
+ * …AND THE GATE ARM IS A LIVE PATH NOW, which is what this refusal did to
+ * #440's drift door and why the asked SET is pinned against a real one.
+ *
+ * The arm above it (`the gate arm's ask is the write's own files, then every
+ * file the verdict was judged FROM`) FAKES its verdict, deliberately: before
+ * this lane the shapes that reached the gate named the write's own files, so
+ * there was no ordinary write whose refusal carried somebody else's rows. A
+ * bystander refusal is exactly that write, and it arrives with a `bad-prop`
+ * about a file the commit never opened plus the `broken: false` declaration
+ * that judged it.
+ *
+ * SO THE ASK IS PINNED HERE ON THE REAL THING, and what it protects is one
+ * swap: `aboutFiles` rides the ABOUT plane (`implicatedBy`), and the two
+ * planes are two functions beside each other in `@olai/format` since this
+ * lane. Reading the BLAME plane instead would drop `_olai/Properties.olai` —
+ * the judge, and the file a stale declaration lives in — out of the drift ask
+ * and leave a refusal of exactly this shape unhealable, silently, because
+ * every other path in the ask would be unchanged.
+ *
+ * The COMPOSITION (`paths` first, then the about-axis) is #440's and is not
+ * this lane's to change; sibling #442 rewrites it. What is pinned here is that
+ * the judge is IN the asked set, which is the half that must survive whoever
+ * lands second.
+ */
+test("a bystander refusal reaches the drift arm with the judge in the ask", () =>
+  withOps(
+    {
+      "_olai/Properties.olai":
+        `{"id":"prop-agent","ord":"a0","title":"agent","custom":{"type":"ref","under":"roster"}}\n`,
+      "agents.olai": [
+        `{"id":"roster","ord":"a0","title":"the agents"}`,
+        `{"id":"claude","parent":"roster","ord":"a0","title":"Claude"}`,
+        "",
+      ].join("\n"),
+      "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent":"claude"}}\n`,
+      "garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}\n`,
+    },
+    (fixture) =>
+      Effect.gen(function*() {
+        const asked = watchingDrift(fixture)
+        const failure = yield* Effect.orDie(
+          Effect.flip(
+            fixture.ops.run({ op: "move", id: "claude", parent: "garden" }, "mcp"),
+          ),
+        )
+        expect(failure._tag).toBe("ValidationFailure")
+
+        // The check ran once, and the JUDGE is in what it asked about — the
+        // declarations file the `bad-prop` was judged from, which the blame
+        // axis leaves off and the drift ask may not.
+        expect(asked.length).toBe(1)
+        expect(asked[0]).toContain("_olai/Properties.olai")
+        // …along with the bystander itself and the files the write put down.
+        expect(asked[0]).toContain("lanes.olai")
+        expect(asked[0]).toContain("agents.olai")
+        expect(asked[0]).toContain("garden.olai")
+
+        // The disk AGREES with the refusal — nothing drifted — so the door
+        // stays shut and the caller hears the refusal once, unhealed.
+        expect(fixture.refusals).toEqual(["move: ValidationFailure"])
+      }),
+  ))
+
+/**
  * THE BYSTANDER RULE IS A DIFFERENCE, NOT A STATE — which is what keeps
  * `broken-file-blocks-healthy-writes` closed while the refusal above stands.
  *

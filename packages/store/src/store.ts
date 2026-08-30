@@ -747,12 +747,23 @@ export const make = <F, S, E>(
            * TWO THINGS, and the first is #439's: the directory has to ALREADY
            * not be loading. The errors channel has to be carrying a verdict
            * from a PROBE rather than from this candidate, because a write from
-           * a loading directory that produces a refused set caused that refusal
-           * — a declaration that newly fences values in files it does not
-           * write, a move of a `ref` variant that strands values in a third
-           * file — and `stopping` cannot see that, since it is handed the
-           * candidate and not the history. It is this package's own
-           * bookkeeping, like the second.
+           * a loading directory that produces a refused set is a write that
+           * caused that refusal. It is this package's own bookkeeping, like the
+           * second.
+           *
+           * IT IS NOT WHERE "THIS WRITE BROKE A FILE IT DID NOT WRITE" IS
+           * ANSWERED, and it used to be. That question — a declaration that
+           * newly fences values in files it does not write, a move of a `ref`
+           * variant that strands values in a third file — is the STOPPING ask
+           * twenty lines above, which is handed the standing value precisely so
+           * a codec can tell what this write darkened from what was already
+           * dark. A codec that answers it never arrives here on those shapes:
+           * `stopping` returned first.
+           *
+           * WHAT IS LEFT FOR THIS CLAUSE is a codec that still refuses the
+           * whole set, which is the only kind that reaches a refusal the ask
+           * above did not already speak for. For olai's that is a directory
+           * it could not list.
            *
            * `moved` is what the check reads. It holds every path re-decoded or
            * removed since the last PUBLISHED revision, which is empty whenever
