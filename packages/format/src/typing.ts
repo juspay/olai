@@ -277,11 +277,15 @@ export const NO_TYPING: PropDeclarations = new Map()
  * `pr`, exactly as `prop:PR` is. A `get` on the raw key would have made those
  * two words one thing to a search and two things to the gate.
  */
+/** Trimmed and folded — the reconciliation {@link keyOf}, {@link declaredFor}
+ *  and {@link unfitHeld} all have to make, and one spelling of it. */
+const foldedKey = (word: string): string => word.trim().toLowerCase()
+
 export const declaredFor = (
   declarations: PropDeclarations,
   key: string,
 ): Declared | undefined => {
-  const folded = key.trim().toLowerCase()
+  const folded = foldedKey(key)
   return folded === "" ? undefined : declarations.get(folded)
 }
 
@@ -575,7 +579,7 @@ const declaringIn0 = (
  * places for one of them to stop.
  */
 export const keyOf = (title: string): string | undefined => {
-  const key = title.trim().toLowerCase()
+  const key = foldedKey(title)
   if (key === "" || shadowFor(key) !== undefined || BOOTSTRAP.has(key)) return undefined
   return key
 }
@@ -1249,14 +1253,14 @@ export interface UnfitHeld {
  */
 export const unfitHeld = (typed: Typed, key: string): ReadonlyArray<UnfitHeld> => {
   if (declaredFor(typed.declarations, key) === undefined) return []
-  const folded = key.trim().toLowerCase()
+  const folded = foldedKey(key)
   const found: Array<UnfitHeld> = []
   for (const located of typed.derived.nodes) {
     if (!isRegular(located)) continue
     const custom = located.node.custom
     if (custom === undefined) continue
     for (const held of customOrder(custom)) {
-      if (held.trim().toLowerCase() !== folded) continue
+      if (foldedKey(held) !== folded) continue
       const value = custom[held]
       if (value === undefined) continue
       const wrong = wrongValue(typed, located.file, key, value)
