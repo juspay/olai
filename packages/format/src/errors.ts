@@ -270,6 +270,14 @@ export const reportStage = (
  *  duplicate id's other claim, drawn as though `byId`'s coin toss were an
  *  answer. So a rule that forgets to say `false` over-darkens, and a rule
  *  that would have to say `true` never has to remember.
+ *
+ *  WHAT A PER-SITE FIELD DOES NOT HAVE is the half {@link Reach} has one
+ *  level up: a place in the catalogue where a new code is MADE to answer.
+ *  That half is in `./errors.test.ts` instead, spelled the way the line/set
+ *  split is — both halves written out, so a code added above fails a test
+ *  until somebody says which one it is in, and the answer is checked against
+ *  what the rules actually emit so the list cannot drift into being the
+ *  per-code table this field exists instead of.
  */
 export const Related = Schema.Struct({
   ...Site.fields,

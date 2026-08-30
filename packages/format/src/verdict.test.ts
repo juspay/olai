@@ -29,7 +29,7 @@ import { Result } from "effect"
 
 import { type Document, outlineDocument } from "./document.ts"
 import { type BrokenFile, type ErrorCode, implicatedBy, type OutlineError } from "./errors.ts"
-import { findingsIn, seeded, setOf } from "./fixtures.testlib.ts"
+import { findingsIn, seeded, setOf, validatedOf } from "./fixtures.testlib.ts"
 import { brokenIn, documentAt, nodesIn, stopping } from "./set.ts"
 import { validate } from "./validate.ts"
 import {
@@ -279,19 +279,13 @@ const AGENTS = {
   "garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}`,
 }
 
-const setFrom = (files: Record<string, string>) => {
-  const answered = validate(setOf(files))
-  if (Result.isFailure(answered)) throw new Error("a validation answers with a set")
-  return answered.success.set
-}
-
 test("a write that strands a value in a third file is stopped, naming that file", () => {
-  const standing = setFrom(AGENTS)
+  const standing = validatedOf(AGENTS)
   expect(standing.broken).toEqual([])
 
   // The move, as bytes: `claude` leaves `agents.olai` for `garden.olai`, and
   // nothing else in the directory is touched.
-  const moved = setFrom({
+  const moved = validatedOf({
     ...AGENTS,
     "agents.olai": `{"id":"roster","ord":"a0","title":"the agents"}`,
     "garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}\n` +
@@ -311,8 +305,8 @@ test("a write that strands a value in a third file is stopped, naming that file"
 
 test("the same write lands once nothing names the moved variant", () => {
   const { "lanes.olai": _stranded, ...rest } = AGENTS
-  const standing = setFrom(rest)
-  const moved = setFrom({
+  const standing = validatedOf(rest)
+  const moved = validatedOf({
     ...rest,
     "agents.olai": `{"id":"roster","ord":"a0","title":"the agents"}`,
     "garden.olai": `{"id":"garden","ord":"a0","title":"the garden"}\n` +
@@ -320,6 +314,60 @@ test("the same write lands once nothing names the moved variant", () => {
   })
   expect(moved.broken).toEqual([])
   expect(stopping(moved, ["agents.olai", "garden.olai"], standing)).toBeNull()
+})
+
+/**
+ * WHICH DOOR IS THE PROMISE — #439's incident, asked of the gate.
+ *
+ * #439 fenced the DECLARATION doors at the planner: a type declaration is
+ * refused while any existing governed value does not fit, named verb by verb
+ * (`@olai/ops`' `governedUnfit`, reached from six of them). That enumeration
+ * was the guarantee, because the store's own clause could only speak over a
+ * candidate the codec REFUSED and per-file publishing left none.
+ *
+ * It is not the guarantee any more, and this is the test that says so. The
+ * incident's own shape — declaring `brainstorm` over three values in a file the
+ * write does not touch — reaches the gate as a set where `lanes.olai` was lit
+ * and would be dark, so the gate turns it back with no fence involved. Six
+ * planner doors, plus whichever verb is written next, are covered by one rule
+ * about the tree a write would leave.
+ *
+ * WHAT THE FENCE IS NOW is the SENTENCE, and that is worth keeping rather than
+ * deleting: #439's argument was that a person moving between a refused
+ * `set_prop` and a refused declaration should read one kind of sentence, and a
+ * `usage` refusal naming file, node and value before any bytes move is a better
+ * one than the gate's raw rows. Two doors, one promise, and the promise is the
+ * one that cannot be forgotten at a new verb.
+ */
+test("a declaration over unfit values in another file is stopped by the GATE", () => {
+  const held = {
+    "lanes.olai": [
+      `{"id":"a","ord":"a0","title":"first","custom":{"brainstorm":"not a path"}}`,
+      `{"id":"b","ord":"a1","title":"second","custom":{"brainstorm":"prose"}}`,
+    ].join("\n"),
+    "house.olai": `{"id":"house","ord":"a0","title":"the house"}`,
+  }
+  // Undeclared, `brainstorm` means whatever it says and the vault is clean.
+  const standing = validatedOf(held)
+  expect(standing.broken).toEqual([])
+
+  // The declaration lands in `_olai/Properties.olai` and judges values two
+  // files away. That file is the only one this write puts down.
+  const declared = validatedOf({
+    ...held,
+    "_olai/Properties.olai":
+      `{"id":"p","ord":"a0","title":"brainstorm","custom":{"type":"doc"}}`,
+  })
+  expect(declared.broken.map((one) => one.file)).toEqual(["lanes.olai"])
+
+  const paths = ["_olai/Properties.olai"]
+  // Asked about its own file, the write is clean — which is exactly why the
+  // fence had to exist before the gate could see this.
+  expect(admits(declared.broken, paths)._tag).toBe("admitted")
+  // Asked as a write, it is refused, and the rows name the file it would have
+  // taken off the screen rather than the file it was writing.
+  expect(stopping(declared, paths, standing)?.findings.map((one) => one.file))
+    .toEqual(["lanes.olai", "lanes.olai"])
 })
 
 // A directory nothing could LIST is the one finding that is about the whole
@@ -506,16 +554,13 @@ test("a value that fits no declaration is not washed out by an unparsed file", (
     "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"records":"prose"}}`,
   }
   // ALONE, it is a finding and nobody argues.
-  const clean = validate(setOf(files))
-  if (Result.isFailure(clean)) throw new Error("a validation answers with a set")
-  expect(clean.success.set.broken.map((one) => one.file)).toEqual(["lanes.olai"])
+  const clean = validatedOf(files)
+  expect(clean.broken.map((one) => one.file)).toEqual(["lanes.olai"])
 
   // …AND BESIDE A FILE THAT WOULD NOT PARSE, which is the probe. The parse
   // failure is its own file's; the value is still refused; `lanes.olai` is
   // still withheld, and a write to it is still stopped.
-  const beside = validate(setOf(files, [], { "pantry.olai": `{"id":"pantry"` }))
-  if (Result.isFailure(beside)) throw new Error("a validation answers with a set")
-  const set = beside.success.set
+  const set = validatedOf(files, [], { "pantry.olai": `{"id":"pantry"` })
   expect(set.broken.map((one) => one.file).slice().sort())
     .toEqual(["lanes.olai", "pantry.olai"])
   expect(brokenIn(set, "lanes.olai")?.map((one) => one.code)).toEqual(["bad-prop"])
@@ -539,13 +584,10 @@ test("a ref value IS still a guess while a file will not parse", () => {
       `{"id":"claude","parent":"roster","ord":"a1","title":"Claude"}`,
     "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent":"nobody"}}`,
   }
-  const alone = validate(setOf(files))
-  if (Result.isFailure(alone)) throw new Error("a validation answers with a set")
-  expect(alone.success.set.broken.map((one) => one.file)).toEqual(["lanes.olai"])
+  const alone = validatedOf(files)
+  expect(alone.broken.map((one) => one.file)).toEqual(["lanes.olai"])
 
-  const beside = validate(setOf(files, [], { "pantry.olai": `{"id":"pantry"` }))
-  if (Result.isFailure(beside)) throw new Error("a validation answers with a set")
-  const set = beside.success.set
+  const set = validatedOf(files, [], { "pantry.olai": `{"id":"pantry"` })
   expect(set.broken.map((one) => one.file)).toEqual(["pantry.olai"])
   expect(admits(set.broken, ["lanes.olai"])._tag).toBe("admitted")
 })

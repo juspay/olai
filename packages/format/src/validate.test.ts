@@ -5,7 +5,14 @@ import { rowsOf } from "./derive.ts"
 import { bodiedDocument, type Document } from "./document.ts"
 import { implicatedBy, isCrossFile, type OutlineError } from "./errors.ts"
 import { blamed, type Verdict, verdictOf } from "./verdict.ts"
-import { decodedOf, findingsIn, outlineOf, recordsOf, setOf } from "./fixtures.testlib.ts"
+import {
+  decodedOf,
+  findingsIn,
+  outlineOf,
+  recordsOf,
+  setOf,
+  validatedOf,
+} from "./fixtures.testlib.ts"
 import {
   assemble,
   brokenBy,
@@ -34,13 +41,7 @@ const errorsOf = (
   files: Record<string, string>,
   documents: ReadonlyArray<string> = [],
   broken: Record<string, string> = {},
-): ReadonlyArray<OutlineError> => {
-  const result = validate(setOf(files, documents, broken))
-  if (Result.isFailure(result)) {
-    throw new Error("a validation answers with a set, whatever it finds")
-  }
-  return findingsIn(result.success.set)
-}
+): ReadonlyArray<OutlineError> => findingsIn(validatedOf(files, documents, broken))
 
 /** The same, and WHICH FILES the set was left holding nothing for — in path
  *  order, which is the order `blamed` files them in. */
@@ -49,16 +50,17 @@ const degradedBy = (
   documents: ReadonlyArray<string> = [],
   broken: Record<string, string> = {},
 ): { readonly set: OutlineSet; readonly dark: ReadonlyArray<string> } => {
-  const result = validate(setOf(files, documents, broken))
-  if (Result.isFailure(result)) {
-    throw new Error("a validation answers with a set, whatever it finds")
-  }
-  return {
-    set: result.success.set,
-    dark: result.success.set.broken.map((entry) => entry.file),
-  }
+  const set = validatedOf(files, documents, broken)
+  return { set, dark: set.broken.map((entry) => entry.file) }
 }
 
+/**
+ * …and NOT the same helper, which is why this one keeps its own body: it
+ * asserts what a valid load leaves ALONE — the very set that went in, the
+ * derivation over the set's own records by identity, and one outline per file
+ * handed over — and it says which findings it did not expect when it throws.
+ * {@link validatedOf} unwraps; this one is a test.
+ */
 const expectValid = (
   files: Record<string, string>,
   documents: ReadonlyArray<string> = [],

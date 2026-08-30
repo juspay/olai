@@ -265,6 +265,16 @@ export const brokenBy = (
  * writes already, and a write three directories away is not what is wrong with
  * it.
  *
+ * THIS IS WHERE THE PROMISE LIVES, and #439's planner fence over declarations
+ * is now the SENTENCE rather than the guarantee. That fence enumerates six
+ * verbs a declaration can arrive through and refuses each while an existing
+ * governed value does not fit; the incident it was written for reaches here as
+ * a set where the value's file was lit and would be dark, so this rule turns it
+ * back with no enumeration to keep in step (`./verdict.test.ts` pins that). The
+ * fence is worth keeping for what it SAYS — file, node and value, as `usage`,
+ * before any bytes are staged — and worth not relying on, because a list of
+ * doors is a list somebody adds to.
+ *
  * `standing` IS REQUIRED, and there is deliberately no arity that asks the
  * first half alone. This is the WRITE GATE's verb — one production caller,
  * `@olai/ops`' codec — and a set always has a predecessor by the time a commit

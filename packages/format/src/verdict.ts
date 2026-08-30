@@ -194,7 +194,7 @@ export const admits = (
 
 /**
  * WHICH FILES A WRITE PUT OUT — the files this set holds no content for that
- * the standing one held.
+ * the standing one was still holding.
  *
  * NOT A SECOND GATE QUESTION, which is the whole of why this answers with paths
  * rather than with an {@link Admission}. "Is anything wrong with these files"
@@ -336,8 +336,8 @@ const stateOf = (rows: ReadonlyArray<OutlineError>): FileState => {
  *
  * WHICH FILES ONE FINDING BREAKS is the file it was found in, plus every
  * related site that did not say otherwise — the FILED-ON plane of
- * `./errors.ts`'s two, where the ABOUT plane ({@link implicatedBy}) reaches
- * every named site unfiltered and stays that way for the readers whose
+ * `./errors.ts`'s two (`blamedOn`), where the ABOUT plane (`implicatedBy`)
+ * reaches every named site unfiltered and stays that way for the readers whose
  * question really is "which files is this finding about at all" (the drift
  * check `@olai/ops` pays at a refusal is the one that needs the judge).
  *

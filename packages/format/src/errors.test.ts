@@ -11,6 +11,7 @@ import {
   type Stage,
   stageOf,
 } from "./errors.ts"
+import { findingsIn, validatedOf } from "./fixtures.testlib.ts"
 
 const error = (
   file: string,
@@ -198,4 +199,112 @@ test("the line/set split is exactly the two halves of the codec", () => {
   // Together, the whole catalogue: no code is in neither half, and none is in
   // both.
   expect(of("line").length + of("set").length).toBe(ErrorCode.literals.length)
+})
+
+/**
+ * THE FORCING HALF of the two-plane rule, and the reason it is here rather
+ * than in the catalogue itself.
+ *
+ * `Related.broken` is a per-SITE fact set by the rule that makes a finding —
+ * which is right, because the two kinds of related site are not two kinds of
+ * CODE: a `bad-prop` names its judge, a `foreign-parent` names what it reached
+ * at, a `duplicate-id` and a cycle name sites that share the fault, and a code
+ * that one day names both a ground and a fault has one row on a per-code table
+ * and two sites on this axis. What a per-site field does NOT have is the thing
+ * `Reach` has one level up: a place a new code is made to answer.
+ *
+ * So the forcing lives here, in the same shape {@link stageOf}'s split is
+ * pinned in above. Every code is in exactly one of the two lists, so adding
+ * one to the catalogue fails this test until somebody says which — and the
+ * answer is checked against the RULES rather than taken on trust, so the list
+ * cannot quietly drift into being the second axis it exists to avoid.
+ *
+ * ABSENT MEANS BROKEN, so the safe direction is the default: a rule that
+ * forgets over-darkens a page a reader can still reach, where the opposite
+ * mistake draws a page out of records the validator has just refused.
+ */
+const NAMES_WITHOUT_BREAKING: ReadonlyArray<ErrorCode> = [
+  // The parent's file did nothing but be pointed at; the `parent` field that
+  // reached across is the whole of the fix, and it is in the other file.
+  "foreign-parent",
+  // The declaration that judged the value is the judgement's ground: named so
+  // the fixer knows who said no, lit and writable because it said no.
+  "bad-prop",
+]
+
+test("every code says whether it can name a file it does not break", () => {
+  // SPELLED OUT, both halves, exactly the way the line/set split above is —
+  // and for the same reason. A membership filter would be a tautology here
+  // (the complement of a list is always the rest of the list); what forces a
+  // new code to answer is the OTHER half being written down, so adding one to
+  // the catalogue fails this test until somebody puts it in a half.
+  const breaking = ErrorCode.literals.filter((code) => !NAMES_WITHOUT_BREAKING.includes(code))
+  expect(breaking).toEqual([
+    "not-json",
+    "not-an-object",
+    "bad-record",
+    "bad-id",
+    "several-marks",
+    "bad-date",
+    "bad-repeat",
+    // Two files that both claim one id are two files nobody can draw the
+    // second of: the fault is shared, so both go dark.
+    "duplicate-id",
+    "unknown-parent",
+    "parent-not-a-node",
+    // A cycle's every step is in the loop; whichever one a reader edits, the
+    // rest were wrong together.
+    "parent-cycle",
+    "unknown-target",
+    "after-cycle",
+    "mirror-cycle",
+    "missing-doc",
+    "unreadable-directory",
+    "unreadable-file",
+  ])
+  expect(breaking.length + NAMES_WITHOUT_BREAKING.length).toBe(ErrorCode.literals.length)
+})
+
+// …AND THE LIST IS HELD TO THE RULES, over a corpus that provokes one finding
+// of each code that names a second file at all. Without this the list would be
+// a per-code table beside the rows — free to say `foreign-parent` is a pointer
+// long after somebody changed the rule that emits it.
+test("the two planes differ for exactly the codes that say they do", () => {
+  const found = findingsIn(validatedOf({
+    // `boxes` twice, across two files: both ends share the fault.
+    "attic.olai": `{"id":"attic","ord":"a0","title":"the attic"}\n` +
+      `{"id":"boxes","parent":"attic","ord":"a1","title":"sort the boxes"}`,
+    "cellar.olai": `{"id":"cellar","ord":"a0","title":"the cellar"}\n` +
+      // …and a `parent` reaching into attic.olai: named, not blamed.
+      `{"id":"shelves","parent":"attic","ord":"a1","title":"put up shelves"}\n` +
+      `{"id":"boxes","parent":"cellar","ord":"a2","title":"sort the crates"}`,
+    // A value judged by a declaration one file over: the judge is named.
+    "_olai/Properties.olai":
+      `{"id":"p","ord":"a0","title":"records","custom":{"type":"int"}}`,
+    "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"records":"prose"}}`,
+  }))
+
+  // Every finding names at least what it breaks — the planes are nested, never
+  // crossing, which is what makes "about" the wider one.
+  for (const finding of found) {
+    expect({ code: finding.code, nested: blamedOn(finding).every((file) => implicatedBy(finding).includes(file)) })
+      .toEqual({ code: finding.code, nested: true })
+  }
+
+  // …and the ones that name MORE than they break are exactly the declared list.
+  const wider = [
+    ...new Set(
+      found
+        .filter((finding) => implicatedBy(finding).length > blamedOn(finding).length)
+        .map((finding) => finding.code),
+    ),
+  ].sort()
+  expect(wider).toEqual(["bad-prop", "foreign-parent"])
+  expect(wider.every((code) => NAMES_WITHOUT_BREAKING.includes(code as ErrorCode))).toBe(true)
+
+  // The corpus really did provoke a shared-fault cross-file finding too, or
+  // the assertion above would pass on a corpus that proves nothing.
+  const shared = found.filter((finding) => finding.code === "duplicate-id")
+  expect(shared.length).toBeGreaterThan(0)
+  expect(blamedOn(shared[0] as OutlineError).length).toBe(2)
 })
