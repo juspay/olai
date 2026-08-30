@@ -399,12 +399,35 @@ test("unfitHeld names every existing value that would not fit a newly declared k
     id: "a",
     title: "first",
     value: "not a path",
+    members: ["not a path"],
   })
   expect(unfit[0]?.wrong).toContain("names a document")
   const at = derived.byId.get("prop-brief")
   expect(at !== undefined && !("mirror" in at.node)
     ? declaringOf(derived, at.node)?.key
     : undefined).toBe("brainstorm")
+})
+
+test("unfitHeld keeps a list's members beside the joined display string", () => {
+  const derived = derive(nodesOfFiles({
+    "_olai/Properties.olai": [
+      `{"id":"prop-merge","ord":"a0","title":"merge","custom":{"type":"ref"}}`,
+      `{"id":"auto","parent":"prop-merge","ord":"a0","title":"automatic"}`,
+    ].join("\n"),
+    "lanes.olai":
+      `{"id":"lane","ord":"a0","title":"a lane","custom":{"merge":["auto","nope"]}}`,
+  }))
+  const typed: Typed = {
+    declarations: declarationsOf(derived),
+    derived,
+    documents: new Set(),
+  }
+  const unfit = unfitHeld(typed, "merge")
+  expect(unfit).toHaveLength(1)
+  expect(unfit[0]).toMatchObject({
+    value: "auto, nope",
+    members: ["auto", "nope"],
+  })
 })
 
 test("a declaration missing its type is refused naming the same vocabulary", () => {

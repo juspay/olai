@@ -5604,6 +5604,111 @@ describe("typed properties", () => {
     expect(record(fileOf(plan, "_olai/Properties.olai"), "n1").custom).toEqual({ type: "ref" })
   })
 
+  test("...and over a list whose members are those minted variants", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+      "lanes.olai":
+        `{"id":"lane","ord":"a0","title":"a lane","custom":{"merge":["auto","human"]}}`,
+    })
+    const plan = planned(held, {
+      op: "add",
+      file: "_olai/Properties.olai",
+      title: "merge",
+      props: { type: "ref" },
+      children: [
+        { id: "auto", title: "automatic" },
+        { id: "human", title: "the human merges" },
+      ],
+    })
+    expect(record(fileOf(plan, "_olai/Properties.olai"), "n1").custom).toEqual({ type: "ref" })
+  })
+
+  test("a ref with under naming another node does not treat minted children as variants", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+      "agents.olai": [
+        `{"id":"roster","ord":"a0","title":"the agents"}`,
+        `{"id":"gpt","parent":"roster","ord":"a0","title":"GPT"}`,
+      ].join("\n"),
+      "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent2":"claude"}}`,
+    })
+    const failure = refused(held, {
+      op: "add",
+      file: "_olai/Properties.olai",
+      title: "agent2",
+      props: { type: "ref", under: "roster" },
+      children: [{ id: "claude", title: "Claude" }],
+    })
+    expect(failure.message).toContain("`agent2` cannot be declared `ref`")
+    expect(failure.message).toContain("`lanes.olai` `a lane` (`lane`) holds \"claude\"")
+  })
+
+  test("move_node into Properties is the same existing-values fence", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+      "draft.olai":
+        `{"id":"prop-brief","ord":"a0","title":"brainstorm","custom":{"type":"doc"}}`,
+      "lanes.olai":
+        `{"id":"lane","ord":"a0","title":"a lane","custom":{"brainstorm":"not a path"}}`,
+    }, ["briefs/one.md"])
+    const failure = refused(held, {
+      op: "move",
+      id: "prop-brief",
+      file: "_olai/Properties.olai",
+    })
+    expect(failure.message).toContain("`brainstorm` cannot be declared `doc`")
+    expect(failure.message).toContain("`lanes.olai` `a lane` (`lane`) holds \"not a path\"")
+  })
+
+  test("...and a ref with under naming another node does not treat its children as variants", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+      "draft.olai": [
+        `{"id":"agent2","ord":"a0","title":"agent2","custom":{"type":"ref","under":"roster"}}`,
+        `{"id":"claude","parent":"agent2","ord":"a0","title":"Claude"}`,
+      ].join("\n"),
+      "agents.olai": [
+        `{"id":"roster","ord":"a0","title":"the agents"}`,
+        `{"id":"gpt","parent":"roster","ord":"a0","title":"GPT"}`,
+      ].join("\n"),
+      "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"agent2":"claude"}}`,
+    })
+    const failure = refused(held, {
+      op: "move",
+      id: "agent2",
+      file: "_olai/Properties.olai",
+    })
+    expect(failure.message).toContain("`agent2` cannot be declared `ref`")
+    expect(failure.message).toContain("`lanes.olai` `a lane` (`lane`) holds \"claude\"")
+  })
+
+  test("untrash_node into Properties is the same fence", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+      "lanes.olai":
+        `{"id":"lane","ord":"a0","title":"a lane","custom":{"brainstorm":"not a path"}}`,
+      "_olai/Trash.olai":
+        `{"id":"prop-brief","ord":"a0","title":"brainstorm","custom":{"type":"doc"}}`,
+    }, ["briefs/one.md"])
+    const failure = refused(held, {
+      op: "untrash",
+      id: "prop-brief",
+      file: "_olai/Properties.olai",
+    })
+    expect(failure.message).toContain("`brainstorm` cannot be declared `doc`")
+    expect(failure.message).toContain("`lanes.olai` `a lane` (`lane`) holds \"not a path\"")
+  })
+
+  test("duplicate_node of a declaration is the same fence — the key is already claimed", () => {
+    const failure = refused(board(), { op: "duplicate", id: "prop-merge" })
+    expect(failure.message).toContain("`merge` is already declared by an earlier node")
+  })
+
   test("create_outline of Properties.olai is the same fence over the rest of the set", () => {
     const held = setOf({
       "lanes.olai":
@@ -5765,9 +5870,10 @@ describe("typed properties", () => {
     )
   })
 
-  // A copy is isomorphic to a subtree the validator has already approved, so it
-  // can carry no value the set did not already hold — which is why this op has
-  // no rule of its own and still cannot smuggle one past the gate.
+  // A copy of an ordinary subtree is isomorphic to something the validator
+  // has already approved, so it can carry no value the set did not already
+  // hold — a Properties ROOT is the other case, and is the declaration
+  // door above.
   test("duplicate_node copies a declared value and stays legal", () => {
     const held = setOf({
       ...DECLARED,

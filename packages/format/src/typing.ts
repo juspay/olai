@@ -87,10 +87,11 @@
  * read one sentence, so the sentence is written once, here
  * ({@link wrongValue}), and both callers wrap it.
  *
- * `duplicate_node` is the one door with no refusal of its own, and that is a
- * fact about the op rather than a hole: a copy is isomorphic to a subtree the
- * validator has already approved, so it can carry no value the set did not
- * already hold. The gate re-validates either way.
+ * `duplicate_node` of an ordinary subtree has no value-refusal of its own: a
+ * copy is isomorphic to something the validator has already approved, so it
+ * can carry no value the set did not already hold. A copy of a Properties
+ * ROOT is a declaration, and is the same existing-values fence every other
+ * write that mints one is. The gate re-validates either way.
  *
  * ## What it costs
  *
@@ -1230,7 +1231,12 @@ export interface UnfitHeld {
   readonly file: string
   readonly id: string
   readonly title: string
+  /** The value as a reader was shown — a list joined, a string as stored. */
   readonly value: string
+  /** The members the load walks. A string is one member; a list is the array,
+   *  so a declaration door that excuses minted variants can ask per member
+   *  rather than against the joined spelling. */
+  readonly members: ReadonlyArray<string>
   readonly wrong: string
 }
 
@@ -1244,7 +1250,8 @@ export interface UnfitHeld {
  * trashed record is still in the set, and a declaration that ignored it
  * would take the next load into last-good over a value nobody can see from
  * the live tree. A list is one offender, shown the way the chip is seeded
- * (members joined).
+ * (members joined); {@link UnfitHeld.members} keeps the array the load
+ * walks, beside that display string.
  *
  * THE KEY IS FOLDED, because a record that wrote `Brainstorm` is asking
  * about the key a vault is declaring as `brainstorm` — {@link foldedKey}'s
@@ -1264,11 +1271,13 @@ export const unfitHeld = (typed: Typed, key: string): ReadonlyArray<UnfitHeld> =
     if (foldedKey(held) !== folded) continue
     const wrong = wrongValue(typed, located.file, key, value)
     if (wrong === undefined) continue
+    const members = typeof value === "string" ? [value] : value
     found.push({
       file: located.file,
       id: located.node.id,
       title: located.node.title,
-      value: typeof value === "string" ? value : value.join(", "),
+      value: members.join(", "),
+      members,
       wrong,
     })
   }

@@ -2439,11 +2439,14 @@ const declaredWrong = (
  * on other files). The next load took the whole vault into last-good. This
  * names the offenders (file, node, value) and writes nothing.
  *
- * `extra` is the ids THIS WRITE is minting as the declaration's own
- * children — a new `ref` whose variants arrive in the same capture, so a
- * value that already names one of those ids is legal the moment the write
- * lands. {@link unfitHeld} cannot see them yet: they are not in the
- * derived view this plan started from.
+ * `extra` is the variant ids THIS WRITE is placing under the parent
+ * `variantsOf` will read (`under ?? declared.at`) — a new `ref`
+ * whose variants arrive in the same capture, so a value that already
+ * names one of those ids is legal the moment the write lands.
+ * {@link unfitHeld} cannot see them yet: they are not in the derived
+ * view this plan started from. Minted children of the declaration
+ * itself are not variants when `under` names another node, and must
+ * not excuse a value the next load will still refuse.
  */
 const governedUnfit = (
   scope: Scope,
@@ -2466,11 +2469,11 @@ const governedUnfit = (
   }
   // `extra` is VARIANT IDS, so it only excuses a `ref`. A `doc` capture
   // that happens to mint a child whose id equals a held path is not a
-  // legal value of that key.
+  // legal value of that key. A list is legal when every member is.
   const held = unfitHeld(typed, key)
   const unfit = extra.size === 0 || declared.type.kind !== "ref"
     ? held
-    : held.filter((one) => !extra.has(one.value))
+    : held.filter((one) => !one.members.every((member) => extra.has(member)))
   if (unfit.length === 0) return undefined
   const n = unfit.length
   const named = capped(unfit, (one) =>
@@ -2502,17 +2505,32 @@ const declarationRefused = (
   declaredWrong(scope, file, node) ?? governedUnfit(scope, file, node, extra)
 
 /**
- * The ids this capture is minting as the ROOT's own children — the extra
- * {@link governedUnfit} needs so a new `ref` may land over values that
- * already name those ids.
+ * Where `variantsOf` will look for this declaration's variants —
+ * `under` when the `ref` names another parent, the declaration's own id
+ * when it does not. `undefined` for a record that is not a `ref`.
  */
-const mintedVariants = (
-  minted: ReadonlyArray<RegularNode>,
+const underOf = (scope: Scope, node: RegularNode): string | undefined => {
+  const reading = declaringOf(scope.derived, node)
+  return reading?.declared.type.kind === "ref" ? reading.declared.type.under : undefined
+}
+
+/**
+ * The variant ids THIS WRITE is placing under the parent `variantsOf`
+ * will read — `under ?? declared.at`. That is the load's source, asked of
+ * the records in hand rather than of the derived view this plan started
+ * from, so a capture that mints `auto` under the declaration itself
+ * excuses a value that names `auto`, and a capture that mints a child
+ * while `under` names the roster does not.
+ */
+const extraVariants = (
   root: RegularNode,
+  records: ReadonlyArray<Node>,
+  under: string | undefined,
 ): ReadonlySet<string> => {
+  const parent = under ?? root.id
   const extra = new Set<string>()
-  for (const one of minted) {
-    if (one.parent === root.id) extra.add(one.id)
+  for (const one of records) {
+    if (!isMirror(one) && one.parent === parent) extra.add(one.id)
   }
   return extra
 }
@@ -2531,7 +2549,35 @@ const refuseCaptureDeclaration = (
 ): OpFailure | undefined => {
   const born = minted[0]
   if (born === undefined || born.parent !== undefined) return undefined
-  return governedUnfit(scope, file, born, mintedVariants(minted, born))
+  return governedUnfit(scope, file, born, extraVariants(born, minted, underOf(scope, born)))
+}
+
+/**
+ * Records THIS WRITE is landing in Properties as new roots — the same
+ * two halves {@link declarationRefused} is, asked of each. A node that
+ * already claims a key is not a new declaration (a reorder, a same-file
+ * restamp); skip it. Extra is the children this write is placing under
+ * the parent `variantsOf` will read.
+ */
+const refuseRecordsInProperties = (
+  scope: Scope,
+  file: string,
+  records: ReadonlyArray<Node>,
+): OpFailure | undefined => {
+  if (!isPropertiesFile(scope, file)) return undefined
+  const already = new Set<string>()
+  for (const one of scope.typed.declarations.values()) already.add(one.at)
+  for (const one of records) {
+    if (isMirror(one) || one.parent !== undefined || already.has(one.id)) continue
+    const refused = declarationRefused(
+      scope,
+      file,
+      one,
+      extraVariants(one, records, underOf(scope, one)),
+    )
+    if (refused !== undefined) return refused
+  }
+  return undefined
 }
 
 /**
@@ -2892,6 +2938,16 @@ const planMove = (
         ),
       },
     ]
+
+  // A ROOT landing in Properties is a declaration. Same two halves every
+  // other write that mints one asks; asked here so a move cannot put down
+  // a vocabulary the next load will refuse.
+  const bent = refuseRecordsInProperties(
+    scope,
+    destination,
+    [moved, ...liftSubtree(scope, file, node.id).descendants],
+  )
+  if (bent !== undefined) return Result.fail(bent)
 
   return Result.succeed(arriving(scope, { file: destination, parent }, brings, {
     files,
@@ -3885,6 +3941,16 @@ const planUntrash = (
     ord: appendedOrd([already], parent),
   })
 
+  const landingNodes: ReadonlyArray<Node> = [
+    reparented,
+    ...descendants.map(retarget),
+  ]
+  // A ROOT landing in Properties is a declaration — the same fence a
+  // capture or a move asks, so an untrash cannot mint a vocabulary the
+  // next load will refuse.
+  const bent = refuseRecordsInProperties(scope, destination, landingNodes)
+  if (bent !== undefined) return Result.fail(bent)
+
   // DOOR TWO, at the one arrival the archive itself sends, and the only one
   // that has to be asked TWICE. What it comes back under may have been called
   // finished in the meantime — and so may something inside it, since the
@@ -3899,7 +3965,7 @@ const planUntrash = (
     }, () => holdsOpenWork(scope, node), {
       files: [
         { file, nodes: keeps.filter((record) => !dropped.has(record.id)) },
-        { file: destination, nodes: [...already, reparented, ...descendants.map(retarget)] },
+        { file: destination, nodes: [...already, ...landingNodes] },
       ],
       id: node.id,
       title: node.title,
@@ -4267,10 +4333,11 @@ const planEmpty = (
  *
  * WHAT IT REFUSES is what every op that names a node refuses: an id nothing
  * declares, an id that is a MIRROR (a placement is not a node — `add_mirror`
- * places a second one), and a file the set could not read. There is no rule of
- * its own, and deliberately: a subtree that is legal on disk is legal written
- * twice, because the copy is isomorphic to something the validator has already
- * approved.
+ * places a second one), and a file the set could not read. An ordinary
+ * subtree has no rule of its own: a copy is isomorphic to something the
+ * validator has already approved. A copy of a Properties ROOT is a
+ * declaration, and is the same fence every other write that mints one is
+ * — the original still claims the key, so the copy is the second claim.
  */
 const planDuplicate = (
   scope: Scope,
@@ -4314,6 +4381,8 @@ const planDuplicate = (
   })
 
   const under = written.length - 1
+  const bent = refuseRecordsInProperties(scope, file, written)
+  if (bent !== undefined) return Result.fail(bent)
   return Result.succeed(
     arriving(scope, { file, parent: node.parent }, () => holdsOpenWork(scope, node), {
       files: [{ file, nodes: withOrds([...records, ...written], ords.success) }],
