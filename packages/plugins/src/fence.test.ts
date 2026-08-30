@@ -4,19 +4,26 @@
  *
  * ## Why a test and not a shell script
  *
- * The two fences this joins (`scripts/check-kolu-deps.sh`,
- * `scripts/check-odu-deps.sh`) end in `rg … 2>/dev/null || true` over
- * `packages/<name>/src`, and both halves of that are hazards this file declines to
- * inherit. `ripgrep` is not in the dev shell's package list, so on a machine
- * without an ambient one the redirect turns "command not found" into an empty
- * result and a GREEN fence — a fence that passes by failing to run is worse
- * than none. And `packages/<name>/src` misses `packages/tests` entirely, which is
- * the only member with no `src/`, which is how four product-tier `@kolu/*`
- * imports have been sitting in its geometry harness with `just check` green.
+ * The two fences this ABSORBED — `scripts/check-kolu-deps.sh`'s fourth and
+ * fifth assertions and `scripts/check-odu-deps.sh`'s second and third — ended
+ * in `rg … 2>/dev/null || true` over `packages/<name>/src`, and both halves of
+ * that are hazards this file declines to inherit. `ripgrep` is not in the dev
+ * shell's package list, so on a machine without an ambient one the redirect
+ * turns "command not found" into an empty result and a GREEN fence — a fence
+ * that passes by failing to run is worse than none. And `packages/<name>/src`
+ * misses `packages/tests` entirely, which is the only member with no `src/`,
+ * which is how four product-tier `@kolu/*` imports sat in its geometry harness
+ * with `just check` green.
  *
  * A test runs under the pinned bun, walks the PACKAGE rather than its `src`,
  * and reads an import two ways — the shape `@olai/acp`'s manifest test already
  * is, and this file is that test one boundary over.
+ *
+ * What is LEFT in a shell script is the other job those two files did, which
+ * was never the same job: agreeing with a pin's declared VERSIONS, read out of
+ * the Nix store, deliberately with no `install` in front of it so it fails
+ * fast. That is `scripts/check-hydrated-deps.sh` now — one script, invoked once
+ * per pin, with no import fence in it at all.
  *
  * ## What it claims
  *
@@ -47,6 +54,21 @@
  *      process that renders nothing. It is the complement of claim 4 rather
  *      than a repetition of it, and the two together are why there are three
  *      doors.
+ *   6. **An appliance's PRODUCT TIER stays inside its tenant**, and the tenant
+ *      is COMPUTED. Which packages may name `@kolu/padi-client` or
+ *      `@odu/run-client` used to be two hand-written `grep -v` path
+ *      substrings, one per script, and a hand copy of an architecture is the
+ *      exact failure a fence exists to prevent — it went red the day a plugin
+ *      grew a testlib that legitimately named its own appliance. Here the
+ *      answer is derived: a plugin's TENANT is the set of workspace packages
+ *      reachable from its own doors and from NO other plugin's, so a package
+ *      two tenants share is general by construction and a third plugin brings
+ *      its own tenant with it.
+ *   7. **...and what a general package may not name is derived too.** The
+ *      product tier is not a list either: it is every specifier a tenant
+ *      resolves out of the ROOT `node_modules` that the root manifest never
+ *      declared — which is exactly the hydrated set, and exactly what the
+ *      isolated linker cannot refuse.
  *
  * ## What it deliberately does NOT claim
  *
@@ -58,7 +80,7 @@
  * reading the browser would be the floor reading the roof.
  */
 
-import { readdirSync, readFileSync } from "node:fs"
+import { existsSync, readdirSync, readFileSync } from "node:fs"
 import * as path from "node:path"
 
 import { describe, expect, test } from "bun:test"
@@ -111,6 +133,11 @@ const sourcesUnder = (dir: string): ReadonlyArray<string> =>
 interface Named {
   /** Root-relative, so a failure reads as a path somebody can open. */
   readonly file: string
+  /** Every specifier this file reaches for at all, by whichever grammar its
+   *  suffix has. Kept beside the filtered answer because the tenancy claims at
+   *  the bottom of this file ask a DIFFERENT question of the same reading, and
+   *  reading every source twice to ask it would be the corpus walked twice. */
+  readonly specs: ReadonlyArray<string>
   /** Every plugin specifier this file reaches for, by any of the three doors. */
   readonly plugins: ReadonlyArray<string>
 }
@@ -136,6 +163,7 @@ const tree: ReadonlyMap<string, ReadonlyArray<Named>> = new Map(
         const found = file.endsWith(".css") ? cssImportsOf(text) : specifiersOf(text)
         return {
           file: path.relative(PACKAGES, file),
+          specs: found,
           plugins: found.filter(namesAPlugin),
         }
       }),
@@ -485,5 +513,292 @@ describe("a plugin is a sibling, and core computes none of its addresses", () =>
           .toEqual([`${wire.name}/${face}`, true])
       }
     }
+  })
+})
+
+/**
+ * AN APPLIANCE'S PRODUCT TIER STAYS INSIDE ITS TENANT — the claim
+ * `check-kolu-deps.sh`'s fourth assertion and `check-odu-deps.sh`'s second
+ * made, made once, and with both of its lists COMPUTED instead of typed.
+ *
+ * ## The wall, and why it is a package wall
+ *
+ * The human's ruling, the sixth sitting: *"a directory wall can be broken
+ * easily by importing; package walls cannot, and are conceptually
+ * self-explanatory."* padi lives behind `@olai/kolu-client` and
+ * `@olai/kolu-ui`; odu's run client lives behind `@olai/odu-client`; the
+ * plugin package on top of each is olai's own judgement ABOUT that appliance.
+ * No general package may name any of it. ZERO EXCEPTIONS was itself a ruling —
+ * a file-grained exception in a package-grained fence is discipline dressed as
+ * physics — and the one entry in {@link DEBT} below is a recorded BREACH held
+ * as an equality, which is the opposite of an exception: it is red the day it
+ * grows and red again the day it is fixed.
+ *
+ * ## Why both lists are derived, which is the whole point of doing this again
+ *
+ * The two shell fences each carried the answer BY HAND — a `PRODUCT=` alternation
+ * of six specifiers in one, and `grep -v '/packages/odu-client/'` in the other.
+ * A hand copy of an architecture is precisely what a fence exists to prevent,
+ * and this one failed the way hand copies fail: a plugin package grew a testlib
+ * that served its own appliance's real surface, which is the tenancy working
+ * exactly as designed, and `check-odu-deps.sh` called it a wall breach because
+ * its list said `odu-client` and nothing else.
+ *
+ * So:
+ *
+ *   - **A TENANT is computed from the registry.** Walk each plugin's own code
+ *     doors — the `.ts` targets of its `exports` map, so the doors are the
+ *     manifest's answer and not this file's — and collect the workspace
+ *     packages the walk reaches. A package reached from TWO plugins is general
+ *     by construction (`@olai/format` is: both plugins' vault walks read
+ *     records) and drops out. What is left for kolu is `plugin-kolu`,
+ *     `kolu-client`, `kolu-ui`; for odu, `plugin-odu` and `odu-client`. Nobody
+ *     typed those.
+ *
+ *   - **A TIER is computed from the tenant.** Whatever a tenant names that
+ *     resolves out of the ROOT `node_modules` and is declared in NO manifest —
+ *     not the root's, not the naming package's own — is hydrated: copied into
+ *     that one directory from a Nix pin (`nix/kolu.nix`, `nix/odu.nix`), where
+ *     every package in the tree resolves it whether it declared it or not.
+ *     That last clause is the whole reason a fence is needed for these and for
+ *     nothing else: the isolated linker (bunfig.toml) already refuses a
+ *     specifier a manifest does not declare, so `@xterm/*` — which the old
+ *     `PRODUCT` alternation listed — needs no fence at all. It is ordinary npm,
+ *     and dropping it is not a relaxation.
+ *
+ *   - **The FRAMEWORK tier is out of scope, and it is the one thing still
+ *     spelled.** `@kolu/surface*` is olai's foundation, imported anywhere, like
+ *     `effect` — `check-kolu-deps.sh`'s own ruling, kept in its own words. It is
+ *     a tier boundary rather than a confinement table, which is why it survives
+ *     as a rule while both lists became derivations.
+ */
+
+/** The repository root. Its manifest is the one the isolated linker splices
+ *  into the node_modules every hydrated source resolves from by walking up,
+ *  which is why a specifier it declares is not confined to anybody. */
+const REPO = path.join(PACKAGES, "..")
+
+const manifestAt = (dir: string): Record<string, unknown> | undefined => {
+  try {
+    return JSON.parse(readFileSync(path.join(dir, "package.json"), "utf8")) as Record<string, unknown>
+  } catch {
+    return undefined
+  }
+}
+
+const dependencyNames = (manifest: Record<string, unknown> | undefined): ReadonlyArray<string> =>
+  Object.keys({
+    ...(manifest?.["dependencies"] as Record<string, string> | undefined),
+    ...(manifest?.["devDependencies"] as Record<string, string> | undefined),
+    ...(manifest?.["peerDependencies"] as Record<string, string> | undefined),
+  })
+
+/** What the ROOT declares — `dependencies` and `devDependencies` both, because
+ *  either one puts a package where the whole tree can reach it. */
+const ROOT_DECLARED: ReadonlySet<string> = new Set(dependencyNames(manifestAt(REPO)))
+
+/** The PACKAGE a specifier names, subpath dropped. `@kolu/padi-client/dial` and
+ *  `@kolu/padi-client` are one package and one wall. */
+const packageOf = (spec: string): string =>
+  spec.startsWith("@") ? spec.split("/").slice(0, 2).join("/") : (spec.split("/")[0] ?? spec)
+
+/** THE FRAMEWORK TIER, and the only list in this block that a person wrote.
+ *  `@kolu/surface`, `-app`, `-cli`, `-mcp`, `-daemon`, `-daemon-supervisor`:
+ *  olai's app is BUILT on them — the surface composition every one of these
+ *  claims is about is theirs — so they are imported anywhere, like `effect`.
+ *  Confining them would be confining the framework to a tenant. */
+const FRAMEWORK = /^@kolu\/surface(-[a-z]+)*(\/|$)/
+
+/** Is this specifier, named by this package, a HYDRATED one — copied into the
+ *  root `node_modules` from a Nix pin, where every package resolves it whether
+ *  it declared it or not.
+ *
+ *  The last clause is the load-bearing one and is a filesystem question rather
+ *  than a pattern: a directory under the root `node_modules` that no manifest
+ *  in the tree asked for is, by construction, one the hydrate step put there.
+ *  It is also what keeps the loose reader above honest — `specifiersOf` matches
+ *  prose that merely looks like a specifier (deliberately: over-including fails
+ *  a boundary claim rather than passing one), and a sentence is not a directory. */
+const isHydrated = (pkg: string, spec: string, own: ReadonlySet<string>): boolean => {
+  if (spec.startsWith(".") || spec.startsWith("/")) return false
+  if (spec.startsWith("node:") || spec.startsWith("bun:") || spec === "bun") return false
+  if (spec.startsWith("@olai/")) return false
+  if (FRAMEWORK.test(spec)) return false
+  const name = packageOf(spec)
+  if (ROOT_DECLARED.has(name) || own.has(name)) return false
+  return existsSync(path.join(REPO, "node_modules", name))
+}
+
+/** Every hydrated specifier one package names, in any of the grammars the
+ *  readers above cover, as `file: specifier` so a failure reads as something to
+ *  open. */
+const hydratedIn = (pkg: string): ReadonlyArray<string> => {
+  const own = new Set(dependencyNames(manifestAt(path.join(PACKAGES, pkg))))
+  return (tree.get(pkg) ?? []).flatMap((source) =>
+    [...new Set(source.specs)]
+      .filter((spec) => isHydrated(pkg, spec, own))
+      .map((spec) => `${source.file}: ${spec}`)
+  ).sort()
+}
+
+/** A plugin's own CODE doors, read off its `exports` map — the manifest's
+ *  answer rather than this file's guess at one, so a fourth door added there is
+ *  walked here without an edit. `./all.css` is not a module and drops out. */
+const codeDoorsOf = (dir: string): ReadonlyArray<string> => {
+  const manifest = manifestAt(dir) as { exports?: Record<string, string>; main?: string } | undefined
+  const targets = [...Object.values(manifest?.exports ?? {}), manifest?.main ?? ""]
+  return [...new Set(targets)].filter((t) => /\.tsx?$/.test(t)).map((t) => path.join(dir, t))
+}
+
+/** Which workspace packages one plugin's doors reach. Both the file a walk
+ *  landed IN and the workspace specifier it reached FOR are counted: a leaf
+ *  module with no imports of its own is visited and records nothing, and the
+ *  package it belongs to is a tenant member all the same. */
+const reachedBy = (entries: ReadonlyArray<string>): ReadonlySet<string> => {
+  const packages = new Set<string>()
+  for (const entry of entries) {
+    for (const one of walkFrom(entry)) {
+      const dir = one.file.split(path.sep)[0]
+      if (dir !== undefined) packages.add(dir)
+      const workspace = /^@olai\/([^/]+)/.exec(one.spec)
+      if (workspace?.[1] !== undefined) packages.add(workspace[1])
+    }
+  }
+  return packages
+}
+
+const CLOSURES: ReadonlyMap<string, ReadonlySet<string>> = new Map(
+  PLUGIN_NAMES.map((name) => {
+    const dir = path.join(PACKAGES, `plugin-${name}`)
+    const reached = new Set(reachedBy(codeDoorsOf(dir)))
+    reached.add(`plugin-${name}`)
+    return [name, reached] as const
+  }),
+)
+
+/** THE TENANTS. A package one plugin reaches and no other does — everything
+ *  shared drops out, which is what makes this a derivation rather than a
+ *  restatement. The registry is excluded by name because it reaches every
+ *  plugin by definition and is the one package that may. */
+const TENANTS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
+  [...CLOSURES].map(([name, own]) => [
+    name,
+    new Set(
+      [...own].filter((pkg) =>
+        pkg !== REGISTRY &&
+        ![...CLOSURES].some(([other, theirs]) => other !== name && theirs.has(pkg))
+      ),
+    ),
+  ]),
+)
+
+/** ...and each tenant's TIER: the hydrated PACKAGES its own members name. */
+const TIERS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
+  [...TENANTS].map(([name, members]) => [
+    name,
+    new Set([...members].flatMap((pkg) => hydratedIn(pkg).map((line) => packageOf(line.split(": ")[1] ?? "")))),
+  ]),
+)
+
+const TENANT_MEMBERS: ReadonlySet<string> = new Set([...TENANTS.values()].flatMap((m) => [...m]))
+
+/**
+ * THE ONE RECORDED BREACH, and it is recorded rather than excused.
+ *
+ * `packages/tests/geometry/harness.tsx` mounts kolu's own `DockRow` and
+ * `StatePip` and folds a padi record with `activePr` — product tier, in the one
+ * package that sits above every other. It is not new; it is what the header of
+ * this file means by "sat in its geometry harness with `just check` green",
+ * because `packages/<name>/src` never looked at `packages/tests`, the only member
+ * with no `src/`. Its own header calls it "not part of any suite and not
+ * shipped" — a one-off driver for a shot the human asked to SEE — and where it
+ * belongs under this architecture is behind `@olai/plugin-kolu`, whose faces
+ * those are.
+ *
+ * Held as an EQUALITY, which is the difference between a debt and an exception:
+ * a fifth import in that harness is red, a breach in any other file is red, and
+ * the day the harness moves this entry is red until it is deleted. An
+ * `expect(...).toEqual([])` with a path filtered out in front of it would be
+ * none of those things.
+ */
+const DEBT: Readonly<Record<string, ReadonlyArray<string>>> = {
+  tests: [
+    "tests/geometry/harness.tsx: @kolu/padi-client/surface",
+    "tests/geometry/harness.tsx: @kolu/solid-dockrow",
+    "tests/geometry/harness.tsx: @kolu/solid-dockrow/rowValues",
+    "tests/geometry/harness.tsx: @kolu/solid-statepip",
+  ],
+}
+
+describe("an appliance's product tier stays inside its tenant", () => {
+  test("the tenants and their tiers were actually computed", () => {
+    // THE FLOOR, and it guards three ways of being vacuously green: a closure
+    // walk that resolved nothing, a `node_modules` that was never hydrated, and
+    // a plugin with no tenant of its own. Any of them would make every claim
+    // below pass over an empty set.
+    for (const name of PLUGIN_NAMES) {
+      const tenant = TENANTS.get(name) ?? new Set()
+      expect([...tenant].sort(), name).toContain(`plugin-${name}`)
+      expect([name, (TIERS.get(name) ?? new Set()).size > 0]).toEqual([name, true])
+    }
+    // ...and the two together are not one set wearing two names.
+    expect(TENANT_MEMBERS.size).toBeGreaterThan(PLUGIN_NAMES.length)
+  })
+
+  test("no package outside a tenant names a hydrated specifier", () => {
+    for (const pkg of packages) {
+      if (TENANT_MEMBERS.has(pkg)) continue
+      // An EQUALITY against the recorded answer — `[]` for all but the one
+      // breach above — never a filter asserted empty.
+      expect(hydratedIn(pkg), pkg).toEqual([...(DEBT[pkg] ?? [])])
+    }
+  })
+
+  test("no package outside a tenant DECLARES one either", () => {
+    // The manifest door, which no reading of a source can see. A hydrated
+    // package must never appear in a manifest at all — naming one sends bun to
+    // the registry for something that is not there, which `@odu/run-client`'s
+    // own manifest says in as many words — so a general package declaring one
+    // is a second, quieter way through the same wall.
+    const tiers = new Set([...TIERS.values()].flatMap((t) => [...t]))
+    for (const pkg of packages) {
+      if (TENANT_MEMBERS.has(pkg)) continue
+      expect(dependencyNames(manifestAt(path.join(PACKAGES, pkg))).filter((d) => tiers.has(d)), pkg)
+        .toEqual([])
+    }
+  })
+
+  test("no tenant names another appliance's tier", () => {
+    // The claim the two shell scripts could not make at all, because each knew
+    // about one appliance: `@olai/odu-client` may not reach padi, and
+    // `@olai/kolu-ui` may not dial a coordinator. Derived, so a third appliance
+    // is fenced against the first two on the day it arrives.
+    for (const [name, tier] of TIERS) {
+      for (const [other, theirs] of TIERS) {
+        if (other === name) continue
+        expect([...tier].filter((one) => theirs.has(one)).sort(), `${name} vs ${other}`).toEqual([])
+      }
+    }
+  })
+
+  test("the wire door reaches every tenant door named `./wire`", () => {
+    // What `check-kolu-deps.sh`'s fifth assertion and `check-odu-deps.sh`'s
+    // third were FOR, kept: they read `packages/<appliance>-client/src/wire`
+    // directly, and the walk above reads it only if the plugin still imports
+    // it. Without this, a plugin that stopped re-exporting its appliance's wire
+    // would make the purity claim above pass over a graph that no longer
+    // contains the module it was written about. The doors are derived: a tenant
+    // package whose manifest opens `./wire` must be on that graph.
+    const reached = new Set(
+      walkFrom(path.join(PACKAGES, "plugins", "src", "wire.ts")).map((one) =>
+        one.file.split(path.sep)[0]
+      ),
+    )
+    const wireDoors = [...TENANT_MEMBERS].filter((pkg) => {
+      const manifest = manifestAt(path.join(PACKAGES, pkg)) as { exports?: Record<string, string> } | undefined
+      return manifest?.exports?.["./wire"] !== undefined
+    }).sort()
+    expect(wireDoors.length).toBeGreaterThan(PLUGIN_NAMES.length)
+    expect(wireDoors.filter((pkg) => !reached.has(pkg))).toEqual([])
   })
 })

@@ -36,7 +36,15 @@
  * two, an OWNED FILE in the vault, a RUNTIME HALF it assembles itself, a PROBE
  * — which answers with the MCP server a chat session is handed AND the WHOLE
  * SENTENCE about the one it did not get, both off one reading, core displaying
- * and never composing either — and a DOCS page the index assembles.
+ * and never composing either.
+ *
+ * A plugin also carries a USER PAGE, and it is deliberately NOT a field here:
+ * the page is `packages/plugin-<name>/docs.md`, served under `docs/` through a
+ * symlink at `docs/plugins/<name>.md`, and its address is the plugin's NAME.
+ * {@link ./plugin.ts}'s `OlaiPlugin.name` argues that against the ruling it
+ * looks like a breach of, and `packages/tests/plugin_docs.test.ts` is what
+ * holds it — a manifest cannot, because the door that carries one cannot be
+ * reached from a general sweep without putting a terminal emulator on its graph.
  *
  * ## What a DISABLED plugin is
  *
@@ -73,7 +81,6 @@ export type {
   OlaiPlugin,
   OwnedFile,
   PillLook,
-  PluginDocs,
   PluginMount,
   PluginServer,
   PluginServices,

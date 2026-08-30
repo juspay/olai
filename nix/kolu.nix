@@ -15,7 +15,7 @@
 # `terminal-themes`) vendorable, which is what let this file finally become the
 # seed list it always wanted to be. An unknown seed is a loud error rather than
 # a quiet nothing, and the closure walk IS the sibling-closure check that
-# `scripts/check-kolu-deps.sh` used to perform by hand.
+# `scripts/check-hydrated-deps.sh`'s ancestor used to perform by hand.
 #
 # WHAT IS STILL OLAI'S, and it is exactly two things:
 #

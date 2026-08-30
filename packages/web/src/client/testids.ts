@@ -567,7 +567,9 @@ export const TESTID = {
   /** The panel it opens (portalled out of the header). */
   prefsPanel: "prefs-panel",
   /** One preference on it; `data-pref` is which — `theme`, `font`, `size`,
-   *  `density`, `done`, `git`. */
+   *  `density`, `done`, `git-commit`, `git-push`, and one `plugin-<name>` per
+   *  plugin this build has ({@link pluginPref}, which is why that tail is open
+   *  and this list is not). */
   prefsRow: "prefs-row",
   /** That row's hint: what the choice IN FORCE means, re-read whenever the
    *  control moves. Its own name because it is the half of a settings row that
@@ -1555,3 +1557,25 @@ export type TestId = (typeof TESTID)[keyof typeof TESTID]
  *  that away; a plugin's ids are a closed set too, so there is nothing to give
  *  up. */
 export const selector = (id: TestId | PluginTestId): string => `[data-testid="${id}"]`
+
+/**
+ * WHICH PREFERENCE ROW A PLUGIN'S IS — its `data-pref`, and the one spelling of
+ * it.
+ *
+ * The plugin roster is the one part of this panel whose rows are not known when
+ * this file is written: there is a row per plugin the BUILD has, walked off the
+ * `plugins` cell, and neither the panel nor the suite may spell a plugin's name
+ * (`@olai/plugins`' `fence.test.ts` holds that as an equality per package). So
+ * the row's handle is a GRAMMAR rather than a name — `{@link PLUGIN_PREF}`
+ * followed by whatever the server said — and a scenario finds the rows with the
+ * prefix and reads the names off the DOM, which is the only way to assert on a
+ * set it is not allowed to enumerate.
+ *
+ * The prefix is what keeps the rest of the `data-pref` vocabulary a closed set:
+ * a plugin called `done` gets `plugin-done` and cannot be mistaken for the Done
+ * row.
+ */
+export const PLUGIN_PREF = "plugin-"
+
+/** ... and one row's, spelled. */
+export const pluginPref = (name: string): string => `${PLUGIN_PREF}${name}`

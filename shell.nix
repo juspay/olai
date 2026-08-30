@@ -21,15 +21,19 @@ pkgs.mkShell {
     OLAI_KOLU_HYDRATE_SCRIPT = kolu.hydrateScript;
     OLAI_KOLU_HYDRATE = kolu.hydrateArgs;
 
-    # KOLU'S OWN ANSWER for every external its hydrated sources need, as JSON.
-    # `scripts/check-kolu-deps.sh` asserts olai's manifests against THIS rather
+    # KOLU'S OWN ANSWER for every external its hydrated sources need, as JSON —
+    # a merged {name: version} map, peers already folded in.
+    # `scripts/check-hydrated-deps.sh` asserts olai's manifests against THIS rather
     # than against a second copy of the list — which is the difference between
     # a version constraint that is checked and one that is hoped.
     OLAI_KOLU_EXTERNALS = builtins.toJSON kolu.externals;
 
     # ODU'S ONE PACKAGE, the same two ways: the argv for the copier (kolu's
     # script — `nix/odu.nix` says why there is not a second one), and the
-    # pinned manifest `scripts/check-odu-deps.sh` asserts olai's root against.
+    # pinned manifest `scripts/check-hydrated-deps.sh` asserts olai's root
+    # against. It is a WHOLE package.json where kolu's is a merged map, and the
+    # script reads both shapes rather than the justfile normalising one of them
+    # with a jq filter: one pin, one variable, one thing to look at.
     # A separate variable rather than a longer `OLAI_KOLU_HYDRATE`, because the
     # two pins move independently — a single argv would hide which half a
     # `just update-pins` had walked forward, and which half a `just check`
@@ -72,10 +76,20 @@ pkgs.mkShell {
   # nodejs is knotted through here rather than ambient: the acp/ pin's
   # `npm ci` is an eat step of `just install`, and the devShells CI runs
   # without an ambient one must bring their own.
+  #
+  # THERE IS NO ripgrep HERE, and its absence is the point rather than an
+  # oversight. Two `just check` legs used to grep the tree with `rg …
+  # 2>/dev/null || true`, which on a machine with no ambient one turned
+  # "command not found" into an empty result and a GREEN fence — a check that
+  # passes by failing to run. Adding `ripgrep` would have made those two legs
+  # honest; instead the greps left, to `packages/plugins/src/fence.test.ts`,
+  # where the pinned bun reads the tree and a missing reader is not a thing that
+  # can happen. Nothing in `scripts/` shells out to a searcher any more, so
+  # there is nothing here to declare.
   packages = with pkgs; [
     bun
     just
-    jq # scripts/check-kolu-deps.sh
+    jq # scripts/check-hydrated-deps.sh — the one thing that reads a pin's JSON
     nixpkgs-fmt
     nodejs_24
     npins

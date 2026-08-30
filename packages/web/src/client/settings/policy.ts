@@ -20,11 +20,16 @@
  * hints in `./Panel.tsx` — and that is deliberate. Every other hint is read off
  * a value this browser owns; these are read off the same value the instance
  * line is read off, and splitting them would let a row name a flag nobody gave.
+ * What is NOT here is the doctrine those lines end with — that the row is the
+ * instance's and this browser cannot change it — because the plugin rows
+ * (`./plugins.ts`) say the same thing about a different flag. One copy, in
+ * `./instance.ts`.
  */
 
 import type { CommitMode, GitState, PushMode } from "@olai/format"
 
 import { loopIn } from "../commit/said.ts"
+import { builtInDefault, setByServer } from "./instance.ts"
 
 /**
  * ── the readings, so nobody re-derives one ─────────────────────────────
@@ -72,19 +77,18 @@ export const commitsOff = (git: GitState): boolean => git.policy.commit === "off
  *  rows are always the instance's, so they always have something to say about
  *  who set them — a given flag, or the built-in default. */
 export const commitSetBy = (git: GitState): string =>
-  git.pinned.commit === null ? INSTANCE_DEFAULT : setBy("commit", git.pinned.commit)
+  git.pinned.commit === null ? builtInDefault("--commit") : setBy("commit", git.pinned.commit)
 
 export const pushSetBy = (git: GitState): string =>
-  git.pinned.push === null ? INSTANCE_DEFAULT : setBy("push", git.pinned.push)
+  git.pinned.push === null ? builtInDefault("--push") : setBy("push", git.pinned.push)
 
 /**
  * WHO SET THIS ROW, in the words the panel prints under it.
  *
- * The flag is named rather than described, and that is the difference between
- * a control a reader can do something about and one that has simply stopped
- * working: "set by the server" alone leaves somebody looking for a setting that
- * is not anywhere, while the flag is the thing they hand whoever runs the
- * instance.
+ * The words are `./instance.ts`'s and not this module's, because they are not
+ * about git: one row per plugin says the same two things about the same kind of
+ * fact, and a second copy of the doctrine is the copy somebody softens. What is
+ * git's — and stays here — is the SPELLING of the flag.
  *
  * `--commit=off` is spelled as itself even where the operator typed
  * `--no-commit`, because the two are one flag with two spellings and `--help`
@@ -92,13 +96,4 @@ export const pushSetBy = (git: GitState): string =>
  * pin that carried its own spelling would be a second thing to keep true.
  */
 const setBy = (flag: "commit" | "push", mode: CommitMode | PushMode): string =>
-  `Set by the server: --${flag}=${mode}. This is the instance's policy, so it ` +
-  `is the same in every browser and cannot be changed from one.`
-
-/** The same instance sentence, for a half nobody typed a flag for. Generic
- *  rather than a git special case: future read-only instance rows can share
- *  it. The two Offs (`--commit=off` vs the built-in `manual`) are told apart
- *  by the flag line, which only appears when a flag was given. */
-const INSTANCE_DEFAULT =
-  "This is the instance's policy (the built-in default). It is the same in " +
-  "every browser and cannot be changed from one."
+  setByServer(`--${flag}=${mode}`)

@@ -107,7 +107,9 @@ import {
   type GitState,
   LOADED,
   type Manifest,
+  NO_ROSTER,
   type OpFailure,
+  type PluginRoster,
   surface,
   type Who,
 } from "@olai/surface"
@@ -150,7 +152,7 @@ import {
   enabled,
   SERVERS,
 } from "@olai/plugins/server"
-import { fuseGroups, fuseHandlers, surfacesOf } from "@olai/plugins/wire"
+import { fuseGroups, fuseHandlers, isEnabled, PLUGIN_NAMES, surfacesOf } from "@olai/plugins/wire"
 
 import type { Cadence, Change, Chat } from "@olai/chat"
 import { type Emit, emitter } from "@olai/log"
@@ -466,6 +468,46 @@ const writing = (ops: Ops, writer: Writer) => ({
   ops: { run: (request: Request) => ops.run(request, writer) },
   git: { commit: (request: CommitRequest) => ops.commit(request, writer) },
 })
+
+/**
+ * WHICH PLUGINS THIS BUILD HAS AND WHICH THIS SERVE RUNS, as the one value a
+ * browser draws its read-only rows off ({@link Wiring.plugins} in, the
+ * `plugins` cell out).
+ *
+ * NOT READ OFF WHAT WAS COMPOSED, and that is the whole feature rather than a
+ * shortcut taken here: a composed list is the plugins that are ON, and the
+ * preferences panel draws a row per plugin the BUILD has and says of each
+ * whether it runs. A plugin left out is absent from every structure this
+ * runtime holds — that is what `--plugins` means — so the row that says so has
+ * to come from the registry. `PLUGIN_NAMES` is that list and `isEnabled` is the
+ * same question `enabled` answers as a filter, asked about one name
+ * (`@olai/plugins`' `surfaces.ts`).
+ *
+ * `pinned` TRAVELS UNEXPANDED — `null` for a flag nobody gave, which means all
+ * of them — because the line under the row names a given flag and otherwise
+ * says the built-in default, and a value that had already expanded could not
+ * tell those two apart. The git pin keeps the same distinction one setting
+ * over, and `./pluginPolicy.ts` argues it where the flag is read.
+ *
+ * NO PLUGIN SLOT ANSWERS {@link NO_ROSTER}: such a runtime composes no sibling
+ * surface at all — `olai surface`, the headless faces, every test in this
+ * package — so there is nothing for a roster to be about. Listing the build's
+ * plugins as `running: false` there would be this file inventing a policy
+ * nobody set, and asserting it is why this reading is exported rather than
+ * inlined at its one call site.
+ *
+ * Through `@olai/plugins/wire` and not the root, for the reason the import at
+ * the top of this file gives: the manifests carry SolidJS components, and this
+ * process renders nothing.
+ */
+export const rosterOf = (offered: Wiring["plugins"]): PluginRoster =>
+  offered === null ? NO_ROSTER : {
+    built: PLUGIN_NAMES.map((name) => ({
+      name,
+      running: isEnabled(offered.names ?? null, name),
+    })),
+    pinned: offered.names ?? null,
+  }
 
 /** One of those, as `implementSurface` wants it. A bound member is called with
  *  the bare input (`bind(ns, verb, (input) => handler({ input, ctx }))`), and
@@ -866,6 +908,12 @@ export const bind = (
         dial: offered.dials?.[plugin.name],
       }),
     }))
+    /** ...and the same two facts as the value a browser draws its read-only
+     *  rows off — every plugin this binary HAS, which of them this serve RUNS,
+     *  and whether anybody typed the flag. Read off the registry rather than
+     *  off `composed` above, which is a list of the ones that are on;
+     *  {@link rosterOf} argues why that difference is the feature. */
+    const roster = rosterOf(offered)
     /**
      * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
      * pair: the set, and how old it is (`@olai/store`'s `Aged`). These take
@@ -892,6 +940,20 @@ export const bind = (
         },
         chat: {
           store: inMemoryStore<ChatState>(chat === null ? CHAT_OFF : chat.state()),
+        },
+        /**
+         * WHICH PLUGINS THIS BUILD HAS AND WHICH THIS SERVE RUNS — seeded, and
+         * that is the whole connector.
+         *
+         * NO `connect`, and it is the one cell on this surface that will never
+         * need one: the flag is read once, at the composition root, before this
+         * runtime exists. A connector here would be a subscription to a value
+         * that cannot move, and the day one is added is the day something can
+         * turn a plugin on without restarting — which `../pluginPolicy.ts`
+         * deliberately refuses to make possible.
+         */
+        plugins: {
+          store: inMemoryStore<PluginRoster>(roster),
         },
         /**
          * What git is doing for this directory at all — one half of what the

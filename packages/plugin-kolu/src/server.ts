@@ -220,7 +220,7 @@ export const serve = (services: Services): {
     // deciding which of padi's sentences matter.
     say: services.say,
     // What the OWNER must read: a malformed `_olai/Kolu.olai` value, an
-    // ambiguous mute — the sentences whose promise lives in `docs/kolu.md`.
+    // ambiguous mute — the sentences whose promise lives in this package's `docs.md`.
     // Rare by latch (one line per new shape or value), and the default console
     // level is `info`, so the channel is `warning`, not `debug`.
     warn: services.warn,

@@ -39,7 +39,7 @@ in
   # more thing to keep in step.
   hydrateArgs = "${npins.odu}/packages/run-client @odu/run-client";
 
-  # The pinned package's own manifest, for `scripts/check-odu-deps.sh` — it
+  # The pinned package's own manifest, for `scripts/check-hydrated-deps.sh` — it
   # asserts olai's root against what odu DECLARES rather than against a second
   # copy of the list, which is the difference between a version constraint that
   # is checked and one that is hoped. Read out of the store path so the answer

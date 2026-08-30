@@ -637,26 +637,17 @@ export interface PluginServer<Revision> {
   readonly unloaded: () => void
 }
 
-/** THIS PLUGIN'S USER DOCS — the page the docs index assembles.
- *
- *  A plugin's docs live in its own directory, ruled, because a page that
- *  documents a thing and a page that sits beside it go stale at different
- *  rates and only one of them is noticed. `slug` is where the assembled page
- *  lands under `docs/plugins/`; `title` and `gloss` are the index's own line. */
-export interface PluginDocs {
-  readonly slug: string
-  readonly title: string
-  readonly gloss: string
-}
-
 /**
  * ONE PLUGIN.
  *
  * Read top to bottom this is the whole surface between core and an appliance:
  * a name, what it puts on the wire, what it probes for, what it runs, what it
  * hands an agent, what it owns in the vault, what it says when it fails, what
- * it teaches the format, what it draws, and what it documents. Nothing else
- * crosses, and the fence proves it (`packages/plugins/src/fence.test.ts`).
+ * it teaches the format, and what it draws. Nothing else crosses, and the
+ * fence proves it (`packages/plugins/src/fence.test.ts`). Its USER PAGE is not
+ * on the list and deliberately not a field: the page's address is the NAME,
+ * and {@link OlaiPlugin.name} argues why a manifest is the one place that
+ * cannot hold it.
  *
  * The interface is deliberately roomier than its two tenants need, and the
  * room is not speculation: a chat AGENT — today a second hardcoded roster in
@@ -672,10 +663,63 @@ export interface PluginDocs {
  * one word it needs — and never what is behind it.
  */
 export interface OlaiPlugin {
-  /** THE SIBLING KEY, and with it the preferences row, the docs slug and the
-   *  word the `--plugins` flag takes. One spelling of it — and because the
-   *  key is the wire prefix, the name and every tag it appears in cannot drift
-   *  apart. */
+  /**
+   * THE SIBLING KEY, and with it the preferences row, the word the `--plugins`
+   * flag takes, and THE ADDRESS OF THIS PLUGIN'S USER PAGE. One spelling of it
+   * — and because the key is the wire prefix, the name and every tag it
+   * appears in cannot drift apart.
+   *
+   * ## The page is `packages/plugin-<name>/docs.md`, and it is not a field
+   *
+   * A plugin's user docs live in the plugin's own package, which LOOKS like the
+   * shape `@olai/server`'s `main.ts` ruled against — *"a page beside a binary
+   * is a page that goes stale, and the one thing a person always has to hand is
+   * `--help`"* (ruled, human 2026-08-23) — so the counter-case is argued here
+   * rather than left implied.
+   *
+   * What that ruling refuses is a SECOND ACCOUNT. The CLI already accounts for
+   * itself: `--help` is composed from the tool list and cannot describe a verb
+   * the binary does not have, so a prose page standing beside it is a second
+   * telling with nothing holding the two together. A plugin has no `--help`.
+   * `docs.md` is its ONLY account, and the ruling's premise is absent rather
+   * than overridden.
+   *
+   * What the premise DOES apply to is DISTANCE, and that is what puts the page
+   * here instead of in `docs/`: the terminal block, the sentences an absent
+   * padi is owed and the words a run matrix prints are this package's, changed
+   * in this package's diffs, and a page two directories away is one nobody
+   * editing them has open.
+   *
+   * It is still SERVED, because `just serve` serves `docs/` as a vault and a
+   * path outside it is not served at all — a link to one draws as text rather
+   * than as a door. So `docs/plugins/<name>.md` is a SYMLINK onto the plugin's
+   * own `docs.md`: one file with two names, the served page and the page beside
+   * the code the same bytes, and drift not a thing that can happen. A COPY
+   * under `docs/` was the alternative and loses on the ruling's own argument —
+   * two files, and the one nobody has open is the one that is read; a GENERATOR
+   * that wrote the copy loses too, since there is none in this tree and a
+   * checked-in artefact of one is stale for as long as nobody runs it.
+   *
+   * ## Why there is no `docs` FIELD, which replaces an earlier reading
+   *
+   * A `{slug, title, gloss}` on the manifest was the first shape and it was
+   * wrong twice over. The slug was a second spelling of THIS FIELD. And the
+   * other two could not be read by anything that would spend them: the index is
+   * a general page and the sweep that keeps it honest is a general sweep, and
+   * BOTH sit where a manifest cannot be reached — the manifest door carries
+   * SolidJS components and a terminal emulator, and importing it from a process
+   * that renders nothing does not merely cost bytes, it kills the boot
+   * (`@olai/server`'s `pluginPolicy.ts` carries that hazard on the import that
+   * looked innocent; a `bun test` at the root dies the same way, on
+   * `react/jsx-dev-runtime`). What a general reader CAN have is
+   * {@link ./surfaces.ts}' `PLUGIN_NAMES`, on the browser-safe door — which is
+   * this field, and which is the whole address.
+   *
+   * So the page's existence and its reachability are held by a sweep over the
+   * tree rather than by a field: `packages/tests/plugin_docs.test.ts`, which is
+   * the stronger claim anyway — a field can be filled in beside a page that was
+   * never written.
+   */
   readonly name: string
   /** THIS PLUGIN'S OWN SURFACE — a whole one, declared in the plugin's own
    *  package with the plugin's own member names on it. Core composes it as a
@@ -739,8 +783,6 @@ export interface OlaiPlugin {
    *  leaves draw ({@link PluginMount}). Absent on a plugin with nothing to
    *  hold, which is a plugin whose faces are all pure. */
   readonly mount?: PluginMount
-  /** The page the docs index assembles. */
-  readonly docs?: PluginDocs
   /** What a scenario needs to drive it — the fake, the tags, the fixtures. */
   readonly testDrivers?: unknown
 }

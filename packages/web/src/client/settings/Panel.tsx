@@ -9,15 +9,19 @@
  * settings popover, whose shape this adopts: its rows read and write wire
  * singletons, because its preferences are the server's.
  *
- * **The two GIT rows are the one exception.** They are this INSTANCE's policy,
- * set at launch (a flag, the nix module, or the built-in default), the same in
- * every browser, always read-only. Never hidden: a policy a reader cannot see
- * is one they cannot ask anybody about. Nothing is SENT; the policy arrives on
- * the git cell, which this panel READS and never writes. Theme, font, size,
- * notes and done are untouched by any of it — those are personal view choices
- * and there is nothing about them for a server to have an opinion on. The
- * read-only row presentation is generic (`./Row.tsx`'s `setBy`), not a git
- * special case, so a future instance setting can join them.
+ * **THE INSTANCE'S ROWS ARE THE EXCEPTION**, and there are two kinds of them:
+ * the two GIT rows, and one row per plugin this build has. Both are this
+ * INSTANCE's policy, set at launch (a flag, the nix module, or the built-in
+ * default), the same in every browser, always read-only. Never hidden: a policy
+ * a reader cannot see is one they cannot ask anybody about. Nothing is SENT;
+ * the policy arrives on the `git` and `plugins` cells, which this panel READS
+ * and never writes. Theme, font, size, notes and done are untouched by any of
+ * it — those are personal view choices and there is nothing about them for a
+ * server to have an opinion on. The read-only row presentation is generic
+ * (`./Row.tsx`'s `setBy`) and so are the words under it (`./instance.ts`),
+ * which is what let the plugin rows join without either one being widened —
+ * "a future instance setting can join them" was the claim, and this is it
+ * arriving.
  *
  * WHAT IS ON IT is a narrower question than "every client-local value", and the
  * answer is: the ones that are a CHOICE and have nowhere else to be made. The
@@ -41,7 +45,12 @@
  * so they are rows here rather than switches on the Commit panel. TWO rows and
  * not one strip of three, because they are two independent facts: pushing a
  * commit you made by hand is the shipped case, and folding them into a single
- * Off / Auto-commit / both would take it away. The layout values
+ * Off / Auto-commit / both would take it away. The PLUGIN rows pass the same
+ * test from the other side: they are not a choice this browser has, and the
+ * question they answer — "why is the integration the docs describe not on this
+ * screen" — has nowhere else to be asked, because what a disabled plugin leaves
+ * behind is nothing at all: no chip, no pane, no error. A panel that drew only
+ * the settings a reader can change would answer that by staying silent. The layout values
  * in `../layout/prefs.ts` are
  * stored the same way and are deliberately NOT here — a sidebar width is set
  * by dragging the sidebar, and a panel being open is set by the control that
@@ -59,13 +68,16 @@
  * worse than two words for one. This is the surface; that is the mechanism.
  */
 
-import { Show } from "solid-js"
+import { For, Show } from "solid-js"
 
 import { type Anchor, styleOf } from "../anchor.ts"
 import { LAYER } from "../layer.ts"
 import type { GitState } from "@olai/format"
 
+import { NO_ROSTER, type PluginRoster } from "@olai/surface"
+
 import { createGitPolicy } from "../commit/state.ts"
+import { olai } from "../wire.ts"
 import { askToNotify, notifyConsent } from "../notify.ts"
 import { alertsOn, alertSoundOn, setAlertsOn, setAlertSoundOn } from "./alerts.ts"
 import { density, type Density, setDensity } from "./density.ts"
@@ -77,11 +89,12 @@ import {
   pushOn,
   pushSetBy,
 } from "./policy.ts"
+import { pluginHint, pluginRows, pluginsSetBy } from "./plugins.ts"
 import { QUIET_MS } from "@olai/format"
 import { Row } from "./Row.tsx"
 import { Segmented } from "./Segmented.tsx"
 import { TARGET } from "../touch.ts"
-import { TESTID } from "../testids.ts"
+import { pluginPref, TESTID } from "../testids.ts"
 import { FontSelect } from "../theme/FontSelect.tsx"
 import { currentTypeface } from "../theme/fontState.ts"
 import { currentSize, currentTypeSize, pickSize } from "../theme/sizeState.ts"
@@ -133,6 +146,15 @@ const PUSH_CHOICES = [
   { value: "on", label: "Auto-push" },
 ] as const
 
+/** A plugin: Off / On — running, or not there at all. The same two words the
+ *  alert rows use, and deliberately not `Enabled` / `Disabled`: what the strip
+ *  says is whether the thing is happening, which is the reading every other row
+ *  on this panel is written to. */
+const PLUGIN_CHOICES = [
+  { value: "off", label: "Off" },
+  { value: "on", label: "On" },
+] as const
+
 /** The quiet window in the words the hint says it in. Read off the value the
  *  server's loop actually waits (`@olai/format`) rather than spelled again, so
  *  the sentence cannot promise a span the loop does not keep. */
@@ -154,6 +176,19 @@ export function Panel(props: {
    *  back, so there is no signal here either. */
   const policy = createGitPolicy()
   const git = policy.git
+  /** ...and the plugin rows' door, which is the whole cell and no seam at all.
+   *
+   *  A DIRECT `use()` rather than a constructor beside `createGitPolicy`: there
+   *  is nothing to press, nothing to remember and no second reader, so a seam
+   *  would be a module wrapping one subscription. The git one exists because
+   *  the commit pill reads the same cell and calls the same `resume`; this cell
+   *  is read here and nowhere else in the app.
+   *
+   *  Before the first frame the roster is empty (`@olai/surface`'s
+   *  `NO_ROSTER`), so the panel draws no plugin rows at all rather than a set of
+   *  rows claiming everything is off. */
+  const roster = olai.cells.plugins.use()
+  const plugins = (): PluginRoster => roster.value() ?? NO_ROSTER
   return (
     <section
       ref={props.inside}
@@ -292,6 +327,42 @@ export function Panel(props: {
         />
       </Row>
 
+      {/* ONE ROW PER PLUGIN THIS BUILD HAS, and every one of them the
+          instance's — `--plugins` is CLI/nix only, so there is no verb for a
+          press to call and the strips are frozen exactly as the two git rows
+          above are (`./plugins.ts`).
+
+          A WALK, not a list: what the cell carries is a row per plugin, and
+          this file spells no plugin's name. A third plugin arrives here with
+          nothing in `@olai/web` moving, which is the same claim the fence one
+          package over holds as an equality.
+
+          THE LABEL IS THE NAME, VERBATIM — not prettified into `Kolu`. It is
+          the word `--plugins` takes, the namespace its members are composed
+          under and the docs slug, and a label that title-cased it would be the
+          one spelling of a plugin's name coming apart on the one screen that
+          tells you what to type.
+
+          NO HEADING over them, and no `Show` around them: a build with no
+          plugins draws nothing at all rather than an empty section, and a
+          heading would be a second thing to hide. */}
+      <For each={pluginRows(plugins())}>
+        {(plugin) => (
+          <Row
+            label={plugin.name}
+            pref={pluginPref(plugin.name)}
+            hint={pluginHint(plugin)}
+            setBy={pluginsSetBy(plugins())}
+          >
+            <Segmented
+              choices={PLUGIN_CHOICES}
+              value={plugin.running ? "on" : "off"}
+              frozen
+            />
+          </Row>
+        )}
+      </For>
+
       {/* WHAT THE SERVER WOULD NOT TAKE, beside the row that asked. Resume is
           the one remaining git gesture on this panel, and a dropped socket or
           a usage refusal would be a button that did nothing with no words
@@ -311,13 +382,20 @@ export function Panel(props: {
 
           The git rows are named as the exception rather than left to contradict
           it: they are always the instance's, and a caveat about a feature
-          nobody is using is not a caveat here — every serve has them. */}
+          nobody is using is not a caveat here — every serve has them.
+
+          THE PLUGIN ROWS ARE NAMED THE SAME WAY and in the same breath, because
+          they are the same exception rather than a second one: one launch, one
+          kind of policy, one sentence. Naming them separately would be two
+          caveats a reader has to tell apart, and the row's own line already
+          says which flag set it. They are named as a CLASS and not counted,
+          since how many there are is the build's business. */}
       <p class="border-t border-rule pt-3 text-xs text-muted" data-testid={TESTID.prefsScope}>
         These are this browser's. They are stored here, reach every tab you have
-        olai open in, and are never sent to the server. The two git rows are
-        this instance's policy, set at launch — a flag, the nix module, or the
-        built-in default. They are the same in every browser and cannot be
-        changed from one.
+        olai open in, and are never sent to the server. The two git rows and the
+        plugin rows are this instance's policy, set at launch — a flag, the nix
+        module, or the built-in default. They are the same in every browser and
+        cannot be changed from one.
       </p>
     </section>
   )

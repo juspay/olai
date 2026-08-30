@@ -220,6 +220,23 @@ That pause is a fact about the DIRECTORY, held by the server. A reload does not 
 
 Theme, typeface, size, note density and finished work are untouched by any of this. They are personal view choices, per browser, and there is nothing about them for a server to have an opinion on.
 
+## Which integrations this serve runs
+
+olai talks to two things that are not olai — kolu ([plugins/kolu.md](plugins/kolu.md)) and odu ([plugins/odu.md](plugins/odu.md)) — and `--plugins` says which of them this serve is running.
+
+```
+olai web ~/outlines --plugins=odu     # odu only
+olai web ~/outlines --plugins=        # neither
+```
+
+**It is the git policy's shape, one setting over**, and for the same reason: which tools this HOST has is the operator's fact. So it is a CLI flag rather than an env var, a settings file or a browser toggle, preferences draws the rows **read-only** naming where they are changed, and the answer is the same in every browser. An env var names a resource to reach (`OLAI_ACP_AGENT`); this names a policy the instance runs under, and a policy belongs on the `--help` page beside the other policies, where it can be read without knowing it exists.
+
+**Omitting the flag is not the same as writing an empty one.** No flag means every integration this binary was built with; `--plugins=` with nothing after it means none, and the preferences row says which of the two you did. A name the build does not have is refused at startup, naming the words it does have — a typo is never a silently disabled integration.
+
+**A serve with an integration off is not a degraded serve.** Nothing is parked and nothing is half-wired: the integration's members are not on the wire at all, it probes for nothing, it draws nothing, and the kinds it teaches the vault validate as ordinary text ([live-properties.md](live-properties.md)). The outline it would have owned is an ordinary outline. That is exactly the state a machine that never had the tool is already in, which is why it costs nothing to be true — and it is the state `olai surface` and every headless face already run in.
+
+**A vault cannot switch one off**, deliberately. A served directory says how an integration should BEHAVE — `_olai/Kolu.olai` is the vault's file and travels with it — but a directory that could decide which tools the machine serving it runs would be the vault deciding something about the host.
+
 ## Agents, over HTTP
 
 Any MCP client — a coding agent in a terminal, working in the same directory — gets the same closed tool list by dialling the running server. There is no second process and no stdio face: `olai web` owns the store, and `/mcp` is how an agent that is not the panel's talks to it.

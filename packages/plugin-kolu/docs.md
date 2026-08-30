@@ -2,13 +2,13 @@
 
 [Kolu](https://kolu.dev) runs terminals for coding agents. If a machine is running one, olai on that machine can see its fleet — so a node that records where some work happened also shows you how that work is *going*, and lets you look at the screen without leaving the page. Nothing to configure: olai looks for the daemon this host answers on, and where there is none it says so and carries on.
 
-**This is the first shipped slice of a larger feature.** The roadmap's Orchestrator family is phased — a read-only view first, then events landing on the board, then actions, gates and judgment ([roadmap.olai](roadmap.olai), `feat-orch`). What is here today is the read-only half: olai watches, and every verb is still kolu's. The rest is not built, and this page describes only what is.
+**This is the first shipped slice of a larger feature.** The roadmap's Orchestrator family is phased — a read-only view first, then events landing on the board, then actions, gates and judgment ([the roadmap](https://github.com/juspay/oss.olai/tree/main/projects/olai/roadmap), `feat-orch`). What is here today is the read-only half: olai watches, and every verb is still kolu's. The rest is not built, and this page describes only what is.
 
 ## The connection
 
 One olai per directory, one padi per machine, one connection between them. The BROWSER never dials padi — the server holds the one connection the fleet rides, and every tab is a subscriber to it. Twelve tabs watching one terminal are twelve attaches over that ONE connection: an attach is a write that carries the size the viewer wants, so panes cannot share one, and what the wall saves is the dial rather than the attach. Whose size wins is [below](#the-live-pane).
 
-Which padi it dials is `$PADI_SOCKET` where that is set, and otherwise the rendezvous path kolu derives from its state root — so the two of them find each other with nothing written down. Both are on this machine, which makes the machine the thing worth naming: olai already titles itself after its host (`olai [machine]` — [running.md](running.md)), so the fleet on the page is that host's kolu, and two boxes are two tabs you can tell apart. There is no cross-machine fleet, and this page is not a step towards one.
+Which padi it dials is `$PADI_SOCKET` where that is set, and otherwise the rendezvous path kolu derives from its state root — so the two of them find each other with nothing written down. Both are on this machine, which makes the machine the thing worth naming: olai already titles itself after its host (`olai [machine]` — [running.md](../running.md)), so the fleet on the page is that host's kolu, and two boxes are two tabs you can tell apart. There is no cross-machine fleet, and this page is not a step towards one.
 
 Beside the connection pill in the header is the readout for the link, and it has three states rather than two:
 
@@ -20,7 +20,7 @@ The third is why the readout is not a boolean. *Start kolu* and *these two build
 
 ## The `terminal` property is a door
 
-This is one of olai's **live properties** — a property whose value is a name the board decided on, and whose face goes and finds out what that name currently is. It was the first, and [ci.md](ci.md) describes the seam and its second tenant (a `worktree` that has a CI run going in it). Nothing below is special to kolu except the clothes.
+This is one of olai's **live properties** — a property whose value is a name the board decided on, and whose face goes and finds out what that name currently is. It was the first, and [live-properties.md](../live-properties.md) is the seam itself — what turns one on, and its second tenant ([odu](odu.md): a `worktree` that has a CI run going in it). Nothing below is special to kolu except the clothes, and the clothes are the one thing worth reading twice: a `terminal` OWNS ITS ROW, because a terminal somebody wrote down is worth a row whether or not anything is happening in it.
 
 Give a node a `terminal` property whose value is a kolu terminal's id — the whole uuid, or the eight-character prefix a board usually writes — and **declare that key a `terminal`**, which is one row in `_olai/Properties.olai`:
 
@@ -28,7 +28,7 @@ Give a node a `terminal` property whose value is a kolu terminal's id — the wh
 {"id":"prop-terminal","ord":"a0","title":"terminal","custom":{"type":"terminal"}}
 ```
 
-**That row is what turns the door on**, and a vault without it draws nothing. `terminal` is a kind `@olai/plugin-kolu` contributes ([format.md](format.md)), and the walk that decides who owns which fleet row finds its keys by that DECLARATION rather than by the key's name — so a column called `pty` gets the door the day its row says the kind, and a property somebody happened to call `terminal` in a vault that says nothing does not. It used to be enough to name the key; that was name-matching, and it could not tell two path-shaped keys apart when somebody needed it to.
+**That row is what turns the door on**, and a vault without it draws nothing. `terminal` is a kind `@olai/plugin-kolu` contributes ([format.md](../format.md)), and the walk that decides who owns which fleet row finds its keys by that DECLARATION rather than by the key's name — so a column called `pty` gets the door the day its row says the kind, and a property somebody happened to call `terminal` in a vault that says nothing does not. It used to be enough to name the key; that was name-matching, and it could not tell two path-shaped keys apart when somebody needed it to.
 
 With the row in place, the property draws **kolu's own Dock row**:
 
@@ -98,10 +98,10 @@ None of those are things kolu's row has a face for, because from kolu's side the
 
 ## The chat panel's kolu
 
-The older half of the integration, and a separate one: where this host runs kolu, the [chat](chat.md#kolu) panel's agent is handed `kolu mcp`, so the agent can drive terminals rather than only look at them. It is probed rather than assumed — a `kolu` on a PATH is not always the one this host is running — and a server that would not attach says so on screen with the reason, under the roster line:
+The older half of the integration, and a separate one: where this host runs kolu, the [chat](../chat.md#kolu) panel's agent is handed `kolu mcp`, so the agent can drive terminals rather than only look at them. It is probed rather than assumed — a `kolu` on a PATH is not always the one this host is running — and a server that would not attach says so on screen with the reason, under the roster line:
 
 ```
 olai ✓  kolu ✓  · plus the agent's own
 ```
 
-The two halves share a host and a daemon and nothing else: one is a standing subscription to a fleet, the other a spawn-time probe for a tool server. [chat.md](chat.md#kolu) has that one in full.
+The two halves share a host and a daemon and nothing else: one is a standing subscription to a fleet, the other a spawn-time probe for a tool server. [chat.md](../chat.md#kolu) has that one in full.

@@ -11,6 +11,8 @@ import {
   type GitState,
   LOADED,
   Manifest,
+  NO_ROSTER,
+  PluginRoster,
   surface,
   WHO_PATH,
 } from "./index.ts"
@@ -197,9 +199,9 @@ const keyingsOf = (name: string): ReadonlyMap<string, Keying> => {
 
 test("every declaration names a field its own schema carries, and no other member declares", () => {
   const declaring = MEMBERS.filter((one) => one.arrayKey !== undefined)
-  // THE WHOLE LIST, asserted as a list: this is what says the four below are
-  // every one there is, so a fifth member arriving with a declaration cannot
-  // slip past a suite that only knows four names.
+  // THE WHOLE LIST, asserted as a list: this is what says the five below are
+  // every one there is, so a sixth member arriving with a declaration cannot
+  // slip past a suite that only knows five names.
   //
   // CORE'S OWN MEMBERS, and only those. `cells.ci` was on this list until the
   // extraction, and it is not a member this spec declares any more: a plugin
@@ -221,6 +223,7 @@ test("every declaration names a field its own schema carries, and no other membe
     "cells.chat → name",
     "cells.pending → path",
     "cells.pins → id",
+    "cells.plugins → name",
     "streams.page → key",
   ])
   for (const one of declaring) {
@@ -307,6 +310,44 @@ test("the chat cell is keyed by the field both of its lists carry", () => {
   const found = keyingsOf("cells.chat")
   expect(found.get("commands")).toBe("keyed")
   expect(found.get("servers")).toBe("keyed")
+})
+
+// ── which plugins this build has, and which this serve runs ────────────
+
+// The roster is minted once per serve, so no frame of it repeats and the merge
+// has nothing to decide today. It declares anyway, and this is what says the
+// declaration reaches the array it is about: a plugin row IS its `name`, which
+// is the sibling key every one of that plugin's tags is composed under.
+test("the plugin roster is keyed by the one word core knows about a plugin", () => {
+  expect(surface.spec.cells.plugins.arrayKey).toBe("name")
+  expect(keyingsOf("cells.plugins").get("built")).toBe("keyed")
+})
+
+/**
+ * WHAT A PAGE HOLDS BEFORE IT HAS HEARD, and it is deliberately not "every
+ * plugin, off".
+ *
+ * A seed listing the build's plugins as `running: false` would flash "kolu is
+ * off" at a serve that is running kolu, on the panel whose whole job is saying
+ * which are on — the same mistake `GIT_OFF` avoids by seeding the git cell with
+ * the setting face rather than the fault. An empty roster draws no rows at all,
+ * which is also exactly what a runtime composing no plugins publishes.
+ */
+test("a page that has heard nothing has no plugin rows and no flag to name", () => {
+  expect(surface.spec.cells.plugins.default).toEqual(NO_ROSTER)
+  expect(NO_ROSTER.built).toEqual([])
+  // `null` is nobody having said, which is NOT the empty list: `--plugins=` is
+  // somebody saying none out loud, and the row's line says two different things.
+  expect(NO_ROSTER.pinned).toBeNull()
+  expect(Schema.is(PluginRoster)(NO_ROSTER)).toBe(true)
+  expect(Schema.is(PluginRoster)({ built: [], pinned: [] })).toBe(true)
+})
+
+// A plugin's enablement is CLI/nix only — no settings file, no browser toggle —
+// so there is no verb for a tab to call, the way there is none for `--commit`.
+test("the plugin roster is read-only on the wire", () => {
+  expect(tags).toContain("surface/plugins/get")
+  expect(surface.group.requests.has("surface/plugins/set")).toBe(false)
 })
 
 // The walk itself, since three tests above rest on it reading a schema

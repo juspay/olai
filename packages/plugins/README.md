@@ -10,7 +10,7 @@ That residue is not sloppiness. It is the part that genuinely was **olai's own j
 
 | | what it is |
 | --- | --- |
-| `name` | the namespace, the preferences row, the docs slug, and the word `--plugins` takes — one spelling |
+| `name` | the namespace, the preferences row, the docs page's address, and the word `--plugins` takes — one spelling |
 | `surface` | a **whole surface of its own**, declared in its own package with its own member names — core composes it as a SIBLING under `name` |
 | `faces` | which face may see which of its members, its own `ExposeMap` per face, written against its own spec |
 | `kinds` | property KINDS the vault may declare, handed to [`@olai/format`](../format/README.md) as data — the format imports no plugin. Reached through `./server`, where the validator and the write planner are |
@@ -20,7 +20,6 @@ That residue is not sloppiness. It is the part that genuinely was **olai's own j
 | `dressings` | what a live property wears in the browser — a chip beside the value, the pane it opens, or a block that owns a row. Still looked up by the property KEY, because declarations do not travel to a tab; `Dressing`'s own doc says what member has to carry the licence before it is the declared **kind** |
 | `chrome` | a header readout in the app's bar, and the drawer its press opens |
 | `mount` | the tab's own half, wrapped around the page once — one subscription however many leaves draw |
-| `docs` | the page the docs index assembles |
 
 Everything but the name, the surface and its faces is optional, and the absent arm of each is the state a machine without the tool already shows.
 

@@ -25,7 +25,9 @@ import {
   type Ops,
   type Store as OutlineStore,
 } from "@olai/ops"
-import type { App, DocumentEntry, Head, Manifest, Shelf } from "@olai/surface"
+import type { App, DocumentEntry, Head, Manifest, PluginRoster, Shelf } from "@olai/surface"
+import { NO_ROSTER } from "@olai/surface"
+import { PLUGIN_NAMES } from "@olai/plugins/wire"
 import type { CollectionDeltasMsg } from "@kolu/surface/define"
 import { NO_KINDS } from "@olai/format"
 import * as Store from "@olai/store"
@@ -38,7 +40,7 @@ import * as path from "node:path"
 
 import { watchFault } from "./fault.ts"
 import { hostname } from "./hostname.ts"
-import { type Bound, bind, gitWiring, writerAt } from "./runtime.ts"
+import { type Bound, bind, gitWiring, rosterOf, writerAt } from "./runtime.ts"
 
 /** The codec this suite validates through — the vocabulary of a build that
  *  composed no plugin, which is what these fixtures declare nothing about
@@ -577,3 +579,74 @@ test("a revision that changes no pin sends no frame", () =>
         ])
       }),
   ))
+
+// ── which plugins this build has, and which this serve runs ────────────
+
+/**
+ * THE ROSTER IS READ OFF THE REGISTRY, not off what was composed, and that is
+ * the difference the preferences panel exists to draw: a composed list is the
+ * plugins that are ON, and the panel draws a row per plugin the BUILD has and
+ * says of each whether it runs. A plugin left out of `--plugins` is absent from
+ * every structure the runtime holds, so a roster derived from what was composed
+ * could only ever draw rows that all say yes.
+ *
+ * The names are the REGISTRY'S, read here rather than spelled, which is the
+ * same discipline the flag's own `--help` sentence keeps: a third plugin
+ * reaches this test, the flag and the panel with no line of any of them moving,
+ * and this file — a general one — names none.
+ */
+test("every plugin the build has is on the roster, running or not", () => {
+  const all = rosterOf({ env: {}, now: () => STARTED, served: "/tmp" })
+  expect(all.built.map((one) => one.name)).toEqual([...PLUGIN_NAMES])
+  // Nobody said, so all of them run — and `pinned` stays `null` rather than
+  // expanding into that list, because the row under it has to say whether a
+  // person typed this policy or got the built-in default.
+  expect(all.built.every((one) => one.running)).toBe(true)
+  expect(all.pinned).toBeNull()
+
+  // ...and one name out of the list leaves every other row present and off,
+  // which is the row that could not exist if this were a filter.
+  const first = PLUGIN_NAMES[0]
+  if (first === undefined) throw new Error("this build has no plugins to pin")
+  const one = rosterOf({ env: {}, now: () => STARTED, served: "/tmp", names: [first] })
+  expect(one.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
+  expect(one.built.filter((row) => row.running).map((row) => row.name)).toEqual([first])
+  expect(one.pinned).toEqual([first])
+})
+
+/**
+ * `--plugins=` IS A POLICY and saying nothing is the default, so the empty list
+ * survives the crossing as itself. Collapsing it to `null` here would make the
+ * two indistinguishable in the browser, where the only thing that tells them
+ * apart is the line under the row.
+ */
+test("an empty flag crosses as an empty list, not as nobody having said", () => {
+  const none = rosterOf({ env: {}, now: () => STARTED, served: "/tmp", names: [] })
+  expect(none.pinned).toEqual([])
+  expect(none.built.some((row) => row.running)).toBe(false)
+  expect(none.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
+})
+
+/**
+ * A RUNTIME WITH NO PLUGIN SLOT HAS NO ROSTER — which is what every runtime in
+ * this file is, and what `olai surface` and the headless faces are. It composes
+ * no sibling surface at all, so there is nothing for a row to be about; listing
+ * the build's plugins as not running would be the server inventing a policy
+ * nobody set, and it is the one arm here that a browser could be lied to by.
+ */
+test("no plugin slot is no roster, rather than every plugin off", () => {
+  expect(rosterOf(null)).toEqual(NO_ROSTER)
+})
+
+/** ...and the cell a browser actually reads carries it. The one member on this
+ *  surface with no connector: the flag is read once, before the runtime exists,
+ *  so there is nothing for a subscription to hear. */
+test("the roster is served on the plugins cell", () =>
+  withRuntime({ "a.olai": OUTLINE }, ({ wired }) =>
+    Effect.gen(function*() {
+      const get = wired.bound.handlers["surface/plugins/get"]
+      if (get === undefined) throw new Error("the plugins cell has no `get`")
+      const open = yield* watching(get({}) as Stream.Stream<PluginRoster>)
+      expect(yield* open.take).toEqual(NO_ROSTER)
+      yield* Fiber.interrupt(open.reader)
+    })))

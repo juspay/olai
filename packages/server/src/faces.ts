@@ -267,6 +267,18 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   chat: "resource",
   git: "resource",
   pending: "resource",
+  // WHICH PLUGINS THIS BUILD HAS AND WHICH THIS SERVE RUNS — the preferences
+  // panel's read-only rows, and the browser's alone for the reason `manifest`
+  // is: it is a paint instruction, and an agent has no panel.
+  //
+  // What an agent would ask this is already answered better by the surface
+  // itself: a plugin that is off composes no sibling, so its tags are not in
+  // the group and its resources are not published. A request-shaped reader
+  // learns "kolu is not running" by there being no `surface/kolu/…` to call,
+  // which is the same fact without a second place for it to be stale. A
+  // render-shaped one cannot draw a row out of an absence, which is exactly
+  // the asymmetry the `heads`, `pins` and `inbox` paragraphs above are about.
+  plugins: "resource",
   // A PLUGIN'S MEMBERS ARE NOT IN THIS MAP, and the eight that were are the
   // whole reason this file stopped being where the decision lived for them.
   // A daemon link, a fleet, a watcher pulse, a mute list, an events ring, a

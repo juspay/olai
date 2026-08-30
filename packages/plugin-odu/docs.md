@@ -4,20 +4,7 @@
 
 **This is read-only.** olai launches nothing, cancels nothing, reruns nothing and writes nothing to the board. Starting a run, classifying what came out of one, and letting a merge gate read the verdict are later phases; this page describes only what is here.
 
-## Live properties
-
-A property whose value is a decision-shaped name — a terminal id, a worktree path — can be given a face that **updates on its own**. The board goes on storing the name; the display goes and finds out what that name currently is. A plugin contributes a KIND, the vault declares a key that kind, and the face follows the DECLARATION rather than the key's name. There are two such kinds today:
-
-| the property | what it wears |
-| --- | --- |
-| `terminal` | kolu's own Dock row, and the live pane it opens — [kolu.md](kolu.md) |
-| `worktree` | a CI chip while a run is going, and the run matrix it opens — this page |
-
-The rows name the KINDS, and the key a vault hangs each on is the vault's own — a column called `checkout` declared `worktree` is probed, and a column called `worktree` in a vault that declares nothing is not.
-
-They are the same mechanism wearing different clothes, and a third kind of living thing later is a third set of clothes rather than a third mechanism.
-
-The two are shaped differently on purpose. A `terminal` OWNS ITS ROW, because a terminal somebody named is worth a row whether or not anything is happening in it. A `worktree` does not: it is a path on a lane row, quiet by default, and its CI face is a **chip beside the value** that appears only while there is something to say. A board with no CI running looks exactly as it did.
+This is one of olai's **live properties** — a property whose value is a name the board decided on, and whose face goes and finds out what that name currently is ([live-properties.md](../live-properties.md), which is the seam itself and names its other tenant, [kolu](kolu.md)). Nothing on this page is special to odu except the clothes, and the clothes are the one thing worth reading twice: a `terminal` OWNS ITS ROW, and a `worktree` does not. A worktree is a path on a lane row, quiet by default, and its CI face is a **chip beside the value** that appears only while there is something to say. A board with no CI running looks exactly as it did.
 
 ## The chip
 
@@ -74,7 +61,7 @@ Two facts, both on the board:
 
    A vault that declares nothing is not probed at all, and that is the rule rather than an accident: this hands a path to a socket dial in somebody's checkout, and only the vault can say which of its keys is one.
 
-   **It used to be `path`, and `path` was not enough.** `brief` is a `path` too, on the very same rows, so the licence had to be joined to the key NAME `worktree` to mean anything — which gave a door to any vault that happened to use the word and none to a board whose column is called `checkout`. `worktree` is a kind `@olai/plugin-odu` contributes ([format.md](format.md)), and the walk finds its keys by that declaration. A board that declared `path` gets no chip now; the repair is the word in that one row.
+   **It used to be `path`, and `path` was not enough.** `brief` is a `path` too, on the very same rows, so the licence had to be joined to the key NAME `worktree` to mean anything — which gave a door to any vault that happened to use the word and none to a board whose column is called `checkout`. `worktree` is a kind `@olai/plugin-odu` contributes ([format.md](../format.md)), and the walk finds its keys by that declaration. A board that declared `path` gets no chip now; the repair is the word in that one row.
 
 2. **the lane says which repository it is in.** A `worktree` value like `.worktrees/live-properties` is relative and does not name its repo — the same six characters are a directory under three of them. So the repository comes from the lane's own `pr-url` (`https://github.com/juspay/odu/pull/94` → `odu`), and the checkout is `<repos root>/<repo>`, where the repos root is **the directory your served vault sits in** — your board and the repositories it boards are checkouts side by side. A machine laid out otherwise says so once, in `OLAI_REPOS_DIR`.
 

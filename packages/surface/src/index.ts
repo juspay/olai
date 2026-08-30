@@ -124,8 +124,8 @@
  *     which is the one question left in the app that is about the vault and not
  *     about any page.
  *
- * FOUR MEMBERS DECLARE WHAT IDENTIFIES A ROW — `page` by `key`, `pins` by
- * `id`, `pending` by `path`, `chat` by `name` — and that is the one thing about
+ * FIVE MEMBERS DECLARE WHAT IDENTIFIES A ROW — `page` by `key`, `pins` by
+ * `id`, `pending` by `path`, `chat` and `plugins` by `name` — and that is the one thing about
  * this spec that is not about the wire at all. `arrayKey` is read where a
  * browser MERGES a frame into its store (`@kolu/surface`'s `writeValue.ts`,
  * juspay/kolu#2190): undeclared, a frame replaces every element of every array
@@ -135,7 +135,12 @@
  * identical frame notifies nothing and a reorder moves the objects a keyed view
  * follows. It is one field per member, reaching every array at every depth;
  * arrays whose elements do not carry it merge by POSITION, which is silent on a
- * repeated frame just the same. The members that declare NOTHING each say why
+ * repeated frame just the same. `plugins` is the odd one in that list, and it
+ * declares on purpose: it is minted once per serve, so no frame of it ever
+ * repeats and the merge has nothing to decide today — but a plugin row IS its
+ * name (no two plugins may share one, which is `@olai/plugins`' own fence), and
+ * a member that later grew a second frame would otherwise start replacing every
+ * row silently. The members that declare NOTHING each say why
  * where they are declared, and three of them share one reason worth stating
  * here: `outlines`, `heads` and `transcript` are read through the batched
  * `deltas` delivery, which replaces each named leaf WHOLE rather than merging
@@ -224,6 +229,7 @@ import { MovingAnswer, MovingRequest, PageReading, PageRequest } from "./page.ts
 import { App } from "./app.ts"
 import { NarrowingAnswer, NarrowingRequest } from "./narrowing.ts"
 import { SearchAnswer, SearchRequest } from "./search.ts"
+import { NO_ROSTER, PluginRoster } from "./plugins.ts"
 import { Who } from "./who.ts"
 
 /**
@@ -767,6 +773,37 @@ export const surface = defineSurface({
       default: NO_INBOX,
       verbs: ["get"],
       equals: sameInboxHeld,
+    },
+    /**
+     * WHICH PLUGINS THIS BUILD HAS, and which this SERVE runs — see
+     * {@link PluginRoster}.
+     *
+     * A CELL for the reason the two above it are: one value about the served
+     * INSTANCE rather than about any file in it. It is the sharpest case of it
+     * on this spec — the flag is read once, at the composition root, so this
+     * moves at most once per serve and carries no connector and no `equals`.
+     *
+     * Wire-read-only, and here that is more than the usual: `--plugins` is
+     * CLI/nix ONLY, so there is no verb a browser could call and no settings
+     * file for one to write. The panel draws the rows FROZEN and names the
+     * flag, which is the arrangement the two git rows already live under.
+     *
+     * CORE'S OWN MEMBER, about plugins, which is not the contradiction it
+     * looks like: a plugin that is off composes no surface at all, so the
+     * member that would answer "am I running" is missing in exactly the case
+     * the answer is interesting. {@link ./plugins.ts} argues it, and argues
+     * why core still spells no plugin's name — the names are data walked out
+     * of this cell.
+     */
+    plugins: {
+      schema: PluginRoster,
+      default: NO_ROSTER,
+      verbs: ["get"],
+      /** A ROW IS ITS `name`, and the fence one package over is what makes
+       *  that an identity rather than a hope: no two plugins may share a name
+       *  (`@olai/plugins`' `fence.test.ts`), because the name is the sibling
+       *  key every one of its tags is composed under. */
+      arrayKey: "name",
     },
 
   },
@@ -1524,6 +1561,12 @@ export { WHO_PATH, Who } from "./who.ts"
  *  facts `app.get` carries, and the one spelling every face of the app names
  *  itself with. See {@link ./app.ts}. */
 export { App, appName } from "./app.ts"
+
+/** Which plugins this build has and which this serve runs — the `plugins` cell
+ *  whole, its seed, and one row of it. See {@link ./plugins.ts}: the server
+ *  MINTS this out of the flag and the registry, and the preferences panel is
+ *  the only thing that reads it. */
+export { BuiltPlugin, NO_ROSTER, PluginRoster } from "./plugins.ts"
 
 /** Where the hashed browser bundle lives, and what the bundler names a split
  *  chunk in it — see {@link ./bundle.ts}. One spelling, both halves of the

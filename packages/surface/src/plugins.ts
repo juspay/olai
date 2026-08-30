@@ -1,0 +1,113 @@
+/**
+ * WHICH PLUGINS THIS BUILD HAS, and which this SERVE runs — the two lists as
+ * one value, because the distance between them is the whole of what `--plugins`
+ * means and a browser that held only one of them could not draw it.
+ *
+ * ## Why this is CORE'S member and not a plugin's
+ *
+ * A disabled plugin is ABSENT FROM THE RECORD (`@olai/plugins`' README): no
+ * sibling surface is composed, no tag is minted, no handler is bound, no expose
+ * row is granted, and the wire carries no `surface/<name>/` at all. So the one
+ * member that could answer *is kolu running* is the member kolu does not have
+ * when the answer is no. The question outlives its subject, which is exactly
+ * what makes it core's — the same way core owns what git policy is in force
+ * rather than asking the repository.
+ *
+ * The alternative that lost is a `running` cell contributed by each plugin,
+ * always composed and hollow when off. That is the arrangement the extraction
+ * RETIRED (`@olai/server`'s `runtime.ts`, on `wiring.plugins: null`): a member
+ * that is present-and-empty cannot be told apart from a member that is present
+ * and has nothing to say, and it would put a tag on the wire for a plugin whose
+ * whole promise is that it puts none there.
+ *
+ * ## A CELL, and read-only
+ *
+ * One value about the served INSTANCE rather than about any file in it — the
+ * shape `manifest` and `git` already are. It is read once, at the composition
+ * root, out of the flag and the registry; it moves at most once per serve,
+ * which is why it has no connector and needs no `equals` (`@olai/server`'s
+ * `runtime.ts` seeds it and nothing republishes it).
+ *
+ * Read-only on the wire because `--plugins` is CLI/nix ONLY — no settings file,
+ * no browser toggle, the git policy's shape one setting over. What a browser
+ * does with it is draw a row per plugin, frozen, naming where it is changed
+ * (`@olai/web`'s `client/settings/`).
+ *
+ * ## NOTHING HERE SPELLS A PLUGIN'S NAME
+ *
+ * The names are DATA. They arrive from the registry at the composition root and
+ * travel as strings; this file — a general one — declares that there ARE names
+ * and knows none of them, which is the same fence `@olai/plugins`'
+ * `fence.test.ts` holds as an equality per package. A row is drawn by walking
+ * what the cell carries, so a third plugin reaches the panel without a line of
+ * this or of the panel moving.
+ */
+
+import { Schema } from "effect"
+
+/**
+ * ONE PLUGIN THIS BUILD HAS, and whether this serve runs it.
+ *
+ * Both halves on one row rather than two lists — the built names and the
+ * running names — because two lists are two things to keep in step and a name
+ * in the second that is not in the first is a state nothing on screen could
+ * draw. A row that says `false` is the row the panel exists for: a plugin left
+ * out of `--plugins` has no surface, no face and no probe, and an absent row
+ * would be indistinguishable from a build that never had it.
+ */
+export const BuiltPlugin = Schema.Struct({
+  /** The plugin's `name` — the namespace, the docs slug, the word `--plugins`
+   *  takes and the label the row wears. One spelling, and this is it travelling
+   *  (`@olai/plugins`' `plugin.ts`). */
+  name: Schema.String,
+  /** Whether THIS serve composed it: its surface is on the wire, its faces are
+   *  drawn, its probe ran, and a property declared with its kind is held to it.
+   *  `false` is total absence rather than a degraded arm. */
+  running: Schema.Boolean,
+})
+export type BuiltPlugin = typeof BuiltPlugin.Type
+
+/**
+ * THE ROSTER: every plugin compiled in, in registry order, and what the
+ * operator said.
+ *
+ * Registry order rather than sorted, because the registry is a source file
+ * (`@olai/plugins`' `surfaces.ts`) and the order a build lists its plugins in is
+ * the order `--help` names them in — a panel that re-sorted would put the rows
+ * in an order nothing else in the product uses.
+ */
+export const PluginRoster = Schema.Struct({
+  /** Every plugin THIS RUNTIME COMPOSES OVER. Empty for a runtime handed no
+   *  plugins at all — `olai surface`, the headless faces, every server test —
+   *  which composes no sibling surface and so has no roster to be about. */
+  built: Schema.Array(BuiltPlugin),
+  /**
+   * The names `--plugins` was GIVEN, or `null` when the flag was not given.
+   *
+   * `null` IS NOT THE EMPTY LIST, and keeping them apart is the whole reason
+   * this field is here rather than derived from `built`. `null` is nobody
+   * having said, which means every plugin this binary has; `[]` is `--plugins=`,
+   * somebody saying NONE out loud. Both leave the same rows on screen when a
+   * build has one plugin, and the line under them says two different things:
+   * one names the flag that did it, the other names the built-in default. The
+   * git pin keeps exactly this distinction one setting over (`@olai/format`'s
+   * `GitPin`), and for the same reason — a value that had already expanded
+   * `null` into the full list could not tell a reader which of the two they
+   * were looking at.
+   */
+  pinned: Schema.NullOr(Schema.Array(Schema.String)),
+})
+export type PluginRoster = typeof PluginRoster.Type
+
+/**
+ * NO ROSTER: no plugin to say anything about, and nobody having said anything.
+ *
+ * Two states in one value, deliberately, because they draw the same nothing:
+ * a page that has not heard from the server yet, and a runtime that composes no
+ * plugins at all. Neither has a row, and a panel drawing rows off `built` is
+ * empty for both without asking which it is — where a seed that listed the
+ * build's plugins as `running: false` would flash "kolu is off" at a serve
+ * running kolu on its way to the truth. That is the same argument `GIT_OFF`
+ * makes for seeding the git cell with the setting face rather than the fault.
+ */
+export const NO_ROSTER: PluginRoster = { built: [], pinned: null }
