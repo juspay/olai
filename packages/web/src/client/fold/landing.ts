@@ -66,11 +66,12 @@
  * The remaining ways keep the document arm's own sentence: NOTHING FOUND IS
  * NOTHING DONE — a `.md` whose heading was renamed behaves exactly so. The
  * id's row is in no file this directory holds any more — or the filter's,
- * above — and in each case the page the address opened is whole. What has changed hands is the SILENCE: nothing
- * done used to be nothing said, which made a dead link indistinguishable from
- * a working one (the human's RCA ruling, 2026-08-29 — a real one landed
- * nowhere, and only its author could tell). So the act says the miss out
- * loud, in the same alarm voice every refused act in this client speaks
+ * above — and in each case the page the address opened is whole. What has
+ * changed hands is the SILENCE: nothing done used to be nothing said, which
+ * made a dead link indistinguishable from a working one (the human's RCA
+ * ruling, 2026-08-29 — a real one landed nowhere, and only its author could
+ * tell). So the act says the miss out loud, in the same alarm voice every
+ * refused act in this client speaks
  * ({@link missedSays}), once the set has answered and confirmed the page
  * really draws nothing by that name — never before, because an alarm about a
  * row that is one revision short of arriving is a lie for the length of the
