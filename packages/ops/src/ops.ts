@@ -272,15 +272,17 @@ export interface Ops extends Asking {
    *  translated, because a caller of this interface is a tool call or a
    *  procedure and both need an answer they can render.
    *
-   *  ONE refusal repairs itself before it is answered: a write refused by a
-   *  set the disk has moved past (stale-set reads, refusing writes —
-   *  `stale-set-reads-clean-writes-refuse`), wherever the refusal showed —
-   *  the gate's verdict, or the planner's answer against a set withholding
-   *  a file it judged from bytes. The repair is asked and bounded where the
-   *  refusal sits below; what is said HERE is the caller's half: a repair
-   *  that works is invisible (the write lands on the current set), and one
-   *  that does not changes nothing the caller can observe — the answer is
-   *  the refusal reached against the resynced set.
+   *  ONE write repairs the set under it before it answers: a write standing
+   *  on a set the disk has moved past (stale-set reads, refusing writes —
+   *  `stale-set-reads-clean-writes-refuse`), wherever that showed — the
+   *  write's OWN files, checked before its bytes go over them, or a refusal
+   *  it was handed: the gate's verdict, or the planner's answer against a
+   *  set withholding a file it judged from bytes. The repair is asked and
+   *  bounded at each of those sites below; what is said HERE is the caller's
+   *  half: a repair that works is invisible (the write lands on the current
+   *  set, over the bytes that are really there rather than through them),
+   *  and one that does not changes nothing the caller can observe — the
+   *  answer is whatever the resynced set says, once.
    *
    *  `writer` is INTENT, not identity: git records the repository's own name
    *  and email whoever asked, so this is the only thing that can tell an
@@ -369,8 +371,9 @@ export interface Ops extends Asking {
  *  losing a race, it is contending with a writer that never stops. */
 const ROUNDS = 5
 
-/** How many TIMES one write may heal the set it was refused against ({@link
- *  run}'s refusal arms say why the number and why it is this small): one. */
+/** How many TIMES one write may heal the set it was planned against ({@link
+ *  run}'s three repair arms say why the number and why it is this small):
+ *  one. */
 const REPAIRS = 1
 
 /**
@@ -487,26 +490,30 @@ export const make = (options: Options): Ops => {
     Effect.gen(function*() {
       let repairs = REPAIRS
       /**
-       * THE ONE ALTERNATIVE EXPLANATION, ruled out before either refusal arm
-       * below answers: THE SET WAS STALE WHERE THE REFUSAL LOOKS.
+       * THE ONE ALTERNATIVE EXPLANATION, ruled out before this write's bytes
+       * land and before either refusal arm below answers: THE SET WAS STALE
+       * WHERE THIS WRITE IS LOOKING.
        *
        * `stale-set-reads-clean-writes-refuse` (roadmap bugs.olai) is the
        * shape this repairs: a git operation replaced a file in a way the
        * watcher's stamps cannot see, so reads went on serving the old set
-       * with no error and every write refused — the stale copy of that file
-       * no longer satisfies the declarations the SAME operation landed. The
-       * check asks about FILES, because a name is all a byte comparison
-       * needs: every file the refusal could be looking AT, re-read from disk
-       * and answered from bytes rather than stamps ({@link @olai/store}'s
-       * `drifted`). One drifted file is proof the judgement was reached
-       * against a tree that is no longer there, so the write is not refused
-       * after all — the resync door a person would knock on is opened FOR
-       * them (`refresh("verified")`, the look the store reserves for
-       * "something outside this process rewrote the tree") and the round
-       * begins again, planned off the set the disk actually holds.
+       * with no error, and a write either refused or landed straight over
+       * the replacement — the stale copy of that file no longer satisfies the
+       * declarations the SAME operation landed, and where it still does, the
+       * write's own plan was derived from bytes that are gone. The check asks
+       * about FILES, because a name is all a byte comparison needs: every
+       * file this write could be standing on, re-read from disk and answered
+       * from BYTES rather than stamps ({@link @olai/store}'s `drifted`). One
+       * drifted file is proof that whatever was decided here — a refusal, or
+       * a plan about to be written — was decided against a tree that is no
+       * longer there, so it is not the answer after all: the resync door a
+       * person would knock on is opened FOR them (`refresh("verified")`, the
+       * look the store reserves for "something outside this process rewrote
+       * the tree") and the round begins again, planned off the set the disk
+       * actually holds.
        *
-       * ONCE, per write ({@link REPAIRS}) — one budget behind BOTH doors,
-       * so the two arms cannot spend it apart. A retry that HEALS and still
+       * ONCE, per write ({@link REPAIRS}) — one budget behind ALL THREE
+       * doors, so the arms cannot spend it apart. A retry that HEALS and still
        * refuses answers the refusal it was just handed — the fresh one,
        * reached against the resynced set — rather than paying for another
        * look. The failure of the LOOK says the same thing: a disk that
@@ -515,12 +522,12 @@ export const make = (options: Options): Ops => {
        * sentence for both.
        *
        * THE CHECK BEFORE THE DOOR is the ordering the costs argue: a resync
-       * on every refusal would re-read the directory for every typo an
-       * agent talks to itself, so the cheap per-file byte check is what
-       * stands in front of it. Detection is where the refusal shows; the
-       * resync is whole-tree, which is what the one look verb offers, and
-       * one re-read of a served directory costs less than keeping a second
-       * look verb honest.
+       * on every write, or on every refusal, would re-read the directory for
+       * every typo an agent talks to itself, so the cheap per-file byte check
+       * is what stands in front of it. Detection is narrow — the files each
+       * site can name — while the resync is whole-tree, which is what the one
+       * look verb offers, and one re-read of a served directory costs less
+       * than keeping a second look verb honest.
        */
       const repair = (files: ReadonlyArray<string>): Effect.Effect<boolean> =>
         Effect.gen(function*() {
@@ -609,6 +616,55 @@ export const make = (options: Options): Ops => {
           })),
           ...documents.map((doc) => ({ path: doc.file, contents: doc.text })),
         ]
+        const paths = changes.map((change) => change.path)
+
+        /**
+         * THE ASK NO REFUSAL OPENS: THIS WRITE'S OWN FILES, before its bytes
+         * go over them.
+         *
+         * The two arms below are both reached THROUGH a refusal, which is
+         * what made them free — and it is also the hole they left (#440's
+         * `The no-refusal arm`, ruled closed 2026-08-30). A file replaced
+         * behind the store's back inside the stamps' own blind spot does not
+         * have to make the set INVALID: swap one accepted value for another
+         * and every door below stays shut — the write is planned off the copy
+         * the disk has moved past, its bytes land over the replacement, and
+         * the other process's write is gone with no error anywhere.
+         *
+         * So the ask is made where a write can afford it and a read cannot:
+         * the paths this write already named, one file read each, paid by
+         * writers only. Never the tree — a sweep per write is the read side's
+         * red line (no per-read disk sweep, no fresh-looking lie) moved onto
+         * the write side, and every clean write would pay it.
+         *
+         * BEFORE THE BYTES, and the ordering is the guarantee: after the
+         * rename the drift is neither detectable nor repairable — it has been
+         * overwritten. Drift in a file this write is about is proof the plan
+         * was derived against a tree that is no longer there, so the same door
+         * opens as below (`refresh("verified")`, whole-tree) and the round
+         * runs again off what the disk actually holds. The retry re-PLANS
+         * rather than re-sends, so a write the TRUE bytes refuse comes back as
+         * that refusal instead of landing over them.
+         *
+         * The resync being whole-tree is also the answer for drift sitting in
+         * files this write does not touch: it heals with everything else the
+         * moment any asked path drifts. Drift standing ALONE under an
+         * untouched file waits for a door that names it — a write of its own,
+         * or the resync a person knocks on — because finding it from here
+         * would cost exactly the sweep this ask exists to avoid.
+         *
+         * ONE BUDGET with the arms below ({@link REPAIRS}): a write that has
+         * already healed asks nothing here, since `repair` answers before the
+         * disk is touched.
+         */
+        if (yield* repair(paths)) {
+          // The retry OWNS the round it interrupts, for the reason the arms
+          // below give: a repair is not a lost race, and the resync has
+          // already paid for the attempt it interrupted.
+          round--
+          continue
+        }
+
         const outcome = yield* Effect.result(
           options.store.commit({ baseRev: snapshot.rev, changes }),
         )
@@ -639,7 +695,6 @@ export const make = (options: Options): Ops => {
            * this write about" is how the gate and the sentence come to
            * disagree about one write.
            */
-          const paths = changes.map((change) => change.path)
           /**
            * THE GATE'S REFUSAL is the second door the check above stands
            * behind. The verdict names every file it was judged FROM ({@link

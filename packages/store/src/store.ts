@@ -33,10 +33,11 @@
  * A SECOND DOOR asks the loop's question by bytes rather than stamps, and it
  * is ask-only too: {@link Store.drifted} names the files (if any) whose disk
  * content has moved past the loaded set. Nothing in the loop consults it —
- * the stamp trade is the loop's to keep — so the one caller is the refusal
- * door of the write path, where a stale set is exactly the alternative
- * explanation for a codec's "no", and paying one file read per asked path is
- * already paid for by the refusal it answers.
+ * the stamp trade is the loop's to keep — so the one caller is the WRITE
+ * path, where a stale set is both the alternative explanation for a codec's
+ * "no" and the reason a write that nothing refuses would land over bytes it
+ * never saw. One file read per asked path, and the paths are the ones a
+ * write already names: reads pay nothing here, and neither does the loop.
  *
  * Last-good data and what-is-wrong-now are two independent facts, kept on two
  * independent refs and mapping onto surface's stream and cell.
@@ -283,12 +284,13 @@ export interface Store<S, E> {
    *
    * The stamp table is the loop's cheap answer, and coarse on purpose — a
    * same-length rewrite landing inside the stamp's own resolution is what
-   * the loop is entitled to miss ({@link ./disk.ts}). A caller holding a
-   * REFUSAL is the one with a reason the loop never has to pay for a
-   * stronger look, and this is the stronger look: re-open exactly the paths
-   * it names and compare BYTES, not stamps. It is how the ops layer tells a
-   * write the codec judged against an out-of-date set from one it genuinely
-   * has no room for ({@link ../../ops/src/ops.ts}'s `run`, the only caller).
+   * the loop is entitled to miss ({@link ./disk.ts}). A WRITE is the one with
+   * a reason the loop never has to pay for a stronger look, and this is the
+   * stronger look: re-open exactly the paths it names and compare BYTES, not
+   * stamps. It is how the ops layer tells a set the disk has moved past from
+   * a write that genuinely has no room in it — asked of the files a write is
+   * about to land on, and again of the files a refusal is about
+   * ({@link ../../ops/src/ops.ts}'s `run`, the only caller).
    *
    * What comes back is the list a resync would re-answer. A path the probe
    * does not hold is skipped ({@link Store.body}'s membership rule), and so

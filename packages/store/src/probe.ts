@@ -35,12 +35,13 @@
  * One more fact is cached per entry, and it is the one the stamp cannot carry:
  * a fingerprint of the BYTES the file was read as. Stamps are coarse on
  * purpose ({@link ./disk.ts}'s trade), so a caller already holding a reason to
- * ask harder — a write the codec just refused — may ask for the bytes to be
- * compared rather than the stamps ({@link Probe.drifted}). That check costs one
- * file read per asked path and is spent NOWHERE else: it is sixteen
- * characters of hex per cached file forever, in exchange for which the
- * refusal door can tell "the set does not fit the disk" from "the write does
- * not fit the set" without re-reading the directory.
+ * ask harder — a WRITE, about to put bytes over a file or just refused by the
+ * codec — may ask for the bytes to be compared rather than the stamps
+ * ({@link Probe.drifted}). That check costs one file read per asked path and is
+ * spent NOWHERE else: it is sixteen characters of hex per cached file forever,
+ * in exchange for which the write door can tell "the set does not fit the
+ * disk" from "the write does not fit the set" without re-reading the
+ * directory.
  */
 
 import { Effect, Ref, type Result } from "effect"
@@ -183,15 +184,16 @@ export interface Probe<F, E> {
   readonly holds: (path: string) => Effect.Effect<boolean>
   /**
    * WHICH OF THESE FILES NOW READS AS BYTES the cache did not decode from —
-   * the stronger look a REFUSAL pays for.
+   * the stronger look a WRITE pays for.
    *
    * The loop decides on stamps and is entitled to: coarse is the trade it
-   * took. A caller holding a "no" from the codec has the one reason the loop
-   * never does to open the file instead — so this member re-reads exactly the
-   * paths it is handed and compares BYTES, via the fingerprint the read
-   * cached. It is the same money argument as the stamp table, one door over:
-   * one file read per asked path, spent at refusal time (rare, and already
-   * expensive), never per probe.
+   * took. A caller about to WRITE has the one reason the loop never does to
+   * open the file instead — the bytes under it are what its plan was derived
+   * from, or what a "no" from the codec was reached against — so this member
+   * re-reads exactly the paths it is handed and compares BYTES, via the
+   * fingerprint the read cached. It is the same money argument as the stamp
+   * table, one door over: one file read per asked path, spent by writers on
+   * paths they name, never per probe and never per read.
    *
    * A path the probe does not hold is SKIPPED, not answered — the same
    * membership rule {@link Probe.holds} keeps: it is not this store's file,
