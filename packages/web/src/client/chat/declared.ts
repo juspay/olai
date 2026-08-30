@@ -276,12 +276,14 @@ export interface Declared {
  *
  * `failure` is an optional second ear for a call that did not arrive: the
  * transcript's slot hears every batch's bad news either way ({@link said}),
- * and a scope that owes a READER an answer may want its own word of it too —
- * the outline's landing says it to the console, because the connection pill
- * already tells the socket's own story and a dead link's silence is the bug
- * that scope exists against.
+ * and a scope that owes a READER an answer may want its own word and its own
+ * IDS of it — the outline's landing says it out loud over the page, because
+ * a live-socket failure is exactly the dead-link silence that scope exists
+ * against, and the connection pill says *connected* for it.
  */
-export const createDeclared = (failure?: (message: string) => void): Declared => {
+export const createDeclared = (
+  failure?: (message: string, ids: ReadonlyArray<string>) => void,
+): Declared => {
   /**
    * WHAT THIS MESSAGE HAS BEEN TOLD, whole: asked id → the node it names, or
    * `null` for an id the set does not declare.
@@ -331,7 +333,7 @@ export const createDeclared = (failure?: (message: string) => void): Declared =>
           // about these ids, so they are asked again by the next frame of a
           // streaming answer or by the wire coming back.
           said(seq, outcome.failure.message)
-          failure?.(outcome.failure.message)
+          failure?.(outcome.failure.message, fresh)
           return
         }
         said(seq, null)

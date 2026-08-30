@@ -196,6 +196,17 @@ export const missedSays = (id: string): string =>
   `${id} — nothing by that name is drawn on this page`
 
 /**
+ * What a FAILED ASK says — {@link missedSays}'s sibling, for the landing
+ * whose answer never arrived: the id as it was asked, and why the page
+ * cannot yet answer for it. The distinction is load-bearing: this line
+ * says the ask failed, NOT that nothing by that name exists — a failed
+ * ask on a page that DOES draw the placement's target would otherwise
+ * lie in the miss's own words.
+ */
+export const failedSays = (id: string): string =>
+  `${id} — the set could not be asked what it names`
+
+/**
  * Which of the chain's own ANCESTORS are shut — the write the landing act
  * owes the reader's view, as `Fold`s.
  *

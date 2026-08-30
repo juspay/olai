@@ -15,12 +15,12 @@
  */
 
 import { type Row, shownRecord } from "@olai/format"
-import { createEffect, onCleanup, Show } from "solid-js"
+import { createEffect, createSignal, onCleanup, Show } from "solid-js"
 
 import { createDeclared } from "./chat/declared.ts"
 import { setFolded } from "./fold/memory.ts"
 import { createFoldReading } from "./fold/reading.ts"
-import { aim, missedSays, shutAlong } from "./fold/landing.ts"
+import { aim, failedSays, missedSays, shutAlong } from "./fold/landing.ts"
 import { Editable } from "./edit/Editable.tsx"
 import { StartLine } from "./edit/StartLine.tsx"
 import { useNarrowed } from "./filter/narrowed.tsx"
@@ -106,33 +106,60 @@ export function OutlinePage(props: {
    * `./fold/reading.ts`'s header is for.
    */
   const saying = createSaying()
+  /** The ids whose ASK the wire lost: the call said the socket was up and
+   *  then did not arrive, so the set was never told them — remembered so
+   *  the ask arm can SAY the failure in the line's own voice instead of
+   *  hiding it behind a connected pill (the head's alarm-line ruling).
+   *  Per id rather than per call, exactly as `declared`'s own map is: the
+   *  landing re-asks from each revision, and the old fact is as fresh as
+   *  ever until an answer lands. */
+  const [lost, setLost] = createSignal<ReadonlySet<string>>(new Set())
   /** ONE SCOPE of the set's door for "what does this id name" —
-   *  `./chat/declared.ts`, the module that asks it for the chat panel's
+   *  `/chat/declared.ts`, the module that asks it for the chat panel's
    *  spans and, as of the landing, for a page's missed row too: the
    *  batching, the ask-once-and-remember, the dead-socket ruling and the
    *  ask-again-when-it-returns are THEIRS, kept whole rather than copied
    *  here, and this page is just one more scope the same batches answer.
-   *  The failure hook keeps the landing's own word of a call that did not
-   *  arrive: the arrival is owed still, and the console hears why. */
-  const declared = createDeclared((message) =>
+   *  The failure ear keeps the landing's own word of a call that did not
+   *  arrive: the arrival is owed still, the console hears why, and the
+   *  reader hears why — the line (`{@link failedSays}`), not the console
+   *  alone, because a connected pill cannot speak for an ask it lost. */
+  const declared = createDeclared((message, ids) => {
     console.warn(
       "olai: could not ask the set what the landing names, so the arrival is still owed —",
       message,
-    ),
-  )
+    )
+    setLost((before) => {
+      const next = new Set(before)
+      for (const id of ids) next.add(id)
+      return next
+    })
+  })
   /** THE STRETCH OF OWING this page is in, and whether the alarm for it has
    *  been drawn — ONE place, because the two halves are one fact: an alarm
-   *  belongs to a stretch of contiguous owing of the same id, the stretch
-   *  ends whenever what is owed changes (paying the landing is one of those
-   *  changes), and nothing else about one may be remembered across the
-   *  other. Said once per stretch, never once per revision going on not
-   *  drawing the row: navigate away and back to the same dead address and
-   *  the miss is news again, and a busy page does not spend the six seconds
-   *  twice. */
-  let owing: { readonly id: string | undefined; said: boolean } = { id: undefined, said: false }
+   *  belongs to a stretch of contiguous owing of the same id on the same
+   *  FILE, the stretch ends whenever what is owed changes (paying the
+   *  landing is one of those changes), and nothing else about one may be
+   *  remembered across the other — not even the LINE it drew: this site
+   *  does not remount across outline-to-outline navigation, so a stretch
+   *  that is not taken down would hang its line over the next page's tree
+   *  for the rest of its six seconds, attributed to a page nobody asked.
+   *  Said once per stretch, never once per revision going on not drawing
+   *  the row: navigate away and back to the same dead address and the miss
+   *  is news again, and a busy page does not spend the six seconds twice. */
+  let owing: {
+    readonly file: string | undefined
+    readonly id: string | undefined
+    said: undefined | "failure" | "miss"
+  } = { file: undefined, id: undefined, said: undefined }
   createEffect(() => {
     const at = landing.owed()
-    if (at !== owing.id) owing = { id: at, said: false }
+    if (at !== owing.id || props.file !== owing.file) {
+      // The line belongs to the stretch that said it: the boundary takes
+      // it down, wherever that stretch's six seconds stand.
+      if (owing.said !== undefined) saying.say(null)
+      owing = { file: props.file, id: at, said: undefined }
+    }
     if (at === undefined) return
     const aimAt = aim(props.rows, at, declared.told)
     if (aimAt.kind === "ask") {
@@ -140,11 +167,20 @@ export function OutlinePage(props: {
       // the `told` read — `aim` short-circuits on the chain before the set
       // is spoken to at all.
       declared.want([at])
+      // The ask may never arrive even on a live socket — and then the
+      // pre-landing silence comes back exactly where the sentence promises
+      // it cannot: the failure is said in the voice too, once per
+      // stretch, while the re-ask goes on with each revision the way the
+      // door rules it. It is NOT the miss: nothing has ruled the id out.
+      if (lost().has(at) && owing.said !== "failure") {
+        owing.said = "failure"
+        saying.say({ tone: "alarm", text: failedSays(at) })
+      }
       return
     }
     if (aimAt.kind === "miss") {
-      if (!owing.said) {
-        owing.said = true
+      if (owing.said !== "miss") {
+        owing.said = "miss"
         saying.say({ tone: "alarm", text: missedSays(at) })
       }
       return
@@ -153,6 +189,9 @@ export function OutlinePage(props: {
     const chain = aimAt.chain
     const shut = shutAlong(chain, folds())
     if (shut.length > 0) setFolded(shut, false)
+    // The rows carry the same value twice over the frame — the chain's last
+    // placement is the row both the accent and the scroll answer for — so
+    // it is named ONCE: `last`, inside the frame too.
     const last = chain.at(-1)
     if (last === undefined) return
     // The accent answers for the NODE the row landed on shows, not the id as
@@ -175,14 +214,13 @@ export function OutlinePage(props: {
       // paid — the wrong-row spend `./landing.ts`'s header was once and
       // forever written against. Rows wear `data-node-id` for exactly this
       // (`./Tree.tsx`), even mirrors — the placement stays put.
-      const placement = chain.at(-1)
-      if (placement === undefined) return
-      // An id is a string somebody typed one day: escaped, because a quote
-      // in it would be a selector that throws, and a throw inside the frame
-      // is a landing this pane will never spend. (`document/faces.tsx`'s
+      //
+      // An id is a string somebody typed one day: `CSS.escape`, because a
+      // quote in it would be a selector that throws, and a throw inside the
+      // frame is a landing this pane will never spend. (`document/faces.tsx`'s
       // heading half does exactly this, on the same argument.)
       const row = root.querySelector(
-        `[data-testid="${TESTID.node}"][data-node-id="${CSS.escape(placement.at.node.id)}"]`,
+        `[data-testid="${TESTID.node}"][data-node-id="${CSS.escape(last.at.node.id)}"]`,
       )
       if (row === null) return
       bringOntoScreen(row)
@@ -192,14 +230,15 @@ export function OutlinePage(props: {
   })
 
   return (
-    // A whole outline is drawn inside nothing, which is the answer rather than
-    // the absence of one (`./drag/fields.ts`).
-    <Editable rows={() => props.rows} file={props.file} within={[]}>
+    <>
       {/* WHAT THE LANDING COULD NOT DO, above the tree it could not land in —
           the same placement rule `./document/Hypertext.tsx` states for its
           refused click: the reader's eyes are on the page the address just
           opened, so the line sits at the top of it, where the row they were
-          promised would have been. */}
+          promised would have been — and OUTSIDE `Editable`'s sweep surface
+          (`./edit/Editable.tsx`'s `data-sweep`), which would otherwise read
+          a press on the line as a begun sweep, the one thing the reader's
+          waiting eyes on this sentence can receive as an answer. */}
       <Show when={saying.said()}>
         {(said) => (
           <SaidLine
@@ -209,21 +248,26 @@ export function OutlinePage(props: {
           />
         )}
       </Show>
-      <Tree rows={props.rows} />
-      {/* An outline that holds nothing still has to be startable, and a tree
-          of no rows offers nowhere to press a key. Only when the file really
-          is empty: rows can also be missing because this reading is hiding
-          what is done — or because a FILTER matched nothing — and "write its
-          first line" would be a lie over a tree that is one click from coming
-          back. The filter bar says what happened in that case. */}
-      <Show
-        when={unfiltered(narrowed) && props.rows.length === 0 && !doneHidden()}
-      >
-        <StartLine
-          at={{ kind: "first", file: props.file }}
-          label="This outline is empty — write its first line."
-        />
-      </Show>
-    </Editable>
+      {/* A whole outline is drawn inside nothing, which is the answer rather
+          than the absence of one (`./drag/fields.ts`). */}
+      <Editable rows={() => props.rows} file={props.file} within={[]}>
+        <Tree rows={props.rows} />
+        {/* An outline that holds nothing still has to be startable, and a
+            tree of no rows offers nowhere to press a key. Only when the file
+            really is empty: rows can also be missing because this reading is
+            hiding what is done — or because a FILTER matched nothing — and
+            "write its first line" would be a lie over a tree that is one
+            click from coming back. The filter bar says what happened in that
+            case. */}
+        <Show
+          when={unfiltered(narrowed) && props.rows.length === 0 && !doneHidden()}
+        >
+          <StartLine
+            at={{ kind: "first", file: props.file }}
+            label="This outline is empty — write its first line."
+          />
+        </Show>
+      </Editable>
+    </>
   )
 }
