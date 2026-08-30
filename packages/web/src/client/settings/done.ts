@@ -160,8 +160,11 @@ const [revealed, setRevealed] = createSignal<
   ReadonlyMap<string, ReadonlySet<string>>
 >(new Map())
 
-/** The places the pick's sweep spares on `file`, or nothing. */
-export const landingReveal = (file: string): ReadonlySet<string> | undefined =>
+/** The places the pick's sweep spares on `file`, or nothing — DELIBERATELY
+ *  not exported: what spares a row is a question the sweep answers by
+ *  sweeping, and a second door onto the raw table is a second way for the
+ *  page and somebody else to disagree about the same row. */
+const landingReveal = (file: string): ReadonlySet<string> | undefined =>
   revealed().get(file)
 
 /**

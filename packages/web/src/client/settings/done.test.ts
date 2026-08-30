@@ -26,7 +26,6 @@ import {
   doneHiddenOn,
   doneOverride,
   DONE_OVERRIDES_KEY,
-  landingReveal,
   letDoneFollow,
   pageFileOf,
   revealDone,
@@ -242,17 +241,26 @@ test("the reveal spares nothing the pick does not take: a showing page draws ide
 test("the file's next landing replaces the reveal; the release asks for THE VERY SET it let go", () => {
   remembering(() => {
     quiet()
-    const first = new Set(["a"])
-    const second = new Set(["b"])
-    revealDone("house.olai", first)
-    revealDone("house.olai", second)
-    expect(landingReveal("house.olai")).toBe(second)
+    const drawn = { kind: "tree" as const, rows: house.rows }
+    // Read the reveal's bookkeeping THE WAY THE PAGE READS IT: through the
+    // sweep whose word the flip is about — the raw table is nobody's door.
+    const drawnChildren = (): number => {
+      const answer = visibleIn(drawn, "house.olai")
+      return answer.kind === "tree" ? (answer.rows[0]?.children.length ?? -1) : -1
+    }
+    const stale = new Set(["an arrival already answered"])
+    revealDone("house.olai", stale)
+    const standing = new Set([house.rows[0]!.children[0]!.key])
+    revealDone("house.olai", standing)
+    // ONE OUTSTANDING ARRIVAL PER FILE: the second landing's place is the
+    // one the sweep spares.
+    expect(drawnChildren()).toBe(1)
     // THE KEYED ANSWER: concealing with the OLD set is not the release — a
     // sibling pane's fresher reveal is not this one's to take down.
-    concealDone("house.olai", first)
-    expect(landingReveal("house.olai")).toBe(second)
-    concealDone("house.olai", second)
-    expect(landingReveal("house.olai")).toBeUndefined()
+    concealDone("house.olai", stale)
+    expect(drawnChildren()).toBe(1)
+    concealDone("house.olai", standing)
+    expect(drawnChildren()).toBe(0)
   })
 })
 
