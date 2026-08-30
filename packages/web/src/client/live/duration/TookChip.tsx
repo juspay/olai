@@ -10,11 +10,14 @@
  *     the side that holds the set (@olai/format's `tookOf`) and read off the
  *     row here. `⏱ 2h 34m`, the same muted register every other fact beside
  *     a title takes;
- *   - a DOING row ticks, pomodoro-style: the instant crossed the wire with
- *     the row, and the clock is the reader's own (`./took.ts` — the uptime
- *     chip's seam, worn by the second). The accented pill: work in flight is
- *     the one thing in a tree worth finding at a glance, which is why the
- *     glyph's accent and this chip's are one ink.
+ *   - a DOING row ticks, pomodoro-style: bank plus live round — the
+ *     closed rounds banked `worked` into the record — settled, queued or
+ *     un-started, each where its `doing` came off — the current round's instant
+ *     crossed the wire with the row, and the clock is the reader's own
+ *     (`./took.ts` — the uptime chip's seam, worn by the second). The
+ *     accented pill: work in flight is the one thing in a tree worth
+ *     finding at a glance, which is why the glyph's accent and this chip's
+ *     are one ink.
  *
  * AND THE TWO STATES THAT DRAW NOTHING. A bullet is not a task, so it carries
  * neither mark nor span; a `done` with NO `started` — the todo→done jump, and
@@ -48,7 +51,7 @@ import { Match, Switch } from "solid-js"
 
 import { instantOf } from "../../clock.ts"
 import { TESTID } from "../../testids.ts"
-import { createNow, exactOf, tickingOf, wordsOf } from "./took.ts"
+import { createNow, exactOf, liveOf, tickingOf, wordsOf } from "./took.ts"
 
 /** The quiet register both halves of the chip share — the ¶-counter's own:
  *  mono, reading-size, muted. */
@@ -66,18 +69,24 @@ const GOING = `${CHIP} text-accent bg-accent/10 tabular-nums`
 /** The tick itself, in the doing arm alone — so only a row that can move
  *  keeps a clock. The start is KNOWN parseable — the arm below matches on
  *  that — so the fallback here is a type narrowing, not a case: a hand-wrote
- *  `started` the parse refuses draws no chip at all. */
-function GoingChip(props: { readonly started: string }) {
+ *  `started` the parse refuses draws no chip at all. The figure is the
+ *  honest sum ({@link liveOf}): the BANKED rounds the settles counted plus
+ *  this one, ticking — so a re-started row reads the work, never the pause
+ *  it sat out. */
+function GoingChip(props: { readonly started: string; readonly worked: number | undefined }) {
   const now = createNow(() => props.started)
+  const banked = () => props.worked ?? 0
   return (
     <span
       class={GOING}
       data-testid={TESTID.took}
       data-status="doing"
       data-started={props.started}
-      title={`under way since ${props.started}`}
+      title={banked() > 0
+        ? `${exactOf(banked())} already banked — under way again since ${props.started}`
+        : `under way since ${props.started}`}
     >
-      ⏱ {tickingOf(now() - (instantOf(props.started) ?? now()))}
+      ⏱ {tickingOf(liveOf(banked(), instantOf(props.started) ?? now(), now()))}
     </span>
   )
 }
@@ -104,7 +113,7 @@ export function TookChip(props: {
           ? props.node.started
           : undefined}
       >
-        {(started) => <GoingChip started={started()} />}
+        {(started) => <GoingChip started={started()} worked={props.node.worked} />}
       </Match>
       <Match when={took()}>
         {/* Read off the accessor, NEVER destructured out of it: the arm fires

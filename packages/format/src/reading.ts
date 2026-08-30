@@ -76,7 +76,7 @@ import { Schema } from "effect"
 import { Way } from "./backlinks.ts"
 import { Custom } from "./custom.ts"
 import { Progress } from "./derive.ts"
-import { MARKS, RegularNode, Site, STAMPED, Status } from "./node.ts"
+import { MARKS, MirrorNode, RegularNode, Site, STAMPED, Status } from "./node.ts"
 
 /**
  * One node, SITUATED — the shape every read of the set answers with.
@@ -410,10 +410,21 @@ export type DocumentBody = typeof DocumentBody.Type
  * instants the ops layer stamps rather than the record (`started`, `created`,
  * `changed`), and the derived `status` beside the marks it reads. The one
  * open name is the map: `custom` for all of it, and `custom.<key>` for one
- * property of it. `took` is NOT one: it is the read's own annotation derived
- * from `started` and the settling mark, and the two instants it is derived
- * from are already nameable, so asking for the span's walls is the way to
- * the span.
+ * property of it.
+ *
+ * `took` stands beside `status`, with the same standing as it — the one
+ * derived answer the membership rule admits beyond the mark (the human's
+ * exception, ruled 2026-08-29, closing olai#432's recorded deferral): how
+ * long the work TOOK, in WHOLE SECONDS, derived at read time and never
+ * stored, absent when there is no span to tell. The arithmetic is spelled
+ * once, at the derivation itself (`tookOf`'s header) — the sentences about
+ * the vocabulary name the fact and its owner rather than restating it. The
+ * ask it serves is the recurring one this dial was born for, and fetching
+ * the record's own instants per row to do the subtraction out loud is
+ * ceremony the one derivation already answers. It stays the ONLY admitted
+ * derivation beyond `status`: `progress` and the rest are a caller's own
+ * arithmetic over one row, which is the line a dial for imitations of them
+ * would erase.
  *
  * ONE list, because the refusal of an unknown name and the sentence the two
  * requests advertise are both written from it — the `MARKS` arrangement one
@@ -429,7 +440,12 @@ export type DocumentBody = typeof DocumentBody.Type
  * {@code Record<Projectable, …>} the compiler asks one entry per name of, so
  * a field added HERE is a missing key THERE the moment it exists; and the
  * row schema below, the list's one remaining second spelling, is pinned by a
- * test in `@olai/ops` that fails the day the two spellings disagree.
+ * test in `@olai/ops` that fails the day the two spellings disagree. And the
+ * OTHER direction is {@link NOT_PROJECTABLE} below: this list says what is
+ * nameable, that one keys every remaining record field by its reason not to
+ * be — typed against the record's whole `keyof`, so a field the record grows
+ * in neither list is a compile error the day it is born, never again a
+ * review finding (how `worked` arrived nameless).
  *
  * What is NOT nameable, and why. `id` rides every row already; `children`,
  * `truncated` and `path` are the walk's or the derivation's, not the record's;
@@ -443,8 +459,10 @@ export const PROJECTABLE = [
   "title",
   "parent",
   "status",
+  "took",
   ...MARKS,
   "started",
+  "worked",
   "date",
   "repeat",
   "desc",
@@ -455,6 +473,34 @@ export const PROJECTABLE = [
   "custom",
 ] as const
 export type Projectable = (typeof PROJECTABLE)[number]
+
+/**
+ * THE PARTITION'S other half: every record field NOT in {@link PROJECTABLE},
+ * keyed by its reason — `id` because it rides every row already, `ord`
+ * because a fractional index is a sorting detail no read reports, `doc`
+ * because the attachment is `read_document`'s subject, `blocks` because
+ * `after` answers the same edge said from the waiting node, `mirror`
+ * because a placement's own mark is the node it shows.
+ *
+ * The TYPE is the fence the comment above the list only promises: a
+ * `Record` over exactly the record keys {@link PROJECTABLE} does not name,
+ * so a field the record grows in NEITHER list is a missing key here the
+ * moment it exists, and one listed twice is an excess property — the day
+ * the record says something new, the compile says which half of the
+ * partition it was born into. The `DOORS` arrangement in `./node.ts` read
+ * one way round: that fence keeps `set_prop` off the record's own words,
+ * this one keeps the dial's vocabulary the whole set of them.
+ */
+const NOT_PROJECTABLE: Record<
+  Exclude<keyof RegularNode | keyof MirrorNode, Projectable>,
+  string
+> = {
+  id: "rides every row already",
+  ord: "a fractional index is a sorting detail, not a fact a read reports",
+  doc: "the attachment is `read_document`'s subject",
+  blocks: "`after` answers the same edge said from the waiting node",
+  mirror: "a placement carries its target's id, not a life of its own",
+}
 
 /** THE one membership answer — the {@link PROJECTABLE} list read as a
  *  narrowing, so a caller learns a string is nameable and the compiler
@@ -497,11 +543,24 @@ export const Projected = Schema.Struct({
   id: Schema.String,
   title: Schema.optionalKey(RegularNode.fields.title),
   status: Schema.optionalKey(Status),
+  /** How long the work TOOK, in WHOLE SECONDS — derived at read time and
+   *  never stored, exactly as {@link Detail} carries it under the same name
+   *  and from the same `tookOf`: the two row shapes cannot disagree, in the
+   *  number nor in when there is one. Absent when there is no span to tell
+   *  — which cases those are is the derivation's to enumerate ({@link
+   *  Detail}'s `took` does), spelled there rather than kept in step here. */
+  took: Schema.optionalKey(Schema.Int),
   ...STAMPED,
-  /** When the work was first STARTED — the record's own instant, verbatim,
-   *  exactly as {@link Detail} carries it: the span a `doing` row's live
-   *  tick runs from and the field `tookOf` closes. */
+  /** When the CURRENT round of work started — the record's own instant,
+   *  verbatim, re-stamped by every `set_doing`, exactly as {@link Detail}
+   *  carries it: the span a `doing` row's live tick runs from, with the
+   *  rounds before it banked in `worked`. */
   started: RegularNode.fields.started,
+  /** The work already BANKED, in whole seconds — the record's own `worked`,
+   *  verbatim, the way {@link Detail} carries it: without it beside
+   *  `started`, a multi-round row's stamp spans one round while the work
+   *  spans several, and nothing in the row would say so. */
+  worked: RegularNode.fields.worked,
   date: RegularNode.fields.date,
   repeat: RegularNode.fields.repeat,
   desc: RegularNode.fields.desc,
@@ -525,10 +584,13 @@ const FieldsRequest = Schema.optionalKey(
     description:
       "Name what each row carries: " +
       LEGAL_FIELDS +
-      ". The two settles carry their instants, and `started` is when the work " +
-      "first went doing. The id rides regardless, and an unknown name is " +
-      "refused with this same list. Absent: the full row this read answers " +
-      "today.",
+      ". The two settles carry their instants; `started` is when the " +
+      "CURRENT round opened (re-stamped on every start), `worked` is the " +
+      "rounds banked before it, and `took` is how long the work took — " +
+      "whole seconds, derived at read time by the format's `tookOf`, " +
+      "absent when there is no span to tell. The id rides regardless, and " +
+      "an unknown name is refused with this same list. Absent: the full " +
+      "row this read answers today.",
   }),
 )
 
@@ -542,9 +604,9 @@ const FieldsRequest = Schema.optionalKey(
  * node in full" (see {@link Detail}), and the lever on a full read's cost was
  * never its own row, it is the list. The child rows with no `fields` given
  * are the full situated rows of today; with one they are id + what was named
- * — which is how a timings walk answers each step's settle instant
- * (`fields: ["status", "done"]`) without carrying the situating or the
- * prose.
+ * — which is how a timings walk answers how long each step TOOK
+ * (`fields: ["title", "status", "took"]`) without carrying the situating
+ * or the prose.
  */
 export const NodeRequest = Schema.Struct({
   id: Schema.String.annotate({ description: "The node's `id`." }),
@@ -628,11 +690,18 @@ export type Reference = typeof Reference.Type
 export const Detail = Schema.Struct({
   ...Found.fields,
   ...STAMPED,
-  /** When the work was first STARTED — the record's own `started`, verbatim.
-   *  It is what `took` below is derived from and what a `doing` row's live
-   *  tick runs from: the instant crosses the wire once, and the clock the
-   *  chip ticks against is the reader's. */
+  /** When the CURRENT round of work started — the record's own `started`,
+   *  verbatim, re-stamped by every `set_doing`. It is what a `doing` row's
+   *  live tick runs from: the instant crosses the wire once, and the clock
+   *  the chip ticks against is the reader's. */
   started: RegularNode.fields.started,
+  /** The work already BANKED, in whole seconds — the record's own `worked`,
+   *  verbatim: every round banked where its `doing` came off — at its
+   *  settle, or at the peel that queued or un-started it — so the running
+   *  readout is this plus the tick off `started` above, and the settled
+   *  one is this alone. Absent when no round has closed — nothing invents
+   *  a past. */
+  worked: RegularNode.fields.worked,
   date: RegularNode.fields.date,
   /** The repeat rule, as the record spells it — the node's own text, handed
    *  back for the writer that is about to change it. Present only on the
@@ -655,13 +724,17 @@ export const Detail = Schema.Struct({
    *  ANNOTATION: it decides nothing, and in particular the node's own status is
    *  `status` above whatever this says. */
   progress: Schema.optionalKey(Progress),
-  /** How long the work TOOK, in WHOLE SECONDS — `done` or `cancelled` minus
-   *  `started`, derived at read time and never stored (`@olai/format`'s
-   *  `tookOf`). An annotation exactly as `progress` is. Absent when there is
-   *  no span to tell: no `started` (a todo→done jump has none, and `created`
-   *  is never the fallback — that measures the node's age, not the work), no
-   *  settling mark yet, or a settling mark holding the instants-less `true`
-   *  of work finished before olai stamped anything. */
+  /** How long the work TOOK, in WHOLE SECONDS — the banked `worked` when
+   *  the record carries it (rounds summed, pauses never counted), else
+   *  `done` or `cancelled` minus `started`, derived at read time and never
+   *  stored (`@olai/format`'s `tookOf`). An annotation exactly as
+   *  `progress` is. Absent when there is no span to tell: no bank and no
+   *  `started` (a todo→done jump has neither, and `created` is never the
+   *  fallback — that measures the node's age, not the work), no settling
+   *  mark yet (a running node's live figure is the tick's own sum of
+   *  `worked` and now-minus-`started`, not a stored duration), or a
+   *  settling mark holding the instants-less `true` of work finished
+   *  before olai stamped anything. */
   took: Schema.optionalKey(Schema.Int),
   /**
    * The node's own children, in sibling order — {@link Found} rows of today,

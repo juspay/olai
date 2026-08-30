@@ -297,6 +297,57 @@ test("took is the settling instant minus the stored start, in whole seconds", ()
   )).toBeUndefined()
 })
 
+// The BANKED arm: a record carrying `worked` has its rounds closed for it
+// already, and the read answers the bank — NEVER a re-subtraction against
+// the last round's `started`, which the re-stamp rule makes a fresh round
+// the settle already counted.
+test("took is the bank when there is one — rounds summed, pauses never in it", () => {
+  const took = (node: RegularNode): number | undefined => tookOf(node)
+  // Two rounds of 10m and 8m, 36m of pause between them: the bank is 1080,
+  // and a subtraction against the CURRENT `started` would read only the
+  // second round — 480s of the truth.
+  expect(took({
+    id: "a", ord: "a", title: "t",
+    done: "2026-08-29T09:58:00-04:00",
+    started: "2026-08-29T09:50:00-04:00",
+    worked: 1080,
+  })).toBe(1080)
+  // The bank answers WHOLE: a settled record with no `started` at all
+  // still says what was counted — nothing invents the rounds, and their
+  // sum never needed re-telling.
+  expect(took({
+    id: "a", ord: "a", title: "t",
+    done: "2026-08-29T12:26:44-04:00",
+    worked: 600,
+  })).toBe(600)
+  // …over an instant-free settle too: the `true` a pre-stamps `done` still
+  // carries asks nothing, and the banked answer is not a span to
+  // re-derive.
+  expect(took({ id: "a", ord: "a", title: "t", done: true, worked: 41 * 60 }))
+    .toBe(2460)
+  // CALLED OFF reads the same: the bank that ground is the time sunk.
+  expect(took({
+    id: "a", ord: "a", title: "t",
+    cancelled: "2026-08-29T10:33:00-04:00",
+    started: "2026-08-29T09:52:00-04:00",
+    worked: 1080,
+  })).toBe(1080)
+  // The one SILENCE left, bank or no bank: a RUNNING node's figure is the
+  // tick's sum of bank and live round, asked of a clock — never an answer
+  // this read invents. (The sum itself is `@olai/web`'s `liveOf`, and its
+  // cases are its own test.)
+  expect(took({
+    id: "a", ord: "a", title: "t",
+    doing: true,
+    started: "2026-08-29T09:50:00-04:00",
+    worked: 600,
+  })).toBeUndefined()
+  // And a NEGATIVE bank is a record a hand wrote, read as nothing rather
+  // than as a debt — the clamp the one-round arm has, read once more.
+  expect(took({ id: "a", ord: "a", title: "t", done: "2026-08-29T12:26:44-04:00", worked: -30 }))
+    .toBe(0)
+})
+
 test("took says nothing the record cannot support, and never goes under zero", () => {
   const took = (node: RegularNode): number | undefined => tookOf(node)
   // A value the parser would refuse still answers rather than throws — a set

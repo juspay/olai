@@ -180,30 +180,49 @@ test("a node carrying everything produces every field `Found` declares", () => {
   expect(Object.keys(carrying ?? {}).sort()).toEqual(Object.keys(Found.fields).sort())
 })
 
-// The work's own instants: the record's `started` handed back verbatim, and
-// `took` derived off it and the settling one — an annotation beside
-// `progress`, with the same absences doing the saying.
-test("a node's read carries `started` and the derived `took` — and the jump carries neither", () => {
+// The work's own facts of time: the record's `started` and `worked` handed
+// back verbatim, and `took` derived — the bank when there is one, else the
+// settling instant minus the start. An annotation beside `progress`, with
+// the same absences doing the saying.
+test("a node's read carries `started`, `worked` and the derived `took` — and the jump carries none", () => {
   const at = derivedOf(setOf({
     "house.olai": [
       `{"id":"bake","ord":"a0","title":"bake the bread","done":"2026-08-29T12:26:44-04:00","started":"2026-08-29T09:52:00-04:00"}`,
       `{"id":"plumber","ord":"a1","title":"call the plumber","done":"2026-08-29T12:26:44-04:00"}`,
       `{"id":"hinge","ord":"a2","title":"fix the hinge on the door","cancelled":"2026-08-29T10:33:00-04:00","started":"2026-08-29T09:52:00-04:00"}`,
       `{"id":"water","ord":"a3","title":"water the plants","doing":true,"started":"2026-08-29T09:52:00-04:00"}`,
+      // The MULTI-ROUND record — the shapes above with a bank beside them:
+      // two rounds in, a third live.
+      `{"id":"knead","ord":"a4","title":"knead the dough","doing":true,"started":"2026-08-29T09:50:00-04:00","worked":600}`,
+      `{"id":"proof","ord":"a5","title":"proof it","done":"2026-08-29T09:58:00-04:00","started":"2026-08-29T09:50:00-04:00","worked":1080}`,
     ].join("\n"),
   }))
   // SETTLED: the instant, and the span it closes — 2h34m44s and 41m, in
   // whole seconds either way, because the two settling marks read the same.
   expect(read(at, "bake")).toMatchObject({ started: "2026-08-29T09:52:00-04:00", took: 9284 })
   expect(read(at, "hinge")).toMatchObject({ started: "2026-08-29T09:52:00-04:00", took: 2460 })
+  // …and NO BANK IS ANSWERED for them: `toMatchObject` ignores extra keys,
+  // so a `worked: 0` default grown later would slip the span pins above —
+  // the property's ABSENCE is the byte-identical rule, named on purpose.
+  expect(read(at, "bake")).not.toHaveProperty("worked")
+  expect(read(at, "hinge")).not.toHaveProperty("worked")
   // STILL RUNNING: the instant is there for the tick, and there is no `took`
   // to say — a span needs both ends, and the wire carries no durations.
   expect(read(at, "water")).toHaveProperty("started")
   expect(read(at, "water")).not.toHaveProperty("took")
   // THE JUMP: a todo→done has no span, and `created` is never the fallback —
-  // neither field is invented at read time.
+  // none of the three is invented at read time.
   expect(read(at, "plumber")).not.toHaveProperty("started")
+  expect(read(at, "plumber")).not.toHaveProperty("worked")
   expect(read(at, "plumber")).not.toHaveProperty("took")
+  // THE SETTLED MULTI-ROUND node: the bank IS the answer — `took` is the
+  // 1080 the settles counted, not the 480 a subtraction against the fresh
+  // `started` would misread as the whole of it.
+  expect(read(at, "proof")).toMatchObject({ worked: 1080, took: 1080 })
+  // …and a LIVE one carries the two things the tick is a sum of — bank and
+  // instant, durations never: the arithmetic stays where the clock is.
+  expect(read(at, "knead")).toMatchObject({ worked: 600, started: "2026-08-29T09:50:00-04:00" })
+  expect(read(at, "knead")).not.toHaveProperty("took")
 })
 
 describe("the edges a node carries", () => {
@@ -670,7 +689,7 @@ describe("the caller shapes the rows", () => {
         `{"id":"lane","ord":"a0","title":"the lane"}`,
         `{"id":"one","parent":"lane","ord":"a0","title":"first","done":"2026-08-29T09:12:00-04:00","desc":"the forensics","custom":{"took":"4m","agent":"claude-opus"}}`,
         `{"id":"one-a","parent":"one","ord":"a0","title":"the wrinkle","todo":true}`,
-        `{"id":"two","parent":"lane","ord":"a1","title":"second","doing":true,"started":"2026-08-29T09:14:00-04:00"}`,
+        `{"id":"two","parent":"lane","ord":"a1","title":"second","doing":true,"started":"2026-08-29T09:14:00-04:00","worked":600}`,
       ].join("\n"),
     })
 
@@ -684,6 +703,7 @@ describe("the caller shapes the rows", () => {
       "custom.took",
       "desc",
       "started",
+      "worked",
     ])
     // A MARK INSTANT (`done`) — the field this request was born for; the
     // custom key asked alone comes back AS a map of one; the note rides
@@ -708,14 +728,17 @@ describe("the caller shapes the rows", () => {
       "status",
       "title",
     ])
-    // The SECOND row carries this lane's OWN clock: `started`, the stamp
-    // `set_doing` wrote — and the asked-for names it does not hold stay
-    // ABSENT, exactly as they are on a full row.
+    // The SECOND row carries this lane's OWN clock, BOTH halves: `started`,
+    // the stamp `set_doing` wrote, and `worked`, the bank it cannot be read
+    // without — a multi-round row naming the stamp alone would say one
+    // round's wall for several rounds' work. And the asked-for names it
+    // does not hold stay ABSENT, exactly as they are on a full row.
     expect(lane?.children[1]).toEqual({
       id: "two",
       title: "second",
       status: "doing",
       started: "2026-08-29T09:14:00-04:00",
+      worked: 600,
     })
   })
 
@@ -739,6 +762,51 @@ describe("the caller shapes the rows", () => {
     // the same spelling of nothing the full rows use.
     const absent = read(timed().derived, "lane", ["custom.pr"])?.children[0]
     expect(absent).toEqual({ id: "one" })
+  })
+
+  test("`took` projects the span — whole seconds on a settled row, absent when there is none", () => {
+    // The one derived name beside `status`, asked for DIRECTLY: a settled
+    // step answers the NUMBER, and `tookOf`'s three absences answer none —
+    // four rows for them: the todo→done jump (no `started`), the
+    // still-running step (no settle), the merely dated bullet (neither),
+    // and work finished before olai stamped instants (a settling mark
+    // holding the instant-less `true`).
+    const SPAN = (): OutlineSet =>
+      setOf({
+        "steps.olai": [
+          `{"id":"lane","ord":"a0","title":"the lane"}`,
+          `{"id":"done-one","parent":"lane","ord":"a0","title":"finished","started":"2026-08-29T09:12:00-04:00","done":"2026-08-29T09:16:00-04:00"}`,
+          `{"id":"jump","parent":"lane","ord":"a1","title":"jumped to done","done":"2026-08-29T09:12:00-04:00"}`,
+          `{"id":"running","parent":"lane","ord":"a2","title":"under way","doing":true,"started":"2026-08-29T09:14:00-04:00"}`,
+          `{"id":"dated","parent":"lane","ord":"a3","title":"only dated","date":"2026-08-29"}`,
+          `{"id":"stamped-free","parent":"lane","ord":"a4","title":"done before instants","started":"2026-08-29T09:18:00-04:00","done":true}`,
+        ].join("\n"),
+      })
+    const expected = [
+      { id: "done-one", title: "finished", status: "done", took: 240 },
+      { id: "jump", title: "jumped to done", status: "done" },
+      { id: "running", title: "under way", status: "doing" },
+      { id: "dated", title: "only dated" },
+      { id: "stamped-free", title: "done before instants", status: "done" },
+    ] as const
+    // The child list of a `read_node` …
+    expect(read(readingOf(SPAN()).derived, "lane", ["title", "status", "took"])?.children)
+      .toEqual(expected)
+    // …and every row of a `read_subtree`: one derivation, one vocabulary,
+    // two doors — the timings ask the parameter was born for. (The walk's
+    // rows carry their own `children`, the structure being the walk's own.)
+    const rows =
+      nodeOf(walked(readingOf(SPAN()), { id: "lane", depth: 1, fields: ["title", "status", "took"] })).children
+    for (const [index, row] of expected.entries()) {
+      expect(rows[index]?.id).toBe(row.id)
+      expect(rows[index]).toMatchObject({ ...row, children: [] })
+      expect(Object.keys(rows[index] ?? {}).sort()).toEqual(
+        ["children", "id", ...Object.keys(row).filter((key) => key !== "id")].sort(),
+      )
+    }
+    // And the row cannot disagree with the node's own FULL read: the one
+    // `tookOf` answers both shapes, the same number either way.
+    expect(read(readingOf(SPAN()).derived, "done-one")?.took).toBe(240)
   })
 
   test("an asked-for field is dropped from the DESCS as well — the walk is shape, not prose", () => {
