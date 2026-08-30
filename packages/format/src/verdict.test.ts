@@ -443,7 +443,10 @@ test("the tier default answers what the validator answered, over generated broke
       // `implicatedBy` still reaches both, and the GATE's axis reaches the
       // ONE file it is filed on: the away-file the parent sits in can now
       // take writes just as any uninvolved file could — the write that
-      // repairs the finding names the file it was FILED ON.
+      // repairs the finding names the file it was FILED ON. The positive arm
+      // stays: without it this arm passes with `implicating` empty for all.
+      expect([round, admits(across.failure, [home])._tag])
+        .toEqual([round, "implicated"])
       for (const survivor of paths.filter((file) => file !== home)) {
         expect([round, survivor, admits(across.failure, [survivor])._tag])
           .toEqual([round, survivor, "admitted"])

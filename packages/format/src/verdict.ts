@@ -145,7 +145,8 @@ export const ADMITTED: Admission = { _tag: "admitted" }
 /**
  * Is a write to exactly these files admissible against this verdict?
  *
- * ADMITTED means no finding in hand is about any of them: whatever is wrong
+ * ADMITTED means no finding in hand is FILED ON any of them ({@link
+ * implicating}'s raw split is the gate's own question now): whatever is wrong
  * with the served directory, this write is not it and never was. The store's
  * gate spends that answer to let the write land while the broken file goes on
  * being broken beside it — reads have degraded per file since 2026-08-09 and
