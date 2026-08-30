@@ -117,11 +117,28 @@ test("the blocker named is the first of the write's own files that is implicated
   expect(admission._tag === "implicated" && admission.file).toBe("c.olai")
 })
 
-test("a cross-file finding implicates both ends, so a write to either is refused", () => {
+test("a cross-file finding's write gate is the file it is FILED ON", () => {
+  // The finding names both ends of its cycle — the drift ask and the error
+  // view want both. The gate's question is the narrower one: which file has
+  // the site the write could fix. `5dfef3ed`'s discomfort was the shared
+  // answer: one bad value in one ordinary file frozen every write to the
+  // ONE file the whole vault shares.
   const verdict = verdictOf([rowOf("a.olai", "mirror-cycle", [["b.olai", 3]])])
   expect(admits(verdict, ["a.olai"])._tag).toBe("implicated")
-  expect(admits(verdict, ["b.olai"])._tag).toBe("implicated")
+  expect(admits(verdict, ["b.olai"])._tag).toBe("admitted")
   expect(admits(verdict, ["c.olai"])._tag).toBe("admitted")
+})
+
+// The `5dfef3ed` shape at its most literal: a finding whose related site is
+// a file nothing is wrong with — the declaration that judged the value. A
+// declaration EDITOR now answers writes through.
+test("a bad value's declaration is named without being blamed — writes to it are admitted", () => {
+  const verdict = verdictOf([
+    rowOf("lanes.olai", "bad-prop", [["_olai/Properties.olai", 3]]),
+  ])
+  expect(implicatedIn(verdict)).toEqual(["_olai/Properties.olai", "lanes.olai"])
+  expect(admits(verdict, ["_olai/Properties.olai"])._tag).toBe("admitted")
+  expect(admits(verdict, ["lanes.olai"])._tag).toBe("implicated")
 })
 
 // A directory nothing could LIST is the one finding that is about the whole
@@ -184,9 +201,10 @@ test("a file's state is the worst thing said about it", () => {
 
 // A cross-file finding is ONE finding and TWO faces, which is the one place
 // the counts deliberately do not partition the total.
-test("a cross-file finding is counted under both files and once in the total", () => {
+test("a cross-file finding is counted on the file it was filed on, once", () => {
   const face = summary(verdictOf([rowOf("a.olai", "mirror-cycle", [["b.olai", 3]])]), 5)
-  expect(face.files.map((one) => one.count)).toEqual([1, 1])
+  expect(face.files.map((one) => one.file)).toEqual(["a.olai"])
+  expect(face.files.map((one) => one.count)).toEqual([1])
   expect(face.total).toBe(1)
 })
 
@@ -406,9 +424,11 @@ test("the tier default answers what the validator answered, over generated broke
     }
 
     // A FINDING THAT REALLY NAMES TWO FILES — `foreign-parent`, whose
-    // `related` site is the parent's, in the parent's file. Both ends are
-    // implicated and everything else is admitted, which is the same narrowing
-    // asked of the shape that has no single answer to "which file is broken".
+    // `related` site is the parent's, in the parent's file. Both names reach
+    // the ASK (`implicatedIn`), but the gate's broken-file question belongs
+    // to the write's OWN file: the child's misplacement is the child's
+    // sentence, and a write to the file the parent lives in is admitted —
+    // the fix follows `implicating`'s split, not the implication list.
     const away = paths[0] as string
     const home = paths.find((file) => file !== away) as string
     const across = validate(setOf(adopted(base, home, round)))
@@ -420,11 +440,11 @@ test("the tier default answers what the validator answered, over generated broke
       // implication rather than this file's opinion of it.
       expect([round, implicatedBy(found[0] as OutlineError).slice().sort()])
         .toEqual([round, [away, home].slice().sort()])
-      for (const end of [home, away]) {
-        expect([round, end, admits(across.failure, [end])._tag])
-          .toEqual([round, end, "implicated"])
-      }
-      for (const survivor of paths.filter((file) => file !== home && file !== away)) {
+      // `implicatedBy` still reaches both, and the GATE's axis reaches the
+      // ONE file it is filed on: the away-file the parent sits in can now
+      // take writes just as any uninvolved file could — the write that
+      // repairs the finding names the file it was FILED ON.
+      for (const survivor of paths.filter((file) => file !== home)) {
         expect([round, survivor, admits(across.failure, [survivor])._tag])
           .toEqual([round, survivor, "admitted"])
       }

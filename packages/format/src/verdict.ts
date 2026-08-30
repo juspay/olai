@@ -79,21 +79,38 @@ export const isClean = (verdict: Verdict): boolean => verdict.findings.length ==
 
 // ── which files a finding is about ──────────────────────────────────────
 
-/** The findings that implicate one file, in the order the verdict holds them.
+/** The findings FILED ON one file, in the order the verdict holds them.
  *
- *  WHICH FILES ONE FINDING is about is `./errors.ts`'s ({@link implicatedBy},
- *  beside `isCrossFile`, which is the same question asked for the error view's
- *  purpose): it is a fact about one error, and a second reading of it here is
- *  how a dangling mirror comes to implicate two files on a page and one at a
- *  write gate. This is that answer, asked of a whole verdict. */
+ *  Two questions live here and they used to SHARE ONE AXIS — the breakage
+ *  `5dfef3ed` landed made them visibly two. WHICH FILES ONE FINDING IS
+ *  *ABOUT* is `./errors.ts`'s ({@link implicatedBy}) — site plus every row it
+ *  names related, because the error view renders both halves of one
+ *  judgement and the byte-check at the write door can name only files the
+ *  verdict names. WHICH FILE THE FINDING IS *FILED ON* is the finding's own
+ *  `file`: a `bad-prop` site's record is wrong; the declaration that judged
+ *  it is not — a write gate asking "which file is broken" needs the one the
+ *  write could fix. The shared axis bred the old sentence again — one bad
+ *  value in one ordinary file freezing every write to the declarations file
+ *  is exactly the shape `broken-file-blocks-healthy-writes` exists to make
+ *  unspellable.
+ *
+ *  File-first rather than related-including, and the consumers follow: the
+ *  write gate's `admits` and the banner's per-file faces both ask the
+ *  broken-file question; the about-one is for the error view and the drift
+ *  check, whose doors are the finding, not the file.
+ */
 export const implicating = (
   verdict: Verdict,
   file: string,
 ): ReadonlyArray<OutlineError> =>
-  verdict.findings.filter((finding) => implicatedBy(finding).includes(file))
+  verdict.findings.filter((finding) => finding.file === file)
 
-/** Every file any finding implicates, in path order — the set the banner names
- *  and the set {@link summary} is a bounded face of. */
+/** Every file any finding NAMES, in path order — the rows' whole reach,
+ *  the set the error view draws cross-file colour from and the set the drift
+ *  check's ask names. `summary` asks one level DOWN: per file the finding is
+ *  FILED ON, not every file it looked at — the two share `byPath`'s order
+ *  and nothing else ({@link implicating} is that split).
+ */
 export const implicatedIn = (verdict: Verdict): ReadonlyArray<string> => {
   const files = new Set<string>()
   for (const finding of verdict.findings) {
@@ -174,9 +191,9 @@ export type FileState = "unreadable" | "unparsed" | "invalid"
 export interface FileFace {
   readonly file: string
   readonly state: FileState
-  /** Findings implicating this file. A cross-file finding counts in each file
-   *  it names, which is what makes these counts a per-FILE fact rather than a
-   *  partition of the total. */
+  /** Findings FILED ON this file. One finding, one face's count — the file
+   *  the fix lives in is the one the face is for, so a cross-file finding is
+   *  not double-counted across every file it looked at. */
   readonly count: number
 }
 
@@ -196,15 +213,23 @@ export interface FileFace {
 export interface Summary {
   /** At most `n`, in path order — the order the sidebar reads down. */
   readonly files: ReadonlyArray<FileFace>
-  /** Implicated files this face does not list. */
+  /** Filed-on files this face does not list. */
   readonly more: number
-  /** Findings in the whole verdict. Not the sum of the counts above: a
-   *  cross-file finding is one finding and two faces. */
+  /** Findings in the whole verdict. The counts above DO sum to this: one
+   *  finding, one file's face — a cross-file finding is counted on the file
+   *  it was filed on, not every file it looked at. */
   readonly total: number
 }
 
 export const summary = (verdict: Verdict, n: number): Summary => {
-  const faces = implicatedIn(verdict).map((file): FileFace => {
+  // ONE face per file a finding is FILED ON, not per file any finding names
+  // — the draught of `5dfef3ed` again: a cycle's steps or a bad value's
+  // declaration are the row's OTHER sites, and the face the banner draws is
+  // the file that reads broken, not the one the judgement reached through.
+  // `implicatedIn`'s door stays open for the error view's whole row — the
+  // two are now distinct axes by design rather than by coincidence.
+  const filed = [...new Set(verdict.findings.map((finding) => finding.file))].sort(byPath)
+  const faces = filed.map((file): FileFace => {
     const rows = implicating(verdict, file)
     return { file, state: stateOf(rows), count: rows.length }
   })

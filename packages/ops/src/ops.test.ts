@@ -688,6 +688,41 @@ test("a refusal the disk AGREES with heals nothing and changes nothing", () =>
       expect(fixture.read("plan.olai")).toBe(PLAN_STILL_BAD)
     })))
 
+// THE REVIEWER'S PROBE, pinned. The declaraxis-fix's `related` asks the
+// DECLARATION where an ordinary value went wrong — and without the
+// `implicating` split, that ask leaks into the write gate's answer: one bad
+// value in lanes.olai refuses every write to `_olai/Properties.olai`, the
+// one door every declaration lives behind (`broken-file-blocks-healthy-writes`,
+// redeployed at the one site the whole vault shares). With it, the gate is
+// asked the finding's FILED file, and the laned writing of a DIFFERENT key
+// lands.
+test("a bad value in one file does NOT block declaring another key — the ask stays the ask", () =>
+  withOps({
+    "_olai/Properties.olai":
+      `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"date"}}\n` +
+      `{"id":"prop-owner","ord":"a1","title":"owner","custom":{"type":"text"}}\n`,
+    "lanes.olai": `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"2026-09-01"}}\n`,
+  }, (fixture) =>
+    Effect.gen(function*() {
+      yield* fixture.set()
+      // The hand edit that makes one ordinary value bad — the loop sees it,
+      // so the verdict the gate will ask about CARRIES the finding.
+      fixture.write(
+        "lanes.olai",
+        `{"id":"lane","ord":"a0","title":"a lane","custom":{"pr":"not-a-date"}}\n`,
+      )
+      yield* fixture.store.refresh("cheap")
+      // The write is to the DECLARATIONS file, about a key lanes.olai has
+      // never heard of: pre-fix, the shared axis refused this outright.
+      const applied = yield* run(fixture, {
+        op: "title",
+        id: "prop-owner",
+        title: "the lane's owner",
+      })
+      expect(applied).toMatchObject({ id: "prop-owner" })
+      expect(fixture.refusals).toEqual([])
+    })))
+
 // The refund: a repair consumes its ONE repair, not one of the five rounds
 // — without it, four lost races before this write would leave the round the
 // arm `continue`s out of the loop entirely, and the caller would hear
