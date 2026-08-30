@@ -30,6 +30,7 @@ import {
   type DatedRequest,
   type HomesAnswer,
   type HomesRequest,
+  implicatedIn,
   type MovingAnswer,
   type MovingRequest,
   type NamedAnswer,
@@ -267,6 +268,14 @@ export interface Ops extends Asking {
    *  translated, because a caller of this interface is a tool call or a
    *  procedure and both need an answer they can render.
    *
+   *  ONE refusal repairs itself before it is answered: a write the store
+   *  judged against a set the disk has moved past (stale-set reads, refusing
+   *  writes — `stale-set-reads-clean-writes-refuse`). The repair is asked and
+   *  bounded where the refusal sits below; what is said HERE is the caller's
+   *  half: a repair that works is invisible (the write lands on the current
+   *  set), and one that does not changes nothing the caller can observe —
+   *  the answer is the refusal reached against the resynced set.
+   *
    *  `writer` is INTENT, not identity: git records the repository's own name
    *  and email whoever asked, so this is the only thing that can tell an
    *  agent's edits from a person's. It is required rather than defaulted —
@@ -354,6 +363,10 @@ export interface Ops extends Asking {
  *  losing a race, it is contending with a writer that never stops. */
 const ROUNDS = 5
 
+/** How many TIMES one write may heal the set it was refused against ({@link
+ *  run}'s refusal arm says why the number and why it is this small): one. */
+const REPAIRS = 1
+
 export const make = (options: Options): Ops => {
   const context: Context = options.context ?? {
     mint: () => Math.random().toString(36).slice(2, 10),
@@ -425,6 +438,7 @@ export const make = (options: Options): Ops => {
     writer: Writer,
   ): Effect.Effect<Applied, OpFailure> =>
     Effect.gen(function*() {
+      let repairs = REPAIRS
       for (let round = 0; round < ROUNDS; round++) {
         // The CHEAP class, and the write gate is why it is enough: a plan is
         // derived from this revision and then judged against `baseRev` inside
@@ -493,6 +507,53 @@ export const make = (options: Options): Ops => {
           // — a second reading of "which files is this write about" is how the
           // gate and the sentence come to disagree about one write.
           const paths = changes.map((change) => change.path)
+          /**
+           * THE ONE ALTERNATIVE EXPLANATION, ruled out before the refusal is
+           * answered: THE SET WAS STALE WHERE THE REFUSAL LOOKS.
+           *
+           * `stale-set-reads-clean-writes-refuse` (roadmap bugs.olai) is the
+           * shape this repairs: a git operation replaced a file in a way the
+           * watcher's stamps cannot see, so reads went on serving the old set
+           * with no error and every write refused — the stale copy of that
+           * file no longer satisfies the declarations the SAME operation
+           * landed. The verdict names the file it is about ({@link
+           * @olai/format}'s `implicatedIn`), and a name is exactly what a
+           * byte check needs: the store re-reads the implicated files AND the
+           * ones this write carries and answers from bytes rather than stamps
+           * ({@link @olai/store}'s `drifted`). One drifted file is proof the
+           * set was judged against a tree that is no longer there, so the
+           * write is not refused after all — the resync door a person would
+           * knock on is opened FOR them (`refresh("verified")`, the look the
+           * store reserves for "something outside this process rewrote the
+           * tree") and the round runs again, planned off the set the disk
+           * actually holds.
+           *
+           * ONCE, per write ({@link REPAIRS}). A retry that HEALS and still
+           * refuses keeps its round and answers the refusal it was just
+           * handed — the fresh one, reached against the resynced set — rather
+           * than paying for another look. The failure of the LOOK says the
+           * same thing: a disk that cannot be re-read, or one that agrees
+           * with the set after all, is not a write problem, and the refusal
+           * below is already the honest sentence for both.
+           *
+           * THE CHECK BEFORE THE DOOR is the ordering the costs argue: a
+           * resync on every refusal would re-read the directory for every
+           * typo an agent talks to itself, so the cheap per-file byte check
+           * is what stands in front of it. Detection is where the refusal
+           * shows; the resync is whole-tree, which is what the one look verb
+           * offers, and one re-read of a served directory costs less than
+           * keeping a second look verb honest.
+           */
+          if (repairs > 0) {
+            const drift = yield* Effect.result(
+              options.store.drifted([...paths, ...implicatedIn(written.failure)]),
+            )
+            if (Result.isSuccess(drift) && drift.success.length > 0) {
+              repairs -= 1
+              const resynced = yield* Effect.result(options.store.refresh("verified"))
+              if (Result.isSuccess(resynced)) continue
+            }
+          }
           const admission = admits(written.failure, paths)
           return yield* new ValidationFailure({
             reason: admission._tag === "implicated"

@@ -31,6 +31,16 @@
  * A decode FAILURE is cached exactly like a success: the same bytes fail the
  * same way, and re-deriving that on every probe would make a broken file the
  * most expensive one in the directory.
+ *
+ * One more fact is cached per entry, and it is the one the stamp cannot carry:
+ * a fingerprint of the BYTES the file was read as. Stamps are coarse on
+ * purpose ({@link ./disk.ts}'s trade), so a caller already holding a reason to
+ * ask harder — a write the codec just refused — may ask for the bytes to be
+ * compared rather than the stamps ({@link Probe.drifted}). That check costs one
+ * file read per asked path and is spent NOWHERE else: it is one 64-bit word per
+ * cached file forever, in exchange for which the refusal door can tell "the
+ * set does not fit the disk" from "the write does not fit the set" without
+ * re-reading the directory.
  */
 
 import { Effect, Ref, type Result } from "effect"
@@ -172,6 +182,30 @@ export interface Probe<F, E> {
    *  of the root altogether. */
   readonly holds: (path: string) => Effect.Effect<boolean>
   /**
+   * WHICH OF THESE FILES NOW READS AS BYTES the cache did not decode from —
+   * the stronger look a REFUSAL pays for.
+   *
+   * The loop decides on stamps and is entitled to: coarse is the trade it
+   * took. A caller holding a "no" from the codec has the one reason the loop
+   * never does to open the file instead — so this member re-reads exactly the
+   * paths it is handed and compares BYTES, via the fingerprint the read
+   * cached. It is the same money argument as the stamp table, one door over:
+   * one file read per asked path, spent at refusal time (rare, and already
+   * expensive), never per probe.
+   *
+   * A path the probe does not hold is SKIPPED, not answered — the same
+   * membership rule {@link Probe.holds} keeps: it is not this store's file,
+   * and there is no cached answer for the disk to disagree with. An entry
+   * with no fingerprint is skipped too: a file the codec answers for by NAME
+   * ({@link Codec.byName}) gives the set nothing the bytes could change, and
+   * one that could not be read never said what its bytes were. What comes
+   * back is therefore exactly "the paths a resync would re-answer" — which is
+   * all a caller deciding whether to pay for one needs.
+   */
+  readonly drifted: (
+    paths: Iterable<string>,
+  ) => Effect.Effect<ReadonlyArray<string>, PlatformFailure>
+  /**
    * Decode bytes a write is ABOUT to put on disk, as the promise {@link run}
    * takes.
    *
@@ -203,6 +237,42 @@ export interface Probe<F, E> {
 interface Cached<F, E> {
   readonly stamp: Stamp
   readonly decoded: Result.Result<F, E>
+  /** The fingerprint of the bytes `decoded` was decoded FROM, or `null`
+   *  where there were no bytes: a file the codec answered by NAME
+   *  ({@link Codec.byName}) and one that would not open. Computed at the read
+   *  the probe was already doing, spent only by {@link Probe.drifted}. */
+  readonly digest: string | null
+}
+
+/**
+ * A file's content as one word: 64-bit FNV-1a over the string's UTF-16 code
+ * units, low byte first, as hex.
+ *
+ * NOT a security boundary — a caller who can write the file can write any
+ * digest's preimage. It is a drift detector: a false answer costs (positive)
+ * a resync nobody needed or (negative) the state a refusal one layer above
+ * would repair, and at 64 bits over a handful of asked paths neither is a
+ * plan. Chosen over `node:crypto`'s sha of the same bytes because this
+ * package's imports are Effect and nothing else, and keeping that is worth
+ * more than a wider digest for a comparison this small — and over keeping
+ * the BYTES, which is the other honest answer and pins the whole corpus in
+ * memory beside the values it decoded to.
+ */
+const digestOf = (contents: string): string => {
+  let hi = 0xcbf29ce4
+  let lo = 0x84222325
+  for (let at = 0; at < contents.length; at++) {
+    const unit = contents.charCodeAt(at)
+    for (const byte of [unit & 0xff, unit >>> 8]) {
+      lo = (lo ^ byte) >>> 0
+      const product = lo * 0x1b3
+      hi = (hi * 0x1b3 + Math.floor(product / 0x100000000) + (lo & 0xffffff) * 0x100) %
+        0x100000000
+      lo = product % 0x100000000
+    }
+  }
+  const hex = (word: number) => word.toString(16).padStart(8, "0")
+  return `${hex(hi)}${hex(lo)}`
 }
 
 /** One promise a write makes about a path: these bytes, decoded to this. The
@@ -211,6 +281,16 @@ interface Cached<F, E> {
 export interface Promised<F, E> {
   readonly contents: string
   readonly decoded: Result.Result<F, E>
+}
+
+/** One stale file's fresh look: what it now decodes to, and the fingerprint
+ *  of the bytes that answer was decoded from. A `null` `decoded` is a file
+ *  that was listed and then vanished before it could be read; a `null`
+ *  `digest` is one no bytes were read for (a name-answered file, or one that
+ *  would not open). */
+interface Looked<F, E> {
+  readonly decoded: Result.Result<F, E> | null
+  readonly digest: string | null
 }
 
 export const make = <F, S, E>(
@@ -234,6 +314,23 @@ export const make = <F, S, E>(
 
       holds: (path: string) =>
         Effect.map(Ref.get(cache), (cached) => cached?.has(path) === true),
+
+      drifted: (paths) =>
+        Effect.gen(function*() {
+          const cached = yield* Ref.get(cache)
+          if (cached === null) return []
+          const drifted: Array<string> = []
+          for (const path of new Set(paths)) {
+            const entry = cached.get(path)
+            // Skipped, not answered: a path that is not a file of this store,
+            // and one the store never read the bytes of ({@link Cached}).
+            if (entry === undefined || entry.digest === null) continue
+            const text = yield* disk.read(path)
+            // Gone IS an answer: the cached bytes no longer exist.
+            if (text === null || digestOf(text) !== entry.digest) drifted.push(path)
+          }
+          return drifted
+        }),
 
       forget: (paths: Iterable<string>) =>
         Ref.update(cache, (cached) => {
@@ -265,9 +362,10 @@ export const make = <F, S, E>(
             previous.size === stamps.size
           if (settled) return null
 
-          // ONE answer per stale file: what it decodes to, or `null` for one that
-          // was deleted between the stat and the read.
-          const fresh = new Map<string, Result.Result<F, E> | null>()
+          // ONE answer per stale file: what it decodes to, and the bytes'
+          // fingerprint — or `null` for one that was deleted between the stat
+          // and the read.
+          const fresh = new Map<string, Looked<F, E>>()
           // The ones the codec answers for by NAME are answered first and never
           // reach the disk at all — not at boot, not when they change
           // ({@link Codec.byName}). Taken out of the list BEFORE the reads rather
@@ -278,7 +376,7 @@ export const make = <F, S, E>(
           for (const [path] of stale) {
             const named = codec.byName?.(path) ?? null
             if (named === null) opening.push(path)
-            else fresh.set(path, named)
+            else fresh.set(path, { decoded: named, digest: null })
           }
           for (
             const [path, contents] of yield* Effect.forEach(
@@ -292,7 +390,7 @@ export const make = <F, S, E>(
             )
           ) {
             if (contents === null) {
-              fresh.set(path, null)
+              fresh.set(path, { decoded: null, digest: null })
               continue
             }
             if (typeof contents !== "string") {
@@ -302,7 +400,9 @@ export const make = <F, S, E>(
               // already names.
               const unread = codec.unread?.(contents)
               if (unread === undefined) return yield* Effect.fail(contents)
-              fresh.set(path, unread)
+              // Bytes unknown, and no fingerprint to offer: the failure above
+              // is the whole of what the cache may say about this file.
+              fresh.set(path, { decoded: unread, digest: null })
               continue
             }
             // A file whose bytes are the ones this caller promised is not decoded
@@ -312,29 +412,31 @@ export const make = <F, S, E>(
             // — including this path holding something else now — decodes here as
             // it always did.
             const promise = promised?.get(path)
-            fresh.set(
-              path,
-              promise?.contents === contents
+            fresh.set(path, {
+              decoded: promise?.contents === contents
                 ? promise.decoded
                 : codec.decode(path, contents),
-            )
+              digest: digestOf(contents),
+            })
           }
 
           const next = new Map<string, Cached<F, E>>()
           const changed: Array<string> = []
           for (const [path, stamp] of stamps) {
-            const decoded = fresh.get(path)
-            if (decoded === undefined) {
+            const looked = fresh.get(path)
+            if (looked === undefined) {
               // Not stale: keep what it decoded to, and the stamp that says so.
               const cached = previous?.get(path)
-              if (cached !== undefined) next.set(path, { stamp, decoded: cached.decoded })
+              if (cached !== undefined) {
+                next.set(path, { stamp, decoded: cached.decoded, digest: cached.digest })
+              }
               continue
             }
             // Read back as gone — it was deleted between the stat and the read.
             // Leaving it out is what the next probe would conclude anyway, and it
             // is a REMOVAL rather than a change, which the loop below sees.
-            if (decoded === null) continue
-            next.set(path, { stamp, decoded })
+            if (looked.decoded === null) continue
+            next.set(path, { stamp, decoded: looked.decoded, digest: looked.digest })
             changed.push(path)
           }
           // Off the same map the decode loop just built, so "gone" cannot mean

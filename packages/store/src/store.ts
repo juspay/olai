@@ -30,6 +30,14 @@
  * nothing — which is how a store over a directory of megabyte files costs the
  * size of what it validates rather than the size of what it serves.
  *
+ * A SECOND DOOR asks the loop's question by bytes rather than stamps, and it
+ * is ask-only too: {@link Store.drifted} names the files (if any) whose disk
+ * content has moved past the loaded set. Nothing in the loop consults it —
+ * the stamp trade is the loop's to keep — so the one caller is the refusal
+ * door of the write path, where a stale set is exactly the alternative
+ * explanation for a codec's "no", and paying one file read per asked path is
+ * already paid for by the refusal it answers.
+ *
  * Last-good data and what-is-wrong-now are two independent facts, kept on two
  * independent refs and mapping onto surface's stream and cell.
  * `SubscriptionRef.changes` is current-value-then-updates, which is already
@@ -257,6 +265,27 @@ export interface Store<S, E> {
    * the probe is about to report as changed.
    */
   readonly body: (path: string) => Effect.Effect<string | null, PlatformFailure>
+  /**
+   * WHICH OF THESE FILES now reads as bytes the loaded set was not decoded
+   * from.
+   *
+   * The stamp table is the loop's cheap answer, and coarse on purpose — a
+   * same-length rewrite landing inside the stamp's own resolution is what
+   * the loop is entitled to miss ({@link ./disk.ts}). A caller holding a
+   * REFUSAL is the one with a reason the loop never has to pay for a
+   * stronger look, and this is the stronger look: re-open exactly the paths
+   * it names and compare BYTES, not stamps. It is how the ops layer tells a
+   * write the codec judged against an out-of-date set from one it genuinely
+   * has no room for ({@link ../../ops/src/ops.ts}'s `run`, the only caller).
+   *
+   * What comes back is the list a resync would re-answer. A path the probe
+   * does not hold is skipped ({@link Store.body}'s membership rule), and so
+   * is a file the set never read the bytes of: both are stated where the
+   * check lives ({@link ./probe.ts}'s `drifted`).
+   */
+  readonly drifted: (
+    paths: Iterable<string>,
+  ) => Effect.Effect<ReadonlyArray<string>, PlatformFailure>
   /** Absolute, platform-spelled — what a post-publish hook hands to something
    *  outside this process. */
   readonly resolve: (path: string) => string
@@ -895,5 +924,14 @@ export const make = <F, S, E>(
         ),
     )
 
-    return { read, reads, errors, refresh, commit, body, resolve: disk.resolve }
+    return {
+      read,
+      reads,
+      errors,
+      refresh,
+      commit,
+      body,
+      drifted: probe.drifted,
+      resolve: disk.resolve,
+    }
   })
