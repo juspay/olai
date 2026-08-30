@@ -250,6 +250,28 @@ export const TESTID = {
    *  this is the only thing that moves it. */
   terminalRefetch: "terminal-refetch",
 
+  /** THE CI CHIP — the live-properties seam's second face, drawn BESIDE a
+   *  `worktree` property whose checkout has a run in it
+   *  (`client/live/odu-ci/CiChip.tsx`). Its presence is the assertion that a run is
+   *  live or was: a checkout with no run and no reading draws nothing here,
+   *  which is the ordinary state of every checkout. `data-state` is
+   *  `going` / `ok` / `red` / `quiet` — a closed set — and it is spelled
+   *  `data-state` rather than the `data-tone` a chip with four inks would
+   *  reach for first, because that second name is `SaidLine.tsx`'s claimed
+   *  contract for a said-line's MOOD and two vocabularies may not share it
+   *  (`client/claims.test.ts` sweeps for exactly that). `data-worktree` is
+   *  the board's own value, which is what the chip joined on. */
+  ciChip: "ci-chip",
+  /** THE RUN MATRIX the chip opens — nodes, durations, ok/red/errored, in the
+   *  run's own scheduling order (`client/live/odu-ci/RunMatrix.tsx`). Present only
+   *  while open; one per run, because the drawer holds one open pane per run
+   *  the way it holds one open editor. */
+  ciMatrix: "ci-matrix",
+  /** One node's row in it. `data-status` is odu's own status word, verbatim
+   *  and unnarrowed, so a scenario asserts what the coordinator said rather
+   *  than what olai made of it; `data-node` is the `<namepath>@<platform>` id. */
+  ciCell: "ci-cell",
+
   /** The rollup badge — `3/5` of the tasks under a node. An annotation beside
    *  the title, never the node's own mark, which is the glyph. */
   progress: "progress",

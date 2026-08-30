@@ -178,3 +178,27 @@ test("one stamp, two zones, one instant — the chip's arithmetic has no zone", 
     expect(instantOf(stamp)).toBe(instant)
   })
 })
+
+// ...and the same instant carried the OTHER encoding, which is what the fourth
+// readout hands over: odu stamps a running CI node with `Date.now()` rather
+// than ISO text (`ci/CiChip.tsx`). The alternative was for the chip to spell
+// the number into a string so this could parse it back — a value laundered
+// through text on every read, to satisfy a signature. The identity case is the
+// answer instead, with the same refusal on both sides of it.
+test("an instant that is already a number is the identity case, and a non-number is not one", () => {
+  const stamp = "2026-08-29T17:47:00-04:00"
+  const instant = Date.parse(stamp)
+  expect(instantOf(instant)).toBe(instant)
+  // `0` is an instant (the epoch), and the guard must not read it as absence —
+  // the falsy-zero trap `TookChip` already names one register over.
+  expect(instantOf(0)).toBe(0)
+  expect(instantOf(-1_000)).toBe(-1_000)
+  // The refusal, on the numeric arm: `NaN` and the infinities are not times,
+  // and `new Date(NaN)` would draw as an invalid date rather than as nothing.
+  expect(instantOf(Number.NaN)).toBeNull()
+  expect(instantOf(Number.POSITIVE_INFINITY)).toBeNull()
+  // ...and the two absences answer as they always did, on either arm.
+  expect(instantOf(null)).toBeNull()
+  expect(instantOf(undefined)).toBeNull()
+  expect(instantOf("not a time")).toBeNull()
+})

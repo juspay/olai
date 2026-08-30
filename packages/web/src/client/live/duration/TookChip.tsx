@@ -42,15 +42,15 @@
  * RIGHT-ALIGNED and not another fact in the byline: the span is the line's
  * closing figure, hugged to the end of the row after the filler that absorbs
  * it, rather than riding beside the words with the rule and the date
- * (`./NodeLine.tsx` says whose filler that is). Nothing here picks anything —
+ * (`../../NodeLine.tsx` says whose filler that is). Nothing here picks anything —
  * a chip that opened a box would be a verb, and the span is a readout.
  */
 
 import { type RegularNode, storedMarker, tookOf } from "@olai/format"
 import { Match, Switch } from "solid-js"
 
-import { instantOf } from "./clock.ts"
-import { TESTID } from "./testids.ts"
+import { instantOf } from "../../clock.ts"
+import { TESTID } from "../../testids.ts"
 import { createNow, exactOf, liveOf, tickingOf, wordsOf } from "./took.ts"
 
 /** The quiet register both halves of the chip share — the ¶-counter's own:
@@ -62,7 +62,7 @@ const CHIP = "shrink-0 rounded-full px-2 font-mono text-xs"
 const SETTLED = `${CHIP} text-muted bg-desk`
 
 /** Work in flight takes the app's ACCENT, exactly as its glyph does
- *  (`./marks.tsx` argues the one-colour ruling): the pill is where a ticking
+ *  (`../../marks.tsx` argues the one-colour ruling): the pill is where a ticking
  *  number lives, and the tabular figures keep it from shimmying as it moves. */
 const GOING = `${CHIP} text-accent bg-accent/10 tabular-nums`
 

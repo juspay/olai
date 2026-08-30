@@ -7,13 +7,13 @@
  * beside a title takes. A DOING row says how long it has been under way, and
  * that number moves: the stored `started` crosses the wire once with the row,
  * and the TICK IS LOCAL — the same seam the header's uptime chip wears
- * (`./uptime.ts`): no polling, no duration the server would have to keep
+ * (`../../uptime.ts`): no polling, no duration the server would have to keep
  * sending, one clock read against the wire-carried instant.
  *
  * THE ARITHMETIC IS PURE and takes `now` as an argument, so the ladders are a
  * table of cases in `./took.test.ts` rather than something you have to wait
  * an hour to see. Only {@link createNow} touches a clock, and what it ticks
- * is `./clock.ts`'s — the same split `./uptime.ts` itself makes, and the one
+ * is `../../clock.ts`'s — the same split `../../uptime.ts` itself makes, and the one
  * `claims.test.ts` holds every readout to.
  *
  * What is NOT here: the settled span itself. That is derived once, on the
@@ -26,7 +26,7 @@
 
 import type { Accessor } from "solid-js"
 
-import { createTwoSpeed, HOUR, SECOND } from "./clock.ts"
+import { createTwoSpeed, HOUR, SECOND } from "../../clock.ts"
 
 /**
  * A SETTLED span in the chip's own words — the coarsest that still tell the
@@ -81,7 +81,7 @@ export const exactOf = (seconds: number): string => {
  * tense `m:ss`, ticking by the second — the digit that tells a reader the
  * clock is alive; at an hour and past it the settled words, because by then
  * nobody is watching the last digit and a number that changes every second is
- * one the eye cannot rest on (`./chat/elapsed.ts`'s ruling, read once more).
+ * one the eye cannot rest on (`../../chat/elapsed.ts`'s ruling, read once more).
  */
 export const tickingOf = (elapsedMs: number): string => {
   const elapsed = Math.max(0, elapsedMs)
@@ -120,7 +120,13 @@ export const liveOf = (
  * only thing this chip adds is its BAND, an hour. The whole thing exists for
  * the doing arm alone: a settled row's words never move, so a settled row
  * keeps no clock at all.
+ *
+ * TWO READOUTS WEAR THE HOUR BAND now — this chip and the CI chip's running
+ * node — and they hold their stamps in different encodings, which is why the
+ * door takes either: a record's `started` is ISO text and odu's `startedAt`
+ * is milliseconds. {@link ../../clock.ts}'s `instantOf` is where that stops being
+ * two questions.
  */
 export const createNow = (
-  started: Accessor<string | undefined>,
+  started: Accessor<string | number | undefined | null>,
 ): Accessor<number> => createTwoSpeed(started, HOUR)

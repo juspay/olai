@@ -131,8 +131,10 @@ import { Duration, Effect, Result, type Scope, Stream, SubscriptionRef } from "e
 
 import { cadence } from "@olai/chat"
 import { type Dial, koluHalf, type KoluHalf, SEED } from "@olai/kolu-client"
+import { type DialRun, oduHalf } from "@olai/odu-client"
 
 import { claimantsIn } from "./claimants.ts"
+import { worktreesIn } from "./worktrees.ts"
 import { koluFileIn, watchConfigIn } from "./koluConfig.ts"
 
 import type { Cadence, Change, Chat } from "@olai/chat"
@@ -221,6 +223,29 @@ export interface Wiring {
     /** The dial, injectable for `/orchestrator`'s reason: a fake padi in
      *  a test, and a countable one for the one-connection claim. */
     readonly dial?: Dial
+  } | null
+  /**
+   * THE CI PROBE, or `null` for a runtime that is not to have one.
+   *
+   * `wiring.kolu`'s half, one appliance over, and `null` means the same thing
+   * for the same reason: a one-shot CLI read and the agent's face have no
+   * business dialing unix sockets in other people's checkouts on their way to
+   * printing a node, so the `ci` cell stays at `NO_RUNS` and every chip draws
+   * nothing — which is the true answer for those processes and is also the
+   * answer on a machine that simply has no CI running.
+   *
+   * `served` is the directory this runtime SERVES, and it is here rather than
+   * read from the store because it is half of where a relative `worktree`
+   * resolves to (`@olai/odu-client`'s `resolve.ts`, which argues the whole
+   * rule and is the named gap this phase was asked to design).
+   */
+  readonly odu: {
+    readonly env: Record<string, string | undefined>
+    readonly served: string
+    /** The dial, injectable for `Dial`'s reason one field up: a fake
+     *  coordinator on a real unix socket is how the watch is exercised
+     *  without a CI run on the machine running the suite. */
+    readonly dial?: DialRun
   } | null
   /** Absent when no ACP agent is configured: the cell stays `off` and the
    *  procedures answer that they are. A directory is readable whether or not
@@ -744,6 +769,44 @@ export const bind = (
     })
 
     /**
+     * THE ODU HALF — the live-properties seam's SECOND TENANT, and the whole
+     * of what it costs this file.
+     *
+     * Made eagerly and started lazily, exactly as the kolu half above is and
+     * for the same two reasons: making it gives the `ci` cell something to
+     * answer with before anything has been probed, and STARTING it is the
+     * cell's connector, which the framework runs when the surface BINDS — so
+     * one server sweeps for CI runs however many tabs are open, and a page
+     * that loads mid-sweep reads the rows the watcher already has.
+     *
+     * THE VAULT WALK is passed in, the way `claimants` and `watchConfig` are
+     * and by the same ruling: which nodes name a worktree, and whether the
+     * vault typed that key a path at all, are readings of outline records —
+     * things the package that dials odu must not learn. `./worktrees.ts` stays
+     * here whole and what crosses is four strings per node.
+     *
+     * That this block is the kolu block above with the nouns changed is the
+     * phase's own claim, so it is worth not dressing it up: a second living
+     * property needed a named spread, a cell with a connector, an injected
+     * walk and a dressing in the browser's table — every one of them a
+     * mechanism that was already here.
+     */
+    const odu = oduHalf({
+      options: wiring.odu,
+      worktrees: worktreesIn,
+      // Chatter, at debug: on a machine with no CI running this is a line
+      // every few seconds and it is not news — which on this appliance is
+      // even more true than on kolu's, because a checkout with no live run
+      // is the ORDINARY state of every checkout.
+      say: (line) => say(Effect.logDebug(line)),
+      // What the OWNER must read: a dial that failed for a reason that is not
+      // absence — a socket somebody IS serving that refused us, a path a
+      // broken checkout left behind. Rare by construction, and the one thing
+      // here a person can act on.
+      warn: (line) => say(Effect.logWarning(line)),
+    })
+
+    /**
      * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
      * pair: the set, and how old it is (`@olai/store`'s `Aged`). These take
      * the first and drop the second, which is right and is not the leak it
@@ -929,6 +992,17 @@ export const bind = (
          * that has no business holding a socket open.
          */
         ...kolu.handlers.cells,
+        /**
+         * ...and the CI half's one cell, spread beside it — where the SWEEP is
+         * forked, for the reason the line above gives about the dial: one
+         * probe per process, however many tabs, because a connector runs when
+         * the surface binds and not when a browser subscribes.
+         *
+         * A runtime with no odu half never sweeps anything and the cell stays
+         * at `NO_RUNS`, which is the true answer both for a headless face and
+         * for a machine with nothing running.
+         */
+        ...odu.handlers.cells,
         /** The whole directory binding, because one revision is one write of
          *  everything it moved: for each collection the entries that changed
          *  and the keys that went, and then the facts that belong to no file.
@@ -947,6 +1021,10 @@ export const bind = (
                     // and the wrench's door beside it are superscript
                     // claims the store can no longer vouch for.
                     kolu.unloaded()
+                    // ...and the worktrees with it: a set of CI runs derived from a
+                    // vault the server can no longer see is yesterday's
+                    // reading, and the sockets follow on the next sweep.
+                    odu.unloaded()
                     return cell.set(null)
                   }
                   // THE PROJECTION CONSUMES WHAT IT IS HANDED, so these two
@@ -1007,6 +1085,17 @@ export const bind = (
                       koluFile,
                     )).file ?? null,
                   )
+                  // ...and WHICH NODES NAME A WORKTREE, off the same statement
+                  // and for the same reason. It is handed the whole derivation
+                  // rather than the node list above it, because the walk asks
+                  // TWO things of one reading — the records, and whether this
+                  // vault declares `worktree` a `path` at all
+                  // (`./worktrees.ts` argues why the declaration is what
+                  // LICENCES a probe).
+                  // Storing the answer is all it does: dialing is the sweep's,
+                  // on its own clock, so a keystroke costs one walk and no
+                  // sockets.
+                  odu.revision(snapshot.value.derived)
                   // Written last, which is NOT the order they arrive in: a cell
                   // publishes on this stack while the collection's frame is
                   // coalesced into one delta on a microtask, so the manifest

@@ -2,6 +2,7 @@
 { pkgs ? import ./nix/nixpkgs.nix { } }:
 let
   kolu = import ./nix/kolu.nix { inherit pkgs; };
+  odu = import ./nix/odu.nix { inherit pkgs; };
   pins = import ./npins;
   olaiFonts = import ./packages/fonts { inherit pkgs; };
 in
@@ -25,6 +26,16 @@ pkgs.mkShell {
     # than against a second copy of the list — which is the difference between
     # a version constraint that is checked and one that is hoped.
     OLAI_KOLU_EXTERNALS = builtins.toJSON kolu.externals;
+
+    # ODU'S ONE PACKAGE, the same two ways: the argv for the copier (kolu's
+    # script — `nix/odu.nix` says why there is not a second one), and the
+    # pinned manifest `scripts/check-odu-deps.sh` asserts olai's root against.
+    # A separate variable rather than a longer `OLAI_KOLU_HYDRATE`, because the
+    # two pins move independently — a single argv would hide which half a
+    # `just update-pins` had walked forward, and which half a `just check`
+    # failure is about.
+    OLAI_ODU_HYDRATE = odu.hydrateArgs;
+    OLAI_ODU_MANIFEST = builtins.toJSON odu.externals;
 
     # THE ORCHESTRATOR'S VAULT, pinned — the corpus four differential legs read
     # (`@olai/format`'s scope, incremental and splice, and `@olai/server`'s

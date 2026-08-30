@@ -125,6 +125,13 @@
         "effect": "4.0.0-rc.112",
       },
     },
+    "packages/odu-client": {
+      "name": "@olai/odu-client",
+      "version": "0.1.0",
+      "dependencies": {
+        "effect": "4.0.0-rc.112",
+      },
+    },
     "packages/ops": {
       "name": "@olai/ops",
       "version": "0.1.0",
@@ -151,6 +158,7 @@
         "@olai/identity": "workspace:*",
         "@olai/kolu-client": "workspace:*",
         "@olai/log": "workspace:*",
+        "@olai/odu-client": "workspace:*",
         "@olai/ops": "workspace:*",
         "@olai/sigterm": "workspace:*",
         "@olai/state": "workspace:*",
@@ -194,6 +202,7 @@
         "@olai/acp": "workspace:*",
         "@olai/format": "workspace:*",
         "@olai/kolu-client": "workspace:*",
+        "@olai/odu-client": "workspace:*",
         "effect": "4.0.0-rc.112",
       },
     },
@@ -438,6 +447,8 @@
     "@olai/kolu-ui": ["@olai/kolu-ui@workspace:packages/kolu-ui"],
 
     "@olai/log": ["@olai/log@workspace:packages/log"],
+
+    "@olai/odu-client": ["@olai/odu-client@workspace:packages/odu-client"],
 
     "@olai/ops": ["@olai/ops@workspace:packages/ops"],
 

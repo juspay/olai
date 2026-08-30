@@ -39,6 +39,19 @@
       "url": "https://github.com/nixos/nixpkgs/archive/d2f0dc92a749f6a279924d6f427fbaee54f139cc.tar.gz",
       "hash": "sha256-/5DvzjBWdKZD9jQwTCM+WKbirVPTumeBLum2xHZ6k1s="
     },
+    "odu": {
+      "type": "Git",
+      "repository": {
+        "type": "GitHub",
+        "owner": "juspay",
+        "repo": "odu"
+      },
+      "branch": "master",
+      "submodules": false,
+      "revision": "b1c3e70f25cb347d941a0fa1bfbe0cf79802dd42",
+      "url": "https://github.com/juspay/odu/archive/b1c3e70f25cb347d941a0fa1bfbe0cf79802dd42.tar.gz",
+      "hash": "sha256-gtnuuh//DjrpTLlJ878WM6cpUmU+OIEXCFQLpkGtfWo="
+    },
     "osfacts": {
       "type": "Git",
       "repository": {

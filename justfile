@@ -41,7 +41,7 @@ default:
 [macos]
 [parallel]
 [metadata("ci")]
-check: typecheck test e2e kolu-deps fmt-check nix bun-nix-fresh hm-module
+check: typecheck test e2e kolu-deps odu-deps fmt-check nix bun-nix-fresh hm-module
 
 # Install deps (bun) and hydrate the @kolu/* sources from the npins kolu pin.
 # The `npm ci` in the acp/ pin is the adapter tree's half: the MCP bridge's
@@ -56,10 +56,16 @@ check: typecheck test e2e kolu-deps fmt-check nix bun-nix-fresh hm-module
 # inside the dev shell that exports it, not in just's own shell (which runs
 # under `set -u`). It is a whole argv — nix/kolu.nix derives it from one list
 # — so the expansion is deliberately unquoted.
+#
+# `@odu/run-client` rides the SAME script on a second line — one copier, two
+# pins (nix/odu.nix says why odu brings no script of its own). Two invocations
+# rather than one concatenated argv so a failure names which pin it was
+# hydrating.
 install:
     {{ nix_shell }} sh -c 'bun install --frozen-lockfile \
       && (cd acp && npm ci --ignore-scripts) \
-      && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_KOLU_HYDRATE'
+      && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_KOLU_HYDRATE \
+      && sh $OLAI_KOLU_HYDRATE_SCRIPT $OLAI_ODU_HYDRATE'
 
 # TypeScript type checking — every workspace member, from the glob bun
 # installs from
@@ -130,6 +136,14 @@ test: install
 # node_modules — so it does not wait on `install` and fails fast.
 kolu-deps:
     {{ nix_shell }} sh -c 'sh scripts/check-kolu-deps.sh'
+
+# The same two questions about odu's one hydrated package: does olai's root
+# satisfy what `@odu/run-client` declares, and is it imported anywhere but the
+# package that exists to hold it. Its own leg rather than a fifth arm of
+# `kolu-deps`, because the two pins move independently and a reader who lands
+# on a red leg should already know which repo it is about.
+odu-deps:
+    {{ nix_shell }} sh -c 'sh scripts/check-odu-deps.sh'
 
 # Build the browser bundle into packages/web/dist. The nix build runs this
 # same script in its own sandbox (default.nix), so there is one bundler and not

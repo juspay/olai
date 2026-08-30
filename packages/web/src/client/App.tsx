@@ -66,6 +66,7 @@ import { createRouter, RouterProvider } from "./router.tsx"
 import { runAsync } from "./run.ts"
 import { ServedProvider } from "./served.tsx"
 import { KoluUi } from "@olai/kolu-ui"
+import { RunsProvider } from "./live/odu-ci/index.ts"
 import { createRecencyNow } from "./props/recency.ts"
 import { Preferences } from "./settings/Preferences.tsx"
 import { Sidebar } from "./Sidebar.tsx"
@@ -325,6 +326,14 @@ export default function App() {
           is the composed client and a clock, because the wire is the app's to
           compose and the cadence is the app's to choose. */}
       <KoluUi client={olai} now={createRecencyNow()}>
+      {/* THE TAB'S CI HALF, one subscription, around the page — the
+          live-properties seam's SECOND tenant (`./ci/runs.tsx`). It sits
+          exactly where the fleet does and for exactly the same reason: its
+          reader is a leaf drawn per row (a `worktree` chip), and a
+          subscription per chip is what this arrangement exists to refuse.
+          Unlike the kolu half it needs no socket of its own and no clock from
+          here — a cell, and the chips that tick bring their own. */}
+      <RunsProvider runs={olai.cells.ci.use().value}>
       {/* ABOVE THE CHAT PANEL, not only around the page: today is a fact about
           the TAB (`./clock.ts`), and the panel reads it too — the `@` list's
           node half is matched by the format's own grammar, whose relative words
@@ -447,6 +456,7 @@ export default function App() {
         </div>
       </div>
       </TodayProvider>
+      </RunsProvider>
       </KoluUi>
       </ServedProvider>
       </OpensProvider>
