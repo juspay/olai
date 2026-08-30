@@ -182,10 +182,8 @@ const planTitle = (scope: Scope, request: Extract<Request, { op: "title" }>): Pl
   const located = regularAt(scope, request.id)
   if (Result.isFailure(located)) return Result.fail(located.failure)
   const next: RegularNode = { ...located.success.node, title: request.title }
-  const bent = declaredWrong(scope, located.success.file, next)
+  const bent = declarationRefused(scope, located.success.file, next)
   if (bent !== undefined) return Result.fail(bent)
-  const unfit = governedUnfit(scope, located.success.file, next)
-  if (unfit !== undefined) return Result.fail(unfit)
   return planEdit(
     scope,
     request.id,
@@ -732,11 +730,8 @@ const planAdd = (
   // walk — {@link emit} asks {@link declaredWrong} per node, but cannot
   // see children it has not minted yet. The walk is therefore here, once
   // the tree exists, with those ids as `extra`.
-  const born = minted[0]
-  if (born !== undefined && born.parent === undefined) {
-    const unfit = governedUnfit(scope, file, born, mintedVariants(minted, born))
-    if (unfit !== undefined) return Result.fail(unfit)
-  }
+  const unfit = refuseCaptureDeclaration(scope, file, minted)
+  if (unfit !== undefined) return Result.fail(unfit)
 
   // DOOR ONE, spelled in a capture: a tree that arrives already saying `done`
   // over a task it is bringing with it.
@@ -2473,6 +2468,20 @@ const governedUnfit = (
 const NO_EXTRA: ReadonlySet<string> = new Set()
 
 /**
+ * THE TWO HALVES OF ONE DECLARATION DOOR — bootstrap, then existing
+ * values. `planTitle` and `planProp` always asked both, in that order;
+ * a caller that remembered one and not the other would let a rename or
+ * a `type` write mint a file the next load refuses.
+ */
+const declarationRefused = (
+  scope: Scope,
+  file: string,
+  node: RegularNode,
+  extra: ReadonlySet<string> = NO_EXTRA,
+): OpFailure | undefined =>
+  declaredWrong(scope, file, node) ?? governedUnfit(scope, file, node, extra)
+
+/**
  * The ids this capture is minting as the ROOT's own children — the extra
  * {@link governedUnfit} needs so a new `ref` may land over values that
  * already name those ids.
@@ -2486,6 +2495,23 @@ const mintedVariants = (
     if (one.parent === root.id) extra.add(one.id)
   }
   return extra
+}
+
+/**
+ * A capture's ROOT, if it is a Properties declaration, against the values
+ * the vault already holds. {@link emit} has already asked {@link
+ * declaredWrong} per node; this is only the existing-values half, and
+ * only once the children exist so a new `ref` can see the variants it
+ * is minting.
+ */
+const refuseCaptureDeclaration = (
+  scope: Scope,
+  file: string,
+  minted: ReadonlyArray<RegularNode>,
+): OpFailure | undefined => {
+  const born = minted[0]
+  if (born === undefined || born.parent !== undefined) return undefined
+  return governedUnfit(scope, file, born, mintedVariants(minted, born))
 }
 
 /**
@@ -2630,10 +2656,8 @@ const planProp = (
     ...located.success.node,
     custom: withCustom(located.success.node.custom, key, value ?? undefined),
   }
-  const bent = declaredWrong(scope, located.success.file, next)
+  const bent = declarationRefused(scope, located.success.file, next)
   if (bent !== undefined) return Result.fail(bent)
-  const unfit = governedUnfit(scope, located.success.file, next)
-  if (unfit !== undefined) return Result.fail(unfit)
   return planEdit(
     scope,
     request.id,
@@ -3408,11 +3432,8 @@ const planCreate = (
   // THE SAME EXISTING-VALUES WALK {@link planAdd} runs, for its reason:
   // a seed of `_olai/Properties.olai` is a declaration over whatever the
   // rest of the set already holds.
-  const root = minted[0]
-  if (root !== undefined && root.parent === undefined) {
-    const unfit = governedUnfit(scope, file, root, mintedVariants(minted, root))
-    if (unfit !== undefined) return Result.fail(unfit)
-  }
+  const unfit = refuseCaptureDeclaration(scope, file, minted)
+  if (unfit !== undefined) return Result.fail(unfit)
 
   // ...and the same DOOR ONE, in the same place in the sequence and for the
   // same reason ({@link planAdd}): a seed is a capture, so a node born done
