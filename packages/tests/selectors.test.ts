@@ -166,12 +166,24 @@ const BUILT_BY_HAND =
  * `add`/`remove`/`same`, so there is no value with a quote in it for them to
  * meet. Listed by the TEXT they match rather than by line, so the list survives
  * an edit above them and still names exactly four things.
+ *
+ * …and, DIAGNOSTIC for the chat-interrupt flake lane: the four in
+ * `support/interrupt_trace.ts`, same shape as the first four — selector
+ * strings shipped to the browser by an init script or an evaluate, values
+ * from that file's own two testid constants. They are the lane's
+ * instrumentation (see the file's header) and go WITH it when the trace
+ * comes off before the lane's final head: this list is then four again.
  */
 const BY_HAND: ReadonlyArray<string> = [
   `step_definitions/chat_steps.ts: [data-kind="\${kind}"]`,
   `step_definitions/chat_steps.ts: [data-testid="\${at}"]`,
   `step_definitions/chat_steps.ts: [data-testid="\${at}"]`,
   `step_definitions/chat_steps.ts: [data-testid="\${at}"]`,
+  // DIAGNOSTIC (interrupt-trace lane; these four lines leave with it):
+  `support/interrupt_trace.ts: [data-testid="\${asked.interrupt}"]`,
+  `support/interrupt_trace.ts: [data-testid="\${asked.panel}"]`,
+  `support/interrupt_trace.ts: [data-testid="\${interrupt}"]`,
+  `support/interrupt_trace.ts: [data-testid="\${panel}"]`,
 ];
 
 // The FENCE'S OWN EDGE, and the reason this test is here rather than trusted:
@@ -216,7 +228,7 @@ test("the pattern leaves alone what carries no interpolated value", () => {
   }
 });
 
-test("no step builds an attribute selector by hand, but the four that must", () => {
+test("no step builds an attribute selector by hand, but the allowlisted few", () => {
   // `tracked` leaves the caller out of its own listing, which is what excludes
   // this file — it quotes the shape it hunts, in an assertion above.
   const found = tracked(import.meta.filename)

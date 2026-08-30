@@ -247,6 +247,142 @@ const probe = async (page: Page): Promise<Record<string, unknown>> =>
   );
 
 /**
+ * THE DISTRIBUTION, one line per wait, EVERY wait — the change after four
+ * petit rounds of green-with-no-dump: waiting for a red is losing, so the
+ * greens get measured instead.
+ *
+ * Deltas from the wait's own start, in ms, negative numbers for clocks that
+ * moved earlier (the ordinary shape: the turn started a step or two ago):
+ *
+ *   - `send` — the last chat.send frame OUT before the wait (harness clock).
+ *   - `srvTurn` / `wireTurn` / `panelTurn` — the turn-start, said by all
+ *     three clocks: the server's `move`, the thinking chunk crossing the
+ *     socket, the panel's attribute flip. Their spread IS the transport
+ *     half of the question.
+ *   - `adv` — when the interrupt capability became known (the server's
+ *     `advertised`); `wireSteers` is the same fact arriving by socket.
+ *   - `mount` — the control entering the DOM (page clock), geometry in the
+ *     full dump. `waitMs` is when VISIBLE answered, so turnStart → mount →
+ *     waitMs walks the whole draw path of one wait.
+ *   - `stall` — long-task durations plus rAF gaps delivered inside the
+ *     window. A 15s invisible control with this at ~0 is not a renderer
+ *     stall; the trace says which clock holds seconds instead.
+ *
+ * One line that must come out even when gathering chokes — the summary is
+ * the only evidence a never-red run leaves, so its own failure is a line
+ * too, not silence.
+ */
+export const noteInterruptWait = async (
+  world: OlaiWorld,
+  kind: "press" | "offer",
+  startedAt: number,
+  endedAt: number,
+): Promise<void> => {
+  const out = (parts: string): void => {
+    process.stderr.write(
+      `olai-trace|wait|${kind}|waitMs=${endedAt - startedAt} ${parts}\n`,
+    );
+  };
+  try {
+    // THE PAGE'S CLOCK, with the same 4s mercy the dump gives it: a wedged
+    // renderer is the finding here, not a reason to lose the line.
+    const probed = await Promise.race([
+      probe(world.page),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+    ]);
+    const marks: ReadonlyArray<PageMark> = probed === null
+      ? []
+      : ((probed as { marks?: ReadonlyArray<PageMark> }).marks ?? []);
+    const lastOf = (want: (mark: PageMark) => boolean): number | null => {
+      for (let i = marks.length - 1; i >= 0; i--) {
+        if (want(marks[i]!)) return marks[i]!.t;
+      }
+      return null;
+    };
+    const panelTurn = lastOf((m) => m.m === "panel-status" && m.v === "thinking")
+      ?? lastOf((m) => m.m === "panel" && m.status === "thinking");
+    const mount = lastOf((m) => m.m === "interrupt+");
+    // Stalls delivered inside the window the wait could have felt: from a
+    // breath before it opened to when it closed. A gap or task is stamped
+    // with when it was NOTICED — for these marks that is the close of the
+    // silence, which is the end of the span the wait survived.
+    const stall = marks
+      .filter((m) => {
+        if (m.m === "longtask") return m.t >= startedAt - 300 && m.t <= endedAt;
+        if (m.m === "raf-gap") return m.t >= startedAt - 300 && m.t <= endedAt;
+        return false;
+      })
+      .reduce((sum, m) => sum + Number(m.dur ?? m.ms ?? 0), 0);
+
+    // THE WIRE'S CLOCK — the harness's own, so these deltas share waitMs's
+    // zero exactly.
+    const frames = world.traceFrames ?? [];
+    const lastWire = (want: (f: TraceFrame) => boolean, before: number): number | null => {
+      for (let i = frames.length - 1; i >= 0; i--) {
+        if (frames[i]!.t <= before && want(frames[i]!)) return frames[i]!.t;
+      }
+      return null;
+    };
+    const sent = lastWire(
+      (f) => f.dir === "out" && f.head.includes("surface/chat/send"),
+      startedAt,
+    );
+    const wireTurn = sent === null
+      ? lastWire(
+        (f) => f.dir === "in" && (f.head.includes("thinking") || (f.talking ?? "").includes("thinking")),
+        startedAt,
+      )
+      : frames.find((f) =>
+        f.dir === "in" && f.t >= sent &&
+        (f.head.includes('"thinking"') || (f.talking ?? "").includes('"thinking"'))
+      )?.t ?? null;
+    const wireSteers = lastWire(
+      (f) => f.dir === "in" && (f.talking ?? "").includes('"steers":true'),
+      startedAt,
+    );
+
+    // THE SERVER'S CLOCK, off the file its tracer appends to (absent for a
+    // corpus server — the field is just missing then).
+    const server: ReadonlyArray<Record<string, unknown>> =
+      world.traceFile === undefined ? [] : fs
+        .readFileSync(world.traceFile, "utf8")
+        .trim()
+        .split("\n")
+        .filter((line) => line !== "")
+        .map((line) => JSON.parse(line) as Record<string, unknown>);
+    const lastServer = (want: (m: Record<string, unknown>) => boolean): number | null => {
+      for (let i = server.length - 1; i >= 0; i--) {
+        if (want(server[i]!)) return server[i]!.t as number;
+      }
+      return null;
+    };
+    const srvTurn = lastServer((m) => m.m === "move" && m.status === "thinking");
+    const adv = lastServer((m) =>
+      m.m === "recv" && m.tag === "advertised" &&
+      (m as { steers?: unknown }).steers === true
+    );
+
+    const d = (name: string, t: number | null): string[] =>
+      t === null ? [] : [`${name}=${t - startedAt}`];
+    out(
+      [
+        ...d("send", sent),
+        ...d("srvTurn", srvTurn),
+        ...d("wireTurn", wireTurn),
+        ...d("panelTurn", panelTurn),
+        ...d("mount", mount),
+        ...d("adv", adv),
+        ...d("wireSteers", wireSteers),
+        `stall=${Math.round(stall)}`,
+        ...(probed === null ? ["probe=timeout"] : []),
+      ].join(" "),
+    );
+  } catch (cause) {
+    out(`summary-failed=${JSON.stringify(String(cause))}`);
+  }
+};
+
+/**
  * Say everything the three clocks know, one line per mark, never throwing:
  * this runs on a scenario's failure path, where a recorder that throws is a
  * red scenario reporting the recorder instead of the control.
