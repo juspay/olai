@@ -253,26 +253,36 @@ gets instead is the dangling face the derivation already draws.
 
 Every line here is valid JSON and a well-formed record, so the whole-set
 validator definitely runs. That is the point: this is where a finding that
-names TWO files is exercised, which needs errors that reach across one.
+names TWO files is exercised, which needs errors that reach across one — and
+where the two ways of naming a second file are told apart, since one darkens it
+and the other does not.
 
 - `attic.olai:3` — `after` names `donate`, which nothing declares
   (`unknown-target`) → belongs to `attic.olai` alone.
 - `cellar.olai:2` — `parent` is `attic`, which lives in `attic.olai`
-  (`foreign-parent`) → **cross-file**: it names a site in the other file.
+  (`foreign-parent`) → **names** the other file, and breaks only this one.
 - `cellar.olai:3` — a second `boxes`; `attic.olai:2` claimed it first
-  (`duplicate-id`) → **cross-file**.
+  (`duplicate-id`) → **breaks both**.
 - `cellar.olai:4` — `parent` is `nowhere` (`unknown-parent`) → belongs to
   `cellar.olai` alone.
-- `porch.olai` — nothing wrong with it at all.
+- `cellar.olai:5` — `parent` is `porch`, which lives in `porch.olai`
+  (`foreign-parent`) → the pointed-at file is HEALTHY, which is what this line
+  is here for.
+- `porch.olai` — nothing wrong with it at all, and pointed at all the same.
 
-A finding implicates a second file when it names a site in one — `isCrossFile`
-in `packages/format/src/errors.ts`. Both ends of such a finding go dark and both
-carry the row, because "which file is broken" has no single answer for a
-duplicate id or a cross-file placement, and filing it under one of the two would
-put a page on screen the validator has just refused. So `attic.olai` and
-`cellar.olai` are both broken here and `porch.olai` is untouched — which is what
-makes this corpus say something rather than simply being a vault where
-everything is wrong.
+**A finding NAMES a second file and BREAKS one or two, and the two are not the
+same question** (`implicatedBy` against `blamed`, in
+`packages/format/src/verdict.ts`). Both ends of a duplicate id go dark and both
+carry the row, because "which file is broken" has no single answer there —
+while the duplicate stands nobody can draw the second claim, and filing it
+under one of the two would put a page on screen the validator has just refused.
+A `foreign-parent` is the other kind: the record that reached across is at
+fault, the file it reached AT did nothing, and the fix is the `parent` field in
+the file that goes dark — so the parent's file keeps its tree and keeps
+accepting writes (`Related.broken: false`, said by the rule that made the
+finding). So `attic.olai` and `cellar.olai` are broken here, `porch.olai` is
+NAMED and live, and the corpus says something rather than simply being a vault
+where everything is wrong.
 
 ## `typed/` — a vault that declares its property types
 

@@ -107,7 +107,13 @@ const CATALOGUE = {
   /** `parent` names an id no record in the set declares. */
   "unknown-parent": "set",
   /** `parent` resolves, but in another file. Every `.olai` is an independent
-   *  tree; cross-file relations are mirrors and edges. */
+   *  tree; cross-file relations are mirrors and edges.
+   *
+   *  It names the parent's site as a POINTER and not as a second fault
+   *  ({@link Related}'s `broken`): the file that declares the parent did
+   *  nothing but be pointed at, and the edit that fixes this is in the file
+   *  holding the `parent`. Said on the SITE the rule emits rather than as a
+   *  row of this table — see {@link Related}. */
   "foreign-parent": "set",
   /** `parent` resolves to a mirror record. A mirror is a placement, not a
    *  container — children hang off the target. */
@@ -243,6 +249,35 @@ export const reportStage = (
  *  fixer knows who said no, but a judge's own page stays lit and its own
  *  writes stay admitted). Omitting is broken: every site the error names
  *  darkens until the finding does.
+ *
+ *  THE SECOND KIND OF NAMED-NOT-BLAMED SITE is a POINTER, and
+ *  `foreign-parent`'s is the one there is: the file the parent lives in did
+ *  nothing but be pointed at. It rides this field rather than a per-CODE row
+ *  of the catalogue above, and the argument is that the two kinds of related
+ *  site are not two kinds of CODE. A `duplicate-id` and a cycle name sites
+ *  that share the fault; a `bad-prop` names its judge; a `foreign-parent`
+ *  names what it reached at — and a code that one day names both a fault and
+ *  a ground has one row on a per-code table and two sites here. The rule that
+ *  MAKES the finding is the only thing that knows which it just named, and it
+ *  is where {@link OutlineError.across} already says the other per-instance
+ *  fact for the same reason. A per-code table would be a second axis over the
+ *  same rows, and the rows are what every reader draws.
+ *
+ *  ABSENT IS BROKEN, and that is the safe direction here for the opposite
+ *  reason `across` is: a site wrongly darkened is a page a reader can still
+ *  read and a write they can still make elsewhere, while a site wrongly LIT
+ *  is a page drawn out of records the validator has just refused — a
+ *  duplicate id's other claim, drawn as though `byId`'s coin toss were an
+ *  answer. So a rule that forgets to say `false` over-darkens, and a rule
+ *  that would have to say `true` never has to remember.
+ *
+ *  WHAT A PER-SITE FIELD DOES NOT HAVE is the half {@link Reach} has one
+ *  level up: a place in the catalogue where a new code is MADE to answer.
+ *  That half is in `./errors.test.ts` instead, spelled the way the line/set
+ *  split is — both halves written out, so a code added above fails a test
+ *  until somebody says which one it is in, and the answer is checked against
+ *  what the rules actually emit so the list cannot drift into being the
+ *  per-code table this field exists instead of.
  */
 export const Related = Schema.Struct({
   ...Site.fields,
@@ -305,14 +340,44 @@ export type BrokenFile = typeof BrokenFile.Type
  * afterwards ({@link ./verdict.ts} asks it of a whole verdict).
  *
  * It is here rather than there because it is a fact about ONE error, which is
- * this module's subject, and because {@link isCrossFile} is the same question
- * asked for a different purpose: a finding about two files has no single answer
- * to "which file is broken", so the error view groups it on its own.
+ * this module's subject, and because {@link blamedOn} is the other plane of the
+ * same question: which files the finding is ABOUT is not which files it BREAKS.
  */
-export const implicatedBy = (error: OutlineError): ReadonlyArray<string> => {
+export const implicatedBy = (error: OutlineError): ReadonlyArray<string> =>
+  filesOf(error, () => true)
+
+/**
+ * The files this error BREAKS: where it was found, and every related site that
+ * did not say otherwise, deduped and in that order.
+ *
+ * THE OTHER PLANE, and the whole of the difference from {@link implicatedBy} is
+ * `Related.broken`. A site a finding NAMES without blaming is either the ground
+ * it was judged on (`bad-prop`'s declaration) or the thing it reached at
+ * (`foreign-parent`'s parent): named so a reader can see it, and left lit and
+ * writable because it is nobody's fault. Every other named site shares the
+ * fault and breaks — a duplicate's other claim, a cycle's steps.
+ *
+ * ONE READING OF THAT FIELD, which is why this exists rather than the `.some`
+ * it replaces. It had three spellings — the loader's filing
+ * ({@link ./verdict.ts}'s `blamed`), the error view's grouping
+ * ({@link isCrossFile} below) and the sentence in `Related`'s own doc — and two
+ * codes ride the field now, so a fourth reader would be the one that finally
+ * disagreed about whether a `foreign-parent` darkens the parent's page.
+ */
+export const blamedOn = (error: OutlineError): ReadonlyArray<string> =>
+  filesOf(error, (related) => related.broken !== false)
+
+/** Both planes, over one walk: the error's own site always, and the related
+ *  sites this plane keeps. Deduped by file, in the order the finding names
+ *  them — `.includes` over a handful rather than a `Set` per error, which is
+ *  the trade every reader of a finding's sites makes. */
+const filesOf = (
+  error: OutlineError,
+  keeps: (related: Related) => boolean,
+): ReadonlyArray<string> => {
   const files = [error.file]
   for (const related of error.related ?? []) {
-    if (!files.includes(related.file)) files.push(related.file)
+    if (keeps(related) && !files.includes(related.file)) files.push(related.file)
   }
   return files
 }
@@ -320,15 +385,12 @@ export const implicatedBy = (error: OutlineError): ReadonlyArray<string> => {
 /** True when the error BREAKS more than one file — the browser groups those
  *  on their own, because "which file is broken" has no single answer.
  *
- *  BREAKS, not IMPLICATES, and the difference is `Related.broken`: a
- *  `bad-prop` names the declaration that judged it as its ground, so the
- *  about-axis above reaches two files for every one of them — but the
- *  judge's page stays lit and "which file is broken" keeps its one
- *  answer. Only a site that BREAKS counts, the same rule
- *  {@link ./verdict.ts}'s `blamed` files by: the error's own file, and any
- *  related site that did not say otherwise. */
-export const isCrossFile = (error: OutlineError): boolean =>
-  (error.related ?? []).some((one) => one.file !== error.file && one.broken !== false)
+ *  BREAKS, not IMPLICATES, which is {@link blamedOn}'s whole subject: the
+ *  about-axis reaches two files for every `bad-prop` and every
+ *  `foreign-parent`, and neither of them has two files to fix. So this is
+ *  that plane counted, rather than a second reading of `Related.broken` free
+ *  to drift from the one the loader files by. */
+export const isCrossFile = (error: OutlineError): boolean => blamedOn(error).length > 1
 
 /** A `line` of 0 means there is no record to point at — the site is the path
  *  itself. Two codes have that (`unreadable-directory`, about a DIRECTORY,

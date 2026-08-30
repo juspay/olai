@@ -37,7 +37,7 @@ import { parseOutline } from "./parse.ts"
 import { pointingOf } from "./pointing.ts"
 import { bodiedDocument, type Document, type Outline } from "./document.ts"
 import { assemble, outlinesIn, type OutlineSet } from "./set.ts"
-import type { Reading } from "./validate.ts"
+import { type Reading, validate } from "./validate.ts"
 import { type Verdict, verdictOf } from "./verdict.ts"
 
 /** The default fixture file name. Named once so a test that cares about paths
@@ -150,6 +150,34 @@ export const readingOf = (set: OutlineSet): Reading => ({
   // referrers and no way to say so.
   pointing: pointingOf(set.documents),
 })
+
+/**
+ * THE SET A DIRECTORY OF TEXT VALIDATES TO — {@link setOf} run through the
+ * validator, with the success arm unwrapped.
+ *
+ * Here for {@link readingOf}'s reason, and it had grown the same way: since the
+ * per-file ruling `validate` answers with a set WHATEVER it found, so its
+ * failure arm is a caller with no set at all — and every test that starts from
+ * text now writes the same three lines to say so before it can assert
+ * anything. There were six of them across two files, `expectValid` and the
+ * first half of `errorsOf` and `degradedBy` among them.
+ *
+ * IT THROWS rather than narrowing, which is what makes it one line at the call
+ * site: the arm it is asserting away cannot be reached from a directory this
+ * package's own fixtures can build, so a test that hit it has a broken fixture
+ * rather than a case to handle.
+ */
+export const validatedOf = (
+  files: Record<string, string>,
+  documents: ReadonlyArray<string | readonly [file: string, text: string]> = [],
+  broken: Record<string, string> = {},
+): OutlineSet => {
+  const answered = validate(setOf(files, documents, broken))
+  if (Result.isFailure(answered)) {
+    throw new Error("a validation answers with a set, whatever it finds")
+  }
+  return answered.success.set
+}
 
 /** One file's worth of JSONL that must NOT parse, and the errors it produces —
  *  the other half of the fixture contract above: a fixture meant to stand in

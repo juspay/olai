@@ -419,11 +419,22 @@ const blockerOf = (
   return alreadyBroken ? undefined : entries[0]?.file
 }
 
-/** Every file these findings were judged FROM — the ABOUT axis the drift
- *  ask rides ({@link @olai/format}'s `implicatedBy`, deduplicated and
- *  path-ordered so one refusal always asks the same question the same way).
- *  The blame's axis would leave the judges home, and the judges are what
- *  stale reaches through. */
+/**
+ * Every file these findings were judged FROM — the ABOUT axis the drift ask
+ * rides ({@link @olai/format}'s `implicatedBy`, deduplicated and path-ordered
+ * so one refusal always asks the same question the same way).
+ *
+ * `implicatedBy` AND NEVER `blamedOn`, which is a live hazard rather than a
+ * pedantic one since the two planes became two functions sitting beside each
+ * other in `@olai/format`'s `errors.ts`. They differ by exactly the sites a
+ * finding NAMES without blaming — a `bad-prop`'s judging declaration, a
+ * `foreign-parent`'s parent — and the judge is precisely what stale reaches
+ * through: the whole shape this arm exists for is a declaration whose bytes
+ * moved on disk while the value it condemned did not. Swapping the axis here
+ * would drop that file out of the ask and leave the refusal unhealable, and it
+ * would do it silently, because every other file in the ask is unchanged.
+ * `ops.test.ts` pins the asked SET for both arms for this reason.
+ */
 const aboutFiles = (findings: ReadonlyArray<OutlineError>): ReadonlyArray<string> =>
   [
     ...new Set(

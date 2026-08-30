@@ -59,6 +59,15 @@ let validations: Array<ReadonlyArray<string>> = []
  *  ({@link Since}); this one only writes it down, which is all that is needed
  *  to say what the store promises about it. */
 let offered: Array<Since<Loaded> | undefined> = []
+/** One entry per {@link Codec.stopping} call: the files the write is putting
+ *  down, and the value the store said was STANDING when it asked. A codec whose
+ *  sets have cross-file meaning cannot tell "this write broke that file" from
+ *  "that file was already broken" without the second, so what the store hands
+ *  over is worth pinning rather than inferring from a refusal. */
+let stops: Array<{
+  readonly paths: ReadonlyArray<string>
+  readonly standing: Loaded
+}> = []
 /**
  * Two one-shot hooks, each fired from a codec member and disarmed as it fires,
  * so a test can reach INSIDE one `commit` — which is otherwise one call with
@@ -140,12 +149,19 @@ const codec: Codec<string, Loaded, ReadonlyArray<string>> = {
    * with. A codec that degrades per file answers the other way round
    * (`@olai/ops`' `codec.ts`), which is why the seam is handed the whole
    * outcome rather than a refusal.
+   *
+   * `standing` is what the store last PUBLISHED, and this codec has no use for
+   * it — a codec whose sets have no cross-file meaning cannot be asked "did
+   * this write break a file it did not write". It is written down rather than
+   * read, which is all that is needed to say what the store promises about it.
    */
-  stopping: (outcome, paths) =>
-    Result.isFailure(outcome) &&
-      outcome.failure.some((row) => paths.some((path) => row.startsWith(`${path}:`)))
+  stopping: (outcome, paths, standing) => {
+    stops.push({ paths: [...paths], standing })
+    return Result.isFailure(outcome) &&
+        outcome.failure.some((row) => paths.some((path) => row.startsWith(`${path}:`)))
       ? outcome.failure
-      : null,
+      : null
+  },
 
   /** The store's own failure, in this fixture's vocabulary. One string, so a
    *  test can assert it arrived on the SAME channel a dangling reference does
@@ -200,6 +216,7 @@ const withStore = <A>(
   decodes = []
   validations = []
   offered = []
+  stops = []
   matches = 0
   whileDecoding = null
   whileListing = null
@@ -1342,6 +1359,52 @@ test("a commit is offered the published verdict and its own files", () =>
       expect(offered.length).toBe(1)
       expect(offered[0]?.value).toBe(before?.value as Loaded)
       expect(offered[0]?.changed).toEqual(["a.txt"])
+    })))
+
+/**
+ * THE GATE'S THIRD ARGUMENT, pinned: the value this store last PUBLISHED,
+ * beside the files the write is putting down.
+ *
+ * The candidate alone cannot tell "this write broke that file" from "that file
+ * was already broken" — and for a codec whose sets have cross-file meaning
+ * those are the two answers a write gate exists to keep apart: the first has to
+ * refuse, and the second must not, or one broken file freezes the directory
+ * again. Only the store holds the standing value; only the codec can read it.
+ * So what is pinned here is the HANDOVER, identity and all, and not any rule a
+ * codec builds on it (`@olai/format`'s `darkened` is olai's, and it is tested
+ * where the sets it compares are).
+ */
+test("a commit's gate is asked over its own files and what was last published", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      stops = []
+
+      yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [
+          { path: "a.txt", contents: "alpha, committed" },
+          { path: "c.txt", contents: "gamma" },
+        ],
+      })
+
+      // ONE ask per commit, the write's paths in the order it put them down —
+      // and the standing value BY IDENTITY, so it is the published one rather
+      // than an equal rebuild of it.
+      expect(stops.length).toBe(1)
+      expect(stops[0]?.paths).toEqual(["a.txt", "c.txt"])
+      expect(stops[0]?.standing).toBe(before?.value as Loaded)
+
+      // …and the NEXT commit is offered what the first one published, not what
+      // the first one was offered: the baseline moves with the directory.
+      const after = yield* snapshotOf(store)
+      expect(after?.value).not.toBe(before?.value as Loaded)
+      stops = []
+      yield* store.commit({
+        baseRev: after?.rev ?? 0,
+        changes: [{ path: "b.txt", contents: "beta, committed" }],
+      })
+      expect(stops[0]?.standing).toBe(after?.value as Loaded)
     })))
 
 test("what moved while a verdict was refused is still owed to the next one", () =>
