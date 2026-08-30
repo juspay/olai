@@ -105,6 +105,11 @@ export const TESTID = {
   outlineTree: "outline-tree",
   node: "node",
   nodeTitle: "node-title",
+  /** What the outline's LANDING said when the row the address named is drawn
+   *  nowhere on the page it opened — one alarm line over the tree, in the
+   *  voice every refused act in this client speaks (`./SaidLine.tsx`), so a
+   *  scenario reads its `data-tone` rather than a colour. */
+  landingSaid: "landing-said",
   tag: "tag",
   /** The date pill on a row, wherever one is drawn. `data-occasion` says which
    *  of the node's dates it is; `data-overdue` says whether the node is late on

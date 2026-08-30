@@ -32,7 +32,14 @@
  * The staleness the normalisation was avoiding is still real, and it is paid
  * the way the heading arm pays it: the file half can go stale, exactly as a
  * reworded heading breaks the address that named it, and a landing that finds
- * nothing does nothing. What does NOT go stale is the node's NAME, which the
+ * nothing still does nothing — it just does not do it SILENTLY any more, in
+ * the row arm: a dead link and a working one used to be the same screen, so
+ * the outline says the miss out loud (`@olai/web`'s `fold/landing.ts` owns
+ * the sentence). The id half may also spell a PLACEMENT — a mirror's own
+ * record id — which the same arm lands on the mirror's own row when the file
+ * draws it, and otherwise resolves to the node the placement stands for
+ * (`./derive.ts`'s `nodeNamed`, the chat press's answer to a span spelling
+ * the same id) and lands per the row rule. What does NOT go stale is the node's NAME, which the
  * shelf resolves through the id half alone (`./shelf.ts`) — so a pin spelled
  * the qualified way keeps saying the node's live title after a move, the
  * promise `./shelf.test.ts` and `@olai/ops`' move differential pin.

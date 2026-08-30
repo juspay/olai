@@ -8,10 +8,10 @@
  * path-only folds, and no element askable of a tree that does not draw it.
  */
 
-import type { Row } from "@olai/format"
+import { type Row, shownRecord } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { chainTo, shutAlong } from "./landing.ts"
+import { aim, chainTo, missedSays, shutAlong } from "./landing.ts"
 
 const line = (id: string, title: string, children: ReadonlyArray<Row> = []): Row => ({
   at: { file: "house.olai", line: 1, node: { id, ord: "a0", title } },
@@ -24,8 +24,8 @@ const line = (id: string, title: string, children: ReadonlyArray<Row> = []): Row
 })
 
 /** A PLACEMENT of `target`'s, standing where it was written: the place is its
- *  own record — which is what a mirror's `at` holds — and what it SHOWS is the
- *  node's, which is the only id a landing should ever see. */
+ *  own record — which is what a mirror's `at` holds, and the id the placement
+ *  itself answers to — and what it SHOWS is the node's. */
 const placementOf = (
   target: string,
   title: string,
@@ -69,6 +69,90 @@ test("the first match answers for a node the page shows twice — and a placemen
 
 test("no row that shows the id is no chain", () => {
   expect(chainTo([line("kitchen", "the kitchen")], "repair")).toBeUndefined()
+})
+
+// ── a placement id: the address may spell the mirror's own record ─────
+
+test("a placement id lands on the mirror's own row", () => {
+  const rows = [
+    line("beds", "the garden beds"),
+    line("garden-row", "about the garden", [placementOf("beds", "the garden beds", 7)]),
+  ]
+  // The id the address spelled IS the placement's record, and the mirror row
+  // is the more specific answer than the target's other row, depth-first or
+  // not: the id names this place and no other.
+  const chain = chainTo(rows, "m7")
+  expect(chain?.map((row) => row.at.node.id)).toEqual(["garden-row", "m7"])
+  if (chain === undefined) throw new Error("the chain exists")
+  expect(shownRecord(chain[chain.length - 1]!).node.id).toBe("beds")
+})
+
+test("a placement id answers wherever its mirror row stands", () => {
+  const rows = [
+    line("kitchen", "the kitchen", [
+      placementOf("beds", "the garden beds", 3, [line("sprig", "plant a sprig")]),
+    ]),
+  ]
+  expect(chainTo(rows, "m3")?.map((row) => row.at.node.id)).toEqual(["kitchen", "m3"])
+})
+
+test("a record id answers byte-identically with placements standing beside it", () => {
+  // The prove-a-nothing-changed case: the placement's own id and the node's
+  // own are two records (ids are unique across the set), so whatever the
+  // mirror half added, `beds` answers as it did before any of it existed.
+  const rows = [
+    line("garden-row", "about the garden", [placementOf("beds", "the garden beds", 7)]),
+    line("beds", "the garden beds", [line("sprig", "plant a sprig")]),
+  ]
+  expect(chainTo(rows, "beds")?.map((row) => row.at.node.id)).toEqual(["garden-row", "m7"])
+  expect(chainTo(rows, "sprig")?.map((row) => row.at.node.id)).toEqual(["beds", "sprig"])
+})
+
+// ── the answer with the set folded in ─────────────────────────────────
+
+test("the page answering the id asks nothing of the set", () => {
+  const rows = [line("beds", "the garden beds")]
+  const answer = aim(rows, "beds", () => {
+    throw new Error("a placement the page draws is no wire's business")
+  })
+  expect(answer.kind).toBe("chain")
+  if (answer.kind !== "chain") return
+  expect(answer.chain.map((row) => row.at.node.id)).toEqual(["beds"])
+})
+
+test("a placement the page does not draw lands on its target, depth-first as ever", () => {
+  // `m9` is written in a file this page is not: the rows keep no answer for
+  // it, the SET resolves it (the chat press's own door), and the target then
+  // answers by the same first-match rule a spelled target would have.
+  const rows = [
+    line("garden-row", "about the garden", [placementOf("beds", "the garden beds", 7)]),
+    line("beds", "the garden beds"),
+  ]
+  const answer = aim(rows, "m9", () => "beds")
+  expect(answer.kind).toBe("chain")
+  if (answer.kind !== "chain") return
+  expect(answer.chain.map((row) => row.at.node.id)).toEqual(["garden-row", "m7"])
+})
+
+test("no answer from the set is no answer yet — nothing concluded", () => {
+  expect(aim([line("kitchen", "the kitchen")], "repair", () => undefined)).toEqual({ kind: "ask" })
+})
+
+test("the set's answer changing nothing is the certain miss", () => {
+  const rows = [line("kitchen", "the kitchen")]
+  // Declared by the set — a node in a file this page is not, a stale file
+  // half — and the page draws none of it.
+  expect(aim(rows, "m9", () => "repair")).toEqual({ kind: "miss" })
+  // Declared by nothing.
+  expect(aim(rows, "repair", () => null)).toEqual({ kind: "miss" })
+})
+
+// ── what the miss SAYS ────────────────────────────────────────────────
+
+test("a certain miss says what was asked and that the page draws none of it", () => {
+  expect(missedSays("day29-thirteenth")).toBe(
+    "day29-thirteenth — nothing by that name is drawn on this page",
+  )
 })
 
 // ── which of those folds the landing owes ──────────────────────────────

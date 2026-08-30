@@ -15,6 +15,7 @@ import type { Locator } from "playwright";
 import {
   attr,
   BLOCKED,
+  LANDING_SAID,
   NODE_REF,
   NOT_FOUND,
   oneLine,
@@ -26,6 +27,7 @@ import {
   ZOOM,
   ZOOM_TITLE,
 } from "../support/world.ts";
+import { saysThat } from "../support/said.ts";
 import type { OlaiWorld } from "../support/world.ts";
 
 // ── zooming ────────────────────────────────────────────────────────────
@@ -68,6 +70,26 @@ Then(
     );
   },
 );
+
+/** WHAT THE LANDING SAID — the outline's one alarm line over the tree when
+ *  the row an address named is drawn nowhere on the page it opened. Read
+ *  through the suite's one reader of every said-line (`support/said.ts`): the
+ *  words, and the MOOD as a `data-` fact — an answer to a dead link in the
+ *  aside tone would be a refusal a screen reader is not interrupted for. */
+Then("the landing says {string}", async function (this: OlaiWorld, said: string) {
+  await saysThat(this, LANDING_SAID, said, "the landing's answer", "alarm");
+});
+
+/** …and that the line left: it is a notice, not a state. The budget is the
+ *  poll's, which is comfortably longer than the six seconds a said line
+ *  stays (`client/saying.ts`) — spelling the six here would be the client's
+ *  constant written down twice. */
+Then("the landing's sentence has gone", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(LANDING_SAID).count()) === 0,
+    "the landing's said line to take itself away",
+  );
+});
 
 Then("the address is {string}", async function (this: OlaiWorld, path: string) {
   // Waited for, not read once: a click navigates and re-renders in the same
