@@ -24,6 +24,7 @@
 import {
   admits,
   BusyFailure,
+  byPath,
   implicatedIn,
   type CommitRequest,
   type CommitResult,
@@ -385,7 +386,13 @@ const blockerOf = (
 ): string | undefined => {
   const admission = admits(verdict, paths)
   if (admission._tag === "implicated") return admission.file
-  return alreadyBroken ? undefined : implicatedIn(verdict)[0]
+  if (alreadyBroken) return undefined
+  // The BROKEN file: where findings are FILED, not every file they name —
+  // `implicatedIn`'s reach includes the `related` axis (a bad value's
+  // declaration judges from a file that is not broken, and it sorts FIRST
+  // by `byPath`), and this sentence names a blocker, not a judge.
+  const filed = [...new Set(verdict.findings.map((finding) => finding.file))]
+  return filed.sort(byPath)[0]
 }
 
 export const make = (options: Options): Ops => {
