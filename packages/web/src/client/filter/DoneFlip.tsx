@@ -90,7 +90,13 @@ export function DoneFlip(props: { readonly file: string }) {
       <Show when={own()}>
         <button
           type="button"
-          class={`${TARGET_BOX} inline-flex items-center justify-center text-center font-mono text-xs text-muted hover:text-ink`}
+          // The 44px target is a PHONE's rule (../touch.ts) and like every
+          // nearby client in the bar the reset is spelled at the site —
+          // without it the flip's flex-line carries 44px uphill on a desktop
+          // triggered shape ~8px below the strip, which tips popper's fit
+          // arithmetic over the scenario's boundary (menu painting the wrong
+          // way up).
+          class={`${TARGET_BOX} md:min-h-0 md:min-w-0 inline-flex items-center justify-center text-center font-mono text-xs text-muted hover:text-ink`}
           data-testid={TESTID.doneRelease}
           aria-label="hand this page's Done pick back to the panel"
           onClick={() => letDoneFollow(props.file)}
