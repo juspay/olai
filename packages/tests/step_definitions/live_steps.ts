@@ -449,7 +449,7 @@ Then("the stale banner is gone", async function (this: OlaiWorld) {
  * saying so.
  */
 Then(
-  "the stale banner names {int} file",
+  "the stale banner names {int} file(s)",
   async function (this: OlaiWorld, many: number) {
     const banner = this.page.locator(STALE_BANNER);
     await banner.waitFor({ state: "visible", timeout: POLL_TIMEOUT });

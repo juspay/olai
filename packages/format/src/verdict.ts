@@ -14,16 +14,19 @@
  * The findings are the same findings. What is new is that the questions are
  * asked HERE, once, and answered off one value:
  *
- *   - {@link blamed} — which files a finding is ABOUT, filed under them.
- *     `Reach` in `./errors.ts` already named this axis for the staging rule
- *     (`set-across-files` is the code an unreadable file can invent) and
- *     `implicatedBy` reads it per finding; this is that answer for a whole
- *     report, and it is the one partition of a verdict there is.
+ *   - {@link blamed} — which files a finding BREAKS, filed under them. The
+ *     per-finding answer is `./errors.ts`'s (`blamedOn`, the plane
+ *     `implicatedBy` is the other of); this is that answer for a whole report,
+ *     and it is the one partition of a verdict there is.
  *   - {@link admits} — how a REFUSAL is read, and it is per file. Its
  *     answer has no whole-set member: there is no way to spell "the set is
  *     invalid, so no" at a write, only "`lanes.olai` is what stops this", which
  *     is what makes the freeze unspellable through this socket rather than
  *     merely fixed at one call site.
+ *   - {@link darkened} — which files a write took off the screen that were ON
+ *     it. Not a second gate question: it is the rest of the LIST the one above
+ *     is asked over, since a write is answerable for the files it puts down
+ *     and for the ones it just put out.
  *   - {@link summaryOf} — a BOUNDED per-file face any surface may draw, off
  *     the per-file entries {@link blamed} files. The banner draws this; the
  *     enumeration stays where a reader asked for it.
@@ -70,7 +73,7 @@
 
 import { Schema } from "effect"
 
-import { type BrokenFile, implicatedBy, OutlineError, stageOf } from "./errors.ts"
+import { blamedOn, type BrokenFile, OutlineError, stageOf } from "./errors.ts"
 import { byPath } from "./paths.ts"
 
 /**
@@ -189,6 +192,48 @@ export const admits = (
   return ADMITTED
 }
 
+/**
+ * WHICH FILES A WRITE PUT OUT — the files this set holds no content for that
+ * the standing one was still holding.
+ *
+ * NOT A SECOND GATE QUESTION, which is the whole of why this answers with paths
+ * rather than with an {@link Admission}. "Is anything wrong with these files"
+ * has one asker and one answer shape above; what #441's per-file publishing
+ * left unasked is not a different question but a longer LIST — a write is
+ * answerable for the files it puts down AND for the files it just took off the
+ * screen, and moving a `ref` variant out of the root its declaration names
+ * takes a third file the write never opened. So the gate widens its ask by
+ * this ({@link ./set.ts}'s `stopping`), and #439's law — an ops write must
+ * never mint a state the next load refuses, even where the findings sit on
+ * files it did not write — is back without a second scan to keep in step.
+ *
+ * IT IS A DIFFERENCE AND NOT A STATE, which is how it keeps
+ * `broken-file-blocks-healthy-writes` closed. A file that was dark before this
+ * write is not this write's, however dark it is afterwards: it is already off
+ * every page and already refusing its own writes, and turning back an
+ * unrelated write over it is exactly the freeze the per-file ruling took down.
+ *
+ * PER FILE AND NOT PER ROW, for the same reason: a write that adds a seventh
+ * finding to a file already carrying six changes nothing a reader can see, and
+ * comparing rows would make every already-broken file a wall again, one row at
+ * a time. What a person can see is a file LEAVING THE SCREEN.
+ *
+ * WHAT "BROKEN" MEANS is not decided here — an entry is a file the set holds a
+ * place for and no content ({@link ./set.ts}'s `brokenIn`), and the one place
+ * that reads rows off an entry is {@link admits}, which this list is handed to.
+ * A second guard here would be a second reading of the same fact.
+ *
+ * IN PATH ORDER, the order `blamed` filed them in and the order the sidebar
+ * reads down.
+ */
+export const darkened = (
+  standing: ReadonlyArray<BrokenFile>,
+  broken: ReadonlyArray<BrokenFile>,
+): ReadonlyArray<string> =>
+  broken
+    .filter((entry) => !standing.some((was) => was.file === entry.file))
+    .map((entry) => entry.file)
+
 // ── the bounded face ────────────────────────────────────────────────────
 
 /** What is the matter with one file, as one word. `unreadable` is the disk
@@ -289,18 +334,34 @@ const stateOf = (rows: ReadonlyArray<OutlineError>): FileState => {
  * not "does this refuse" but "which files does this take off the screen" — and
  * that is a partition of the report rather than a policy over it.
  *
- * WHICH FILES ONE FINDING BREAKS is {@link implicatedBy} — the file it was
- * found in, plus every place it names as related — and that is deliberately the
- * SAME axis the write gate and the summary read, rather than a second, narrower
- * one written for loading. A finding that names two files is a finding about
- * the RELATIONSHIP between them, and the error view has said since it was
- * written that "which file is broken" then has no single answer
- * (`./errors.ts`'s `isCrossFile`). Two files that both claim `boxes` are two
- * files nobody can draw the second of; a cycle that closes through three is
- * three. Blaming one end would put a page on screen whose records the validator
- * has just refused, and picking WHICH end is the guess the report itself
- * declines to make. So both ends go dark, both ends carry the same row, and
- * the reader reaches the fix from wherever they were standing.
+ * WHICH FILES ONE FINDING BREAKS is the file it was found in, plus every
+ * related site that did not say otherwise — the FILED-ON plane of
+ * `./errors.ts`'s two (`blamedOn`), where the ABOUT plane (`implicatedBy`)
+ * reaches every named site unfiltered and stays that way for the readers whose
+ * question really is "which files is this finding about at all" (the drift
+ * check `@olai/ops` pays at a refusal is the one that needs the judge).
+ *
+ * A finding whose second site SHARES THE FAULT breaks both, and that is most
+ * of them: two files that both claim `boxes` are two files nobody can draw the
+ * second of, and a cycle that closes through three is three. "Which file is
+ * broken" has no single answer there (`./errors.ts`'s `isCrossFile`) — blaming
+ * one end would put a page on screen whose records the validator has just
+ * refused, and picking WHICH end is the guess the report itself declines to
+ * make. So both ends go dark, both carry the same row, and the reader reaches
+ * the fix from wherever they were standing.
+ *
+ * A finding whose second site is NAMED AND NOT AT FAULT breaks one, and there
+ * are two shapes of it: the judgement's ground (`bad-prop`'s declaration —
+ * the judge is named so the fixer knows who said no) and the thing a broken
+ * record REACHED AT (`foreign-parent`'s parent — the file that declares it
+ * did nothing but be pointed at, and the edit that fixes the finding is in
+ * the file holding the `parent`). Darkening those was
+ * `broken-file-blocks-healthy-writes` re-entering through the blame axis: a
+ * file that is nobody's fault went errors-only and stopped accepting writes.
+ * The rule that makes the finding is what knows which kind of site it just
+ * named, and says so on the site ({@link ./errors.ts}'s `Related.broken`) —
+ * one axis over the rows every reader already draws, rather than a per-code
+ * table beside them that can come to disagree with what the rows say.
  *
  * A WITHHELD FINDING BREAKS NOTHING, and it is what closes the cold-boot
  * incident. This is asked of the REPORT (`./rules.ts`'s `reportOf`) and not of
@@ -317,21 +378,12 @@ export const blamed = (
 ): ReadonlyArray<BrokenFile> => {
   const files = new Map<string, Array<OutlineError>>()
   for (const finding of report) {
-    // The site it was FILED ON, always. The related sites, USUALLY — the one
-    // the two-plane ruling already draws the exception for: a site the
-    // finding NAMES but does not break is the judging ground it stands on
-    // (`./errors.ts`'s `Related.broken`), and pulling THAT file's page dark
-    // would be the broken-file-blocks-healthy-writes sentence said through
-    // the loader's mouth instead of the gate's. A cycle's steps say nothing
-    // and are the common case: every named site breaks.
-    //
-    // `.some` and not `.find`'s first answer: one file named twice — once as
-    // ground, once as broken — is dark, whichever order the rows came in.
-    const darkened = implicatedBy(finding).filter((file) =>
-      file === finding.file ||
-      (finding.related ?? []).some((one) => one.file === file && one.broken !== false)
-    )
-    for (const file of darkened) {
+    // WHICH FILES THIS ONE BREAKS is `./errors.ts`'s own answer
+    // ({@link blamedOn}) and not a reading spelled here: the field it turns
+    // on is declared there, two codes ride it, and the error view groups by
+    // the same plane — a filing that read `Related.broken` itself would be
+    // the copy free to disagree.
+    for (const file of blamedOn(finding)) {
       const rows = files.get(file)
       if (rows === undefined) files.set(file, [finding])
       else rows.push(finding)

@@ -720,12 +720,22 @@ export const make = <F, S, E>(
            * either way — this package knows what a path is and nothing about
            * what is wrong with one. Absent, the answer is the sentence that
            * stood before any of this: a refusal refuses, a success admits.
+           *
+           * AND WHAT WAS STANDING goes across with it, which is the third
+           * argument. The candidate alone cannot say whether a file is broken
+           * BECAUSE of this write or was broken before it was asked for, and
+           * that difference is the difference between "this write took a file
+           * off the screen" and "one broken file freezes the directory". The
+           * store is what holds the last published value; only the codec can
+           * read it. It travels as it stands — nothing here looks inside — and
+           * `current` is non-null by the staleness check at the top of this
+           * gate.
            */
           const paths = write.changes.map((change) => change.path)
           const refused = Result.isFailure(judged.outcome) ? judged.outcome.failure : null
           const stopped = options.codec.stopping === undefined
             ? refused
-            : options.codec.stopping(judged.outcome, paths)
+            : options.codec.stopping(judged.outcome, paths, current.value)
           if (stopped !== null) return Result.fail(stopped)
           /**
            * AND THE SECOND THING that has to be true for bytes to land over a
@@ -737,12 +747,23 @@ export const make = <F, S, E>(
            * TWO THINGS, and the first is #439's: the directory has to ALREADY
            * not be loading. The errors channel has to be carrying a verdict
            * from a PROBE rather than from this candidate, because a write from
-           * a loading directory that produces a refused set caused that refusal
-           * — a declaration that newly fences values in files it does not
-           * write, a move of a `ref` variant that strands values in a third
-           * file — and `stopping` cannot see that, since it is handed the
-           * candidate and not the history. It is this package's own
-           * bookkeeping, like the second.
+           * a loading directory that produces a refused set is a write that
+           * caused that refusal. It is this package's own bookkeeping, like the
+           * second.
+           *
+           * IT IS NOT WHERE "THIS WRITE BROKE A FILE IT DID NOT WRITE" IS
+           * ANSWERED, and it used to be. That question — a declaration that
+           * newly fences values in files it does not write, a move of a `ref`
+           * variant that strands values in a third file — is the STOPPING ask
+           * twenty lines above, which is handed the standing value precisely so
+           * a codec can tell what this write darkened from what was already
+           * dark. A codec that answers it never arrives here on those shapes:
+           * `stopping` returned first.
+           *
+           * WHAT IS LEFT FOR THIS CLAUSE is a codec that still refuses the
+           * whole set, which is the only kind that reaches a refusal the ask
+           * above did not already speak for. For olai's that is a directory
+           * it could not list.
            *
            * `moved` is what the check reads. It holds every path re-decoded or
            * removed since the last PUBLISHED revision, which is empty whenever
