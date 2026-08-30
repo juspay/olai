@@ -529,12 +529,20 @@ export const make = (options: Options): Ops => {
            * actually holds.
            *
            * ONCE, per write ({@link REPAIRS}). A retry that HEALS and still
-           * refuses keeps its round and answers the refusal it was just
-           * handed — the fresh one, reached against the resynced set — rather
-           * than paying for another look. The failure of the LOOK says the
-           * same thing: a disk that cannot be re-read, or one that agrees
-           * with the set after all, is not a write problem, and the refusal
-           * below is already the honest sentence for both.
+           * refuses answers the refusal it was just handed — the fresh one,
+           * reached against the resynced set — rather than paying for another
+           * look. The failure of the LOOK says the same thing: a disk that
+           * cannot be re-read, or one that agrees with the set after all, is
+           * not a write problem, and the refusal below is already the honest
+           * sentence for both.
+           *
+           * The retry OWNS the round it interrupts rather than spending one:
+           * `ROUNDS` is the budget for LOST RACES between two writers, and a
+           * repair is neither of those — nothing was writing continuously,
+           * the set was stale. Letting the `continue` walk off the loop's
+           * end would answer the caller with `BusyFailure` about a flood
+           * that never happened, and the resync already PAID for one more
+           * attempt: the refund below is the loop counter saying so.
            *
            * THE CHECK BEFORE THE DOOR is the ordering the costs argue: a
            * resync on every refusal would re-read the directory for every
@@ -551,7 +559,14 @@ export const make = (options: Options): Ops => {
             if (Result.isSuccess(drift) && drift.success.length > 0) {
               repairs -= 1
               const resynced = yield* Effect.result(options.store.refresh("verified"))
-              if (Result.isSuccess(resynced)) continue
+              if (Result.isSuccess(resynced)) {
+                // The refund above, payable exactly once per write: the
+                // repair budget is already spent, so the counter cannot be
+                // made to owe a second extra attempt no matter how often the
+                // refusal below recurs.
+                round--
+                continue
+              }
             }
           }
           const admission = admits(written.failure, paths)
