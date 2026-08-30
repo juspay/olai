@@ -75,7 +75,12 @@ interface Fixture {
 
 const withOps = <A>(
   files: Readonly<Record<string, string>>,
-  use: (fixture: Fixture) => Effect.Effect<A, never>,
+  // `unknown`, because a test yields whatever it needs to: the direct store
+  // calls some of these make fail with `PlatformFailure` on a tired disk, and
+  // a test that fails is a failing test whichever channel it came out of —
+  // enumerating them here would be a list to maintain. Matches
+  // `@olai/store`'s own fixture.
+  use: (fixture: Fixture) => Effect.Effect<A, unknown>,
   options: {
     readonly git?: boolean
     readonly realClock?: boolean
@@ -559,6 +564,22 @@ const DECLARE_PR_DATE =
   `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"date"}}\n`
 
 /**
+ * The store's byte check, wrapped so a test can name EXACTLY what a refusal
+ * asked it. The drift question's whole correctness is its set of paths —
+ * one the verdict forgot is a refusal that never heals — and the shape of
+ * the set cannot be read back out of what lands on disk.
+ */
+const watchingDrift = (fixture: Fixture): ReadonlyArray<ReadonlyArray<string>> => {
+  const asked: Array<ReadonlyArray<string>> = []
+  const original = fixture.store.drifted
+  ;(fixture.store as { drifted: typeof original }).drifted = (paths) => {
+    asked.push([...paths])
+    return original(paths)
+  }
+  return asked
+}
+
+/**
  * Put the file down the way `git rebase` leaves it: different bytes at the
  * same length and the SAME stamp the loaded set was read at, so no probe
  * anything the store runs on its way into a write can see it.
@@ -586,8 +607,14 @@ test("the rebase shape: a write refused over a stale set heals, and lands", () =
       // …and the first write through the gate REFUSES — the write's own file
       // is the one the verdict names — and then the set heals and the write
       // lands, all inside the one call.
+      const asked = watchingDrift(fixture)
       const applied = yield* run(fixture, { op: "done", id: "the-plan" })
       expect(applied).toMatchObject({ id: "the-plan", file: "plan.olai" })
+      // THE EXACT SHAPE the check is asked with: the write's one file, then
+      // every file ANY finding names in the verdict's own path order —
+      // `reportPropValues`'s related site is what the declarations tells the
+      // ASKs about.
+      expect(asked).toEqual([["plan.olai", "_olai/Properties.olai", "plan.olai"]])
 
       // The caller was never told there was anything to heal.
       expect(fixture.refusals).toEqual([])
@@ -659,6 +686,38 @@ test("a refusal the disk AGREES with heals nothing and changes nothing", () =>
       expect((yield* Effect.map(fixture.store.read("cheap"), (aged) => aged.snapshot))?.rev)
         .toBe(1)
       expect(fixture.read("plan.olai")).toBe(PLAN_STILL_BAD)
+    })))
+
+// The refund: a repair consumes its ONE repair, not one of the five rounds
+// — without it, four lost races before this write would leave the round the
+// arm `continue`s out of the loop entirely, and the caller would hear
+// `BusyFailure` about a flood that never happened. The pin: the writes the
+// refund protects LAND rather than running out of rounds.
+test("a repair refunds its round — the five lost races before it are not the repair's spending", () =>
+  withOps({ "plan.olai": PLAN_BEFORE }, (fixture) =>
+    Effect.gen(function*() {
+      // The rebase shape: declarations visible, content invisible — the
+      // verdict's stale half and the write's plan-file are the same file.
+      fixture.write("_olai/Properties.olai", DECLARE_PR_DATE)
+      replaceBehindTheStamps(fixture.root, "plan.olai", PLAN_AFTER)
+
+      // FOUR lost races first, right up against the repair budget's
+      // own count of five: the store tells this write somebody else
+      // wrote first, four times over, and the FIFTH attempt is the one
+      // that reaches the gate's actual verdict — the stale-set refusal.
+      const committed = fixture.store.commit
+      let faking = 4
+      ;(fixture.store as { commit: typeof committed }).commit = (write) =>
+        faking-- > 0
+          ? Effect.fail(
+            new Store.StaleWrite({ baseRev: write.baseRev, currentRev: write.baseRev + 1 }),
+          )
+          : committed(write)
+
+      const applied = yield* run(fixture, { op: "done", id: "the-plan" })
+      expect(applied).toMatchObject({ id: "the-plan" })
+      expect(fixture.refusals).toEqual([])
+      expect(fixture.read("plan.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
     })))
 
 /**
