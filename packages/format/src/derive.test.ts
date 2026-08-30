@@ -1454,6 +1454,63 @@ test("hiding leaves the rows it was given alone", () => {
   expect(shape(rows)).toEqual(before)
 })
 
+// The landing's reservation: a kept PLACE walks past the sweep, but the sweep
+// keeps asking the question of everything under and beside it — the courtesy
+// is the path, not the page.
+test("a kept place is drawn — and nothing the path did not name comes back with it", () => {
+  const rows = rowsOf(derive(nodesOf(HOUSEWORK)), FIXTURE_FILE)
+  const keep = new Set([rows[0]!.children[0]!.key]) // /kitchen/demo
+  expect(shape(withoutDone(rows, keep))).toEqual([
+    "/kitchen node",
+    "/kitchen/demo node",
+    "/kitchen/install node",
+    "/kitchen/install/handles node",
+  ])
+  // A key nothing drew keeps nothing: the sweep answers only places it meets.
+  expect(shape(withoutDone(rows, new Set(["nobody/home"])))).toEqual(
+    shape(withoutDone(rows)),
+  )
+})
+
+test("a kept DONE ANCESTOR re-asks the question of every child — done children under it stay hidden", () => {
+  const rows = rowsOf(
+    derive(
+      nodesOf(
+        `{"id":"finished","ord":"a0","title":"finished","done":"2026-08-10"}\n` +
+          `{"id":"one","parent":"finished","ord":"a0","title":"one","done":true}\n` +
+          `{"id":"two","parent":"finished","ord":"a1","title":"two","doing":true}`,
+      ),
+    ),
+    FIXTURE_FILE,
+  )
+  const keep = new Set([rows[0]!.key, rows[0]!.children[1]!.key]) // /finished, /finished/two
+  // The whole branch used to go with the parent; the path re-opens exactly
+  // the two places the address named — the done sibling stays hidden.
+  expect(shape(withoutDone(rows, keep))).toEqual([
+    "/finished node",
+    "/finished/two node",
+  ])
+})
+
+test("the reservation is keyed on the PLACE — a kept node leaves its other mirrors hidden", () => {
+  const rows = rowsOf(
+    derive(nodesOfFiles({
+      "a.olai": `{"id":"finished","ord":"a","title":"finished","done":"2026-08-11"}\n` +
+        `{"id":"open","ord":"b","title":"open","doing":true}`,
+      "b.olai": `{"id":"m-finished","ord":"a","mirror":"finished"}\n` +
+        `{"id":"m-open","ord":"b","mirror":"open"}`,
+    })),
+    "b.olai",
+  )
+  // The mirror's place key is the half of the name the landing scrolled to;
+  // keeping IT draws the mirror back — and says nothing about any other place
+  // the same node would stand.
+  expect(shape(withoutDone(rows, new Set([rows[0]!.key])))).toEqual([
+    "/m-finished mirror",
+    "/m-open mirror",
+  ])
+})
+
 // ── titles ─────────────────────────────────────────────────────────────
 
 /** The tags of a title AS WRITTEN, in reading order — what a filter runs on,

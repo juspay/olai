@@ -149,10 +149,70 @@ test("no answer from the set is no answer yet — nothing concluded", () => {
   expect(aim([line("kitchen", "the kitchen")], "repair", () => undefined)).toEqual({ kind: "ask" })
 })
 
+// ── the reveal: the row is here and the done pick hides it ─────────────
+
+test("the drawn rows saying nothing while the WHOLE page answers is the reveal", () => {
+  // `demo` is done: the drawn page drops it, the whole page keeps it. The
+  // reveal carries the chain in the reading's own shape, root-down — the
+  // ancestor the pick never took rides along, since drawing the row back
+  // needs every place on the way spared of the sweep.
+  const whole = [
+    line("kitchen", "the kitchen", [
+      line("demo", "take out the old counters"),
+      line("order", "order the new cabinets"),
+    ]),
+  ]
+  const rows = [line("kitchen", "the kitchen", [line("order", "order the new cabinets")])]
+  // The set IS asked first, as ever — the drawn rows answered nothing and a
+  // placement elsewhere might need resolving; its answer for a plain node id
+  // is the id itself, and the whole page is where the chain is then found.
+  const answer = aim(rows, "demo", (asked) => asked, whole)
+  expect(answer.kind).toBe("reveal")
+  if (answer.kind !== "reveal") return
+  expect(answer.chain.map((row) => row.key)).toEqual(["kitchen", "demo"])
+})
+
+test("a done-hidden MIRROR the address spells is revealed as its own place", () => {
+  // The placement half of the reveal: `m7` is a mirror of `beds`, both done
+  // on the pick; the id spells the place and the place is the answer.
+  const whole = [
+    line("garden-row", "about the garden", [placementOf("beds", "the garden beds", 7)]),
+  ]
+  const answer = aim([], "m7", () => "beds", whole)
+  expect(answer.kind).toBe("reveal")
+  if (answer.kind !== "reveal") return
+  expect(answer.chain.map((row) => row.key)).toEqual(["garden-row", "m7"])
+})
+
+test("a done-hidden TARGET of a spelled placement is revealed the way a drawn one would land", () => {
+  // `m9` is written nowhere this page draws: the set resolves it to `beds`,
+  // and the whole page is where the target's chain is found — the same
+  // first-match rule, one prune earlier.
+  const whole = [
+    line("garden-row", "about the garden", [placementOf("beds", "the garden beds", 7)]),
+    line("beds", "the garden beds"),
+  ]
+  const answer = aim([], "m9", () => "beds", whole)
+  expect(answer.kind).toBe("reveal")
+  if (answer.kind !== "reveal") return
+  expect(answer.chain.map((row) => row.key)).toEqual(["garden-row", "m7"])
+})
+
+test("the reveal is never a guess: the whole page answering nothing is still the certain miss", () => {
+  // `glazing` is a real node — in the file NEXT DOOR: no reading of this
+  // page draws it, revealed or not. And the reveal is never asked at all
+  // where the caller gates it away: the same id under a filter's typed
+  // question gets the miss's own words, reveal or no reveal.
+  const whole = [line("kitchen", "the kitchen")]
+  expect(aim([], "glazing", () => "glazing", whole)).toEqual({ kind: "miss", target: "glazing" })
+  expect(aim([], "glazing", () => "glazing")).toEqual({ kind: "miss", target: "glazing" })
+})
+
 test("the set's answer changing nothing is the certain miss, carrying WHICH half", () => {
   const rows = [line("kitchen", "the kitchen")]
-  // Declared by the set — a node in a file this page is not, or the row of
-  // a DONE node this reading hides: the miss answers WHICH page it is.
+  // Declared by the set — a node in a file this page is not (a DONE row the
+  // pick hides is the reveal's business, one door down): the miss answers
+  // WHICH page it is.
   expect(aim(rows, "m9", () => "repair")).toEqual({ kind: "miss", target: "repair" })
   // Declared by nothing.
   expect(aim(rows, "repair", () => null)).toEqual({ kind: "miss", target: null })

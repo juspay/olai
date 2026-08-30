@@ -34,13 +34,26 @@
  *     removes the entry the same way, ranked after everything it was unioned
  *     with, so a page goes back to following the panel.
  *
+ * A THIRD projection, and the one that is a READING rather than a fact: THE
+ * LANDING'S REVEAL. A landing whose row EXISTS on the page but is hidden by
+ * the pick is owed it anyway (`../fold/landing.ts`'s reveal arm — the same
+ * courtesy the act pays a collapsed ancestor), so the places on the way to
+ * it are kept out of the sweep FOR THE VISIT: one entry per file, in this
+ * tab, NEVER STORED. The default and the out-vote are the reader's two
+ * standing claims and a landing mints neither — the flip's strip and its `·`
+ * stand exactly as the reader left them. A file's reveal is replaced by its
+ * next landing and taken down when the page it was owed on leaves its pane —
+ * and deliberately NOT on a timer: the row it draws back is the row somebody
+ * was SENT, and a marker that expires while the reader is looking at it is
+ * `../focus.ts`'s refused place-marker, one abstraction up.
+ *
  * The talk page is the archive's `done-over-open-work.md` and the design
  * revision that made this two facts: the panel is still global; the page
  * itself holds the exception.
  */
 
 import { withoutDone } from "@olai/format"
-import type { Accessor } from "solid-js"
+import { type Accessor, createSignal } from "solid-js"
 
 import type { Shown } from "@olai/format"
 
@@ -139,6 +152,53 @@ export const letDoneFollow = (file: string): void => {
 }
 
 /**
+ * THE REVEAL's table: the places a landing asked this page to keep drawn,
+ * per file — `visibleIn` reads it the way it reads the pick, so the one door
+ * the page composition asks stays one door.
+ */
+const [revealed, setRevealed] = createSignal<
+  ReadonlyMap<string, ReadonlySet<string>>
+>(new Map())
+
+/** The places the pick's sweep spares on `file`, or nothing. */
+export const landingReveal = (file: string): ReadonlySet<string> | undefined =>
+  revealed().get(file)
+
+/**
+ * The landing's write: keep these places drawn on `file` for the visit —
+ * REPLACING the file's last reveal, one outstanding arrival per page the way
+ * `../focus.ts` holds one pointed row per app. Nothing is stored: both
+ * halves of the pick answer to the reader alone, so this says nothing to
+ * them. Same keys, no write: a published revision re-asks the landing, and
+ * the answer it already spent must not spend the page's memos again.
+ */
+export const revealDone = (file: string, keys: ReadonlySet<string>): void => {
+  const standing = revealed().get(file)
+  if (
+    standing !== undefined && standing.size === keys.size &&
+    [...keys].every((key) => standing.has(key))
+  ) {
+    return
+  }
+  setRevealed((before) => new Map(before).set(file, keys))
+}
+
+/**
+ * The reveal's release — the page it was owed on leaving its pane, or the
+ * file's next landing re-asking. KEYED ON THE VERY SET handed in: a sibling
+ * pane that revealed this file after we did keeps its answer, the way the
+ * folds' own map keeps a fresher sibling's word.
+ */
+export const concealDone = (file: string, keys: ReadonlySet<string>): void => {
+  if (revealed().get(file) !== keys) return
+  setRevealed((before) => {
+    const next = new Map(before)
+    next.delete(file)
+    return next
+  })
+}
+
+/**
  * WHICH PAGE is the pick about — the flip's label and the guard against the
  * done preference reaching a page it was never about.
  *
@@ -172,6 +232,11 @@ export const pageFileOf = (page: Shown | undefined): string | undefined => {
  * wraps there (a tree with no file to be about) and is not pruned: the
  * default the row holds is not the thing such a page says.
  *
+ * The LANDING's reveal rides the same sweep as `keep` — places spared rather
+ * than rows forgiven: the pick still SAYS what the reader left it saying,
+ * and the kept chain is the one spelling of "except this, for the visit"
+ * the page knows.
+ *
  * THE EDGE IS WHERE THE PAGE SAYS WHAT THE PAGE IS (../filter/narrowing.ts's
  * split of what a page holds from what it draws): here, "which pages is the
  * default answering for"; there, "which rows of the answer show through".
@@ -183,7 +248,7 @@ export const visibleIn = (
 ): Drawn => {
   if (file === undefined || drawn.kind !== "tree") return drawn
   if (doneHiddenOn(file))
-    return { ...drawn, rows: withoutDone(drawn.rows) }
+    return { ...drawn, rows: withoutDone(drawn.rows, landingReveal(file)) }
   return drawn
 }
 

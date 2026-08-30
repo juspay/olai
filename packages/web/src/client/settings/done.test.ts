@@ -21,12 +21,15 @@ import { expect, test } from "bun:test"
 import { remembering } from "../preference.testlib.ts"
 
 import {
+  concealDone,
   doneHidden,
   doneHiddenOn,
   doneOverride,
   DONE_OVERRIDES_KEY,
+  landingReveal,
   letDoneFollow,
   pageFileOf,
+  revealDone,
   setDoneFor,
   setDoneHidden,
   visibleIn,
@@ -197,6 +200,59 @@ test("the rows a page draws: done out when hiding, the same array when showing",
     // zero (../filter/narrowing.ts), so showing must hand the value back
     // rather than rewrap it.
     expect(visibleIn(drawn, "house.olai")).toBe(drawn)
+  })
+})
+
+// ── the landing's reveal: the pick's sweep, with the owed places spared ──
+
+test("a reveal spares the owed places and leaves the pick's word untouched", () => {
+  remembering((store) => {
+    quiet()
+    const drawn = { kind: "tree" as const, rows: house.rows }
+    const demo = house.rows[0]!.children[0]!
+    const owed = new Set([demo.key])
+    revealDone("house.olai", owed)
+    const shown = visibleIn(drawn, "house.olai")
+    // `demo` is the landing's row: back — and storing NOTHING about it: the
+    // reveal is a visiting answer and the answers to the two questions the
+    // flip asks are exactly as they were.
+    expect(shown).not.toBe(drawn)
+    expect(shown.kind === "tree" && shown.rows[0]?.children.length).toBe(1)
+    expect(doneOverride("house.olai")).toBeUndefined()
+    expect(store.has(DONE_OVERRIDES_KEY)).toBe(false)
+    concealDone("house.olai", owed)
+  })
+})
+
+test("the reveal spares nothing the pick does not take: a showing page draws identically", () => {
+  remembering(() => {
+    quiet()
+    setDoneFor("house.olai", "shown")
+    const drawn = { kind: "tree" as const, rows: house.rows }
+    const owed = new Set([house.rows[0]!.children[0]!.key])
+    revealDone("house.olai", owed)
+    // THE IDENTITY CONTRACT, held for the reveal too: the sweep only ever
+    // runs where the pick prunes, and extra keep under a showing pick is
+    // dead weight the answer must not take the shape of.
+    expect(visibleIn(drawn, "house.olai")).toBe(drawn)
+    concealDone("house.olai", owed)
+  })
+})
+
+test("the file's next landing replaces the reveal; the release asks for THE VERY SET it let go", () => {
+  remembering(() => {
+    quiet()
+    const first = new Set(["a"])
+    const second = new Set(["b"])
+    revealDone("house.olai", first)
+    revealDone("house.olai", second)
+    expect(landingReveal("house.olai")).toBe(second)
+    // THE KEYED ANSWER: concealing with the OLD set is not the release — a
+    // sibling pane's fresher reveal is not this one's to take down.
+    concealDone("house.olai", first)
+    expect(landingReveal("house.olai")).toBe(second)
+    concealDone("house.olai", second)
+    expect(landingReveal("house.olai")).toBeUndefined()
   })
 })
 

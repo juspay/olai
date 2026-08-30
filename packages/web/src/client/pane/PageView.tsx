@@ -277,7 +277,7 @@ export function PageView() {
                   <OutlinePage
                     file={outline().file}
                     rows={rows()}
-                    holds={only(allDrawn(), "tree")?.rows.length ?? 0}
+                    held={only(allDrawn(), "tree")?.rows ?? []}
                   />
                 )}
               </Match>
