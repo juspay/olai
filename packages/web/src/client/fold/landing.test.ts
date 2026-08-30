@@ -11,7 +11,18 @@
 import { type Row, shownRecord } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { aim, chainTo, missedSays, shutAlong } from "./landing.ts"
+import { aim, missedSays, shutAlong } from "./landing.ts"
+
+/** The landing's LOCAL half, put back together for the tests that pin it:
+ *  `chainTo` is the arithmetic's own business now — nothing calls it but
+ *  {@link aim} — so what shines through is the chain arm with the set made
+ *  a question that has not been answered. Nothing below spoke of export
+ *  shapes; every old `chainTo` assertion is the same page asking the same
+ *  thing, one door in. */
+const chainTo = (rows: ReadonlyArray<Row>, id: string): ReadonlyArray<Row> | undefined => {
+  const answer = aim(rows, id, () => undefined)
+  return answer.kind === "chain" ? answer.chain : undefined
+}
 
 const line = (id: string, title: string, children: ReadonlyArray<Row> = []): Row => ({
   at: { file: "house.olai", line: 1, node: { id, ord: "a0", title } },

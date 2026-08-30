@@ -87,8 +87,12 @@ import { type Fold, foldOf } from "./rows.ts"
  * reading, which holds a row under a collapsed ancestor as surely as any
  * other (the memory prunes the DRAW, `../Tree.tsx`), so the row an address
  * named is findable exactly where `shutAlong` can name what hides it.
+ *
+ * The act's own business now: {@link aim} is the question the act asks, and
+ * this is its local half — nothing on a page-wide landing needs the page's
+ * answer without the set's folded in beside it.
  */
-export const chainTo = (
+const chainTo = (
   rows: ReadonlyArray<Row>,
   id: string,
 ): ReadonlyArray<Row> | undefined => {
