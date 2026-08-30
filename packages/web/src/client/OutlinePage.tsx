@@ -172,9 +172,17 @@ export function OutlinePage(props: {
       declared.want([at])
       // The ask may never arrive even on a live socket — and then the
       // pre-landing silence comes back exactly where the sentence promises
-      // it cannot: the failure is said in the voice too, once per
-      // stretch, while the re-ask goes on with each revision the way the
-      // door rules it. It is NOT the miss: nothing has ruled the id out.
+      // it cannot: the failure is said in the voice too, once per stretch.
+      // It is NOT the miss: nothing has ruled the id out.
+      //
+      // And the `want` above is NOT a retry of it: a want ridden on the
+      // very failure finds the id still inside the door's own `asking` —
+      // cleared only after the promise settles — so the re-ask that
+      // happens is the next revision's, incidental as the spans',
+      // (`./chat/declared.ts` rules its own span re-asks no sooner). A
+      // REAL retry policy would be the door's to grow, for every scope at
+      // once — this page's contract is only that the ask's loss never goes
+      // untold, which the line above pays in full.
       if (lost().has(at) && owing.said !== "failure") {
         owing.said = "failure"
         saying.say({ tone: "alarm", text: failedSays(at) })

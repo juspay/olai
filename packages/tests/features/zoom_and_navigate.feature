@@ -246,13 +246,20 @@ Feature: Zoom and navigate
     And the landing's sentence has gone
     And there should be no page errors
 
-  Scenario: The sentence belongs to its page -- a navigation takes it down
+  Scenario: The sentence belongs to its page -- an in-page navigation takes it down
     # The notice and its page used to be keyable apart: the line minted for
     # one file could ride its six seconds over the next page's tree, the
-    # wrong-attribution half of the same ruling. A stretch of owing ends at
-    # the boundary — and the answer it had just said goes with it.
+    # wrong-attribution half of the same ruling. The door OUT of the page
+    # matters just as much as the bound: a fresh GOTO would throw the line
+    # overboard with the whole document and ask nothing of the boundary, so
+    # it goes the SPA way — a directory click, the drawer's own link — the
+    # component stays, and only the stretch's own ending may answer.
     When I open the address "/house.olai#no-such-row"
-    Then the landing says "no-such-row — nothing by that name is drawn on this page"
-    When I open the address "/garden.olai"
-    Then the landing's sentence has gone
+    Then the tree is shown
+    And the landing says "no-such-row — nothing by that name is drawn on this page"
+    When I click the outline "garden.olai"
+    # BOUNDED under the line's own six seconds, or the dead-miss step above
+    # would ask this no question at all: BY the boundary is the claim here,
+    # not BY the clock as it was up there (the review's own fence-ruling).
+    Then the landing's sentence has gone with its page
     And there should be no page errors

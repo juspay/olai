@@ -83,11 +83,28 @@ Then("the landing says {string}", async function (this: OlaiWorld, said: string)
 /** …and that the line left: it is a notice, not a state. The budget is the
  *  poll's, which is comfortably longer than the six seconds a said line
  *  stays (`client/saying.ts`) — spelling the six here would be the client's
- *  constant written down twice. */
+ *  constant written down twice, and a boundary-step's claim is again 
+ *  different (the line leaves WITH the page, not with the clock), which is
+ *  the next one's. */
 Then("the landing's sentence has gone", async function (this: OlaiWorld) {
   await this.waitUntil(
     async () => (await this.page.locator(LANDING_SAID).count()) === 0,
     "the landing's said line to take itself away",
+  );
+});
+
+/** …gone WITH ITS PAGE, the boundary scenario's fence: the poll's own six
+ *  second pass would ask nothing of the boundary at all — the line answers
+ *  its own SAID_MS in that window, and the scenario would pass for the very
+ *  reason it exists. The budget is comfortably under six: one second —
+ *  "gone" within it can be had ONLY from the boundary's `saying.say(null)`
+ *  answering (`client/OutlinePage.tsx`), which is the living half this is
+ *  here to watch. */
+Then("the landing's sentence has gone with its page", async function (this: OlaiWorld) {
+  await this.waitUntil(
+    async () => (await this.page.locator(LANDING_SAID).count()) === 0,
+    "the landing's said line to leave with the page it was said for, well before its own clock would have",
+    1_000,
   );
 });
 
