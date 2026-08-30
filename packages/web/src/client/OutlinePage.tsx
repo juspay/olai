@@ -11,7 +11,10 @@
  * row is a place in the tree, not an element id — and the address may name
  * one inside a branch this reader has folded, which the tree answers with its
  * own expand vocabulary (`./fold/landing.ts` argues why expanding beats
- * pointing at the nearest visible ancestor).
+ * pointing at the nearest visible ancestor) — or one hidden by the page's own
+ * DONE PICK, which the same act answers with the pick's sweep spared for the
+ * places on the way: the reveal (`./settings/done.ts`), spent for the visit
+ * and never stored.
  */
 
 import { type Row, shownRecord } from "@olai/format"
@@ -29,6 +32,7 @@ import { bringOntoScreen, selectNode } from "./focus.ts"
 import { useHere, useLanding } from "./router.tsx"
 import { SaidLine } from "./SaidLine.tsx"
 import { createSaying } from "./saying.ts"
+import { concealDone, doneHiddenOn, revealDone } from "./settings/done.ts"
 import { TESTID } from "./testids.ts"
 import { Tree } from "./Tree.tsx"
 
@@ -38,12 +42,14 @@ export function OutlinePage(props: {
    *  put a first one after. */
   readonly file: string
   readonly rows: ReadonlyArray<Row>
-  /** How many rows the outline HOLDS before this page's pick — and any
-   *  filter — prunes any: what "the file really is empty" is asked of.
-   *  {@link props.rows} cannot answer it, since hidden finished work and a
-   *  filter both take rows out, and `hidden` is the DEFAULT now, so an empty
-   *  file and a fully-hidden one were about to be indistinguishable. */
-  readonly holds: number
+  /** The rows the outline HOLDS before this page's pick — and any filter —
+   *  prunes any. TWO answers ask this one value: whether the file really IS
+   *  empty ({@link props.rows} cannot say it, since hidden finished work and
+   *  a filter both take rows out, and `hidden` is the DEFAULT now, so an
+   *  empty file and a fully-hidden one were about to be indistinguishable),
+   *  and the landing's reveal question: the row an address named is findable
+   *  in the reading the pick prunes, and nowhere else. */
+  readonly held: ReadonlyArray<Row>
 }) {
   const narrowed = useNarrowed()
   const folds = createFoldReading()
@@ -160,16 +166,51 @@ export function OutlinePage(props: {
     readonly id: string | undefined
     said: undefined | "failure" | "miss"
   } = { file: undefined, id: undefined, said: undefined }
+  /** THE REVEAL this page's landing minted and that still stands: the SCOPE
+   *  is the answer `revealDone` answered with — the pane, the file and THE
+   *  VERY SET the table was asked to spare — keyed so the release reaches
+   *  exactly the entry the table still holds (`./settings/done.ts`). OUTSIDE
+   *  the stretch record on purpose: a PAID landing's reveal belongs to the
+   *  page the reader is READING, not to the arrival that put it there — it
+   *  outlives `owed` and dies with the page. */
+  let minted:
+    | { readonly file: string; readonly pane: number; readonly keys: ReadonlySet<string> }
+    | undefined
+  const conceal = (): void => {
+    if (minted !== undefined) {
+      concealDone(minted.file, minted.pane, minted.keys)
+      minted = undefined
+    }
+  }
+  onCleanup(conceal)
+  // The reveal's GATES are its law while it stands, not only when it mints:
+  // `aim` asks for the whole page only where BOTH hold, so neither a filter
+  // typed after the landing nor the reader's own flip of the pick may leave
+  // the courtesy running against the reader's words — the answer is taken
+  // down the moment the answer would have stopped existing.
+  createEffect(() => {
+    if (!(unfiltered(narrowed) && doneHiddenOn(props.file))) conceal()
+  })
   createEffect(() => {
     const at = landing.owed()
     if (at !== owing.id || props.file !== owing.file) {
       // The line belongs to the stretch that said it: the boundary takes
-      // it down, wherever that stretch's six seconds stand.
+      // it down, wherever that stretch's six seconds stand. The REVEAL goes
+      // with its page, or with the page being re-asked for a landing — and
+      // stays at a PAID landing's boundary (`at` then undefined the
+      // honourable way): the row somebody was brought to must not snap shut
+      // the moment they start reading it.
       if (owing.said !== undefined) saying.say(null)
+      if (props.file !== owing.file || at !== undefined) conceal()
       owing = { file: props.file, id: at, said: undefined }
     }
     if (at === undefined) return
-    const aimAt = aim(props.rows, at, declared.told)
+    // WHERE THE REVEAL MAY BE ASKED: the pick prunes this page, and nothing
+    // typed does — a filter on the page is the reader's own question, and
+    // the act writes nothing over it (the fold half's own discipline,
+    // `./fold/reading.ts`).
+    const whole = unfiltered(narrowed) && doneHiddenOn(props.file) ? props.held : undefined
+    const aimAt = aim(props.rows, at, declared.told, whole)
     if (aimAt.kind === "ask") {
       // ASK, and only then: a page that answers the id by itself never has
       // the `told` read — `aim` short-circuits on the chain before the set
@@ -198,6 +239,22 @@ export function OutlinePage(props: {
       if (owing.said !== "miss") {
         owing.said = "miss"
         saying.say({ tone: "alarm", text: missedSays(at, aimAt.target) })
+      }
+      return
+    }
+    if (aimAt.kind === "reveal") {
+      // The courtesy, spent: the row EXISTS here and the pick is what hides
+      // it — so the places on the way to it are kept out of the sweep, and
+      // the pick's two standing answers never hear about it. Said NOTHING:
+      // the row coming back IS the sentence — and the next pass of this
+      // effect finds the chain the ordinary way and pays the landing. And
+      // the token the release asks for is THE SET THE TABLE NOW HOLDS, so it
+      // is the write's answer that `minted` remembers, never the local copy.
+      const keys = new Set(aimAt.chain.map((row) => row.key))
+      minted = {
+        file: props.file,
+        pane: here(),
+        keys: revealDone(props.file, here(), keys),
       }
       return
     }
@@ -270,12 +327,12 @@ export function OutlinePage(props: {
         <Tree rows={props.rows} />
         {/* An outline that holds nothing still has to be startable, and a
             tree of no rows offers nowhere to press a key. Asked of the FILE
-            rather than of the reading (`holds`, above): rows can also be
+            rather than of the reading (`held`, above): rows can also be
             missing because this page is hiding what is done — or because a
             FILTER matched nothing — and "write its first line" would be a
             lie over a tree that is one pick from coming back. The filter bar
             says what happened in that case. */}
-        <Show when={unfiltered(narrowed) && props.holds === 0}>
+        <Show when={unfiltered(narrowed) && props.held.length === 0}>
           <StartLine
             at={{ kind: "first", file: props.file }}
             label="This outline is empty — write its first line."

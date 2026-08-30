@@ -122,6 +122,52 @@ Feature: The outline and the chat point at each other
     And the node "order" is focused
 
   @scratch:chat
+  Scenario: A node its own write hid lands the reader on it anyway — revealed, the pick untouched
+    # THE REPORT (the human, 2026-08-29): an agent ticks tasks off and hands
+    # back their ids, and the press then landed on a page whose pick had
+    # already swept them — three backticked ids in one answer, only the todo
+    # one landing. The row was THERE; a landing that answers a collapse with
+    # an unfold answers done-hidden with the reveal. The Background asked
+    # this page for the whole tree, so the panel's word is first handed
+    # back — after which the page hides finished work on the DEFAULT and
+    # the press gets the exact shape of the report.
+    Given I hand the page's Done pick back to the panel
+    When I ask the agent "done order"
+    And I press the node "order" in the write
+    Then the address is "/house.olai#order"
+    And the node "order" is focused
+    # And the pick is the witness beside the landed row: `demo` was finished
+    # long before this scenario and stays hidden, the flip still answers
+    # "Hidden", and no word of this page's was minted for the row the press
+    # owed — the reveal is the landing's, never the page's.
+    And the node "demo" is not shown
+    And this page's Done flip says "hidden"
+    And the Done flip is the panel's answer
+    And there should be no page errors
+
+  @scratch:chat
+  Scenario: The next landing's row is revealed in turn, and the reveal goes with the page
+    # One outstanding arrival per page: asking for a second done-hidden row
+    # hands the reveal over — the row it replaced rejoins the pick's sweep
+    # the way the accent the first wore moves on with the press. And leaving
+    # the page ends the courtesy wholesale: nothing was stored, so it is the
+    # pick, not the landing, that answers the next visit.
+    Given I hand the page's Done pick back to the panel
+    When I ask the agent "done order"
+    And I ask the agent "done hinges"
+    And I press the node "order" in the write
+    Then the node "order" is focused
+    And the node "order" is shown
+    When I press the node "hinges" in the write
+    Then the node "hinges" is focused
+    And the node "order" is not shown
+    When I click the outline "yard.olai"
+    And I click the outline "house.olai"
+    Then the node "order" is not shown
+    And the node "hinges" is not shown
+    And there should be no page errors
+
+  @scratch:chat
   Scenario: A node in another outline lands the reader on that outline
     # The other half of the same sentence: the address the reader lands on is
     # spelled with the file the node LIVES IN, asked at press time — the id is
