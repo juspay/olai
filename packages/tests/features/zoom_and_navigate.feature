@@ -265,20 +265,31 @@ Feature: Zoom and navigate
     And the node "mint" is shown
     And there should be no page errors
 
-  Scenario: An address into a branch that is both collapsed and done-hidden pays both courtesies
+    @scratch:good
+  Scenario: An address into a branch both collapsed and done-hidden pays BOTH courtesies — ancestor, too
     # The two edges the landing rides are INDEPENDENT — the fold half's
-    # unfold, the pick half's reveal — and one address's chain can need them
-    # at once: `herbs` is doing and shut by hand, `basil` under it is done
-    # and swept by the pick. Were only the reveal paid, the row would answer
-    # under a shut door; were only the unfold paid, there would be no row
-    # behind the fold to point at.
+    # unfold, the pick half's reveal — and one address's chain can need
+    # each's FULL shape at once: `herbs` is here DONE ITSELF — completed
+    # for the walk — so the pick sweeps it like any done row AND its place
+    # is one the chain must ask kept: the both-courtesies pin would stop
+    # reading honestly if the ancestor merely stayed doing, because folding
+    # a STILL-DRAWN ancestor never asks the sweep anything. Order matters:
+    # the fold is REMEMBERED first — a folded row stays a fold answer once
+    # hidden — and the Complete is the row's own mark.
     Given I open the outline "garden.olai"
     When I collapse the node "herbs"
+    And I open the node menu of "herbs"
+    And I choose "Complete" from the node menu
     And I open the address "/garden.olai#basil"
     Then the node "basil" is focused
     And the node "basil" is shown
     And the node "herbs" is expanded
+    # ...and the kept ancestor's OTHER children answer by their OWN marks —
+    # the sweep's walk is by place, all the way down (the derive pin): the
+    # `doing` sibling is there with them.
+    And the node "mint" is shown
     And this page's Done flip says "hidden"
+    And the Done flip is the panel's answer
     And there should be no page errors
 
   Scenario: Under a typed question the act writes nothing — a narrowed row address is missed, not revealed
@@ -287,7 +298,7 @@ Feature: Zoom and navigate
     # so the landed-on address can arrive narrowed — and under the reader's
     # own typed question the row is gone because of THAT, which the pick
     # never touched and the reveal is owed nothing about
-    # (`filter/reading.ts`: a landing's arrivals draw the narrow reading;
+    # (`fold/reading.ts`: a landing's arrivals draw the narrow reading;
     # the reveal's answer is not asked at all). So this landing answers the
     # reading the address says: the miss sentence, the row undrawn, NOTHING
     # written behind the reader's back — and clearing the box finds the
@@ -302,6 +313,30 @@ Feature: Zoom and navigate
     And this page's Done flip says "hidden"
     And the Done flip is the panel's answer
     And this browser has stored no Done word on "garden.olai"
+    And there should be no page errors
+
+  Scenario: The reveal dies with its gates — a query typed over it, or the pick's own round trip
+    # The arrive-narrowed walk is half the fence; stand on the LANDED page
+    # for the other: the reveal was minted under "this page is swept, and
+    # nothing typed" — the moment EITHER half stops holding, the row answers
+    # its own words again, without the page ever going anywhere.
+    When I open the address "/garden.olai#basil"
+    Then the node "basil" is focused
+    And the node "basil" is shown
+    # ...a query typed over the arrival: the reading runs the filter's way
+    # and the row answers ITS words with the reveal dead — clearing the box
+    # cannot bring the row back, the courtesy's moment was the arrival's.
+    When I filter the page by "slugs"
+    Then the filter found "1 of 11"
+    And the node "basil" is not shown
+    When I clear the filter
+    Then the node "basil" is not shown
+    # ...and the reader's own two-word round trip: whatever the landing had
+    # said dies at the flip — the pick answers with its own words all over.
+    When I show the done nodes
+    Then the node "basil" is shown
+    When I hide the done nodes
+    Then the node "basil" is not shown
     And there should be no page errors
 
   Scenario: A row address into a collapsed branch opens it, exactly as ever
