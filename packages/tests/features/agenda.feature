@@ -289,6 +289,10 @@ Feature: The agenda — what is owed, on one line of time
     # is the whole of "live": a task ticked off in the tree leaves Overdue, and
     # the count beside the word in the column goes with it.
     Given I open the outline "work.olai"
+    # `posts` is ticked off partway through and the whole claim rests on
+    # still SEEING it wearing the mark — so the page is asked to keep its
+    # finished rows drawn.
+    And I show the done nodes
     And I mark the page
     Then the agenda entry is on fire with 3 late
     When I click the title of "posts"
