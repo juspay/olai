@@ -8,14 +8,18 @@ Feature: Native task timing — `started`, `took`, and the ticking row
   subtracted from the neighbours' settling instants, and a human vault's
   chores timed nothing at all.
 
-  `started` is a field beside the marks, stamped by `set_doing` the FIRST
-  time and kept (a re-open stamps nothing again); the span is derived at
-  read time, never stored — `took` is the settling instant minus the start,
-  whole seconds, with no fallback to `created` for a jump that stored no
-  start. And it is DRAWN, in two registers: a doing row ticks locally from
-  the wire-carried instant (the uptime chip's seam), a settled row wears the
-  quiet chip, always visible — on both a REAL span and the time sunk into
-  work that got called off, and on NOTHING that never passed through doing.
+  `started` is a field beside the marks, stamped by `set_doing` on EVERY
+  start, and `worked` is the bank beside it: a round banks where its
+  `doing` comes off — settled, queued back to todo, or un-started (whole
+  seconds, on the record) — so a re-open stamps a FRESH
+  instant and the pause between two rounds is never counted. `took` stays
+  derived, never stored twice — the bank once settled, with no fallback
+  to `created` for a jump that stored no start and closed no round. And
+  it is DRAWN, in two registers: a doing row ticks bank plus live round
+  off the wire-carried instant (the uptime chip's seam), a settled row
+  wears the quiet chip, always visible — on both a REAL span and the time
+  sunk into work that got called off, and on NOTHING that never had a
+  round.
 
   Scenarios are written against the shared `good` vault and restore it
   between them; `handles` and `knobs` are two leaves with nothing in their
@@ -104,27 +108,31 @@ Feature: Native task timing — `started`, `took`, and the ticking row
     Then the node "handles" shows no took chip
     And there should be no page errors
 
-  Scenario: A re-open is one span, first start to final settle
+  Scenario: A re-open banks the round and stamps a fresh start
     When I click the title of "handles"
     And I press "Control+Shift+Enter"
     And I press "Control+Shift+Enter"
     Then the node "handles" has status "doing"
     When I click away from the editor
-    # The instant is on the row now; that is what "kept" is measured against
-    # below. (The chip's own attr — nothing a re-stamping planner could
-    # pass would reach it: the chip reads the wire, the wire reads the
-    # record.)
+    # The instant is on the row now; the fresh start below is measured
+    # against it. (The chip's own attr — nothing a planner could pass
+    # would reach it: the chip reads the wire, the wire reads the record.)
     Then the node "handles" wears a start
-    # Back into the walk: settle, undo, start again.
+    # Back into the walk: settle, undo — and a PAUSE, two whole seconds of
+    # it. Stamps are seconds-precise, so the gap the rule exists to exclude
+    # has to be wider than one of them before it can be told from none.
     When I click the title of "handles"
     And I press "Control+Enter"
     And I press "Control+Enter"
+    And I let 2 seconds go by
     When I press "Control+Shift+Enter"
     And I press "Control+Shift+Enter"
     Then the node "handles" has status "doing"
     When I click away from the editor
     Then the node "handles" is ticking
-    # `todo → doing → done → undone → doing`: the instant the chip wears is
-    # still the FIRST pass's — the stamp is once.
-    And the node "handles" still wears that start
+    # `todo → doing → done → undone → (pause) → doing`: the first round is
+    # BANKED on the record, and the instant the chip wears is the FRESH
+    # round's — the pause between the two belongs to nobody.
+    And the node "handles" wears a fresh start, not that one
+    And "house.olai" holds a node titled "choose the handles" with the rounds banked
     And there should be no page errors

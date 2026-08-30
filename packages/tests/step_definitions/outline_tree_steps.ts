@@ -306,23 +306,54 @@ Then(
 );
 
 Then(
-  "the node {string} still wears that start",
+  "the node {string} wears a fresh start, not that one",
   async function (this: OlaiWorld, id: string) {
     assert.ok(
       this.clockedStart !== undefined,
-      `"still wears that start" has nothing to compare with — say "wears a start" first`,
+      `"wears a fresh start, not that one" has nothing to compare with — say "wears a start" first`,
     );
-    // The rule it asserts is the planner's: `set_doing` stamps once and the
-    // first is KEPT — so this is the one assertion a re-stamping planner
-    // fails (the chip reads the wire, the wire reads the record).
+    // The rule it asserts is the planner's: EVERY start stamps anew, because
+    // the round before this one is banked — so this is the one assertion a
+    // first-start-keeping planner fails (the chip reads the wire, the wire
+    // reads the record).
     const asked = this.clockedStart;
     const chip = this.node(id).locator(NODE_GUTTER).locator(TOOK);
     await this.waitUntil(
-      async () =>
-        (await chip.getAttribute("data-started")) === asked,
-      `the node "${id}" still wears its first start (${asked})`,
+      async () => {
+        const worn = await chip.getAttribute("data-started");
+        return worn !== null && worn !== asked;
+      },
+      `the node "${id}" wears a fresh start — the first was ${asked}`,
     );
     this.clockedStart = undefined;
+  },
+);
+
+Then(
+  "{string} holds a node titled {string} with the rounds banked",
+  async function (this: OlaiWorld, file: string, title: string) {
+    // The BANK ON THE RECORD, asked where the chip can never be asked: on
+    // disk. `worked` is a number the settle wrote — honestly zero when the
+    // round closed inside one second, which is why the claim is presence
+    // and never a figure.
+    await this.waitUntil(
+      async () =>
+        this.servedNodesSoFar(file).some(
+          (node) => node["title"] === title && typeof node["worked"] === "number",
+        ),
+      `${file} to hold a node titled ${JSON.stringify(title)} with \`worked\` banked`,
+    );
+  },
+);
+
+// Stamps are SECONDS-precise, so a pause the rule exists to exclude cannot
+// be told from no pause at all inside one of them: the scenario dwells here
+// to make two rounds' instants different strings — the thing "not that one"
+// above is measured against.
+When(
+  "I let {int} seconds go by",
+  async function (this: OlaiWorld, seconds: number) {
+    await this.page.waitForTimeout(seconds * 1000);
   },
 );
 

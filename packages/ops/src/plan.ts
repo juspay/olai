@@ -67,6 +67,7 @@ import {
   settles,
   shadowFor,
   siblingsOf,
+  spanOf,
   standingBefore,
   type Status,
   storedMarker,
@@ -1432,17 +1433,55 @@ const planMark = (
   // elsewhere stays the text it was.
   if (!undo) next[mark] = marker(scope, mark)
 
-  // …and STARTING stamps the work's own instant once, beside the marks the
-  // way `created` rides the record: what went under way, and when. The span is
-  // DERIVED from it later (`took` = the settling instant − this), never
-  // stored — and the one rule of the stamp is that PRESENT IS UNTOUCHED: a
-  // re-opened node keeps its FIRST start, so what a later settle reports is
-  // first start → final settle, and the span-by-span story stays `git log`'s.
-  // Every other path through here — settling, un-marking — leaves the field
-  // exactly as it found it, and a settle with no `started` invents none: a
-  // todo→done jump has no span, and `created` is never the fallback.
-  if (!undo && mark === "doing" && next.started === undefined) {
+  // …and STARTING stamps the work's own instant, beside the marks the way
+  // `created` rides the record: what went under way, and when. The span is
+  // DERIVED from it later, never stored. The one rule of the stamp is that
+  // EVERY START IS A FRESH ROUND: a re-opened node's earlier work is already
+  // banked below, so the new `doing` RE-STAMPS rather than keeping the first
+  // start — the clock the chip reads counts this round alone, and the pause
+  // between two rounds is never work.
+  if (!undo && mark === "doing") {
     next.started = scope.context.now()
+  }
+
+  // …and the ROUND a `doing` opened closes WHERE THE DOING COMES OFF —
+  // three doors, one rule. The settles are the front door: a settle over a
+  // `doing` adds the round's span into `worked` (`spanOf` — the one
+  // subtraction, shared with the read, so the bank and the answer cannot
+  // disagree), and the stamp stays, the pair it makes with the settle still
+  // honest. The two OTHER doors peel the doing without settling — the
+  // `todo` that queues the work again and the undo of the `doing` itself —
+  // and they bank the span AT THE PEEL, the stamp going with it: live
+  // minutes never sit on a record that cannot close a round (the flipside
+  // the reviews probed: peel, then settle later, and a kept stamp would
+  // both bury the minutes and misanswer any span against them).
+  //
+  // The closure's WITNESS is the mark itself. Undo of a settle leaves
+  // `started` and the bank where it found them (the work did happen), but
+  // the `doing` that made the round closable is gone — so the SECOND settle
+  // over it mints nothing, and buries the stamp: a record's `started`
+  // survives exactly as long as the bank can still account for it, and
+  // re-settling from there can never answer `spanOf` from the same start a
+  // second time (the first probe: the round counted twice, the pause with
+  // it, growth unbounded). A settle with no `started` mints nothing and
+  // buries nothing — a todo→done jump closed no round, and `created` is
+  // never the fallback.
+  if (!undo && settles(mark)) {
+    const closed = next[mark]
+    if (stored === "doing") {
+      if (node.started !== undefined && typeof closed === "string") {
+        const round = spanOf(node.started, closed)
+        if (round !== undefined) next.worked = (node.worked ?? 0) + round
+      }
+    } else {
+      delete next.started
+    }
+  } else if (stored === "doing" && (undo || mark !== "doing")) {
+    if (node.started !== undefined) {
+      const round = spanOf(node.started, scope.context.now())
+      if (round !== undefined) next.worked = (node.worked ?? 0) + round
+    }
+    delete next.started
   }
 
   // WHAT COMES BACK ({@link recurring}): a `done` on a node that repeats hands

@@ -80,6 +80,7 @@ const ORDER = [
   "doing",
   "todo",
   "started",
+  "worked",
   "date",
   "repeat",
   "desc",

@@ -180,30 +180,49 @@ test("a node carrying everything produces every field `Found` declares", () => {
   expect(Object.keys(carrying ?? {}).sort()).toEqual(Object.keys(Found.fields).sort())
 })
 
-// The work's own instants: the record's `started` handed back verbatim, and
-// `took` derived off it and the settling one — an annotation beside
-// `progress`, with the same absences doing the saying.
-test("a node's read carries `started` and the derived `took` — and the jump carries neither", () => {
+// The work's own facts of time: the record's `started` and `worked` handed
+// back verbatim, and `took` derived — the bank when there is one, else the
+// settling instant minus the start. An annotation beside `progress`, with
+// the same absences doing the saying.
+test("a node's read carries `started`, `worked` and the derived `took` — and the jump carries none", () => {
   const at = derivedOf(setOf({
     "house.olai": [
       `{"id":"bake","ord":"a0","title":"bake the bread","done":"2026-08-29T12:26:44-04:00","started":"2026-08-29T09:52:00-04:00"}`,
       `{"id":"plumber","ord":"a1","title":"call the plumber","done":"2026-08-29T12:26:44-04:00"}`,
       `{"id":"hinge","ord":"a2","title":"fix the hinge on the door","cancelled":"2026-08-29T10:33:00-04:00","started":"2026-08-29T09:52:00-04:00"}`,
       `{"id":"water","ord":"a3","title":"water the plants","doing":true,"started":"2026-08-29T09:52:00-04:00"}`,
+      // The MULTI-ROUND record — the shapes above with a bank beside them:
+      // two rounds in, a third live.
+      `{"id":"knead","ord":"a4","title":"knead the dough","doing":true,"started":"2026-08-29T09:50:00-04:00","worked":600}`,
+      `{"id":"proof","ord":"a5","title":"proof it","done":"2026-08-29T09:58:00-04:00","started":"2026-08-29T09:50:00-04:00","worked":1080}`,
     ].join("\n"),
   }))
   // SETTLED: the instant, and the span it closes — 2h34m44s and 41m, in
   // whole seconds either way, because the two settling marks read the same.
   expect(read(at, "bake")).toMatchObject({ started: "2026-08-29T09:52:00-04:00", took: 9284 })
   expect(read(at, "hinge")).toMatchObject({ started: "2026-08-29T09:52:00-04:00", took: 2460 })
+  // …and NO BANK IS ANSWERED for them: `toMatchObject` ignores extra keys,
+  // so a `worked: 0` default grown later would slip the span pins above —
+  // the property's ABSENCE is the byte-identical rule, named on purpose.
+  expect(read(at, "bake")).not.toHaveProperty("worked")
+  expect(read(at, "hinge")).not.toHaveProperty("worked")
   // STILL RUNNING: the instant is there for the tick, and there is no `took`
   // to say — a span needs both ends, and the wire carries no durations.
   expect(read(at, "water")).toHaveProperty("started")
   expect(read(at, "water")).not.toHaveProperty("took")
   // THE JUMP: a todo→done has no span, and `created` is never the fallback —
-  // neither field is invented at read time.
+  // none of the three is invented at read time.
   expect(read(at, "plumber")).not.toHaveProperty("started")
+  expect(read(at, "plumber")).not.toHaveProperty("worked")
   expect(read(at, "plumber")).not.toHaveProperty("took")
+  // THE SETTLED MULTI-ROUND node: the bank IS the answer — `took` is the
+  // 1080 the settles counted, not the 480 a subtraction against the fresh
+  // `started` would misread as the whole of it.
+  expect(read(at, "proof")).toMatchObject({ worked: 1080, took: 1080 })
+  // …and a LIVE one carries the two things the tick is a sum of — bank and
+  // instant, durations never: the arithmetic stays where the clock is.
+  expect(read(at, "knead")).toMatchObject({ worked: 600, started: "2026-08-29T09:50:00-04:00" })
+  expect(read(at, "knead")).not.toHaveProperty("took")
 })
 
 describe("the edges a node carries", () => {
@@ -670,7 +689,7 @@ describe("the caller shapes the rows", () => {
         `{"id":"lane","ord":"a0","title":"the lane"}`,
         `{"id":"one","parent":"lane","ord":"a0","title":"first","done":"2026-08-29T09:12:00-04:00","desc":"the forensics","custom":{"took":"4m","agent":"claude-opus"}}`,
         `{"id":"one-a","parent":"one","ord":"a0","title":"the wrinkle","todo":true}`,
-        `{"id":"two","parent":"lane","ord":"a1","title":"second","doing":true,"started":"2026-08-29T09:14:00-04:00"}`,
+        `{"id":"two","parent":"lane","ord":"a1","title":"second","doing":true,"started":"2026-08-29T09:14:00-04:00","worked":600}`,
       ].join("\n"),
     })
 
@@ -684,6 +703,7 @@ describe("the caller shapes the rows", () => {
       "custom.took",
       "desc",
       "started",
+      "worked",
     ])
     // A MARK INSTANT (`done`) — the field this request was born for; the
     // custom key asked alone comes back AS a map of one; the note rides
@@ -708,14 +728,17 @@ describe("the caller shapes the rows", () => {
       "status",
       "title",
     ])
-    // The SECOND row carries this lane's OWN clock: `started`, the stamp
-    // `set_doing` wrote — and the asked-for names it does not hold stay
-    // ABSENT, exactly as they are on a full row.
+    // The SECOND row carries this lane's OWN clock, BOTH halves: `started`,
+    // the stamp `set_doing` wrote, and `worked`, the bank it cannot be read
+    // without — a multi-round row naming the stamp alone would say one
+    // round's wall for several rounds' work. And the asked-for names it
+    // does not hold stay ABSENT, exactly as they are on a full row.
     expect(lane?.children[1]).toEqual({
       id: "two",
       title: "second",
       status: "doing",
       started: "2026-08-29T09:14:00-04:00",
+      worked: 600,
     })
   })
 

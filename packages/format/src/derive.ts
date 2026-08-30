@@ -1112,50 +1112,78 @@ export const progressOf = (derived: Derived, id: string): Progress | undefined =
 }
 
 /**
- * How long the work TOOK: the settling instant minus the stored `started`, in
- * WHOLE SECONDS — and one more ANNOTATION, to the rule {@link progressOf}
- * keeps: it decides nothing, it is derived and never stored, and it is
- * `undefined` rather than zero when there is no span to tell.
+ * One ROUND's span: `settled` minus `started`, in WHOLE SECONDS, clamped at
+ * zero — or `undefined` when either end will not read as an instant.
  *
- * THREE cases answer `undefined`, and each is a refusal to invent a past:
+ * THE ONE SUBTRACTION this format does, and the reason it is a function:
+ * two readers answer with it — {@link tookOf}, for the node whose rounds
+ * predate the bank, and the ops layer's own writes, at the moment a round
+ * CLOSES: a settle banking the one it closed into `worked`, or a peel —
+ * the queueing `set_todo`, the un-done start — doing the same where the
+ * `doing` came off (`@olai/ops`' plan).
+ * Spelled twice, the rounding or the clamp would drift between what a
+ * settle counts and what a read reports, and the bank and the answer must
+ * be the same arithmetic.
  *
- *   - NO `started`. A todo→done jump has no span, and `created` is never the
- *     fallback — that measures the node's age, not the work;
- *   - NO SETTLING MARK. A `doing` node's span is still running, and the
- *     running half is a reading of a clock — the browser ticks it locally
- *     from the stored instant (`@olai/web`'s `took.ts`), which is why the
- *     wire carries the INSTANT and never a duration;
- *   - a settling mark holding `true`, the shape finished work written before
- *     instants still has: it says the wait ended and declines to say when, so
- *     there is nothing to subtract from. The values are validated ISO by the
- *     time a set reaches here (`./parse.ts`), and this still asks rather than
- *     assumes, for {@link drawingPath}'s reason: a set already condemned is
- *     still read.
- *
- * How MUCH is derived is the two rules of `set_doing`'s stamp: the kept
- * `started` is the FIRST start, so re-opening after a `done` lengthens what a
- * LATER `done` answers by the whole time under way — first start to final
- * settle — and a `cancelled` node's span is the time sunk before it was
- * called off. The two settling marks are read the same way, exactly as
- * `./occasion.ts` reads them for a day.
- *
- * A NEGATIVE is clamped to zero: a `started` after the settling instant is a
- * record a hand or a merge wrote, and a span of minus six minutes is a worse
- * answer than none of the truth at all. Arriving HERE rather than at the
- * prompt that writes — the planner's `started` and `done` come off the same
- * clock, so a clamp they never need is a guard for the file they may meet.
+ * A NEGATIVE is clamped to zero: a `started` after the settling instant is
+ * a record a hand or a merge wrote, and a span of minus six minutes is a
+ * worse answer than none of the truth at all. The values are validated ISO
+ * by the time a set reaches here (`./parse.ts`), and this still asks rather
+ * than assumes, for {@link drawingPath}'s reason: a set already condemned
+ * is still read.
  */
-export const tookOf = (node: RegularNode): number | undefined => {
-  const started = node.started
-  if (started === undefined) return undefined
-  const mark = storedMarker(node)
-  if (mark === undefined || !settles(mark)) return undefined
-  const settled = node[mark]
-  if (typeof settled !== "string") return undefined
+export const spanOf = (started: string, settled: string): number | undefined => {
   const from = Date.parse(started)
   const at = Date.parse(settled)
   if (Number.isNaN(from) || Number.isNaN(at)) return undefined
   return Math.max(0, Math.round((at - from) / 1000))
+}
+
+/**
+ * How long the work TOOK, in WHOLE SECONDS — and one more ANNOTATION, to the
+ * rule {@link progressOf} keeps: it decides nothing, it is derived and never
+ * stored, and it is `undefined` rather than zero when there is no span to
+ * tell.
+ *
+ * THE BANK ANSWERS FIRST: a record carrying `worked` has had its rounds
+ * closed for it already — each banked where its `doing` came off
+ * (`./node.ts`), so a settled node's answer is the bank ITSELF, rounds
+ * summed and pauses never counted. The arithmetic below is the SLIMMER
+ * case: a record with no bank asks the one-round question it always asked,
+ * settling instant minus `started`, which is also what the first settle of
+ * a banked record had in hand when it wrote it — the two arms answer one
+ * number for one round, so a node whose first settle writes `worked`
+ * answers the same seconds before and after.
+ *
+ * THREE cases still answer `undefined`, and each is a refusal to invent a
+ * past:
+ *
+ *   - NO SETTLING MARK. A `doing` node's span is still running, and the
+ *     running half is a reading of a clock — the browser ticks it locally:
+ *     the bank plus now minus the stored instant (`@olai/web`'s `took.ts`),
+ *     which is why the wire carries the INSTANT and the BANK, never a
+ *     duration;
+ *   - neither a bank NOR a `started`. A todo→done jump has no round, and
+ *     `created` is never the fallback — that measures the node's age, not
+ *     the work;
+ *   - a settling mark holding `true` on a record with no bank, the shape
+ *     finished work written before instants still has: it says the wait
+ *     ended and declines to say when, so there is nothing to subtract
+ *     from.
+ *
+ * The two settling marks are read the same way — a `cancelled` node's bank
+ * is the time sunk before it was called off, exactly as `./occasion.ts`
+ * reads the pair for a day.
+ */
+export const tookOf = (node: RegularNode): number | undefined => {
+  const mark = storedMarker(node)
+  if (mark === undefined || !settles(mark)) return undefined
+  if (node.worked !== undefined) return Math.max(0, node.worked)
+  const started = node.started
+  if (started === undefined) return undefined
+  const settled = node[mark]
+  if (typeof settled !== "string") return undefined
+  return spanOf(started, settled)
 }
 
 /**

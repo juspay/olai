@@ -16,10 +16,12 @@
  * is `./clock.ts`'s — the same split `./uptime.ts` itself makes, and the one
  * `claims.test.ts` holds every readout to.
  *
- * What is NOT here: the span itself. That is derived once, on the side that
- * holds the set (@olai/format's `tookOf`), and the chip reads it off the row
- * the way it reads the instant — nothing about "started minus settled" is
- * spelled at a frame rate, and the two readers cannot drift.
+ * What is NOT here: the settled span itself. That is derived once, on the
+ * side that holds the set (@olai/format's `tookOf`), and the chip reads it
+ * off the row the way it reads the instant — nothing about "started minus
+ * settled" is spelled at a frame rate, and the two readers cannot drift.
+ * What IS here is the running figure's one addition ({@link liveOf}):
+ * banked plus live, the sum the closed rounds make possible.
  */
 
 import type { Accessor } from "solid-js"
@@ -89,6 +91,25 @@ export const tickingOf = (elapsedMs: number): string => {
   }
   return wordsOf(elapsed / SECOND)
 }
+
+/**
+ * A RUNNING figure in milliseconds: the BANK (whole seconds, the rounds the
+ * settles counted) plus the LIVE ROUND off the wire-carried instant. The
+ * sum is the chip's whole honesty — rounds counted, the pauses between
+ * them never — and it is one addition rather than a duration the wire
+ * would have to keep sending: the bank crosses once, the instant crosses
+ * once, and the clock doing the rest is the reader's own.
+ *
+ * The LIVE half alone is clamped: a stamp reading ahead of this clock is a
+ * browser behind the server's, and a negative leg should eat nothing out
+ * of a bank that was honestly counted ({@link tickingOf} clamps the sum
+ * again, as the belt to this brace).
+ */
+export const liveOf = (
+  bankedSeconds: number | undefined,
+  startedAt: number,
+  now: number,
+): number => (bankedSeconds ?? 0) * SECOND + Math.max(0, now - startedAt)
 
 /**
  * The clock a doing row's chip is drawn against — a second while the second
