@@ -5709,6 +5709,51 @@ describe("typed properties", () => {
     expect(failure.message).toContain("`merge` is already declared by an earlier node")
   })
 
+  test("split_node of a Properties root that renames onto a key with unfit values is the same fence", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+      "lanes.olai":
+        `{"id":"lane","ord":"a0","title":"a lane","custom":{"brainstorm":"not a path"}}`,
+    }, ["briefs/one.md"])
+    const failure = refused(held, {
+      op: "split",
+      id: "prop-pr",
+      title: "brainstorm",
+      rest: " leftover",
+    })
+    expect(failure.message).toContain("`brainstorm` cannot be declared `int`")
+    expect(failure.message).toContain("`lanes.olai` `a lane` (`lane`) holds \"not a path\"")
+  })
+
+  test("split_node of a Properties root still refuses the typeless tail", () => {
+    const held = setOf({
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}`,
+    })
+    const failure = refused(held, {
+      op: "split",
+      id: "prop-pr",
+      title: "pr",
+      rest: "tail",
+    })
+    expect(failure.message).toContain("`tail` declares a property key but does not say its `type`")
+  })
+
+  test("merge_node of a Properties root is the same existing-values fence", () => {
+    const held = setOf({
+      "_olai/Properties.olai": [
+        `{"id":"brain","ord":"a0","title":"brain","custom":{"type":"doc"}}`,
+        `{"id":"storm","ord":"a1","title":"storm","custom":{"type":"doc"}}`,
+      ].join("\n"),
+      "lanes.olai":
+        `{"id":"lane","ord":"a0","title":"a lane","custom":{"brainstorm":"not a path"}}`,
+    }, ["briefs/one.md"])
+    const failure = refused(held, { op: "merge", id: "storm" })
+    expect(failure.message).toContain("`brainstorm` cannot be declared `doc`")
+    expect(failure.message).toContain("`lanes.olai` `a lane` (`lane`) holds \"not a path\"")
+  })
+
   test("create_outline of Properties.olai is the same fence over the rest of the set", () => {
     const held = setOf({
       "lanes.olai":

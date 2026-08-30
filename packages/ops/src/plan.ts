@@ -2941,13 +2941,17 @@ const planMove = (
 
   // A ROOT landing in Properties is a declaration. Same two halves every
   // other write that mints one asks; asked here so a move cannot put down
-  // a vocabulary the next load will refuse.
-  const bent = refuseRecordsInProperties(
-    scope,
-    destination,
-    [moved, ...liftSubtree(scope, file, node.id).descendants],
-  )
-  if (bent !== undefined) return Result.fail(bent)
+  // a vocabulary the next load will refuse. `liftSubtree` is only the
+  // extras for that walk — skip it when the destination is not the
+  // vocabulary.
+  if (isPropertiesFile(scope, destination)) {
+    const bent = refuseRecordsInProperties(
+      scope,
+      destination,
+      [moved, ...liftSubtree(scope, file, node.id).descendants],
+    )
+    if (bent !== undefined) return Result.fail(bent)
+  }
 
   return Result.succeed(arriving(scope, { file: destination, parent }, brings, {
     files,
@@ -3194,6 +3198,16 @@ const planSplit = (
     created: scope.context.now(),
   }
 
+  // A Properties ROOT is a declaration. Split is a rename of the head and
+  // a birth of a tail sibling — the same two halves `planTitle` asks of a
+  // retitle, then the tail as a new root (typeless, so the bootstrap
+  // names it). Asked here so a split cannot mint a vocabulary the next
+  // load will refuse, with a generic write-gate sentence instead of the
+  // offenders.
+  const bent = declarationRefused(scope, file, head)
+    ?? declarationRefused(scope, file, tail)
+  if (bent !== undefined) return Result.fail(bent)
+
   return Result.succeed({
     files: [{
       file,
@@ -3302,6 +3316,19 @@ const planMerge = (
 
   const { existing, scaffold, buried } = buriedIn(scope, archive, node, file)
   const nudge = carriedOff(scope, node)
+
+  // A Properties ROOT's title IS the key, so concatenating it is a
+  // declaration of (usually) a different one. Same two halves a rename
+  // asks; extras are the children the survivor has after the adoption,
+  // which `variantsOf` will read once the write lands.
+  const bent = declarationRefused(
+    scope,
+    file,
+    merged,
+    extraVariants(merged, keeps, underOf(scope, merged)),
+  )
+  if (bent !== undefined) return Result.fail(bent)
+
   return Result.succeed(arriving(scope, { file, parent: into.id }, brings, {
     files: [
       { file, nodes: keeps },
