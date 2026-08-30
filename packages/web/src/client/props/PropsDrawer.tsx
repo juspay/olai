@@ -158,6 +158,7 @@ import type { Entry } from "./drawer.ts"
 import { type Door, doorFor } from "./door.ts"
 
 import { type BlockChrome, layOut } from "../live/seam.ts"
+import { createRunning } from "../plugins/running.ts"
 // ...and the app's dressings, installed. A side-effect import, which is what
 // "these are the faces this app has" looks like when each folder registers
 // itself (`../live/dressings.ts` argues the whole arrangement).
@@ -323,7 +324,12 @@ export function PropsDrawer(props: {
    * otherwise wear a face — one text box for every property in the vault,
    * which is what stops each new dressing from growing its own.
    */
-  const laid = createMemo(() => layOut(props.entries, editing()?.key))
+  const running = createRunning()
+  // THE LICENCE IS REACTIVE, which is why it is read here rather than captured:
+  // the roster arrives on a cell after the wire is up, so a tab draws the
+  // built-in default for an instant and then whatever the serve said. A
+  // predicate captured once would pin the first answer.
+  const laid = createMemo(() => layOut(props.entries, editing()?.key, running()))
 
   /** Shut whichever editor is open, from either door. */
   const close = (): void => {

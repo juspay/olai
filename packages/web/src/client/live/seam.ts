@@ -212,7 +212,7 @@ export interface Dressing {
  * and a component — the drawer is closed to modification and open to
  * extension, which is the whole of what a dressing table buys.
  */
-const DRESSINGS = new Map<string, Dressing>()
+const DRESSINGS = new Map<string, { readonly dressing: Dressing; readonly plugin: string }>()
 
 /** Dress a property key. Called once per dressing, at module load, from the
  *  module that owns the app's table (`./dressings.ts`) — never from the
@@ -233,17 +233,44 @@ const DRESSINGS = new Map<string, Dressing>()
  *  the appliance slices that declare them, this package may not name a plugin,
  *  and a general seam holding two tenants' property keys was the last place
  *  core spelled one. */
-export const registerLive = (key: string, dressing: Dressing): void => {
-  DRESSINGS.set(key, dressing)
+export const registerLive = (key: string, dressing: Dressing, plugin: string): void => {
+  DRESSINGS.set(key, { dressing, plugin })
 }
+
+/**
+ * IS THE PLUGIN THAT OWNS THIS FACE ACTUALLY RUNNING — asked at DRAW, not at
+ * registration, and the difference is the whole of what `--plugins` means in a
+ * browser.
+ *
+ * A tab registers what the BUILD has, because that is all it can know at import
+ * time: the enabled set is a fact about the SERVE, and it arrives on a cell
+ * after the wire is up (`../wire.ts` argues why the browser does not wait for
+ * it). So registration is the build's and the LICENCE is the serve's, and this
+ * is where the second one is spent.
+ *
+ * Without it a disabled plugin's face still draws — in its own "nothing here"
+ * arm, which is a row that says there is no daemon rather than the plain chip
+ * an undressed property has always drawn. That is not the absent state; it is a
+ * complaint about a tool the operator deliberately turned off, and it took a
+ * screenshot of a serve with `--plugins=` to see it.
+ */
+export type Running = (plugin: string) => boolean
+
+/** What a page with no roster yet answers: everything the build has. It is the
+ *  same answer the built-in default gives, so a tab that has not yet heard from
+ *  the server draws what it will keep drawing in the ordinary case rather than
+ *  flashing every face off and on. */
+export const ALL_RUNNING: Running = () => true
 
 /** The dressing for one entry, or `undefined` where it draws as a plain chip.
  *  The three rules are here rather than in the drawer so every future dressing
  *  gets them without restating them. */
-export const dressingFor = (entry: Entry): Dressing | undefined => {
+export const dressingFor = (entry: Entry, running: Running): Dressing | undefined => {
   if (entry.system) return undefined
   if (entry.values.length !== 1) return undefined
-  return DRESSINGS.get(entry.key)
+  const held = DRESSINGS.get(entry.key)
+  if (held === undefined) return undefined
+  return running(held.plugin) ? held.dressing : undefined
 }
 
 /** One entry, ready to draw: the entry and whatever it wears. */
@@ -278,12 +305,13 @@ export interface Laid {
  */
 export const layOut = (
   entries: ReadonlyArray<Entry>,
-  editing?: string,
+  editing: string | undefined,
+  running: Running,
 ): Laid => {
   const run: Laid["run"][number][] = []
   const blocks: { entry: Entry; block: PropBlock }[] = []
   for (const entry of entries) {
-    const dressing = entry.key === editing ? undefined : dressingFor(entry)
+    const dressing = entry.key === editing ? undefined : dressingFor(entry, running)
     if (dressing?.Block !== undefined) blocks.push({ entry, block: dressing.Block })
     else run.push({ entry, chip: dressing?.Chip, pane: dressing?.Pane })
   }

@@ -210,8 +210,7 @@ export const probesOf = (
  *  NAMES and the wire door answers it too. */
 export { enabled, isEnabled, PLUGIN_NAMES } from "./surfaces.ts"
 
-export const SERVERS = [kolu] as const satisfies ReadonlyArray<PluginServerHalf<never>>
-void odu
+export const SERVERS = [kolu, odu] as const satisfies ReadonlyArray<PluginServerHalf<never>>
 
 /**
  * THE KIND VOCABULARY, ASSEMBLED — the two maps `@olai/format` takes, out of

@@ -54,6 +54,6 @@ for (const plugin of ROSTER) {
   // plugin — the absent arm of every hook on a manifest is the state a machine
   // without the tool already shows, so there is nothing to guard against here.
   for (const dressing of plugin.dressings ?? []) {
-    registerLive(dressing.kind, dressing)
+    registerLive(dressing.kind, dressing, plugin.name)
   }
 }

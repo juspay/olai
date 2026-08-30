@@ -55,7 +55,28 @@ export function PluginsMounted(props: { readonly children: JSX.Element }): JSX.E
   // top-down as the nesting reads outside-in. `children` is read through the
   // props each time rather than captured, so Solid's own laziness over the tree
   // is untouched — a mount that never draws its children costs nothing below it.
-  return ROSTER.reduceRight<JSX.Element>(
+  //
+  // THUNKS, NOT ELEMENTS, and this is the whole correctness of the nesting.
+  //
+  // The obvious spelling folds over `props.children` directly — seed the
+  // reduce with the page and wrap it a mount at a time. It compiles, it renders
+  // the right DOM, and every context is silently WRONG: interpolating an
+  // already-built `inner` means the page was CREATED in this component's owner,
+  // before any plugin's provider existed, and Solid resolves a context against
+  // the owner a component was created under. So every face a plugin draws deep
+  // in that page — a dressing on a property, a readout in the chrome — asks for
+  // its own plugin's context and is told there is none, then falls back to the
+  // hollow answer it keeps for a page that has no plugin half at all.
+  //
+  // Nothing about that is visible: the DOM is right, the subscriptions are
+  // live, the data is in the client, and every face draws its "nothing here"
+  // arm. It cost a live serve and a screenshot to find, because it is exactly
+  // the state a working app in a vault with nothing running looks like.
+  //
+  // Folding over THUNKS fixes it at the root: `{inner()}` inside the JSX is
+  // compiled to a getter, so each level's children are built when the mount
+  // above them renders them — inside that mount's owner, under its providers.
+  return ROSTER.reduceRight<() => JSX.Element>(
     (inner, plugin) => {
       const Mount = plugin.mount
       if (Mount === undefined) return inner
@@ -63,12 +84,12 @@ export function PluginsMounted(props: { readonly children: JSX.Element }): JSX.E
       // the framework composed its members under and the only word this package
       // has about it. It is handed over opaque: `@olai/plugins` types it
       // `unknown` and the plugin narrows it once, at its own edge.
-      return (
+      return () => (
         <Mount client={clientFor(plugin.name)} app={FURNITURE}>
-          {inner}
+          {inner()}
         </Mount>
       )
     },
-    props.children,
-  )
+    () => props.children,
+  )()
 }
