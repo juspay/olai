@@ -591,6 +591,49 @@ const watchingDrift = (fixture: Fixture): ReadonlyArray<ReadonlyArray<string>> =
   return asked
 }
 
+/**
+ * THE STALE JUDGE'S VERDICT: `bad-prop` filed on the write's own file, the
+ * declaration that judged the value reached as a `related` site and marked
+ * NAMED-but-not-broken.
+ *
+ * Faked rather than earned, in both tests that use it, and for one reason:
+ * the pin is the ARM's behaviour — which files it asks about — and not the
+ * codec's means of arriving at a verdict of this shape. Said once because the
+ * `broken: false` related site is the load-bearing detail of both (it is what
+ * puts a declarations file on `implicatedBy`'s about-axis at all), and two
+ * copies is one place for that shape to go stale while the other test goes on
+ * passing.
+ */
+const STALE_JUDGE = verdictOf([{
+  file: "plan.olai",
+  line: 1,
+  code: "bad-prop",
+  message: "`pr` must be a day — the value here is not one",
+  related: [{ file: "_olai/Properties.olai", line: 1, note: "declared here", broken: false }],
+}])
+
+/**
+ * `commit`, wrapped so a test can answer the first attempts itself and let
+ * the rest through — the store's own gate, reached by returning `undefined`.
+ *
+ * Both the arm tests below fake this, and the cast is the same three lines
+ * each time. What a case is left holding is the LADDER it wants (attempt one
+ * refuses; attempts one to four are lost races) and the counter, which is
+ * what `expect(attempts())` reads.
+ */
+const fakingCommit = (
+  fixture: Fixture,
+  answer: (attempt: number, write: Store.Write) => ReturnType<OutlineStore["commit"]> | undefined,
+): (() => number) => {
+  const committed = fixture.store.commit
+  let attempts = 0
+  ;(fixture.store as { commit: typeof committed }).commit = (write) => {
+    attempts += 1
+    return answer(attempts, write) ?? committed(write)
+  }
+  return () => attempts
+}
+
 /** The resync door, wrapped so a test can say whether the repair ever
  *  knocked on it: the byte check standing in front is only a guarantee if a
  *  NO from it keeps THIS latched. */
@@ -776,9 +819,8 @@ test("a refusal the disk AGREES with heals nothing and changes nothing", () =>
 // ordinary write's plan and gate cannot come to different answers about its
 // bytes. The gate arm below is the door left for the case they CAN diverge —
 // a stale JUDGE against a healthy target — and its contract is the asked set.
-// The verdict is therefore FAKED the way the refund test fakes `StaleWrite`:
-// the pin is the arm's own behaviour, not the codec's means of producing the
-// answer. The write's own file is honest here for the same reason as the
+// The verdict is therefore FAKED ({@link STALE_JUDGE}): the pin is the arm's
+// own behaviour, not the codec's means of producing the answer. The write's own file is honest here for the same reason as the
 // planner arm above: a write whose own bytes have moved never reaches a
 // refusal at all — the gate answers `StaleWrite` on its way in — so the only
 // stale half a refusal arm can be about is one the write does not carry.
@@ -796,25 +838,8 @@ test("the gate arm's ask is every file the verdict was judged FROM", () =>
       // faked one.)
       yield* fixture.set()
       replaceBehindTheStamps(fixture.root, "_olai/Properties.olai", DECLARE_PR_DATE)
-      const committed = fixture.store.commit
-      let faking = 1
-      ;(fixture.store as { commit: typeof committed }).commit = (write) =>
-        faking-- > 0
-          ? Effect.succeed(
-            Result.fail(verdictOf([{
-              file: "plan.olai",
-              line: 1,
-              code: "bad-prop",
-              message: "`pr` must be a day — `not-a-date` is not one",
-              related: [{
-                file: "_olai/Properties.olai",
-                line: 1,
-                note: "declared here",
-                broken: false,
-              }],
-            }])),
-          )
-          : committed(write)
+      fakingCommit(fixture, (attempt) =>
+        attempt === 1 ? Effect.succeed(Result.fail(STALE_JUDGE)) : undefined)
 
       const asked = watchingDrift(fixture)
       const applied = yield* run(fixture, { op: "done", id: "the-plan" })
@@ -1050,37 +1075,18 @@ test("a repair does not spend a lost race — four races and a heal still land",
       // Four attempts overtaken, then one refusal from the stale judge. The
       // sixth attempt is the repair's, and a sixth is exactly what a repair
       // that spent a race could not have reached.
-      const committed = fixture.store.commit
-      let attempt = 0
-      ;(fixture.store as { commit: typeof committed }).commit = (write) => {
-        attempt += 1
-        if (attempt <= 4) {
-          return Effect.fail(
+      const attempts = fakingCommit(fixture, (attempt, write) =>
+        attempt <= 4
+          ? Effect.fail(
             new Store.StaleWrite({ baseRev: write.baseRev, currentRev: write.baseRev + 1 }),
           )
-        }
-        if (attempt === 5) {
-          return Effect.succeed(
-            Result.fail(verdictOf([{
-              file: "plan.olai",
-              line: 1,
-              code: "bad-prop",
-              message: "`pr` must be a day — `2026-09-01` is not one",
-              related: [{
-                file: "_olai/Properties.olai",
-                line: 1,
-                note: "declared here",
-                broken: false,
-              }],
-            }])),
-          )
-        }
-        return committed(write)
-      }
+          : attempt === 5
+          ? Effect.succeed(Result.fail(STALE_JUDGE))
+          : undefined)
 
       const applied = yield* run(fixture, { op: "done", id: "the-plan" })
       expect(applied).toMatchObject({ id: "the-plan" })
-      expect(attempt).toBe(6)
+      expect(attempts()).toBe(6)
       expect(fixture.refusals).toEqual([])
       expect(fixture.read("plan.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
     })))

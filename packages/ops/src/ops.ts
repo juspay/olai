@@ -669,9 +669,7 @@ export const make = (options: Options): Ops => {
            * the verdict names, it names — this write's own file included,
            * whenever the finding is about it.
            */
-          if (yield* repair(aboutFiles(written.failure.findings))) {
-            continue
-          }
+          if (yield* repair(aboutFiles(written.failure.findings))) continue
           const paths = changes.map((change) => change.path)
           /**
            * THE REFUSAL NAMES ITS BLOCKER, which the sentence this replaces
