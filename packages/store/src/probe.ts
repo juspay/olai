@@ -241,7 +241,7 @@ interface Cached<F, E> {
    *  where there were no bytes: a file the codec answered by NAME
    *  ({@link Codec.byName}) and one that would not open. Computed at the read
    *  the probe was already doing, spent only by {@link Probe.drifted}. */
-  readonly digest: string | null
+  readonly fingerprint: string | null
 }
 
 /**
@@ -249,16 +249,18 @@ interface Cached<F, E> {
  * units, low byte first, as hex.
  *
  * NOT a security boundary — a caller who can write the file can write any
- * digest's preimage. It is a drift detector: a false answer costs (positive)
- * a resync nobody needed or (negative) the state a refusal one layer above
- * would repair, and at 64 bits over a handful of asked paths neither is a
- * plan. Chosen over `node:crypto`'s sha of the same bytes because this
- * package's imports are Effect and nothing else, and keeping that is worth
- * more than a wider digest for a comparison this small — and over keeping
- * the BYTES, which is the other honest answer and pins the whole corpus in
- * memory beside the values it decoded to.
+ * fingerprint's preimage. It is a drift detector: a false answer costs
+ * (positive) a resync nobody needed or (negative) the state a refusal one
+ * layer above would repair, and at 64 bits over a handful of asked paths
+ * neither is a plan. Chosen over the repo's one existing digest helper,
+ * {@link ../../state/src/index.ts}'s `digestOf` — sixteen hex of a SHA-256
+ * over a PATH, in the package that IS `node:fs`, `node:crypto` and `node:os`
+ * — because the question here is a file's BYTES rather than a directory's
+ * NAME, and this package's imports are Effect and nothing else and stay
+ * that. Chosen over keeping the BYTES too, which is the other honest answer
+ * and pins the whole corpus in memory beside the values it decoded to.
  */
-const digestOf = (contents: string): string => {
+const fingerprintOf = (contents: string): string => {
   let hi = 0xcbf29ce4
   let lo = 0x84222325
   for (let at = 0; at < contents.length; at++) {
@@ -286,11 +288,11 @@ export interface Promised<F, E> {
 /** One stale file's fresh look: what it now decodes to, and the fingerprint
  *  of the bytes that answer was decoded from. A `null` `decoded` is a file
  *  that was listed and then vanished before it could be read; a `null`
- *  `digest` is one no bytes were read for (a name-answered file, or one that
- *  would not open). */
+ *  `fingerprint` is one no bytes were read for (a name-answered file, or one
+ *  that would not open). */
 interface Looked<F, E> {
   readonly decoded: Result.Result<F, E> | null
-  readonly digest: string | null
+  readonly fingerprint: string | null
 }
 
 export const make = <F, S, E>(
@@ -324,10 +326,12 @@ export const make = <F, S, E>(
             const entry = cached.get(path)
             // Skipped, not answered: a path that is not a file of this store,
             // and one the store never read the bytes of ({@link Cached}).
-            if (entry === undefined || entry.digest === null) continue
+            if (entry === undefined || entry.fingerprint === null) continue
             const text = yield* disk.read(path)
             // Gone IS an answer: the cached bytes no longer exist.
-            if (text === null || digestOf(text) !== entry.digest) drifted.push(path)
+            if (text === null || fingerprintOf(text) !== entry.fingerprint) {
+              drifted.push(path)
+            }
           }
           return drifted
         }),
@@ -376,7 +380,7 @@ export const make = <F, S, E>(
           for (const [path] of stale) {
             const named = codec.byName?.(path) ?? null
             if (named === null) opening.push(path)
-            else fresh.set(path, { decoded: named, digest: null })
+            else fresh.set(path, { decoded: named, fingerprint: null })
           }
           for (
             const [path, contents] of yield* Effect.forEach(
@@ -390,7 +394,7 @@ export const make = <F, S, E>(
             )
           ) {
             if (contents === null) {
-              fresh.set(path, { decoded: null, digest: null })
+              fresh.set(path, { decoded: null, fingerprint: null })
               continue
             }
             if (typeof contents !== "string") {
@@ -402,7 +406,7 @@ export const make = <F, S, E>(
               if (unread === undefined) return yield* Effect.fail(contents)
               // Bytes unknown, and no fingerprint to offer: the failure above
               // is the whole of what the cache may say about this file.
-              fresh.set(path, { decoded: unread, digest: null })
+              fresh.set(path, { decoded: unread, fingerprint: null })
               continue
             }
             // A file whose bytes are the ones this caller promised is not decoded
@@ -416,7 +420,7 @@ export const make = <F, S, E>(
               decoded: promise?.contents === contents
                 ? promise.decoded
                 : codec.decode(path, contents),
-              digest: digestOf(contents),
+              fingerprint: fingerprintOf(contents),
             })
           }
 
@@ -428,7 +432,11 @@ export const make = <F, S, E>(
               // Not stale: keep what it decoded to, and the stamp that says so.
               const cached = previous?.get(path)
               if (cached !== undefined) {
-                next.set(path, { stamp, decoded: cached.decoded, digest: cached.digest })
+                next.set(path, {
+                  stamp,
+                  decoded: cached.decoded,
+                  fingerprint: cached.fingerprint,
+                })
               }
               continue
             }
@@ -436,7 +444,11 @@ export const make = <F, S, E>(
             // Leaving it out is what the next probe would conclude anyway, and it
             // is a REMOVAL rather than a change, which the loop below sees.
             if (looked.decoded === null) continue
-            next.set(path, { stamp, decoded: looked.decoded, digest: looked.digest })
+            next.set(path, {
+              stamp,
+              decoded: looked.decoded,
+              fingerprint: looked.fingerprint,
+            })
             changed.push(path)
           }
           // Off the same map the decode loop just built, so "gone" cannot mean
