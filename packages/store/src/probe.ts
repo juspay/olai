@@ -201,6 +201,12 @@ export interface Probe<F, E> {
    * one that could not be read never said what its bytes were. What comes
    * back is therefore exactly "the paths a resync would re-answer" — which is
    * all a caller deciding whether to pay for one needs.
+   *
+   * READ-ONLY, and the one question this probe answers without the store's
+   * permit: a stamp, a fingerprint and a cached value are all READ here and
+   * none is written, so a probe or a commit interleaving cannot corrupt
+   * either side of a comparison — the worst it can do is make an answer one
+   * revision early, and the repair that consumes it re-reads everything.
    */
   readonly drifted: (
     paths: Iterable<string>,
