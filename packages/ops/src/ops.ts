@@ -366,9 +366,18 @@ export interface Ops extends Asking {
   readonly git: Effect.Effect<GitState>
 }
 
-/** How many times a write may be re-derived before it gives up. Each round is
- *  a fresh read and a fresh plan; something that has lost five in a row is not
- *  losing a race, it is contending with a writer that never stops. */
+/** How many LOST RACES one write survives before it gives up. Each is a fresh
+ *  read and a fresh plan overtaken by another writer; something that has lost
+ *  five in a row is not losing a race, it is contending with a writer that
+ *  never stops.
+ *
+ *  IT COUNTS LOST RACES AND NOTHING ELSE, which is what makes the sentence
+ *  above true of the code rather than of a comment: the counter moves at the
+ *  ONE site that observes a race ({@link Store.commit}'s `StaleWrite`), so a
+ *  round a repair begins again costs it nothing and there is no refund to
+ *  remember at any of {@link REPAIRS}' three doors. The loop is bounded by
+ *  `ROUNDS + REPAIRS` iterations: every `continue` in it either counts a race
+ *  here or spends the repair budget, which no round can give back. */
 const ROUNDS = 5
 
 /** How many TIMES one write may heal the set it was planned against ({@link
@@ -513,7 +522,9 @@ export const make = (options: Options): Ops => {
        * actually holds.
        *
        * ONCE, per write ({@link REPAIRS}) — one budget behind ALL THREE
-       * doors, so the arms cannot spend it apart. A retry that HEALS and still
+       * doors, so the arms cannot spend it apart, and the only thing that
+       * bounds the loop a healed round begins again ({@link ROUNDS} counts
+       * lost races, and a repair is not one). A retry that HEALS and still
        * refuses answers the refusal it was just handed — the fresh one,
        * reached against the resynced set — rather than paying for another
        * look. The failure of the LOOK says the same thing: a disk that
@@ -541,7 +552,7 @@ export const make = (options: Options): Ops => {
           const resynced = yield* Effect.result(options.store.refresh("verified"))
           return Result.isSuccess(resynced)
         })
-      for (let round = 0; round < ROUNDS; round++) {
+      for (let races = 0; races < ROUNDS;) {
         // The CHEAP class, and the write gate is why it is enough: a plan is
         // derived from this revision and then judged against `baseRev` inside
         // the gate, which probes on its way in. A tree that moved under the
@@ -596,10 +607,6 @@ export const make = (options: Options): Ops => {
             held.length > 0 &&
             (yield* repair(aboutFiles(held.flatMap((entry) => entry.errors))))
           ) {
-            // The retry OWNS the round it interrupts: `ROUNDS` prices lost
-            // races, and a repair is not one — the refund is the counter
-            // saying so.
-            round--
             continue
           }
           return yield* planned.failure
@@ -654,16 +661,10 @@ export const make = (options: Options): Ops => {
          * would cost exactly the sweep this ask exists to avoid.
          *
          * ONE BUDGET with the arms below ({@link REPAIRS}): a write that has
-         * already healed asks nothing here, since `repair` answers before the
-         * disk is touched.
+         * already healed asks nothing here at all — `repair` answers before
+         * the disk is touched.
          */
-        if (yield* repair(paths)) {
-          // The retry OWNS the round it interrupts, for the reason the arms
-          // below give: a repair is not a lost race, and the resync has
-          // already paid for the attempt it interrupted.
-          round--
-          continue
-        }
+        if (yield* repair(paths)) continue
 
         const outcome = yield* Effect.result(
           options.store.commit({ baseRev: snapshot.rev, changes }),
@@ -672,7 +673,14 @@ export const make = (options: Options): Ops => {
         if (Result.isFailure(outcome)) {
           // A store that moved is the retry; anything else is a disk that
           // cannot be written, which no re-plan will fix.
-          if (outcome.failure._tag === "StaleWrite") continue
+          //
+          // THE ONE SITE THAT COUNTS ({@link ROUNDS}): this is what a lost
+          // race IS — another writer reached the gate first — and every
+          // other way round this loop is a repair, which is not one.
+          if (outcome.failure._tag === "StaleWrite") {
+            races++
+            continue
+          }
           return yield* new ValidationFailure({
             reason: `the write could not be made: ${outcome.failure.message}`,
             verdict: NOTHING_WRONG,
@@ -702,16 +710,8 @@ export const make = (options: Options): Ops => {
            * exactly the shape this ask must reach), and the write's own
            * files are asked first, in the order it put them down.
            *
-           * The retry OWNS the round it interrupts rather than spending one:
-           * `ROUNDS` is the budget for LOST RACES between two writers, and a
-           * repair is neither of those — nothing was writing continuously,
-           * the set was stale. Letting the `continue` walk off the loop's
-           * end would answer the caller with `BusyFailure` about a flood
-           * that never happened, and the resync already PAID for one more
-           * attempt: the refund below is the loop counter saying so.
            */
           if (yield* repair([...paths, ...aboutFiles(written.failure.findings)])) {
-            round--
             continue
           }
           const alreadyBroken =

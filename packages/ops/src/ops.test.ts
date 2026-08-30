@@ -1062,35 +1062,58 @@ test("a bad value in one file does NOT block declaring another key — the ask s
       expect(fixture.refusals).toEqual([])
     })))
 
-// The refund: a repair consumes its ONE repair, not one of the five rounds
-// — without it, the lost races before this write would leave the round the
-// arm `continue`s out of the loop entirely, and the caller would hear
-// `BusyFailure` about a flood that never happened. The pin: the writes the
-// refund protects LAND rather than running out of rounds.
-test("a repair refunds its round — the lost races before it are not the repair's spending", () =>
-  withOps({ "plan.olai": PLAN_BEFORE }, (fixture) =>
+// A repair does not spend a LOST RACE, which is the whole of what `ROUNDS`
+// counts. Without that rule a write that had already lost four races would
+// walk off the loop the moment its refusal healed, and the caller would hear
+// `BusyFailure` about a flood that never happened. The rule is the counter's
+// now — it moves at the one site a race is observed — and this is the pin from
+// outside: the write LANDS.
+//
+// The stale half is the JUDGE here, so the write's own file is honest and the
+// repair waits for the gate — which is what puts it AFTER every race.
+test("a repair does not spend a lost race — four races and a heal still land", () =>
+  withOps({
+    "plan.olai": PLAN_AFTER,
+    "_olai/Properties.olai": DECLARE_PR_TEXT,
+  }, (fixture) =>
     Effect.gen(function*() {
-      // The rebase shape: declarations visible, content invisible — the
-      // verdict's stale half and the write's plan-file are the same file.
-      fixture.write("_olai/Properties.olai", DECLARE_PR_DATE)
-      replaceBehindTheStamps(fixture.root, "plan.olai", PLAN_AFTER)
+      yield* fixture.set()
+      replaceBehindTheStamps(fixture.root, "_olai/Properties.olai", DECLARE_PR_DATE)
 
-      // THREE lost races first, and the migration's own visible half is
-      // the fourth: the gate's cycle publishes the declaration and answers
-      // the write `StaleWrite` once, honestly. Four rounds spent without a
-      // refusal in sight — the FIFTH is the plan's stale-set refusal, whose
-      // repair must not spend a sixth.
+      // Four attempts overtaken, then one refusal from the stale judge. The
+      // sixth attempt is the repair's, and a sixth is exactly what a repair
+      // that spent a race could not have reached.
       const committed = fixture.store.commit
-      let faking = 3
-      ;(fixture.store as { commit: typeof committed }).commit = (write) =>
-        faking-- > 0
-          ? Effect.fail(
+      let attempt = 0
+      ;(fixture.store as { commit: typeof committed }).commit = (write) => {
+        attempt += 1
+        if (attempt <= 4) {
+          return Effect.fail(
             new Store.StaleWrite({ baseRev: write.baseRev, currentRev: write.baseRev + 1 }),
           )
-          : committed(write)
+        }
+        if (attempt === 5) {
+          return Effect.succeed(
+            Result.fail(verdictOf([{
+              file: "plan.olai",
+              line: 1,
+              code: "bad-prop",
+              message: "`pr` must be a day — `2026-09-01` is not one",
+              related: [{
+                file: "_olai/Properties.olai",
+                line: 1,
+                note: "declared here",
+                broken: false,
+              }],
+            }])),
+          )
+        }
+        return committed(write)
+      }
 
       const applied = yield* run(fixture, { op: "done", id: "the-plan" })
       expect(applied).toMatchObject({ id: "the-plan" })
+      expect(attempt).toBe(6)
       expect(fixture.refusals).toEqual([])
       expect(fixture.read("plan.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
     })))
