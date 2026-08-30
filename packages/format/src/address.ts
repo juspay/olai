@@ -39,10 +39,11 @@
  * record id — which the same arm lands on the mirror's own row when the file
  * draws it, and otherwise resolves to the node the placement stands for
  * (`./derive.ts`'s `nodeNamed`, the chat press's answer to a span spelling
- * the same id) and lands per the row rule. What does NOT go stale is the node's NAME, which the
- * shelf resolves through the id half alone (`./shelf.ts`) — so a pin spelled
- * the qualified way keeps saying the node's live title after a move, the
- * promise `./shelf.test.ts` and `@olai/ops`' move differential pin.
+ * the same id) and lands per the row rule. What does NOT go stale is the
+ * node's NAME, which the shelf resolves through the id half alone
+ * (`./shelf.ts`) — so a pin spelled the qualified way keeps saying the
+ * node's live title after a move, the promise `./shelf.test.ts` and
+ * `@olai/ops`' move differential pin.
  *
  * **A markdown element's identity is its heading slug**, derived from the
  * words in the heading. Rewording the heading breaks the address; that is
