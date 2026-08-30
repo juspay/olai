@@ -39,5 +39,8 @@
  * the honest shape rather than a table stretched to make three.
  */
 
+/** THE CHIP, and nothing else. The ladders and the clock (`./took.ts`) are
+ *  read inside this folder and by `../odu-ci/`, which reaches the module
+ *  directly because it is a SIBLING under `live/` rather than a consumer of
+ *  this dressing — a door is for the app, and what the app draws is the chip. */
 export { TookChip } from "./TookChip.tsx"
-export { createNow, exactOf, tickingOf, wordsOf } from "./took.ts"

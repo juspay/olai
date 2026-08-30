@@ -67,7 +67,7 @@ import { hasBody } from "../body.ts"
 import { density, showsPreview, startsOpen } from "../settings/density.ts"
 import { TESTID } from "../testids.ts"
 import { useToday } from "../today.tsx"
-import { TookChip } from "../live/duration/TookChip.tsx"
+import { TookChip } from "../live/duration/index.ts"
 import { GUTTER_GAP, PAST_BULLET } from "../touch.ts"
 
 export function DayNode(props: {

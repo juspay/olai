@@ -84,7 +84,7 @@ export function NodeLine(props: {
   readonly open?: boolean
   /** The one fact allowed beside the title, already built (./Aside.tsx). */
   readonly aside?: JSX.Element
-  /** The ⏱ chip, already built (./live/duration/TookChip.tsx): how long the work took, or
+  /** The ⏱ chip, already built (./live/duration/): how long the work took, or
    *  how long it has been going. It is the line's CLOSING figure, drawn after
    *  the filler at the far hand — not one of the facts hugging the words —
    *  so it is handed over whole, exactly as the two left of the words are. */

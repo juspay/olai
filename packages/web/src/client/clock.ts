@@ -13,7 +13,7 @@
  * ago the last commit was ({@link ./commit/ago.ts}), how long the running
  * tool call has been going ({@link ./chat/elapsed.ts}), how long the server
  * has been up ({@link ./uptime.ts}), how long a row's work has been going
- * ({@link ./live/duration/TookChip.tsx}) — go stale on their own, and each would
+ * ({@link ./live/duration/}) — go stale on their own, and each would
  * otherwise arrive with a `setInterval`, a signal and an `onCleanup` of its
  * own. Two copies is where a shape stops being incidental: what they have
  * in common is not the number but the LIFETIME, and a timer whose disposal

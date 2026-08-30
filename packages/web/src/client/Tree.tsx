@@ -115,7 +115,7 @@ import { followed, followedSplit, useGo } from "./router.tsx"
 import { density, showsPreview, startsOpen } from "./settings/density.ts"
 import { TESTID } from "./testids.ts"
 import { useToday } from "./today.tsx"
-import { TookChip } from "./live/duration/TookChip.tsx"
+import { TookChip } from "./live/duration/index.ts"
 import {
   CHILD_INDENT,
   GUTTER_GAP,
