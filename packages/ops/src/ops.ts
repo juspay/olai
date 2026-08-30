@@ -272,15 +272,22 @@ export interface Ops extends Asking {
    *  translated, because a caller of this interface is a tool call or a
    *  procedure and both need an answer they can render.
    *
-   *  ONE refusal repairs itself before it is answered: a write refused by a
+   *  ONE refusal repairs itself before it is answered: a write REFUSED by a
    *  set the disk has moved past (stale-set reads, refusing writes —
    *  `stale-set-reads-clean-writes-refuse`), wherever the refusal showed —
-   *  the gate's verdict, or the planner's answer against a set withholding
-   *  a file it judged from bytes. The repair is asked and bounded where the
+   *  the gate's verdict, or the planner's answer against a set withholding a
+   *  file it judged from bytes. The repair is asked and bounded where the
    *  refusal sits below; what is said HERE is the caller's half: a repair
    *  that works is invisible (the write lands on the current set), and one
    *  that does not changes nothing the caller can observe — the answer is
    *  the refusal reached against the resynced set.
+   *
+   *  The half of that bug where NOTHING refuses — a replacement the set
+   *  still validates, which this loop would plan against and then land
+   *  straight over — is not here at all: the write gate compares its own
+   *  paths by bytes on the way in and answers `StaleWrite`, so it arrives as
+   *  an ordinary re-derivation ({@link @olai/store}'s `commit`). Nothing
+   *  above the store has to know it happened.
    *
    *  `writer` is INTENT, not identity: git records the repository's own name
    *  and email whoever asked, so this is the only thing that can tell an
@@ -364,13 +371,23 @@ export interface Ops extends Asking {
   readonly git: Effect.Effect<GitState>
 }
 
-/** How many times a write may be re-derived before it gives up. Each round is
- *  a fresh read and a fresh plan; something that has lost five in a row is not
- *  losing a race, it is contending with a writer that never stops. */
+/** How many LOST RACES one write survives before it gives up. Each is a fresh
+ *  read and a fresh plan overtaken by another writer; something that has lost
+ *  five in a row is not losing a race, it is contending with a writer that
+ *  never stops.
+ *
+ *  IT COUNTS LOST RACES AND NOTHING ELSE, which is what makes the sentence
+ *  above true of the code rather than of a comment: the counter moves at the
+ *  ONE site that observes a race ({@link Store.commit}'s `StaleWrite`), so a
+ *  round a repair begins again costs it nothing and there is no refund to
+ *  remember at either of {@link REPAIRS}' doors. The loop is bounded by
+ *  `ROUNDS + REPAIRS` iterations: every `continue` in it either counts a race
+ *  here or spends the repair budget, which no round can give back. */
 const ROUNDS = 5
 
-/** How many TIMES one write may heal the set it was refused against ({@link
- *  run}'s refusal arms say why the number and why it is this small): one. */
+/** How many TIMES one write may heal the set a REFUSAL was reached against
+ *  ({@link run}'s two repair arms say why the number and why it is this
+ *  small): one. */
 const REPAIRS = 1
 
 /**
@@ -402,11 +419,22 @@ const blockerOf = (
   return alreadyBroken ? undefined : entries[0]?.file
 }
 
-/** Every file these findings were judged FROM — the ABOUT axis the drift
- *  ask rides ({@link @olai/format}'s `implicatedBy`, deduplicated and
- *  path-ordered so one refusal always asks the same question the same way).
- *  The blame's axis would leave the judges home, and the judges are what
- *  stale reaches through. */
+/**
+ * Every file these findings were judged FROM — the ABOUT axis the drift ask
+ * rides ({@link @olai/format}'s `implicatedBy`, deduplicated and path-ordered
+ * so one refusal always asks the same question the same way).
+ *
+ * `implicatedBy` AND NEVER `blamedOn`, which is a live hazard rather than a
+ * pedantic one since the two planes became two functions sitting beside each
+ * other in `@olai/format`'s `errors.ts`. They differ by exactly the sites a
+ * finding NAMES without blaming — a `bad-prop`'s judging declaration, a
+ * `foreign-parent`'s parent — and the judge is precisely what stale reaches
+ * through: the whole shape this arm exists for is a declaration whose bytes
+ * moved on disk while the value it condemned did not. Swapping the axis here
+ * would drop that file out of the ask and leave the refusal unhealable, and it
+ * would do it silently, because every other file in the ask is unchanged.
+ * `ops.test.ts` pins the asked SET for both arms for this reason.
+ */
 const aboutFiles = (findings: ReadonlyArray<OutlineError>): ReadonlyArray<string> =>
   [
     ...new Set(
@@ -497,7 +525,7 @@ export const make = (options: Options): Ops => {
        * no longer satisfies the declarations the SAME operation landed. The
        * check asks about FILES, because a name is all a byte comparison
        * needs: every file the refusal could be looking AT, re-read from disk
-       * and answered from bytes rather than stamps ({@link @olai/store}'s
+       * and answered from BYTES rather than stamps ({@link @olai/store}'s
        * `drifted`). One drifted file is proof the judgement was reached
        * against a tree that is no longer there, so the write is not refused
        * after all — the resync door a person would knock on is opened FOR
@@ -505,8 +533,17 @@ export const make = (options: Options): Ops => {
        * "something outside this process rewrote the tree") and the round
        * begins again, planned off the set the disk actually holds.
        *
+       * THE FILES THIS WRITE ITSELF PUTS DOWN are not asked here, and not
+       * because they do not matter: the gate compares them by bytes on its
+       * own way in and answers `StaleWrite`, so drift under this write never
+       * reaches a refusal to repair. What is left for this door is the drift
+       * a refusal REACHED THROUGH — a stale judge, a withheld file — which
+       * only a reader of `E` can name, and the store cannot read `E`.
+       *
        * ONCE, per write ({@link REPAIRS}) — one budget behind BOTH doors,
-       * so the two arms cannot spend it apart. A retry that HEALS and still
+       * so the two arms cannot spend it apart, and the only thing that
+       * bounds the loop a healed round begins again ({@link ROUNDS} counts
+       * lost races, and a repair is not one). A retry that HEALS and still
        * refuses answers the refusal it was just handed — the fresh one,
        * reached against the resynced set — rather than paying for another
        * look. The failure of the LOOK says the same thing: a disk that
@@ -515,12 +552,13 @@ export const make = (options: Options): Ops => {
        * sentence for both.
        *
        * THE CHECK BEFORE THE DOOR is the ordering the costs argue: a resync
-       * on every refusal would re-read the directory for every typo an
-       * agent talks to itself, so the cheap per-file byte check is what
-       * stands in front of it. Detection is where the refusal shows; the
-       * resync is whole-tree, which is what the one look verb offers, and
-       * one re-read of a served directory costs less than keeping a second
-       * look verb honest.
+       * on every refusal would re-read the directory for every typo an agent
+       * talks to itself, so the cheap per-file byte check is what stands in
+       * front of it. Detection is where the refusal shows; the resync is
+       * whole-tree, which is what the one look verb offers, and one re-read
+       * of a served directory costs less than keeping a second look verb
+       * honest — the narrow, per-file heal is the GATE's, over the paths it
+       * is itself about to write.
        */
       const repair = (files: ReadonlyArray<string>): Effect.Effect<boolean> =>
         Effect.gen(function*() {
@@ -534,7 +572,7 @@ export const make = (options: Options): Ops => {
           const resynced = yield* Effect.result(options.store.refresh("verified"))
           return Result.isSuccess(resynced)
         })
-      for (let round = 0; round < ROUNDS; round++) {
+      for (let races = 0; races < ROUNDS;) {
         // The CHEAP class, and the write gate is why it is enough: a plan is
         // derived from this revision and then judged against `baseRev` inside
         // the gate, which probes on its way in. A tree that moved under the
@@ -589,10 +627,6 @@ export const make = (options: Options): Ops => {
             held.length > 0 &&
             (yield* repair(aboutFiles(held.flatMap((entry) => entry.errors))))
           ) {
-            // The retry OWNS the round it interrupts: `ROUNDS` prices lost
-            // races, and a repair is not one — the refund is the counter
-            // saying so.
-            round--
             continue
           }
           return yield* planned.failure
@@ -616,7 +650,14 @@ export const make = (options: Options): Ops => {
         if (Result.isFailure(outcome)) {
           // A store that moved is the retry; anything else is a disk that
           // cannot be written, which no re-plan will fix.
-          if (outcome.failure._tag === "StaleWrite") continue
+          //
+          // THE ONE SITE THAT COUNTS ({@link ROUNDS}): this is what a lost
+          // race IS — another writer reached the gate first — and every
+          // other way round this loop is a repair, which is not one.
+          if (outcome.failure._tag === "StaleWrite") {
+            races++
+            continue
+          }
           return yield* new ValidationFailure({
             reason: `the write could not be made: ${outcome.failure.message}`,
             verdict: NOTHING_WRONG,
@@ -625,6 +666,22 @@ export const make = (options: Options): Ops => {
 
         const written = outcome.success
         if (Result.isFailure(written)) {
+          /**
+           * THE GATE'S REFUSAL, and its subject is the VERDICT: every file
+           * this refusal was judged FROM ({@link aboutFiles} — the judge's
+           * site included, since a stale declaration is exactly the shape
+           * this ask exists to reach). One question at one door.
+           *
+           * The write's OWN files are not a separate ask here: the gate
+           * compares them by bytes on its way in and answers `StaleWrite`
+           * rather than a verdict when they have moved ({@link
+           * @olai/store}'s `commit`), so a refusal reaching this line was
+           * reached over the bytes that are really under this write. What
+           * the verdict names, it names — this write's own file included,
+           * whenever the finding is about it.
+           */
+          if (yield* repair(aboutFiles(written.failure.findings))) continue
+          const paths = changes.map((change) => change.path)
           /**
            * THE REFUSAL NAMES ITS BLOCKER, which the sentence this replaces
            * could not: "`x` would leave the outlines invalid" read as an
@@ -639,26 +696,6 @@ export const make = (options: Options): Ops => {
            * this write about" is how the gate and the sentence come to
            * disagree about one write.
            */
-          const paths = changes.map((change) => change.path)
-          /**
-           * THE GATE'S REFUSAL is the second door the check above stands
-           * behind. The verdict names every file it was judged FROM ({@link
-           * aboutFiles} — the judge's site included: a stale declaration is
-           * exactly the shape this ask must reach), and the write's own
-           * files are asked first, in the order it put them down.
-           *
-           * The retry OWNS the round it interrupts rather than spending one:
-           * `ROUNDS` is the budget for LOST RACES between two writers, and a
-           * repair is neither of those — nothing was writing continuously,
-           * the set was stale. Letting the `continue` walk off the loop's
-           * end would answer the caller with `BusyFailure` about a flood
-           * that never happened, and the resync already PAID for one more
-           * attempt: the refund below is the loop counter saying so.
-           */
-          if (yield* repair([...paths, ...aboutFiles(written.failure.findings)])) {
-            round--
-            continue
-          }
           const alreadyBroken =
             (yield* SubscriptionRef.get(options.store.errors)) !== null
           const blocker = blockerOf(written.failure, paths, alreadyBroken)

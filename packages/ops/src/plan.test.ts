@@ -9,6 +9,7 @@
  */
 
 import {
+  admits,
   blockersOf,
   datedOn,
   derive,
@@ -23,7 +24,6 @@ import {
   serializeOutline,
   shelfOf,
   standingBefore,
-  stopping,
   validate,
   AddRequest,
   type WriteRequest as Request,
@@ -3224,14 +3224,14 @@ describe("move across outlines", () => {
     // WHICH FILE the gate names is what this pins, and since the per-file
     // ruling it is a fact the set carries rather than a whole-vault refusal:
     // the file holding the bad value goes dark and everything else stays live,
-    // so `stopping` on that file is what the commit hears.
+    // so the gate hears it about that file (`admits`, the question under it).
     const set = judged(after(ROSTERED(), { op: "move", id: "claude", parent: "elsewhere" }))
     const rows = findingsIn(set)
     expect(rows.map((one) => one.code)).toEqual(["bad-prop"])
     expect(rows[0]?.message).toContain("`agent`")
     expect(rows[0]?.message).toContain("`roster`")
     expect(rows[0]?.message).toContain(`"claude"`)
-    expect(stopping(set, [rows[0]?.file as string])).not.toBeNull()
+    expect(admits(set.broken, [rows[0]?.file as string])._tag).toBe("implicated")
   })
 
   // ── the refusals ─────────────────────────────────────────────────────
@@ -5816,7 +5816,7 @@ describe("typed properties", () => {
     ])
     // …and the file is still the one a write to it would be stopped by, which
     // is what "a single write would leave the set invalid" costs a caller now.
-    expect(stopping(stillBroken, ["lanes.olai"])).not.toBeNull()
+    expect(admits(stillBroken.broken, ["lanes.olai"])._tag).toBe("implicated")
 
     const all = after(broken, {
       op: "apply",
@@ -5827,7 +5827,7 @@ describe("typed properties", () => {
       ],
     })
     expect(judged(all).broken).toEqual([])
-    expect(stopping(judged(all), ["lanes.olai"])).toBeNull()
+    expect(admits(judged(all).broken, ["lanes.olai"])._tag).toBe("admitted")
     expect(customOf(all, "a")).toEqual({ brainstorm: "briefs/one.md" })
     expect(customOf(all, "b")).toEqual({ brainstorm: "briefs/two.md" })
     expect(customOf(all, "c")).toEqual({ brainstorm: "briefs/three.md" })

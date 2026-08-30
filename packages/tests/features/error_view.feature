@@ -81,18 +81,29 @@ Feature: One broken outline degrades alone
     And the stale banner names "pantry.olai" as "unparsed"
 
   @corpus:tangled
-  Scenario: A finding that names two files darkens both, and nothing else
-    # cellar.olai:2 names a parent living in attic.olai; cellar.olai:3 re-uses an
-    # id attic.olai:2 claimed first. Neither file is "the" broken one, so both
-    # go dark and the row is on both pages — a reader reaches the fix from
-    # wherever they were standing.
+  Scenario: A finding whose two files SHARE the fault darkens both
+    # cellar.olai:3 re-uses an id attic.olai:2 claimed first. Neither file is
+    # "the" broken one — while the duplicate stands, nobody can draw the second
+    # claim — so both go dark and the row is on both pages, and a reader
+    # reaches the fix from wherever they were standing.
     When I open the app
     And I open the unreadable outline "cellar.olai"
     Then the outline failure shows an error with code "duplicate-id"
-    And the outline failure shows an error with code "foreign-parent"
     When I open the unreadable outline "attic.olai"
     Then the outline failure shows an error with code "duplicate-id"
-    And the outline failure shows an error with code "foreign-parent"
+
+  @corpus:tangled
+  Scenario: A finding that merely POINTS at a second file darkens one
+    # cellar.olai:2 names a parent living in attic.olai. The row is cellar's —
+    # the `parent` field on that line is the whole of the fix — and attic.olai
+    # is named by it without carrying it. attic.olai is dark here for its OWN
+    # reason, the duplicate above, and this row is not among the ones it draws.
+    When I open the app
+    And I open the unreadable outline "cellar.olai"
+    Then the outline failure shows an error with code "foreign-parent"
+    And the outline failure shows an error at "cellar.olai:2"
+    When I open the unreadable outline "attic.olai"
+    Then the outline failure does not show an error at "cellar.olai:2"
 
   @corpus:tangled
   Scenario: A single-file finding stays on its own file's page
@@ -104,7 +115,16 @@ Feature: One broken outline degrades alone
     And the outline failure does not show an error at "cellar.olai:4"
 
   @corpus:tangled
-  Scenario: The third file is untouched by either of them
+  Scenario: The file a broken record POINTS AT stays live
+    # cellar.olai:5 places a record under `porch`, which lives in porch.olai.
+    # porch.olai did nothing but be pointed at — the edit is cellar's `parent`
+    # field — so it draws its tree like any healthy file and the banner never
+    # names it. Darkening it here was `broken-file-blocks-healthy-writes`
+    # re-entering through one code's blame: an innocent file going errors-only
+    # and refusing every write in it.
     When I open the app
     And I open the outline "porch.olai"
     Then the node "sand" is shown
+    And the stale banner names 2 files
+    And the stale banner names "attic.olai" as "invalid"
+    And the stale banner names "cellar.olai" as "invalid"

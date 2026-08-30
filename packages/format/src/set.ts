@@ -44,7 +44,7 @@ import { BrokenFile, type OutlineError } from "./errors.ts"
 import { bodyKind } from "./kinds.ts"
 import { Located } from "./node.ts"
 import { byPath } from "./paths.ts"
-import { admits, type Verdict, verdictOf } from "./verdict.ts"
+import { admits, darkened, type Verdict, verdictOf } from "./verdict.ts"
 
 /**
  * A file of the set that is BROKEN, and why — {@link ./errors.ts}'s shape,
@@ -248,10 +248,45 @@ export const brokenBy = (
  * and lands, and one that half-fixes it is stopped by what is left. There is no
  * repair case and no exception for it — there is one rule, asked of the tree
  * the write would leave behind.
+ *
+ * WHICH FILES THE WRITE IS ANSWERABLE FOR is the whole of what `standing` adds,
+ * and it is a longer ASK rather than a second question. "The files this write
+ * puts down" is not "the files this write breaks": moving a `ref` variant out
+ * of the root its declaration names strands every value that says its id, in a
+ * file the write never opened. So the ask is `paths` PLUS whatever this write
+ * darkened ({@link ./verdict.ts}'s `darkened`) — the write's own files first,
+ * in the order it put them down, so the blocker a multi-file write is named is
+ * unchanged. #439 held this line at the store over a candidate the codec
+ * refused; per-file publishing means there is no refusal there to read, so it
+ * is held here, where both sets are.
+ *
+ * A FILE THAT WAS ALREADY DARK IS IN NEITHER HALF of that ask, which is the
+ * per-file ruling still standing: it is off every page and refusing its own
+ * writes already, and a write three directories away is not what is wrong with
+ * it.
+ *
+ * THIS IS WHERE THE PROMISE LIVES, and #439's planner fence over declarations
+ * is now the SENTENCE rather than the guarantee. That fence enumerates six
+ * verbs a declaration can arrive through and refuses each while an existing
+ * governed value does not fit; the incident it was written for reaches here as
+ * a set where the value's file was lit and would be dark, so this rule turns it
+ * back with no enumeration to keep in step (`./verdict.test.ts` pins that). The
+ * fence is worth keeping for what it SAYS — file, node and value, as `usage`,
+ * before any bytes are staged — and worth not relying on, because a list of
+ * doors is a list somebody adds to.
+ *
+ * `standing` IS REQUIRED, and there is deliberately no arity that asks the
+ * first half alone. This is the WRITE GATE's verb — one production caller,
+ * `@olai/ops`' codec — and a set always has a predecessor by the time a commit
+ * is judged against it (`@olai/store`'s `commit` proves it non-null before the
+ * codec is asked). A caller who wants "is anything wrong with these files in
+ * this set" is asking {@link ./verdict.ts}'s `admits`, which is the question
+ * under this one and is exported for it.
  */
 export const stopping = (
   set: OutlineSet,
   paths: ReadonlyArray<string>,
+  standing: OutlineSet,
 ): Verdict | null => {
   // ONE QUESTION, ONE ANSWER SHAPE ({@link ./verdict.ts}'s `admits`): which of
   // these files something is wrong with, and its rows. This is that answer
@@ -259,7 +294,7 @@ export const stopping = (
   // carries — and the blocker's identity is not thrown away by the spelling:
   // every row in it names the file, which is how the sentence downstream
   // recovers it.
-  const admission = admits(set.broken, paths)
+  const admission = admits(set.broken, [...paths, ...darkened(standing.broken, set.broken)])
   return admission._tag === "admitted" ? null : verdictOf(admission.rows)
 }
 

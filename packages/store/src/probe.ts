@@ -35,12 +35,13 @@
  * One more fact is cached per entry, and it is the one the stamp cannot carry:
  * a fingerprint of the BYTES the file was read as. Stamps are coarse on
  * purpose ({@link ./disk.ts}'s trade), so a caller already holding a reason to
- * ask harder — a write the codec just refused — may ask for the bytes to be
- * compared rather than the stamps ({@link Probe.drifted}). That check costs one
- * file read per asked path and is spent NOWHERE else: it is sixteen
- * characters of hex per cached file forever, in exchange for which the
- * refusal door can tell "the set does not fit the disk" from "the write does
- * not fit the set" without re-reading the directory.
+ * ask harder — a WRITE, about to put bytes over a file, or one the codec just
+ * refused — may ask for the bytes to be compared rather than the stamps
+ * ({@link Probe.drifted}). That check costs one file read per asked path and is
+ * spent NOWHERE else: it is sixteen characters of hex per cached file forever,
+ * in exchange for which the write door can tell "the set does not fit the
+ * disk" from "the write does not fit the set" without re-reading the
+ * directory.
  */
 
 import { Effect, Ref, type Result } from "effect"
@@ -147,6 +148,13 @@ export const sameDecoded = <F, E>(
   return true
 }
 
+/** How many of this probe's files may be open at once — the bound both
+ *  places that read many files hold themselves to ({@link Probe.run}'s stale
+ *  set, {@link Probe.drifted}'s asked paths). One number, because it is one
+ *  fact about this process's file descriptors and two spellings of it would be
+ *  two answers to what a busy probe is allowed to cost. */
+const READERS = 16
+
 export interface Probe<F, E> {
   /**
    * Look, and say what moved — or `null` for a listing identical to the last.
@@ -183,15 +191,16 @@ export interface Probe<F, E> {
   readonly holds: (path: string) => Effect.Effect<boolean>
   /**
    * WHICH OF THESE FILES NOW READS AS BYTES the cache did not decode from —
-   * the stronger look a REFUSAL pays for.
+   * the stronger look a WRITE pays for.
    *
    * The loop decides on stamps and is entitled to: coarse is the trade it
-   * took. A caller holding a "no" from the codec has the one reason the loop
-   * never does to open the file instead — so this member re-reads exactly the
-   * paths it is handed and compares BYTES, via the fingerprint the read
+   * took. A WRITE has the one reason the loop never does to open the file
+   * instead — the bytes under it are what it is about to overwrite, or what a
+   * "no" from the codec was reached against — so this member re-reads exactly
+   * the paths it is handed and compares BYTES, via the fingerprint the read
    * cached. It is the same money argument as the stamp table, one door over:
-   * one file read per asked path, spent at refusal time (rare, and already
-   * expensive), never per probe.
+   * one file read per asked path, spent by writers on paths they name, never
+   * per probe and never per read.
    *
    * A path the probe does not hold is SKIPPED, not answered — the same
    * membership rule {@link Probe.holds} keeps: it is not this store's file,
@@ -335,19 +344,31 @@ export const make = <F, S, E>(
         Effect.gen(function*() {
           const cached = yield* Ref.get(cache)
           if (cached === null) return []
-          const drifted: Array<string> = []
+          // The skips are taken BEFORE the reads, for {@link run}'s reason one
+          // door over: a path with nothing to compare needs no file opened, so
+          // it should not be holding one of the permits below. Skipped, not
+          // answered — a path that is not a file of this store, and one the
+          // store never read the bytes of ({@link Cached}).
+          const opening: Array<readonly [string, string]> = []
           for (const path of new Set(paths)) {
             const entry = cached.get(path)
-            // Skipped, not answered: a path that is not a file of this store,
-            // and one the store never read the bytes of ({@link Cached}).
             if (entry === undefined || entry.fingerprint === null) continue
-            const text = yield* disk.read(path)
-            // Gone IS an answer: the cached bytes no longer exist.
-            if (text === null || fingerprintOf(text) !== entry.fingerprint) {
-              drifted.push(path)
-            }
+            opening.push([path, entry.fingerprint])
           }
-          return drifted
+          // Bounded the same way and for the same reason as the probe's own
+          // reads: the paths are independent by construction — nothing here
+          // decides anything about another — and a verdict about a
+          // declarations file can name a dozen of them, which is a dozen
+          // round-trips end to end if they are taken one at a time.
+          const looked = yield* Effect.forEach(
+            opening,
+            ([path, fingerprint]) =>
+              Effect.map(disk.read(path), (text) =>
+                // Gone IS an answer: the cached bytes no longer exist.
+                text === null || fingerprintOf(text) !== fingerprint ? path : null),
+            { concurrency: READERS },
+          )
+          return looked.filter((path) => path !== null)
         }),
 
       forget: (paths: Iterable<string>) =>
@@ -404,7 +425,7 @@ export const make = <F, S, E>(
                   onFailure: (failure) => [path, failure] as const,
                   onSuccess: (text) => [path, text] as const,
                 }),
-              { concurrency: 16 },
+              { concurrency: READERS },
             )
           ) {
             if (contents === null) {
