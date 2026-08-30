@@ -2464,9 +2464,13 @@ const governedUnfit = (
       return scope.typed.documents
     },
   }
-  const unfit = extra.size === 0
-    ? unfitHeld(typed, key)
-    : unfitHeld(typed, key).filter((one) => !extra.has(one.value))
+  // `extra` is VARIANT IDS, so it only excuses a `ref`. A `doc` capture
+  // that happens to mint a child whose id equals a held path is not a
+  // legal value of that key.
+  const held = unfitHeld(typed, key)
+  const unfit = extra.size === 0 || declared.type.kind !== "ref"
+    ? held
+    : held.filter((one) => !extra.has(one.value))
   if (unfit.length === 0) return undefined
   const n = unfit.length
   const named = capped(unfit, (one) =>
