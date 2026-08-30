@@ -18,5 +18,5 @@ import type * as StoreModule from "@olai/store"
  *  Its `E` is the {@link Verdict}: what the codec says when it says no, on
  *  either of its two halves — one file that would not parse, or the whole set
  *  the rules refused. Every consumer above reads its ANSWERS (`admits`,
- *  `summary`, `implicating`) rather than re-partitioning a list of rows. */
+ *  `summaryOf`, `blamed`) rather than re-partitioning a list of rows. */
 export type Store = StoreModule.Store<Reading, Verdict>

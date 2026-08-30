@@ -28,6 +28,7 @@ import {
   type OutlineError,
   type OutlineSet,
   outlinePaths,
+  stopping,
   parseOutline,
   type WriteRequest as Request,
   type WriteResult as Applied,
@@ -1013,7 +1014,7 @@ describe("apply, against a real directory", () => {
 })
 
 /**
- * WRITES DEGRADE PER FILE, the way reads have since 2026-08-09.
+ * ONE BROKEN OUTLINE DEGRADES ALONE — reads, writes and all.
  *
  * The bug (`broken-file-blocks-healthy-writes`, sighted 2026-08-25): one
  * outline failing typed validation refused an `add_node` into a perfectly
@@ -1022,11 +1023,14 @@ describe("apply, against a real directory", () => {
  * the refusal said "would leave the outlines invalid", which reads as an
  * indictment of a write that was innocent. Filing THAT BUG was blocked by it.
  *
- * The socket is `@olai/format`'s `admits` and the seam is the store's
- * (`@olai/store`'s `Codec.admits`, spent by `commit`); what is only true END TO
- * END is here — that the bytes land, that the brokenness is still reported
- * beside the success, and that the writes which must still be refused are
- * refused with the file named.
+ * The first fix let the BYTES land while the snapshot stayed frozen at the last
+ * good revision — better, and still a vault where nothing on screen moved. The
+ * human's ruling of 2026-08-29 took the freeze out: a broken `.olai` degrades
+ * alone, so the set is PUBLISHED with that file withheld and every other file
+ * is live, revisioned and writable. What is only true END TO END is here — that
+ * the revision moves, that the brokenness is carried on the file rather than on
+ * the errors channel, that a second write lands on top of the first, and that
+ * the writes which must still be refused are refused with the file named.
  */
 describe("a broken file beside a healthy one", () => {
   /** A second outline, valid on its own — what the healthy write goes into. */
@@ -1038,14 +1042,25 @@ describe("a broken file beside a healthy one", () => {
   const DANGLING =
     `{"id":"garden","ord":"a0","title":"the garden","see":["nobody-declares-this"]}\n`
 
-  /** Break `garden.olai` on disk and let the store see it: the snapshot stays
-   *  where it was, and the errors channel carries the verdict. */
+  /**
+   * Break `garden.olai` on disk and let the store see it.
+   *
+   * THE DIRECTORY GOES ON BEING SERVED, which is the ruling in one assertion:
+   * a revision is published, `garden.olai` is in the set's `broken` with its own
+   * row, and the ERRORS CHANNEL IS EMPTY — that channel says the directory
+   * could not be read, and this directory was read perfectly.
+   */
   const breakGarden = (fixture: Fixture) =>
     Effect.gen(function*() {
       fixture.write("garden.olai", DANGLING)
       yield* Effect.orDie(fixture.store.refresh("cheap"))
-      const errors = yield* SubscriptionRef.get(fixture.store.errors)
-      expect(errors?.findings.map((one) => one.code)).toEqual(["unknown-target"])
+      expect(yield* SubscriptionRef.get(fixture.store.errors)).toBeNull()
+      const set = yield* fixture.set()
+      expect(set.broken.map((one) => one.file)).toEqual(["garden.olai"])
+      expect(set.broken[0]?.errors.map((one) => one.code)).toEqual(["unknown-target"])
+      // The file keeps its PLACE and loses its content, which is what makes its
+      // own page draw rows where its tree was.
+      expect(recordsOf(set).filter((at) => at.file === "garden.olai")).toEqual([])
     })
 
   test("a write to the healthy file lands, and the broken one goes on being broken", () =>
@@ -1056,66 +1071,82 @@ describe("a broken file beside a healthy one", () => {
           yield* breakGarden(fixture)
 
           const applied = yield* run(fixture, { op: "done", id: "order" })
-          // THE BYTES ARE ON DISK. Under the old gate this write was refused
-          // outright and nothing was written at all.
+          // THE BYTES ARE ON DISK. Under the original gate this write was
+          // refused outright and nothing was written at all.
           expect(fixture.read("house.olai")).toContain(`"done":${JSON.stringify(STAMP)}`)
-          // The revision does NOT move, and that is the honest answer rather
-          // than a wart: the served set still does not validate, so the last
-          // good snapshot is still what every reader is reading.
-          expect(applied.rev).toBe(1)
           expect(fixture.refusals).toEqual([])
+          // AND THE REVISION MOVES, which is what the ruling added: the write
+          // is on screen. It used to come back at the standing revision, with
+          // the last good snapshot still being served to every reader.
+          expect(applied.rev).toBeGreaterThan(1)
 
-          // …and the brokenness is reported BESIDE the success rather than in
-          // place of it, which is the sentence the bug asked for.
-          const errors = yield* SubscriptionRef.get(fixture.store.errors)
-          expect(errors?.findings.map((one) => one.file)).toEqual(["garden.olai"])
+          const set = yield* fixture.set()
+          const done = recordsOf(set).find((at) => at.node.id === "order")?.node
+          expect(done !== undefined && !isMirror(done) ? done.done : undefined).toBe(STAMP)
+          // …and the broken file is still broken, in the same set, beside it.
+          expect(set.broken.map((one) => one.file)).toEqual(["garden.olai"])
         }),
     ))
 
-  // THE OTHER HALF of the same narrowing — a write the verdict IS about, still
-  // refused and now naming the file — is asserted where it can be reached end
-  // to end through a real agent call: `@olai/server`'s `tools.test.ts`, whose
-  // typed-property fixture makes a `move_node` break a file it does not write.
-  // Reaching it from here would mean a second copy of that fixture, and the
-  // sentence is the same sentence.
-
   /**
-   * THE GUARD THAT MAKES THE NARROWING SAFE, and it is the reason `admits` is
-   * not the whole of the store's question.
+   * THE FREEZE IS GONE, and this is the test that was written the other way up.
    *
-   * A write is planned against the SNAPSHOT, and while the set will not
-   * validate the snapshot does not move — so the second write to a file the
-   * first one already changed would be planned off a copy without the first
-   * write in it, and would put that copy back. The store refuses exactly that:
-   * a path the published revision no longer accounts for cannot be written from
-   * it ({@link ../../store/src/store.ts}'s `commit`), and the refusal names the
-   * paths so the reader knows which file to look at.
+   * While a broken file held the snapshot at the last good revision, a second
+   * write to a file the first one had already changed had to be REFUSED: it
+   * would have been planned off a copy without the first write in it and would
+   * have put that copy back. The store still owns that guard — a path the
+   * published revision no longer accounts for cannot be written from it — and
+   * it has nothing to defend against here, because the snapshot moves on every
+   * write. Both writes land, and the second is derived from the first.
    */
-  test("a second write to the same file, over a frozen snapshot, is refused rather than losing the first", () =>
+  test("a second write to the same file lands on top of the first", () =>
     withOps(
       { "house.olai": HOUSE, "garden.olai": GARDEN },
       (fixture) =>
         Effect.gen(function*() {
           yield* breakGarden(fixture)
           yield* run(fixture, { op: "done", id: "order" })
-          const landed = fixture.read("house.olai") ?? ""
+          yield* run(fixture, { op: "title", id: "install", title: "install them" })
+          expect(fixture.refusals).toEqual([])
 
-          const failure = yield* Effect.orDie(
-            Effect.flip(
-              fixture.ops.run({ op: "title", id: "install", title: "install them" }, "mcp"),
-            ),
-          )
-          expect(failure._tag).toBe("ValidationFailure")
-          expect(failure.message).toContain("`house.olai`")
-          // The first write is still there, which is the whole of what this
-          // refusal buys.
-          expect(fixture.read("house.olai")).toBe(landed)
+          const text = fixture.read("house.olai") ?? ""
+          expect(text).toContain(`"done":${JSON.stringify(STAMP)}`)
+          expect(text).toContain(`"title":"install them"`)
         }),
     ))
 
-  // And the freeze really does lift: fixing the broken file publishes again,
-  // with the admitted write in the set the way any other write would be.
-  test("the admitted write is in the set the moment the broken file is fixed", () =>
+  /**
+   * …AND A WRITE TO THE BROKEN FILE ITSELF IS REFUSED, naming it.
+   *
+   * The other end of the same rule, and the refusal is the planner's rather
+   * than the gate's: the set holds a PLACE for `garden.olai` and no records, so
+   * there is nothing in it for an op to name, and re-emitting the file from the
+   * set would erase what is really on disk. One sentence for every kind of
+   * broken — the same one a file that would not parse has always got — and the
+   * repair is a whole-file write rather than a node edit.
+   */
+  test("a write INTO the broken file is refused, and says which file", () =>
+    withOps(
+      { "house.olai": HOUSE, "garden.olai": GARDEN },
+      (fixture) =>
+        Effect.gen(function*() {
+          yield* breakGarden(fixture)
+          const failure = yield* Effect.orDie(
+            Effect.flip(
+              fixture.ops.run({ op: "add", file: "garden.olai", title: "a new bed" }, "mcp"),
+            ),
+          )
+          expect(failure._tag).toBe("ValidationFailure")
+          expect(failure.message).toContain("`garden.olai`")
+          // Nothing was written, so the broken file is still exactly the bytes
+          // its owner has to go and fix.
+          expect(fixture.read("garden.olai")).toBe(DANGLING)
+        }),
+    ))
+
+  // And it comes back on its own: fixing the file publishes it, with the
+  // healthy file's writes still in the set the way any other write would be.
+  test("the broken file comes back the moment it is fixed", () =>
     withOps(
       { "house.olai": HOUSE, "garden.olai": GARDEN },
       (fixture) =>
@@ -1125,14 +1156,18 @@ describe("a broken file beside a healthy one", () => {
 
           fixture.write("garden.olai", GARDEN)
           yield* Effect.orDie(fixture.store.refresh("cheap"))
-          expect(yield* SubscriptionRef.get(fixture.store.errors)).toBeNull()
 
           const set = yield* fixture.set()
+          expect(set.broken).toEqual([])
+          expect(
+            recordsOf(set).filter((at) => at.file === "garden.olai").map((at) => at.node.id),
+          ).toEqual(["garden"])
           const done = recordsOf(set).find((at) => at.node.id === "order")?.node
           expect(done !== undefined && !isMirror(done) ? done.done : undefined).toBe(STAMP)
         }),
     ))
 })
+
 
 /**
  * A bad `type` in a Properties declaration used to pass the planner and meet
@@ -1250,11 +1285,18 @@ describe("a declaration over unfit values", () => {
 
   /**
    * Declare-blocked cleanup of the last-good trap: a hand-edited declaration
-   * is already on disk, the snapshot is frozen, and a single `set_prop` of
-   * one of several bad values in one file is refused (the file still has
-   * the others). One `apply` that fixes them all lands.
+   * is already on disk, the file it fences is WITHHELD from the published set,
+   * and a single `set_prop` of one of several bad values in that file is
+   * refused (the candidate still has the others). One `apply` that fixes them
+   * all lands.
+   *
+   * THE FROZEN SNAPSHOT IS GONE and the claim is not: since the per-file
+   * ruling the directory publishes with `lanes.olai` withheld rather than
+   * holding every page at the last good revision, so what says the file is in
+   * trouble is its own `broken` entry and not the errors channel — which is
+   * about a directory that could not be read.
    */
-  test("a hand-edited declaration: one apply repairs the file, a single write does not", () =>
+  test("a hand-edited declaration withholds the file, and no node op reaches it", () =>
     withOps(FILES, (fixture) =>
       Effect.gen(function*() {
         fixture.write(
@@ -1263,13 +1305,21 @@ describe("a declaration over unfit values", () => {
             `{"id":"prop-brief","ord":"a1","title":"brainstorm","custom":{"type":"doc"}}\n`,
         )
         yield* Effect.orDie(fixture.store.refresh("cheap"))
-        const errors = yield* SubscriptionRef.get(fixture.store.errors)
-        expect(errors?.findings.map((one) => one.code)).toEqual([
+        expect(yield* SubscriptionRef.get(fixture.store.errors)).toBeNull()
+        const held = yield* fixture.set()
+        expect(held.broken.map((one) => one.file)).toEqual(["lanes.olai"])
+        expect(held.broken[0]?.errors.map((one) => one.code)).toEqual([
           "bad-prop",
           "bad-prop",
           "bad-prop",
         ])
 
+        // NEITHER OP REACHES IT, and that is the per-file ruling rather than a
+        // gap: a withheld file is one the set holds a PLACE for and no records,
+        // so there is no `a` for a planner to resolve. #439 shipped `apply` as
+        // the one-write repair of several bad values in one file, and that door
+        // is a repair of a file the set still HOLDS — a healthy file that would
+        // become broken. A file already withheld is a hand edit's to mend.
         const one = yield* Effect.orDie(
           Effect.flip(
             fixture.ops.run({
@@ -1280,21 +1330,38 @@ describe("a declaration over unfit values", () => {
             }, "mcp"),
           ),
         )
-        expect(one._tag).toBe("ValidationFailure")
-        expect(one.message).toContain("lanes.olai")
+        expect(one._tag).toBe("NotFoundFailure")
 
-        yield* run(fixture, {
-          op: "apply",
-          ops: [
-            { op: "prop", id: "a", key: "brainstorm", value: "briefs/one.md" },
-            { op: "prop", id: "b", key: "brainstorm", value: "briefs/two.md" },
-            { op: "prop", id: "c", key: "brainstorm", value: "briefs/three.md" },
-          ],
-        })
-        expect(yield* SubscriptionRef.get(fixture.store.errors)).toBeNull()
-        expect(fixture.read("lanes.olai")).toContain("briefs/one.md")
-        expect(fixture.read("lanes.olai")).toContain("briefs/two.md")
-        expect(fixture.read("lanes.olai")).toContain("briefs/three.md")
+        const batch = yield* Effect.orDie(
+          Effect.flip(
+            fixture.ops.run({
+              op: "apply",
+              ops: [
+                { op: "prop", id: "a", key: "brainstorm", value: "briefs/one.md" },
+                { op: "prop", id: "b", key: "brainstorm", value: "briefs/two.md" },
+                { op: "prop", id: "c", key: "brainstorm", value: "briefs/three.md" },
+              ],
+            }, "mcp"),
+          ),
+        )
+        expect(batch._tag).toBe("NotFoundFailure")
+        expect(fixture.read("lanes.olai")).toContain("not a path")
+
+        // AND THE HAND EDIT MENDS IT, with no reload and nothing else touched —
+        // which is the state's only door, and is why #439's other half (the
+        // planner fence that stops a declaration landing over unfit values in
+        // the first place) is what keeps a vault out of here through olai.
+        fixture.write(
+          "lanes.olai",
+          [
+            `{"id":"a","ord":"a0","title":"first","custom":{"brainstorm":"briefs/one.md"}}`,
+            `{"id":"b","ord":"a1","title":"second","custom":{"brainstorm":"briefs/two.md"}}`,
+            `{"id":"c","ord":"a2","title":"third","custom":{"brainstorm":"briefs/three.md"}}`,
+            "",
+          ].join("\n"),
+        )
+        yield* Effect.orDie(fixture.store.refresh("cheap"))
+        expect((yield* fixture.set()).broken).toEqual([])
       })))
 
   test("apply can reach a value on a trashed node", () =>
@@ -1317,12 +1384,29 @@ describe("a declaration over unfit values", () => {
 })
 
 /**
- * A write-door the load would refuse: moving a `ref` VARIANT into a file
- * that does not hold the values pointing at it. The planner builds it; the
- * gate used to admit it (`admits` saw findings only on the unwritten file).
- * From a loading directory that write is this write's, and is refused.
+ * MOVING A `ref` VARIANT INTO A THIRD FILE — and what the per-file ruling did
+ * to #439's answer for it.
+ *
+ * The planner builds the move (nothing about one record says the value in a
+ * third file goes stale). #439 caught it at the STORE: the candidate would not
+ * validate, and a write from a loading directory that produces a refused set is
+ * that write's whatever files the findings name, so the bytes never landed.
+ *
+ * That clause has no trigger here. A candidate the codec would once have
+ * refused is now one it PUBLISHES, with `lanes.olai` withheld — so the store's
+ * refusal path is not taken, and `stopping` answers about the files this write
+ * puts down, which are the two it moved between. The move lands and the third
+ * file goes dark.
+ *
+ * THIS IS PINNED AS THE BEHAVIOUR RATHER THAN ENDORSED AS THE DESIGN. It is the
+ * one place per-file degradation lets a write break a file it did not write,
+ * and it is in the PR's Deferrals with the two candidate fixes named (widen
+ * `Codec.stopping` with the standing value so a codec can refuse a write that
+ * NEWLY breaks a bystander; or fence this door at the planner the way #439
+ * fenced the declaration doors). What is not in question is that it must not
+ * stay silent, which is what this test is for.
  */
-test("moving a ref variant into a third file is refused, and nothing lands", () =>
+test("moving a ref variant lands, and the third file it strands goes dark", () =>
   withOps(
     {
       "_olai/Properties.olai":
@@ -1337,18 +1421,18 @@ test("moving a ref variant into a third file is refused, and nothing lands", () 
     },
     (fixture) =>
       Effect.gen(function*() {
-        const agents = fixture.read("agents.olai")
         const lanes = fixture.read("lanes.olai")
-        const garden = fixture.read("garden.olai")
-        const failure = yield* Effect.orDie(
-          Effect.flip(
-            fixture.ops.run({ op: "move", id: "claude", parent: "garden" }, "mcp"),
-          ),
-        )
-        expect(failure._tag).toBe("ValidationFailure")
-        expect(failure.message).toContain("lanes.olai")
-        expect(fixture.read("agents.olai")).toBe(agents)
+        yield* run(fixture, { op: "move", id: "claude", parent: "garden" })
+
+        // The two files the write put down moved; the one it stranded did not.
+        expect(fixture.read("garden.olai")).toContain(`"id":"claude"`)
         expect(fixture.read("lanes.olai")).toBe(lanes)
-        expect(fixture.read("garden.olai")).toBe(garden)
+
+        // …and it is what the reader sees: `lanes.olai` withheld, carrying the
+        // row about the value the move stranded, with every other file live.
+        const set = yield* fixture.set()
+        expect(set.broken.map((one) => one.file)).toEqual(["lanes.olai"])
+        expect(set.broken[0]?.errors.map((one) => one.code)).toEqual(["bad-prop"])
+        expect(stopping(set, ["garden.olai"])).toBeNull()
       }),
   ))

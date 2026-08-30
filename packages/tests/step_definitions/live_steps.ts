@@ -25,13 +25,14 @@ import { Then, When } from "@cucumber/cucumber";
 
 import { retargetRelative } from "@olai/format";
 
-import { expectCodeIn, expectSiteIn } from "../support/errors.ts";
+import { expectCodeIn, expectSiteIn, rowsIn } from "../support/errors.ts";
 import { askResync } from "../support/scratch.ts";
 import {
   attr,
   BACKSTOP_STEP_TIMEOUT,
   BACKSTOP_TIMEOUT,
   BROKEN_FILE_LINE,
+  BROKEN_FILE_LINK,
   ERROR_ROW,
   NODE,
   OUTLINE_FAILURE,
@@ -362,6 +363,28 @@ Then(
   },
 );
 
+/**
+ * …AND NOT SOMEBODY ELSE'S ROW.
+ *
+ * The other half of "a finding breaks the files it is ABOUT": a row naming one
+ * file alone belongs to that file's page and to no other, where a row naming
+ * two belongs to both. Without this the pair of assertions above would pass
+ * over a page that simply drew the whole directory's report.
+ */
+Then(
+  "the outline failure does not show an error at {string}",
+  async function (this: OlaiWorld, site: string) {
+    const failure = this.page.locator(OUTLINE_FAILURE);
+    await failure.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const rows = await rowsIn(failure);
+    assert.ok(
+      !rows.some((row) => row.includes(site)),
+      `this outline's place draws "${site}", which is another file's row:\n  ` +
+        rows.join("\n  "),
+    );
+  },
+);
+
 // ── the whole set, held ────────────────────────────────────────────────
 
 Then("the stale banner is shown", async function (this: OlaiWorld) {
@@ -412,17 +435,31 @@ Then("the stale banner is gone", async function (this: OlaiWorld) {
   );
 });
 
-Then("no stale banner is shown", async function (this: OlaiWorld) {
-  // No wait: this asserts that a degrade did NOT escalate to holding the whole
-  // set, and waiting for a banner that must not appear would only make the
-  // suite slower at saying so. The step before it has already waited for the
-  // change to land.
-  assert.strictEqual(
-    await this.page.locator(STALE_BANNER).count(),
-    0,
-    "the last-good banner is on screen; this change should have cost one outline, not the set",
-  );
-});
+/**
+ * HOW MANY files the summary names — the per-file ruling counted.
+ *
+ * It replaced "no stale banner is shown", which asserted that a degrade had not
+ * ESCALATED to holding the whole set. There is no escalation left to assert:
+ * every finding is per file, so the summary is drawn whenever anything is
+ * broken and what says the degrade stayed put is the SIZE of it. One bad line
+ * in one file names one file.
+ *
+ * No wait: the step before this has already waited for the change to land, and
+ * waiting for a count that must not grow would only make the suite slower at
+ * saying so.
+ */
+Then(
+  "the stale banner names {int} file",
+  async function (this: OlaiWorld, many: number) {
+    const banner = this.page.locator(STALE_BANNER);
+    await banner.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    assert.strictEqual(
+      await banner.locator(BROKEN_FILE_LINE).count(),
+      many,
+      `the summary to name ${many} file(s); it says:\n  ` + (await banner.innerText()),
+    );
+  },
+);
 
 /**
  * The banner NAMES a broken file and says how many findings implicate it — a
@@ -451,6 +488,34 @@ Then(
       (await line.count()) > 0,
       `the banner to name "${file}" as "${state}"; it says:\n  ` +
         (await banner.innerText()),
+    );
+  },
+);
+
+/**
+ * …AND THE LINE IS A DOOR.
+ *
+ * Every broken file has a page of its own since the per-file ruling
+ * (2026-08-29), so the banner sends a reader to it. The sentence it replaces
+ * refused to, and said why: a file that PARSED and said something the set could
+ * not hold had no pane, so the obvious link went somewhere with nothing to
+ * show. Asserted as an `href` rather than by clicking, because what is under
+ * test is that the destination is named — the navigation itself is the router's
+ * and has its own scenarios.
+ */
+Then(
+  "the stale banner links to {string}",
+  async function (this: OlaiWorld, file: string) {
+    const banner = this.page.locator(STALE_BANNER);
+    await banner.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const link = banner.locator(`${BROKEN_FILE_LINK}${attr("data-file", file)}`);
+    await link
+      .first()
+      .waitFor({ state: "visible", timeout: POLL_TIMEOUT })
+      .catch(() => undefined);
+    assert.ok(
+      (await link.count()) > 0,
+      `the banner to link to "${file}"; it says:\n  ` + (await banner.innerText()),
     );
   },
 );

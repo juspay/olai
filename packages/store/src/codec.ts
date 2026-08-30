@@ -127,32 +127,46 @@ export interface Codec<F, S, E> {
    */
   readonly unreadable: (failure: PlatformFailure) => E
   /**
-   * IS THIS WRITE ADMISSIBLE against a set you have already refused?
+   * WHAT, IN THIS VERDICT, STOPS A WRITE TO THESE FILES — or `null` when
+   * nothing does.
    *
    * The write gate validates the set a commit WOULD make before it renames
-   * anything, and until this member existed a refusal there was the end of it:
-   * one file the codec would not accept froze every write to the directory,
-   * whatever it touched. That is a whole-set answer to a per-file question, and
-   * it is the store that was asking it — the codec had said "this set is not
-   * one I can publish", which is true and is not the same sentence.
+   * anything, and it used to spend that verdict as a boolean about the whole
+   * directory: one file the codec would not accept froze every write, whatever
+   * it touched. That is a whole-set answer to a per-file question, and it is
+   * the store that was asking it — the codec had said "this set is not one I
+   * can publish", which is true and is not the same sentence.
    *
-   * So the store asks the second question here, and only the codec can answer:
-   * `refusal` is what {@link validate} just handed back, `paths` are the files
-   * THIS write puts down, and the answer is whether the refusal has anything to
-   * do with them. `true` lets the bytes land — the set is still refused, the
-   * last good snapshot still stands, and the errors channel still carries the
-   * refusal — which is exactly what a READ of a broken directory already gets.
+   * So the store asks the per-file question here, and only the codec can
+   * answer: `outcome` is exactly what {@link validate} just handed back — EITHER
+   * ARM — `paths` are the files THIS write puts down, and the answer is the `E`
+   * to refuse with, or `null` to let the bytes land.
    *
-   * ABSENT MEANS NO, which is every codec's behaviour before this existed and
-   * stays the behaviour of one that omits it. The store looks inside neither
-   * `E` nor the files: it hands over what it has and spends the boolean.
+   * BOTH ARMS, and that is what this member gained when it stopped being
+   * `admits(refusal, paths) => boolean`. A codec that degrades PER FILE answers
+   * a broken directory with a SUCCESS — the set, with the broken files' content
+   * withheld inside it — so "is anything wrong with these files" is a question
+   * about the value it answered with and not only about one it declined to give.
+   * Asking only over the refusal left such a codec with nowhere to say that a
+   * write had broken the very file it was writing: the caller would be told the
+   * write landed while that file's records left every page, which is the same
+   * guarantee the per-file DECODE gate makes one step earlier
+   * ({@link ./store.ts}'s `commit`, step 3).
+   *
+   * ABSENT MEANS THE OLD SENTENCE, which is every codec's behaviour before any
+   * of this existed: a refusal refuses the write and a success admits it. The
+   * store looks inside neither `E` nor `S` nor the files — it hands over what
+   * it has and spends whatever comes back.
    *
    * WHAT IT DOES NOT DECIDE is whether the write is SAFE to make from the base
    * the caller planned against — that is the store's own bookkeeping, and it is
-   * checked before this is asked ({@link ./store.ts}'s `commit`). A codec is
-   * never handed a question it has no way to answer.
+   * checked beside this ({@link ./store.ts}'s `commit`). A codec is never
+   * handed a question it has no way to answer.
    */
-  readonly admits?: (refusal: E, paths: ReadonlyArray<string>) => boolean
+  readonly stopping?: (
+    outcome: Result.Result<S, E>,
+    paths: ReadonlyArray<string>,
+  ) => E | null
   /**
    * One FILE could not be read — EACCES on a `.md`, not the directory itself.
    *

@@ -23,8 +23,8 @@
 
 import {
   admits,
+  blamed,
   BusyFailure,
-  implicatedIn,
   type CommitRequest,
   type CommitResult,
   type DatedAnswer,
@@ -365,15 +365,22 @@ const ROUNDS = 5
  * it did not write (the directory was loading); or the write is standing
  * on a base the disk has moved past while the set would not load, and
  * there is no file of ours to name.
+ *
+ * ASKED THROUGH THE STEP EVERY READER OF A VERDICT MAKES: it becomes per-file
+ * ENTRIES (`blamed`), and both questions are asked of those — `admits` for the
+ * files this write put down, and the first entry for the second arm, since
+ * `blamed` files in path order and that first entry is what `implicatedIn` used
+ * to answer. One partition, read twice, rather than two orderings of one axis.
  */
 const blockerOf = (
   verdict: Verdict,
   paths: ReadonlyArray<string>,
   alreadyBroken: boolean,
 ): string | undefined => {
-  const admission = admits(verdict, paths)
+  const entries = blamed(verdict.findings)
+  const admission = admits(entries, paths)
   if (admission._tag === "implicated") return admission.file
-  return alreadyBroken ? undefined : implicatedIn(verdict)[0]
+  return alreadyBroken ? undefined : entries[0]?.file
 }
 
 export const make = (options: Options): Ops => {

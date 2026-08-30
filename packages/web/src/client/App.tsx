@@ -46,6 +46,7 @@ import { createRefiling } from "./fold/refiling.ts"
 import { createDocuments, DocumentsProvider } from "./document/documents.tsx"
 import { createUndo, UndoContext } from "./edit/undoing.ts"
 import { UndoSaid } from "./edit/UndoSaid.tsx"
+import { troubleIn } from "./errors/banner.ts"
 import { Page as ErrorPage } from "./errors/Page.tsx"
 import { publishLayoutCss } from "./layout/css.ts"
 import { desktop } from "./layout/media.ts"
@@ -112,6 +113,10 @@ export default function App() {
   })
 
   const problems = () => errors.value() ?? NOTHING_WRONG
+  /** WHAT IS WRONG with the served directory, as the one value the banner
+   *  draws — read here rather than in the pane list, because the two facts it
+   *  is made of are both this component's (`./errors/banner.ts`). */
+  const trouble = createMemo(() => troubleIn(directory.broken(), problems()))
 
   /**
    * Whether there is a set at all — the directory's three states (still
@@ -448,7 +453,7 @@ export default function App() {
                         <Calendar today={today()} open={openDay()} />
                       </Sidebar>
                     </Show>
-                    <Panes problems={problems()} />
+                    <Panes trouble={trouble()} />
                   </div>
                 </DocumentsProvider>
             </Match>

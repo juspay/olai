@@ -122,11 +122,11 @@ const withRuntime = <A>(
 const RECORDS_THE_WRITER = ["surface/git/commit", "surface/ops/run"]
 
 const OUTLINE = `{"id":"a","ord":"a0","title":"a"}\n`
-/** A set the codec refuses: a row whose parent nothing declares. It has to be
- *  a MEANING error and not a syntax one — a file that will not parse keeps its
- *  key and carries its errors (the hybrid scope, `Head.broken`), so the set
- *  still validates and heads still travel. This one leaves the store with no
- *  snapshot at all, which is the state the manifest's `null` is for. */
+/** A row whose parent nothing declares — a MEANING error rather than a syntax
+ *  one. It used to be the way to leave the store with no snapshot at all; since
+ *  the per-file ruling it is not, and that is the point of keeping it: the set
+ *  publishes with `a.olai` withheld, its head carries its rows, and every other
+ *  file of the directory is served. */
 const REFUSED = `{"id":"a","parent":"nowhere","ord":"a0","title":"a"}\n`
 
 /**
@@ -431,49 +431,57 @@ test("an unreadable `.html` is refused rather than held open", () => {
  * `@olai/web`'s `directory.ts` answers a `null` manifest beside a fold holding
  * files with "a directory": a tab holding files is holding a directory, because
  * a head only ever reaches the wire out of a published revision
- * (`manifest-fold-skew`). That is a fact about THIS file and about nowhere
- * else — `apply(collections?.heads, revision.heads)` lives inside the manifest
- * connector's `snapshot !== null` arm — and a head published from any other
- * path would turn the browser's rule into a lie it has no way to catch: a
- * directory that never loaded, drawn as one.
+ * (`manifest-fold-skew`). That is a fact about THIS file — `apply(collections?.heads,
+ * revision.heads)` lives inside the manifest connector's `snapshot !== null`
+ * arm — and a head published from any other path would turn the browser's rule
+ * into a lie it has no way to catch.
  *
- * So the two are asked TOGETHER, over one directory that starts refused and
- * then validates. Before: `null`, and not one head. After: a set, and the head
- * that arrives is the revision's.
+ * THE OTHER HALF OF THIS TEST IS GONE, and the per-file ruling of 2026-08-29 is
+ * why. It used to start from a directory holding one outline the validator
+ * refused, watch the manifest settle at `null` with not one head published, and
+ * then fix the file. There is no such directory any more: a file the validator
+ * finds something in is published with that file WITHHELD, so a served
+ * directory always has a revision — and the one state that has none, a root
+ * nothing can list, fails `Store.make` and takes the whole serve down with it
+ * rather than reaching a browser. The `null` manifest remains a state of the
+ * WIRE, which is why the client still resolves it, and the skew rule itself is
+ * asserted where frames can be driven by hand (`@olai/web`'s
+ * `directory.browsertest.ts`).
+ *
+ * So what is left here is the positive half, said over the directory that used
+ * to produce the negative one: the broken outline's head ARRIVES, in the
+ * opening snapshot, carrying its own rows — and its healthy neighbour arrives
+ * beside it as though nothing were wrong, which it is not.
  */
-test("a directory that never loaded publishes no head, and the first head is the revision's", () =>
-  withRuntime({ "a.olai": REFUSED }, ({ wired, store, root }) =>
-    Effect.gen(function*() {
-      const said = wired.bound.handlers["surface/manifest/get"]
-      const framed = wired.bound.handlers["surface/heads/deltas"]
-      if (said === undefined) throw new Error("the manifest cell has no `get`")
-      if (framed === undefined) throw new Error("the heads collection has no `deltas`")
+test("a broken outline publishes its head, with its own rows on it", () =>
+  withRuntime(
+    { "a.olai": REFUSED, "b.olai": `{"id":"b","ord":"a0","title":"b"}\n` },
+    ({ wired }) =>
+      Effect.gen(function*() {
+        const said = wired.bound.handlers["surface/manifest/get"]
+        const framed = wired.bound.handlers["surface/heads/deltas"]
+        if (said === undefined) throw new Error("the manifest cell has no `get`")
+        if (framed === undefined) throw new Error("the heads collection has no `deltas`")
 
-      const heads = yield* watching(
-        framed({}) as Stream.Stream<CollectionDeltasMsg<string, Head>>,
-      )
-      const manifest = yield* watching(said({}) as Stream.Stream<Manifest>)
-      const opened = yield* heads.take
-      const never = yield* manifest.take
+        const heads = yield* watching(
+          framed({}) as Stream.Stream<CollectionDeltasMsg<string, Head>>,
+        )
+        const manifest = yield* watching(said({}) as Stream.Stream<Manifest>)
+        const opened = yield* heads.take
+        // A SET, from the first frame — never the `null` a refused directory
+        // used to settle at.
+        expect(yield* manifest.take).toEqual({})
 
-      fs.writeFileSync(path.join(root, "a.olai"), OUTLINE)
-      yield* store.refresh("cheap")
-      const arrived = yield* heads.take
-      const loaded = yield* manifest.take
-
-      // A SET THAT NEVER VALIDATED: the settled `null`, and a snapshot with
-      // nothing in it. Not one head — which is the whole claim.
-      expect(never).toBeNull()
-      expect(opened).toEqual({ kind: "snapshot", entries: [] })
-
-      // …and the head that finally arrives arrives WITH the revision that
-      // published it, on the same statement as the cell's `{}`.
-      expect(loaded).toEqual({})
-      expect(arrived?.kind).toBe("delta")
-      expect(
-        arrived?.kind === "delta" ? arrived.upserts.map(([file]) => file) : [],
-      ).toEqual(["a.olai"])
-    })))
+        if (opened?.kind !== "snapshot") throw new Error("expected the opening snapshot")
+        const entries = new Map(opened.entries)
+        expect([...entries.keys()]).toEqual(["a.olai", "b.olai"])
+        expect(entries.get("a.olai")?.broken?.errors.map((one) => one.code))
+          .toEqual(["unknown-parent"])
+        // …and the healthy neighbour is exactly what it would be in a directory
+        // with nothing wrong with it at all.
+        expect(entries.get("b.olai")?.broken).toBeNull()
+      }),
+  ))
 
 /**
  * THE PINNED SHELF, published: the resolution happens here, and it happens

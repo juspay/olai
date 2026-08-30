@@ -175,6 +175,18 @@ Then("there is no burger", async function (this: OlaiWorld) {
   );
 });
 
+/** The header is drawn at all — asked wherever a page might have replaced the
+ *  whole shell rather than filled it, which since the per-file ruling is a
+ *  BROKEN FILE'S own page (`@olai/web`'s `errors/Broken.tsx`): it is one pane's
+ *  content, so the chrome and the directory column stay exactly where they
+ *  were. It lived in `error_view_steps.ts` while the whole-page error view had
+ *  a corpus to be provoked from; it is here now, with its siblings. */
+Then("the app header is on screen", async function (this: OlaiWorld) {
+  await this.page
+    .locator(APP_HEADER)
+    .waitFor({ state: "visible", timeout: HYDRATION_TIMEOUT });
+});
+
 /** Every chrome pill's border box lies inside the header's own.
  *
  *  Desktop: the connection, commit, agent and preferences chips. A

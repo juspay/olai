@@ -130,12 +130,21 @@ const codec: Codec<string, Loaded, ReadonlyArray<string>> = {
   /**
    * A finding is ABOUT the file its sentence starts with. `needs` findings
    * name the file that wrote the reference; `blame` findings name the other
-   * one — which is how a test reaches the store's `alreadyBroken` guard
-   * (admits would say yes; the directory was loading, so the write still
-   * refuses).
+   * one — which is how a test reaches the store's `alreadyBroken` guard (this
+   * says nothing stops the write; the directory was loading, so the write
+   * still refuses).
+   *
+   * THIS CODEC REFUSES, so only the failure arm can say anything: a success is
+   * a set it was happy to publish, and there is nothing in one to stop a write
+   * with. A codec that degrades per file answers the other way round
+   * (`@olai/ops`' `codec.ts`), which is why the seam is handed the whole
+   * outcome rather than a refusal.
    */
-  admits: (refusal, paths) =>
-    !refusal.some((row) => paths.some((path) => row.startsWith(`${path}:`))),
+  stopping: (outcome, paths) =>
+    Result.isFailure(outcome) &&
+      outcome.failure.some((row) => paths.some((path) => row.startsWith(`${path}:`)))
+      ? outcome.failure
+      : null,
 
   /** The store's own failure, in this fixture's vocabulary. One string, so a
    *  test can assert it arrived on the SAME channel a dangling reference does

@@ -945,17 +945,23 @@ export const TESTID = {
   error: "error",
   crossFileErrors: "cross-file-errors",
   stageNote: "stage-note",
-  /** Over a last-good tree: the set on disk stopped validating. */
+  /** Over pages that are LIVE: which files of the directory are broken. It
+   *  keeps the name it had when it meant "showing the last good version",
+   *  which is now only what it says for a directory that could not be read at
+   *  all — brokenness is per file, so nothing else takes a page off screen. */
   staleBanner: "stale-banner",
   /** ONE broken file's line in that banner — its path, its state and how many
-   *  findings implicate it, drawn off the verdict's bounded face
-   *  (`@olai/format`'s `summary`). A row COUNT and never the rows: the banner
-   *  is over somebody else's page (`last-good-banner-flood`). Its `data-file`
-   *  is the path and its `data-state` is the word. */
+   *  findings implicate it, drawn off the bounded face (`@olai/format`'s
+   *  `summaryOf`). A row COUNT and never the rows: the banner is over somebody
+   *  else's page (`last-good-banner-flood`). Its `data-file` is the path and
+   *  its `data-state` is the word. */
   brokenFileLine: "broken-file-line",
+  /** The door on that line, to the broken file's own page. Absent on the
+   *  directory-went-away face, whose path is the served root. */
+  brokenFileLink: "broken-file-link",
   /** …and the tail, when there are more broken files than the banner draws. */
   brokenFileMore: "broken-file-more",
-  /** In one outline's place: that file could not be read, the rest are live. */
+  /** In one outline's place: that file is broken, the rest are live. */
   outlineFailure: "outline-failure",
   /** The connection readout. On desktop, the header pill, always on screen.
    *  On a phone, the degraded banner only — live is health and a dead wire

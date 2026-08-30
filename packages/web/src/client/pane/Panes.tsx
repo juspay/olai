@@ -12,11 +12,11 @@
  * second-to-last returns to that.
  */
 
-import { isClean, type Verdict } from "@olai/format"
 import { createSignal, For, Index, Show } from "solid-js"
 import { onCleanup } from "solid-js"
 
 import { Banner } from "../errors/Banner.tsx"
+import type { Trouble } from "../errors/banner.ts"
 import { WITHIN } from "../layer.ts"
 import { desktop } from "../layout/media.ts"
 import { drag as pointerDrag } from "../pointer.ts"
@@ -38,7 +38,11 @@ import { SHELL_LONE, SHELL_SPLIT } from "../layout/sheet.ts"
 export { PANE_MIN_PX, PANE_RAIL_PX } from "./geometry.ts"
 
 export function Panes(props: {
-  readonly problems: Verdict
+  /** What is wrong with the served directory, already decided — `null` when
+   *  nothing is (`../errors/banner.ts`). It arrives as one value rather than as
+   *  the two facts it is read from, so this file has no condition of its own to
+   *  keep in step with the banner's. */
+  readonly trouble: Trouble | null
 }) {
   const router = useRouter()
   const split = () => !isLone(router.workspace())
@@ -55,10 +59,12 @@ export function Panes(props: {
         [SHELL_LONE]: !split(),
       }}
     >
-      <Show when={!isClean(props.problems)}>
-        <div class="px-4 pt-4 md:px-12 lg:pl-16">
-          <Banner verdict={props.problems} />
-        </div>
+      <Show when={props.trouble}>
+        {(trouble) => (
+          <div class="px-4 pt-4 md:px-12 lg:pl-16">
+            <Banner trouble={trouble()} />
+          </div>
+        )}
       </Show>
       <Show when={split() && !desktop()}>
         <TabStrip />
