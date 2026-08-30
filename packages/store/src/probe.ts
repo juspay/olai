@@ -37,10 +37,10 @@
  * purpose ({@link ./disk.ts}'s trade), so a caller already holding a reason to
  * ask harder — a write the codec just refused — may ask for the bytes to be
  * compared rather than the stamps ({@link Probe.drifted}). That check costs one
- * file read per asked path and is spent NOWHERE else: it is one 64-bit word per
- * cached file forever, in exchange for which the refusal door can tell "the
- * set does not fit the disk" from "the write does not fit the set" without
- * re-reading the directory.
+ * file read per asked path and is spent NOWHERE else: it is one sixteen
+ * characters of hex per cached file forever, in exchange for which the
+ * refusal door can tell "the set does not fit the disk" from "the write does
+ * not fit the set" without re-reading the directory.
  */
 
 import { Effect, Ref, type Result } from "effect"
@@ -269,15 +269,23 @@ interface Cached<F, E> {
 const fingerprintOf = (contents: string): string => {
   let hi = 0xcbf29ce4
   let lo = 0x84222325
+  // The two bytes of one code unit mixed inline: this fold sits on the READ
+  // path as well as the refusal's — it is computed at every read the probe
+  // does — so a two-element array allocated per CHARACTER is a real tax on a
+  // vault-sized directory at boot, and a `mix` closure per file is not much
+  // cheaper.
   for (let at = 0; at < contents.length; at++) {
     const unit = contents.charCodeAt(at)
-    for (const byte of [unit & 0xff, unit >>> 8]) {
-      lo = (lo ^ byte) >>> 0
-      const product = lo * 0x1b3
-      hi = (hi * 0x1b3 + Math.floor(product / 0x100000000) + (lo & 0xffffff) * 0x100) %
-        0x100000000
-      lo = product % 0x100000000
-    }
+    lo = (lo ^ (unit & 0xff)) >>> 0
+    let product = lo * 0x1b3
+    hi = (hi * 0x1b3 + Math.floor(product / 0x100000000) + (lo & 0xffffff) * 0x100) %
+      0x100000000
+    lo = product % 0x100000000
+    lo = (lo ^ (unit >>> 8)) >>> 0
+    product = lo * 0x1b3
+    hi = (hi * 0x1b3 + Math.floor(product / 0x100000000) + (lo & 0xffffff) * 0x100) %
+      0x100000000
+    lo = product % 0x100000000
   }
   const hex = (word: number) => word.toString(16).padStart(8, "0")
   return `${hex(hi)}${hex(lo)}`
