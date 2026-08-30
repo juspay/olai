@@ -5,13 +5,12 @@ import { rowsOf } from "./derive.ts"
 import { bodiedDocument, type Document } from "./document.ts"
 import { isCrossFile, type OutlineError } from "./errors.ts"
 import { type Verdict, verdictOf } from "./verdict.ts"
-import { decodedOf, outlineOf, recordsOf, setOf } from "./fixtures.testlib.ts"
+import { decodedOf, findingsIn, outlineOf, recordsOf, setOf } from "./fixtures.testlib.ts"
 import {
   assemble,
   brokenBy,
   brokenIn,
   documentAt,
-  findingsIn,
   type OutlineSet,
   outlinePaths,
   outlinesIn,

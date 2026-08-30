@@ -121,7 +121,6 @@ export {
   bodiedIn,
   brokenIn,
   documentAt,
-  findingsIn,
   markdownAt,
   markdownIn,
   nodesIn,
@@ -131,7 +130,6 @@ export {
   outlinesIn,
   stopping,
   withDocuments,
-  withheld,
 } from "./set.ts"
 /** WHICH FILE COMES FIRST — the order a directory is read in, and the one
  *  spelling of it: the set is assembled in it, the patcher places an arriving
@@ -976,26 +974,23 @@ export type { ErrorCode, Stage } from "./errors.ts"
  * and what the store publishes on its errors channel (`./verdict.ts`, which
  * argues the shape and names the three bugs the flat list caused).
  *
- * The four questions are the whole of the surface. `admits` is what a REFUSED
- * WRITE is read with, and it is per file: its answer has no whole-set member,
- * so one broken file can never again freeze a write to a healthy one, and a
- * refusal names its blocker. `summaryOf` is a BOUNDED per-file face for a
- * surface drawn over something still live — the banner draws it, and the row
- * enumeration stays on the page a reader asked for it on. It takes the per-file
- * entries `blamed` files, and there is no second constructor over a verdict:
- * the caller that starts from one composes the two, where the step from a
- * verdict to per-file entries is visible.
- * `implicating` is which findings are about one file. `blamed` is which FILES a
- * report breaks, which is what a load does with a finding since the per-file
- * ruling; it is what took the tier shelf's place, and `./verdict.ts`'s header
- * says why a table with one row is not a policy.
+ * ONE PARTITION AND TWO QUESTIONS ASKED OF IT, which is the whole of the
+ * surface. `blamed` is which FILES a report breaks, filed under them — what a
+ * load does with a finding since the per-file ruling, and what took the tier
+ * shelf's place (`./verdict.ts`'s header says why a table with one row is not a
+ * policy). A set carries that partition already; a caller holding a verdict
+ * takes the step itself, and there is deliberately no export that hides it.
+ *
+ * Then: `admits` is what a REFUSED WRITE is read with, and it is per file — its
+ * answer has no whole-set member, so one broken file can never again freeze a
+ * write to a healthy one and a refusal names its blocker. `summaryOf` is a
+ * BOUNDED per-file face for a surface drawn over something still live: the
+ * banner draws it, and the row enumeration stays on the page a reader asked for
+ * it on.
  */
 export {
-  ADMITTED,
   admits,
   blamed,
-  implicatedIn,
-  implicating,
   isClean,
   NOTHING_WRONG,
   summaryOf,

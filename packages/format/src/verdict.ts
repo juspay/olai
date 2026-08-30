@@ -14,10 +14,11 @@
  * The findings are the same findings. What is new is that the questions are
  * asked HERE, once, and answered off one value:
  *
- *   - {@link implicating} / {@link implicatedBy} — which files a finding is
- *     ABOUT. `Reach` in `./errors.ts` already named this axis for the staging
- *     rule (`set-across-files` is the code an unreadable file can invent); this
- *     is the same axis read per finding rather than per code.
+ *   - {@link blamed} — which files a finding is ABOUT, filed under them.
+ *     `Reach` in `./errors.ts` already named this axis for the staging rule
+ *     (`set-across-files` is the code an unreadable file can invent) and
+ *     `implicatedBy` reads it per finding; this is that answer for a whole
+ *     report, and it is the one partition of a verdict there is.
  *   - {@link admits} — how a REFUSAL is read, and it is per file. Its
  *     answer has no whole-set member: there is no way to spell "the set is
  *     invalid, so no" at a write, only "`lanes.olai` is what stops this", which
@@ -26,9 +27,9 @@
  *   - {@link summaryOf} — a BOUNDED per-file face any surface may draw, off
  *     the per-file entries {@link blamed} files. The banner draws this; the
  *     enumeration stays where a reader asked for it.
- *   - {@link blamed} — which FILES a report breaks, as the per-file entries the
- *     set carries. This is what a load does with a finding now, and it replaced
- *     a table.
+ *   - {@link admits} / {@link summaryOf} — the two questions asked OF that
+ *     partition: what stops a write to these files, and a bounded face any
+ *     surface may draw.
  *
  * ## THE TIER SHELF IS GONE, and the ruling is why
  *
@@ -108,31 +109,6 @@ export const verdictOf = (findings: ReadonlyArray<OutlineError>): Verdict =>
  *  decide whether to draw ITSELF. */
 export const isClean = (verdict: Verdict): boolean => verdict.findings.length === 0
 
-// ── which files a finding is about ──────────────────────────────────────
-
-/** The findings that implicate one file, in the order the verdict holds them.
- *
- *  WHICH FILES ONE FINDING is about is `./errors.ts`'s ({@link implicatedBy},
- *  beside `isCrossFile`, which is the same question asked for the error view's
- *  purpose): it is a fact about one error, and a second reading of it here is
- *  how a dangling mirror comes to implicate two files on a page and one at a
- *  write gate. This is that answer, asked of a whole verdict. */
-export const implicating = (
-  verdict: Verdict,
-  file: string,
-): ReadonlyArray<OutlineError> =>
-  verdict.findings.filter((finding) => implicatedBy(finding).includes(file))
-
-/** Every file any finding implicates, in path order — the set the banner names
- *  and the set {@link summaryOf} is a bounded face of. */
-export const implicatedIn = (verdict: Verdict): ReadonlyArray<string> => {
-  const files = new Set<string>()
-  for (const finding of verdict.findings) {
-    for (const file of implicatedBy(finding)) files.add(file)
-  }
-  return [...files].sort(byPath)
-}
-
 // ── the write gate's question ───────────────────────────────────────────
 
 /**
@@ -154,7 +130,9 @@ export type Admission =
     readonly rows: ReadonlyArray<OutlineError>
   }
 
-export const ADMITTED: Admission = { _tag: "admitted" }
+/** Nothing stops this write. One value rather than a fresh struct per ask —
+ *  it is the answer almost every write gets. */
+const ADMITTED: Admission = { _tag: "admitted" }
 
 /**
  * Is a write to exactly these files admissible, given what is broken?
@@ -220,8 +198,8 @@ export const admits = (
 export type FileState = "unreadable" | "unparsed" | "invalid"
 
 /** One file's face: what is wrong with it, and how much. NO ROWS — that is the
- *  whole of the bound, and the rows are one `implicating` away for the surface
- *  whose job is to show them. */
+ *  whole of the bound, and the rows are on the entry {@link blamed} filed, for
+ *  the surface whose job is to show them. */
 export interface FileFace {
   readonly file: string
   readonly state: FileState

@@ -29,14 +29,12 @@ import { Result } from "effect"
 
 import { type Document, outlineDocument } from "./document.ts"
 import { type BrokenFile, type ErrorCode, implicatedBy, type OutlineError } from "./errors.ts"
-import { seeded, setOf } from "./fixtures.testlib.ts"
-import { brokenIn, documentAt, findingsIn, nodesIn, stopping } from "./set.ts"
+import { findingsIn, seeded, setOf } from "./fixtures.testlib.ts"
+import { brokenIn, documentAt, nodesIn, stopping } from "./set.ts"
 import { validate } from "./validate.ts"
 import {
   admits,
   blamed,
-  implicatedIn,
-  implicating,
   isClean,
   NOTHING_WRONG,
   type Summary,
@@ -114,7 +112,12 @@ test("the implicated files come out in path order, whatever order the rows are i
   // `byPath` and not a string sort: the order is the WALK's, so a directory
   // sorts before the file it shares a name with (`./paths.ts`) and a banner
   // reads down the directory the way the sidebar beside it does.
-  expect(implicatedIn(verdict)).toEqual(["a.olai", "wing/room.olai", "wing.olai"])
+  //
+  // ASKED OF THE PARTITION rather than of a reading beside it. `implicatedIn`
+  // answered exactly this list and was one of two orderings of one axis; the
+  // entries are already in it, so the second is gone.
+  expect(entriesOf(verdict).map((one) => one.file))
+    .toEqual(["a.olai", "wing/room.olai", "wing.olai"])
 })
 
 // ── the write gate's question ──────────────────────────────────────────

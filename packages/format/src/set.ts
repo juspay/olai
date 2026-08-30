@@ -221,36 +221,6 @@ export const brokenBy = (
 }
 
 /**
- * EVERY ROW THE DIRECTORY HOLDS, once each, in presentation order — the report
- * a validation reached, read back off the set that carries it.
- *
- * The set files the report under the files it breaks ({@link ./verdict.ts}'s
- * `blamed`), which is the shape every SURFACE wants: the sidebar marks a file,
- * a page draws that file's rows, a banner counts them per file. This is the
- * inverse, for the reader that wants the directory's whole trouble as one list
- * — and it is exactly the report, because `blamed` groups in path order and
- * keeps each file's rows in the order the report held them, so flattening in
- * that order and dropping the second sighting of a cross-file finding puts the
- * list back the way `reportOf` sorted it.
- *
- * BY IDENTITY, which is what makes "the second sighting" a fact rather than a
- * comparison: the two entries a cross-file finding lands in carry the same row
- * object, because there is one finding.
- */
-export const findingsIn = (set: OutlineSet): ReadonlyArray<OutlineError> => {
-  const seen = new Set<OutlineError>()
-  const rows: Array<OutlineError> = []
-  for (const entry of set.broken) {
-    for (const row of entry.errors) {
-      if (seen.has(row)) continue
-      seen.add(row)
-      rows.push(row)
-    }
-  }
-  return rows
-}
-
-/**
  * WHAT, IN THIS SET, STOPS A WRITE TO THESE FILES — or `null` when nothing
  * does.
  *

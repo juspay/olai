@@ -87,7 +87,8 @@ import { type Corpus, corpusOf, editOf, FILES, pick } from "./corpora.testlib.ts
 import { fileKind } from "./kinds.ts"
 import { byPath } from "./paths.ts"
 import { decodedVault } from "./scope.testlib.ts"
-import { assemble, findingsIn, nodesIn } from "./set.ts"
+import { findingsIn } from "./fixtures.testlib.ts"
+import { assemble, nodesIn } from "./set.ts"
 import { baseOf, type PropDeclarations } from "./typing.ts"
 
 import type { Cold, Reached, Reading } from "./validate.ts"

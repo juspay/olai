@@ -12,7 +12,6 @@ import {
   blockersOf,
   datedOn,
   derive,
-  findingsIn,
   type Node,
   markdownIn,
   nodesOf,
@@ -29,7 +28,7 @@ import {
   AddRequest,
   type WriteRequest as Request,
 } from "@olai/format"
-import { recordsOf } from "@olai/format/testlib"
+import { findingsIn, recordsOf } from "@olai/format/testlib"
 import { describe, expect, test } from "bun:test"
 import { Result, Schema } from "effect"
 
@@ -3134,7 +3133,7 @@ describe("move across outlines", () => {
     /** What the validator finds in the tree this request leaves behind. Off the
      *  SET the validation answers with, since a finding no longer refuses one:
      *  the rows ride on the files they break, and this is the directory's whole
-     *  report read back (`@olai/format`'s `findingsIn`). */
+     *  report read back (`@olai/format/testlib`'s `findingsIn`). */
     const refusalOf = (request: Request): ReadonlyArray<string> =>
       findingsIn(judged(after(set, request)))
         .map((one) => `${one.code} ${one.message}`)
