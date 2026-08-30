@@ -486,6 +486,9 @@ export const NODE_REF = selector(TESTID.nodeRef);
 export const OUTLINE_TREE = selector(TESTID.outlineTree);
 export const NODE = selector(TESTID.node);
 export const NODE_TITLE = selector(TESTID.nodeTitle);
+/** What the outline's landing answered when the row the address named is drawn
+ *  nowhere on the page — the alarm line over the tree. */
+export const LANDING_SAID = selector(TESTID.landingSaid);
 export const TAG = selector(TESTID.tag);
 /** A stretch of a title — or of the note line under one — the query LANDED on
  *  (`client/filter/lit.ts`). Drawn only where a filter put one, so its presence

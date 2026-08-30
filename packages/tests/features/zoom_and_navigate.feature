@@ -208,3 +208,72 @@ Feature: Zoom and navigate
     Then the zoomed node is "order"
     And the address is "/#order"
     And there should be no page errors
+
+  Scenario: A row address opens the outline landed on the row, cold
+    # The qualified spelling — `/file#id`, the address a link to a row carries
+    # — in a fresh document, the way it arrives from a chat message or a pin.
+    # This pins the RECORD-id half: the mirror scenarios beside it must leave
+    # it byte-identical.
+    When I open the address "/house.olai#install"
+    Then the tree is shown
+    And the node "install" is focused
+    And the address is "/house.olai#install"
+    And there should be no page errors
+
+  Scenario: A row address naming a placement lands on the mirror's own row
+    # `kitchen-herbs` is a MIRROR: `read_node`'s `mirrors` reports the
+    # placement's own id, and an agent citing the row spells exactly that —
+    # the fragment then names no node the page shows, only a place it draws.
+    # The landing answers the id with the mirror row itself, which is the
+    # more specific of the two answers the page holds for it: the accent
+    # lands where the id says.
+    When I open the address "/house.olai#kitchen-herbs"
+    Then the node "kitchen-herbs" is focused
+    And the address is "/house.olai#kitchen-herbs"
+    And there should be no page errors
+
+  Scenario: A row address naming nothing on the page says so
+    # NOTHING FOUND IS NOTHING DONE — but it is SAID, which used not to be
+    # so: a dead link answered the same silence a working one did, and the
+    # only reader who could tell them apart was the one who wrote the link.
+    # The page opens whole, and the one alarm line answers what was asked
+    # and that the page draws none of it.
+    When I open the address "/house.olai#no-such-row"
+    Then the tree is shown
+    And the landing says "no-such-row — nothing by that name is drawn on this page"
+    # ...and it is a notice, not a state: the way every transient line in
+    # this client goes.
+    And the landing's sentence has gone
+    And there should be no page errors
+
+  Scenario: A row address naming a node this file does not draw says WHICH half of dead it isn't
+    # `glazing` is a real node — in `garden.olai`, nobody here: the set DOES
+    # declare the id, and this page draws no row of it — the other degree of
+    # certain miss (`fold/landing.ts`'s `missedSays`): not "nothing by that
+    # name" — that would make a working link indistinguishable from a dead
+    # one, the symmetric half of the silence the miss sentence closed (the
+    # review ruling, and the same could be said of a DONE row whose reader
+    # hides done). Then said then gone, the way any transient line goes.
+    When I open the address "/house.olai#glazing"
+    Then the tree is shown
+    And the landing says "glazing — what it names is not drawn on this page"
+    And the landing's sentence has gone
+    And there should be no page errors
+
+  Scenario: The sentence belongs to its page -- an in-page navigation takes it down
+    # The notice and its page used to be keyable apart: the line minted for
+    # one file could ride its six seconds over the next page's tree, the
+    # wrong-attribution half of the same ruling. The door OUT of the page
+    # matters just as much as the bound: a fresh GOTO would throw the line
+    # overboard with the whole document and ask nothing of the boundary, so
+    # it goes the SPA way — a directory click, the drawer's own link — the
+    # component stays, and only the stretch's own ending may answer.
+    When I open the address "/house.olai#no-such-row"
+    Then the tree is shown
+    And the landing says "no-such-row — nothing by that name is drawn on this page"
+    When I click the outline "garden.olai"
+    # BOUNDED under the line's own six seconds, or the dead-miss step above
+    # would ask this no question at all: BY the boundary is the claim here,
+    # not BY the clock as it was up there (the review's own fence-ruling).
+    Then the landing's sentence has gone with its page
+    And there should be no page errors
