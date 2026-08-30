@@ -14,7 +14,28 @@
  * the count, and what deliberately does not) and that argument is a page long.
  * It is not a name for FINDING something either: a scenario waits on its
  * VALUE. Both ends import it, so it breaks the same way this table does.
+ *
+ * ## THIS TABLE IS THE APP'S, and it is no longer the only one
+ *
+ * The ids split by RENDERER, which is the only line that holds once a face
+ * lives in another package: a scenario asserting on the terminal row is
+ * asserting on `@olai/kolu-ui`'s output, and one asserting on the padi pill or
+ * the CI chip is asserting on a PLUGIN's. Each of those owns its own
+ * names-only door, and `@olai/plugins/testids` is where the plugins' tables
+ * merge — an id it could only reach through here would be a suite reading one
+ * package's DOM through another package's door.
+ *
+ * Two groups left this table for that reason and their absence is worth a line
+ * each. The `padi*` five went to `@olai/plugin-kolu` with the pill and its
+ * drawer, and the `ci*` three to `@olai/plugin-odu` with the chip and its
+ * matrix. A third group was DELETED rather than moved: six `terminal*` ids
+ * that duplicated `@olai/kolu-ui`'s own, value for value, left behind when the
+ * door became a package — nothing in this client or the suite ever read them,
+ * and two spellings of one contract is the exact failure this file exists to
+ * prevent.
  */
+
+import type { PluginTestId } from "@olai/plugins/testids"
 
 export const TESTID = {
   /** The app header: wordmark, and on desktop the connection, agent,
@@ -207,75 +228,6 @@ export const TESTID = {
   /** What the last commit had to say, under the run — a refusal quoted
    *  verbatim, or a nudge that rode back on a write that landed. */
   propSaid: "prop-said",
-
-  /** WHETHER THIS OLAI CAN SEE KOLU'S TERMINALS — the third chrome readout,
-   *  beside the connection and the Commit pill (`client/padi/`). `data-padi`
-   *  is the closed set `connected` / `absent` / `skew`. Always drawn on
-   *  desktop: an indicator that appears only when something is wrong cannot be
-   *  trusted when it is absent. */
-  padi: "padi",
-  /** THE FEED the pill's press opens — the box of `@olai/kolu-ui`'s
-   *  `EventsFeed`. THE PANEL'S OWN HANDLE only: the rows are the appliance's
-   *  and are asserted through `./kolu-ui`'s `./testids`. */
-  padiFeed: "padi-feed",
-  /** THE FEED'S FOOT — the drawer's last line: the mutes' count and names
-   *  and the wrench onto the config (`client/padi/Feed.tsx`). Present only
-   *  when there is a config to read: a vault no file decides anything for
-   *  has no foot, not an empty one. */
-  padiFeedFoot: "padi-feed-foot",
-  /** The LINE inside it: `2 muted · nixos-config grok, nixos-config pi`.
-   *  Absent when nobody is muted — never a "0 muted". */
-  padiFeedMutes: "padi-feed-mutes",
-  /** THE WRENCH — the door onto the `_olai/Kolu.olai` the convention read,
-   *  so the whole config (thresholds and mutes) is one press away as an
-   *  ordinary outline page. */
-  padiFeedWrench: "padi-feed-wrench",
-
-  /** THE TERMINAL DOOR's row — kolu's own Dock row, drawn where the `terminal`
-   *  property is (`client/props/TerminalDoor.tsx`). The row's own attribute
-   *  contract is kolu's (`[data-dock-row]`, `data-bucket`, `data-agent-state`)
-   *  and is asserted through it rather than restated here; what olai owns is
-   *  this wrapper and `data-terminal`, the value the property holds. */
-  terminalBlock: "terminal-block",
-  /** What is drawn IN THE ROW'S PLACE when there is none — the sentence, and
-   *  the only thing that says why (`client/props/terminal.ts`). Its presence is
-   *  the assertion: a row and a reason are never both on screen. */
-  terminalSays: "terminal-says",
-  /** The snapshot pane the ROW opens — dashed border, the age line, the two
-   *  buttons. Present only while open; one per block. */
-  terminalPane: "terminal-pane",
-  /** THE LIVE TAG — the one word that separates this pane from the snapshot it
-   *  replaced, and the assertion a scenario makes that a window is a window.
-   *  Present only on a pane that is attached. */
-  terminalLive: "terminal-live",
-  /** The screen text inside it, verbatim, or the refusal in its place.
-   *  `data-state` is `reading` / `text` / `refused`. */
-  terminalScreen: "terminal-screen",
-  /** Read it again — the pane's whole promise is that it is a SNAPSHOT, and
-   *  this is the only thing that moves it. */
-  terminalRefetch: "terminal-refetch",
-
-  /** THE CI CHIP — the live-properties seam's second face, drawn BESIDE a
-   *  `worktree` property whose checkout has a run in it
-   *  (`client/live/odu-ci/CiChip.tsx`). Its presence is the assertion that a run is
-   *  live or was: a checkout with no run and no reading draws nothing here,
-   *  which is the ordinary state of every checkout. `data-state` is
-   *  `going` / `ok` / `red` / `quiet` — a closed set — and it is spelled
-   *  `data-state` rather than the `data-tone` a chip with four inks would
-   *  reach for first, because that second name is `SaidLine.tsx`'s claimed
-   *  contract for a said-line's MOOD and two vocabularies may not share it
-   *  (`client/claims.test.ts` sweeps for exactly that). `data-worktree` is
-   *  the board's own value, which is what the chip joined on. */
-  ciChip: "ci-chip",
-  /** THE RUN MATRIX the chip opens — nodes, durations, ok/red/errored, in the
-   *  run's own scheduling order (`client/live/odu-ci/RunMatrix.tsx`). Present only
-   *  while open; one per run, because the drawer holds one open pane per run
-   *  the way it holds one open editor. */
-  ciMatrix: "ci-matrix",
-  /** One node's row in it. `data-status` is odu's own status word, verbatim
-   *  and unnarrowed, so a scenario asserts what the coordinator said rather
-   *  than what olai made of it; `data-node` is the `<namepath>@<platform>` id. */
-  ciCell: "ci-cell",
 
   /** The rollup badge — `3/5` of the tasks under a node. An annotation beside
    *  the title, never the node's own mark, which is the glyph. */
@@ -1594,5 +1546,12 @@ export const TESTID = {
 export type TestId = (typeof TESTID)[keyof typeof TESTID]
 
 /** `[data-testid="…"]`, for the side that writes selectors rather than
- *  attributes. */
-export const selector = (id: TestId): string => `[data-testid="${id}"]`
+ *  attributes.
+ *
+ *  It takes an id from EITHER table — this app's or a plugin's — and the union
+ *  is what keeps the guard: a closed set means a typo is a type error here
+ *  rather than a selector that quietly matches nothing for thirty seconds. It
+ *  is not widened to `string`, which was the shorter edit and would have thrown
+ *  that away; a plugin's ids are a closed set too, so there is nothing to give
+ *  up. */
+export const selector = (id: TestId | PluginTestId): string => `[data-testid="${id}"]`

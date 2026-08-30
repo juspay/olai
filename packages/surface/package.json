@@ -6,18 +6,17 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testlib": "./src/keyings.testlib.ts"
   },
-  "//exports": "One door, because there is one kind of thing here: the DECLARATION. `./holding` was a second subpath while this package also held a serving-side seam — the only module here that reached for `@kolu/surface/server`, kept out of the index because the index is what the browser bundles. That seam is a member of `CollectionHandlerDeps` upstream now (`holders`), so the module is gone and the door with it.",
+  "//exports": "Two entries, and the second is not product. `./testlib` is the AST walk that holds a member`s `arrayKey` declaration honest — published for the reason `@olai/format`s own testlib is: a member`s key is a claim about the schema THAT MEMBER carries, and members are declared in the package that owns them now, so the claim has to be holdable where the member is. The alternative was every plugin growing its own copy of a fifty-line schema walk, which is a second opinion about the very thing under test.",
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "//dependencies": "@olai/format for the domain's wire vocabulary, and @olai/acp's `./wire` subpath for the protocol's — the surface is a declaration, and every olai type on the wire is owned by the package that speaks it and re-exported here (RepoState through format, the ask shapes through acp). The two APPLIANCE slices are named the same way and for the same ruling — @olai/kolu-client and @olai/odu-client each hold their own wire vocabulary and their own member declarations, which this spec SPREADS (`koluMembers`, `oduMembers`) and re-exports, so nothing kolu- or odu-named lives in the package every browser bundles. @kolu/surface is absent on purpose: it is hydrated from the Nix store rather than installed from bun.lock, so it is declared once for the whole tree in the root package.json (see bunfig.toml).",
+  "//dependencies": "The wire vocabulary both ends speak, and nothing appliance-shaped. @olai/format supplies the records, the refusal vocabulary and the shapes that travel; @olai/acp supplies the ask and diff shapes a conversation carries, through its `./wire` subpath alone. `effect` is the schema language every member is declared in.\n\nNO PLUGIN, and the absence is the extraction: this package used to depend on @olai/kolu-client and @olai/odu-client so it could spread their members into its own spec and re-export their vocabulary. A plugin now declares a WHOLE SURFACE of its own and core composes it as a SIBLING (`@olai/plugins`, and `@kolu/surface`'s composeSurfaceContracts underneath it), so nothing appliance-named is declared here, re-exported here, or on the static graph of the one package every browser bundles.",
   "dependencies": {
     "@olai/acp": "workspace:*",
     "@olai/format": "workspace:*",
-    "effect": "4.0.0-rc.112",
-    "@olai/kolu-client": "workspace:*",
-    "@olai/odu-client": "workspace:*"
+    "effect": "4.0.0-rc.112"
   }
 }

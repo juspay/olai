@@ -61,6 +61,10 @@ export interface ServeOptions {
    *  is that composed with the built-in defaults (`@olai/ops`' `fixedPolicy`);
    *  what every browser draws read-only is the instance's policy. */
   readonly pin: GitPin
+  /** WHICH built-in integrations to run — `null` for nobody having said,
+   *  which means all of them. `./pluginPolicy.ts` argues why omission stays
+   *  distinguishable from the default typed out loud. */
+  readonly plugins: ReadonlyArray<string> | null
 }
 
 /**
@@ -193,24 +197,28 @@ export const serve = (options: ServeOptions) =>
       hostname: theMachine,
       startedAt,
       git: gitWiring(ops, policy, settled),
-      // THE PADI LINK, and this is the one place a process reaches for the
-      // real environment and the real clock. `olai web` is the face the
-      // terminal door is drawn on, so it is the face that dials; the headless
-      // and one-shot faces below pass `null` and every chip there goes hollow,
-      // which is the true answer for a process that has no business holding a
-      // socket to somebody's daemon open.
-      kolu: { env: process.env, now: () => new Date().toISOString() },
-      // ...AND THE CI PROBE, on the same terms and for the same reason. `olai
-      // web` is the face the live-properties seam is drawn on, so it is the
-      // face that sweeps; the headless and one-shot faces below pass `null`
-      // and their `ci` cell stays empty.
+      // THE PLUGINS, and this is the one place a process reaches for the real
+      // environment and the real clock on their behalf. `olai web` is the face
+      // every plugin's door is drawn on, so it is the face that composes them;
+      // the headless and one-shot faces pass `null` and carry no
+      // `surface/<name>/` on the wire at all, which is the true answer for a
+      // process that has no business dialing somebody's daemon on its way to
+      // printing a node.
       //
-      // `root` is the served directory, and it is half of where a relative
-      // `worktree` resolves to — the other half is `$OLAI_REPOS_DIR` when a
-      // machine's checkouts do not sit beside its vault. Both are read HERE,
-      // once, because a composition root is where a process reaches for the
-      // real environment (`@olai/odu-client`'s `resolve.ts` argues the rule).
-      odu: { env: process.env, served: root },
+      // `root` is the served directory, and it is half of where a relative path
+      // in a property resolves to; the other half is in the environment beside
+      // it, for the machine whose checkouts do not sit beside its vault. Both
+      // are read HERE, once, because a composition root is where a process
+      // reaches for the real environment — the rule for what a relative path
+      // resolves AGAINST is argued in the appliance package that resolves one.
+      //
+      // NO `dials`: the injectables are a test's, and this is the product.
+      plugins: {
+        env: process.env,
+        now: () => new Date().toISOString(),
+        served: root,
+        names: options.plugins,
+      },
     })
     publish = wired.publish
 
@@ -234,7 +242,10 @@ export const serve = (options: ServeOptions) =>
     const transport = mcpTransport()
     // Built ONCE and handed back on every ask: this face has no transport to
     // drop, so re-dialling would only re-run the gate over the same handlers.
-    const panel = clientOver(writerAt(wired.bound, ops, "chat-agent"))
+    const panel = clientOver(
+      { group: wired.bound.group, handlers: writerAt(wired.bound, ops, "chat-agent") },
+      wired.faces.agent,
+    )
     yield* serveFace({
       client: () => panel,
       /**
@@ -300,6 +311,10 @@ export const serve = (options: ServeOptions) =>
       listen({
         ...options,
         bound: wired.bound,
+        // The face for the group on the line above, from the one call that
+        // composed both (`./runtime.ts`'s `bind`) — a second reading of which
+        // plugins are on is the boot refusal `restrictHandlers` exists to raise.
+        expose: wired.faces.browser,
         hostname: theMachine,
         mcp: { transport, token, identity: options.identity },
         // `POST /olai/resync` — force a re-read of the disk. Waits for

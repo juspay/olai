@@ -2,9 +2,9 @@
  * THE DURATION CHIP — a live face that does NOT ride the seam's table, and the
  * one folder here whose header is mostly about why.
  *
- * The ⏱ beside a row is the same idea as the two dressings next door: a value
- * that MOVES ON ITS OWN, drawn off an instant that crossed the wire once and
- * ticked by the reader's own clock (`./took.ts`, the two-speed seam the header
+ * The ⏱ beside a row is the same idea as the dressings the plugins register: a
+ * value that MOVES ON ITS OWN, drawn off an instant that crossed the wire once
+ * and ticked by the reader's own clock (`./took.ts`, the two-speed seam the header
  * uptime chip shares). A `doing` row's pomodoro is the live-properties idea
  * pointed inward — the running thing is the task itself rather than something
  * the task names.
@@ -35,12 +35,18 @@
  * shows it, which is the thing that run must not be.
  *
  * So the folder is here, named for what it is, holding the whole of the face —
- * and the seam has one fewer tenant than the directory has folders. That is
- * the honest shape rather than a table stretched to make three.
+ * and it is now the ONLY folder under `live/`, which reads as an accident and
+ * is not. Its two former neighbours were dressings, and a dressing is a
+ * PLUGIN'S; they left for `@olai/plugin-kolu` and `@olai/plugin-odu` with the
+ * names they claimed. This one claims no name, registers nothing, and is drawn
+ * by the row — so it is the app's, and it stayed.
  */
 
-/** THE CHIP, and nothing else. The ladders and the clock (`./took.ts`) are
- *  read inside this folder and by `../odu-ci/`, which reaches the module
- *  directly because it is a SIBLING under `live/` rather than a consumer of
- *  this dressing — a door is for the app, and what the app draws is the chip. */
+/** THE CHIP, and nothing else. The ladders and the clock (`./took.ts`) are read
+ *  inside this folder and by `../../plugins/furniture.tsx`, which HANDS THEM
+ *  ACROSS to every plugin that draws a live face — the CI chip ticks in this
+ *  register, one wall over, because a reader who has learnt what a ticking
+ *  number looks like in olai should not have to learn it again. That reach is
+ *  the module and not this door on purpose: a door is for the app, and what the
+ *  app draws is the chip. */
 export { TookChip } from "./TookChip.tsx"

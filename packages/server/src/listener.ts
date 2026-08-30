@@ -46,12 +46,12 @@
  */
 
 import { serveSurfaceApp, type SurfaceAppListenFailed } from "@kolu/surface-app/serve"
+import type { FaceExposure } from "@kolu/surface/expose"
 import { headerNamesOf, type IdentityConfig } from "@olai/identity"
 import { codeOf, type Emit, emitter } from "@olai/log"
 import { ASSET_PREFIX } from "@olai/surface"
 import { Effect, Layer, type Scope } from "effect"
 
-import { BROWSER_FACE } from "./faces.ts"
 import { CurrentWho, whoOf, whoRoute } from "./identity.ts"
 import { manifestOf } from "./manifest.ts"
 import { mcpRoute } from "./mcp/route.ts"
@@ -65,6 +65,14 @@ export interface ListenOptions {
    *  built the runtime and closes it, so only the two fields a transport
    *  actually needs are asked for here. */
   readonly bound: Pick<Bound, "group" | "handlers">
+  /** WHAT A TAB MAY CALL, as the composition root minted it — `./runtime.ts`'s
+   *  `bind` returns the browser face beside the group it describes, because a
+   *  face and a group that disagree about which plugins are composed is a boot
+   *  refusal (`restrictHandlers` compares the two as a set equality). It used
+   *  to be read straight off `./faces.ts` here, which was safe only while the
+   *  surface was one fixed thing; it is a composition now, so the exposure
+   *  travels WITH the group rather than being looked up beside it. */
+  readonly expose: FaceExposure
   /** The built browser bundle. */
   readonly clientDist: string
   /** The directory being served — where `/media/*` reads its pictures from. */
@@ -147,7 +155,7 @@ const app = (options: Omit<ListenOptions, "port">, port: number, say: Emit) =>
     // Not an omission-able option here even though upstream allows one: an
     // absent `expose` serves the whole surface, and that default is exactly
     // what this listener must never fall back to.
-    expose: BROWSER_FACE,
+    expose: options.expose,
     clientDist: options.clientDist,
     // The same spelling the build took — `@olai/surface`'s ASSET_PREFIX, so a
     // vault file under `assets/` is a page rather than a miss under the

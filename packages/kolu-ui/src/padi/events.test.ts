@@ -12,7 +12,7 @@
 
 import { expect, test } from "bun:test"
 
-import type { KoluEvent } from "@olai/surface"
+import type { KoluEvent } from "@olai/kolu-client/wire"
 
 import { eventLine } from "./events.ts"
 

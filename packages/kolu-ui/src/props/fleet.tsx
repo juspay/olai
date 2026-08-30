@@ -79,9 +79,9 @@ import type {
   Snapshot,
   TerminalFrame,
   WatchPulse,
-} from "@olai/surface"
+} from "@olai/kolu-client/wire"
 import { after, type Held, seeded } from "./held.ts"
-import { KOLU_UNDIALED, NO_MUTES, SnapshotRefused } from "@olai/surface"
+import { KOLU_UNDIALED, NO_MUTES, SnapshotRefused } from "@olai/kolu-client/wire"
 
 /** Take a snapshot of one terminal. The answer is the text or the refusal —
  *  never a throw, because both are things the pane draws. */
@@ -101,11 +101,12 @@ export type WatchTerminal = (
 export interface Fleet {
   readonly link: Accessor<KoluLink>
   /** THE PILL'S LIVENESS READ — the beat, or `undefined` while the wire
-   *  has not arrived, or `null` until the watcher has stamped once (see
-   *  `@olai/surface`'s `pulse` cell). */
+   *  has not arrived, or `null` until the watcher has stamped once (the
+   *  surface's `pulse` cell, mounted at
+   *  `packages/plugin-kolu/src/wire.ts`). */
   readonly pulse: Accessor<WatchPulse | null | undefined>
-  /** THE DRAWER'S FOOT — who is silenced, and which file says so
-   *  (`@olai/surface`'s `mutes` cell). Wire-truth: the vault walk's
+  /** THE DRAWER'S FOOT — who is silenced, and which file says so (the
+   *  surface's `mutes` cell). Wire-truth: the vault walk's
    *  display half, live as the file is edited. The empty reading is the
    *  defaults': no file, nobody named. */
   readonly mutes: Accessor<KoluMutes>
@@ -155,11 +156,11 @@ const FleetContext = createContext<Fleet>()
  */
 export interface FleetSources {
   readonly link: Accessor<KoluLink | undefined>
-  /** The wire's `pulse` cell's value — the watcher's last stamp, so the
-   *  pill can read liveness on its own cadence. */
+  /** The wire's `pulse` cell's value — the watcher's last
+   *  stamp, so the pill can read liveness on its own cadence. */
   readonly pulse: Accessor<WatchPulse | null | undefined>
-  /** The wire's `mutes` cell's value — the vault walk's display half,
-   *  re-answered on every revision. */
+  /** The wire's `mutes` cell's value — the vault walk's
+   *  display half, re-answered on every revision. */
   readonly mutes: Accessor<KoluMutes | undefined>
   readonly fold: CollectionFold<string, FleetTerminal>
   /** THE LOG the server is keeping — the events collection's fold, fed by the

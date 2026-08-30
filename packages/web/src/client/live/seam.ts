@@ -43,33 +43,32 @@
  *
  * Nothing here is named for one dressing, which is the property the whole
  * design was chosen for: a third living thing later — a deploy, a saatchi
- * session — is a folder beside this file and a line in `./dressings.ts`, and
- * zero new mechanism.
+ * session — is a `dressings` line on a third plugin's manifest and ZERO new
+ * mechanism, in this file or in any other of this app's.
  *
- * ## THE SEAM IMPORTS NO DRESSING, and the directory says which are which
+ * ## THE SEAM IMPORTS NO DRESSING, and now it cannot
  *
- * This file is a table, a lay-out and three interfaces. Beside it is one
- * FOLDER PER DRESSING, each named for what it IS and each registering itself
- * (the human's ruling on #433):
+ * This file is a table, a lay-out and three interfaces, and it reaches no face
+ * at all. That rule is unchanged and the way it is KEPT has got stronger: the
+ * two dressings this app installs are not folders beside this one any more, they
+ * are packages (`@olai/plugin-kolu`, `@olai/plugin-odu`), and this package may
+ * not name one — `packages/plugins/src/fence.test.ts` holds that as an equality
+ * per package rather than as a habit. So the direction is physics here rather
+ * than discipline.
  *
- *   - `./kolu-terminal/` — the terminal door. One line, because the component
- *     is `@olai/kolu-ui`'s: that one stays behind a package wall since it
- *     renders kolu's own row and mounts kolu's emulator.
- *   - `./odu-ci/` — the CI chip and the run matrix, with their words, their
- *     per-node ink and the one subscription a tab holds. A folder rather than
- *     a package because it imports nothing of odu: a wall there would confine
- *     nothing.
- *   - `./duration/` — the ⏱ chip, and the one that registers NOTHING. It is a
- *     live face by every other measure (an instant that crossed the wire once,
- *     ticked by the reader's own clock) and it has no property key to hang
- *     off: a span is DERIVED from a record's own fields, so there is no entry
- *     for `dressingFor` to look up and the row draws it instead. Its own
- *     header argues that, and what moving it onto this table would take.
+ * `./dressings.ts` is still the ONE module that names them all, imported for its
+ * effect by the drawer, and it names them the way a general package is allowed
+ * to: by WALKING THE REGISTRY. Its own header argues the reversal from the two
+ * side-effect imports it replaced, and what that buys.
  *
- * So the directory has three folders and the table has two tenants, and that
- * is the honest shape rather than a table stretched to make three. What keeps
- * the direction clean is that nothing here imports any of them — `./dressings.ts`
- * is the one module that names them, imported for its effect by the drawer.
+ * One folder does remain beside this file, and it is the one that registers
+ * NOTHING: `./duration/`, the ⏱ chip. It is a live face by every other measure
+ * (an instant that crossed the wire once, ticked by the reader's own clock) and
+ * it has no property key to hang off — a span is DERIVED from a record's own
+ * fields, so there is no entry for `dressingFor` to look up and the row draws it
+ * instead. Its own header argues that, and what moving it onto this table would
+ * take. Its ladders are also what the app hands a plugin's live face across
+ * (`../plugins/furniture.tsx`), so one register serves both sides of the wall.
  *
  * ## Keyed on the KEY, and this is now an ANSWER rather than a promise
  *
@@ -90,8 +89,8 @@
  *
  * So the seam is split along the line the architecture already draws. THE KEY
  * SELECTS the face, here, in the browser. THE DECLARED TYPE LICENCES it, on
- * the server, where the declarations are: `@olai/server`'s `worktrees.ts` probes a
- * `worktree` only in a vault that has declared that key a `path`, so the
+ * the server, where the declarations are: `@olai/plugin-odu`'s `worktrees.ts`
+ * probes a `worktree` only in a vault that has declared that key a `path`, so the
  * promise a dressing rests on is one the vault made rather than one a
  * component assumed. A vault that declares nothing gets no CI cell, the chip
  * has nothing to say, and it draws as the path it always was.
@@ -124,8 +123,6 @@
 
 import type { JSX } from "solid-js"
 
-import { TERMINAL_KEY, WORKTREE_KEY } from "@olai/surface"
-
 import type { Entry } from "../props/drawer.ts"
 
 /**
@@ -135,7 +132,7 @@ import type { Entry } from "../props/drawer.ts"
  * or the wire would be a face the drawer has to know something about, and the
  * point of the seam is that it does not. Everything else a face needs it reads
  * from a context of its own — which is what `@olai/kolu-ui`'s `fleet.tsx` and
- * `./odu-ci/runs.tsx` already are.
+ * `@olai/plugin-odu`'s `runs.tsx` already are.
  */
 export interface BlockContext {
   readonly entry: Entry
@@ -212,20 +209,22 @@ export interface Dressing {
 const DRESSINGS = new Map<string, Dressing>()
 
 /** Dress a property key. Called once per dressing, at module load, from the
- *  module that owns the app's table — never from the component itself: a
- *  self-registrant would put an appliance in charge of the app's table, and
- *  the import direction would be a lie told by an `import "…"` with no
- *  binding. */
+ *  module that owns the app's table (`./dressings.ts`) — never from the
+ *  component itself: a self-registrant would put an appliance in charge of the
+ *  app's table, and the import direction would be a lie told by an `import "…"`
+ *  with no binding.
+ *
+ *  THE KEY IS THE PLUGIN'S OWN CONSTANT, arriving on its manifest — the same
+ *  one that plugin's server probes by. It used to be re-exported from here, as
+ *  `TERMINAL_KEY` and `WORKTREE_KEY` off `@olai/surface`, so a registration
+ *  could read in one line; that re-export is gone with the registrations, and
+ *  the reason is the direction rather than tidiness. Those constants belong to
+ *  the appliance slices that declare them, this package may not name a plugin,
+ *  and a general seam holding two tenants' property keys was the last place
+ *  core spelled one. */
 export const registerLive = (key: string, dressing: Dressing): void => {
   DRESSINGS.set(key, dressing)
 }
-
-/** The two keys the app dresses, re-exported so a registration reads in one
- *  line and each constant still has one home — `@olai/surface`, composed out
- *  of the appliance slice that owns it. Never the strings `"terminal"` and
- *  `"worktree"` here: a literal would be a second spelling waiting to drift
- *  from the one the server probes by. */
-export { TERMINAL_KEY, WORKTREE_KEY }
 
 /** The dressing for one entry, or `undefined` where it draws as a plain chip.
  *  The three rules are here rather than in the drawer so every future dressing

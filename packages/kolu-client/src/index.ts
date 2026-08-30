@@ -268,7 +268,12 @@ export type VaultNode = unknown
 /** The five member handlers, in the shape `defineSurface`'s sections take. */
 export interface KoluHandlers {
   readonly cells: {
-    readonly kolu: {
+    /** WHETHER THERE IS A PADI — named `link` and not `kolu`, which is the
+     *  package saying what the cell HOLDS rather than whose package it is in.
+     *  A member named for its own appliance reads `surface/kolu/kolu/get` once
+     *  core composes this surface as a sibling — the word twice and the thing
+     *  once — and the value is a `KoluLink`. */
+    readonly link: {
       readonly store: CellStore<KoluLink>
       readonly connect: (cell: { set: (value: KoluLink) => void }) => Effect.Effect<void>
     }
@@ -281,7 +286,7 @@ export interface KoluHandlers {
     /** Who is silenced, and which file says so — the drawer's foot, the
      *  vault walk's display half. Read-only on the wire: a mute is an
      *  EDIT to the config outline, never a browser's write. The
-     *  `connect` is the publish's household door — the `kolu` cell's
+     *  `connect` is the publish's household door — the `link` cell's
      *  own reasons one member up. */
     readonly mutes: {
       readonly store: CellStore<KoluMutes>
@@ -607,14 +612,14 @@ const handlersOf = (verbs: {
   ) => Stream.Stream<TerminalFrame>
 }): KoluHandlers => ({
   cells: {
-    kolu: {
+    link: {
       // The face's own store, seeded `absent`: the true answer for a headless
       // face that has no business holding a socket open.
       store: inMemoryStore<KoluLink>(SEED),
       connect: verbs.connect,
     },
     pulse: {
-      // Wire-read-only, like `kolu`: a beat is something the server
+      // Wire-read-only, like `link`: a beat is something the server
       // records, never a value a tab could set. The store's getter is the
       // LAST stamped beat; the setter walks a hollow arm on purpose.
       store: { get: verbs.pulse, set: () => {} },

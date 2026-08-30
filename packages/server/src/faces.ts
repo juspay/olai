@@ -54,7 +54,14 @@
  */
 
 import { surface } from "@olai/surface"
-import { type ExposeMap, exposeFace, type FaceExposure } from "@kolu/surface/expose"
+import {
+  type ExposeMap,
+  exposeFace,
+  exposeFaces,
+  type FaceExposure,
+} from "@kolu/surface/expose"
+import type { SurfaceMap } from "@kolu/surface/server"
+import { exposeMapsOf, fuseFaces, type PluginWire, surfacesOf } from "@olai/plugins/wire"
 
 /**
  * The MCP adapter's allowlist — what an agent may SEE.
@@ -260,52 +267,20 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   chat: "resource",
   git: "resource",
   pending: "resource",
-  // THE TERMINAL DOOR's three, and all three are the browser's alone.
+  // A PLUGIN'S MEMBERS ARE NOT IN THIS MAP, and the eight that were are the
+  // whole reason this file stopped being where the decision lived for them.
+  // A daemon link, a fleet, a watcher pulse, a mute list, an events ring, a
+  // live pane, a screen read and a set of CI runs sat here as rows in a
+  // general package's allowlist — which meant that adding a member to an
+  // appliance required editing a file two packages away, and forgetting to
+  // was a member no face served, reaching a person as a chip that never fills
+  // with nothing red anywhere.
   //
-  // `kolu` and `fleet` are what a chip draws: whether there is a padi at all,
-  // and the row it looks its terminal up in. An AGENT asking what terminals
-  // exist is an agent that can already reach kolu's own MCP face — re-serving
-  // padi's fleet through olai would be a second door onto somebody else's
-  // daemon with olai's credentials on it, which is the whole reason the
-  // orchestrator design has olai read padi and never re-publish it.
-  //
-  // `screen.text` is the same line drawn harder: it READS A TERMINAL'S SCREEN,
-  // which may hold anything the person working in it has on screen. It is a
-  // gesture somebody made in a tab they are looking at, and it is not a verb
-  // an agent gets for asking.
-  kolu: "resource",
-  // The watcher pulse — the pill's only liveness read. Same standing as
-  // `kolu`: a browser wants the answer, not a handle.
-  pulse: "resource",
-  // WHO IS MUTED, and which file says so — the events drawer's foot. The
-  // vault's own config, already an outline any of these readers may open,
-  // so nothing is being re-published here that the vault didn't already
-  // hand this face.
-  mutes: "resource",
-  fleet: "resource",
-  // THE EVENTS FEED, same door and the same reasoning: an agent asking what
-  // recently wanted attention has kolu's own MCP face, and olai's log rows
-  // are a reading of it it has no business re-publishing.
-  events: "resource",
-  // THE LIVE PANE, and the browser's alone: an agent reading a terminal has
-  // `screen.text` and its own kolu MCP besides, so a byte stream that only
-  // exists while somebody is LOOKING has no reader on that face.
-  terminal: "resource",
-  // THE CI RUNS — the live-properties seam's second face, and the browser's
-  // alone for the reason the four above it are. This cell is a READING of
-  // somebody else's coordinator, and an agent that wants a run's state has
-  // odu's own MCP face and `odu status` besides; re-serving them through olai
-  // would be a second door onto another tool's socket with olai's credentials
-  // on it, which is exactly the line `kolu` and `fleet` are held to.
-  //
-  // The line is easier here than there, in fact: this member carries no bytes
-  // anybody typed — no screen, no log (`@olai/odu-client`'s `project.ts` says
-  // why the log is not on the wire at all) — so what is being withheld is a
-  // convenience rather than a secret. It is withheld anyway, because "which
-  // face gets what" is a decision somebody makes per member rather than a
-  // default the next member inherits.
-  ci: "resource",
-  "screen.text": "tool",
+  // Each plugin writes its OWN map now, against its own spec, in its own
+  // package, and the reasons travelled with them unchanged: every one of those
+  // members is a reading of somebody else's daemon, and an agent that wants
+  // that daemon has that daemon's own MCP face. What composes the per-plugin
+  // maps onto this one is {@link facesOf} below.
   "chat.send": "tool",
   "chat.attach": "tool",
   "chat.resend": "tool",
@@ -411,19 +386,91 @@ export const AGENT: ExposeMap<typeof surface.spec> = {
   "git.push": "tool",
 }
 
+/** The name each face is known by in a plugin's own `faces` record — the key
+ *  `exposeMapsOf` asks each plugin for. Two words, spelled once here, because
+ *  a face's composition is what names the maps it wants: a plugin that writes
+ *  no map under one of them is DENIED that face in full, which is what
+ *  `exposeFaces` does with an absent map and is what declining a face means. */
+const BROWSER_KEY = "browser"
+const AGENT_KEY = "agent"
+
 /**
- * The two WIRE faces, bound to the surface they describe.
+ * THE TWO WIRE FACES, over olai's surface AND every plugin sibling composed
+ * beside it.
  *
- * Bound HERE, at module scope, rather than at each `serve*` call: binding is
- * what turns a record of strings into a checked `FaceExposure` — it proves
- * every key names a real member and grants a real verb — so doing it once means
- * a bad map is a failure this module's own test provokes, not a boot crash on
- * somebody's machine. `exposeFace` also infers the spec from the surface, so a
- * typo above is a type error before it is anything else.
+ * ## Why this is a function where it was two constants
  *
- * The MCP adapter takes the MAP itself and not one of these: it needs the
- * member KIND to resolve a `surface://` URI or a tool name, which a tag set has
- * thrown away.
+ * `restrictHandlers` compares an exposure's UNIVERSE with the tags the group
+ * actually serves, as a set EQUALITY in both directions, and refuses at boot
+ * naming every tag it cannot account for. That check is the reason a
+ * default-deny gate can be trusted at all — a map built against a different
+ * surface grants nothing and still binds, which is the one failure mode that
+ * looks like success from outside — and it is also why a face cannot be a
+ * module constant any more: which plugins a runtime composed is a fact about
+ * THAT runtime (`./runtime.ts`'s `Wiring.plugins`), and a face minted before
+ * anybody asked would describe a surface no particular process serves.
+ *
+ * So the faces are built from the same list the runtime composed from, at the
+ * same moment, and `bind` returns them beside the group they describe. Two
+ * readings of "which plugins are on" would be exactly the boot crash the
+ * equality exists to raise — which is the right failure, and the reason nothing
+ * here tries to be clever about a half that is missing.
+ *
+ * ## What each half is
+ *
+ * Core's is `exposeFace` over olai's own map, unchanged and unchangeable by any
+ * plugin. The sibling half is `exposeFaces` over the composed bundle, which is
+ * where the per-plugin decision actually lives: each plugin's map is written in
+ * its own package against its own spec, so its keys are compiler-checked and
+ * `"a.b"` cannot mean two things depending on whether `a` is a namespace or a
+ * sibling. {@link fuseFaces} unions the two, which the framework mints no
+ * constructor for and documents as a supported spelling
+ * (`@olai/plugins`' `compose.ts` argues it).
+ *
+ * ## The AGENT face gets no plugin maps, and that is DATA
+ *
+ * Neither tenant writes an `agent` map, so `exposeMapsOf` returns an empty
+ * record for that key and `exposeFaces` denies every sibling in full — the
+ * universe still names their tags, so the face binds and the members answer
+ * `SurfaceMemberNotExposed` to whoever asks. There is no branch here that says
+ * so, and there must not be: the day a plugin decides an agent may read one of
+ * its members, it writes the map in its own package and this function composes
+ * it without changing. A hardcoded "plugins are browser-only" would be core
+ * holding a decision that belongs to the plugin.
+ *
+ * The MCP adapter takes the {@link MCP} MAP itself and not one of these: it
+ * needs the member KIND to resolve a `surface://` URI or a tool name, which a
+ * tag set has thrown away. It is core-only for that reason too — a `surface://`
+ * URI has no sibling segment.
  */
-export const BROWSER_FACE: FaceExposure = exposeFace(surface, BROWSER)
-export const AGENT_FACE: FaceExposure = exposeFace(surface, AGENT)
+export const facesOf = (
+  plugins: ReadonlyArray<PluginWire>,
+): { readonly browser: FaceExposure; readonly agent: FaceExposure } => {
+  // The same cast `./runtime.ts` makes at `implementSurfaces` and for the same
+  // reason: the framework's map type pins each value's own spec, which is exact
+  // for a literal and is not what a record walked off a registry is. What it
+  // costs is nothing a plugin's own map could get wrong — those are checked
+  // where they are written — and `exposeFaces` re-derives the composition it
+  // gates from the surfaces themselves, so the tags it names and the tags the
+  // runtime serves come from one walk.
+  const siblings = surfacesOf(plugins) as unknown as SurfaceMap
+  // ...and the same erasure on the maps, for the same reason one line up: a
+  // plugin's map is written against that plugin's OWN spec, where its keys are
+  // compiler-checked and a stray one is a type error in the plugin's package.
+  // What arrives here is a record keyed by a name read off a registry, so the
+  // key check has already happened where it could; `exposeFaces` still refuses
+  // at boot a map naming a member the sibling does not declare, and a map keyed
+  // by a sibling this bundle does not have.
+  const mapsFor = (face: string) =>
+    exposeMapsOf(plugins, face) as unknown as Record<string, ExposeMap<never>>
+  return {
+    browser: fuseFaces(
+      exposeFace(surface, BROWSER),
+      exposeFaces(siblings, mapsFor(BROWSER_KEY)),
+    ),
+    agent: fuseFaces(
+      exposeFace(surface, AGENT),
+      exposeFaces(siblings, mapsFor(AGENT_KEY)),
+    ),
+  }
+}

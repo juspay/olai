@@ -23,14 +23,26 @@
  * the same tree. */
 @source "./";
 
-/* THE BROWSER'S KOLU HALF, as one line — `@olai/kolu-ui/all.css`.
+/* THE PLUGINS' FACES, as one line — `@olai/plugins/all.css`.
  *
- * This was two vendor imports and a paragraph explaining kolu's own chain. The
- * appliance carries that now: the row's sheet with its prerequisites, xterm's,
- * and a `@source` pointed at its own directory. Which sheets those are, and in
- * what order, is not something the app should have to know — the #2219 argument
- * one level down, made before the wall rather than after. */
-@import "@olai/kolu-ui/all.css";
+ * This was `@olai/kolu-ui/all.css`, and before that two vendor imports and a
+ * paragraph explaining kolu's own chain. Each level carries its own: the row's
+ * sheet brings its prerequisites and xterm's, each plugin's sheet brings that
+ * and a `@source` at its own faces, and the registry's brings every plugin's.
+ * Which sheets those are, and in what order, is not something the app should
+ * have to know — the #2219 argument, made before the wall rather than after.
+ *
+ * IT GOES THROUGH THE REGISTRY and not to a plugin, and that is a fence rather
+ * than a preference: a CSS import is a door a plugin's NAME can be spelled
+ * through, `packages/plugins/src/fence.test.ts` reads a `.css` file's imports
+ * for exactly that reason, and this package may not name a tenant in any
+ * grammar.
+ *
+ * The stake is high and the failure is silent. `@source "./"` above scans the
+ * app's own tree; Tailwind emits ONLY what it can SEE; and a face that moved
+ * out of that tree emits nothing at all — not a missing style, a component with
+ * no box, no ink and no spacing, with nothing red anywhere. */
+@import "@olai/plugins/all.css";
 
 /* The typefaces themselves — `@font-face` and every `:root[data-font]`
  * block — are generated from `@olai/fonts`'s catalog and appended by the

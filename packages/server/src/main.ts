@@ -59,6 +59,7 @@ import { dialOlai, endpointFlags } from "./dial.ts"
 import { MCP } from "./faces.ts"
 import { remoteFrom } from "./mcp/tools.ts"
 import { gitFlags, gitPin } from "./gitPolicy.ts"
+import { pluginFlags, pluginsPin } from "./pluginPolicy.ts"
 import { serve } from "./serve.ts"
 import { installSigtermGuard } from "@olai/sigterm"
 
@@ -71,6 +72,12 @@ const directory = Argument.directory("directory", { mustExist: true }).pipe(
  *  tables, the defaults it declines to apply, why `--no-commit` wins, and why
  *  the sentence names both doors this face actually has. */
 const webGit = gitFlags("web")
+
+/** `--plugins` — `./pluginPolicy.ts`, which owns the sentence, the default it
+ *  declines to apply, and why enablement is a flag rather than an env var, a
+ *  vault file or something remembered on disk. Only `web` takes it: `surface`
+ *  is a CLIENT of a running server and runs no plugins of its own. */
+const webPlugins = pluginFlags()
 
 /** 0 is the OS's to pick. A fixed port is a deploy's explicit `--port` —
  *  7714 ("olai" on a phone keypad) is what the home-manager module passes.
@@ -94,7 +101,8 @@ const web = Command.make("web", {
     Flag.withDefault("127.0.0.1"),
   ),
   ...webGit,
-}, ({ commits, directory, host, noCommit, port, pushes }) =>
+  ...webPlugins,
+}, ({ commits, directory, host, noCommit, plugins, port, pushes }) =>
   Effect.gen(function*() {
     // The SIGTERM guard (@olai/sigterm): `web` is the server a stray pkill
     // wants — `surface` is a client and its TERM is an ordinary stop —
@@ -107,6 +115,7 @@ const web = Command.make("web", {
       port,
       host,
       pin: gitPin(commits, noCommit, pushes),
+      plugins: pluginsPin(plugins),
       clientDist: yield* clientDist,
       allowedOrigins: allowedOrigins(),
       identity: identityConfig(),

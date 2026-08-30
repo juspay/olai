@@ -95,13 +95,14 @@ const withRuntime = <A>(
       writer: "web",
       hostname: hostname(),
       startedAt: STARTED,
-      // NO PADI. Every runtime in this file is a reader — a bound face, an MCP
-      // route — and none of them is about the terminal door; dialing whatever
-      // daemon happens to be on the machine running the suite would make these
-      // tests depend on it. `null` is the OFF setting, and what it produces is
-      // the same `absent` cell a laptop without kolu has.
-      kolu: null,
-      odu: null,
+      // NO PLUGINS. Every runtime in this file is a reader — a bound face, an
+      // MCP route — and none of them is about a terminal door or a CI chip;
+      // dialing whatever daemons happen to be on the machine running the suite
+      // would make these tests depend on them. `null` is the OFF setting, and
+      // what it produces is a surface with no `surface/<name>/` on it at all:
+      // an empty sibling record composes to no tag, no handler and no expose
+      // row, so olai's own group is byte for byte what it always was.
+      plugins: null,
       git: gitWiring(
         ops,
         fixedPolicy({ commit: "off", push: null }),

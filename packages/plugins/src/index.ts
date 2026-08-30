@@ -1,0 +1,98 @@
+/**
+ * THE PLUGIN SYSTEM — the interface, the composition, and the only place core
+ * meets an appliance.
+ *
+ * ## What this package is for
+ *
+ * olai integrates with two things that are not olai: kolu, which runs coding
+ * agents in terminals and serves them over MCP, and odu, which runs CI. Both
+ * were extracted into packages of their own once (`@olai/kolu-client`,
+ * `@olai/kolu-ui`, `@olai/odu-client`) and both left a residue behind: a
+ * `kolu.ts` in `@olai/chat`, a `koluConfig.ts` in `@olai/server`, a named
+ * `wiring.kolu` slot and a `koluHalf(…)` call beside it, four
+ * `...koluMembers` spreads in the middle of core's wire spec, a row per plugin
+ * member in the server's expose map, a `padi/` folder in `@olai/web`, and one
+ * property key spelled at seven sites across four packages. Every one of those
+ * is a general package knowing an appliance's name.
+ *
+ * The residue is not sloppiness; it is the part that genuinely was olai's own
+ * JUDGEMENT about an appliance — what an absent padi means, which vault file
+ * is kolu's, which property wears which face. What was missing is a place to
+ * put a judgement about an appliance that is neither the appliance nor the
+ * core. This is that place, and it is the only one.
+ *
+ * ## The shape, in one breath
+ *
+ * A plugin is a value ({@link ./plugin.ts}) whose first field is a NAME and
+ * whose second is a whole SURFACE of its own. Core composes that surface as a
+ * SIBLING under the name — the framework's own `composeSurfaceContracts` —
+ * so a member declared `fleet` in `@olai/plugin-kolu` reaches the wire as
+ * `surface/kolu/fleet/get` with no name arithmetic in any general package.
+ * Core's own surface is untouched and its tags are unchanged: the two are
+ * FUSED rather than merged into one spec ({@link ./compose.ts}).
+ *
+ * Beside those, a plugin contributes property KINDS the format takes as data
+ * and never imports, WHOLE SENTENCES for its own failures that core displays
+ * and never composes, DRESSINGS licensed by declared kind, a CHROME slot or
+ * two, an OWNED FILE in the vault, a RUNTIME HALF it assembles itself, an MCP
+ * SERVER a chat session is handed, and a DOCS page the index assembles.
+ *
+ * ## What a DISABLED plugin is
+ *
+ * Absent from the record. Every one of the framework's composition doors takes
+ * a plain keyed object of surfaces, so `--plugins` is a filter over it and
+ * nothing else — no sibling, no tag, no handler, no expose row, no
+ * `surface/<name>/` on the wire at all. `--plugins` is CLI/nix-only, the
+ * git-policy shape, with no settings file and no browser toggle; preferences
+ * draws the rows read-only, naming where to change them.
+ *
+ * ## What does NOT cross
+ *
+ * No core package imports a plugin — `./fence.test.ts` holds that as an
+ * EQUALITY per package rather than as a filtered list that could rot to empty
+ * and pass. No plugin imports this package, which is what keeps the direction
+ * a DAG the manifests express rather than a rule a reviewer remembers. And no
+ * general package spells a plugin's MEMBER: core knows a sibling key, and the
+ * framework computes every address behind it.
+ */
+
+export type {
+  AppClocks,
+  AppFurniture,
+  AppPopover,
+  BlockChrome,
+  BlockContext,
+  ChipContext,
+  Chrome,
+  ChromeFace,
+  Dressing,
+  FileLink,
+  JSX,
+  NotHere,
+  OlaiPlugin,
+  OwnedFile,
+  PillLook,
+  PluginDocs,
+  PluginMount,
+  PluginServer,
+  PluginServices,
+  Probed,
+  PropBlock,
+  PropChip,
+  PropEntry,
+  PropKind,
+  PropPane,
+  StdioServer,
+} from "./plugin.ts"
+
+export { fuseFaces, fuseGroups, fuseHandlers } from "./compose.ts"
+export {
+  enabled,
+  exposeMapsOf,
+  isEnabled,
+  PLUGIN_NAMES,
+  type PluginWire,
+  surfacesOf,
+  WIRES,
+} from "./surfaces.ts"
+export { PLUGINS } from "./registry.ts"

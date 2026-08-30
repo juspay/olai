@@ -23,7 +23,7 @@
 import { expect, test } from "bun:test"
 import { createMemo, createRoot, createSignal } from "solid-js"
 
-import type { FleetTerminal } from "@olai/surface"
+import type { FleetTerminal } from "@olai/kolu-client/wire"
 
 import { after, type Held, holdingNothing, seeded } from "./held.ts"
 
