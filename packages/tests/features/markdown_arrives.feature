@@ -26,6 +26,10 @@ Feature: The markdown pipeline arrives before it is needed
   Scenario: The shell fetches the pipeline, and the outline does not wait for it
     Given the markdown pipeline is held up
     When I open the outline "house.olai"
+    # `demo` is among them — finished — so the pick is said before the rows
+    # are counted: the claim is the bundle draws what it draws, not a
+    # default.
+    And I show the done nodes
     # Not "nothing was drawn": the tags and the marks are on the page, drawn
     # from the bundle that was already there, while the parser is still in the
     # air.

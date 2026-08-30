@@ -11,6 +11,9 @@ Feature: Inline markdown in titles
 
   Background:
     Given I open the outline "house.olai"
+    # The row whose title the markdown claims are about is `demo` — finished
+    # — and the rendering is no good asserted of a row the pick has away.
+    And I show the done nodes
 
   Scenario: A title renders inline markdown
     When I rewrite "house.olai" as:

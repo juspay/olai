@@ -159,9 +159,17 @@ add_node {file: "_olai/Properties.olai", title: "took", props: {type: "took"}}
   `date` (an ISO day or instant), `int` (a digit run), `path` (no whitespace;
   optional `base`), `doc` (a served `.md`; optional `base`), `ref` (a child's
   id; `under` names the parent), `node` (any node id).
+
+add_node {file: "_olai/Properties.olai", title: "brainstorm", props: {type: "doc"}}
+→ `brainstorm` cannot be declared `doc` while 3 existing values do not fit:
+  `lanes.olai` `first` (`a`) holds "not a path"; … The same fence `set_prop`
+  already is — fix those values first (one `apply` can write them all), then
+  declare.
 ```
 
-A hand edit that lands a bad value makes the file **broken, naming the key** (`bad-prop`), exactly how every other validation rule reports. Every door that writes a property is covered, because the check sits at the plan/validate seam: `set_prop`, `add_node`'s `props` (children included), `apply`, `update`, `capture`. `duplicate_node` needs no rule of its own — a copy is isomorphic to a subtree the validator has already approved.
+**A type declaration REFUSES while any existing governed value does not fit**, naming the offenders (file, node, value) — `set_prop` of `type` on a declaration, a rename of a declaration onto another key, a seed of `_olai/Properties.olai`, a `move_node` or `untrash_node` that lands a root there, a `duplicate_node` of a declaration, and a `split_node` or `merge_node` of a Properties root are the same fence. The write that used to land (the findings sat on other files, and `admits` ignored them) took the whole vault into last-good; this is that door closed. One `apply` that rewrites every bad value in a file is the atomic repair: a single write still leaves the others, and the gate refuses the file; the batch is one validated write and succeeds.
+
+A hand edit that lands a bad value makes the file **broken, naming the key** (`bad-prop`), exactly how every other validation rule reports. Every door that writes a property is covered, because the check sits at the plan/validate seam: `set_prop`, `add_node`'s `props` (children included), `apply`, `update`, `capture`. `duplicate_node` of an ordinary subtree needs no value-refusal of its own — a copy is isomorphic to a subtree the validator has already approved; a copy of a Properties root is a declaration, and is the same fence.
 
 **A `date` has TWO WIDTHS and one spelling each** (Converged #8 as amended, 2026-08-25): a DAY stays a bare day, and an INSTANT is written the way a mark records one. Inventing a clock face for a value that named a day would be the same lie the format already refuses when it validates dates as text — a date-only `2026-08-10` round-tripped through an instant comes back a datetime — so "one name, one spelling" is held per width rather than by flattening the two.
 
@@ -366,7 +374,7 @@ A `.md` file under the served directory is a **document**, and documents are par
 
 **The top level of that file is the shelf, in `ord` order.** One node per pin. What is nested under a pin is that pin's own business — notes about it, a checklist — and is not a second row in the sidebar.
 
-**The title is the address this app would spell for that page.** An address is `[document]#[element]`, the format's own grammar (`@olai/format`'s `address.ts`), with a slash in front of it: `/#<id>` a node, `/<path>` a document — a `.md`, a `.html` or an outline, the suffix says which page it opens — and `/<path>#<slug>` a heading inside one, or — after an `.olai` — a ROW: the node landed at its place in its own file rather than alone, which is the one address whose file half can go stale the way a renamed heading does (the node moves; the id is durable and the file is not). Beside them are the pages that name nothing on disk, which are the app's own ([architecture.md](architecture.md)): `/d/<ISO>` a day, `/today`, `/agenda`, `/trash`. Each may carry `?q=<filter>`, which is how a **saved query** is a pin at all ([search.md](search.md)).
+**The title is the address this app would spell for that page.** An address is `[document]#[element]`, the format's own grammar (`@olai/format`'s `address.ts`), with a slash in front of it: `/#<id>` a node, `/<path>` a document — a `.md`, a `.html` or an outline, the suffix says which page it opens — and `/<path>#<slug>` a heading inside one, or — after an `.olai` — a ROW: the node landed at its place in its own file rather than alone, which is the one address whose file half can go stale the way a renamed heading does (the node moves; the id is durable and the file is not). The row's id may name a PLACEMENT, and that lands too: a fragment spelling a mirror's own id — what `read_node` reports in `mirrors`, the spelling an agent citing a board row naturally writes — lands on the mirror's own row when the file draws it, and when it does not, the landing resolves the id to the node the placement stands for (the chat panel's answer to a backticked one, [chat.md](chat.md)) and lands by the same rule. Beside them are the pages that name nothing on disk, which are the app's own ([architecture.md](architecture.md)): `/d/<ISO>` a day, `/today`, `/agenda`, `/trash`. Each may carry `?q=<filter>`, which is how a **saved query** is a pin at all ([search.md](search.md)).
 
 ```jsonl
 {"id":"p-herbs","ord":"a0","title":"/#herbs"}

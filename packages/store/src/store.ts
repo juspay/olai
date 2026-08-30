@@ -69,6 +69,16 @@
  * that broke ITS OWN file can be turned back. A codec that does not answer it
  * refuses on a refusal and admits on a success, exactly as before.
  *
+ * OVER A REFUSAL there is a second condition and it is this package's, not the
+ * codec's: the directory has to have ALREADY not been loading — the errors
+ * channel carrying a verdict from a PROBE rather than from this candidate —
+ * because a write from a loading directory that produces a refused set caused
+ * that refusal, whichever files the findings name (#439: a declaration that
+ * newly fences values in files it does not write; a move of a `ref` variant
+ * that strands values in a third file). A codec that degrades per file reaches
+ * that clause only when the directory itself cannot be read, which is the one
+ * refusal it has left.
+ *
  * Validation before any rename is what makes a refused write cost nothing: the
  * bytes are on disk under names nothing reads, or they are not there at all.
  * And it is the ONLY validation the write pays for, because the verdict travels
@@ -695,6 +705,16 @@ export const make = <F, S, E>(
            * it is asked only here — a codec that ADMITTED the write has said
            * nothing about it.
            *
+           * TWO THINGS, and the first is #439's: the directory has to ALREADY
+           * not be loading. The errors channel has to be carrying a verdict
+           * from a PROBE rather than from this candidate, because a write from
+           * a loading directory that produces a refused set caused that refusal
+           * — a declaration that newly fences values in files it does not
+           * write, a move of a `ref` variant that strands values in a third
+           * file — and `stopping` cannot see that, since it is handed the
+           * candidate and not the history. It is this package's own
+           * bookkeeping, like the second.
+           *
            * `moved` is what the check reads. It holds every path re-decoded or
            * removed since the last PUBLISHED revision, which is empty whenever
            * the directory is healthy and is exactly the drift a caller planning
@@ -714,7 +734,8 @@ export const make = <F, S, E>(
             const settled = paths.every(
               (path) => !outstanding.changed.has(path) && !outstanding.removed.has(path),
             )
-            if (!settled) return Result.fail(refused)
+            const alreadyBroken = (yield* SubscriptionRef.get(errors)) !== null
+            if (!settled || !alreadyBroken) return Result.fail(refused)
           }
 
           // Every file staged before any is renamed: a write that cannot be

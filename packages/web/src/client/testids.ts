@@ -105,6 +105,11 @@ export const TESTID = {
   outlineTree: "outline-tree",
   node: "node",
   nodeTitle: "node-title",
+  /** What the outline's LANDING said when the row the address named is drawn
+   *  nowhere on the page it opened — one alarm line over the tree, in the
+   *  voice every refused act in this client speaks (`./SaidLine.tsx`), so a
+   *  scenario reads its `data-tone` rather than a colour. */
+  landingSaid: "landing-said",
   tag: "tag",
   /** The date pill on a row, wherever one is drawn. `data-occasion` says which
    *  of the node's dates it is; `data-overdue` says whether the node is late on
@@ -1130,6 +1135,15 @@ export const TESTID = {
    *  same fact. */
   filterBar: "filter-bar",
   filterInput: "filter-input",
+  /** The page's own out-vote on done-visibility, beside the filter: a
+   *  (filter/) two-segment strip, `data-own` while the page holds an entry
+   *  against the panel's default. Outline pages only — a day, the agenda,
+   *  the trash get the bar without it (settings/done.ts). */
+  doneFlip: "done-flip",
+  /** The release door of the flip — the `·` mark, a button while the page
+   *  owns its say: the flip's two segments ask, the mark hands the pick
+   *  back to the panel. */
+  doneRelease: "done-release",
   /** "3 of 41", plus what the done-preference is holding back. */
   filterCount: "filter-count",
   filterClear: "filter-clear",

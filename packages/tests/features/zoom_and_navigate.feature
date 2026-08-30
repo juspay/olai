@@ -55,11 +55,18 @@ Feature: Zoom and navigate
     When I zoom into the node "kitchen-herbs"
     Then the zoomed node is "herbs"
     And the breadcrumbs are "garden.olai, garden #outdoors"
-    And the node "basil" is shown
+    # `mint` rather than `basil` for the identity row: the finished child is
+    # hidden until this page is asked for it, which no press of a placard
+    # does, and what this scenario claims is WHICH page the press landed on.
+    And the node "mint" is shown
     And there should be no page errors
 
   Scenario: Done nodes can be hidden, and come back
+    # Hidden is where every page starts now (the per-page pick's default), so
+    # this walks the pick both ways from there.
     Given I open the outline "house.olai"
+    Then the node "demo" is not shown
+    When I show the done nodes
     Then the node "demo" is shown
     When I hide the done nodes
     Then the node "demo" is not shown
@@ -75,9 +82,9 @@ Feature: Zoom and navigate
     # hid exactly what was left.
     #
     # Done-hidden now means what it says: the two DONE rows go, and the branch
-    # nobody marked stays, with its note.
+    # nobody marked stays, with its note. (Hidden IS the default now, so the
+    # walk there is the page's own starting state and this hides it by asking.)
     Given I open the outline "garden.olai"
-    Then the node "glazing" is shown
     When I hide the done nodes
     Then the node "glazing" is not shown
     And the node "sowing" is not shown
@@ -89,26 +96,33 @@ Feature: Zoom and navigate
     # so it stays — but a node whose own mark is `done` is somebody's claim
     # about the whole branch, and the toggle honours it.
     Given I open the outline "garden.olai"
-    Then the node "herbs" is shown
+    When I show the done nodes
+    Then the node "basil" is shown
     When I hide the done nodes
     Then the node "herbs" is shown
     And the node "basil" is not shown
 
   Scenario: Hiding done nodes works on a zoomed page too
     Given I open the node "herbs"
+    Then the node "basil" is not shown
+    When I show the done nodes
     Then the node "basil" is shown
     When I hide the done nodes
     Then the node "basil" is not shown
     And the node "mint" is shown
 
-  Scenario: A zoomed page whose children are all done names Prefs
-    # THE ONLY ON-SCREEN SENTENCE ABOUT THE SETTING, now the pill is gone.
-    # `compost` has two done children and nothing unmarked, so hiding finished
-    # work empties the page — and the copy says where the switch lives.
+  Scenario: A zoomed page whose children are all done names the flip
+    # THE ONLY ON-SCREEN SENTENCE ABOUT THE SETTING: `compost` has two done
+    # children and nothing unmarked, so the pick this page answers to empties
+    # it — and the copy names the door: the flip beside the page's own
+    # filter. It IS there from the first frame now, and the walk out and
+    # back proves the pick both ways.
     Given I open the node "compost"
+    Then the page names that finished work is hidden
+    When I show the done nodes
     Then the node "turned" is shown
     When I hide the done nodes
-    Then the page says Prefs is hiding finished work
+    Then the page names that finished work is hidden
 
   Scenario: A page you go to starts at the top, and the one you come back to does not
     # Two halves of one decision, and neither happens by itself: a route change
@@ -193,4 +207,73 @@ Feature: Zoom and navigate
     When I follow the blocked link to "order" on "hinges"
     Then the zoomed node is "order"
     And the address is "/#order"
+    And there should be no page errors
+
+  Scenario: A row address opens the outline landed on the row, cold
+    # The qualified spelling — `/file#id`, the address a link to a row carries
+    # — in a fresh document, the way it arrives from a chat message or a pin.
+    # This pins the RECORD-id half: the mirror scenarios beside it must leave
+    # it byte-identical.
+    When I open the address "/house.olai#install"
+    Then the tree is shown
+    And the node "install" is focused
+    And the address is "/house.olai#install"
+    And there should be no page errors
+
+  Scenario: A row address naming a placement lands on the mirror's own row
+    # `kitchen-herbs` is a MIRROR: `read_node`'s `mirrors` reports the
+    # placement's own id, and an agent citing the row spells exactly that —
+    # the fragment then names no node the page shows, only a place it draws.
+    # The landing answers the id with the mirror row itself, which is the
+    # more specific of the two answers the page holds for it: the accent
+    # lands where the id says.
+    When I open the address "/house.olai#kitchen-herbs"
+    Then the node "kitchen-herbs" is focused
+    And the address is "/house.olai#kitchen-herbs"
+    And there should be no page errors
+
+  Scenario: A row address naming nothing on the page says so
+    # NOTHING FOUND IS NOTHING DONE — but it is SAID, which used not to be
+    # so: a dead link answered the same silence a working one did, and the
+    # only reader who could tell them apart was the one who wrote the link.
+    # The page opens whole, and the one alarm line answers what was asked
+    # and that the page draws none of it.
+    When I open the address "/house.olai#no-such-row"
+    Then the tree is shown
+    And the landing says "no-such-row — nothing by that name is drawn on this page"
+    # ...and it is a notice, not a state: the way every transient line in
+    # this client goes.
+    And the landing's sentence has gone
+    And there should be no page errors
+
+  Scenario: A row address naming a node this file does not draw says WHICH half of dead it isn't
+    # `glazing` is a real node — in `garden.olai`, nobody here: the set DOES
+    # declare the id, and this page draws no row of it — the other degree of
+    # certain miss (`fold/landing.ts`'s `missedSays`): not "nothing by that
+    # name" — that would make a working link indistinguishable from a dead
+    # one, the symmetric half of the silence the miss sentence closed (the
+    # review ruling, and the same could be said of a DONE row whose reader
+    # hides done). Then said then gone, the way any transient line goes.
+    When I open the address "/house.olai#glazing"
+    Then the tree is shown
+    And the landing says "glazing — what it names is not drawn on this page"
+    And the landing's sentence has gone
+    And there should be no page errors
+
+  Scenario: The sentence belongs to its page -- an in-page navigation takes it down
+    # The notice and its page used to be keyable apart: the line minted for
+    # one file could ride its six seconds over the next page's tree, the
+    # wrong-attribution half of the same ruling. The door OUT of the page
+    # matters just as much as the bound: a fresh GOTO would throw the line
+    # overboard with the whole document and ask nothing of the boundary, so
+    # it goes the SPA way — a directory click, the drawer's own link — the
+    # component stays, and only the stretch's own ending may answer.
+    When I open the address "/house.olai#no-such-row"
+    Then the tree is shown
+    And the landing says "no-such-row — nothing by that name is drawn on this page"
+    When I click the outline "garden.olai"
+    # BOUNDED under the line's own six seconds, or the dead-miss step above
+    # would ask this no question at all: BY the boundary is the claim here,
+    # not BY the clock as it was up there (the review's own fence-ruling).
+    Then the landing's sentence has gone with its page
     And there should be no page errors

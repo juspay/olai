@@ -1,95 +1,197 @@
 /**
- * Whether this browser draws finished work.
+ * Whether finished work is drawn: a browser-wide default, and the pages that
+ * out-vote it.
  *
- * A claim about the READER rather than about any one page — "I do not want to
- * look at finished work" — so it lives here, with the other preferences, and
- * not as a switch on the outline. Hiding a row writes nothing: the node stays
- * marked, the file stays put, and this reading simply does not draw it.
+ * TWO FACTS, each held the one way:
  *
- * The circuit is `../preference.ts`. Cross-tab follow is the same `storage`
- * event the theme and the folds ride, started once from `main.tsx`.
+ *   - THE DEFAULT is the reader's claim — "I do not want to look at finished
+ *     work" — kept with the other preferences as `olai.done.hidden`, THE KEY
+ *     IT ALWAYS HAD (two bumps ago this file retired it for a show-list; the
+ *     design revision put the global row back over it, and readers who set
+ *     it then lose nothing now). It starts HIDDEN — CHANGED from master's
+ *     visible (the 2026-08-29 ruling, and the one user visible move here
+ *     nobody upgrading asked for: a reader who never opened the row finds
+ *     finished work gone from every outline until they flip one place
+ *     either way).
+ *   - THE OUT-VOTE is a page's claim — "house.olai is a story: show me how it
+ *     ended; the board owes me nothing" — kept as a per-file OVERRIDE,
+ *     `olai.done.overrides`. What is an OVERRIDE rather than a fact the panel
+ *     could have been asked for: the page says the word beside its own filter
+ *     (`../filter/DoneFlip.tsx`), where "what about here?" is the question
+ *     being answered. Stored the folds' way (../fold/memory.ts): the entry is
+ *     a sorted JSON OBJECT of `{ "file.olai": "shown" | "hidden" }`, idempotent
+ *     under reprint so one render frame cannot write another's bytes; a page
+ *     whose pick IS the default holds nothing, so the default is stored
+ *     nowhere (no entry is "follow"). Two tabs flipping DIFFERENT pages are
+ *     not rival picks but independent answers to one question; a replace would
+ *     lose one, so the write starts from the ENTRY unioned with what this tab
+ *     holds, and the change goes on LAST. On a key ONE tab has ever spelled
+ *     the additions win; on a key BOTH know, the sibling's spelled entry
+ *     carries over this tab's stale one — the window is one event loop wide,
+ *     and what a union cannot see (a sibling's delete of a key this tab still
+ *     holds) is the folds' own trade, taken face-on. An explicit RELEASE —
+ *     the mark beside the strip, `../filter/DoneFlip.tsx`'s own gesture —
+ *     removes the entry the same way, ranked after everything it was unioned
+ *     with, so a page goes back to following the panel.
+ *
+ * The talk page is the archive's `done-over-open-work.md` and the design
+ * revision that made this two facts: the panel is still global; the page
+ * itself holds the exception.
  */
 
-import type { Row } from "@olai/format"
 import { withoutDone } from "@olai/format"
 import type { Accessor } from "solid-js"
+
+import type { Shown } from "@olai/format"
 
 import type { Drawn } from "../page.ts"
 import { boolCodec, createPreference } from "../preference.ts"
 
 export const DONE_HIDDEN_KEY = "olai.done.hidden"
+export const DONE_OVERRIDES_KEY = "olai.done.overrides"
 
-/** Shown, for a browser that has never been asked — and for a value nothing
+/** The pick's two words, in the value space they are stored in: the flip and
+ *  the strip on screen say "Visible" / "Hidden" because those are the words the
+ *  control has always said (settings/Panel.tsx's DONE_CHOICES), and storage
+ *  says `shown` / `hidden` — the file's two states, the way it describes
+ *  itself. */
+type DoneWord = "shown" | "hidden"
+
+/** Hidden, for a browser that has never been asked — and for a value nothing
  *  here ever wrote, which is `boolCodec`'s rule and not this file's. */
-const SHOWN = false
+const pref = createPreference(DONE_HIDDEN_KEY, boolCodec(true))
 
-/** The circuit (../preference.ts); the codec is the whole of this file's say
- *  in how it is stored. */
-const pref = createPreference(DONE_HIDDEN_KEY, boolCodec(SHOWN))
+/** The overrides circuit: parse all-or-nothing the symmetric codec cannot help
+ *  with, print SORTED for idempotency — the `fold/memory.ts` discipline, where
+ *  the argument for both lives. */
+const overrides = createPreference(DONE_OVERRIDES_KEY, {
+  parse: (stored) => {
+    if (stored === null) return new Map<string, DoneWord>()
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(stored)
+    } catch {
+      return new Map<string, DoneWord>()
+    }
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed))
+      return new Map<string, DoneWord>()
+    const out = new Map<string, DoneWord>()
+    for (const [file, word] of Object.entries(parsed)) {
+      if (word === "shown" || word === "hidden") out.set(file, word)
+    }
+    return out
+  },
+  print: (map) =>
+    map.size === 0
+      ? null
+      : JSON.stringify(
+          Object.fromEntries(
+            [...map.entries()].sort(([a], [b]) => a.localeCompare(b)),
+          ),
+        ),
+})
 
-/** Whether this browser hides what is done. */
+/** Whether this browser hides what is done, where no page has said otherwise. */
 export const doneHidden: Accessor<boolean> = pref.value
 
-/** Persist on change — `pref.set` writes `olai.done.hidden`. The write is
- *  fenced by `preferences.feature`'s stored-key step (on master before this
- *  PR). The reload scenario fences the boot read, not this setter. */
+/** Persist it — `pref.set` writes `olai.done.hidden`. The write is fenced by
+ * `preferences.feature`'s stored-key step; the reload scenario fences the boot
+ * read, not this setter. */
 export const setDoneHidden = (value: boolean): void => pref.set(value)
 
-/** The rows this reading actually draws. The preference and what it does to a
- *  tree are one thing, so every page asks the same question rather than each
- *  re-deciding what "hidden" means. */
-export const visible = (rows: ReadonlyArray<Row>): ReadonlyArray<Row> =>
-  doneHidden() ? withoutDone(rows) : rows
+/** What this page asked for, or NOTHING — and the nothing is a real answer:
+ *  "follow the default". There is no stored value for it: a page whose pick
+ *  is the panel's holds no entry. */
+export const doneOverride = (file: string): DoneWord | undefined =>
+  overrides.value().get(file)
 
 /**
- * The same question asked of a whole PAGE — and the answer to "which pages does
- * this preference reach", which is here rather than at the composition for the
- * reason above: it is a fact about the preference.
- *
- * It reaches a TREE and nothing else, and that is where it has always reached.
- * A day and the agenda answer a date question and the trash is what was put
- * away; hiding finished work inside any of the three would be this switch
- * deciding something none of those pages was asked — a day page is a record of
- * what happened, and half of what happened is work that got finished.
- *
- * THE SAME VALUE COMES BACK for a reader who is not hiding anything, identity
- * and all: {@link visible} hands back the very array it was given when the
- * preference is off, and this hands back the whole reading rather than
- * rewrapping it. That identity is what `../filter/narrowing.ts`'s count of
- * held-back matches reads as its zero, and a fresh wrapper per frame would make
- * it walk the page twice to prove the answer was nothing.
- *
- * ANYTHING ELSE SUBTRACTED HERE HAS TO GO AND SAY SO, and this is the sentence
- * that says which file: the filter's count line reports the matches this
- * function took away as "hidden as done" (`../filter/count.ts`), and it arrives
- * at that number as the difference between the page and what comes back from
- * here. What the label claims is exactly what this function does, and no more:
- * these rows are the ones THIS PREFERENCE took off — a finished row, and the
- * subtree that goes with it, which is why a match beneath a done ancestor is
- * counted here and is honestly blamed on the switch that swept it away (the
- * menu refuses to tick off a branch still holding unfinished TASKS, which is
- * where that rule is kept). A second reason to drop a row, added here, would
- * quietly be reported under this one's name — so it belongs there as its own
- * clause, not inside this subtraction.
- *
- * IT IS THE PREFERENCE AND NOT THE ROWS that the identity is about, which is
- * worth being exact on: `withoutDone` is a `flatMap` and mints a new list
- * whichever way it goes, so a reader who IS hiding finished work gets a fresh
- * value even on a page where nothing is finished — and the count downstream
- * then does the honest subtraction instead of short-circuiting. The check
- * below still earns its place: it is the default reading, and it is every page
- * this preference does not reach.
+ * The pick a PAGE answers to: its own word if it has one, the default's
+ * otherwise. Read here rather than at the composition, the way the panel's
+ * hint and the flip read the other two — three projections of one fact, which
+ * is one module.
  */
-export const visibleIn = (drawn: Drawn): Drawn => {
-  if (drawn.kind !== "tree") return drawn
-  const rows = visible(drawn.rows)
-  return rows === drawn.rows ? drawn : { kind: "tree", rows }
+export const doneHiddenOn = (file: string): boolean =>
+  (overrides.value().get(file) ?? (doneHidden() ? "hidden" : "shown")) ===
+  "hidden"
+
+/**
+ * Show or hide finished work on ONE page, and remember the pick. Writing the
+ * word the DEFAULT already says is still worth a line: the page was asked,
+ * and the ask outlives where the default stands today.
+ */
+export const setDoneFor = (file: string, word: DoneWord): void => {
+  // stored() LAST: a key in both places is the SIBLING's fresher answer, and
+  // spreads do not delete, so this tab's never-written entries survive
+  // either way (the pick trace is in done.test.ts).
+  const combined = new Map([...overrides.value(), ...overrides.stored()])
+  combined.set(file, word)
+  overrides.set(combined)
 }
 
-/** Follow it for as long as this document lives — the same shape as
- *  `followStoredTheme` and `followLayout`, started once from `main.tsx`,
- *  because a preference belongs to the browser and a browser is more than one
- *  tab. */
-export const followDoneHidden = (): void => {
+/** Hand a page back to the panel: drop its entry, with the same union
+ *  discipline ranked after everything it was unioned with — the removal is
+ *  this tab's own say-so, the way `fold/memory.ts`'s clear is. */
+export const letDoneFollow = (file: string): void => {
+  const combined = new Map([...overrides.value(), ...overrides.stored()])
+  combined.delete(file)
+  overrides.set(combined)
+}
+
+/**
+ * WHICH PAGE is the pick about — the flip's label and the guard against the
+ * done preference reaching a page it was never about.
+ *
+ * A PAGE is only about an outline: the Held completion filter owns "is this
+ * work that finished" (`../filter/completion.ts`), and `visibleIn` below is
+ * what the pick instructs. It does NOT reach the page that does not have
+ * one: a day records what happened (and half of what happened is work that
+ * finished); the agenda's done lane IS its claim; the trash is what was put
+ * away; documents have no marks.
+ */
+export const pageFileOf = (page: Shown | undefined): string | undefined => {
+  if (page === undefined) return undefined
+  if (page.kind === "outline") return page.file
+  // ZOOM MINTS NO PICK OF ITS OWN: the zoomed page is the outline SHOWN
+  // from a place — derived rows are the outline's own nodes SPOKEN FOR —
+  // and the file it stands in is the outline's, not the placement's.
+  if (page.kind === "node" && page.zoomed.kind === "node") {
+    return page.zoomed.shows.file
+  }
+  return undefined
+}
+
+/**
+ * The rows this page actually draws — the one door to the pick for the page
+ * composition. The pick and what it does to a tree are one thing, so every
+ * page asks the same question rather than each re-deciding what "hidden"
+ * means — and a page in step with its pick is handed back THE VERY VALUE it
+ * was given: that identity is what `../filter/narrowing.ts`'s count of
+ * held-back matches reads as its zero, and a fresh wrapper per frame would
+ * make it walk the page twice to prove the answer was nothing. An empty zoom
+ * wraps there (a tree with no file to be about) and is not pruned: the
+ * default the row holds is not the thing such a page says.
+ *
+ * THE EDGE IS WHERE THE PAGE SAYS WHAT THE PAGE IS (../filter/narrowing.ts's
+ * split of what a page holds from what it draws): here, "which pages is the
+ * default answering for"; there, "which rows of the answer show through".
+ * Both are the same sentence read from its two ends.
+ */
+export const visibleIn = (
+  drawn: Drawn,
+  file: string | undefined,
+): Drawn => {
+  if (file === undefined || drawn.kind !== "tree") return drawn
+  if (doneHiddenOn(file))
+    return { ...drawn, rows: withoutDone(drawn.rows) }
+  return drawn
+}
+
+/** Follow both halves for as long as this document lives — the same shape as
+ *  `followFolds` and `followLayout`, started once from `main.tsx`, because a
+ *  preference belongs to the browser: the panel writes the default once, and
+ *  every page holds the answers to what the default does not say. */
+export const followDonePrefs = (): void => {
   pref.follow()
+  overrides.follow()
 }

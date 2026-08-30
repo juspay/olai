@@ -31,8 +31,10 @@ import * as Store from "./store.ts"
  * A file is its text. A file whose first character is `!` does not decode. A
  * line reading `needs <name>` is a reference to `<name>.txt`, and a reference
  * to a file that is not in the set is what makes the WHOLE set invalid —
- * the store's two outcomes, in eight lines, with nothing outline-shaped in
- * sight.
+ * attributed to the file that named it. A line reading `blame <name>` is a
+ * finding ABOUT `<name>.txt`, so a write can produce a refusal the codec
+ * would admit (`admits` is per-file) while the directory is still loading —
+ * which is the store's `alreadyBroken` predicate, pinned below.
  */
 interface Loaded {
   readonly text: Readonly<Record<string, string>>
@@ -114,11 +116,35 @@ const codec: Codec<string, Loaded, ReadonlyArray<string>> = {
         .filter((target) => !(target in text))
         .map((target) => `${path}: needs ${target}, which is not in the set`)
     )
+    const blamed = Object.entries(text).flatMap(([path, contents]) =>
+      [...contents.matchAll(/^blame (\S+)$/gm)]
+        .map((match) => `${match[1]}.txt: blamed by ${path}`)
+    )
+    const findings = [...dangling, ...blamed]
 
-    return dangling.length > 0
-      ? Result.fail(dangling)
+    return findings.length > 0
+      ? Result.fail(findings)
       : Result.succeed({ text, broken })
   },
+
+  /**
+   * A finding is ABOUT the file its sentence starts with. `needs` findings
+   * name the file that wrote the reference; `blame` findings name the other
+   * one — which is how a test reaches the store's `alreadyBroken` guard (this
+   * says nothing stops the write; the directory was loading, so the write
+   * still refuses).
+   *
+   * THIS CODEC REFUSES, so only the failure arm can say anything: a success is
+   * a set it was happy to publish, and there is nothing in one to stop a write
+   * with. A codec that degrades per file answers the other way round
+   * (`@olai/ops`' `codec.ts`), which is why the seam is handed the whole
+   * outcome rather than a refusal.
+   */
+  stopping: (outcome, paths) =>
+    Result.isFailure(outcome) &&
+      outcome.failure.some((row) => paths.some((path) => row.startsWith(`${path}:`)))
+      ? outcome.failure
+      : null,
 
   /** The store's own failure, in this fixture's vocabulary. One string, so a
    *  test can assert it arrived on the SAME channel a dangling reference does
@@ -1202,6 +1228,53 @@ test("a set the codec refuses is not written and leaves no temp behind", () =>
       // the error cell was never touched, because nothing on disk is wrong.
       expect((yield* snapshotOf(store))?.rev).toBe(before?.rev)
       expect(yield* errorsOf(store)).toBeNull()
+    })))
+
+/**
+ * PIN of `alreadyBroken` at store.ts:706. `admits` is per-file; a write from
+ * a loading directory that produces an invalid set caused that invalidity
+ * even when the findings name a file it did not touch. If a degraded load
+ * ever published, `errors` would clear and `admits` would go unreachable —
+ * the 2026-08-25 last-good trap, returning silently. The two sides of the
+ * predicate, in one fixture: errors null ⇒ the write does not land; errors
+ * non-null ⇒ a healthy write to the other file does.
+ */
+test("PIN (alreadyBroken): errors null refuses a write whose findings sit elsewhere; errors non-null lets a healthy write land", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ read, store, write }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      expect(yield* errorsOf(store)).toBeNull()
+
+      // errors null: admits would say yes (the finding names b.txt), the
+      // write still refuses — this write caused the invalidity.
+      const fromHealthy = yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "a.txt", contents: "blame b" }],
+      })
+      expect(Result.isFailure(fromHealthy)).toBe(true)
+      if (Result.isFailure(fromHealthy)) {
+        expect(fromHealthy.failure).toEqual(["b.txt: blamed by a.txt"])
+      }
+      expect(read("a.txt")).toBe("alpha")
+      expect(yield* errorsOf(store)).toBeNull()
+
+      // errors non-null: a healthy write to the other file lands. The last
+      // good snapshot still stands; the bytes are on disk; the banner stays.
+      write("a.txt", "needs missing")
+      yield* store.refresh("cheap")
+      expect(yield* errorsOf(store)).not.toBeNull()
+      const standing = yield* snapshotOf(store)
+      expect(standing?.rev).toBe(before?.rev)
+      expect(standing?.value.text).toEqual({ "a.txt": "alpha", "b.txt": "beta" })
+
+      const healthy = yield* store.commit({
+        baseRev: standing?.rev ?? 0,
+        changes: [{ path: "b.txt", contents: "beta, still fine" }],
+      })
+      expect(Result.isSuccess(healthy)).toBe(true)
+      expect(read("b.txt")).toBe("beta, still fine")
+      expect((yield* snapshotOf(store))?.value.text["b.txt"]).toBe("beta")
+      expect(yield* errorsOf(store)).not.toBeNull()
     })))
 
 test("several files land together or not at all", () =>

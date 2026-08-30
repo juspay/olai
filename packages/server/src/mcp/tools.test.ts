@@ -1367,6 +1367,63 @@ test("add_node of a bad type in Properties.olai names the legal vocabulary", asy
   )
 })
 
+/**
+ * THE INCIDENT, through the agent's own face: declaring `brainstorm` `doc`
+ * over unfit values used to be accepted and took the vault into last-good.
+ * The declaration now refuses naming the offenders; one `apply` fixes every
+ * value; the declaration then accepts.
+ */
+test("declaring a type over unfit values is refused; one apply repairs; then it accepts", async () => {
+  await withTools(
+    {
+      "_olai/Properties.olai":
+        `{"id":"prop-pr","ord":"a0","title":"pr","custom":{"type":"int"}}\n`,
+      "lanes.olai": [
+        `{"id":"a","ord":"a0","title":"first","custom":{"brainstorm":"not a path"}}`,
+        `{"id":"b","ord":"a1","title":"second","custom":{"brainstorm":"also prose"}}`,
+        `{"id":"c","ord":"a2","title":"third","custom":{"brainstorm":"still not"}}`,
+        "",
+      ].join("\n"),
+      "briefs/one.md": "one\n",
+      "briefs/two.md": "two\n",
+      "briefs/three.md": "three\n",
+    },
+    async ({ client, read }) => {
+      const refused = await call(client, "add_node", {
+        file: "_olai/Properties.olai",
+        title: "brainstorm",
+        props: { type: "doc" },
+      })
+      expect(refused.isError).toBe(true)
+      expect(refused.structured).toMatchObject({ kind: "usage" })
+      const reason = String(refused.structured["reason"])
+      expect(reason).toContain("`brainstorm` cannot be declared `doc`")
+      expect(reason).toContain("`lanes.olai` `first` (`a`) holds \"not a path\"")
+      expect(reason).toContain("`lanes.olai` `second` (`b`) holds \"also prose\"")
+      expect(reason).toContain("`lanes.olai` `third` (`c`) holds \"still not\"")
+      expect(read("_olai/Properties.olai")).not.toContain("brainstorm")
+
+      const cleaned = await call(client, "apply", {
+        ops: [
+          { op: "prop", id: "a", key: "brainstorm", value: "briefs/one.md" },
+          { op: "prop", id: "b", key: "brainstorm", value: "briefs/two.md" },
+          { op: "prop", id: "c", key: "brainstorm", value: "briefs/three.md" },
+        ],
+      })
+      expect(cleaned.isError).toBe(false)
+
+      const declared = await call(client, "add_node", {
+        file: "_olai/Properties.olai",
+        title: "brainstorm",
+        props: { type: "doc" },
+      })
+      expect(declared.isError).toBe(false)
+      expect(read("_olai/Properties.olai")).toContain(`"title":"brainstorm"`)
+      expect(read("_olai/Properties.olai")).toContain(`"type":"doc"`)
+    },
+  )
+})
+
 /** The one rule the crossing adds, met where an agent meets it: the trash has
  *  two verbs of its own, and this is neither of them. */
 test("move_node refuses a trash at either end, toward the verb that does that job", async () => {

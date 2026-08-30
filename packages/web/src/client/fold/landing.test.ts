@@ -8,10 +8,21 @@
  * path-only folds, and no element askable of a tree that does not draw it.
  */
 
-import type { Row } from "@olai/format"
+import { type Row, shownRecord } from "@olai/format"
 import { expect, test } from "bun:test"
 
-import { chainTo, shutAlong } from "./landing.ts"
+import { aim, failedSays, missedSays, shutAlong } from "./landing.ts"
+
+/** The landing's LOCAL half, put back together for the tests that pin it:
+ *  `chainTo` is the arithmetic's own business now — nothing calls it but
+ *  {@link aim} — so what shines through is the chain arm with the set made
+ *  a question that has not been answered. Nothing below spoke of export
+ *  shapes; every old `chainTo` assertion is the same page asking the same
+ *  thing, one door in. */
+const chainTo = (rows: ReadonlyArray<Row>, id: string): ReadonlyArray<Row> | undefined => {
+  const answer = aim(rows, id, () => undefined)
+  return answer.kind === "chain" ? answer.chain : undefined
+}
 
 const line = (id: string, title: string, children: ReadonlyArray<Row> = []): Row => ({
   at: { file: "house.olai", line: 1, node: { id, ord: "a0", title } },
@@ -24,8 +35,8 @@ const line = (id: string, title: string, children: ReadonlyArray<Row> = []): Row
 })
 
 /** A PLACEMENT of `target`'s, standing where it was written: the place is its
- *  own record — which is what a mirror's `at` holds — and what it SHOWS is the
- *  node's, which is the only id a landing should ever see. */
+ *  own record — which is what a mirror's `at` holds, and the id the placement
+ *  itself answers to — and what it SHOWS is the node's. */
 const placementOf = (
   target: string,
   title: string,
@@ -69,6 +80,102 @@ test("the first match answers for a node the page shows twice — and a placemen
 
 test("no row that shows the id is no chain", () => {
   expect(chainTo([line("kitchen", "the kitchen")], "repair")).toBeUndefined()
+})
+
+// ── a placement id: the address may spell the mirror's own record ─────
+
+test("a placement id lands on the mirror's own row", () => {
+  const rows = [
+    line("beds", "the garden beds"),
+    line("garden-row", "about the garden", [placementOf("beds", "the garden beds", 7)]),
+  ]
+  // The id the address spelled IS the placement's record, and the mirror row
+  // is the more specific answer than the target's other row, depth-first or
+  // not: the id names this place and no other.
+  const chain = chainTo(rows, "m7")
+  expect(chain?.map((row) => row.at.node.id)).toEqual(["garden-row", "m7"])
+  if (chain === undefined) throw new Error("the chain exists")
+  expect(shownRecord(chain[chain.length - 1]!).node.id).toBe("beds")
+})
+
+test("a placement id answers wherever its mirror row stands", () => {
+  const rows = [
+    line("kitchen", "the kitchen", [
+      placementOf("beds", "the garden beds", 3, [line("sprig", "plant a sprig")]),
+    ]),
+  ]
+  expect(chainTo(rows, "m3")?.map((row) => row.at.node.id)).toEqual(["kitchen", "m3"])
+})
+
+test("a record id answers byte-identically with placements standing beside it", () => {
+  // The prove-a-nothing-changed case: the placement's own id and the node's
+  // own are two records (ids are unique across the set), so whatever the
+  // mirror half added, `beds` answers as it did before any of it existed.
+  const rows = [
+    line("garden-row", "about the garden", [placementOf("beds", "the garden beds", 7)]),
+    line("beds", "the garden beds", [line("sprig", "plant a sprig")]),
+  ]
+  expect(chainTo(rows, "beds")?.map((row) => row.at.node.id)).toEqual(["garden-row", "m7"])
+  expect(chainTo(rows, "sprig")?.map((row) => row.at.node.id)).toEqual(["beds", "sprig"])
+})
+
+// ── the answer with the set folded in ─────────────────────────────────
+
+test("the page answering the id asks nothing of the set", () => {
+  const rows = [line("beds", "the garden beds")]
+  const answer = aim(rows, "beds", () => {
+    throw new Error("a placement the page draws is no wire's business")
+  })
+  expect(answer.kind).toBe("chain")
+  if (answer.kind !== "chain") return
+  expect(answer.chain.map((row) => row.at.node.id)).toEqual(["beds"])
+})
+
+test("a placement the page does not draw lands on its target, depth-first as ever", () => {
+  // `m9` is written in a file this page is not: the rows keep no answer for
+  // it, the SET resolves it (the chat press's own door), and the target then
+  // answers by the same first-match rule a spelled target would have.
+  const rows = [
+    line("garden-row", "about the garden", [placementOf("beds", "the garden beds", 7)]),
+    line("beds", "the garden beds"),
+  ]
+  const answer = aim(rows, "m9", () => "beds")
+  expect(answer.kind).toBe("chain")
+  if (answer.kind !== "chain") return
+  expect(answer.chain.map((row) => row.at.node.id)).toEqual(["garden-row", "m7"])
+})
+
+test("no answer from the set is no answer yet — nothing concluded", () => {
+  expect(aim([line("kitchen", "the kitchen")], "repair", () => undefined)).toEqual({ kind: "ask" })
+})
+
+test("the set's answer changing nothing is the certain miss, carrying WHICH half", () => {
+  const rows = [line("kitchen", "the kitchen")]
+  // Declared by the set — a node in a file this page is not, or the row of
+  // a DONE node this reading hides: the miss answers WHICH page it is.
+  expect(aim(rows, "m9", () => "repair")).toEqual({ kind: "miss", target: "repair" })
+  // Declared by nothing.
+  expect(aim(rows, "repair", () => null)).toEqual({ kind: "miss", target: null })
+})
+
+// ── what the miss SAYS ────────────────────────────────────────────────
+
+test("a certain miss says what was asked — and which half of certain it is", () => {
+  expect(missedSays("day29-thirteenth", null)).toBe(
+    "day29-thirteenth — nothing by that name is drawn on this page",
+  )
+  // What the SET declares but this page draws no row of — the id of a DONE
+  // row, a filtered branch, another file — is NOT "nothing by that name":
+  // a hidden live row must not answer in the dead link's words.
+  expect(missedSays("day29-thirteenth", "day29-anchor")).toBe(
+    "day29-thirteenth — what it names is not drawn on this page",
+  )
+})
+
+test("the failed ask says just that — nothing of whether the name names", () => {
+  expect(failedSays("day29-thirteenth")).toBe(
+    "day29-thirteenth — the set could not be asked what it names",
+  )
 })
 
 // ── which of those folds the landing owes ──────────────────────────────

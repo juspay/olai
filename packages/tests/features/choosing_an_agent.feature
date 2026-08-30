@@ -19,6 +19,10 @@ Feature: Choosing an agent
 
   Background:
     Given I open the app
+    # Whatever the roster, the write being watched is a DONE mark, and the
+    # row has to stay on the page to be seen wearing it (`the_agent.feature`'s
+    # Background says it at length).
+    And I show the done nodes
     And I mark the page
     And the agent panel is open
 

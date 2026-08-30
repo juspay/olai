@@ -51,6 +51,7 @@ import {
   type TagsAnswer,
   type TagsRequest,
   ValidationFailure,
+  type Verdict,
   type Writer,
   type WriteRequest as Request,
   type WriteResult as Applied,
@@ -355,6 +356,33 @@ export interface Ops extends Asking {
  *  losing a race, it is contending with a writer that never stops. */
 const ROUNDS = 5
 
+/**
+ * WHICH FILE STOPS THIS WRITE — the sentence `run` says when the store
+ * handed back a verdict.
+ *
+ * Three ways to be here, one function: the verdict implicates a file this
+ * write touched; it does not, and this write caused invalidity in files
+ * it did not write (the directory was loading); or the write is standing
+ * on a base the disk has moved past while the set would not load, and
+ * there is no file of ours to name.
+ *
+ * ASKED THROUGH THE STEP EVERY READER OF A VERDICT MAKES: it becomes per-file
+ * ENTRIES (`blamed`), and both questions are asked of those — `admits` for the
+ * files this write put down, and the first entry for the second arm, since
+ * `blamed` files in path order and that first entry is what `implicatedIn` used
+ * to answer. One partition, read twice, rather than two orderings of one axis.
+ */
+const blockerOf = (
+  verdict: Verdict,
+  paths: ReadonlyArray<string>,
+  alreadyBroken: boolean,
+): string | undefined => {
+  const entries = blamed(verdict.findings)
+  const admission = admits(entries, paths)
+  if (admission._tag === "implicated") return admission.file
+  return alreadyBroken ? undefined : entries[0]?.file
+}
+
 export const make = (options: Options): Ops => {
   const context: Context = options.context ?? {
     mint: () => Math.random().toString(36).slice(2, 10),
@@ -480,26 +508,19 @@ export const make = (options: Options): Ops => {
            * had no way to say which file made it so
            * (`broken-file-blocks-healthy-writes`).
            *
-           * ASKED THROUGH THE SAME STEP EVERY READER OF A VERDICT MAKES — it
-           * becomes per-file ENTRIES (`blamed`), and `admits` is asked of those.
-           * That is the one `admits` there is, and it is the same one the gate
-           * spent to decide whether the bytes could land at all (`./codec.ts`,
-           * which reaches it through a set that carries the entries already).
-           * A refusal that reaches this line has been through it, so there are
-           * exactly two ways to be here — the entries implicate one of these
-           * files, or they do not and the write is standing on a base the disk
-           * has moved past while the set would not load ({@link
-           * ../../store/src/store.ts}'s `commit` owns that check, and the file
-           * it is about is one of the ones named right here).
+           * {@link blockerOf} is the three ways, asked of the verdict and of
+           * whether the directory was already not loading. The paths are the
+           * ones this commit carried — a second reading of "which files is
+           * this write about" is how the gate and the sentence come to
+           * disagree about one write.
            */
-          // THE PATHS THE COMMIT CARRIED, off the very list it carried them in
-          // — a second reading of "which files is this write about" is how the
-          // gate and the sentence come to disagree about one write.
           const paths = changes.map((change) => change.path)
-          const admission = admits(blamed(written.failure.findings), paths)
+          const alreadyBroken =
+            (yield* SubscriptionRef.get(options.store.errors)) !== null
+          const blocker = blockerOf(written.failure, paths, alreadyBroken)
           return yield* new ValidationFailure({
-            reason: admission._tag === "implicated"
-              ? `\`${about.summary}\` would leave \`${admission.file}\` invalid, so ` +
+            reason: blocker !== undefined
+              ? `\`${about.summary}\` would leave \`${blocker}\` invalid, so ` +
                 `nothing was written`
               : `\`${about.summary}\` was not written: ${
                 paths.map((path) => `\`${path}\``).join(", ")
