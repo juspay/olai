@@ -37,6 +37,7 @@ import {
 } from "@olai/format"
 import { recordsOf } from "@olai/format/testlib"
 import * as Store from "@olai/store"
+import { replaceBehindTheStamps } from "@olai/store/testlib"
 import { describe, expect, test } from "bun:test"
 import { Deferred, Effect, Fiber, Result, SubscriptionRef } from "effect"
 
@@ -645,30 +646,6 @@ const watchingRefresh = (fixture: Fixture): ReadonlyArray<string> => {
     return original(freshness)
   }
   return opened
-}
-
-/**
- * Put the file down the way `git rebase` leaves it: different bytes at the
- * same length and the SAME stamp the loaded set was read at, so no probe
- * anything the store runs on its way into a write can see it.
- *
- * THE LENGTH IS CHECKED HERE rather than counted by hand at each caller: a
- * stamp is mtime+size ({@link @olai/store}'s `disk.ts`), so a replacement one
- * byte longer is one the ordinary loop sees and none of these tests is about.
- * A miscounted constant would quietly turn a drift test into a probe test that
- * passes for the wrong reason.
- */
-const replaceBehindTheStamps = (root: string, file: string, contents: string): void => {
-  const at = path.join(root, file)
-  const stamp = fs.statSync(at)
-  if (stamp.size !== Buffer.byteLength(contents)) {
-    throw new Error(
-      `${file}: a replacement of ${Buffer.byteLength(contents)} bytes over ${stamp.size} ` +
-        `is visible to the stamps — this helper only hides same-length ones`,
-    )
-  }
-  fs.writeFileSync(at, contents)
-  fs.utimesSync(at, stamp.atime, stamp.mtime)
 }
 
 test("the rebase shape: a write refused over a stale set heals, and lands", () =>

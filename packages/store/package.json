@@ -5,8 +5,10 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "//exports": "Two entries, and only the first is product. `./testlib` is the stamp blind-spot helper this package's own tests are written against, published so a package ABOVE can reach the same blind spot the same way — the alternative was @olai/ops growing a byte-identical copy, which is how the length INVARIANT inside it gets softened in one copy and not the other (@olai/format's own ./testlib says the same thing one floor down).",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testlib": "./src/stamps.testlib.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

@@ -23,6 +23,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import type { Codec, Since } from "./codec.ts"
+import { replaceBehindTheStamps } from "./stamps.testlib.ts"
 import * as Store from "./store.ts"
 
 // ── the test codec ─────────────────────────────────────────────────────
@@ -989,28 +990,12 @@ test("PIN (what Confirmed is worth): the read's look is a stamp check, and says 
 // refusal reaches). So the paths a write is about are compared by BYTES before
 // anything is judged.
 
-/** Put a file down the way `git rebase` leaves it: different bytes at the same
- *  length with the stamp put back, which is exactly what mtime+size cannot
- *  see. The length is checked rather than counted by eye — one byte out and
- *  the ordinary loop sees it, and the test would pass for the wrong reason. */
-const replaceBehindTheStamps = (at: string, contents: string): void => {
-  const stamp = fs.statSync(at)
-  if (stamp.size !== Buffer.byteLength(contents)) {
-    throw new Error(
-      `a replacement of ${Buffer.byteLength(contents)} bytes over ${stamp.size} is ` +
-        `visible to the stamps — this helper only hides same-length ones`,
-    )
-  }
-  fs.writeFileSync(at, contents)
-  fs.utimesSync(at, stamp.atime, stamp.mtime)
-}
-
 test("a write over bytes the stamps never saw change is refused, not landed", () =>
-  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ at, read, store }) =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ read, root, store }) =>
     Effect.gen(function*() {
       const before = yield* snapshotOf(store)
       // Somebody else rewrote the very file this write is about, invisibly.
-      replaceBehindTheStamps(at("a.txt"), "ALPHA")
+      replaceBehindTheStamps(root, "a.txt", "ALPHA")
 
       const outcome = yield* Effect.flip(store.commit({
         baseRev: before?.rev ?? 0,
@@ -1031,10 +1016,10 @@ test("a write over bytes the stamps never saw change is refused, not landed", ()
     })))
 
 test("the same write, asked again, lands ON the bytes it was refused over", () =>
-  withStore({ "a.txt": "alpha" }, ({ at, read, store }) =>
+  withStore({ "a.txt": "alpha" }, ({ read, root, store }) =>
     Effect.gen(function*() {
       const before = yield* snapshotOf(store)
-      replaceBehindTheStamps(at("a.txt"), "ALPHA")
+      replaceBehindTheStamps(root, "a.txt", "ALPHA")
       yield* Effect.flip(store.commit({
         baseRev: before?.rev ?? 0,
         changes: [{ path: "a.txt", contents: "planned off the stale copy" }],
@@ -1071,16 +1056,25 @@ test("a clean write pays the check and nothing else — no extra revision, no sw
       // And the check itself decodes nothing — it compares bytes. What was
       // re-read is the file this write put down, by the forget below the
       // rename that has always been there.
+      //
+      // WHAT THIS MEASURES AND WHAT IT DOES NOT, said so a later reader does
+      // not over-read it: a check that widened to the whole tree would forget
+      // every stamp and re-decode every file, so the assertion below catches
+      // that direction. It does not count the BYTE reads — nothing spies the
+      // disk here — so "one read per file the write touches" is argued from
+      // `probe.drifted` and not measured. The guarantee that would actually
+      // break is pinned functionally one test down: widen the ask and the
+      // untouched sibling stops being drifted.
       expect(decodes).toEqual(["a.txt"])
     })))
 
 test("the gate forgets what it ASKED about — a drifted file the write does not touch is left", () =>
-  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ at, store }) =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ root, store }) =>
     Effect.gen(function*() {
       const before = yield* snapshotOf(store)
       // BOTH files replaced invisibly; the write is about one of them.
-      replaceBehindTheStamps(at("a.txt"), "ALPHA")
-      replaceBehindTheStamps(at("b.txt"), "BETA")
+      replaceBehindTheStamps(root, "a.txt", "ALPHA")
+      replaceBehindTheStamps(root, "b.txt", "BETA")
 
       yield* Effect.flip(store.commit({
         baseRev: before?.rev ?? 0,
