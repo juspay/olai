@@ -265,6 +265,45 @@ Feature: Zoom and navigate
     And the node "mint" is shown
     And there should be no page errors
 
+  Scenario: An address into a branch that is both collapsed and done-hidden pays both courtesies
+    # The two edges the landing rides are INDEPENDENT — the fold half's
+    # unfold, the pick half's reveal — and one address's chain can need them
+    # at once: `herbs` is doing and shut by hand, `basil` under it is done
+    # and swept by the pick. Were only the reveal paid, the row would answer
+    # under a shut door; were only the unfold paid, there would be no row
+    # behind the fold to point at.
+    Given I open the outline "garden.olai"
+    When I collapse the node "herbs"
+    And I open the address "/garden.olai#basil"
+    Then the node "basil" is focused
+    And the node "basil" is shown
+    And the node "herbs" is expanded
+    And this page's Done flip says "hidden"
+    And there should be no page errors
+
+  Scenario: Under a typed question the act writes nothing — a narrowed row address is missed, not revealed
+    # The reveal is re-asked ONLY where the pick's sweep is why a row is
+    # gone. A filter is a property of the address (`?q=` rides the route),
+    # so the landed-on address can arrive narrowed — and under the reader's
+    # own typed question the row is gone because of THAT, which the pick
+    # never touched and the reveal is owed nothing about
+    # (`filter/reading.ts`: a landing's arrivals draw the narrow reading;
+    # the reveal's answer is not asked at all). So this landing answers the
+    # reading the address says: the miss sentence, the row undrawn, NOTHING
+    # written behind the reader's back — and clearing the box finds the
+    # pick's sweep exactly as it stood, word and strip alike.
+    When I open the address "/garden.olai?q=slugs#basil"
+    Then the filter found "1 of 11"
+    And the landing says "basil — what it names is not drawn on this page"
+    And the node "basil" is not shown
+    When I clear the filter
+    Then the node "basil" is not shown
+    And the node "glazing" is not shown
+    And this page's Done flip says "hidden"
+    And the Done flip is the panel's answer
+    And this browser has stored no Done word on "garden.olai"
+    And there should be no page errors
+
   Scenario: A row address into a collapsed branch opens it, exactly as ever
     # The OLDER courtesy, pinned beside the new one: the reveal changed
     # where the landing asks its rows, and this walk proves the fold half
