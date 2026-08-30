@@ -23,6 +23,7 @@ import * as os from "node:os"
 import * as path from "node:path"
 
 import type { Codec, Since } from "./codec.ts"
+import { replaceBehindTheStamps } from "./stamps.testlib.ts"
 import * as Store from "./store.ts"
 
 // ── the test codec ─────────────────────────────────────────────────────
@@ -58,6 +59,15 @@ let validations: Array<ReadonlyArray<string>> = []
  *  ({@link Since}); this one only writes it down, which is all that is needed
  *  to say what the store promises about it. */
 let offered: Array<Since<Loaded> | undefined> = []
+/** One entry per {@link Codec.stopping} call: the files the write is putting
+ *  down, and the value the store said was STANDING when it asked. A codec whose
+ *  sets have cross-file meaning cannot tell "this write broke that file" from
+ *  "that file was already broken" without the second, so what the store hands
+ *  over is worth pinning rather than inferring from a refusal. */
+let stops: Array<{
+  readonly paths: ReadonlyArray<string>
+  readonly standing: Loaded
+}> = []
 /**
  * Two one-shot hooks, each fired from a codec member and disarmed as it fires,
  * so a test can reach INSIDE one `commit` — which is otherwise one call with
@@ -139,12 +149,19 @@ const codec: Codec<string, Loaded, ReadonlyArray<string>> = {
    * with. A codec that degrades per file answers the other way round
    * (`@olai/ops`' `codec.ts`), which is why the seam is handed the whole
    * outcome rather than a refusal.
+   *
+   * `standing` is what the store last PUBLISHED, and this codec has no use for
+   * it — a codec whose sets have no cross-file meaning cannot be asked "did
+   * this write break a file it did not write". It is written down rather than
+   * read, which is all that is needed to say what the store promises about it.
    */
-  stopping: (outcome, paths) =>
-    Result.isFailure(outcome) &&
-      outcome.failure.some((row) => paths.some((path) => row.startsWith(`${path}:`)))
+  stopping: (outcome, paths, standing) => {
+    stops.push({ paths: [...paths], standing })
+    return Result.isFailure(outcome) &&
+        outcome.failure.some((row) => paths.some((path) => row.startsWith(`${path}:`)))
       ? outcome.failure
-      : null,
+      : null
+  },
 
   /** The store's own failure, in this fixture's vocabulary. One string, so a
    *  test can assert it arrived on the SAME channel a dangling reference does
@@ -199,6 +216,7 @@ const withStore = <A>(
   decodes = []
   validations = []
   offered = []
+  stops = []
   matches = 0
   whileDecoding = null
   whileListing = null
@@ -977,11 +995,132 @@ test("PIN (what Confirmed is worth): the read's look is a stamp check, and says 
       expect((yield* snapshotOf(store))?.value.text["a.txt"]).toBe("ALPHA")
     })))
 
-// ── `drifted`: the refusal door's byte check ───────────────────────────
+// ── the gate's own byte check: the write that would clobber ────────────
 //
-// The stamp table's trade, seen from the other side: the look the loop takes
-// is coarse and is right to be, so the one caller with a reason to pay for a
-// stronger look — a write the codec refused — gets it here. These say what
+// The other side of the same trade, on the way IN. `commit` has always
+// distrusted stamps for its own paths AFTER the rename — its bytes can land in
+// the same second at the same length — and the identical blind spot on the way
+// in is worse: a file replaced behind the store's back inside it leaves the
+// entry probe with nothing to report, so the write is judged, and planned one
+// layer up, against bytes that are gone. Nothing refuses, and the replacement
+// is overwritten in silence (`stale-set-reads-clean-writes-refuse`, the arm no
+// refusal reaches). So the paths a write is about are compared by BYTES before
+// anything is judged.
+
+test("a write over bytes the stamps never saw change is refused, not landed", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ read, root, store }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      // Somebody else rewrote the very file this write is about, invisibly.
+      replaceBehindTheStamps(root, "a.txt", "ALPHA")
+
+      const outcome = yield* Effect.flip(store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "a.txt", contents: "alpha, committed" }],
+      }))
+      // `StaleWrite` — the sentence this gate already had for "you are
+      // standing on a base I have moved past", said for the case where the
+      // base moved without the stamps moving. No new channel, and the
+      // caller's cue is the one it already handles: re-derive and ask again.
+      expect(outcome._tag).toBe("StaleWrite")
+      // NOTHING WAS WRITTEN over the replacement — the whole point.
+      expect(read("a.txt")).toBe("ALPHA")
+      // And the set caught up with the bytes, so the caller's next attempt is
+      // planned against what is really there.
+      const after = yield* snapshotOf(store)
+      expect(after?.value.text["a.txt"]).toBe("ALPHA")
+      expect(after?.rev).toBeGreaterThan(before?.rev ?? 0)
+    })))
+
+test("the same write, asked again, lands ON the bytes it was refused over", () =>
+  withStore({ "a.txt": "alpha" }, ({ read, root, store }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      replaceBehindTheStamps(root, "a.txt", "ALPHA")
+      yield* Effect.flip(store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "a.txt", contents: "planned off the stale copy" }],
+      }))
+
+      // The retry is a fresh round at the revision the refusal published, and
+      // the check that refused the first one passes it: the bytes under it
+      // are the ones the set now holds.
+      const healed = yield* snapshotOf(store)
+      expect(healed?.value.text["a.txt"]).toBe("ALPHA")
+      const committed = yield* store.commit({
+        baseRev: healed?.rev ?? 0,
+        changes: [{ path: "a.txt", contents: "planned off the truth" }],
+      })
+      expect(Result.isSuccess(committed)).toBe(true)
+      expect(read("a.txt")).toBe("planned off the truth")
+    })))
+
+test("a clean write pays the check and nothing else — no extra revision, no sweep", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      decodes = []
+      const committed = yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "a.txt", contents: "ALPHA" }],
+      })
+      expect(Result.isSuccess(committed)).toBe(true)
+      // ONE revision for the write, which is what it cost before this check
+      // existed: nothing under it had moved, so nothing was forgotten and no
+      // second look was taken.
+      const after = yield* snapshotOf(store)
+      expect(after?.rev).toBe((before?.rev ?? 0) + 1)
+      // And the check itself decodes nothing — it compares bytes. What was
+      // re-read is the file this write put down, by the forget below the
+      // rename that has always been there.
+      //
+      // WHAT THIS MEASURES AND WHAT IT DOES NOT, said so a later reader does
+      // not over-read it: a check that widened to the whole tree would forget
+      // every stamp and re-decode every file, so the assertion below catches
+      // that direction. It does not count the BYTE reads — nothing spies the
+      // disk here — so "one read per file the write touches" is argued from
+      // `probe.drifted` and not measured. The guarantee that would actually
+      // break is pinned functionally one test down: widen the ask and the
+      // untouched sibling stops being drifted.
+      expect(decodes).toEqual(["a.txt"])
+    })))
+
+test("the gate forgets what it ASKED about — a drifted file the write does not touch is left", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ root, store }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      // BOTH files replaced invisibly; the write is about one of them.
+      replaceBehindTheStamps(root, "a.txt", "ALPHA")
+      replaceBehindTheStamps(root, "b.txt", "BETA")
+
+      yield* Effect.flip(store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [{ path: "a.txt", contents: "alpha, committed" }],
+      }))
+      const after = yield* snapshotOf(store)
+      // The file the write was about is caught up; the other is not, and is
+      // NOT a hole in this door — it is the door's boundary. The gate asks
+      // about the bytes it is about to write over and heals exactly those; a
+      // file no write names waits for the door that does name it, which is a
+      // write of its own or the resync a person knocks on (`refresh`, the one
+      // whole-tree look). Making a write sweep the directory to find it would
+      // put the read side's own red line on the write side, and every clean
+      // write would pay for it.
+      expect(after?.value.text["a.txt"]).toBe("ALPHA")
+      expect(after?.value.text["b.txt"]).toBe("beta")
+      expect(yield* store.drifted(["b.txt"])).toEqual(["b.txt"])
+      // …and the door that names it does heal it.
+      yield* store.refresh("verified")
+      expect((yield* snapshotOf(store))?.value.text["b.txt"]).toBe("BETA")
+    })))
+
+// ── `drifted`: the byte check, offered out ─────────────────────────────
+//
+// The same check the gate above makes for its own paths, as a member a caller
+// can ask of files this package cannot name — the ones a codec's refusal was
+// reached FROM. The stamp table's trade, seen from the other side: the look
+// the loop takes is coarse and is right to be, so the caller with a reason to
+// pay for a stronger look gets it here. These say what
 // "the disk no longer says what the set was decoded from" means to that door:
 // bytes, compared per asked path, over exactly the files it was asked about.
 
@@ -1220,6 +1359,52 @@ test("a commit is offered the published verdict and its own files", () =>
       expect(offered.length).toBe(1)
       expect(offered[0]?.value).toBe(before?.value as Loaded)
       expect(offered[0]?.changed).toEqual(["a.txt"])
+    })))
+
+/**
+ * THE GATE'S THIRD ARGUMENT, pinned: the value this store last PUBLISHED,
+ * beside the files the write is putting down.
+ *
+ * The candidate alone cannot tell "this write broke that file" from "that file
+ * was already broken" — and for a codec whose sets have cross-file meaning
+ * those are the two answers a write gate exists to keep apart: the first has to
+ * refuse, and the second must not, or one broken file freezes the directory
+ * again. Only the store holds the standing value; only the codec can read it.
+ * So what is pinned here is the HANDOVER, identity and all, and not any rule a
+ * codec builds on it (`@olai/format`'s `darkened` is olai's, and it is tested
+ * where the sets it compares are).
+ */
+test("a commit's gate is asked over its own files and what was last published", () =>
+  withStore({ "a.txt": "alpha", "b.txt": "beta" }, ({ store }) =>
+    Effect.gen(function*() {
+      const before = yield* snapshotOf(store)
+      stops = []
+
+      yield* store.commit({
+        baseRev: before?.rev ?? 0,
+        changes: [
+          { path: "a.txt", contents: "alpha, committed" },
+          { path: "c.txt", contents: "gamma" },
+        ],
+      })
+
+      // ONE ask per commit, the write's paths in the order it put them down —
+      // and the standing value BY IDENTITY, so it is the published one rather
+      // than an equal rebuild of it.
+      expect(stops.length).toBe(1)
+      expect(stops[0]?.paths).toEqual(["a.txt", "c.txt"])
+      expect(stops[0]?.standing).toBe(before?.value as Loaded)
+
+      // …and the NEXT commit is offered what the first one published, not what
+      // the first one was offered: the baseline moves with the directory.
+      const after = yield* snapshotOf(store)
+      expect(after?.value).not.toBe(before?.value as Loaded)
+      stops = []
+      yield* store.commit({
+        baseRev: after?.rev ?? 0,
+        changes: [{ path: "b.txt", contents: "beta, committed" }],
+      })
+      expect(stops[0]?.standing).toBe(after?.value as Loaded)
     })))
 
 test("what moved while a verdict was refused is still owed to the next one", () =>

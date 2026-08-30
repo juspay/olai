@@ -45,16 +45,33 @@
  * unfold does, which is also fair: the reader asked to LOOK at what is under
  * it, and closing it again is one triangle.
  *
- * THE OTHER WAYS A ROW CAN BE ABSENT are deliberately answered the same, and
- * the document arm's own sentence for them is inherited: NOTHING FOUND IS
+ * THE OTHER WAYS A ROW CAN BE ABSENT: one of them is not an absence at all
+ * any more and the rest keep the old sentence. A row whose PLACE the reading
+ * holds and this page's DONE PICK hides is SHOWN to the landing — {@link aim}'s
+ * reveal arm, the reveal being the pick's own mechanism spent for the visit
+ * rather than the pick changed (`../settings/done.ts`): the same courtesy the
+ * fold half pays, because a row the pick hides is exactly as present as a row
+ * a fold hides — in the READING — and a landing whose answer depended on how
+ * the reader reads would be a link that works for one of them. What the
+ * reveal never is is the pick's word: nothing is stored, the flip's strip
+ * and its `·` stand untouched, and the reveal dies with the page it was
+ * owed on — the fold half SPENDS the memory's write (a fold is the reader's
+ * own case-by-case memory, and closing it again is one triangle), where the
+ * pick is the reader's STANDING claim about the page, and a landing minting
+ * that claim for one arrival would outlive the visit it was for. What the
+ * reveal also never covers is a FILTER's prune: while a query is typed the
+ * reader's question is the page, and the act writes nothing over it — the
+ * same discipline the fold half already keeps (`./reading.ts`).
+ *
+ * The remaining ways keep the document arm's own sentence: NOTHING FOUND IS
  * NOTHING DONE — a `.md` whose heading was renamed behaves exactly so. The
- * id lives on under done-hidden, under an active filter that did not select
- * it, or in no file this directory holds any more, and in each case the page
- * the address opened is whole. What has changed hands is the SILENCE: nothing
- * done used to be nothing said, which made a dead link indistinguishable from
- * a working one (the human's RCA ruling, 2026-08-29 — a real one landed
- * nowhere, and only its author could tell). So the act says the miss out
- * loud, in the same alarm voice every refused act in this client speaks
+ * id's row is in no file this directory holds any more — or the filter's,
+ * above — and in each case the page the address opened is whole. What has
+ * changed hands is the SILENCE: nothing done used to be nothing said, which
+ * made a dead link indistinguishable from a working one (the human's RCA
+ * ruling, 2026-08-29 — a real one landed nowhere, and only its author could
+ * tell). So the act says the miss out loud, in the same alarm voice every
+ * refused act in this client speaks
  * ({@link missedSays}), once the set has answered and confirmed the page
  * really draws nothing by that name — never before, because an alarm about a
  * row that is one revision short of arriving is a lie for the length of the
@@ -143,6 +160,13 @@ const answer = (row: Row, id: string): boolean =>
  * `told`, the tab's one door for the question — which resolves a placement
  * to the regular node at the end of its chain).
  *
+ * `whole` is the page's rows BEFORE the pick prunes them — handed in exactly
+ * when the reveal MAY be asked (the pick hides done on this page and no
+ * filter is typing over it; both halves are the caller's to gate, and
+ * `undefined` keeps the reveal from being a question this function takes:
+ * under a filter the reader's own query is what took the row and the act
+ * writes nothing over it).
+ *
  *   - the page's rows answer the id as spelled — {@link chainTo}'s question,
  *     placement half included — and no set is consulted at all;
  *   - 'ask': the rows said nothing and the set has not answered either —
@@ -151,36 +175,56 @@ const answer = (row: Row, id: string): boolean =>
  *   - the set answered, and what it answered IS drawn here: the target's
  *     chain, by `chainTo`'s own first-match rule — the landing one file over
  *     pays exactly as if the address had spelled the target;
- *   - 'miss': the set answered and it changes nothing this page draws — a
+ *   - 'reveal': the drawn rows said nothing but the WHOLE page answers — the
+ *     row EXISTS here and the done pick is what hides it. The chain is the
+ *     reading's own shape of it, root-down as ever (the id as spelled asked
+ *     first, the set's resolution after — `settled`, the one probe both
+ *     remaining scopes ask): what the act owes the view is the chain's
+ *     PLACES kept out of the pick's sweep (`../settings/done.ts` spends
+ *     that), after which the next pass of the act answers 'chain' the
+ *     ordinary way;
+ *   - 'miss': the set answered and it changes nothing this page can draw — a
  *     CERTAIN miss, in two honestly-different degrees, and the act owes
  *     each its own sentence ({@link missedSays}): `null` when the set
  *     itself declares nothing by the name, the target when the set declares
- *     it and this page draws no row of it — the id of a DONE row on a reading
- *     that hides done, a filtered branch away, or in some other file
- *     altogether.
+ *     it and no reading of this page draws a row of it — the filter's words
+ *     pruning it, or the row living in some other file altogether.
  */
 export const aim = (
   rows: ReadonlyArray<Row>,
   id: string,
   named: (asked: string) => string | null | undefined,
+  whole?: ReadonlyArray<Row>,
 ): Aim => {
   const chain = chainTo(rows, id)
   if (chain !== undefined) return { kind: "chain", chain }
   const target = named(id)
   if (target === undefined) return { kind: "ask" }
-  if (target !== null) {
-    const resolved = chainTo(rows, target)
-    if (resolved !== undefined) return { kind: "chain", chain: resolved }
+  // THE SET HAS SPOKEN — and from here one probe asks both remaining scopes
+  // the same question: where the settled node's chain lies. The drawn pool's
+  // answer pays the landing; the whole page's owes the reveal, of the same
+  // shape.
+  const settled = (pool: ReadonlyArray<Row>): ReadonlyArray<Row> | undefined =>
+    target === null ? undefined : chainTo(pool, target)
+  const resolved = settled(rows)
+  if (resolved !== undefined) return { kind: "chain", chain: resolved }
+  if (whole !== undefined) {
+    const hidden = chainTo(whole, id) ?? settled(whole)
+    if (hidden !== undefined) return { kind: "reveal", chain: hidden }
   }
   return { kind: "miss", target }
 }
 
-/** The landing's three answers, in {@link aim}'s own words. */
+/** The landing's answers, in {@link aim}'s own words. */
 export type Aim =
   /** The chain the act owes its pane. */
   | { readonly kind: "chain"; readonly chain: ReadonlyArray<Row> }
   /** Nothing to do yet: the set has not answered the id. */
   | { readonly kind: "ask" }
+  /** The row is here and the done pick hides it: the chain as the WHOLE page
+   *  holds it, whose places the act asks the pick to spare — the landing
+   *  then lands on it in the ordinary way, one pass later. */
+  | { readonly kind: "reveal"; readonly chain: ReadonlyArray<Row> }
   /** Nothing this page can answer: the miss, to be said. The SET's own
    *  answer for the id rides as `target` — `null` for a name nothing
    *  declares, the very node for an id the set knows and this page merely
@@ -199,8 +243,9 @@ export type Aim =
  * One ACT, TWO words, by which half of certain it is
  * ({@link aim}'s resolution): the id the set knows nothing of says so —
  * "nothing by that name is drawn on this page" — and the id the set DOES
- * declare, which this page merely draws no row for (a DONE row on a reading
- * that hides done, a filtered branch, another file), answers "what it names
+ * declare, which this page merely draws no row for (a hidden branch the
+ * reader's own FILTER pruned, or another file altogether — a row the done
+ * pick hides is REVEALED now, never missed), answers "what it names
  * is not drawn on this page": a hidden live row must not be indistinguishable
  * from a dead link, in EITHER direction — which is the review's ruling on
  * the symmetric half of the silence this contract closed.

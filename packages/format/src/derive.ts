@@ -1843,10 +1843,24 @@ const expand = (
  * the view whose whole purpose is showing what is left hid exactly what was
  * left. Nothing derives done any more, so nothing is hidden that nobody
  * finished.
+ *
+ * `keep` is the LANDING's reservation (`web/src/client/fold/landing.ts`): a
+ * set of PLACE keys (`Row.key` — the place's identity, never the node's: a
+ * mirror of a kept node would otherwise come back wherever it stands) the
+ * sweep walks past as if they were not done. Sweeping is per ROW all the way
+ * down: a kept row is drawn, but its children are asked the same question
+ * again, so a kept ancestor's done siblings and done children stay hidden
+ * unless they are on the way themselves — the courtesy is the path the
+ * address named, not the page the pick is about.
  */
-export const withoutDone = (rows: ReadonlyArray<Row>): ReadonlyArray<Row> =>
+export const withoutDone = (
+  rows: ReadonlyArray<Row>,
+  keep?: ReadonlySet<string>,
+): ReadonlyArray<Row> =>
   rows.flatMap((row) =>
-    row.status === "done" ? [] : [{ ...row, children: withoutDone(row.children) }]
+    row.status === "done" && keep?.has(row.key) !== true
+      ? []
+      : [{ ...row, children: withoutDone(row.children, keep) }]
   )
 
 /**

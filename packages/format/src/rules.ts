@@ -171,7 +171,15 @@ export const reportParents = (
         code: "foreign-parent",
         ...siteOf(located),
         message: `\`parent\` is \`${node.parent}\`, which lives in another file; every \`.olai\` is an independent tree, so cross-file placement is a \`mirror\``,
-        related: [{ ...siteOf(parent), note: "the parent lives here" }],
+        // `broken: false` — the parent is a POINTER, not a second fault. This
+        // record reached across; the record it reached at did nothing, is
+        // named so the reader can see where the `parent` went, and keeps its
+        // page lit and its writes admitted ({@link ./errors.ts}'s `Related`).
+        // The fix is one edit and it is in THIS file — the `parent` this line
+        // holds, or the mirror that should have been written instead — so
+        // darkening the other end bought a reader nothing and cost that file
+        // every write in it (`broken-file-blocks-healthy-writes`).
+        related: [{ ...siteOf(parent), note: "the parent lives here", broken: false }],
       })
       continue
     }

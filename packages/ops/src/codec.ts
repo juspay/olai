@@ -189,6 +189,18 @@ export const codecFor = (kinds: KindVocabulary): Codec<Document, Reading, Verdic
    * are, and a write that would BREAK its own file is turned back with that
    * file's rows, rather than landing and taking the file off every page.
    *
+   * AND THE THIRD ARGUMENT IS THE BYSTANDER'S, which is what the store gained
+   * for a codec whose sets have cross-file meaning and olai's is one. The set a
+   * write would make can hold a file the write never opened and just took off
+   * every page — a `ref` value in a third file, stranded by a move of the
+   * variant it names — so the files this write is ANSWERABLE for are more than
+   * the files it puts down. Told only the candidate, `stopping` cannot tell
+   * such a file from one that was already broken before the write was asked
+   * for. The store hands over what it last published; the format widens its ask
+   * by the difference. Both halves of the ruling ride one line: a bystander
+   * this write darkened refuses it, and a file that was already dark refuses
+   * nothing.
+   *
    * THE MENDING WRITE NEEDS NO CASE HERE. A commit is judged on the set it
    * would MAKE, so one that repairs a broken file wholly leaves nothing to say
    * about it and lands like any other. (Whether an OP can be planned against a
@@ -199,9 +211,11 @@ export const codecFor = (kinds: KindVocabulary): Codec<Document, Reading, Verdic
    * The failure arm is the directory itself being unreadable, which implicates
    * every path there is; it travels back exactly as it arrived. NO RULE IS
    * SPELLED HERE, which is this file's standing promise: `stopping` is the
-   * format's, the paths are the store's, and this line is the two of them
-   * meeting.
+   * format's, the paths and the standing value are the store's, and this line
+   * is the two of them meeting.
    */
-  stopping: (outcome, paths) =>
-    Result.isFailure(outcome) ? outcome.failure : stopping(outcome.success.set, paths),
+  stopping: (outcome, paths, standing) =>
+    Result.isFailure(outcome)
+      ? outcome.failure
+      : stopping(outcome.success.set, paths, standing.set),
 })

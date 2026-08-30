@@ -88,12 +88,18 @@ Then(
 When(
   "a jump lands the row {string} at the top of the window",
   async function (this: OlaiWorld, id: string) {
+    // THE ROW LINE, not two frames after the tree container. `I open the
+    // outline` waits for `outline-tree` and two rAFs; `<Key>`'s children can
+    // still be uncommitted, and the viewport-shortening step above can reflow
+    // the list before they are. A one-shot querySelector in that window is
+    // how the phone twin said `no row line for [data-row-key$="/install"]`
+    // under petit-load (the_header_sticks.feature:93).
+    const row = this.page.locator(rowLineOf(id));
+    await row.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
     const before = await this.page.evaluate(() => scrollY);
-    await this.page.evaluate((sel) => {
-      const el = document.querySelector(sel);
-      if (!el) throw new Error(`no row line for ${sel} — wrong outline or wrong id`);
+    await row.evaluate((el) => {
       el.scrollIntoView({ block: "start" });
-    }, rowLineOf(id));
+    });
     await this.waitUntil(async () => (await this.page.evaluate(() => scrollY)) > before,
       `the window to move after jumping to the row ${JSON.stringify(id)}`);
   },

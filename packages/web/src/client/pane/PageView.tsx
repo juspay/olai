@@ -153,8 +153,12 @@ export function PageView() {
 
   // Done-visibility is the PAGE's own pick, so the pruning needs to know which
   // page these rows are — the outline's file; a zoom's canonical file, since a
-  // zoomed view is the same page (../settings/done.ts).
-  const shownDrawn = createMemo(() => visibleIn(allDrawn(), pageFileOf(page())))
+  // zoomed view is the same page (../settings/done.ts) — and WHICH PANE: the
+  // landing's reveal is one pane's courtesy, so a pane the address never
+  // reached must sweep the row what the flip said.
+  const shownDrawn = createMemo(() =>
+    visibleIn(allDrawn(), pageFileOf(page()), here())
+  )
 
   /**
    * ARE THE TWO READINGS ABOUT THE SAME PAGE?
@@ -277,7 +281,7 @@ export function PageView() {
                   <OutlinePage
                     file={outline().file}
                     rows={rows()}
-                    holds={only(allDrawn(), "tree")?.rows.length ?? 0}
+                    held={only(allDrawn(), "tree")?.rows ?? []}
                   />
                 )}
               </Match>
