@@ -31,12 +31,16 @@
  * which is a decision somebody made on purpose about this host; a vault can
  * always take it back with one row.
  *
- * `WORKTREE_KEY` is `@olai/odu-client`'s name for the COLUMN. The claim above
- * IS that constant, so the key odu conventionally owns and the key odu's client
- * reads cannot become two words. What it is not is the KIND: the kind is the
- * word a declaration writes, and everything that judges a value follows it —
- * the walk ({@link ./worktrees.ts}), the value gate, and the browser's dressing
- * table.
+ * `WORKTREE_KEY` is `@olai/odu-client`'s name for the COLUMN, and it is NOT
+ * what this plugin claims. The claimed key is {@link WORKTREE_TYPE}, the
+ * composed word, which is what makes a built-in declaration safe here of all
+ * places: enabling odu can only ever declare a key carrying odu's name, so a
+ * column somebody else calls `worktree` is never pointed at a socket dial by a
+ * flag on the machine.
+ *
+ * Nor is `WORKTREE_KEY` the KIND. The kind is the word a declaration writes, and
+ * everything that judges a value follows it — the walk
+ * ({@link ./worktrees.ts}), the value gate, and the browser's dressing table.
  *
  * FOR ONE PR WINDOW THE BROWSER FOLLOWED THE KEY, because a vault's
  * declarations deliberately do not travel to a tab (juspay/olai#395), so the

@@ -24,10 +24,14 @@
  * means and the door goes dark. Nothing ever writes anybody's vault.
  *
  * `TERMINAL_KEY` is `@olai/kolu-client`'s name for the COLUMN — the string the
- * fleet's own arithmetic reads. The claim above IS that constant, so the key
- * kolu conventionally owns and the key kolu's client reads cannot become two
- * words. What it is not is the KIND: the kind is the word a declaration writes,
- * and everything that judges a value follows it — the ownership walk
+ * fleet's own arithmetic reads — and it is NOT what this plugin claims. The
+ * claimed key is {@link TERMINAL_TYPE}, the composed word, which is what makes a
+ * built-in declaration safe: enabling kolu can only ever declare a key carrying
+ * kolu's name, so a column somebody else calls `terminal` is untouchable by a
+ * flag on the machine.
+ *
+ * Nor is `TERMINAL_KEY` the KIND. The kind is the word a declaration writes, and
+ * everything that judges a value follows it — the ownership walk
  * ({@link ./claimants.ts}), the value gate, and the browser's dressing table.
  *
  * FOR ONE PR WINDOW THE BROWSER FOLLOWED THE KEY, because a vault's
@@ -95,11 +99,12 @@ export const admitsTerminal = (value: string): boolean => /^[0-9a-fA-F-]+$/.test
  * three doors: the live write's refusal, the broken file's error, and the fold
  * that decides what a key is declared as.
  *
- * `claims` IS THE BUILT-IN DECLARATION. A vault that has said nothing about
- * `terminal` is declaring it this kind, so turning kolu on is the whole of
- * turning the door on — nobody hand-writes a row in `_olai/Properties.olai` to
- * get a face an enabled plugin already knows how to draw, and **nothing ever
- * writes anybody's vault**.
+ * `claims` IS THE BUILT-IN DECLARATION, and the key it claims is
+ * {@link TERMINAL_TYPE} — `kolu-terminal`, never the bare `terminal`. A vault
+ * that has said nothing about THAT key is declaring it this kind, so turning
+ * kolu on is the whole of turning the door on: nobody hand-writes a row in
+ * `_olai/Properties.olai` to get a face an enabled plugin already knows how to
+ * draw, and **nothing ever writes anybody's vault**.
  *
  * THE CLAIMED KEY IS THE COMPOSED WORD ITSELF, and it is not a choice this
  * plugin gets to make: `@olai/plugins`' `kindsOf` sets `claims` equal to the

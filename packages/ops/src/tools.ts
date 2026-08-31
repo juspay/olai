@@ -109,7 +109,7 @@ import {
   type WriteRequest as Request,
   type WriteResult as Applied,
 } from "@olai/format"
-import { type KindVocabulary, NO_KINDS } from "@olai/format"
+import type { KindVocabulary } from "@olai/format"
 import type { Index } from "@olai/index"
 
 import * as Query from "./query.ts"
