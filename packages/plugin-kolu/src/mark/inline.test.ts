@@ -128,7 +128,7 @@ test("a SINGLE-QUOTED id is collected, rewritten and re-scanned like any other",
 test("... and a single-quoted reference to an id nothing declares still fails the build", () => {
   expect(() =>
     inlineMark(doc(`<rect filter='url(#gone)'/>`), SRC)
-  ).toThrow(/#gone/)
+  ).toThrow("#gone")
 })
 
 test("a `#` in a COMMENT is prose, not a broken reference", () => {
@@ -164,8 +164,8 @@ test("... and a delimiter left standing after the fixpoint is REFUSED, never pas
   // syntax surviving a fixpoint strip is exactly that.
   expect(() =>
     inlineMark(doc(`<rect fill="#F59E0B"/><!-- never closed`), SRC)
-  ).toThrow(/<!/)
-  expect(() => inlineMark(doc(`<rect fill="#F59E0B"/>--><g/>`), SRC)).toThrow(/-->/)
+  ).toThrow("<!")
+  expect(() => inlineMark(doc(`<rect fill="#F59E0B"/>--><g/>`), SRC)).toThrow("-->")
 })
 
 test("`--!>` closes a comment too, so the strip takes the whole of it", () => {
@@ -182,8 +182,8 @@ test("a DECLARATION or a processing instruction is refused, whatever kind it is"
   // The refusal is deliberately broader than the strip: `<!` and `<?` cover
   // comments, CDATA, doctypes and PIs together, rather than enumerating a
   // grammar this file does not parse. None of them is a thing a favicon needs.
-  expect(() => inlineMark(doc(`<![CDATA[ x ]]><rect fill="#F59E0B"/>`), SRC)).toThrow(/<!/)
-  expect(() => inlineMark(doc(`<?xml-stylesheet href="x"?><rect fill="#F59E0B"/>`), SRC)).toThrow(/<\?/)
-  expect(() => inlineMark(doc(`<rect fill="#F59E0B"/><!-- never closed`), SRC)).toThrow(/<!/)
-  expect(() => inlineMark(doc(`<rect fill="#F59E0B"/>--!><g/>`), SRC)).toThrow(/--!>/)
+  expect(() => inlineMark(doc(`<![CDATA[ x ]]><rect fill="#F59E0B"/>`), SRC)).toThrow("<!")
+  expect(() => inlineMark(doc(`<?xml-stylesheet href="x"?><rect fill="#F59E0B"/>`), SRC)).toThrow("<?")
+  expect(() => inlineMark(doc(`<rect fill="#F59E0B"/><!-- never closed`), SRC)).toThrow("<!")
+  expect(() => inlineMark(doc(`<rect fill="#F59E0B"/>--!><g/>`), SRC)).toThrow("--!>")
 })
