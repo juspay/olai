@@ -721,11 +721,11 @@ describe("update", () => {
  * nothing anywhere to say so.
  *
  * So the DIFFERENCE is what is pinned, rather than either list: exactly the
- * three writes whose subject is a FILE, and `apply` itself. A fifth name on
- * either side fails here, which is the moment to decide rather than the moment
- * to notice.
+ * four writes whose subject is a FILE, and `apply` itself. A fifth name on
+ * either side fails here, which is the moment to decide rather than the
+ * moment to notice.
  */
-test("the verbs `apply` will not carry are exactly the four it documents", () => {
+test("the verbs `apply` will not carry are exactly the five it documents", () => {
   // The `op` tag of every arm of a union, read off the schemas rather than
   // listed here — a list would be a third thing to keep in step with the two
   // this is about. `Schema.Literal` carries `literal`; `Schema.Literals` (the
@@ -745,7 +745,7 @@ test("the verbs `apply` will not carry are exactly the four it documents", () =>
     opsOf((ApplyRequest.fields.ops as unknown as { value: unknown }).value),
   )
   expect([...every].filter((op) => !batched.has(op)).sort())
-    .toEqual(["apply", "create", "create-doc", "doc"])
+    .toEqual(["apply", "create", "create-doc", "delete", "doc"])
   // …and nothing is batchable that is not a write at all.
   expect([...batched].filter((op) => !every.has(op))).toEqual([])
 })

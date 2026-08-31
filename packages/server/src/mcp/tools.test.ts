@@ -319,6 +319,7 @@ test("the tool list is reads and writes, and nothing that names a byte", async (
       "commit",
       "create_document",
       "create_outline",
+      "delete_file",
       "duplicate_node",
       "empty_trash",
       "list_documents",
@@ -547,16 +548,20 @@ test("initialize tells a host what olai is, and nothing the tools disprove", asy
     expect(tools.map((tool) => tool.name).filter((name) => name.includes("document")).sort())
       .toEqual(["create_document", "list_documents", "read_document", "write_document"])
 
-    // THE SAME PIN, ONE UNIT ALONG. `empty_trash` empties `_olai/Trash.olai`, so an
-    // enumeration that stopped at nodes and documents would be the same
-    // disprovable sentence in a newer coat — and this one is worse to get
-    // wrong, because the verb it leaves out is the only one that DELETES. The
-    // charter names it and says so; a table that grows a second such verb, or
-    // loses this one, fails here.
+    // THE SAME PIN, ONE UNIT ALONG. `empty_trash` empties `_olai/Trash.olai`
+    // and `delete_file` removes a file, so an enumeration that stopped at
+    // nodes and documents would be the same disprovable sentence in a newer
+    // coat — and this one is worse to get wrong, because the verbs it leaves
+    // out are the two that DELETE. The charter names both; a table that grows
+    // a third such verb, or loses either of these, fails here.
     expect(said).toContain("`empty_trash` empties `_olai/Trash.olai`")
-    expect(said).toContain("the one tool here that deletes")
-    expect(tools.map((tool) => tool.name).filter((name) => name.includes("empty")))
-      .toEqual(["empty_trash"])
+    expect(said).toContain("`delete_file`")
+    // TABLE ORDER, not alphabetical: the filter keeps the table's.
+    expect(
+      tools.map((tool) => tool.name).filter((name) =>
+        name.includes("empty") || name.includes("delete")
+      ),
+    ).toEqual(["empty_trash", "delete_file"])
 
     // …and the claims that actually do the work still hold over the whole
     // table: no path outside the served directory, and nothing that can name
@@ -1101,6 +1106,62 @@ test("read then write is one loop: what was read is what the guard takes", async
     // And the read moved with the write — same snapshot, no second read path.
     expect((await call(client, "read_document", { file: "finishes.md" })).structured["text"])
       .toBe("# Finishes\n\nDoors: matte.\nHandles: brass.\n")
+  })
+})
+
+/**
+ * THE FOURTH UNIT: a `delete_file` call is a create's own round trip with a
+ * fourth leg — mint it, list it, delete it, and the listing closes over the
+ * gap. Same gate, same snapshot: the listing the delete is judged against IS
+ * the one the read verbs answer from.
+ */
+test("delete_file removes a document, and the listing closes over it", async () => {
+  await withTools(VAULT, async ({ client, read }) => {
+    const made = await call(client, "create_document", {
+      file: "notes/scratch.md",
+      text: "scratch\n",
+    })
+    expect(made.isError).toBe(false)
+
+    const gone = await call(client, "delete_file", { file: "notes/scratch.md" })
+    expect(gone.isError).toBe(false)
+    expect(gone.structured["sort"]).toBe("gone")
+    // The disk first, and then the listing the way any READ verb would say
+    // it — which is the claim a caller may not want to check by hand: one
+    // write, one publication.
+    expect(read("notes/scratch.md")).toBeNull()
+    const answered = await call(client, "list_documents", {})
+    expect(
+      (answered.structured["documents"] as ReadonlyArray<{ file: string }>)
+        .map((document) => document.file),
+    ).not.toContain("notes/scratch.md")
+  })
+})
+
+/**
+ * AND THE GUARDS ARE THE PLANNER'S OWN — said over the wire exactly as the
+ * planner says them: an outline that still holds records names them, and a
+ * `.html` is the writer's own, never this verb's.
+ */
+test("delete_file refuses an outline with records, naming them", async () => {
+  await withTools(VAULT, async ({ client, read }) => {
+    const refused = await call(client, "delete_file", { file: "house.olai" })
+    expect(refused.isError).toBe(true)
+    expect(refused.structured["kind"]).toBe("usage")
+    expect(refused.structured["reason"]).toContain("`kitchen`")
+    expect(refused.structured["reason"]).toContain("trash_node")
+    // NOTHING WAS WRITTEN, at the unit the refusal was about and at the verb
+    // the WRITER would have taken: the bytes are as the fixture typed them.
+    expect(read("house.olai")).toBe(VAULT["house.olai"])
+  })
+})
+
+test("delete_file refuses a kind the app only shows", async () => {
+  await withTools(VAULT, async ({ client, read }) => {
+    const refused = await call(client, "delete_file", { file: "saved/page.html" })
+    expect(refused.isError).toBe(true)
+    expect(refused.structured["reason"]).toContain("hypertext")
+    expect(read("saved/page.html")).toBe("<p>from the web</p>")
   })
 })
 

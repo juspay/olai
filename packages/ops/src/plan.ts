@@ -41,8 +41,11 @@ import {
   type KindVocabulary,
   derive,
   type Derived,
+  docOf,
   DOCUMENT_EXT,
+  didYouMean,
   drawingPath,
+  fileKind,
   isMirror,
   isTrashed,
   type Located,
@@ -65,6 +68,7 @@ import {
   type Reading,
   type RegularNode,
   REPEAT_GRAMMAR,
+  resolvedDoc,
   retargetRelative,
   type Settled,
   settles,
@@ -122,6 +126,11 @@ export interface Plan {
   /** The documents this write replaces or creates, whole. Absent for every op
    *  about nodes, which is all of them but two. */
   readonly documents?: ReadonlyArray<DocumentPlan>
+  /** The files this write REMOVES, whole. Absent for every op but one —
+   *  `delete`, whose whole plan is "this path goes": the gate unlinks what it
+   *  lists here after the staged writes land, and the sort takes the counts
+   *  no less of a removal than of a written file. */
+  readonly removed?: ReadonlyArray<string>
   /** The node the op was about, and where it lives once the write lands. */
   readonly id: string
   readonly title: string
@@ -5458,6 +5467,190 @@ const planCreateDocument = (
 }
 
 /**
+ * WHO KEEPS THIS DOCUMENT'S NAME — the records a delete of it would strand.
+ *
+ * TWO DOORS IN, because two things in the format resolve a value to a served
+ * `.md`: a record's `doc` FIELD ({@link docOf}, relative to the record's own
+ * outline) and a value of a key DECLARED `doc` ({@link resolvedDoc}, relative
+ * to wherever the key's `base` says). Both are the validator's own
+ * resolutions, asked of the same derivation it derived, so the gate that
+ * would refuse the RECORDS' files on the next load is the gate refusing HERE,
+ * moved earlier — before any bytes are staged rather than after, with the
+ * question still answering WHO rather than WHAT BROKE.
+ *
+ * The walk is {@link namingByProp}'s shape, deliberately: one sweep of the
+ * nodes, one row per naming record per means, in the `id (key, file:line)`
+ * spelling the reader already meets in `remove_mirror`'s and `empty_trash`'s
+ * refusals. What is NOT here is every other way a path can be named. A
+ * `path`-declared value promised its SHAPE only; a markdown link going dead
+ * is markdown being markdown (format.md's addressing says so); a pin landing
+ * a dead row is format.md's Pins, quoted in the refusal itself. Only a `doc`
+ * — either door — promised that its value names something that exists, and
+ * the refusal is exactly that promise, held.
+ */
+const namingDocument = (
+  scope: Scope,
+  file: string,
+): ReadonlyArray<{ at: Located; via: string }> => {
+  // The second door is paid for only where a vault declares a `doc` key —
+  // most vaults declare none, and for those the field walk below is the whole
+  // price. Field first because it is the one every vault can have.
+  const found: Array<{ at: Located; via: string }> = []
+  let keyed: Set<string> | undefined
+  for (const [key, declared] of scope.typed.declarations) {
+    if (declared.type.kind === "doc") (keyed ??= new Set()).add(key)
+  }
+  for (const at of scope.derived.nodes) {
+    if (isMirror(at.node)) continue
+    if (docOf(at) === file) found.push({ at, via: "doc" })
+    if (keyed === undefined || at.node.custom === undefined) continue
+    const custom: Record<string, string | ReadonlyArray<string>> = at.node.custom
+    for (const [key, value] of Object.entries(custom)) {
+      const declared = declaredFor(scope.typed.declarations, key)
+      if (declared?.type.kind !== "doc") continue
+      const held = typeof value === "string" ? [value] : value
+      for (const one of held) {
+        if (resolvedDoc(declared, at.file, one) === file) {
+          // The bare KEY — \"agent\", not `` `agent` `` — so the refusal can
+          // decide what to spell around it, as {@link namingByProp}'s `fields`
+          // already hands its caller the same shape.
+          found.push({ at, via: key })
+          break
+        }
+      }
+    }
+  }
+  return found
+}
+
+/**
+ * DELETE ONE FILE — the fourth unit, and the second write in this layer
+ * that destroys.
+ *
+ * `planEmpty`'s SIBLING, not its rival: the pair is one sentence, and it is
+ * the one the tool description says. RECORDS are destroyed by emptying the
+ * one pile that holds them — which is a move-shaped write, a rewrite of one
+ * file's records; a FILE is destroyed by THIS — which is a move-shaped write
+ * with the rewrite step missing, a path leaving the tree. The file-arm took
+ * this long to arrive because it cost the most to say HONESTLY: a record's
+ * undo story is the set's (`untrash` puts the record back with its scaffold
+ * of titles), but a file's undo story is GIT's — the same gate, the same
+ * commit door every write takes, recoverable to exactly the extent git had
+ * already recorded the bytes and no further. A file-level trash would be a
+ * fifth convention with a listing, a restore verb and a fresh answer to
+ * \"what does a pin into it mean\"; this layer says the smaller fact twice
+ * (here, in the tool description), because the description is the agent's
+ * only manual.
+ *
+ * THREE REFUSALS before the plan, and each is the one a performed delete
+ * would otherwise leave for the LOAD to find:
+ *
+ *   - an outline still carrying RECORDS. This is a delete, not a move:
+ *     `trash_node` is how a record leaves an outline, and what empties one
+ *     entirely is nobody's verb to guess;
+ *   - a document still NAMED — a `doc` field, or a `doc`-declared value,
+ *     naming it ({@link namingDocument}). Deleting under them would break
+ *     THEIR files' `doc-resolves` row, which is the same row the gate would
+ *     print on the next load, said about the same edges;
+ *   - a file the SET holds no contents for — an outline whose lines did not
+ *     parse, a document that would not read. Overwriting bytes nobody has
+ *     seen is {@link writable}'s own refusal, and a delete is the
+ *     write-most-arm of it: nothing is staged, the gate publishes a set the
+ *     validator approved, and the file goes because the set was judged
+ *     without it.
+ *
+ * AND THE SHOW KINDS STAY OUT. A `.html`, a `.csv`, a picture, a `.pdf`:
+ * olai draws them and never writes one — no create verb, no editor — and a
+ * delete would be the largest write of all aimed at the files it never
+ * touched. They are refused with the same sentence every other face that
+ * wants a file's contents says ({@link noSuchDocument}'s family), which is
+ * also the near-miss story: the closest file that IS a delete target is the
+ * closest help.
+ */
+const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): Planned => {
+  // The FORMAT's registry, not the body's: a `.olai` is the one kind with no
+  // body at all, which is exactly why `bodyKind` cannot classify this.
+  const kind = fileKind(request.file)
+  if (kind !== null && kind !== "outline" && kind !== "document") {
+    return Result.fail(
+      new UsageFailure({
+        reason:
+          `\`${request.file}\` is a ${kind} — olai only SHOWS files of this kind ` +
+          `and never writes one, and that extends to removing one: it belongs to ` +
+          `whatever put it there`,
+      }),
+    )
+  }
+
+  const document = scope.asked.at(request.file)
+  if (document === undefined || kind === null) {
+    // Typo of a deletable file, or a plain absence: either way the same help —
+    // the nearest DELETE TARGET, because the refusal's whole job is naming the
+    // file the caller meant. Read of the two lists the verb allows rather than
+    // of the served set, so a typo of a `.html` is answered with the `.md` two
+    // letters away rather than with a second `report.html`.
+    const near = didYouMean(request.file, [
+      ...scope.asked.outlines,
+      ...markdownIn(scope.asked.set).map((entry) => entry.path),
+    ])
+    return Result.fail(
+      new NotFoundFailure({
+        reason: near === ""
+          ? `\`${request.file}\` is not a file under the served directory — \`create_document\` ` +
+            `starts a document and \`create_outline\` an outline; nothing here deletes one ` +
+            `that was never there`
+          : `\`${request.file}\` is not a file under the served directory${near}`,
+        named: request.file,
+      }),
+    )
+  }
+
+  // A file the set cannot read — the same refusal a rewrite of it would get,
+  // which is the argument for asking the same function: deleting from a set
+  // that is missing the file's contents would be dropping bytes nobody has
+  // seen.
+  const may = writable(scope, request.file)
+  if (Result.isFailure(may)) return Result.fail(may.failure)
+
+  if (kind === "outline") {
+    const held = recordsOf(scope, request.file)
+    if (held.length > 0) {
+      return Result.fail(
+        new UsageFailure({
+          reason:
+            `\`${request.file}\` still holds ${held.length === 1 ? "a record" : `${held.length} records`} — ` +
+            `${capped(held, (one) => `\`${one.id}\` (${shownTitle(scope, one.id)})`)}. Delete removes ` + 
+            `only an EMPTY outline: \`trash_node\` is what moves a record out of one`,
+        }),
+      )
+    }
+  } else {
+    const outgoing = namingDocument(scope, request.file)
+    if (outgoing.length > 0) {
+      return Result.fail(
+        new UsageFailure({
+          reason:
+            `\`${request.file}\` is still named by ${outgoing.map(({ at, via }) =>
+              `\`${at.node.id}\` (\`${via}\`, ${at.file}:${at.line})`)
+              .join(", ")} — deleting the file would leave ${outgoing.length === 1 ? "that" : "those"} ` +
+            `pointing at nothing. Re-point ${outgoing.length === 1 ? "it" : "them"}, or delete the ` +
+            `naming record first.`,
+        }),
+      )
+    }
+  }
+
+  return Result.succeed({
+    files: [],
+    removed: [document.path],
+    id: document.path,
+    title: document.path,
+    file: document.path,
+    summary: `delete: ${document.path}`,
+  })
+}
+
+/**
  * WHAT WOULD BE LEFT POINTING AT NOTHING — the one question two removals ask,
  * over a set of ids rather than over one.
  *
@@ -5613,6 +5806,7 @@ const PLANNERS: {
   after: planAfter,
   doc: planWriteDocument,
   "create-doc": planCreateDocument,
+  delete: planDelete,
   // The two that plan no outline of their own: both fold this same table over a
   // run of ops ({@link folded}), which is why they are entries here beside the
   // verbs they are made of rather than living somewhere above them.

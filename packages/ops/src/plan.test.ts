@@ -4963,6 +4963,108 @@ describe("documents", () => {
   })
 })
 
+describe("delete", () => {
+  // The verb's two units — a document carries any text; an outline carries
+  // none — and the three ways it has to say no. `docsRef` is the corpus for
+  // the named-document half: `polish` ATTACHES `notes/instructions.md`, so it
+  // may not go, and `flat.md` may.
+  const DOCS_REFS = [
+    `{"id":"renovate","ord":"a0","title":"Renovate the kitchen","doc":"notes/instructions.md"}`,
+    `{"id":"polish","parent":"renovate","ord":"a0","title":"polish the cabinets"}`,
+  ].join("\n")
+  const docsVault = (): OutlineSet =>
+    setOf(
+      { "house.olai": DOCS_REFS, "empty.olai": "" },
+      [["notes/instructions.md", "# Instructions\n"], "flat.md"],
+    )
+
+  test("a document named by nothing goes, whole, and only it", () => {
+    const outcome = planned(docsVault(), { op: "delete", file: "flat.md" })
+    expect(outcome.files).toEqual([])
+    expect(outcome.documents).toBeUndefined()
+    expect(outcome.removed).toEqual(["flat.md"])
+    expect(outcome.summary).toBe("delete: flat.md")
+    expect(outcome.id).toBe("flat.md")
+  })
+
+  test("an outline holding NO records goes — the file, not a move", () => {
+    const outcome = planned(docsVault(), { op: "delete", file: "empty.olai" })
+    expect(outcome.removed).toEqual(["empty.olai"])
+    expect(outcome.files).toEqual([])
+  })
+
+  test("an outline still carrying records is refused, naming them", () => {
+    const failure = refused(docsVault(), { op: "delete", file: "house.olai" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("house.olai")
+    expect(failure.message).toContain("still holds")
+    // Named, with their titles — "settle these first" rather than "there is
+    // something": the houses' own ids are the sentence.
+    expect(failure.message).toContain("`renovate`")
+    expect(failure.message).toContain("Renovate the kitchen")
+    expect(failure.message).toContain("`polish`")
+    // The direction the refusal owes the reader: trash is how a record
+    // LEAVES, and this verb does not guess at emptying.
+    expect(failure.message).toContain("trash_node")
+  })
+
+  test("a document a `doc` FIELD still names is refused, naming the record that names it", () => {
+    const failure = refused(docsVault(), { op: "delete", file: "notes/instructions.md" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("still named by")
+    expect(failure.message).toContain("`renovate`")
+    expect(failure.message).toContain("`doc`")
+    expect(failure.message).toContain("house.olai:1")
+  })
+
+  test("a document a `doc`-DECLARED value names is refused at the same gate", () => {
+    const set = setOf(
+      {
+        "_olai/Properties.olai":
+          `{"id":"prop-brief","ord":"a0","title":"brief","custom":{"type":"doc"}}`,
+        "house.olai":
+          `{"id":"install","ord":"a0","title":"install them","custom":{"brief":"notes/idea.md"}}`,
+      },
+      ["notes/idea.md"],
+    )
+    const failure = refused(set, { op: "delete", file: "notes/idea.md" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("still named by")
+    expect(failure.message).toContain("`install`")
+    expect(failure.message).toContain("`brief`")
+    expect(failure.message).toContain("house.olai:1")
+  })
+
+  test("a path the set does not hold is refused, naming the closest one it does", () => {
+    const near = refused(docsVault(), { op: "delete", file: "notes/instructionz.md" })
+    expect(near._tag).toBe("NotFoundFailure")
+    expect(near.message).toContain("notes/instructions.md")
+
+    const far = refused(docsVault(), { op: "delete", file: "notes/nothing.this.md" })
+    expect(far._tag).toBe("NotFoundFailure")
+    expect(far.message).toContain("is not a file under the served directory")
+  })
+
+  test("a file olai only SHOWS stays out — it is that file's writer's, never ours", () => {
+    const set = setOf({ "house.olai": DOCS_REFS }, ["report.html", "flat.md"])
+    const failure = refused(set, { op: "delete", file: "report.html" })
+    expect(failure._tag).toBe("UsageFailure")
+    expect(failure.message).toContain("only SHOWS")
+    // NAMED BY KIND, which is the registry's own word (`hypertext`) — the
+    // one thing the sentence must never offer is a DIFFERENT file, so what it
+    // says instead is whose this one is.
+    expect(failure.message).toContain("hypertext")
+    expect(failure.message).toContain("whatever put it there")
+  })
+
+  test("a file the set could not read is refused with the validator's own words", () => {
+    const set = setOf({}, [], { "broken.md": "anything at all" })
+    const failure = refused(set, { op: "delete", file: "broken.md" })
+    expect(failure._tag).toBe("ValidationFailure")
+    expect(failure.message).toContain("Fix the file first")
+  })
+})
+
 describe("round trip", () => {
   const LEDGER = [
     `{"id":"now","ord":"a0","title":"Now"}`,

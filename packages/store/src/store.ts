@@ -150,13 +150,21 @@ export interface Snapshot<S> {
   readonly removed: ReadonlyArray<string>
 }
 
-/** One file's new contents. There is no delete: a set shrinks when a file
- *  leaves the disk, which is a probe diff like any other, and an op that wants
- *  a file emptied writes it empty. */
+/** One file's new contents — or its removal, when `contents` is `null`.
+ *
+ *  The write arm is the ordinary one and the delete arm is the newer one,
+ *  and they are JUDGED IDENTICALLY: the set a removal would leave is
+ *  validated before anything leaves the disk, exactly as the set a rewrite
+ *  would leave is — so a delete is refused with the codec's own words when
+ *  the tree without the file is not one this codec will publish. What the
+ *  gate does NOT do is empty-and-keep: an op that wants the file emptied
+ *  writes it empty, and this arm exists for the op that means the file
+ *  gone. */
 export interface Change {
   /** Root-relative, `/`-spelled — the same spelling a snapshot's paths use. */
   readonly path: string
-  readonly contents: string
+  /** What the file should hold — `null` for "should not hold a path at all". */
+  readonly contents: string | null
 }
 
 export interface Write {
@@ -718,6 +726,16 @@ export const make = <F, S, E>(
           const candidate = new Map(yield* probe.current)
           const promised = new Map<string, Probe.Promised<F, E>>()
           for (const change of write.changes) {
+            // A REMOVAL decodes nothing and makes no promise: the candidate
+            // simply loses the file, and the validator answers for the set
+            // without it — judged byte for byte like a rewrite, which is the
+            // whole point of the arm ({@link Change}). The probe run below
+            // finds the path gone and reports it `removed`, the same diff a
+            // `git rm` under an open page has always produced.
+            if (change.contents === null) {
+              candidate.delete(change.path)
+              continue
+            }
             const promise = probe.decode(change.path, change.contents)
             // A WRITE MUST PRODUCE FILES THIS CODEC CAN READ, and this is the
             // one place that can say so.
@@ -854,21 +872,44 @@ export const make = <F, S, E>(
           const staged: Array<{ readonly from: string; readonly to: string }> = []
           yield* Effect.onExit(
             Effect.forEach(write.changes, (change) =>
-              Effect.map(disk.stage(change.path, change.contents), (temp) => {
-                staged.push({ from: temp, to: change.path })
-              })),
+              // A removal stages NOTHING — there is no temp file whose rename
+              // could delete — so the loop only ever carries the writes. The
+              // unlinks happen beside the publishes below, one per removal,
+              // after every staged write has landed: a denylisted ordering
+              // would matter only to a probe racing us, and the gate holds
+              // the permit.
+              change.contents === null
+                ? Effect.void
+                : Effect.map(disk.stage(change.path, change.contents), (temp) => {
+                  staged.push({ from: temp, to: change.path })
+                })),
             (exit) =>
               Exit.isSuccess(exit)
                 ? Effect.void
                 : Effect.forEach(staged, ({ from }) => disk.discard(from)),
           )
           for (const { from, to } of staged) yield* disk.publish(from, to)
+          for (const change of write.changes) {
+            if (change.contents === null) yield* disk.remove(change.path)
+          }
 
           // Our own bytes may land in the same second at the same length as
           // the ones they replaced, which is precisely what mtime+size stamps
           // cannot see — so the changed files are re-read because we say so,
           // not because a stat noticed.
-          yield* probe.forget(paths)
+          //
+          // Only WRITE paths. A removal's stamp is the probe's sole EVIDENCE
+          // the file was ever there: forgetting it would make the next run
+          // look at a listing without the path and a cache without the path,
+          // and the diff would say NOTHING moved — which is a publish of the
+          // set that still holds the file, under the rev that already stood.
+          // The cache entry itself the run drops the ordinary way, beside
+          // every other removal a disk ever sees.
+          yield* probe.forget(
+            write.changes.filter((change) => change.contents !== null).map(
+              (change) => change.path,
+            ),
+          )
           // Handed the promises this write made, so what it reads back is the
           // set already judged rather than an equal one. The verdict rides
           // along too, still carrying that set — and if something else moved

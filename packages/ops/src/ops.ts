@@ -650,17 +650,21 @@ export const make = (options: Options): Ops => {
           }
           return yield* planned.failure
         }
-        const { files, documents = [], ...about } = planned.success
+        const { files, documents = [], removed = [], ...about } = planned.success
 
         // Outlines go through the format's writer; a document IS its text, so
         // it goes to disk verbatim — there is no serialiser for a writer to
-        // disagree with. Both ride the same all-or-none rename.
+        // disagree with. Both ride the same all-or-none rename. A REMOVAL is
+        // the third shape and needs no bytes at all: `null` for "this path
+        // goes" ({@link @olai/store}'s `Change`), judged against the codec
+        // EXACTLY as a rewrite is — validated and published or not at all.
         const changes = [
           ...files.map((file) => ({
             path: file.file,
             contents: serializeOutline(file.nodes),
           })),
           ...documents.map((doc) => ({ path: doc.file, contents: doc.text })),
+          ...removed.map((path) => ({ path, contents: null })),
         ]
         const outcome = yield* Effect.result(
           options.store.commit({ baseRev: snapshot.rev, changes }),
