@@ -18,6 +18,8 @@ import * as assert from "node:assert";
 import { Then, When } from "@cucumber/cucumber";
 import type { Page } from "playwright";
 
+import { fileKind } from "@olai/format";
+
 import {
   ALERT_SOUND_KEY,
   ALERTS_KEY,
@@ -281,12 +283,16 @@ const DONE_FLIP = attr("data-testid", TESTID.doneFlip);
 const FOCUSED_PANE = attr("data-pane-focused", "true");
 
 /** The outline a pane's `data-href` names, or nothing — `/` is the first
- *  outline and does not spell a file; a node permalink does not either. */
+ *  outline and does not spell a file; a node permalink does not either.
+ *  Asked of `fileKind`, not of a spelled suffix: kinds.test.ts is the
+ *  fence, and the registry is the one place that list exists. */
 const outlineNamedBy = (href: string | null): string | undefined => {
   if (href === null || href === "") return undefined;
-  const path = decodeURIComponent(href.split("?")[0] ?? "");
-  if (!path.endsWith(".olai")) return undefined;
-  return path.replace(/^\//, "");
+  const path = decodeURIComponent(href.split("?")[0] ?? "").replace(
+    /^\//,
+    "",
+  );
+  return fileKind(path) === "outline" ? path : undefined;
 };
 
 /** The flip of the ADDRESSED page, not a held previous one.
