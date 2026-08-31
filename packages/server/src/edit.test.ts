@@ -1234,12 +1234,27 @@ test("a document commit's inverse is the text it replaced, guarded by what it wr
   ).toEqual([{ verb: "doc", file: "notes.md", text: NOTES, was: "new" }])
 })
 
-test("nothing takes a minted document back — no face removes one", () => {
+test("nothing takes a minted document back — an un-create is not a delete", () => {
   expect(inverse({ verb: "docNew", file: "ideas.md" }, "ideas.md", vault()))
     .toEqual([])
   expect(
     inverse({ verb: "docDay", date: "2026-09-01" }, "x.md", vault()),
   ).toEqual([])
+})
+
+test("a fileDelete asks for the op, word for word — the guards are the planner's", () => {
+  expect(asked({ verb: "fileDelete", file: "ideas.md" }, vault()))
+    .toEqual({ op: "delete", file: "ideas.md" })
+  // …and judged LITERALLY: a `..` or a served `.html` carries through for the
+  // planner's own refusal, exactly as every other verb's path does — the wire
+  // does not know a rule the op does not.
+  expect(asked({ verb: "fileDelete", file: "../escape.md" }))
+    .toEqual({ op: "delete", file: "../escape.md" })
+})
+
+test("a deleted file has no inverse — the restore is git's", () => {
+  expect(inverse({ verb: "fileDelete", file: "ideas.md" }, "ideas.md", vault()))
+    .toEqual([])
 })
 
 test("a new outline names its path outright, and the op judges it", () => {

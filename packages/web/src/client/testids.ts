@@ -887,6 +887,23 @@ export const TESTID = {
    *  put it under. Same two moods and the same `data-tone` as every other
    *  said-line in this app. */
   trashPageSaid: "trash-page-said",
+  /** A file's own DELETE — the second verb that destroys, drawn where `Edit`
+   *  lives on a document page and where `Start` lives on an emptied outline. One
+   *  id for the resting ghost and the alarm one the question puts in its
+   *  place, exactly as {@link trashEmptyVerb} argues: one control in three
+   *  states. */
+  fileDeleteVerb: "file-delete-verb",
+  /** The question that replaces that verb before anything is written: the
+   *  file's name, and that nothing puts it back (`file/delete.ts`). Same
+   *  contract as {@link trashEmptyConfirm}'s. */
+  fileDeleteConfirm: "file-delete-confirm",
+  /** The way out of it, which leaves the file exactly as it was. */
+  fileDeleteCancel: "file-delete-cancel",
+  /** What the delete had to say, beside the verb — the ops layer's refusal
+   *  verbatim when it refused (the named records, the broken set). A LANDED
+   *  one draws nothing: the page the file was on goes with it, which is the
+   *  said (`file/DeleteFile.tsx` argues it). */
+  fileDeleteSaid: "file-delete-said",
   /** Said when the address names no file the directory holds — a missing
    *  `.md`, a missing outline, a missing saved page. The sentence names the
    *  kind and the path. Distinct from {@link notFound}, which is a `/#id`

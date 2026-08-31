@@ -341,7 +341,7 @@ Not every row in there is a thing you put away. Above each pile sit the **titles
 
 ### Emptying it
 
-**Empty trash**, beside the heading on the Trash page, is the one thing in olai that permanently deletes. Everything in `_olai/Trash.olai` goes — the subtrees you put away and the signpost titles above them — and it goes for good: there is no second bin behind this one, no ⌘Z, and no put-back.
+**Empty trash**, beside the heading on the Trash page, is one of the two things in olai that permanently deletes ([below](#deleting-a-file) for the other one, which works at file size). Everything in `_olai/Trash.olai` goes — the subtrees you put away and the signpost titles above them — and it goes for good: there is no second bin behind this one, no ⌘Z, and no put-back.
 
 It asks first, and the question **names how many rows go**, counted over what the trash actually holds rather than over what the page is drawing. Filter the Trash down to one row and press it, and the sentence still says all of them, because that is what the write moves. **Cancel** writes nothing at all. That number travels with the write, too: if something is put away between the moment you read the sentence and the moment it lands, the write is refused naming both counts rather than quietly taking the newcomer with it.
 
@@ -457,7 +457,7 @@ Either way the row is **born `todo`**: the badge reads marks and nothing else, s
 
 That first line is where this differs from the tool, deliberately. `create_outline` can be born holding a whole tree, which is what saves an agent a second call; a person types the row where it is going to live, so there is nothing here for a seed to be filled from. Nothing this door can reach is out of an agent's reach, which is the direction the consistency rule actually runs — and quick capture already sends a seeded create when the directory has no inbox.
 
-**No door on either face removes a file.** An outline minted by mistake is an empty one in the sidebar, which is a thing you can see and delete yourself, rather than a file appearing and disappearing behind a chord — so ⌘Z after this one says nothing to take back, exactly as it does after a new document.
+**No door here takes a file back.** An outline minted by mistake is deleted the way any emptied outline is ([below](#deleting-a-file)), by its own page — an un-create is deliberately not what ⌘Z reaches for, because a mint is a write you meant: what you did not mean is the minting, not the file. So this undo says nothing to take back, exactly as it does after a new document.
 
 ## Writing a document
 
@@ -472,3 +472,13 @@ A save is ONE op at the same gate as everything else: validated, published on it
 **The file can move underneath you, and nothing is clobbered either way.** Edit the same document in vim while the editor is open and the editor says so the moment the disk moves; a Save after that is refused, in the ops layer's own words, with your text kept exactly where you typed it. The refusal has two doors out and both are yours: take what you need and Cancel, or press **Overwrite what is there**, which is the same write minus the guard and means exactly what it says. An agent gets the identical story — its `write_document` takes a `was`, and the refusal is the same sentence.
 
 **Two ways to a document that does not exist.** The sidebar's **+ New document** asks for a path — relative, with the `.md` optional the way `+ New outline`'s `.olai` is ([above](#starting-an-outline)), and otherwise judged by the same rules an agent's `create_document` is judged by — and the day page's **+ day note** mints that day's note, filed where your vault already keeps them: the convention is read off the newest existing daily note's own path (`Daily/2026/08/2026-08-12.md` puts September's first note at `Daily/2026/09/2026-09-01.md`), never configured. The button is shown on any day without a note, whether or not that day has dated entries, and is gone once the note exists. Clicking a calendar day never writes: every cell navigates to `/d/<date>`, and an empty day is the page that says so. Either door lands in the new document's editor, and the sidebar lists the file on the same frame.
+
+## Deleting a file
+
+Beside **Edit** on a document page's header, and beside the *write the first line* an emptied outline offers, sits **Delete…**. It asks first, naming the path — the file's name IS its address here, so the question is the address — and the second press is the write: the file is gone from the directory, the sidebar and every open tab on the write's own revision. **Cancel** writes nothing at all.
+
+**There is no file-level trash, and that is the sentence the question says.** A record's undo story is the Trash's — a `Put back` puts the subtree back with its ids. A file's undo story is git's: the delete rides the same gate and the same commit door as every other write ([git.md](git.md)), so the bytes are recoverable to exactly the extent git had already recorded them. A directory served `--no-commit`, or one whose file was never committed, keeps nothing. ⌘Z does not take a delete back either — what would take it back is a git command, and this app does not shell one for you.
+
+**The verb is guarded, and each refusal says what to settle first.** An outline that still holds records is refused, naming them — this is a delete, not a move: [the Trash](#the-trash) is how a record leaves an outline, and nobody's verb guesses at emptying. A document a `doc` field (or a property declared `doc` in `_olai/Properties.olai`) still names is refused, naming the records that name it — deleting under them would break THEIR files too, which is the finding the validator would show you next. A file olai only shows — a `.html`, a `.csv`, a picture, a `.pdf` — is never offered the control, and an agent's `delete_file` is refused the same way: those files belong to whatever put them there. And a broken file nobody could read is refused too: dropping bytes that never made it into the set is not a delete, it is a loss.
+
+An agent's `delete_file` is the same op at the same gate — minted paths and refusals alike — which is the consistency rule doing what it always does: nothing this face can reach is out of an agent's reach.

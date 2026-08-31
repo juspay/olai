@@ -43,6 +43,7 @@ import {
   biggestOf,
   changesOf,
   type Derived,
+  documentAt,
   markdownAt,
   type Node,
   nodesOf,
@@ -94,7 +95,17 @@ export const sortOfWrite = (
    *  here and not a second place that has to spell what an absent one means. */
   plan: Plan,
 ): Sort | undefined => {
-  const { files, documents = [], id: about } = plan
+  const { files, documents = [], removed = [], id: about } = plan
+  // A REMOVAL moves no record through a rewrite: the question is the FILE —
+  // was the set still serving this path — and `gone` is the word the Sort
+  // vocabulary already has for a thing it no longer holds. The node's
+  // comparison below would read the file's records as departed one by one
+  // and answer about the WRONG unit, which is exactly the sentence a delete
+  // refuses to say.
+  const gone = removed[0]
+  if (gone !== undefined) {
+    return documentAt(before, gone) !== undefined ? "gone" : undefined
+  }
   // A DOCUMENT write classifies off the same two readings a node's does — what
   // the set held, what the plan writes — asked of the text instead of the
   // records: a path the set did not hold is *created*, a text that differs is
