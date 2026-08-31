@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test"
 
-import { clampedLeft, hideTip, showTip, takeTip, tipShowing } from "./tip.ts"
+import { clampedLeft, hideTip, liftedTop, showTip, takeTip, tipShowing } from "./tip.ts"
 
 // The ordinary case: a tip starts where the thing it is about starts.
 test("a tip that fits is drawn under its anchor", () => {
@@ -25,6 +25,37 @@ test("a tip wider than the window is pinned to the left margin", () => {
 // indented row, a window resized under an open tip.
 test("a tip never starts left of the margin", () => {
   expect(clampedLeft(0, 100, 1280)).toBe(8)
+})
+
+// ── the window's bottom, asked after the draw ──────────────────────────
+
+// A tip that fits where it was asked is left alone — most tips: the asked
+// top, the drawn height, and the window never argue.
+test("a tip with room below it stays where it was hung", () => {
+  expect(liftedTop(100, 28, 800, 40)).toBe(100)
+})
+
+// A LONG tip hung under the page's last row runs past the window's bottom
+// — the story tips did that as drawn. It is lifted until its bottom sits
+// at the window's margin: the words may ride over the anchor (the tip
+// never answers the pointer), but nothing hangs off the screen.
+test("a tip running past the window's bottom is lifted onto the margin", () => {
+  expect(liftedTop(400, 400, 760, 40)).toBe(760 - 400 - 8)
+})
+
+// One short line in the window's last pixels triggers the same lift — the
+// clamp knows nothing about callers, only heights.
+test("even a one-line tip in the last pixels is lifted the few it needs", () => {
+  expect(liftedTop(740, 28, 760, 40)).toBe(760 - 28 - 8)
+})
+
+// The bar hides nothing: the anchor sits INSIDE the header (the bar's
+// bottom edge is the floor), and a story taller than the room beneath it
+// is lifted no further than the floor — never under the bar itself, where
+// the coral rule would cut the first line. The extra hangs off the bottom,
+// which is exactly what a reader sees and can scroll out of.
+test("a lift never crosses the bar's floor", () => {
+  expect(liftedTop(48, 730, 760, 40)).toBe(40)
 })
 
 // ── one tip, ever ──────────────────────────────────────────────────────

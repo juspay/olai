@@ -53,6 +53,33 @@ export const clampedLeft = (
 export const clampedTop = (anchorBottom: number, floor: number): number =>
   Math.max(anchorBottom, floor) + TIP_GAP
 
+/**
+ * The top edge to RE-place a tip at once it has drawn and its height is a
+ * fact ({@link clampedTop} answers the ask before the height is known):
+ * the asked top, unless that would run the tip's bottom past the window's
+ * bottom margin — then it is LIFTED until the bottom sits at the margin.
+ *
+ * The lift never crosses the floor {@link clampedTop} enforced at the ask:
+ * an anchor inside the header asks below the bar's bottom edge, because the
+ * bar and its coral rule stack ABOVE the page layer — a tip lifted past
+ * that edge would be painted through, not merely covered. A tip taller
+ * than the room between the floor and the margin keeps the floor and
+ * overflows: no lift can help it, and pinning it would lie about both.
+ *
+ * This is arithmetic of one axis — a bottom cannot be clamped before the
+ * height exists, and the height is the caller's to read off the drawn box,
+ * the same fact-of-the-text-sharing {@link clampedLeft} declares.
+ */
+export const liftedTop = (
+  top: number,
+  tipHeight: number,
+  viewportHeight: number,
+  floor: number,
+): number =>
+  top + tipHeight + MARGIN > viewportHeight
+    ? Math.max(floor, viewportHeight - tipHeight - MARGIN)
+    : top
+
 // ── one tip, ever ──────────────────────────────────────────────────────
 
 /**

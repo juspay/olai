@@ -97,8 +97,13 @@ function GoingChip(props: { readonly started: string; readonly worked: number | 
         data-started={props.started}
       >
         ⏱ {tickingOf(liveOf(banked(), instantOf(props.started) ?? now(), now()))}
-        <span class="sr-only">{story()}</span>
       </span>
+      {/* BESIDE the chip, never inside it: the e2e asks the chip's
+          innerText as proof the FACE moved, and the story's own words tick
+          on the same clock — folded in, a dead face with a live story
+          would still read as moving. Same document order for a reader with
+          no eyes; the tip's wrapper adds no box. */}
+      <span class="sr-only">{story()}</span>
     </Tip>
   )
 }
@@ -158,8 +163,10 @@ export function TookChip(props: {
                 data-took={chip().seconds}
               >
                 ⏱ {wordsOf(chip().seconds)}
-                <span class="sr-only">{story()}</span>
               </span>
+              {/* Beside the chip — the going arm's comment says why the
+                  copy never folds INTO the face. */}
+              <span class="sr-only">{story()}</span>
             </Tip>
           )
         }}

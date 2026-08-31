@@ -35,11 +35,15 @@ import { Portal } from "solid-js/web"
 
 import { LAYER } from "./layer.ts"
 import { TESTID } from "./testids.ts"
-import { clampedLeft, clampedTop, hideTip, MARGIN, showTip, takeTip, tipShowing } from "./tip.ts"
+import { clampedLeft, clampedTop, hideTip, liftedTop, showTip, takeTip, tipShowing } from "./tip.ts"
 
 interface At {
   readonly left: number
   readonly top: number
+  /** The bar's bottom edge, or 0 when there is none — the lift
+   *  (`./tip.ts`'s `liftedTop`) may never cross it, so it is carried with
+   *  the ask: a RE-ask on new words must answer with the same floor. */
+  readonly floor: number
 }
 
 export function Tip(props: {
@@ -79,7 +83,7 @@ export function Tip(props: {
     // right edge.
     const header = document.querySelector(`[data-testid="${TESTID.appHeader}"]`)
     const floor = header?.getBoundingClientRect().bottom ?? 0
-    setAt({ left: box.left, top: clampedTop(box.bottom, floor) })
+    setAt({ left: box.left, top: clampedTop(box.bottom, floor), floor })
     showTip(me)
   }
 
@@ -101,13 +105,10 @@ export function Tip(props: {
     tip.style.left = "0px"
     const box = tip.getBoundingClientRect()
     const left = clampedLeft(want.left, box.width, window.innerWidth)
-    // And the window's floor is the second clamp of the same clamp: a
-    // multi-line story hung under the LAST row of a page falls past the
-    // scrollable bottom entirely — flip the tip over its anchor rather
-    // than half-paint it.
-    const top = box.height + MARGIN + want.top > window.innerHeight
-      ? Math.max(MARGIN, window.innerHeight - MARGIN - box.height)
-      : want.top
+    // The vertical half of the same settling, now that the drawn height is
+    // a fact: `./tip.ts`'s table, clampedLeft's sibling — under the last
+    // row of a page it is a LIFT, and it never crosses the bar's floor.
+    const top = liftedTop(want.top, box.height, window.innerHeight, want.floor)
     if (left !== want.left || top !== want.top)
       setAt((was) => (was === undefined ? was : { ...was, left, top }))
     tip.style.left = `${left}px`
