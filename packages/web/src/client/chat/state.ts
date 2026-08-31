@@ -223,6 +223,28 @@ export interface Chat {
   ) => void
   /** ... or decline it, which the agent is told about as such. */
   readonly decline: (id: string, done?: () => void) => void
+  /**
+   * POINT ONE PLUGIN'S DOORBELL AT ONE FILE, for this conversation — or, with
+   * `file: null`, at nothing, which is how one is turned off.
+   *
+   * WITH THE PAIR, the way {@link Chat.loadSession} takes one: a session id
+   * means nothing to the wrong agent, and the panel's own conversation can move
+   * under a picker somebody left open — a boot opens one with nothing called at
+   * all — so a pick that meant "whichever conversation is in front of me" would
+   * sometimes be attached to one a person was not looking at. What is read for
+   * that pair is read at the CLICK ({@link ./Wake.tsx}), which is the moment the
+   * person meant.
+   *
+   * The plugin leads because it is the subject — whose doorbell — and the file
+   * is last because it is the value being set. One verb and not a `clear`
+   * beside a `set`: there is one fact here and it has an empty value.
+   */
+  readonly scope: (
+    plugin: string,
+    agent: string,
+    session: string,
+    file: string | null,
+  ) => void
 }
 
 /**
@@ -468,6 +490,12 @@ export const createChat = (): Chat => {
     newSession: (agent) => opens(olai.procedures.chat.newSession({ agent })),
     chooseAgent: (agent) => opens(olai.procedures.chat.chooseAgent({ agent })),
     loadSession: (agent, id) => opens(olai.procedures.chat.loadSession({ agent, id })),
+    // An ordinary verb, and deliberately not one of the four above: pointing a
+    // doorbell at a file opens nothing, so the panel has nothing to say from
+    // the click — what it did shows up as the strip's own row changing, which
+    // is where somebody who just picked a file is already looking.
+    scope: (plugin, agent, session, file) =>
+      verb(olai.procedures.chat.scope({ agent, session, plugin, file })),
     reopen: () => opens(olai.procedures.chat.reopen()),
     answer: (id, answers, done) =>
       verb(olai.procedures.chat.answer({ id, answers }), done),

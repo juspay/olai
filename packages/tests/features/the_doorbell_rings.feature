@@ -1,0 +1,55 @@
+Feature: The second doorbell — a plugin rings a conversation somebody scoped
+
+  A plugin may put a whole sentence into a conversation the way a person does.
+  kolu's watcher sees a terminal that has been sitting in a state only a person
+  can carry, and says so — in its own words, down the human's own lane, because
+  that is the lane a prompt goes out on and the one every word about its fate is
+  already written for.
+
+  WHICH conversation hears it is one person's answer, given in one place. The
+  wake strip under the panel's other two is that place: a file per conversation,
+  picked by hand. No serve scopes anybody, no agent can, and a conversation
+  nobody has scoped hears nothing — which is why the strip's ordinary state is
+  `off` and is still drawn.
+
+  ONE SCENARIO, and the whole of the rest is unit-tested. What a filter file
+  CLAIMS, what a wake MEANS and what the sentence says are pure functions over a
+  parsed vault (`@olai/plugin-kolu`'s `doorbell.test.ts`); the arms of the
+  delivery — taken at once by an idle agent, HELD through a running turn,
+  coalesced under one key, flushed at the boundary — are driven through a real
+  chat and a real subprocess agent (`@olai/chat`'s `deliveries.test.ts`). None of
+  that earns a Chromium. What only a browser can say is the MECHANICS: that a
+  sentence nobody typed arrives in the transcript, wearing a face that is not the
+  person's, without the composer they were half way through typing in moving
+  under them.
+
+  The far end is this suite's own padi (`@padi:lanes`) and the board is the
+  ordinary `lanes.olai`: its `review: grok` step is `todo` and claims a terminal
+  padi says is blocked on a person, which is the digest arm of the two.
+
+  THE RING IS CAUSED, NOT WAITED FOR. `held-for` is a debounce, and lowering it
+  re-arms a hold that is already standing — so writing the config is the gesture
+  that fires the watcher, and this scenario never sits out a clock.
+
+  @scratch:lanes @padi:lanes
+  Scenario: The conversation I pointed at the board hears from it, and my half-typed message does not move
+    Given I open the outline "lanes.olai"
+    And the agent panel is open
+    # The default, and it is a ruling rather than an oversight: nobody is opted
+    # in by a serve, so the control is drawn saying so.
+    Then this conversation wakes on nothing
+    When I point this conversation's wake at "lanes.olai"
+    Then this conversation wakes on "lanes.olai"
+    # Half a thought in the box, unsent. Everything after this line is also a
+    # claim about these words: the doorbell rides the wire a send rides and
+    # never the composer.
+    When I type "half a thought" into the chat
+    And the watch is told to report a held terminal at once
+    Then the chat shows a sentence no person typed
+    And that sentence was rung by "kolu"
+    And that sentence names the terminal "22222222-2222-4222-8222-222222222222"
+    And that sentence is not one of my own messages
+    And that sentence offers no way to send it again
+    And the chat input still holds "half a thought"
+    And the chat input still has the caret
+    And there should be no page errors

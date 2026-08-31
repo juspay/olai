@@ -108,10 +108,12 @@ import * as AcpAgent from "./agent.ts"
 import type { Installed } from "./agents/roster.ts"
 import * as Attachments from "./attachments.ts"
 import * as Context from "./context.ts"
+import * as Deliveries from "./deliveries.ts"
 import type { AgentEvent } from "./events.ts"
 import * as Listings from "./listings.ts"
 import * as Memory from "./memory.ts"
 import type { Probe } from "./probes.ts"
+import type { Scoped, Scopes } from "./scopes.ts"
 import { type Change, says, Transcript } from "./transcript.ts"
 import { type Turn, Turns } from "./turns.ts"
 import { sameWatching, watching } from "./watching.ts"
@@ -145,6 +147,25 @@ export interface Options {
    *  the composition root's business, and omitting it is a chat that asks this
    *  machine nothing. */
   readonly probes?: ReadonlyArray<Probe>
+  /**
+   * WHERE THE DOORBELL PICKS ARE KEPT — which conversations somebody pointed a
+   * plugin's doorbell at, and at which file ({@link ./scopes.ts}).
+   *
+   * HANDED IN rather than built here, unlike {@link ./memory.ts} next door, and
+   * the difference is who the record is ABOUT. The memory note is this panel's
+   * own fact about itself — which conversation it was in — so a composition root
+   * passing it down would be a second place that knows where olai keeps things.
+   * A scope is a fact about a PLUGIN and this package has no plugins: the root
+   * is what composes them, what refuses a name no plugin here answers to, and
+   * what hands each of them the door onto this table. Building it here would
+   * put the read on a boot that has no plugin to read it for.
+   *
+   * `null` — or absent — is a chat that keeps none: every doorbell is off, the
+   * strip draws no row, and {@link Chat.scope} refuses. That is the state every
+   * test in this package is in, and it is the honest one for a serve composed
+   * without plugins at all.
+   */
+  readonly scoping?: Scopes | null
   /** Publish the state cell. Called on every change; the surface dedups. */
   readonly onState: (state: ChatState) => void
   /** Publish transcript changes — ALL THREE of the things one carries: rows
@@ -234,6 +255,52 @@ export interface Chat {
   readonly answer: (
     id: string,
     answers: ReadonlyArray<AskAnswer> | null,
+  ) => Effect.Effect<void, OpFailure>
+  /**
+   * ONE MACHINE-MARKED MESSAGE INTO ONE CONVERSATION — the whole of what a
+   * plugin's doorbell reaches through (`@olai/plugins`' `Deliveries`).
+   *
+   * WRITE-ONLY AND IT CANNOT FAIL. There is no arm here a caller would answer
+   * differently: a body that could not be handed over is HELD, and a body held
+   * is not a failure — it is the second of three arms and the ordinary one
+   * while a turn is running. The caller is a watcher sink with nowhere to put a
+   * refusal, which is why {@link Chat.send}'s vocabulary is deliberately not
+   * borrowed here.
+   *
+   * `from` is stamped BY THE COMPOSITION ROOT and not by the plugin: the door
+   * each plugin is handed closes over its own name, so one plugin cannot sign
+   * another's name onto a row that reaches the agent. It becomes the row's
+   * `rang` ({@link ../../surface/src/chat.ts}).
+   *
+   * THREE ARMS, decided in one step ({@link Chat.deliverTo}'s implementation):
+   * this panel's own conversation with an idle agent takes it as a turn; a
+   * running turn HOLDS it until the turn boundary; a conversation nobody is in
+   * holds it until somebody opens it. Which arm it took is not reported back.
+   */
+  readonly deliverTo: (
+    to: { readonly agent: string; readonly session: string },
+    body: string,
+    from: string,
+    options?: {
+      /** Bodies sharing a key, WHILE STILL HELD, replace each other in place —
+       *  see {@link ./deliveries.ts}. A body with no key never replaces. */
+      readonly coalesce?: string
+    },
+  ) => Effect.Effect<void>
+  /** Every doorbell a person has turned on, whole — the composition root
+   *  filters it per plugin on its way out ({@link ./scopes.ts}). SYNCHRONOUS,
+   *  because the blob it feeds is built in a plain `.map` and read from a sink
+   *  with no Effect around it. */
+  readonly scopes: () => ReadonlyArray<Scoped>
+  /** THIS conversation wakes on THAT file, for that plugin's doorbell — or, with
+   *  `file: null`, on nothing. The one write behind the strip's scope control.
+   *  Refuses when this chat keeps no scopes at all, and when the record will not
+   *  take the write: a pick that did not stick is a thing the person who just
+   *  made the gesture needs told. */
+  readonly scope: (
+    to: { readonly agent: string; readonly session: string },
+    plugin: string,
+    file: string | null,
   ) => Effect.Effect<void, OpFailure>
   /** Told by the MCP layer about a write it refused, so the panel can draw the
    *  refusal rather than the agent's account of it. */
@@ -542,6 +609,11 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
      *  that queues a mid-turn message instead of steering it. Every question
      *  anybody asks about them, and why they are a set, is {@link ./turns.ts}. */
     const turns = new Turns()
+    /** WHAT A DOORBELL SAID THAT IS NOT AT THE AGENT YET, per conversation —
+     *  memory only, capped, and never on a disk ({@link ./deliveries.ts}). It
+     *  is not the queue that was deleted, and that module's header is where the
+     *  difference is argued. */
+    const held = Deliveries.holding()
     /**
      * Whether the cancel a person last pressed has been said out loud yet.
      *
@@ -681,6 +753,59 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
       const out = watching(transcript.entries())
       if (!sameWatching(out, state.watching)) move({ watching: out })
     }
+
+    /**
+     * WHICH CONVERSATION THIS PANEL IS IN, as the pair a delivery is addressed
+     * to — `null` when it is in none.
+     *
+     * Two fields out of two places, because a conversation is
+     * `(agent, session)` and this file holds those halves apart: WHO is being
+     * talked to is {@link talking}, and WHICH of that agent's conversations is
+     * open is the cell's own `session`. A doorbell is addressed to the pair, so
+     * this is where the two are put back together — once, rather than at each of
+     * the four places that ask.
+     */
+    const conversationOf = (): Deliveries.Addressed | null => {
+      const at = talking
+      const open = state.session
+      return at === null || open === null ? null : { agent: at.row.id, session: open.id }
+    }
+
+    /**
+     * WHAT THIS CONVERSATION'S DOORBELLS ARE, for the strip — and the ONE
+     * writer of that cell.
+     *
+     * A projection over two facts this file already holds, published through
+     * {@link move} like every other thing the panel knows: the picks
+     * ({@link ./scopes.ts}) say which doorbells are on and on what file, and the
+     * held bodies ({@link ./deliveries.ts}) say how many of each plugin's
+     * sentences are waiting. Nothing else writes `wake`, which is what keeps the
+     * runtime's own rule intact — it moves what the store and the chat decided
+     * onto the wire, and there is no overlay anywhere for this cell.
+     *
+     * The conversation is an ARGUMENT with a default, because the two places
+     * that publish it around a session CHANGING know the answer before the cell
+     * does: the `session` event is what sets `state.session`, and `sessionOver`
+     * is what clears it, so both would otherwise read the conversation before
+     * last. Every other caller takes the default.
+     *
+     * ROWS ONLY FOR THIS CONVERSATION. A pick for a conversation nobody is in is
+     * still kept and still rung — it is the strip that draws one panel.
+     */
+    const wakeOf = (
+      to: Deliveries.Addressed | null = conversationOf(),
+    ): ChatState["wake"] => {
+      if (to === null) return []
+      const counted = held.counts(to)
+      return (options.scoping?.rows() ?? [])
+        .filter((row) => row.agent === to.agent && row.session === to.session)
+        // `name` and NOT `plugin`, and that is not a style choice: the chat
+        // cell declares `arrayKey: "name"`, which reaches every array at every
+        // depth and merges by POSITION any whose elements do not carry it
+        // ({@link ../../surface/src/index.ts}).
+        .map((row) => ({ name: row.plugin, file: row.file, waiting: counted.get(row.plugin) ?? 0 }))
+    }
+
     /** The agent's events, as rows and as state. The one place the vocabulary
      *  of {@link ./events.ts} is consumed. */
     const receive = (event: AgentEvent): void => {
@@ -774,19 +899,35 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           // agent is revising a number it already told us, not adding a second.
           move({ usage: event.usage })
           return
-        case "session":
+        case "session": {
           // A conversation is open, so nothing is waiting to be opened again.
           // HERE rather than in the two verbs that can open one, because this
           // is the event both of them end in — and because a BOOT opens one
           // without either of them being called at all.
           opened()
+          const at = talking
           move({
             status: state.status === "thinking" ? "thinking" : "idle",
             session: { id: event.id, title: event.title, updatedAt: null },
             trouble: null,
             unopened: null,
+            // WHICH DOORBELLS THIS CONVERSATION HAS ON, said in the same breath
+            // the conversation itself is — the picks are per conversation, so
+            // the row that was true a moment ago was about a different one.
+            // The pair is spelled out because `state.session` is what this very
+            // move is setting.
+            wake: wakeOf(at === null ? null : { agent: at.row.id, session: event.id }),
           })
+          // ... AND WHATEVER WAS HELD FOR IT GOES IN NOW, on its own fiber and
+          // NEVER from here. This arm is reached from INSIDE the `opening`
+          // permit — `entered` emits it synchronously from within the open —
+          // and a semaphore is not reentrant, so a flush taken here would
+          // deadlock the open it is part of. The two verbs that open a
+          // conversation flush after that permit RELEASES ({@link changeSession}
+          // and the boot arm below), which is the same moment one beat later
+          // and the only one that is safe.
           return
+        }
         case "sessionTitled":
           if (state.session === null) return
           move({ session: { ...state.session, title: event.title } })
@@ -824,6 +965,13 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             watching: watching(transcript.entries()),
             servers: [],
             usage: null,
+            // ... and the doorbell rows go with the conversation they were
+            // about. The PICKS are untouched — they are on disk, keyed by the
+            // conversation, and a conversation reopened comes back with its own
+            // — but a strip drawing the last one's file over the next one would
+            // be the inheritance the ruling forbids. `null` because
+            // `state.session` is only nulled by this very move.
+            wake: wakeOf(null),
           })
           rebind()
           return
@@ -1512,7 +1660,21 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             // turn-boundary over: settling is the OTHER place a spawn can be
             // stranded, and a stranded spawn is one the strip must stop
             // carrying.
-            if (current) watched()
+            if (current) {
+              watched()
+              // ... AND THE TURN BOUNDARY IS WHERE A DOORBELL'S WORDS GET IN.
+              // `turns.leave` answered TRUE, which is exactly "the set emptied"
+              // ({@link ./turns.ts}), so this is the first moment since the body
+              // was held at which an idle agent can take it — and it is the
+              // moment for EVERY way a turn can end, a cancel included: a
+              // cancelled turn is still a boundary, and a person who wants the
+              // doorbell to stop clears the file.
+              //
+              // FORKED, so nothing about this turn's ending waits on a permit a
+              // send may be holding. DETACHED, because the fiber that reaches
+              // this line is itself detached and about to finish.
+              yield* Effect.forkDetach(flushing)
+            }
             // WHOEVER THE AGENT IS ON NOW HAS STOPPED WAITING. This turn is
             // over, so the message behind it is the one being worked on — and
             // this row is not waiting for anything either, however it ended.
@@ -1628,6 +1790,147 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
           ),
         )
         ticket.fiber = running
+      })
+
+    /**
+     * ONE ATOMIC ARM-DECISION for a doorbell's words: hand them over, or say
+     * they are still held.
+     *
+     * ## Both permits, in {@link send}'s own order
+     *
+     * {@link opening} first, because the question "is this body's conversation
+     * the one on screen" is only answerable when no conversation is being
+     * opened — a replay CLEARS the transcript, so a row written into that gap is
+     * a row the conversation it was going into takes away. Then {@link sending},
+     * because the question "is the agent busy" is a read that is only true for
+     * as long as nothing else may write it.
+     *
+     * ## The `turns.busy` re-read is INSIDE `sending`, and that is the whole
+     * design
+     *
+     * {@link begin} sets {@link queuedHere} the first time a prompt goes out
+     * ALONGSIDE a running turn, and what that costs is stated where it is set:
+     * after one message queued, this conversation has no interruption for the
+     * rest of its life. It is a human control, spent by a human gesture. A
+     * doorbell body that landed mid-turn would spend it with nobody having typed
+     * anything, invisibly and permanently.
+     *
+     * So this is not a check that is CAREFUL, it is a check that cannot be
+     * raced: `turns.open` is only ever called from inside `sending`
+     * ({@link begin}, reached from {@link deliver} and from here and from
+     * nowhere else), so `busy` cannot go false→true between the read below and
+     * the {@link begin} under it. A doorbell prompt is therefore NEVER
+     * `alongside`, and therefore never flips the latch — by construction rather
+     * than by timing. `deliveries.test.ts` holds it rather than trusting this
+     * paragraph.
+     *
+     * ## {@link begin} DIRECTLY, and never {@link deliver}
+     *
+     * A steer PRE-EMPTS, and pre-empting means aborting whatever the agent is
+     * doing. There is no gesture behind a doorbell, so there is nothing here
+     * that could have asked for one — and `deliver` is the function that decides
+     * whether to steer. Calling it and passing `false` would leave a `true`
+     * one line away from a machine.
+     *
+     * ## What "handed" means, exactly
+     *
+     * That the prompt is on ITS way, not that it is on the wire: `begin` forks,
+     * and the row is the durable account of what became of it — marked
+     * undelivered on the row, with its fate drawn, exactly as a person's own
+     * send is. That is the same guarantee `send` gives and the reason the answer
+     * here is two-valued rather than three.
+     */
+    const offer = (
+      to: Deliveries.Addressed,
+      body: string,
+      from: string,
+    ): Effect.Effect<"handed" | "held"> =>
+      opening.withPermit(Effect.gen(function*() {
+        const at = talking
+        // NOT THIS PANEL'S CONVERSATION — no agent bound, none open, or one
+        // that is somebody else's. There is exactly one conversation this
+        // process can prompt, so every other conversation's bodies wait for
+        // somebody to open them.
+        if (
+          at === null || state.session === null
+          || at.row.id !== to.agent || state.session.id !== to.session
+        ) return "held"
+        return yield* sending.withPermit(Effect.gen(function*() {
+          if (turns.busy) return "held" as const
+          // MARKED, and marked by core from the registry binding: the plugin
+          // never supplies its own name ({@link ../../surface/src/chat.ts}'s
+          // `rang`).
+          const row = transcript.user(body, { rang: from })
+          publish(row.change)
+          yield* begin(at, row.key, body)
+          return "handed" as const
+        }))
+      }))
+
+    /**
+     * The held bodies for one conversation, offered as ONE message.
+     *
+     * ONE PLUGIN AT A TIME — the one whose body has been waiting longest — and
+     * all of that plugin's held bodies together, joined whole with a blank line
+     * between them ({@link ./deliveries.ts}'s `joined`). Not every plugin's
+     * bodies in one message, because the row carries ONE `rang` and a row marked
+     * with one plugin's name carrying another's paragraph would be exactly the
+     * signature the mark exists to prevent. A second plugin's bodies go at the
+     * next boundary, which the turn this one starts produces.
+     *
+     * WHAT IS TAKEN IS WHAT WAS OFFERED, by identity: a coalescing replace that
+     * landed while this was on the wire wrote a new slot into that position, and
+     * clearing the list wholesale would drop words nobody ever saw.
+     *
+     * On `"held"` nothing moves at all and the next boundary tries again.
+     */
+    const flush = (to: Deliveries.Addressed): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        const waiting = held.waiting(to)
+        const oldest = waiting[0]
+        if (oldest === undefined) return
+        const mine = waiting.filter((slot) => slot.from === oldest.from)
+        const arm = yield* offer(to, Deliveries.joined(mine), oldest.from)
+        if (arm === "held") return
+        held.took(to, mine)
+        move({ wake: wakeOf() })
+      })
+
+    /**
+     * ... for whichever conversation this panel is in NOW.
+     *
+     * A suspend rather than a value, because every caller forks it and what it
+     * is about is decided when it RUNS: a turn ending and a conversation opening
+     * are both moments at which the answer has just changed.
+     */
+    const flushing: Effect.Effect<void> = Effect.suspend(() => {
+      const to = conversationOf()
+      return to === null ? Effect.void : flush(to)
+    })
+
+    /**
+     * A plugin's sentence, into a conversation. See {@link Chat.deliverTo}.
+     *
+     * IT ALWAYS HOLDS FIRST, and then flushes. Two arms written out separately
+     * — offer, and hold if that fails — would be two orders: a body offered past
+     * bodies already waiting for the same conversation arrives BEFORE them,
+     * which is the plugin's own sentences read out of the order it wrote them
+     * in. Held-then-flushed there is one lane and one place the coalescing rule
+     * is applied, and the idle arm still costs exactly one turn.
+     */
+    const deliverTo = (
+      to: Deliveries.Addressed,
+      body: string,
+      from: string,
+      how?: { readonly coalesce?: string },
+    ): Effect.Effect<void> =>
+      Effect.gen(function*() {
+        held.hold(to, from, body, how?.coalesce)
+        // The strip's count moves the moment the body is held, which is the
+        // panel's own rule: the alternative to holding words out of sight is
+        // not dropping them, it is showing that they are waiting.
+        move({ wake: wakeOf() })
+        yield* flush(to)
       })
 
     /**
@@ -1875,6 +2178,17 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
             return yield* asFailure(outcome.failure)
           }
           settled()
+          // ... AND WHATEVER A DOORBELL HELD FOR THE CONVERSATION JUST OPENED
+          // GOES IN, as its first message.
+          //
+          // HERE and not in {@link receive}'s `session` arm, which is where the
+          // fact actually lands: that arm runs INSIDE the permit released one
+          // line above — `entered` emits it synchronously from within the open
+          // — and {@link opening} is not reentrant, so a flush taken there would
+          // block the fiber already holding it and the open would never
+          // complete. This is the same moment one beat later, outside the
+          // permit, and it is the only safe one.
+          yield* Effect.forkDetach(flushing)
         }),
       )
 
@@ -1968,6 +2282,61 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               ),
           )),
 
+      deliverTo,
+      scopes: () => options.scoping?.rows() ?? [],
+      /**
+       * A person pointed a doorbell at a file — or took it off one.
+       *
+       * IT REFUSES rather than becoming a notice, and that is the difference
+       * between this and every other thing that fails quietly around here: a
+       * pick is a gesture somebody just made, and a pick that did not stick is a
+       * thing they need told. The boot's read is the opposite case and stays the
+       * opposite way round ({@link ./scopes.ts}) — nobody is standing at the
+       * screen when that one fails.
+       *
+       * WHICH conversation is an ARGUMENT rather than "whichever is open": the
+       * panel's own session can move under a picker somebody left open (a boot
+       * opens one with no verb called at all), and a pick attached to a
+       * conversation a person was not looking at is worse than a refusal. It is
+       * the same pair {@link Chat.loadSession} takes and for the same stated
+       * reason.
+       *
+       * The read-back is not an overlay: this ends in `move`, so what the strip
+       * draws next comes through the one publisher every other chat verb
+       * publishes through.
+       */
+      scope: (to, plugin, file) =>
+        Effect.gen(function*() {
+          const scoping = options.scoping ?? null
+          if (scoping === null) {
+            return yield* new UsageFailure({
+              reason: "this panel keeps no doorbells: no plugin here rings a conversation",
+            })
+          }
+          yield* Effect.mapError(
+            // The CLOCK is read here rather than injected, for the reason
+            // `listings.ts` reads one: what the stamp orders is an eviction on
+            // this machine, and nothing draws it or compares it to anything a
+            // test would have to own.
+            scoping.set(to, plugin, file, new Date().toISOString()),
+            (failure) => new BusyFailure({ reason: failure.why }),
+          )
+          // ... AND A CLEAR TAKES BACK WHAT IS STILL WAITING, which is the
+          // half a record on its own does not cover. Dropping the row stops
+          // the NEXT ring; anything this plugin was already holding for this
+          // conversation would otherwise go in at the next turn boundary —
+          // under a strip that has just redrawn itself as `off`, and with the
+          // count that would have warned about it gone in the same frame
+          // ({@link wakeOf} hangs the numeral on the row this write removes).
+          // A control that said `off` while a sentence it disowns was still on
+          // its way in would be the one thing this whole panel refuses: words
+          // held somewhere a person cannot see.
+          //
+          // BEFORE `move`, so no frame is published in which the count is
+          // still drawn over bodies that are already gone.
+          if (file === null) held.dropped(to, plugin)
+          move({ wake: wakeOf() })
+        }),
       recordRefusal: (tool: string, failure: OpFailure) =>
         Effect.sync(() => {
           publish(transcript.refuse(`\`${tool}\` was refused`, failure))
@@ -2023,6 +2392,12 @@ export const make = (options: Options): Effect.Effect<Chat, never, never> =>
               return
             }
             settled()
+            // ... and the other place a conversation is opened flushes for the
+            // same reason and at the same point: after the permit, never from
+            // inside the event ({@link changeSession}). A BOOT is how a doorbell
+            // reaches the conversation this directory was last in without
+            // anybody pressing anything.
+            yield* Effect.forkDetach(flushing)
           }),
         )
       }),

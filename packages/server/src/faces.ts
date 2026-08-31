@@ -303,6 +303,15 @@ export const BROWSER: ExposeMap<typeof surface.spec> = {
   "chat.sessions": "tool",
   "chat.answer": "tool",
   "chat.decline": "tool",
+  // WHAT THIS CONVERSATION WAKES ON — the browser's alone, and the absence from
+  // {@link AGENT} below is the load-bearing half of this row rather than an
+  // omission. The ruling is that a doorbell is MANUAL and per conversation: no
+  // serve-level default, and no agent-settable op. This map is where that stops
+  // being a promise and becomes physics — `faces.test.ts` pins the agent face
+  // as an EXACT set, so a row added there is a red suite, and it asserts set
+  // equality of both faces against the declared members, so a member with no
+  // row here is red too.
+  "chat.scope": "tool",
   "edit.apply": "tool",
   "search.nodes": "tool",
   "nodes.named": "tool",

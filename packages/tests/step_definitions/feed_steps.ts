@@ -1,15 +1,20 @@
 /**
  * The events drawer's FOOT, and the door onto the vault's own files.
  *
- * The subject is the last line of `padi`'s drawer: the mutes named as the
- * config's rows name them, and the wrench that opens that config as the
- * ordinary outline it is — plus the sidebar's VAULT GROUP the wrench's
- * landing page lives in, since the foot's three states and the group's
- * rows are one design (`_olai/` as first-class, not switchable).
+ * The subject is the last line of `padi`'s drawer: the wrench that opens
+ * the watch's config as the ordinary outline it is — plus the sidebar's
+ * VAULT GROUP the wrench's landing page lives in, since the foot's two
+ * states and the group's rows are one design (`_olai/` as first-class, not
+ * switchable).
+ *
+ * IT ASSERTED A MUTES LINE TOO until the second doorbell (2026-08-31) took
+ * the mute list out of `_olai/Kolu.olai`. Two steps went with it — `the
+ * drawer's foot says {string}` and `the drawer says nothing about mutes` —
+ * and the wrench's own steps did not move.
  *
  * Config written here is an EDIT on the served vault: `world.writeServed`
  * lands it outside the browser, which is exactly the lane the watcher and
- * the mutes cell read — no harness pushes `watching` events for these
+ * the `knobs` cell read — no harness pushes `watching` events for these
  * scenarios, and none need to: the foot is a reading of the vault.
  */
 import { Then, When } from "@cucumber/cucumber"
@@ -20,7 +25,6 @@ import {
   OUTLINE_TREE,
   PADI_FEED,
   PADI_FEED_FOOT,
-  PADI_FEED_MUTES,
   PADI_FEED_WRENCH,
   POLL_TIMEOUT,
   TRASH_LINK,
@@ -38,7 +42,7 @@ const PADI_PILL = '[data-testid="padi"]'
  *  reader typed, the `it_stays_live` scenario's quotes included. */
 const vaultFile = (file: string): string => `${VAULT_LINK}${attr("data-file", file)}`
 
-/** Absence proofs settle on the EVENTS panel: the mutes cell rides the same
+/** Absence proofs settle on the EVENTS panel: the `knobs` cell rides the same
  *  subscription the feed does, so when the feed has answered the cell's
  *  value has too — a foot that has not drawn by then is a foot that will
  *  not. */
@@ -53,25 +57,6 @@ When("I press the padi pill", async function(this: OlaiWorld) {
 When("I press the drawer's wrench", async function(this: OlaiWorld) {
   await this.press(this.page.locator(PADI_FEED_WRENCH).first())
   await visible(this, OUTLINE_TREE)
-})
-
-Then("the drawer's foot says {string}", async function(this: OlaiWorld, said: string) {
-  const mutes = this.page.locator(PADI_FEED_MUTES).first()
-  await this.waitUntil(
-    async () => (await mutes.innerText().catch(() => "")).trim() === said,
-    `the drawer's foot to say "${said}"`,
-  )
-})
-
-Then("the drawer says nothing about mutes", async function(this: OlaiWorld) {
-  // The foot itself is there (the wrench belongs there whenever a config
-  // exists); what must be absent is the mutes' LINE.
-  await visible(this, PADI_FEED_FOOT)
-  assert.equal(
-    await this.page.locator(PADI_FEED_MUTES).count(),
-    0,
-    "the drawer's foot showed a mutes line",
-  )
 })
 
 Then("the drawer's foot offers the wrench", async function(this: OlaiWorld) {

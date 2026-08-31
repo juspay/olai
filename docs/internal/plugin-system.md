@@ -88,6 +88,8 @@ Skim the table; the sections after it give one example each.
 | **dressing** | what a live property *wears* in the browser: a chip, a pane, a block |
 | **chrome** | what a plugin hangs in the app's header bar |
 | **mount** | the plugin's own half of the tab — one subscription per tab |
+| **doorbell** (`deliveries`) | the write-only door a plugin speaks INTO a conversation through: which conversations opted in to it, and one verb that puts a whole sentence in one |
+| **wake** | the plugin's own words for the control a person points that doorbell with — three pieces, and core composes none of them |
 | **roster** | which plugins this build has, and which this serve runs |
 | **built vs enabled** | what the binary carries vs what `--plugins` turned on |
 | **licence** | permission for a face to draw, answered per drawn value |
@@ -257,6 +259,73 @@ components the plugin owns; the app hands them its own *furniture* (the clock, t
 pill's geometry, a popover, a link to a served file) so a plugin never imports
 `@olai/web`, which would be a cycle.
 
+### doorbell and wake
+
+The other direction. `probe` and `chrome` are the app asking a plugin something;
+this is a plugin **saying something**, unprompted, into a conversation somebody is
+having with an agent:
+
+```ts
+interface Deliveries {
+  scopes: () => ReadonlyArray<{ agent: string; session: string; file: string }>
+  deliver: (
+    to: { agent: string; session: string },
+    body: string,
+    options?: { coalesce?: string },
+  ) => void
+}
+```
+
+Two members, and **`deliver` cannot read**. A plugin learns which conversations
+opted in to *it* and nothing else — not who is in them, not what is in them, not
+whether its own last sentence landed. The body goes down the same lane a person's
+message goes down, so the row it lands in is a `user` row; core marks that row
+with the plugin's name, stamped **from the registry binding and never from the
+caller**, which is the difference between a mark and a signature one plugin could
+put on another's words.
+
+Core decides only *when*. An idle agent takes the sentence as a turn; a busy one
+**holds** it until the turn ends, so that a machine can never spend the
+interruption a person has not typed; a conversation nobody is in holds it until
+somebody opens it. Which arm a body took is never reported back, because there is
+no arm a plugin would answer differently.
+
+**Who may be rung is a person's answer, and the strip is where they give it.**
+
+> Scope is MANUAL per conversation. No serve-level default, no agent-settable op.
+> A fresh or cleared conversation starts with the doorbell OFF until a person
+> picks a file. *(ruled human, 2026-08-31)*
+
+That control is `chrome`'s arrangement one floor along — a slot the app owns whose
+CONTENT is the plugin's:
+
+```ts
+readonly wake?: {
+  subject: string                          // "wake on terminal activity"
+  from: string                             // "terminals from"
+  waiting: { one: string; many: string }   // "fleet event waiting" / "…events waiting"
+}
+```
+
+```
+   ┌─ the wake strip ──────────────────────────────────────────────┐
+   │  wake on terminal activity · terminals from [ lanes.olai ▾ ]  │
+   │  └──────── subject ───────┘ ↑└─ from ─┘ └── core's picker ─┘  │
+   │                             core's punctuation                │
+   └───────────────────────────────────────────────────────────────┘
+```
+
+Three pieces and not one string with a hole in it, for `missing.why`'s reason
+sharpened: a hole would make core the author of everything around it. Core owns
+the arrangement, the punctuation, the numeral in `3 fleet events waiting`, and the
+picker — nothing that is a claim about the plugin's subject.
+
+Why not a member on the plugin's own surface instead? Because the browser is not
+the only reader. `chat.scope` **refuses a plugin whose composed half declares no
+wake**, and that check runs server-side against the enabled halves — so the
+declaration belongs on the server door beside `probe` and `kinds`, where a serve
+can read it without dialling anything.
+
 ---
 
 ## 4. Three doors, because three graphs
@@ -274,7 +343,7 @@ lines**, not one.
    the browser's wire
 
                         ┌──────────────────────────────────────────┐
-   @olai/plugins/server │  + serve() · probe() · kinds              │
+   @olai/plugins/server │  + serve() · probe() · kinds · wake      │
    ─────────────────▶   │  MAY pull the appliance's client,        │
    read by: a server    │  @olai/format, node: builtins            │
    process              │  may NOT pull a browser face             │
@@ -525,7 +594,10 @@ The whole checklist. Nothing outside `packages/` changes.
    `faces` map. This file may not import SolidJS, an appliance client, or a
    `node:` builtin.
 2. **`packages/plugin-<name>/src/server.ts`** — `serve()`, and optionally
-   `probe()` and `kinds`. This is where the appliance's client is called.
+   `probe()`, `kinds` and `wake`. This is where the appliance's client is called,
+   and where `services.deliveries` is rung if the plugin has anything to say into
+   a conversation. Declare `wake` or the strip draws no picker for you and
+   `chat.scope` refuses your name — which is the gate working, not a bug.
 3. **`packages/plugin-<name>/src/plugin.ts`** — the manifest: the wire half plus
    `dressings`, `chrome`, `mount`. Browser graph.
 4. **`packages/plugin-<name>/docs.md`** — the user page, plus a symlink at
@@ -556,6 +628,9 @@ names the file.
 | `packages/plugins/src/composition.test.ts` | an empty roster composes, and core's tags do not move |
 | `packages/plugins/src/testids.test.ts` | two plugins' testid tables are disjoint |
 | `packages/tests/plugin_docs.test.ts` | every plugin's docs page exists, is served, and is linked |
+| `packages/server/src/faces.test.ts` | `chat.scope` is named on the **browser** face and nowhere else — the agent face is pinned as an exact set, so an agent-settable doorbell is a red suite rather than a rule somebody has to remember |
+| `packages/server/src/runtime.test.ts` | a `wake` sentence reaches the roster only for a plugin this serve is RUNNING, so no picker is offered for a doorbell nothing would ring |
+| `packages/chat/src/deliveries.test.ts` | a body delivered mid-turn is HELD and the conversation keeps its interruption — the one claim a machine speaking into a person's lane could quietly cost them |
 | `scripts/check-hydrated-deps.sh` | the appliance dependency walls, per pin |
 
 ---

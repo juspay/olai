@@ -18,8 +18,10 @@
  *     clears it.
  *   - the STATE home is for something that SHOULD survive a restart and means
  *     nothing to anybody else — which conversation the chat panel was in
- *     (`@olai/chat`'s `memory.ts`). After git left this package, chat is the
- *     remaining tenant.
+ *     (`@olai/chat`'s `memory.ts`), and which doorbell each conversation
+ *     picked (`@olai/chat`'s `scopes.ts`). After git left this package,
+ *     `@olai/chat` is the remaining tenant, in two KINDS rather than one —
+ *     {@link Kind} says why the split is by what each record survives.
  *
  * ONE FILE PER SERVED DIRECTORY under either, named by a DIGEST of the path
  * rather than by the path itself: an encoded path is a filename that can
@@ -144,8 +146,15 @@ export class StateFailure extends Data.TaggedError("StateFailure")<{
  * claims: `join(stateHome(), "../../somewhere")` escapes a home a caller was
  * told it could not reach, and nothing but a type can say so. It also makes
  * "what does olai keep about a directory" answerable by reading one line.
+ *
+ * Two tenants, and the split between them is what each SURVIVES rather than
+ * what each is about. `chat` is the panel's last conversation — one record,
+ * rewritten whenever the panel opens one. `wake` is which conversations a
+ * person pointed a plugin's doorbell at, and on which file; it holds the picks
+ * and never the messages, because a held message is a derivation of state that
+ * is still true and is rung again by whatever derives it.
  */
-export type Kind = "chat"
+export type Kind = "chat" | "wake"
 
 /** Where one kind of remembered thing lives for one served directory — a
  *  subdirectory of the state home, and the digest under it. Takes the

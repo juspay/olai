@@ -77,6 +77,7 @@ export type {
   ChipContext,
   Chrome,
   ChromeFace,
+  Deliveries,
   Dressing,
   FileLink,
   JSX,

@@ -170,7 +170,7 @@ export type VaultNode = unknown
 
 export const oduHalf = <N,>(deps: OduDeps<N>): OduHalf<N> => {
   /** The cell's standing value, and the ONE writer of it is the framework's
-   *  own write-through. The `mutes` cell one package over argues this shape at
+   *  own write-through. The `knobs` cell one package over argues this shape at
    *  length and the argument is the same here: the cell declares `equals`, and
    *  the framework gates a publish on `equals(store.get(), next)` — so a store
    *  that read a value this half had already written would compare the new
@@ -223,7 +223,7 @@ export const oduHalf = <N,>(deps: OduDeps<N>): OduHalf<N> => {
               cell = handle
               // SETTLE FIRST, then sweep. A surface that binds after a
               // revision has already landed holds rows nothing has published
-              // yet — the `mutes` cell's own first-boot edge, and the
+              // yet — the `knobs` cell's own first-boot edge, and the
               // framework's `equals` gate is what makes an unconditional
               // settle free: a boot with nothing watched publishes nothing.
               handle.set({ runs: watch.rows() })

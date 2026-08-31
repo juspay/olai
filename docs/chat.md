@@ -452,3 +452,21 @@ It is per conversation, because the detection is: start a padi and the next conv
 **A machine that is simply not running kolu sees none of this**, and that is deliberate — nothing failed. It has no row on the roster either: what the panel reports is a tool server that was here and would not work, or one something said would be; never the absence of one that was never installed.
 
 An agent's report never overrules the probe. If this host's `kolu` would not answer, the session was never given one — so an agent that reports a `kolu` is reporting a `kolu` of its own, out of its own config, and the row here goes on saying what olai found.
+
+## What this conversation wakes on
+
+**A plugin can put a message into this conversation, and you decide which one it may put it into.** Under the roster and the strip of what is running is a third line — one per plugin that has something to watch — saying what the wake would be about and which file you pointed it at:
+
+```
+wake on terminal activity · terminals from  [ lanes.olai ▾ ]   3 fleet events waiting
+```
+
+**Off is the state you start in, and it is drawn rather than hidden.** No serve turns this on for you, no setting does, and no agent can — the verb behind the picker is the browser's alone. A new conversation, and one you cleared, wakes on nothing until you pick a file, and the row says `off` so that the control is somewhere you can find it before you have ever used it. `clear` is the way back, and it is the same one fact with an empty value rather than a second switch.
+
+**The file is the whole of the scope, and what it MEANS is the plugin's business.** olai never opens it. kolu reads the terminals your board's un-done rows claim and tells this conversation when one of them has stopped and is waiting on a person — see [kolu's own page](plugins/kolu.md) for exactly what it says and when. Pick the board you are working from and you hear about the lanes on it; pick nothing and you hear nothing. That also means picking a *different* file is how you go quiet about one board without going quiet about the tool.
+
+**A message a machine sent looks like one.** It is in the same lane your own messages are in — that is the lane a prompt goes out on — but it is drawn as the full column on the left, never the tinted bubble on the right that means *you said this*, and it opens by naming who is speaking and when. That opening line is not decoration: a conversation you resume later is rebuilt out of the agent's own store, which carries the words and not the mark, so the sentence has to say for itself who wrote it. There is no *send again* under it either — what it says is how something STOOD when it rang, and re-sending that an hour later would be re-sending a claim that has stopped being true. Whatever rang will ring again.
+
+**It waits for the turn to end rather than joining it.** If the agent is working when a plugin rings, the sentence is held and the count on the strip says how many are waiting — because the alternative to holding words out of sight is not dropping them, it is showing them. It arrives whole at the boundary, however that turn ended, cancelled included. This is not a queue behind the composer: what you type is never held anywhere, and a message that goes out while a turn runs still goes out. It is the machine that waits, and the reason it waits is that an agent interrupted by a message nobody typed would spend an interruption you were saving.
+
+**Held sentences are held in memory, and the picks are on disk.** Restart the server and it comes back knowing which conversations wake on which files, holding nothing — which loses nothing, because whatever derived a held sentence looks at its own subject again and rings again.

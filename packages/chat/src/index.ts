@@ -21,6 +21,11 @@
  *     on a clock ({@link ./cadence.ts}). Exported for the same reason `Change`
  *     is: the composition root is what owns a socket, so the cadence has to be
  *     nameable there.
+ *   - {@link scopesIn} is the fifth, and it is here for the third of those
+ *     reasons: WHICH conversations a person pointed a plugin's doorbell at is
+ *     a record about a plugin, and the composition root is the only thing that
+ *     has plugins ({@link ./scopes.ts}). It is built there and handed to
+ *     {@link make} as `Options.scoping`.
  *
  * `agent.ts` is deliberately NOT exported. Nothing above this line should be
  * able to spell `session/update`.
@@ -36,5 +41,6 @@ export { type Adapter, AGENT_ENV, whyNoAgent } from "./adapter.ts"
 export { type Installed, roster } from "./agents/roster.ts"
 export { type Chat, make, type Options, type ToolServer } from "./chat.ts"
 export type { Probe, Probed, StdioServer } from "./probes.ts"
+export { forDirectory as scopesIn, type Scoped, type Scopes } from "./scopes.ts"
 export type { Change } from "./transcript.ts"
 export { type Cadence, cadence, type Frame, type Pieces } from "./cadence.ts"

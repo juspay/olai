@@ -40,16 +40,18 @@ export const TESTID = {
    *  `EventsFeed`. THE PANEL'S OWN HANDLE only: the rows are the appliance's and
    *  are asserted through `@olai/kolu-ui`'s `./testids`. */
   padiFeed: "padi-feed",
-  /** THE FEED'S FOOT — the drawer's last line: the mutes' count and names and
-   *  the wrench onto the config (`./browser/Feed.tsx`). Present only when there
+  /** THE FEED'S FOOT — the drawer's last line, which is the wrench onto the
+   *  config and nothing else (`./browser/Feed.tsx`). Present only when there
    *  is a config to read: a vault no file decides anything for has no foot, not
-   *  an empty one. */
+   *  an empty one.
+   *
+   *  IT HELD A MUTES LINE TOO until the second doorbell took the mute list out
+   *  of `_olai/Kolu.olai` (the wake filter file is the silence control now), so
+   *  `padiFeedMutes` went with it. The foot survives the cut because the wrench
+   *  does — the config's duration knobs are still a thing a person edits, and
+   *  this is still the only door onto them. */
   padiFeedFoot: "padi-feed-foot",
-  /** The LINE inside it: `2 muted · nixos-config grok, nixos-config pi`. Absent
-   *  when nobody is muted — never a "0 muted". */
-  padiFeedMutes: "padi-feed-mutes",
   /** THE WRENCH — the door onto the `_olai/Kolu.olai` the convention read, so
-   *  the whole config (thresholds and mutes) is one press away as an ordinary
-   *  outline page. */
+   *  the watch's thresholds are one press away as an ordinary outline page. */
   padiFeedWrench: "padi-feed-wrench",
 } as const

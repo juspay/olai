@@ -11,7 +11,7 @@ That third thing is not kolu implementation. It is **olai's own JUDGEMENT about 
 | declared here | on the wire, composed |
 | --- | --- |
 | cell `link` | `surface/kolu/link/get` |
-| cells `pulse`, `mutes` | `surface/kolu/pulse/get`, `surface/kolu/mutes/get` |
+| cells `pulse`, `knobs` | `surface/kolu/pulse/get`, `surface/kolu/knobs/get` |
 | collections `fleet`, `events` | `surface/kolu/fleet/…` |
 | stream `terminal` | `surface/kolu/terminal/…` |
 | procedure `screen.text` | `surface/kolu/screen/text` |
@@ -32,11 +32,19 @@ The doc blocks did not travel. They argue what a member IS — what a `fleet` ro
 
 One door for all three would carry a component onto the server's static graph and padi's contract into the browser bundle. [`@olai/plugins`](../plugins/README.md)'s [`fence.test.ts`](../plugins/src/fence.test.ts) walks each closure rather than trusting this list.
 
-## The two vault walks, and where the wall actually runs
+## The three vault walks, and where the wall actually runs
 
-[`src/claimants.ts`](src/claimants.ts) reads which nodes carry a key DECLARED this plugin's kind — the word in [`src/kinds.ts`](src/kinds.ts), never a key's spelling. A declaration is two layers folded once (`@olai/format`'s `withClaims`): the vault's own row, which always wins, and the key the kind CLAIMS by convention, which is its own composed word. So `kolu-terminal` wears the door with nothing declared anywhere, a column called `pty` wears it the day one row says so, and a column somebody else calls `terminal` is never captured by switching kolu on; [`src/config.ts`](src/config.ts) reads what `_olai/Kolu.olai` says about the watcher's knobs and its mutes, and which served outline that file is. Both were `packages/server/src/`'s, under kolu-shaped filenames, and both walk **outline records** — which is exactly why they may not live in `@olai/kolu-client`: that package's interfaces are parametric in the node type so a compiler can hold it to never reading one, and what crosses into it is four strings per claim and one reading per revision.
+[`src/claimants.ts`](src/claimants.ts) reads which nodes carry a key DECLARED this plugin's kind — the word in [`src/kinds.ts`](src/kinds.ts), never a key's spelling. A declaration is two layers folded once (`@olai/format`'s `withClaims`): the vault's own row, which always wins, and the key the kind CLAIMS by convention, which is its own composed word. So `kolu-terminal` wears the door with nothing declared anywhere, a column called `pty` wears it the day one row says so, and a column somebody else calls `terminal` is never captured by switching kolu on; [`src/config.ts`](src/config.ts) reads what `_olai/Kolu.olai` says about the watcher's knobs, and [`src/doorbell.ts`](src/doorbell.ts) is the third of the kind: which terminals one scoped FILTER FILE claims — the same declared kind, over its un-done nodes, with mirrors followed to their targets — and what a fleet event about one of them MEANS to a conversation filtered by it. The first two were `packages/server/src/`'s, under kolu-shaped filenames; the third is new with the doorbell. All three walk **outline records** — which is exactly why they may not live in `@olai/kolu-client`: that package's interfaces are parametric in the node type so a compiler can hold it to never reading one, and what crosses into it is four strings per claim, one reading per revision, and — for the doorbell — one frozen `KoluEvent` in the other direction.
 
 So the wall runs between three things and not two. The appliance knows how to reach the tool; core holds the vault; and the judgement about what the vault SAYS about the tool is this package's. `config.ts` is not called `koluConfig.ts` any more for the reason the `link` cell is not called `kolu`: inside `@olai/plugin-kolu` the prefix says the word twice and the thing once.
+
+## The doorbell, and the one generic capability behind it
+
+Core grew ONE thing for this: `PluginServices.deliveries` — `scopes()`, which conversations opted into this plugin's wakes and which file each picked, and `deliver(to, body, options?)`, write-only. It speaks conversations and files and will never speak a terminal. Everything kolu-shaped about the second doorbell is on this side: [`src/doorbell.ts`](src/doorbell.ts) joins a watcher event to the un-done nodes of a scoped file and answers `"wake" | "digest" | null`; [`src/wake.ts`](src/wake.ts) declares the three strings the strip's control is drawn out of, re-exported from [`src/server.ts`](src/server.ts) beside `kinds` and `probe`; and the WORDS of every delivered message are composed here, whole, because core may not author a clause of a sentence a plugin sends.
+
+The tap into the watcher is one optional callback on `KoluDeps` — `rang`, in the shape `claimants` and `config` already take — and what crosses is the wire's own frozen `KoluEvent`. So `@olai/kolu-client` still cannot spell an outline record, in either direction.
+
+Silence is the absence of a call. There is no third arm and no unclaimed-terminal warning anywhere: a doorbell that also reported what it decided not to ring about is one nobody would leave on. And **the mute list went with this PR** — the filter file a conversation is scoped to is the silence control now, so `_olai/Kolu.olai` keeps its duration knobs and nothing else, and the `mutes` cell was renamed `knobs` rather than removed because the drawer's wrench has no other source for the config's path.
 
 ## The manifest is structural, and that is the direction
 

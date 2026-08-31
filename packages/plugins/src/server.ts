@@ -66,6 +66,7 @@ import { kindWordOf, type PluginWire } from "./surfaces.ts"
  *  the interface, because they are part of what a plugin IS and not part of how
  *  it is reached. */
 export type {
+  Deliveries,
   NotHere,
   PluginServer,
   PluginServices,
@@ -156,6 +157,48 @@ export interface PluginServerHalf<Revision> extends PluginWire {
    * Absent is a plugin that teaches no word, which is a whole plugin.
    */
   readonly kinds?: ReadonlyArray<PropKind>
+  /**
+   * THE DOORBELL'S SENTENCE, when this plugin wakes conversations — in PIECES,
+   * because core draws the control between them.
+   *
+   * The strip row reads `<subject> · <from> <the picker>`, and with nothing
+   * picked it reads `<subject> · off`. Core owns the row, the picker and the
+   * numeral; it composes no clause of its own, which is why this is three
+   * strings and not one. A single sentence with a hole in it would make core the
+   * author of everything around the hole, and the four ways a wake could be
+   * described have nothing in common but that they are wakes — the same argument
+   * {@link probe}'s `missing.why` makes one hook over, and the third time this
+   * tree has spent it.
+   *
+   * SUBJECT FIRST. What is being woken ON is the subject, and the file is the
+   * FILTER over it — a control that led with the file would be describing its own
+   * mechanism to somebody who wants to know what it does.
+   *
+   * `waiting` is the same rule where a COUNT is involved: core holds the bodies,
+   * so core knows the number and only the number. The plugin says what its
+   * bodies ARE, in both grammatical numbers, because a tree that stored one form
+   * and added an `s` would be a tree that had decided what the noun is.
+   *
+   * ON THIS DOOR and not on the manifest, for {@link kinds}' reason: the
+   * declaration has a SERVER reader — the member that writes a scope refuses a
+   * plugin that declares no wake, and it reads this field off the enabled halves
+   * — and a composition root that reached a manifest would put a UI runtime on
+   * the graph of a process that renders nothing.
+   *
+   * Absent is a plugin that wakes nobody, which is a whole plugin. odu is one:
+   * no strip row, no picker, no doorbell, which is the state every machine
+   * without the tool is already in.
+   */
+  readonly wake?: {
+    /** What the wake is ON. "wake on terminal activity". */
+    readonly subject: string
+    /** What the file IS, as a lead-in to the picker. "terminals from". */
+    readonly from: string
+    /** What this plugin's held bodies are, in the plugin's own words and in both
+     *  numbers — core supplies the numeral and joins them, and that is the whole
+     *  of core's authorship on the strip. */
+    readonly waiting: { readonly one: string; readonly many: string }
+  }
 }
 
 /**

@@ -580,6 +580,122 @@ export interface PluginServices {
    * only one a test ever fills.
    */
   readonly dial?: unknown
+  /**
+   * THE DOORBELL'S DOOR — which conversations opted into THIS plugin's wakes,
+   * and the one write-only verb that reaches them ({@link Deliveries}).
+   *
+   * The second field on this blob built PER PLUGIN rather than handed out whole
+   * ({@link dial} is the first), and for that one's reason turned around: a door
+   * keyed by nobody would hand one plugin the conversations a person scoped to
+   * another. The key is the plugin's `name`, which is the one word core knows,
+   * and the composition root closes over it exactly where it already closes over
+   * it for `dial` — so this is not a second lookup, it is the same one.
+   *
+   * REQUIRED, unlike `dial`, and the difference is about what CAN be absent. A
+   * real serve legitimately dials nothing; there is no serve where the door is
+   * missing. What varies is whether anybody walked through it — a machine with
+   * no agent installed answers `scopes()` with the empty list forever, which is
+   * the honest machine-without-the-tool state and needs no failure channel on a
+   * verb that cannot fail.
+   */
+  readonly deliveries: Deliveries
+}
+
+/**
+ * ONE GENERIC CAPABILITY: DELIVER A MESSAGE INTO A CONVERSATION — the whole of
+ * what core grows so that a plugin can ring a doorbell.
+ *
+ * ## It speaks conversations and files, and it will never speak anything else
+ *
+ * There is no terminal here, no fleet, no board and no watcher — and that is the
+ * fence rather than an accident of today's one caller: the door is generic or it
+ * does not land. A plugin says WHO to reach and WHAT to say; core knows how a
+ * conversation takes a message and knows nothing about why this one was worth
+ * sending. The same bar the rest of this file keeps, one capability later: core
+ * may know a plugin's name, and may not know anything else about it.
+ *
+ * ## Two bare strings and not a `Conversation`
+ *
+ * A conversation is the PAIR `(agent, session)`, because a session id means
+ * nothing to the wrong agent — core's own identity for the thing, spelled the
+ * way `@olai/chat`'s note already spells it rather than minted a second time.
+ * It is two fields here rather than a type imported from `@olai/surface` because
+ * this package declares no dependency on the wire and says so on purpose in its
+ * manifest; a schema pulled in to name a pair of strings would be that wall
+ * coming down for a pair of strings.
+ *
+ * ## WRITE-ONLY, and that is the load-bearing half
+ *
+ * There is no `read`, no `transcript`, no `history`, and there is no arm of this
+ * interface where one could be added without saying so in the type. A plugin can
+ * put a sentence INTO a conversation and can never learn what is in one — not
+ * what a person typed, not what the agent answered, not whether anybody read it.
+ * A capability that could do both would be the appliance reading the human's
+ * mail, and no amount of care at the call site takes that back afterwards.
+ */
+export interface Deliveries {
+  /**
+   * THE CONVERSATIONS THAT OPTED INTO THIS PLUGIN'S WAKES, each with the file a
+   * person picked to filter by.
+   *
+   * SYNCHRONOUS, and that shapes what is behind it: the composition root builds
+   * this blob inside a plain `.map`, and the caller is a watcher sink with no
+   * Effect around it. So core mirrors the table in memory and the disk copy
+   * follows the write rather than leading the read.
+   *
+   * The list is the WHOLE of the scope. A conversation is on it because somebody
+   * picked a file for it, and it leaves when somebody clears it: there is no
+   * serve-level default, and no way for an AGENT to add one — the member that
+   * writes this is drawn for the browser and refused to the agent face, which is
+   * where that reads as physics rather than as a promise. A fresh conversation's
+   * doorbell is off, and the only thing that turns it on is a person.
+   */
+  readonly scopes: () => ReadonlyArray<{
+    readonly agent: string
+    readonly session: string
+    readonly file: string
+  }>
+  /**
+   * ONE MACHINE-MARKED MESSAGE INTO ONE CONVERSATION. Core owns the mechanics;
+   * the plugin owns every word.
+   *
+   * WHAT CORE DOES WITH IT, in three arms: a conversation this panel is in whose
+   * agent is idle takes it as a turn; one whose agent is mid-turn HOLDS it and
+   * lets it in at the turn boundary, behind whatever the human queued first; a
+   * conversation nobody is in holds it until somebody opens it, and it arrives
+   * as that session's first message. Which arm a body took is not reported back,
+   * because there is no arm a plugin would answer differently.
+   *
+   * FIRE AND FORGET, like {@link PluginServices.say} and
+   * {@link PluginServices.warn} beside it, and for their reason: the caller is a
+   * sink with nowhere to put a failure, and a rejected promise nobody has a
+   * reason to catch is an unhandled rejection in somebody's server log.
+   *
+   * THE BODY MUST OPEN WITH ITS OWN ATTRIBUTION, and this is the one thing this
+   * door asks of the words. Core marks the row, and the mark is a live
+   * affordance the browser draws a face from — but a conversation resumed from
+   * the agent's own store rebuilds its rows out of message chunks, and the mark
+   * is not among them. So the SENTENCE has to say who is speaking, or a replayed
+   * transcript puts the plugin's words in the person's mouth.
+   */
+  readonly deliver: (
+    to: { readonly agent: string; readonly session: string },
+    body: string,
+    options?: {
+      /**
+       * MESSAGES SHARING A KEY, WHILE STILL UNDELIVERED, REPLACE EACH OTHER —
+       * in place, so the one that lands keeps the position the first one took
+       * and arrival order survives the replacing.
+       *
+       * It is what lets a plugin send a fresh whole sentence per event and have
+       * a person read ONE message rather than five. Composing the combined
+       * sentence stays the plugin's authorship; holding exactly one stays core's
+       * mechanics. A body sent with no key never replaces anything, which is the
+       * arm a wake takes.
+       */
+      readonly coalesce?: string
+    },
+  ) => void
 }
 
 /**

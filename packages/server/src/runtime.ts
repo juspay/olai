@@ -501,12 +501,31 @@ const writing = (ops: Ops, writer: Writer) => ({
  * the top of this file gives: the manifests carry SolidJS components, and this
  * process renders nothing.
  */
-export const rosterOf = (offered: Wiring["plugins"]): PluginRoster =>
+export const rosterOf = (
+  offered: Wiring["plugins"],
+  /**
+   * The BUILD's server halves, for the one thing a row carries that the
+   * registry's names cannot answer: what this plugin's doorbell WAKES ON, in
+   * the plugin's own words (`@olai/plugins`' `PluginServerHalf.wake`).
+   *
+   * OPTIONAL and empty by default, because the four callers that only ever
+   * asked "which plugins does this build have" are asking a question the
+   * sentence has nothing to do with — and because a required parameter here
+   * would make every one of them name a list to get an answer they already had.
+   *
+   * ONLY ON A ROW THAT IS RUNNING, and that gate is the point rather than a
+   * tidiness: this roster carries a row per BUILT plugin, running or not, so a
+   * picker offered for a plugin this serve did not compose would store a pick
+   * nothing will ever read.
+   */
+  halves: ReadonlyArray<Pick<PluginServerHalf<never>, "name" | "wake">> = [],
+): PluginRoster =>
   offered === null ? NO_ROSTER : {
-    built: PLUGIN_NAMES.map((name) => ({
-      name,
-      running: isEnabled(offered.names ?? null, name),
-    })),
+    built: PLUGIN_NAMES.map((name) => {
+      const running = isEnabled(offered.names ?? null, name)
+      const wake = running ? halves.find((one) => one.name === name)?.wake : undefined
+      return { name, running, ...(wake === undefined ? {} : { wake }) }
+    }),
     pinned: offered.names ?? null,
   }
 
@@ -587,6 +606,19 @@ export const bind = (
      *  outside an Effect — a stream's re-read, which the framework calls on a
      *  promise. What it SAYS is {@link ./report.ts}'s. */
     const say: Emit = yield* emitter
+    /**
+     * ... and the same capture for the one thing that is not a log line: a
+     * doorbell's delivery ({@link doorFor}).
+     *
+     * `Emit` names its argument a line because logging is what every other
+     * caller does with it, but what it IS is "run this Effect later, under the
+     * services this fiber has" — and a delivery reaching core from a plugin's
+     * watcher sink is in precisely the position `emit.ts`'s header describes:
+     * a callback with no fiber under it. Its own name here, rather than
+     * spelling `say` at the call site, because a reader who finds `say` around
+     * a turn being started would be right to wonder what was being said.
+     */
+    const ring: Emit = yield* emitter
     /**
      * WHO IS TOLD THE DIRECTORY MOVED — the pulse the two date streams re-read
      * on, published once per revision by the connector below.
@@ -893,6 +925,59 @@ export const bind = (
      * plugin's decision; which channel each level IS, is this file's.
      */
     const offered = wiring.plugins
+    /**
+     * THE DOOR A MACHINE WITH NO AGENT GETS — and it touches nothing.
+     *
+     * Named rather than inlined because what it says is a claim: a serve with
+     * no chat has no scope store either (`@olai/chat` owns that table, so
+     * `chat === null` means it was never constructed), which makes "a boot with
+     * the agent merely off PATH cannot evict a person's picks" true by
+     * construction rather than by care. `scopes()` answers the empty list
+     * forever, which is the honest machine-without-the-tool state, and `deliver`
+     * returns `void` because there is no failure channel on a verb that cannot
+     * fail.
+     */
+    const NO_DOOR: PluginServices["deliveries"] = { scopes: () => [], deliver: () => {} }
+    /**
+     * ... and the real one, PER PLUGIN.
+     *
+     * Keyed by the only word this file knows about the plugin it is for, which
+     * is `dial`'s arrangement one field over and the second of its kind. An
+     * unkeyed door would hand one plugin the conversations a person scoped to
+     * another — the ownership triple's middle column exists for exactly that.
+     *
+     * `deliver` bridges a SYNCHRONOUS plugin verb onto an Effect member with one
+     * `runFork`, which is the bridge this file already makes for the two log
+     * emitters above it: the caller is a watcher sink with nowhere to put a
+     * failure, and a promise nobody has a reason to catch is an unhandled
+     * rejection in somebody's server log.
+     *
+     * The plugin's NAME is stamped here and never taken from the caller. That is
+     * what keeps the row's mark "data walked out of the registry" rather than a
+     * word one plugin could sign another's row with.
+     */
+    const doorFor = chat === null
+      ? (): PluginServices["deliveries"] => NO_DOOR
+      : (who: string): PluginServices["deliveries"] => ({
+        scopes: () =>
+          chat.scopes()
+            .filter((row) => row.plugin === who)
+            .map(({ agent, session, file }) => ({ agent, session, file })),
+        deliver: (to, body, options) => {
+          // FORKED UNDER THIS FIBER'S SERVICES, and not with a bare
+          // `Effect.runFork`. A doorbell's `deliver` is called from a watcher's
+          // sink, which is a plain callback with no fiber under it — the exact
+          // situation `@olai/log`'s `emit.ts` was written for, and its argument
+          // carries here unchanged: an empty context is the DEFAULT logger at
+          // the DEFAULT level, so every line the delivery's own turn emits
+          // (`../../chat/src/agent.ts`'s `prompt sent`, `turn ended`) would
+          // escape an `OLAI_LOG_LEVEL` the operator typed and arrive in a
+          // different shape than the same line from a person's send. One
+          // conversation would keep two journals, told apart by who started
+          // the turn.
+          ring(chat.deliverTo(to, body, who, options))
+        },
+      })
     const composed: ReadonlyArray<{
       readonly plugin: PluginServerHalf<VaultRevision>
       readonly half: PluginServer<VaultRevision>
@@ -907,14 +992,27 @@ export const bind = (
         // Opaque, and keyed by the only word this file knows about the plugin
         // it is for. A name with no entry gets none, which is every real serve.
         dial: offered.dials?.[plugin.name],
+        // ... and the doorbell's door, keyed the same way and for a sharper
+        // version of the same reason — see {@link doorFor}.
+        deliveries: doorFor(plugin.name),
       }),
     }))
+    /** WHICH COMPOSED PLUGINS RING AT ALL — the names whose halves declare a
+     *  wake sentence. A scope written for anybody else would be a row nothing
+     *  will ever read, so the member that writes one refuses it. Built off the
+     *  same list the composition above walked. */
+    const composedWake = new Set(
+      composed.filter((one) => one.plugin.wake !== undefined).map((one) => one.plugin.name),
+    )
     /** ...and the same two facts as the value a browser draws its read-only
      *  rows off — every plugin this binary HAS, which of them this serve RUNS,
      *  and whether anybody typed the flag. Read off the registry rather than
      *  off `composed` above, which is a list of the ones that are on;
-     *  {@link rosterOf} argues why that difference is the feature. */
-    const roster = rosterOf(offered)
+     *  {@link rosterOf} argues why that difference is the feature.
+     *
+     *  The BUILD's halves go with it, because the doorbell's sentence is
+     *  compiled in and the row that draws a picker has to carry it. */
+    const roster = rosterOf(offered, SERVERS)
     /**
      * EVERY CONNECTOR BELOW READS `store.reads`, and every frame on it is a
      * pair: the set, and how old it is (`@olai/store`'s `Aged`). These take
@@ -1114,8 +1212,8 @@ export const bind = (
                   if (snapshot === null) {
                     // No published set at all: every plugin's reading OF THE
                     // VAULT goes out with the canvas. What each of them makes
-                    // of that is its own — a mutes line and the wrench beside
-                    // it, a set of worktrees the next sweep acts on — and this
+                    // of that is its own — a wrench onto the watch's config, a
+                    // set of worktrees the next sweep acts on — and this
                     // file neither knows nor composes it; what it knows is that
                     // a claim derived from a directory the store can no longer
                     // see is a claim nobody may vouch for.
@@ -1522,6 +1620,31 @@ export const bind = (
           sessions: () => withChat((open) => open.sessions),
           answer: ({ input }) => withChat((open) => open.answer(input.id, input.answers)),
           decline: ({ input }) => withChat((open) => open.answer(input.id, null)),
+          // WHOSE doorbell is checked HERE and nowhere below, because this is
+          // the only place that has the composed list: a name this serve did not
+          // compose, or one whose half declares no wake, would store a pick
+          // nothing will ever read. Refused in words, the same treatment
+          // `chooseAgent` gives an agent id this machine does not have — a stale
+          // tab is not a fault.
+          //
+          // The conversation goes straight through as the pair the chat's own
+          // verb takes. What this end must NOT do is substitute "whichever
+          // conversation is open": the panel's session can move under a picker
+          // somebody left open, and the chat is where that race is answered.
+          scope: ({ input }) =>
+            withChat((open) =>
+              composedWake.has(input.plugin)
+                ? open.scope(
+                  { agent: input.agent, session: input.session },
+                  input.plugin,
+                  input.file,
+                )
+                : Effect.fail(
+                  new UsageFailure({
+                    reason: `no plugin called \`${input.plugin}\` rings a conversation here`,
+                  }),
+                )
+            ),
         },
         // One verb, over the union the wire declares — so a verb added there
         // is answered by `requestFor` or it does not compile, and there is no

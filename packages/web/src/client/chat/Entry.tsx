@@ -16,6 +16,13 @@
  * the same one titles and notes follow — the stored text is never touched, and
  * `#` at the start of a line somebody typed is a `#`, not a heading.
  *
+ * A SENTENCE A MACHINE PUT HERE is quoted too, and the reason goes one step
+ * further than the rule: the mark that says a plugin said it does not survive a
+ * replay (`@olai/surface`'s `UserEntry.rang`), so a body rendered only while
+ * that mark is on the row would come back as raw backticks and bullets the
+ * first time somebody resumed the conversation. Words that must read correctly
+ * unrendered anyway are better rendered once, honestly, than twice, differently.
+ *
  * The SAME pipeline a note and a document go through ({@link ../markdown/}),
  * not one of its own: an agent writing a fenced diff into the panel and a
  * person writing one into a note are doing the same thing, and a second
@@ -125,6 +132,37 @@ const SENT = "border border-accent/30 bg-accent/10"
 const bubbleOf = (fate: Delivery | undefined): string =>
   fate === undefined ? SENT : FACE[fate].bubble
 
+/**
+ * ... and what a MACHINE's sentence looks like, which is a `user` row that
+ * nobody typed (`@olai/surface`'s `UserEntry.rang`, and `./Wake.tsx` for where
+ * a person allowed it).
+ *
+ * FULL WIDTH AND LEFT-ALIGNED, which is the whole of the distinction and is
+ * drawn rather than labelled: the right-hand accent bubble means *you said
+ * this*, and a plugin's sentence wearing it would put words in a person's
+ * mouth. Quiet — the panel's rule for a standing fact rather than an alarm —
+ * because nothing is wrong: something happened that somebody asked to be told
+ * about.
+ *
+ * A FATE STILL EDGES IT, off the table above: a delivery that did not land is
+ * the same fact about a machine's words as about a person's, and the one
+ * difference is the button, which is the row's and not this table's.
+ */
+const RANG = "border border-rule/70 bg-rule/20"
+
+/** The edge a machine's sentence takes — its own quiet one, or the fate's,
+ *  which is the same table the human bubble reads. Its own function beside
+ *  {@link bubbleOf} rather than a flag through it: what differs is only the
+ *  no-fate arm, and a boolean parameter would be two rules in one signature. */
+const rangBubbleOf = (fate: Delivery | undefined): string =>
+  fate === undefined ? RANG : FACE[fate].bubble
+
+/** The two shapes a `user` row's column takes. Yours is a bubble as wide as its
+ *  words, over on the right; a machine's is the full column, because it is a
+ *  paragraph rather than a remark and reads as one. */
+const MINE_COLUMN = "ml-auto flex w-fit max-w-[85%] flex-col items-end"
+const RANG_COLUMN = "flex w-full flex-col items-start"
+
 /** What the agent said is not in a file, so there is no path to name — and the
  *  empty string resolves against the served directory itself, which is where
  *  the agent was started and therefore what a relative path in what it says is
@@ -219,13 +257,34 @@ export function Entry(props: {
     >
       <Switch>
         <Match when={ofKind("user")}>
-          {(user) => (
+          {(user) => {
+          /**
+           * WHO SAID IT — a person, or a plugin's doorbell
+           * (`@olai/surface`'s `UserEntry.rang`, and `./Wake.tsx` for where
+           * somebody allowed it). A machine's sentence travels down the
+           * human's lane, because that is the lane a prompt goes out on and
+           * the one every word about its fate is already written for — so the
+           * row it lands in is a `user` row, and this is the whole of what
+           * makes it not look like one.
+           *
+           * IT DOES NOT SURVIVE A REPLAY: a conversation rebuilt from the
+           * agent's own store comes back out of message chunks, which carry
+           * text and no keys. So the face below is a LIVE affordance and the
+           * durable attribution is the sentence itself, which
+           * `Deliveries.deliver` requires to open with its own — which is
+           * also why nothing here renders it as markdown: a body that reads
+           * correctly only when this component draws it would be a body that
+           * reads wrongly the moment somebody resumes the conversation.
+           */
+          const rang = () => user().rang
+          return (
           /* What you said sits apart from what the agent said: on the right,
               in an accent-tinted bubble. A faint `bg-rule/60` box on a
               full-width line was the only cue before, and it read as another
               agent paragraph. The chips and pictures ride with the words,
-              because they went with the message. */
-          <div class="ml-auto flex w-fit max-w-[85%] flex-col items-end">
+              because they went with the message. A machine's sentence takes
+              the other shape — the full column, on the left. */
+          <div class={rang() === undefined ? MINE_COLUMN : RANG_COLUMN}>
             {/* What the message was ABOUT, above what it said — the order the
                 composer had them in, and the order they were meant in: the node
                 is the subject and the words are what was asked about it. Still
@@ -237,14 +296,37 @@ export function Entry(props: {
                 screenshot from being an empty grey box with a chip under it. */}
             <Attachments names={user().attachments ?? []} />
             <Show when={user().text !== ""}>
-              <p
-                class={`whitespace-pre-wrap rounded px-2 py-1.5 text-sm text-ink ${
-                  bubbleOf(user().delivery)
-                }`}
-                data-testid={TESTID.chatMine}
+              {/* ONE SET OF WORDS, TWO FACES. `chatMine` stays on the human
+                  bubble alone — a scenario asking "did I say this" must not be
+                  handed a sentence a plugin said — and the machine's carries
+                  the name of whichever door it came through, as data, since a
+                  conversation two plugins can reach needs to say which rang. */}
+              <Show
+                when={rang()}
+                keyed
+                fallback={
+                  <p
+                    class={`whitespace-pre-wrap rounded px-2 py-1.5 text-sm text-ink ${
+                      bubbleOf(user().delivery)
+                    }`}
+                    data-testid={TESTID.chatMine}
+                  >
+                    {user().text}
+                  </p>
+                }
               >
-                {user().text}
-              </p>
+                {(who) => (
+                  <p
+                    class={`w-full whitespace-pre-wrap rounded px-2 py-1.5 text-sm text-ink ${
+                      rangBubbleOf(user().delivery)
+                    }`}
+                    data-testid={TESTID.chatRang}
+                    data-rang-by={who}
+                  >
+                    {user().text}
+                  </p>
+                )}
+              </Show>
             </Show>
             {/* IT DID NOT LAND — and the words are still here, which is the
                 whole of the promise. The bubble goes dashed and edged rather
@@ -300,7 +382,16 @@ export function Entry(props: {
                       with `not sent` beside it, and wearing `QUIET_PILL`'s
                       `text-xs`/`px-2 py-1` would make one control in that line
                       a size larger than the words it belongs to. */}
-                  <Show when={fate === "refused"}>
+                  {/* ... AND NEVER ON A ROW A MACHINE SAID. The fate line
+                      above still draws — what became of the words is as true
+                      of a plugin's sentence as of a person's — but the press
+                      is the human's alone: a doorbell's body is a DERIVATION
+                      of how something stood when it rang, and sending it again
+                      later would re-send a claim that has since stopped being
+                      true. Nothing is lost by that, which is the half that
+                      makes it safe rather than merely careful: the thing that
+                      derived it rings again by itself on its next tick. */}
+                  <Show when={fate === "refused" && rang() === undefined}>
                     <button
                       type="button"
                       class="rounded border border-rule px-1.5 py-0.5 font-mono text-[0.6875rem] text-muted hover:text-ink"
@@ -314,7 +405,8 @@ export function Entry(props: {
               )}
             </Show>
           </div>
-          )}
+          )
+          }}
         </Match>
 
         <Match when={ofKind("agent")}>

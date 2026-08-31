@@ -1266,6 +1266,16 @@ export const TESTID = {
    *  `chatSaid`: they are two different things on the page, and a scenario
    *  that asks "did I say this" should not have to filter the agent's prose. */
   chatMine: "chat-mine",
+  /** What a MACHINE said in the human's lane — a plugin's doorbell putting a
+   *  sentence into the conversation (`@olai/plugins`' `Deliveries`). It is a
+   *  `user` row like `chatMine` and deliberately not drawn as one: full width
+   *  and left-aligned, with `data-rang-by` naming which plugin rang. It carries
+   *  no `chatResend`, ever — re-sending a derivation that has stopped being true
+   *  is the one outcome the doorbell exists to prevent, and the thing that
+   *  derived it rings again by itself. Absent on a replayed conversation, where
+   *  the row comes back out of message chunks with no mark on it and the
+   *  sentence's own opening line is the whole of the attribution. */
+  chatRang: "chat-rang",
   /** One row. `data-kind` is which of the six it is, and `data-entry-id` is
    *  its transcript key — which is what a lane names when it says which agent
    *  a call was made inside (`chatLane`), so it is a handle scenarios reach
@@ -1388,6 +1398,39 @@ export const TESTID = {
    *  uses. It names the DURATION alone, so what a scenario reads back is the
    *  number rather than the sentence around it. */
   chatWatchingFor: "chat-watching-for",
+  /** THE STRIP under that one: what this conversation WAKES ON. One line per
+   *  running plugin that declares a doorbell (`@olai/surface`'s `BuiltPlugin`'s
+   *  `wake`), saying in that plugin's own words what the wake is on and which
+   *  file a person pointed it at. Absent where there is no conversation to be
+   *  scoped, which is the roster strip's own rule. */
+  chatWake: "chat-wake",
+  /** One plugin's control on it: the trigger that opens the file list, wearing
+   *  the picked file's name or `off`. `data-plugin` is WHOSE doorbell and
+   *  `data-file` is the file or `off` — the state as DATA, because the words
+   *  around it are the plugin's sentence and a scenario asserting those would be
+   *  asserting somebody else's vocabulary. `aria-expanded` says whether the list
+   *  is up. */
+  chatWakePicker: "chat-wake-picker",
+  /** The list it opens, hung from the strip's own box. */
+  chatWakeList: "chat-wake-list",
+  /** Where a person types to narrow that list, which a vault of any size needs
+   *  and the chats picker does not (an agent's conversations are tens; a
+   *  directory's files are thousands). */
+  chatWakeQuery: "chat-wake-query",
+  /** One offered file in it; `data-file` is the path a press would scope this
+   *  conversation to. */
+  chatWakeFile: "chat-wake-file",
+  /** ... and the way back OFF, which is the same verb with no file. Drawn only
+   *  where there is something to clear, because a doorbell that is already off
+   *  has nothing to turn off. */
+  chatWakeClear: "chat-wake-clear",
+  /** How many of that plugin's sentences this end is holding for this
+   *  conversation and has not let in yet. Drawn only while it is holding
+   *  something — the panel's rule is that the alternative to holding words out
+   *  of sight is not dropping them, it is showing them. The NUMERAL is core's,
+   *  in `data-waiting`; the noun beside it is the plugin's own word for what is
+   *  waiting, so a scenario reads the count and not the sentence. */
+  chatWakeWaiting: "chat-wake-waiting",
   /** ... and how that task ENDED, in the harness's own word — `completed`,
    *  `failed`, `killed`, `stopped`, of which ACP's own status can spell only
    *  two. Drawn only once the task has ended, which is what makes its presence

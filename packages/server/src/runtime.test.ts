@@ -638,6 +638,54 @@ test("no plugin slot is no roster, rather than every plugin off", () => {
   expect(rosterOf(null)).toEqual(NO_ROSTER)
 })
 
+/**
+ * THE DOORBELL'S SENTENCE RIDES THE ROSTER, and only on a row that is RUNNING.
+ *
+ * The strip draws a scope control out of this cell, so the words it draws have
+ * to be here — they are compiled in and move at most once per serve, which is
+ * why they are on this roster rather than republished per conversation.
+ *
+ * The gate is the half worth a test. This roster carries a row per BUILT plugin
+ * whether or not this serve composed it — that is the feature the rows above are
+ * about — so a picker offered for a plugin that is OFF would store a pick
+ * nothing will ever read. The halves are a parameter rather than a registry read
+ * for the reason the names are: a general file names no plugin.
+ */
+test("a wake sentence reaches the roster, and never for a plugin this serve left out", () => {
+  const [first, second] = PLUGIN_NAMES
+  if (first === undefined || second === undefined) {
+    throw new Error("this build has fewer than two plugins to tell apart")
+  }
+  const wake = {
+    subject: "wake on terminal activity",
+    from: "terminals from",
+    waiting: { one: "waiting sentence", many: "waiting sentences" },
+  }
+  const halves = [{ name: first, wake }, { name: second }]
+
+  const all = rosterOf({ env: {}, now: () => STARTED, served: "/tmp" }, halves)
+  expect(all.built.find((row) => row.name === first)?.wake).toEqual(wake)
+  // A plugin that wakes nobody declares none, which is a whole plugin and the
+  // ordinary case — absent rather than an empty sentence.
+  expect(all.built.find((row) => row.name === second)?.wake).toBeUndefined()
+
+  // ... and the row is still THERE when the flag leaves it out, saying it does
+  // not run — with no picker on it.
+  const pinned = rosterOf({ env: {}, now: () => STARTED, served: "/tmp", names: [second] }, halves)
+  expect(pinned.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
+  expect(pinned.built.find((row) => row.name === first)?.running).toBe(false)
+  expect(pinned.built.find((row) => row.name === first)?.wake).toBeUndefined()
+})
+
+/** ... and a caller that only wants to know which plugins the build HAS says so
+ *  by naming no halves. The four cases above are that caller, and this is the
+ *  claim they make read out loud. */
+test("no halves is no sentence, and every row is still there", () => {
+  const all = rosterOf({ env: {}, now: () => STARTED, served: "/tmp" })
+  expect(all.built.map((row) => row.name)).toEqual([...PLUGIN_NAMES])
+  expect(all.built.every((row) => row.wake === undefined)).toBe(true)
+})
+
 /** ...and the cell a browser actually reads carries it. The one member on this
  *  surface with no connector: the flag is read once, before the runtime exists,
  *  so there is nothing for a subscription to hear. */
