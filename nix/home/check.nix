@@ -107,6 +107,11 @@ let
     # to anyway would claim a flag nobody typed.
     assert !(lib.hasInfix "--commit" execPlain);
     assert !(lib.hasInfix "--push" execPlain);
+    # ...and NO PLUGIN FLAG either, for the identical reason one line up: an
+    # omitted `--plugins` runs every plugin this build has AND draws "the
+    # built-in default" under the preferences row, where a given one names the
+    # flag. A module that expanded the default into a list would claim one.
+    assert !(lib.hasInfix "--plugins" execPlain);
     assert linux.config.home.packages == [ fakeOlai ];
     # No log-level env when the option is unset — info is olai's own default,
     # and a module that helpfully passed it would still be an instance pin
@@ -129,6 +134,31 @@ let
     assert lib.hasInfix "--push off" pinnedExec;
     assert lib.hasInfix "--commit off" commitOnlyExec;
     assert !(lib.hasInfix "--push" commitOnlyExec);
+    true;
+
+  # --- the plugin list, which has THREE arms and not two -------------------
+  # `null` is asserted above (no flag). The other two are what the preferences
+  # row has to be able to tell apart, and they are why the option is
+  # `nullOr (listOf str)` rather than a list with `[]` as its default: saying
+  # NONE out loud is a real, supported serve, and it is not the same answer as
+  # saying nothing.
+  oduOnly = execOf (evalFor { isLinux = true; isDarwin = false; } { plugins = [ "odu" ]; });
+  noPlugins = execOf (evalFor { isLinux = true; isDarwin = false; } { plugins = [ ]; });
+  bothPlugins = execOf
+    (evalFor { isLinux = true; isDarwin = false; } { plugins = [ "kolu" "odu" ]; });
+  _plugins =
+    assert lib.hasInfix "--plugins odu" oduOnly;
+    # An empty list reaches the CLI as an EMPTY VALUE — `--plugins ''` after
+    # escaping — which is the flag's own spelling for none. Dropping the flag
+    # instead would silently turn "run nothing" into "run everything".
+    assert lib.hasInfix "--plugins ''" noPlugins;
+    # A comma list, because the flag reads one value rather than repeating.
+    assert lib.hasInfix "--plugins kolu,odu" bothPlugins;
+    # Independent of the git policy, both ways round: an operator who ruled on
+    # plugins has not silently ruled on committing, and the pinned config above
+    # carries no plugin flag.
+    assert !(lib.hasInfix "--commit" oduOnly);
+    assert !(lib.hasInfix "--plugins" pinnedExec);
     true;
 
   # --- log level, when an operator raises it -------------------------------
@@ -193,11 +223,13 @@ in
 assert _linux;
 assert _darwin;
 assert _pinned;
+assert _plugins;
 assert _loud;
 assert _env;
 pkgs.runCommand "olai-hm-module-check" { } ''
   echo "services.olai module evaluates (linux systemd + darwin launchd)"
   echo "  ... and the git policy options reach argv only when they are set"
+  echo "  ... and --plugins tells apart nobody-said, none, and a list"
   echo "  ... and the log level reaches both supervisors when it is raised"
   echo "  ... and environmentFile reaches the unit on Linux, and is refused on Darwin"
   touch $out

@@ -30,11 +30,47 @@
  * expressed by moving a line in the registry — and today nothing needs to,
  * because no plugin's mount reads another's context.
  *
- * `<Show>` and a `<Dynamic>` were both tried and neither is right here: the
- * chain is built ONCE, at module scope, off a compiled-in list that cannot
- * change, so a reactive construct would only be machinery guarding a constant.
  * What it must NOT be is a `.map()` into siblings — these wrap, they do not sit
  * beside each other.
+ *
+ * ## THE FOLD IS OVER WHAT THIS SERVE COMPOSED, and waits to find out
+ *
+ * It was over the BUILD, and grok's review named the gap. A plugin's mount is
+ * where its members are BOUND — kolu's takes five, odu's takes one — so folding
+ * the build subscribes every plugin the binary has, whatever the serve is
+ * running. On a `--plugins=odu` serve that is a subscription to a sibling the
+ * wire does not carry: the server answers that one request with `Unknown
+ * request tag`, the retry fence correctly declines to retry a non-transport
+ * failure, and the readout goes `degraded` NAMING A SIBLING THE OPERATOR TURNED
+ * OFF — for the life of the page, because the failure is the fiber's exit and
+ * no frame can follow one. That is a complaint about a tool somebody removed
+ * where the ruling is the ordinary machine-without-it state, and it is the same
+ * defect the terminal door had before the evidence run found it, one layer up.
+ *
+ * So the fold waits. `createComposed` answers `undefined` until the roster has
+ * spoken and the names afterwards, and this component mounts nothing until it
+ * has an answer. THE GENEROUS DEFAULT IS NOT AVAILABLE HERE, which is the
+ * asymmetry with the dressing table one package over: a face drawn early and
+ * taken away is a flicker, and a subscription opened early cannot be closed
+ * back into the health fact. `../plugins/running.ts` argues the pair.
+ *
+ * ## What that costs, said out loud
+ *
+ * ONE re-creation of the page, on load. While the roster is unknown this draws
+ * `children` with no plugin provider around them, and when the answer lands the
+ * fold changes and Solid builds the subtree again inside the providers. The
+ * alternative — draw NOTHING until the roster lands — was rejected because the
+ * freeze overlay is inside this component (`../App.tsx`): a tab that cannot
+ * reach its server has to be able to say so, and blanking the page to protect a
+ * subscription would take the sentence away with it.
+ *
+ * The cost is bounded by two things rather than hoped away. The signature the
+ * memo compares is a STRING, so a server republishing an identical roster — a
+ * reconnect does — moves nothing; and the roster rides the same socket as every
+ * other first frame, so the subtree being rebuilt is the one that was a beat
+ * old. What it is NOT bounded by is arrival order: a page frame that lands
+ * before the roster is drawn and then rebuilt, which is a flash on a cold load
+ * and is the honest price of not latching a permanent lie.
  *
  * ## A plugin with no mount is not a lesser plugin
  *
@@ -43,10 +79,11 @@
  * skips it, which is the same absent arm every other hook on a manifest has.
  */
 
-import type { JSX } from "solid-js"
+import { type JSX, Show } from "solid-js"
 
 import { FURNITURE } from "./furniture.tsx"
 import { ROSTER } from "./roster.ts"
+import { createComposed } from "./running.ts"
 import { clientFor } from "../wire.ts"
 
 /** The page, with every plugin's tab half wrapped around it. */
@@ -76,7 +113,35 @@ export function PluginsMounted(props: { readonly children: JSX.Element }): JSX.E
   // Folding over THUNKS fixes it at the root: `{inner()}` inside the JSX is
   // compiled to a getter, so each level's children are built when the mount
   // above them renders them — inside that mount's owner, under its providers.
-  return ROSTER.reduceRight<() => JSX.Element>(
+  const composed = createComposed()
+  // `keyed`, so the subtree is rebuilt exactly when the ANSWER moves and never
+  // when the cell merely publishes: `createComposed` hands back one array
+  // identity per distinct roster, so a reconnect that republishes the same one
+  // moves nothing here. The FALLBACK is the roster not having spoken — the
+  // children alone, with no provider around them and therefore no plugin
+  // subscription, which is the whole of what this waits for.
+  //
+  // `<Show>` rather than a memo returning JSX, and it is not a style choice: a
+  // memo that BUILDS a subtree tracks every signal the components it creates
+  // read at setup, so the page would rebuild for reasons that have nothing to
+  // do with the roster. `Show` runs its children untracked, which is the same
+  // guarantee a component body has and the one the old module-scope fold got
+  // for free.
+  return (
+    <Show when={composed()} keyed fallback={props.children}>
+      {(names) => chainOver(names, () => props.children)()}
+    </Show>
+  )
+}
+
+/** The nesting, for the plugins this serve composed — a right fold, so registry
+ *  order reads top-down as the nesting reads outside-in. */
+const chainOver = (
+  names: ReadonlyArray<string>,
+  page: () => JSX.Element,
+): (() => JSX.Element) => {
+  const on = new Set(names)
+  return ROSTER.filter((plugin) => on.has(plugin.name)).reduceRight<() => JSX.Element>(
     (inner, plugin) => {
       const Mount = plugin.mount
       if (Mount === undefined) return inner
@@ -90,6 +155,6 @@ export function PluginsMounted(props: { readonly children: JSX.Element }): JSX.E
         </Mount>
       )
     },
-    () => props.children,
-  )()
+    page,
+  )
 }

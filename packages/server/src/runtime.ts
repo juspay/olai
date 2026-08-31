@@ -1697,7 +1697,7 @@ export const bind = (
      * with none, which the fusion below then adds to olai's own surface and
      * changes nothing about it. That is what "this process runs no plugins"
      * means, and it costs no mechanism — it is data the composition already
-     * takes (`@olai/plugins`' `compose.test.ts` holds it).
+     * takes (`@olai/plugins`' `composition.test.ts` holds it).
      */
     const bundle = implementSurfaces(
       surfacesOf(composed.map((one) => one.plugin)) as unknown as SurfaceMap,

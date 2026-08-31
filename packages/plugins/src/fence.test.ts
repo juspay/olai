@@ -70,14 +70,29 @@
  *      declared — which is exactly the hydrated set, and exactly what the
  *      isolated linker cannot refuse.
  *
+ *   8. **...and no general package spells a plugin's NAME in code either.**
+ *      The seven above are about imports; this one is about the other door a
+ *      name gets in through — a `koluHalf(…)` call, a `wiring.kolu` slot, an
+ *      `olai.cells["plugins:odu:ci"]`. None of those is an import, and every
+ *      one of them was in this tree before the extraction.
+ *
  * ## What it deliberately does NOT claim
  *
  * That no file anywhere SPELLS the word. Prose that names a package is not a
  * dependency, and a fence that failed on a comment is a fence people learn to
- * work around — which is `check-kolu-deps.sh`'s own ruling and is kept. The
- * companion sweep over what a general package spells in CODE lives in
- * `@olai/tests`, which is the only package above all the others; a sweep here
- * reading the browser would be the floor reading the roof.
+ * work around — which is `check-kolu-deps.sh`'s own ruling and is kept. Claim 8
+ * therefore reads what a file COMPILES TO rather than what it says, and it is
+ * scoped to production sources: a bench's fixture carries a VAULT's words
+ * ("Kolu integration" as a node title, `kolu fleet watch` as a command somebody
+ * ran), and the end-to-end suite spawns a fake padi over kolu's own testlib,
+ * which is what testing kolu looks like.
+ *
+ * That claim used to be a POINTER — "the companion sweep lives in
+ * `@olai/tests`" — and pi's review found it aimed at a sweep nobody had
+ * written. Its reason for exile ("a sweep here reading the browser would be the
+ * floor reading the roof") overstated the direction: this file already reads
+ * every package's sources as text, which is where the four grammars above come
+ * from, and reading is not depending. It is a claim now.
  */
 
 import { existsSync, readdirSync, readFileSync } from "node:fs"
@@ -800,5 +815,155 @@ describe("an appliance's product tier stays inside its tenant", () => {
     }).sort()
     expect(wireDoors.length).toBeGreaterThan(PLUGIN_NAMES.length)
     expect(wireDoors.filter((pkg) => !reached.has(pkg))).toEqual([])
+  })
+})
+
+/**
+ * CLAIM 8 — WHAT A GENERAL PACKAGE SPELLS IN CODE, which is the sweep the
+ * header used to point somewhere else for.
+ *
+ * The seven claims above are about IMPORTS: what a package reaches for, in any
+ * of the four grammars. This one is about the other door a name gets in
+ * through, and it is the one the whole extraction was measured against — a
+ * `koluHalf(…)` call, a `wiring.kolu` slot, an `olai.cells["plugins:odu:ci"]`,
+ * a `padi/` component: none of those is an import of a plugin PACKAGE, and
+ * every one of them is a general package knowing an appliance by name.
+ *
+ * ## Why it is here and not in `@olai/tests`
+ *
+ * Because the header said it was there, and it was not — pi's review found the
+ * pointer aimed at a sweep nobody had written. The choice was to write it or to
+ * fix the sentence, and in a file whose whole thesis is that a claim is a test
+ * rather than a paragraph, the sentence should not be the exception.
+ *
+ * The old sentence's reason for exile was that "a sweep here reading the
+ * browser would be the floor reading the roof". That overstated it: this file
+ * already READS every package's sources as text — that is what the four
+ * grammars above are read out of — and reading is not depending. Nothing here
+ * imports a general package, and nothing can: the manifest declines every one.
+ *
+ * ## PROSE IS STILL ALLOWED, and this is where that is enforced rather than
+ * promised
+ *
+ * The header's standing rule — "a fence that failed on a comment is a fence
+ * people learn to work around" (`check-kolu-deps.sh`'s own ruling, kept) — is
+ * why every claim above reads specifiers rather than words. So this sweep does
+ * not read the file: it reads what the file COMPILES TO. `Bun.Transpiler`'s
+ * `transformSync` is a real parser, so comments are gone by construction rather
+ * than by a hand-rolled stripper — the class of thing that eats the rest of a
+ * line when a string literal contains `//` and turns a fence into a false
+ * negative, which is the one direction a fence may never fail in.
+ *
+ * SPECIFIERS ARE SUBTRACTED for the same reason, using the same parser:
+ * `@olai/plugin-kolu` and `@olai/kolu-client` are import paths, which claims 1
+ * and 6 already govern with a derived tenant and an exact recorded breach.
+ * Counting them again here would be this claim reporting on a decision that is
+ * not its own, and would make its failures unreadable.
+ *
+ * ## What it hunts is the NAME, and not every word a plugin owns
+ *
+ * A plugin's KIND words (`terminal`, `worktree`) are deliberately out of scope
+ * and are held elsewhere, because they are a different claim with a different
+ * shape: they are ordinary English, they legitimately appear in the appliance
+ * packages and in the suite's own fixtures and step definitions, and what
+ * matters about them is not that nobody says them but that ONE constant decides
+ * them — which is `Dressing.kind` reading the plugin's own `kinds.ts`, the
+ * page's `Licence` carrying the answer, and `mechanics.test.ts` holding the
+ * mechanics that used to key on the other spelling.
+ */
+describe("only the registry knows a plugin's name in CODE, too", () => {
+  /** What a file compiles to, with every import path subtracted — the two
+   *  readings this claim is about, both taken with the same parser. */
+  const codeOf = (file: string): string => {
+    const text = readFileSync(path.join(PACKAGES, file), "utf8").replace(/^#![^\n]*\n/, "")
+    const which = file.endsWith(".tsx") ? "tsx" : "ts"
+    let js: string
+    try {
+      js = transpilers[which].transformSync(text)
+    } catch {
+      // A file this parser cannot read is a file this claim cannot make. It is
+      // returned WHOLE rather than skipped, so the failure is a loud false
+      // positive somebody fixes rather than a silent hole.
+      return text
+    }
+    for (const spec of runtimeImportsOf(file, text)) js = js.split(spec).join("")
+    return js
+  }
+
+  /**
+   * PRODUCTION SOURCES ONLY, and the line is principled rather than a place to
+   * hide the hits.
+   *
+   * What ships is what this claim is about: a general package's PRODUCT code
+   * knowing an appliance by name. A bench and a fixture are neither, and the
+   * words they carry are a VAULT'S rather than core's — a node titled "Kolu
+   * integration" in a commit-message bench, a repo path `../kolu/.worktrees/a`
+   * in a resolver's corpus, a chat row quoting `kolu fleet watch` because that
+   * is a command a person ran. Failing on those would be failing on somebody's
+   * prose with an extra step, which is the same trap the header's
+   * comment-versus-code rule is written against.
+   *
+   * `@olai/tests` is excluded WHOLE, and it is the sharpest case: it is the
+   * end-to-end suite, it spawns a fake padi over kolu's own testlib, and it
+   * asserts kolu's Dock-row attributes by name. A claim that forbade it to
+   * spell `kolu` would be a claim that forbade it to test kolu. Its own
+   * manifest already argues the narrower carve-out it keeps (names only,
+   * through `@olai/plugins/testids`), which is the import half of the same
+   * question and is held by claim 1.
+   *
+   * `.css` is left to claim 1, which reads `@import` in the grammar CSS has.
+   */
+  const SUITE = "tests"
+  const isBench = (file: string): boolean =>
+    /\.(test|browsertest|spec|testlib)\.tsx?$/.test(file) ||
+    file.split(path.sep)[0] === SUITE
+  const compiled: ReadonlyMap<string, ReadonlyArray<{ file: string; code: string }>> = new Map(
+    [...tree].map(([pkg, named]) => [
+      pkg,
+      named
+        .filter((one) => /\.tsx?$/.test(one.file) && !isBench(one.file))
+        .map((one) => ({ file: one.file, code: codeOf(one.file) })),
+    ]),
+  )
+
+  /** A plugin's name as it would be SPELLED: any identifier or string that
+   *  begins with it, case-folded, so `koluHalf`, `KoluUi`, `wiring.kolu` and
+   *  `"odu"` all count. No trailing boundary, because the defect this is
+   *  written against was `koluHalf` rather than a bare word. */
+  const spellingOf = (name: string) => new RegExp(`\\b${name}`, "i")
+
+  test("the corpus actually compiled, and the subtraction did not empty it", () => {
+    // Not vacuous, twice over: a transpiler that threw on everything, or a
+    // subtraction that removed the whole file, would make every claim below
+    // pass over nothing.
+    const files = [...compiled.values()].flat()
+    expect(files.length).toBeGreaterThan(300)
+    expect(files.filter((one) => one.code.trim() !== "").length).toBeGreaterThan(300)
+  })
+
+  test("...and it CAN see a spelling, so the claim below is not a broken pattern", () => {
+    // The registry is the one package that may spell every name, so it is also
+    // the place to prove the hunt works at all. A pattern that matched nothing
+    // would report an empty list from every package and pass.
+    const own = compiled.get(REGISTRY) ?? []
+    for (const name of PLUGIN_NAMES) {
+      expect(own.some((one) => spellingOf(name).test(one.code)), name).toBe(true)
+    }
+  })
+
+  test("no package outside the registry and the plugin's own tenant spells it", () => {
+    for (const name of PLUGIN_NAMES) {
+      const mine = TENANTS.get(name) ?? new Set<string>()
+      const spelled = packages
+        .filter((pkg) => pkg !== REGISTRY && !mine.has(pkg))
+        .flatMap((pkg) =>
+          (compiled.get(pkg) ?? [])
+            .filter((one) => spellingOf(name).test(one.code))
+            .map((one) => one.file)
+        )
+      // An EQUALITY against the empty list, like every claim above: a pattern
+      // that rotted would report nothing and pass.
+      expect(spelled.sort(), name).toEqual([])
+    }
   })
 })

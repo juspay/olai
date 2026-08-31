@@ -295,6 +295,25 @@ const GIT_TAG = /^@git:(repo|none|broken)$/;
 const PIN_TAG = /^@pin:(commit|push)=([a-z]+)$/;
 
 /**
+ * `@plugins:<name>[,<name>]` / `@plugins:none`: this scenario's server was
+ * started with `--plugins`, so it composed only what the tag names.
+ *
+ * A TAG rather than a step for `@pin:`'s reason exactly — it decides how the
+ * server is STARTED, and the whole point of the flag is that a page knows
+ * before anybody presses anything. `none` is the empty value (`--plugins=`),
+ * which is a real serve and NOT the same as omitting the tag: omitted runs
+ * every integration this build has, which is what every other scenario wants.
+ *
+ * WHY IT SPELLS PLUGIN NAMES, when almost nothing else in this repo may: a
+ * scenario about `--plugins=odu` is a scenario about a person typing `odu`, and
+ * the words a person types are the one place the name belongs. `@olai/plugins`'
+ * fence holds the claim it actually makes — that no general package IMPORTS a
+ * plugin or spells one in production code — and this suite is neither.
+ */
+const PLUGINS_TAG = /^@plugins:([a-z0-9,-]+)$/;
+
+
+/**
  * `@avatar-template`: this scenario's server was started with an avatar URL
  * TEMPLATE (`OLAI_IDENTITY_AVATAR_TEMPLATE`), which is the second rung of the
  * picture ladder and the answer for a proxy that hands over a username rather
@@ -565,6 +584,12 @@ interface Spawn {
    *  half is absent when that flag was not asked for, because "nobody gave the
    *  flag" is the built-in default. The row is read-only either way. */
   readonly pin?: { readonly commit?: string; readonly push?: string };
+  /** WHICH INTEGRATIONS this server composed (`--plugins`), when the scenario
+   *  asked — see {@link PLUGINS_TAG}. The empty string is the flag given with
+   *  nothing after it, which is NONE; `undefined` is the flag not given, which
+   *  is every one this build has and is every other scenario. */
+  readonly plugins?: string;
+
   /** The avatar URL template this server pictures people with, when the
    *  scenario asked for one — see {@link AVATAR_TAG}. Absent is no template,
    *  which is every other scenario. */
@@ -608,6 +633,14 @@ const startServerChild = async (
       ...(spawnOptions.pin?.push === undefined
         ? []
         : ["--push", spawnOptions.pin.push]),
+      // ...and `--plugins`, on the same terms: given only where the scenario
+      // asked, because giving it at all is what names the flag under the row.
+      // The value may be EMPTY and that is the point — `--plugins=` is somebody
+      // saying none out loud, which the preferences panel tells apart from
+      // nobody having said.
+      ...(spawnOptions.plugins === undefined
+        ? []
+        : ["--plugins", spawnOptions.plugins]),
     ];
     const child = spawn(bin, argv, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -835,6 +868,9 @@ export const startOwnServer = async (world: OlaiWorld): Promise<void> => {
       // back unpinned would hand the open page its preferences back, which is a
       // different server rather than the same one restarted.
       ...(Object.keys(world.gitPin).length === 0 ? {} : { pin: world.gitPin }),
+      // ... and the same plugin set, on the same sentence: a restart that came
+      // back composing more than it did is a different server.
+      ...(world.pluginPin === undefined ? {} : { plugins: world.pluginPin }),
       // ... and the same avatar template, on the same sentence: a restart that
       // came back without it would draw the open page's person off a lower rung.
       ...(world.avatarTemplate === undefined
@@ -1192,6 +1228,12 @@ Before(
         return asked === null ? [] : [[asked[1]!, asked[2]!] as const];
       }),
     );
+    // `none` is the EMPTY value rather than a name, because a cucumber tag is a
+    // word and `--plugins=` has none — the one place the two grammars differ.
+    this.pluginPin = scenario.pickle.tags.flatMap((tag) => {
+      const asked = PLUGINS_TAG.exec(tag.name);
+      return asked === null ? [] : [asked[1] === "none" ? "" : asked[1]!];
+    })[0];
     const pinned = Object.keys(this.gitPin).length > 0;
     // A pinned server without a `@git:` tag is started `--no-commit`, which is
     // `--commit=off` under another name and would quietly beat whatever the pin
@@ -1279,6 +1321,7 @@ Before(
           : { avatar: this.avatarTemplate }),
         ...(this.gitMode === undefined ? {} : { git: this.gitMode }),
         ...(pinned ? { pin: this.gitPin } : {}),
+        ...(this.pluginPin === undefined ? {} : { plugins: this.pluginPin }),
       };
       const ownCopy = async (): Promise<void> => {
         const own = await scratchServerFor(asked.corpus, spawnOptions);

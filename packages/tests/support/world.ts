@@ -1755,6 +1755,13 @@ export class OlaiWorld extends World {
    *  same reason as `gitMode`: a restart has to reproduce the first boot, and
    *  this decides what every browser's preferences panel is allowed to do. */
   gitPin: { commit?: string; push?: string } = {};
+  /** WHICH INTEGRATIONS this scenario's server composed — the `--plugins` value
+   *  a `@plugins:` tag asked for, `""` for none, and `undefined` for the flag
+   *  nobody gave (every integration this build has). Held for `gitPin`'s reason:
+   *  a restart has to reproduce the first boot, and a server that came back
+   *  running a different set is a different server. */
+  pluginPin: string | undefined = undefined;
+
   /** The avatar URL template this scenario's server was started with
    *  (`@avatar-template`), or `undefined` for the ordinary server, which has
    *  none and pictures people from the rungs below it. Carried for the same

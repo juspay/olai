@@ -36,17 +36,21 @@
 # that will not typecheck here is a blocker rather than a nuisance. That is the
 # whole reason this arrangement is worth its cost, and it is unchanged.
 #
-# THE PIN IS FROZEN AT A DRAFT, which is the second state this pin has been in
-# and not its first. It tracked kolu master until the ROOTED BUNDLE arrived —
-# `mergeDisjointGroups` and `exposeRootedFaces` on `@kolu/surface`, and
-# `connectSurfaces`' `core` slot on `@kolu/surface-app` (juspay/kolu#2222) —
-# which is the capability olai asked for and the one this tree's client seam is
-# now built on. #2222 is still a DRAFT, so the pin follows the odu#94 precedent
-# next door exactly: branch `rooted-bundle`, an EXACT sha, and `frozen: true` so
-# `just update-pins` walks every other pin forward and leaves this one alone. A
-# draft's branch head moves under a merge that has not happened yet, and a pin
-# that moved under this tree would change what `@olai/web` compiles against
-# without a diff to show for it.
+# THE PIN IS FROZEN AT AN UNMERGED HEAD, which is the second state this pin has
+# been in and not its first. It tracked kolu master until the ROOTED BUNDLE
+# arrived — `mergeDisjointGroups` and `exposeRootedFaces` on `@kolu/surface`,
+# and `connectSurfaces`' `core` slot on `@kolu/surface-app` (juspay/kolu#2222)
+# — which is the capability olai asked for and the one this tree's client seam
+# is now built on.
+#
+# UNMERGED is the whole of the condition, and it is deliberately not "still a
+# draft": whether a PR is marked draft is a label somebody flips, and this pin
+# does not care about labels. What it cares about is that `rooted-bundle` is a
+# branch whose head can still move — under a merge, a rebase, or an amendment —
+# and a pin that moved with it would change what `@olai/web` compiles against
+# with no diff to show for it. So the pin follows the odu#94 precedent next door
+# exactly: that branch, an EXACT sha, and `frozen: true`, so `just update-pins`
+# walks every other pin forward and leaves this one alone.
 #
 # RE-PIN AT FOLD. When #2222 merges, the reason expires with it: unfreeze, point
 # `branch` back at `master`, and the pin becomes an ordinary tracking one again.

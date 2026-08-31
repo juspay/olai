@@ -101,7 +101,8 @@
  * What it costs when a face DOES dispatch one is the next section, read off the
  * framework rather than assumed.
  *
- * ## WHAT A SUBSCRIPTION TO AN ABSENT SIBLING DOES, exactly
+ * ## WHAT A SUBSCRIPTION TO AN ABSENT SIBLING WOULD DO — and why nothing makes
+ * one
  *
  * The server's RPC router looks a call's tag up in the group it was built over
  * and, finding nothing, answers THAT ONE REQUEST with a defect —
@@ -112,18 +113,27 @@
  * On this side the per-subscription retry fence declines to retry it: the fence
  * retries TRANSPORT failures only (`@kolu/surface`'s `shouldRetryStreamError`),
  * so there is no request storm. The failure reaches `createSubscription`'s
- * `onFailure`, which latches `error()` and clears `pending` — terminal by
+ * `onFailure`, which latches `error()` and clears `pending` — TERMINAL by
  * design, because a failure is the fiber's exit and no frame can follow one.
  *
- * The consequence is the one that matters, and it is a DEGRADATION rather than
- * a lie: the subscription is enrolled, so the health fold carries its standing
- * error and the readout goes **`degraded`**, naming the member that stopped
- * (`kolu/link`, `odu/ci`). A serve running fewer plugins than its browser was
- * built with therefore shows amber saying exactly which sibling went quiet — it
- * does not freeze (`./connection/reaching.ts` rules `degraded` reachable, on
- * purpose), and it does not go green over a hole. That is the honest state of a
- * build and a serve that disagree, and it is visible instead of silent.
+ * That latch is why dialling the built set is not the whole story, and this
+ * file used to stop one paragraph too early. It read the consequence as an
+ * honest DEGRADATION — amber, naming the sibling that went quiet — which it is,
+ * and which is the right answer for a build and a serve that genuinely
+ * disagree. It is the WRONG answer for `--plugins=odu`, where nothing
+ * disagrees: an operator turned a tool off and the page complained about its
+ * absence for the rest of its life. Grok's review named it; the ruling is that a
+ * disabled plugin is the ordinary machine-without-the-tool state.
  *
+ * So the dial and the SUBSCRIPTION are two decisions, and only the first is
+ * made here. This page dials the built set, which costs a map entry per tag
+ * nobody sends. What SENDS one is a plugin's tab half, and that is mounted only
+ * for the plugins the roster says this serve composed — after the roster has
+ * spoken, never on a guess (`./plugins/Mounted.tsx`, `./plugins/running.ts`,
+ * which argue why the generous default is right for a face and wrong for a
+ * subscription). The amber arm is still reachable and still honest: a tab
+ * genuinely newer than its server, or a roster that could not be read at all,
+ * falls back to the build and says so.
  * ## ...WHICH IS ALSO WHY THERE IS NO EMPTY-MAP BRANCH
  *
  * `--plugins=` with no plugins is a real, supported state (`@olai/server`'s
@@ -135,7 +145,6 @@
  * branch, and the degenerate case is the same code as every other.
  */
 
-import { surfaceWsUrl } from "@kolu/surface-app"
 import { connectSurfaces } from "@kolu/surface-app/solid"
 import { surfacesOf, WIRES } from "@olai/plugins/wire"
 import { surface } from "@olai/surface"
@@ -185,11 +194,14 @@ const CORE = "olai"
  * lists and nothing else.
  */
 const wire = await connectSurfaces({
-  // `surfaceWsUrl(location.origin)` is the ONE scheme-swap and path both legs
-  // share (juspay/kolu#2165). It is spelled rather than defaulted because this
-  // seam requires it where its single-surface twin defaults it — a small
-  // asymmetry, and a line is cheaper than an upstream round for it.
-  url: surfaceWsUrl(location.origin),
+  // NO `url`. It defaults to `surfaceWsUrl(location.origin)` — the ONE
+  // scheme-swap and path both legs share (juspay/kolu#2165) — and a browser app
+  // dialling the origin that served it is not a choice. This line WAS spelled
+  // here, as the last residue of the collapse: the seam required it where its
+  // single-surface twin defaulted it, for a reason neither could name. It was
+  // reported upstream rather than lived with, and kolu took the amendment, so
+  // the residue is gone rather than argued for.
+  //
   // OLAI'S OWN SURFACE AS THE ROOT — unprefixed, so its tags are unchanged and
   // the two reserved round-trips address them. That is what makes them
   // trustworthy on a wire whose SIBLING set varies per serve: core is on every

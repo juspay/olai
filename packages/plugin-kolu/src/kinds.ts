@@ -8,22 +8,29 @@
  * side of the wall knows, so the word, the clause a refusal names it with and
  * the test a value has to pass are declared together, here, as one entry.
  *
- * ## Why the KIND is not `TERMINAL_KEY`
+ * ## THE KIND IS THE ONE WORD, and `TERMINAL_KEY` is not it
  *
- * They are two facts and this file is where they stopped being one. The KEY is
- * what the browser's dressing table is looked up by, because a vault's
- * declarations do not travel and a tab has nothing else to key on
- * (`@olai/format`'s `meaning.ts`, and `@olai/plugins`' `Dressing`). The KIND is
- * what the SERVER follows: the ownership walk ({@link ./claimants.ts}) and the
- * value gate both ask what the vault DECLARED, so a lane whose column is called
- * `pty` or `where` wears the door the day its row says `{"type":"terminal"}` —
- * and a property somebody happened to name `terminal` in a vault that declares
- * nothing does not, which is the behaviour change and is the point of it.
+ * `TERMINAL_KEY` is what `@olai/kolu-client` calls a COLUMN — the string the
+ * fleet's own arithmetic reads and the drawer's fact line wears. This is the
+ * word a VAULT DECLARES, and everything that decides whether a value is a
+ * terminal follows it: the ownership walk ({@link ./claimants.ts}), the value
+ * gate, and — since the page began carrying the licence per drawn value — the
+ * browser's dressing table too ({@link ./plugin.ts}'s `dressings`, keyed by
+ * `TERMINAL_KIND`).
  *
- * They read the same today because the obvious key for this kind is the word
- * itself. Spelling them once would have made that coincidence a rule, and the
- * rule is what the name-matching defect was.
+ * So a lane whose column is called `pty` or `where` wears the door the day its
+ * row says `{"type":"terminal"}`, and a property somebody happened to name
+ * `terminal` in a vault that declares nothing does not. That is the behaviour
+ * change and it is the point of it.
  *
+ * FOR ONE PR WINDOW THE BROWSER FOLLOWED THE KEY, because a vault's
+ * declarations deliberately do not travel to a tab (juspay/olai#395) and the
+ * key was all it had — so the server and the page agreed only while a vault
+ * named its column after the kind, and this file's header said so. The close is
+ * `@olai/format`'s `Licence`: the same consult that answers what a value NAMES
+ * answers what claims it, as an answer per drawn value rather than as a rule.
+ * The two spellings are one again, and a later edit that believed the old
+ * paragraph would re-introduce the name-matching this whole kind exists to end.
  * ## This module's graph
  *
  * It is reached from `./server.ts` and from nowhere else, which is where the

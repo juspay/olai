@@ -15,9 +15,22 @@ let
   gitArgs = lib.optionals (cfg.commit != null) [ "--commit" cfg.commit ]
     ++ lib.optionals (cfg.push != null) [ "--push" cfg.push ];
 
+  # ...and `--plugins`, on exactly the same terms. `null` is nobody having said,
+  # which is not the same as saying NONE: an omitted flag applies the built-in
+  # default (every plugin this build has) and an empty list passes `--plugins ""`,
+  # which is somebody saying none out loud. The preferences panel reads the two
+  # differently — one names the flag under the row, the other names the default —
+  # so a module that helpfully expanded `null` into the full list would claim a
+  # flag nobody typed, exactly as `gitArgs` above refuses to.
+  #
+  # A COMMA LIST because that is what the flag takes; `concatStringsSep` and not a
+  # repeated flag, since the CLI reads one value.
+  pluginArgs = lib.optionals (cfg.plugins != null)
+    [ "--plugins" (lib.concatStringsSep "," cfg.plugins) ];
+
   # Pure argv for both supervisors. The package bakes OLAI_DIST_DIR (the
-  # browser bundle); host/port/dataDir and the git policy are the only service
-  # knobs.
+  # browser bundle); host/port/dataDir, the git policy and the plugin list are
+  # the only service knobs.
   webArgs = [
     (lib.getExe cfg.package)
     "web"
@@ -26,7 +39,7 @@ let
     (toString cfg.port)
     "--host"
     cfg.host
-  ] ++ gitArgs;
+  ] ++ gitArgs ++ pluginArgs;
 in
 {
   options.services.olai = {
@@ -95,6 +108,41 @@ in
 
         Two values and not three: a branch that is not pushed on its own is
         pushed by the Push button, so there is no third thing to be.
+      '';
+    };
+
+    plugins = lib.mkOption {
+      # A LIST OF STRINGS and deliberately not an enum: which plugins a build
+      # has is the BINARY's fact, and a nix option that enumerated them would be
+      # a second copy of the registry — one this file would have to be edited to
+      # keep in step, in a repo whose whole thesis is that no general place
+      # spells a plugin's name. The binary is the authority and it refuses an
+      # unknown name ONCE, loudly, with the legal words beside it
+      # (`olai web --plugins nope` names what this build actually has). A wrong
+      # value here is a service that fails to start with that sentence in its
+      # journal, which is the right place for it.
+      type = lib.types.nullOr (lib.types.listOf lib.types.str);
+      default = null;
+      example = lib.literalExpression ''[ "odu" ]'';
+      description = ''
+        Which of the built-in integrations this instance runs, as this
+        instance's POLICY — the same shape `commit` and `push` above have, and
+        for the same reason: it is a fact about the SERVE, so the server holds
+        it and every browser draws the same answer, always read-only. There is
+        no settings file and no browser toggle.
+
+        null (the default) passes no flag and applies the built-in default,
+        which is every plugin this build has. That is NOT the same as listing
+        them: an omitted flag draws "the built-in default" under the
+        preferences row, where a given one names the flag.
+
+        The empty list is somebody saying NONE out loud, and it is a real,
+        supported state — a box with no CI tooling and no agent terminals runs
+        a whole olai with no plugin composed at all: no sibling on the wire, no
+        probe, no chrome pill, and every property that would have worn a live
+        face drawing as the text it always was.
+
+        Run `olai web --help` for the names this build has.
       '';
     };
 

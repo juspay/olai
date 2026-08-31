@@ -43,20 +43,43 @@
  * query, would be a second answer to the app's own.
  */
 
-import { For } from "solid-js"
+import { createMemo, For } from "solid-js"
 
 import { FURNITURE } from "./furniture.tsx"
 import { ROSTER } from "./roster.ts"
+import { createComposed } from "./running.ts"
 
-/** Every plugin's header readout, in registry order. A plugin that hangs none —
- *  which is most of them, and is not a lesser plugin — contributes nothing. */
+/**
+ * Every plugin's header readout, in registry order — for the plugins THIS SERVE
+ * COMPOSED.
+ *
+ * It walked the BUILD, and grok's review named what that costs: a readout is a
+ * component of the plugin's, so drawing it mounts it, and mounting it reads its
+ * plugin's half. On a serve that did not compose the sibling, the padi pill drew
+ * its "no padi is running" arm — a sentence complaining about a daemon the
+ * operator deliberately turned off, where the ruling is the ordinary
+ * machine-without-the-tool state: nothing in the bar at all.
+ *
+ * `undefined` — the roster not yet spoken — draws NOTHING, not everything. The
+ * asymmetry with the dressing table is `./running.ts`'s and it holds here for
+ * both of its reasons: a readout that appears a beat late is a pill sliding into
+ * a bar, where one that appears and then binds a member this wire does not carry
+ * latches a `degraded` readout for the life of the page. And a bar is where that
+ * lie would be READ.
+ */
 export function PluginHeaders() {
-  const headers = ROSTER.flatMap((plugin) => {
-    const Header = plugin.chrome?.Header
-    return Header === undefined ? [] : [Header]
+  const composed = createComposed()
+  const headers = createMemo(() => {
+    const names = composed()
+    if (names === undefined) return []
+    const on = new Set(names)
+    return ROSTER.flatMap((plugin) => {
+      const Header = on.has(plugin.name) ? plugin.chrome?.Header : undefined
+      return Header === undefined ? [] : [Header]
+    })
   })
   return (
-    <For each={headers}>
+    <For each={headers()}>
       {(Header) => <Header app={FURNITURE} />}
     </For>
   )

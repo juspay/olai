@@ -24,7 +24,7 @@ import { Then, When } from "@cucumber/cucumber";
 
 import { attr } from "../support/selectors.ts";
 
-import { type OlaiWorld, POLL_TIMEOUT } from "../support/world.ts";
+import { APP_HEADER, type OlaiWorld, POLL_TIMEOUT } from "../support/world.ts";
 
 const BLOCK = `[data-testid="terminal-block"]`;
 const ROW = `[data-dock-row]`;
@@ -125,6 +125,23 @@ Then(
 );
 
 Then(
+  "the terminal on {string} shows no door but keeps its value",
+  async function (this: OlaiWorld, id: string) {
+    // THE OTHER HALF OF THE ABSENT STATE, and the half a reader of a disabled
+    // serve actually cares about: the record is untouched. A value that vanished
+    // with the plugin would be the display deciding a fact stopped being one.
+    const chip = this.node(id).locator(`[data-testid="prop"][data-key="terminal"]`).first();
+    await chip.waitFor({ state: "visible", timeout: POLL_TIMEOUT });
+    const drawn = await chip.locator(`[data-testid="prop-value"]`).first().textContent();
+    assert.ok(
+      drawn !== null && drawn.trim() !== "",
+      `${id} should still draw its terminal value as text — it drew ${JSON.stringify(drawn)}`,
+    );
+    assert.equal(await this.node(id).locator(BLOCK).count(), 0);
+  },
+);
+
+Then(
   "the terminal on {string} shows the stored value",
   async function (this: OlaiWorld, id: string) {
     // The record's own id, on the page beside the row. Two statements, not one:
@@ -209,6 +226,30 @@ Then(
     await this.waitUntil(
       async () => (await pill.getAttribute("data-padi")) === status,
       `the padi indicator to say ${JSON.stringify(status)}`,
+    );
+  },
+);
+
+Then(
+  "the padi indicator is not drawn at all",
+  async function (this: OlaiWorld) {
+    // THE ABSENT STATE, and it is not the pill's own "no padi is running" arm:
+    // there is no pill. That distinction is the whole of what a disabled plugin
+    // means — a machine that never had the tool has no chip in its bar, where a
+    // pill saying the daemon is missing is a complaint about a tool somebody
+    // deliberately turned off.
+    //
+    // Waited through the HEADER, so a count of zero cannot pass on a bar that
+    // had not drawn yet — which is the failure a bare count would have here,
+    // and it would pass forever.
+    await this.page.locator(APP_HEADER).first().waitFor({
+      state: "visible",
+      timeout: POLL_TIMEOUT,
+    });
+    assert.equal(
+      await this.page.locator(PADI).count(),
+      0,
+      "a serve that composed no kolu should hang no padi readout in the bar",
     );
   },
 );

@@ -229,11 +229,20 @@ olai web ~/outlines --plugins=odu     # odu only
 olai web ~/outlines --plugins=        # neither
 ```
 
-**It is the git policy's shape, one setting over**, and for the same reason: which tools this HOST has is the operator's fact. So it is a CLI flag rather than an env var, a settings file or a browser toggle, preferences draws the rows **read-only** naming where they are changed, and the answer is the same in every browser. An env var names a resource to reach (`OLAI_ACP_AGENT`); this names a policy the instance runs under, and a policy belongs on the `--help` page beside the other policies, where it can be read without knowing it exists.
+...and the same thing where a machine is actually configured, because a policy
+you set by hand on the command line is a policy you set once and forget:
 
-**Omitting the flag is not the same as writing an empty one.** No flag means every integration this binary was built with; `--plugins=` with nothing after it means none, and the preferences row says which of the two you did. A name the build does not have is refused at startup, naming the words it does have — a typo is never a silently disabled integration.
+```nix
+  services.olai.plugins = [ "odu" ];   # odu only
+  services.olai.plugins = [ ];         # neither
+  # omit it entirely            — every integration this build has
+```
 
-**A serve with an integration off is not a degraded serve.** Nothing is parked and nothing is half-wired: the integration's members are not on the wire at all, it probes for nothing, it draws nothing, and the kinds it teaches the vault validate as ordinary text ([live-properties.md](live-properties.md)). The outline it would have owned is an ordinary outline. That is exactly the state a machine that never had the tool is already in, which is why it costs nothing to be true — and it is the state `olai surface` and every headless face already run in.
+**It is the git policy's shape, one setting over**, and for the same reason: which tools this HOST has is the operator's fact. So it is a CLI flag and a home-manager option — the two doors an instance's policy is set through in this repo, exactly as `commit` and `push` are — rather than an env var, a settings file or a browser toggle, preferences draws the rows **read-only** naming where they are changed, and the answer is the same in every browser. An env var names a resource to reach (`OLAI_ACP_AGENT`); this names a policy the instance runs under, and a policy belongs on the `--help` page beside the other policies, where it can be read without knowing it exists.
+
+**Omitting the flag is not the same as writing an empty one.** No flag means every integration this binary was built with; `--plugins=` with nothing after it means none, and the preferences row says which of the two you did. The nix option keeps the same three answers apart: omitted is `null`, none is `[ ]`. A name the build does not have is refused at startup, naming the words it does have — a typo is never a silently disabled integration.
+
+**A serve with an integration off is not a degraded serve**, and the word is literal: the connection indicator stays green. Nothing is parked and nothing is half-wired — the integration's members are not on the wire at all, its tab half is never mounted so nothing subscribes to them, it hangs no chip in the bar, it probes for nothing, and the kinds it teaches the vault validate as ordinary text ([live-properties.md](live-properties.md)). The outline it would have owned is an ordinary outline. That is exactly the state a machine that never had the tool is already in, which is why it costs nothing to be true — and it is the state `olai surface` and every headless face already run in.
 
 **A vault cannot switch one off**, deliberately. A served directory says how an integration should BEHAVE — `_olai/Kolu.olai` is the vault's file and travels with it — but a directory that could decide which tools the machine serving it runs would be the vault deciding something about the host.
 

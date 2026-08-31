@@ -74,6 +74,34 @@ Feature: The `terminal` property is a DOOR
     And the terminal on "old-implement" says "no longer in the fleet"
     And there should be no page errors
 
+  @scratch:lanes @padi:lanes @plugins:odu
+  Scenario: A serve that did not compose kolu is the machine that never had it
+    # THE DISABLED STATE, and it is not the same picture as the one below. There
+    # a padi is missing and the page says so, which is news. Here an operator
+    # ran `--plugins=odu`, and a page that complained about a daemon somebody
+    # deliberately turned off would be reporting on a decision rather than on a
+    # fact. So: no door, no pill, and nothing amber.
+    #
+    # The padi in this scenario is REAL and RUNNING — the `@padi:` tag beside
+    # the `@plugins:` one is deliberate. What is absent is absent because the
+    # SERVE did not compose the plugin, not because there was nothing to reach.
+    #
+    # `the connection is "live"` is the assertion the whole thing turns on. A
+    # tab registers what the BUILD has, so it would subscribe kolu's five
+    # members over a wire that carries none of them — and an unknown tag is a
+    # TERMINAL failure, so the readout would sit at `degraded` naming
+    # `kolu/link` for the life of the page. Nothing subscribes until the roster
+    # says the plugin is on (`web/src/client/plugins/Mounted.tsx`), and this is
+    # what says so.
+    Given I open the outline "lanes.olai"
+    Then "door-implement" wears no terminal door at all
+    And the padi indicator is not drawn at all
+    And the connection is "live"
+    # ...and the vault is untouched underneath: the value is still on the row,
+    # still greppable, drawn as the text it always was.
+    And the terminal on "door-implement" shows no door but keeps its value
+    And there should be no page errors
+
   @scratch:lanes
   Scenario: With no padi there are no rows and the page SAYS why, and is fine
     # No `@padi:` tag, so this server derives the rendezvous path and finds
