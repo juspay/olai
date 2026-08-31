@@ -1137,8 +1137,10 @@ export const TESTID = {
   filterInput: "filter-input",
   /** The page's own out-vote on done-visibility, beside the filter: a
    *  (filter/) two-segment strip, `data-own` while the page holds an entry
-   *  against the panel's default. Outline pages only — a day, the agenda,
-   *  the trash get the bar without it (settings/done.ts). */
+   *  against the panel's default. `data-file` is the outline it speaks for —
+   *  the held previous page during a swap still wears its own. Outline pages
+   *  only — a day, the agenda, the trash get the bar without it
+   *  (settings/done.ts). */
   doneFlip: "done-flip",
   /** The release door of the flip — the `·` mark, a button while the page
    *  owns its say: the flip's two segments ask, the mark hands the pick
