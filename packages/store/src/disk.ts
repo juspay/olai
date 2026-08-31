@@ -433,8 +433,14 @@ export const make = (
     // stage-then-publish pair like a write is: there is no temp file whose
     // rename could unlink, so the single `remove` IS the atomic step. Called
     // only from the write gate, after the commit's staged writes have landed.
+    //
+    // `force`: the caller's ask is OUTCOME-shaped — "this path is gone" — so
+    // a path that reached the answer first (an editor's own delete raced the
+    // gate's permit window) is that outcome's arrival, not the call's
+    // failure: what the gate promised stands, and the probe reports the diff
+    // it will read on the next look either way.
     const remove = (path: string) =>
-      fs.remove(absolute(path)).pipe(
+      fs.remove(absolute(path), { force: true }).pipe(
         Effect.mapError((cause) => new PlatformFailure({ path, cause })),
       )
 

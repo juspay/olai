@@ -1065,6 +1065,20 @@ test("a removal commit unlinks the file, and the revision says `removed`", () =>
         changes: [{ path: "b.txt", contents: null }],
       }))
       expect(second._tag).toBe("StaleWrite")
+      // …but the STALE part is the rev, and only the rev: the disk's unlink
+      // promises an OUTCOME, so the same removal ASKED AT THE PRESENT rev of a
+      // thing that is already gone is a quiet landing, not a failure — and a
+      // landing with nothing to land: no staged bytes, no unlink to make
+      // thereby (the promise-keeping), and THE REV UNMOVED, which is what a
+      // subscriber can see: a delta the probe never finds is a publication
+      // nobody makes.
+      const askAgain = yield* store.commit({
+        baseRev: after?.rev ?? 0,
+        changes: [{ path: "b.txt", contents: null }],
+      })
+      expect(Result.isSuccess(askAgain)).toBe(true)
+      const afterAgain = yield* snapshotOf(store)
+      expect(afterAgain?.rev).toBe(after?.rev)
     })))
 
 test("a set the codec would not publish for the removal is a refusal, not an unlink", () =>

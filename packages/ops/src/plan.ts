@@ -5511,7 +5511,7 @@ const namingDocument = (
       const held = typeof value === "string" ? [value] : value
       for (const one of held) {
         if (resolvedDoc(declared, at.file, one) === file) {
-          // The bare KEY — \"agent\", not `` `agent` `` — so the refusal can
+          // The bare KEY — "agent", not `` `agent` `` — so the refusal can
           // decide what to spell around it, as {@link namingByProp}'s `fields`
           // already hands its caller the same shape.
           found.push({ at, via: key })
@@ -5538,7 +5538,7 @@ const namingDocument = (
  * commit door every write takes, recoverable to exactly the extent git had
  * already recorded the bytes and no further. A file-level trash would be a
  * fifth convention with a listing, a restore verb and a fresh answer to
- * \"what does a pin into it mean\"; this layer says the smaller fact twice
+ * "what does a pin into it mean"; this layer says the smaller fact twice
  * (here, in the tool description), because the description is the agent's
  * only manual.
  *
@@ -5575,7 +5575,10 @@ const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): 
     return Result.fail(
       new UsageFailure({
         reason:
-          `\`${request.file}\` is ${kind === "image" ? "an" : "a"} ${kind} — olai only SHOWS files of this kind ` +
+          // The registry names the kind, so grammar is all this asks: an
+          // article is a rule of ENGLISH, read the naive way, and not a
+          // column on the claim table for one letter.
+          `\`${request.file}\` is ${/^[aeiou]/.test(kind) ? "an" : "a"} ${kind} — olai only SHOWS files of this kind ` +
           `and never writes one, and that extends to removing one: it belongs to ` +
           `whatever put it there`,
       }),
@@ -5619,7 +5622,7 @@ const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): 
         new UsageFailure({
           reason:
             `\`${request.file}\` still holds ${held.length === 1 ? "a record" : `${held.length} records`} — ` +
-            `${capped(held, (one) => `\`${one.id}\` (${shownTitle(scope, one.id)})`)}. Delete removes ` + 
+            `${capped(held, (one) => `\`${one.id}\` (${shownTitle(scope, one.id)})`)}. Delete removes ` +
             `only an EMPTY outline: \`trash_node\` is what moves a record out of one`,
         }),
       )
@@ -5627,12 +5630,15 @@ const planDelete = (scope: Scope, request: Extract<Request, { op: "delete" }>): 
   } else {
     const outgoing = namingDocument(scope, request.file)
     if (outgoing.length > 0) {
+      // NAMED through {@link capped}, like every refusal holding a walk:
+      // forty tasks attaching one spec is an ordinary vault, and a refusal
+      // pointing forty arrows has buried the sentence meant. The `that`/
+      // `those` still counts the WHOLE list — the cap is for the naming.
       return Result.fail(
         new UsageFailure({
           reason:
-            `\`${request.file}\` is still named by ${outgoing.map(({ at, via }) =>
-              `\`${at.node.id}\` (\`${via}\`, ${at.file}:${at.line})`)
-              .join(", ")} — deleting the file would leave ${outgoing.length === 1 ? "that" : "those"} ` +
+            `\`${request.file}\` is still named by ${capped(outgoing, ({ at, via }) =>
+              `\`${at.node.id}\` (\`${via}\`, ${at.file}:${at.line})`)} — deleting the file would leave ${outgoing.length === 1 ? "that" : "those"} ` +
             `pointing at nothing. Re-point ${outgoing.length === 1 ? "it" : "them"}, or delete the ` +
             `naming record first.`,
         }),
@@ -5832,5 +5838,13 @@ const PLANNERS: {
  * wrong request does not compile), which is where the safety is; this line only
  * re-states what the key already decided.
  */
+/** EVERY verb the table above dispatches, read off it — the golden corpus
+ *  (`./plans.golden.test.ts`) checks the script it holds against THE SET, and
+ *  before this export it could only hold one of its own, which is precisely
+ *  how `delete` spent a function's whole run without a row. */
+export const VERBS: ReadonlyArray<Request["op"]> = Object.keys(PLANNERS) as ReadonlyArray<
+  Request["op"]
+>
+
 export const plan = (scope: Scope, request: Request): Planned =>
   (PLANNERS[request.op] as (scope: Scope, request: Request) => Planned)(scope, request)

@@ -11,6 +11,16 @@
  * said every time because a person may be told it at most once and still act
  * as though they knew.
  *
+ * THE UNDO CLAUSE IS THE TWIN'S OWN ANSWER TO ITS OWN PROBLEM — spelled its
+ * way, not summarized: "so what survives is whatever git has already
+ * recorded" is TRUE under every serve state, where the shorter "git's
+ * history is all that holds it" lies to exactly the directories that need the
+ * truth more (no repository, a `--no-commit` serve, a file that was never
+ * committed). A claim honest in every case needs no branch into the git
+ * state — and a confirm branched off a repository cell it would have to
+ * subscribe to would be a second reading of the repository beside the
+ * header's, which is the argument `trash/question.ts`'s header spends.
+ *
  * AND WHAT THE SENTENCE CANNOT SAY IS WHAT STILL NAMES IT. A non-empty
  * outline, a document a `doc` still points at: those are facts about the
  * SET, and a question drawn in a tab would be one reading behind the write.
@@ -19,5 +29,6 @@
  * meets: one gate, one sentence, whoever asked.
  */
 export const deleteQuestion = (path: string): string =>
-  `Delete ${path}? The file goes for good, and nothing puts it back: ` +
-  `git's history is all that holds it.`
+  `Delete ${path}? Nothing in olai puts it back — it leaves the directory ` +
+  `the way every other write does, so what survives is whatever git has ` +
+  `already recorded.`

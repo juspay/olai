@@ -284,7 +284,7 @@ Feature: Documents become writable
     And I mark the page
     Then the file's delete is offered
     When I press Delete file
-    Then the deletion asks "Delete notes/palette.md? The file goes for good, and nothing puts it back: git's history is all that holds it."
+    Then the deletion asks "Delete notes/palette.md? Nothing in olai puts it back — it leaves the directory the way every other write does, so what survives is whatever git has already recorded."
     # Cancel first, so the door and the way out of it are one scenario's: a
     # question that cannot be dropped is one nobody should have been asked.
     And I cancel deleting the file
@@ -308,6 +308,18 @@ Feature: Documents become writable
     And there should be no page errors
 
   @scratch:good
+  Scenario: An outline holding records never offers the verb — the affordance IS a summary of the gate
+    # `DeleteFile.tsx`'s door rule, as a scenario rather than as a comment:
+    # any outline that still names a record drafts its first line instead of a
+    # delete, and nothing about that is a filter on the set — it IS the gate's
+    # own ruling, drawn early so a reader never learns it twice.
+    Given I open the app
+    And I mark the page
+    When I open the outline "house.olai"
+    Then the file's delete is not offered
+    And there should be no page errors
+
+  @scratch:good
   Scenario: An empty outline's page retires it too, from the same truth that offers its first line
     # A new outline's page is the empty-outline page: Start and Delete sit on
     # one condition — an outline with records has no delete affordance
@@ -320,7 +332,8 @@ Feature: Documents become writable
     When I open the empty outline "scratch.olai"
     Then the file's delete is offered
     When I press Delete file
-    Then the deletion asks "Delete scratch.olai? The file goes for good, and nothing puts it back: git's history is all that holds it."
+    Then the deletion asks "Delete scratch.olai? Nothing in olai puts it back — it leaves the directory the way every other write does, so what survives is whatever git has already recorded."
     When I confirm deleting the file
     Then the outline list does not link to "scratch.olai"
+    And the main pane says there is no outline "scratch.olai"
     And there should be no page errors

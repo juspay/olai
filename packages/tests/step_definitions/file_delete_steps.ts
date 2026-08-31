@@ -70,6 +70,25 @@ Then(
  *  refuses is its own sentence — named records and all — and a scenario that
  *  paraphrased it would be testing the step rather than the gate. */
 Then(
+  "the main pane says there is no outline {string}",
+  async function (this: OlaiWorld, file: string) {
+    // The empty-outline page's own nothing sentence retires with the FILE —
+    // `nothing`'s stream is a sentence, and the sentence is what a reader who
+    // lived on the page is now owed, in elaborated form with the BASIC kind
+    // swapped for a reader who only met the page: the `delete` op names the
+    // unit, the pane answers for the page.
+    const said = `No outline named ${file} under the served directory.`
+    await this.waitUntil(
+      async () => {
+        const lines = await this.page.locator("main").allInnerTexts()
+        return lines.some((one) => one.replace(/\s+/g, " ").trim().endsWith(said))
+      },
+      `the outline's own page to say ${JSON.stringify(said)}`,
+    )
+  },
+)
+
+Then(
   "the deletion is refused saying {string}",
   async function (this: OlaiWorld, text: string) {
     await this.waitUntil(

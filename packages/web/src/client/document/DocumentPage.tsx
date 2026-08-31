@@ -154,8 +154,10 @@ function OneDocument(props: { readonly file: string; readonly custom: Custom }) 
               page over), so neither control exists without the other. */}
           <Show when={isServed(served()) && !editing()}>
             {/* flex-1 + justify-end so the QUESTION banding the delete
-                draws over the row's own width rather than squashing the
-                pills it shares it with. */}
+                draws on the row's own width beside the pills rather than
+                squashing them. The sibling door (OutlinePage's emptied
+                outline) has no such row and stacks one line over the pills —
+                the sentence is the same, the rooms differ. */}
             <span class="flex flex-1 items-baseline justify-end gap-2">
               <button
                 type="button"

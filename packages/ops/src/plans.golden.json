@@ -314,5 +314,21 @@
   {
     "what": "a bare undo leaves the work banked",
     "sha": "78bda3ec38382c19"
+  },
+  {
+    "what": "delete the document the script minted",
+    "sha": "69a8813ad636772e"
+  },
+  {
+    "what": "delete it again — refused with the near miss",
+    "sha": "18f2f93a35d733c2"
+  },
+  {
+    "what": "delete an outline holding records — refused, naming them",
+    "sha": "d73742f32014462b"
+  },
+  {
+    "what": "delete a page of the kinds olai only shows — refused",
+    "sha": "d85ef9665a875e58"
   }
 ]

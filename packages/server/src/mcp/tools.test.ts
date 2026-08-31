@@ -2670,9 +2670,11 @@ test("`apply` and `update` advertise finite schemas with no $ref", async () => {
       "untrash",
       "update",
     ])
-    // The four that are deliberately not batchable: the three writes whose
-    // subject is a FILE, and `apply` itself.
-    for (const op of ["create", "create-doc", "doc", "apply"]) {
+    // The FIVE that are deliberately not batchable: the four writes whose
+    // subject is a FILE's existence or contents, and `apply` itself — the
+    // same set the schema-test in `@olai/ops`' batch.test.ts will catch either
+    // way it moves.
+    for (const op of ["create", "create-doc", "doc", "delete", "apply"]) {
       expect(verbs).not.toContain(op)
     }
 

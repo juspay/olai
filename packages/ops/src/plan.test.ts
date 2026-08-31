@@ -5015,6 +5015,23 @@ describe("delete", () => {
     expect(failure.message).toContain("`renovate`")
     expect(failure.message).toContain("`doc`")
     expect(failure.message).toContain("house.olai:1")
+    // …and MANY namers name the first five and count the rest, like every
+    // refusal this layer holds a walk under: the plural is still the whole
+    // list's, never the named half's.
+    const busy = setOf(
+      {
+        "house.olai":
+          [0, 1, 2, 3, 4, 5, 6].map((i) =>
+            `{"id":"task${i}","ord":"${i >= 9 ? "" : "a0"}${i === 0 ? "" : i}","title":"task ${i}","doc":"notes/instructions.md"}`
+          ).join("\n"),
+      },
+      ["notes/instructions.md"],
+    )
+    const many = refused(busy, { op: "delete", file: "notes/instructions.md" })
+    expect(many.message).toContain("task4")
+    expect(many.message).not.toContain("task5")
+    expect(many.message).toContain("and 2 more")
+    expect(many.message).toContain("those")
   })
 
   test("a document a `doc`-DECLARED value names is refused at the same gate", () => {
